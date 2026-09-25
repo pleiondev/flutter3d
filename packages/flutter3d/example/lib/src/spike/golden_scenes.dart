@@ -2,6 +2,7 @@ import 'package:flutter3d/flutter3d.dart';
 
 import 'golden_extras.dart';
 import 'golden_scene.dart';
+import 'golden_stages.dart';
 
 /// The frames CI renders.
 ///
@@ -731,6 +732,413 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
       radius: 0.9,
       strength: 1.0,
     ),
+  ),
+
+  // ---------------------------------------------------------------- 0.8
+  //
+  // One scene per effect the 0.8 plan added, each the arrangement of the
+  // software test that carries its name — see `GoldenStages`. Every one
+  // switches its effect on through `configure` or a field above, so the
+  // scenes before this line draw exactly what they drew.
+  //
+  // `lights: {'none'}` on the staged scenes: the demo's three lamps are
+  // placed for a model on a turntable, and each arrangement brings the light
+  // its test had.
+
+  // R1. The robot playing and a box sliding beside it, shown as the velocity
+  // buffer: skinned, morphed and rigid motion in one frame.
+  const GoldenScene(
+    name: 'velocity-shapes',
+    source: 'morph: Robot',
+    animationTime: 1.2,
+    yaw: 0.6,
+    pitch: 0.25,
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.velocityShapes,
+    configure: GoldenStages.velocityShapesSettings,
+  ),
+
+  // R2. `teapot-generated-normals` under the temporal resolve, settled: the
+  // two differ by what the jittered history made of the silhouette.
+  const GoldenScene(
+    name: 'taa-converge',
+    source: 'obj: Teapot',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    configure: GoldenStages.taaConverge,
+  ),
+
+  // R2 and N4. Thin bars sliding in front of a wall that has just turned
+  // from red to green, twelve frames after the turn, under each clip and
+  // once at six tenths of the size.
+  const GoldenScene(
+    name: 'taa-railing',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.railing,
+    configure: GoldenStages.railingSettings,
+  ),
+  const GoldenScene(
+    name: 'taa-railing-scaled',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.railing,
+    configure: GoldenStages.railingScaledSettings,
+  ),
+  const GoldenScene(
+    name: 'taa-railing-kdop8',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.railing,
+    configure: GoldenStages.railingKdop8Settings,
+  ),
+  const GoldenScene(
+    name: 'taa-railing-kdop16',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.railing,
+    configure: GoldenStages.railingKdop16Settings,
+  ),
+
+  // R3. `ambient-occlusion-corner` with its occlusion accumulated over
+  // frames at half the samples.
+  const GoldenScene(
+    name: 'ao-temporal',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.75,
+    pitch: 0.3,
+    ambientOcclusion: AmbientOcclusionSettings(
+      enabled: true,
+      radius: 0.9,
+      strength: 1.0,
+    ),
+    configure: GoldenStages.aoTemporal,
+  ),
+
+  // L5. The same corner under the horizon search.
+  const GoldenScene(
+    name: 'gtao-corner',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.75,
+    pitch: 0.3,
+    ambientOcclusion: AmbientOcclusionSettings(
+      enabled: true,
+      radius: 0.9,
+      strength: 1.0,
+      method: AmbientOcclusionMethod.gtao,
+    ),
+  ),
+
+  // L5. A red wall bouncing its colour onto the white floor at its foot.
+  const GoldenScene(
+    name: 'ssil-room',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.ssilRoom,
+    configure: GoldenStages.ssilRoomSettings,
+  ),
+
+  // L1. Gold from polished to rough with the lost scattering put back.
+  const GoldenScene(
+    name: 'rough-metals',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.roughMetals,
+    configure: GoldenStages.roughMetalsSettings,
+  ),
+
+  // L8. Rough clay under the energy-preserving diffuse.
+  const GoldenScene(
+    name: 'rough-dielectrics',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.roughDielectrics,
+    configure: GoldenStages.roughDielectricsSettings,
+  ),
+
+  // L2. An HDR test card through the ACES 2.0 table.
+  const GoldenScene(
+    name: 'tonemap-aces2',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.hdrTestCard,
+    configure: GoldenStages.tonemapAces2,
+  ),
+
+  // L3. A red wall's light across a floor, read from the field per pixel.
+  const GoldenScene(
+    name: 'irradiance-room',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.irradianceRoom,
+  ),
+
+  // L6. Sixty-four lights over a floor, every one of them reaching it.
+  const GoldenScene(
+    name: 'many-lights',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.manyLights,
+    configure: GoldenStages.manyLightsSettings,
+  ),
+
+  // S4. The same floor in air that glows round each light.
+  const GoldenScene(
+    name: 'fog-torches',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.fogTorches,
+    configure: GoldenStages.fogTorchesSettings,
+  ),
+
+  // L7. A panel reflected in three roughnesses of floor.
+  const GoldenScene(
+    name: 'area-light-gloss',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.areaLightGloss,
+  ),
+
+  // S1. The last of eight frames of a walk under kept and scrolled cascades.
+  const GoldenScene(
+    name: 'cascade-walk',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.cascadeWalk,
+  ),
+
+  // S2. A raised box's shadow filtered as exponential moments.
+  const GoldenScene(
+    name: 'evsm-soft',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.evsmSoft,
+    configure: GoldenStages.evsmSoftSettings,
+  ),
+
+  // S3. A leaning pole's shadow, sharp at its foot and soft at its tip.
+  const GoldenScene(
+    name: 'sun-contact-hardening',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.sunContactHardening,
+    configure: GoldenStages.sunContactHardeningSettings,
+  ),
+
+  // M1–M3. Each material layer beside the plain sphere it is measured
+  // against, and glass reading the copy of the scene behind it.
+  const GoldenScene(
+    name: 'clearcoat-car-paint',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.clearcoat,
+  ),
+  const GoldenScene(
+    name: 'sheen-fabric',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.sheen,
+  ),
+  const GoldenScene(
+    name: 'anisotropy-disc',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.anisotropy,
+  ),
+  const GoldenScene(
+    name: 'transmission-glass',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.transmissionGlass,
+  ),
+
+  // C1. A glTF file's splats, placed by its node. The plan's name is
+  // `splat-glTF`; every name here is lower case, because the harness finds
+  // them with `[a-z0-9-]+`.
+  const GoldenScene(
+    name: 'splat-gltf',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.splatGltf,
+  ),
+
+  // N5. Splats kept by a hash and averaged by the resolve, unsorted.
+  const GoldenScene(
+    name: 'splat-stochastic',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.splatStochastic,
+    configure: GoldenStages.splatStochasticSettings,
+  ),
+
+  // C4. Five trees as octahedral cards at the distance they switch to them.
+  const GoldenScene(
+    name: 'impostor-forest',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.impostorForest,
+  ),
+
+  // R4. Embers crossing a wall under the resolve, taken from this frame
+  // where they cover it.
+  const GoldenScene(
+    name: 'taa-embers',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.taaEmbers,
+    configure: GoldenStages.taaEmbersSettings,
+  ),
+
+  // R5. `shadow-teapot` drawn at half size and upscaled.
+  const GoldenScene(
+    name: 'easu-half',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.easuHalf,
+  ),
+
+  // R6. A turning wheel blurred along its own motion.
+  const GoldenScene(
+    name: 'motion-blur-spin',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.motionBlurSpin,
+    configure: GoldenStages.motionBlurSpinSettings,
+  ),
+
+  // R7. A dark room against a bright window, each exposed on its own.
+  const GoldenScene(
+    name: 'window-interior',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.windowInterior,
+    configure: GoldenStages.windowInteriorSettings,
+  ),
+
+  // R8. Crossing coloured panes composited without a sort.
+  const GoldenScene(
+    name: 'glass-stack-oit',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.glassStack,
+    configure: GoldenStages.glassStackSettings,
+  ),
+
+  // C8. A transform per map, read at the sampler.
+  const GoldenScene(
+    name: 'texture-transform-per-map',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.textureTransforms,
+  ),
+
+  // C9. A dense scan split into clusters and culled cluster by cluster.
+  const GoldenScene(
+    name: 'scan-chunks',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.scanChunks,
+    configure: GoldenStages.scanChunksSettings,
+  ),
+
+  // N6. Baked smoke lit from both sides.
+  const GoldenScene(
+    name: 'smoke-six-way',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.smokeSixWay,
   ),
 ];
 

@@ -1,5 +1,64 @@
 import 'package:flutter3d/flutter3d.dart';
 
+/// Builds a scene's own content — see [GoldenScene.stage].
+typedef GoldenStaging = Future<GoldenStaged> Function(GoldenStage stage);
+
+/// What a [GoldenStaging] is given: the demo's device, renderer, scene and
+/// the two nodes a staged scene most often has to move.
+final class GoldenStage {
+  const GoldenStage({
+    required this.device,
+    required this.renderer,
+    required this.scene,
+    required this.camera,
+    required this.orbit,
+    required this.sun,
+  });
+
+  final GraphicsDevice device;
+
+  /// The orbit that framed the loaded model, for the one scene that keeps
+  /// the model and places something beside it at the model's own scale.
+  final OrbitController orbit;
+
+  /// For the scenes whose content is a contributor rather than a node:
+  /// particles and splats.
+  final Renderer renderer;
+  final Scene scene;
+  final CameraNode camera;
+
+  /// The demo's directional light, which casts. A staged scene turns it off
+  /// or aims it; the three lamps are switched by [GoldenScene.lights].
+  final LightNode sun;
+}
+
+/// What a [GoldenStaging] built.
+final class GoldenStaged {
+  const GoldenStaged({
+    this.nodes = const <SceneNode>[],
+    this.keepModel = false,
+    this.everyFrame,
+  });
+
+  /// Added under the demo's model pivot, in place of the model unless
+  /// [keepModel] says otherwise.
+  final List<SceneNode> nodes;
+
+  /// Whether the loaded model stays, for the one scene that needs a rigged
+  /// and morphing mesh beside what it builds.
+  final bool keepModel;
+
+  /// Called before every frame with the renderer's index of the frame about
+  /// to be drawn, and the loaded model.
+  ///
+  /// **The frame index, not a count of builds or the clock**, because it is
+  /// the number the jitter, the noise and the history are functions of: a
+  /// motion keyed to it is the same motion on every backend and every run,
+  /// and the capture lands on the same step of it. A staged scene also places
+  /// its camera here when it needs a pose the orbit cannot give.
+  final void Function(int frame, ModelInstance model)? everyFrame;
+}
+
 /// One reproducible frame.
 ///
 /// Every input that changes a pixel is named here, and nothing is left to the
@@ -45,7 +104,30 @@ final class GoldenScene {
     this.reflectionProbe = false,
     this.reflections = const ReflectionSettings(),
     this.ambientOcclusion = const AmbientOcclusionSettings(),
+    this.stage,
+    this.configure,
   });
+
+  /// Builds what the scene draws in place of the loaded model, or null to
+  /// draw the model.
+  ///
+  /// **One hook rather than a flag per scene**, because the scenes 0.8 added are
+  /// thirty arrangements and not thirty variations of a model: a floor under
+  /// sixty-four lights, glass in front of a wall, a wheel turning. A flag each
+  /// would have put thirty `if`s into the demo's staging, where the rooms
+  /// above already take five. Each builder lives in `GoldenStages` and is
+  /// the same construction as the software test that carries the scene's
+  /// name.
+  ///
+  /// Asynchronous because two of them read a file or bake one first — the
+  /// splat asset and the impostor atlas — and the frame counted as the first
+  /// must already have them.
+  final GoldenStaging? stage;
+
+  /// The settings this scene changes beyond the ones named above, applied to
+  /// what the demo would otherwise draw with. Null changes nothing, which is
+  /// what keeps every scene recorded before it byte for byte where it was.
+  final RenderSettings Function(RenderSettings settings)? configure;
 
   /// Screen-space reflections, off in every scene but one.
   ///

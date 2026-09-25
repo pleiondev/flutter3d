@@ -63,7 +63,7 @@ Future<List<int>> _ramp(LookSettings look, {int width = 256}) async {
 
 void main() {
   test('every default is an exact identity', () async {
-    // The promise forty-four goldens rest on. Neutral for these three is
+    // The promise seventy-eight goldens rest on. Neutral for these three is
     // (0,0,0) added, (1,1,1) as an exponent and (1,1,1) multiplied, and the
     // composite has to take all three without moving a byte.
     final plain = await _ramp(const LookSettings());

@@ -16,6 +16,7 @@ import 'src/spike/error_panels.dart';
 import 'src/spike/frame_to_png.dart';
 import 'src/spike/golden_extras.dart';
 import 'src/spike/golden_runner.dart';
+import 'src/spike/golden_scene.dart';
 import 'src/spike/orbit_gestures.dart';
 import 'src/spike/sample_sources.dart';
 import 'src/spike/scene_surface.dart';
@@ -230,6 +231,10 @@ class _SpikePageState extends State<SpikePage>
 
   /// Frames drawn since the scene was staged, for `GoldenScene.cameraAt`.
   int _cameraFrame = 0;
+
+  /// What the scene's `GoldenScene.stage` built, once it has — null for every
+  /// scene that draws the model.
+  GoldenStaged? _stagedContent;
 
   /// Reused across taps: picking allocates nothing per cast, and the result
   /// object is owned by the caster.
@@ -535,6 +540,14 @@ class _SpikePageState extends State<SpikePage>
   /// two agree and a stage reading the wrong float shows it. The model itself
   /// leaves the scene: the batch is the picture, not an addition to it.
   void _batchForGolden(ModelInstance instance) {
+    if (_stagedContent case final staged?) {
+      // A 0.8 scene's own arrangement, built before this `setState` because
+      // building it may have waited on a file. The lights and the ambient are
+      // the builder's to set; see `GoldenStages`.
+      if (!staged.keepModel) instance.removeFromScene();
+      staged.nodes.forEach(_modelPivot.add);
+      return;
+    }
     if (_golden?.scene.reflectionProbe ?? false) {
       // The room is the picture, as the lightmapped one is. The ambient
       // strength goes to one for the *capture*: a probe binds no probe to
@@ -717,6 +730,23 @@ class _SpikePageState extends State<SpikePage>
     final asset = handle.value;
     _lastLoadMillis = stopwatch.elapsedMilliseconds;
 
+    // A staged scene's content, awaited here rather than inside the
+    // `setState` below: the first frame counted is the first one after that
+    // block, and it has to find the content already in place.
+    if (_golden?.scene.stage case final stage?) {
+      _stagedContent = await stage(
+        GoldenStage(
+          device: renderer.device,
+          renderer: renderer,
+          scene: _scene,
+          camera: _camera,
+          orbit: _orbit,
+          sun: _sun,
+        ),
+      );
+      if (!mounted) return;
+    }
+
     setState(() {
       _instance?.removeFromScene();
       _selection.clear();
@@ -756,8 +786,14 @@ class _SpikePageState extends State<SpikePage>
       // switchable at all from outside the UI — and its absence is why five of
       // the six lighting goldens recorded byte-identical PBR images and then
       // passed against each other's references.
-      for (final mesh in _scene.meshes) {
-        mesh.material.lighting = _lighting;
+      //
+      // Not for a staged scene, whose materials name their own models — the
+      // layered model, unlit cards, Lambert floors — and would all be turned
+      // back into plain PBR here.
+      if (_stagedContent == null) {
+        for (final mesh in _scene.meshes) {
+          mesh.material.lighting = _lighting;
+        }
       }
 
       // Show what the model actually uses, so the numbers on the sliders are not
@@ -1039,6 +1075,12 @@ class _SpikePageState extends State<SpikePage>
       ..range = distance * 6.0;
   }
 
+  /// [settings] as the golden scene changes them — see
+  /// `GoldenScene.configure`. Unchanged for every scene that asks for nothing
+  /// and for a person driving the demo.
+  RenderSettings _configured(RenderSettings settings) =>
+      _golden?.scene.configure?.call(settings) ?? settings;
+
   void _applyLighting(LightingModel model) {
     setState(() {
       _lighting = model;
@@ -1116,6 +1158,14 @@ class _SpikePageState extends State<SpikePage>
       _orbit.syncProjectionDepth(_camera);
     }
 
+    // A staged scene's motion, keyed to the index of the frame about to be
+    // drawn — see `GoldenStaged.everyFrame`.
+    final instance = _instance;
+    if (_stagedContent?.everyFrame case final every?
+        when _staged && instance != null) {
+      every(renderer.frameIndex, instance);
+    }
+
     // The model's own clips advance on the same clock. A delta rather than the
     // elapsed total, so pausing the player actually pauses it instead of making
     // it jump on resume.
@@ -1169,27 +1219,29 @@ class _SpikePageState extends State<SpikePage>
                                   _golden.scene.width.toDouble(),
                                   _golden.scene.height.toDouble(),
                                 ),
-                          settings: RenderSettings(
-                            specular: _specular,
-                            exposure: _exposure,
-                            wireframe: _wireframe,
-                            backfaceCulling: _culling,
-                            debug: _debug,
-                            highlighted: _selection,
-                            bloom: _bloom,
-                            shadows: _shadows,
-                            // The normals view is not light, so the display
-                            // transform would corrupt it: a normal encoded as
-                            // RGB has no business being rolled off or exposed.
-                            tonemap: _lighting != LightingModel.normals,
-                            showSurfaceBuffer: _showSurfaceBuffer,
-                            showShadowMap: _showShadowMap,
-                            sky: _sky,
-                            autoExposure: _autoExposure,
-                            xray: _xray,
-                            reflections: _reflections,
-                            ambientOcclusion: _ambientOcclusion,
-                            occlusion: occlusion,
+                          settings: _configured(
+                            RenderSettings(
+                              specular: _specular,
+                              exposure: _exposure,
+                              wireframe: _wireframe,
+                              backfaceCulling: _culling,
+                              debug: _debug,
+                              highlighted: _selection,
+                              bloom: _bloom,
+                              shadows: _shadows,
+                              // The normals view is not light, so the display
+                              // transform would corrupt it: a normal encoded as
+                              // RGB has no business being rolled off or exposed.
+                              tonemap: _lighting != LightingModel.normals,
+                              showSurfaceBuffer: _showSurfaceBuffer,
+                              showShadowMap: _showShadowMap,
+                              sky: _sky,
+                              autoExposure: _autoExposure,
+                              xray: _xray,
+                              reflections: _reflections,
+                              ambientOcclusion: _ambientOcclusion,
+                              occlusion: occlusion,
+                            ),
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;
