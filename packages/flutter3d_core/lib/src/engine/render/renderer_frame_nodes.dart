@@ -1638,12 +1638,15 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
 /// is computed from. Declaring it is what attaches the buffer, the same way
 /// the occlusion pass's declaration does.
 final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
-  _DepthOfFieldNode(this._renderer, this._settings);
+  _DepthOfFieldNode(this._renderer, this._view, this._settings);
 
   @override
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
+
+  /// Whose projection the lens is made to agree with.
+  final RenderView _view;
   final RenderSettings _settings;
 
   @override
@@ -1675,6 +1678,7 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       surface: surface,
       settings: _settings.depthOfField,
+      view: _view,
       resources: frame.resources,
       width: frame.width,
       height: frame.height,

@@ -2592,7 +2592,7 @@ final class Renderer implements RenderServices {
     // the scene emits and light in the air defocuses exactly as the geometry
     // behind it does; before bloom, because a glow is what the sensor does
     // with light that has already been through the lens.
-    graph.addNode(_DepthOfFieldNode(this, s));
+    graph.addNode(_DepthOfFieldNode(this, view, s));
     // `R6`. After the lens, whose light the exposure smears, and before the
     // resolve, which blends the smeared frames as it would sharp ones.
     graph.addNode(_MotionBlurNode(this, s));
