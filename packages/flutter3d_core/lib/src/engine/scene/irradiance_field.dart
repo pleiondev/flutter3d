@@ -417,7 +417,8 @@ final class IrradianceField {
   ///
   /// The eight probes around it, weighted three ways: trilinearly by where the
   /// point sits in its cell, by how much each probe is on the side the surface
-  /// faces, and by whether the probe can see the point at all.
+  /// faces, and by whether the probe can see the point at all. No active
+  /// probe's weight reaches nought.
   Vector3 sample(Vector3 position, Vector3 normal, [Vector3? out]) {
     final result = (out ?? Vector3.zero())..setZero();
 
@@ -479,23 +480,32 @@ final class IrradianceField {
       // **Smoothed rather than clamped at zero.** A probe exactly edge-on
       // contributes nothing under `max(dot, 0)`, and the discontinuity shows as
       // a seam running along every surface that happens to lie in a probe
-      // plane. Half the cosine plus a half, squared, falls to zero smoothly.
+      // plane. Half the cosine plus a half, squared, falls away smoothly.
       final facing = unit.dot(toProbe) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
 
-      weight *= visibility(probe, -toProbe, distance);
-      if (weight <= 0.0) continue;
+      // **Floored, then crushed, rather than let fall to nought** (Majercik
+      // et al. 2019). A probe behind the surface keeps a fifth on top of its
+      // facing, and one past a wall a twentieth of its visibility; whatever
+      // ends up under a fifth is then cubed down towards nothing. An occluded
+      // probe still counts for almost nothing next to one that can see — but
+      // a point that every probe of its cell is cut off from reads a blend of
+      // them rather than black.
+      final floored = math.max(
+        (facing * facing + 0.2) *
+            math.max(visibility(probe, -toProbe, distance), 0.05),
+        1e-6,
+      );
+      weight *= floored < 0.2 ? floored * floored * floored * 25.0 : floored;
 
       readIrradiance(probe, unit, colour);
       result.addScaled(colour, weight);
       total += weight;
     }
 
-    // Normalised by what actually contributed, so a point where most probes are
-    // occluded reads as the colour of the ones that can see it rather than as
-    // that colour divided by eight.
-    if (total > 1e-6) result.scale(1.0 / total);
+    // Normalised by the sum, so a point where most probes are occluded reads
+    // as the colour of the ones that can see it rather than as that colour
+    // divided by eight.
+    if (total > 0.0) result.scale(1.0 / total);
     return result;
   }
 }

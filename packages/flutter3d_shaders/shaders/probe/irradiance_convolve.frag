@@ -17,6 +17,14 @@
 // the face's own axis; the distance along a direction is that over the
 // direction's component on the axis.
 //
+// **Every texel of the capture, each by the solid angle it covers**, rather
+// than a fixed set of directions through it. A fixed set gave every update
+// of a still room the same estimate, so the hysteresis settled on that
+// estimate's error rather than averaging it away: a lamp or a sunlit patch a
+// few texels wide was missed by one probe and counted twice by the next. At
+// sixteen texels a side the whole cube is 1536 taps, cheap for a kernel that
+// runs over two small tiles.
+//
 // Gutters are filled here too, from the interior texel `fillGutters` would
 // copy, so a probe's tiles stay continuous without a second pass.
 //
@@ -42,18 +50,23 @@ uniform ConvolveInfo {
   /// saw only sky is given.
   vec4 tiles;
 
-  /// xy: the atlas's size in texels. zw unused.
+  /// xy: the atlas's size in texels. z: the capture's side in texels.
+  /// w unused.
   vec4 atlas;
 }
 convolve_info;
 
-const int kSamples = 64;
-
-vec3 SphereDirection(int i) {
-  float z = 1.0 - (2.0 * float(i) + 1.0) / float(kSamples);
-  float r = sqrt(max(1.0 - z * z, 0.0));
-  float phi = float(i) * 2.39996323;
-  return vec3(r * cos(phi), r * sin(phi), z);
+/// Towards the centre of a texel of cube face [face] (+X, −X, +Y, −Y, +Z,
+/// −Z), [a] and [b] across it in −1..1: unnormalised, the face's axis at one.
+/// Which of the other two axes each coordinate names does not matter — the
+/// texel centres are symmetric under either — only that every texel is
+/// reached once.
+vec3 CubeTexel(int face, float a, float b) {
+  float side = (face & 1) == 0 ? 1.0 : -1.0;
+  int axis = face >> 1;
+  if (axis == 0) return vec3(side, a, b);
+  if (axis == 1) return vec3(a, side, b);
+  return vec3(a, b, side);
 }
 
 /// `decodeOctahedral` in `irradiance_field.dart`.
@@ -120,24 +133,37 @@ void main() {
   vec2 texel = InteriorOf(local - tile * stride, interior);
   vec3 normal = DecodeProbeOctahedral((texel + 0.5) / interior);
 
+  int captureSide = max(int(convolve_info.atlas.z + 0.5), 1);
+  float span = 2.0 / float(captureSide);
   vec3 light = vec3(0.0);
   float mean = 0.0;
   float square = 0.0;
   float weight = 0.0;
-  for (int i = 0; i < kSamples; i++) {
-    vec3 direction = SphereDirection(i);
-    float cosine = dot(normal, direction);
-    if (cosine <= 0.0) continue;
-    if (moments) {
-      float c2 = cosine * cosine;
-      float w = c2 * c2 * c2;
-      float distance = DistanceAlong(direction);
-      mean += distance * w;
-      square += distance * distance * w;
-      weight += w;
-    } else {
-      light += textureLod(radiance_texture, direction, 0.0).rgb * cosine;
-      weight += cosine;
+  for (int face = 0; face < 6; face++) {
+    for (int row = 0; row < captureSide; row++) {
+      for (int column = 0; column < captureSide; column++) {
+        float a = (float(column) + 0.5) * span - 1.0;
+        float b = (float(row) + 0.5) * span - 1.0;
+        // A texel's solid angle goes as one over its distance from the
+        // centre cubed: the square for the distance, one more for the slant.
+        float inverse = inversesqrt(1.0 + a * a + b * b);
+        vec3 direction = CubeTexel(face, a, b) * inverse;
+        float solidAngle = inverse * inverse * inverse;
+        float cosine = dot(normal, direction);
+        if (cosine <= 0.0) continue;
+        if (moments) {
+          float c2 = cosine * cosine;
+          float w = c2 * c2 * c2 * solidAngle;
+          float distance = DistanceAlong(direction);
+          mean += distance * w;
+          square += distance * distance * w;
+          weight += w;
+        } else {
+          float w = cosine * solidAngle;
+          light += textureLod(radiance_texture, direction, 0.0).rgb * w;
+          weight += w;
+        }
+      }
     }
   }
   float keep = convolve_info.probe.z;
