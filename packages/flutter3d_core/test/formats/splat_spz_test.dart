@@ -15,6 +15,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
@@ -88,6 +89,29 @@ void main() {
     expect(cloud.shDegree, 0);
     expect(cloud.shRest, isEmpty);
     expect(cloud.count, 48);
+  });
+
+  test('colour bytes are sRGB, clamped and decoded as a PLY is', () {
+    // The twin test above holds the SPZ reader to the PLY one, so it would
+    // pass with both left undecoded; this holds the SPZ reader to the curve.
+    // Mutation: pass `SplatColourSpace.linear` down in place of the argument
+    // and the default read equals the linear one.
+    final raw = parseSplatSpz(
+      _bytes('cloud_v4.spz'),
+      colourSpace: SplatColourSpace.linear,
+    );
+    final decoded = parseSplatSpz(_bytes('cloud_v4.spz'));
+    for (var i = 0; i < raw.count; i++) {
+      for (var c = 0; c < 3; c++) {
+        final channel = raw.colours[i * 4 + c];
+        expect(channel, greaterThanOrEqualTo(0.0));
+        final clamped = channel.clamp(0.0, 1.0);
+        final linear = clamped <= 0.04045
+            ? clamped / 12.92
+            : math.pow((clamped + 0.055) / 1.055, 2.4);
+        expect(decoded.colours[i * 4 + c], closeTo(linear, 1e-6));
+      }
+    }
   });
 
   test('both headers are recognised by their first bytes', () {

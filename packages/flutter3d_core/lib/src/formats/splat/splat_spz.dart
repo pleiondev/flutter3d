@@ -109,14 +109,17 @@ const List<double> _kHalfTurnXSigns = <double>[
 /// Reads versions 1 to [kSpzLatestVersion]. [axes] turns the cloud into a
 /// PLY's axes when asked. [keepHigherBands] false drops the spherical
 /// harmonics above band 0 — a third of an SPZ's decoded floats at degree 3,
-/// which nothing in the draw evaluates yet.
+/// which nothing in the draw evaluates yet. [colourSpace] is what the colour
+/// bytes were fitted in, sRGB unless told otherwise, as for a PLY — see
+/// [splatColour].
 SplatCloud parseSplatSpz(
   Uint8List bytes, {
   SplatAxes axes = SplatAxes.rightUpBack,
   bool keepHigherBands = true,
+  SplatColourSpace colourSpace = SplatColourSpace.srgb,
 }) {
   final packed = _unpack(bytes);
-  return _decode(packed, axes, keepHigherBands);
+  return _decode(packed, axes, keepHigherBands, colourSpace);
 }
 
 /// Whether [bytes] starts the way an SPZ does: the version 4 magic in the
@@ -326,7 +329,12 @@ void _checkExtensions(Uint8List bytes, int from, int to) {
   }
 }
 
-SplatCloud _decode(_Packed p, SplatAxes axes, bool keepHigherBands) {
+SplatCloud _decode(
+  _Packed p,
+  SplatAxes axes,
+  bool keepHigherBands,
+  SplatColourSpace colourSpace,
+) {
   final n = p.count;
   final flip = axes.halfTurnAboutX ? -1.0 : 1.0;
 
@@ -358,7 +366,9 @@ SplatCloud _decode(_Packed p, SplatAxes axes, bool keepHigherBands) {
   for (var i = 0; i < n; i++) {
     for (var c = 0; c < 3; c++) {
       final coefficient = (p.colours[i * 3 + c] / 255.0 - 0.5) / _kColourScale;
-      colours[i * 4 + c] = splatChannel(coefficient);
+      // A byte of nought is a coefficient of about −3.3, below the −1.77
+      // where the channel crosses zero: the clamp is not hypothetical here.
+      colours[i * 4 + c] = splatColour(coefficient, colourSpace);
     }
     // The byte is the opacity already through the logistic: the reference
     // takes its logit only for a PLY, which wants one.
