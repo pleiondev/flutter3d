@@ -553,9 +553,10 @@ final class LightShaftSettings {
 /// **The torches come from `L6`'s cells**, and only while
 /// [RenderSettings.clusteredLights] is on and the scene has more lights than
 /// a draw's eight slots — the case the cells are built for. Otherwise the fog
-/// is lit by the sun and [ambient] alone. Point lights cast no shadow into
-/// the air: the cube atlas is not consulted, so a torch's glow reaches
-/// through the wall beside it.
+/// is lit by the sun and [ambient] alone. A point or spot light that holds a
+/// row of the cube atlas is shadowed in the air through it, one tap a step,
+/// so a torch's glow stops at the wall beside it; a light without a row —
+/// `castsShadow` off, or past the atlas's six — still reaches through.
 ///
 /// **The sun is the shadow caster when there is one**, shadowed through the
 /// cascades, and otherwise the first directional light, unshadowed. With
