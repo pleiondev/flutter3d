@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:path/path.dart' as p;
 
+import 'backend.dart';
 import 'golden_scene.dart';
 import 'golden_scenes.dart';
 import 'golden_store.dart';
@@ -162,6 +163,21 @@ final class GoldenRunner {
       final actual = await device.readPixels(target);
       if (actual == null) {
         printLine('GOLDEN ${scene.name}: the frame read back as nothing.');
+        finish(1);
+      }
+
+      // Before the frame is recorded or compared, because a frame the device
+      // refused part of is not a picture of the scene whatever it matches. The
+      // browser backends refuse without throwing, and three references were
+      // recorded that way: two black WebGPU frames and an empty WebGL2 splat
+      // cloud, each under a budget wide enough to pass. Impeller and the
+      // software backend have nothing to report here and answer null.
+      final errors = await deviceErrors(device);
+      if (errors != null) {
+        printLine(
+          'GOLDEN ${scene.name}: FAILED — the device reported errors while '
+          'drawing, so the frame is neither recorded nor compared. $errors',
+        );
         finish(1);
       }
 

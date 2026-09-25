@@ -1,6 +1,7 @@
 /// The browser backends, on the web.
 library;
 
+import 'package:flutter/widgets.dart' show BoxFit, FilterQuality;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
@@ -46,7 +47,7 @@ Future<GraphicsDevice> createBackend({
   try {
     return switch (requested) {
       'webgl' => _openWebGl(width: width, height: height),
-      'webgpu' => await openWebGpu(width: width, height: height),
+      'webgpu' => _presentable(await openWebGpu(width: width, height: height)),
       _ => throw StateError(
         'the page asked for the "$requested" backend and this build draws '
         'through webgl and webgpu. Refusing rather than drawing the wrong '
@@ -67,6 +68,33 @@ Future<GraphicsDevice> createBackend({
     rethrow;
   }
 }
+
+/// [device], once something is registered to show its frames.
+///
+/// `flutter3d_app` registers a WebGPU presenter only in a build that asks for
+/// WebGPU at compile time, and this one picks the backend from the URL, so
+/// nothing had: every frame of a WebGPU page threw from `presentFrame` and the
+/// canvas stayed empty, while the golden run, which reads the frame back
+/// rather than looking at the canvas, passed. WebGL2 needs nothing here,
+/// because `flutter3d_app` always registers it.
+GraphicsDevice _presentable(GraphicsDevice device) {
+  _webGpuPresenter ??= registerDevicePresenter<WebGpuDevice>(
+    (
+      GraphicsDevice device,
+      TextureHandle frame, {
+      BoxFit fit = BoxFit.fill,
+      FilterQuality quality = FilterQuality.none,
+    }) => WebGpuFramePresenter(
+      device: device as WebGpuDevice,
+      frame: frame,
+      fit: fit,
+      quality: quality,
+    ),
+  );
+  return device;
+}
+
+PresenterRegistration? _webGpuPresenter;
 
 /// WebGL2, over the canvas it creates for itself.
 ///
@@ -94,3 +122,18 @@ GraphicsDevice _openWebGl({required int width, required int height}) {
 /// than about the compile. The Impeller side has answered this with a getter
 /// for the same kind of reason since the software rasteriser joined it.
 String get kBackendName => _requestedBackend;
+
+/// What the browser refused while this device drew, or null when it refused
+/// nothing.
+///
+/// **A refused call draws nothing and says nothing to the page.** WebGL2
+/// rejects a draw with a GL error and moves on, and WebGPU drops a whole
+/// submit over one invalid pipeline; either way the frame reads back as a
+/// picture, only the wrong one. The golden stand recorded three such frames as
+/// references before anybody looked at the console, so a golden run asks here
+/// and refuses a frame drawn with errors, whatever it looks like.
+Future<String?> deviceErrors(GraphicsDevice device) async => switch (device) {
+  final WebGlDevice gl => gl.debugDrainErrors('WebGL2'),
+  final WebGpuDevice gpu => await gpu.debugDrainErrors('WebGPU'),
+  _ => null,
+};

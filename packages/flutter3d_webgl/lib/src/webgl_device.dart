@@ -844,8 +844,9 @@ final class WebGlDevice implements GraphicsDevice {
     // Drained first, so the code below reports this blit rather than whatever
     // the frame left behind. An error queue is cumulative and getError clears
     // one entry at a time, which is how a stale error gets blamed on the wrong
-    // call.
-    while (_gl.getError() != 0) {}
+    // call. Set aside rather than dropped: they are the frame's, and
+    // `debugDrainErrors` still answers for them.
+    _setAsideErrors('before a canvas blit');
 
     // **Not flipped**, and it used to be. The canvas wants row zero at the
     // bottom and that is now exactly where a finished frame keeps it: the
@@ -873,6 +874,10 @@ final class WebGlDevice implements GraphicsDevice {
       web.WebGLRenderingContext.NEAREST,
     );
     lastBlitError = _gl.getError();
+    if (lastBlitError != web.WebGLRenderingContext.NO_ERROR) {
+      final said = '${_errorName(lastBlitError)} from the canvas blit';
+      if (!_setAside.contains(said)) _setAside.add(said);
+    }
     _gl.deleteFramebuffer(source);
   }
 
@@ -1135,24 +1140,51 @@ final class WebGlDevice implements GraphicsDevice {
   /// Declared slots a draw left unbound come first: the contract makes them
   /// the caller's mistake, and this backend sees them at every draw. See
   /// [reportUnbound].
+  ///
+  /// So do errors the canvas blit found queued and set aside: see
+  /// [_setAsideErrors].
   String? debugDrainErrors(String where) {
-    final seen = <String>[..._unbound];
+    final seen = <String>[..._unbound, ..._setAside];
     _unbound.clear();
+    _setAside.clear();
     for (var i = 0; i < 8; i++) {
       final error = _gl.getError();
       if (error == web.WebGLRenderingContext.NO_ERROR) break;
-      seen.add(switch (error) {
-        web.WebGLRenderingContext.INVALID_ENUM => 'INVALID_ENUM',
-        web.WebGLRenderingContext.INVALID_VALUE => 'INVALID_VALUE',
-        web.WebGLRenderingContext.INVALID_OPERATION => 'INVALID_OPERATION',
-        web.WebGLRenderingContext.INVALID_FRAMEBUFFER_OPERATION =>
-          'INVALID_FRAMEBUFFER_OPERATION',
-        web.WebGLRenderingContext.OUT_OF_MEMORY => 'OUT_OF_MEMORY',
-        _ => 'gl error $error',
-      });
+      seen.add(_errorName(error));
     }
     return seen.isEmpty ? null : '$where: ${seen.join(', ')}';
   }
+
+  static String _errorName(int error) => switch (error) {
+    web.WebGLRenderingContext.INVALID_ENUM => 'INVALID_ENUM',
+    web.WebGLRenderingContext.INVALID_VALUE => 'INVALID_VALUE',
+    web.WebGLRenderingContext.INVALID_OPERATION => 'INVALID_OPERATION',
+    web.WebGLRenderingContext.INVALID_FRAMEBUFFER_OPERATION =>
+      'INVALID_FRAMEBUFFER_OPERATION',
+    web.WebGLRenderingContext.OUT_OF_MEMORY => 'OUT_OF_MEMORY',
+    _ => 'gl error $error',
+  };
+
+  /// Empties the GL error queue into [_setAside], so a call that wants to
+  /// read its own error reads its own, and the ones before it are still
+  /// there for [debugDrainErrors].
+  ///
+  /// The canvas blit used to drop them. It drains the queue so a stale error
+  /// is not blamed on it, and every frame that reaches the screen goes through
+  /// it, so an error made while drawing a presented frame was thrown away one
+  /// blit later: a draw the browser refused every frame read, afterwards, as
+  /// a frame with no errors. Each distinct error is kept once, since the same
+  /// refusal repeats every frame.
+  void _setAsideErrors(String where) {
+    for (var i = 0; i < 8; i++) {
+      final error = _gl.getError();
+      if (error == web.WebGLRenderingContext.NO_ERROR) break;
+      final said = '${_errorName(error)} $where';
+      if (!_setAside.contains(said)) _setAside.add(said);
+    }
+  }
+
+  final List<String> _setAside = <String>[];
 
   /// Records a declared slot a draw left unbound, once per slot per device, so
   /// a mistake repeated every frame is one line rather than a flood.
