@@ -249,9 +249,9 @@ const Map<String, double> _budgets = <String, double>{
   'rough-metals': 0.14,
   'scan-chunks': 0.14,
   'sheen-fabric': 0.23,
-  // 2.039% measured: the puffs' fringes, where the sheet is sampled between
-  // texels differently.
-  'smoke-six-way': 2.25,
+  // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
+  // 64-bit integers, so a browser baked a different sheet.
+  'smoke-six-way': 0.01,
   'splat-gltf': 0.01,
   // 0.001% measured, since the hash reads the pixel from the top on every
   // backend and computes its offset without a `sin`. It was 41.569%: rows
