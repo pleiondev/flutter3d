@@ -36,7 +36,7 @@ import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('one is the whole resolution, and is the default', () {
-    // Forty-four goldens are recorded at the size they asked for. A default
+    // Seventy-eight goldens are recorded at the size they asked for. A default
     // that shrank anything would move every one of them.
     expect(const RenderSettings().renderScale, 1.0);
     expect(_drawn(1.0), (width: 64, height: 64));

@@ -22,7 +22,7 @@
 /// three backends.** It computes in Dart doubles; Impeller, WebGL and WebGPU
 /// compute in 32-bit floats, where those two expressions have far less room
 /// before they part. Nothing here can run them, so the setting stays off by
-/// default — which is also what keeps the forty-four goldens where they are.
+/// default — which is also what keeps the seventy-eight goldens where they are.
 library;
 
 import 'dart:math' as math;
@@ -191,7 +191,7 @@ void main() {
   });
 
   test('nothing is batched unless it is asked for', () async {
-    // Which is what keeps the forty-four goldens where they are: the default
+    // Which is what keeps the seventy-eight goldens where they are: the default
     // frame is the frame it always was, to the byte.
     final device = _device();
     final scene = _field(device, count: 100);

@@ -172,7 +172,7 @@ void main() {
     // **The half that lets this land**, and the reason the seam is a null field
     // rather than a new required one: a material saying nothing about its vertex
     // stage goes through the pipeline it has always gone through, which is also
-    // why the forty-four goldens cannot move.
+    // why the seventy-eight goldens cannot move.
     final withSeam = await _draw(lighting: _plain);
 
     final device = CpuDevice(

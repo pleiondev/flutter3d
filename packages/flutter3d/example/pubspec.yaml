@@ -52,6 +52,13 @@ dependencies:
     path: ../../flutter3d_samples
   flutter3d_particles:
     path: ../../flutter3d_particles
+  # Two 0.8 golden scenes bake what they draw on the software rasteriser at
+  # start-up — the impostor atlas and the six-way smoke sheet — so every
+  # backend draws the same bytes; and one splits a scan into clusters.
+  flutter3d_build:
+    path: ../../flutter3d_build
+  flutter3d_mesh:
+    path: ../../flutter3d_mesh
   # Only the golden runner needs it, to insist its output directory is
   # absolute — a bundled macOS app runs from the filesystem root.
   path: ^1.9.0
