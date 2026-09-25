@@ -984,6 +984,29 @@ enum TransparencyMode {
   weightedBlended,
 }
 
+/// The diffuse lobe of the metal-rough models, `pbr` and `pbrLayered` — `L8`.
+enum DiffuseModel {
+  /// A constant `albedo / π`, the same in every direction. The default, and
+  /// every frame the metal-rough models drew before the other existed.
+  lambert,
+
+  /// The energy-preserving Oren–Nayar lobe of Portsmouth, Kutz and Hill
+  /// (EON, 2024), rough by the material's own roughness.
+  ///
+  /// A rough dielectric is a surface of tiny facets, and Lambert treats it as
+  /// a flat one: clay, plaster and concrete come out as bright at the rim as
+  /// head-on, which reads as plastic. EON flattens the falloff and lifts the
+  /// side facing the light, as Oren–Nayar does, and then adds back the light
+  /// that bounces between the facets, so a white surface under a white sky
+  /// still reflects all of it. The colour saturates a little as it roughens,
+  /// which is that interreflection too. A smooth surface is Lambert.
+  ///
+  /// Arithmetic only: no table and no sampler. Direct light gets the whole
+  /// lobe; the ambient, the environment's irradiance and a lightmap get its
+  /// directional albedo at the view.
+  eon,
+}
+
 /// Scene-wide shading knobs that are not per-material.
 ///
 /// **One value passed to `Renderer.render`, and nothing here is state.** A
@@ -1038,6 +1061,7 @@ final class RenderSettings {
     this.outputTransform = OutputTransform.sdr,
     this.frameWorkBudget = 0,
     this.energyCompensation = false,
+    this.diffuseModel = DiffuseModel.lambert,
     this.clusteredLights = false,
     this.aliasTargets = false,
     this.occlusion = OcclusionMode.none,
@@ -1325,6 +1349,11 @@ final class RenderSettings {
   /// environment's. Dielectrics barely move; rough metals brighten.
   final bool energyCompensation;
 
+  /// The diffuse lobe of `pbr` and `pbrLayered` — `L8`.
+  /// [DiffuseModel.lambert] by default; see [DiffuseModel.eon] for what the
+  /// other changes. The other lighting models keep their own diffuse.
+  final DiffuseModel diffuseModel;
+
   /// Lights each fragment by the lights that reach its part of the view
   /// rather than by the ones ranked against its whole draw — `L6`. Off by
   /// default.
@@ -1540,6 +1569,7 @@ final class RenderSettings {
     OutputTransform? outputTransform,
     int? frameWorkBudget,
     bool? energyCompensation,
+    DiffuseModel? diffuseModel,
     bool? clusteredLights,
     bool? aliasTargets,
     OcclusionMode? occlusion,
@@ -1585,6 +1615,7 @@ final class RenderSettings {
     outputTransform: outputTransform ?? this.outputTransform,
     frameWorkBudget: frameWorkBudget ?? this.frameWorkBudget,
     energyCompensation: energyCompensation ?? this.energyCompensation,
+    diffuseModel: diffuseModel ?? this.diffuseModel,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     aliasTargets: aliasTargets ?? this.aliasTargets,
     occlusion: occlusion ?? this.occlusion,

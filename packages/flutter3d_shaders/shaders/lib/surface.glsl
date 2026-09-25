@@ -102,7 +102,9 @@ uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
