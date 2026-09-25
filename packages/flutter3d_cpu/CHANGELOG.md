@@ -4,10 +4,69 @@
 the other backends do, and `clearBindings` forgets the vertex slots and the
 index buffer as well as the blocks and textures. This backend used to keep
 them, so a draw that missed a bind read the previous draw's and drew a
-plausible picture while Metal failed. `bindTexture` returns true.
+plausible picture while Metal failed. `bindTexture` returns false for a
+sampler the compiled stage does not keep and true otherwise.
+
+**Uniform blocks and samplers are held to the compiled bundle.** Every stage
+carries `ShaderHandle.kept` and `ShaderHandle.layouts` from
+`flutter3d_shaders`, and a block or sampler the stage dropped, or a misspelt
+or overlong member, is refused by name before anything is drawn. A misspelt
+member used to read as zero here and throw on the GPU backends.
+`flutter3d_shaders` is now a runtime dependency for these tables.
 
 **`GeometryBuffer`'s offset and length are honoured**; a slice was read from
 byte zero with a stride worked out from the whole buffer.
+
+**A triangle is clipped to the viewport and the scissor together.** It was
+clipped to the scissor where there was one and to the viewport only where
+there was not, so a triangle reaching past the clip volume drew outside a
+viewport that had a scissor beside it. Lines follow the same rule. The new
+fuzzer found this: it draws random programs of draws against exact rewrites of
+themselves here, and against WebGL2 and WebGPU in the browser suites.
+
+**Blending reads its destination as the hardware would have stored it.** A
+float stays in an eight-bit target so `readHdrPixels` can show it, but what
+blending reads back is clamped and, on a linear target, rounded to 1/255. A
+reverse subtraction used to leave a negative value that the next additive
+draw added to.
+
+**Three colour attachments by default.** `CpuDevice.maxColorAttachments` is 3
+where it was 2, for the albedo buffer the scene pass writes beside the
+surface buffer; a stage writes it through `FragmentContext.albedo`.
+`FragmentContext.fragDepth`, when a stage sets it, is stored in place of the
+interpolated depth, which the static shadow copy needs.
+
+**Compute runs here.** `supportsCompute` is true. `CpuStage.compute` hands its
+mirror a whole workgroup and runs the phases between barriers across all its
+invocations, storage buffers are their bytes, and a dispatch finishes before
+it returns. `PrefixSum` is the first stage.
+
+**The capabilities answer.** `supportsFloat32Filtering` is true,
+`supportsIndependentBlend` is true unless the constructor says otherwise, and
+`hdrOutputFormats` is empty unless the constructor is handed formats, so a
+test can take the extended-range output branch. `supportsGpuTimestamps` is
+false.
+
+**Every new stage has its Dart transcription**, operation for operation with
+the GLSL: `PbrLayered` with its layers, per-map texture transforms, sheen,
+anisotropy, transmission reading the scene copy, dispersion and thin film;
+the EON diffuse lobe and energy compensation in `PbrShader`; the rectangle
+light's LTC integral; the per-pixel irradiance read and `IrradianceConvolve`;
+the clustered light lookup; GTAO and SSIL; the metric soft-shadow search and
+filter, `EvsmFilter` and `ShadowCopy`; `CameraVelocity`, the three velocity
+vertex stages and `Velocity`; `TemporalResolve` with its k-DOP clip, and
+`TemporalAccumulate`; `Reactive` and `ReactiveSprite`; `VelocityTileMax`,
+`VelocityNeighborMax` and `MotionBlur`; `VolumetricFog` and its upsample;
+`LocalExposure` and its blur; `Easu`; `WboitResolve`; `SceneColourCopy`;
+`DepthPyramid`; `ImpostorVertex` and `Impostor`; `ParticleSixWay`;
+`SplatHashed`; `FieldDecay`. `flutter3d_core`'s CHANGELOG says what each one
+is for.
+
+**The sRGB curve and AgX's `pow(2.2)` give the same bits everywhere.** They go
+through `portable_root.dart`, Newton's method on IEEE arithmetic, where
+libm's `pow` differed in the last bit on Linux. The image-based lighting path
+takes the clamped n.v the GLSL takes. The one- and two-byte formats
+(`r8UNormInt`, `r8g8UNormInt`, `a8UNormInt`) upload.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
