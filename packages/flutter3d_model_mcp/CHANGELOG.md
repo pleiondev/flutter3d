@@ -1,8 +1,25 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+**`audit` checks an asset that came from somewhere else.** It answers with
+`flutter3d_model_core`'s `AssetAudit` in words (overall size, origin against
+the middle of the base, duplicate materials, what rebuilding each imported
+mesh would drop or split, and every `check` issue with the triangle and
+texture budgets) and a 4x2 sheet of all seven views, the underside included.
+`repair: true` rebuilds the imported meshes, moves the base onto the origin,
+bakes transforms, sets origins and runs `makeGameReady` for `profile`
+(`desktop` by default), all as one undo step, and answers with the audit
+before, what it did and the audit after. Units and duplicate materials are
+reported and left to the person.
+
+**`import` passes on what the reader said.** A skipped primitive or an
+undefined material used to be dropped from the answer; the reader's own
+warnings now follow the object count.
+
+**`poseJoint` no longer offers `pointer`.** `AnimationPath` gained the path
+for animation pointers, and the command refuses it as it refuses `weights`, so
+the schema leaves both out.
+
+`modelMcpVersion` is `'0.8.0'`.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 

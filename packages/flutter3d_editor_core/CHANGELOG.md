@@ -1,8 +1,59 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+**Breaking for an exhaustive `switch` over `EditorCommand`: `SetLights` is a
+new case.** It puts a whole set of lights in place of the level's own as one
+command and one step of undo, through the new `Editing.setLights`, and its
+`why` names the step with the light optimizer's sentence. `editorCommandNames`
+lists `setLights`. A light that was selected is deselected, since its index
+may now name another light.
+
+**`LightOptimizer` finds fewer lights that light a level the way it was
+lit.** Every light is drawn alone from every view on the software rasteriser,
+in linear light, so the pictures add exactly and the loss has an exact
+gradient in each light's strength and colour. A greedy search removes the
+most redundant light or merges a close pair into one, retunes the rest with
+Newton steps per channel, and keeps a move while the picture stays within
+`maxDifference` (0.01, about two and a half 8-bit steps) and no more than
+`maxUnderLit` (0.01) of the lit pixels fall below `darkening` (0.75) of their
+brightness. `optimize(level, views:, states:)` returns a `LightPlan` with the
+lights `before` and `after`, the `moves` as sentences, shading cost, overlap,
+`difference`, `underLit` and previews. The new set is drawn for real and held
+to the same bounds, and `holds` says whether it stayed inside them; a plan
+that did not has `changes` false. Each `LightingState` is a set of lights the
+level is also judged under, so a lamp the noon sun drowns out is still kept
+for the night. Views come from `viewsAlong`, over poses a player walked, or
+`defaultLightViews`, four headings from each spawn. The trigonometry and the
+sRGB decode go through `Portable`, so the answer is the same on every
+machine. Nothing runs until it is called. A call draws each light once per
+view at 160 by 100, plus one draw per view for each merge it tries, up to
+`maxMerges` (16). `N1`
+
+**`LevelScene` builds a level's scene without Flutter.** The brush meshes,
+materials, lights and probes moved here from `flutter3d_app`'s `LevelLoader`,
+which now hands it the textures it decoded, so a program started with
+`dart run` can draw a level. `LevelScene(batching:)` takes a `LevelBatching`:
+`perMaterial`, the default, groups brushes per material as before, and
+`perBrush` makes every brush its own draw so a pixel can name its brush, at
+the cost of a draw per brush. `meshDataOf` moved here too. `LevelScene` draws
+the brushes it is given, so a caller expands a level's recipes first.
+
+**`Editing.addRecipe` adds a room, a corridor or a scatter from a seed.** It
+expands the recipe once before adding it, so a recipe no kit can build throws
+the kit's `LevelFormatException` and leaves the document and the undo stack as
+they were. The document keeps the recipe, and `vocabularyOf` now names the
+entity types the recipes expand to, so a room's reflection probes are no
+longer reported as unknown entities.
+
+**Level generators are Dart.** `DocumentText` writes a document in the exact
+layout the shipped levels use, `LevelGenerator` is a function from a
+`GeneratorSource` to text by path, `GeneratorRefused` is how a generator
+refuses, and `roundNumber` keeps an `int` an `int`. The library still reads
+and writes no file. The generators of every shipped level live under
+`tool/levels` and regenerate each tracked document byte for byte; they replace
+the Python scripts that wrote them.
+
+`flutter3d_cpu` is a new dependency, for the optimizer. The package still
+imports no Flutter.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
