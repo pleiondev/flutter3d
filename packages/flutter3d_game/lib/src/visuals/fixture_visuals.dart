@@ -82,6 +82,17 @@ final class FixtureVisuals {
 
   final Map<LightNode, double> _baseIntensity = <LightNode, double>{};
 
+  /// The model loads [add] started that have not finished yet.
+  final Set<Future<void>> _adding = <Future<void>>{};
+
+  /// Completes once every model asked for so far is in the scene — `N3`.
+  ///
+  /// Play does not wait for them, but a loading screen that warms the
+  /// renderer up should: a model arriving after `Renderer.warmUp` brings
+  /// meshes it never saw, and the frame that first draws them links their
+  /// pipelines in the middle of play.
+  Future<void> get settled => Future.wait(_adding.toList());
+
   void add(Fixture fixture) {
     final mechanism = fixture.mechanism;
     if (mechanism is LightFixture) {
@@ -94,7 +105,9 @@ final class FixtureVisuals {
       // Asynchronous, and deliberately not awaited: a level with twenty props
       // should not load them one after another, and a key that appears two
       // frames late is a key nobody saw appear.
-      unawaited(_addModel(fixture, model));
+      final adding = _addModel(fixture, model);
+      _adding.add(adding);
+      unawaited(adding.whenComplete(() => _adding.remove(adding)));
       return;
     }
 

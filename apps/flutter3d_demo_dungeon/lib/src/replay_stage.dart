@@ -87,6 +87,14 @@ final class CryptReplay {
   final Vector3 _eye = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
+  /// Completes once the level's monsters and props wear the models they were
+  /// loading — what a loading screen waits for before `Renderer.warmUp`, so
+  /// the warm-up sees every mesh play will draw.
+  Future<void> settled() => Future.wait(<Future<void>>[
+    level.actorVisuals.settled,
+    level.fixtureVisuals.settled,
+  ]);
+
   /// Puts the simulation back where [demo] starts.
   void rewind(Demo demo) => level.staged.sim.restore(demo.start);
 
@@ -125,10 +133,15 @@ final class CryptReplay {
       width: width,
       height: height,
       scene: level.loaded.scene,
-      views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
-      ],
+      views: views(),
       settings: settings ?? this.settings(),
     );
   }
+
+  /// The views [draw] draws: the player's eye, clearing to black. Also what
+  /// a warm-up is handed, since a probe captures against the first view's
+  /// clear colour.
+  List<RenderView> views() => <RenderView>[
+    RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+  ];
 }
