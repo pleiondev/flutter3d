@@ -26215,7 +26215,9 @@ precision highp samplerCube;
 //     inside the box, is outside the k-DOP.
 //   * **The history is dropped** where the nearest surface there last frame
 //     was at a different depth: a pixel that was the floor and is now a crate
-//     has no past worth blending. The history's alpha is that depth.
+//     has no past worth blending. The history's alpha is that depth, and
+//     each of the four texels around the reprojected point is tested on its
+//     own rather than their blend, which on a silhouette is neither depth.
 //   * **The blend** weighs each side by one over one plus its exposed
 //     luminance, so a flickering highlight does not dominate its neighbours.
 //   * **A reactive pixel keeps less history** — `R4`. Particles, splats and
@@ -26332,6 +26334,39 @@ vec3 ClipToDop(vec3 current, vec3 history, vec3 around[9]) {
   return current + toward * max(reach, 0.0);
 }
 
+/// One when a depth last frame [then] is the surface at [depth] — both sky,
+/// or both surfaces within `params.y` of the nearer — and nought when not.
+float SameSurface(float depth, float then) {
+  bool sky = depth <= 0.0;
+  bool bothSky = sky && then <= 0.0;
+  bool close = !sky && then > 0.0 &&
+      abs(then - depth) <= temporal_info.params.y * min(depth, then);
+  return (bothSky || close) ? 1.0 : 0.0;
+}
+
+/// How much of the history at [uv] is the surface at [depth]: each of the
+/// four texels a bilinear read there would blend is tested on its own, and
+/// those that pass count by their bilinear weight. The depths themselves are
+/// never blended — across a silhouette that is a depth belonging to neither
+/// side, and it would drop the history of both. The four are read at texel
+/// centres, where the colour's filtered sampler returns a texel as it is.
+float DepthTrust(float depth, vec2 uv) {
+  vec2 size = temporal_info.params.zw;
+  vec2 position = uv * size - 0.5;
+  vec2 corner = floor(position);
+  vec2 f = position - corner;
+  vec2 at0 = (corner + 0.5) / size;
+  vec2 at1 = (corner + 1.5) / size;
+  float d00 = textureLod(history_texture, at0, 0.0).a;
+  float d10 = textureLod(history_texture, vec2(at1.x, at0.y), 0.0).a;
+  float d01 = textureLod(history_texture, vec2(at0.x, at1.y), 0.0).a;
+  float d11 = textureLod(history_texture, at1, 0.0).a;
+  return SameSurface(depth, d00) * (1.0 - f.x) * (1.0 - f.y) +
+      SameSurface(depth, d10) * f.x * (1.0 - f.y) +
+      SameSurface(depth, d01) * (1.0 - f.x) * f.y +
+      SameSurface(depth, d11) * f.x * f.y;
+}
+
 /// Catmull-Rom over the history, in nine bilinear taps.
 vec3 HistoryAt(vec2 uv) {
   vec2 size = temporal_info.params.zw;
@@ -26404,13 +26439,7 @@ void main() {
     return;
   }
 
-  float thenDepth = textureLod(history_texture, then, 0.0).a;
-  float trust = 1.0;
-  if ((depth > 0.0) != (thenDepth > 0.0)) trust = 0.0;
-  if (depth > 0.0 && thenDepth > 0.0 &&
-      abs(thenDepth - depth) > temporal_info.params.y * min(depth, thenDepth)) {
-    trust = 0.0;
-  }
+  float trust = DepthTrust(depth, then);
 
   vec3 mean = sum / 9.0;
   vec3 sigma = sqrt(max(sumSquares / 9.0 - mean * mean, vec3(0.0)));

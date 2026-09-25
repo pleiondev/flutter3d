@@ -201,14 +201,7 @@ final class TemporalResolveShader implements CpuFragmentShader {
       return Vector4(current.x, current.y, current.z, depth);
     }
 
-    final thenDepth = history.sample(thenU, thenW).w;
-    var trust = 1.0;
-    if ((depth > 0.0) != (thenDepth > 0.0)) trust = 0.0;
-    if (depth > 0.0 &&
-        thenDepth > 0.0 &&
-        (thenDepth - depth).abs() > params.y * math.min(depth, thenDepth)) {
-      trust = 0.0;
-    }
+    final trust = _depthTrust(history, depth, thenU, thenW, params);
 
     final mean = sum / 9.0;
     final variance =
@@ -247,6 +240,47 @@ final class TemporalResolveShader implements CpuFragmentShader {
         (current * wCurrent + past * wHistory) /
         math.max(wCurrent + wHistory, 1e-6);
     return Vector4(resolved.x, resolved.y, resolved.z, depth);
+  }
+
+  /// `SameSurface`: one when [then] is the surface at [depth], nought when
+  /// not.
+  static double _sameSurface(double depth, double then, double tolerance) {
+    final sky = depth <= 0.0;
+    final bothSky = sky && then <= 0.0;
+    final close =
+        !sky &&
+        then > 0.0 &&
+        (then - depth).abs() <= tolerance * math.min(depth, then);
+    return (bothSky || close) ? 1.0 : 0.0;
+  }
+
+  /// `DepthTrust`: the four texels a bilinear read at ([u], [w]) would blend,
+  /// each tested against [depth] on its own and counted by its weight.
+  static double _depthTrust(
+    BoundTexture history,
+    double depth,
+    double u,
+    double w,
+    Vector4 params,
+  ) {
+    final sizeX = params.z;
+    final sizeY = params.w;
+    final px = u * sizeX - 0.5;
+    final py = w * sizeY - 0.5;
+    final cx = px.floorToDouble();
+    final cy = py.floorToDouble();
+    final fx = px - cx;
+    final fy = py - cy;
+    final u0 = (cx + 0.5) / sizeX;
+    final u1 = (cx + 1.5) / sizeX;
+    final w0 = (cy + 0.5) / sizeY;
+    final w1 = (cy + 1.5) / sizeY;
+    double same(double tu, double tw) =>
+        _sameSurface(depth, history.sample(tu, tw).w, params.y);
+    return same(u0, w0) * (1.0 - fx) * (1.0 - fy) +
+        same(u1, w0) * fx * (1.0 - fy) +
+        same(u0, w1) * (1.0 - fx) * fy +
+        same(u1, w1) * fx * fy;
   }
 
   /// `HistoryAt`: Catmull-Rom in nine bilinear taps.
