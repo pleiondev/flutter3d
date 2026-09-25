@@ -93,6 +93,28 @@ final class WebGlShader {
   );
 }
 
+/// The names of the outputs a GLSL ES fragment [source] declares.
+///
+/// A fragment stage's outputs are its global `out` variables. A function's
+/// `out` parameters sit inside parentheses and are not matched: the pattern
+/// takes a declaration that starts a line, which is the shape every generated
+/// stage and every hand-written one in this engine has. Public for the test
+/// that holds it to the engine's own sources.
+Set<String> fragmentOutputNames(String source) {
+  final code = source
+      .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+      .replaceAll(RegExp(r'//[^\n]*'), '');
+  return <String>{
+    for (final m in _outputDeclaration.allMatches(code)) m.group(1)!,
+  };
+}
+
+final RegExp _outputDeclaration = RegExp(
+  r'^[ \t]*(?:layout\s*\([^)]*\)\s*)?out\s+(?:(?:lowp|mediump|highp)\s+)?'
+  r'\w+\s+(\w+)\s*(?:\[[^\]]*\])?\s*;',
+  multiLine: true,
+);
+
 final RegExp _blockDeclaration = RegExp(r'\buniform\s+(\w+)\s*\{');
 final RegExp _samplerDeclaration = RegExp(
   r'\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w*sampler\w*\s+(\w+)\s*;',
@@ -209,6 +231,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
         linked.blocks,
         linked.samplers,
         layout: layout,
+        fragmentOutputs: linked.fragmentOutputs,
       ),
       name: key,
     );
@@ -288,7 +311,29 @@ final class WebGlShaderLibrary implements ShaderLibrary {
       _reflectAttributes(program),
       _reflectBlocks(program),
       _reflectSamplers(program),
+      fragmentOutputs: _reflectOutputs(
+        program,
+        _gl.getShaderSource((fragment.backend as WebGlShader).shader) ?? '',
+      ),
     );
+  }
+
+  /// The colour locations [program] writes, as the linked program places the
+  /// outputs [fragmentSource] declares, or null where the source names none.
+  ///
+  /// GL has no enumeration of a program's fragment outputs, only a lookup by
+  /// name, so the names come off the source and the locations from the
+  /// program: that way an output without a `layout` qualifier lands wherever
+  /// the linker put it rather than where a parser guessed.
+  Set<int>? _reflectOutputs(web.WebGLProgram program, String fragmentSource) {
+    final names = fragmentOutputNames(fragmentSource);
+    if (names.isEmpty) return null;
+    return <int>{
+      for (final name in names)
+        if (_gl.getFragDataLocation(program, name) case final int at
+            when at >= 0)
+          at,
+    };
   }
 
   /// How many compiled shaders and linked programs are currently held, for
