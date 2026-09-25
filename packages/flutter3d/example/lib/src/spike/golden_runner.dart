@@ -24,8 +24,8 @@ import 'png.dart';
 /// a match and 1 on a mismatch, so `tool/golden.sh` can launch the built
 /// application once per scene and read the code. The same three names still work
 /// as `--dart-define`s for a run driven by hand, but the environment is what the
-/// harness uses, because a define is a compile-time input and forty-four of
-/// them are forty-four builds.
+/// harness uses, because a define is a compile-time input and seventy-eight
+/// of them are seventy-eight builds.
 final class GoldenRunner {
   GoldenRunner._(this.scene, {required this.update, required this.directory});
 
