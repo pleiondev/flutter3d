@@ -71,6 +71,7 @@ extension _LightList on Renderer {
     final rows = Float32List.sublistView(_lightListScratch, 0, length);
     for (var i = 0; i < count; i++) {
       lights.writeCandidateRow(i, rows, i * _kLightRowFloats);
+      _writeShadowRow(lights.candidates[i], rows, i * _kLightRowFloats);
     }
     if (_clustersActive) {
       _lightClusters.write(rows, count * _kLightRowFloats);
@@ -94,6 +95,23 @@ extension _LightList on Renderer {
     // upload leaves the frame with the texture it had rather than with none.
     if (previous != null) _destroyAfterFrame(previous);
     return _lightListTexture;
+  }
+
+  /// Writes which atlas row [light] owns into the two lanes its row leaves
+  /// free, for the fog — `S4`.
+  ///
+  /// The cone texel's z and w, which a point's or a spot's row never uses: z
+  /// is the atlas row plus one, nought when the light holds none, and w its
+  /// shape as [_writeShadowSlots] gives it, one for a spot's single tile. A
+  /// draw learns its lights' rows from its own slot table; the air has no
+  /// draw, only the cell's list of rows, so the row carries it. A rectangle's
+  /// row keeps them, because its cone texel holds an edge, and it is never
+  /// given an atlas row.
+  void _writeShadowRow(LightNode light, Float32List rows, int at) {
+    if (light.type == LightType.area) return;
+    final row = _shadowRowOf[light];
+    rows[at + 14] = row == null ? 0.0 : row + 1.0;
+    rows[at + 15] = row == null ? 0.0 : _shadowRowShape[row];
   }
 
   static bool _sameRows(Float32List a, Float32List b) {
