@@ -80,8 +80,13 @@ final class SsaoShader implements CpuFragmentShader {
   ) {
     final params = b.vec4('SsaoInfo', 'params', Vector4.zero());
     final screen = b.vec4('SsaoInfo', 'screen', Vector4.zero());
-    final eye4 = b.vec4('SsaoInfo', 'camera', Vector4.zero());
-    final view = (Vector3(eye4.x, eye4.y, eye4.z) - point)..normalize();
+    // `EyeWard`: the pixel's ray reversed, which an orthographic camera's
+    // parallel rays need where the camera position would tilt off the slice.
+    final view = -pixelRay(
+      b.mat4('SsaoInfo', 'inverse_view_projection'),
+      u,
+      w,
+    ).along;
     final radius = math.max(params.x, 1e-4);
     final steps = ((params.y + 0.5).floor() ~/ 4).clamp(1, 4);
 
@@ -108,7 +113,7 @@ final class SsaoShader implements CpuFragmentShader {
       if (projectedLength < 1e-4) continue;
       final n =
           projected.dot(tangent).sign *
-          math.acos((projected.dot(view) / projectedLength).clamp(-1.0, 1.0));
+          math.acos((projected.dot(view) / projectedLength).clamp(0.0, 1.0));
 
       final horizons = <double>[0.0, 0.0];
       for (var side = 0; side < 2; side++) {
@@ -133,8 +138,8 @@ final class SsaoShader implements CpuFragmentShader {
         }
         horizons[side] = s * math.acos(best.clamp(-1.0, 1.0));
       }
-      final h1 = n + math.max(horizons[0] - n, -1.5707963);
-      final h2 = n + math.min(horizons[1] - n, 1.5707963);
+      final h1 = n + (horizons[0] - n).clamp(-1.5707963, 1.5707963);
+      final h2 = n + (horizons[1] - n).clamp(-1.5707963, 1.5707963);
       double arc(double h) =>
           -math.cos(2.0 * h - n) + math.cos(n) + 2.0 * h * math.sin(n);
       visibility += projectedLength * 0.25 * (arc(h1) + arc(h2));
@@ -176,8 +181,13 @@ final class SsaoShader implements CpuFragmentShader {
   ) {
     final params = b.vec4('SsaoInfo', 'params', Vector4.zero());
     final screen = b.vec4('SsaoInfo', 'screen', Vector4.zero());
-    final eye4 = b.vec4('SsaoInfo', 'camera', Vector4.zero());
-    final view = (Vector3(eye4.x, eye4.y, eye4.z) - point)..normalize();
+    // `EyeWard`: the pixel's ray reversed, which an orthographic camera's
+    // parallel rays need where the camera position would tilt off the slice.
+    final view = -pixelRay(
+      b.mat4('SsaoInfo', 'inverse_view_projection'),
+      u,
+      w,
+    ).along;
     final radius = math.max(params.x, 1e-4);
     final thickness = math.max(screen.w, 1e-3);
     final steps = ((params.y + 0.5).floor() ~/ 4).clamp(1, 4);
@@ -214,7 +224,7 @@ final class SsaoShader implements CpuFragmentShader {
       if (projectedLength < 1e-4) continue;
       final n =
           projected.dot(tangent).sign *
-          math.acos((projected.dot(view) / projectedLength).clamp(-1.0, 1.0));
+          math.acos((projected.dot(view) / projectedLength).clamp(0.0, 1.0));
 
       final covered = List<double>.filled(16, 0.0);
       for (var side = 0; side < 2; side++) {
