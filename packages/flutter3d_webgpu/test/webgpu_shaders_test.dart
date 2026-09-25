@@ -710,4 +710,36 @@ fn main(@builtin(position) at: vec4<f32>) -> FragmentOutput {
       expect(wgslFragmentOutputs('@fragment fn main() -> Missing { }'), isNull);
     });
   });
+
+  group('a slot the compiled stage dropped', () {
+    // Lambert reads the metal-rough map and discards the answer, so the
+    // hardware compiler drops the sampler and the bundle's table says so,
+    // while the WGSL made from the same source still declares it. The encoder
+    // refuses a bind the table names as absent, so the engine cannot fill it,
+    // and the device used to report it as the caller's mistake on every lit
+    // Lambert scene.
+    //
+    // Mutation: build every slot bindable. The first expectation fails.
+    test('is not the caller\'s to bind, and the kept ones still are', () {
+      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final pipeline =
+          createWebGpuPipeline(
+                library['MeshVertex']!,
+                library['Lambert']!,
+              ).backend
+              as WebGpuPipeline;
+      final samplers = <String, bool>{
+        for (final group in pipeline.groups)
+          for (final bound in group.samplers)
+            bound.sampler.name: bound.bindable,
+      };
+      expect(samplers['metallic_roughness_texture'], isFalse);
+      expect(samplers['base_color_texture'], isTrue);
+      expect(
+        pipeline.groups.expand((g) => g.blocks).map((b) => b.bindable),
+        everyElement(isTrue),
+        reason: 'every block Lambert declares, its compiled stage keeps',
+      );
+    });
+  });
 }

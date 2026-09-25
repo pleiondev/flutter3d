@@ -456,6 +456,12 @@ final class SplatContributor extends PassContributor {
   final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
   final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
 
+  /// `FogInfo`'s two members as both splat stages declare them: the fog's
+  /// colour and density, and the eye. Not `FogInfoBlock`, which is the lit
+  /// stages' three-member layout.
+  final Float32List _fog = Float32List(4);
+  final Float32List _eye = Float32List(4);
+
   SplatContributor(
     SplatCloud cloud, {
     this.node,
@@ -594,6 +600,27 @@ final class SplatContributor extends PassContributor {
         quads.vertexCount,
       )
       ..bindBlock(vertexShader, _particleInfo);
+
+    // **Fog, which both splat stages read and nothing bound.** An unbound
+    // block reads as zeros, a density of zero is no fog, and so a cloud stood
+    // out of the murk at full colour on every backend while the walls behind
+    // it faded. WebGL2 was the one that said so, naming the block at the draw.
+    final fog = frame.settings.fog;
+    final colour = fog.resolvedColor;
+    _fog
+      ..[0] = colour.x
+      ..[1] = colour.y
+      ..[2] = colour.z
+      ..[3] = fog.density;
+    _eye
+      ..[0] = eye.x
+      ..[1] = eye.y
+      ..[2] = eye.z;
+    frame.encoder.bindUniformBlock(
+      fragmentShader,
+      'FogInfo',
+      <String, Float32List>{'fog': _fog, 'eye': _eye},
+    );
     if (hashed) {
       // The frame's slice of the engine's blue noise, the same slice the
       // post effects read; the eye and the view axis, from which each splat

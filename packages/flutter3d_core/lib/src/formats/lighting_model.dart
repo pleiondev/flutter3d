@@ -53,6 +53,7 @@ final class LightingModel {
     this.usesMetallic = false,
     this.usesEnvironment = false,
     this._usesLightList,
+    this._usesFogInfo,
     this.vertexStageMorphs = true,
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
@@ -295,6 +296,22 @@ final class LightingModel {
   /// such as one emitted from the material language, says `false`.
   bool get usesLightList => _usesLightList ?? usesMaterialMaps;
   final bool? _usesLightList;
+
+  /// Whether the shader reads the `FogInfo` block: the fog, the eye, and the
+  /// view axis the surface buffer measures depth along.
+  ///
+  /// `lib/color.glsl` declares it, so a stage that writes its colour through
+  /// `WriteSurface` keeps it whether or not it reads `FragInfo`. It was bound
+  /// only beside `FragInfo`, and a stage of one's own that reads no material
+  /// inputs was drawn with the block unbound: no fog, and a surface depth of
+  /// nought. WebGL2 named it at every draw of the `loaded-shader` golden.
+  ///
+  /// Defaults to [usesFragInfo], which is right for every model this package
+  /// ships; the engine's own stages are answered by their compiled bindings
+  /// anyway. A stage of one's own that includes `color.glsl` and skips
+  /// `FragInfo` says `true`.
+  bool get usesFogInfo => _usesFogInfo ?? usesFragInfo;
+  final bool? _usesFogInfo;
 
   /// Whether the material's own vertex stage declares the morph block and
   /// texture, and so has to be handed them on every draw.
