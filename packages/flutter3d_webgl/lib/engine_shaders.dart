@@ -14033,21 +14033,20 @@ void main() {
     // `ReflectionProbeNode.intensity` instead, because a probe is the room's
     // light already measured. The renderer decides which — see `_encodeNode`
     // in renderer_mesh_encode.dart — and this stage cannot tell them apart.
+    // The surface's single-scatter albedo, thin film included: the specular
+    // term and the multiscatter term below both read this one value, so an
+    // iridescent surface tints the light it scatters twice as it tints the
+    // light it scatters once.
 #ifdef F3D_LAYERED
-    vec3 specular =
-        prefiltered * (mix(f0, g_irid_fresnel, g_iridescence) * ab.x + f90 * ab.y);
+    vec3 single = mix(f0, g_irid_fresnel, g_iridescence) * ab.x + f90 * ab.y;
 #else
-    vec3 specular = prefiltered * (f0 * ab.x + ab.y);
+    vec3 single = f0 * ab.x + ab.y;
 #endif
+    vec3 specular = prefiltered * single;
     if (EnergyCompensation()) {
       // Fdez-Agüera: the single-scattered part as it was, and the multiple
       // scattering it misses added from the irradiance, tinted by the average
       // Fresnel — `L1`.
-#ifdef F3D_LAYERED
-      vec3 single = f0 * ab.x + f90 * ab.y;
-#else
-      vec3 single = f0 * ab.x + ab.y;
-#endif
       float missed = 1.0 - (ab.x + ab.y);
       vec3 average = f0 + (vec3(1.0) - f0) / 21.0;
       vec3 multiple = single * average / (vec3(1.0) - missed * average);
@@ -17317,21 +17316,20 @@ void main() {
     // `ReflectionProbeNode.intensity` instead, because a probe is the room's
     // light already measured. The renderer decides which — see `_encodeNode`
     // in renderer_mesh_encode.dart — and this stage cannot tell them apart.
+    // The surface's single-scatter albedo, thin film included: the specular
+    // term and the multiscatter term below both read this one value, so an
+    // iridescent surface tints the light it scatters twice as it tints the
+    // light it scatters once.
 #ifdef F3D_LAYERED
-    vec3 specular =
-        prefiltered * (mix(f0, g_irid_fresnel, g_iridescence) * ab.x + f90 * ab.y);
+    vec3 single = mix(f0, g_irid_fresnel, g_iridescence) * ab.x + f90 * ab.y;
 #else
-    vec3 specular = prefiltered * (f0 * ab.x + ab.y);
+    vec3 single = f0 * ab.x + ab.y;
 #endif
+    vec3 specular = prefiltered * single;
     if (EnergyCompensation()) {
       // Fdez-Agüera: the single-scattered part as it was, and the multiple
       // scattering it misses added from the irradiance, tinted by the average
       // Fresnel — `L1`.
-#ifdef F3D_LAYERED
-      vec3 single = f0 * ab.x + f90 * ab.y;
-#else
-      vec3 single = f0 * ab.x + ab.y;
-#endif
       float missed = 1.0 - (ab.x + ab.y);
       vec3 average = f0 + (vec3(1.0) - f0) / 21.0;
       vec3 multiple = single * average / (vec3(1.0) - missed * average);
