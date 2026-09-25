@@ -3128,7 +3128,7 @@ model drawing nothing.
 **`flutter3d_webgpu` draws, and two of its capabilities answer no on
 purpose.** It implements the same `GraphicsDevice` the other three do, over
 `navigator.gpu`: a device opens, a pass records, every one of the engine's
-stages compiles, and `flutter3d_conformance` answers **33 of 33 in Chrome** —
+stages compiles, and `flutter3d_conformance` answers **41 of 41 in Chrome** —
 against a live adapter, run as a test rather than as an application, which is the
 arrangement WebGL2 already had and Impeller cannot have. Two of those
 thirty-three pass by *refusing*, and each refusal is a capability the device
@@ -3202,7 +3202,7 @@ settled it: `probe-car` records through this backend and lands on Impeller's
 reference at 0 of 172800 pixels, worst channel 0. The two conformance checks the
 capability gates had been declining themselves from the inside all along — one
 allocating a single level and asking only about the face, the other returning
-before it drew — so the suite's 33 of 33 never moved when they started asking the
+before it drew — so the suite's 41 of 41 never moved when they started asking the
 whole question. A count that cannot move is not a count that can be read.
 
 **An ordinary web build still opens WebGL2, and that is a decision about bundle

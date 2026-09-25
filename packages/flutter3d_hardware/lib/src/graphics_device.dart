@@ -657,8 +657,9 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   ///
   /// False on Impeller (flutter_gpu has no timer query), on the software
   /// rasteriser (whose passes run on the CPU and are timed where they are
-  /// encoded) and on WebGL2 without `EXT_disjoint_timer_query_webgl2`. WebGPU
-  /// answers from whether the adapter granted `timestamp-query`.
+  /// encoded) and on WebGL2, which does not yet read
+  /// `EXT_disjoint_timer_query_webgl2`. WebGPU answers from whether the
+  /// adapter granted `timestamp-query`.
   bool get supportsGpuTimestamps;
 
   /// Sets where each frame's GPU timings go, a frame or two after it was

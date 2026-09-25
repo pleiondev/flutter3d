@@ -13,7 +13,7 @@
 /// from what the device says it samples plus a short measurement of what it
 /// actually draws, and then remembered: the next launch reads the answer
 /// rather than measuring again, and a player who disagrees overrides it.
-/// Adapting to the frame as it goes is `AdaptiveScale`'s job, not this one's.
+/// Adapting to the frame as it goes is `AdaptiveQuality`'s job (or `AdaptiveScale`'s), not this one's.
 ///
 /// Off unless asked for: nothing reads a class until an application picks one
 /// and hands it to the loader, and a project whose build names no classes has
