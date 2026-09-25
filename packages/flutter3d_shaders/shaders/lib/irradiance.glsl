@@ -17,7 +17,8 @@
 //
 // Weights per probe, as `IrradianceField.sample` on the host: trilinear by
 // the point's place in its cell, the square of a half-cosine towards the
-// probe, and Chebyshev's bound from the depth moments. The point is moved
+// probe, and Chebyshev's bound from the depth moments, the last two floored
+// and crushed so no active probe's weight reaches nought. The point is moved
 // off its surface along the normal and towards the eye first, so a surface
 // does not read the probe's own view of it as a wall.
 //
@@ -124,19 +125,26 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
     float distance = length(toProbe);
     if (distance > 1e-6) {
       vec3 direction = toProbe / distance;
+      // Facing and visibility are floored, then crushed, rather than let
+      // fall to nought (Majercik et al. 2019): a probe behind the surface or
+      // past a wall counts for almost nothing but never for nothing, so a
+      // point every probe of its cell is cut off from still reads a blend of
+      // them rather than black.
       float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
+      float probeWeight = facing * facing + 0.2;
 
       vec2 moments = TileBilinear(momentCorner, depthTile,
                                   ProbeOctahedral(-direction)).xy;
+      float chebyshev = 1.0;
       if (distance > moments.x) {
         float variance = max(moments.y - moments.x * moments.x, 1e-6);
         float difference = distance - moments.x;
-        float chebyshev = variance / (variance + difference * difference);
-        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+        chebyshev = variance / (variance + difference * difference);
+        chebyshev = chebyshev * chebyshev * chebyshev;
       }
-      if (weight <= 0.0) continue;
+      probeWeight = max(probeWeight * max(chebyshev, 0.05), 1e-6);
+      if (probeWeight < 0.2) probeWeight *= probeWeight * probeWeight * 25.0;
+      weight *= probeWeight;
     }
 
     total += TileBilinear(irradianceCorner, irradianceTile,
@@ -144,7 +152,7 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
              weight;
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : vec3(0.0);
+  return weights > 0.0 ? total / weights : vec3(0.0);
 }
 
 #endif  // IRRADIANCE_GLSL_

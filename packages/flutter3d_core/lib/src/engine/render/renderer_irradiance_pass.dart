@@ -133,7 +133,8 @@ extension _IrradiancePass on Renderer {
       ..[3] = kIrradianceReach;
     info.atlas
       ..[0] = gpu.atlas.spec.width.toDouble()
-      ..[1] = gpu.atlas.spec.height.toDouble();
+      ..[1] = gpu.atlas.spec.height.toDouble()
+      ..[2] = _kIrradianceCaptureSize.toDouble();
     info.probe[3] = gpu.columns.toDouble();
 
     if (gpu.seeded != field.version) {

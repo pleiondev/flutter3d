@@ -206,6 +206,37 @@ void main() {
         reason: 'the blind probe leaked its red through a wall: $got',
       );
     });
+
+    test('a point every probe is walled off from reads them, not black', () {
+      // Every probe sees a wall a tenth of a unit away, so none can see the
+      // point: occluded weights are floored, never nought, and what comes
+      // back is still the field's colour. Mutation: drop the 0.05 floor on
+      // the visibility. The weights fall under 1e-18 and the point reads
+      // black.
+      final field = _field();
+      final colour = Vector3(0.2, 0.4, 0.6);
+      for (var p = 0; p < field.probeCount; p++) {
+        for (var i = 0; i < 64; i++) {
+          final z = 1.0 - 2.0 * (i + 0.5) / 64;
+          final radius = math.sqrt(math.max(1.0 - z * z, 0.0));
+          final theta = i * 2.399963229728653;
+          final d = Vector3(
+            radius * math.cos(theta),
+            radius * math.sin(theta),
+            z,
+          );
+          field
+            ..writeIrradiance(p, d, colour)
+            ..writeDepth(p, d, 0.1);
+        }
+      }
+      field.fillGutters();
+
+      final got = field.sample(Vector3(0.5, 0.5, 0.5), Vector3(0.0, 1.0, 0.0));
+      expect(got.x, closeTo(colour.x, 1e-5));
+      expect(got.y, closeTo(colour.y, 1e-5));
+      expect(got.z, closeTo(colour.z, 1e-5));
+    });
   });
 }
 
