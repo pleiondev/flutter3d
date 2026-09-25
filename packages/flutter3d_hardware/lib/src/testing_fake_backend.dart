@@ -148,6 +148,7 @@ final class FakeBackend implements GraphicsDevice {
     this.maxAnisotropy = 16,
     this.maxColorAttachments = 2,
     this.stageBindings,
+    this.framebufferOrigin = FramebufferOrigin.topLeft,
   }) : shaders = FakeShaderLibrary(
          missing: missingShaders,
          stageBindings: stageBindings,
@@ -282,10 +283,12 @@ final class FakeBackend implements GraphicsDevice {
         )
       : null;
 
-  /// The engine's own convention, so a fake never exercises the remap. The
-  /// backends that need the other one are covered by running them.
+  /// The engine's own convention by default, so a fake never exercises the
+  /// remap. The backends that need the other one are covered by running
+  /// them; a test that pins what the engine hands such a backend asks for
+  /// [FramebufferOrigin.bottomLeft].
   @override
-  FramebufferOrigin get framebufferOrigin => FramebufferOrigin.topLeft;
+  final FramebufferOrigin framebufferOrigin;
 
   @override
   DepthRange get depthRange => DepthRange.zeroToOne;

@@ -372,13 +372,11 @@ final class SplatShader implements CpuFragmentShader {
 /// `splat_hashed.frag` — `N5`: the splat kept or dropped whole at a pixel,
 /// against noise, and written opaque.
 ///
-/// The identity hash is the GLSL's formula in doubles rather than floats, so a
-/// splat's offset into the noise can differ from a GPU's; what has to agree is
-/// how often a splat is kept, which is its opacity either way.
+/// The identity hash is whole-number arithmetic under 2^24, exact in doubles
+/// and in a GPU's floats alike, so a splat reads the same cell of the noise
+/// here as on a GPU — see [splatNoiseOffset].
 final class SplatHashedShader implements CpuFragmentShader {
   const SplatHashedShader();
-
-  static double _fract(double x) => x - x.floorToDouble();
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -405,17 +403,17 @@ final class SplatHashedShader implements CpuFragmentShader {
                     v[3] * 255.0 * 127.0)
                 .floorToDouble()) %
         4096.0;
-    final offsetX = (_fract(math.sin(identity * 12.9898) * 43758.5453) * 64.0)
-        .floorToDouble();
-    final offsetY = (_fract(math.sin(identity * 78.233) * 43758.5453) * 64.0)
-        .floorToDouble();
+    final (offsetX, offsetY) = splatNoiseOffset(identity);
 
     // This frame's slice of the blue noise, at the pixel moved by the offset.
     final table = b.textures['blue_noise_texture'];
     if (table == null) return null;
-    final slice = b.vec4('SplatHashInfo', 'frame', Vector4.zero()).x;
+    final frame = b.vec4('SplatHashInfo', 'frame', Vector4.zero());
+    final slice = frame.x;
+    // `FragCoordFromTop`.
+    final row = frame.y > 0.0 ? frame.y - c.coord.y : c.coord.y;
     final cellX = (c.coord.x.floorToDouble() + offsetX) % 64.0;
-    final cellY = (c.coord.y.floorToDouble() + offsetY) % 64.0;
+    final cellY = (row.floorToDouble() + offsetY) % 64.0;
     final cornerX = (slice % 8.0).floorToDouble() * 64.0;
     final cornerY = (slice / 8.0).floorToDouble() * 64.0;
     final threshold =
@@ -443,4 +441,18 @@ final class SplatHashedShader implements CpuFragmentShader {
       1.0,
     );
   }
+}
+
+/// `splat_hashed.frag`'s offset into the 64 × 64 noise tile for a splat's
+/// [identity], a whole number in `[0, 4096)`: column and row, each whole.
+///
+/// A permutation of the tile's cells, so two identities never share one: an
+/// affine step and `2a² + a` modulo 4096, then the high six bits stirred into
+/// the low six. Every product stays under 2^24 and every divisor is a power
+/// of two, so a GPU's 32-bit floats and these doubles give the same answer.
+(double, double) splatNoiseOffset(double identity) {
+  final affine = (identity * 1597.0 + 2531.0) % 4096.0;
+  final mixed = (affine * ((2.0 * affine + 1.0) % 4096.0)) % 4096.0;
+  final row = (mixed / 64.0).floorToDouble();
+  return ((mixed + row * 37.0) % 64.0, row);
 }
