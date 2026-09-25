@@ -449,6 +449,51 @@ void main() {
     scene.device.dispose();
   });
 
+  test('a target the stage writes nothing to is left as it was', () async {
+    // The temporal pass draws particles into the colour and the velocity
+    // target together, and the particle stage writes only the colour. WebGPU
+    // refuses a pipeline whose unwritten target keeps a write mask, and the
+    // refusal takes the whole submit with it: `taa-embers` read back black.
+    //
+    // Mutation: build every target with the full mask. The browser reports
+    // "no corresponding fragment stage output" and the first target is black.
+    final scene = await _scene();
+    if (scene == null) return;
+    final written = scene.target();
+    final untouched = scene.target();
+
+    final pass =
+        scene.device.beginRenderPass(
+            RenderPassDescriptor(
+              colors: <ColorTarget>[_clearTo(written), _clearTo(untouched)],
+            ),
+          )
+          ..bindPipeline(scene.pipeline)
+          // Blending asked of the unwritten target too, as a pass that sets
+          // one equation for every attachment does.
+          ..setBlend(BlendState.additive, attachment: 1);
+    scene.bindQuad(
+      pass,
+      where: placedAt(),
+      sampler: SamplerOptions.nearestClamp,
+    );
+    pass
+      ..draw()
+      ..submit();
+
+    final drawn = await scene.device.readback(written);
+    final left = await scene.device.readback(untouched);
+    expect(
+      await scene.device.debugDrainErrors('one output, two targets'),
+      isNull,
+    );
+    expect(_texel(drawn, 4, 0, 1), _red);
+    expect(_texel(drawn, 4, 3, 1), _green);
+    expect(_texel(left, 4, 0, 1), _black);
+    expect(_texel(left, 4, 3, 1), _black);
+    scene.device.dispose();
+  });
+
   test('a multisampled pass resolves into the texture it names', () async {
     // **The half a translation drops.** `gpuStoreOp` maps
     // `StoreAction.multisampleResolve` to `"discard"`, which alone is a
