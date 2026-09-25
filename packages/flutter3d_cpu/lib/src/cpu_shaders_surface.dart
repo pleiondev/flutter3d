@@ -465,9 +465,15 @@ void applyNormalMap(
   );
   final texel = map.sample(mu, mv, du: uv.du, dv: uv.dv);
   final scale = b.vec4('FragInfo', 'material2', Vector4.zero()).y;
-  final sx = (texel.x * 2.0 - 1.0) * scale;
-  final sy = (texel.y * 2.0 - 1.0) * scale;
-  final sz = texel.z * 2.0 - 1.0;
+  final x = texel.x * 2.0 - 1.0;
+  final y = texel.y * 2.0 - 1.0;
+  // A two-channel map rebuilds z from the unit length, before the scale —
+  // `emissive.w`, as `ApplyNormalMap` reads it.
+  final sz = b.vec4('FragInfo', 'emissive', Vector4.zero()).w > 0.5
+      ? math.sqrt(math.max(1.0 - x * x - y * y, 0.0))
+      : texel.z * 2.0 - 1.0;
+  final sx = x * scale;
+  final sy = y * scale;
 
   s.normal = (t * sx + bitangent * sy + s.normal * sz)..normalize();
   s.nDotV = math.max(s.normal.dot(s.view), 1e-4);

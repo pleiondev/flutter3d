@@ -226,7 +226,27 @@ extension _GltfMesh on GltfLoader {
         ? null
         : reader.readAsFloats(texcoordAccessor);
 
-    final tangentAccessor = wantsTangent ? usable('TANGENT', vec4) : null;
+    // glTF: "When normals are not specified, client implementations MUST
+    // calculate flat normals and the provided tangents (if present) MUST be
+    // ignored." A tangent authored against normals the file does not carry
+    // need not be perpendicular to the face normal built below, nor have its
+    // handedness, so it is dropped and generated on the rebuilt mesh instead.
+    // The same holds when flat normals are switched off: the zero normal left
+    // there has no frame for an authored tangent to belong to either.
+    final tangentsIgnored =
+        wantsTangent &&
+        wantsNormal &&
+        normals == null &&
+        attributes['TANGENT'] != null;
+    if (tangentsIgnored) {
+      warnings.add(
+        '$label has TANGENT but no usable NORMAL; the tangents were ignored '
+        'and generated instead.',
+      );
+    }
+    final tangentAccessor = wantsTangent && !tangentsIgnored
+        ? usable('TANGENT', vec4)
+        : null;
     final tangents = tangentAccessor == null
         ? null
         : reader.readAsFloats(tangentAccessor);

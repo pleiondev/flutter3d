@@ -65,7 +65,9 @@ uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
