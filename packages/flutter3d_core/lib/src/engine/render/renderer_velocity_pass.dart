@@ -281,7 +281,17 @@ extension _VelocityPass on Renderer {
     _velocityInfo.target
       ..[0] = 1.0 / target.width
       ..[1] = 1.0 / target.height
-      ..[2] = _rowsFromBottom(target)
+      // **Nought on every backend, not `_rowsFromBottom`.** The stage uses
+      // `FragCoordFromTop` to find the surface-buffer texel under the
+      // fragment, and that texel is `gl_FragCoord` itself wherever row zero
+      // is: the surface buffer was drawn by the same backend into the same
+      // rows, so on WebGL2 its row zero is the bottom of the picture just as
+      // the fragment's is. Counting from the top there read the mirrored row,
+      // where the sky or a nearer surface dropped almost every moved
+      // fragment, and the velocity buffer came out all but empty. The flip
+      // is for patterns that must match across backends, not for reading a
+      // texture back where it was drawn.
+      ..[2] = 0.0
       // A hundredth of the distance: the surface buffer stores the depth of
       // the same triangle this draws, so the two agree to rounding, and a
       // hundredth is far below the gap between a surface and anything in
@@ -385,7 +395,9 @@ extension _VelocityPass on Renderer {
     _reactiveInfo.target
       ..[0] = 1.0 / target.width
       ..[1] = 1.0 / target.height
-      ..[2] = _rowsFromBottom(target)
+      // Nought for the reason the velocity pass gives: the surface-buffer
+      // texel under a fragment is `gl_FragCoord` on every backend.
+      ..[2] = 0.0
       // The velocity pass's hundredth, for the same reason: a surface drawn
       // over itself agrees with the buffer to rounding.
       ..[3] = 0.01;

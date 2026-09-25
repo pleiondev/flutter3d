@@ -238,6 +238,9 @@ const Map<String, double> _budgets = <String, double>{
   'impostor-forest': 0.01,
   'irradiance-room': 0.2,
   'many-lights': 0.04,
+  // Zero measured once the velocity pass found its own pixel in the surface
+  // buffer; see `velocity-shapes` below.
+  'motion-blur-spin': 0.01,
   'rough-dielectrics': 0.28,
   'rough-metals': 0.14,
   'scan-chunks': 0.14,
@@ -256,13 +259,27 @@ const Map<String, double> _budgets = <String, double>{
   'sun-contact-hardening': 0.45,
   'taa-converge': 0.01,
   'taa-embers': 0.58,
-  'taa-railing': 0.38,
-  'taa-railing-kdop16': 1.46,
-  'taa-railing-kdop8': 0.41,
-  'taa-railing-scaled': 0.32,
+  // **Zero measured for three of the four, and they were 0.345%, 0.287% and
+  // 0.369%** — the kdop16 variant 1.326%, now 1.115%. The sliding bars'
+  // velocity was being dropped against the wrong row of the surface buffer,
+  // the fault `velocity-shapes` below shows plainly, and the resolve then
+  // reprojected their history as if they stood still.
+  'taa-railing': 0.01,
+  'taa-railing-kdop16': 1.23,
+  'taa-railing-kdop8': 0.01,
+  'taa-railing-scaled': 0.01,
   'texture-transform-per-map': 0.01,
   'tonemap-aces2': 0.03,
   'transmission-glass': 0.01,
+  // 3.799% measured, and all of it in green. The velocity buffer holds a
+  // difference in the texture's own coordinates, and this backend's rows run
+  // up the picture, so a mesh moving down the screen has a positive green on
+  // Impeller and a negative one here, which the raw view shows as none. Red
+  // agrees to the pixel. Before the fix the mesh fragments were tested against
+  // the mirrored row of the surface buffer, and only a few parts of the
+  // skinned figure, whose mirror happened to be something further away,
+  // reached the buffer at all.
+  'velocity-shapes': 4.18,
   'window-interior': 0.07,
 };
 

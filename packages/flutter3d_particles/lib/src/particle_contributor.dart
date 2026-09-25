@@ -369,11 +369,12 @@ final class ParticleContributor extends PassContributor {
     _softTarget
       ..[0] = 1.0 / depth.width
       ..[1] = 1.0 / depth.height
-      // `FragCoordFromTop`: rows counted from the bottom where the backend's
-      // row zero is the bottom of the picture.
-      ..[2] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
-          ? depth.height.toDouble()
-          : 0.0
+      // Nought on every backend: the stage reads the depth texel under the
+      // fragment, and that texel is `gl_FragCoord` itself wherever row zero
+      // is, because the same backend drew the depth into the same rows.
+      // Counting from the bottom on WebGL2 read the mirrored row and faded
+      // the particle against whatever stood there.
+      ..[2] = 0.0
       ..[3] = 1.0 / softness;
     _softAxis
       ..[0] = _axis.x
