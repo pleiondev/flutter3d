@@ -931,6 +931,8 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'scene_texel': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'jitter': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'params': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'clip': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'clip_axes': (offset: 64, byteLength: 256, elements: 16, type: 'Vector4'),
     },
   },
   'Toon': <String, Map<String, UniformMemberLayout>>{

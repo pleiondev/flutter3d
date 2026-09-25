@@ -150,6 +150,15 @@ extension _TemporalPass on Renderer {
       ..[1] = 0.1
       ..[2] = outputWidth.toDouble()
       ..[3] = outputHeight.toDouble();
+    // The k-DOP's axes — `N4`; with none, the shader clips to its box.
+    final clip = temporal.clip;
+    _temporalInfo.clip[0] = clip.axisCount.toDouble();
+    for (final (i, (x, y, z)) in clip.axes.indexed) {
+      _temporalInfo.clipAxes
+        ..[i * 4] = x
+        ..[i * 4 + 1] = y
+        ..[i * 4 + 2] = z;
+    }
 
     drawFullscreen(
       FullscreenDraw(

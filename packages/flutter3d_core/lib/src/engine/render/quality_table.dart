@@ -62,7 +62,8 @@ final class QualitySetting {
   final double renderScale;
 
   /// Nought is every effect as asked for; each tier above it takes a quarter
-  /// of the samples and steps away, and from tier 2 halves the shadow maps.
+  /// of the samples and steps away and the temporal clip one k-DOP size
+  /// down, and from tier 2 halves the shadow maps.
   final int tier;
 
   // Per tier: the share of samples and steps kept, the divisor of the shadow
@@ -116,6 +117,21 @@ final class QualitySetting {
               cubeResolution: math.max(
                 math.min(128, full.shadows.cubeResolution),
                 full.shadows.cubeResolution ~/ divisor,
+              ),
+            )
+          : null,
+      // One k-DOP size down per tier, to the box at the bottom — `N4`.
+      antiAlias:
+          full.antiAlias.temporal.enabled &&
+              full.antiAlias.temporal.clip != TemporalClip.aabb &&
+              tier > 0
+          ? full.antiAlias.copyWith(
+              temporal: full.antiAlias.temporal.copyWith(
+                clip:
+                    TemporalClip.values[math.max(
+                      0,
+                      full.antiAlias.temporal.clip.index - tier,
+                    )],
               ),
             )
           : null,

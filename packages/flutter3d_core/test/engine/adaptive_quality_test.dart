@@ -169,6 +169,28 @@ void main() {
         closeTo(0.4, 1e-12),
       );
     });
+
+    test('takes the temporal clip one k-DOP size down per tier', () {
+      RenderSettings clipped(TemporalClip clip) => full.copyWith(
+        antiAlias: AntiAliasSettings(
+          temporal: TemporalSettings(enabled: true, clip: clip),
+        ),
+      );
+      TemporalClip at(int tier, TemporalClip clip) => QualitySetting(
+        renderScale: 1.0,
+        tier: tier,
+      ).apply(clipped(clip)).antiAlias.temporal.clip;
+      // Mutation: drop the `antiAlias` lever in `QualitySetting.apply`; the
+      // 32-DOP stays at every tier.
+      expect(at(1, TemporalClip.kdop32), TemporalClip.kdop16);
+      expect(at(2, TemporalClip.kdop32), TemporalClip.kdop8);
+      expect(at(3, TemporalClip.kdop32), TemporalClip.aabb);
+      expect(at(1, TemporalClip.kdop8), TemporalClip.aabb);
+      // The box is the floor, and a resolve that is off stays off.
+      expect(at(3, TemporalClip.aabb), TemporalClip.aabb);
+      final off = QualitySetting(renderScale: 1.0, tier: 3).apply(full);
+      expect(identical(off.antiAlias, full.antiAlias), isTrue);
+    });
   });
 
   test('every class has a table, best picture first, full at the top', () {
