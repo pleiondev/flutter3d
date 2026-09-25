@@ -1,5 +1,5 @@
 ---
-description: glTF 2.0 and GLB, Wavefront OBJ, STL, the .f3d container, isolate decoding and the reference-counted cache, plus clips, skinning and crossfades.
+description: glTF 2.0 and GLB, Wavefront OBJ, STL, the .f3d container, isolate decoding and the reference-counted cache, material variants and animated materials, splat captures by the page, plus clips, skinning and crossfades.
 ---
 
 # Assets & animation
@@ -74,10 +74,10 @@ unawaited(_dressRunner(device, scene, runner));   // swaps it in later
 | Normals | An absent NORMAL produces **flat** normals, as the spec requires, which de-indexes the mesh |
 | Tangents | TANGENT when present, otherwise generated with Lengyel's method |
 | Node graph | `matrix` and TRS, accumulated transforms, meshes reused across nodes, cycle guard |
-| Materials | Metal-rough, all texture slots, `alphaMode`/`cutoff`, `doubleSided`, `KHR_materials_unlit`, `KHR_materials_emissive_strength` |
+| Materials | Metal-rough, all texture slots, `alphaMode`/`cutoff`, `doubleSided`, `KHR_materials_unlit`, `KHR_materials_emissive_strength`, and `KHR_materials_variants` ([below](#variants)) |
 | Mirroring | Detected from the determinant's sign; winding is flipped per instance |
 | Skins | `joints`, `inverseBindMatrices`, `skeleton`, JOINTS_0/WEIGHTS_0 |
-| Animations | All samplers and channels; STEP, LINEAR, CUBICSPLINE; translation, rotation, scale, and weights |
+| Animations | All samplers and channels; STEP, LINEAR, CUBICSPLINE; translation, rotation, scale, and weights; `KHR_animation_pointer` on a material or a light ([below](#pointers)) |
 | Morph targets | POSITION, NORMAL and TANGENT deltas, packed into a texture the vertex stage samples; rest weights from the node or the mesh; eight blended at once |
 
 Compressed geometry is decoded, both `KHR_draco_mesh_compression` and `EXT_meshopt_compression`. Not supported: TEXCOORD_1 and up. That, and a Draco payload that does not decode, are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
@@ -88,7 +88,7 @@ A texture can arrive as a KTX2 container, sniffed before `dart:ui` ever sees the
 
 The device is asked first. `GraphicsDevice.supportsTextureFormat` answers per format, from flutter_gpu's own per-family capability on Impeller, from the extensions the context handed back on WebGL2, and with a constant no for anything compressed on the software rasteriser, which samples raw texels. A no is a texture left out with a sentence in `warnings` naming the format, never a guess at a decoder the engine does not have. In glTF, `KHR_texture_basisu` is read: a core `source` wins while it exists, since a PNG always decodes, and the extension's KTX2 is what a file that ships only that falls back to.
 
-Still refused by name: UASTC, Zstandard and ZLIB supercompression, texture arrays, cube maps and 3D textures. The key/value section is read for the same reason and refuses three more (a bottom-up `KTXorientation`, a `KTXswizzle` that is not `rgba`, and `KTXpremultipliedAlpha`), because those three describe the pixels themselves and not where they came from, and honouring none of them silently draws a texture upside down, channel-shuffled or twice darkened, which reads to an artist as their own mistake. Nothing in this repository produces a KTX2 either; the reader exists for other tools' output until the asset converter grows an encoder step.
+UASTC LDR 4×4 files open too, unpacked to RGBA8, and Zstandard and ZLIB supercompression are unwrapped by a decompressor written in Dart, so a web build reads them as well. Still refused by name: UASTC HDR, texture arrays, cube maps, 3D textures, and a file that asks for its mip chain to be generated at load. The key/value section is read for the same reason and refuses three more (a bottom-up `KTXorientation`, a `KTXswizzle` that is not `rgba`, and `KTXpremultipliedAlpha`), because those three describe the pixels themselves and not where they came from, and honouring none of them silently draws a texture upside down, channel-shuffled or twice darkened, which reads to an artist as their own mistake. The converter writes KTX2 as well: a build's [texture family](/reference/asset-pipeline/#texture-families) decides which blocks.
 
 <div class="note">
 <p>The node hierarchy is kept <strong>index-aligned with the file</strong>, transform-only nodes included, because animation channels address nodes by index. Rebuilding the hierarchy on instantiation is what lets an animated parent carry its subtree.</p>
@@ -142,6 +142,8 @@ dart run flutter3d_build:convert ../flutter3d_samples/assets/teapot.obj \
 Vertex and index arrays are stored exactly as `MeshData` holds them, so loading builds `Float32List.view`s over the file rather than copies, every blob entry is 4-byte aligned precisely so those views are legal. A **section directory** rather than fixed header fields, so a reader skips a kind it does not know and the version only changes when an existing record does.
 
 `F3dDocument` is a `ModelDocument`, so `ModelAsset.fromDocument`, the cache and instancing are all unchanged. The converter re-reads what it wrote and compares it against the source before reporting success.
+
+Everything 0.8.0 added went in as new sections, each written only when a file has something to put in it: material layers (22), variants (23), animation pointers (24), a baked impostor (25) and mesh clusters (26). A reader that predates one skips it. For clusters that means drawing the whole mesh, and for an impostor the chain ends at its coarsest mesh. What the converter can add, and the per-device-class files `loadModelAsset` reads first, are on [the asset pipeline](/reference/asset-pipeline/#lods) page.
 
 <div class="note">
 <p>The file is <em>larger</em> than its source, 102 KB against 69 KB for the teapot, because indices stay 32-bit and nothing is compressed. That is the trade: narrowing indices or deflating the blob would reintroduce the per-load work the format exists to remove.</p>
@@ -239,9 +241,48 @@ batch.setMorphWeights(7, [0.6, 0.0]);    // one copy in a batch
 <p>Two of the three backends could not upload a full-float texture at all, and neither said so: the software rasteriser measured every format at four bytes a texel and refused sixteen as the wrong size, and WebGL filled <code>RGBA32F</code> storage through <code>RGBA</code>/<code>UNSIGNED_BYTE</code>, which is an <code>INVALID_OPERATION</code> no API reports and a texture that samples as zeros. Both drew the base shape with no error anywhere. What found it was the golden frame above, showing the same cube weighted and unweighted and identical byte for byte; what keeps it found is the <code>a float texture uploads as floats</code> conformance check.</p>
 </div>
 
+## Material variants {#variants}
+
+A glTF file with `KHR_materials_variants` carries several looks for one model, such as a chair in three fabrics, and names them. `ModelAsset.variants` lists the names, and an instance changes into one by name:
+
+```dart
+final chair = asset.instantiate(scene);
+chair.selectVariant('leather');   // false, and nothing changes, for a name the file lacks
+chair.selectVariant(null);        // back to the default look
+chair.variant;                    // which one it wears
+```
+
+A part the variant does not mention wears its default material, as the extension says. Switching changes only which material each mesh node points at, and the materials themselves stay as they are, so two instances sharing the asset's materials can wear two variants at once. `ModelAsset` uploads every variant's material with the model, so the first switch uploads nothing. In a `.f3d` the variants are `ModelDocument.variants` and a per-surface `variantMaterials` map.
+
+## Animated materials and lights {#pointers}
+
+`KHR_animation_pointer` lets a clip move something other than a node. A track on a material's base colour, emissive strength, roughness, metallic or texture offset, or on a light's colour or intensity, plays through the same `AnimationPlayer` as the rest of the clip and lands in the instance's `pointerTargets`.
+
+```dart
+final lamp = asset.instantiate(scene, shareMaterials: false);
+lamp.bindLight(0, bulb);             // a LightNode you placed stands in for the file's light 0
+lamp.player?.playNamed('flicker');
+```
+
+Two things are the caller's decision. **Materials are shared by default**, so a material track moves every instance wearing that material, the same way tinting one does; instantiate with `shareMaterials: false` for copies that animate on their own. **Instantiating creates no lights**, so a track aimed at the file's light reaches only a light you placed and handed to `bindLight` by the file's index. `ModelAsset.materials` keeps each bound material by its index in the file, which is how a pointer names it.
+
+## Splat captures by the page {#splats}
+
+A Gaussian splat capture loads directly, with `parseSplatPly`, `parseSplatSpz` (SPZ versions 1 to 4, in Dart) or as `KHR_gaussian_splatting` primitives in a glTF, where each lands on its node in `ModelDocument.splats`. A large capture is better converted first into a `.f3dsplat` tree ([how](/reference/asset-pipeline/#splats)) and drawn at a budget, a page at a time:
+
+```dart
+final pages = await PagedSplatOctree.open(
+  (offset, length) => fetchRange(url, offset, length),   // an HTTP Range request
+);
+final lod = SplatLod.paged(pages, budget: 400000);
+renderer.addContributor(SplatContributor.lod(lod));
+```
+
+`open` reads the header, the node table and the root's page. After that a page is fetched only when the cut wants to draw finer than what has arrived, most visible first and at most `maxInFlight` (4) requests at a time, so a distant cloud on a slow connection costs the pages it is seen at. The fetching is the caller's: a `SplatRangeReader` is one function from a byte range to its bytes, and this package depends on no network library. `splatBytesReader` wraps bytes already in memory. `SplatLod.budget` is the most splats a cut may hold, and a budget below the root's own count draws nothing.
+
 ## Next
 
 - [Simulation layer](/core/simulation/): the fixed step the animation is not tied to
 - [Scene graph](/core/scene/), where an instantiated model lands
 - [Tutorial: first scene](/core/tutorial/): loading a model end to end
-- [The asset pipeline](/reference/asset-pipeline/): converting a project's own sources into what this page's decoders read, on every build
+- [The asset pipeline](/reference/asset-pipeline/): converting a project's own sources into what this page's decoders read, on every build, with levels of detail, impostors and a file per device class
