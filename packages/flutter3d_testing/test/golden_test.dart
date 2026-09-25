@@ -187,5 +187,44 @@ void main() {
         throwsA(isA<TestFailure>()),
       );
     });
+
+    test('and with a FLIP budget, asks how different it looks', () async {
+      // Every pixel of a slightly darker wall moved, so a byte-exact count
+      // fails it; it looks nearly the same, so the perceptual budget passes
+      // it — and a wall of another colour still fails.
+      final dir = _scratch();
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/wall.png';
+
+      final red = await renderFrame(
+        width: _width,
+        height: _height,
+        build: _wall(Vector4(0.9, 0.1, 0.1, 1.0)),
+      );
+      await expectMatchesGolden(red, path);
+
+      final darker = await renderFrame(
+        width: _width,
+        height: _height,
+        build: _wall(Vector4(0.88, 0.1, 0.1, 1.0)),
+      );
+      await expectLater(
+        expectMatchesGolden(darker, path, channel: 0),
+        throwsA(isA<TestFailure>()),
+      );
+      // Mutation: compare against the budget with `>=`, or skip the early
+      // return and fall through to the pixel count.
+      await expectMatchesGolden(darker, path, channel: 0, flipBudget: 0.1);
+
+      final green = await renderFrame(
+        width: _width,
+        height: _height,
+        build: _wall(Vector4(0.1, 0.9, 0.1, 1.0)),
+      );
+      await expectLater(
+        expectMatchesGolden(green, path, flipBudget: 0.1),
+        throwsA(isA<TestFailure>()),
+      );
+    });
   });
 }
