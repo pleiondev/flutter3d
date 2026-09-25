@@ -35345,17 +35345,17 @@ fn main_1() {
     var param: i32;
     var param_1: vec2<f32>;
     var alpha: f32;
-    var power: f32;
+    var alpha2_: f32;
     var up: vec3<f32>;
     var right: vec3<f32>;
     var ahead: vec3<f32>;
     var sum: vec3<f32>;
     var weight: f32;
     var i: i32;
-    var z: f32;
-    var radius: f32;
+    var e: f32;
     var theta: f32;
-    var spread: f32;
+    var cosH: f32;
+    var sinH: f32;
     var tap: vec3<f32>;
     var dir: vec3<f32>;
     var cosine: f32;
@@ -35389,87 +35389,89 @@ fn main_1() {
     alpha = max((_e79 * _e80), 0.001f);
     let _e83 = alpha;
     let _e84 = alpha;
-    power = ((2f / (_e83 * _e84)) - 2f);
-    let _e89 = axis[2u];
-    up = select(vec3<f32>(1f, 0f, 0f), vec3<f32>(0f, 0f, 1f), vec3((abs(_e89) < 0.999f)));
-    let _e94 = up;
-    let _e95 = axis;
-    right = normalize(cross(_e94, _e95));
-    let _e98 = axis;
-    let _e99 = right;
-    ahead = cross(_e98, _e99);
+    alpha2_ = (_e83 * _e84);
+    let _e87 = axis[2u];
+    up = select(vec3<f32>(1f, 0f, 0f), vec3<f32>(0f, 0f, 1f), vec3((abs(_e87) < 0.999f)));
+    let _e92 = up;
+    let _e93 = axis;
+    right = normalize(cross(_e92, _e93));
+    let _e96 = axis;
+    let _e97 = right;
+    ahead = cross(_e96, _e97);
     sum = vec3<f32>(0f, 0f, 0f);
     weight = 0f;
     i = 0i;
     loop {
-        let _e101 = i;
-        if (_e101 < 128i) {
-            let _e103 = i;
-            let _e104 = samples;
-            if (_e103 >= _e104) {
+        let _e99 = i;
+        if (_e99 < 128i) {
+            let _e101 = i;
+            let _e102 = samples;
+            if (_e101 >= _e102) {
                 break;
             }
-            let _e106 = i;
-            let _e109 = samples;
-            z = (1f - ((f32(_e106) + 0.5f) / f32(_e109)));
-            let _e113 = z;
-            let _e114 = z;
-            radius = sqrt(max((1f - (_e113 * _e114)), 0f));
-            let _e119 = i;
-            theta = (2.3999631f * f32(_e119));
-            let _e122 = z;
-            let _e123 = power;
-            spread = pow(_e122, (1f / (_e123 + 1f)));
-            let _e127 = radius;
-            let _e128 = theta;
-            let _e131 = spread;
-            let _e134 = radius;
-            let _e135 = theta;
-            let _e138 = spread;
-            let _e141 = spread;
-            tap = normalize(vec3<f32>(((_e127 * cos(_e128)) * (1f - _e131)), ((_e134 * sin(_e135)) * (1f - _e138)), _e141));
-            let _e144 = right;
-            let _e146 = tap[0u];
-            let _e148 = ahead;
-            let _e150 = tap[1u];
-            let _e153 = axis;
-            let _e155 = tap[2u];
-            dir = (((_e144 * _e146) + (_e148 * _e150)) + (_e153 * _e155));
-            let _e158 = dir;
-            let _e159 = axis;
-            cosine = dot(_e158, _e159);
-            let _e161 = cosine;
-            if (_e161 <= 0f) {
+            let _e104 = i;
+            let _e107 = samples;
+            e = ((f32(_e104) + 0.5f) / f32(_e107));
+            let _e110 = i;
+            theta = (2.3999631f * f32(_e110));
+            let _e113 = e;
+            let _e115 = alpha2_;
+            let _e117 = e;
+            cosH = sqrt(((1f - _e113) / (1f + ((_e115 - 1f) * _e117))));
+            let _e122 = cosH;
+            let _e123 = cosH;
+            sinH = sqrt(max((1f - (_e122 * _e123)), 0f));
+            let _e128 = cosH;
+            let _e130 = sinH;
+            let _e132 = theta;
+            let _e135 = cosH;
+            let _e137 = sinH;
+            let _e139 = theta;
+            let _e142 = cosH;
+            let _e144 = cosH;
+            tap = vec3<f32>((((2f * _e128) * _e130) * cos(_e132)), (((2f * _e135) * _e137) * sin(_e139)), (((2f * _e142) * _e144) - 1f));
+            let _e148 = right;
+            let _e150 = tap[0u];
+            let _e152 = ahead;
+            let _e154 = tap[1u];
+            let _e157 = axis;
+            let _e159 = tap[2u];
+            dir = (((_e148 * _e150) + (_e152 * _e154)) + (_e157 * _e159));
+            let _e162 = dir;
+            let _e163 = axis;
+            cosine = dot(_e162, _e163);
+            let _e165 = cosine;
+            if (_e165 <= 0f) {
                 continue;
             }
-            let _e163 = dir;
-            let _e164 = lod;
-            let _e165 = textureSampleLevel(capture_texture_tex, capture_texture_smp, _e163, _e164);
-            let _e167 = cosine;
-            let _e169 = sum;
-            sum = (_e169 + (_e165.xyz * _e167));
+            let _e167 = dir;
+            let _e168 = lod;
+            let _e169 = textureSampleLevel(capture_texture_tex, capture_texture_smp, _e167, _e168);
             let _e171 = cosine;
-            let _e172 = weight;
-            weight = (_e172 + _e171);
+            let _e173 = sum;
+            sum = (_e173 + (_e169.xyz * _e171));
+            let _e175 = cosine;
+            let _e176 = weight;
+            weight = (_e176 + _e175);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e174 = i;
-            i = (_e174 + 1i);
+            let _e178 = i;
+            i = (_e178 + 1i);
         }
     }
-    let _e176 = weight;
-    if (_e176 > 0f) {
-        let _e178 = sum;
-        let _e179 = weight;
-        local = (_e178 / vec3(_e179));
+    let _e180 = weight;
+    if (_e180 > 0f) {
+        let _e182 = sum;
+        let _e183 = weight;
+        local = (_e182 / vec3(_e183));
     } else {
         local = vec3<f32>(0f, 0f, 0f);
     }
-    let _e182 = local;
-    frag_color = vec4<f32>(_e182.x, _e182.y, _e182.z, 1f);
+    let _e186 = local;
+    frag_color = vec4<f32>(_e186.x, _e186.y, _e186.z, 1f);
     return;
 }
 
