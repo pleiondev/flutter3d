@@ -473,6 +473,12 @@ void main() {
   // would mean a third attachment and rewriting all six lit stages. So an
   // emissive strip in a corner dims, which is physically wrong — the same
   // compromise `pbr.frag` already makes with the occlusion map from a glTF.
+  //
+  // **Except under fog** (`S4`): the fog's in-scatter is in this colour by
+  // now, and a crease behind the air must not darken the air. So the fog's
+  // upsample lays both multipliers on the surface before the air, and they
+  // arrive here at a strength of nought. The glow then reads the occluded
+  // scene, which is the price of the air being right.
   // `R7`: each place of the scene at the exposure that shows it best, before
   // the glow is added and the curve applied. Bilinear from an eighth of the
   // frame: the stops were blurred wide, so there is no edge in them to keep.

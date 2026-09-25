@@ -303,9 +303,13 @@ final class FogUpsampleInfoBlock extends UniformBlock {
   /// `size`: Vector4, at byte 0.
   final Float32List size = Float32List(4);
 
+  /// `occlusion`: Vector4, at byte 16.
+  final Float32List occlusion = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'size': size,
+    'occlusion': occlusion,
   };
 }
 

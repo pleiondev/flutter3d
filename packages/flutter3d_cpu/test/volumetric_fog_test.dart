@@ -138,6 +138,59 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
   return device.readHdrPixels(render().frame);
 }
 
+const int _creaseWidth = 64;
+const int _creaseHeight = 48;
+
+/// A floor with a wall across the back of it, the crease between them
+/// occluded by [occlusion] when it is on, seen through [fog] that glows
+/// with a uniform ambient in-scatter.
+Float32List _crease(VolumetricFogSettings fog, {required bool occlusion}) {
+  final device = CpuDevice(
+    width: _creaseWidth,
+    height: _creaseHeight,
+    shaders: CpuShaderLibrary(builtinCpuShaders()),
+  );
+  final cube = DeviceMesh.upload(device, CuboidShape().build());
+  MeshNode slab(Vector3 at, Vector3 scale) => MeshNode(cube, Material())
+    ..setPosition(at.x, at.y, at.z)
+    ..setScale(scale.x, scale.y, scale.z);
+  final camera = CameraNode()
+    ..setPosition(0.0, 2.5, 3.0)
+    ..lookAt(Vector3(0.0, 0.0, -0.5));
+  final scene = Scene()
+    ..add(slab(Vector3(0.0, -0.05, 0.0), Vector3(8.0, 0.1, 8.0)))
+    ..add(slab(Vector3(0.0, 1.0, -1.0), Vector3(8.0, 2.0, 0.2)))
+    ..add(camera);
+  final result = Renderer.create(device: device).render(
+    width: _creaseWidth,
+    height: _creaseHeight,
+    scene: scene,
+    views: <RenderView>[RenderView(camera: camera)],
+    settings: RenderSettings(
+      tonemap: false,
+      bloom: const BloomSettings(enabled: false),
+      ambientOcclusion: AmbientOcclusionSettings(
+        enabled: occlusion,
+        radius: 0.6,
+      ),
+      volumetricFog: fog.copyWith(
+        color: Vector3.all(1.0),
+        ambient: Vector3.all(0.5),
+      ),
+    ),
+  );
+  return device.readHdrPixels(result.frame);
+}
+
+/// The largest difference between two frames, channel by channel.
+double _largestDifference(Float32List a, Float32List b) {
+  var largest = 0.0;
+  for (var i = 0; i < a.length; i++) {
+    largest = math.max(largest, (a[i] - b[i]).abs());
+  }
+  return largest;
+}
+
 double _sum(Float32List frame) {
   var total = 0.0;
   for (var i = 0; i < frame.length; i += 4) {
@@ -246,6 +299,52 @@ void main() {
     expect(
       _fogTorches(clustered: false, albedo: 1.0),
       _fogTorches(clustered: false, albedo: 0.0),
+    );
+  });
+
+  test('fog-crease: the occlusion darkens the wall and not the air', () {
+    // Without fog the crease is plainly darker with the occlusion on: the
+    // comparisons below are not of two frames that never differed.
+    const clear = VolumetricFogSettings();
+    expect(
+      _largestDifference(
+        _crease(clear, occlusion: true),
+        _crease(clear, occlusion: false),
+      ),
+      greaterThan(0.05),
+    );
+
+    // Air so thick the wall keeps e^(−12) of itself: the picture is the
+    // in-scatter and nothing else, and a crease behind it has nothing left
+    // to darken. Mutation: leave the occlusion to the composite, which
+    // multiplies it into the in-scatter too, and the crease is drawn on the
+    // air as a dark line.
+    const dense = VolumetricFogSettings(
+      enabled: true,
+      density: 3.0,
+      steps: 32,
+      distance: 20.0,
+    );
+    expect(
+      _largestDifference(
+        _crease(dense, occlusion: true),
+        _crease(dense, occlusion: false),
+      ),
+      lessThan(2e-3),
+    );
+
+    // Thin air still shows the crease: the occlusion moved, it did not go.
+    const thin = VolumetricFogSettings(
+      enabled: true,
+      density: 0.1,
+      distance: 20.0,
+    );
+    expect(
+      _largestDifference(
+        _crease(thin, occlusion: true),
+        _crease(thin, occlusion: false),
+      ),
+      greaterThan(0.02),
     );
   });
 }

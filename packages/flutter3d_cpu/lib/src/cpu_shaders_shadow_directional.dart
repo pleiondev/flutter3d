@@ -20,6 +20,10 @@ import 'cpu_shaders_surface.dart';
 /// One — not zero — outside the map, off the caster, or with shadows off. A
 /// fragment beyond the shadow volume is unshadowed, and getting that backwards
 /// puts a hard edge across the scene at the edge of the map.
+///
+/// [lightNDotL] is the light's `n_dot_l`, which `ShadowFactor` is handed with
+/// the light and no longer reads: the offset measures the slope along the
+/// map's own axes instead.
 double shadowFactor(
   Surface s,
   ShaderBindings b,
@@ -39,13 +43,9 @@ double shadowFactor(
   // Normal offset: move the sample along the normal before projecting. It
   // fixes acne a depth bias cannot, because that error is proportional to the
   // surface's slope relative to the light rather than to depth. A flat
-  // distance plus one texel of the cascade scaled by the slope, for the reason
-  // `shadow.glsl` gives.
-  final nDotL = math.max(lightNDotL, 0.15);
-  final slope = math.min(
-    math.sqrt(math.max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL),
-    8.0,
-  );
+  // distance plus a texel and a half of the cascade times the sine of the
+  // slope along each axis of the map, measured per cascade below, for the
+  // reason `shadow.glsl` gives.
 
   // Which cascade covers this fragment. The mirror of shadow.glsl, and it has
   // to stay one: the parity suite compares this backend's picture against
@@ -78,16 +78,29 @@ double shadowFactor(
           : (which == 1 ? 'shadow_matrix_far' : 'shadow_matrix_farthest'),
     );
     // One texel of this cascade in metres: the first row of an orthographic
-    // projection is 2 / width.
-    final rowX = Vector3(
+    // projection is 2 / width. The rows are the map's axes in the world, and
+    // the normal's share along each is the sine of the slope that way.
+    final axisX = Vector3(
       matrix.entry(0, 0),
       matrix.entry(0, 1),
       matrix.entry(0, 2),
-    ).length;
+    );
+    final axisY = Vector3(
+      matrix.entry(1, 0),
+      matrix.entry(1, 1),
+      matrix.entry(1, 2),
+    );
+    final rowX = math.max(axisX.length, 1e-6);
+    final rowY = math.max(axisY.length, 1e-6);
     final tileTexel = cascades.w > 0.0 ? cascades.w : params.x;
-    final texelMetres = 2.0 * tileTexel / math.max(rowX, 1e-6);
-    final origin =
-        s.world + s.normal * (params.z + texelMetres * (1.0 + slope));
+    final texelMetres = 2.0 * tileTexel / rowX;
+    final reach =
+        1.5 *
+        2.0 *
+        tileTexel *
+        (s.normal.dot(axisX).abs() / (rowX * rowX) +
+            s.normal.dot(axisY).abs() / (rowY * rowY));
+    final origin = s.world + s.normal * (params.z + reach);
     final Vector4 lightSpace =
         matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
     if (lightSpace.w <= 0.0) continue;
