@@ -18,6 +18,8 @@ final class _AlbedoProbe extends RenderNode {
 
   final CpuDevice _device;
   Float32List? last;
+  TextureHandle? albedo;
+  TextureHandle? surface;
 
   @override
   String get name => 'albedo probe';
@@ -32,6 +34,7 @@ final class _AlbedoProbe extends RenderNode {
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
     FrameResourceIds.albedoBuffer,
+    FrameResourceIds.surfaceBuffer,
   ];
 
   @override
@@ -39,7 +42,10 @@ final class _AlbedoProbe extends RenderNode {
 
   @override
   void execute(NodeFrame frame) {
-    final albedo = frame.resources.tryTexture(FrameResourceIds.albedoBuffer);
+    final albedo = this.albedo = frame.resources.tryTexture(
+      FrameResourceIds.albedoBuffer,
+    );
+    surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     last = albedo == null ? null : _device.readHdrPixels(albedo);
     frame.resources.provide(
       FrameResourceIds.frame,
@@ -100,6 +106,25 @@ void main() {
     expect(albedo[at + 3], 1.0);
     // The sky around it is the clear: nothing drawn, nothing reflected.
     expect(albedo[3], 0.0);
+  });
+
+  // Impeller writes a third attachment as if it had the second one's format:
+  // an eight-bit albedo beside the half-float surface buffer held the raw
+  // bytes of two half floats, and the bounces read a quarter of the colour.
+  test('the albedo buffer shares the surface buffer\'s format', () {
+    final it = _stage(Material(lighting: LightingModel.lambert));
+    final probe = _AlbedoProbe(it.device);
+    it.renderer
+      ..addNode(probe)
+      ..render(
+        width: _size,
+        height: _size,
+        scene: it.scene,
+        views: <RenderView>[RenderView(camera: it.camera)],
+      );
+    expect(probe.albedo, isNotNull);
+    expect(probe.surface, isNotNull);
+    expect(probe.albedo!.format, probe.surface!.format);
   });
 
   test('an unlit surface reflects nothing', () {
