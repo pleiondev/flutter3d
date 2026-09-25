@@ -431,7 +431,8 @@ void applyNormalMap(
   // mirrored half of a symmetric model from the wrong side.
   final bitangent = s.normal.cross(t)..scale(s.tangent.w);
   // `C8`: the frame turns with a map its transform turns or mirrors, as
-  // `ApplyNormalMap` turns it, on the front face's frame.
+  // `ApplyNormalMap` turns it, on the front face's frame. dP/dv is minus the
+  // bitangent, so `m10` adds it.
   final rows = transformed ? b.read('LayerInfo', 'uv_transform') : null;
   if (rows != null && rows.length >= kMapNormal * 8 + 8) {
     const o = kMapNormal * 8;
@@ -443,7 +444,7 @@ void applyNormalMap(
     );
     final flip = m00 * m11 - m01 * m10 < 0.0 ? -1.0 : 1.0;
     final front = c.frontFacing ? bitangent : -bitangent;
-    final turned = (t * m11 - front * m10)..scale(flip);
+    final turned = (t * m11 + front * m10)..scale(flip);
     if ((m01 != 0.0 || m10 != 0.0 || m00 < 0.0 || m11 < 0.0) &&
         turned.length2 > 1e-12) {
       t.setFrom(turned..normalize());

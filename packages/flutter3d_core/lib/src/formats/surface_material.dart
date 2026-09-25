@@ -120,7 +120,8 @@ final class TextureTransform {
 
   final Vector2 scale;
 
-  /// Radians, counter-clockwise, about the origin.
+  /// Radians, counter-clockwise as the image is seen, about the origin. `v`
+  /// runs down the image, so a quarter turn sends `+u` to `-v`.
   final double rotation;
 
   /// Whether this moves nothing, which is what a file that names the
