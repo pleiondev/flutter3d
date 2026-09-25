@@ -78,6 +78,18 @@ The rest of that package's tests are deliberately split by whether they need a b
 
 The same package has a second instrument in the same shape, held by the same rule: `tool/surface_probe.sh` measures flutter_gpu's `GpuImageSurface` against the `asImage()` path `presentFrame` uses, on a live GPU, and prints what each costs. The probe itself lives in the engine's example beside the entry point that runs it, not in the backend, because it reaches flutter_gpu directly and is no part of what the backend publishes. It is a measurement more than a check. Its exit code says only whether the last frame of each of the five present paths, and of the resized surface, came back holding the colour it was cleared to, which checks the image wrapping the right texture and nothing the compositor did. What it found is on the [backends](/core/backends/#presenting) page.
 
+## A budget for frames meant to differ {#flip}
+
+Zero differing pixels is the right bar for a frame that should not move. It is the wrong one for a frame that is supposed to differ from its reference a little everywhere: a lower render scale, or a stochastic effect against its sorted reference. A lower render scale moves nearly every pixel a little and looks almost the same, so a count of moved pixels cannot say how much worse the frame looks.
+
+`flutter3d_testing` answers that with FLIP. `flip` compares two 8-bit sRGB frames and `flipLinear` two in linear light; both return a `FlipResult` holding the per-pixel error map and its mean, where 0 is identical and 1 is as different as green is from blue. It is LDR-FLIP (Andersson et al., HPG 2020) ported line for line from the reference implementation, so a value here is the value there, and a test holds it to the error maps that implementation publishes. The viewing condition defaults to `defaultFlipPpd`, about 67 pixels per degree.
+
+```dart
+await expectMatchesGolden(frame, 'test/goldens/half_scale.png', flipBudget: 0.02);
+```
+
+`flipBudget` left null, the default, compares pixels as before. Given, the mean FLIP error replaces the share of differing pixels. `measureQualityTable` uses the same measure offline, to price each row of the table adaptive quality chooses from: its cost against full quality, and how different it looks.
+
 ## Every new test is written by breaking what it covers
 
 Write the test. Break the code it covers. Watch the test fail. Name the mutation in a comment. Then fix the code.
@@ -274,4 +286,22 @@ flutter run -d macos \
 
 <div class="why">
 <p>Three attempts at an A/B comparison in the shooter were spoiled by a synthetic keystroke not reaching the window. The fog A/B toggles on the clock instead, so the measurement no longer depends on the window manager cooperating.</p>
+</div>
+
+## Frame pacing on a real device {#pacing}
+
+A run that averages sixty frames a second can still stop for a tenth of a second every few seconds, and that stop is what a player feels. So the measure is every frame's own time, and the line is 50 ms, three frames at 60 Hz.
+
+```bash
+tool/pacing.sh                                  # macOS through Impeller, the sample run
+tool/pacing.sh -d <device-id> --label a55       # a phone
+tool/pacing.sh --run path/to/run.f3drun --repeats 5 --budget 2000
+```
+
+The script plays a recorded run through the renderer in `apps/flutter3d_demo_dungeon` with `flutter drive --profile`, because `flutter test` on a device builds debug and a JIT frame time is not a frame time. It writes the report to `doc/pacing/<label>.md` (the device's id when there is no `--label`; `--no-report` keeps it out of the tree) and exits non-zero on any frame over the line. `--repeats` plays the tape that many times, three by default. `--budget` sets `RenderSettings.frameWorkBudget` in microseconds, and 0, the default, leaves it unlimited. The report keeps the median, the 99th percentile, the worst frame and where on the tape it fell, so a spike can be found again by replaying to it; the macOS report is committed, and the same command runs on the release phone by hand before a release.
+
+Underneath is `replayPacing` in `flutter3d_testing`. A frame is one step of the tape through `onStep` and one `drawFrame`, back to back and not on a display's clock, and a GPU device's `drawFrame` finishes with `gpuSettled`, which closes the frame and waits for the device's `onFrameComplete` so the GPU's share is counted. The result is a `FramePacing`: median, 99th percentile, the worst frame and its index, and every frame over `limitMillis` (50 by default). `repeats`, `rewind` and `warmUpFrames` play a tape several times from its start, or skip a level's first frames.
+
+<div class="why">
+<p>The CPU and GPU halves of each frame are serialised, which makes a frame look longer than it would in a game, where the GPU draws one frame while the CPU prepares the next. That is the right side to err on for a check that fails on spikes, and it puts each spike on the frame that caused it.</p>
 </div>
