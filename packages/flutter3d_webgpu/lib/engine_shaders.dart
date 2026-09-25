@@ -6322,103 +6322,103 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             lit_1 = (_e536 * 0.11111111f);
         } else {
             let _e538 = softness;
-            spread = (2f * tan(min(_e538, 0.5f)));
-            let _e542 = ShadowNoise_u0028_();
-            turn_1 = (_e542 * 6.2831855f);
-            let _e544 = spread;
-            let _e546 = projected[2u];
-            let _e548 = cascadeDepth;
-            let _e550 = cascadeTexel;
-            searchRadius = clamp((((_e544 * _e546) * _e548) / _e550), 1f, 16f);
+            spread = tan(min(_e538, 0.5f));
+            let _e541 = ShadowNoise_u0028_();
+            turn_1 = (_e541 * 6.2831855f);
+            let _e543 = spread;
+            let _e545 = projected[2u];
+            let _e547 = cascadeDepth;
+            let _e549 = cascadeTexel;
+            searchRadius = clamp((((_e543 * _e545) * _e547) / _e549), 1f, 16f);
             blockerSum = 0f;
             blockerCount = 0f;
             i_5 = 0i;
             loop {
-                let _e553 = i_5;
-                if (_e553 < 16i) {
-                    let _e555 = uv_4;
-                    let _e556 = i_5;
-                    param_57 = _e556;
+                let _e552 = i_5;
+                if (_e552 < 16i) {
+                    let _e554 = uv_4;
+                    let _e555 = i_5;
+                    param_57 = _e555;
                     param_58 = 16i;
-                    let _e557 = turn_1;
-                    param_59 = _e557;
-                    let _e558 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
-                    let _e559 = texel_1;
-                    let _e561 = searchRadius;
-                    let _e564 = tileLo;
-                    let _e565 = tileHi;
-                    let _e567 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e555 + ((_e558 * _e559) * _e561)), _e564, _e565), 0f);
-                    occluder_1 = _e567.x;
-                    let _e570 = projected[2u];
-                    let _e571 = bias;
-                    let _e573 = occluder_1;
-                    if ((_e570 - _e571) > _e573) {
-                        let _e575 = occluder_1;
-                        let _e576 = blockerSum;
-                        blockerSum = (_e576 + _e575);
-                        let _e578 = blockerCount;
-                        blockerCount = (_e578 + 1f);
+                    let _e556 = turn_1;
+                    param_59 = _e556;
+                    let _e557 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
+                    let _e558 = texel_1;
+                    let _e560 = searchRadius;
+                    let _e563 = tileLo;
+                    let _e564 = tileHi;
+                    let _e566 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e554 + ((_e557 * _e558) * _e560)), _e563, _e564), 0f);
+                    occluder_1 = _e566.x;
+                    let _e569 = projected[2u];
+                    let _e570 = bias;
+                    let _e572 = occluder_1;
+                    if ((_e569 - _e570) > _e572) {
+                        let _e574 = occluder_1;
+                        let _e575 = blockerSum;
+                        blockerSum = (_e575 + _e574);
+                        let _e577 = blockerCount;
+                        blockerCount = (_e577 + 1f);
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e580 = i_5;
-                    i_5 = (_e580 + 1i);
+                    let _e579 = i_5;
+                    i_5 = (_e579 + 1i);
                 }
             }
-            let _e582 = blockerCount;
-            if (_e582 <= 0f) {
+            let _e581 = blockerCount;
+            if (_e581 <= 0f) {
                 return 1f;
             }
-            let _e585 = projected[2u];
-            let _e586 = blockerSum;
-            let _e587 = blockerCount;
-            let _e591 = cascadeDepth;
-            gap = (max((_e585 - (_e586 / _e587)), 0f) * _e591);
-            let _e593 = spread;
-            let _e594 = gap;
-            let _e596 = cascadeTexel;
-            radius_2 = clamp(((_e593 * _e594) / _e596), 1f, 16f);
+            let _e584 = projected[2u];
+            let _e585 = blockerSum;
+            let _e586 = blockerCount;
+            let _e590 = cascadeDepth;
+            gap = (max((_e584 - (_e585 / _e586)), 0f) * _e590);
+            let _e592 = spread;
+            let _e593 = gap;
+            let _e595 = cascadeTexel;
+            radius_2 = clamp(((_e592 * _e593) / _e595), 1f, 16f);
             i_6 = 0i;
             loop {
-                let _e599 = i_6;
-                if (_e599 < 16i) {
-                    let _e601 = uv_4;
-                    let _e602 = turn_1;
-                    let _e604 = i_6;
-                    param_60 = _e604;
+                let _e598 = i_6;
+                if (_e598 < 16i) {
+                    let _e600 = uv_4;
+                    let _e601 = turn_1;
+                    let _e603 = i_6;
+                    param_60 = _e603;
                     param_61 = 16i;
-                    param_62 = (_e602 + 1f);
-                    let _e605 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
-                    let _e606 = texel_1;
-                    let _e608 = radius_2;
-                    let _e611 = tileLo;
-                    let _e612 = tileHi;
-                    let _e614 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e601 + ((_e605 * _e606) * _e608)), _e611, _e612), 0f);
-                    occluder_2 = _e614.x;
-                    let _e617 = projected[2u];
-                    let _e618 = bias;
-                    let _e620 = occluder_2;
-                    let _e623 = lit_1;
-                    lit_1 = (_e623 + select(1f, 0f, ((_e617 - _e618) > _e620)));
+                    param_62 = (_e601 + 1f);
+                    let _e604 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
+                    let _e605 = texel_1;
+                    let _e607 = radius_2;
+                    let _e610 = tileLo;
+                    let _e611 = tileHi;
+                    let _e613 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e600 + ((_e604 * _e605) * _e607)), _e610, _e611), 0f);
+                    occluder_2 = _e613.x;
+                    let _e616 = projected[2u];
+                    let _e617 = bias;
+                    let _e619 = occluder_2;
+                    let _e622 = lit_1;
+                    lit_1 = (_e622 + select(1f, 0f, ((_e616 - _e617) > _e619)));
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e625 = i_6;
-                    i_6 = (_e625 + 1i);
+                    let _e624 = i_6;
+                    i_6 = (_e624 + 1i);
                 }
             }
-            let _e627 = lit_1;
-            lit_1 = (_e627 * 0.0625f);
+            let _e626 = lit_1;
+            lit_1 = (_e626 * 0.0625f);
         }
     }
-    let _e629 = lit_1;
-    let _e630 = strength_1;
-    return mix(1f, _e629, clamp(_e630, 0f, 1f));
+    let _e628 = lit_1;
+    let _e629 = strength_1;
+    return mix(1f, _e628, clamp(_e629, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -9579,103 +9579,103 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             lit_1 = (_e537 * 0.11111111f);
         } else {
             let _e539 = softness;
-            spread = (2f * tan(min(_e539, 0.5f)));
-            let _e543 = ShadowNoise_u0028_();
-            turn_1 = (_e543 * 6.2831855f);
-            let _e545 = spread;
-            let _e547 = projected[2u];
-            let _e549 = cascadeDepth;
-            let _e551 = cascadeTexel;
-            searchRadius = clamp((((_e545 * _e547) * _e549) / _e551), 1f, 16f);
+            spread = tan(min(_e539, 0.5f));
+            let _e542 = ShadowNoise_u0028_();
+            turn_1 = (_e542 * 6.2831855f);
+            let _e544 = spread;
+            let _e546 = projected[2u];
+            let _e548 = cascadeDepth;
+            let _e550 = cascadeTexel;
+            searchRadius = clamp((((_e544 * _e546) * _e548) / _e550), 1f, 16f);
             blockerSum = 0f;
             blockerCount = 0f;
             i_5 = 0i;
             loop {
-                let _e554 = i_5;
-                if (_e554 < 16i) {
-                    let _e556 = uv_4;
-                    let _e557 = i_5;
-                    param_57 = _e557;
+                let _e553 = i_5;
+                if (_e553 < 16i) {
+                    let _e555 = uv_4;
+                    let _e556 = i_5;
+                    param_57 = _e556;
                     param_58 = 16i;
-                    let _e558 = turn_1;
-                    param_59 = _e558;
-                    let _e559 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
-                    let _e560 = texel_1;
-                    let _e562 = searchRadius;
-                    let _e565 = tileLo;
-                    let _e566 = tileHi;
-                    let _e568 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e556 + ((_e559 * _e560) * _e562)), _e565, _e566), 0f);
-                    occluder_1 = _e568.x;
-                    let _e571 = projected[2u];
-                    let _e572 = bias;
-                    let _e574 = occluder_1;
-                    if ((_e571 - _e572) > _e574) {
-                        let _e576 = occluder_1;
-                        let _e577 = blockerSum;
-                        blockerSum = (_e577 + _e576);
-                        let _e579 = blockerCount;
-                        blockerCount = (_e579 + 1f);
+                    let _e557 = turn_1;
+                    param_59 = _e557;
+                    let _e558 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
+                    let _e559 = texel_1;
+                    let _e561 = searchRadius;
+                    let _e564 = tileLo;
+                    let _e565 = tileHi;
+                    let _e567 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e555 + ((_e558 * _e559) * _e561)), _e564, _e565), 0f);
+                    occluder_1 = _e567.x;
+                    let _e570 = projected[2u];
+                    let _e571 = bias;
+                    let _e573 = occluder_1;
+                    if ((_e570 - _e571) > _e573) {
+                        let _e575 = occluder_1;
+                        let _e576 = blockerSum;
+                        blockerSum = (_e576 + _e575);
+                        let _e578 = blockerCount;
+                        blockerCount = (_e578 + 1f);
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e581 = i_5;
-                    i_5 = (_e581 + 1i);
+                    let _e580 = i_5;
+                    i_5 = (_e580 + 1i);
                 }
             }
-            let _e583 = blockerCount;
-            if (_e583 <= 0f) {
+            let _e582 = blockerCount;
+            if (_e582 <= 0f) {
                 return 1f;
             }
-            let _e586 = projected[2u];
-            let _e587 = blockerSum;
-            let _e588 = blockerCount;
-            let _e592 = cascadeDepth;
-            gap = (max((_e586 - (_e587 / _e588)), 0f) * _e592);
-            let _e594 = spread;
-            let _e595 = gap;
-            let _e597 = cascadeTexel;
-            radius_2 = clamp(((_e594 * _e595) / _e597), 1f, 16f);
+            let _e585 = projected[2u];
+            let _e586 = blockerSum;
+            let _e587 = blockerCount;
+            let _e591 = cascadeDepth;
+            gap = (max((_e585 - (_e586 / _e587)), 0f) * _e591);
+            let _e593 = spread;
+            let _e594 = gap;
+            let _e596 = cascadeTexel;
+            radius_2 = clamp(((_e593 * _e594) / _e596), 1f, 16f);
             i_6 = 0i;
             loop {
-                let _e600 = i_6;
-                if (_e600 < 16i) {
-                    let _e602 = uv_4;
-                    let _e603 = turn_1;
-                    let _e605 = i_6;
-                    param_60 = _e605;
+                let _e599 = i_6;
+                if (_e599 < 16i) {
+                    let _e601 = uv_4;
+                    let _e602 = turn_1;
+                    let _e604 = i_6;
+                    param_60 = _e604;
                     param_61 = 16i;
-                    param_62 = (_e603 + 1f);
-                    let _e606 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
-                    let _e607 = texel_1;
-                    let _e609 = radius_2;
-                    let _e612 = tileLo;
-                    let _e613 = tileHi;
-                    let _e615 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e602 + ((_e606 * _e607) * _e609)), _e612, _e613), 0f);
-                    occluder_2 = _e615.x;
-                    let _e618 = projected[2u];
-                    let _e619 = bias;
-                    let _e621 = occluder_2;
-                    let _e624 = lit_1;
-                    lit_1 = (_e624 + select(1f, 0f, ((_e618 - _e619) > _e621)));
+                    param_62 = (_e602 + 1f);
+                    let _e605 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
+                    let _e606 = texel_1;
+                    let _e608 = radius_2;
+                    let _e611 = tileLo;
+                    let _e612 = tileHi;
+                    let _e614 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e601 + ((_e605 * _e606) * _e608)), _e611, _e612), 0f);
+                    occluder_2 = _e614.x;
+                    let _e617 = projected[2u];
+                    let _e618 = bias;
+                    let _e620 = occluder_2;
+                    let _e623 = lit_1;
+                    lit_1 = (_e623 + select(1f, 0f, ((_e617 - _e618) > _e620)));
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e626 = i_6;
-                    i_6 = (_e626 + 1i);
+                    let _e625 = i_6;
+                    i_6 = (_e625 + 1i);
                 }
             }
-            let _e628 = lit_1;
-            lit_1 = (_e628 * 0.0625f);
+            let _e627 = lit_1;
+            lit_1 = (_e627 * 0.0625f);
         }
     }
-    let _e630 = lit_1;
-    let _e631 = strength_1;
-    return mix(1f, _e630, clamp(_e631, 0f, 1f));
+    let _e629 = lit_1;
+    let _e630 = strength_1;
+    return mix(1f, _e629, clamp(_e630, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -13172,103 +13172,103 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             lit_1 = (_e556 * 0.11111111f);
         } else {
             let _e558 = softness;
-            spread = (2f * tan(min(_e558, 0.5f)));
-            let _e562 = ShadowNoise_u0028_();
-            turn_1 = (_e562 * 6.2831855f);
-            let _e564 = spread;
-            let _e566 = projected[2u];
-            let _e568 = cascadeDepth;
-            let _e570 = cascadeTexel;
-            searchRadius = clamp((((_e564 * _e566) * _e568) / _e570), 1f, 16f);
+            spread = tan(min(_e558, 0.5f));
+            let _e561 = ShadowNoise_u0028_();
+            turn_1 = (_e561 * 6.2831855f);
+            let _e563 = spread;
+            let _e565 = projected[2u];
+            let _e567 = cascadeDepth;
+            let _e569 = cascadeTexel;
+            searchRadius = clamp((((_e563 * _e565) * _e567) / _e569), 1f, 16f);
             blockerSum = 0f;
             blockerCount = 0f;
             i_5 = 0i;
             loop {
-                let _e573 = i_5;
-                if (_e573 < 16i) {
-                    let _e575 = uv_4;
-                    let _e576 = i_5;
-                    param_83 = _e576;
+                let _e572 = i_5;
+                if (_e572 < 16i) {
+                    let _e574 = uv_4;
+                    let _e575 = i_5;
+                    param_83 = _e575;
                     param_84 = 16i;
-                    let _e577 = turn_1;
-                    param_85 = _e577;
-                    let _e578 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_83), (&param_84), (&param_85));
-                    let _e579 = texel_1;
-                    let _e581 = searchRadius;
-                    let _e584 = tileLo;
-                    let _e585 = tileHi;
-                    let _e587 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e575 + ((_e578 * _e579) * _e581)), _e584, _e585), 0f);
-                    occluder_1 = _e587.x;
-                    let _e590 = projected[2u];
-                    let _e591 = bias;
-                    let _e593 = occluder_1;
-                    if ((_e590 - _e591) > _e593) {
-                        let _e595 = occluder_1;
-                        let _e596 = blockerSum;
-                        blockerSum = (_e596 + _e595);
-                        let _e598 = blockerCount;
-                        blockerCount = (_e598 + 1f);
+                    let _e576 = turn_1;
+                    param_85 = _e576;
+                    let _e577 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_83), (&param_84), (&param_85));
+                    let _e578 = texel_1;
+                    let _e580 = searchRadius;
+                    let _e583 = tileLo;
+                    let _e584 = tileHi;
+                    let _e586 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e574 + ((_e577 * _e578) * _e580)), _e583, _e584), 0f);
+                    occluder_1 = _e586.x;
+                    let _e589 = projected[2u];
+                    let _e590 = bias;
+                    let _e592 = occluder_1;
+                    if ((_e589 - _e590) > _e592) {
+                        let _e594 = occluder_1;
+                        let _e595 = blockerSum;
+                        blockerSum = (_e595 + _e594);
+                        let _e597 = blockerCount;
+                        blockerCount = (_e597 + 1f);
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e600 = i_5;
-                    i_5 = (_e600 + 1i);
+                    let _e599 = i_5;
+                    i_5 = (_e599 + 1i);
                 }
             }
-            let _e602 = blockerCount;
-            if (_e602 <= 0f) {
+            let _e601 = blockerCount;
+            if (_e601 <= 0f) {
                 return 1f;
             }
-            let _e605 = projected[2u];
-            let _e606 = blockerSum;
-            let _e607 = blockerCount;
-            let _e611 = cascadeDepth;
-            gap = (max((_e605 - (_e606 / _e607)), 0f) * _e611);
-            let _e613 = spread;
-            let _e614 = gap;
-            let _e616 = cascadeTexel;
-            radius_2 = clamp(((_e613 * _e614) / _e616), 1f, 16f);
+            let _e604 = projected[2u];
+            let _e605 = blockerSum;
+            let _e606 = blockerCount;
+            let _e610 = cascadeDepth;
+            gap = (max((_e604 - (_e605 / _e606)), 0f) * _e610);
+            let _e612 = spread;
+            let _e613 = gap;
+            let _e615 = cascadeTexel;
+            radius_2 = clamp(((_e612 * _e613) / _e615), 1f, 16f);
             i_6 = 0i;
             loop {
-                let _e619 = i_6;
-                if (_e619 < 16i) {
-                    let _e621 = uv_4;
-                    let _e622 = turn_1;
-                    let _e624 = i_6;
-                    param_86 = _e624;
+                let _e618 = i_6;
+                if (_e618 < 16i) {
+                    let _e620 = uv_4;
+                    let _e621 = turn_1;
+                    let _e623 = i_6;
+                    param_86 = _e623;
                     param_87 = 16i;
-                    param_88 = (_e622 + 1f);
-                    let _e625 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_86), (&param_87), (&param_88));
-                    let _e626 = texel_1;
-                    let _e628 = radius_2;
-                    let _e631 = tileLo;
-                    let _e632 = tileHi;
-                    let _e634 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e621 + ((_e625 * _e626) * _e628)), _e631, _e632), 0f);
-                    occluder_2 = _e634.x;
-                    let _e637 = projected[2u];
-                    let _e638 = bias;
-                    let _e640 = occluder_2;
-                    let _e643 = lit_1;
-                    lit_1 = (_e643 + select(1f, 0f, ((_e637 - _e638) > _e640)));
+                    param_88 = (_e621 + 1f);
+                    let _e624 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_86), (&param_87), (&param_88));
+                    let _e625 = texel_1;
+                    let _e627 = radius_2;
+                    let _e630 = tileLo;
+                    let _e631 = tileHi;
+                    let _e633 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e620 + ((_e624 * _e625) * _e627)), _e630, _e631), 0f);
+                    occluder_2 = _e633.x;
+                    let _e636 = projected[2u];
+                    let _e637 = bias;
+                    let _e639 = occluder_2;
+                    let _e642 = lit_1;
+                    lit_1 = (_e642 + select(1f, 0f, ((_e636 - _e637) > _e639)));
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e645 = i_6;
-                    i_6 = (_e645 + 1i);
+                    let _e644 = i_6;
+                    i_6 = (_e644 + 1i);
                 }
             }
-            let _e647 = lit_1;
-            lit_1 = (_e647 * 0.0625f);
+            let _e646 = lit_1;
+            lit_1 = (_e646 * 0.0625f);
         }
     }
-    let _e649 = lit_1;
-    let _e650 = strength_1;
-    return mix(1f, _e649, clamp(_e650, 0f, 1f));
+    let _e648 = lit_1;
+    let _e649 = strength_1;
+    return mix(1f, _e648, clamp(_e649, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b_i1_u003b(s_4: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -17588,103 +17588,103 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             lit_1 = (_e622 * 0.11111111f);
         } else {
             let _e624 = softness;
-            spread = (2f * tan(min(_e624, 0.5f)));
-            let _e628 = ShadowNoise_u0028_();
-            turn_1 = (_e628 * 6.2831855f);
-            let _e630 = spread;
-            let _e632 = projected[2u];
-            let _e634 = cascadeDepth;
-            let _e636 = cascadeTexel;
-            searchRadius = clamp((((_e630 * _e632) * _e634) / _e636), 1f, 16f);
+            spread = tan(min(_e624, 0.5f));
+            let _e627 = ShadowNoise_u0028_();
+            turn_1 = (_e627 * 6.2831855f);
+            let _e629 = spread;
+            let _e631 = projected[2u];
+            let _e633 = cascadeDepth;
+            let _e635 = cascadeTexel;
+            searchRadius = clamp((((_e629 * _e631) * _e633) / _e635), 1f, 16f);
             blockerSum = 0f;
             blockerCount = 0f;
             i_6 = 0i;
             loop {
-                let _e639 = i_6;
-                if (_e639 < 16i) {
-                    let _e641 = uv_5;
-                    let _e642 = i_6;
-                    param_129 = _e642;
+                let _e638 = i_6;
+                if (_e638 < 16i) {
+                    let _e640 = uv_5;
+                    let _e641 = i_6;
+                    param_129 = _e641;
                     param_130 = 16i;
-                    let _e643 = turn_1;
-                    param_131 = _e643;
-                    let _e644 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_129), (&param_130), (&param_131));
-                    let _e645 = texel_1;
-                    let _e647 = searchRadius;
-                    let _e650 = tileLo;
-                    let _e651 = tileHi;
-                    let _e653 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e641 + ((_e644 * _e645) * _e647)), _e650, _e651), 0f);
-                    occluder_1 = _e653.x;
-                    let _e656 = projected[2u];
-                    let _e657 = bias;
-                    let _e659 = occluder_1;
-                    if ((_e656 - _e657) > _e659) {
-                        let _e661 = occluder_1;
-                        let _e662 = blockerSum;
-                        blockerSum = (_e662 + _e661);
-                        let _e664 = blockerCount;
-                        blockerCount = (_e664 + 1f);
+                    let _e642 = turn_1;
+                    param_131 = _e642;
+                    let _e643 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_129), (&param_130), (&param_131));
+                    let _e644 = texel_1;
+                    let _e646 = searchRadius;
+                    let _e649 = tileLo;
+                    let _e650 = tileHi;
+                    let _e652 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e640 + ((_e643 * _e644) * _e646)), _e649, _e650), 0f);
+                    occluder_1 = _e652.x;
+                    let _e655 = projected[2u];
+                    let _e656 = bias;
+                    let _e658 = occluder_1;
+                    if ((_e655 - _e656) > _e658) {
+                        let _e660 = occluder_1;
+                        let _e661 = blockerSum;
+                        blockerSum = (_e661 + _e660);
+                        let _e663 = blockerCount;
+                        blockerCount = (_e663 + 1f);
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e666 = i_6;
-                    i_6 = (_e666 + 1i);
+                    let _e665 = i_6;
+                    i_6 = (_e665 + 1i);
                 }
             }
-            let _e668 = blockerCount;
-            if (_e668 <= 0f) {
+            let _e667 = blockerCount;
+            if (_e667 <= 0f) {
                 return 1f;
             }
-            let _e671 = projected[2u];
-            let _e672 = blockerSum;
-            let _e673 = blockerCount;
-            let _e677 = cascadeDepth;
-            gap = (max((_e671 - (_e672 / _e673)), 0f) * _e677);
-            let _e679 = spread;
-            let _e680 = gap;
-            let _e682 = cascadeTexel;
-            radius_2 = clamp(((_e679 * _e680) / _e682), 1f, 16f);
+            let _e670 = projected[2u];
+            let _e671 = blockerSum;
+            let _e672 = blockerCount;
+            let _e676 = cascadeDepth;
+            gap = (max((_e670 - (_e671 / _e672)), 0f) * _e676);
+            let _e678 = spread;
+            let _e679 = gap;
+            let _e681 = cascadeTexel;
+            radius_2 = clamp(((_e678 * _e679) / _e681), 1f, 16f);
             i_7 = 0i;
             loop {
-                let _e685 = i_7;
-                if (_e685 < 16i) {
-                    let _e687 = uv_5;
-                    let _e688 = turn_1;
-                    let _e690 = i_7;
-                    param_132 = _e690;
+                let _e684 = i_7;
+                if (_e684 < 16i) {
+                    let _e686 = uv_5;
+                    let _e687 = turn_1;
+                    let _e689 = i_7;
+                    param_132 = _e689;
                     param_133 = 16i;
-                    param_134 = (_e688 + 1f);
-                    let _e691 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_132), (&param_133), (&param_134));
-                    let _e692 = texel_1;
-                    let _e694 = radius_2;
-                    let _e697 = tileLo;
-                    let _e698 = tileHi;
-                    let _e700 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e687 + ((_e691 * _e692) * _e694)), _e697, _e698), 0f);
-                    occluder_2 = _e700.x;
-                    let _e703 = projected[2u];
-                    let _e704 = bias;
-                    let _e706 = occluder_2;
-                    let _e709 = lit_1;
-                    lit_1 = (_e709 + select(1f, 0f, ((_e703 - _e704) > _e706)));
+                    param_134 = (_e687 + 1f);
+                    let _e690 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_132), (&param_133), (&param_134));
+                    let _e691 = texel_1;
+                    let _e693 = radius_2;
+                    let _e696 = tileLo;
+                    let _e697 = tileHi;
+                    let _e699 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e686 + ((_e690 * _e691) * _e693)), _e696, _e697), 0f);
+                    occluder_2 = _e699.x;
+                    let _e702 = projected[2u];
+                    let _e703 = bias;
+                    let _e705 = occluder_2;
+                    let _e708 = lit_1;
+                    lit_1 = (_e708 + select(1f, 0f, ((_e702 - _e703) > _e705)));
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e711 = i_7;
-                    i_7 = (_e711 + 1i);
+                    let _e710 = i_7;
+                    i_7 = (_e710 + 1i);
                 }
             }
-            let _e713 = lit_1;
-            lit_1 = (_e713 * 0.0625f);
+            let _e712 = lit_1;
+            lit_1 = (_e712 * 0.0625f);
         }
     }
-    let _e715 = lit_1;
-    let _e716 = strength_1;
-    return mix(1f, _e715, clamp(_e716, 0f, 1f));
+    let _e714 = lit_1;
+    let _e715 = strength_1;
+    return mix(1f, _e714, clamp(_e715, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b_i1_u003b(s_5: ptr<function, Surface>, light_3: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -19157,7 +19157,7 @@ fn ReadLayersOnMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     var along_1: vec3<f32>;
     var local_37: f32;
     var local_38: vec3<f32>;
-    var phi_4601_: bool;
+    var phi_4600_: bool;
 
     let _e270 = (*s_11).n_dot_v;
     let _e274 = g_sheen_roughness;
@@ -19206,13 +19206,13 @@ fn ReadLayersOnMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     let _e328 = turn_2[1u];
     along_1 = ((_e322 * _e324) + (_e326 * _e328));
     let _e331 = usable;
-    phi_4601_ = _e331;
+    phi_4600_ = _e331;
     if _e331 {
         let _e332 = along_1;
         let _e333 = along_1;
-        phi_4601_ = (dot(_e332, _e333) > 0.000000000001f);
+        phi_4600_ = (dot(_e332, _e333) > 0.000000000001f);
     }
-    let _e337 = phi_4601_;
+    let _e337 = phi_4600_;
     if _e337 {
         let _e340 = layer_info.anisotropy[0u];
         local_37 = clamp(_e340, 0f, 1f);
@@ -22093,103 +22093,103 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             lit_1 = (_e538 * 0.11111111f);
         } else {
             let _e540 = softness;
-            spread = (2f * tan(min(_e540, 0.5f)));
-            let _e544 = ShadowNoise_u0028_();
-            turn_1 = (_e544 * 6.2831855f);
-            let _e546 = spread;
-            let _e548 = projected[2u];
-            let _e550 = cascadeDepth;
-            let _e552 = cascadeTexel;
-            searchRadius = clamp((((_e546 * _e548) * _e550) / _e552), 1f, 16f);
+            spread = tan(min(_e540, 0.5f));
+            let _e543 = ShadowNoise_u0028_();
+            turn_1 = (_e543 * 6.2831855f);
+            let _e545 = spread;
+            let _e547 = projected[2u];
+            let _e549 = cascadeDepth;
+            let _e551 = cascadeTexel;
+            searchRadius = clamp((((_e545 * _e547) * _e549) / _e551), 1f, 16f);
             blockerSum = 0f;
             blockerCount = 0f;
             i_5 = 0i;
             loop {
-                let _e555 = i_5;
-                if (_e555 < 16i) {
-                    let _e557 = uv_4;
-                    let _e558 = i_5;
-                    param_57 = _e558;
+                let _e554 = i_5;
+                if (_e554 < 16i) {
+                    let _e556 = uv_4;
+                    let _e557 = i_5;
+                    param_57 = _e557;
                     param_58 = 16i;
-                    let _e559 = turn_1;
-                    param_59 = _e559;
-                    let _e560 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
-                    let _e561 = texel_1;
-                    let _e563 = searchRadius;
-                    let _e566 = tileLo;
-                    let _e567 = tileHi;
-                    let _e569 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e557 + ((_e560 * _e561) * _e563)), _e566, _e567), 0f);
-                    occluder_1 = _e569.x;
-                    let _e572 = projected[2u];
-                    let _e573 = bias;
-                    let _e575 = occluder_1;
-                    if ((_e572 - _e573) > _e575) {
-                        let _e577 = occluder_1;
-                        let _e578 = blockerSum;
-                        blockerSum = (_e578 + _e577);
-                        let _e580 = blockerCount;
-                        blockerCount = (_e580 + 1f);
+                    let _e558 = turn_1;
+                    param_59 = _e558;
+                    let _e559 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
+                    let _e560 = texel_1;
+                    let _e562 = searchRadius;
+                    let _e565 = tileLo;
+                    let _e566 = tileHi;
+                    let _e568 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e556 + ((_e559 * _e560) * _e562)), _e565, _e566), 0f);
+                    occluder_1 = _e568.x;
+                    let _e571 = projected[2u];
+                    let _e572 = bias;
+                    let _e574 = occluder_1;
+                    if ((_e571 - _e572) > _e574) {
+                        let _e576 = occluder_1;
+                        let _e577 = blockerSum;
+                        blockerSum = (_e577 + _e576);
+                        let _e579 = blockerCount;
+                        blockerCount = (_e579 + 1f);
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e582 = i_5;
-                    i_5 = (_e582 + 1i);
+                    let _e581 = i_5;
+                    i_5 = (_e581 + 1i);
                 }
             }
-            let _e584 = blockerCount;
-            if (_e584 <= 0f) {
+            let _e583 = blockerCount;
+            if (_e583 <= 0f) {
                 return 1f;
             }
-            let _e587 = projected[2u];
-            let _e588 = blockerSum;
-            let _e589 = blockerCount;
-            let _e593 = cascadeDepth;
-            gap = (max((_e587 - (_e588 / _e589)), 0f) * _e593);
-            let _e595 = spread;
-            let _e596 = gap;
-            let _e598 = cascadeTexel;
-            radius_2 = clamp(((_e595 * _e596) / _e598), 1f, 16f);
+            let _e586 = projected[2u];
+            let _e587 = blockerSum;
+            let _e588 = blockerCount;
+            let _e592 = cascadeDepth;
+            gap = (max((_e586 - (_e587 / _e588)), 0f) * _e592);
+            let _e594 = spread;
+            let _e595 = gap;
+            let _e597 = cascadeTexel;
+            radius_2 = clamp(((_e594 * _e595) / _e597), 1f, 16f);
             i_6 = 0i;
             loop {
-                let _e601 = i_6;
-                if (_e601 < 16i) {
-                    let _e603 = uv_4;
-                    let _e604 = turn_1;
-                    let _e606 = i_6;
-                    param_60 = _e606;
+                let _e600 = i_6;
+                if (_e600 < 16i) {
+                    let _e602 = uv_4;
+                    let _e603 = turn_1;
+                    let _e605 = i_6;
+                    param_60 = _e605;
                     param_61 = 16i;
-                    param_62 = (_e604 + 1f);
-                    let _e607 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
-                    let _e608 = texel_1;
-                    let _e610 = radius_2;
-                    let _e613 = tileLo;
-                    let _e614 = tileHi;
-                    let _e616 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e603 + ((_e607 * _e608) * _e610)), _e613, _e614), 0f);
-                    occluder_2 = _e616.x;
-                    let _e619 = projected[2u];
-                    let _e620 = bias;
-                    let _e622 = occluder_2;
-                    let _e625 = lit_1;
-                    lit_1 = (_e625 + select(1f, 0f, ((_e619 - _e620) > _e622)));
+                    param_62 = (_e603 + 1f);
+                    let _e606 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
+                    let _e607 = texel_1;
+                    let _e609 = radius_2;
+                    let _e612 = tileLo;
+                    let _e613 = tileHi;
+                    let _e615 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e602 + ((_e606 * _e607) * _e609)), _e612, _e613), 0f);
+                    occluder_2 = _e615.x;
+                    let _e618 = projected[2u];
+                    let _e619 = bias;
+                    let _e621 = occluder_2;
+                    let _e624 = lit_1;
+                    lit_1 = (_e624 + select(1f, 0f, ((_e618 - _e619) > _e621)));
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e627 = i_6;
-                    i_6 = (_e627 + 1i);
+                    let _e626 = i_6;
+                    i_6 = (_e626 + 1i);
                 }
             }
-            let _e629 = lit_1;
-            lit_1 = (_e629 * 0.0625f);
+            let _e628 = lit_1;
+            lit_1 = (_e628 * 0.0625f);
         }
     }
-    let _e631 = lit_1;
-    let _e632 = strength_1;
-    return mix(1f, _e631, clamp(_e632, 0f, 1f));
+    let _e630 = lit_1;
+    let _e631 = strength_1;
+    return mix(1f, _e630, clamp(_e631, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -41358,103 +41358,103 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             lit_1 = (_e530 * 0.11111111f);
         } else {
             let _e532 = softness;
-            spread = (2f * tan(min(_e532, 0.5f)));
-            let _e536 = ShadowNoise_u0028_();
-            turn_1 = (_e536 * 6.2831855f);
-            let _e538 = spread;
-            let _e540 = projected[2u];
-            let _e542 = cascadeDepth;
-            let _e544 = cascadeTexel;
-            searchRadius = clamp((((_e538 * _e540) * _e542) / _e544), 1f, 16f);
+            spread = tan(min(_e532, 0.5f));
+            let _e535 = ShadowNoise_u0028_();
+            turn_1 = (_e535 * 6.2831855f);
+            let _e537 = spread;
+            let _e539 = projected[2u];
+            let _e541 = cascadeDepth;
+            let _e543 = cascadeTexel;
+            searchRadius = clamp((((_e537 * _e539) * _e541) / _e543), 1f, 16f);
             blockerSum = 0f;
             blockerCount = 0f;
             i_5 = 0i;
             loop {
-                let _e547 = i_5;
-                if (_e547 < 16i) {
-                    let _e549 = uv_4;
-                    let _e550 = i_5;
-                    param_57 = _e550;
+                let _e546 = i_5;
+                if (_e546 < 16i) {
+                    let _e548 = uv_4;
+                    let _e549 = i_5;
+                    param_57 = _e549;
                     param_58 = 16i;
-                    let _e551 = turn_1;
-                    param_59 = _e551;
-                    let _e552 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
-                    let _e553 = texel_1;
-                    let _e555 = searchRadius;
-                    let _e558 = tileLo;
-                    let _e559 = tileHi;
-                    let _e561 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e549 + ((_e552 * _e553) * _e555)), _e558, _e559), 0f);
-                    occluder_1 = _e561.x;
-                    let _e564 = projected[2u];
-                    let _e565 = bias;
-                    let _e567 = occluder_1;
-                    if ((_e564 - _e565) > _e567) {
-                        let _e569 = occluder_1;
-                        let _e570 = blockerSum;
-                        blockerSum = (_e570 + _e569);
-                        let _e572 = blockerCount;
-                        blockerCount = (_e572 + 1f);
+                    let _e550 = turn_1;
+                    param_59 = _e550;
+                    let _e551 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_57), (&param_58), (&param_59));
+                    let _e552 = texel_1;
+                    let _e554 = searchRadius;
+                    let _e557 = tileLo;
+                    let _e558 = tileHi;
+                    let _e560 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e548 + ((_e551 * _e552) * _e554)), _e557, _e558), 0f);
+                    occluder_1 = _e560.x;
+                    let _e563 = projected[2u];
+                    let _e564 = bias;
+                    let _e566 = occluder_1;
+                    if ((_e563 - _e564) > _e566) {
+                        let _e568 = occluder_1;
+                        let _e569 = blockerSum;
+                        blockerSum = (_e569 + _e568);
+                        let _e571 = blockerCount;
+                        blockerCount = (_e571 + 1f);
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e574 = i_5;
-                    i_5 = (_e574 + 1i);
+                    let _e573 = i_5;
+                    i_5 = (_e573 + 1i);
                 }
             }
-            let _e576 = blockerCount;
-            if (_e576 <= 0f) {
+            let _e575 = blockerCount;
+            if (_e575 <= 0f) {
                 return 1f;
             }
-            let _e579 = projected[2u];
-            let _e580 = blockerSum;
-            let _e581 = blockerCount;
-            let _e585 = cascadeDepth;
-            gap = (max((_e579 - (_e580 / _e581)), 0f) * _e585);
-            let _e587 = spread;
-            let _e588 = gap;
-            let _e590 = cascadeTexel;
-            radius_2 = clamp(((_e587 * _e588) / _e590), 1f, 16f);
+            let _e578 = projected[2u];
+            let _e579 = blockerSum;
+            let _e580 = blockerCount;
+            let _e584 = cascadeDepth;
+            gap = (max((_e578 - (_e579 / _e580)), 0f) * _e584);
+            let _e586 = spread;
+            let _e587 = gap;
+            let _e589 = cascadeTexel;
+            radius_2 = clamp(((_e586 * _e587) / _e589), 1f, 16f);
             i_6 = 0i;
             loop {
-                let _e593 = i_6;
-                if (_e593 < 16i) {
-                    let _e595 = uv_4;
-                    let _e596 = turn_1;
-                    let _e598 = i_6;
-                    param_60 = _e598;
+                let _e592 = i_6;
+                if (_e592 < 16i) {
+                    let _e594 = uv_4;
+                    let _e595 = turn_1;
+                    let _e597 = i_6;
+                    param_60 = _e597;
                     param_61 = 16i;
-                    param_62 = (_e596 + 1f);
-                    let _e599 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
-                    let _e600 = texel_1;
-                    let _e602 = radius_2;
-                    let _e605 = tileLo;
-                    let _e606 = tileHi;
-                    let _e608 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e595 + ((_e599 * _e600) * _e602)), _e605, _e606), 0f);
-                    occluder_2 = _e608.x;
-                    let _e611 = projected[2u];
-                    let _e612 = bias;
-                    let _e614 = occluder_2;
-                    let _e617 = lit_1;
-                    lit_1 = (_e617 + select(1f, 0f, ((_e611 - _e612) > _e614)));
+                    param_62 = (_e595 + 1f);
+                    let _e598 = VogelDisc_u0028_i1_u003b_i1_u003b_f1_u003b((&param_60), (&param_61), (&param_62));
+                    let _e599 = texel_1;
+                    let _e601 = radius_2;
+                    let _e604 = tileLo;
+                    let _e605 = tileHi;
+                    let _e607 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e594 + ((_e598 * _e599) * _e601)), _e604, _e605), 0f);
+                    occluder_2 = _e607.x;
+                    let _e610 = projected[2u];
+                    let _e611 = bias;
+                    let _e613 = occluder_2;
+                    let _e616 = lit_1;
+                    lit_1 = (_e616 + select(1f, 0f, ((_e610 - _e611) > _e613)));
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e619 = i_6;
-                    i_6 = (_e619 + 1i);
+                    let _e618 = i_6;
+                    i_6 = (_e618 + 1i);
                 }
             }
-            let _e621 = lit_1;
-            lit_1 = (_e621 * 0.0625f);
+            let _e620 = lit_1;
+            lit_1 = (_e620 * 0.0625f);
         }
     }
-    let _e623 = lit_1;
-    let _e624 = strength_1;
-    return mix(1f, _e623, clamp(_e624, 0f, 1f));
+    let _e622 = lit_1;
+    let _e623 = strength_1;
+    return mix(1f, _e622, clamp(_e623, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {

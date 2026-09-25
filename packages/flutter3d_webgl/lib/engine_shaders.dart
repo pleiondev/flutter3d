@@ -8363,7 +8363,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // the gap times the light's apparent diameter, and in texels it is that
     // over the cascade's own texel. A shadow keeps its softness crossing
     // from one cascade into the next.
-    float spread = 2.0 * tan(min(softness, 0.5));
+    //
+    // **A radius, so half that width.** A disc of radius R swept across an
+    // edge ramps from dark to lit over 2R, so the kernel is the gap times
+    // the tangent of the light's angular *radius*: the penumbra comes out the
+    // full `2·tan(α)·gap` the settings promise, not twice it. The search is
+    // the same cone, `tan(α)` of the way back to the light; a wider one only
+    // pulls in blockers that cannot reach this fragment.
+    float spread = tan(min(softness, 0.5));
     float turn = ShadowNoise() * 6.2831853;
 
     // As wide as the widest penumbra could be at this depth, and no wider:
@@ -10781,7 +10788,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // the gap times the light's apparent diameter, and in texels it is that
     // over the cascade's own texel. A shadow keeps its softness crossing
     // from one cascade into the next.
-    float spread = 2.0 * tan(min(softness, 0.5));
+    //
+    // **A radius, so half that width.** A disc of radius R swept across an
+    // edge ramps from dark to lit over 2R, so the kernel is the gap times
+    // the tangent of the light's angular *radius*: the penumbra comes out the
+    // full `2·tan(α)·gap` the settings promise, not twice it. The search is
+    // the same cone, `tan(α)` of the way back to the light; a wider one only
+    // pulls in blockers that cannot reach this fragment.
+    float spread = tan(min(softness, 0.5));
     float turn = ShadowNoise() * 6.2831853;
 
     // As wide as the widest penumbra could be at this depth, and no wider:
@@ -13234,7 +13248,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // the gap times the light's apparent diameter, and in texels it is that
     // over the cascade's own texel. A shadow keeps its softness crossing
     // from one cascade into the next.
-    float spread = 2.0 * tan(min(softness, 0.5));
+    //
+    // **A radius, so half that width.** A disc of radius R swept across an
+    // edge ramps from dark to lit over 2R, so the kernel is the gap times
+    // the tangent of the light's angular *radius*: the penumbra comes out the
+    // full `2·tan(α)·gap` the settings promise, not twice it. The search is
+    // the same cone, `tan(α)` of the way back to the light; a wider one only
+    // pulls in blockers that cannot reach this fragment.
+    float spread = tan(min(softness, 0.5));
     float turn = ShadowNoise() * 6.2831853;
 
     // As wide as the widest penumbra could be at this depth, and no wider:
@@ -16518,7 +16539,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // the gap times the light's apparent diameter, and in texels it is that
     // over the cascade's own texel. A shadow keeps its softness crossing
     // from one cascade into the next.
-    float spread = 2.0 * tan(min(softness, 0.5));
+    //
+    // **A radius, so half that width.** A disc of radius R swept across an
+    // edge ramps from dark to lit over 2R, so the kernel is the gap times
+    // the tangent of the light's angular *radius*: the penumbra comes out the
+    // full `2·tan(α)·gap` the settings promise, not twice it. The search is
+    // the same cone, `tan(α)` of the way back to the light; a wider one only
+    // pulls in blockers that cannot reach this fragment.
+    float spread = tan(min(softness, 0.5));
     float turn = ShadowNoise() * 6.2831853;
 
     // As wide as the widest penumbra could be at this depth, and no wider:
@@ -19770,7 +19798,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // the gap times the light's apparent diameter, and in texels it is that
     // over the cascade's own texel. A shadow keeps its softness crossing
     // from one cascade into the next.
-    float spread = 2.0 * tan(min(softness, 0.5));
+    //
+    // **A radius, so half that width.** A disc of radius R swept across an
+    // edge ramps from dark to lit over 2R, so the kernel is the gap times
+    // the tangent of the light's angular *radius*: the penumbra comes out the
+    // full `2·tan(α)·gap` the settings promise, not twice it. The search is
+    // the same cone, `tan(α)` of the way back to the light; a wider one only
+    // pulls in blockers that cannot reach this fragment.
+    float spread = tan(min(softness, 0.5));
     float turn = ShadowNoise() * 6.2831853;
 
     // As wide as the widest penumbra could be at this depth, and no wider:
@@ -32837,7 +32872,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // the gap times the light's apparent diameter, and in texels it is that
     // over the cascade's own texel. A shadow keeps its softness crossing
     // from one cascade into the next.
-    float spread = 2.0 * tan(min(softness, 0.5));
+    //
+    // **A radius, so half that width.** A disc of radius R swept across an
+    // edge ramps from dark to lit over 2R, so the kernel is the gap times
+    // the tangent of the light's angular *radius*: the penumbra comes out the
+    // full `2·tan(α)·gap` the settings promise, not twice it. The search is
+    // the same cone, `tan(α)` of the way back to the light; a wider one only
+    // pulls in blockers that cannot reach this fragment.
+    float spread = tan(min(softness, 0.5));
     float turn = ShadowNoise() * 6.2831853;
 
     // As wide as the widest penumbra could be at this depth, and no wider:
