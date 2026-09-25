@@ -2128,6 +2128,9 @@ final class _LocalExposureNode extends RenderNode {
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       options: _settings.localExposure,
       resources: frame.resources,
+      // The frame's exposure rather than each view's: the weights are one
+      // texture across all views.
+      exposure: _renderer._exposureFor(_settings),
     );
     frame.state.drawCalls += 3;
     developer.Timeline.finishSync();

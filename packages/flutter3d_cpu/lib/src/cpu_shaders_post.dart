@@ -811,14 +811,19 @@ final class LocalExposureShader implements CpuFragmentShader {
     final stops = b.vec4('LocalExposureInfo', 'stops', Vector4.zero());
     final tx = stops.z * 2.0;
     final ty = stops.w * 2.0;
-    final y = math.max(
-      0.25 *
-          (_luma(scene.sample(v[0] - tx, v[1] - ty)) +
-              _luma(scene.sample(v[0] + tx, v[1] - ty)) +
-              _luma(scene.sample(v[0] - tx, v[1] + ty)) +
-              _luma(scene.sample(v[0] + tx, v[1] + ty))),
-      0.0,
-    );
+    final camera = b.vec4('LocalExposureInfo', 'camera', Vector4.zero());
+    // At the frame's own exposure, which the composite applies after the
+    // local stops: see the GLSL.
+    final y =
+        math.max(
+          0.25 *
+              (_luma(scene.sample(v[0] - tx, v[1] - ty)) +
+                  _luma(scene.sample(v[0] + tx, v[1] - ty)) +
+                  _luma(scene.sample(v[0] - tx, v[1] + ty)) +
+                  _luma(scene.sample(v[0] + tx, v[1] + ty))),
+          0.0,
+        ) *
+        math.max(camera.x, 0.0);
     final shadow = math.pow(2.0, stops.x).toDouble();
     final highlight = math.pow(2.0, -stops.y).toDouble();
     return Vector4(

@@ -237,11 +237,16 @@ extension _PostPasses on Renderer {
   /// `R7`: the three exposures' weights from [scene] at [target]'s size,
   /// blurred across and down, the second blur writing the exposure in stops
   /// into [target].
+  ///
+  /// [exposure] is the frame's own, the composite's `params.x`: the weights
+  /// judge the scene as the camera exposed it, or the local stops would
+  /// compound with the global ones.
   void _encodeLocalExposure({
     required TextureHandle target,
     required TextureHandle scene,
     required LocalExposureSettings options,
     required FrameResources resources,
+    required double exposure,
   }) {
     TextureHandle scratch() => resources.transient(
       RenderTargetSpec(
@@ -257,6 +262,7 @@ extension _PostPasses on Renderer {
       ..[1] = math.max(options.highlightStops, 0.0)
       ..[2] = 1.0 / math.max(scene.width, 1)
       ..[3] = 1.0 / math.max(scene.height, 1);
+    _localExposureInfo.camera[0] = math.max(exposure, 0.0);
     drawFullscreen(
       FullscreenDraw(
         target: weights,
