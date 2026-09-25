@@ -540,18 +540,6 @@ extension _MeshEncode on Renderer {
           ? settings.shadows.directionalLightRadius
           : ShadowSettings.sunAngularRadius;
 
-      // Its own block, bound beside FragInfo rather than folded into it. See
-      // the note in color.glsl: appending to a block six shaders share moves
-      // offsets nobody expected to move.
-      //
-      // None for a silhouette. Fog is a property of a surface in air, and a
-      // silhouette is a marker: a sensor that lost its monsters to the far
-      // end of a corridor would be a sensor with the corridor's own range.
-      final fog = override == null ? settings.fog : const FogSettings();
-      _fogData[0] = fog.resolvedColor.x;
-      _fogData[1] = fog.resolvedColor.y;
-      _fogData[2] = fog.resolvedColor.z;
-      _fogData[3] = fog.density;
       // Gated on the model, like every other block and sampler here. Unlit
       // declares FragInfo but reaches no lighting loop, so the compiler drops
       // all three of these — and binding a block the compiled shader does not
@@ -619,9 +607,6 @@ extension _MeshEncode on Renderer {
         );
       }
 
-      _fogInfo.eye.setAll(0, _cameraData);
-      encoder.bindBlock(fragmentShader, _fogInfo);
-
       // **The irradiance field, per pixel — `L3`.** It replaces the
       // hemisphere ambient in the shader wherever the scene has a field, and
       // the atlas and its block are bound on every lit draw whether or not it
@@ -665,6 +650,32 @@ extension _MeshEncode on Renderer {
       _fragInfo.shadowMatrixFar.setAll(0, _shadowMatrixFar.storage);
       _fragInfo.shadowMatrixFarthest.setAll(0, _shadowMatrixFarthest.storage);
       encoder.bindBlock(fragmentShader, _fragInfo);
+    }
+
+    // Its own block, bound beside FragInfo rather than folded into it. See
+    // the note in color.glsl: appending to a block six shaders share moves
+    // offsets nobody expected to move.
+    //
+    // **Beside it, not inside its gate.** `color.glsl` declares it, so a stage
+    // that reads no FragInfo still keeps it, and one that was drawn with it
+    // unbound had no fog and a surface depth of nought — `loaded-shader`, on
+    // every backend, with only WebGL2 saying so.
+    //
+    // None for a silhouette. Fog is a property of a surface in air, and a
+    // silhouette is a marker: a sensor that lost its monsters to the far
+    // end of a corridor would be a sensor with the corridor's own range.
+    if (_keepsBlock(
+      fragmentShader,
+      _fogInfo.name,
+      declared: material.lighting.usesFogInfo,
+    )) {
+      final fog = override == null ? settings.fog : const FogSettings();
+      _fogData[0] = fog.resolvedColor.x;
+      _fogData[1] = fog.resolvedColor.y;
+      _fogData[2] = fog.resolvedColor.z;
+      _fogData[3] = fog.density;
+      _fogInfo.eye.setAll(0, _cameraData);
+      encoder.bindBlock(fragmentShader, _fogInfo);
     }
 
     // **The layers, for the one stage that reads them — `M1`.** A material
