@@ -352,18 +352,27 @@ void main() {
 
   group('HiZOcclusion', () {
     /// A reading of a flat wall filling the view at [depth] metres, with the
-    /// cells whose x is below [emptyBelow] left undrawn.
-    ByteData reading(double depth, double far, {int emptyBelow = 0}) {
+    /// cells whose x is below [emptyBelow] left undrawn. [cell] overrides a
+    /// cell with its own farthest and nearest depth, encoded as the pass
+    /// encodes them.
+    ByteData reading(
+      double depth,
+      double far, {
+      int emptyBelow = 0,
+      (double, double)? Function(int x, int y)? cell,
+    }) {
       final bytes = ByteData(HiZOcclusion.width * HiZOcclusion.height * 4);
-      final steps = (depth / far * HiZOcclusion.depthSteps).ceil();
       for (var y = 0; y < HiZOcclusion.height; y++) {
         for (var x = 0; x < HiZOcclusion.width; x++) {
+          final (farthest, nearest) = cell?.call(x, y) ?? (depth, depth);
+          final steps = (farthest / far * HiZOcclusion.depthSteps).ceil();
+          final flatness = 128 + (nearest / farthest * 127 + 1e-3).floor();
           final o = (y * HiZOcclusion.width + x) * 4;
           bytes
             ..setUint8(o, steps >> 16)
             ..setUint8(o + 1, (steps >> 8) & 0xFF)
             ..setUint8(o + 2, steps & 0xFF)
-            ..setUint8(o + 3, x < emptyBelow ? 0 : 255);
+            ..setUint8(o + 3, x < emptyBelow ? 0 : flatness);
         }
       }
       return bytes;
@@ -446,5 +455,71 @@ void main() {
         expect(ask(hiZ, _camera()), isNull, reason: 'another camera');
       },
     );
+
+    test('a post in front of a doorway stops occluding once the camera '
+        'steps past it', () {
+      final camera = _camera();
+      final hiZ = HiZOcclusion();
+      // A band of cells down the middle saw a post three metres out and,
+      // beside it, the wall ten metres out: their farthest is the wall's
+      // depth, but nobody saw whether the wall goes on behind the post. It
+      // may be a doorway.
+      final middle = HiZOcclusion.width ~/ 2;
+      take(
+        hiZ,
+        camera,
+        reading(
+          10.0,
+          camera.projection.far,
+          cell: (x, y) => (x - middle).abs() < 16 ? (10.0, 3.0) : null,
+        ),
+      );
+      // Still, the post covers what it covered: nothing has opened up.
+      expect(ask(hiZ, camera)!.mayBeVisible(_box(0, 0, -8)), isFalse);
+
+      // Half a metre sideways the post has slid thirteen pixels across
+      // what was behind it, while the wall beside it moved four.
+      // Mutation: drop the `parallaxLimit` test in `prepare` — the band
+      // moves as one plane at the wall's depth and this box is hidden.
+      camera.setPosition(0.5, 0.0, 10.0);
+      final moved = ask(hiZ, camera)!;
+      expect(moved.mayBeVisible(_box(0.5, 0, -8)), isTrue, reason: 'behind');
+      // The flat wall away from the post still occludes.
+      expect(moved.mayBeVisible(_box(-4.5, 0, -8)), isFalse, reason: 'wall');
+    });
+
+    test('a pixel two moved cells cover twice in part is not covered', () {
+      final camera = _camera();
+      final hiZ = HiZOcclusion();
+      // The camera rises so a row ten metres out slides 0.3 of a pixel
+      // down, one at five metres 0.6 and one at 15/7 metres 1.4. Rows 62
+      // and 63 then both cover the top 0.3–0.4 of pixel row 64 and row 64
+      // its bottom 0.4, which adds up to more than the pixel, yet
+      // 64.4–64.6 is under none of them.
+      final focal =
+          camera.viewProjection(_aspect).storage[5] * HiZOcclusion.height / 2;
+      final rise = 0.3 * 10.0 / focal;
+      take(
+        hiZ,
+        camera,
+        reading(
+          10.0,
+          camera.projection.far,
+          cell: (x, y) => switch (y) {
+            62 => (15.0 / 7.0, 15.0 / 7.0),
+            64 => (5.0, 5.0),
+            _ => null,
+          },
+        ),
+      );
+      camera.setPosition(0.0, rise, 10.0);
+      ask(hiZ, camera);
+      // Mutation: sum the cells' areas in `prepare` instead of testing
+      // their union — pixel row 64 counts as covered.
+      expect(hiZ.buffer.depthAt(128, 64), double.infinity);
+      // Rows the wall covers from edge to edge still do, seams and all.
+      expect(hiZ.buffer.depthAt(128, 66), lessThan(1.0));
+      expect(hiZ.buffer.depthAt(128, 65), lessThan(1.0));
+    });
   });
 }

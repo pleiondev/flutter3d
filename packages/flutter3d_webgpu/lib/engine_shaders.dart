@@ -36341,6 +36341,7 @@ fn main_1() {
     var corner: vec2<f32>;
     var stepUv: vec2<f32>;
     var farthest: f32;
+    var nearest: f32;
     var empty: f32;
     var j: i32;
     var i: i32;
@@ -36352,61 +36353,69 @@ fn main_1() {
     var rest: f32;
     var middle: f32;
     var low: f32;
+    var ratio: f32;
+    var local: f32;
+    var flatness: f32;
+    var local_1: f32;
 
-    let _e38 = pyramid_info.block;
-    blockUv = _e38.xy;
-    let _e42 = pyramid_info.block[2u];
-    tapsX = clamp(ceil((_e42 - 0.001f)), 1f, 32f);
-    let _e48 = pyramid_info.block[3u];
-    tapsY = clamp(ceil((_e48 - 0.001f)), 1f, 32f);
-    let _e52 = v_uv_1;
-    let _e53 = blockUv;
-    corner = (_e52 - (_e53 * 0.5f));
-    let _e56 = blockUv;
-    let _e57 = tapsX;
-    let _e58 = tapsY;
-    stepUv = (_e56 / vec2<f32>(_e57, _e58));
+    let _e46 = pyramid_info.block;
+    blockUv = _e46.xy;
+    let _e50 = pyramid_info.block[2u];
+    tapsX = clamp(ceil((_e50 - 0.001f)), 1f, 32f);
+    let _e56 = pyramid_info.block[3u];
+    tapsY = clamp(ceil((_e56 - 0.001f)), 1f, 32f);
+    let _e60 = v_uv_1;
+    let _e61 = blockUv;
+    corner = (_e60 - (_e61 * 0.5f));
+    let _e64 = blockUv;
+    let _e65 = tapsX;
+    let _e66 = tapsY;
+    stepUv = (_e64 / vec2<f32>(_e65, _e66));
     farthest = 0f;
+    nearest = 300000000000000000000000000000000000000f;
     empty = 0f;
     j = 0i;
     loop {
-        let _e61 = j;
-        if (_e61 < 32i) {
-            let _e63 = j;
-            let _e65 = tapsY;
-            if (f32(_e63) >= _e65) {
+        let _e69 = j;
+        if (_e69 < 32i) {
+            let _e71 = j;
+            let _e73 = tapsY;
+            if (f32(_e71) >= _e73) {
                 break;
             }
             i = 0i;
             loop {
-                let _e67 = i;
-                if (_e67 < 32i) {
-                    let _e69 = i;
-                    let _e71 = tapsX;
-                    if (f32(_e69) >= _e71) {
+                let _e75 = i;
+                if (_e75 < 32i) {
+                    let _e77 = i;
+                    let _e79 = tapsX;
+                    if (f32(_e77) >= _e79) {
                         break;
                     }
-                    let _e73 = corner;
-                    let _e74 = i;
-                    let _e76 = j;
-                    let _e81 = stepUv;
-                    at = (_e73 + ((vec2<f32>(f32(_e74), f32(_e76)) + vec2(0.5f)) * _e81));
-                    let _e84 = at;
-                    let _e85 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e84, 0f);
-                    depth = _e85.w;
-                    let _e87 = depth;
-                    let _e89 = empty;
-                    empty = select(1f, _e89, (_e87 > 0f));
-                    let _e91 = farthest;
-                    let _e92 = depth;
-                    farthest = max(_e91, _e92);
+                    let _e81 = corner;
+                    let _e82 = i;
+                    let _e84 = j;
+                    let _e89 = stepUv;
+                    at = (_e81 + ((vec2<f32>(f32(_e82), f32(_e84)) + vec2(0.5f)) * _e89));
+                    let _e92 = at;
+                    let _e93 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e92, 0f);
+                    depth = _e93.w;
+                    let _e95 = depth;
+                    let _e97 = empty;
+                    empty = select(1f, _e97, (_e95 > 0f));
+                    let _e99 = farthest;
+                    let _e100 = depth;
+                    farthest = max(_e99, _e100);
+                    let _e102 = nearest;
+                    let _e103 = depth;
+                    nearest = min(_e102, _e103);
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e94 = i;
-                    i = (_e94 + 1i);
+                    let _e105 = i;
+                    i = (_e105 + 1i);
                 }
             }
             continue;
@@ -36414,30 +36423,49 @@ fn main_1() {
             break;
         }
         continuing {
-            let _e96 = j;
-            j = (_e96 + 1i);
+            let _e107 = j;
+            j = (_e107 + 1i);
         }
     }
     steps = 16777215f;
-    let _e98 = farthest;
-    let _e101 = pyramid_info.range[0u];
-    let _e104 = steps;
-    scaled = ceil((clamp((_e98 * _e101), 0f, 1f) * _e104));
-    let _e107 = scaled;
-    high = floor((_e107 / 65536f));
-    let _e110 = scaled;
-    let _e111 = high;
-    rest = (_e110 - (_e111 * 65536f));
-    let _e114 = rest;
-    middle = floor((_e114 / 256f));
-    let _e117 = rest;
-    let _e118 = middle;
-    low = (_e117 - (_e118 * 256f));
-    let _e121 = high;
-    let _e123 = middle;
-    let _e125 = low;
-    let _e127 = empty;
-    frag_color = vec4<f32>((_e121 / 255f), (_e123 / 255f), (_e125 / 255f), select(1f, 0f, (_e127 > 0f)));
+    let _e109 = farthest;
+    let _e112 = pyramid_info.range[0u];
+    let _e115 = steps;
+    scaled = ceil((clamp((_e109 * _e112), 0f, 1f) * _e115));
+    let _e118 = scaled;
+    high = floor((_e118 / 65536f));
+    let _e121 = scaled;
+    let _e122 = high;
+    rest = (_e121 - (_e122 * 65536f));
+    let _e125 = rest;
+    middle = floor((_e125 / 256f));
+    let _e128 = rest;
+    let _e129 = middle;
+    low = (_e128 - (_e129 * 256f));
+    let _e132 = farthest;
+    if (_e132 > 0f) {
+        let _e134 = nearest;
+        let _e135 = farthest;
+        local = clamp((_e134 / _e135), 0f, 1f);
+    } else {
+        local = 0f;
+    }
+    let _e138 = local;
+    ratio = _e138;
+    let _e139 = ratio;
+    flatness = (128f + floor(((_e139 * 127f) + 0.001f)));
+    let _e144 = high;
+    let _e146 = middle;
+    let _e148 = low;
+    let _e150 = empty;
+    if (_e150 > 0f) {
+        local_1 = 0f;
+    } else {
+        let _e152 = flatness;
+        local_1 = (_e152 / 255f);
+    }
+    let _e154 = local_1;
+    frag_color = vec4<f32>((_e144 / 255f), (_e146 / 255f), (_e148 / 255f), _e154);
     return;
 }
 
