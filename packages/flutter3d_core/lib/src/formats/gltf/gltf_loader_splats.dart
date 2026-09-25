@@ -12,7 +12,8 @@
 /// logit, and the quaternion is in glTF's `xyzw` rather than `w` first. The
 /// colour is the same zeroth spherical-harmonic band plus a half, but in a
 /// declared colour space — `srgb_rec709_display` or `lin_rec709_display` —
-/// and this engine blends in linear light, so an sRGB cloud is decoded here,
+/// where a PLY's is sRGB by assumption. This engine blends in linear light,
+/// so an sRGB cloud is decoded here, as the PLY reader decodes its own,
 /// per splat, after the clamp to `[0, 1]` the extension's own `COLOR_0`
 /// fallback note describes. That is an approximation the text itself
 /// allows for a renderer that is not blending in the splat's colour space:
@@ -170,10 +171,8 @@ extension _GltfSplats on GltfLoader {
       for (var c = 0; c < 3; c++) {
         // Negative colours clamp to nought, as the extension requires; an
         // sRGB one also clamps at one, since the curve is only defined there.
-        final linear = math.max(0.0, splatChannel(coefficients[i * 3 + c]));
-        colours[i * 4 + c] = colourSpace == SplatColourSpace.srgb
-            ? srgbToLinear(math.min(linear, 1.0))
-            : linear;
+        // The PLY and SPZ readers take the same path.
+        colours[i * 4 + c] = splatColour(coefficients[i * 3 + c], colourSpace);
       }
       colours[i * 4 + 3] = opacities[i].clamp(0.0, 1.0);
 
