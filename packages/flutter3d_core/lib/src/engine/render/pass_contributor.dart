@@ -371,7 +371,7 @@ final class ContributorFrame {
   final ContributorLights? lights;
 
   /// The opaque scene's depth, for a contributor that fades where it meets
-  /// the world — or null, which is the answer everywhere but one place.
+  /// the world — or null, which is the answer everywhere but two places.
   ///
   /// The surface buffer: in `a`, the depth along the view axis in metres of
   /// whatever the opaque half drew there, and zero where it drew nothing. The
@@ -381,11 +381,14 @@ final class ContributorFrame {
   /// an encoded normal, which a filter averages into nonsense.
   ///
   /// Given only to a contributor whose [PassContributor.readsSceneDepth] is
-  /// true, in the pass the renderer opens for it after the transparent half,
-  /// where the buffer is not an attachment. Null in the scene pass, outside a
-  /// renderer, on a device with a single colour attachment, and on a frame
-  /// whose `'transparent'` pass was switched off — and a contributor handed
-  /// null draws as it would without asking.
+  /// true, where the buffer is not an attachment: in the pass the renderer
+  /// opens for it after the transparent half, or, under weighted blended
+  /// transparency (`R8`), in the pass after the resolve — there whenever the
+  /// scene pass attached the buffer, split or not. Null in the scene pass,
+  /// outside a renderer, on a device with a single colour attachment, and on
+  /// a frame whose `'transparent'` pass was switched off unless `R8` hands it
+  /// over after the resolve — and a contributor handed null draws as it would
+  /// without asking.
   final TextureHandle? sceneDepth;
 }
 
