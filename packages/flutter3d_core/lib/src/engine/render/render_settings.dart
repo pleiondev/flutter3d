@@ -661,7 +661,7 @@ final class DepthOfFieldSettings {
   const DepthOfFieldSettings({
     this.enabled = false,
     this.focusDistance = 10.0,
-    this.focalLength = 0.05,
+    this.focalLength,
     this.aperture = 8.0,
     this.samples = 24,
     this.maxRadius = 16.0,
@@ -676,12 +676,26 @@ final class DepthOfFieldSettings {
   /// image to a point; everything either side of it spreads.
   final double focusDistance;
 
-  /// The focal length in metres — 0.05 is a fifty-millimetre lens.
+  /// The focal length in metres — 0.05 is a fifty-millimetre lens — or null,
+  /// the default, for the lens that frames the camera's picture on a sensor
+  /// [sensorWidth] wide.
+  ///
+  /// **The camera's field of view has already chosen a lens.** A square
+  /// picture 45° tall is what a 43mm lens sees on a full frame, and a fifty
+  /// set here used to blur it as though it were a fifty's picture, which it
+  /// is not. So null takes the focal length from the projection, and zooming
+  /// the camera in lengthens the lens the way a zoom does. Given, the number
+  /// is kept and the sensor is taken to be the one this lens fills with the
+  /// camera's picture: [sensorWidth] is then not read, because the angle and
+  /// the lens have decided it between them. Either way the circle is drawn
+  /// at the scale the picture was. An orthographic camera has no angle to
+  /// derive from and uses both numbers as given, fifty millimetres when this
+  /// is null. See [lensFor].
   ///
   /// It enters the formula squared, so it is the strongest of the three: a
   /// long lens throws a background out of focus at an aperture where a wide
   /// one keeps it sharp, which is why a portrait is shot long.
-  final double focalLength;
+  final double? focalLength;
 
   /// The f-number. Eight is a landscape, 1.4 is a portrait wide open.
   ///
@@ -717,6 +731,29 @@ final class DepthOfFieldSettings {
   /// the resolution does: a scene rendered twice as wide is the same
   /// photograph, larger.
   final double sensorWidth;
+
+  /// The focal length, and the width of sensor the picture spans, for a
+  /// camera [verticalFieldOfView] radians tall at [aspect]: the lens
+  /// [focalLength] describes, made to agree with the projection.
+  ///
+  /// A thin lens of focal length f spans `2 f tan(hfov / 2)` of sensor
+  /// across the picture, and `tan(hfov / 2)` is `aspect * tan(vfov / 2)`, so
+  /// either number follows from the other. A null [verticalFieldOfView] is
+  /// an orthographic camera and gets the numbers as given.
+  ({double focalLength, double sensorWidth}) lensFor({
+    required double? verticalFieldOfView,
+    required double aspect,
+  }) {
+    final given = focalLength;
+    final fov = verticalFieldOfView;
+    if (fov == null || fov <= 0.0 || aspect <= 0.0) {
+      return (focalLength: given ?? 0.05, sensorWidth: sensorWidth);
+    }
+    final across = 2.0 * aspect * math.tan(fov / 2.0);
+    return given == null
+        ? (focalLength: sensorWidth / across, sensorWidth: sensorWidth)
+        : (focalLength: given, sensorWidth: given * across);
+  }
 
   DepthOfFieldSettings copyWith({
     bool? enabled,
