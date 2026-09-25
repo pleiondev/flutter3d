@@ -150,6 +150,19 @@ void main() {
     expect(_overError(blended, opaque, bare), lessThan(2e-3));
   });
 
+  test('the x-ray model, which writes no surface, is weighted too', () {
+    // `xray.frag` calls `WriteSurface` like the rest, so its mirror has to
+    // weight as `writeLit` does. Mutation: drop the weight in `XrayShader`.
+    final blended = _render(pane: _Pane.blended, lighting: LightingModel.xray);
+    final opaque = _render(
+      pane: _Pane.opaque,
+      paneAlpha: 1.0,
+      lighting: LightingModel.xray,
+    );
+    final bare = _render(pane: _Pane.none);
+    expect(_overError(blended, opaque, bare), lessThan(2e-3));
+  });
+
   test('weighted blended transparency composites the same over', () {
     // One layer: the weight divides back out, and the resolve lays the
     // premultiplied colour over 1 − α of the wall.
