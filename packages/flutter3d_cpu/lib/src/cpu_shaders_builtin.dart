@@ -207,6 +207,7 @@ Map<String, CpuStage> builtinCpuShaders() {
       VolumetricFogUpsampleShader(),
     ),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),
+    'DofTileMax': const CpuStage.fragment(DofTileMaxShader()),
     'VelocityTileMax': const CpuStage.fragment(VelocityTileMaxShader()),
     'VelocityNeighborMax': const CpuStage.fragment(VelocityNeighborMaxShader()),
     'MotionBlur': const CpuStage.fragment(MotionBlurShader()),

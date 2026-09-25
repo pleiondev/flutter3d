@@ -69,10 +69,14 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
   'DepthOfField': (
     blocks: <String>{'DofInfo', 'FragCoordInfo'},
-    samplers: <String>{'scene_texture', 'surface_texture'},
+    samplers: <String>{'coc_tile_texture', 'scene_texture', 'surface_texture'},
   ),
   'DepthPyramid': (
     blocks: <String>{'DepthPyramidInfo'},
+    samplers: <String>{'surface_texture'},
+  ),
+  'DofTileMax': (
+    blocks: <String>{'DofTileInfo'},
     samplers: <String>{'surface_texture'},
   ),
   'Easu': (

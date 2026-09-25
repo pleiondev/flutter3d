@@ -34095,16 +34095,20 @@ var<private> gl_FragCoord_1: vec4<f32>;
 var<uniform> frag_coord_info: FragCoordInfo;
 @group(1) @binding(0) 
 var<uniform> dof_info: DofInfo;
-@group(1) @binding(2) 
+@group(1) @binding(4) 
 var scene_texture_tex: texture_2d<f32>;
-@group(1) @binding(3) 
+@group(1) @binding(5) 
 var scene_texture_smp: sampler;
 var<private> v_uv_1: vec2<f32>;
 var<private> frag_color: vec4<f32>;
-@group(1) @binding(4) 
+@group(1) @binding(6) 
 var surface_texture_tex: texture_2d<f32>;
-@group(1) @binding(5) 
+@group(1) @binding(7) 
 var surface_texture_smp: sampler;
+@group(1) @binding(2) 
+var coc_tile_texture_tex: texture_2d<f32>;
+@group(1) @binding(3) 
+var coc_tile_texture_smp: sampler;
 
 fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
     var x: i32;
@@ -34112,72 +34116,72 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
     var index: i32;
     var value: f32;
 
-    let _e59 = (*at)[0u];
-    x = i32((_e59 - (floor((_e59 / 4f)) * 4f)));
-    let _e66 = (*at)[1u];
-    y = i32((_e66 - (floor((_e66 / 4f)) * 4f)));
-    let _e72 = y;
-    let _e74 = x;
-    index = ((_e72 * 4i) + _e74);
+    let _e63 = (*at)[0u];
+    x = i32((_e63 - (floor((_e63 / 4f)) * 4f)));
+    let _e70 = (*at)[1u];
+    y = i32((_e70 - (floor((_e70 / 4f)) * 4f)));
+    let _e76 = y;
+    let _e78 = x;
+    index = ((_e76 * 4i) + _e78);
     value = 0f;
-    let _e76 = index;
-    if (_e76 == 0i) {
+    let _e80 = index;
+    if (_e80 == 0i) {
         value = 0f;
     } else {
-        let _e78 = index;
-        if (_e78 == 1i) {
+        let _e82 = index;
+        if (_e82 == 1i) {
             value = 8f;
         } else {
-            let _e80 = index;
-            if (_e80 == 2i) {
+            let _e84 = index;
+            if (_e84 == 2i) {
                 value = 2f;
             } else {
-                let _e82 = index;
-                if (_e82 == 3i) {
+                let _e86 = index;
+                if (_e86 == 3i) {
                     value = 10f;
                 } else {
-                    let _e84 = index;
-                    if (_e84 == 4i) {
+                    let _e88 = index;
+                    if (_e88 == 4i) {
                         value = 12f;
                     } else {
-                        let _e86 = index;
-                        if (_e86 == 5i) {
+                        let _e90 = index;
+                        if (_e90 == 5i) {
                             value = 4f;
                         } else {
-                            let _e88 = index;
-                            if (_e88 == 6i) {
+                            let _e92 = index;
+                            if (_e92 == 6i) {
                                 value = 14f;
                             } else {
-                                let _e90 = index;
-                                if (_e90 == 7i) {
+                                let _e94 = index;
+                                if (_e94 == 7i) {
                                     value = 6f;
                                 } else {
-                                    let _e92 = index;
-                                    if (_e92 == 8i) {
+                                    let _e96 = index;
+                                    if (_e96 == 8i) {
                                         value = 3f;
                                     } else {
-                                        let _e94 = index;
-                                        if (_e94 == 9i) {
+                                        let _e98 = index;
+                                        if (_e98 == 9i) {
                                             value = 11f;
                                         } else {
-                                            let _e96 = index;
-                                            if (_e96 == 10i) {
+                                            let _e100 = index;
+                                            if (_e100 == 10i) {
                                                 value = 1f;
                                             } else {
-                                                let _e98 = index;
-                                                if (_e98 == 11i) {
+                                                let _e102 = index;
+                                                if (_e102 == 11i) {
                                                     value = 9f;
                                                 } else {
-                                                    let _e100 = index;
-                                                    if (_e100 == 12i) {
+                                                    let _e104 = index;
+                                                    if (_e104 == 12i) {
                                                         value = 15f;
                                                     } else {
-                                                        let _e102 = index;
-                                                        if (_e102 == 13i) {
+                                                        let _e106 = index;
+                                                        if (_e106 == 13i) {
                                                             value = 7f;
                                                         } else {
-                                                            let _e104 = index;
-                                                            if (_e104 == 14i) {
+                                                            let _e108 = index;
+                                                            if (_e108 == 14i) {
                                                                 value = 13f;
                                                             } else {
                                                                 value = 5f;
@@ -34196,37 +34200,37 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
             }
         }
     }
-    let _e106 = value;
-    return (_e106 / 16f);
+    let _e110 = value;
+    return (_e110 / 16f);
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
     var local: vec2<f32>;
 
-    let _e55 = (*rows);
-    if (_e55 > 0f) {
-        let _e58 = gl_FragCoord_1[0u];
-        let _e59 = (*rows);
-        let _e61 = gl_FragCoord_1[1u];
-        local = vec2<f32>(_e58, (_e59 - _e61));
+    let _e59 = (*rows);
+    if (_e59 > 0f) {
+        let _e62 = gl_FragCoord_1[0u];
+        let _e63 = (*rows);
+        let _e65 = gl_FragCoord_1[1u];
+        local = vec2<f32>(_e62, (_e63 - _e65));
     } else {
-        let _e64 = gl_FragCoord_1;
-        local = _e64.xy;
+        let _e68 = gl_FragCoord_1;
+        local = _e68.xy;
     }
-    let _e66 = local;
-    return _e66;
+    let _e70 = local;
+    return _e70;
 }
 
 fn TargetFragCoord_u0028_() -> vec2<f32> {
     var param: f32;
 
-    let _e56 = frag_coord_info.origin[0u];
-    param = _e56;
-    let _e57 = FragCoordFromTop_u0028_f1_u003b((&param));
-    return _e57;
+    let _e60 = frag_coord_info.origin[0u];
+    param = _e60;
+    let _e61 = FragCoordFromTop_u0028_f1_u003b((&param));
+    return _e61;
 }
 
-fn CircleAt_u0028_f1_u003b(depth: ptr<function, f32>) -> f32 {
+fn CircleOfConfusion_u0028_f1_u003b_vf4_u003b_vf4_u003b(depth: ptr<function, f32>, lens: ptr<function, vec4<f32>>, params: ptr<function, vec4<f32>>) -> f32 {
     var focus: f32;
     var focal: f32;
     var fnumber: f32;
@@ -34235,36 +34239,51 @@ fn CircleAt_u0028_f1_u003b(depth: ptr<function, f32>) -> f32 {
     var local_1: f32;
     var diameter: f32;
 
-    let _e63 = dof_info.lens[0u];
-    focus = max(_e63, 0.001f);
-    let _e67 = dof_info.lens[1u];
-    focal = max(_e67, 0.0001f);
-    let _e71 = dof_info.lens[2u];
-    fnumber = max(_e71, 0.001f);
-    let _e73 = fnumber;
-    let _e74 = focus;
-    let _e75 = focal;
-    denominator = max((_e73 * (_e74 - _e75)), 0.000001f);
-    let _e79 = (*depth);
-    if (_e79 <= 0f) {
+    let _e68 = (*lens)[0u];
+    focus = max(_e68, 0.001f);
+    let _e71 = (*lens)[1u];
+    focal = max(_e71, 0.0001f);
+    let _e74 = (*lens)[2u];
+    fnumber = max(_e74, 0.001f);
+    let _e76 = fnumber;
+    let _e77 = focus;
+    let _e78 = focal;
+    denominator = max((_e76 * (_e77 - _e78)), 0.000001f);
+    let _e82 = (*depth);
+    if (_e82 <= 0f) {
         local_1 = 1f;
     } else {
-        let _e81 = (*depth);
-        let _e82 = focus;
-        let _e85 = (*depth);
-        local_1 = (abs((_e81 - _e82)) / _e85);
+        let _e84 = (*depth);
+        let _e85 = focus;
+        let _e88 = (*depth);
+        local_1 = (abs((_e84 - _e85)) / _e88);
     }
-    let _e87 = local_1;
-    ratio = _e87;
-    let _e88 = ratio;
-    let _e89 = focal;
-    let _e90 = focal;
-    let _e93 = denominator;
-    diameter = ((_e88 * (_e89 * _e90)) / _e93);
-    let _e95 = diameter;
-    let _e99 = dof_info.params[3u];
-    let _e103 = dof_info.params[2u];
-    return min(((_e95 * 0.5f) * _e99), max(_e103, 0f));
+    let _e90 = local_1;
+    ratio = _e90;
+    let _e91 = ratio;
+    let _e92 = focal;
+    let _e93 = focal;
+    let _e96 = denominator;
+    diameter = ((_e91 * (_e92 * _e93)) / _e96);
+    let _e98 = diameter;
+    let _e101 = (*params)[3u];
+    let _e104 = (*params)[2u];
+    return min(((_e98 * 0.5f) * _e101), max(_e104, 0f));
+}
+
+fn CircleAt_u0028_f1_u003b(depth_1: ptr<function, f32>) -> f32 {
+    var param_1: f32;
+    var param_2: vec4<f32>;
+    var param_3: vec4<f32>;
+
+    let _e61 = (*depth_1);
+    param_1 = _e61;
+    let _e63 = dof_info.lens;
+    param_2 = _e63;
+    let _e65 = dof_info.params;
+    param_3 = _e65;
+    let _e66 = CircleOfConfusion_u0028_f1_u003b_vf4_u003b_vf4_u003b((&param_1), (&param_2), (&param_3));
+    return _e66;
 }
 
 fn main_1() {
@@ -34272,12 +34291,16 @@ fn main_1() {
     var samples: i32;
     var centreDepth: f32;
     var radius: f32;
-    var param_1: f32;
+    var param_4: f32;
+    var gather: f32;
     var total: vec3<f32>;
     var weight: f32;
+    var nearTotal: vec3<f32>;
+    var nearWeight: f32;
+    var nearCover: f32;
     var centreFar: f32;
     var turn: f32;
-    var param_2: vec2<f32>;
+    var param_5: vec2<f32>;
     var i: i32;
     var t: f32;
     var r: f32;
@@ -34286,119 +34309,162 @@ fn main_1() {
     var tap: vec4<f32>;
     var tapDepth: f32;
     var tapRadius: f32;
-    var param_3: f32;
+    var param_6: f32;
     var tapFar: f32;
     var tapReach: f32;
     var local_2: f32;
     var reach: f32;
+    var spread: f32;
+    var far: vec3<f32>;
+    var near: vec3<f32>;
+    var cover: f32;
 
-    let _e76 = v_uv_1;
-    let _e77 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e76, 0f);
-    centre = _e77;
-    let _e80 = dof_info.lens[3u];
-    samples = i32((_e80 + 0.5f));
-    let _e83 = samples;
-    if (_e83 < 1i) {
-        let _e85 = centre;
-        frag_color = _e85;
+    let _e88 = v_uv_1;
+    let _e89 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e88, 0f);
+    centre = _e89;
+    let _e92 = dof_info.lens[3u];
+    samples = i32((_e92 + 0.5f));
+    let _e95 = samples;
+    if (_e95 < 1i) {
+        let _e97 = centre;
+        frag_color = _e97;
         return;
     }
-    let _e86 = v_uv_1;
-    let _e87 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e86, 0f);
-    centreDepth = _e87.w;
-    let _e89 = centreDepth;
-    param_1 = _e89;
-    let _e90 = CircleAt_u0028_f1_u003b((&param_1));
-    radius = _e90;
-    let _e91 = radius;
-    if (_e91 < 0.5f) {
-        let _e93 = centre;
-        frag_color = _e93;
+    let _e98 = v_uv_1;
+    let _e99 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e98, 0f);
+    centreDepth = _e99.w;
+    let _e101 = centreDepth;
+    param_4 = _e101;
+    let _e102 = CircleAt_u0028_f1_u003b((&param_4));
+    radius = _e102;
+    let _e103 = v_uv_1;
+    let _e104 = textureSampleLevel(coc_tile_texture_tex, coc_tile_texture_smp, _e103, 0f);
+    let _e106 = radius;
+    gather = max(_e104.x, _e106);
+    let _e108 = gather;
+    if (_e108 < 0.5f) {
+        let _e110 = centre;
+        frag_color = _e110;
         return;
     }
-    let _e94 = centre;
-    total = _e94.xyz;
+    let _e111 = centre;
+    total = _e111.xyz;
     weight = 1f;
-    let _e96 = centreDepth;
-    let _e98 = centreDepth;
-    centreFar = select(_e98, 1000000000f, (_e96 <= 0f));
-    let _e100 = TargetFragCoord_u0028_();
-    param_2 = _e100;
-    let _e101 = BayerCell_u0028_vf2_u003b((&param_2));
-    turn = (6.2831855f * _e101);
+    nearTotal = vec3<f32>(0f, 0f, 0f);
+    nearWeight = 0f;
+    nearCover = 0f;
+    let _e113 = centreDepth;
+    let _e115 = centreDepth;
+    centreFar = select(_e115, 1000000000f, (_e113 <= 0f));
+    let _e117 = TargetFragCoord_u0028_();
+    param_5 = _e117;
+    let _e118 = BayerCell_u0028_vf2_u003b((&param_5));
+    turn = (6.2831855f * _e118);
     i = 1i;
     loop {
-        let _e103 = i;
-        if (_e103 <= 64i) {
-            let _e105 = i;
-            let _e106 = samples;
-            if (_e105 > _e106) {
+        let _e120 = i;
+        if (_e120 <= 64i) {
+            let _e122 = i;
+            let _e123 = samples;
+            if (_e122 > _e123) {
                 break;
             }
-            let _e108 = i;
-            let _e111 = samples;
-            t = ((f32(_e108) - 0.5f) / f32(_e111));
-            let _e114 = t;
-            let _e116 = radius;
-            r = (sqrt(_e114) * _e116);
-            let _e118 = i;
-            let _e121 = turn;
-            angle = ((f32(_e118) * 2.3999631f) + _e121);
-            let _e123 = v_uv_1;
-            let _e124 = angle;
-            let _e126 = angle;
-            let _e129 = r;
-            let _e132 = dof_info.params;
-            at_1 = (_e123 + ((vec2<f32>(cos(_e124), sin(_e126)) * _e129) * _e132.xy));
-            let _e136 = at_1;
-            let _e137 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e136, 0f);
-            tap = _e137;
-            let _e138 = at_1;
-            let _e139 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e138, 0f);
-            tapDepth = _e139.w;
-            let _e141 = tapDepth;
-            param_3 = _e141;
-            let _e142 = CircleAt_u0028_f1_u003b((&param_3));
-            tapRadius = _e142;
-            let _e143 = tapDepth;
-            let _e145 = tapDepth;
-            tapFar = select(_e145, 1000000000f, (_e143 <= 0f));
-            let _e147 = tapFar;
-            let _e148 = centreFar;
-            if (_e147 > _e148) {
-                let _e150 = tapRadius;
-                let _e151 = radius;
-                local_2 = min(_e150, _e151);
+            let _e125 = i;
+            let _e128 = samples;
+            t = ((f32(_e125) - 0.5f) / f32(_e128));
+            let _e131 = t;
+            let _e133 = gather;
+            r = (sqrt(_e131) * _e133);
+            let _e135 = i;
+            let _e138 = turn;
+            angle = ((f32(_e135) * 2.3999631f) + _e138);
+            let _e140 = v_uv_1;
+            let _e141 = angle;
+            let _e143 = angle;
+            let _e146 = r;
+            let _e149 = dof_info.params;
+            at_1 = (_e140 + ((vec2<f32>(cos(_e141), sin(_e143)) * _e146) * _e149.xy));
+            let _e153 = at_1;
+            let _e154 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e153, 0f);
+            tap = _e154;
+            let _e155 = at_1;
+            let _e156 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e155, 0f);
+            tapDepth = _e156.w;
+            let _e158 = tapDepth;
+            param_6 = _e158;
+            let _e159 = CircleAt_u0028_f1_u003b((&param_6));
+            tapRadius = _e159;
+            let _e160 = tapDepth;
+            let _e162 = tapDepth;
+            tapFar = select(_e162, 1000000000f, (_e160 <= 0f));
+            let _e164 = tapFar;
+            let _e165 = centreFar;
+            if (_e164 > _e165) {
+                let _e167 = tapRadius;
+                let _e168 = radius;
+                local_2 = min(_e167, _e168);
             } else {
-                let _e153 = tapRadius;
-                local_2 = _e153;
+                let _e170 = tapRadius;
+                local_2 = _e170;
             }
-            let _e154 = local_2;
-            tapReach = _e154;
-            let _e155 = tapReach;
-            let _e156 = r;
-            reach = clamp(((_e155 - _e156) + 0.5f), 0f, 1f);
-            let _e160 = tap;
-            let _e162 = reach;
-            let _e164 = total;
-            total = (_e164 + (_e160.xyz * _e162));
-            let _e166 = reach;
-            let _e167 = weight;
-            weight = (_e167 + _e166);
+            let _e171 = local_2;
+            tapReach = _e171;
+            let _e172 = tapReach;
+            let _e173 = r;
+            reach = clamp(((_e172 - _e173) + 0.5f), 0f, 1f);
+            let _e177 = tapFar;
+            let _e178 = centreFar;
+            let _e180 = tapRadius;
+            let _e181 = radius;
+            if ((_e177 < _e178) && (_e180 > _e181)) {
+                let _e184 = gather;
+                let _e185 = tapRadius;
+                spread = (_e184 / max(_e185, 0.5f));
+                let _e188 = tap;
+                let _e190 = reach;
+                let _e192 = nearTotal;
+                nearTotal = (_e192 + (_e188.xyz * _e190));
+                let _e194 = reach;
+                let _e195 = nearWeight;
+                nearWeight = (_e195 + _e194);
+                let _e197 = reach;
+                let _e198 = spread;
+                let _e200 = spread;
+                let _e202 = nearCover;
+                nearCover = (_e202 + ((_e197 * _e198) * _e200));
+            } else {
+                let _e204 = tap;
+                let _e206 = reach;
+                let _e208 = total;
+                total = (_e208 + (_e204.xyz * _e206));
+                let _e210 = reach;
+                let _e211 = weight;
+                weight = (_e211 + _e210);
+            }
             continue;
         } else {
             break;
         }
         continuing {
-            let _e169 = i;
-            i = (_e169 + 1i);
+            let _e213 = i;
+            i = (_e213 + 1i);
         }
     }
-    let _e171 = total;
-    let _e172 = weight;
-    let _e174 = (_e171 / vec3(_e172));
-    let _e176 = centre[3u];
-    frag_color = vec4<f32>(_e174.x, _e174.y, _e174.z, _e176);
+    let _e215 = total;
+    let _e216 = weight;
+    far = (_e215 / vec3(_e216));
+    let _e219 = nearTotal;
+    let _e220 = nearWeight;
+    near = (_e219 / vec3(max(_e220, 0.00001f)));
+    let _e224 = nearCover;
+    let _e225 = samples;
+    cover = clamp((_e224 / f32(_e225)), 0f, 1f);
+    let _e229 = far;
+    let _e230 = near;
+    let _e231 = cover;
+    let _e233 = mix(_e229, _e230, vec3(_e231));
+    let _e235 = centre[3u];
+    frag_color = vec4<f32>(_e233.x, _e233.y, _e233.z, _e235);
     return;
 }
 
@@ -34443,17 +34509,193 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
-          name: 'scene_texture',
+          name: 'coc_tile_texture',
           group: 1,
           textureBinding: 2,
           samplerBinding: 3,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
         WebGpuSampler(
-          name: 'surface_texture',
+          name: 'scene_texture',
           group: 1,
           textureBinding: 4,
           samplerBinding: 5,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 6,
+          samplerBinding: 7,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'DofTileMax': WebGpuStage(
+      wgsl: r'''
+struct DofTileInfo {
+    lens: vec4<f32>,
+    params: vec4<f32>,
+    source: vec4<f32>,
+    target_: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> dof_tile_info: DofTileInfo;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(1) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var surface_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn CircleOfConfusion_u0028_f1_u003b_vf4_u003b_vf4_u003b(depth: ptr<function, f32>, lens: ptr<function, vec4<f32>>, params: ptr<function, vec4<f32>>) -> f32 {
+    var focus: f32;
+    var focal: f32;
+    var fnumber: f32;
+    var denominator: f32;
+    var ratio: f32;
+    var local: f32;
+    var diameter: f32;
+
+    let _e31 = (*lens)[0u];
+    focus = max(_e31, 0.001f);
+    let _e34 = (*lens)[1u];
+    focal = max(_e34, 0.0001f);
+    let _e37 = (*lens)[2u];
+    fnumber = max(_e37, 0.001f);
+    let _e39 = fnumber;
+    let _e40 = focus;
+    let _e41 = focal;
+    denominator = max((_e39 * (_e40 - _e41)), 0.000001f);
+    let _e45 = (*depth);
+    if (_e45 <= 0f) {
+        local = 1f;
+    } else {
+        let _e47 = (*depth);
+        let _e48 = focus;
+        let _e51 = (*depth);
+        local = (abs((_e47 - _e48)) / _e51);
+    }
+    let _e53 = local;
+    ratio = _e53;
+    let _e54 = ratio;
+    let _e55 = focal;
+    let _e56 = focal;
+    let _e59 = denominator;
+    diameter = ((_e54 * (_e55 * _e56)) / _e59);
+    let _e61 = diameter;
+    let _e64 = (*params)[3u];
+    let _e67 = (*params)[2u];
+    return min(((_e61 * 0.5f) * _e64), max(_e67, 0f));
+}
+
+fn main_1() {
+    var taps: i32;
+    var texel: vec2<f32>;
+    var row: f32;
+    var first: f32;
+    var largest: f32;
+    var i: i32;
+    var at: vec2<f32>;
+    var depth_1: f32;
+    var param: f32;
+    var param_1: vec4<f32>;
+    var param_2: vec4<f32>;
+
+    let _e33 = dof_tile_info.source[2u];
+    taps = i32((_e33 + 0.5f));
+    let _e36 = v_uv_1;
+    let _e38 = dof_tile_info.target_;
+    texel = floor((_e36 * _e38.xy));
+    let _e43 = texel[1u];
+    let _e47 = dof_tile_info.source[1u];
+    row = ((_e43 + 0.5f) * _e47);
+    let _e50 = texel[0u];
+    let _e51 = taps;
+    first = (_e50 * f32(_e51));
+    largest = 0f;
+    i = 0i;
+    loop {
+        let _e54 = i;
+        if (_e54 < 64i) {
+            let _e56 = i;
+            let _e57 = taps;
+            if (_e56 >= _e57) {
+                break;
+            }
+            let _e59 = first;
+            let _e60 = i;
+            let _e66 = dof_tile_info.source[0u];
+            let _e68 = row;
+            at = vec2<f32>((((_e59 + f32(_e60)) + 0.5f) * _e66), _e68);
+            let _e70 = at;
+            let _e71 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e70, 0f);
+            depth_1 = _e71.w;
+            let _e73 = largest;
+            let _e74 = depth_1;
+            param = _e74;
+            let _e76 = dof_tile_info.lens;
+            param_1 = _e76;
+            let _e78 = dof_tile_info.params;
+            param_2 = _e78;
+            let _e79 = CircleOfConfusion_u0028_f1_u003b_vf4_u003b_vf4_u003b((&param), (&param_1), (&param_2));
+            largest = max(_e73, _e79);
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e81 = i;
+            i = (_e81 + 1i);
+        }
+    }
+    let _e83 = largest;
+    frag_color = vec4<f32>(_e83, 0f, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'DofTileInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 64,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'lens', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'source',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'target',
+              offsetInBytes: 48,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
