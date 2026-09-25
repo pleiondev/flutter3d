@@ -361,7 +361,8 @@ final class MeshLayoutPlan {
   /// `fillVerticesOf` into the reused buffer no longer reaches the mesh handed
   /// out. A viewport drawing a normal-mapped model every frame is the caller
   /// that minds, and whether that costs anything is `mesh-31`'s measurement to
-  /// make rather than this method's guess.
+  /// make rather than this method's guess. Generated without splitting seams,
+  /// so the rows stay the plan's rows.
   MeshData toMeshData(
     EditMesh mesh, {
     Float32List? into,
@@ -379,7 +380,7 @@ final class MeshLayoutPlan {
           : Uint32List.sublistView(_indices, 0, _triangleCount * 3),
     );
     return withTangents && _layout.has(VertexLayout.tangent)
-        ? drawn.withGeneratedTangents()
+        ? drawn.withGeneratedTangents(splitSeams: false)
         : drawn;
   }
 }
