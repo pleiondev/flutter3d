@@ -31,6 +31,12 @@ dependencies:
   flutter3d_cpu: ^0.8.0
   vector_math: ^2.4.3
 
+  # `N7`'s per-class texture budgets: the same `TextureBudget` presets and
+  # box resize `makeGameReady` fits a project with, so a phone's file carries
+  # the textures the editor would have fitted it to. Plain Dart, and already
+  # under `flutter3d_cpu` above.
+  flutter3d_model_core: ^0.8.0
+
   # `bin/lights.dart`: the light optimizer (`flutter3d_editor_core`'s
   # `light_opt/`) and the level and pose documents it reads
   # (`flutter3d_sim`). Both plain Dart, and reached only from that command —

@@ -31,6 +31,16 @@ String generatedAssetPathFor(String sourcePath) {
   return 'flutter3d_generated/$withoutExtension.f3d';
 }
 
+/// The device class every [loadModelAsset] reads as when its caller names
+/// none — `N7`. Null, the default, reads the single `.f3d` a build without
+/// classes writes.
+///
+/// **Set once, on the loading screen**, from a `DeviceClassPicker`: a class
+/// decides which files a level loads, and loaders several calls away from the
+/// application (a level's actors, `loadModelByPath`) read it here rather than
+/// each being handed it.
+DeviceClass? assetDeviceClass;
+
 /// Every [sourcePath] this isolate has already warned about — so a control
 /// that calls [loadModelAsset] once per frame (a hot-reload preview, a level
 /// that streams models in) prints the missing-hook warning once for the
@@ -67,13 +77,32 @@ final Set<String> _warnedMissingGenerated = <String>{};
 /// either to stand in for what a real asset bundle would serve without
 /// declaring throwaway fixtures in this package's own `pubspec.yaml`,
 /// which would ship them to every application that depends on it.
+///
+/// [deviceClass] (default: [assetDeviceClass]) reads that class's own file
+/// first — `chair.phone.f3d` — and the single `chair.f3d` when the build
+/// wrote none for it, so a class picked before a project's manifest names any
+/// costs one missed read and nothing else.
 Future<ModelDocument> loadModelAsset(
   String sourcePath, {
   bool debugMode = kDebugMode,
+  DeviceClass? deviceClass,
   AssetSource Function(String path) generatedSource = BundleAssetSource.new,
   AssetSource Function(String path) fallbackSource = FileAssetSource.new,
 }) async {
   final generatedPath = generatedAssetPathFor(sourcePath);
+  if (deviceClass ?? assetDeviceClass case final DeviceClass reading) {
+    try {
+      return await decodeModelInIsolate(
+        ModelLoadRequest(
+          source: generatedSource(deviceClassPath(generatedPath, reading)),
+        ),
+      );
+    } on FlutterError {
+      // No file for this class: the single one below.
+    } on FileSystemException {
+      // The same, read from disk.
+    }
+  }
   try {
     return await decodeModelInIsolate(
       ModelLoadRequest(source: generatedSource(generatedPath)),

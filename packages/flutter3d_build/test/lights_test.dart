@@ -177,6 +177,47 @@ void main() {
     expect(await lightsAfter(<String>[noon, night]), 1);
   });
 
+  test('--classes writes a light set per device class, each to its own '
+      'tolerance, and leaves the level alone', () async {
+    // A ceiling lamp and a small red one low in a corner, bright enough that
+    // dropping it darkens just over one per cent of the pixels: past the
+    // desktop's tolerance, inside the phone's. Mutation: build every
+    // class's optimizer with the default tolerance in `_perClass`, and the
+    // phone keeps both lamps too.
+    File(level).writeAsStringSync(
+      jsonEncode(
+        _room()
+          ..['lights'] = <Object?>[
+            <String, Object?>{
+              'type': 'point',
+              'at': <double>[0.0, 2.2, 0.0],
+              'intensity': 2.0,
+              'range': 8.0,
+            },
+            <String, Object?>{
+              'type': 'point',
+              'at': <double>[-1.8, 0.4, -1.8],
+              'color': <double>[1.0, 0.3, 0.2],
+              'intensity': 1.2,
+              'range': 2.0,
+            },
+          ],
+      ),
+    );
+    final said = StringBuffer();
+    final code = await runLights(<String>[
+      '--optimize',
+      level,
+      '--classes',
+      'phone,desktop',
+    ], out: IOSink(_Into(said)));
+    expect(code, 0, reason: '$said');
+    expect(lightsIn('${scratch.path}/room.phone.json'), 1, reason: '$said');
+    expect(lightsIn('${scratch.path}/room.desktop.json'), 2, reason: '$said');
+    expect(File('${scratch.path}/room.web.json').existsSync(), isFalse);
+    expect(lightsIn(level), 2);
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
   test('refuses arguments it cannot read', () async {
     final err = StringBuffer();
     expect(

@@ -6,6 +6,7 @@ library;
 
 export 'src/build_assets.dart';
 export 'src/convert.dart';
+export 'src/device_classes.dart';
 export 'src/impostor_bake.dart';
 export 'src/init.dart';
 export 'src/layout.dart';
