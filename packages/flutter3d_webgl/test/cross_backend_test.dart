@@ -186,12 +186,13 @@ const Map<String, double> _budgets = <String, double>{
   // silhouette's interior agrees exactly, as a flat colour has to; the
   // number is its edge and the shadows' edges.
   'stencil-xray': 0.07,
-  // 0.247% measured. Two balls reflecting four coloured walls through a cube
+  // 0.288% measured. Two balls reflecting four coloured walls through a cube
   // captured on the device and convolved into its own chain — six renders
-  // into faces and levels on each backend, agreeing to a quarter of a
+  // into faces and levels on each backend, agreeing to under a third of a
   // percent, which is the silhouettes of the balls and the walls' edges in
-  // what they reflect.
-  'probe-car': 0.26,
+  // what they reflect. It was 0.247% before the prefilter sampled its whole
+  // lobe: the rough ball reflects a blur now, whose edges round differently.
+  'probe-car': 0.30,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
