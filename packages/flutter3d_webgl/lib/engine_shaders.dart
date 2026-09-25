@@ -8184,16 +8184,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
   //
-  // **A flat distance plus one texel of the cascade, scaled by the slope.**
-  // The flat part alone was tuned for surfaces the map never recorded: with
-  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // **A flat distance plus what the kernel's reach needs, and no more.** The
+  // flat part alone was tuned for surfaces the map never recorded: with the
+  // default `casterFaces: back` a closed mesh writes only the faces turned
   // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the error the
-  // offset has to clear is the patch one texel covers, which is centimetres
-  // in the near cascade and decimetres in the far one. The same measure
-  // `PointShadowFactor` takes, for the same reason.
-  float nDotL = max(light.n_dot_l, 0.15);
-  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  // double-sided material writes its lit faces too, and then the offset has
+  // to lift the point clear of its own plane as far out as the 3×3 kernel
+  // reads: a tap one texel over lands in a texel whose centre is up to a
+  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // light. A step d along the normal clears the plane by d / cosθ along the
+  // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
+  // because a slope running diagonally across it reaches further in texels.
+  // Nothing at normal incidence, a texel and a half at grazing. The depth
+  // bias covers the rest. Every metre more than this moves the shadow away
+  // from its caster, and in the far cascade a texel is decimetres. Measured
+  // per cascade in the loop below, since each has a texel of its own.
 
   // Which cascade covers this fragment.
   //
@@ -8226,11 +8231,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
                       : frag_info.shadow_matrix_farthest);
     // One texel of this cascade in metres. The projection is orthographic,
     // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
-    // of the width.
-    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
-    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
-    vec3 origin = v_world_position +
-        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
+    // of the width. The rows are also the map's axes in the world, which is
+    // what the normal is measured along: its share across each axis is the
+    // sine of the slope in that direction.
+    vec3 axisX = vec3(matrix[0][0], matrix[1][0], matrix[2][0]);
+    vec3 axisY = vec3(matrix[0][1], matrix[1][1], matrix[2][1]);
+    float rowX = max(length(axisX), 1e-6);
+    float rowY = max(length(axisY), 1e-6);
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / rowX;
+    float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
+        (abs(dot(s.n, axisX)) / (rowX * rowX) +
+         abs(dot(s.n, axisY)) / (rowY * rowY));
+    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -10590,16 +10602,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
   //
-  // **A flat distance plus one texel of the cascade, scaled by the slope.**
-  // The flat part alone was tuned for surfaces the map never recorded: with
-  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // **A flat distance plus what the kernel's reach needs, and no more.** The
+  // flat part alone was tuned for surfaces the map never recorded: with the
+  // default `casterFaces: back` a closed mesh writes only the faces turned
   // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the error the
-  // offset has to clear is the patch one texel covers, which is centimetres
-  // in the near cascade and decimetres in the far one. The same measure
-  // `PointShadowFactor` takes, for the same reason.
-  float nDotL = max(light.n_dot_l, 0.15);
-  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  // double-sided material writes its lit faces too, and then the offset has
+  // to lift the point clear of its own plane as far out as the 3×3 kernel
+  // reads: a tap one texel over lands in a texel whose centre is up to a
+  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // light. A step d along the normal clears the plane by d / cosθ along the
+  // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
+  // because a slope running diagonally across it reaches further in texels.
+  // Nothing at normal incidence, a texel and a half at grazing. The depth
+  // bias covers the rest. Every metre more than this moves the shadow away
+  // from its caster, and in the far cascade a texel is decimetres. Measured
+  // per cascade in the loop below, since each has a texel of its own.
 
   // Which cascade covers this fragment.
   //
@@ -10632,11 +10649,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
                       : frag_info.shadow_matrix_farthest);
     // One texel of this cascade in metres. The projection is orthographic,
     // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
-    // of the width.
-    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
-    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
-    vec3 origin = v_world_position +
-        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
+    // of the width. The rows are also the map's axes in the world, which is
+    // what the normal is measured along: its share across each axis is the
+    // sine of the slope in that direction.
+    vec3 axisX = vec3(matrix[0][0], matrix[1][0], matrix[2][0]);
+    vec3 axisY = vec3(matrix[0][1], matrix[1][1], matrix[2][1]);
+    float rowX = max(length(axisX), 1e-6);
+    float rowY = max(length(axisY), 1e-6);
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / rowX;
+    float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
+        (abs(dot(s.n, axisX)) / (rowX * rowX) +
+         abs(dot(s.n, axisY)) / (rowY * rowY));
+    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -13031,16 +13055,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
   //
-  // **A flat distance plus one texel of the cascade, scaled by the slope.**
-  // The flat part alone was tuned for surfaces the map never recorded: with
-  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // **A flat distance plus what the kernel's reach needs, and no more.** The
+  // flat part alone was tuned for surfaces the map never recorded: with the
+  // default `casterFaces: back` a closed mesh writes only the faces turned
   // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the error the
-  // offset has to clear is the patch one texel covers, which is centimetres
-  // in the near cascade and decimetres in the far one. The same measure
-  // `PointShadowFactor` takes, for the same reason.
-  float nDotL = max(light.n_dot_l, 0.15);
-  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  // double-sided material writes its lit faces too, and then the offset has
+  // to lift the point clear of its own plane as far out as the 3×3 kernel
+  // reads: a tap one texel over lands in a texel whose centre is up to a
+  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // light. A step d along the normal clears the plane by d / cosθ along the
+  // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
+  // because a slope running diagonally across it reaches further in texels.
+  // Nothing at normal incidence, a texel and a half at grazing. The depth
+  // bias covers the rest. Every metre more than this moves the shadow away
+  // from its caster, and in the far cascade a texel is decimetres. Measured
+  // per cascade in the loop below, since each has a texel of its own.
 
   // Which cascade covers this fragment.
   //
@@ -13073,11 +13102,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
                       : frag_info.shadow_matrix_farthest);
     // One texel of this cascade in metres. The projection is orthographic,
     // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
-    // of the width.
-    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
-    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
-    vec3 origin = v_world_position +
-        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
+    // of the width. The rows are also the map's axes in the world, which is
+    // what the normal is measured along: its share across each axis is the
+    // sine of the slope in that direction.
+    vec3 axisX = vec3(matrix[0][0], matrix[1][0], matrix[2][0]);
+    vec3 axisY = vec3(matrix[0][1], matrix[1][1], matrix[2][1]);
+    float rowX = max(length(axisX), 1e-6);
+    float rowY = max(length(axisY), 1e-6);
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / rowX;
+    float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
+        (abs(dot(s.n, axisX)) / (rowX * rowX) +
+         abs(dot(s.n, axisY)) / (rowY * rowY));
+    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -16286,16 +16322,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
   //
-  // **A flat distance plus one texel of the cascade, scaled by the slope.**
-  // The flat part alone was tuned for surfaces the map never recorded: with
-  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // **A flat distance plus what the kernel's reach needs, and no more.** The
+  // flat part alone was tuned for surfaces the map never recorded: with the
+  // default `casterFaces: back` a closed mesh writes only the faces turned
   // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the error the
-  // offset has to clear is the patch one texel covers, which is centimetres
-  // in the near cascade and decimetres in the far one. The same measure
-  // `PointShadowFactor` takes, for the same reason.
-  float nDotL = max(light.n_dot_l, 0.15);
-  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  // double-sided material writes its lit faces too, and then the offset has
+  // to lift the point clear of its own plane as far out as the 3×3 kernel
+  // reads: a tap one texel over lands in a texel whose centre is up to a
+  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // light. A step d along the normal clears the plane by d / cosθ along the
+  // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
+  // because a slope running diagonally across it reaches further in texels.
+  // Nothing at normal incidence, a texel and a half at grazing. The depth
+  // bias covers the rest. Every metre more than this moves the shadow away
+  // from its caster, and in the far cascade a texel is decimetres. Measured
+  // per cascade in the loop below, since each has a texel of its own.
 
   // Which cascade covers this fragment.
   //
@@ -16328,11 +16369,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
                       : frag_info.shadow_matrix_farthest);
     // One texel of this cascade in metres. The projection is orthographic,
     // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
-    // of the width.
-    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
-    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
-    vec3 origin = v_world_position +
-        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
+    // of the width. The rows are also the map's axes in the world, which is
+    // what the normal is measured along: its share across each axis is the
+    // sine of the slope in that direction.
+    vec3 axisX = vec3(matrix[0][0], matrix[1][0], matrix[2][0]);
+    vec3 axisY = vec3(matrix[0][1], matrix[1][1], matrix[2][1]);
+    float rowX = max(length(axisX), 1e-6);
+    float rowY = max(length(axisY), 1e-6);
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / rowX;
+    float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
+        (abs(dot(s.n, axisX)) / (rowX * rowX) +
+         abs(dot(s.n, axisY)) / (rowY * rowY));
+    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -19509,16 +19557,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
   //
-  // **A flat distance plus one texel of the cascade, scaled by the slope.**
-  // The flat part alone was tuned for surfaces the map never recorded: with
-  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // **A flat distance plus what the kernel's reach needs, and no more.** The
+  // flat part alone was tuned for surfaces the map never recorded: with the
+  // default `casterFaces: back` a closed mesh writes only the faces turned
   // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the error the
-  // offset has to clear is the patch one texel covers, which is centimetres
-  // in the near cascade and decimetres in the far one. The same measure
-  // `PointShadowFactor` takes, for the same reason.
-  float nDotL = max(light.n_dot_l, 0.15);
-  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  // double-sided material writes its lit faces too, and then the offset has
+  // to lift the point clear of its own plane as far out as the 3×3 kernel
+  // reads: a tap one texel over lands in a texel whose centre is up to a
+  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // light. A step d along the normal clears the plane by d / cosθ along the
+  // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
+  // because a slope running diagonally across it reaches further in texels.
+  // Nothing at normal incidence, a texel and a half at grazing. The depth
+  // bias covers the rest. Every metre more than this moves the shadow away
+  // from its caster, and in the far cascade a texel is decimetres. Measured
+  // per cascade in the loop below, since each has a texel of its own.
 
   // Which cascade covers this fragment.
   //
@@ -19551,11 +19604,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
                       : frag_info.shadow_matrix_farthest);
     // One texel of this cascade in metres. The projection is orthographic,
     // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
-    // of the width.
-    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
-    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
-    vec3 origin = v_world_position +
-        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
+    // of the width. The rows are also the map's axes in the world, which is
+    // what the normal is measured along: its share across each axis is the
+    // sine of the slope in that direction.
+    vec3 axisX = vec3(matrix[0][0], matrix[1][0], matrix[2][0]);
+    vec3 axisY = vec3(matrix[0][1], matrix[1][1], matrix[2][1]);
+    float rowX = max(length(axisX), 1e-6);
+    float rowY = max(length(axisY), 1e-6);
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / rowX;
+    float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
+        (abs(dot(s.n, axisX)) / (rowX * rowX) +
+         abs(dot(s.n, axisY)) / (rowY * rowY));
+    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -20891,6 +20951,12 @@ void main() {
   // would mean a third attachment and rewriting all six lit stages. So an
   // emissive strip in a corner dims, which is physically wrong — the same
   // compromise `pbr.frag` already makes with the occlusion map from a glTF.
+  //
+  // **Except under fog** (`S4`): the fog's in-scatter is in this colour by
+  // now, and a crease behind the air must not darken the air. So the fog's
+  // upsample lays both multipliers on the surface before the air, and they
+  // arrive here at a strength of nought. The glow then reads the occluded
+  // scene, which is the price of the air being right.
   // `R7`: each place of the scene at the exposure that shows it best, before
   // the glow is added and the curve applied. Bilinear from an eighth of the
   // frame: the stops were blurred wide, so there is no edge in them to keep.
@@ -26959,6 +27025,17 @@ precision highp samplerCube;
 //
 // **Composited before the tone map**: the scene behind keeps the share the
 // air lets through and the in-scatter is added, both in linear light.
+//
+// **The occlusion lands on the surface here, before the air, and not in the
+// composite.** Ambient occlusion and the contact shadow say how much light
+// reaches the surface a ray stopped at; they have nothing to say about the
+// air in front of it. The composite multiplies them into the whole colour,
+// which, once the fog is in that colour, draws the creases of a far wall on
+// the air in front of it: dark lines that thicker fog should wash out and
+// instead makes plainer. So this pass takes them over, the same 2×2 average
+// and the same strengths the composite uses, and the renderer zeroes the
+// composite's strengths on a frame where it did. Zero strengths here are a
+// multiplier of exactly one, so fog without occlusion is what it was.
 
 in vec2 v_uv;
 
@@ -26967,10 +27044,17 @@ layout(location = 0) out vec4 frag_color;
 uniform sampler2D scene_texture;
 uniform sampler2D fog_texture;
 uniform sampler2D surface_texture;
+uniform sampler2D ao_texture;
+uniform sampler2D contact_shadow_texture;
 
 layout(std140) uniform FogUpsampleInfo {
-  // xy: the fog texture's size in texels. zw unused.
+  // xy: the fog texture's size in texels. zw: one texel of the occlusion
+  // buffer, for the composite's 2×2 average.
   vec4 size;
+  // x: the occlusion's strength, y: the contact shadow's, z: one when the
+  // occlusion buffer holds bounced light in rgb (`L5`). All nought when the
+  // composite keeps them. w unused.
+  vec4 occlusion;
 }
 upsample_info;
 
@@ -27009,7 +27093,21 @@ void main() {
   Tap(base + vec2(1.0, 1.0), f.x * f.y, here, sum, weight);
   vec4 fog = weight > 1e-6 ? sum / weight : vec4(0.0, 0.0, 0.0, 1.0);
 
-  frag_color = vec4(scene.rgb * fog.a + fog.rgb, scene.a);
+  // What `composite.frag` does to the scene, operation for operation.
+  vec2 half_texel = upsample_info.size.zw * 0.5;
+  vec4 occlusion =
+      0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)) +
+              texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)) +
+              texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)) +
+              texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)));
+  float strength = clamp(upsample_info.occlusion.x, 0.0, 1.0);
+  float ao = mix(1.0, occlusion.a, strength);
+  float contact = texture(contact_shadow_texture, v_uv).r;
+  ao *= mix(1.0, contact, clamp(upsample_info.occlusion.y, 0.0, 1.0));
+  vec3 surfaceLight =
+      scene.rgb * ao + occlusion.rgb * upsample_info.occlusion.z * strength;
+
+  frag_color = vec4(surfaceLight * fog.a + fog.rgb, scene.a);
 }
 
 ''',
@@ -32288,16 +32386,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
   //
-  // **A flat distance plus one texel of the cascade, scaled by the slope.**
-  // The flat part alone was tuned for surfaces the map never recorded: with
-  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // **A flat distance plus what the kernel's reach needs, and no more.** The
+  // flat part alone was tuned for surfaces the map never recorded: with the
+  // default `casterFaces: back` a closed mesh writes only the faces turned
   // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the error the
-  // offset has to clear is the patch one texel covers, which is centimetres
-  // in the near cascade and decimetres in the far one. The same measure
-  // `PointShadowFactor` takes, for the same reason.
-  float nDotL = max(light.n_dot_l, 0.15);
-  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  // double-sided material writes its lit faces too, and then the offset has
+  // to lift the point clear of its own plane as far out as the 3×3 kernel
+  // reads: a tap one texel over lands in a texel whose centre is up to a
+  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // light. A step d along the normal clears the plane by d / cosθ along the
+  // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
+  // because a slope running diagonally across it reaches further in texels.
+  // Nothing at normal incidence, a texel and a half at grazing. The depth
+  // bias covers the rest. Every metre more than this moves the shadow away
+  // from its caster, and in the far cascade a texel is decimetres. Measured
+  // per cascade in the loop below, since each has a texel of its own.
 
   // Which cascade covers this fragment.
   //
@@ -32330,11 +32433,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
                       : frag_info.shadow_matrix_farthest);
     // One texel of this cascade in metres. The projection is orthographic,
     // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
-    // of the width.
-    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
-    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
-    vec3 origin = v_world_position +
-        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
+    // of the width. The rows are also the map's axes in the world, which is
+    // what the normal is measured along: its share across each axis is the
+    // sine of the slope in that direction.
+    vec3 axisX = vec3(matrix[0][0], matrix[1][0], matrix[2][0]);
+    vec3 axisY = vec3(matrix[0][1], matrix[1][1], matrix[2][1]);
+    float rowX = max(length(axisX), 1e-6);
+    float rowY = max(length(axisY), 1e-6);
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / rowX;
+    float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
+        (abs(dot(s.n, axisX)) / (rowX * rowX) +
+         abs(dot(s.n, axisY)) / (rowY * rowY));
+    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;

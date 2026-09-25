@@ -437,7 +437,13 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'VolumetricFogUpsample': (
     blocks: <String>{'FogUpsampleInfo'},
-    samplers: <String>{'fog_texture', 'scene_texture', 'surface_texture'},
+    samplers: <String>{
+      'ao_texture',
+      'contact_shadow_texture',
+      'fog_texture',
+      'scene_texture',
+      'surface_texture',
+    },
   ),
   'WboitResolve': (
     blocks: <String>{},
