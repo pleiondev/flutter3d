@@ -26271,13 +26271,16 @@ precision highp samplerCube;
 // by roughness, written where a lit shader's `textureLod` will read it.
 //
 // The device-side twin of `EnvironmentMap.prefilter`, and deliberately the
-// same convolution rather than a better one: the same fixed spiral of taps,
-// the same cosine-power lobe for the roughness, the same weighting. A GPU
-// could importance-sample GGX here and look a little nicer on a rough metal;
-// what it would lose is the agreement with the software rasteriser that the
-// three golden sets are measured by, and the software side is this file read
-// aloud. Where the two differ — bilinear taps here against nearest ones there
-// — the difference is noise well under the cross-backend budgets.
+// same convolution: the same fixed spiral of taps, the same GGX lobe for the
+// roughness, the same weighting, so the software rasteriser that the three
+// golden sets are measured by reads this file aloud. Where the two differ —
+// bilinear taps here against nearest ones there — the difference is noise
+// well under the cross-backend budgets.
+//
+// **Not yet filtered importance sampling.** Every tap reads the capture's base
+// level, because the capture has no mips to read a wider one from; a rough
+// level's sixty-four taps are therefore sixty-four points, and a small bright
+// thing in the room can show as a faint pattern rather than a smooth glow.
 //
 // **Where this writes decides the direction, not the vertex stage.** The
 // full-screen triangle hands over a uv with v = 0 at row zero of the level on
@@ -26337,11 +26340,11 @@ void main() {
     return;
   }
 
-  // Roughness to a specular power, squared first because roughness is
-  // authored perceptually — the mapping `EnvironmentMap` uses, so a level here
-  // and a level built on the host are the same lobe.
+  // The GGX width, squared first because roughness is authored perceptually —
+  // the alpha the lit shaders' own specular term uses, so the lobe a level
+  // was built for is the lobe a surface of that roughness actually has.
   float alpha = max(roughness * roughness, 1e-3);
-  float power = 2.0 / (alpha * alpha) - 2.0;
+  float alpha2 = alpha * alpha;
 
   // A frame about the axis, so one tap set serves every texel.
   vec3 up = abs(axis.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
@@ -26355,16 +26358,21 @@ void main() {
   float weight = 0.0;
   for (int i = 0; i < 128; i++) {
     if (i >= samples) break;
-    float z = 1.0 - (float(i) + 0.5) / float(samples);
-    float radius = sqrt(max(1.0 - z * z, 0.0));
+    float e = (float(i) + 0.5) / float(samples);
     float theta = golden * float(i);
-    // Concentrated towards the axis by the power, so a sharp level does not
-    // spend its taps on directions it weights to nothing.
-    float spread = pow(z, 1.0 / (power + 1.0));
-    vec3 tap = normalize(vec3(radius * cos(theta) * (1.0 - spread),
-                              radius * sin(theta) * (1.0 - spread),
-                              spread));
+    // A half vector drawn from GGX about the axis, which stands for the
+    // normal, the view and the reflection at once, and the tap is the view
+    // reflected about it. The inverse CDF places the half vector's cosine;
+    // its sine is what is left of the unit length, and nothing else may
+    // shrink it, or the lobe collapses onto the axis.
+    float cosH = sqrt((1.0 - e) / (1.0 + (alpha2 - 1.0) * e));
+    float sinH = sqrt(max(1.0 - cosH * cosH, 0.0));
+    vec3 tap = vec3(2.0 * cosH * sinH * cos(theta),
+                    2.0 * cosH * sinH * sin(theta),
+                    2.0 * cosH * cosH - 1.0);
     vec3 dir = right * tap.x + ahead * tap.y + axis * tap.z;
+    // Weighted by the cosine to the axis, the n·l the split sum leaves in
+    // the integral; a tap reflected below the horizon carries nothing.
     float cosine = dot(dir, axis);
     if (cosine <= 0.0) continue;
     sum += textureLod(capture_texture, dir, lod).rgb * cosine;

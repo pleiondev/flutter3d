@@ -17,7 +17,7 @@ import 'sky_settings.dart';
 /// **Convolved here on the host, and the same lobe is convolved on the
 /// device.** The device does it for a reflection probe — a full-screen pass
 /// per face per level, `ColorTarget.mipLevel` naming each, with the same fixed
-/// spiral and cosine-power lobe as [prefilter] — because a probe is drawn on a
+/// spiral and GGX lobe as [prefilter] — because a probe is drawn on a
 /// machine holding a frame budget and its picture never leaves the GPU. An
 /// environment built from bytes the host already has stays here: the two
 /// callers are a sky at thirty-two pixels and a studio at sixteen, where the
@@ -244,12 +244,14 @@ abstract final class EnvironmentMap {
 
   /// Which level of the chain a shader should treat as the diffuse term.
   ///
-  /// The roughest one. **Not a true Lambert irradiance**, and the difference is
-  /// worth naming: a cosine lobe is wider than the GGX lobe convolved here, so
-  /// this is slightly too tight and a strongly directional environment will read
-  /// a little more contrasty on matte surfaces than it should.
+  /// The roughest one. At roughness one the GGX lobe's reflected taps fall
+  /// evenly over the sphere, and weighted by the cosine they are the Lambert
+  /// convolution of the upper hemisphere, so this level is an irradiance map
+  /// up to the sampling: sixty-four taps, half of them below the horizon, at
+  /// a sixteenth of the base resolution. What it still is not is a separate
+  /// data set tuned for the diffuse term alone.
   ///
-  /// Taken anyway, because the alternative is a second data set — nine
+  /// Taken that way because the alternative is a second data set — nine
   /// spherical-harmonic coefficients in their own uniform block — for a term
   /// that is already the least directional thing in the frame. One cube, one
   /// binding, and the error is smaller than the one the flat ambient it
@@ -336,43 +338,55 @@ Vector3 _directionFor(int face, double u, double v) {
   }
 }
 
-/// One level: every texel gathers a cosine-power lobe about its own direction.
+/// One tap of the lobe, in a frame whose z axis is the texel's direction.
 ///
-/// A Phong-style lobe rather than a GGX importance sample, which is the trade
-/// this makes for being CPU-side: importance sampling needs a low-discrepancy
-/// sequence and twice the taps to stop looking grainy, and the difference
-/// between the two lobes is not visible on a reflection that is already blurred
-/// this far.
+/// A half vector drawn from GGX about the axis — which stands for the normal,
+/// the view and the reflection at once — at the inverse-CDF cosine for [e],
+/// turned [phi] about the axis, and the tap is the axis reflected about it.
+/// The half vector's sine is whatever the cosine leaves of the unit length;
+/// shrinking it any further is what once collapsed every rough level onto
+/// its own axis.
+Vector3 _ggxTap(double e, double phi, double alpha2) {
+  final cosH = math.sqrt((1.0 - e) / (1.0 + (alpha2 - 1.0) * e));
+  final sinH = math.sqrt(math.max(1.0 - cosH * cosH, 0.0));
+  return Vector3(
+    2.0 * cosH * sinH * math.cos(phi),
+    2.0 * cosH * sinH * math.sin(phi),
+    2.0 * cosH * cosH - 1.0,
+  );
+}
+
+/// One level: every texel gathers the GGX lobe of [roughness] about its own
+/// direction, the split sum's prefiltered radiance.
+///
+/// Importance-sampled through [_ggxTap] and weighted by the cosine to the
+/// axis; a tap reflected below the horizon is dropped. At full roughness the
+/// reflected taps fall uniformly over the sphere, so the cosine weight makes
+/// the last level a true cosine convolution of the upper hemisphere — the
+/// irradiance [EnvironmentMap.diffuseLevel] reads it as.
+///
+/// Every tap reads the base level at one point: no filtered importance
+/// sampling, because the source has no mips of its own to read a wider
+/// footprint from. Sixty-four points across a wide lobe can leave a faint
+/// pattern behind a small bright feature.
 List<ByteData> _convolve(
   _Cube source,
   int side,
   double roughness,
   int samples,
 ) {
-  // Roughness to a specular power, the mapping Blinn-Phong and GGX are usually
-  // reconciled with. Squared first because roughness is authored perceptually.
+  // The GGX width. Squared first because roughness is authored perceptually,
+  // the same alpha the lit shaders' specular term uses.
   final alpha = math.max(roughness * roughness, 1e-3);
-  final power = 2.0 / (alpha * alpha) - 2.0;
+  final alpha2 = alpha * alpha;
 
   // A fixed spiral rather than random directions: the same input has to produce
   // the same bytes on every machine and every run, or a golden means nothing.
-  final taps = <Vector3>[];
   final golden = math.pi * (3.0 - math.sqrt(5.0));
-  for (var i = 0; i < samples; i++) {
-    final z = 1.0 - (i + 0.5) / samples;
-    final radius = math.sqrt(math.max(1.0 - z * z, 0.0));
-    final theta = golden * i;
-    // Concentrated towards the lobe's axis by the power, so a sharp level does
-    // not spend sixty of its taps on directions it weights to nothing.
-    final spread = math.pow(z, 1.0 / (power + 1.0)).toDouble();
-    taps.add(
-      Vector3(
-        radius * math.cos(theta) * (1.0 - spread) + 0.0,
-        radius * math.sin(theta) * (1.0 - spread) + 0.0,
-        spread,
-      )..normalize(),
-    );
-  }
+  final taps = <Vector3>[
+    for (var i = 0; i < samples; i++)
+      _ggxTap((i + 0.5) / samples, golden * i, alpha2),
+  ];
 
   final out = <ByteData>[];
   final sampled = Vector4.zero();
