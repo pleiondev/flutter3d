@@ -131,6 +131,9 @@ final class LevelLoader {
   /// [batching] is how the brushes are grouped into draws — see
   /// [LevelBatching]; a game keeps the default, a tool that has to name the
   /// brush under a pixel asks for one draw per brush.
+  ///
+  /// [deviceClass] reads that class's own document first — see
+  /// [_classDocument].
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
@@ -140,10 +143,12 @@ final class LevelLoader {
     DocumentText? readDocument,
     bool sidecars = true,
     LevelBatching batching = LevelBatching.perMaterial,
+    DeviceClass? deviceClass,
   }) async {
     final read = readDocument ?? _bundleDocument;
     final level = Level.fromJson(
-      jsonDecode(await read(AssetRequest(assetPath))) as Map<String, Object?>,
+      jsonDecode(await _classDocument(assetPath, deviceClass, read))
+          as Map<String, Object?>,
     );
     final (visibility, issue) = sidecars
         ? await _sidecarVisibility(assetPath, read)
@@ -162,6 +167,29 @@ final class LevelLoader {
       issues: <LevelIssue>[?issue, ?lightmapIssue],
       batching: batching,
     );
+  }
+
+  /// The level document to read for [deviceClass] (default: the application's
+  /// `assetDeviceClass`) — `N7`.
+  ///
+  /// `crypt.phone.json` first, which `flutter3d_build lights --classes`
+  /// writes with the light set that class affords, then `crypt.json` when
+  /// there is none. Null reads `crypt.json` alone, as a loader always did.
+  /// Only the document is per class: the visibility table and the lightmap
+  /// beside it describe the level's geometry, which no class changes.
+  static Future<String> _classDocument(
+    String assetPath,
+    DeviceClass? deviceClass,
+    DocumentText read,
+  ) async {
+    if (deviceClass ?? assetDeviceClass case final DeviceClass reading) {
+      try {
+        return await read(AssetRequest(deviceClassPath(assetPath, reading)));
+      } catch (_) {
+        // No document for this class: the level's own below.
+      }
+    }
+    return read(AssetRequest(assetPath));
   }
 
   /// The lightmap beside a level, or null when there is none — and a word
