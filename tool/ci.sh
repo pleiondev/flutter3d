@@ -20,6 +20,9 @@
 #     one — packages/flutter3d_webgl/tool/profile_web.py, with its numbers in
 #     its own header — and it is not run here: it builds a demo and drives a
 #     browser, which is minutes, and nothing it measures fails a build yet.
+#   * Frame pacing. tool/pacing.sh plays a recorded run through Impeller and
+#     fails on any frame over 50 ms, which needs a GPU; .github/workflows/ci.yml
+#     runs it in a macOS job of its own, and its report lives in doc/pacing/.
 #   * The Android and iOS builds. They are compiled, but not by this script:
 #     .github/workflows/ci.yml has a job apiece, because one wants an Android
 #     toolchain and the other only builds on macOS, and a script that asked a
