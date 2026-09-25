@@ -20,7 +20,7 @@ What could **not** be written from the contract is the shaders. That limit is re
 <li>The semantics that are part of the contract and appear in no signature</li>
 <li>What the 0.8 members ask, compute among them, and which backend answers yes</li>
 <li>The conformance suite, and how to run it before you have a single shader</li>
-<li>The forty-eight shader entry points your bundle must answer to</li>
+<li>The eighty-two shader entry points your bundle must answer to</li>
 </ul>
 </div>
 

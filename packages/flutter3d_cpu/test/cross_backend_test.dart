@@ -240,6 +240,59 @@ const Map<String, double> _budgets = <String, double>{
   'cube-shadow-crowded': 0.02,
   'cube-shadow-many': 0.02,
   'shadow-map': 0.02,
+  // The scenes 0.8 added, measured once the three GPU sets were recorded on
+  // 2026-09-25; each budget is what the two drew apart with a tenth to spare.
+  'anisotropy-disc': 0.47,
+  'ao-temporal': 0.04,
+  'area-light-gloss': 0.57,
+  'cascade-walk': 0.3,
+  'clearcoat-car-paint': 0.33,
+  // 1.501% measured: the upscale sharpens the rasteriser's edges and
+  // Impeller's multisampled ones differently.
+  'easu-half': 1.66,
+  'evsm-soft': 0.5,
+  'fog-torches': 0.04,
+  'glass-stack-oit': 0.01,
+  // 1.584% measured: the horizon search lands on different texels at the
+  // corner's edges.
+  'gtao-corner': 1.75,
+  'impostor-forest': 0.01,
+  'irradiance-room': 0.52,
+  'many-lights': 0.04,
+  // 1.242% measured: the streaks' ends, where the reconstruction filter's
+  // jitter lands per backend.
+  'motion-blur-spin': 1.37,
+  'rough-dielectrics': 0.46,
+  'rough-metals': 0.26,
+  'scan-chunks': 0.57,
+  'sheen-fabric': 0.39,
+  'smoke-six-way': 0.01,
+  'splat-gltf': 0.02,
+  // 41.688% measured: each backend's hash picks a different subset of splats
+  // for a pixel, so the grain differs everywhere while the averaged picture
+  // agrees; splat_stochastic_test.dart holds the average. A budget this wide
+  // watches only for a picture gone wrong wholesale.
+  'splat-stochastic': 45.86,
+  // 4.847% measured: the bounced light differs by at most sixteen levels, in
+  // the band where the wall meets the floor.
+  'ssil-room': 5.34,
+  'sun-contact-hardening': 0.42,
+  'taa-converge': 0.01,
+  'taa-embers': 0.01,
+  'taa-railing': 0.11,
+  // 5.199% measured: the sixteen-sided hull is tight enough that single- and
+  // double-precision arithmetic put a moving bar's edge on different sides of
+  // it, and ninety frames of history carry the difference along every edge.
+  'taa-railing-kdop16': 5.72,
+  'taa-railing-kdop8': 0.03,
+  'taa-railing-scaled': 0.06,
+  'texture-transform-per-map': 0.81,
+  // 2.318% measured: patch edges only: Impeller multisamples them and the
+  // software rasteriser does not.
+  'tonemap-aces2': 2.55,
+  'transmission-glass': 0.01,
+  'velocity-shapes': 0.01,
+  'window-interior': 0.39,
 };
 
 /// How far apart two channels may be before the pixel counts as differing.

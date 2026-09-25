@@ -221,6 +221,49 @@ const Map<String, double> _budgets = <String, double>{
   // batch's own edges — the thin lines, the camera-facing point quad and the
   // filled selection — on top of it.
   'mesh-overlay': 0.46,
+  // The scenes 0.8 added, measured against Impeller on 2026-09-25 with a tenth
+  // to spare.
+  'anisotropy-disc': 0.25,
+  'ao-temporal': 0.05,
+  'area-light-gloss': 0.32,
+  'cascade-walk': 0.04,
+  'clearcoat-car-paint': 0.2,
+  'easu-half': 0.9,
+  'evsm-soft': 0.4,
+  'fog-torches': 0.02,
+  'glass-stack-oit': 0.01,
+  // 1.559% measured: the horizon search lands on different texels at the
+  // corner's edges.
+  'gtao-corner': 1.72,
+  'impostor-forest': 0.01,
+  'irradiance-room': 0.2,
+  'many-lights': 0.04,
+  'rough-dielectrics': 0.28,
+  'rough-metals': 0.14,
+  'scan-chunks': 0.14,
+  'sheen-fabric': 0.23,
+  // 2.039% measured: the puffs' fringes, where the sheet is sampled between
+  // texels differently.
+  'smoke-six-way': 2.25,
+  'splat-gltf': 0.01,
+  // 36.688% measured: each backend's hash keeps a different subset of splats
+  // per pixel, so the grain differs everywhere and only the average agrees;
+  // splat_stochastic_test.dart holds the average.
+  'splat-stochastic': 40.36,
+  // 4.645% measured: the bounce differs by a few levels across the band where
+  // wall meets floor.
+  'ssil-room': 5.11,
+  'sun-contact-hardening': 0.45,
+  'taa-converge': 0.01,
+  'taa-embers': 0.58,
+  'taa-railing': 0.38,
+  'taa-railing-kdop16': 1.46,
+  'taa-railing-kdop8': 0.41,
+  'taa-railing-scaled': 0.32,
+  'texture-transform-per-map': 0.01,
+  'tonemap-aces2': 0.03,
+  'transmission-glass': 0.01,
+  'window-interior': 0.07,
 };
 
 /// Scenes budgeted before this set had a picture of them.
