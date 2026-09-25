@@ -64,6 +64,9 @@ Float32List _render({
   required bool on,
   required bool sky,
   double intensity = 1.0,
+  double stride = 0.1,
+  Vector4? floorColour,
+  double thickness = 0.15,
 }) {
   final device = CpuDevice(
     width: _width,
@@ -77,7 +80,10 @@ Float32List _render({
       device,
       CuboidShape(size: Vector3(12.0, 0.4, 12.0)).build(),
     ),
-    Material(baseColor: Vector4(0.05, 0.05, 0.06, 1.0), roughness: 0.02),
+    Material(
+      baseColor: floorColour ?? Vector4(0.05, 0.05, 0.06, 1.0),
+      roughness: 0.02,
+    ),
   )..setPosition(0.0, -0.2, 0.0);
   // Unlit, so it is red whatever the light and writes a rough surface that
   // reflects nothing itself.
@@ -134,8 +140,8 @@ Float32List _render({
         reflections: ReflectionSettings(
           enabled: on,
           steps: 48,
-          stride: 0.1,
-          thickness: 0.15,
+          stride: stride,
+          thickness: thickness,
           intensity: intensity,
         ),
       ),
@@ -194,6 +200,38 @@ void main() {
     }
     // Within the rounding of the half-float target the pass writes into.
     expect(lowest, greaterThan(-1e-4));
+  });
+
+  test('a hit on the first step reads the cube, not the floor under it', () {
+    // The march starts a jittered half to one and a half strides out, and the
+    // refinement used to bracket the hit from a whole stride back. On the
+    // first step with a jitter under one, that point is under the floor, the
+    // depth test reads it as behind too, and the halvings could settle where
+    // the ray leaves the floor: the floor then reflects its own green. A
+    // coarse stride, and a thickness that lets the first step's hit count,
+    // make the band where this happens wide enough to see.
+    //
+    // Mutation: bracket from `march - ray * stride` in `ReflectionsShader`.
+    // Six floor pixels at the foot of the cube then gain more green than red.
+    final green = Vector4(0.0, 0.6, 0.0, 1.0);
+    Float32List frame({required bool on}) => _render(
+      on: on,
+      sky: false,
+      stride: 0.6,
+      thickness: 0.5,
+      floorColour: green,
+    );
+    final on = frame(on: true);
+    final off = frame(on: false);
+    final changed = <int>[
+      for (var i = 0; i < on.length; i += 4)
+        if (on[i] - off[i] > 1e-3 || on[i + 1] - off[i + 1] > 1e-3) i,
+    ];
+    expect(changed.length, greaterThan(50), reason: 'the march found nothing');
+    final ownColour = changed
+        .where((i) => on[i + 1] - off[i + 1] > on[i] - off[i])
+        .length;
+    expect(ownColour, 0);
   });
 
   test('the environment slot is bound when the scene has no environment', () {

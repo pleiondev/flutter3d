@@ -163,8 +163,10 @@ final class ReflectionsShader implements CpuFragmentShader {
         final behind = march.distanceTo(seen);
         final seenNormal = decodeOctahedral(seenSurface.x, seenSurface.y);
         if (behind < thickness && seenNormal.dot(ray) < 0.0) {
-          // Five halvings of the last stride, as the GLSL.
-          var lo = march - ray * stride;
+          // Five halvings of the last stride, as the GLSL, and no further back
+          // than the march has come: the first step travels only the jittered
+          // fraction, and a full stride back from it can sit under the floor.
+          var lo = march - ray * math.min(stride, travelled);
           var hi = march.clone();
           for (var j = 0; j < 5; j++) {
             final mid = (lo + hi)..scale(0.5);
