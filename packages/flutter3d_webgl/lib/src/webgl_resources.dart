@@ -21,6 +21,29 @@ import 'package:web/web.dart' as web;
 import 'webgl_formats.dart';
 import 'webgl_types.dart';
 
+/// The texture unit every creation and upload here binds on, which no
+/// program's sampler is given.
+///
+/// **A texture made in the middle of a draw must not land on its samplers.**
+/// `bindTexture` binds on whichever unit is active, and the encoder leaves the
+/// last sampler it bound active. A texture created or written between two
+/// `bindTexture`s of a draw — a table uploaded the first time a draw asks for
+/// it — replaced the texture of the slot bound before it, so a material read
+/// its roughness from the rectangle-light table. The encoder points a unit
+/// before every bind it makes, so moving the creations away is all it takes.
+/// WebGL2 guarantees at least 32 combined units, and a program's samplers are
+/// numbered from zero, a stage holding sixteen at most.
+const int kUploadTextureUnit = 31;
+
+void _bindForUpload(
+  web.WebGL2RenderingContext gl,
+  int target,
+  web.WebGLTexture? texture,
+) {
+  gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + kUploadTextureUnit);
+  gl.bindTexture(target, texture);
+}
+
 /// Wraps [backend] and [spec] into the [TextureHandle] every creation path
 /// here returns.
 TextureHandle webglTextureHandle(WebGlTexture backend, RenderTargetSpec spec) =>
@@ -71,7 +94,7 @@ TextureHandle? webglCreateCubeTextureFromPixels(
 
   final texture = gl.createTexture();
   if (texture != null) persistentTextures.add(texture);
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
+  _bindForUpload(gl, web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
   gl.texStorage2D(
     web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
     1 + levels.length,
@@ -146,7 +169,7 @@ TextureHandle webglCreateCubeRenderTarget(
       : (mipLevels > fullChain ? fullChain : mipLevels);
   final texture = gl.createTexture();
   if (texture != null) persistentTextures.add(texture);
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
+  _bindForUpload(gl, web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
   gl.texStorage2D(
     web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
     levels,
@@ -211,7 +234,7 @@ TextureHandle webglCreateTexture(
 
   final texture = gl.createTexture();
   if (texture != null) persistentTextures.add(texture);
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
+  _bindForUpload(gl, web.WebGLRenderingContext.TEXTURE_2D, texture);
   gl.texStorage2D(
     web.WebGLRenderingContext.TEXTURE_2D,
     levels,
@@ -295,7 +318,7 @@ TextureHandle? webglCreateTextureFromPixels(
     rendered: false,
   );
   final backend = handle.backend as WebGlTexture;
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
+  _bindForUpload(gl, web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
 
   // `texSubImage2D` wants the *transfer* format and type, which are not the
   // internal format the storage was allocated with — [webglTransferOf] says
@@ -404,7 +427,7 @@ void webglOverwriteTexture(
   // mirrored about the texture's middle, upside down.
   final y = backend.rendered ? target.height - rect.y - rect.height : rect.y;
   final rows = backend.rendered ? _rowsReversed(bytes, rect) : bytes;
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
+  _bindForUpload(gl, web.WebGLRenderingContext.TEXTURE_2D, texture);
   gl.texSubImage2D(
     web.WebGLRenderingContext.TEXTURE_2D,
     0,
@@ -485,7 +508,7 @@ TextureHandle? _webglCreateCompressedTextureFromPixels(
 
   final texture = gl.createTexture();
   if (texture != null) persistentTextures.add(texture);
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
+  _bindForUpload(gl, web.WebGLRenderingContext.TEXTURE_2D, texture);
   gl.texStorage2D(
     web.WebGLRenderingContext.TEXTURE_2D,
     mipLevels == null ? 1 : mipLevels.length + 1,
