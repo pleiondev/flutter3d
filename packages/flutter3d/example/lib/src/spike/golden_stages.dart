@@ -1499,8 +1499,9 @@ abstract final class GoldenStages {
         LightNode(intensity: 1.2, castsShadow: false)
           ..setRotationYawPitchRoll(0.4, -0.7, 0.0),
       ],
-      // The test's first eye, drawn back a little so the whole scan is in
-      // the frame beside the slab.
+      // The test's first eye, drawn back a little: the slab hides the
+      // scan's left half and the frame crops its top and bottom, so both
+      // the occlusion and the frustum cull have chunks to leave out.
       everyFrame: (_, _) =>
           _look(stage.camera, Vector3(0.0, 0.2, 3.4), Vector3(0.2, 0.1, 0.0)),
     );
