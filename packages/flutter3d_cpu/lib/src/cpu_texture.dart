@@ -226,9 +226,12 @@ final class BoundTexture {
   }
 
   /// One texel address, wrapped, mirrored or clamped as the sampler says.
+  ///
+  /// The clamp is spelled out rather than `int.clamp`, which is a call with
+  /// argument checks on every tap of every sample.
   int _address(int i, int size, SamplerAddressMode mode) => switch (mode) {
     SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
-    SamplerAddressMode.clampToEdge => i.clamp(0, size - 1),
+    SamplerAddressMode.clampToEdge => i < 0 ? 0 : (i >= size ? size - 1 : i),
     SamplerAddressMode.mirror => _mirror(i, size),
   };
 
@@ -454,10 +457,38 @@ final class BoundTexture {
     final ay0 = _address(y0, height, sampler.heightAddressMode);
     final ay1 = _address(y0 + 1, height, sampler.heightAddressMode);
 
-    final top =
-        texture._texel(ax0, ay0) * (1 - fx) + texture._texel(ax1, ay0) * fx;
-    final bottom =
-        texture._texel(ax0, ay1) * (1 - fx) + texture._texel(ax1, ay1) * fx;
-    return top * (1 - fy) + bottom * fy;
+    // The bilinear blend of the four texels, written out a channel at a time
+    // instead of as `Vector4` arithmetic, which allocated thirteen vectors per
+    // tap. **Every intermediate goes through a `float` all the same**: each
+    // `Vector4` operation the previous form made stored its result in the
+    // vector's `Float32List`, rounding it, and the goldens were recorded with
+    // those roundings in them. [_lane] is the same store, so each product and
+    // each sum below is rounded exactly where it was.
+    final pixels = texture.pixels;
+    final i00 = (ay0 * width + ax0) * 4;
+    final i10 = (ay0 * width + ax1) * 4;
+    final i01 = (ay1 * width + ax0) * 4;
+    final i11 = (ay1 * width + ax1) * 4;
+    final gx = 1 - fx;
+    final gy = 1 - fy;
+    final lane = _lane;
+    final result = Vector4.zero();
+    final out = result.storage;
+    for (var c = 0; c < 4; c++) {
+      lane[0] = pixels[i00 + c] * gx;
+      lane[1] = pixels[i10 + c] * fx;
+      lane[0] = lane[0] + lane[1];
+      lane[2] = pixels[i01 + c] * gx;
+      lane[3] = pixels[i11 + c] * fx;
+      lane[2] = lane[2] + lane[3];
+      lane[0] = lane[0] * gy;
+      lane[2] = lane[2] * fy;
+      out[c] = lane[0] + lane[2];
+    }
+    return result;
   }
+
+  /// Scratch `float`s for [_sampleLevel]'s intermediates: writing a double
+  /// here and reading it back rounds it the way a `Vector4` lane does.
+  static final Float32List _lane = Float32List(4);
 }
