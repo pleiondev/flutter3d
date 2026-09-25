@@ -18,6 +18,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:hooks/hooks.dart';
 
 import 'convert.dart';
+import 'device_classes.dart';
 import 'layout.dart';
 import 'pipeline_version.dart';
 
@@ -98,6 +99,31 @@ final class _CacheEntry {
       lods == other.lods;
 }
 
+/// One file a planned source becomes: the single `.f3d`, or one class's.
+final class _Target {
+  const _Target({
+    required this.key,
+    required this.destination,
+    required this.lods,
+    required this.impostor,
+    required this.stamp,
+    this.impostorCell = 64,
+    this.maxTextureSide,
+  });
+
+  /// The cache key: the source path, plus `#class` for a class's file.
+  final String key;
+  final String destination;
+  final List<double> lods;
+  final bool impostor;
+  final int impostorCell;
+  final int? maxTextureSide;
+
+  /// The class budget's own stamp, appended to the cache entry's `lods`;
+  /// empty for the single file, whose entry is spelled as it always was.
+  final String stamp;
+}
+
 String _cachePath(AssetLayout layout) =>
     '${layout.generatedDir.path}/.flutter3d_cache.json';
 
@@ -135,10 +161,17 @@ void _writeCache(String path, Map<String, _CacheEntry> cache) {
 /// [Directory] rather than a [BuildInput] — the object a real `hook/
 /// build.dart` invocation hands over, and the one thing here neither
 /// `AssetLayout` nor a unit test needs to construct.
+///
+/// [deviceClasses] are the classes this build carries (`N7`), of those the
+/// manifest's `classes:` names; null carries every one it names. A manifest
+/// that names none writes the single `.f3d` whatever this says, and so does
+/// one that leaves out a class this build carries: the loader falls back to
+/// the single file for a class with none of its own, so that class needs it.
 Future<AssetBuildReport> runAssetBuild(
   Directory projectRoot, {
   IOSink? log,
   TextureFamily textures = TextureFamily.auto,
+  List<DeviceClass>? deviceClasses,
 }) async {
   final layout = AssetLayout(projectRoot: projectRoot);
   final plan = layout.plan();
@@ -150,39 +183,105 @@ Future<AssetBuildReport> runAssetBuild(
   final skipped = <String>[];
   final sink = log ?? stdout;
 
+  final classes = layout.manifest.classes;
+  final building = <DeviceClassBudget>[
+    for (final budget in classes)
+      if (deviceClasses == null || deviceClasses.contains(budget.deviceClass))
+        budget,
+  ];
+  // A class this build carries that the manifest names no budget for — a
+  // web build of `classes: [phone, desktop]` — reads the single file, so it
+  // is written beside the class files rather than leaving that class nothing.
+  final single =
+      classes.isEmpty ||
+      (deviceClasses ?? const <DeviceClass>[]).any(
+        (c) => !building.any((b) => b.deviceClass == c),
+      );
+
   for (final job in plan) {
     final bytes = File(job.source).readAsBytesSync();
-    final lods = job.rule?.lods ?? const <double>[];
-    final impostor = job.rule?.impostor ?? false;
+    final hash = sha256.convert(bytes).toString();
+    final ruleLods = job.rule?.lods ?? const <double>[];
+    final ruleImpostor = job.rule?.impostor ?? false;
     final chunks = job.rule?.chunks;
-    final entry = _CacheEntry(
-      hash: sha256.convert(bytes).toString(),
-      formatVersion: kF3dVersion,
-      pipelineVersion: kAssetPipelineVersion,
-      textures: textures.name,
-      lods:
-          '${lods.join(',')}${impostor ? ' impostor' : ''}'
-          '${chunks == null ? '' : ' chunks $chunks'}',
-    );
-    next[job.source] = entry;
 
-    final unchanged = previous[job.source]?.matches(entry) ?? false;
-    if (unchanged && File(job.destination).existsSync()) {
-      skipped.add(job.source);
-      continue;
+    // **What a build carries is exactly what it wrote.** The generated
+    // directory is bundled whole, so a file a previous build left for another
+    // class — a phone's model after a web build, or the single `.f3d` from
+    // before the project named classes — would ship with this one.
+    if (classes.isNotEmpty) {
+      for (final stale in <String>[
+        if (!single) job.destination,
+        for (final c in DeviceClass.values)
+          if (!building.any((b) => b.deviceClass == c))
+            deviceClassDestination(job.destination, c),
+      ]) {
+        final file = File(stale);
+        if (file.existsSync()) file.deleteSync();
+      }
     }
 
-    final ok = await convertOne(
-      job.source,
-      job.destination,
-      sink,
-      sink,
-      textures: textures,
-      lods: lods,
-      impostor: impostor,
-      chunks: chunks,
-    );
-    if (ok) converted.add(job.source);
+    // One target per class, and the one file a project without classes has
+    // always had when [single] says so — with the cache key and stamp it
+    // always had, so turning this feature off is not a rebuild.
+    final targets = <_Target>[
+      if (single)
+        _Target(
+          key: job.source,
+          destination: job.destination,
+          lods: ruleLods,
+          impostor: ruleImpostor,
+          stamp: '',
+        ),
+      for (final budget in building)
+        _Target(
+          key: '${job.source}#${budget.deviceClass.name}',
+          destination: deviceClassDestination(
+            job.destination,
+            budget.deviceClass,
+          ),
+          lods: budget.lods ?? ruleLods,
+          impostor: budget.impostor ?? ruleImpostor,
+          impostorCell: budget.impostorCell,
+          maxTextureSide: budget.textures.maxSide,
+          stamp: ' ${budget.stamp}',
+        ),
+    ];
+
+    var anyConverted = false;
+    var allSkipped = true;
+    for (final target in targets) {
+      final entry = _CacheEntry(
+        hash: hash,
+        formatVersion: kF3dVersion,
+        pipelineVersion: kAssetPipelineVersion,
+        textures: textures.name,
+        lods:
+            '${target.lods.join(',')}${target.impostor ? ' impostor' : ''}'
+            '${chunks == null ? '' : ' chunks $chunks'}${target.stamp}',
+      );
+      next[target.key] = entry;
+
+      final unchanged = previous[target.key]?.matches(entry) ?? false;
+      if (unchanged && File(target.destination).existsSync()) continue;
+      allSkipped = false;
+
+      final ok = await convertOne(
+        job.source,
+        target.destination,
+        sink,
+        sink,
+        textures: textures,
+        lods: target.lods,
+        impostor: target.impostor,
+        chunks: chunks,
+        impostorCell: target.impostorCell,
+        maxTextureSide: target.maxTextureSide,
+      );
+      if (ok) anyConverted = true;
+    }
+    if (anyConverted) converted.add(job.source);
+    if (allSkipped) skipped.add(job.source);
   }
 
   _writeCache(cachePath, next);
@@ -270,7 +369,21 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
       ? TextureFamily.parse(requested) ?? _familyForTarget(input)
       : _familyForTarget(input);
 
-  final report = await runAssetBuild(projectRoot, textures: textures);
+  // **Which device classes — `N7`.** Only matters to a manifest that names
+  // some. A project's own `deviceClasses: [web]` user define first, for a
+  // build the target cannot tell apart; failing that, the target: a native
+  // build carries the phone and desktop files, a web build the web's alone.
+  final deviceClasses =
+      parseDeviceClasses(input.userDefines['deviceClasses']) ??
+      deviceClassesForTargetOS(
+        input.config.buildCodeAssets ? input.config.code.targetOS : null,
+      );
+
+  final report = await runAssetBuild(
+    projectRoot,
+    textures: textures,
+    deviceClasses: deviceClasses,
+  );
   for (final source in report.dependencies) {
     output.dependencies.add(Uri.file(source));
   }

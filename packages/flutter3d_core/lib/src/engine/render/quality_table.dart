@@ -21,20 +21,9 @@ library;
 
 import 'dart:math' as math;
 
+import '../assets/device_class.dart';
 import 'render_settings.dart';
 import 'tables/quality_tables.dart' as tables;
-
-/// The machines a table is measured on.
-enum DeviceClass {
-  /// A phone of the Cortex-A55 generation, the slowest target.
-  phone,
-
-  /// A desktop or laptop GPU (Apple silicon, recent discrete cards).
-  desktop,
-
-  /// A browser, through WebGL2 or WebGPU.
-  web,
-}
 
 /// One combination of the levers: a render scale and an effect tier.
 final class QualitySetting {
@@ -201,18 +190,25 @@ final class QualityTable {
 
   /// The table measured for [deviceClass].
   factory QualityTable.of(DeviceClass deviceClass) =>
-      _byClass[deviceClass] ??= QualityTable(
-        deviceClass: deviceClass,
-        rows: <QualityRow>[
-          for (final (i, setting) in QualitySetting.grid.indexed)
-            QualityRow(
-              setting,
-              cost: tables.qualityCost[deviceClass.index][i],
-              flip: tables.qualityFlip[deviceClass.index][i],
-            ),
-        ],
-        measured: tables.qualityMeasured[deviceClass.index],
-      );
+      _byClass[deviceClass] ??= _read(deviceClass);
+
+  /// The generated rows for [deviceClass]. They are in [DeviceClass.values]'
+  /// order, which is the order `quality_table_builder.dart` writes them in.
+  static QualityTable _read(DeviceClass deviceClass) {
+    final row = DeviceClass.values.indexOf(deviceClass);
+    return QualityTable(
+      deviceClass: deviceClass,
+      rows: <QualityRow>[
+        for (final (i, setting) in QualitySetting.grid.indexed)
+          QualityRow(
+            setting,
+            cost: tables.qualityCost[row][i],
+            flip: tables.qualityFlip[row][i],
+          ),
+      ],
+      measured: tables.qualityMeasured[row],
+    );
+  }
 
   static final Map<DeviceClass, QualityTable> _byClass =
       <DeviceClass, QualityTable>{};

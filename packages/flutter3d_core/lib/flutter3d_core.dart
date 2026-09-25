@@ -57,6 +57,7 @@ export 'src/engine/animation/skin_blend.dart';
 // `ModelAsset`, `bindMaterial`/`loadMaterial` and the two Flutter-named
 // sources/resolvers — see this library's own doc comment for why.
 export 'src/engine/assets/asset_source.dart';
+export 'src/engine/assets/device_class.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
 export 'src/engine/assets/image_decoder.dart';
 export 'src/engine/assets/ktx2/ktx2.dart';

@@ -15,6 +15,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 
 import 'chunk_generate.dart';
+import 'device_classes.dart';
 import 'impostor_bake.dart';
 import 'lod_generate.dart';
 import 'texture_encode.dart';
@@ -108,6 +109,13 @@ Options:
                              triangles (default 65536) into clusters of up
                              to 4096 that the renderer culls one by one by
                              view, facing and occlusion. For scans and CAD.
+  --classes <names>         Comma-separated device classes: phone, web,
+                             desktop. Writes one file per class beside the
+                             output (model.phone.f3d, model.web.f3d, ...)
+                             instead of model.f3d, each cut to its class's
+                             budget: its own level-of-detail chain, impostor
+                             and largest texture side. Where a class names
+                             no chain (desktop), --lods and --impostor apply.
   -h, --help                Show this text.
 ''';
 
@@ -120,6 +128,7 @@ final class ConvertOptions {
     this.lods = const <double>[],
     this.impostor = false,
     this.chunks,
+    this.classes = const <DeviceClass>[],
   });
 
   final String input;
@@ -139,6 +148,10 @@ final class ConvertOptions {
   /// see [splitLargeMeshes].
   final int? chunks;
 
+  /// The device classes `--classes` asked for (`N7`), or empty for the
+  /// single file a conversion always wrote.
+  final List<DeviceClass> classes;
+
   /// Parses [arguments], or returns null for anything [usage] should answer
   /// — an unknown flag, a missing value, more than one positional argument.
   static ConvertOptions? parse(List<String> arguments) {
@@ -149,6 +162,7 @@ final class ConvertOptions {
     var lods = const <double>[];
     var impostor = false;
     int? chunks;
+    var classes = const <DeviceClass>[];
 
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
@@ -170,6 +184,10 @@ final class ConvertOptions {
         case _ when argument.startsWith('--chunks='):
           chunks = parseChunkThreshold(argument.substring('--chunks='.length));
           if (chunks == null) return null;
+        case '--classes':
+          if (i + 1 >= arguments.length) return null;
+          classes = parseDeviceClasses(arguments[++i]) ?? const <DeviceClass>[];
+          if (classes.isEmpty) return null;
         case '--lods':
           if (i + 1 >= arguments.length) return null;
           lods = parseLodRatios(arguments[++i]) ?? const <double>[];
@@ -199,6 +217,7 @@ final class ConvertOptions {
       lods: lods,
       impostor: impostor,
       chunks: chunks,
+      classes: classes,
     );
   }
 }
@@ -259,21 +278,43 @@ Future<int> runConvert(
 
   var failures = 0;
   for (final (source, destination) in jobs) {
-    final ok = _isSplat(source)
-        ? await convertSplat(source, destination, stdoutSink, stderrSink)
-        : await convertOne(
-            source,
-            destination,
-            stdoutSink,
-            stderrSink,
-            textures: options.textures,
-            mips: options.mips,
-            lods: options.lods,
-            impostor: options.impostor,
-            chunks: options.chunks,
-            decoders: decoders,
-          );
-    if (!ok) failures++;
+    if (_isSplat(source)) {
+      final ok = await convertSplat(
+        source,
+        destination,
+        stdoutSink,
+        stderrSink,
+      );
+      if (!ok) failures++;
+      continue;
+    }
+    // One file per device class when `--classes` names any (`N7`), each with
+    // its class's budget over what the command line asked for; the single
+    // file otherwise, exactly as before.
+    final budgets = options.classes.isEmpty
+        ? const <DeviceClassBudget?>[null]
+        : <DeviceClassBudget?>[
+            for (final c in options.classes) DeviceClassBudget.presetFor(c),
+          ];
+    for (final budget in budgets) {
+      final ok = await convertOne(
+        source,
+        budget == null
+            ? destination
+            : deviceClassDestination(destination, budget.deviceClass),
+        stdoutSink,
+        stderrSink,
+        textures: options.textures,
+        mips: options.mips,
+        lods: budget?.lods ?? options.lods,
+        impostor: budget?.impostor ?? options.impostor,
+        chunks: options.chunks,
+        impostorCell: budget?.impostorCell ?? 64,
+        maxTextureSide: budget?.textures.maxSide,
+        decoders: decoders,
+      );
+      if (!ok) failures++;
+    }
   }
   return failures == 0 ? 0 : 1;
 }
@@ -438,6 +479,8 @@ Future<bool> convertOne(
   List<double> lods = const <double>[],
   bool impostor = false,
   int? chunks,
+  int impostorCell = 64,
+  int? maxTextureSide,
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -475,12 +518,26 @@ Future<bool> convertOne(
     out.writeln('  chunks: $count meshes above $chunks triangles split');
   }
 
+  // A device class's texture budget (`N7`): the source's images are fitted
+  // before anything reads them, so the impostor is baked from what that class
+  // will draw up close, and before they are compressed, so the chain is cut
+  // from the smaller image. The atlases the bake adds are not fitted: their
+  // size is the class's impostor cell, a budget of its own.
+  if (maxTextureSide != null) {
+    document = fitDocumentTextures(
+      document,
+      maxTextureSide,
+      report: (message) => out.writeln('  texture: $message'),
+    );
+  }
+
   // Before the textures: the bake reads the source's own images, and a
   // block-compressed one is not something it can decode. The atlases it adds
   // are then compressed with the rest.
   if (impostor) {
     document = await bakeImpostors(
       document,
+      cell: impostorCell,
       report: (message) => out.writeln('  impostor: $message'),
     );
   }
