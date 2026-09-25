@@ -292,6 +292,14 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
 final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
   const MeshSkinnedVertexShader();
 
+  /// The palette size, `kMaxJoints` in the skinned shaders.
+  static const int maxJoints = 64;
+
+  /// `JointIndex` in `mesh_skinned.vert` and `velocity_skinned.vert`: [joint]
+  /// truncated and kept inside the palette, so a JOINTS_0 value past the end
+  /// reads the last (padding) slot, as the GPU does.
+  static int jointIndex(double joint) => joint.toInt().clamp(0, maxJoints - 1);
+
   static const int _joints = 16; // vec4
   static const int _weights = 20; // vec4
 
@@ -324,13 +332,14 @@ final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
           ]
         : <double>[1.0, 0.0, 0.0, 0.0];
 
+    // Every slot is read, a zero weight included, and the index is clamped
+    // into the palette: `JointIndex` in the shader, line for line.
     final skin = Matrix4.zero();
     for (var i = 0; i < 4; i++) {
-      if (w[i] == 0.0) continue;
       final joint = bindings.mat4(
         'SkinInfo',
         'joint_matrices',
-        at: a[_joints + i].toInt(),
+        at: jointIndex(a[_joints + i]),
       );
       for (var e = 0; e < 16; e++) {
         skin[e] = skin[e] + joint[e] * w[i];

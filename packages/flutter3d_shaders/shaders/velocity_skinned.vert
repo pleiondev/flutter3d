@@ -48,6 +48,11 @@ mat4 PrevJoint(float joint) {
               texture(prev_joint_texture, vec2(0.875, v)));
 }
 
+/// [joint] kept inside the palette, as `mesh_skinned.vert` does it.
+int JointIndex(float joint) {
+  return clamp(int(joint), 0, kMaxJoints - 1);
+}
+
 vec4 BlendWeights() {
   float total = weights.x + weights.y + weights.z + weights.w;
   return total > 1e-5 ? weights / total : vec4(1.0, 0.0, 0.0, 0.0);
@@ -55,12 +60,14 @@ vec4 BlendWeights() {
 
 void main() {
   vec4 w = BlendWeights();
-  mat4 skin = w.x * skin_info.joint_matrices[int(joints.x)] +
-              w.y * skin_info.joint_matrices[int(joints.y)] +
-              w.z * skin_info.joint_matrices[int(joints.z)] +
-              w.w * skin_info.joint_matrices[int(joints.w)];
-  mat4 prevSkin = w.x * PrevJoint(joints.x) + w.y * PrevJoint(joints.y) +
-                  w.z * PrevJoint(joints.z) + w.w * PrevJoint(joints.w);
+  ivec4 j = ivec4(JointIndex(joints.x), JointIndex(joints.y),
+                  JointIndex(joints.z), JointIndex(joints.w));
+  mat4 skin = w.x * skin_info.joint_matrices[j.x] +
+              w.y * skin_info.joint_matrices[j.y] +
+              w.z * skin_info.joint_matrices[j.z] +
+              w.w * skin_info.joint_matrices[j.w];
+  mat4 prevSkin = w.x * PrevJoint(float(j.x)) + w.y * PrevJoint(float(j.y)) +
+                  w.z * PrevJoint(float(j.z)) + w.w * PrevJoint(float(j.w));
 
   vec3 now = MorphPositionWith(position, morph_info.morph_weights[0],
                                morph_info.morph_weights[1]);
