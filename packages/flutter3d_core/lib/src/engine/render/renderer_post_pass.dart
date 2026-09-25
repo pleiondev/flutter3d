@@ -1051,8 +1051,14 @@ extension _PostPasses on Renderer {
   /// Its own target rather than in place: the pass samples the scene while it
   /// writes, and a texture cannot be both. Returns [scene] untouched when the
   /// effect is off, so the chain downstream never branches.
+  ///
+  /// [sceneGraph] is here for its environment: a hit takes the place
+  /// of the environment's reflection the lit pass already added, so the pass
+  /// needs the cube that reflection was read from — see the end of
+  /// `reflections.frag`.
   TextureHandle _encodeReflections({
     required TextureHandle scene,
+    required Scene sceneGraph,
     required RenderSettings settings,
     required RenderView view,
     required int width,
@@ -1102,6 +1108,22 @@ extension _PostPasses on Renderer {
     _reflectionForwardData[1] = _reflectionForward.y;
     _reflectionForwardData[2] = _reflectionForward.z;
 
+    // The cube the lit pass reflected, and the strength it read it at — the
+    // same choice `_encodeNode` makes for a draw with no probe. **No levels
+    // while the scene has probes**: a probe is chosen per object, this pass
+    // sees pixels, and taking the sky's reflection out of a room its probe
+    // lit would put a hole where the room's own reflection was. There the
+    // hit is added as it always was. Bound either way, as the lit stage's
+    // cube is, and left out only on a device with no cubes at all.
+    final environment = sceneGraph.environment ?? _environmentFallback(device);
+    final replaces =
+        sceneGraph.environment != null &&
+        environment != null &&
+        sceneGraph.probes.isEmpty;
+    _reflectionInfo.environment
+      ..[0] = replaces ? sceneGraph.environmentLevels.toDouble() : 0.0
+      ..[1] = sceneGraph.ambientIntensity;
+
     _reflectionInfo.viewProjection.setAll(0, viewProjection.storage);
     _reflectionInfo.inverseViewProjection.setAll(0, inverse.storage);
     drawFullscreen(
@@ -1112,6 +1134,7 @@ extension _PostPasses on Renderer {
           'scene_texture': scene,
           'surface_texture': surface,
           'blue_noise_texture': _blueNoise,
+          'environment_texture': ?environment,
         },
         uniforms: <String, Map<String, Float32List>>{
           _reflectionInfo.name: _reflectionInfo.members,
@@ -1123,6 +1146,7 @@ extension _PostPasses on Renderer {
         // which the march then "hits".
         samplers: const <String, SamplerOptions>{
           'surface_texture': SamplerOptions.nearestClamp,
+          'environment_texture': Renderer._environmentSampler,
         },
       ),
     );

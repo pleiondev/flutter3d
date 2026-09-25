@@ -30,8 +30,14 @@ final class SceneColourChain {
       levels = 1 + math.min(maxLevels - 1, _floorLog2(math.min(width, height)));
 
   /// The most levels a chain has, its base included: five halvings, a
-  /// thirty-second of the scene, which is as blurred as the roughest glass
-  /// reads it. Also the length of `LayerInfo.scene_levels`.
+  /// thirty-second of the scene. Also the length of `LayerInfo.scene_levels`.
+  ///
+  /// **A cap, not the scale the roughness is read on.** Glass picks level
+  /// log2(width) times its roughness (see `SceneBehind` in `lib/pbr.glsl`),
+  /// which at a thousand texels wide passes five at a roughness of one half;
+  /// rougher glass reads the last level here and is less blurred than the
+  /// mapping asks. Going further would take `scene_colour_copy.frag` past
+  /// its sixteen taps a side, since every level is taken from the base.
   static const int maxLevels = 6;
 
   /// The scene's size, and the base level's.
