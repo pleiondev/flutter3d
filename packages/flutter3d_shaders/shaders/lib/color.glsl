@@ -48,10 +48,11 @@ out vec4 frag_color;
 #ifndef F3D_NO_SURFACE_BUFFER
 layout(location = 1) out vec4 frag_surface;
 
-/// The surface's own colour, sRGB-encoded into eight bits a channel, alpha
-/// one where a surface was drawn — `L5`. The third attachment, present only
-/// when a pass reads it (the indirect light does) and the device opens three;
-/// like the surface buffer, written unconditionally and discarded when absent.
+/// The surface's own colour, sRGB-encoded, alpha one where a surface was
+/// drawn — `L5`. The third attachment, present only when a pass reads it (the
+/// indirect light does) and the device opens three; like the surface buffer,
+/// written unconditionally and discarded when absent. Stored in the surface
+/// buffer's format rather than eight bits a channel, and `Renderer` says why.
 layout(location = 2) out vec4 frag_albedo;
 #endif
 

@@ -1723,11 +1723,16 @@ final class Renderer implements RenderServices {
     // resize is the only moment any of this is allowed to be reallocated and a
     // buffer that appears mid-session would be the one that is the wrong size.
     _surfaceColor = make(StorageMode.devicePrivate, hdrFormat);
-    // `L5`: the albedo buffer, eight bits a channel since it is a colour.
-    _albedoColor = make(
-      StorageMode.devicePrivate,
-      TextureFormat.r8g8b8a8UNormInt,
-    );
+    // `L5`: the albedo buffer. **In the surface buffer's format, although
+    // eight bits a channel would hold a colour.** On Impeller the third
+    // attachment is written as if it had the second one's format: an RGBA8
+    // albedo beside a half-float surface buffer came back holding the raw
+    // bytes of two half floats, sRGB 0.78 stored as 61 and an alpha of 58.
+    // The horizon method's bounces and the indirect light then read an albedo
+    // a quarter of the real one, and `gtao-corner` and `ssil-room` stood
+    // 1.6% and 4.8% apart from the other three backends. One format for both
+    // attachments leaves nothing to take from the wrong one.
+    _albedoColor = make(StorageMode.devicePrivate, hdrFormat);
     _reflectionColor = make(StorageMode.devicePrivate, hdrFormat);
 
     _surfaceMsaa = msaaEnabled
