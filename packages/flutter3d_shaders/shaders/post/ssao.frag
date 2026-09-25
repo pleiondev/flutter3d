@@ -221,7 +221,7 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
 
   vec2 pixel = floor(uv / ssao_info.screen.xy);
   float noise = PixelNoise(pixel);
-  float depth = texture(surface_texture, uv).a;
+  float depth = textureLod(surface_texture, uv, 0.0).a;
 
   float visibility = 0.0;
   float slices = 0.0;
@@ -341,7 +341,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
 
   vec2 pixel = floor(uv / ssao_info.screen.xy);
   float noise = PixelNoise(pixel);
-  float depth = texture(surface_texture, uv).a;
+  float depth = textureLod(surface_texture, uv, 0.0).a;
 
   vec3 light = vec3(0.0);
   float open = 0.0;
@@ -409,7 +409,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
   }
   float count = max(slices, 1.0);
   vec3 albedo = ssao_info.params.z > 0.5
-                     ? SrgbToLinearAlbedo(texture(albedo_texture, uv).rgb)
+                     ? SrgbToLinearAlbedo(textureLod(albedo_texture, uv, 0.0).rgb)
                      : vec3(0.5);
   // With no slice to measure, open and unlit — as a select: impellerc's
   // SPIR-V to Metal step aborts on a phi of constants.
@@ -418,7 +418,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
 }
 
 void main() {
-  vec4 surface = texture(surface_texture, v_uv);
+  vec4 surface = textureLod(surface_texture, v_uv, 0.0);
 
   // Nothing was drawn here. The buffer is cleared to zero and a zero alpha is
   // the sky, not a surface sitting on the near plane — the same test
@@ -443,7 +443,7 @@ void main() {
     // With the albedo buffer, the bounces too; without it, the horizon alone.
     float shaded = ssao_info.params.z > 0.5
                        ? MultiBounce(visible, SrgbToLinearAlbedo(
-                                                  texture(albedo_texture, v_uv).rgb))
+                                                  textureLod(albedo_texture, v_uv, 0.0).rgb))
                        : visible;
     frag_color = vec4(shaded);
     return;

@@ -161,15 +161,15 @@ vec3 HistoryAt(vec2 uv) {
   vec2 at12 = (centre1 + w2 / w12) / size;
 
   vec3 sum = vec3(0.0);
-  sum += texture(history_texture, vec2(at0.x, at0.y)).rgb * w0.x * w0.y;
-  sum += texture(history_texture, vec2(at12.x, at0.y)).rgb * w12.x * w0.y;
-  sum += texture(history_texture, vec2(at3.x, at0.y)).rgb * w3.x * w0.y;
-  sum += texture(history_texture, vec2(at0.x, at12.y)).rgb * w0.x * w12.y;
-  sum += texture(history_texture, vec2(at12.x, at12.y)).rgb * w12.x * w12.y;
-  sum += texture(history_texture, vec2(at3.x, at12.y)).rgb * w3.x * w12.y;
-  sum += texture(history_texture, vec2(at0.x, at3.y)).rgb * w0.x * w3.y;
-  sum += texture(history_texture, vec2(at12.x, at3.y)).rgb * w12.x * w3.y;
-  sum += texture(history_texture, vec2(at3.x, at3.y)).rgb * w3.x * w3.y;
+  sum += textureLod(history_texture, vec2(at0.x, at0.y), 0.0).rgb * w0.x * w0.y;
+  sum += textureLod(history_texture, vec2(at12.x, at0.y), 0.0).rgb * w12.x * w0.y;
+  sum += textureLod(history_texture, vec2(at3.x, at0.y), 0.0).rgb * w3.x * w0.y;
+  sum += textureLod(history_texture, vec2(at0.x, at12.y), 0.0).rgb * w0.x * w12.y;
+  sum += textureLod(history_texture, vec2(at12.x, at12.y), 0.0).rgb * w12.x * w12.y;
+  sum += textureLod(history_texture, vec2(at3.x, at12.y), 0.0).rgb * w3.x * w12.y;
+  sum += textureLod(history_texture, vec2(at0.x, at3.y), 0.0).rgb * w0.x * w3.y;
+  sum += textureLod(history_texture, vec2(at12.x, at3.y), 0.0).rgb * w12.x * w3.y;
+  sum += textureLod(history_texture, vec2(at3.x, at3.y), 0.0).rgb * w3.x * w3.y;
   // The negative lobes can take a sharp edge below zero.
   return max(sum, vec3(0.0));
 }
@@ -189,13 +189,13 @@ void main() {
   for (int dy = -1; dy <= 1; dy++) {
     for (int dx = -1; dx <= 1; dx++) {
       vec2 at = centre + vec2(float(dx), float(dy)) * texel;
-      vec3 c = RgbToYCoCg(Weigh(texture(scene_texture, at).rgb));
+      vec3 c = RgbToYCoCg(Weigh(textureLod(scene_texture, at, 0.0).rgb));
       around[(dy + 1) * 3 + dx + 1] = c;
       sum += c;
       sumSquares += c * c;
       lowest = min(lowest, c);
       highest = max(highest, c);
-      float depth = texture(surface_texture, at).a;
+      float depth = textureLod(surface_texture, at, 0.0).a;
       if (depth > 0.0 && depth < nearest) {
         nearest = depth;
         nearestUv = at;
@@ -203,13 +203,13 @@ void main() {
     }
   }
 
-  vec3 current = texture(scene_texture, sceneUv).rgb;
+  vec3 current = textureLod(scene_texture, sceneUv, 0.0).rgb;
   // The nearest depth around the pixel rather than the depth at it: on a
   // silhouette the jitter moves the centre on and off the object every
   // frame, and a history compared against that would be thrown away every
   // frame. The nearest surface in the neighbourhood stays put.
   float depth = nearest < 1e30 ? nearest : 0.0;
-  vec2 then = v_uv - texture(velocity_texture, nearestUv).xy;
+  vec2 then = v_uv - textureLod(velocity_texture, nearestUv, 0.0).xy;
 
   if (temporal_info.jitter.w < 0.5 || then.x < 0.0 || then.x > 1.0 ||
       then.y < 0.0 || then.y > 1.0) {
@@ -217,7 +217,7 @@ void main() {
     return;
   }
 
-  float thenDepth = texture(history_texture, then).a;
+  float thenDepth = textureLod(history_texture, then, 0.0).a;
   float trust = 1.0;
   if ((depth > 0.0) != (thenDepth > 0.0)) trust = 0.0;
   if (depth > 0.0 && thenDepth > 0.0 &&
