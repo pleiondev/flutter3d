@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto exposure, bloom, cascaded and point shadows, the sky, reflection probes, fog, screen-space reflections, ambient occlusion, colour grading, picking by pixel, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto and local exposure, HDR output, bloom, cascaded and point shadows, the sky, reflection probes, fog, screen-space reflections, ambient occlusion, colour grading, temporal anti-aliasing, glass and transparency, material layers, occlusion culling, the frame budget, picking by pixel, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -47,6 +47,22 @@ sequenceDiagram
 ```
 
 Each of those is a **separate command buffer**. Metal allows one open encoder per command buffer and `flutter_gpu` has no way to end a `RenderPass`, so a multi-pass frame needs a buffer per pass, submitted in order. Buffers on one queue execute in submission order, which is also how the passes get sequenced.
+
+The diagram is the frame with nothing optional switched on. The whole list, in the order the graph registers it, is `RenderSettings.passOrder`, and 0.8.0 added fifteen names to it: the velocity passes and the histories, the temporal resolve, volumetric fog, motion blur, local exposure, the spatial upscale, the scene colour copy and the transparent half, the depth pyramid, the shadow moments and the irradiance update. Each of them stays culled until a setting asks for it, and a frame that asks for none of them draws what 0.7.4 drew, apart from the corrections below.
+
+## What 0.8.0 changes without being asked
+
+Five changes move a picture that existed before. Only the last can be turned back, and only by leaving a pass out.
+
+| What changed | What you see |
+|---|---|
+| glTF `baseColorFactor` is read as linear, as the specification says | A factor of 0.5 draws as 0.5 where it drew as 0.21, so any model with a factor below one comes out lighter. The loader converts on the way in and the writer on the way out |
+| `Photometric.fromLumens` for `LightType.area` divides by π, the flux of a Lambertian panel, where it divided by 2π | A rectangle light rated in lumens is twice as bright. `toLumens` answers the same way back |
+| The metal-rough model integrates its highlight over a rectangle light's whole panel (linearly transformed cosines, read from the fitted table `EngineTables.ltc`) | A glossy floor under a long panel shows the panel's shape where it showed one point's highlight. The metal-rough stages spend one sampler on the table |
+| `ShadowSettings.directionalLightRadius` is the light's apparent radius in radians | The sun's is about 0.0047. The old unit was texels per unit of stored depth, so a scene that set a radius has to set it again. Nought is still the 3×3 kernel |
+| A frame with a transmissive draw renders without MSAA, and its glass reads a copy of the scene | Edges in that frame are one sample a pixel, and `FrameResult.antiAliasing.msaaDeclined` says why. Glass shows what is behind it; where no sky is drawn behind it, it shows the clear colour where 0.7.4 showed the environment |
+
+The last row is described under [glass and transparency](#glass-and-transparency) below. The two light rows are corrections to numbers that were wrong, and the base colour row is a correction to a reading of the specification that was wrong, so none of the three is a look a scene can ask to keep.
 
 ## Render views
 
@@ -221,6 +237,37 @@ RenderSettings(
 <p>Metered in stops, adapted in stops. Halving and doubling the exposure are the same size of step to an eye, and a lerp on the multiplier would make the climb out of a dark room ten times faster than the fall into it. The band rather than the mean: darkness is most of most frames, and a mean of every texel meters the far wall and blows out whatever is lit. And a frame or two late by construction: <code>GraphicsDevice.readback</code> answers with the frame as the passes before the call left it and never stalls on the GPU, so the exposure a frame is composited at is what the frame before was metered at. The golden scene adapts at an infinite rate for exactly that reason: the frame captured has to be the frame after any metered one whatever the clock did between them.</p>
 </div>
 
+### Local exposure
+
+One exposure cannot show a dark room and the bright window in it: the meter picks one and the other goes black or white. Local exposure gives each part of the frame its own.
+
+```dart
+RenderSettings(
+  localExposure: LocalExposureSettings(
+    enabled: true,         // off by default
+    strength: 0.7,         // nought is the one global exposure, one the full local answer
+    shadowStops: 2.0,      // how far the dark parts may be lifted
+    highlightStops: 2.0,   // and how far the bright ones brought down
+  ),
+)
+```
+
+It takes the lit picture (after the temporal resolve, when one runs) three times over, `shadowStops` up, as it is and `highlightStops` down, weighs at each place how close to mid grey each would come out, blurs the weights wide so no edge grows a halo, and hands the composite an exposure per place, applied before the tone curve. It is measured at an eighth of the frame and applied bilinearly: three small passes, and the blur is wide enough that nothing finer would survive it anyway.
+
+### Display transforms
+
+`LookSettings.displayTransform` puts a baked float colour table where the tone curve was, indexed through a log2 shaper that covers ten stops below mid grey and six above. `TonemapCurve.aces2` is the table the engine ships: the ACES 2.0 SDR tonescale at 100 nits with the hue held. It is the tonescale alone, without the reference transform's gamut mapping. A table set on the look wins over whichever curve is chosen, and `tonemap: false` still turns it off with the rest.
+
+### HDR output
+
+The composite normally encodes an eight-bit, tone-mapped, graded and dithered frame. `OutputTransform.extendedSrgb` asks for the frame exposed but not tone-mapped, in the sRGB transfer extended past one, where reference white is one and a highlight above it is brighter than white on a display that can show it.
+
+```dart
+RenderSettings(outputTransform: OutputTransform.extendedSrgb) // OutputTransform.sdr by default
+```
+
+It takes effect only on a device whose `hdrOutputFormats` is not empty, and today that is WebGPU in a browser that reports a high dynamic range display, which answers `rgba16float` and reconfigures its canvas to match. Impeller, WebGL2 and the software rasteriser answer an empty list, and there the setting draws the SDR frame byte for byte. The colour table and the dither are left out of the extended frame: a table is authored for the SDR range, and a float target does not band.
+
 ## Bloom
 
 Built from a chain of half-size render targets instead of from mip levels. `flutter_gpu` had none when it was written, and now that it does, a bloom chain still wants separate targets it can blur *between*.
@@ -265,6 +312,19 @@ const ShadowSettings(
 
 Cascades add no passes and no extra samplers. They share one texture and the fragment shader binds the same slot.
 
+Since 0.8.0 a tile is redrawn only when its own matrix or the casters inside its volume change, so a camera walking past still casters redraws nothing. Casters marked `shadowIsStatic` go into an atlas of their own that each frame's tile starts from; as the camera walks, that atlas is scrolled by whole texels and only the strips that came into view are drawn. A near cascade pulls its depth range back to the furthest caster towards the light, so a tall caster standing outside the cascade's sphere still shades the floor it covers, and every PCF tap stays inside its own cascade's tile.
+
+### Soft sun shadows and EVSM
+
+```dart
+const ShadowSettings(
+  directionalLightRadius: 0.0047, // radians: the sun's apparent radius; 0 is the 3×3 kernel
+  filter: ShadowFilter.evsm,      // pcf, pcss or evsm; null follows the radius
+)
+```
+
+With a radius above nought and no filter named, the sun's shadow is contact-hardening: sixteen taps search for the blocker and sixteen filter, on a Vogel disc, and the penumbra is worked out in metres from the gap between blocker and receiver, so a shadow keeps its softness crossing from one cascade into the next. `ShadowFilter.evsm` blurs the atlas once into exponential moments and reads the shadow with one filtered tap. It costs an rgba32f atlas and two blur passes (the `shadow moments` node), and it needs `supportsFloat32Filtering`: Impeller answers false, WebGL2 answers true only where `OES_texture_float_linear` was granted. A device that answers false reports the pass in `FrameResult.skipped` as `PassSkip.unsupported`, and the frame falls back to the 3×3 kernel.
+
 ### Point lights
 
 Point shadows use a cube atlas with its own bias, normal offset and a softness estimate that hardens contacts.
@@ -272,7 +332,7 @@ Point shadows use a cube atlas with its own bias, normal offset and a softness e
 ```dart
 const ShadowSettings(
   pointBias: 0.08,           // in metres, unlike the directional bias
-  pointNormalOffset: 0.02,
+  pointNormalOffset: 1.5,    // in texels of a cube face, so it grows with range
   pointSoftness: 4.0,
   pointLightRadius: 0.0,     // > 0 turns on the penumbra estimate
   pointMaxSoftness: 16.0,
@@ -349,9 +409,9 @@ The shaders write it either way, a pipeline may declare more outputs than its ta
 ```dart
 const ReflectionSettings(
   enabled: true,     // the only field this differs from the defaults in
-  steps: 24,         // ray march length
-  stride: 0.18,      // world metres a step advances
-  thickness: 0.006,  // depth tolerance for a hit, in window depth
+  steps: 32,         // ray march length; the shader stops at 64 whatever this says
+  stride: 0.1,       // world metres a step advances
+  thickness: 0.12,   // how thick a surface is taken to be, in world metres
   intensity: 0.7,
   debugOnly: false,
 )
@@ -359,7 +419,7 @@ const ReflectionSettings(
 
 SSR reads the surface buffer, so turning it on implies filling one.
 
-`thickness` is in *window* depth, where the whole range is 0…1, so half of it accepts almost any depth difference as a hit, which is the smear the field exists to prevent. `stride` is in world metres, so a stride of 2 marches straight over anything thin. Both are the kind of number that looks harmless in an example and is an order of magnitude out, which is why the block above is the declared defaults with nothing changed but `enabled`.
+`thickness` is in metres, and a little over `stride` on purpose: a ray whose step is longer than the surface is thick straddles it and finds nothing. It used to be in window depth, which is a few centimetres near the camera and several metres a room away, and one value could not be both. `stride` is in world metres too, so a stride of 2 marches straight over anything thin. Both are the kind of number that looks harmless in an example and is an order of magnitude out, which is why the block above is the declared defaults with nothing changed but `enabled`.
 
 ## Ambient occlusion
 
@@ -379,6 +439,20 @@ What it darkens is the **ambient term**, nothing else: applied to everything it 
 <p>Like SSR it reads the surface buffer, and filling that turns MSAA off for the whole scene pass: the average of two octahedral normals encodes no normal. Switching it on therefore changes the antialiasing of the entire frame, not only the corners.</p>
 </div>
 
+### Horizon-based occlusion and bounced light
+
+```dart
+const AmbientOcclusionSettings(
+  enabled: true,
+  method: AmbientOcclusionMethod.gtao, // ssao by default; gtao or ssil
+  thickness: 0.3,                      // metres, read only by ssil
+)
+```
+
+`gtao` finds the horizon on either side of two slices per pixel and integrates the visibility between them, with a multi-bounce fit where an albedo buffer exists, so a white corner darkens less than a dark one. `ssil` marches the same slices, takes each sample as a slab `thickness` deep covering a run of sixteen sectors, and adds the light of the sectors it uncovers first, bounced onto the point by the albedo: occlusion and one bounce from one march, so a red wall tints the floor beside it. The slab is why a pole a few centimetres across shades the wall behind it and lets the light past on either side.
+
+Both read the albedo buffer, a third scene attachment. A device that opens only two colour attachments draws them grey, with no colour in the bounce.
+
 ## Fog
 
 ```dart
@@ -389,6 +463,25 @@ FogSettings(
 ```
 
 Every lit shader applies fog as it writes the HDR target (`ApplyFog` in `lib/color.glsl`, called from `WriteSurface`), in linear space, before the tone map. It is not a post pass, and for an extension that difference decides who gets fog: a shader that writes the frame directly writes the fog with it, so a lighting model of your own gets fog for free and a post pass of your own does not. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
+
+### Volumetric fog
+
+Distance fog ignores the lights. `VolumetricFogSettings` fills the air with their glow: each view ray is marched through a medium that thins with height, and at every step the sun's cascades say whether the sun reaches that point and, with `clusteredLights` on, the view's light cells say which torches do.
+
+```dart
+RenderSettings(
+  volumetricFog: VolumetricFogSettings(
+    enabled: true,        // off by default
+    density: 0.02,        // extinction per metre at baseHeight; 0.2 is a smoky crypt
+    heightFalloff: 0.0,   // per metre; 0.5 halves the density about every metre and a half
+    anisotropy: 0.3,      // Henyey-Greenstein g: a mild forward lobe
+    steps: 24,            // at most 64 in the shader
+    distance: 40.0,       // metres marched
+  ),
+)
+```
+
+It is marched at half resolution and brought up by depth, so a halo behind a pillar stops at the pillar's edge. Two full-screen passes, one of them a march with a shadow lookup and a cell's lights at every step. Point lights cast no shadow into the air, so a torch's glow reaches through the wall beside it. With `lightShafts` on as well the sun is scattered twice; the two are alternatives.
 
 ## Sky
 
@@ -470,6 +563,183 @@ against six torches and a lot of dark stone is easier to read as a picture.
   </p>
 </div>
 
+## The lit models
+
+Four switches change how the lit stages compute light. Each is off by default, and a frame that leaves them off draws what it drew before they existed.
+
+```dart
+RenderSettings(
+  energyCompensation: true,        // rough metals keep their brightness
+  diffuseModel: DiffuseModel.eon,  // DiffuseModel.lambert by default
+  clusteredLights: true,           // each fragment lit by the lights of its own cell
+)
+```
+
+`energyCompensation` puts back the light a single GGX bounce loses. A microfacet model counts one bounce off the facets and nothing after it, so the rougher a metal, the more of its reflection is missing, and a rough gold sphere comes out darker than a polished one. On, the direct specular is scaled by `1 + f0·(1/E − 1)`, with E the albedo the split sum already computes, and the environment gets a multiple-scattering term. Dielectrics barely move. Arithmetic only.
+
+`DiffuseModel.eon` swaps the Lambert lobe of `pbr` and `pbrLayered` for the energy-preserving Oren-Nayar lobe of Portsmouth, Kutz and Hill (2024), rough by the material's own roughness. Lambert treats a rough dielectric as a flat one, so clay, plaster and concrete come out as bright at the rim as head-on, which reads as plastic. EON flattens the falloff, lifts the side facing the light, and adds back the light that bounces between facets, so a white surface under a white sky still reflects all of it. A smooth surface is Lambert. Arithmetic only, with no table and no sampler; the other lighting models keep their own diffuse.
+
+`clusteredLights` changes which lights a fragment sees. A draw is handed eight slots and a tail of twenty-four, ranked against its bounding sphere, so a floor spanning the map is lit by the thirty-two brightest lights anywhere on it. On, each view is cut into 16 × 9 tiles and 24 depth slices on the CPU, every cell lists the lights whose range reaches it, and the tail comes from the fragment's own cell: a floor under sixty-four lights is lit by all of them. The eight slots stay, and with them the only shadowed lights. It takes effect only when a scene has more lights than the slots and no light channels are in use, and it is what lets [volumetric fog](#volumetric-fog) see the torches.
+
+An `IrradianceField` is now read at every pixel: the eight probes around each fragment, weighted trilinearly, by facing and by a visibility bound from the stored depth moments, where 0.7 took one sample at the node's centre. The old path also scaled the result by the ambient strength twice, so a room lit by a field changes brightness. `IrradianceField.gpuUpdates` (nought by default) updates that many probes a frame on the GPU, round robin, each keeping `hysteresis` (0.9) of its old value, so the field follows a room that changes and gains a bounce each pass. It needs cube textures and a second colour attachment; elsewhere the bake stands. `Renderer.irradianceAtlas` is the texture the lit stages read.
+
+## Temporal anti-aliasing
+
+MSAA is lost the moment anything reads the surface buffer, and most of the screen-space effects on this page do. The temporal resolve is the anti-aliasing that survives them: the scene is drawn a fraction of a pixel off each frame, and each frame is blended into the history of the ones before it, reprojected through the motion of every pixel.
+
+```dart
+RenderSettings(
+  renderScale: 0.75,              // optional: the scene drawn smaller, the frame rebuilt at full size
+  antiAlias: AntiAliasSettings(
+    temporal: TemporalSettings(
+      enabled: true,              // off by default
+      sequenceLength: 16,         // Halton(2, 3) offsets before the jitter repeats
+      historyWeight: 0.9,         // how much of each resolved pixel is history
+      sharpen: 0.25,              // contrast-adaptive sharpen after the resolve; 0 skips it
+      clip: TemporalClip.aabb,    // or kdop8, kdop16, kdop32
+      reactive: 0.0,              // how far particles, splats and blended meshes cut the history
+    ),
+  ),
+)
+```
+
+The projection is jittered through `JitteredProjection`, and `Renderer.frameIndex` picks the offset. A camera velocity pass reconstructs each pixel's point from the surface buffer and carries it through last frame's view-projection; an object velocity pass then draws again every opaque node `FrameHistory` says moved, with this frame's and last frame's transforms, morph weights and skinning palettes. The resolve reads both. With a `renderScale` below one, the scene and everything that reads its buffers draw at the smaller size, and the resolve, bloom, the composite and the frame are at the size that was asked for; material maps are read with a mip bias of log2(`renderScale`) − 0.5 so they stay as sharp as the output they end up in.
+
+What it costs: the two velocity passes, one draw per moved node, and two output-sized history targets. It needs the surface buffer, so it turns MSAA off (`FrameResult.antiAliasing.temporal` says so), and on a device that opens only one colour attachment it does nothing at all: there is no jitter where there can be no resolve, since a jittered picture nobody averages shakes. The first frame after it is switched on has no history, so a frame drawn once, a thumbnail or a golden, comes out a fraction of a pixel off and unresolved.
+
+**The clip.** The history is pulled into the colours this frame's neighbourhood could make, so a pixel that was a crate's edge and is now floor does not remember the crate. `TemporalClip.aabb` is a variance-tightened box in YCoCg, cheap and loose along every diagonal of colour space: a history colour of the right brightness and the wrong hue can sit inside it, which is the trail a red object leaves on green. `kdop8`, `kdop16` and `kdop32` bound the neighbourhood by slabs along 4, 8 and 16 axes, each set containing the box's three, and remove that trail at the price of more arithmetic per pixel.
+
+**Reactive pixels.** Nothing that blends writes a velocity, so a moving ember is reprojected as the wall behind it and the resolve keeps nine tenths of a past in which it was not there: it shows dimmed and trails. `reactive` above nought runs a `reactive mask` pass in which particles, splats and blended meshes mark the pixels they cover in the velocity target's blue channel, and the resolve keeps `1 − reactive × coverage` of its usual share of history there. A blended mesh's coverage is its material's alpha; a texture's alpha is not read. A contributor of your own takes part by overriding `PassContributor.encodeReactive`.
+
+**Noisy effects.** While the resolve runs, ambient occlusion and contact shadows draw half their samples (at least four) and blend into histories of their own, and their jitter, like that of reflections and shafts, comes from a blue-noise table in `EngineTables`, one slice of 32 a frame.
+
+### Motion blur
+
+```dart
+RenderSettings(
+  motionBlur: MotionBlurSettings(
+    enabled: true,          // off by default
+    shutterFraction: 0.5,   // a 180 degree shutter
+    maxRadius: 20.0,        // pixels either side, also the tile width; clamped to 64
+  ),
+)
+```
+
+It reads the velocity buffer the temporal resolve uses and fills it whether or not the resolve runs. Each tile finds its longest motion, each neighbourhood of tiles its dominant one, and every pixel gathers fifteen samples along it, after depth of field and before the resolve, which then averages the gather's grain away. Something moving faster than `maxRadius` is blurred as though it moved exactly that far. A frame with no past, the first after the camera appears, is drawn sharp.
+
+### Spatial upscale
+
+Without the temporal resolve, a `renderScale` below one hands back the smaller texture for the presenter to stretch. `SpatialUpscaleSettings` brings it up to the asked-for size instead, with an edge-adaptive twelve-tap filter that keeps an edge an edge, followed by the same contrast-adaptive sharpen the resolve uses.
+
+```dart
+RenderSettings(
+  renderScale: 0.7,
+  spatialUpscale: SpatialUpscaleSettings(enabled: true, sharpen: 0.2),
+)
+```
+
+It runs after the tone map, because in HDR a highlight rings around any lobed filter, and only while `renderScale` is below one and the temporal resolve is off; `SpatialUpscaleSettings.runsFor(settings)` answers whether a frame will use it.
+
+## Glass and transparency
+
+### Glass that sees the scene
+
+A material shows what is behind it when it is drawn with the layered model and its `extensions` carry a `transmission` above nought ([material layers](#material-layers) below). A frame holding such a draw splits the scene around a copy of itself. The scene pass draws the opaque half with the glass left out, then the sky and the x-ray silhouettes, and stores its depth; the `scene colour copy` node writes the scene and five halvings of it side by side into one texture (`SceneColourChain`); the `transparent` node loads the scene's targets and depth and draws the glass reading that copy where the ray its index bends leaves the volume, at a level its roughness picks, with dispersion and attenuation. The transparent half and the contributors follow. The chain is one texture because a 2D render target has no mip levels in the hardware interface, and because the layered stage had one sampler left under WebGL2's sixteen, which the copy takes.
+
+A frame without glass registers both nodes, finds them inactive and draws exactly what it drew. A frame with glass draws one sample a pixel: the multisampled targets live in tile memory and keep nothing for the pass after the first, and `FrameResult.antiAliasing.msaaDeclined` names that reason. The question is asked of the scene before the graph compiles, so a transmissive mesh on a view's layers splits the frame even when the frustum then culls it. Putting `transparent` in `disabledPasses` draws the frame in one pass as 0.7.4 did, multisampled, with the glass reading the environment.
+
+### Order-independent transparency
+
+```dart
+RenderSettings(transparency: TransparencyMode.weightedBlended) // TransparencyMode.sorted by default
+```
+
+`sorted` is the back-to-front blend the engine has always drawn: exact where the list sorts, wrong where it cannot, two panes through each other or a mesh whose own triangles overlap. `weightedBlended` adds every transparent draw's colour, weighted by depth and alpha, into an accumulation target, multiplies a revealage target by what it lets through, and resolves the two over the scene, so crossing panes come out the same from any side. The nearer of two layers wins by its weight rather than by covering the other, so a stack of strongly coloured glass reads more mixed than it would sorted.
+
+It costs two targets the size of the scene and a depth buffer kept across passes, and the scene pass under it does not multisample. A device whose `supportsIndependentBlend` is false draws the transparent list twice, once per target; WebGL2 answers true only where `OES_draw_buffers_indexed` exists. Transparent draws under the mode write no depth and nothing to the surface buffer, and the contributors are drawn after the resolve so a particle in front of a pane stays in front of it.
+
+### Splats
+
+A Gaussian splat cloud has been sorted back to front and blended. The sort is now a two-pass counting sort on quantised distance, run only when the eye has moved past a fraction of the cloud's depth. `SplatContributor(cloud, composite: ...)` chooses how overlapping splats combine:
+
+| `SplatComposite` | What it draws |
+|---|---|
+| `automatic` (default) | `hashed` while a temporal resolve runs, `sorted` otherwise |
+| `sorted` | Sorted back to front and alpha blended. Exact in one frame; costs a sort whenever the eye moves |
+| `hashed` | Unsorted: each splat kept or dropped whole at a pixel against noise, with its opacity as the chance, and written opaque with depth. One frame is speckle; the resolve averages it into the blended picture. The cores match the sorted blend, the faint tails come out darker |
+
+`SplatContributor.lod` draws a large capture through a `SplatLod` under a splat budget, and `SplatContributor.cloud` is a getter that answers the cut it last chose.
+
+## Material layers
+
+`MaterialExtensions` holds what a surface has beyond metal-rough, the `KHR_materials_*` layers: index of refraction, specular, clearcoat, sheen, anisotropy, transmission, volume (thickness and attenuation), dispersion and iridescence. glTF, `.fmat` and `.f3d` read and write all of them. `LightingModel.pbrLayered` draws them; it is `pbr.frag` compiled a second time with the layers defined, so the two cannot drift apart below the layers, and with every layer at its default it draws what `Pbr` draws.
+
+```dart
+final layers = MaterialExtensions(
+  transmission: 1.0,
+  thickness: 0.02,             // metres, for the volume's attenuation
+  attenuationDistance: 0.5,
+  attenuationColor: Vector3(0.80, 0.95, 0.90),  // linear, as every layer colour is
+  dispersion: 0.1,
+);
+final glass = Material(
+  name: 'glass',
+  roughness: 0.05,
+  lighting: LightingModel.pbr.withLayers(layers),  // pbrLayered when a layer changes the shading
+  extensions: layers,
+);
+```
+
+A material that has layers and asks for plain `pbr` is drawn without them, which is why the loaders call `withLayers` and a material you build by hand should too. `MaterialExtensions.shades` is the test: an index other than 1.5, a specular other than one, a clearcoat, a sheen colour, anisotropy, transmission or iridescence. The layers' textures reach the stage packed, because the lit stages have no sampler to spare for each: the coat map carries the clearcoat in red, its roughness in green, the transmission in blue and the thickness in alpha, and the sheen map the sheen's colour and roughness. `bindSurfaceMaterial` packs them given `layerImages`, the device and a decoder, and `ModelAsset` does it for you, decoding each image once. The specular textures, the clearcoat's own normal map, the anisotropy texture and the iridescence textures are kept for export and not drawn, and the loader says so in its warnings.
+
+**A texture transform per map.** One `KHR_texture_transform` shared by every map of a material is still baked into the mesh's coordinates and costs nothing. Where the maps disagree, or a clip animates a texture offset, the loader keeps the transforms at the sampler in `Material.textureTransforms`, one `TextureTransform` per `MaterialMap`, and hands the material the layered model, the one stage with room in its block for a matrix per map. A material drawn by any other model has no matrices to read them through and keeps its warning.
+
+## Occlusion culling
+
+```dart
+wall.occluder = true;                      // software mode: this mesh hides things
+wall.occluderMesh = lowPolyWall;           // optional, a cheaper stand-in to rasterise
+
+RenderSettings(occlusion: OcclusionMode.software) // OcclusionMode.none by default
+```
+
+`OcclusionMode.software` rasterises the meshes marked `MeshNode.occluder` (or their `occluderMesh`) into a 256 × 128 depth grid on the CPU each view, at most two thousand triangles a frame, and tests every mesh's box against it. Nothing is marked by default, so switching the mode on alone changes nothing. `OcclusionMode.hiZ` needs nothing marked: it reads back last frame's surface buffer, reduced by the `depth pyramid` pass to 256 × 128, and reprojects it. It answers "visible" until a reading has arrived, after a camera cut, with more than one view and wherever there is no surface buffer, and because it reads the surface buffer it turns MSAA off. Either way an answer of hidden is a promise that the box lies behind something opaque at every pixel it covers; anything short of certainty draws. `FrameResult.culled` counts what was left out, and neither mode applies in wireframe.
+
+Meshes the build cut into clusters (`MeshData.clusters`, runs of up to 4096 triangles with a box and a normal cone) are culled a run at a time by frustum, cone and occlusion, and only the visible runs are drawn.
+
+## The frame budget
+
+Some work does not have to happen this frame: irradiance probe updates and the faces of dynamic point shadows. `frameWorkBudget` gives it one allowance, in microseconds, and what does not fit waits for the next frame.
+
+```dart
+RenderSettings(frameWorkBudget: 2000) // nought, the default, is no limit
+```
+
+Each piece of work asks before it starts, and is allowed when what the frame has spent plus what a piece has lately been costing still fits, so the piece that would tip the allowance waits. The first piece of a frame always runs, so every queue drains even on a device too slow to fit one item. `Renderer.frameWorkBudget` reports what was spent, how many pieces ran and how many were told to wait.
+
+### Adaptive quality
+
+`AdaptiveQuality` picks, every frame, the best-looking row of a `QualityTable` that fits a frame time. A row is a render scale (1, 0.85, 0.7, 0.6 or 0.5 of the application's own) and an effect tier (nought to three): each tier keeps three quarters, a half or a quarter of the samples and steps of the screen-space effects, the fog and the shafts, steps the temporal clip down one k-DOP size per tier and shrinks a nonzero `frameWorkBudget` the same way, and tiers two and three halve and quarter the shadow maps. A lever only reduces what the application set; it never switches on an effect that was off.
+
+```dart
+final quality = AdaptiveQuality(
+  QualityTable.of(DeviceClass.desktop),
+  const AdaptiveQualitySettings(enabled: true, budgetMicros: 16667),
+);
+
+// every frame
+final result = renderer.render(/* ... */ settings: quality.apply(settings));
+quality.recordFrame(result.cpuMicros);
+```
+
+Each row carries a cost relative to full quality and a FLIP difference against it, and the table is sorted best picture first. The controller keeps an estimate of what each row costs here and now: a load it raises at once on a slow frame and lets fall slowly, and a per-row correction for how far the rows it visited missed. It drops at once to the best row under `headroom` (0.9) of the budget and climbs only after a better row has fitted under `climbHeadroom` (0.75) for `climbFrames` (30) frames running, so it does not flip between two rows. With `motionThreshold` set, a picture moving faster than that (`screenMotion` measures it) takes only rows at or below `motionScale` (0.7).
+
+<div class="warn">
+<p>The committed tables are stand-ins. Their costs were measured on the software rasteriser, and <code>QualityTable.measured</code> is false for all three device classes until each is measured on its own GPU. The controller corrects its per-row estimates from what it measures, which is what makes a stand-in usable, but the order of the rows by cost is the software rasteriser's.</p>
+</div>
+
+`aliasTargets` (off by default) lends a pooled target whose last pass has run to a later pass of the same frame, so the occlusion's blur and the bloom chain, or the contact shadow and the depth of field's working buffers, share one texture. The picture does not change, since every built-in pass clears or wholly overwrites what it draws into. It is off by default because a pass of your own that loads a target it did not write would then load another pass's pixels.
+
 ## Loadable shader bundles
 
 The engine's shaders are compiled ahead of time and loaded by asset path. A bundle can also arrive as **bytes** (downloaded, read off a disk, rebuilt while the application is running), and every backend reads its own part of it.
@@ -507,6 +777,9 @@ The parts to reach for when a frame looks wrong.
 | `RenderSettings.highlighted` | Outlines a list of nodes, typically whatever picking last selected |
 | `RenderSettings.wireframe` | Geometry without shading. Impeller only: neither the WebGL nor the software backend has a polygon mode, and a frame that asked for it comes back with `FrameResult.wireframeDeclined` set rather than filled triangles |
 | `showShadowMap` / `showSurfaceBuffer` | Composites a buffer instead of the scene |
+| `showVelocity` | The velocity buffer instead of the lit image, while the temporal resolve or motion blur is on. Only motion down and to the right shows, since a negative channel has nothing to light |
+| `FrameResult.antiAliasing` | What smoothed the edges: MSAA samples, the edge pass, the temporal resolve, and in `msaaDeclined` a sentence saying why multisampling was given up |
+| `FramePass.gpuMicros` | What the GPU spent in the passes a node opened, or null on a device that does not measure. WebGPU measures where the adapter grants `timestamp-query`; Impeller, WebGL2 and the software rasteriser do not |
 | Timeline spans | `dart:developer` spans around every frame phase |
 | The frame panel | UI / raster / render / submit timings next to draw, pipeline-switch and cull counts |
 

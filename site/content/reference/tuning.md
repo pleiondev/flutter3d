@@ -22,6 +22,8 @@ How a game feels is a few dozen numbers, and this page says where each of them i
 | How hard the AI drivers are | `AiTuning` | `flutter3d_game_racing` |
 | Where the camera sits | `RigTuning`, `FollowTuning`, `ChaseTuning` | `flutter3d_game`, the two genres |
 | Shadows, bloom, fog, exposure, colour | `ShadowSettings` and the rest of `RenderSettings` | `flutter3d` |
+| How much time a frame may give to work that can wait | `RenderSettings.frameWorkBudget` | `flutter3d` |
+| What frame time the picture is held to, and how eagerly it recovers | `AdaptiveQualitySettings` | `flutter3d` |
 | How far back a kill camera or a rewind reaches | `RewindBuffer.history` | `flutter3d_sim` |
 | How big a hole a rocket leaves | `Breaches.blast(width:, height:, depth:)` | `flutter3d_sim` |
 | How much a wall muffles a sound | `SoundOcclusion(perObstacle:, floor:)` | `flutter3d_game` |
@@ -130,6 +132,30 @@ Grip lives in `Tyres` instead, and `Tyres.road` is the shipped set. That split i
 ## The picture
 
 `RenderSettings` holds the look, and most of it is off by default because most of it costs. `exposure` is 1.6 and `tonemap` is on; `bloom`, `fog`, `look` (contrast, saturation, temperature, vignette, grain) and `sky` are each their own settings object. `reflections` and `ambientOcclusion` both default to `enabled: false`.
+
+Everything 0.8.0 added is off as well, and each one says what switching it on costs:
+
+| Setting | Default | What it costs when on |
+|---|---|---|
+| `antiAlias.temporal` (`TemporalSettings`) | `enabled: false` | Two velocity passes, a draw per moved node, two output-sized history targets. Turns MSAA off |
+| `TemporalSettings.clip` | `TemporalClip.aabb` | `kdop8`, `kdop16`, `kdop32`: more arithmetic per pixel in the resolve |
+| `TemporalSettings.reactive` | 0 | One more pass over the blended draws and contributors |
+| `motionBlur` (`MotionBlurSettings`) | `enabled: false`, shutter 0.5, radius 20 px | Two tile passes and a fifteen-sample gather; fills the velocity buffer |
+| `spatialUpscale` (`SpatialUpscaleSettings`) | `enabled: false`, sharpen 0.2 | A twelve-tap pass at output size. Only below a `renderScale` of one, with the temporal resolve off |
+| `localExposure` (`LocalExposureSettings`) | `enabled: false`, strength 0.7, 2 stops each way | Three small passes at an eighth of the frame |
+| `outputTransform` | `OutputTransform.sdr` | `extendedSrgb`: a float frame, on a device with an HDR output format (WebGPU on an HDR display); the SDR frame elsewhere |
+| `energyCompensation` | false | Arithmetic in the metal-rough stages |
+| `diffuseModel` | `DiffuseModel.lambert` | `eon`: arithmetic in the metal-rough stages |
+| `clusteredLights` | false | A 16 × 9 × 24 light grid built on the CPU per view |
+| `volumetricFog` (`VolumetricFogSettings`) | `enabled: false`, density 0.02, 24 steps, 40 m | A half-resolution march with a shadow lookup at every step, and an upsample |
+| `ambientOcclusion.method` | `AmbientOcclusionMethod.ssao` | `gtao`, `ssil`: a third scene attachment, the albedo buffer |
+| `shadows.filter` | null (follows `directionalLightRadius`) | `evsm`: an rgba32f atlas and two blur passes; needs float filtering |
+| `transparency` | `TransparencyMode.sorted` | `weightedBlended`: two scene-sized targets, a kept depth buffer, no MSAA |
+| `occlusion` | `OcclusionMode.none` | `software`: a 256 × 128 CPU raster of the marked occluders. `hiZ`: a depth pyramid and a readback, and no MSAA |
+| `frameWorkBudget` | 0 (no limit) | Nothing; it only makes deferrable work wait |
+| `aliasTargets` | false | Nothing; fewer pooled targets |
+
+`AdaptiveQuality` sits outside `RenderSettings` and rewrites it each frame. `AdaptiveQualitySettings.budgetMicros` is 16667, sixty frames a second; a row is kept while it fits under `headroom` (0.9) of that and climbed to only after it has fitted under `climbHeadroom` (0.75) for `climbFrames` (30) frames running. The rows come from `QualityTable.of(deviceClass)`, and the costs in the tables committed today are software-rasteriser stand-ins until each device class is measured. [The frame](/core/rendering/#the-frame-budget) has the rest.
 
 `ShadowSettings` is where the two expensive numbers are:
 
