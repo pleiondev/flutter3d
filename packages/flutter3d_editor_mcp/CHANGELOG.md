@@ -1,8 +1,49 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+Twenty-one tools, where 0.7 had seventeen, and the server can see the level.
+
+**Breaking for code that extends the server.** `EditorMcpServer` extends
+`ToolTableServer<EditorSession, PictureAnswer>` and `EditorTool` is
+`OfferedTool<EditorSession, PictureAnswer>`, so a tool's `run` returns a
+`png` beside `did` and `says`, null when it has nothing to show. An agent sees
+no change in the seventeen tools it had.
+
+**`screenshot` draws the level.** It used to refuse. It renders the level on
+the software rasteriser at 320 by 200 from a camera given as `from` and `at`,
+or from near an upper corner looking at the middle when both are left out.
+Every brush is drawn flat in its material's colour, since this process has no
+image decoder, and a small box stands in for each light and entity.
+
+**`report` says who owns the screen.** It draws the same view one brush per
+draw, reads the object ids back, and says for every brush, light and entity
+how many pixels it owns, its box on the screen, its depth range, and what
+covers the part of the screen it would fill. That answers whether a torch can
+be seen from where a player stands and which wall is in the way. `LevelView`,
+`LevelCamera` and `PieceReport` are what the two tools use, exported for a
+host.
+
+**`generate` adds a room, a corridor or a scatter from a seed.** The kind,
+the seed and the params become a recipe in the open level, and the answer says
+how many brushes, entities and lights it builds. The document keeps the
+recipe, so `list` does not show what it builds. The skill
+`flutter3d-editor-mcp-editing-order` says so and says to `validate` after it,
+since walls that meet another brush overlap it.
+
+**`optimizeLights` asks for fewer lights, and `setLights` is a tool.**
+`optimizeLights` runs `flutter3d_editor_core`'s `LightOptimizer` from the
+`views` given, or four headings from every player spawn, applies the new set
+as one `setLights` step that undo takes back (`apply: false` only reports),
+and answers with the moves, the numbers and a picture of the new lighting. A
+set that misses the bounds once drawn is reported and not applied. `N1`
+
+**What a recipe builds is not drawn or judged yet.** `screenshot`, `report`
+and `optimizeLights` read the document's own brushes and lights, so a room
+added with `generate` is missing from the picture, from the report and from
+the scene the optimizer lights.
+
+`editorMcpVersion` is `'0.8.0'`. `flutter3d_core` and `flutter3d_cpu` are new
+dependencies, both plain Dart, so `dart run flutter3d_editor_mcp:editor_mcp`
+still runs on a machine with no Flutter.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 

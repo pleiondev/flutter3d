@@ -1,8 +1,27 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+**A level can carry the recipe for a room in place of its brushes.** A
+document's optional `recipes: [{kind, seed, params}]` list is read into
+`Level.recipes` as `LevelRecipe`s and written back as it was, so an editor
+that saves the level keeps the recipe. `expandRecipes(level)` turns them into
+brushes, entities and lights, and everything that uses a level calls it: the
+validator, the collision world, navigation, the lightmap bake and the
+visibility bake, whose brush hash covers the expansion. `levelKits` has three
+kits, each drawing its chances from `GameRandom` seeded with the recipe's
+`seed`: `room` (walls with doorways cut in them, reflection probes and
+optional clutter), `corridor` and `scatter`. A recipe no kit can build throws
+a `LevelFormatException` naming it. A level without recipes reads, writes and
+hashes as before.
+
+**`LevelSketch` is the wall arithmetic the kits draw with.** It writes the rows
+a document would, so a tool that generates level files can use the same code.
+`roundDecimal` rounds on the exact binary value with ties to even, the rule
+the shipped level documents were written with.
+
+**`BrushGeometry.build(perBrush: true)` makes one surface per brush.** Each
+`BrushSurface` then says which brush it is in `brush`, which is how a picture
+can name the brush under a pixel. The default groups brushes by material as
+before.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
