@@ -63,8 +63,16 @@ final class XrayShader implements CpuFragmentShader {
     // Discarded under a mask cutoff, exactly as every other model here is: a
     // silhouette must have the holes the thing it stands for has.
     if (s == null) return null;
+    // `WriteSurface`'s weight too: the GLSL calls it, so a blended material
+    // on this model is premultiplied there and has to be here.
+    final weight = premultiplies(bindings) ? s.alpha : 1.0;
     final fogged = applyFog(s.albedo, v, bindings);
-    return Vector4(fogged.x, fogged.y, fogged.z, s.alpha);
+    return Vector4(
+      fogged.x * weight,
+      fogged.y * weight,
+      fogged.z * weight,
+      s.alpha,
+    );
   }
 }
 

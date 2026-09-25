@@ -226,13 +226,28 @@ Vector4 writeLit(
   required double roughness,
 }) {
   writeSurface(c, v, b, normal, roughness);
+  // `g_premultiply`: a blended material's colour is weighted by its alpha,
+  // after the fog, because the blend takes its source premultiplied.
+  final weight = premultiplies(b) ? alpha : 1.0;
   final fogged = applyFog(colour, v, b);
   return writeWeightedBlended(
     c,
     v,
     b,
-    Vector4(fogged.x, fogged.y, fogged.z, alpha),
+    Vector4(fogged.x * weight, fogged.y * weight, fogged.z * weight, alpha),
   );
+}
+
+/// `g_premultiply` as `ReadSurface` sets it: `material2.x` between -1 and
+/// nought, which the engine writes for `MaterialAlphaMode.blend` alone.
+///
+/// Asked of the bindings rather than carried on the surface, because it is
+/// the material's mode and not anything the fragment computed.
+bool premultiplies(ShaderBindings b) {
+  final cutoff = b
+      .vec4('FragInfo', 'material2', Vector4(-1.0, 1.0, 1.0, 1.0))
+      .x;
+  return cutoff < 0.0 && cutoff > -0.75;
 }
 
 /// `WeightedBlendedWeight` from `color.glsl` — `R8`: McGuire and Bavoil's

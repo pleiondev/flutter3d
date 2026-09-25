@@ -87,6 +87,18 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+/// Whether [WriteSurface] weights the colour by its alpha: set by
+/// `ReadSurface` for a material that blends, and false for everything else.
+///
+/// **The blend takes its source as premultiplied**, so a blended surface has
+/// to hand it the colour times the alpha — a pane at a fifth of opaque adds a
+/// fifth of its light, not all of it. glTF's blend mode is Porter and Duff's
+/// over on straight colour, and this is the one place that turns the lit
+/// radiance into what that means. An opaque or masked surface keeps its
+/// colour whole: its alpha is not a coverage, and nothing blends it.
+/// A global for the reason [g_debug_surface] is one.
+bool g_premultiply = false;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -289,8 +301,12 @@ void WriteWeightedBlended() {
 #endif
 }
 
+/// The fog is mixed in before the weight, so a thin distant pane adds a thin
+/// share of the fog too rather than all of it. Times one when nothing blends,
+/// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
-  frag_color = vec4(ApplyFog(linearColor), alpha);
+  float weight = g_premultiply ? alpha : 1.0;
+  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
