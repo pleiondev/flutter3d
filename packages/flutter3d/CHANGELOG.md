@@ -1,8 +1,72 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+* **The renderer's changes arrive through `flutter3d_core` 0.8.0**, which this
+  library re-exports, and its changelog has them whole. Some change what an
+  application sees without asking: glTF `baseColorFactor` is read as linear,
+  so a factor of 0.5 no longer draws as 0.21; a frame with a transmissive draw
+  renders without MSAA; glass shows the clear colour where no sky is drawn
+  behind it, where it used to show the environment; and
+  `SplatContributor.cloud` is a getter. Upgrade the backend you draw with
+  (`flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu` or
+  `flutter3d_cpu`) to 0.8.0 alongside it: the renderer draws with stages only
+  their 0.8.0 tables have.
+* **A model can change its look by name.** A glTF file's
+  `KHR_materials_variants` used to be refused when required and ignored
+  otherwise. `ModelAsset.variants` lists the names, and
+  `ModelInstance.selectVariant(name)` dresses every part in that variant's
+  material, or in its default with null; it returns false and changes nothing
+  for a name the file does not have, and `ModelInstance.variant` says which is
+  worn. Switching changes which material each mesh node points at, so two
+  instances sharing materials can wear two variants at once. `ModelAsset`
+  binds every variant's material at upload, so their textures are on the
+  device before the first switch.
+* **A clip can animate a material or a light.** `KHR_animation_pointer` tracks
+  on a material's base colour, emissive strength, roughness, metallic or
+  texture offset, and on a light's colour or intensity, play through
+  `ModelInstance.pointerTargets`. `ModelAsset.materials` keeps each bound
+  material by its index in the file, which is how a pointer names it. With
+  shared materials, the default, a material track moves every instance that
+  wears it; instantiate with `shareMaterials: false` for instances that
+  animate on their own. Instantiating creates no lights, so
+  `ModelInstance.bindLight(index, light)` hands a track the light you placed.
+* **Material layers are drawn.** Clearcoat, index of refraction, specular,
+  sheen, anisotropy, transmission, volume, dispersion and iridescence are read
+  by `flutter3d_core`, and binding a material packs their textures: the coat,
+  its roughness, transmission and thickness into one coat map, and the sheen's
+  colour and roughness into a sheen map. `bindSurfaceMaterial` takes
+  `layerImages`, the device and a decoder, for that; `ModelAsset` and
+  `bindMaterial` pass it for you, decoding each image once. A material gets
+  the layered model, `LightingModel.pbrLayered`, only when a layer changes its
+  shading, so a plain metal-rough material draws with `Pbr` as before. The
+  specular textures, the coat's normal map, the anisotropy texture and the
+  iridescence textures are kept for export and not drawn, and the loader says
+  so in its warnings.
+* **Each map of a material reads through its own texture transform.** A
+  material whose maps named different `KHR_texture_transform`s drew
+  untransformed with a warning, and a clip moving a texture offset moved
+  nothing. `ModelAsset` now keeps such a material's transforms at the sampler
+  (`transformsAtSampler` on `bindSurfaceMaterial`, filling
+  `Material.textureTransforms`) and draws it with the layered model. The
+  common case, one transform shared by every map, is still baked into the
+  mesh's coordinates and costs nothing. A warning remains only for a material
+  another model draws, which has no matrices to read them through.
+* **A distant node can become a card that turns to the eye.** A model
+  converted with `convert --impostor` ends a node's levels of detail with an
+  impostor: a card and two atlases of the node seen from 64 directions.
+  `ModelAsset.impostors` holds each one's uploaded `ImpostorPart` (the card,
+  the albedo atlas and the normal-depth atlas), uploaded once however many
+  instances stand in the scene, and `instantiate` puts an `ImpostorNode` at
+  the end of the node's `LodGroup`. A card is one draw and casts no shadow. If
+  the atlases do not decode, the warning says so and the levels end at the
+  coarsest mesh, where they used to lose the chain and draw the full mesh at
+  every distance.
+* **A phone can read the model cut for a phone.** A build whose manifest names
+  `classes:` writes `model.phone.f3d`, `model.web.f3d` and
+  `model.desktop.f3d`. `loadModelAsset` takes `deviceClass` and reads that
+  class's file first and the single `.f3d` when there is none, at the cost of
+  one missed read. `assetDeviceClass`, set once from a `DeviceClassPicker` on
+  the loading screen, is the class every loader reads as when its caller names
+  none. Null, the default, reads exactly what 0.7 read.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 

@@ -15,10 +15,89 @@ to" drop them, and one kept them, which hid a missing bind there.
 **A declared slot left unbound is the caller's mistake**, named by a backend
 that can see it and never served another draw's resource.
 
+**Breaking for a backend: `GraphicsDevice` has eleven new members**, the whole
+of the 0.8 cycle's contract declared at once: `supportsGpuTimestamps`,
+`onGpuTimings`, `supportsCompute`, `createStorageBuffer`,
+`createComputePipeline`, `beginComputePass`, `readBuffer`,
+`releaseStorageBuffer`, `supportsFloat32Filtering`, `supportsIndependentBlend`
+and `hdrOutputFormats`. Each backend is its own package on a caret range of
+this one, so a member added in 0.8.1 would break every backend published
+before it; declaring them all now means no patch has to. A class that
+implements the interface outside this repository stops compiling until it
+answers all eleven, and answering false or empty and throwing
+`UnsupportedError` from the creators is a complete answer. Code that only
+calls a device compiles as it did.
+
+**Compute has a shape.** `StorageBuffer`, `ComputePipelineHandle` and
+`ComputeEncoder` (`bindPipeline`, `bindStorageBuffer`, `bindUniformBlock`,
+`dispatch`, `submit`) follow the render pass's rules: a binding the stage does
+not declare answers false, and `bindPipeline` forgets every binding.
+`readBuffer` reads back a buffer created with `hostReadable: true`. WebGPU and
+the software rasteriser run it in 0.8.0; Impeller and WebGL2 answer
+`supportsCompute` with false, so ask it first. `H6`
+
+**A pass can say how long the GPU spent in it.** `RenderPassDescriptor.label`
+names a pass to a GPU debugger and to `onGpuTimings`, whose listener gets a
+`GpuFrameTimings` (the frame's number and a `GpuPassTiming` per labelled pass,
+in microseconds) a frame or two after the frame was drawn, since a timestamp
+can only be read once the GPU has written it. Only WebGPU answers
+`supportsGpuTimestamps` with true, where the adapter grants `timestamp-query`.
+A backend with nowhere to put a label ignores it. `H2`
+
+**A pass can load the depth an earlier pass stored.** `DepthTarget.loadAction`
+and `DepthTarget.storeAction` default to `LoadAction.clear` and
+`StoreAction.dontCare`, which is what every pass did before, so a descriptor
+that names neither opens the same pass. Weighted blended transparency is the
+one caller: its transparent draws test against the depth the opaque pass
+left. A texture another pass loads must be stored and must not be
+`StorageMode.deviceTransient`, which on Apple GPUs has no memory to load
+from.
+
+**`setBlend`'s attachment index is honoured where `supportsIndependentBlend`
+is true**: Impeller, WebGPU, the software rasteriser for its first two
+attachments, and WebGL2 with `OES_draw_buffers_indexed`. Elsewhere the index
+is ignored and attachment zero takes the state, as before. A caller that wants
+two attachments blended differently sets attachment zero first and the others
+after it, which draws the same pass on all four backends.
+
+**A stage says what its compiled function kept.** `ShaderHandle.kept` (a
+`StageBindings`: the blocks and samplers the compiler left a slot for) and
+`ShaderHandle.layouts` (each block's members as `UniformMemberLayout`s) are
+filled by every backend for the engine's own stages, from tables in
+`flutter3d_shaders` that a test holds to a fresh compile. An encoder refuses
+a block or sampler the stage dropped before anything reaches the driver,
+which makes the 0.7.1 crash (an unlit draw handed a light list its Metal
+function had no slot for) impossible whatever a caller asks.
+`mayBindBlock` and `mayBindSampler` ask the same question. A stage from an
+application's own bundle has neither table and is null in both.
+
+**A uniform block can be one object.** `UniformBlock` is the base of the
+classes `flutter3d_shaders` now generates, one per block with a
+preallocated `Float32List` per member, so a caller fills fields the compiler
+checks and builds no map per draw. `PassEncoder.bindBlock(stage, block)`
+binds one with only the members that stage's layout has, since one block name
+can be wider in one stage than another. `bindUniformBlock` and its map are
+unchanged. `H1`
+
+**`package:flutter3d_hardware/trace.dart`, new: a frame kept as a file.**
+`RecordingDevice` wraps any `GraphicsDevice`, passes every call through and
+keeps it as a `TraceEvent`, with resources named by creation order and every
+payload copied. `Trace` encodes and decodes the `.f3dtrace` format (a JSON
+header and one blob), and `replayTrace` issues a trace against another device
+and returns a `TraceReplay` with what it read back. `TraceEvent` is sealed
+and has a variant for every call of the contract, compute included. It is a
+library of its own because an application draws without it; recording costs
+a copy of every upload and uniform block for as long as the events are kept.
+`H3`
+
 **`FakeBackend` takes `stageBindings`**, a table of what each stage declares,
 and holds binds to it: false for a slot a stage lacks, and every declared slot
 a draw leaves unbound in `bindingViolations`. `RecordedTexture` records the
-stage it was bound through.
+stage it was bound through, and `FakePass` records a copy of each bound
+block's members, as every real backend copies at the bind: a test that
+refilled one block object per draw used to see the last draw's values in
+every recorded bind. `FakeBackend` answers false or empty to the eleven new
+members.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 

@@ -1,8 +1,41 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+* **Two pictures can be compared the way an eye would.** `flip` takes two
+  8-bit sRGB frames and `flipLinear` two in linear light, and both return a
+  `FlipResult`: the per-pixel error map and its mean, nought for identical
+  and one for as different as green is from blue. It is LDR-FLIP (Andersson,
+  Nilsson, Akenine-Möller, Oskarsson, Åström and Fairchild, HPG 2020), ported
+  line for line from the reference C++ so a value here is the value there, and
+  a test holds it to the error maps that implementation publishes. The viewing
+  condition defaults to `defaultFlipPpd`, about 67 pixels per degree. A count
+  of moved pixels cannot say how much worse a frame looks: a lower render
+  scale moves nearly every pixel a little and looks almost the same. The
+  reference code's BSD licence is kept in `third_party/flip`.
+* **`expectMatchesGolden` takes `flipBudget`.** Null, the default, compares as
+  before. Given, the mean FLIP error replaces the share of differing pixels,
+  for a frame meant to differ a little everywhere, such as a lower render
+  scale or a stochastic effect against its sorted reference.
+* **`measureQualityTable` measures the table `AdaptiveQuality` in
+  `flutter3d_core` chooses from.** It renders each `QualityScene` at every
+  setting of `QualitySetting.grid` on the device it is handed, gives each
+  setting its own renderer and `settle` frames, then takes the fastest of
+  `samples` interleaved frames, and returns a `QualityMeasurement` per
+  setting: its cost relative to full quality and its mean FLIP against it.
+  The time is the passes' GPU time where the device reports it and the
+  renderer's wall clock where it does not. `qualityTablesSource` writes the source of
+  `flutter3d_core`'s `tables/quality_tables.dart` from a full grid per
+  `DeviceClass`, with a flag for whether each was measured on that class. It is an offline tool:
+  it draws every scene at every setting many times over.
+* **`replayPacing` plays a recorded run a frame at a time and times every
+  frame.** A frame is one step of the tape through `onStep` and one
+  `drawFrame`, back to back with the CPU and GPU halves serialised, which errs
+  long and pins each spike to the frame that caused it. `gpuSettled` closes
+  a frame and waits for the device's `onFrameComplete`, so the GPU's share is
+  counted. The result, `FramePacing`, keeps the median, the 99th percentile,
+  the worst frame and its index, and every frame over `limitMillis` (50 by
+  default); a frame rate would hide the one stop a player notices.
+  `repeats`, `rewind` and `warmUpFrames` play a tape several times from its
+  start or skip a level's first frames.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 

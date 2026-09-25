@@ -6,6 +6,55 @@ but now says which slot in `debugDrainErrors`; it used to fill it in silence
 and drew cleanly through a missing bind Metal failed on. `bindTexture` returns
 false for a sampler the stage does not declare.
 
+**Compute runs here.** `supportsCompute` is true: storage buffers, compute
+pipelines with a bind group layout per group the stage names, compute passes
+encoded as they go, and `readBuffer` through a mappable staging buffer.
+Compute stages come from their own manifest, `flutter3d.compute.json` in
+`flutter3d_shaders`, through the same glslang and naga, into a new generated
+library, `engine_compute_shaders.dart`, which CI holds fresh. `PrefixSum`, a
+scan of 1024 integers in one workgroup, is the first stage and the one the
+conformance suite runs. `H6`
+
+**The GPU says how long each labelled pass took.** Where the adapter grants
+`timestamp-query` the device asks for it, `supportsGpuTimestamps` is true, and
+each labelled pass writes two timestamps. The next `beginFrame` resolves them
+and hands `GpuFrameTimings` to the `onGpuTimings` listener once the GPU has
+written them, a frame or two late. Up to 64 passes a frame are timed and the
+rest are drawn untimed. A pass that drew nothing and reported a negative time
+is left out of the report. `H2`
+
+**A frame can be presented brighter than white.** On a display the browser
+reports as `(dynamic-range: high)`, `hdrOutputFormats` answers `rgba16float`,
+and `copyToCanvas` reconfigures the canvas to the frame's format with
+extended tone mapping, and back to standard for an 8-bit frame. Nothing
+changes until a frame is rendered with `OutputTransform.extendedSrgb`, which
+is off by default.
+
+**`supportsFloat32Filtering` answers what the adapter granted**: the device
+already asked for `float32-filterable`, and the EVSM shadow filter now asks
+the device before it runs. `supportsIndependentBlend` is true, since every
+colour target of a WebGPU pipeline has always carried its own equation.
+
+**Tile memory means something here too.** Where the browser's
+`GPUTextureUsage` lists `TRANSIENT_ATTACHMENT`, a single-level
+`deviceTransient` target is allocated with it, and every pass that attaches
+one clears it and discards it, the only operations WebGPU allows. On an older
+browser the target is the plain attachment it was. `H7`
+
+**A pass loads or clears depth as the descriptor says, and always stores
+it**, so a later pass can test against it. Outside a transient attachment
+there is no tile memory for a discard to save, and a stored depth buffer is
+one a debugger can look at.
+
+**The WGSL table is rebuilt against `flutter3d_shaders` 0.8.0 and holds 78
+stages, up from 49**, every one still through glslang and naga. The new ones
+are the velocity, temporal, layered-material, impostor, fog, shadow-filter,
+transparency, scene-copy, occlusion, probe, exposure, six-way particle,
+unsorted splat and field stages that `flutter3d_core` 0.8.0 draws with.
+Upgrade this package with it. Each stage now carries what its compiled
+function kept and its block layouts into `ShaderHandle.kept` and
+`ShaderHandle.layouts`.
+
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
 ## 0.7.4

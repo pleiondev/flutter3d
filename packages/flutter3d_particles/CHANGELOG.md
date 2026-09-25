@@ -1,8 +1,37 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+* **Smoke can be lit by the lights around it.** `ParticleContributor` takes
+  `sixWay`, a `SixWayMaterial`: two textures holding six pictures of one puff,
+  each lit from one side (right, top and back with coverage in `positive`;
+  left, bottom and front with emission in `negative`), plus an `emission`
+  colour and an `ambient` term. The new `ParticleSixWay` stage mixes the six
+  by where each of the scene's lights really is, so a puff is bright on the
+  side facing a lamp, dark in its own shade, and glows at its thin edges with
+  a light behind it. The lights are the ones the renderer would give a mesh
+  of the particles' bounds: the eight slots, the light list, and the clustered
+  cells in a clustered view. Null, the default, keeps the additive stages and
+  every existing frame as they were. `N6`
+* **What a six-way draw costs.** It blends "over" what is behind it, so the
+  live particles are sorted farthest first along the camera's forward every
+  frame; the pool is still one draw. `ParticleSystem.writeQuads` takes
+  `farthestAlong` for that sort, and `ParticleSystem.boundsInto` gives the
+  sphere the lights are asked for with. The sheet is read with the camera's
+  right and up, so a particle with a `rotation` turns its picture and not its
+  lighting. It needs the `ParticleSixWay` stage from `flutter3d_shaders` 0.8.0.
+* **`importSixWay` repacks a sheet exported in another channel layout** into
+  the two textures, described by a `SixWayLayout` of `SixWayChannel`s, and
+  turns each flipbook cell upright without reordering the cells.
+  `flutter3d_build` has a baker that makes a sheet from a density field, so a
+  project can have smoke without an asset.
+* **Particles mark the pixels they cover for the temporal resolve.** They
+  write no velocity of their own, so the resolve reprojected the wall behind a
+  moving ember and kept nine tenths of it, and the ember showed at a fraction
+  of its brightness. `ParticleContributor.encodeReactive` now draws each live
+  particle into the reactive mask through the `ReactiveSprite` stage, by the
+  disc's falloff or the sprite's alpha times the particle's alpha, and the
+  resolve trusts its history less there. It runs only while
+  `TemporalSettings.reactive` in `flutter3d_core` is above nought, which is
+  off by default, and costs one more draw of the pool when on. `R4`
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
