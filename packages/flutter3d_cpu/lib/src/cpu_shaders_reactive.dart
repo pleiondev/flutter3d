@@ -50,8 +50,19 @@ final class ReactiveSpriteShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    // `texture()` picks its level from the screen derivatives, so the sprite
+    // is read through its chain here too, from the footprint of varyings four
+    // and five the way `ParticleTexturedShader` reads it for colour.
     final sprite = b.textures['sprite_texture'];
-    final spriteAlpha = sprite?.sample(v[4], v[5]).w ?? 1.0;
+    final ddx = c.ddx;
+    final ddy = c.ddy;
+    final (du, dv) = ddx != null && ddy != null
+        ? (
+            math.max(ddx[4].abs(), ddy[4].abs()),
+            math.max(ddx[5].abs(), ddy[5].abs()),
+          )
+        : (0.0, 0.0);
+    final spriteAlpha = sprite?.sample(v[4], v[5], du: du, dv: dv).w ?? 1.0;
 
     final cx = v[4] * 2.0 - 1.0;
     final cy = v[5] * 2.0 - 1.0;
