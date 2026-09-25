@@ -1955,9 +1955,10 @@ final class TonemapCurve {
 /// **Scene-referred in, display-linear out**, in the colour table's strip
 /// shape (N slices of N × N, blue picking the slice) but float, and indexed
 /// through a log2 shaper: entry `i` of N holds the output for the input
-/// `0.18 · 2^(−10 + 16 · i / (N − 1))`. So −10 stops below mid grey to +6
+/// `0.18 · 2^(−10 + 20 · i / (N − 1))`. So −10 stops below mid grey to +10
 /// above it are covered, which is where a real output transform does all of
-/// its work.
+/// its work: an SDR transform reaches the display's peak around 128, 9.5
+/// stops over grey, and whatever lies past the last entry clamps to it.
 ///
 /// Whatever a tool can bake into that shape goes here: the ACES 2.0
 /// reference output transform through OCIO, a studio's own, a filmic curve.

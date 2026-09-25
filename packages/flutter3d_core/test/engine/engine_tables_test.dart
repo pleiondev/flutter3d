@@ -52,7 +52,8 @@ void main() {
     };
     expect(hashes, <String, int>{
       'blueNoise': 1332832323,
-      'aces2Display': 3566240564,
+      // Rebaked over −10…+10 stops, so the table reaches the curve's roof.
+      'aces2Display': 3220052977,
       // `M2` wrote the sheen's albedo into the second table's z lane,
       // which the published fit leaves empty and nothing read before.
       'ltc': 1806585161,
