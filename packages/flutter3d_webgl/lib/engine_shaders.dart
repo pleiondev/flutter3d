@@ -3331,18 +3331,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -3357,23 +3387,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -3424,11 +3463,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -3478,6 +3512,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -3517,8 +3556,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -3583,11 +3636,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -3623,6 +3684,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -5025,18 +5090,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -5051,23 +5146,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -5118,11 +5222,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -5172,6 +5271,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -5211,8 +5315,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -5277,11 +5395,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -5317,6 +5443,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -6705,18 +6835,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -6731,23 +6891,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -6798,11 +6967,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -6852,6 +7016,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -6891,8 +7060,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -6957,11 +7140,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -6997,6 +7188,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -9023,18 +9218,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -9049,23 +9274,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -9116,11 +9350,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -9170,6 +9399,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -9209,8 +9443,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -9275,11 +9523,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -9315,6 +9571,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -11376,18 +11636,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -11402,23 +11692,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -11469,11 +11768,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -11523,6 +11817,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -11562,8 +11861,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -11628,11 +11941,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -11668,6 +11989,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -13038,19 +13363,30 @@ vec3 F_SchlickF90(vec3 f0, vec3 f90, float v_dot_h) {
 /// The clear coat's own GGX lobe for [light], on the coat's normal, with the
 /// Fresnel of a dielectric of index 1.5. Scaled so that the loop's `n_dot_l`,
 /// which is the base's, becomes the coat's: the coat faces the geometric
-/// normal and the base may face the normal map's. A rectangle's `n_dot_l` is
-/// a form factor rather than a cosine and is left as it is.
-float CoatLobe(LightSample light) {
+/// normal and the base may face the normal map's.
+///
+/// **A rectangle's coat is integrated over the panel, as the base's is** —
+/// `L7`. Evaluated at the representative point instead, the lobe's peak
+/// multiplied the panel's whole form factor: wherever the mirror ray lands on
+/// the panel the half vector is the normal, and a coat as smooth as a
+/// varnish has a peak in the tens of thousands, so the panel's reflection
+/// came out thousands of times brighter than the few per cent a coat
+/// reflects. The same tables at the coat's roughness, on the coat's normal,
+/// over the corners `SampleLight` kept; over `n_dot_l` for the base's reason.
+float CoatLobe(Surface s, LightSample light) {
+  if (light.integrated > 0.5) {
+    vec3 ltc = LtcRectangle(g_coat_n, s.v, g_coat_roughness, g_rect_corners);
+    return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
+           max(light.n_dot_l, 1e-6);
+  }
   float alpha = g_coat_roughness * g_coat_roughness;
   float n_dot_l = max(dot(g_coat_n, light.l), 0.0);
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(g_coat_n_dot_v, n_dot_l, alpha);
   float f = 0.04 + 0.96 * pow(1.0 - light.v_dot_h, 5.0);
-  float scale = light.integrated > 0.5
-                    ? 1.0
-                    : n_dot_l / max(light.n_dot_l, 1e-6);
-  return d * vis * f * frag_info.material.w * scale;
+  return d * vis * f * frag_info.material.w * n_dot_l /
+         max(light.n_dot_l, 1e-6);
 }
 
 /// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
@@ -13387,7 +13723,7 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 sheen = g_sheen * D_Charlie(g_sheen_roughness, light.n_dot_h) *
                V_Neubelt(s.n_dot_v, light.n_dot_l);
   return (((diffuse + specular) * g_sheen_scale + sheen) * g_coat_through +
-          vec3(g_coat * CoatLobe(light))) *
+          vec3(g_coat * CoatLobe(s, light))) *
          kPi;
 #else
   return (diffuse + specular) * kPi;
@@ -14495,18 +14831,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -14521,23 +14887,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -14588,11 +14963,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -14642,6 +15012,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -14681,8 +15056,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -14747,11 +15136,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -14787,6 +15184,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -16157,19 +16558,30 @@ vec3 F_SchlickF90(vec3 f0, vec3 f90, float v_dot_h) {
 /// The clear coat's own GGX lobe for [light], on the coat's normal, with the
 /// Fresnel of a dielectric of index 1.5. Scaled so that the loop's `n_dot_l`,
 /// which is the base's, becomes the coat's: the coat faces the geometric
-/// normal and the base may face the normal map's. A rectangle's `n_dot_l` is
-/// a form factor rather than a cosine and is left as it is.
-float CoatLobe(LightSample light) {
+/// normal and the base may face the normal map's.
+///
+/// **A rectangle's coat is integrated over the panel, as the base's is** —
+/// `L7`. Evaluated at the representative point instead, the lobe's peak
+/// multiplied the panel's whole form factor: wherever the mirror ray lands on
+/// the panel the half vector is the normal, and a coat as smooth as a
+/// varnish has a peak in the tens of thousands, so the panel's reflection
+/// came out thousands of times brighter than the few per cent a coat
+/// reflects. The same tables at the coat's roughness, on the coat's normal,
+/// over the corners `SampleLight` kept; over `n_dot_l` for the base's reason.
+float CoatLobe(Surface s, LightSample light) {
+  if (light.integrated > 0.5) {
+    vec3 ltc = LtcRectangle(g_coat_n, s.v, g_coat_roughness, g_rect_corners);
+    return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
+           max(light.n_dot_l, 1e-6);
+  }
   float alpha = g_coat_roughness * g_coat_roughness;
   float n_dot_l = max(dot(g_coat_n, light.l), 0.0);
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(g_coat_n_dot_v, n_dot_l, alpha);
   float f = 0.04 + 0.96 * pow(1.0 - light.v_dot_h, 5.0);
-  float scale = light.integrated > 0.5
-                    ? 1.0
-                    : n_dot_l / max(light.n_dot_l, 1e-6);
-  return d * vis * f * frag_info.material.w * scale;
+  return d * vis * f * frag_info.material.w * n_dot_l /
+         max(light.n_dot_l, 1e-6);
 }
 
 /// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
@@ -16506,7 +16918,7 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 sheen = g_sheen * D_Charlie(g_sheen_roughness, light.n_dot_h) *
                V_Neubelt(s.n_dot_v, light.n_dot_l);
   return (((diffuse + specular) * g_sheen_scale + sheen) * g_coat_through +
-          vec3(g_coat * CoatLobe(light))) *
+          vec3(g_coat * CoatLobe(s, light))) *
          kPi;
 #else
   return (diffuse + specular) * kPi;
@@ -17582,18 +17994,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -17608,23 +18050,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -17675,11 +18126,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -17729,6 +18175,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -17768,8 +18219,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -17834,11 +18299,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -17874,6 +18347,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
@@ -29272,18 +29749,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -29298,23 +29805,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -29365,11 +29881,6 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
-/// Resolves light [index] against the surface.
-///
-/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
 #ifdef F3D_LTC
 // --- lib/ltc.glsl ---
 // The GGX lobe over a rectangle light, by linearly transformed cosines — `L7`.
@@ -29419,6 +29930,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));
@@ -29458,8 +29974,22 @@ vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
 
 #endif  // LTC_GLSL_
 
-#endif
 
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
+/// Resolves light [index] against the surface.
+///
+/// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
   light.integrated = 0.0;
@@ -29524,11 +30054,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -29564,6 +30102,10 @@ LightSample SampleLight(int index, Surface s) {
     // it. The diffuse keeps the exact form factor above.
     light.integrated = 1.0;
     light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
 #endif
     return light;
   }
