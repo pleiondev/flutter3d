@@ -447,8 +447,16 @@ extension _GltfMesh on GltfLoader {
         VertexLayout.weights.name,
       ],
     };
+
+    // MikkTSpace may copy a vertex that sits on a mirrored UV seam, so the
+    // count the morph targets are checked against is the one from before,
+    // and the copies are given their source's deltas below.
+    final builtVertexCount = mesh.vertexCount;
+    var copiedFrom = Uint32List(0);
     if (wantsTangent && tangents == null) {
-      mesh = mesh.withGeneratedTangents(target: primitiveLayout);
+      final generated = mesh.generateTangents(target: primitiveLayout);
+      mesh = generated.mesh;
+      copiedFrom = generated.copiedFrom;
     }
 
     // Last, because `withGeneratedTangents` returns a fresh mesh and would drop
@@ -459,12 +467,16 @@ extension _GltfMesh on GltfLoader {
         targets: targets,
         targetNames: targetNames,
         sourceVertexCount: vertexCount,
-        builtVertexCount: mesh.vertexCount,
+        builtVertexCount: builtVertexCount,
         split: needsFlatNormals,
         reader: reader,
         warnings: warnings,
       );
-      if (morphs.isNotEmpty) mesh = mesh.withMorphTargets(morphs);
+      if (morphs.isNotEmpty) {
+        mesh = mesh.withMorphTargets(<MorphTarget>[
+          for (final morph in morphs) _withCopies(morph, copiedFrom),
+        ]);
+      }
     }
 
     return _DecodedPrimitive(
@@ -556,6 +568,27 @@ String? _supplyDraco({
   } on FormatException catch (error) {
     return error.message;
   }
+}
+
+/// [morph] grown to cover the vertices tangent generation appended: each copy
+/// moves exactly as the vertex it was copied from, which is what keeps the
+/// two sides of a split seam together while the shape blends.
+MorphTarget _withCopies(MorphTarget morph, Uint32List copiedFrom) {
+  if (copiedFrom.isEmpty) return morph;
+  Float32List? grown(Float32List? deltas) => deltas == null
+      ? null
+      : Float32List.fromList(<double>[
+          ...deltas,
+          for (final source in copiedFrom)
+            ...deltas.sublist(source * 3, source * 3 + 3),
+        ]);
+  return MorphTarget(
+    vertexCount: morph.vertexCount + copiedFrom.length,
+    positions: grown(morph.positions)!,
+    normals: grown(morph.normals),
+    tangents: grown(morph.tangents),
+    name: morph.name,
+  );
 }
 
 /// Reads a primitive's morph targets, or says why it could not.

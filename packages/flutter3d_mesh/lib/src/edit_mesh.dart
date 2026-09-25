@@ -1886,8 +1886,11 @@ final class EditMesh {
     // normal map, and every caller of this one — an exporter, a screenshot, a
     // test — would have to know to ask. The plan's own conversion is where a
     // viewport goes, and it is the one that leaves the choice open.
+    //
+    // Unsplit, so the mesh keeps one vertex per row of the plan: an editor
+    // maps what it draws back to what it edits by that row.
     return layout.has(VertexLayout.tangent)
-        ? drawn.withGeneratedTangents()
+        ? drawn.withGeneratedTangents(splitSeams: false)
         : drawn;
   }
 
