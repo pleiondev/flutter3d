@@ -606,6 +606,17 @@ final class PbrShader implements CpuFragmentShader {
   static double _vNeubelt(double nDotV, double nDotL) =>
       1.0 / (4.0 * (nDotL + nDotV - nDotL * nDotV));
 
+  /// The sheen's lobe in `ShadeLight`, before its colour: Charlie's
+  /// distribution at [roughness] times Neubelt's visibility.
+  ///
+  /// The visibility takes the cosine to the light, recomputed from its
+  /// direction: under a rectangle `nDotL` is the form factor, nought to π,
+  /// and the loop's multiply by it already stands for cosine times solid
+  /// angle.
+  static double sheenLobe(double roughness, Surface s, LightSample light) =>
+      _dCharlie(roughness, light.nDotH) *
+      _vNeubelt(s.nDotV, s.normal.dot(light.direction).clamp(0.0, 1.0));
+
   /// `D_GGXAnisotropic`.
   static double _dGgxAnisotropic(
     double nDotH,
@@ -754,10 +765,7 @@ final class PbrShader implements CpuFragmentShader {
         if (layers == null) return base..scale(_pi);
         // Under the sheen, what its albedo leaves; under the coat, what its
         // Fresnel lets through; on top, the coat's lobe.
-        final sheen =
-            layers.sheen *
-            (_dCharlie(layers.sheenRoughness, light.nDotH) *
-                _vNeubelt(s.nDotV, light.nDotL));
+        final sheen = layers.sheen * sheenLobe(layers.sheenRoughness, s, light);
         final coat =
             layers.coat *
             _coatLobe(
