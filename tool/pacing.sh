@@ -6,7 +6,7 @@
 #   tool/pacing.sh                          macOS (Impeller), the sample run
 #   tool/pacing.sh -d <device-id> --label a55
 #   tool/pacing.sh --run path/to/run.f3drun --repeats 5 --budget 2000
-#   tool/pacing.sh --label macos-ci --no-build
+#   tool/pacing.sh --label macos-ci
 #
 # **Frame-time spikes, not frame rate.** A run that averages sixty frames a
 # second can still stop for a tenth of a second every few seconds, and that

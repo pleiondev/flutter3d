@@ -2,8 +2,8 @@
 library;
 
 /// How many microseconds a frame may spend on work that can be spread over
-/// frames: irradiance probe updates, point-shadow faces, static shadow
-/// scrolls, reflection probe faces, texture uploads.
+/// frames. Irradiance probe updates and point-shadow faces ask it today;
+/// anything else a frame can put off is meant to ask it the same way.
 ///
 /// **Time, where each of those used to count items.** A count is a guess at
 /// a cost: four irradiance probes are cheap in a small room and expensive in
