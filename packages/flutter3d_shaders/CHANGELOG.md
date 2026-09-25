@@ -1,10 +1,67 @@
 ## 0.8.0
 
-**`stageBindings`**, in `package:flutter3d_shaders/stage_bindings.dart`: what
-every stage in the bundle keeps once compiled, the blocks and samplers a draw
-must bind and may bind. Generated from the compiler's own reflection by
-`flutter3d_impeller/tool/stage_bindings.dart`. `FakeBackend` takes it so a
-renderer's binds are held to the real bundle on the VM.
+The stages behind `flutter3d_core` 0.8.0; its CHANGELOG says what each effect
+does and what it costs. Every stage that existed in 0.7.4 draws the same
+picture under the settings it had, apart from the corrections listed first.
+What a caller of these sources and tables sees:
+
+* **The bundle describes itself.** `stageBindings`, in
+  `package:flutter3d_shaders/stage_bindings.dart`: what every stage keeps
+  once compiled, the blocks and samplers a draw must bind and may bind.
+  `uniform_blocks.dart` gives each stage's block layouts (member offsets,
+  lengths, element counts and types, per stage, since one block name can be
+  wider in one stage than another), and `typed_blocks.dart` a class per block
+  with one preallocated array per member, extending `UniformBlock`, for
+  `PassEncoder.bindBlock`. All three are generated from the compiler's own
+  reflection by `flutter3d_impeller/tool/stage_bindings.dart`, and a test
+  holds them to a fresh compile. `FakeBackend` takes `stageBindings` so a
+  renderer's binds are checked against the real bundle on the VM. For the
+  block classes the package now depends on `flutter3d_hardware`.
+* **Compute stages have a manifest of their own**,
+  `shaders/flutter3d.compute.json`, which neither impellerc nor the WebGL2
+  generator reads. `kComputeShaders` lists it; `PrefixSum` is the first
+  stage.
+* **Screen patterns count rows from the top.** `lib/frag_coord.glsl` and
+  `lib/frag_coord_info.glsl` (the `FragCoordInfo` block) give full-screen
+  passes the target's orientation, and lit stages read it from `FragInfo`.
+  The dither, grain, march jitter and point-shadow rotation were upside down
+  on WebGL2.
+* **`pbr.frag` is `lib/pbr.glsl` with nothing defined**, and compiles to what
+  it did. `pbr_layered.frag` is the same file with `F3D_LAYERED`: IOR,
+  specular, clearcoat, sheen, anisotropy, transmission, volume, dispersion and
+  iridescence, factors in a `LayerInfo` block that also carries a 2x3
+  transform per map, read through `MapUv`. The coat map packs coat, coat
+  roughness, transmission and thickness; the sheen map is its sixteenth
+  sampler. Both metal-rough stages integrate a rectangle light by LTC
+  (`lib/ltc.glsl`, `F3D_LTC`) and take the EON diffuse lobe when
+  `FragInfo.ambient_sky.w` asks.
+* **`lib/shadow.glsl`**: near cascades carry their own converted bias
+  (`FragInfo.shadow_bias`, `ShaftInfo.bias`), PCF taps stay in their tile,
+  the soft directional search and filter are sixteen Vogel taps sized in
+  metres, and a negative softness in `ambient_ground.w` reads EVSM moments
+  (`lib/evsm.glsl`) with one tap.
+* **`lib/surface.glsl`** reads the irradiance atlas per fragment
+  (`lib/irradiance.glsl`) and writes the albedo buffer at location two. The
+  light list declarations move to `lib/light_list.glsl`, with the cluster
+  lookup, so `lib/contributor_lights.glsl` can share them; the lit stages
+  compile to the same code.
+* **`lib/blue_noise.glsl`** holds the 4x4 pattern the jittered passes used to
+  copy, and the blue-noise slice they read while a temporal resolve runs.
+* **`ssao.frag`** gains GTAO and SSIL, chosen by `SsaoInfo.screen.z`, and
+  writes four channels; `ssao_blur.frag` smooths all four, and
+  `composite.frag` takes occlusion from alpha, adds the indirect light from
+  rgb, reads a display transform table and applies local exposure.
+  `fxaa.frag` gains the robust contrast-adaptive sharpen.
+* **New stages**: `CameraVelocity`, `Velocity` with `VelocityVertex`,
+  `VelocitySkinnedVertex` and `VelocityInstancedVertex`, `TemporalResolve`,
+  `TemporalAccumulate`, `Reactive`, `ReactiveSprite`, `VelocityTileMax`,
+  `VelocityNeighborMax`, `MotionBlur`, `Easu`, `LocalExposure`,
+  `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`,
+  `IrradianceConvolve`, `FieldDecay`, `ShadowCopy`, `EvsmFilter`,
+  `DepthPyramid`, `WboitResolve`, `SceneColourCopy`, `PbrLayered`,
+  `ImpostorVertex`, `Impostor`, `ParticleSixWay` and `SplatHashed`. Each is in
+  `kRequiredShaders`, and every compiled stage stays within WebGL2's 16
+  samplers and 12 uniform blocks, which a test holds.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
