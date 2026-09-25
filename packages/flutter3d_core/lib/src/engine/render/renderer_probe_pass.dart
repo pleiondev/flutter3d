@@ -169,7 +169,15 @@ extension _ProbePasses on Renderer {
   /// **not** rationed — it is one view, it is due every frame, and a car whose
   /// turn came round every fifth frame would reflect a track half a second
   /// old.
+  ///
+  /// **Except while [Renderer.warmUp] draws.** Rationed, the captures land on
+  /// the first frames of play instead, each paying a whole cube and drawn
+  /// without culling: the pacing run measured the crypt's three waiting
+  /// probes as its first three frames, each over a hundred milliseconds. A
+  /// loading screen is the one place nobody is waiting on a frame, so every
+  /// probe captures there.
   bool _claimWholeProbeCapture() {
+    if (_warmingUp) return true;
     if (_wholeProbeCaptured) return false;
     _wholeProbeCaptured = true;
     return true;

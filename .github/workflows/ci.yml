@@ -534,9 +534,8 @@ jobs:
   # one in `doc/pacing/` is written on a known machine by hand, like the
   # release phone's.
   #
-  # Reported, not yet required: the first frames after warm-up still stall
-  # (`doc/pacing/macos.md`), and no hosted runner has shown it can drive the
-  # GPU here. The job turns blocking once both are known.
+  # Reported, not yet required: no hosted runner has shown it can drive the
+  # GPU here. The job turns blocking once one has, on a run that passes.
   pacing:
     runs-on: macos-latest
     timeout-minutes: 45
