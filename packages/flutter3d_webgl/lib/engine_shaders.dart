@@ -8170,9 +8170,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 
@@ -10603,9 +10606,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 
@@ -13071,9 +13077,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 
@@ -16370,9 +16379,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 
@@ -19637,9 +19649,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 
@@ -24143,6 +24158,43 @@ precision highp samplerCube;
 //     one pixel and is the same at every pixel of one: its colour, and its
 //     distance along the view axis, which is constant across a quad because
 //     every quad lies in the camera's own plane.
+//
+// **Both are counted the same way on every backend.** The pixel is read with
+// row zero at the top (`FragCoordFromTop`), so WebGL2 does not turn the tile
+// upside down. The offset is hashed in whole numbers under 2^24, where a
+// 32-bit float is exact, instead of through `sin`, whose argument ran to
+// hundreds of thousands and whose last bits no GPU promises: a GPU and the
+// software rasteriser now give one splat the same offset.
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 in vec4 v_color;
 in vec2 v_uv;
@@ -24164,7 +24216,9 @@ fog_info;
 uniform sampler2D blue_noise_texture;
 
 layout(std140) uniform SplatHashInfo {
-  /// x: the frame's slice of the blue noise, `frameIndex % 32`.
+  /// x: the frame's slice of the blue noise, `frameIndex % 32`. y: the
+  /// target's rows where its row zero is the bottom, nought where it is the
+  /// top — see `FragCoordFromTop`. zw unused.
   vec4 frame;
 
   /// xyz: the camera's position in world space.
@@ -24195,15 +24249,24 @@ void main() {
       floor(along * 1000.0) +
       floor(dot(v_color, vec4(255.0, 255.0 * 7.0, 255.0 * 31.0, 255.0 * 127.0)));
   identity = mod(identity, 4096.0);
-  vec2 offset = floor(
-      fract(sin(identity * vec2(12.9898, 78.233)) * 43758.5453) * 64.0);
+
+  // One of the 4096 cells of the tile per identity, and a different one for
+  // each: an affine step and `2a² + a`, each a permutation of the whole
+  // numbers modulo 4096, then the high six bits stirred into the low six so
+  // the column depends on all of them. No product reaches 2^24 and every
+  // divisor is a power of two, so each step is exact in a 32-bit float.
+  float mixed = mod(identity * 1597.0 + 2531.0, 4096.0);
+  mixed = mod(mixed * mod(2.0 * mixed + 1.0, 4096.0), 4096.0);
+  float row = floor(mixed / 64.0);
+  vec2 offset = vec2(mod(mixed + row * 37.0, 64.0), row);
 
   // This frame's slice of the blue noise at the pixel, moved by the splat's
   // offset. The same arithmetic as `BlueNoise` in `lib/blue_noise.glsl`,
   // which this does not include because it brings the `NoiseInfo` block the
   // post passes share and a slice this stage already has.
   float slice = splat_hash_info.frame.x;
-  vec2 cell = mod(floor(gl_FragCoord.xy) + offset, 64.0);
+  vec2 cell = mod(floor(FragCoordFromTop(splat_hash_info.frame.y)) + offset,
+                  64.0);
   vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
   float threshold =
       textureLod(blue_noise_texture,
@@ -32939,9 +33002,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 

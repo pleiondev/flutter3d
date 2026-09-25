@@ -220,13 +220,17 @@ double shadowFactor(
 }
 
 /// `ShadowNoise` from `shadow.glsl` — `S3`: interleaved gradient noise at
-/// the pixel, stepped by the frame's slice while a resolve runs.
+/// the pixel, rows counted from the top, stepped by the frame's slice while a
+/// resolve runs.
 double shadowNoise(ShaderBindings b, FragmentContext? c) {
   if (c == null) return 0.0;
-  final slice = b.vec4('FragInfo', 'target_origin', Vector4.zero()).w;
+  final origin = b.vec4('FragInfo', 'target_origin', Vector4.zero());
+  final slice = origin.w;
   final step = 5.588238 * (slice > 0.0 ? slice : 0.0);
+  // `FragCoordFromTop`.
+  final row = origin.x > 0.0 ? origin.x - c.coord.y : c.coord.y;
   final x = c.coord.x + step;
-  final y = c.coord.y + step;
+  final y = row + step;
   double fract(double v) => v - v.floorToDouble();
   return fract(52.9829189 * fract(x * 0.06711056 + y * 0.00583715));
 }
