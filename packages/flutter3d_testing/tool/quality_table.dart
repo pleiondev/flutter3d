@@ -179,8 +179,8 @@ Future<void> main() async {
           '\n'
           'Not yet measured on any device class: every class holds the same\n'
           'rows, measured on the software rasteriser at $_width×$_height over\n'
-          'two scenes (a room with occlusion, reflections and contact shadows;\n'
-          'a colonnade in volumetric fog with light shafts). The FLIP column\n'
+          'a room with occlusion, reflections and contact shadows and\n'
+          'a colonnade in volumetric fog with light shafts. The FLIP column\n'
           'is the pictures\' own; the cost column is the rasteriser\'s, which\n'
           'stands in until each class is measured with `measureQualityTable`\n'
           'on its own GPU. `AdaptiveQuality` corrects the rows it visits.',

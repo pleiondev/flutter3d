@@ -255,7 +255,9 @@ final class MaterialExtensions {
     );
   }
 
-  /// The glTF names of every extension this reads and writes.
+  /// The glTF names of every extension this reads and writes — for a tool
+  /// that lists what a file needs before it opens it, or a writer that
+  /// fills `extensionsUsed` itself.
   static const Set<String> gltfNames = <String>{
     'KHR_materials_ior',
     'KHR_materials_specular',

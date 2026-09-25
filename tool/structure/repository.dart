@@ -675,6 +675,10 @@ boundaryEnumExempt = <String, Map<String, String>>{
     'SurfaceAlphaMode':
         "glTF's three alpha modes. A decoder for another format maps onto "
         'these; it does not add to them',
+    'MaterialMap':
+        "the five maps glTF's core material names, each read through its own "
+        '`KHR_texture_transform` slot in the layered stage. A sixth map is a '
+        'slot in that stage, not a value here',
     'TextureWrap':
         'the three wrap modes glTF names, which are also the three every '
         'GPU sampler has',
@@ -1016,6 +1020,82 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'a plane perpendicular to X, which reads as neither a ground nor a '
         'backdrop, and adding it is exactly the kind of case this rule '
         'wants argued for rather than typed. It is not, yet',
+  },
+  'flutter3d_sim/lib/src/level/level_sketch.dart': <String, String>{
+    '_Axis':
+        'private to the sketch: the two horizontal axes a wall runs '
+        'along. There is no third horizontal axis',
+  },
+  'flutter3d_core/lib/src/formats/model_node.dart': <String, String>{
+    'SplatColourSpace':
+        "how a capture's colours were stored, which decides the one "
+        'conversion the reader makes. A colour is stored encoded or it '
+        'is not',
+  },
+  'flutter3d_core/lib/src/formats/animation/animation_pointer.dart':
+      <String, String>{
+        'AnimationPointerTarget':
+            'the two objects `KHR_animation_pointer` paths reach that the '
+            'player applies to. A third is code in `PointerTargets`, not a '
+            'name',
+        'AnimationPointerProperty':
+            'the pointer paths the player knows how to apply, each carrying '
+            'its component count. A path it cannot apply is refused on '
+            'load, so a new one is code in the player first',
+      },
+  'flutter3d_core/lib/src/engine/render/renderer_shadow_pass.dart':
+      <String, String>{
+        '_StaticTile':
+            'private to the shadow pass: what a static tile does this '
+            'frame, one branch of the pass each',
+      },
+  'flutter3d_core/lib/src/engine/render/pass_contributor.dart':
+      <String, String>{
+        'ReactiveShape':
+            'the coverage shapes `post/reactive_sprite.frag` has code for, '
+            'in its order. A fourth is a shader branch before it is a value',
+      },
+  'flutter3d_core/lib/src/engine/render/render_settings.dart': <String, String>{
+    'OutputTransform':
+        'the curves the composite stage has code for and the swap-chain '
+        'formats the backends expose. Another curve is shader code and '
+        'a surface format first',
+    'TransparencyMode':
+        'the two ways the renderer composites what blends: the sorted '
+        'pass and the weighted blended targets. Each is a pass of its '
+        'own',
+    'DiffuseModel':
+        'the diffuse lobes the lit stages have code for, chosen by one '
+        'frame-wide lane. A third lobe is a shader branch',
+    'TemporalClip':
+        'the axis tables the temporal resolve clips against, each a '
+        'precomputed set the shader reads. Another size is another '
+        'table',
+  },
+  'flutter3d_core/lib/src/engine/render/splat_contributor.dart':
+      <String, String>{
+        'SplatComposite':
+            'how a splat cloud composites: sorted blending, a hashed test, '
+            "or whichever the frame's temporal setting calls for. Each is a "
+            'stage and a draw path',
+      },
+  'flutter3d_core/lib/src/engine/scene/occlusion/occlusion_test.dart':
+      <String, String>{
+        'OcclusionMode':
+            'the occlusion tests the renderer runs: none, the software '
+            "rasteriser's, and the depth pyramid's. Each is a pass the "
+            'renderer schedules',
+      },
+  'flutter3d_model_core/lib/src/asset_audit.dart': <String, String>{
+    'AuditCheck':
+        'the checks `auditAsset` runs, each a function in the same file '
+        'that a report groups its findings under. A sixth is a sixth '
+        'function there',
+  },
+  'flutter3d_cpu/lib/src/cpu_encoder.dart': <String, String>{
+    '_Storage':
+        'private to the encoder: the three pixel storages the software '
+        'rasteriser keeps a target in',
   },
 };
 

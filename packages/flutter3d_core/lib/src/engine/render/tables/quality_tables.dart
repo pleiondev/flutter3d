@@ -6,8 +6,8 @@
 ///
 /// Not yet measured on any device class: every class holds the same
 /// rows, measured on the software rasteriser at 128×80 over
-/// two scenes (a room with occlusion, reflections and contact shadows;
-/// a colonnade in volumetric fog with light shafts). The FLIP column
+/// a room with occlusion, reflections and contact shadows and
+/// a colonnade in volumetric fog with light shafts. The FLIP column
 /// is the pictures' own; the cost column is the rasteriser's, which
 /// stands in until each class is measured with `measureQualityTable`
 /// on its own GPU. `AdaptiveQuality` corrects the rows it visits.

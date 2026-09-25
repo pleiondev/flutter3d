@@ -38,7 +38,8 @@ final class FrameWorkBudget {
   /// leans on recent frames.
   double _average = 0.0;
 
-  /// What a piece of work has been costing lately, in microseconds.
+  /// What a piece of work has been costing lately, in microseconds — for a
+  /// profiler, or a caller sizing its own pieces to the allowance.
   double get averageCost => _average;
 
   /// What this frame has spent so far, in microseconds.
