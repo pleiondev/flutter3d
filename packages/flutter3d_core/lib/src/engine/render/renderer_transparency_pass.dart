@@ -38,6 +38,10 @@ typedef _OrderIndependentBlend = ({BlendState first, BlendState? second});
 /// One view's share of the transparent half, kept by the scene pass for the
 /// passes after it. Everything [_TransparencyPasses._restoreView] needs to put
 /// the renderer back where it stood when the view was drawn.
+///
+/// [transmissive] is the opaque half's glass, kept only on a frame the scene
+/// splits around a copy of itself — `M3`, `renderer_transmission_pass.dart` —
+/// and empty on every other.
 typedef _DeferredTransparency = ({
   RenderView view,
   ScreenRect rect,
@@ -47,6 +51,7 @@ typedef _DeferredTransparency = ({
   vm.Vector3 eye,
   vm.Vector3 forward,
   List<MeshNode> transparent,
+  List<MeshNode> transmissive,
 });
 
 extension _TransparencyPasses on Renderer {
@@ -89,13 +94,30 @@ extension _TransparencyPasses on Renderer {
     );
     final accumulation = _wboitAccumulation ??= make(hdrFormat);
     final revealage = _wboitRevealage ??= make(hdrFormat);
-    final depth = _wboitDepth ??= make(device.defaultDepthStencilFormat);
-    return (accumulation: accumulation, revealage: revealage, depth: depth);
+    return (
+      accumulation: accumulation,
+      revealage: revealage,
+      depth: _storedSceneDepth(),
+    );
   }
+
+  /// A one-sample depth that outlives the scene pass, made the first time a
+  /// frame asks: for the transparent layers here, and for the transparent
+  /// pass after a copy of the scene — `M3`. The scene's own depth is tile
+  /// memory and holds nothing once its pass ends.
+  TextureHandle _storedSceneDepth() => _wboitDepth ??= device.createTexture(
+    RenderTargetSpec(
+      width: _targetWidth,
+      height: _targetHeight,
+      format: device.defaultDepthStencilFormat,
+      storageMode: StorageMode.devicePrivate,
+    ),
+  );
 
   /// Puts back what the scene pass had set for [deferred]'s view when it drew
   /// it: the camera the lit stages read, and the light clusters, rebuilt only
-  /// when another view has been cut since.
+  /// when another view has been cut since. And, while a copy of the scene is
+  /// lent, where this view sits in it — `M3`.
   void _restoreView(
     _DeferredTransparency deferred, {
     required bool rebuildClusters,
@@ -107,6 +129,7 @@ extension _TransparencyPasses on Renderer {
     _forwardData[1] = deferred.forward.y;
     _forwardData[2] = deferred.forward.z;
     _clustersActive = deferred.clustered;
+    _aimSceneColour(deferred);
     if (deferred.clustered && rebuildClusters) {
       final projection = deferred.view.camera.projection;
       _lightClusters.build(

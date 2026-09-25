@@ -860,6 +860,35 @@ final class LocalExposureBlurShader implements CpuFragmentShader {
   }
 }
 
+/// `scene_colour_copy.frag` — `M3`: one level of the copy of the scene the
+/// transmissive draws read, the mean of the block of the scene under each
+/// texel, taken as the stage takes it — bilinear taps on the corners inside
+/// the block, rows outside and columns inside, in the stage's order.
+final class SceneColourCopyShader implements CpuFragmentShader {
+  const SceneColourCopyShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final source = b.textures['source_texture'];
+    if (source == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final params = b.vec4('SceneCopyInfo', 'params', Vector4.zero());
+    final taps = params.x;
+    final first = 1.0 - taps;
+    final sum = Vector3.zero();
+    for (var j = 0; j < 16 && j < taps; j++) {
+      for (var i = 0; i < 16 && i < taps; i++) {
+        final texel = source.sample(
+          v[0] + (first + 2.0 * i) * params.y,
+          v[1] + (first + 2.0 * j) * params.z,
+        );
+        sum.add(texel.xyz);
+      }
+    }
+    final count = taps * taps;
+    return Vector4(sum.x / count, sum.y / count, sum.z / count, 1.0);
+  }
+}
+
 /// `wboit_resolve.frag` — `R8`: the weighted average of the transparent
 /// layers, covering as much of the pixel as they do together, premultiplied
 /// for the source-over it is drawn with.

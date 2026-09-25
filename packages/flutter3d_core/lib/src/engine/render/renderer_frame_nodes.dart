@@ -553,6 +553,14 @@ final class _ReflectionProbeNode extends RenderNode {
 /// one submit — which is why the views are held here rather than derived from
 /// [NodeFrame], and why the node cannot be split per view without splitting the
 /// pass with it.
+///
+/// **It brings two nodes with it — `M3`.** On a frame that holds a
+/// transmissive draw the scene splits into this pass, a [copy] of what it
+/// drew, and a [transparent] pass that draws the glass over the copy and the
+/// transparent half after it; see `renderer_transmission_pass.dart`. Both are
+/// built here, from the same scene and views, and registered beside this
+/// node whatever the frame holds, so their names are always known; on any
+/// other frame they are inactive and culled.
 final class _SceneNode extends RenderNode {
   _SceneNode(
     this._renderer, {
@@ -561,7 +569,17 @@ final class _SceneNode extends RenderNode {
     required this.contributors,
     required this.shadowCaster,
     required this.lightOverflow,
-  });
+  }) {
+    final transmits = _TransmissionPasses._holdsTransmission(scene, ordered);
+    copy = _SceneColourCopyNode(_renderer, active: transmits);
+    transparent = _TransparentNode(
+      _renderer,
+      scene: scene,
+      contributors: contributors,
+      active: transmits,
+      samples: optionalReads,
+    );
+  }
 
   final Renderer _renderer;
   final Scene scene;
@@ -578,6 +596,11 @@ final class _SceneNode extends RenderNode {
 
   /// What the pass counted, for the frame's own report.
   _ScenePass? result;
+
+  /// The copy of the scene the transmissive draws read, and the pass that
+  /// draws them over it — `M3`.
+  late final _SceneColourCopyNode copy;
+  late final _TransparentNode transparent;
 
   @override
   String get name => 'scene';
@@ -709,19 +732,155 @@ final class _SceneNode extends RenderNode {
       resources.provide(FrameResourceIds.albedoBuffer, _renderer._albedoColor!);
     }
 
-    result = _renderer._encodeScene(
+    // `M3`: split only when the pass that draws the second half is in this
+    // frame. Asked of the compiled order rather than of the node, because a
+    // caller can switch the pass off, and then this one draws everything.
+    final split = resources.graph.order.contains(transparent);
+    final probes = _probesFrom(resources);
+    final pass = result = _renderer._encodeScene(
       scene: scene,
       ordered: ordered,
       settings: frame.settings,
       width: frame.width,
       height: frame.height,
       shadows: shadows,
-      probes: _probesFrom(resources),
+      probes: probes,
       passState: frame.state,
       lightOverflowCount: lightOverflow,
       contributors: contributors,
       surfaceIsRead: surfaceIsRead,
       albedoIsRead: albedoIsRead,
+      split: split,
+    );
+    if (pass.deferred case final views?) {
+      transparent.split = _SceneSplit(
+        views: views,
+        shadows: shadows,
+        probes: probes,
+        surfaceIsRead: surfaceIsRead,
+        albedoIsRead: albedoIsRead,
+      );
+    }
+  }
+}
+
+/// The scene as the opaque half left it, in levels for the transmissive
+/// draws to read — `M3`. Active only on a frame that holds one; see
+/// `renderer_transmission_pass.dart`.
+final class _SceneColourCopyNode extends RenderNode {
+  _SceneColourCopyNode(this._renderer, {required this.active});
+
+  final Renderer _renderer;
+
+  /// Whether the frame holds a transmissive draw.
+  final bool active;
+
+  @override
+  String get name => 'scene colour copy';
+
+  @override
+  bool get isActive => active;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.sceneColour,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final source = frame.resources.texture(FrameResourceIds.hdrColour);
+    _renderer._encodeSceneColourCopy(
+      source: source,
+      target: frame.resources.texture(FrameResourceIds.sceneColour),
+      chain: SceneColourChain(source.width, source.height),
+    );
+  }
+}
+
+/// The second half of a split scene — `M3`: the glass over the copy of what
+/// is behind it, then the transparent half and the contributors, into the
+/// scene's own targets, loaded.
+///
+/// A link in the chain of each of the scene's three targets: it reads the
+/// colour and writes the next version, and writes the next version of the
+/// two buffers the glass draws itself into. Those two are written rather
+/// than read, because a read would count as a consumer and attach both on
+/// every split frame; they are provided only when the scene pass attached
+/// them, which is the answer it hands over in [split].
+final class _TransparentNode extends RenderNode {
+  _TransparentNode(
+    this._renderer, {
+    required this.scene,
+    required this.contributors,
+    required this.active,
+    required this.samples,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final List<PassContributor> contributors;
+
+  /// Whether the frame holds a transmissive draw.
+  final bool active;
+
+  /// What the scene pass samples, which the glass samples too: declared
+  /// again here so every one of them lives until this pass has run.
+  final List<ResourceId> samples;
+
+  /// What the scene pass kept for this one, handed over when it ran split.
+  _SceneSplit? split;
+
+  @override
+  String get name => 'transparent';
+
+  @override
+  bool get isActive => active;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  /// The copy, optional: switched off, the glass reads the environment.
+  @override
+  List<ResourceId> get optionalReads => <ResourceId>[
+    FrameResourceIds.sceneColour,
+    ...samples,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+    FrameResourceIds.albedoBuffer,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resources = frame.resources;
+    final hdr = _renderer._hdrColor!;
+    resources.provide(FrameResourceIds.hdrColour, hdr);
+    final split = this.split;
+    if (split == null) return;
+    if (split.surfaceIsRead) {
+      resources.provide(
+        FrameResourceIds.surfaceBuffer,
+        _renderer._surfaceColor ?? hdr,
+      );
+    }
+    if (split.albedoIsRead) {
+      resources.provide(FrameResourceIds.albedoBuffer, _renderer._albedoColor!);
+    }
+    _renderer._encodeTransparentHalf(
+      scene: scene,
+      split: split,
+      settings: frame.settings,
+      width: frame.width,
+      height: frame.height,
+      passState: frame.state,
+      contributors: contributors,
+      sceneColour: resources.tryTexture(FrameResourceIds.sceneColour),
     );
   }
 }
@@ -2193,6 +2352,7 @@ final class _ScenePass {
     required this.submitMicros,
     this.msaaSamples = 1,
     this.msaaDeclined,
+    this.deferred,
   });
 
   final int culled;
@@ -2203,4 +2363,9 @@ final class _ScenePass {
   /// `gfx-20n`: samples the pass actually drew with, and why not more.
   final int msaaSamples;
   final String? msaaDeclined;
+
+  /// Each view's transmissive and transparent draws, kept for the transparent
+  /// pass on a frame split around a copy of the scene — `M3` — and null on
+  /// every other.
+  final List<_DeferredTransparency>? deferred;
 }
