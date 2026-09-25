@@ -16602,24 +16602,25 @@ fn ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_
     let _e473 = (*light_1).n_dot_h;
     param_72 = _e473;
     let _e474 = D_Charlie_u0028_f1_u003b_f1_u003b((&param_71), (&param_72));
-    let _e477 = (*s_3).n_dot_v;
-    param_73 = _e477;
-    let _e479 = (*light_1).n_dot_l;
-    param_74 = _e479;
-    let _e480 = V_Neubelt_u0028_f1_u003b_f1_u003b((&param_73), (&param_74));
-    sheen = ((_e470 * _e474) * _e480);
-    let _e482 = diffuse;
-    let _e483 = specular;
-    let _e485 = g_sheen_scale;
-    let _e487 = sheen;
-    let _e489 = g_coat_through;
-    let _e491 = g_coat;
-    let _e492 = (*s_3);
-    param_75 = _e492;
-    let _e493 = (*light_1);
-    param_76 = _e493;
-    let _e494 = CoatLobe_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b((&param_75), (&param_76));
-    return ((((((_e482 + _e483) * _e485) + _e487) * _e489) + vec3((_e491 * _e494))) * 3.1415927f);
+    let _e477 = (*s_3).n;
+    let _e479 = (*light_1).l;
+    let _e483 = (*s_3).n_dot_v;
+    param_73 = _e483;
+    param_74 = clamp(dot(_e477, _e479), 0f, 1f);
+    let _e484 = V_Neubelt_u0028_f1_u003b_f1_u003b((&param_73), (&param_74));
+    sheen = ((_e470 * _e474) * _e484);
+    let _e486 = diffuse;
+    let _e487 = specular;
+    let _e489 = g_sheen_scale;
+    let _e491 = sheen;
+    let _e493 = g_coat_through;
+    let _e495 = g_coat;
+    let _e496 = (*s_3);
+    param_75 = _e496;
+    let _e497 = (*light_1);
+    param_76 = _e497;
+    let _e498 = CoatLobe_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf31_u003b((&param_75), (&param_76));
+    return ((((((_e486 + _e487) * _e489) + _e491) * _e493) + vec3((_e495 * _e498))) * 3.1415927f);
 }
 
 fn PointShadowDiskTap_u0028_i1_u003b(i_1: ptr<function, i32>) -> vec2<f32> {
