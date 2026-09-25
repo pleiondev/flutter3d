@@ -42,6 +42,13 @@ double impostorScreenFraction(List<ModelLod> lods) =>
 /// before it compresses textures. A texture this package cannot decode is
 /// baked as its material's base colour alone, and [report] hears which.
 ///
+/// **A skinned or morphed node gets no card**, and [report] hears which. Its
+/// vertices are a bind pose — a skinned surface's in the skeleton's space,
+/// not the node's, so a card placed by the node would stand somewhere the
+/// character never is — and the bake draws neither the joints nor the rest
+/// weights of the morph targets. Even drawn right, a card is one pose, and a
+/// distant animated character is not a still picture of its bind pose.
+///
 /// **Everything the bake puts on [device] it takes off again** — meshes,
 /// decoded textures and the renderer's own targets — so a converter that bakes
 /// a whole directory does not hold every model it has seen. [device] is a
@@ -119,6 +126,15 @@ Future<ModelDocument> bakeImpostors(
           node.lods.any((lod) => lod.impostor != null) ||
           surfaces.every((s) => s.mesh.vertexCount == 0)) {
         nodes.add(node);
+        continue;
+      }
+      final skinned = surfaces.any((s) => s.skinIndex != null);
+      if (skinned || surfaces.any((s) => s.mesh.morphTargets.isNotEmpty)) {
+        nodes.add(node);
+        report?.call(
+          '${node.name ?? 'a node'}: no impostor, its surfaces are '
+          '${skinned ? 'skinned' : 'morphed'} and a card holds one pose',
+        );
         continue;
       }
 
