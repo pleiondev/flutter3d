@@ -26,6 +26,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:glob/glob.dart';
 import 'package:yaml/yaml.dart';
 
+import 'chunk_generate.dart';
 import 'convert.dart';
 
 /// Thrown by [AssetManifest.parse] — always names the line the problem is
@@ -52,6 +53,7 @@ final class AssetRule {
     this.objNormals,
     this.lods,
     this.impostor = false,
+    this.chunks,
     this.exclude = false,
   });
 
@@ -68,6 +70,12 @@ final class AssetRule {
   /// `C4`: whether a matched model's chains end in a baked impostor —
   /// `impostor: true`, the manifest's spelling of `convert --impostor`.
   final bool impostor;
+
+  /// `C9`: the triangle count above which a matched model's static meshes are
+  /// split into clusters — `chunks: true` for the default, `chunks: 200000`
+  /// for another, the manifest's spelling of `convert --chunks`. Null splits
+  /// nothing.
+  final int? chunks;
   final bool exclude;
 }
 
@@ -79,6 +87,7 @@ const Set<String> _ruleKeys = <String>{
   'objNormals',
   'lods',
   'impostor',
+  'chunks',
   'exclude',
 };
 
@@ -157,6 +166,7 @@ final class AssetManifest {
     ObjNormals? objNormals;
     List<double>? lods;
     var impostor = false;
+    int? chunks;
     var exclude = false;
 
     for (final entry in node.nodes.entries) {
@@ -210,6 +220,16 @@ final class AssetManifest {
           lods = _lodsOf(valueNode);
         case 'impostor':
           impostor = _boolOf(valueNode, 'impostor');
+        case 'chunks':
+          chunks = switch (valueNode.value) {
+            true => kDefaultChunkThreshold,
+            false => null,
+            final int threshold when threshold > 0 => threshold,
+            _ => throw ManifestFormatException(
+              'chunks must be true, false or a triangle count above zero',
+              valueNode.span.start.line + 1,
+            ),
+          };
         case 'exclude':
           exclude = _boolOf(valueNode, 'exclude');
       }
@@ -228,6 +248,7 @@ final class AssetManifest {
       objNormals: objNormals,
       lods: lods,
       impostor: impostor,
+      chunks: chunks,
       exclude: exclude,
     );
   }

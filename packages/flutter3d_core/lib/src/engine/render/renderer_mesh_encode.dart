@@ -207,6 +207,13 @@ extension _MeshEncode on Renderer {
     final instanced = node is InstancedMeshNode ? node : null;
     if (instanced != null && instanced.count == 0) return;
     final batched = instanced != null;
+    // `C9`: the clusters of a split mesh this view can see, repacked, or null
+    // to draw it whole. Before anything is bound, so a mesh with none in view
+    // leaves the pass as it found it.
+    final clustered = override == null && !mirrored && orderIndependent == null
+        ? _clusterIndicesFor(node, mesh, material, settings)
+        : null;
+    if (clustered != null && clustered.count == 0) return;
     // A level's batches read their colour as a lightmap coordinate; neither
     // a skinned mesh nor an instanced one is a level, so the flag is ignored
     // where it cannot apply rather than asserted against. Nor is a
@@ -284,7 +291,12 @@ extension _MeshEncode on Renderer {
     }
 
     encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
-    encoder.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
+    final indexCount = clustered?.count ?? mesh.indexCount;
+    encoder.bindIndexBuffer(
+      clustered?.buffer ?? mesh.indices,
+      mesh.indexType,
+      indexCount,
+    );
 
     if (instanced != null) {
       encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
@@ -885,8 +897,49 @@ extension _MeshEncode on Renderer {
 
     encoder.draw(instanceCount: instanced?.count ?? 1);
     state.drawCalls++;
-    state.triangles += (mesh.indexCount ~/ 3) * (instanced?.count ?? 1);
+    state.triangles += (indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
+  }
+
+  /// The index buffer that draws the clusters of [node]'s split mesh the
+  /// current view can see — `C9` — or null to draw [mesh] whole: outside the
+  /// scene pass's views, for a mesh with no clusters, and for a node whose
+  /// triangles are not where its vertices say (skinned, morphing, instanced)
+  /// or whose bounds it asked not to be culled by.
+  ///
+  /// The cone test only where the draw culls back faces, with the same
+  /// expression the cull mode is set from below.
+  ({GeometryBuffer buffer, int count})? _clusterIndicesFor(
+    MeshNode node,
+    DrawableGeometry mesh,
+    Material material,
+    RenderSettings settings,
+  ) {
+    final view = _clusterView;
+    if (view == null || mesh.clusters == null) return null;
+    if (node is InstancedMeshNode ||
+        node.skeleton != null ||
+        node.morph != null ||
+        !node.frustumCulled) {
+      return null;
+    }
+    final cullsBackFaces =
+        settings.backfaceCulling &&
+        !settings.wireframe &&
+        !material.doubleSided;
+    return (_clusterDraws ??= ClusterDraws(
+      device,
+      framesInFlight: Renderer._kFramesInFlight,
+    )).indicesFor(
+      node: node,
+      mesh: mesh,
+      view: view.view,
+      frustum: view.frustum,
+      eye: cullsBackFaces
+          ? clusterEye(view.viewProjection, node.worldMatrix)
+          : null,
+      occlusion: view.occlusion,
+    );
   }
 
   /// Binds [scene]'s irradiance field to [stage] — `L3`: the atlas, uploaded

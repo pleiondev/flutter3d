@@ -140,6 +140,25 @@ extension _F3dWriteGeometry on F3dWriter {
     return (records.toBytes(), count);
   }
 
+  /// The cluster tables of the meshes already in the table that have one —
+  /// `C9`. After [_writeMeshes] for the same reason as [_writeMorphTargets].
+  (Uint8List, int) _writeClusters() {
+    final records = BytesBuilder();
+    var count = 0;
+    for (var i = 0; i < _meshes.length; i++) {
+      final table = _meshes[i].clusters;
+      if (table == null) continue;
+      final record = ByteData(F3dRecord.clusters)
+        ..setUint32(0, i, Endian.little)
+        ..setUint32(4, table.length, Endian.little)
+        ..setUint32(8, _blobAppend(table.firstIndices), Endian.little)
+        ..setUint32(12, _blobAppend(table.data), Endian.little);
+      records.add(record.buffer.asUint8List());
+      count++;
+    }
+    return (records.toBytes(), count);
+  }
+
   /// The rest weights of the surfaces that have any.
   ///
   /// Sparse — a record per surface that morphs, not per surface — because

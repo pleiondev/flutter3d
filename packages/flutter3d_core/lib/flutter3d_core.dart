@@ -74,6 +74,7 @@ export 'src/engine/assets/texture_upload.dart';
 export 'src/engine/geometry/device_mesh.dart';
 // Rendering.
 export 'src/engine/render/adaptive_scale.dart';
+export 'src/engine/render/cluster_draws.dart';
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
 export 'src/engine/render/empty_frame.dart';

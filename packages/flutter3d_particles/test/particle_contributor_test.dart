@@ -207,6 +207,8 @@ final class _FakeMesh implements DrawableGeometry {
   double get boundingRadius => 1.0;
   @override
   MeshData? get source => null;
+  @override
+  ({MeshClusters table, Uint32List indices})? get clusters => null;
 }
 
 /// The mesh path, which is a different set of calls from the billboard one.
