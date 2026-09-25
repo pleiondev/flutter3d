@@ -60,7 +60,8 @@ final class ParticleContributor extends PassContributor {
     this.texture,
     this.flipbook,
     this.sixWay,
-  });
+    this.softness = 0.0,
+  }) : assert(softness >= 0.0, 'a softness is a distance, and never below 0');
 
   final ParticleSystem particles;
 
@@ -94,10 +95,33 @@ final class ParticleContributor extends PassContributor {
   /// [flipbook] is the sheet's grid, as it is the sprite's.
   final SixWayMaterial? sixWay;
 
+  /// How far in front of the opaque scene, in metres, a particle starts to
+  /// fade into it — soft particles — or nought for none, the default.
+  ///
+  /// **What it removes is a seam.** A particle is a flat quad that is
+  /// depth-tested and never depth-written, so where one passes through a floor
+  /// the test cuts it along a hard straight line; smoke resting on the ground
+  /// shows it worst. With a softness, each fragment is scaled by how far the
+  /// scene lies behind it, over this distance, so the line becomes a ramp:
+  /// `saturate((sceneDepth - particleDepth) / softness)`. About the size of a
+  /// particle is a good start; much less brings the line back, much more
+  /// thins the whole puff near anything behind it.
+  ///
+  /// Above nought, the frame is drawn differently — see
+  /// [PassContributor.readsSceneDepth]: the scene splits, this contributor is
+  /// drawn in a pass of its own after the transparent half, and the frame
+  /// gives up multisampling. Where the renderer has no depth to give it (see
+  /// [ContributorFrame.sceneDepth]) the particles are drawn hard, as at
+  /// nought.
+  final double softness;
+
   static const String _infoBlock = 'ParticleInfo';
 
   @override
   bool get isActive => particles.aliveCount > 0;
+
+  @override
+  bool get readsSceneDepth => softness > 0.0;
 
   @override
   void encode(ContributorFrame frame) {
@@ -117,14 +141,19 @@ final class ParticleContributor extends PassContributor {
     // worth a comment because guessing it wrong is invisible: the lookup
     // returns null, the plugin draws nothing, and the frame is merely a frame
     // without particles in it. The golden caught it; nothing else would have.
+    //
+    // A soft stage is the same name with 'Soft' after it, and is picked only
+    // with a depth to bind to it: it declares a sampler the hard one does not.
+    final depth = softness > 0.0 ? frame.sceneDepth : null;
+    final stage = sheet != null
+        ? 'ParticleSixWay'
+        : texture == null
+        ? 'Particle'
+        : 'ParticleTextured';
     final vertexShader = _shader(frame.device, 'ParticleVertex');
     final fragmentShader = _shader(
       frame.device,
-      sheet != null
-          ? 'ParticleSixWay'
-          : texture == null
-          ? 'Particle'
-          : 'ParticleTextured',
+      depth == null ? stage : '${stage}Soft',
     );
     // A six-way stage declares the light list's sampler, and one left unbound
     // is a native crash on Metal; outside a renderer's scene pass there are no
@@ -169,6 +198,10 @@ final class ParticleContributor extends PassContributor {
 
     if (sheet != null && lights != null) {
       _bindSixWay(frame, encoder, fragmentShader, sheet, lights);
+    }
+
+    if (depth != null) {
+      _bindSceneDepth(frame.device, encoder, fragmentShader, view, depth);
     }
 
     final sprite = texture;
@@ -323,6 +356,45 @@ final class ParticleContributor extends PassContributor {
     lights.bind(encoder, stage, centre: _centre, radius: radius);
   }
 
+  /// The scene's depth and what a soft stage reads it by: the texel a
+  /// fragment is on, and the axis and eye its depths are measured from.
+  void _bindSceneDepth(
+    GraphicsDevice device,
+    PassEncoder encoder,
+    ShaderHandle stage,
+    RenderView view,
+    TextureHandle depth,
+  ) {
+    view.camera.readForward(_axis);
+    _softTarget
+      ..[0] = 1.0 / depth.width
+      ..[1] = 1.0 / depth.height
+      // `FragCoordFromTop`: rows counted from the bottom where the backend's
+      // row zero is the bottom of the picture.
+      ..[2] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
+          ? depth.height.toDouble()
+          : 0.0
+      ..[3] = 1.0 / softness;
+    _softAxis
+      ..[0] = _axis.x
+      ..[1] = _axis.y
+      ..[2] = _axis.z;
+    encoder
+      ..bindUniformBlock(stage, 'SoftParticleInfo', <String, Float32List>{
+        'target': _softTarget,
+        'eye': _eyeData,
+        'forward': _softAxis,
+      })
+      // Nearest: the other channels are an encoded normal, and a depth
+      // averaged across a silhouette is a depth of nothing.
+      ..bindTexture(
+        stage,
+        'scene_depth_texture',
+        depth,
+        sampler: SamplerOptions.nearestClamp,
+      );
+  }
+
   /// Looks a stage up, and complains once if it is missing.
   ///
   /// Once rather than every frame, because sixty identical lines a second is
@@ -353,6 +425,10 @@ final class ParticleContributor extends PassContributor {
   /// flutter_gpu will not start. What that produces is a bind of an object the
   /// receiving backend never made — a wrong picture at best, and on a backend
   /// with a driver under it, not that.
+  ///
+  /// And per fragment stage within a device, since the soft stage is chosen
+  /// frame by frame: a frame the renderer has no depth to lend draws the hard
+  /// one, and the next may have one again.
   PipelineHandle _pipelineFor(
     GraphicsDevice device,
     ShaderHandle vertex,
@@ -360,13 +436,15 @@ final class ParticleContributor extends PassContributor {
   ) {
     final key = identityHashCode(device);
     if (_pipelineDevice != key) {
-      _pipeline = device.createPipeline(vertex, fragment);
+      _pipelines.clear();
       _pipelineDevice = key;
     }
-    return _pipeline!;
+    return _pipelines[fragment] ??= device.createPipeline(vertex, fragment);
   }
 
   int? _pipelineDevice;
+  final Map<ShaderHandle, PipelineHandle> _pipelines =
+      <ShaderHandle, PipelineHandle>{};
 
   /// `R4`'s pipeline, keyed on the device the way [_pipelineFor]'s is.
   PipelineHandle _reactivePipelineFor(
@@ -390,7 +468,6 @@ final class ParticleContributor extends PassContributor {
   final Float32List _fog = Float32List(4);
   final Float32List _eyeData = Float32List(4);
   final vm.Vector3 _eye = vm.Vector3.zero();
-  PipelineHandle? _pipeline;
   Float32List? _vertices;
   Uint32List? _indices;
   final vm.Vector3 _right = vm.Vector3.zero();
@@ -402,4 +479,7 @@ final class ParticleContributor extends PassContributor {
   final Float32List _sixWayForward = Float32List(4);
   final Float32List _sixWayEmission = Float32List(4);
   final Float32List _sixWayAmbient = Float32List(4);
+  final vm.Vector3 _axis = vm.Vector3.zero();
+  final Float32List _softTarget = Float32List(4);
+  final Float32List _softAxis = Float32List(4);
 }

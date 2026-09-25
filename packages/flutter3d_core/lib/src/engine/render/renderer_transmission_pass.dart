@@ -28,6 +28,12 @@
 ///    have drawn them — or, under weighted blended transparency, its own
 ///    passes, after this one.
 ///
+/// **A contributor that reads the scene's depth splits the frame too** —
+/// soft particles, `PassContributor.readsSceneDepth`. It needs no copy, so
+/// the copy stays off unless glass wants it; what it needs is the surface
+/// buffer unattached, so it is drawn in a fourth pass after the transparent
+/// half, over the same colour and depth, with the buffer bound.
+///
 /// **One sample a pixel on such a frame.** The multisampled colour and depth
 /// are tile memory as well, and a second pass cannot load what the first
 /// left in them; `FrameResult.msaaDeclined` says so.
@@ -209,6 +215,16 @@ extension _TransmissionPasses on Renderer {
           );
     try {
       final surface = split.surfaceIsRead ? _surfaceColor : null;
+      // The contributors that read the scene's depth, drawn in a pass of
+      // their own after this one, where the surface buffer is bound rather
+      // than attached. None without the buffer, and none under `R8`, whose
+      // own pass after the resolve has it unattached already.
+      final readers = surface == null || orderIndependent
+          ? const <PassContributor>[]
+          : contributors.where((c) => c.readsSceneDepth).toList();
+      final here = readers.isEmpty
+          ? contributors
+          : contributors.where((c) => !c.readsSceneDepth).toList();
       final pass = device.beginRenderPass(
         RenderPassDescriptor(
           label: _passLabel,
@@ -219,11 +235,12 @@ extension _TransmissionPasses on Renderer {
             if (split.albedoIsRead && surface != null)
               ColorTarget(texture: _albedoColor!, loadAction: LoadAction.load),
           ],
-          // Stored again only for the layers that follow under `R8`.
+          // Stored again only for the layers that follow under `R8`, or for
+          // the contributors that read the depth.
           depth: DepthTarget(
             texture: _storedSceneDepth(),
             loadAction: LoadAction.load,
-            storeAction: orderIndependent
+            storeAction: orderIndependent || readers.isNotEmpty
                 ? StoreAction.store
                 : StoreAction.dontCare,
           ),
@@ -252,31 +269,54 @@ extension _TransmissionPasses on Renderer {
         draw(deferred.transmissive);
         if (orderIndependent) continue;
         draw(deferred.transparent);
-        _contributorLights.begin(lights, settings);
-        for (final plugin in contributors) {
-          plugin.encode(
-            ContributorFrame(
-              encoder: pass,
-              device: device,
-              services: this,
-              state: passState,
-              settings: settings,
-              width: width,
-              height: height,
-              view: deferred.view,
-              viewProjection: deferred.viewProjection,
-              frameIndex: _frameIndex,
-              temporal:
-                  settings.antiAlias.temporal.enabled &&
-                  device.maxColorAttachments > 1,
-              lights: _contributorLights,
-            ),
-          );
-        }
-        _contributorLights.end();
+        // Handed no depth: the surface buffer is an attachment here, and a
+        // contributor that reads it is in [readers] or had none to read.
+        _encodeContributors(
+          pass: pass,
+          deferred: deferred,
+          contributors: here,
+          settings: settings,
+          width: width,
+          height: height,
+          passState: passState,
+        );
       }
       _clustersActive = false;
       pass.submit();
+
+      // The readers, over what the pass above left: the colour and the depth
+      // loaded, the surface buffer bound, and nothing else attached — their
+      // stages write one colour.
+      if (readers.isNotEmpty) {
+        final soft = device.beginRenderPass(
+          RenderPassDescriptor(
+            label: _passLabel,
+            colors: <ColorTarget>[
+              ColorTarget(texture: hdr, loadAction: LoadAction.load),
+            ],
+            depth: DepthTarget(
+              texture: _storedSceneDepth(),
+              loadAction: LoadAction.load,
+            ),
+          ),
+        );
+        for (final deferred in views) {
+          _restoreView(deferred, rebuildClusters: multiView);
+          _beginView(soft, deferred, passState);
+          _encodeContributors(
+            pass: soft,
+            deferred: deferred,
+            contributors: readers,
+            settings: settings,
+            width: width,
+            height: height,
+            passState: passState,
+            sceneDepth: surface,
+          );
+        }
+        _clustersActive = false;
+        soft.submit();
+      }
 
       if (orderIndependent) {
         _encodeWeightedBlended(
@@ -289,6 +329,7 @@ extension _TransmissionPasses on Renderer {
           probes: split.probes,
           passState: passState,
           contributors: contributors,
+          sceneDepth: surface,
         );
       }
     } finally {
