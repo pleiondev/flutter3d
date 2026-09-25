@@ -2089,13 +2089,6 @@ const String _countedGoldenSet = 'cpu';
 /// survives a run.
 final Map<String, Map<String, String>> _goldenSetGaps =
     <String, Map<String, String>>{
-      'webgl': <String, String>{
-        'velocity-shapes':
-            'WebGL2 draws the velocity buffer nearly empty: only part of the '
-            'skinned figure moves in it, so the picture would record a fault',
-        'motion-blur-spin':
-            'the same empty velocity leaves the wheel unblurred on WebGL2',
-      },
       'webgpu': <String, String>{
         'taa-embers':
             'WebGPU draws this scene black with nothing in the console; '
