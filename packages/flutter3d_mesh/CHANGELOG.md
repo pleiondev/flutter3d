@@ -1,8 +1,25 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+**`clusterMesh` reorders a mesh's triangles into runs a renderer can cull.**
+`clusterMesh(mesh, maxTriangles: 4096, minTriangles: 1024, foldAngle: pi / 4)`
+grows each run across shared positions, keeping it near its centre and close
+to its average normal, and records every run's box and cone of normals in
+`MeshData.clusters`. No vertex moves and the index buffer holds the same
+triangles in a new order, so anything that ignores the table draws the whole
+mesh as before. `flutter3d_build`'s `--chunks` calls it for meshes above 65536
+triangles. `C9`
+
+**`simplifyMeshWithAttributes` takes a `targetError`.** A collapse that would
+bend the surface further than that is refused, so the run can stop short of
+`targetTriangleCount`. Left out, the result is what 0.7 returned.
+`simplifyMeshWithAttributesMeasured` is the same pass and returns a
+`SimplifiedMesh`: the mesh and its `error`, the largest error any accepted
+collapse reached, in the mesh's own units and measured against the original
+faces alone, without the boundary penalty. It is a loose upper bound (on a
+sphere cut to a tenth it reads about six times the furthest any vertex moved),
+good for comparing levels and for a budget. The pass is deterministic, so the
+error only grows as the target falls, and a chain of levels cut from one base
+has errors in the same order as its ratios. `C5`
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 

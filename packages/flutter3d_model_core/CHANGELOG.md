@@ -1,8 +1,37 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+**A project keeps a material's layers beyond metal-rough.** A
+`SurfaceMaterial`'s `extensions`, the `MaterialExtensions` holding
+`KHR_materials_ior`, `KHR_materials_specular` and `KHR_materials_clearcoat`,
+is written to the project's material entry under `"extensions"` when a layer
+is set and read back from it. The material commands carry it, `importInto`
+remaps its textures, and the scene built from a project draws such a material
+with the layered lighting model when a layer changes its shading. A material
+with no layer is written as before. `M1`
+
+**`AssetAudit.of(project)` measures an asset that arrived before it is
+used.** Its `findings` are `AuditFinding`s, one sentence each with the
+numbers in it, under five `AuditCheck`s: `units`, an overall size outside
+`assetMinSize` (1 cm) to `assetMaxSize` (100 m), naming the unit the file was
+most likely written in; `pivot`, the distance from the origin to the middle of
+the base (`baseCentre`, `pivotDistance`); `materials`, materials identical
+but for their names; `mesh`, what rebuilding each imported mesh's topology
+would drop, split or turn round (`MeshAudit`); and `readiness`, every
+`ExportReadiness` issue including the triangle and texture budgets. `says`
+puts it in words. It measures and changes nothing; `flutter3d_model_mcp`'s
+`audit` does the repairs.
+
+**`materialKey(surface, named:)` is public.** It is the comparison key
+`importInto` deduplicates materials by, and `named: false` leaves the name out,
+which is how the audit finds duplicates.
+
+**`renderSheet` takes `views`.** They are laid out in two rows. The default
+four draw the same sheet as before, and all seven of
+`RenderProjectView.values` make a 4x2 sheet with one tile empty.
+
+**Animation pointer tracks pass through the rig pipeline.** Retargeting
+carries an `AnimationPath.pointer` track, which moves a material or light
+value, and the keyframe commands refuse the path as they refuse `weights`.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
