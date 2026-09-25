@@ -29,8 +29,8 @@ uniform AccumulateInfo {
 accumulate_info;
 
 void main() {
-  vec4 now = texture(current_texture, v_uv);
-  vec2 then = v_uv - texture(velocity_texture, v_uv).xy;
+  vec4 now = textureLod(current_texture, v_uv, 0.0);
+  vec2 then = v_uv - textureLod(velocity_texture, v_uv, 0.0).xy;
   if (accumulate_info.params.y < 0.5 || then.x < 0.0 || then.x > 1.0 ||
       then.y < 0.0 || then.y > 1.0) {
     frag_color = now;
@@ -43,11 +43,11 @@ void main() {
   for (int dy = -1; dy <= 1; dy++) {
     for (int dx = -1; dx <= 1; dx++) {
       vec4 around =
-          texture(current_texture, v_uv + vec2(float(dx), float(dy)) * texel);
+          textureLod(current_texture, v_uv + vec2(float(dx), float(dy)) * texel, 0.0);
       lowest = min(lowest, around);
       highest = max(highest, around);
     }
   }
-  vec4 past = clamp(texture(history_texture, then), lowest, highest);
+  vec4 past = clamp(textureLod(history_texture, then, 0.0), lowest, highest);
   frag_color = mix(now, past, accumulate_info.params.x);
 }

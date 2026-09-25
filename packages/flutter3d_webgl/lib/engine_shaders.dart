@@ -24973,7 +24973,7 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
 
   vec2 pixel = floor(uv / ssao_info.screen.xy);
   float noise = PixelNoise(pixel);
-  float depth = texture(surface_texture, uv).a;
+  float depth = textureLod(surface_texture, uv, 0.0).a;
 
   float visibility = 0.0;
   float slices = 0.0;
@@ -25093,7 +25093,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
 
   vec2 pixel = floor(uv / ssao_info.screen.xy);
   float noise = PixelNoise(pixel);
-  float depth = texture(surface_texture, uv).a;
+  float depth = textureLod(surface_texture, uv, 0.0).a;
 
   vec3 light = vec3(0.0);
   float open = 0.0;
@@ -25161,7 +25161,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
   }
   float count = max(slices, 1.0);
   vec3 albedo = ssao_info.params.z > 0.5
-                     ? SrgbToLinearAlbedo(texture(albedo_texture, uv).rgb)
+                     ? SrgbToLinearAlbedo(textureLod(albedo_texture, uv, 0.0).rgb)
                      : vec3(0.5);
   // With no slice to measure, open and unlit — as a select: impellerc's
   // SPIR-V to Metal step aborts on a phi of constants.
@@ -25170,7 +25170,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
 }
 
 void main() {
-  vec4 surface = texture(surface_texture, v_uv);
+  vec4 surface = textureLod(surface_texture, v_uv, 0.0);
 
   // Nothing was drawn here. The buffer is cleared to zero and a zero alpha is
   // the sky, not a surface sitting on the near plane — the same test
@@ -25195,7 +25195,7 @@ void main() {
     // With the albedo buffer, the bounces too; without it, the horizon alone.
     float shaded = ssao_info.params.z > 0.5
                        ? MultiBounce(visible, SrgbToLinearAlbedo(
-                                                  texture(albedo_texture, v_uv).rgb))
+                                                  textureLod(albedo_texture, v_uv, 0.0).rgb))
                        : visible;
     frag_color = vec4(shaded);
     return;
@@ -26235,15 +26235,15 @@ vec3 HistoryAt(vec2 uv) {
   vec2 at12 = (centre1 + w2 / w12) / size;
 
   vec3 sum = vec3(0.0);
-  sum += texture(history_texture, vec2(at0.x, at0.y)).rgb * w0.x * w0.y;
-  sum += texture(history_texture, vec2(at12.x, at0.y)).rgb * w12.x * w0.y;
-  sum += texture(history_texture, vec2(at3.x, at0.y)).rgb * w3.x * w0.y;
-  sum += texture(history_texture, vec2(at0.x, at12.y)).rgb * w0.x * w12.y;
-  sum += texture(history_texture, vec2(at12.x, at12.y)).rgb * w12.x * w12.y;
-  sum += texture(history_texture, vec2(at3.x, at12.y)).rgb * w3.x * w12.y;
-  sum += texture(history_texture, vec2(at0.x, at3.y)).rgb * w0.x * w3.y;
-  sum += texture(history_texture, vec2(at12.x, at3.y)).rgb * w12.x * w3.y;
-  sum += texture(history_texture, vec2(at3.x, at3.y)).rgb * w3.x * w3.y;
+  sum += textureLod(history_texture, vec2(at0.x, at0.y), 0.0).rgb * w0.x * w0.y;
+  sum += textureLod(history_texture, vec2(at12.x, at0.y), 0.0).rgb * w12.x * w0.y;
+  sum += textureLod(history_texture, vec2(at3.x, at0.y), 0.0).rgb * w3.x * w0.y;
+  sum += textureLod(history_texture, vec2(at0.x, at12.y), 0.0).rgb * w0.x * w12.y;
+  sum += textureLod(history_texture, vec2(at12.x, at12.y), 0.0).rgb * w12.x * w12.y;
+  sum += textureLod(history_texture, vec2(at3.x, at12.y), 0.0).rgb * w3.x * w12.y;
+  sum += textureLod(history_texture, vec2(at0.x, at3.y), 0.0).rgb * w0.x * w3.y;
+  sum += textureLod(history_texture, vec2(at12.x, at3.y), 0.0).rgb * w12.x * w3.y;
+  sum += textureLod(history_texture, vec2(at3.x, at3.y), 0.0).rgb * w3.x * w3.y;
   // The negative lobes can take a sharp edge below zero.
   return max(sum, vec3(0.0));
 }
@@ -26263,13 +26263,13 @@ void main() {
   for (int dy = -1; dy <= 1; dy++) {
     for (int dx = -1; dx <= 1; dx++) {
       vec2 at = centre + vec2(float(dx), float(dy)) * texel;
-      vec3 c = RgbToYCoCg(Weigh(texture(scene_texture, at).rgb));
+      vec3 c = RgbToYCoCg(Weigh(textureLod(scene_texture, at, 0.0).rgb));
       around[(dy + 1) * 3 + dx + 1] = c;
       sum += c;
       sumSquares += c * c;
       lowest = min(lowest, c);
       highest = max(highest, c);
-      float depth = texture(surface_texture, at).a;
+      float depth = textureLod(surface_texture, at, 0.0).a;
       if (depth > 0.0 && depth < nearest) {
         nearest = depth;
         nearestUv = at;
@@ -26277,13 +26277,13 @@ void main() {
     }
   }
 
-  vec3 current = texture(scene_texture, sceneUv).rgb;
+  vec3 current = textureLod(scene_texture, sceneUv, 0.0).rgb;
   // The nearest depth around the pixel rather than the depth at it: on a
   // silhouette the jitter moves the centre on and off the object every
   // frame, and a history compared against that would be thrown away every
   // frame. The nearest surface in the neighbourhood stays put.
   float depth = nearest < 1e30 ? nearest : 0.0;
-  vec2 then = v_uv - texture(velocity_texture, nearestUv).xy;
+  vec2 then = v_uv - textureLod(velocity_texture, nearestUv, 0.0).xy;
 
   if (temporal_info.jitter.w < 0.5 || then.x < 0.0 || then.x > 1.0 ||
       then.y < 0.0 || then.y > 1.0) {
@@ -26291,7 +26291,7 @@ void main() {
     return;
   }
 
-  float thenDepth = texture(history_texture, then).a;
+  float thenDepth = textureLod(history_texture, then, 0.0).a;
   float trust = 1.0;
   if ((depth > 0.0) != (thenDepth > 0.0)) trust = 0.0;
   if (depth > 0.0 && thenDepth > 0.0 &&
@@ -26359,8 +26359,8 @@ layout(std140) uniform AccumulateInfo {
 accumulate_info;
 
 void main() {
-  vec4 now = texture(current_texture, v_uv);
-  vec2 then = v_uv - texture(velocity_texture, v_uv).xy;
+  vec4 now = textureLod(current_texture, v_uv, 0.0);
+  vec2 then = v_uv - textureLod(velocity_texture, v_uv, 0.0).xy;
   if (accumulate_info.params.y < 0.5 || then.x < 0.0 || then.x > 1.0 ||
       then.y < 0.0 || then.y > 1.0) {
     frag_color = now;
@@ -26373,12 +26373,12 @@ void main() {
   for (int dy = -1; dy <= 1; dy++) {
     for (int dx = -1; dx <= 1; dx++) {
       vec4 around =
-          texture(current_texture, v_uv + vec2(float(dx), float(dy)) * texel);
+          textureLod(current_texture, v_uv + vec2(float(dx), float(dy)) * texel, 0.0);
       lowest = min(lowest, around);
       highest = max(highest, around);
     }
   }
-  vec4 past = clamp(texture(history_texture, then), lowest, highest);
+  vec4 past = clamp(textureLod(history_texture, then, 0.0), lowest, highest);
   frag_color = mix(now, past, accumulate_info.params.x);
 }
 
@@ -30572,7 +30572,7 @@ vec2 InteriorOf(vec2 local, float interior) {
 }
 
 float DistanceAlong(vec3 direction) {
-  float depth = texture(surface_texture, direction).a;
+  float depth = textureLod(surface_texture, direction, 0.0).a;
   if (depth <= 0.0) return convolve_info.tiles.w;
   float axis = max(abs(direction.x), max(abs(direction.y), abs(direction.z)));
   return depth / max(axis, 1e-4);
@@ -30581,10 +30581,10 @@ float DistanceAlong(vec3 direction) {
 void main() {
   vec2 size = convolve_info.atlas.xy;
   vec2 pixel = floor(v_uv * size);
-  vec4 old = texture(field_texture, (pixel + 0.5) / size);
+  vec4 old = textureLod(field_texture, (pixel + 0.5) / size, 0.0);
 
   if (convolve_info.probe.y > 0.5) {
-    frag_color = texture(seed_texture, (pixel + 0.5) / size);
+    frag_color = textureLod(seed_texture, (pixel + 0.5) / size, 0.0);
     return;
   }
 
@@ -30622,7 +30622,7 @@ void main() {
       square += distance * distance * w;
       weight += w;
     } else {
-      light += texture(radiance_texture, direction).rgb * cosine;
+      light += textureLod(radiance_texture, direction, 0.0).rgb * cosine;
       weight += cosine;
     }
   }

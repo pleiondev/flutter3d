@@ -86,7 +86,7 @@ vec2 InteriorOf(vec2 local, float interior) {
 }
 
 float DistanceAlong(vec3 direction) {
-  float depth = texture(surface_texture, direction).a;
+  float depth = textureLod(surface_texture, direction, 0.0).a;
   if (depth <= 0.0) return convolve_info.tiles.w;
   float axis = max(abs(direction.x), max(abs(direction.y), abs(direction.z)));
   return depth / max(axis, 1e-4);
@@ -95,10 +95,10 @@ float DistanceAlong(vec3 direction) {
 void main() {
   vec2 size = convolve_info.atlas.xy;
   vec2 pixel = floor(v_uv * size);
-  vec4 old = texture(field_texture, (pixel + 0.5) / size);
+  vec4 old = textureLod(field_texture, (pixel + 0.5) / size, 0.0);
 
   if (convolve_info.probe.y > 0.5) {
-    frag_color = texture(seed_texture, (pixel + 0.5) / size);
+    frag_color = textureLod(seed_texture, (pixel + 0.5) / size, 0.0);
     return;
   }
 
@@ -136,7 +136,7 @@ void main() {
       square += distance * distance * w;
       weight += w;
     } else {
-      light += texture(radiance_texture, direction).rgb * cosine;
+      light += textureLod(radiance_texture, direction, 0.0).rgb * cosine;
       weight += cosine;
     }
   }

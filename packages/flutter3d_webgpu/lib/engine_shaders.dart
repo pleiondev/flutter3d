@@ -31114,7 +31114,7 @@ fn GtaoVisibility_u0028_vf2_u003b_vf3_u003b_vf3_u003b(uv_3: ptr<function, vec2<f
     let _e238 = PixelNoise_u0028_vf2_u003b((&param_8));
     noise = _e238;
     let _e239 = (*uv_3);
-    let _e240 = textureSample(surface_texture_tex, surface_texture_smp, _e239);
+    let _e240 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e239, 0f);
     depth_1 = _e240.w;
     visibility = 0f;
     slices = 0f;
@@ -31486,7 +31486,7 @@ fn SsilLight_u0028_vf2_u003b_vf3_u003b_vf3_u003b(uv_4: ptr<function, vec2<f32>>,
     let _e273 = PixelNoise_u0028_vf2_u003b((&param_16));
     noise_1 = _e273;
     let _e274 = (*uv_4);
-    let _e275 = textureSample(surface_texture_tex, surface_texture_smp, _e274);
+    let _e275 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e274, 0f);
     depth_2 = _e275.w;
     light = vec3<f32>(0f, 0f, 0f);
     open = 0f;
@@ -31736,7 +31736,7 @@ fn SsilLight_u0028_vf2_u003b_vf3_u003b_vf3_u003b(uv_4: ptr<function, vec2<f32>>,
     let _e527 = ssao_info.params[2u];
     if (_e527 > 0.5f) {
         let _e529 = (*uv_4);
-        let _e530 = textureSample(albedo_texture_tex, albedo_texture_smp, _e529);
+        let _e530 = textureSampleLevel(albedo_texture_tex, albedo_texture_smp, _e529, 0f);
         param_36 = _e530.xyz;
         let _e532 = SrgbToLinearAlbedo_u0028_vf3_u003b((&param_36));
         local_4 = _e532;
@@ -31806,7 +31806,7 @@ fn main_1() {
     var phi_1792_: bool;
 
     let _e206 = v_uv_1;
-    let _e207 = textureSample(surface_texture_tex, surface_texture_smp, _e206);
+    let _e207 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e206, 0f);
     surface = _e207;
     let _e209 = surface[3u];
     if (_e209 <= 0f) {
@@ -31851,7 +31851,7 @@ fn main_1() {
         let _e244 = ssao_info.params[2u];
         if (_e244 > 0.5f) {
             let _e246 = v_uv_1;
-            let _e247 = textureSample(albedo_texture_tex, albedo_texture_smp, _e246);
+            let _e247 = textureSampleLevel(albedo_texture_tex, albedo_texture_smp, _e246, 0f);
             param_48 = _e247.xyz;
             let _e249 = SrgbToLinearAlbedo_u0028_vf3_u003b((&param_48));
             let _e250 = visible_1;
@@ -33664,63 +33664,63 @@ fn HistoryAt_u0028_vf2_u003b(uv: ptr<function, vec2<f32>>) -> vec3<f32> {
     sum_1 = vec3<f32>(0f, 0f, 0f);
     let _e139 = at0_[0u];
     let _e141 = at0_[1u];
-    let _e143 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e139, _e141));
+    let _e143 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e139, _e141), 0f);
     let _e146 = w0_[0u];
     let _e149 = w0_[1u];
     let _e151 = sum_1;
     sum_1 = (_e151 + ((_e143.xyz * _e146) * _e149));
     let _e154 = at12_[0u];
     let _e156 = at0_[1u];
-    let _e158 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e154, _e156));
+    let _e158 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e154, _e156), 0f);
     let _e161 = w12_[0u];
     let _e164 = w0_[1u];
     let _e166 = sum_1;
     sum_1 = (_e166 + ((_e158.xyz * _e161) * _e164));
     let _e169 = at3_[0u];
     let _e171 = at0_[1u];
-    let _e173 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e169, _e171));
+    let _e173 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e169, _e171), 0f);
     let _e176 = w3_[0u];
     let _e179 = w0_[1u];
     let _e181 = sum_1;
     sum_1 = (_e181 + ((_e173.xyz * _e176) * _e179));
     let _e184 = at0_[0u];
     let _e186 = at12_[1u];
-    let _e188 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e184, _e186));
+    let _e188 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e184, _e186), 0f);
     let _e191 = w0_[0u];
     let _e194 = w12_[1u];
     let _e196 = sum_1;
     sum_1 = (_e196 + ((_e188.xyz * _e191) * _e194));
     let _e199 = at12_[0u];
     let _e201 = at12_[1u];
-    let _e203 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e199, _e201));
+    let _e203 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e199, _e201), 0f);
     let _e206 = w12_[0u];
     let _e209 = w12_[1u];
     let _e211 = sum_1;
     sum_1 = (_e211 + ((_e203.xyz * _e206) * _e209));
     let _e214 = at3_[0u];
     let _e216 = at12_[1u];
-    let _e218 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e214, _e216));
+    let _e218 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e214, _e216), 0f);
     let _e221 = w3_[0u];
     let _e224 = w12_[1u];
     let _e226 = sum_1;
     sum_1 = (_e226 + ((_e218.xyz * _e221) * _e224));
     let _e229 = at0_[0u];
     let _e231 = at3_[1u];
-    let _e233 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e229, _e231));
+    let _e233 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e229, _e231), 0f);
     let _e236 = w0_[0u];
     let _e239 = w3_[1u];
     let _e241 = sum_1;
     sum_1 = (_e241 + ((_e233.xyz * _e236) * _e239));
     let _e244 = at12_[0u];
     let _e246 = at3_[1u];
-    let _e248 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e244, _e246));
+    let _e248 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e244, _e246), 0f);
     let _e251 = w12_[0u];
     let _e254 = w3_[1u];
     let _e256 = sum_1;
     sum_1 = (_e256 + ((_e248.xyz * _e251) * _e254));
     let _e259 = at3_[0u];
     let _e261 = at3_[1u];
-    let _e263 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e259, _e261));
+    let _e263 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e259, _e261), 0f);
     let _e266 = w3_[0u];
     let _e269 = w3_[1u];
     let _e271 = sum_1;
@@ -33840,7 +33840,7 @@ fn main_1() {
                     let _e131 = texel;
                     at_1 = (_e125 + (vec2<f32>(f32(_e126), f32(_e128)) * _e131));
                     let _e134 = at_1;
-                    let _e135 = textureSample(scene_texture_tex, scene_texture_smp, _e134);
+                    let _e135 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e134, 0f);
                     param_2 = _e135.xyz;
                     let _e137 = Weigh_u0028_vf3_u003b((&param_2));
                     param_3 = _e137;
@@ -33864,7 +33864,7 @@ fn main_1() {
                     let _e159 = c_5;
                     highest_1 = max(_e158, _e159);
                     let _e161 = at_1;
-                    let _e162 = textureSample(surface_texture_tex, surface_texture_smp, _e161);
+                    let _e162 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e161, 0f);
                     depth = _e162.w;
                     let _e164 = depth;
                     let _e166 = depth;
@@ -33894,14 +33894,14 @@ fn main_1() {
         }
     }
     let _e176 = sceneUv;
-    let _e177 = textureSample(scene_texture_tex, scene_texture_smp, _e176);
+    let _e177 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e176, 0f);
     current_1 = _e177.xyz;
     let _e179 = nearest;
     let _e181 = nearest;
     depth_1 = select(0f, _e181, (_e179 < 1000000000000000000000000000000f));
     let _e183 = v_uv_1;
     let _e184 = nearestUv;
-    let _e185 = textureSample(velocity_texture_tex, velocity_texture_smp, _e184);
+    let _e185 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e184, 0f);
     then = (_e183 - _e185.xy);
     let _e190 = temporal_info.jitter[3u];
     let _e191 = (_e190 < 0.5f);
@@ -33936,7 +33936,7 @@ fn main_1() {
         return;
     }
     let _e222 = then;
-    let _e223 = textureSample(history_texture_tex, history_texture_smp, _e222);
+    let _e223 = textureSampleLevel(history_texture_tex, history_texture_smp, _e222, 0f);
     thenDepth = _e223.w;
     trust = 1f;
     let _e225 = depth_1;
@@ -34158,11 +34158,11 @@ fn main_1() {
     var phi_81_: bool;
 
     let _e26 = v_uv_1;
-    let _e27 = textureSample(current_texture_tex, current_texture_smp, _e26);
+    let _e27 = textureSampleLevel(current_texture_tex, current_texture_smp, _e26, 0f);
     now = _e27;
     let _e28 = v_uv_1;
     let _e29 = v_uv_1;
-    let _e30 = textureSample(velocity_texture_tex, velocity_texture_smp, _e29);
+    let _e30 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e29, 0f);
     then = (_e28 - _e30.xy);
     let _e35 = accumulate_info.params[1u];
     let _e36 = (_e35 < 0.5f);
@@ -34213,7 +34213,7 @@ fn main_1() {
                     let _e72 = dx;
                     let _e74 = dy;
                     let _e77 = texel;
-                    let _e80 = textureSample(current_texture_tex, current_texture_smp, (_e71 + (vec2<f32>(f32(_e72), f32(_e74)) * _e77)));
+                    let _e80 = textureSampleLevel(current_texture_tex, current_texture_smp, (_e71 + (vec2<f32>(f32(_e72), f32(_e74)) * _e77)), 0f);
                     around = _e80;
                     let _e81 = lowest;
                     let _e82 = around;
@@ -34240,7 +34240,7 @@ fn main_1() {
         }
     }
     let _e91 = then;
-    let _e92 = textureSample(history_texture_tex, history_texture_smp, _e91);
+    let _e92 = textureSampleLevel(history_texture_tex, history_texture_smp, _e91, 0f);
     let _e93 = lowest;
     let _e94 = highest;
     past = clamp(_e92, _e93, _e94);
@@ -39456,7 +39456,7 @@ fn DistanceAlong_u0028_vf3_u003b(direction: ptr<function, vec3<f32>>) -> f32 {
     var axis: f32;
 
     let _e30 = (*direction);
-    let _e31 = textureSample(surface_texture_tex, surface_texture_smp, _e30);
+    let _e31 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e30, 0f);
     depth = _e31.w;
     let _e33 = depth;
     if (_e33 <= 0f) {
@@ -39649,13 +39649,13 @@ fn main_1() {
     pixel = floor((_e66 * _e67));
     let _e70 = pixel;
     let _e73 = size;
-    let _e75 = textureSample(field_texture_tex, field_texture_smp, ((_e70 + vec2(0.5f)) / _e73));
+    let _e75 = textureSampleLevel(field_texture_tex, field_texture_smp, ((_e70 + vec2(0.5f)) / _e73), 0f);
     old = _e75;
     let _e78 = convolve_info.probe[1u];
     if (_e78 > 0.5f) {
         let _e80 = pixel;
         let _e83 = size;
-        let _e85 = textureSample(seed_texture_tex, seed_texture_smp, ((_e80 + vec2(0.5f)) / _e83));
+        let _e85 = textureSampleLevel(seed_texture_tex, seed_texture_smp, ((_e80 + vec2(0.5f)) / _e83), 0f);
         frag_color = _e85;
         return;
     }
@@ -39771,7 +39771,7 @@ fn main_1() {
                 weight = (_e193 + _e192);
             } else {
                 let _e195 = direction_1;
-                let _e196 = textureSample(radiance_texture_tex, radiance_texture_smp, _e195);
+                let _e196 = textureSampleLevel(radiance_texture_tex, radiance_texture_smp, _e195, 0f);
                 let _e198 = cosine;
                 let _e200 = light;
                 light = (_e200 + (_e196.xyz * _e198));
