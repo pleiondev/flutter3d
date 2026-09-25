@@ -9,7 +9,8 @@
 ///
 /// **Those three, stated once.** `opacity` is a logit and needs a logistic;
 /// `scale_*` are logarithms and need an exponential; `f_dc_*` are the zeroth
-/// spherical-harmonic band and need the constant in [kSplatShC0] plus a half.
+/// spherical-harmonic band and need the constant in [kSplatShC0] plus a half,
+/// which gives an sRGB-encoded colour rather than a linear one.
 /// A reader that skips any of them produces a cloud that loads, draws, and is
 /// wrong in a way that reads as a bad capture rather than a bad reader — which
 /// is why they are named here rather than left to the call site.
@@ -52,7 +53,16 @@ typedef _Property = ({String name, String type, int offset});
 /// lists them channel by channel — every red coefficient, then every green,
 /// then every blue — and the cloud keeps each coefficient's `rgb` together,
 /// so they are transposed on the way in.
-SplatCloud parseSplatPly(Uint8List bytes, {bool keepHigherBands = false}) {
+///
+/// [colourSpace] is what the band-0 colours were fitted in. The file cannot
+/// say, and a trainer fits them to sRGB photographs, so sRGB is the default:
+/// they are clamped and decoded to the linear light the engine blends in —
+/// see [splatColour].
+SplatCloud parseSplatPly(
+  Uint8List bytes, {
+  bool keepHigherBands = false,
+  SplatColourSpace colourSpace = SplatColourSpace.srgb,
+}) {
   final header = _readHeader(bytes);
   final stride = header.stride;
   final count = header.count;
@@ -113,9 +123,9 @@ SplatCloud parseSplatPly(Uint8List bytes, {bool keepHigherBands = false}) {
     centres[i * 3 + 1] = read(y, i);
     centres[i * 3 + 2] = read(z, i);
 
-    colours[i * 4] = splatChannel(read(dc0, i));
-    colours[i * 4 + 1] = splatChannel(read(dc1, i));
-    colours[i * 4 + 2] = splatChannel(read(dc2, i));
+    colours[i * 4] = splatColour(read(dc0, i), colourSpace);
+    colours[i * 4 + 1] = splatColour(read(dc1, i), colourSpace);
+    colours[i * 4 + 2] = splatColour(read(dc2, i), colourSpace);
     colours[i * 4 + 3] = splatOpacity(read(opacity, i));
 
     scales[i * 3] = math.exp(read(s0, i));
