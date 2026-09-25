@@ -1328,6 +1328,19 @@ extension _PostPasses on Renderer {
         .whenComplete(() => _pyramidInFlight = false);
   }
 
+  /// The occlusion buffer when the setting asks for it, and null otherwise:
+  /// what the composite multiplies in, or the fog pass before it.
+  TextureHandle? _occlusionOf(TextureHandle? ao, RenderSettings settings) =>
+      ao != null && settings.ambientOcclusion.enabled ? ao : null;
+
+  /// The contact shadow on the same terms — `gfx-76n`.
+  TextureHandle? _contactOf(
+    TextureHandle? contactShadow,
+    RenderSettings settings,
+  ) => contactShadow != null && settings.contactShadows.enabled
+      ? contactShadow
+      : null;
+
   /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
   ///
   /// One pass for both because the overlay has to land on the finished image
@@ -1448,9 +1461,12 @@ extension _PostPasses on Renderer {
     // strength is zeroed alongside it, so the stand-in is multiplied out rather
     // than relied upon — either alone would do, and having both means a
     // mismatch between them cannot darken anything.
-    final occlusion = ao != null && settings.ambientOcclusion.enabled
-        ? ao
-        : null;
+    //
+    // `S4`: none of it when the fog laid it on the surface already. Read and
+    // cleared here, so a frame whose fog did not run starts from false.
+    final applied = _occlusionBeforeFog;
+    _occlusionBeforeFog = false;
+    final occlusion = applied ? null : _occlusionOf(ao, settings);
     _compositeParams[3] = occlusion == null
         ? 0.0
         : settings.ambientOcclusion.strength;
@@ -1475,9 +1491,7 @@ extension _PostPasses on Renderer {
     // and not the occlusion's — a scene may want a seam at a join without
     // wanting ambient occlusion, and folding the two would make one of those
     // settings silently govern the other.
-    final contact = contactShadow != null && settings.contactShadows.enabled
-        ? contactShadow
-        : null;
+    final contact = applied ? null : _contactOf(contactShadow, settings);
     _compositeContact[0] = contact == null
         ? 0.0
         : settings.contactShadows.strength.clamp(0.0, 1.0);

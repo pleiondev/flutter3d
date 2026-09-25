@@ -22,6 +22,9 @@ extension _FogPass on Renderer {
     required TextureHandle scene,
     required TextureHandle surface,
     required TextureHandle? shadow,
+    required TextureHandle? ao,
+    required TextureHandle? contactShadow,
+    required RenderSettings renderSettings,
     required VolumetricFogSettings settings,
     required RenderView view,
     required FrameResources resources,
@@ -165,11 +168,30 @@ extension _FogPass on Renderer {
       ),
     );
 
+    // The occlusion and the contact shadow, on the surface and before the
+    // air: the composite's terms, stand-ins and strengths, moved here so the
+    // in-scatter is not darkened by the crease behind it. The composite is
+    // told, and leaves them out.
+    final occlusion = _occlusionOf(ao, renderSettings);
+    final contact = _contactOf(contactShadow, renderSettings);
     _fogUpsampleInfo.size
       ..[0] = half.width.toDouble()
       ..[1] = half.height.toDouble()
-      ..[2] = 0.0
+      ..[2] = 1.0 / math.max(occlusion?.width ?? 1, 1)
+      ..[3] = 1.0 / math.max(occlusion?.height ?? 1, 1);
+    _fogUpsampleInfo.occlusion
+      ..[0] = occlusion == null ? 0.0 : renderSettings.ambientOcclusion.strength
+      ..[1] = contact == null
+          ? 0.0
+          : renderSettings.contactShadows.strength.clamp(0.0, 1.0)
+      ..[2] =
+          occlusion != null &&
+              renderSettings.ambientOcclusion.method ==
+                  AmbientOcclusionMethod.ssil
+          ? 1.0
+          : 0.0
       ..[3] = 0.0;
+    _occlusionBeforeFog = true;
     drawFullscreen(
       FullscreenDraw(
         target: target,
@@ -178,6 +200,8 @@ extension _FogPass on Renderer {
           'scene_texture': scene,
           'fog_texture': half,
           'surface_texture': surface,
+          'ao_texture': occlusion ?? fallbackAlbedo,
+          'contact_shadow_texture': contact ?? fallbackAlbedo,
         },
         uniforms: <String, Map<String, Float32List>>{
           _fogUpsampleInfo.name: _fogUpsampleInfo.members,

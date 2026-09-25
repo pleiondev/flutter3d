@@ -1501,9 +1501,15 @@ final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
     FrameResourceIds.surfaceBuffer,
   ];
 
+  /// The occlusion and the contact shadow as well, unconditionally for the
+  /// composite's reason: their nodes know whether they are on. The fog lays
+  /// them on the surface before the air, so a crease darkens the wall and not
+  /// the air in front of it.
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
     FrameResourceIds.shadowMap,
+    FrameResourceIds.ao,
+    FrameResourceIds.contactShadow,
   ];
 
   @override
@@ -1517,6 +1523,9 @@ final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       surface: surface,
       shadow: frame.resources.tryTexture(FrameResourceIds.shadowMap),
+      ao: frame.resources.tryTexture(FrameResourceIds.ao),
+      contactShadow: frame.resources.tryTexture(FrameResourceIds.contactShadow),
+      renderSettings: _settings,
       settings: _settings.volumetricFog,
       view: _view,
       resources: frame.resources,
