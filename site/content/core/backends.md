@@ -17,7 +17,8 @@ What could **not** be written from the contract is the shaders. That limit is re
 <div class="goal">
 <ul>
 <li>What <code>GraphicsDevice</code>, <code>CommandEncoder</code> and <code>PassEncoder</code> require of you</li>
-<li>Ten semantics that are part of the contract and appear in no signature</li>
+<li>The semantics that are part of the contract and appear in no signature</li>
+<li>What the 0.8 members ask, compute among them, and which backend answers yes</li>
 <li>The conformance suite, and how to run it before you have a single shader</li>
 <li>The forty-eight shader entry points your bundle must answer to</li>
 </ul>
@@ -115,10 +116,31 @@ final class MyDevice implements GraphicsDevice {
   /// `beginRenderPass`, as every backend here does.
   @override
   int get maxColorAttachments => 4;
+
+  /// Whether the blend constant reaches the blend. No is an honest answer:
+  /// the conformance check reports it as a decline.
+  @override
+  bool get supportsBlendColor => true;
+
+  // The 0.8 members, below. False or empty is a complete answer.
+  @override
+  bool get supportsCompute => false;
+
+  @override
+  bool get supportsGpuTimestamps => false;
+
+  @override
+  bool get supportsFloat32Filtering => false;
+
+  @override
+  bool get supportsIndependentBlend => false;
+
+  @override
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
 }
 ```
 
-That is the whole of the capability half, fourteen members; the rest of this page is resources and frames. `implements GraphicsDevice` will not compile until they are all there, which is the one part of the contract that needs no reading at all.
+That is the whole of the capability half; the rest of this page is resources and frames. `implements GraphicsDevice` will not compile until they are all there, which is the one part of the contract that needs no reading at all.
 
 | Query | What answering wrong costs you |
 |---|---|
@@ -137,6 +159,24 @@ That is the whole of the capability half, fourteen members; the rest of this pag
 <div class="warn">
 <p><strong>Refuse loudly rather than substituting something similar.</strong> Every silent substitution on this list has cost somebody a day, because the failure mode is a plausible picture.</p>
 </div>
+
+### The 0.8 members {#the-0-8-members}
+
+`flutter3d_hardware` 0.8.0 added eleven members at once: five capabilities, `onGpuTimings`, and the five that create and run compute (`createStorageBuffer`, `createComputePipeline`, `beginComputePass`, `readBuffer`, `releaseStorageBuffer`). They are the whole of the 0.8 line's contract, declared together because every backend is its own package on a caret range of this one: a member added in 0.8.1 would stop every backend published before it from compiling. A backend written outside this repository has to answer all eleven before it builds again, and false or empty from the capabilities with an `UnsupportedError` from each creator is a complete answer. Code that only calls a device is unaffected.
+
+| Member | Impeller | WebGL2 | WebGPU | Software |
+|---|---|---|---|---|
+| `supportsCompute` | false | false | true | true |
+| `supportsGpuTimestamps` | false | false | where the adapter grants `timestamp-query` | false |
+| `supportsFloat32Filtering` | false | where `OES_texture_float_linear` was granted | where `float32-filterable` was granted | true |
+| `supportsIndependentBlend` | true | where the context offers `OES_draw_buffers_indexed` | true | true for its first two attachments, unless the constructor says otherwise |
+| `hdrOutputFormats` | empty | empty | `rgba16float` on a display the browser reports as high dynamic range | empty, unless the constructor is handed formats |
+
+**Compute runs on WebGPU and the software rasteriser only.** Impeller and WebGL2 answer `supportsCompute` false and their creators throw, so a caller asks first. The shape follows the render pass: a `StorageBuffer`, a `ComputePipelineHandle` built from a compute stage of the device's own library, and a `ComputeEncoder` with `bindPipeline`, `bindStorageBuffer`, `bindUniformBlock`, `dispatch` and `submit`. A binding the stage does not declare answers false, and `bindPipeline` forgets every binding, as it does in a render pass. `readBuffer` reads back a buffer created with `hostReadable: true`, once every pass submitted before the call has written it. WebGPU packs its compute stages from their own manifest through the same glslang and naga road as the rest; the software rasteriser hands a Dart mirror a whole workgroup at a time and finishes a dispatch before it returns. `PrefixSum`, a scan of 1024 integers in one workgroup, is the first stage and the one the conformance suite runs.
+
+**GPU timings are a frame or two late by nature.** `RenderPassDescriptor.label` names a pass, and a device whose `supportsGpuTimestamps` is true calls the `onGpuTimings` listener with a `GpuFrameTimings`: the frame's number and a `GpuPassTiming` per labelled pass, in microseconds. A timestamp can only be read once the GPU has written it, which is after the frame was encoded. On WebGPU the next `beginFrame` resolves them, and up to 64 passes a frame are timed while the rest draw untimed. A backend with nowhere to put a label ignores it, and the listener is never called on a device that answered false.
+
+The other three are questions the renderer asks before one feature each. The exponential shadow filter needs `supportsFloat32Filtering`, and falls back to the fixed kernel where it is false. Weighted blended transparency needs `supportsIndependentBlend`, because its two targets blend differently in one draw; without it the list is drawn once per target. `OutputTransform.extendedSrgb` draws in the first of `hdrOutputFormats`, and draws the ordinary frame byte for byte where the list is empty. Where `supportsIndependentBlend` is false, `setBlend`'s attachment index is ignored and attachment zero's state applies to all, so a caller that sets attachment zero first and the others after draws the same pass on all four backends.
 
 ## Resources
 
@@ -216,7 +256,7 @@ abstract interface class PassEncoder {
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount);
   void bindIndexData(ByteData bytes, IndexType type, int indexCount);
   bool bindUniformBlock(...);
-  void bindTexture(...);
+  bool bindTexture(...);
   void clearBindings();
 
   void draw({int instanceCount = 1});
@@ -224,6 +264,8 @@ abstract interface class PassEncoder {
 ```
 
 The `*Data` variants are for geometry that lives one frame; `uploadGeometry` is for everything else.
+
+`bindTexture` answers a bool as `bindUniformBlock` does, and changed to it in 0.8.0: false for a sampler the stage does not declare, and it never throws. The question goes to the stage, so a sampler that only the program's other stage declares answers false too. Before that every backend answered a missing slot its own way, from a throw to a silent bind. A backend with no reflection answers true. `bindPipeline` forgets every binding (uniform blocks, textures, vertex slots and the index buffer), even when the same pipeline is bound again; the contract used to say a backend was free to keep them, and the one that did hid a missing bind behind the previous draw's.
 
 ## Presenting, and reading back {#presenting}
 
@@ -265,7 +307,8 @@ Half of what a backend must *do* is in no signature. These were prose once, whic
 | **`GeometryUsage` is not a hint** | WebGL binds a buffer to its target for life. A buffer uploaded as vertices can never be bound as indices: `INVALID_OPERATION`, the draw is dropped, and the frame comes back the clear colour with nothing logged |
 | **`setDepthWrite(false)` means depth writes are off** | See below |
 | **Unset `PassState` fields mean *emit nothing*** | What an omitted call means differs per backend, and the omissions in a pass's sequence are load-bearing |
-| **Ask before requesting what a backend may not have** | `supportsWireframe`, `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`, `preferredSampleCount` |
+| **`bindPipeline` forgets every binding** | A draw that missed a bind reads the previous draw's and draws a plausible picture, on the one backend that kept it, while the others fail |
+| **Ask before requesting what a backend may not have** | `supportsWireframe`, `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`, `preferredSampleCount`, and the 0.8 members: `supportsCompute`, `supportsGpuTimestamps`, `supportsFloat32Filtering`, `supportsIndependentBlend`, `hdrOutputFormats` |
 
 ### The sampler default, and why it is written down
 
