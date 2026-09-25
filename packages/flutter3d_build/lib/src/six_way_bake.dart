@@ -183,14 +183,20 @@ SixWaySheet bakeSixWay({
 ///
 /// A ball whose edge is broken up by a few octaves of value noise, growing
 /// from half the cube to most of it while its density falls. [seed] picks the
-/// noise; the same seed bakes the same bytes.
+/// noise; the same seed bakes the same bytes, in the browser as well.
 SixWayField smokePuff({int seed = 1}) {
   double hash(int x, int y, int z) {
     // An integer hash, bit-mixed; any fixed permutation would do, and this one
-    // needs no table.
-    var h = x * 374761393 + y * 668265263 + z * 2147483647 + seed * 144269;
-    h = (h ^ (h >> 13)) * 1274126177;
-    h = h ^ (h >> 16);
+    // needs no table. **In 32 bits, with every product under 2^53**: it was
+    // written for the VM's 64-bit integers, and compiled for the web the same
+    // products lost their low bits as doubles, so a browser baked another
+    // puff and `smoke-six-way` stood 2% apart from the native backends.
+    final h0 = _add32(
+      _add32(_mul32(x, 374761393), _mul32(y, 668265263)),
+      _add32(_mul32(z, 2147483647), _mul32(seed, 144269)),
+    );
+    final h1 = _mul32(h0 ^ (h0 >> 13), 1274126177);
+    final h = h1 ^ (h1 >> 16);
     return (h & 0xffff) / 0xffff;
   }
 
@@ -234,3 +240,17 @@ SixWayField smokePuff({int seed = 1}) {
     return (shape * 2.5).clamp(0.0, 1.0) * (1.0 - 0.6 * t);
   };
 }
+
+/// [a] times [b] modulo 2^32, the same on the VM and in a browser: [a] is
+/// taken in halves so that no product reaches 2^53, where a double stops
+/// holding every integer.
+int _mul32(int a, int b) {
+  final x = a & 0xffffffff;
+  final y = b & 0xffffffff;
+  final low = (x & 0xffff) * y;
+  final high = (((x >> 16) * y) & 0xffff) << 16;
+  return (low + high) & 0xffffffff;
+}
+
+/// [a] plus [b] modulo 2^32.
+int _add32(int a, int b) => ((a & 0xffffffff) + (b & 0xffffffff)) & 0xffffffff;
