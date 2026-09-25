@@ -337,6 +337,10 @@ double _bayerCell(double x, double y) {
 final class FxaaShader implements CpuFragmentShader {
   const FxaaShader();
 
+  /// `SearchStep` from `fxaa.frag`, the first step (one texel) included:
+  /// FXAA 3.11's quality preset 12.
+  static const List<double> _searchSteps = <double>[1.0, 1.5, 2.0, 4.0, 12.0];
+
   /// `Weight` from `fxaa.frag`: green-weighted, on the encoded image.
   static double _weight(Vector4 c) => 0.299 * c.x + 0.587 * c.y + 0.114 * c.z;
 
@@ -388,25 +392,89 @@ final class FxaaShader implements CpuFragmentShader {
       );
     }
 
-    final vertical = (north + south - 2.0 * mid).abs();
-    final horizontal = (west + east - 2.0 * mid).abs();
-    final horizontalEdge = vertical >= horizontal;
+    // FXAA 3.11 Quality, step for step; see the GLSL.
+    double weightAt(double x, double y) => _weight(source.sample(x, y));
+    final northWest = weightAt(v[0] - params.x, v[1] - params.y);
+    final southEast = weightAt(v[0] + params.x, v[1] + params.y);
+    final northEast = weightAt(v[0] + params.x, v[1] - params.y);
+    final southWest = weightAt(v[0] - params.x, v[1] + params.y);
 
-    final towards = horizontalEdge ? south - mid : east - mid;
-    final away = horizontalEdge ? north - mid : west - mid;
-    var stepLength = horizontalEdge ? params.y : params.x;
-    if (away.abs() > towards.abs()) stepLength = -stepLength;
+    final edgeHorizontal =
+        (northWest + southWest - 2.0 * west).abs() +
+        2.0 * (north + south - 2.0 * mid).abs() +
+        (northEast + southEast - 2.0 * east).abs();
+    final edgeVertical =
+        (northWest + northEast - 2.0 * north).abs() +
+        2.0 * (west + east - 2.0 * mid).abs() +
+        (southWest + southEast - 2.0 * south).abs();
+    final horizontalSpan = edgeHorizontal >= edgeVertical;
 
-    final average = (north + south + west + east) * 0.25;
-    final distance = ((average - mid).abs() / math.max(contrast, 1e-5)).clamp(
-      0.0,
-      1.0,
-    );
-    final blend = distance * distance * params.w;
+    final lowPass =
+        (2.0 * (north + south + west + east) +
+            northWest +
+            northEast +
+            southWest +
+            southEast) /
+        12.0;
+    final subpixC = ((lowPass - mid).abs() / contrast).clamp(0.0, 1.0);
+    final subpixF = (3.0 - 2.0 * subpixC) * subpixC * subpixC;
+    final subpixH = subpixF * subpixF * params.w;
 
-    final out = horizontalEdge
-        ? source.sample(v[0], v[1] + stepLength * blend)
-        : source.sample(v[0] + stepLength * blend, v[1]);
+    final lumaN = horizontalSpan ? north : west;
+    final lumaS = horizontalSpan ? south : east;
+    final gradientN = lumaN - mid;
+    final gradientS = lumaS - mid;
+    final pairN = gradientN.abs() >= gradientS.abs();
+    final gradient = math.max(gradientN.abs(), gradientS.abs());
+    final texelAcross = horizontalSpan ? params.y : params.x;
+    final lengthSign = pairN ? -texelAcross : texelAcross;
+    final pairAverage = 0.5 * (pairN ? lumaN + mid : lumaS + mid);
+
+    // The edge search, along x for a horizontal span and y for a vertical.
+    final alongX = horizontalSpan ? params.x : 0.0;
+    final alongY = horizontalSpan ? 0.0 : params.y;
+    final startX = v[0] + (horizontalSpan ? 0.0 : lengthSign * 0.5);
+    final startY = v[1] + (horizontalSpan ? lengthSign * 0.5 : 0.0);
+    final gradientScaled = gradient * 0.25;
+    var posNX = startX - alongX;
+    var posNY = startY - alongY;
+    var posPX = startX + alongX;
+    var posPY = startY + alongY;
+    var endN = weightAt(posNX, posNY) - pairAverage;
+    var endP = weightAt(posPX, posPY) - pairAverage;
+    var doneN = endN.abs() >= gradientScaled;
+    var doneP = endP.abs() >= gradientScaled;
+    for (var i = 1; i < _searchSteps.length; i++) {
+      if (doneN && doneP) break;
+      final stride = _searchSteps[i];
+      if (!doneN) {
+        posNX -= alongX * stride;
+        posNY -= alongY * stride;
+        endN = weightAt(posNX, posNY) - pairAverage;
+        doneN = endN.abs() >= gradientScaled;
+      }
+      if (!doneP) {
+        posPX += alongX * stride;
+        posPY += alongY * stride;
+        endP = weightAt(posPX, posPY) - pairAverage;
+        doneP = endP.abs() >= gradientScaled;
+      }
+    }
+
+    final distanceN = horizontalSpan ? v[0] - posNX : v[1] - posNY;
+    final distanceP = horizontalSpan ? posPX - v[0] : posPY - v[1];
+    final middleBelow = mid - pairAverage < 0.0;
+    final nearerN = distanceN < distanceP;
+    final goodSpan = nearerN
+        ? (endN < 0.0) != middleBelow
+        : (endP < 0.0) != middleBelow;
+    final nearest = math.min(distanceN, distanceP);
+    final pixelOffset = 0.5 - nearest / (distanceN + distanceP);
+    final offset = math.max(goodSpan ? pixelOffset : 0.0, subpixH);
+
+    final out = horizontalSpan
+        ? source.sample(v[0], v[1] + offset * lengthSign)
+        : source.sample(v[0] + offset * lengthSign, v[1]);
     return _sharpen(
       out,
       northRgb,

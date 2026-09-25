@@ -2270,8 +2270,11 @@ final class AntiAliasSettings {
   /// scrubs texture detail, higher leaves staircases on shallow slopes.
   final double contrastThreshold;
 
-  /// How far along the edge to sample, as a fraction of a texel. One is the
-  /// whole neighbour, which over-blurs; 0.75 keeps a silhouette crisp.
+  /// The sub-pixel amount, FXAA's `subpix`: the most a pixel moves towards
+  /// its neighbour on local contrast alone, as a fraction of a texel. The
+  /// search along an edge moves pixels on a long edge whatever this is; this
+  /// is what softens a lone pixel or a one-pixel jag. One is the whole
+  /// neighbour, which over-blurs; 0.75 keeps a silhouette crisp.
   final double blend;
 
   /// Contrast-adaptive sharpening on the finished picture — `gfx-29n`. 0 is
