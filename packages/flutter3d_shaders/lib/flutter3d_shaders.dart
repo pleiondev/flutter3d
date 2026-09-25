@@ -86,6 +86,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'VolumetricFog', fragment: true),
   (name: 'VolumetricFogUpsample', fragment: true),
   (name: 'DepthOfField', fragment: true),
+  (name: 'DofTileMax', fragment: true),
   (name: 'VelocityTileMax', fragment: true),
   (name: 'VelocityNeighborMax', fragment: true),
   (name: 'MotionBlur', fragment: true),

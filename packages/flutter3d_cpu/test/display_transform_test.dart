@@ -65,6 +65,27 @@ void main() {
     expect(grey, closeTo(_encode(0.1), 0.02));
   });
 
+  test('the table reaches white where the ACES 2.0 curve does', () {
+    // The SDR tonescale meets the display's peak at 128, 9.47 stops over
+    // grey. A shaper that ended at +6 stops (11.5) clamped everything above
+    // it to 0.92 of peak, about 246 of 255, so a sun and a lamp came out
+    // the same flat grey short of white. Mutation: put the shaper back to
+    // −10…+6 in `make_tables.dart`, `composite.frag` and its mirror.
+    RenderSettings at(double linear) => _base().copyWith(
+      tonemapCurve: TonemapCurve.aces2,
+      exposure: linear / 0.18,
+    );
+    final bright = _centre(at(32.0));
+    final brighter = _centre(at(80.0));
+    final roof = _centre(at(160.0));
+    expect(roof, greaterThan(0.995), reason: 'past the roof is white');
+    expect(
+      brighter - bright,
+      greaterThan(0.005),
+      reason: 'highlights keep rolling towards white rather than clamping',
+    );
+  });
+
   test('a table of its own wins over the curve', () {
     final device = CpuDevice(
       width: 4,

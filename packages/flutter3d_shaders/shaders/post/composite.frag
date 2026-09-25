@@ -374,12 +374,14 @@ vec3 SampleLut(vec3 color, float size) {
 }
 
 /// [color] through the display transform — `L2`: shaped to log2 stops about
-/// 0.18 over −10…+6, then looked up in the strip exactly as [SampleLut]
+/// 0.18 over −10…+10, then looked up in the strip exactly as [SampleLut]
 /// looks up the grade. Scene-linear in, display-linear out, which is what a
-/// tone curve returns.
+/// tone curve returns. Ten stops over grey is 184, past the 128 where the
+/// SDR tonescale reaches the display's peak: a range that stopped at +6
+/// clamped every highlight to 0.92 of white.
 vec3 SampleDisplay(vec3 color) {
   float size = max(composite_info.contact.y, 2.0);
-  vec3 c = clamp((log2(max(color, vec3(1e-10)) / 0.18) + 10.0) / 16.0,
+  vec3 c = clamp((log2(max(color, vec3(1e-10)) / 0.18) + 10.0) / 20.0,
                  vec3(0.0), vec3(1.0));
 
   float sliceWidth = 1.0 / size;

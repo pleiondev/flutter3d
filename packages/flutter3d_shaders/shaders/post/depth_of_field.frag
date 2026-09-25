@@ -18,19 +18,22 @@
 // near and far. That channel is also why no depth attachment is needed:
 // flutter_gpu cannot sample one.
 //
-// **A gather, not a scatter.** Each output pixel reads the neighbourhood and
-// asks which of those samples would have landed on it. That gets the near
-// field wrong in a way a scatter would not — a foreground blur cannot spread
-// *over* a sharp background, because the sharp pixel never looks that far —
-// and it is the trade every real-time implementation makes, because a scatter
-// needs per-pixel splatting the hardware here has no path for. Written down
-// rather than discovered: this is why a foreground bokeh has a hard outer
-// edge where a photograph's would not.
+// **A gather, not a scatter**, reaching as far as the largest circle nearby.
+// Each output pixel reads the neighbourhood and asks which of those samples
+// would have landed on it. How far it reads is the largest circle in its
+// tile and the eight around it (`DofTileMax`, then the motion blur's column
+// and neighbourhood passes), not its own: a sharp pixel beside a blurred
+// foreground has a circle of nought, and a gather that stopped at its own
+// circle never saw the foreground whose disc covers it, which left every
+// out-of-focus foreground with a hard outline against a sharp background.
+// Samples nearer than this pixel and more blurred than it are a layer of
+// their own, laid over the rest by how much of this pixel their discs cover.
 //
 // Sampled on a spiral rather than a grid: a square kernel makes a square
 // bokeh, and the shape of an out-of-focus highlight is the one thing anybody
 // looks at in this effect.
 
+#include <lib/circle_of_confusion.glsl>
 #include <lib/frag_coord_info.glsl>
 
 in vec2 v_uv;
@@ -39,6 +42,9 @@ out vec4 frag_color;
 
 uniform sampler2D scene_texture;
 uniform sampler2D surface_texture;
+
+// The largest circle within a tile of here, in red, one texel a tile.
+uniform sampler2D coc_tile_texture;
 
 uniform DofInfo {
   // x: focus distance in metres. y: focal length in metres. z: f-number.
@@ -81,33 +87,14 @@ float BayerCell(vec2 at) {
 
 // The circle of confusion at [depth], as a radius in texels.
 float CircleAt(float depth) {
-  float focus = max(dof_info.lens.x, 1e-3);
-  float focal = max(dof_info.lens.y, 1e-4);
-  float fnumber = max(dof_info.lens.z, 1e-3);
-
-  // The thin-lens diameter, in metres on the sensor. Nothing drawn — the sky,
-  // the cleared background — is infinitely far, where `|d - s| / d` tends to
-  // one and the circle to its largest: a lens focused on a face blurs the
-  // horizon behind it. This used to answer zero there and kept the sky sharp.
-  float denominator = max(fnumber * (focus - focal), 1e-6);
-  float ratio = depth <= 0.0 ? 1.0 : abs(depth - focus) / depth;
-  float diameter = ratio * (focal * focal) / denominator;
-
-  // Metres on the sensor into texels on the screen, and a diameter into a
-  // radius. The conversion needs a sensor size, which is what makes a
-  // millimetre of focal length mean something; the frame's width supplies the
-  // other half of it. **Derived rather than a constant**, because a constant
-  // would mean a lens whose blur changed with the resolution — the same scene
-  // rendered twice as wide would be a different photograph rather than a
-  // larger one.
-  return min(diameter * 0.5 * dof_info.params.w, max(dof_info.params.z, 0.0));
+  return CircleOfConfusion(depth, dof_info.lens, dof_info.params);
 }
 
 void main() {
   // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
   // gather below sits behind two early returns keyed on a per-fragment circle
   // of confusion, so a WGSL backend refuses the implicit derivative as
-  // possibly non-uniform. Both textures are read at native size with no
+  // possibly non-uniform. All three textures are read at native size with no
   // mipmap of their own, so naming level zero directly changes no pixel.
   vec4 centre = textureLod(scene_texture, v_uv, 0.0);
   int samples = int(dof_info.lens.w + 0.5);
@@ -118,16 +105,23 @@ void main() {
 
   float centreDepth = textureLod(surface_texture, v_uv, 0.0).a;
   float radius = CircleAt(centreDepth);
-  if (radius < 0.5) {
-    // Inside half a texel there is nothing to gather: the disc this point
-    // images to is smaller than the pixel it lands on, which is what "in
-    // focus" means.
+  // As far as anything nearby could spread, and never less than this
+  // pixel's own circle.
+  float gather = max(textureLod(coc_tile_texture, v_uv, 0.0).r, radius);
+  if (gather < 0.5) {
+    // Inside half a texel there is nothing to gather: no disc near here is
+    // larger than the pixel it lands on, which is what "in focus" means.
     frag_color = centre;
     return;
   }
 
   vec3 total = centre.rgb;
   float weight = 1.0;
+  // The nearer, more blurred layer: its colour, and how much of this pixel
+  // its discs cover.
+  vec3 nearTotal = vec3(0.0);
+  float nearWeight = 0.0;
+  float nearCover = 0.0;
 
   // Nothing drawn is infinitely far, for the comparison below as for the
   // circle above.
@@ -148,7 +142,7 @@ void main() {
     float t = (float(i) - 0.5) / float(samples);
     // sqrt so the samples spread evenly over the disc's *area* rather than
     // bunching at the middle, which would leave the rim of a bokeh thin.
-    float r = sqrt(t) * radius;
+    float r = sqrt(t) * gather;
     float angle = float(i) * kGolden + turn;
     vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
 
@@ -161,15 +155,28 @@ void main() {
     // of a blurred background says no — its disc is smaller than the
     // distance to here — and letting it in anyway is the bleed that makes a
     // sharp object glow into the blur behind it. A sample *behind* this pixel
-    // reaches no further than this pixel's own disc either. The test used to
-    // be `r <= max(tapRadius, radius)`, which with `r <= radius` always held
-    // and let every sample in. Half a texel of soft edge, so the reach does
-    // not step.
+    // reaches no further than this pixel's own disc either. Half a texel of
+    // soft edge, so the reach does not step.
     float tapReach = tapFar > centreFar ? min(tapRadius, radius) : tapRadius;
     float reach = clamp(tapReach - r + 0.5, 0.0, 1.0);
-    total += tap.rgb * reach;
-    weight += reach;
+
+    if (tapFar < centreFar && tapRadius > radius) {
+      // In front and more blurred: a disc spread over this pixel. Each
+      // sample stands for an equal share of the gather's area, and a disc
+      // of radius c puts 1 / (pi c^2) of its light on each unit of it, so
+      // the share it covers is reach * (gather / c)^2 / samples.
+      float spread = gather / max(tapRadius, 0.5);
+      nearTotal += tap.rgb * reach;
+      nearWeight += reach;
+      nearCover += reach * spread * spread;
+    } else {
+      total += tap.rgb * reach;
+      weight += reach;
+    }
   }
 
-  frag_color = vec4(total / weight, centre.a);
+  vec3 far = total / weight;
+  vec3 near = nearTotal / max(nearWeight, 1e-5);
+  float cover = clamp(nearCover / float(samples), 0.0, 1.0);
+  frag_color = vec4(mix(far, near, cover), centre.a);
 }

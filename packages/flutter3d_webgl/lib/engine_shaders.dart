@@ -20852,12 +20852,14 @@ vec3 SampleLut(vec3 color, float size) {
 }
 
 /// [color] through the display transform — `L2`: shaped to log2 stops about
-/// 0.18 over −10…+6, then looked up in the strip exactly as [SampleLut]
+/// 0.18 over −10…+10, then looked up in the strip exactly as [SampleLut]
 /// looks up the grade. Scene-linear in, display-linear out, which is what a
-/// tone curve returns.
+/// tone curve returns. Ten stops over grey is 184, past the 128 where the
+/// SDR tonescale reaches the display's peak: a range that stopped at +6
+/// clamped every highlight to 0.92 of white.
 vec3 SampleDisplay(vec3 color) {
   float size = max(composite_info.contact.y, 2.0);
-  vec3 c = clamp((log2(max(color, vec3(1e-10)) / 0.18) + 10.0) / 16.0,
+  vec3 c = clamp((log2(max(color, vec3(1e-10)) / 0.18) + 10.0) / 20.0,
                  vec3(0.0), vec3(1.0));
 
   float sliceWidth = 1.0 / size;
@@ -21355,6 +21357,10 @@ layout(std140) uniform LocalExposureInfo {
   /// x: how many stops the shadow exposure lifts by. y: how many the
   /// highlight exposure pulls down by. zw: one texel of the scene.
   vec4 stops;
+
+  /// x: the frame's own exposure, the one the composite multiplies by after
+  /// this (auto exposure's answer when it is on). yzw unused.
+  vec4 camera;
 }
 local_exposure_info;
 
@@ -21374,7 +21380,13 @@ void main() {
                     Luma(texture(scene_texture, v_uv + vec2(t.x, -t.y)).rgb) +
                     Luma(texture(scene_texture, v_uv + vec2(-t.x, t.y)).rgb) +
                     Luma(texture(scene_texture, v_uv + vec2(t.x, t.y)).rgb));
-  y = max(y, 0.0);
+  // **As shot means as the camera exposed it.** The scene buffer is not
+  // pre-exposed: the composite multiplies by the frame's exposure after the
+  // local stops. Judged at exposure one, a dark room the meter has already
+  // lifted three stops still looked underexposed and was lifted again, and a
+  // scene authored in physical units looked blown everywhere. Exposure
+  // fusion weighs the exposures a camera would actually have taken.
+  y = max(y, 0.0) * max(local_exposure_info.camera.x, 0.0);
   float shadow = exp2(local_exposure_info.stops.x);
   float highlight = exp2(-local_exposure_info.stops.y);
   frag_color = vec4(WellExposed(y * shadow) + 1e-4, WellExposed(y) + 1e-4,
@@ -21451,6 +21463,13 @@ precision highp samplerCube;
 // between two pixel centres is gone before this reads it, which MSAA would
 // have caught. Named here because it is the honest limit of the technique
 // rather than a defect in this implementation.
+//
+// The algorithm is FXAA 3.11 Quality at preset 12: the early exit on local
+// contrast, the direction from the 3x3 second differences, the search along
+// the edge for both of its ends, and the sub-pixel term, the larger of the
+// two offsets winning. The search is what smooths a long, shallow staircase:
+// without it a pixel only knows its neighbours and moves the same whether it
+// sits at the start of a step or at its end.
 precision highp float;
 
 in vec2 v_uv;
@@ -21462,8 +21481,9 @@ uniform sampler2D source_texture;
 
 layout(std140) uniform FxaaInfo {
   /// x, y: one texel. z: the contrast a pixel needs before it is worth
-  /// touching, as a fraction of the local maximum. w: how far along the edge
-  /// to sample, in texels.
+  /// touching, as a fraction of the local maximum. w: the sub-pixel amount,
+  /// FXAA's `subpix`: the most a pixel moves on local contrast alone, in
+  /// texels.
   vec4 params;
 
   /// x: contrast-adaptive sharpening, 0 for none. y: one for the robust
@@ -21555,24 +21575,31 @@ vec3 Sharpen(vec3 centre, vec3 n, vec3 s, vec3 w, vec3 e) {
 /// that.
 float Weight(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
 
+/// The edge search's steps, in texels, after the first one texel —
+/// FXAA 3.11's quality preset 12 (`FXAA_QUALITY__P1` to `P4`). Selects
+/// rather than a table: the OpenGL ES target has no constant arrays worth
+/// indexing, and a chain of ternaries is one select per step.
+float SearchStep(int i) {
+  return i == 1 ? 1.5 : (i == 2 ? 2.0 : (i == 3 ? 4.0 : 12.0));
+}
+
+/// Steps the edge search takes, the first included.
+const int kSearchSteps = 5;
+
 void main() {
   vec2 texel = fxaa_info.params.xy;
 
-  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
-  // last of these six taps sits after the early return below, so a WGSL
-  // backend sees a sample that need not be reached by every invocation of a
-  // quad and refuses the implicit derivative as possibly non-uniform. The
-  // composited frame is read at its native size with no mipmap of its own, so
-  // naming level zero directly changes no pixel.
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: every
+  // tap after the early return below, the edge search's above all, sits in
+  // control flow that differs per fragment, so a WGSL backend refuses the
+  // implicit derivative as possibly non-uniform. The composited frame is read
+  // at its native size with no mipmap of its own, so naming level zero
+  // directly changes no pixel.
   vec3 middle = textureLod(source_texture, v_uv, 0.0).rgb;
   float mid = Weight(middle);
 
-  // The four edge neighbours. Diagonals are deliberately left out: they cost
-  // four more samples and only sharpen the direction estimate on a corner,
-  // which is the one place this pass should be doing the least.
-  // The colours are kept, not just their weights: the sharpening at the end
-  // needs the neighbourhood itself, and these are the same four taps either
-  // way. Discarding the colour and re-fetching it would be four more.
+  // The four edge neighbours, colours kept: the sharpening at the end needs
+  // the neighbourhood itself, and these are the same four taps either way.
   vec3 northRgb = textureLod(source_texture, v_uv + vec2(0.0, -texel.y), 0.0).rgb;
   vec3 southRgb = textureLod(source_texture, v_uv + vec2(0.0, texel.y), 0.0).rgb;
   vec3 westRgb = textureLod(source_texture, v_uv + vec2(-texel.x, 0.0), 0.0).rgb;
@@ -21596,38 +21623,97 @@ void main() {
     return;
   }
 
-  // Which way the edge runs. The vertical difference is larger on a
-  // horizontal edge, which is the one to blend across.
-  float vertical = abs(north + south - 2.0 * mid);
-  float horizontal = abs(west + east - 2.0 * mid);
-  bool horizontalEdge = vertical >= horizontal;
+  // FXAA 3.11 Quality from here on, step for step. The diagonals only for
+  // pixels past the early exit: they sharpen the direction estimate at a
+  // corner and weigh into the sub-pixel average.
+  float northWest = Weight(textureLod(source_texture, v_uv - texel, 0.0).rgb);
+  float southEast = Weight(textureLod(source_texture, v_uv + texel, 0.0).rgb);
+  float northEast = Weight(
+      textureLod(source_texture, v_uv + vec2(texel.x, -texel.y), 0.0).rgb);
+  float southWest = Weight(
+      textureLod(source_texture, v_uv + vec2(-texel.x, texel.y), 0.0).rgb);
 
-  // And which side of it is the darker one, so the blend moves towards the
-  // neighbour rather than away from it.
-  float towards = horizontalEdge ? south - mid : east - mid;
-  float away = horizontalEdge ? north - mid : west - mid;
-  float step_length = horizontalEdge ? texel.y : texel.x;
-  if (abs(away) > abs(towards)) step_length = -step_length;
+  // Which way the edge runs: the second differences across it, the middle
+  // row counted twice. A horizontal edge changes most from north to south.
+  float edgeHorizontal =
+      abs(northWest + southWest - 2.0 * west) +
+      2.0 * abs(north + south - 2.0 * mid) +
+      abs(northEast + southEast - 2.0 * east);
+  float edgeVertical =
+      abs(northWest + northEast - 2.0 * north) +
+      2.0 * abs(west + east - 2.0 * mid) +
+      abs(southWest + southEast - 2.0 * south);
+  bool horizontalSpan = edgeHorizontal >= edgeVertical;
 
-  // **How far to go: how wrong this pixel is against its neighbourhood.** A
-  // white pixel with a black neighbour sits far from the average of the four
-  // and has to move most; a pixel already near that average is already the
-  // blend and moves least.
-  //
-  // Measuring the distance from the *end* of the range instead — which the
-  // first version of this did — gives exactly zero on a hard black-to-white
-  // edge, because every pixel there is at one end or the other. The pass ran,
-  // cost a draw, and changed nothing, which is the failure this arithmetic
-  // exists to avoid.
-  float average = (north + south + west + east) * 0.25;
-  float blend = clamp(abs(average - mid) / max(contrast, 1e-5), 0.0, 1.0);
-  // Squared, so a faint gradient is left alone and a real edge gets the whole
-  // step: the difference between smoothing an edge and smearing a texture.
-  blend = blend * blend * fxaa_info.params.w;
+  // The sub-pixel term: how far the middle sits from the 3x3 low-pass (the
+  // cross twice, the corners once, over twelve), against the local range,
+  // through a smoothstep and squared.
+  float lowPass = (2.0 * (north + south + west + east) +
+                   northWest + northEast + southWest + southEast) / 12.0;
+  float subpixC = clamp(abs(lowPass - mid) / contrast, 0.0, 1.0);
+  float subpixF = (3.0 - 2.0 * subpixC) * subpixC * subpixC;
+  float subpixH = subpixF * subpixF * fxaa_info.params.w;
 
-  vec2 offset = horizontalEdge ? vec2(0.0, step_length * blend)
-                               : vec2(step_length * blend, 0.0);
-  vec3 smoothed = textureLod(source_texture, v_uv + offset, 0.0).rgb;
+  // The two neighbours across the edge, and the steeper side. On a tie the
+  // north (or west) one, as FXAA's `pairN` has it.
+  float lumaN = horizontalSpan ? north : west;
+  float lumaS = horizontalSpan ? south : east;
+  float gradientN = lumaN - mid;
+  float gradientS = lumaS - mid;
+  bool pairN = abs(gradientN) >= abs(gradientS);
+  float gradient = max(abs(gradientN), abs(gradientS));
+  float lengthSign = horizontalSpan ? texel.y : texel.x;
+  if (pairN) lengthSign = -lengthSign;
+  float pairAverage = 0.5 * (pairN ? lumaN + mid : lumaS + mid);
+
+  // **The edge search.** Half a texel onto the steeper side, so a bilinear
+  // tap straddles the edge, then outwards both ways along it until the
+  // straddled average leaves the pair's average by a quarter of the
+  // gradient: that is where the edge ends. Knowing both ends is what lets a
+  // pixel on a long shallow staircase know where on its step it sits, which
+  // the local neighbourhood alone cannot say.
+  vec2 along = horizontalSpan ? vec2(texel.x, 0.0) : vec2(0.0, texel.y);
+  vec2 start = v_uv + (horizontalSpan ? vec2(0.0, lengthSign * 0.5)
+                                      : vec2(lengthSign * 0.5, 0.0));
+  float gradientScaled = gradient * 0.25;
+  vec2 posN = start - along;
+  vec2 posP = start + along;
+  float endN = Weight(textureLod(source_texture, posN, 0.0).rgb) - pairAverage;
+  float endP = Weight(textureLod(source_texture, posP, 0.0).rgb) - pairAverage;
+  bool doneN = abs(endN) >= gradientScaled;
+  bool doneP = abs(endP) >= gradientScaled;
+  for (int i = 1; i < kSearchSteps; i++) {
+    if (doneN && doneP) break;
+    float stride = SearchStep(i);
+    if (!doneN) {
+      posN -= along * stride;
+      endN = Weight(textureLod(source_texture, posN, 0.0).rgb) - pairAverage;
+      doneN = abs(endN) >= gradientScaled;
+    }
+    if (!doneP) {
+      posP += along * stride;
+      endP = Weight(textureLod(source_texture, posP, 0.0).rgb) - pairAverage;
+      doneP = abs(endP) >= gradientScaled;
+    }
+  }
+
+  // The nearer end decides. Its luma has to have gone the other way from the
+  // middle's, or this pixel is on the far side of that end's step and is
+  // not moved by the edge at all; otherwise it moves by how near that end
+  // it is, half a texel at the end itself and nothing at the span's middle.
+  float distanceN = horizontalSpan ? v_uv.x - posN.x : v_uv.y - posN.y;
+  float distanceP = horizontalSpan ? posP.x - v_uv.x : posP.y - v_uv.y;
+  bool middleBelow = mid - pairAverage < 0.0;
+  bool nearerN = distanceN < distanceP;
+  bool goodSpan = nearerN ? (endN < 0.0) != middleBelow
+                          : (endP < 0.0) != middleBelow;
+  float nearest = min(distanceN, distanceP);
+  float pixelOffset = 0.5 - nearest / (distanceN + distanceP);
+  float offset = max(goodSpan ? pixelOffset : 0.0, subpixH);
+
+  vec2 at = v_uv + (horizontalSpan ? vec2(0.0, offset * lengthSign)
+                                   : vec2(offset * lengthSign, 0.0));
+  vec3 smoothed = textureLod(source_texture, at, 0.0).rgb;
   frag_color =
       vec4(Sharpen(smoothed, northRgb, southRgb, westRgb, eastRgb), 1.0);
 }
@@ -27135,18 +27221,60 @@ precision highp samplerCube;
 // near and far. That channel is also why no depth attachment is needed:
 // flutter_gpu cannot sample one.
 //
-// **A gather, not a scatter.** Each output pixel reads the neighbourhood and
-// asks which of those samples would have landed on it. That gets the near
-// field wrong in a way a scatter would not — a foreground blur cannot spread
-// *over* a sharp background, because the sharp pixel never looks that far —
-// and it is the trade every real-time implementation makes, because a scatter
-// needs per-pixel splatting the hardware here has no path for. Written down
-// rather than discovered: this is why a foreground bokeh has a hard outer
-// edge where a photograph's would not.
+// **A gather, not a scatter**, reaching as far as the largest circle nearby.
+// Each output pixel reads the neighbourhood and asks which of those samples
+// would have landed on it. How far it reads is the largest circle in its
+// tile and the eight around it (`DofTileMax`, then the motion blur's column
+// and neighbourhood passes), not its own: a sharp pixel beside a blurred
+// foreground has a circle of nought, and a gather that stopped at its own
+// circle never saw the foreground whose disc covers it, which left every
+// out-of-focus foreground with a hard outline against a sharp background.
+// Samples nearer than this pixel and more blurred than it are a layer of
+// their own, laid over the rest by how much of this pixel their discs cover.
 //
 // Sampled on a spiral rather than a grid: a square kernel makes a square
 // bokeh, and the shape of an out-of-focus highlight is the one thing anybody
 // looks at in this effect.
+
+// --- lib/circle_of_confusion.glsl ---
+// The thin lens's circle of confusion — `gfx-34n`.
+//
+// One function for the two stages that need it, the depth of field's gather
+// and the tile search in front of it: the tile's largest circle has to be the
+// largest of the circles the gather will compute, to the bit.
+
+#ifndef CIRCLE_OF_CONFUSION_GLSL_
+#define CIRCLE_OF_CONFUSION_GLSL_
+
+// The circle of confusion at [depth], as a radius in texels.
+//
+// [lens] x: focus distance in metres. y: focal length in metres. z: f-number.
+// [params] z: the largest circle, in texels. w: texels per metre across the
+// sensor.
+float CircleOfConfusion(float depth, vec4 lens, vec4 params) {
+  float focus = max(lens.x, 1e-3);
+  float focal = max(lens.y, 1e-4);
+  float fnumber = max(lens.z, 1e-3);
+
+  // The thin-lens diameter, in metres on the sensor. Nothing drawn — the sky,
+  // the cleared background — is infinitely far, where `|d - s| / d` tends to
+  // one and the circle to its largest: a lens focused on a face blurs the
+  // horizon behind it. This used to answer zero there and kept the sky sharp.
+  float denominator = max(fnumber * (focus - focal), 1e-6);
+  float ratio = depth <= 0.0 ? 1.0 : abs(depth - focus) / depth;
+  float diameter = ratio * (focal * focal) / denominator;
+
+  // Metres on the sensor into texels on the screen, and a diameter into a
+  // radius. The conversion needs a sensor size, which is what makes a
+  // millimetre of focal length mean something; the frame's width supplies the
+  // other half of it. **Derived rather than a constant**, because a constant
+  // would mean a lens whose blur changed with the resolution — the same scene
+  // rendered twice as wide would be a different photograph rather than a
+  // larger one.
+  return min(diameter * 0.5 * params.w, max(params.z, 0.0));
+}
+
+#endif  // CIRCLE_OF_CONFUSION_GLSL_
 
 // --- lib/frag_coord_info.glsl ---
 // The target's orientation, for a full-screen pass.
@@ -27211,6 +27339,9 @@ layout(location = 0) out vec4 frag_color;
 uniform sampler2D scene_texture;
 uniform sampler2D surface_texture;
 
+// The largest circle within a tile of here, in red, one texel a tile.
+uniform sampler2D coc_tile_texture;
+
 layout(std140) uniform DofInfo {
   // x: focus distance in metres. y: focal length in metres. z: f-number.
   // w: how many samples in the gather.
@@ -27252,33 +27383,14 @@ float BayerCell(vec2 at) {
 
 // The circle of confusion at [depth], as a radius in texels.
 float CircleAt(float depth) {
-  float focus = max(dof_info.lens.x, 1e-3);
-  float focal = max(dof_info.lens.y, 1e-4);
-  float fnumber = max(dof_info.lens.z, 1e-3);
-
-  // The thin-lens diameter, in metres on the sensor. Nothing drawn — the sky,
-  // the cleared background — is infinitely far, where `|d - s| / d` tends to
-  // one and the circle to its largest: a lens focused on a face blurs the
-  // horizon behind it. This used to answer zero there and kept the sky sharp.
-  float denominator = max(fnumber * (focus - focal), 1e-6);
-  float ratio = depth <= 0.0 ? 1.0 : abs(depth - focus) / depth;
-  float diameter = ratio * (focal * focal) / denominator;
-
-  // Metres on the sensor into texels on the screen, and a diameter into a
-  // radius. The conversion needs a sensor size, which is what makes a
-  // millimetre of focal length mean something; the frame's width supplies the
-  // other half of it. **Derived rather than a constant**, because a constant
-  // would mean a lens whose blur changed with the resolution — the same scene
-  // rendered twice as wide would be a different photograph rather than a
-  // larger one.
-  return min(diameter * 0.5 * dof_info.params.w, max(dof_info.params.z, 0.0));
+  return CircleOfConfusion(depth, dof_info.lens, dof_info.params);
 }
 
 void main() {
   // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
   // gather below sits behind two early returns keyed on a per-fragment circle
   // of confusion, so a WGSL backend refuses the implicit derivative as
-  // possibly non-uniform. Both textures are read at native size with no
+  // possibly non-uniform. All three textures are read at native size with no
   // mipmap of their own, so naming level zero directly changes no pixel.
   vec4 centre = textureLod(scene_texture, v_uv, 0.0);
   int samples = int(dof_info.lens.w + 0.5);
@@ -27289,16 +27401,23 @@ void main() {
 
   float centreDepth = textureLod(surface_texture, v_uv, 0.0).a;
   float radius = CircleAt(centreDepth);
-  if (radius < 0.5) {
-    // Inside half a texel there is nothing to gather: the disc this point
-    // images to is smaller than the pixel it lands on, which is what "in
-    // focus" means.
+  // As far as anything nearby could spread, and never less than this
+  // pixel's own circle.
+  float gather = max(textureLod(coc_tile_texture, v_uv, 0.0).r, radius);
+  if (gather < 0.5) {
+    // Inside half a texel there is nothing to gather: no disc near here is
+    // larger than the pixel it lands on, which is what "in focus" means.
     frag_color = centre;
     return;
   }
 
   vec3 total = centre.rgb;
   float weight = 1.0;
+  // The nearer, more blurred layer: its colour, and how much of this pixel
+  // its discs cover.
+  vec3 nearTotal = vec3(0.0);
+  float nearWeight = 0.0;
+  float nearCover = 0.0;
 
   // Nothing drawn is infinitely far, for the comparison below as for the
   // circle above.
@@ -27319,7 +27438,7 @@ void main() {
     float t = (float(i) - 0.5) / float(samples);
     // sqrt so the samples spread evenly over the disc's *area* rather than
     // bunching at the middle, which would leave the rim of a bokeh thin.
-    float r = sqrt(t) * radius;
+    float r = sqrt(t) * gather;
     float angle = float(i) * kGolden + turn;
     vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
 
@@ -27332,17 +27451,136 @@ void main() {
     // of a blurred background says no — its disc is smaller than the
     // distance to here — and letting it in anyway is the bleed that makes a
     // sharp object glow into the blur behind it. A sample *behind* this pixel
-    // reaches no further than this pixel's own disc either. The test used to
-    // be `r <= max(tapRadius, radius)`, which with `r <= radius` always held
-    // and let every sample in. Half a texel of soft edge, so the reach does
-    // not step.
+    // reaches no further than this pixel's own disc either. Half a texel of
+    // soft edge, so the reach does not step.
     float tapReach = tapFar > centreFar ? min(tapRadius, radius) : tapRadius;
     float reach = clamp(tapReach - r + 0.5, 0.0, 1.0);
-    total += tap.rgb * reach;
-    weight += reach;
+
+    if (tapFar < centreFar && tapRadius > radius) {
+      // In front and more blurred: a disc spread over this pixel. Each
+      // sample stands for an equal share of the gather's area, and a disc
+      // of radius c puts 1 / (pi c^2) of its light on each unit of it, so
+      // the share it covers is reach * (gather / c)^2 / samples.
+      float spread = gather / max(tapRadius, 0.5);
+      nearTotal += tap.rgb * reach;
+      nearWeight += reach;
+      nearCover += reach * spread * spread;
+    } else {
+      total += tap.rgb * reach;
+      weight += reach;
+    }
   }
 
-  frag_color = vec4(total / weight, centre.a);
+  vec3 far = total / weight;
+  vec3 near = nearTotal / max(nearWeight, 1e-5);
+  float cover = clamp(nearCover / float(samples), 0.0, 1.0);
+  frag_color = vec4(mix(far, near, cover), centre.a);
+}
+
+''',
+    'DofTileMax': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The largest circle of confusion along one row of a tile — `gfx-34n`.
+//
+// The first step of the depth of field's neighbourhood, and the only one of
+// its own: the frame is cut into square tiles as wide as the largest circle,
+// and this walks each tile's rows, turning depth into a circle as it goes.
+// The columns and the three-by-three neighbourhood that follow are the motion
+// blur's own passes (`VelocityTileMax`, `VelocityNeighborMax`) reading a
+// circle in red and nought in green, which is a motion whose length is the
+// circle.
+//
+// **Why the gather needs it.** A pixel gathers from as far as the largest
+// circle that could reach it, not from as far as its own: a sharp pixel
+// beside a blurred foreground has a circle of nought and still lies under the
+// foreground's disc.
+
+// --- lib/circle_of_confusion.glsl ---
+// The thin lens's circle of confusion — `gfx-34n`.
+//
+// One function for the two stages that need it, the depth of field's gather
+// and the tile search in front of it: the tile's largest circle has to be the
+// largest of the circles the gather will compute, to the bit.
+
+#ifndef CIRCLE_OF_CONFUSION_GLSL_
+#define CIRCLE_OF_CONFUSION_GLSL_
+
+// The circle of confusion at [depth], as a radius in texels.
+//
+// [lens] x: focus distance in metres. y: focal length in metres. z: f-number.
+// [params] z: the largest circle, in texels. w: texels per metre across the
+// sensor.
+float CircleOfConfusion(float depth, vec4 lens, vec4 params) {
+  float focus = max(lens.x, 1e-3);
+  float focal = max(lens.y, 1e-4);
+  float fnumber = max(lens.z, 1e-3);
+
+  // The thin-lens diameter, in metres on the sensor. Nothing drawn — the sky,
+  // the cleared background — is infinitely far, where `|d - s| / d` tends to
+  // one and the circle to its largest: a lens focused on a face blurs the
+  // horizon behind it. This used to answer zero there and kept the sky sharp.
+  float denominator = max(fnumber * (focus - focal), 1e-6);
+  float ratio = depth <= 0.0 ? 1.0 : abs(depth - focus) / depth;
+  float diameter = ratio * (focal * focal) / denominator;
+
+  // Metres on the sensor into texels on the screen, and a diameter into a
+  // radius. The conversion needs a sensor size, which is what makes a
+  // millimetre of focal length mean something; the frame's width supplies the
+  // other half of it. **Derived rather than a constant**, because a constant
+  // would mean a lens whose blur changed with the resolution — the same scene
+  // rendered twice as wide would be a different photograph rather than a
+  // larger one.
+  return min(diameter * 0.5 * params.w, max(params.z, 0.0));
+}
+
+#endif  // CIRCLE_OF_CONFUSION_GLSL_
+
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+
+layout(std140) uniform DofTileInfo {
+  // As `DofInfo.lens`: focus distance, focal length, f-number. w unused.
+  vec4 lens;
+
+  // As `DofInfo.params`: xy unused, z the largest circle in texels, w texels
+  // per metre across the sensor.
+  vec4 params;
+
+  // xy: one texel of the scene, the grid the gather samples on. z: texels
+  // per tile. w unused.
+  vec4 source;
+
+  // xy: this target's size in texels. zw unused.
+  vec4 target;
+}
+dof_tile_info;
+
+void main() {
+  // `textureLod`, for `velocity_tile_max.frag`'s reason: a loop whose exit
+  // is per fragment.
+  int taps = int(dof_tile_info.source.z + 0.5);
+  vec2 texel = floor(v_uv * dof_tile_info.target.xy);
+  float row = (texel.y + 0.5) * dof_tile_info.source.y;
+  float first = texel.x * float(taps);
+
+  float largest = 0.0;
+  for (int i = 0; i < 64; i++) {
+    if (i >= taps) break;
+    vec2 at = vec2((first + float(i) + 0.5) * dof_tile_info.source.x, row);
+    float depth = textureLod(surface_texture, at, 0.0).a;
+    largest = max(largest,
+                  CircleOfConfusion(depth, dof_tile_info.lens,
+                                    dof_tile_info.params));
+  }
+  frag_color = vec4(largest, 0.0, 0.0, 1.0);
 }
 
 ''',
