@@ -185,9 +185,9 @@ const Map<String, double> _budgets = <String, double>{
   'evsm-soft': 0.33,
   'fog-torches': 0.01,
   'glass-stack-oit': 0.01,
-  // 1.607% measured: the horizon search lands on different texels at the
-  // corner's edges.
-  'gtao-corner': 1.77,
+  // 0.000% measured. It was 1.607% while Impeller wrote the albedo buffer in the
+  // surface buffer's format and its bounces read a quarter of the colour.
+  'gtao-corner': 0.01,
   'impostor-forest': 0.01,
   'irradiance-room': 0.01,
   'many-lights': 0.01,
@@ -205,9 +205,9 @@ const Map<String, double> _budgets = <String, double>{
   // it, and the 36.701% it measured was the whole cloud missing rather than a
   // different grain. 0 of 172800 since the same fix as `taa-embers`.
   'splat-stochastic': 0.01,
-  // 4.938% measured: the bounce differs by a few levels across the band where
-  // wall meets floor.
-  'ssil-room': 5.44,
+  // 0.000% measured. It was 4.938% while Impeller's albedo buffer held the
+  // bytes of half floats; see gtao-corner.
+  'ssil-room': 0.01,
   'sun-contact-hardening': 0.01,
   'taa-converge': 0.01,
   // Black until the particles' pipeline stopped claiming the velocity target

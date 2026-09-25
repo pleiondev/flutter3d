@@ -251,11 +251,15 @@ const Map<String, double> _budgets = <String, double>{
   // Impeller's multisampled ones differently.
   'easu-half': 1.66,
   'evsm-soft': 0.5,
-  'fog-torches': 0.04,
+  // 0.069% measured: the air right round a torch, where the light falls off
+  // as one over the distance squared, is shadowed by one unfiltered tap of
+  // the cube atlas, and the torch's own silhouette in it falls on different
+  // texels in single and double precision.
+  'fog-torches': 0.08,
   'glass-stack-oit': 0.01,
-  // 1.584% measured: the horizon search lands on different texels at the
-  // corner's edges.
-  'gtao-corner': 1.75,
+  // 0.003% measured. It was 1.584% while Impeller wrote the albedo buffer in
+  // the surface buffer's format, and the bounces read a quarter of the colour.
+  'gtao-corner': 0.01,
   'impostor-forest': 0.01,
   'irradiance-room': 0.52,
   'many-lights': 0.04,
@@ -268,14 +272,13 @@ const Map<String, double> _budgets = <String, double>{
   'sheen-fabric': 0.39,
   'smoke-six-way': 0.01,
   'splat-gltf': 0.02,
-  // 41.688% measured: each backend's hash picks a different subset of splats
-  // for a pixel, so the grain differs everywhere while the averaged picture
-  // agrees; splat_stochastic_test.dart holds the average. A budget this wide
-  // watches only for a picture gone wrong wholesale.
-  'splat-stochastic': 45.86,
-  // 4.847% measured: the bounced light differs by at most sixteen levels, in
-  // the band where the wall meets the floor.
-  'ssil-room': 5.34,
+  // 0.011% measured, since the hash reads the pixel the same way up and
+  // computes the same numbers on every backend; it was 41.7% while each
+  // backend's hash picked its own subset of splats.
+  'splat-stochastic': 0.02,
+  // Nothing measured. It was 4.847% while Impeller's albedo buffer held the
+  // bytes of half floats; see gtao-corner.
+  'ssil-room': 0.01,
   'sun-contact-hardening': 0.42,
   'taa-converge': 0.01,
   'taa-embers': 0.01,

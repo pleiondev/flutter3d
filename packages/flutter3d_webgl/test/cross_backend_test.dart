@@ -230,11 +230,15 @@ const Map<String, double> _budgets = <String, double>{
   'clearcoat-car-paint': 0.2,
   'easu-half': 0.9,
   'evsm-soft': 0.4,
-  'fog-torches': 0.02,
+  // 0.047% measured: the air right round a torch, where the light falls off
+  // as one over the distance squared, is shadowed by one unfiltered tap of
+  // the cube atlas, and the torch's own silhouette in it falls on different
+  // texels here and on Impeller.
+  'fog-torches': 0.05,
   'glass-stack-oit': 0.01,
-  // 1.559% measured: the horizon search lands on different texels at the
-  // corner's edges.
-  'gtao-corner': 1.72,
+  // 0.000% measured. It was 1.559% while Impeller wrote the albedo buffer in the
+  // surface buffer's format and its bounces read a quarter of the colour.
+  'gtao-corner': 0.01,
   'impostor-forest': 0.01,
   'irradiance-room': 0.2,
   'many-lights': 0.04,
@@ -249,22 +253,13 @@ const Map<String, double> _budgets = <String, double>{
   // texels differently.
   'smoke-six-way': 2.25,
   'splat-gltf': 0.01,
-  // 41.569% measured, against a reference that finally has splats in it. The
-  // old 40.36% budget covered an empty frame: every hashed splat draw was
-  // refused (a one-output stage in the two-attachment temporal pass), and 36%
-  // was simply how much of Impeller's picture the cloud covers. What differs
-  // now is the grain. The hash reads the blue noise at `gl_FragCoord`, which
-  // counts rows from the bottom here and from the top on the other backends,
-  // so each keeps a different subset of splats per pixel and only the average
-  // agrees; splat_stochastic_test.dart holds the average. The row order is
-  // not the whole of it: the software backend counts from the top and still
-  // differs from Impeller by 41.7%, because its `sin` in the hash is not the
-  // GPU's. WebGPU, top-first on the same GPU, matches Impeller pixel for
-  // pixel.
-  'splat-stochastic': 45.73,
-  // 4.645% measured: the bounce differs by a few levels across the band where
-  // wall meets floor.
-  'ssil-room': 5.11,
+  // 0.001% measured, since the hash reads the pixel from the top on every
+  // backend and computes its offset without a `sin`. It was 41.569%: rows
+  // counted from the bottom here kept a different subset of splats per pixel.
+  'splat-stochastic': 0.01,
+  // 0.009% measured. It was 4.645% while Impeller's albedo buffer held the
+  // bytes of half floats; see gtao-corner.
+  'ssil-room': 0.02,
   'sun-contact-hardening': 0.45,
   'taa-converge': 0.01,
   // Zero measured. It was 0.527% against a reference with no embers in it:
