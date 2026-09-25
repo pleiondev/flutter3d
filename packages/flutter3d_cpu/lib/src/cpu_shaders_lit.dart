@@ -232,8 +232,11 @@ final class _Layers {
     double through(double colour) => distance > 0.0
         ? math.pow(math.max(colour, 1e-4), thickness / distance).toDouble()
         : 1.0;
+    // An index of nought is `KHR_materials_ior`'s infinity: a reflectance of
+    // one head-on as at grazing — `IorInfinite`.
+    final infinite = coat.z == 0.0;
     final ior = math.max(coat.z, 1.0);
-    final r = (ior - 1.0) / (ior + 1.0);
+    final r = infinite ? 1.0 : (ior - 1.0) / (ior + 1.0);
     final layers = _Layers(
       f0Dielectric: Vector3(
         math.min(r * r * specular.x, 1.0) * specular.w,
@@ -263,7 +266,11 @@ final class _Layers {
       filmIor: film.y,
       filmThickness: film.z,
     );
-    return layers.._ior = ior;
+    // `RefractionIor`: infinity stood in for by an index that sends the ray
+    // along the normal.
+    return layers
+      .._ior = infinite ? 1.0e4 : ior
+      .._infinite = infinite;
   }
 
   /// `ReadLayersOnMaps`: the sheen's albedo at this view and the anisotropy's
@@ -319,7 +326,7 @@ final class _Layers {
   /// the index when there is a volume and spread by the dispersion.
   Vector3 transmitted(Surface s, BoundTexture environment, double levels) {
     final ior = f0Ior;
-    final spread = (ior - 1.0) * 0.025 * dispersion;
+    final spread = _spread(ior);
     final lod = s.roughness * (ior * 2.0 - 2.0).clamp(0.0, 1.0) * levels;
     final incident = -s.view;
     Vector3 ray(double eta) =>
@@ -343,7 +350,7 @@ final class _Layers {
     final matrix = b.mat4('LayerInfo', 'scene_view_projection');
     final copy = b.textures['scene_colour_texture'];
     final ior = f0Ior;
-    final spread = (ior - 1.0) * 0.025 * dispersion;
+    final spread = _spread(ior);
     final top = info.x - 1.0;
     final lod = s.roughness * (ior * 2.0 - 2.0).clamp(0.0, 1.0) * top;
     final incident = -s.view;
@@ -429,6 +436,12 @@ final class _Layers {
   /// out of it for the refraction.
   double get f0Ior => _ior;
   double _ior = 1.5;
+  bool _infinite = false;
+
+  /// `DispersionSpread`: nothing at the infinite index, which the extension
+  /// says dispersion leaves alone.
+  double _spread(double ior) =>
+      _infinite ? 0.0 : (ior - 1.0) * 0.025 * dispersion;
 
   /// Filled by [readOnMaps].
   Vector3 iridFresnel = Vector3.all(0.04);

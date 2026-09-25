@@ -66,7 +66,10 @@ final class MaterialExtensions {
        attenuationColor = attenuationColor ?? Vector3(1.0, 1.0, 1.0);
 
   /// `KHR_materials_ior`: the dielectric's index of refraction. 1.5 is the
-  /// four per cent a plain metal-rough dielectric reflects head-on.
+  /// four per cent a plain metal-rough dielectric reflects head-on. Nought is
+  /// the extension's own special case, an infinite index: the surface reflects
+  /// fully at every angle, tinted and scaled by the specular, which is how a
+  /// specular-glossiness material migrates to this model.
   final double ior;
 
   /// `KHR_materials_specular`'s strength: scales the dielectric reflection,
