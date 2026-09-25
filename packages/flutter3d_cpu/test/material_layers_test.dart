@@ -4,6 +4,7 @@
 ///     dart test test/material_layers_test.dart
 library;
 
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -432,5 +433,24 @@ void main() {
     // plain picture.
     expect(_largestDifference(plain, film), greaterThan(0.01));
     expect(_largestDifference(plain, none), 0.0);
+  });
+
+  test('the multiscatter term reads the film, as the specular does', () {
+    // The mirror builds one single-scatter albedo, film included, and feeds
+    // both the environment's specular and Fdez-Agüera's multiple term from
+    // it. `pbr.glsl` has to build it once too: a second, film-free `single`
+    // inside the compensation block tints the multiscatter share of a rough
+    // iridescent surface differently on the GPU than here.
+    //
+    // Mutation: give the compensation block back its own
+    // `vec3 single = f0 * ab.x + f90 * ab.y;`. There are three, one plain.
+    final glsl = File(
+      '${Directory.current.parent.path}/flutter3d_shaders/shaders/lib/pbr.glsl',
+    ).readAsStringSync();
+    final singles = RegExp(
+      r'vec3 single = ([^;]*\bab\.x[^;]*);',
+    ).allMatches(glsl).map((m) => m.group(1)!).toList();
+    expect(singles, hasLength(2));
+    expect(singles.where((s) => s.contains('g_irid_fresnel')), hasLength(1));
   });
 }
