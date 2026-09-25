@@ -207,8 +207,10 @@ void main() {
     ];
     final oit = _render(mode: TransparencyMode.weightedBlended, panes: one);
     final sorted = _render(mode: TransparencyMode.sorted, panes: one);
-    // The weight divides back out of a single layer: its colour over one
-    // minus its alpha of the wall, which is what the sorted blend writes.
+    // The weight divides back out of a single layer: its colour times its
+    // alpha over one minus its alpha of the wall, which is what the sorted
+    // blend writes. `straight_alpha_blend_test.dart` holds that it is glTF's
+    // over and not only the two modes agreeing.
     // Mutation: resolve without `* coverage` on the colour, and the pane
     // comes out twice as bright as the sorted one.
     expect(_differing(oit, sorted, by: 1.5 / 255.0), 0);
