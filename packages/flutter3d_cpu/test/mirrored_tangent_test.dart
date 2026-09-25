@@ -17,6 +17,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_layout.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_mesh_vertex.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
@@ -219,6 +221,45 @@ void main() {
       // Mutation: multiplying by the node's sign alone, or the instance's
       // alone, leaves one flip in and this fails.
       expect(_largestDifference(twice, plain), lessThan(1e-4));
+    });
+
+    // The skinned stage, checked at the vertex rather than in a picture: a
+    // joint can mirror as well as the node, and the tangent goes through
+    // both, so its sign turns once for each.
+    test('a skinned vertex turns its sign once per mirroring matrix', () {
+      final mirror = Matrix4.diagonal3Values(-1.0, 1.0, 1.0);
+      double signUnder({required Matrix4 model, required Matrix4 joint}) {
+        final a = Float32List(VertexLayout.skinned.floatsPerVertex)
+          ..[kNormal + 2] = 1.0
+          ..[kTangent] = 1.0
+          ..[kTangent + 3] = 1.0
+          // Joint 0 at full weight.
+          ..[20] = 1.0;
+        final out = Float32List(kMeshVaryings);
+        const MeshSkinnedVertexShader().runAt(
+          -1,
+          0,
+          a,
+          ShaderBindings(<String, Map<String, Float32List>>{
+            'FrameInfo': <String, Float32List>{
+              'mvp': model.storage,
+              'model': model.storage,
+              'normal_matrix': model.storage,
+            },
+            'SkinInfo': <String, Float32List>{'joint_matrices': joint.storage},
+          }, const <String, BoundTexture>{}),
+          out,
+        );
+        return out[kVTangent + 3];
+      }
+
+      final identity = Matrix4.identity();
+      // Mutation: ignoring the blended joint's determinant in
+      // `MeshSkinnedVertexShader` fails the second and third lines.
+      expect(signUnder(model: identity, joint: identity), 1.0);
+      expect(signUnder(model: identity, joint: mirror), -1.0);
+      expect(signUnder(model: mirror, joint: mirror), 1.0);
+      expect(signUnder(model: mirror, joint: identity), -1.0);
     });
   });
 }
