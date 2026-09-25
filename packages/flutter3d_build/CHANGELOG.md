@@ -1,8 +1,99 @@
 ## 0.8.0
 
-**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
-`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
-bindings at `bindPipeline`. Nothing in this package changed.
+**Every cached model converts again once.** `kAssetPipelineVersion` is 2,
+because a manifest rule can now ask for levels of detail and an impostor, and
+an output cached by 0.7 may be missing what its rule asks for. The first build
+after the upgrade converts every source; after that a source is skipped when
+it did not change, as before.
+
+**`convert --lods=0.5,0.25,0.1` gives a model its own levels of detail.** A
+manifest rule's `lods: [0.5, 0.25]` does the same from the build hook. Each
+ratio, strictly between 0 and 1, cuts one level from every node's full mesh
+with `flutter3d_mesh`'s `simplifyMeshWithAttributesMeasured`, and the node
+switches to it at a screen fraction of half the square root of the ratio. A
+surface with morph targets stays whole in every level, and a node whose
+surfaces all morph gets no levels. `generateLods` is the same from Dart and
+hands back a `LodLevelReport` per ratio. Nothing is cut unless a ratio is
+named, and each level adds its triangles to the file. `C5`
+
+**`--impostor` ends the chain in a card that turns to the eye.** With the flag,
+or `impostor: true` in a rule, each node that draws something is drawn by the
+software rasteriser from 8x8 directions laid out on an octahedral map, into an
+albedo atlas and a normal-depth atlas that come out as the same bytes on every
+machine. The bake runs after the mesh levels and before texture encoding, so
+it can still decode the source images; a texture it cannot decode is baked as
+its material's base colour, and the report says which. At run time the node's
+`LodGroup` ends in the card, one draw that casts no shadow. `bakeImpostors`
+is the entry from Dart, and a `device` handed to it is left open for its
+owner; everything the bake uploads it releases again. On five trees at the
+switch distance, 11% of the silhouette differs from the mesh and the mean
+colour error is under 13 steps a channel. Off by default. At the default
+`cell` of 64 it costs two 512 by 512 atlases per node. `C4`
+
+**`--chunks` splits a scan into runs the renderer culls one at a time.**
+`--chunks`, `--chunks=N`, or `chunks: true` or a triangle count in a rule runs
+`flutter3d_mesh`'s `clusterMesh` on every static mesh above the threshold,
+`kDefaultChunkThreshold` (65536 triangles). Each run of up to 4096 triangles
+carries a box and a cone of normals, which the scene pass tests against the
+view, the facing and the occlusion test. No vertex moves, and a skinned or
+morphing mesh stays whole. The table goes in a `.f3d` section of its own,
+written only when a mesh has one, so a reader from before 0.8.0 loads the same
+mesh and draws all of it. `splitLargeMeshes` is the entry from Dart. Off by
+default. `C9`
+
+**One file per device class.** A manifest can name `classes: [phone, web,
+desktop]`, or map a class to its own `lods`, `impostor`, `impostorCell`,
+`maxTextureSide` and `lightDifference`. The build then writes
+`model.phone.f3d`, `model.web.f3d` and `model.desktop.f3d` in place of
+`model.f3d`, each with its own level-of-detail chain, impostor and largest
+texture side. The presets are `DeviceClassBudget.phone` (levels at 0.5, 0.25
+and 0.1, an impostor cell of 32, `TextureBudget.mobile`),
+`DeviceClassBudget.web` (0.5 and 0.25, an impostor, `TextureBudget.web`) and
+`DeviceClassBudget.desktop` (the rule's own chain, `TextureBudget.desktop`).
+`convert --classes phone,desktop` does the same from the command line. The
+hook carries the phone and desktop files on a native target and the web files
+on a build with no code configuration, which is how a web build calls it; a
+`deviceClasses` hook user define overrides the choice. It deletes class files
+an earlier build left, and still writes the single `.f3d` whenever a carried
+class has no file of its own, so the loader's fallback always finds one. At
+run time `flutter3d_core` picks the class, and `loadModelAsset` reads its file
+first. A manifest without `classes:` builds what it built before, to the same
+cache key. `N7`
+
+**`dart run flutter3d_build:lights --optimize <level.json>` gives a level fewer
+lights.** It runs `flutter3d_editor_core`'s `LightOptimizer`, the same one the
+editor's button and its agent server call. The views come from `--poses`, the
+list a game's `Recorder` writes while it plays a run back, or else four
+headings from every player spawn. `--state` names a lighting state the level
+must still look right under, such as the noon sun or a night with no light,
+and may be repeated. The command prints the moves and the numbers, writes
+before and after previews with `--preview`, writes over the input or to
+`--out`, writes nothing with `--dry-run`, and refuses to overwrite a generated
+level. A plan whose drawn result misses the optimizer's bounds is reported and
+not written. `--classes phone,web,desktop` writes `level.phone.json` and the
+others beside the output, each optimised to its class's `lightDifference`
+from the nearest `flutter3d_assets.yaml` (or the preset's), and leaves the
+level itself alone. The command lives under `bin/` only, so the build hook
+does not compile the optimizer. `N1`
+
+**A Gaussian splat capture converts to a paged `.f3dsplat`.** `convert` turns
+a `.ply` or `.spz` capture into an octree of merged levels of detail, written
+coarse levels first so a viewer reads only the pages its cut needs.
+`convertSplat` is the entry from Dart. Walking a directory, a `.ply` counts as
+a capture only when its header names `f_dc_0`, so a folder that also holds a
+mesh saved as PLY converts. A `.ply` named on its own is still tried, and
+refused with the reason.
+
+**Smoke without an asset.** `bakeSixWay` bakes a density field into a
+`SixWaySheet` for `flutter3d_particles`' six-way stage, with single scattering
+along the six axes, and `smokePuff(seed:)` is a procedural puff to bake. The
+defaults are 16 frames in 4 columns of 64-pixel cells at an `extinction` of
+6.0; a sheet that size is a few million multiplications on the CPU. `N6`
+
+`init` writes `^0.8.0` for this package (`kFlutter3dBuildVersionConstraint`).
+The package now depends on `flutter3d_mesh`, `flutter3d_cpu`,
+`flutter3d_model_core`, `flutter3d_editor_core` and `flutter3d_sim`, all plain
+Dart, and on `vector_math` ^2.4.3.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
