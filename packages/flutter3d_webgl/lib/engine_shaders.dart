@@ -218,8 +218,16 @@ void main() {
   // lies *in* the surface, so it stretches with the geometry rather than
   // resisting it. Using the inverse transpose here is the classic way to get a
   // TBN that is subtly wrong under non-uniform scale.
-  v_tangent =
-      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
+  //
+  // The sign goes through a mirror too. The fragment stage rebuilds the
+  // bitangent as cross(n, t) * w, and a cross product of two transformed
+  // vectors comes out multiplied by the matrix's determinant, so under a
+  // negative scale it points the opposite way from the transformed bitangent
+  // and the green channel of a normal map on a mirrored copy lights from the
+  // wrong side. Folding the determinant's sign into w turns it back.
+  bool mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  v_tangent = vec4(mat3(frame_info.model) * morphed_tangent.xyz,
+                   mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
 
@@ -517,8 +525,13 @@ void main() {
   mat3 skinRotation = mat3(skin);
   v_normal =
       mat3(frame_info.normal_matrix) * (skinRotation * morphed_normal);
+  // The bitangent sign flips with a mirror (see mesh.vert), and here the
+  // tangent has gone through two matrices, either of which may be one.
+  bool mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=
+                  (determinant(skinRotation) < 0.0);
   v_tangent = vec4(
-      mat3(frame_info.model) * (skinRotation * morphed_tangent.xyz), morphed_tangent.w);
+      mat3(frame_info.model) * (skinRotation * morphed_tangent.xyz),
+      mirrored ? -morphed_tangent.w : morphed_tangent.w);
 
   v_texcoord = texcoord;
   v_color = color;
@@ -844,9 +857,13 @@ void main() {
   v_normal =
       mat3(frame_info.normal_matrix) * normalize(rotation * morphed_normal);
   v_texcoord = texcoord;
+  // The bitangent sign flips with a mirror (see mesh.vert), and an instance
+  // flipped by its own transform is as mirrored as a node flipped by its.
+  bool mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=
+                  (determinant(rotation) < 0.0);
   v_tangent = vec4(
       mat3(frame_info.model) * (rotation * morphed_tangent.xyz),
-      morphed_tangent.w);
+      mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color * i_color;
   v_lightmap_uv = vec2(0.0);
   gl_Position = frame_info.mvp * local;
@@ -1042,8 +1059,10 @@ void main() {
   v_world_position = world.xyz;
   v_normal = mat3(frame_info.normal_matrix) * morphed_normal;
   v_texcoord = texcoord;
-  v_tangent =
-      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
+  // The bitangent sign flips with a mirroring model; see mesh.vert.
+  bool mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  v_tangent = vec4(mat3(frame_info.model) * morphed_tangent.xyz,
+                   mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = vec4(1.0);
   v_lightmap_uv = color.xy;
 
