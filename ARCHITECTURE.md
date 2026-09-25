@@ -113,10 +113,15 @@ engine uses **AOT permutations: one shader per lighting model**. The bundle form
 is tied to the SDK version, so it is rebuilt whenever Flutter moves — a structure
 scan compares the bundle's timestamp against its sources.
 
-**Compute passes are not exposed.** Compute exists in Impeller, and `impellerc`
-accepts `--input-type=comp`, but the Dart API does not surface it. So GPU
-particles, GPU skinning, GPU culling, indirect draw and GPU sorting of transparent
-objects are unavailable; all of that runs on the CPU.
+**Compute passes are not exposed on flutter_gpu.** Compute exists in Impeller,
+and `impellerc` accepts `--input-type=comp`, but the Dart API does not surface
+it. The hardware contract has had a compute shape since 0.8.0
+([§7.6](#76-compute)), which WebGPU and the software rasteriser run and Impeller
+and WebGL2 refuse, and the renderer's own frame dispatches none of it. So GPU
+particles, GPU skinning, GPU culling, indirect draw and GPU sorting of
+transparent objects are still unavailable; all of that runs on the CPU. What
+every backend does have is a render target a full-screen pass can read from and
+write into in turns, and `FieldPass` is that path.
 
 **Reflection cannot answer "bind or not".** A shader that *declares* a uniform
 block but reads nothing from it still reports the block at a non-zero size, while
@@ -128,6 +133,20 @@ therefore carries its own permutation metadata — the `usesFragInfo`,
 `tool/build_shaders.sh` prints the compiled binding table after every build so the
 hand-written metadata cannot drift from it unnoticed. The same applies to
 samplers: one the shader never reads is dropped from the signature.
+
+**Since 0.8.0 the engine's own stages carry the compiler's answer instead.**
+`flutter3d_impeller/tool/stage_bindings.dart` reads impellerc's reflection of
+the compiled Metal function and writes three tables into `flutter3d_shaders`:
+`stageBindings`, the blocks and samplers each stage kept; the layout of each
+block's members, per stage, since one block name can be wider in one stage than
+in another; and a class per block with one preallocated array per member. A test
+holds all three to a fresh compile. Every backend hands the first two to its
+stages as `ShaderHandle.kept` and `ShaderHandle.layouts`, and an encoder refuses
+a block or sampler the stage dropped before anything reaches a driver. That is
+what makes the 0.7.1 crash, an unlit draw handed a light list its Metal
+function had no slot for, impossible whatever a caller asks. The `uses…` flags
+stay as the fallback for a stage from an application's own bundle, which comes
+with no table.
 
 **Uniform blocks are reflected by struct type name, textures by variable name.**
 For `uniform FrameInfo { … } frame_info;` the key is `FrameInfo`; for
@@ -195,13 +214,13 @@ point of §3.3.
 
 | Package | Owns |
 |---|---|
-| `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats. Names no graphics API. Plain Dart |
+| `flutter3d_hardware` | The graphics vocabulary a backend implements: devices, encoders, handles, formats, and the optional compute shape. Names no graphics API. Plain Dart. `trace.dart` beside it records any device's calls as a `.f3dtrace` and replays them on another ([§13](#13-how-correctness-is-held)) |
 | `flutter3d_impeller` | The backend over `flutter_gpu`, and the compiled shader bundle |
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
 | `flutter3d_webgpu` | The WebGPU backend, and WGSL with its reflection, translated from `flutter3d_shaders`. The only backend whose shaders are not the same text the others read |
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
 | `flutter3d_conformance` | The contract suite every backend passes |
-| `flutter3d_shaders` | The GLSL both hardware backends compile, and the list of required entry points |
+| `flutter3d_shaders` | The GLSL both hardware backends compile, the list of required entry points, a separate manifest of compute stages, and the tables generated from the compiler's reflection: what each stage keeps, each block's layout, a class per block ([§2](#2-the-constraints-that-shape-the-design)) |
 | `flutter3d` | The engine's thin Flutter shell over `flutter3d_core`: `BundleAssetSource`, `defaultImageDecoder`, `ModelAsset`, `bindMaterial` |
 | `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder — and two libraries under it that import on their own: `geometry.dart`, the mesh vocabulary every decoder and every editable mesh share (`MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh`), and `formats.dart`, model documents, their decoders (glTF, OBJ, STL, `.f3d`, and FBX refused with a reason) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs ([§8.1](#81-model-decoding), [§8.6](#86-writers)). Plain Dart |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
@@ -216,13 +235,13 @@ point of §3.3.
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
 | `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
-| `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
+| `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; `LevelScene`, which turns a level into brush meshes, materials, lights and probes with no Flutter; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
 | `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow`, `FieldRow` and `EditorWidgetsTheme` so far |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
-| `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
-| `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
+| `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build, and the bakes that need a renderer or a mesh editor ahead of time: levels of detail, impostors, cluster tables, a file per device class, paged splat captures, six-way smoke sheets, and the light optimizer's command. That is why it depends on `flutter3d_cpu`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_editor_core` and `flutter3d_sim`. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
+| `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image, by differing pixels or by FLIP; measuring a `QualityTable`; and timing a recorded run frame by frame (`replayPacing`) |
 | `flutter3d_mesh` | The editable half-edge mesh — `EditMesh`, its journal, its operations — that a model decodes into once somebody starts editing it |
 | `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)), and the rig algorithms it runs — bone-name mapping, rest-relative retargeting with a two-bone-IK foot lock, automatic skin weights — which read a rig as nodes and tracks and know nothing of a project — and the pictures of a project: `sceneFromProject`, `renderProject` for an agent's still, `RenderSnapshotJob` for a tiled, supersampled snapshot, each on a device the caller supplies. Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_core` is |
 | `flutter3d_model_mcp` | The modeller's own commands offered to an agent over MCP, the same shape `flutter3d_editor_mcp` already gives the level editor |
@@ -378,6 +397,32 @@ pass per buffer. `FrameGraph` compiles the pass list and its resources;
 `FrameResources` owns render targets and releases them by identity after the
 frames in flight have passed.
 
+**The graph as 0.8.0 registers it.** Registration order is the version chain
+every read resolves against, so the list below is also the order a resource is
+written and read in:
+
+```
+point shadows (static) → point shadows → directional shadows → shadow moments
+reflection probe 0 … n → irradiance update
+scene → scene colour copy → transparent → object ids
+(overlay nodes) → reflections → luminance → depth pyramid
+ssao → ssao blur → contact shadows
+camera velocity → object velocity → reactive mask
+  → ssao history → contact shadow history
+volumetric fog → light shafts → depth of field → motion blur
+temporal resolve → local exposure → bloom → composite
+  → spatial upscale → antialias → viewport shading
+(present nodes)
+```
+
+Every node is registered whether or not its setting is on, because a name has
+to be known for a read of it to compile, and an inactive node is culled. So a
+frame that switches none of 0.8.0's effects on runs the passes 0.7.4 ran. Each
+pass a node opens carries the node's name as `RenderPassDescriptor.label` and
+sits in a `Timeline` span of the same name, and `FrameResult.passes` reports
+each node's CPU time and, where the device measures it, `gpuMicros`
+([§15](#15-limits) says where that is).
+
 ### 4.2 The render list and packed sort keys
 
 ```
@@ -434,12 +479,62 @@ across. That is the same arithmetic that made a cube tile expensive before it
 got its own `cubeResolution` — one number multiplied by a count nobody was
 looking at.
 
+**A cascade is redrawn only where something in it changed.** Each tile of the
+directional atlas keys on its own matrix and on the casters its volume holds,
+each by its `worldVersion` (a skinned caster by its joints'), so a camera
+walking past still casters redraws nothing, and the last cascade, fitted to the
+casters rather than to the camera, stays drawn while the camera walks. Casters
+marked `shadowIsStatic` go further, the way the cube atlases already did: they
+are drawn into a static atlas of their own, and each tile of the frame's atlas
+that is redrawn starts from a copy of its static tile through the `ShadowCopy`
+stage. That stage writes the stored depth to colour and to `gl_FragDepth`, so
+the dynamic casters drawn over it test against the walls already there. As the
+camera walks, a cascade's texel-snapped matrix moves by whole texels across the
+light, and the static tile is then scrolled: copied moved and offset in depth,
+with only the static casters that reach the newly exposed strips drawn. A
+texture cannot be read and written in one pass, so there are two static
+atlases, and a frame that changes a static tile draws into the spare and swaps
+them. Over a field of sixty static blocks a walk draws a dozen casters a frame
+where redrawing the moved tiles took sixty-eight, and its frames match a
+renderer drawing each from nothing to within a rounding at shadow edges.
+
+A near cascade also pulls its depth range back to the furthest caster towards
+the light, so a tall caster standing outside the cascade's sphere still shades
+the floor under it, and every PCF tap stays half a texel inside its own
+cascade's tile.
+
+**The sun's soft shadow is sized in metres.** `ShadowSettings.directionalLightRadius`
+is the light's apparent radius in radians; the sun's is about 0.0047. The
+search for a blocker and the filter take sixteen taps each on a Vogel disc,
+turned per pixel, the gap between blocker and receiver is converted to metres
+with the cascade's own depth row, and the penumbra is that gap times twice the
+tangent of the radius, in texels of the cascade the fragment lands in. Until
+0.8.0 the radius was texels per unit of stored depth, a unit of a different
+length in every cascade and every scene, so one setting drew one softness near
+and another far. Nought is still the 3×3 kernel.
+
+**EVSM is a filter chosen per frame, made from the depth atlas.**
+`ShadowSettings.filter` picks `ShadowFilter.pcf`, `pcss` or `evsm`, and left
+null follows the radius as before. Under `evsm` the *shadow moments* node blurs
+the directional atlas once, in two separable passes, into exponential moments in
+an `r32g32b32a32Float` atlas, made again only when the depth under it was
+redrawn, and the lit stages read it with one filtered tap bounded by Chebyshev's
+inequality. The depth atlas stays as it was, so static and dynamic casters still
+combine on depth, where a minimum works, and the step that does not combine
+comes after. The filter needs `supportsFloat32Filtering`, which Impeller
+answers false: there the node is skipped as unsupported, the frame counts it in
+`FrameResult.shadowsDenied`, and the 3×3 kernel draws.
+
 Point lights use cube shadows in an atlas. Faces store radial distance rather than
 depth, because depth is per-face and would seam at every boundary; the shader is
 handed the same six matrices that drew them, so there is no second derivation to
 disagree. A light keeps two atlases — one for what moves and one for what does not
 — and the shader takes the nearest occluder from both; the static half is rendered
-once at load, since a dungeon's walls do not move.
+once at load, since a dungeon's walls do not move. A spot whose cone is wider
+than a cube face is shadowed through the cube atlas as well, like a point light
+whose cone still limits where its light falls: one tile opened past a face
+spread its texels, its normal offset and its filter over up to fourteen times
+the width.
 
 **The static half is redrawn when the rows change hands, when the texture is
 reallocated, and when a setting the pass reads changes** — the last of those was
@@ -532,7 +627,10 @@ which is what lets anything above display white survive long enough for
 post-processing to see it. Bloom is a threshold with a soft knee, a chain of
 half-size targets down and a tent filter back up. `LookSettings` adds colour
 grading, vignette, grain and chromatic aberration in the same pass; the software
-backend mirrors all of it, so the two references can be compared exactly.
+backend mirrors all of it, so the two references can be compared exactly. The
+neutral curve is the default of several `TonemapCurve`s (ACES, AgX, Reinhard),
+and since 0.8.0 the curve can be a baked display table read in its place
+([§4.9](#49-light-occlusion-and-air)).
 
 **Two passes that write numbers rather than pictures, read back a frame later.**
 `GraphicsDevice.readback` copies a texture — or one pixel of it — as the passes
@@ -566,7 +664,11 @@ that answers a frame or two late holds one copy in the air rather than three.
 **Contributors.** A pass can be extended without editing the renderer:
 `PassContributor` receives a `PassEncoder` — the recording half of the interface,
 with no `submit` — so a contributor cannot end somebody else's pass. Particles are
-the first user.
+the first user. A contributor is handed the lights a mesh of its bounds would
+get, through `ContributorLights` (the eight slots, the light list and, in a
+clustered view, the cells), which is what the six-way smoke stage lights a puff
+from; and it may mark the reactive mask of [§4.8](#48-the-frame-over-time)
+through `PassContributor.encodeReactive`.
 
 **X-ray silhouettes.** `RenderSettings.xray` names a layer, and every node on it
 that survived culling is drawn twice more at the end of the scene pass, after the
@@ -599,7 +701,10 @@ needs `EXT_draw_buffers_indexed` for per-attachment blending) and bypassed
 entirely by the software rasteriser's surface write — so the three backends
 disagreed about what was left there. A software test renders the same scene
 with `showSurfaceBuffer` twice, silhouettes on and off, and requires the two
-frames to be equal byte for byte.
+frames to be equal byte for byte. Since 0.8.0 the index is a promise wherever
+`supportsIndependentBlend` is true, which WebGL2 answers only with
+`OES_draw_buffers_indexed`; a device answering false still ignores it, so the
+silhouette keeps its own stage.
 
 **"Culling" above is doing work, and so is "nearer".** The stage reads the render
 list, which is post-cull, so a marked node the frustum test dropped — or one a
@@ -647,6 +752,40 @@ distant object samples a smaller *texture*. It is per object rather than per
 pixel, so a floor running to the horizon still aliases, but it covers the common
 case of a prop holding a four-thousand-pixel texture while occupying thirty pixels
 of screen.
+
+**A converted model brings its own levels, and the chain can end in a card.**
+`convert --lods=0.5,0.25,0.1` cuts one level per ratio from every node's full
+mesh with `flutter3d_mesh`'s `simplifyMeshWithAttributesMeasured`, switching at
+a screen fraction of half the square root of the ratio; a surface with morph
+targets stays whole in every level. `convert --impostor` then bakes each node
+that draws something from 8×8 directions laid out on an octahedral map, into an
+albedo atlas and a normal-depth atlas. The bake runs on the software rasteriser,
+so the atlases are the same bytes on every machine that builds them. At run time
+`ImpostorNode` is a `MeshNode` drawn with `LightingModel.impostor`: the
+`ImpostorVertex` stage turns the card to the eye, and the `Impostor` stage
+blends the three nearest views by their barycentric weights and lights the
+result diffusely, receiving shadows. A card is one draw and casts no shadow. A
+node whose surfaces are skinned or morph gets no card, because its vertices sit
+in the skeleton's bind space rather than the node's and a card is one pose. On
+five trees at the switch distance 11% of the silhouette differs from the mesh
+and the mean colour error is under 13 steps a channel; at the default `cell` of
+64 a node costs two 512×512 atlases.
+
+**A mesh the size of a scan is culled a run at a time.** `clusterMesh` in
+`flutter3d_mesh` reorders a mesh's triangles into runs of up to 4096, grown
+across shared positions and kept near their centre and their average normal,
+and `MeshData.clusters` (`MeshClusters`) records each run's box and cone of
+normals. No vertex moves and the index buffer holds the same triangles in a new
+order, so anything that ignores the table draws the whole mesh. The scene pass
+tests each run's box against the view's frustum, its cone against the eye in
+the mesh's own space (only where the draw culls back faces, and never for an
+orthographic view), and its box against the occlusion test of
+[§4.7](#47-occlusion-by-depth) when one is on; the visible runs are packed to
+the front of an index buffer kept per node and view, rewritten only when that
+set changes. Shadows, probes and layers drawn after the pass still draw the
+mesh whole. `convert --chunks` splits every static mesh above
+`kDefaultChunkThreshold`, 65536 triangles, and leaves skinned and morphing
+meshes alone.
 
 ### 4.5 Instancing
 
@@ -736,6 +875,354 @@ be a tool rather than a load — the crypt takes half a minute, the vaults two
 floor, because a sample point had landed exactly on the floor's corner and a
 ray that begins on a box's surface is not blocked by it. Samples within a
 centimetre of a wall are closed now, and the test that found it is kept.
+
+### 4.7 Occlusion by depth
+
+`RenderSettings.occlusion` culls by what stands in front, for any scene, and it
+is `OcclusionMode.none` by default, so every recorded frame stays the bytes it
+was. Both other modes answer one `OcclusionTest`, which the render list asks of
+every mesh and, through `SceneBvh.queryFrustumWhere`, of every branch of the
+tree on the way down, so a hidden block of the scene is rejected whole.
+
+**`software` rasterises what the scene says occludes.** Meshes marked
+`MeshNode.occluder`, or their simpler `occluderMesh`, are drawn each view into a
+256×128 depth grid on the CPU, largest on screen first and at most two thousand
+triangles a frame. A texel is written only where one mesh covers all four of its
+corners, with the farthest of their depths, so the grid never claims more than
+was there; a false *hidden* is a hole in the picture, a false *visible* only a
+draw that was not saved. Tiles of 8×8 keep their farthest depth for a reject in
+one comparison. The rasteriser uses the same near clip and edge functions as
+the software backend, written again for depth alone, since `flutter3d_core`
+cannot depend on a backend.
+
+**`hiZ` needs nothing marked.** The *depth pyramid* node reduces the surface
+buffer to the farthest view depth over 256×128 blocks, packed into RGBA8 as 24
+bits of depth and a validity bit, and reads it back; later frames reproject it
+through the camera it was seen with and answer the same test. The reading
+arrives a frame or two late, so the test answers *visible* before the first
+one, after a `RenderView.cut`, with several views, and on a device with no
+surface buffer. A block takes up to thirty-two taps a side, which covers a
+buffer up to 8192×4096 texel for texel. It took sixteen at first, and a phone
+held upright is already taller than 2048 pixels: the rows no tap landed on were
+never looked at, and a strip of sky there was covered by the nearer depth
+around it.
+
+The CPU tests hold a street scene to the same picture with occlusion on and
+every mesh an occluder, while it draws fewer meshes, and a golden run can do
+the same against the recorded references with `FLUTTER3D_GOLDEN_OCCLUSION`.
+
+### 4.8 The frame over time
+
+Everything in this section is off by default.
+
+**The previous frame is a store the renderer keeps.** `FrameHistory`
+(`Renderer.frameHistory`) holds, for each `MeshNode`, the world matrix, joint
+palette, morph weights and instance bytes as they were at the end of the last
+frame, and for each camera its unjittered view-projection. Cameras are the key
+rather than a view's place in the list, because the list is the caller's to
+reorder and a camera is the thing whose motion a velocity measures. A node is
+copied only when its change key moved (its world, its skeleton's pose, its
+morph, its instance data), so a still scene costs a lookup a node and allocates
+nothing after the first frame, which a test counts through
+`FrameHistory.allocations`. Nothing is recorded until a setting that needs a
+velocity turns `tracking` on. `Renderer.frameIndex` is public, and jitter, blue
+noise and every history are functions of it alone, which keeps a sequence of
+frames as deterministic as one; a golden scene moves its camera frame by frame
+with `GoldenScene.cameraAt`.
+
+**Velocity is written in two layers.** With `AntiAliasSettings.temporal` on
+(`TemporalSettings`, `enabled` false), the scene draws through a
+`JitteredProjection`, a Halton(2, 3) sub-pixel offset repeating every
+`sequenceLength` frames (16), and everything that works on the resolved
+picture keeps the unjittered matrix. The *camera velocity* node rebuilds each
+pixel's point from the surface buffer and carries it through last frame's
+view-projection, and the sky as a direction, so a step does not move the sky
+and a turn does. The *object velocity* node then draws over it every opaque
+node the history says moved, through `VelocityVertex`, `VelocitySkinnedVertex`
+or `VelocityInstancedVertex`, which put each vertex through both frames'
+matrices, both sets of morph weights and, for a skinned mesh, both palettes.
+Last frame's palette travels as a 4×64 float texture, because a second 4 KB
+block is past the uniform space impellerc allows one stage. The target is
+`hdrColorFormat`: it holds signed fractions, and `TextureFormat` mirrors
+flutter_gpu, which has no two-channel float format.
+
+**The resolve.** The *temporal resolve* node comes after every pass that reads
+the scene's own buffers and before bloom. It takes the motion of the nearest
+surface in the 3×3 around a pixel, reads last frame's colour through a
+Catmull-Rom filter where that motion says the pixel was, clips it to the
+neighbourhood, and drops it where the nearest surface was at a different depth,
+which the history keeps in alpha. `TemporalSettings.clip` says what it clips to:
+`TemporalClip.aabb`, the variance-tightened YCoCg box, by default, or a k-DOP of
+8, 16 or 32 sides (`kdop8`, `kdop16`, `kdop32`), whose slabs along more axes
+catch a remembered colour of the right brightness and the wrong hue. That colour
+sits inside the box, and it is the trail a red object leaves on green. Two
+output-sized histories swap each frame, and a `RenderView.cut`, a resize or a
+frame with the resolve off starts them again. The scene draws at `renderScale`
+and everything from the resolve on at the size that was asked for; material
+maps take a mip bias of log2(`renderScale`) - 0.5 meanwhile, and the antialias
+node follows with a robust contrast-adaptive sharpen at `sharpen` (0.25). The
+price is a velocity pass, a draw per moved node into it, and the two histories.
+A device with one colour attachment has no surface buffer to resolve against,
+and there no jitter is applied.
+
+**Three things lean on the resolve.** The noisy effects halve their samples:
+the occlusion and the contact shadow draw half (at least four) and blend into
+histories of their own through `TemporalAccumulate`, the *ssao history* and
+*contact shadow history* nodes, reprojected through the velocity and clamped to
+this frame's neighbourhood with nine tenths kept. Their rotation, and the march
+offsets of reflections and light shafts, come from one slice of 32 of the
+engine's blue noise a frame ([§4.11](#411-budgets-tables-and-device-classes)).
+What writes no velocity of its own (particles, splats, blended meshes) would be
+reprojected from the wall behind it and show at a fraction of its brightness,
+so with `TemporalSettings.reactive` above nought the *reactive mask* node marks
+the pixels they cover in the velocity target's spare blue channel and the
+resolve trusts its history less there. And a splat cloud under a resolve needs
+no sort ([§4.12](#412-gaussian-splats)).
+
+**Motion blur and spatial upscaling use the same buffers.**
+`RenderSettings.motionBlur` (`MotionBlurSettings`: `shutterFraction` 0.5, a
+180-degree shutter, and `maxRadius` 20 pixels, which is also the tile width)
+runs after depth of field and before the resolve, which averages its grain
+away. `VelocityTileMax` walks each tile's rows and then its columns for the
+longest motion in it, `VelocityNeighborMax` widens that to the tile's eight
+neighbours, and `MotionBlur` gathers fifteen samples along the dominant motion
+after the 2012 reconstruction filter, every read nearest, since the buffers hold
+motions and depths. Switching it on fills the velocity buffer whether or not the
+resolve runs. `RenderSettings.spatialUpscale` (`SpatialUpscaleSettings`,
+`sharpen` 0.2) serves the other path: below a render scale of one with the
+resolve off, the `Easu` pass brings the finished, tone-mapped picture up to
+size with a twelve-tap filter stretched along the edge it reads from the luma
+of the four nearest texels and held between them so its lobes cannot ring, and
+the same sharpen follows. It runs after the tone map because a highlight in HDR
+rings around any lobed filter, and it applies the grain the composite then
+leaves out, so the grain lands on output pixels. In the `easu-half` test a cube
+at half scale upscaled comes within 0.0145 mean error of the full-scale frame,
+where a bilinear stretch comes within 0.0164.
+
+### 4.9 Light, occlusion and air
+
+**Many lights are listed per cell of the view.** `RenderSettings.clusteredLights`
+(false) cuts each view into 16×9 tiles and 24 logarithmic slices of clip w, and
+`LightClusters` lists in each cell, on the CPU per view, the lights whose range
+reaches it: slices by the w range of a light's sphere, which is exact because w
+is linear in position, tiles by its box's eight projected corners. The cells
+ride in the light list texture after the light rows, so no lit stage gains a
+sampler. A draw keeps its eight slots, and with them its shadowed lights, and
+reads the rest of its tail of twenty-four from its fragment's cell. A floor
+under sixty-four lights on a one-metre grid used to keep thirty-two and leave
+the other spots unlit; with cells every spot is lit. A scene inside eight
+lights, one using light channels, or a view whose cells would pass 4096 rows
+keeps the per-draw list.
+
+**The surface buffer has a sibling.** The scene pass can attach a third target,
+the albedo buffer: each surface's own colour, sRGB-encoded at eight bits a
+channel, written by the lit stages at location two and left black by unlit and
+debug stages, which reflect no light. It is attached only when a pass reads it,
+and reading it attaches the surface buffer too, so the attachments stay
+consecutive. Impeller answers `maxColorAttachments` with four on Metal and
+Vulkan, the floor both guarantee, and one on OpenGL ES; the software
+rasteriser answers three.
+
+**Occlusion by the horizon, and light from the neighbours.**
+`AmbientOcclusionSettings.method` is `AmbientOcclusionMethod.ssao` by default,
+the twelve-tap hemisphere kernel. `gtao` searches two slices through each point
+for the highest horizon either side and integrates the cosine-weighted
+visibility between them in closed form, through the multi-bounce fit of Jimenez
+et al. 2016 per channel of the albedo buffer where one exists. `ssil` walks the
+same slices with each sample a slab `thickness` (0.3 metres) deep over a
+visibility mask of sixteen sectors, and writes the light the neighbouring
+surfaces bounce: this frame's lit colour times the receiver's albedo in rgb,
+and the open share of the hemisphere in alpha. The sectors are sixteen floats in
+four vectors, since impellerc's OpenGL ES target has no unsigned integers. The
+composite takes the occlusion from alpha and, under `ssil`, adds rgb before the
+tone map. A device with two attachments has no albedo buffer, and the colour
+falls back to grey.
+
+**Exposure by place.** `RenderSettings.localExposure` (`LocalExposureSettings`:
+`strength` 0.7, `shadowStops` and `highlightStops` 2) is exposure fusion at an
+eighth of the frame. A `LocalExposure` pass weighs three exposures of the
+scene's luminance by how near mid-grey each comes out, two wide
+`LocalExposureBlur` passes blur the weights and turn them into stops, and the
+composite multiplies the scene by two to that power times the strength, before
+the glow is added. The wide blur stands in for blending the exposures through a
+Laplacian pyramid, and the stops are applied through a bilinear upsample rather
+than a guided one, since nothing finer than the blur survives it. In the window-interior test a block in near darkness beside a lit one comes
+up by a fifth while the lit one does not brighten.
+
+**The air has a thickness.** `RenderSettings.volumetricFog`
+(`VolumetricFogSettings`: `density` 0.02, `steps` 24, `distance` 40 metres)
+marches each view ray at half resolution through a medium thinning with height.
+Each step asks the cascades whether the sun reaches it and, with clustered
+lights on, which point and spot lights the cell holds there, and scatters them
+with a Henyey-Greenstein phase; the start of each ray is offset by the blue
+noise. An upsample weighs the four nearest fog texels by how close their depth
+is to the pixel's, so a halo does not bleed across a silhouette, and the result
+is composited before the tone map and before the light shafts, which add to it.
+The scene pass keeps the cells it drew with for the march, since a later pass
+may rebuild the light list without them.
+
+**The tone curve can be a table, and white can be exceeded.**
+`LookSettings.displayTransform` takes a float colour table over a log2 shaper
+from -10 to +6 stops about 0.18, read after exposure in place of the curve.
+`TonemapCurve.aces2` is the one the engine ships: 33 entries an axis of the
+ACES 2.0 SDR tonescale at 100 nits, with the hue held. It is the tonescale
+alone, without the reference transform's gamut mapping.
+`RenderSettings.outputTransform` says what the finished frame is encoded for:
+`OutputTransform.sdr` as before, or `extendedSrgb` on a device whose
+`hdrOutputFormats` is not empty, which today means WebGPU on a display the
+browser reports as high dynamic range. There the frame is exposed and not
+tone-mapped, reference white is one and a highlight goes past it; everywhere
+else the setting draws the SDR frame byte for byte.
+
+### 4.10 Glass and transparency
+
+**A frame with glass splits its scene around a copy of itself.** When the
+scene holds a transmissive draw, the scene node draws the opaque half, the sky
+and the x-ray silhouettes, keeps the glass and the transparent draws back, and
+stores its depth; the
+*scene colour copy* node writes the scene and five halvings of it into one
+texture (`SceneColourChain`); and the *transparent* node loads the scene's
+targets and depth and draws the glass reading that copy where the bent ray
+leaves the volume, at a level its roughness picks, then the transparent half
+and the contributors. The levels sit side by side in one texture, the base on
+the left and each halving stacked in a column to its right, for two reasons in
+the interface: a 2D render target has no mip levels in `RenderTargetSpec`, and
+a texture per level would cost the layered stage a sampler a level where it had
+one left under WebGL2's sixteen. A frame without glass registers both nodes,
+finds them inactive and draws what it drew before. A split frame draws one
+sample a pixel, since a second pass cannot load the multisampled targets the
+first left in tile memory, and `FrameResult.antiAliasing.msaaDeclined` says so.
+
+**Order independence is a setting.** `RenderSettings.transparency` is
+`TransparencyMode.sorted` by default, the back-to-front blend.
+`weightedBlended` draws the transparent list into an accumulation target
+(additive) and a revealage target (multiplied by one minus alpha), tested
+against the depth the opaque pass now stores through `DepthTarget.loadAction`
+and `storeAction`, and a `WboitResolve` pass lays the weighted average over the
+scene, so crossing panes come out the same from either side. The test is order
+independence itself: the scene drawn with its transparent draws shuffled is the
+same bytes. A device whose `supportsIndependentBlend` is true draws the list
+once with both targets attached; elsewhere it is drawn twice, once per target.
+Under this mode the scene pass does not multisample, transparent draws write no
+depth, and contributors are drawn after the resolve, so a particle in front of a
+pane stays in front of it.
+
+### 4.11 Budgets, tables and device classes
+
+**Data tables are uploaded once per device.** `EngineTables.of(device)` uploads
+a generated Dart table with `createTextureFromPixels` the first time something
+asks for it and keeps it for as long as the device lives, so an effect that is
+off never costs its table and two renderers on one device share one copy. Three
+ship: 32 slices of 64×64 void-and-cluster blue noise, generated here so the
+bytes carry no licence question and are the same on every backend; the ACES 2.0
+display table; and the fitted LTC tables for rectangle lights, two 64×64 tables
+stacked in one 64×128 texture whose spare lane holds the sheen's directional
+albedo. `flutter3d_core/tool/make_tables.dart` writes them, each hash is
+pinned, and CI regenerates them. The k-DOP axes and the quality tables are
+Dart constants, since no shader samples them.
+
+**The sampler budget is WebGL2's.** WebGL2 guarantees sixteen samplers and
+twelve uniform blocks a stage, and a test over `stageBindings` fails any
+compiled stage above either. A feature that adds a texture to the lit stages
+therefore packs rather than appends: the irradiance field is one atlas, the
+light clusters ride in the light list texture, both LTC tables and the sheen
+albedo are one texture, and the material layers' textures become two packed
+maps ([§6.4](#64-layers-and-lobes-past-metal-rough)). `Pbr` binds thirteen
+samplers and `PbrLayered` sixteen, which is the whole budget.
+
+**Work that can wait shares one allowance.** `RenderSettings.frameWorkBudget`
+is microseconds a frame for work that can be spread over frames; nought, the
+default, is no limit. `FrameWorkBudget` lets a piece of work start when what
+the frame has spent plus what a piece has lately cost still fits, so the piece
+that would tip it waits for the next frame; the first piece of a frame always
+runs, so every queue drains even on a device too slow to fit one. Two kinds of
+work draw on it: irradiance probe updates, and the faces of the dynamic
+point-shadow atlas. A face the allowance refuses is skipped before its matrix
+is recorded, so the tile's old picture is still read through the matrix that
+drew it, and the next frame's scan starts at the first face left out.
+`Renderer.frameWorkBudget` reports what the last frame spent and put off.
+
+`Renderer.warmUp` is the other half of an even frame. On a loading screen it
+links every lit pipeline the scene's meshes need, visible or not, and the
+passes the settings switch on; it captures every reflection probe at once,
+where a running frame captures one; and it draws as many frames as there are
+frames in flight, so the target pool already holds what a running frame needs.
+[§14](#14-performance-characteristics) has what that did to the first frames of
+a level.
+
+**A device class is chosen once, and a quality table is read every frame.**
+`DeviceClass` is `phone`, `web` or `desktop`, a final class with const
+instances so a fourth class does not break a caller's `switch`.
+`DeviceClassSelector` calls every browser `web`, and otherwise decides by
+whether the GPU samples a BC format, which every desktop GPU does and almost no
+phone GPU does. A short measured probe frame slower than `desktopMicros`
+(8000) only ever demotes a desktop to a phone: a phone that measures fast on a
+cool loading screen is still a phone ten minutes later. `DeviceClassPicker`
+remembers the answer through a `DeviceClassMemory` and takes a player's
+override. The class decides which files load
+([§8.8](#88-assets-per-device-class)) and which `QualityTable` an
+`AdaptiveQuality` reads.
+
+A table lists every pair of a render scale (1.0, 0.85, 0.7, 0.6, 0.5 of the
+application's own) and an effect tier (0 to 3), each with its frame time
+relative to full quality and its mean FLIP against full quality over a set of
+scenes. A tier keeps three quarters, half or a quarter of the samples and steps
+of the screen-space effects, the fog and the shafts, halves the shadow maps from
+tier 2, takes the temporal clip one k-DOP size down and scales a non-zero work
+budget. It only pulls levers down, and full quality hands back the
+application's own settings object. `AdaptiveQuality` (`AdaptiveQualitySettings`,
+off, `budgetMicros` 16667) picks each frame the best-looking row whose estimate
+fits: the table's cost, times a load measured on this device that rises with a
+slow frame at once and falls back by an exponential average, times a per-row
+correction learnt from the rows it visits. It keeps a row under 90% of the
+budget and climbs only to one under 75% for 30 frames running, and above a
+motion threshold it limits itself to smaller render scales. The committed
+tables' costs are software-rasteriser stand-ins, marked unmeasured for all three
+classes: the FLIP column is real, and the cost column waits for each class to be
+measured on its own GPU with `measureQualityTable`.
+
+**Targets can share a texture within a frame.** `RenderSettings.aliasTargets`
+(false) lends a pooled target again once the graph says its last pass has run;
+passes reach the queue in encoding order, so reuse within a frame needs no
+ring. On the ten-pass CPU scene the pool makes 10 targets a frame where it made
+11. `StorageMode.deviceTransient` means tile memory on the web backends too
+since 0.8.0: WebGPU allocates such a target with `TRANSIENT_ATTACHMENT` where
+the browser offers it, and WebGL2 invalidates it when the pass ends.
+
+### 4.12 Gaussian splats
+
+A `SplatCloud` arrives from a `.ply`, from SPZ versions 1 to 4 read in pure Dart
+(`parseSplatSpz`, gzip through the package's own inflate and zstd through the
+KTX2 decoder, so it reads on the web), or from glTF primitives carrying
+`KHR_gaussian_splatting`, which load into `ModelDocument.splats` each on its
+node. `SplatContributor` draws one as a contributor to the scene pass.
+
+**It sorts less, and under a resolve not at all.** The sort is two stable
+eight-bit counting passes over distance from the eye, quantised to sixteen bits
+across the cloud's own range, in `Uint32List`s (`splat_sort.dart`), so native and
+web produce one order. Because it orders by distance, a camera that only turns
+never sorts again; a sort runs only when the eye has moved more than a fraction
+of the cloud's depth, the node's matrix changed, or `invalidateSort` is called.
+With `SplatComposite.automatic`, the default, a cloud under a temporal resolve
+draws unsorted through `SplatHashed`: each splat is kept or dropped whole at a
+pixel against the blue noise, with its opacity as the chance, and written opaque
+with its depth, so the depth test orders what survives and the resolve averages
+the speckle. Blue noise keeps each 3×3 neighbourhood holding its share of kept
+pixels, which the history clip needs, where white noise would clump. The clip
+still darkens a splat's faint tails; the cores converge.
+
+**A large capture draws what a budget allows.** `buildSplatOctree` merges a
+cloud into a tree whose leaves are the original splats and whose inner nodes
+hold their children moment-matched, one Gaussian per occupied cell of a small
+grid, never more splats than their children together. `SplatLod` grows a cut
+from the root, refining first the node that looks biggest from the eye and only
+while its children fit what is left of the budget, so a cut never exceeds its
+budget and becomes the original cloud once the budget covers it. The cut is
+chosen when the cloud would sort anyway. `convert` writes a capture as a
+`.f3dsplat`, a node table and one page a node with coarse levels first, and
+`PagedSplatOctree` reads it through any byte-range reader (an HTTP range
+request, a file, bytes in memory), asking for deeper pages only where the cut
+needs them, most visible first. `SplatContributor.lod` draws it.
 
 ---
 
@@ -828,7 +1315,11 @@ It is not a way to light a material; it is what the x-ray stage draws its two
 extra passes with, and it is Unlit with the surface buffer taken away. `LightingModel.builtIn` is what a picker
 offers and what `fmat` writes a shader name from, so a model whose whole
 purpose is to say nothing about the surface has no business being offered.
-See [§4.3](#43-passes).
+See [§4.3](#43-passes). Three more stand outside the list for the same kind of
+reason: `polyline`, which draws a route as a mark on a map; `impostor`, which
+draws one kind of geometry, a card ([§4.4](#44-culling-and-level-of-detail));
+and `pbrLayered`, which a material's own layers ask for and a picker has no
+reason to offer ([§6.4](#64-layers-and-lobes-past-metal-rough)).
 
 `LightingModel` is a **value class, not an enum**, so the list is not closed: an
 application that builds its own bundle can add an entry and the renderer caches a
@@ -836,7 +1327,11 @@ pipeline for it like any other. What it cannot do is add a shader to a bundle it
 does not build.
 
 Its `uses…` flags are **declared rather than detected**, for the reflection reason
-in [§2](#2-the-constraints-that-shape-the-design). `pipelineGroup` is an FNV-1a
+in [§2](#2-the-constraints-that-shape-the-design), and since 0.8.0 they decide
+nothing for a built-in stage: the renderer asks the compiled bundle's
+`stageBindings` first and the flags only for a stage the device cannot answer
+for, one from an application's own bundle. A model whose flags claim too much
+is bound by the table. `pipelineGroup` is an FNV-1a
 fold of the shader name rather than `hashCode`, because Dart does not promise a
 string's hash is stable between runs and the draw sort uses it — a
 nondeterministic sort shows up as goldens differing by a quarter of their pixels.
@@ -855,22 +1350,41 @@ analytically where the surface knows them.
 A material also carries `parameterBlock`, `parameters` and `extraTextures` — the
 uniform block and slots an application's own shader reads. Nothing the engine
 ships uses them; they are what makes a custom shader usable without editing the
-renderer.
+renderer. The layers glTF adds on top of metal-rough are
+[§6.4](#64-layers-and-lobes-past-metal-rough).
+
+glTF's `baseColorFactor` is linear, and `SurfaceMaterial.baseColor` is the
+authored, sRGB-encoded tint the shaders convert, so since 0.8.0 the loader
+converts on the way in and the writer on the way out. A factor of 0.5 used to
+draw as 0.21.
 
 ### 6.3 Lights
 
 Directional, point and spot, with glTF's inverse-square falloff, range window and
 smooth cone ramp. Up to eight are packed into `vec4[8]` uniform arrays with the
 count as a uniform, so switching a light on or off never rebuilds a pipeline.
-Intensities are unitless multipliers rather than lumens.
+Intensities are unitless multipliers rather than lumens. The lights past eight
+are rows of a light list texture, from which a draw reads a ranked tail of
+twenty-four, and in a clustered view the tail comes from its fragment's cell
+instead ([§4.9](#49-light-occlusion-and-air)).
 
 A fourth kind is a rectangle, and it is the one that is not punctual: what
 reaches a surface is an integral over the panel rather than a value at a point.
 The diffuse half of that integral is closed-form — Lambert's polygon form
 factor, four `acos` calls, exact and checked against a brute-force quadrature
-rather than against a shipped table — and the specular half is the
-representative point on the panel nearest the mirror direction, which is what
-makes the highlight a streak with the panel's shape. The rectangle's two edge
+rather than against a shipped table. In the two metal-rough models the specular
+half is integrated too, by linearly transformed cosines (Heitz, Dupuy, Hill and
+Neubelt 2016): the panel's corners are turned into the frame of the fit, the
+fitted inverse matrix is applied, and the vector form factor of the four edges
+is summed and clipped to the horizon, so a glossy floor under a long panel
+shows the whole panel. The fit is the published one, stacked into
+`EngineTables.ltc`, and a test holds the integral to a brute-force one within a
+fifth at three roughnesses; the worst case, the tail of a narrow lobe, is
+sixteen per cent under. The other lit models keep the representative point on
+the panel nearest the mirror direction, which also makes the highlight a streak
+with the panel's shape. A panel rated in lumens emits pi times its axial
+intensity, the Lambertian figure; until 0.8.0 it was two pi, and every panel
+gave half the light its lumens promised. The rectangle's two edge
 vectors ride in the arrays a punctual light uses for the direction it points and
 its cone, so a fourth type cost no bytes per draw.
 
@@ -880,14 +1394,86 @@ probe stores what a surface facing each direction receives, as an octahedral
 tile with a gutter, plus two moments of depth so that Chebyshev's inequality can
 refuse light that would cross a wall. It is filled by casting rays through the
 scene's own raycaster — one bounce — and probes that turn out to be inside
-geometry are detected and skipped. A scene reads it through the ambient uniform
-that already exists, sampled once facing up and once facing down per object, so
-it costs no new binding and a scene without one draws exactly as before.
+geometry are detected and skipped.
+
+**Since 0.8.0 the field is read at every pixel.** `IrradianceField.toAtlas()`
+packs every probe's irradiance tile above and every depth-moment tile below
+into one float atlas, uploaded again only when the field's version moves, and
+`lib/irradiance.glsl` takes the eight probes around each fragment, weighted
+trilinearly, by facing and by Chebyshev's bound, each tile read by four nearest
+taps so that no backend needs filtered float textures. It takes the hemisphere
+ambient's place at the strength the hemisphere had; with no field the block
+says off and nothing changes. The per-object read it replaced, once facing up
+and once facing down at the node's centre, also scaled the result by the
+ambient strength twice, so rooms lit by a field changed brightness.
+`IrradianceField.sample` stays as the bake's reference.
+
+`IrradianceField.gpuUpdates` (nought by default) updates that many probes a
+frame on the GPU, round robin. The *irradiance update* node draws a probe's six
+views into a sixteen-texel cube, lit colour and surface buffer, and the
+`IrradianceConvolve` kernel folds them into the probe's two tiles through a
+`FieldPass`, keeping `hysteresis` (0.9) of the old value. The capture is lit by
+the field itself, so each pass adds a bounce, and a field follows a room that
+changes. It needs cube textures and a second colour attachment; elsewhere the
+bake stands, and `Renderer.irradianceAtlas` says which texture the lit stages
+read.
 
 Image-based lighting is a prefiltered specular chain plus a diffuse level, built
 by `EnvironmentMap.prefilter` from a cube map or from sky settings. The
 convolution walks a fixed golden-angle spiral with no randomness in it, which is
 what lets two independently written backends agree exactly.
+
+### 6.4 Layers and lobes past metal-rough
+
+**The layers are one object on the material and one more lighting model.**
+`MaterialExtensions` on `SurfaceMaterial` holds glTF's `KHR_materials_ior`,
+`specular`, `clearcoat`, `sheen`, `anisotropy`, `transmission`, `volume`,
+`dispersion` and `iridescence` as a single reference, so every place that copies
+a material field by field carries all of them by carrying one, and one JSON codec
+in glTF's own shape serves the glTF reader and writer, `.fmat` (under
+`"extensions"`) and `.f3d`. They are drawn by `LightingModel.pbrLayered`, which
+is `lib/pbr.glsl` compiled a second time with `F3D_LAYERED` defined. `Pbr` is
+the same file with nothing defined and compiles to what it always did, so plain
+metal-rough keeps its cost and its samplers, and the two cannot drift apart
+beneath the layers. A loader gives a material the layered model only when a
+layer changes its shading, and with every layer at its default the layered stage
+draws what `Pbr` draws. The factors ride in a `LayerInfo` block of their own,
+since `FragInfo` is shared with five other stages.
+
+What the layered stage adds: a dielectric reflectance from the index and the
+specular layer; a coat as a second GGX lobe on the geometric normal, dimming
+what is beneath it by its Fresnel; a Charlie sheen, whose directional albedo is
+read from the LTC table's spare lane; anisotropy, stretching the GGX lobe along
+the turned tangent; transmission lit by what lies behind the surface, bent by
+the index through a volume and attenuated by Beer's law over the thickness,
+with dispersion reading red, green and blue along three rays; and a thin film by
+Belcour and Barla's two-bounce Airy sum over the base reflectance. Behind the
+surface means the scene copy of [§4.10](#410-glass-and-transparency) inside
+the transparent pass, and the environment everywhere else. Textures are packed
+at load for the sampler budget: coat, coat roughness, transmission and
+thickness into one coat map, sheen colour and roughness into a sheen map. The
+specular textures, the coat's normal map and the anisotropy and iridescence
+textures are kept for export and not drawn, and the loader says so in its
+warnings.
+
+**A texture transform per map.** `Material.textureTransforms` gives each map of
+a layered material its own 2×3 `KHR_texture_transform` matrix at the end of
+`LayerInfo`, read through `MapUv`, so maps that disagree draw right and an
+animation pointer can move one offset. The common case, one transform shared by
+every map, is still baked into the mesh's coordinates and costs nothing; every
+other stage expands `MapUv` to the plain coordinate and compiles to what it did.
+
+**Two lobes that are arithmetic only.** `RenderSettings.energyCompensation`
+(false) adds back the light a single GGX bounce loses: the direct specular is
+scaled by 1 + f0(1/E - 1), with E the single-scattering albedo the split-sum fit
+already gives, and the environment's specular gains Fdez-Agüera's
+multiple-scattering term, so a rough gold sphere is as bright as a polished one.
+`RenderSettings.diffuseModel` is `DiffuseModel.lambert` by default, or
+`DiffuseModel.eon`, the energy-preserving Oren-Nayar lobe of Portsmouth, Kutz
+and Hill (2024), rough by the material's roughness, which keeps a rough
+dielectric's rim bright and stops it reading as plastic. Both switches ride in
+spare lanes of `FragInfo`, so no block offset moved, and neither costs a
+sampler.
 
 ---
 
@@ -919,7 +1505,16 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   adds itself to rather than `presentFrame` in `flutter3d_app` checking the
   concrete type of a `GraphicsDevice` it cannot know statically (`GraphicsDevice`
   cannot be `sealed`: its four implementations live in four different
-  packages).
+  packages). Since 0.8.0 that includes eleven members declared for the whole
+  0.8 cycle at once: `supportsGpuTimestamps`, `onGpuTimings`,
+  `supportsCompute`, `createStorageBuffer`, `createComputePipeline`,
+  `beginComputePass`, `readBuffer`, `releaseStorageBuffer`,
+  `supportsFloat32Filtering`, `supportsIndependentBlend` and
+  `hdrOutputFormats`. Each backend is its own package on a caret range of this
+  one, so a member added in 0.8.1 would break every backend published before
+  it. A capability that is not built answers false or empty and its creators
+  throw `UnsupportedError`, which is a complete answer, and a later 0.8.x only
+  turns answers on.
 - **`CommandEncoder` and `PassEncoder`.** The split is deliberate: `PassEncoder`
   is the recording half without `submit`, so handing a contributor an
   already-submitted pass is a type error rather than a comment warning about one.
@@ -929,7 +1524,22 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   eight-bit masks, `StencilState.disabled` is what every pass starts with, and
   `StencilState.narrowReference` is where the eight bits of a *reference* are
   decided — once, rather than once per backend, which is how a software
-  rasteriser came to wrap what GL clamps.
+  rasteriser came to wrap what GL clamps. A descriptor's `label` names the
+  pass to a GPU debugger and to `onGpuTimings`, and `DepthTarget.loadAction`
+  and `storeAction` (clear and don't-care by default, which is what every pass
+  did before) let a later pass test against depth an earlier one stored.
+- **`ShaderHandle.kept` and `ShaderHandle.layouts`, `UniformBlock` and
+  `PassEncoder.bindBlock`.** The first two carry what a compiled stage kept and
+  the layout of each of its blocks ([§2](#2-the-constraints-that-shape-the-design)),
+  and are null for a stage from an application's own bundle. `UniformBlock` is
+  the base of the classes `flutter3d_shaders` generates, one per block with a
+  preallocated `Float32List` per member, and `bindBlock` binds one with only the
+  members that stage's layout has. `bindUniformBlock` and its map are unchanged.
+- **`StorageBuffer`, `ComputePipelineHandle` and `ComputeEncoder`**, the compute
+  shape of [§7.6](#76-compute).
+- **`TraceEvent`**, in `package:flutter3d_hardware/trace.dart`, sealed, with a
+  variant for every call of the contract, compute included, so no 0.8.x has to
+  add one to a hierarchy callers switch over.
 - **Handles** — `TextureHandle`, `GeometryBuffer`, `ShaderHandle`,
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
@@ -974,9 +1584,20 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   compared against a mirrored frame fails as though rendering broke.
 - **A sampler a shader declares must be bound.** Leaving one unbound is a native
   crash with no Dart frame on at least one backend, so the engine binds a stand-in
-  rather than nothing.
-- **`bindUniformBlock` returns false for a block the shader does not have**, which
-  is ordinary — a compiler drops a block nothing reads. A block that exists
+  rather than nothing. Since 0.8.0 a declared slot a draw leaves unbound is
+  also named, in `debugDrainErrors` on WebGL2 and WebGPU and in
+  `FakeBackend.bindingViolations` on the VM, and is never served another draw's
+  resource. `bindPipeline` forgets every binding on every backend, the same
+  pipeline bound again included, so a bind one draw missed cannot be covered by
+  the draw before it: the software rasteriser kept them, and drew a plausible
+  picture through a missing bind that Metal failed on.
+- **`bindUniformBlock` and `bindTexture` return false for a slot the stage does
+  not have**, which is ordinary: a compiler drops a block nothing reads. The
+  question is asked of the stage, never of the program, and a backend with no
+  reflection answers true. Until 0.8.0 `bindTexture` returned nothing and each
+  backend answered a missing sampler its own way (Impeller threw, WebGL2 and
+  WebGPU did nothing, the software rasteriser bound it), so one caller's mistake
+  showed on one backend and nowhere else. A block that exists
   *without* a member the caller named is an error: the two ends then disagree about
   its shape, and zeros are a plausible-looking value for most of what goes through
   there.
@@ -1044,9 +1665,17 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
   `supportsOffscreenMsaa`, `supportsStencil`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
-  `maxAnisotropy`, `supportsRenderToMip`, and the storage mode, sample count,
+  `maxAnisotropy`, `supportsRenderToMip`, `maxColorAttachments`,
+  `supportsCompute`, `supportsGpuTimestamps`, `supportsFloat32Filtering`,
+  `supportsIndependentBlend`, `hdrOutputFormats`, and the storage mode, sample count,
   type and format a `TextureHandle` carries before asking `readback` for it. A
   backend refuses loudly rather than substituting something that looks similar.
+  `setBlend`'s attachment index is honoured where `supportsIndependentBlend` is
+  true and ignored elsewhere, attachment zero taking the state, so a caller
+  that wants two attachments blended differently sets attachment zero first and
+  the others after it, and draws the same pass on all four backends. A depth
+  another pass loads must have been stored, and cannot be
+  `StorageMode.deviceTransient`, which on Apple GPUs has no memory to load from.
   `supportsRenderToMip` is the one that splits a single backend by platform:
   flutter_gpu attaches a cube face everywhere and a mip level below the base
   only on Metal and Vulkan, and the renderer builds a probe's chain where it
@@ -1130,7 +1759,48 @@ meet failures it could do nothing about.
 
 The suite runs headless against the software backend, and
 `packages/flutter3d_impeller/tool/conformance.sh` runs it on a live GPU and
-returns an exit code.
+returns an exit code. Since 0.8.0 `conformanceChecks` also takes in
+`computeChecks`, which decline where `supportsCompute` is false, and a device
+answering `supportsFloat32Filtering` with true is held to both halves of it, a
+bilinear tap between float texels and a float target that renders and samples
+back, while one answering false declines. The fuzzer of [§13](#13-how-correctness-is-held) ships in the
+same package.
+
+### 7.6 Compute
+
+**Compute has a shape in the contract and two backends behind it.**
+`supportsCompute` says whether the rest works. `createStorageBuffer` (with
+`hostReadable` for `readBuffer`), `createComputePipeline` from a stage of the
+device's library, and `beginComputePass`, which opens a `ComputeEncoder`
+(`bindPipeline`, `bindStorageBuffer`, `bindUniformBlock`, `dispatch`,
+`submit`), follow the render pass's rules: a binding the stage does not declare
+answers false, and `bindPipeline` forgets every binding. WebGPU runs it over
+its own compute pipelines, a bind group layout per group a stage names, and
+reads a buffer back through a mappable staging buffer. The software rasteriser
+runs a stage through `CpuStage.compute`, whose Dart mirror is handed a whole
+workgroup and runs the phases between barriers across all its invocations,
+which is what a barrier means; a dispatch finishes before it returns. Impeller
+and WebGL2 answer false and throw `UnsupportedError` from the creators:
+flutter_gpu has no compute pipeline yet, and WebGL2 has no compute stage.
+
+Compute stages have a manifest of their own, `flutter3d.compute.json`, which
+neither impellerc nor the WebGL2 generator reads, so neither of their pipelines
+changed. WebGPU compiles it through the same glslang and naga into
+`engine_compute_shaders.dart`, which CI holds fresh, and `kComputeShaders`
+lists its names. `PrefixSum`, an inclusive scan of 1024 integers in one
+workgroup of 256, is the one stage so far, chosen because every output depends
+on every input before it, and the conformance suite holds it to i(i+1)/2. The
+renderer dispatches nothing yet.
+
+**`FieldPass` is the compute-shaped path every backend has.** It holds two
+render targets of one spec and steps a field by drawing a full-screen kernel
+from the current one into the other and swapping, texture coordinates paired
+with clip space the way the renderer's own full-screen passes pair them, so a
+field is not turned over each step on a backend whose row zero is at the bottom.
+A conformance check steps a decay kernel three times in each float format the
+device renders to and reads the value back through a vertex stage: 0.425 is
+right, and 0.3 means the target clamped to one. The irradiance field's GPU
+update is its first engine user ([§6.3](#63-lights)).
 
 ---
 
@@ -1162,6 +1832,22 @@ hidden. Non-fatal problems land in `warnings` and are surfaced rather than logge
 so a skipped primitive or an ignored extension explains a model that looks odd but
 still loaded.
 
+**0.8.0 reads four glTF extensions it used to refuse when required and ignore
+otherwise**, besides the material layers of [§6.4](#64-layers-and-lobes-past-metal-rough).
+`KHR_materials_variants` becomes `ModelDocument.variants` and a per-surface
+`variantMaterials` map; `ModelInstance.selectVariant(name)` changes which
+material each mesh node points at, so two instances sharing materials can wear
+two variants at once, and `ModelAsset` binds every variant's material at upload
+so their textures are on the device before the first switch.
+`KHR_animation_pointer` channels are resolved once at load into
+`AnimationPointer` tracks on a material's base colour, emissive strength,
+roughness, metallic or texture offset, or a light's colour or intensity, and
+play through an `AnimationPointerSink` such as the instance's `PointerTargets`.
+`KHR_texture_transform` is accepted as required once a material's maps can
+read a transform each. And `KHR_gaussian_splatting` primitives load as splat
+clouds on their nodes ([§4.12](#412-gaussian-splats)), following the ratified
+text.
+
 Decoding runs on a background isolate. File reads stay on the UI isolate and
 sibling files are requested back over a port. This does not make decoding faster;
 it removes the jank, and no native code would help — a native call from the UI
@@ -1175,6 +1861,19 @@ does not. Vertex and index arrays are stored exactly as `MeshData` holds them, s
 loading builds typed-data views over the file rather than copies — every blob
 entry is 4-byte aligned precisely so those views are legal. A reader skips a
 section kind it does not know.
+
+That rule is how 0.8.0 grew the format without a new version. Five section
+kinds arrived: 22, a record per material of its layers; 23, the variants; 24,
+the animation pointer tracks, in a section of their own so an older reader
+skips them rather than refusing an unknown track path; 25, the impostors,
+written only when a file has one; and 26, the cluster tables, written only when
+a mesh has one. A file with none of them is the bytes it was, and a reader from
+before 0.8.0 loads the same model less what the new sections carried: a split
+mesh drawn whole, a node's levels ending at its coarsest mesh.
+
+Two formats of 0.8.0 sit beside it with layouts of their own: a `.f3dsplat` is
+a paged splat tree, a header and a node table before the pages ([§4.12](#412-gaussian-splats)), and a
+`.f3dtrace` is a recorded frame ([§13](#13-how-correctness-is-held)).
 
 The reason it exists is measured: the same teapot takes **4.54 ms as OBJ against
 1.1 µs as `.f3d`**, and the two render pixel for pixel identically. That is about
@@ -1431,6 +2130,32 @@ other two done differently.**
   reading that back is therefore a swap of which `ModelProject` is current
   and nothing else: the copy a live journal would have paid for is paid once,
   at write time.
+
+### 8.8 Assets per device class
+
+**One source, a file per class, one of them read.** A manifest that names
+`classes: [phone, web, desktop]`, or maps a class to its own `lods`, `impostor`,
+`impostorCell`, `maxTextureSide` and `lightDifference`, makes the build write
+`model.phone.f3d`, `model.web.f3d` and `model.desktop.f3d`, each with its own
+level-of-detail chain, impostor and largest texture side. The presets are
+`DeviceClassBudget.phone` (levels at 0.5, 0.25 and 0.1, an impostor cell of 32,
+`TextureBudget.mobile`), `DeviceClassBudget.web` (0.5 and 0.25, an impostor,
+`TextureBudget.web`) and `DeviceClassBudget.desktop` (the rule's own chain,
+`TextureBudget.desktop`). The hook carries the phone and desktop files on a
+native target and the web files on a build with no code configuration, which
+is how a web build calls it, and still writes the single `.f3d` whenever a
+carried class has no file of its own, so the loader's fallback always finds
+one. `lights --optimize --classes` does the same for a level: a
+`crypt.phone.json` beside `crypt.json`, its light set optimised to that
+class's tolerance, sharing the visibility table and the lightmap.
+
+At run time the class is picked once
+([§4.11](#411-budgets-tables-and-device-classes)) and set as
+`assetDeviceClass`. `loadModelAsset` and `LevelLoader.load` read the class's
+file first and the plain one when there is none, at the cost of one missed read.
+With no class picked, the default, the loader reads what 0.7 read, and a
+manifest without `classes:` builds what it built before, to the same cache
+key.
 
 ---
 
@@ -1918,7 +2643,11 @@ cache, so a new one is a class rather than a branch; `PassContributor` extends a
 shipped as an asset or loaded from bytes through `GraphicsDevice.loadShaders`,
 and refreshed in place while the application runs — and `EntityKind` catalogues
 are injected rather than fixed, so a level format validates against whatever
-entities a game defines.
+entities a game defines. 0.8.0 adds two smaller ones: a `PassContributor` can
+draw into the reactive mask through `encodeReactive` and is handed the lights a
+mesh of its bounds would get, and `DeviceClassMemory` keeps the chosen device
+class wherever the application keeps its settings, since the engine names no
+storage.
 
 ---
 
@@ -2071,6 +2800,49 @@ number nobody recounts — the test count said "1230 tests in 12 packages" when 
 were nearly three thousand. What a scan catches is not a wrong number but a
 document quietly describing the repository of a year ago.
 
+**A frame can be kept as a file and drawn again anywhere.**
+`package:flutter3d_hardware/trace.dart` holds `RecordingDevice`, which wraps any
+`GraphicsDevice`, passes every call through and keeps it as a `TraceEvent`,
+with resources named by the order they were created in and every payload
+copied. `Trace` writes and reads `.f3dtrace`, a JSON header of events and one
+blob, and `replayTrace` issues a trace against another device and collects what
+it reads back. Every parity fixture recorded on the software rasteriser,
+written, read back and replayed on a fresh one draws the same bytes.
+`TraceEvent` is a hierarchy of its own beside `Recorded`, which tests assert
+against and which is lossy on purpose (a vertex binding records a count, not the
+buffer), so it cannot be replayed. It is a separate library because an
+application draws without it, and a recording costs a copy of every upload and
+uniform block for as long as the events are kept. A recording of the first frames of the macOS pacing run showed they linked
+almost nothing and spent their time capturing reflection probes, which is what
+`Renderer.warmUp` now does before play.
+
+**Programs nobody wrote are drawn against rewrites of themselves.**
+`generateFuzzProgram` turns a seed into a program of draws over the probe stages
+every bundle ships, with viewports, scissors, blending and depth chosen at
+random. The oracle is the program against itself: each `FuzzTransform`
+(`SplitDraw`, `SwapDisjointDraws`, `FoldPowerOfTwo`) rewrites it into one that
+must draw the same bytes, exactly in IEEE 754, and `shrinkFinding` cuts a
+difference down to the draws that still show it. `FuzzRandom` is Park and
+Miller's generator, whose products stay below 2^53, so a seed is the same
+program on the VM and in a browser. Two hundred seeds run on the software
+rasteriser, and fifty on each of WebGL2 and WebGPU in Chrome, compared against
+it by `fuzzDifference` and held to 2% of pixels. The first browser run put four
+of the fifty 16 to 26% apart, and both causes were in the software rasteriser,
+the reference: it clipped a triangle to the scissor where there was one and to
+the viewport only where there was not, and blending read back a negative value
+where a GPU would have stored nought. Neither showed in the engine's own
+frames, whose passes set viewport and scissor to one rectangle and never blend
+subtractively.
+
+**Some frames are meant to differ a little everywhere.** `flutter3d_testing`
+carries LDR-FLIP, ported line for line from the reference C++ and held to the
+error maps that implementation publishes, and `expectMatchesGolden(flipBudget:)`
+replaces the share of differing pixels with the mean FLIP error. A lower render
+scale moves nearly every pixel a little and looks almost the same, and a count
+of moved pixels cannot say how much worse such a frame looks; the quality
+tables of [§4.11](#411-budgets-tables-and-device-classes) are ranked by it for
+the same reason.
+
 **Generated files are diffed.** Anything produced by a tool is regenerated in CI
 and compared with `git diff --exit-code`, and the shader bundle — which is
 gitignored — is checked by freshness against its sources instead.
@@ -2082,8 +2854,11 @@ drawn twice is the same bytes twice, and a test that allows a few pixels of drif
 is a test that has stopped watching.
 
 **What CI does not run:** the Impeller half of the golden set, which needs a
-device and runs from `tool/golden.sh` on a machine with a GPU; and the performance
-budgets, for which there is neither a profiler nor a stored baseline.
+device and runs from `tool/golden.sh` on a machine with a GPU; and most of the
+performance budgets. One is run: a macOS job plays a recorded run through
+`tool/pacing.sh` and fails on any frame over 50 ms
+([§14](#14-performance-characteristics)). The same command on a phone is a
+step somebody takes by hand before a release.
 
 ---
 
@@ -2156,6 +2931,23 @@ pixels: a face is every mesh in the scene encoded again from another point, and
 thirty filter passes into a cube no wider than sixty-four are the small part. A
 kept probe pays it once.
 
+**Frame pacing is measured frame by frame, and a spike fails the run.**
+`tool/pacing.sh` plays a recorded run through the renderer, a simulation step
+and a draw a frame, and times each frame from the step to the GPU finishing it
+(`replayPacing` in `flutter3d_testing`), with the CPU and GPU halves serialised,
+which errs long and pins each spike to the frame that caused it. It writes the
+median, the 99th percentile, the worst frame and every frame over 50 ms, three
+sixty-hertz budgets, into `doc/pacing/<label>.md`. A frame rate would hide the
+one stop a player notices. The committed macOS report, taken on 2026-09-25 at
+`9c3a1ab3` with a profile build at 1280×720 through Impeller, plays the shooter
+sample three times: 660 frames, a median of 8.26 ms, a 99th percentile of
+12.25 ms, the worst 12.49 ms, none over 50. The run before `Renderer.warmUp`
+learnt to capture every probe and fill the target pool had the first three
+frames of play at 104 to 127 ms. The host was far busier then (a load average of
+19.74 at the start against 5.86), which is most of why the median also fell from
+25.83 ms; the first frames are what the change was about. No phone report is
+committed yet.
+
 ---
 
 ## 15. Limits
@@ -2166,8 +2958,10 @@ What the architecture does not provide, and why.
 game. A designer-facing graph is possible in an editor that generates permutations
 into a bundle.
 
-**No compute**, and therefore no GPU particles, GPU skinning, GPU culling or
-indirect draw.
+**No compute on Impeller or WebGL2**, and therefore no GPU particles, GPU
+skinning, GPU culling or indirect draw anywhere. The contract has compute and
+two backends run it ([§7.6](#76-compute)); a frame that has to draw the same on
+all four cannot lean on it until flutter_gpu offers compute pipelines.
 
 **No buffer readback on flutter_gpu.** SDK 3.47 has `copyTextureToBuffer`, and
 no way for Dart to read the `DeviceBuffer` it fills — `overwrite` and `flush` go
@@ -2333,8 +3127,8 @@ model drawing nothing.
 
 **`flutter3d_webgpu` draws, and two of its capabilities answer no on
 purpose.** It implements the same `GraphicsDevice` the other three do, over
-`navigator.gpu`: a device opens, a pass records, all thirty-nine of the engine's
-stages compile, and `flutter3d_conformance` answers **33 of 33 in Chrome** —
+`navigator.gpu`: a device opens, a pass records, every one of the engine's
+stages compiles, and `flutter3d_conformance` answers **33 of 33 in Chrome** —
 against a live adapter, run as a test rather than as an application, which is the
 arrangement WebGL2 already had and Impeller cannot have. Two of those
 thirty-three pass by *refusing*, and each refusal is a capability the device
@@ -2442,7 +3236,7 @@ SPIR-V. So
 `flutter3d_webgpu/tool/generate_shaders.dart` reads the same manifest the other
 two generators read, edits each stage's **declarations**, and hands the result to
 `glslangValidator -V --auto-map-locations` and then to
-`naga --keep-coordinate-space`. All 39 stages come out, and all 39 go back in
+`naga --keep-coordinate-space`. All 78 stages of 0.8.0 come out, and all 78 go back in
 through `naga --input-kind wgsl`, which is a different question from whether naga
 could write them. `tool/ci.sh` regenerates the table and diffs it, so a stale
 table or a different compiler on the machine is a failed build rather than a
@@ -2460,7 +3254,8 @@ apart and joined by location alone, so a shader that declared a varying of its
 own before its include would shift one side of a pair and not the other, and draw
 the wrong picture with nothing to say so. Locations are a function of the name,
 grouped into families by which names ever appear together, because there are
-seventeen varyings and sixteen locations.
+twenty varyings and sixteen locations; the velocity stages of 0.8.0 are the
+fifth family, and the widest is still eight.
 
 **Three traps this road had in it**, written here rather than in a commit
 message, because all three cost a day and none of them announces itself.
@@ -2532,24 +3327,27 @@ second of which is this stale row plus the arrangement — and a pass of
 `flutter3d/tool/golden.sh --update` and `flutter3d_webgl/tool/golden_web.sh
 --update` over the two names takes both to zero.
 
-**No occlusion culling for anything but a brush level, and no TAA.**
-A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
-a model imported from glTF is culled by the frustum alone.
+**Occlusion culling and TAA exist, and both are off by default.** A brush level
+has the precomputed visibility of [§4.6](#46-precomputed-visibility); any other
+scene is culled by the frustum alone unless `RenderSettings.occlusion` asks for
+the depth tests of [§4.7](#47-occlusion-by-depth), which this paragraph used to
+say did not exist.
 
-The antialiasing there is has a hole in it, because of what the screen-space
-effects require: filling the surface buffer turns MSAA off for the whole scene
-pass — the average of two octahedral normals is the encoding of no normal — so
+The antialiasing has a hole in it, because of what the screen-space effects
+require: filling the surface buffer turns MSAA off for the whole scene pass
+(the average of two octahedral normals is the encoding of no normal), so
 switching on ambient occlusion, reflections, contact shadows or viewport shading
 switches off the multisampling of the entire frame, and `FrameResult` says so in
-`antiAliasing.msaaDeclined`. What goes in its place is the post-pass FXAA of
-`AntiAliasSettings` (`post/fxaa.frag`), which this paragraph used to name as the
-missing piece. It lets a game have both, and it is not the same thing: FXAA
-softens an edge it finds in the finished picture and cannot recover a wire or a
-railing thinner than a pixel, which is what a temporal resolve would do and what
-is still absent.
+`antiAliasing.msaaDeclined`. A frame with glass, or with weighted blended
+transparency, draws one sample a pixel for its own reasons
+([§4.10](#410-glass-and-transparency)). Two things can go in its place. The
+post-pass FXAA of `AntiAliasSettings` (`post/fxaa.frag`) softens an edge it
+finds in the finished picture and cannot recover a wire or a railing thinner
+than a pixel. The temporal resolve of [§4.8](#48-the-frame-over-time) can,
+over sixteen jittered frames, at the cost of a velocity pass and two histories.
 
-Those two effects are off by default and are pinned by a picture on every
-backend: `ambient-occlusion-corner` and `screen-space-reflections` are golden
+Ambient occlusion and reflections are off by default and are pinned by a
+picture on every backend: `ambient-occlusion-corner` and `screen-space-reflections` are golden
 scenes in all three sets, and the cross-backend budgets over them are what
 caught the surface buffer storing a depth its format could not hold. This
 paragraph said for months that neither had a golden scene, which stopped being
@@ -2580,15 +3378,17 @@ next frame and nothing has to be rebuilt. A bundle that will not load keeps the
 previous shaders and says so in the bar, which is the ordinary case in an editing
 loop. See `apps/flutter3d_editor/lib/src/shader_watch.dart`.
 
-**No headless program that edits a level yet**, only a package that could carry
-one. `flutter3d_editor_core` is the editor's document layer as plain Dart — open
-a level, select in it, nudge it, undo, validate it, write it back, or turn a
-template into a project — and it has no `bin/` at all. So the blocker it removed
-is real and the thing that blocker was in front of is still unwritten: a level
-linter for CI, a service that checks an uploaded level, a tool an agent speaks
-to. What can be said today is that any of them is a dependency and a `main`
-rather than an argument about which application owns the code, which is what it
-was while those files sat in `apps/`.
+**Two headless programs edit a level, and neither is a linter.**
+`flutter3d_editor_core` is the editor's document layer as plain Dart (open a
+level, select in it, nudge it, undo, validate it, write it back, turn a template
+into a project, build its scene, add a room from a seed) and still has no
+`bin/` of its own. The programs stand on it from outside: `flutter3d_editor_mcp`,
+the server an agent speaks to, and `dart run flutter3d_build:lights --optimize`,
+which gives a level fewer lights and refuses to overwrite a generated one. A
+level linter for CI and a service that checks an uploaded level are still
+unwritten, and either is a dependency and a `main` rather than an argument
+about which application owns the code, which is what it was while those files
+sat in `apps/`.
 
 Two of the editor's own files did not follow and are the shape of what a
 headless core cannot do: `fly_camera.dart` needs a renderer to have a camera at
@@ -2597,12 +3397,20 @@ back atomically. Reading a disk is the half where a crash loses somebody's work,
 and it stays with the program that has a window to apologise in.
 
 **No asset streaming**, no load priorities and no cancellation. Streaming is only
-needed for open worlds, and there is no such scenario here.
+needed for open worlds, and there is no such scenario here. The one exception is
+a Gaussian splat capture, whose `.f3dsplat` pages arrive through a byte-range
+reader as the cut needs them ([§4.12](#412-gaussian-splats)).
 
-**No frame profiler yet**, which is why several entries in
-[§14](#14-performance-characteristics) are per-subsystem rather than per-frame:
-an external profiler sees Dart calls without knowing which part of a frame they
-are.
+**A profiler by pass, with GPU times only on WebGPU.** Every pass carries its
+frame graph node's name as its label and sits in a `Timeline` span of that name,
+so an external profiler now sees which part of a frame a Dart call belongs to,
+and `FramePass` reports each node's CPU time. `gpuMicros` is filled only where
+`supportsGpuTimestamps` is true: WebGPU, where the adapter grants
+`timestamp-query`, up to 64 labelled passes a frame, a frame or two late.
+flutter_gpu has no timer query, so on Impeller and on a phone the per-pass
+numbers are encode times, and several entries in
+[§14](#14-performance-characteristics) are still per-subsystem; the per-frame
+number there comes from `tool/pacing.sh`.
 
 **No `GpuImageSurface`**, and that is a measurement rather than a preference.
 flutter_gpu 3.47 added a presentable surface — `createImageSurface`,
@@ -2708,7 +3516,10 @@ each light and entity. `report` asks the same frame for its object ids
 built one draw per brush, and says for every brush, light and entity how many
 pixels it owns, where, how far away, and which pieces own the pixels its box
 would fill with their ray entering first — so "the torch is hidden by brush 3"
-is a pixel count after the depth test, not a guess from boxes.
+is a pixel count after the depth test, not a guess from boxes. What a recipe
+builds is missing from the picture for now: `screenshot`, `report` and
+`optimizeLights` read the document's own brushes and lights, and a room added
+with `generate` is kept as its recipe.
 
 The second limit is a design decision rather than a platform's. A socket into a
 running editor — an agent and a person watching one level change together — is
@@ -2762,9 +3573,21 @@ went to pub.dev at 0.4.0 under the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
-**0.7.0 is the shelf the tree carries, and it is not on pub.dev yet.** Thirty-four
-of the thirty-seven packages are 0.7.0 and every constraint one of them puts on
-another is `^0.7.0`. What changed since 0.6.0 is which packages there are, more
+**0.8.0 is the shelf the tree carries now, and it fixes the hardware contract
+for the whole 0.8 line.** Every package but `pad_input` and `pointer_lock` is
+0.8.0 and asks for `^0.8.0` of its siblings, because
+`PassEncoder.bindTexture` returns `bool` and every implementation of the
+interface changed with it. `GraphicsDevice`, `PassEncoder` and
+`CommandEncoder` are interfaces the backend packages implement on a caret
+range, so a member added in 0.8.1 would break every backend published before
+it: the whole cycle's members went into 0.8.0, answered conservatively where
+the work behind them was large, and a 0.8.x patch is only allowed to turn an
+answer on. Nothing of it is published yet; the site and the scaffold templates
+keep `^0.7.1`, which is what pub.dev has.
+
+**0.7.0 was the shelf before it.** Thirty-four
+of the thirty-seven packages of the day were 0.7.0 and every constraint one of
+them put on another was `^0.7.0`. What changed since 0.6.0 is which packages there are, more
 than what is in them: seven were folded into others, four names that pub.dev has
 at 0.6.0 no longer have code behind them (`flutter3d_backend`,
 `flutter3d_screens`, `flutter3d_session`, `flutter3d_bridge`) and are marked
