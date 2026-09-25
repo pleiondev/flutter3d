@@ -107,7 +107,9 @@ const int _quadricSize = 10;
 ///
 /// Top-level rather than private to `_Simplifier` because `pro-lod-02`'s
 /// attribute-aware simplifier needs the identical welding pass before it can
-/// tell a real boundary edge from a seam that only looks like one.
+/// tell a real boundary edge from a seam that only looks like one. That one
+/// welds for topology only: each corner still draws with its own vertex, so
+/// the two sides of a seam keep their own UV and normal.
 Int32List weldCoincidentPositions(
   Float64List positions, {
   double epsilonScale = 1e-5,
@@ -772,15 +774,24 @@ class _EdgeHeap {
 /// heavily-weighted virtual quadric plane at each boundary edge's endpoints —
 /// a plane that costs nothing to slide along the boundary curve but a great
 /// deal to leave it — which is the row's own "квадрики с атрибутами". On top
-/// of it, a boundary vertex is never offered a collapse with a strictly
-/// interior one: the quadric alone would make such a collapse *expensive*,
-/// but an edge with a lower-cost path through a large enough mesh could still
-/// clear a high fixed threshold, and testing that no interior collapse is
-/// ever the cheapest available one is a harder thing to prove than simply
-/// never proposing it. A boundary vertex may still merge with another
-/// boundary vertex — that shortens the boundary curve itself, the same way
-/// two interior vertices merging shortens the interior — just never with one
-/// that was not on it.
+/// of it, a boundary vertex is only ever removed along an open edge onto
+/// another boundary vertex: the quadric alone would make leaving the curve
+/// *expensive*, but an edge with a lower-cost path through a large enough
+/// mesh could still clear a high fixed threshold, and testing that no such
+/// collapse is ever the cheapest available one is a harder thing to prove
+/// than simply never proposing it. An interior vertex may be absorbed into a
+/// boundary one, and lands exactly on it.
+///
+/// **Seams are held the same way.** Positions are welded so a UV seam or a
+/// hard edge is an interior edge, not a crack, but every corner keeps the
+/// vertex it drew with — its own UV and normal — as a wedge of its welded
+/// position. A position with two wedges split by two seam edges is removed
+/// only along the seam onto another such position, each side's wedge onto
+/// the same side's, and a seam edge carries the same constraint planes as a
+/// boundary edge so the line does not wander. A position where three or more
+/// attribute regions meet (a cube's corner, a UV sphere's pole) is never
+/// removed. A collapse that cannot say which wedge of the kept position each
+/// of the removed one's triangles belongs to is refused.
 ///
 /// [boundaryWeight] scales the virtual boundary quadric relative to an
 /// ordinary face quadric's own magnitude — 1000 is the value most published
@@ -789,7 +800,7 @@ class _EdgeHeap {
 /// of a typical collapse.
 ///
 /// Attribute blending is a straight, unweighted average of the two merging
-/// vertices (`t = 0.5`) rather than the position-solve's own weighted
+/// wedges on each side (`t = 0.5`) rather than the position-solve's own weighted
 /// optimum — simpler, and the row's acceptance asks that weights still sum to
 /// one and that a UV frame renders, not that either interpolate exactly along
 /// the collapsed edge. Skin weights are merged and renormalized through
@@ -890,17 +901,26 @@ double _quadricCost(Float64List q, int o, double x, double y, double z) =>
     2 * q[o + 8] * z +
     q[o + 9];
 
+/// What a welded position is to the collapse rules, after the attribute
+/// vertices meeting there are counted — see [_AttributedSimplifier._kinds].
+const int _kindManifold = 0;
+const int _kindBorder = 1;
+const int _kindSeam = 2;
+const int _kindLocked = 3;
+
 class _AttributedSimplifier {
   _AttributedSimplifier._(
     this._positions,
     this._triangles,
+    this._wedgeTriangles,
+    this._wedgePosition,
     this._triangleAlive,
     this._vertexAlive,
     this._vertexVersion,
     this._quadrics,
     this._faceQuadrics,
     this._vertexTriangles,
-    this._isBoundary,
+    this._kinds,
     this._normals,
     this._uvs,
     this._joints,
@@ -952,12 +972,27 @@ class _AttributedSimplifier {
       }
     }
 
-    final triangles = Int32List.fromList(mesh.indices);
-    final triangleCount = triangles.length ~/ 3;
+    // Two index spaces per corner. [triangles] is the welded position, which
+    // the topology, the quadrics and the boundary tests read; [wedges] is the
+    // attribute vertex the corner draws with, which only the output reads.
+    // Rewriting the corners to the position alone would leave one UV and one
+    // normal per point, and every triangle on both sides of a UV seam or a
+    // hard edge would read the same one.
     final canonical = weldCoincidentPositions(positions);
+    final wedgeOf = _weldIdenticalWedges(
+      canonical,
+      normals,
+      uvs,
+      joints,
+      weights,
+    );
+    final triangles = Int32List(mesh.indices.length);
+    final wedges = Int32List(mesh.indices.length);
     for (var i = 0; i < triangles.length; i++) {
-      triangles[i] = canonical[triangles[i]];
+      triangles[i] = canonical[mesh.indices[i]];
+      wedges[i] = wedgeOf[mesh.indices[i]];
     }
+    final triangleCount = triangles.length ~/ 3;
 
     final triangleAlive = Uint8List(triangleCount);
     final vertexAlive = Uint8List(vertexCount);
@@ -989,12 +1024,12 @@ class _AttributedSimplifier {
     // error is how far it moved off the real faces, not the penalty.
     final faceQuadrics = Float64List.fromList(quadrics);
 
-    // An edge touched by exactly one triangle is a boundary edge. Counted
-    // once per triangle rather than deduplicated up front, since a triangle
-    // that shares an edge with no other alive triangle is exactly what
-    // "boundary" means here.
-    final edgeTriangleCount = <int, int>{};
-    final edgeOwner = <int, int>{};
+    // An edge touched by exactly one triangle is a boundary edge; one touched
+    // by two whose corners draw with different attribute vertices is a seam
+    // (a UV cut, a hard edge). Counted once per triangle rather than
+    // deduplicated up front, since a triangle that shares an edge with no
+    // other alive triangle is exactly what "boundary" means here.
+    final edgeTriangles = <int, List<int>>{};
     int edgeKey(int a, int b) => math.min(a, b) * vertexCount + math.max(a, b);
     for (var t = 0; t < triangleCount; t++) {
       if (triangleAlive[t] == 0) continue;
@@ -1002,24 +1037,17 @@ class _AttributedSimplifier {
           i1 = triangles[t * 3 + 1],
           i2 = triangles[t * 3 + 2];
       for (final pair in <(int, int)>[(i0, i1), (i1, i2), (i2, i0)]) {
-        final key = edgeKey(pair.$1, pair.$2);
-        edgeTriangleCount[key] = (edgeTriangleCount[key] ?? 0) + 1;
-        edgeOwner[key] = t;
+        (edgeTriangles[edgeKey(pair.$1, pair.$2)] ??= <int>[]).add(t);
       }
     }
 
-    final isBoundary = Uint8List(vertexCount);
     Vector3 posOf(int i) =>
         Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
-    edgeTriangleCount.forEach((key, count) {
-      if (count != 1) return;
-      final a = key ~/ vertexCount;
-      final b = key % vertexCount;
-      isBoundary[a] = 1;
-      isBoundary[b] = 1;
-      if (boundaryWeight <= 0) return;
 
-      final t = edgeOwner[key]!;
+    // Hoppe's constraint plane: through the edge, perpendicular to the face
+    // [t] — free to slide along the edge, dear to leave it.
+    void addEdgePlane(int t, int a, int b) {
+      if (boundaryWeight <= 0) return;
       final ti0 = triangles[t * 3],
           ti1 = triangles[t * 3 + 1],
           ti2 = triangles[t * 3 + 2];
@@ -1055,23 +1083,127 @@ class _AttributedSimplifier {
 
       addWeighted(a);
       addWeighted(b);
+    }
+
+    final isBoundary = Uint8List(vertexCount);
+    final seamEdges = Int32List(vertexCount);
+    edgeTriangles.forEach((key, owners) {
+      final a = key ~/ vertexCount;
+      final b = key % vertexCount;
+      if (owners.length == 1) {
+        isBoundary[a] = 1;
+        isBoundary[b] = 1;
+        addEdgePlane(owners.single, a, b);
+      } else if (owners.length == 2 &&
+          _cornersDiffer(triangles, wedges, owners[0], owners[1], a, b)) {
+        // A seam holds its line the way a boundary holds its curve: each
+        // side's plane, so a hard edge is held on the crease line itself.
+        seamEdges[a]++;
+        seamEdges[b]++;
+        addEdgePlane(owners[0], a, b);
+        addEdgePlane(owners[1], a, b);
+      }
     });
+
+    // How many attribute vertices meet at each position.
+    final wedgesAt = List<Set<int>?>.filled(vertexCount, null);
+    for (var t = 0; t < triangleCount; t++) {
+      if (triangleAlive[t] == 0) continue;
+      for (var k = 0; k < 3; k++) {
+        (wedgesAt[triangles[t * 3 + k]] ??= <int>{}).add(wedges[t * 3 + k]);
+      }
+    }
+    final kinds = Uint8List(vertexCount);
+    for (var v = 0; v < vertexCount; v++) {
+      final count = wedgesAt[v]?.length ?? 0;
+      kinds[v] = count <= 1
+          ? (isBoundary[v] == 1 ? _kindBorder : _kindManifold)
+          : (count == 2 && isBoundary[v] == 0 && seamEdges[v] == 2)
+          ? _kindSeam
+          : _kindLocked;
+    }
 
     return _AttributedSimplifier._(
       positions,
       triangles,
+      wedges,
+      canonical,
       triangleAlive,
       vertexAlive,
       vertexVersion,
       quadrics,
       faceQuadrics,
       vertexTriangles,
-      isBoundary,
+      kinds,
       normals,
       uvs,
       joints,
       weights,
     );
+  }
+
+  /// Whether triangles [t0] and [t1], which share the positions [a] and [b],
+  /// draw that edge with different attribute vertices at either end.
+  static bool _cornersDiffer(
+    Int32List triangles,
+    Int32List wedges,
+    int t0,
+    int t1,
+    int a,
+    int b,
+  ) {
+    int wedgeAt(int t, int position) {
+      for (var k = 0; k < 3; k++) {
+        if (triangles[t * 3 + k] == position) return wedges[t * 3 + k];
+      }
+      return -1;
+    }
+
+    return wedgeAt(t0, a) != wedgeAt(t1, a) || wedgeAt(t0, b) != wedgeAt(t1, b);
+  }
+
+  /// One attribute vertex per distinct set of attributes at each welded
+  /// position: a vertex repeated with the very same normal, UV and weights
+  /// (an unindexed mesh, or a cap's rim that happens to agree with its side)
+  /// is one wedge, not two, so it does not lock a position that has no real
+  /// discontinuity. A mesh with no optional attributes welds whole.
+  static Int32List _weldIdenticalWedges(
+    Int32List canonical,
+    Float64List? normals,
+    Float64List? uvs,
+    Float64List? joints,
+    Float64List? weights,
+  ) {
+    const tolerance = 1e-6;
+    bool close(Float64List? values, int width, int u, int v) {
+      if (values == null) return true;
+      for (var k = 0; k < width; k++) {
+        if ((values[u * width + k] - values[v * width + k]).abs() > tolerance) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    final wedgeOf = Int32List(canonical.length);
+    final byPosition = <int, List<int>>{};
+    for (var v = 0; v < canonical.length; v++) {
+      final seen = byPosition[canonical[v]] ??= <int>[];
+      final match = seen.where(
+        (u) =>
+            close(normals, 3, u, v) &&
+            close(uvs, 2, u, v) &&
+            close(joints, 4, u, v) &&
+            close(weights, 4, u, v),
+      );
+      if (match.isEmpty) {
+        seen.add(v);
+        wedgeOf[v] = v;
+      } else {
+        wedgeOf[v] = match.first;
+      }
+    }
+    return wedgeOf;
   }
 
   final Float64List _positions;
@@ -1085,7 +1217,30 @@ class _AttributedSimplifier {
   /// collapse's error against.
   final Float64List _faceQuadrics;
   final List<Set<int>> _vertexTriangles;
-  final Uint8List _isBoundary;
+
+  /// Per corner, the attribute vertex (wedge) it draws with — an original
+  /// vertex index, into [_normals], [_uvs], [_joints] and [_weights].
+  /// [_triangles] holds the same corners as welded positions.
+  final Int32List _wedgeTriangles;
+
+  /// Per wedge, the welded position it sits at. Fixed for the whole run: a
+  /// collapse moves a removed position's wedges onto the kept one's rather
+  /// than moving the wedges themselves.
+  final Int32List _wedgePosition;
+
+  /// Per position, one of [_kindManifold], [_kindBorder], [_kindSeam] or
+  /// [_kindLocked], fixed before the first collapse:
+  ///
+  /// - **manifold** — one wedge, off the boundary; may collapse into any
+  ///   neighbour whose wedges it can pair with.
+  /// - **border** — one wedge, on an open edge; only along an open edge onto
+  ///   another border vertex.
+  /// - **seam** — exactly two wedges split by exactly two seam edges; only
+  ///   along a seam edge onto another seam vertex, each side's wedge onto the
+  ///   same side's.
+  /// - **locked** — anything else (three UV islands meeting, a seam reaching
+  ///   the boundary, a cube's corner); never removed.
+  final Uint8List _kinds;
   final Float64List? _normals;
   final Float64List? _uvs;
   final Float64List? _joints;
@@ -1250,13 +1405,10 @@ class _AttributedSimplifier {
     final heap = _EdgeHeap(math.max(64, _triangles.length));
     final seenEdges = <int>{};
 
-    // A boundary vertex is only ever offered alongside another boundary
-    // vertex — see this file's own doc comment on why this sits beside the
-    // quadric penalty rather than instead of it.
-    bool eligible(int a, int b) => _isBoundary[a] == _isBoundary[b];
-
+    // Which way an edge may collapse, if at all, is [_pushEdge]'s to decide
+    // from the two ends' kinds — see this file's own doc comment.
     void offer(int a, int b) {
-      if (a == b || !eligible(a, b)) return;
+      if (a == b) return;
       final lo = math.min(a, b), hi = math.max(a, b);
       final key = lo * _vertexCount + hi;
       if (!seenEdges.add(key)) return;
@@ -1281,10 +1433,13 @@ class _AttributedSimplifier {
         continue;
       }
 
+      // `a` is kept and `b` removed: [_pushEdge] queues them in that order.
       final target = Vector3(entry.tx, entry.ty, entry.tz);
       if (_wouldFlip(b, a, target, flipThreshold)) {
         continue;
       }
+      final wedgeTargets = _pairWedges(b, a);
+      if (wedgeTargets == null) continue;
 
       // Measured against the faces the two vertices absorbed, both halves
       // summed the way the merge below will sum them. A collapse past
@@ -1331,70 +1486,21 @@ class _AttributedSimplifier {
 
       for (final t in _vertexTriangles[b].toList()) {
         for (var k = 0; k < 3; k++) {
-          if (_triangles[t * 3 + k] == b) _triangles[t * 3 + k] = a;
+          if (_triangles[t * 3 + k] != b) continue;
+          _triangles[t * 3 + k] = a;
+          _wedgeTriangles[t * 3 + k] =
+              wedgeTargets[_wedgeTriangles[t * 3 + k]]!;
         }
         _vertexTriangles[a].add(t);
       }
       _vertexTriangles[b].clear();
 
-      // Attributes blended before `b`'s own slot stops being read anywhere
-      // else — a straight average, not the position solve's own optimum; see
-      // this file's own doc comment for why.
-      if (_normals != null) {
-        final n = Vector3(
-          _normals[a * 3] + _normals[b * 3],
-          _normals[a * 3 + 1] + _normals[b * 3 + 1],
-          _normals[a * 3 + 2] + _normals[b * 3 + 2],
-        );
-        if (n.length2 > 1e-20) {
-          n.normalize();
-        } else {
-          n.setValues(0.0, 0.0, 1.0);
-        }
-        _normals[a * 3] = n.x;
-        _normals[a * 3 + 1] = n.y;
-        _normals[a * 3 + 2] = n.z;
-      }
-      if (_uvs != null) {
-        _uvs[a * 2] = (_uvs[a * 2] + _uvs[b * 2]) / 2;
-        _uvs[a * 2 + 1] = (_uvs[a * 2 + 1] + _uvs[b * 2 + 1]) / 2;
-      }
-      if (_joints != null && _weights != null) {
-        final merged = VertexAttributes.lerp(
-          VertexAttributes(
-            joints: Vector4(
-              _joints[a * 4],
-              _joints[a * 4 + 1],
-              _joints[a * 4 + 2],
-              _joints[a * 4 + 3],
-            ),
-            weights: Vector4(
-              _weights[a * 4],
-              _weights[a * 4 + 1],
-              _weights[a * 4 + 2],
-              _weights[a * 4 + 3],
-            ),
-          ),
-          VertexAttributes(
-            joints: Vector4(
-              _joints[b * 4],
-              _joints[b * 4 + 1],
-              _joints[b * 4 + 2],
-              _joints[b * 4 + 3],
-            ),
-            weights: Vector4(
-              _weights[b * 4],
-              _weights[b * 4 + 1],
-              _weights[b * 4 + 2],
-              _weights[b * 4 + 3],
-            ),
-          ),
-          0.5,
-        );
-        for (var k = 0; k < 4; k++) {
-          _joints[a * 4 + k] = merged.joints[k];
-          _weights[a * 4 + k] = merged.weights[k];
-        }
+      // Attributes blended, side by side, before `b`'s wedges stop being read
+      // anywhere else — a straight average, not the position solve's own
+      // optimum; see this file's own doc comment for why. A vertex absorbed
+      // into one of another kind lands on it, so that one keeps its own.
+      if (_kinds[a] == _kinds[b]) {
+        wedgeTargets.forEach((from, into) => _blendWedge(into, from));
       }
 
       _vertexAlive[b] = 0;
@@ -1418,7 +1524,6 @@ class _AttributedSimplifier {
         if (i2 != a) neighbors.add(i2);
       }
       for (final n in neighbors) {
-        if (!eligible(a, n)) continue;
         _pushEdge(heap, math.min(a, n), math.max(a, n));
       }
 
@@ -1432,34 +1537,176 @@ class _AttributedSimplifier {
     return worstCost;
   }
 
-  void _pushEdge(_EdgeHeap heap, int a, int b) {
+  /// The alive triangles that have both [a] and [b] as corners.
+  List<int> _edgeTriangles(int a, int b) => <int>[
+    for (final t in _vertexTriangles[a])
+      if (_triangles[t * 3] == b ||
+          _triangles[t * 3 + 1] == b ||
+          _triangles[t * 3 + 2] == b)
+        t,
+  ];
+
+  /// Whether position [from] may be removed into [to] — the collapse table
+  /// [_kinds] documents. Read from the triangles as they are now, since a
+  /// border or seam edge moves as the collapses along it go.
+  bool _canCollapse(int from, int to) {
+    switch (_kinds[from]) {
+      case _kindManifold:
+        return true;
+      case _kindBorder:
+        return _kinds[to] == _kindBorder &&
+            _edgeTriangles(from, to).length == 1;
+      case _kindSeam:
+        final shared = _edgeTriangles(from, to);
+        return _kinds[to] == _kindSeam &&
+            shared.length == 2 &&
+            _cornersDiffer(
+              _triangles,
+              _wedgeTriangles,
+              shared[0],
+              shared[1],
+              from,
+              to,
+            );
+      default:
+        return false;
+    }
+  }
+
+  /// For each wedge of [from], the wedge of [to] it becomes: the one the
+  /// triangles along the edge pair it with, on its own side. `null` when a
+  /// wedge has no partner or two different ones — the collapse would have to
+  /// guess which side of a seam a triangle belongs to, so it is refused.
+  Map<int, int>? _pairWedges(int from, int to) {
+    final targets = <int, int>{};
+    for (final t in _vertexTriangles[from]) {
+      final fromCorner = _cornerOf(t, from);
+      final toCorner = _cornerOf(t, to);
+      if (toCorner < 0) continue;
+      final wedge = _wedgeTriangles[fromCorner];
+      final partner = _wedgeTriangles[toCorner];
+      if ((targets[wedge] ??= partner) != partner) return null;
+    }
+    for (final t in _vertexTriangles[from]) {
+      if (!targets.containsKey(_wedgeTriangles[_cornerOf(t, from)])) {
+        return null;
+      }
+    }
+    return targets;
+  }
+
+  /// The flat index into [_triangles] of [position]'s corner in triangle
+  /// [t], or -1.
+  int _cornerOf(int t, int position) => _triangles[t * 3] == position
+      ? t * 3
+      : _triangles[t * 3 + 1] == position
+      ? t * 3 + 1
+      : _triangles[t * 3 + 2] == position
+      ? t * 3 + 2
+      : -1;
+
+  /// Wedge [from]'s attributes averaged into wedge [into].
+  void _blendWedge(int into, int from) {
+    final normals = _normals;
+    if (normals != null) {
+      final n = Vector3(
+        normals[into * 3] + normals[from * 3],
+        normals[into * 3 + 1] + normals[from * 3 + 1],
+        normals[into * 3 + 2] + normals[from * 3 + 2],
+      );
+      if (n.length2 > 1e-20) {
+        n.normalize();
+      } else {
+        n.setValues(0.0, 0.0, 1.0);
+      }
+      normals[into * 3] = n.x;
+      normals[into * 3 + 1] = n.y;
+      normals[into * 3 + 2] = n.z;
+    }
+    final uvs = _uvs;
+    if (uvs != null) {
+      uvs[into * 2] = (uvs[into * 2] + uvs[from * 2]) / 2;
+      uvs[into * 2 + 1] = (uvs[into * 2 + 1] + uvs[from * 2 + 1]) / 2;
+    }
+    final joints = _joints, weights = _weights;
+    if (joints != null && weights != null) {
+      VertexAttributes attributesOf(int w) => VertexAttributes(
+        joints: Vector4(
+          joints[w * 4],
+          joints[w * 4 + 1],
+          joints[w * 4 + 2],
+          joints[w * 4 + 3],
+        ),
+        weights: Vector4(
+          weights[w * 4],
+          weights[w * 4 + 1],
+          weights[w * 4 + 2],
+          weights[w * 4 + 3],
+        ),
+      );
+      final merged = VertexAttributes.lerp(
+        attributesOf(into),
+        attributesOf(from),
+        0.5,
+      );
+      for (var k = 0; k < 4; k++) {
+        joints[into * 4 + k] = merged.joints[k];
+        weights[into * 4 + k] = merged.weights[k];
+      }
+    }
+  }
+
+  /// Queues edge [u]–[v] in whichever direction [_canCollapse] allows —
+  /// removing the higher index when both do — or not at all. The heap entry
+  /// carries the kept position first.
+  ///
+  /// Two ends of one kind meet at the quadric's optimum. A manifold vertex
+  /// absorbed into a border, seam or locked one lands on it instead: that
+  /// one's curve, crease or corner is what it is there to hold, and its
+  /// wedges keep their attributes for the same reason.
+  void _pushEdge(_EdgeHeap heap, int u, int v) {
+    final lo = math.min(u, v), hi = math.max(u, v);
+    final (int kept, int removed) = _canCollapse(hi, lo)
+        ? (lo, hi)
+        : _canCollapse(lo, hi)
+        ? (hi, lo)
+        : (-1, -1);
+    if (kept < 0) return;
+
     final combined = Float64List(_quadricSize);
     for (var k = 0; k < _quadricSize; k++) {
       combined[k] =
-          _quadrics[a * _quadricSize + k] + _quadrics[b * _quadricSize + k];
+          _quadrics[kept * _quadricSize + k] +
+          _quadrics[removed * _quadricSize + k];
     }
-    final solved = _solve(
-      combined,
-      0,
-      _positions[a * 3],
-      _positions[a * 3 + 1],
-      _positions[a * 3 + 2],
-      _positions[b * 3],
-      _positions[b * 3 + 1],
-      _positions[b * 3 + 2],
-    );
+    final kx = _positions[kept * 3],
+        ky = _positions[kept * 3 + 1],
+        kz = _positions[kept * 3 + 2];
+    final solved = _kinds[kept] == _kinds[removed]
+        ? _solve(
+            combined,
+            0,
+            kx,
+            ky,
+            kz,
+            _positions[removed * 3],
+            _positions[removed * 3 + 1],
+            _positions[removed * 3 + 2],
+          )
+        : (x: kx, y: ky, z: kz, cost: _quadricCost(combined, 0, kx, ky, kz));
     heap.push(
       solved.cost,
-      a,
-      b,
-      _vertexVersion[a],
-      _vertexVersion[b],
+      kept,
+      removed,
+      _vertexVersion[kept],
+      _vertexVersion[removed],
       solved.x,
       solved.y,
       solved.z,
     );
   }
 
+  /// One output vertex per wedge still drawn, at its position's final place.
   MeshData toMeshData() {
     final attributes = <VertexAttribute>[VertexLayout.position];
     if (_normals != null) attributes.add(VertexLayout.normal);
@@ -1476,32 +1723,41 @@ class _AttributedSimplifier {
     final jointsOffset = outLayout.floatOffsetOf(VertexLayout.joints.name);
     final weightsOffset = outLayout.floatOffsetOf(VertexLayout.weights.name);
 
-    final remap = Int32List(_vertexCount)..fillRange(0, _vertexCount, -1);
+    final wedgeCount = _wedgePosition.length;
+    final drawn = Uint8List(wedgeCount);
+    for (var t = 0; t < _triangleAlive.length; t++) {
+      if (_triangleAlive[t] != 1) continue;
+      for (var k = 0; k < 3; k++) {
+        drawn[_wedgeTriangles[t * 3 + k]] = 1;
+      }
+    }
+    final remap = Int32List(wedgeCount)..fillRange(0, wedgeCount, -1);
     var nextIndex = 0;
-    for (var v = 0; v < _vertexCount; v++) {
-      if (_vertexAlive[v] == 1) remap[v] = nextIndex++;
+    for (var w = 0; w < wedgeCount; w++) {
+      if (drawn[w] == 1) remap[w] = nextIndex++;
     }
 
     final vertices = Float32List(nextIndex * stride);
-    for (var v = 0; v < _vertexCount; v++) {
-      if (_vertexAlive[v] != 1) continue;
-      final o = remap[v] * stride;
-      vertices[o + positionOffset] = _positions[v * 3].toDouble();
-      vertices[o + positionOffset + 1] = _positions[v * 3 + 1].toDouble();
-      vertices[o + positionOffset + 2] = _positions[v * 3 + 2].toDouble();
+    for (var w = 0; w < wedgeCount; w++) {
+      if (drawn[w] != 1) continue;
+      final o = remap[w] * stride;
+      final p = _wedgePosition[w];
+      vertices[o + positionOffset] = _positions[p * 3].toDouble();
+      vertices[o + positionOffset + 1] = _positions[p * 3 + 1].toDouble();
+      vertices[o + positionOffset + 2] = _positions[p * 3 + 2].toDouble();
       if (_normals != null) {
-        vertices[o + normalOffset] = _normals[v * 3].toDouble();
-        vertices[o + normalOffset + 1] = _normals[v * 3 + 1].toDouble();
-        vertices[o + normalOffset + 2] = _normals[v * 3 + 2].toDouble();
+        vertices[o + normalOffset] = _normals[w * 3].toDouble();
+        vertices[o + normalOffset + 1] = _normals[w * 3 + 1].toDouble();
+        vertices[o + normalOffset + 2] = _normals[w * 3 + 2].toDouble();
       }
       if (_uvs != null) {
-        vertices[o + uvOffset] = _uvs[v * 2].toDouble();
-        vertices[o + uvOffset + 1] = _uvs[v * 2 + 1].toDouble();
+        vertices[o + uvOffset] = _uvs[w * 2].toDouble();
+        vertices[o + uvOffset + 1] = _uvs[w * 2 + 1].toDouble();
       }
       if (_joints != null && _weights != null) {
         for (var k = 0; k < 4; k++) {
-          vertices[o + jointsOffset + k] = _joints[v * 4 + k].toDouble();
-          vertices[o + weightsOffset + k] = _weights[v * 4 + k].toDouble();
+          vertices[o + jointsOffset + k] = _joints[w * 4 + k].toDouble();
+          vertices[o + weightsOffset + k] = _weights[w * 4 + k].toDouble();
         }
       }
     }
@@ -1509,9 +1765,9 @@ class _AttributedSimplifier {
     final indices = <int>[];
     for (var t = 0; t < _triangleAlive.length; t++) {
       if (_triangleAlive[t] != 1) continue;
-      indices.add(remap[_triangles[t * 3]]);
-      indices.add(remap[_triangles[t * 3 + 1]]);
-      indices.add(remap[_triangles[t * 3 + 2]]);
+      indices.add(remap[_wedgeTriangles[t * 3]]);
+      indices.add(remap[_wedgeTriangles[t * 3 + 1]]);
+      indices.add(remap[_wedgeTriangles[t * 3 + 2]]);
     }
 
     return MeshData(
