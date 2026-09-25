@@ -197,7 +197,30 @@ final class ReflectionsShader implements CpuFragmentShader {
     // Schlick, F0 = 0.04, as the GLSL.
     final fresnel = 0.04 + 0.96 * math.pow(1.0 - facing, 5.0).toDouble();
     final reflection = hitColour * (hit * intensity * polish * fresnel);
-    return done(debugOnly ? reflection : scene + reflection);
+    // The share of the hit that is used, intensity included, as the GLSL.
+    final confidence = hit * intensity * polish;
+    // A hit takes the place of the environment's reflection the lit pass
+    // already added, read along the same ray at the same roughness, in the
+    // share the hit is trusted. See the end of the GLSL's `main`.
+    final environment = b.vec4('ReflectionInfo', 'environment', Vector4.zero());
+    final levels = environment.x;
+    final cube = b.textures['environment_texture'];
+    final Vector3 composed;
+    if (levels > 0.0 && cube != null) {
+      final texel = cube.sampleCube(ray.x, ray.y, ray.z, roughness * levels);
+      final replaced =
+          Vector3(texel.x, texel.y, texel.z) *
+          (environment.y * confidence * fresnel);
+      final sum = scene + reflection - replaced;
+      composed = Vector3(
+        math.max(sum.x, 0.0),
+        math.max(sum.y, 0.0),
+        math.max(sum.z, 0.0),
+      );
+    } else {
+      composed = scene + reflection;
+    }
+    return done(debugOnly ? reflection : composed);
   }
 }
 

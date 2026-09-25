@@ -303,6 +303,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ReflectionInfo'},
     samplers: <String>{
       'blue_noise_texture',
+      'environment_texture',
       'scene_texture',
       'surface_texture',
     },

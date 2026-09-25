@@ -360,7 +360,16 @@ final class _Layers {
     final ior = f0Ior;
     final spread = _spread(ior);
     final top = info.x - 1.0;
-    final lod = s.roughness * (ior * 2.0 - 2.0).clamp(0.0, 1.0) * top;
+    // log2 of the base level's width in texels, not the chain's length: a
+    // level is a box blur of 2^level texels, so this is what takes roughness
+    // 1 to one texel. See `SceneBehind` in pbr.glsl.
+    final base = b.vec4('LayerInfo', 'scene_levels', Vector4.zero());
+    final width = base.z / math.max(info.y, 1e-9);
+    final lod =
+        math.log(math.max(width, 1.0)) /
+        math.ln2 *
+        s.roughness *
+        (ior * 2.0 - 2.0).clamp(0.0, 1.0);
     final incident = -s.view;
     final position = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
 
