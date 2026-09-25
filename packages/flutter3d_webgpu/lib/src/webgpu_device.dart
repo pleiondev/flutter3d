@@ -612,7 +612,9 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     for (final bound in shape.blocks) {
       final block = bound.block;
       final filled = blocks?[block.binding]?.buffer;
-      if (filled == null) _unbound('uniform block "${block.name}"');
+      if (filled == null && bound.bindable) {
+        _unbound('uniform block "${block.name}"');
+      }
       final buffer = filled ?? _zeroBlock;
       resources.add(buffer);
       entries.add(
@@ -632,7 +634,9 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     for (final bound in shape.samplers) {
       final sampler = bound.sampler;
       final filledView = views?[sampler.textureBinding];
-      if (filledView == null) _unbound('sampler "${sampler.name}"');
+      if (filledView == null && bound.bindable) {
+        _unbound('sampler "${sampler.name}"');
+      }
       final view = filledView ?? _blankView(sampler.dimension);
       final object =
           samplers?[sampler.samplerBinding] ??
