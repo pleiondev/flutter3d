@@ -203,9 +203,32 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'six_way_positive',
     },
   ),
+  'ParticleSixWaySoft': (
+    blocks: <String>{
+      'ContributorLightInfo',
+      'FogInfo',
+      'LightListInfo',
+      'SixWayInfo',
+      'SoftParticleInfo',
+    },
+    samplers: <String>{
+      'light_list_texture',
+      'scene_depth_texture',
+      'six_way_negative',
+      'six_way_positive',
+    },
+  ),
+  'ParticleSoft': (
+    blocks: <String>{'FogInfo', 'SoftParticleInfo'},
+    samplers: <String>{'scene_depth_texture'},
+  ),
   'ParticleTextured': (
     blocks: <String>{'FogInfo'},
     samplers: <String>{'particle_texture'},
+  ),
+  'ParticleTexturedSoft': (
+    blocks: <String>{'FogInfo', 'SoftParticleInfo'},
+    samplers: <String>{'particle_texture', 'scene_depth_texture'},
   ),
   'ParticleVertex': (blocks: <String>{'ParticleInfo'}, samplers: <String>{}),
   'Pbr': (

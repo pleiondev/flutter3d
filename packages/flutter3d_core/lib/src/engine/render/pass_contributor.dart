@@ -331,6 +331,7 @@ final class ContributorFrame {
     this.frameIndex = 0,
     this.temporal = false,
     this.lights,
+    this.sceneDepth,
   });
 
   /// The pass being built. Drawing into it is the point.
@@ -368,6 +369,27 @@ final class ContributorFrame {
   /// The frame's lights, for a contributor whose draw is lit — `N6`. Null
   /// outside the scene pass, where there are none to give.
   final ContributorLights? lights;
+
+  /// The opaque scene's depth, for a contributor that fades where it meets
+  /// the world — or null, which is the answer everywhere but two places.
+  ///
+  /// The surface buffer: in `a`, the depth along the view axis in metres of
+  /// whatever the opaque half drew there, and zero where it drew nothing. The
+  /// same size as the pass, so a fragment reads its own texel at
+  /// `gl_FragCoord` over that size, rows counted as `FragCoordFromTop` counts
+  /// them. Read it with [SamplerOptions.nearestClamp]: its other channels are
+  /// an encoded normal, which a filter averages into nonsense.
+  ///
+  /// Given only to a contributor whose [PassContributor.readsSceneDepth] is
+  /// true, where the buffer is not an attachment: in the pass the renderer
+  /// opens for it after the transparent half, or, under weighted blended
+  /// transparency (`R8`), in the pass after the resolve — there whenever the
+  /// scene pass attached the buffer, split or not. Null in the scene pass,
+  /// outside a renderer, on a device with a single colour attachment, and on
+  /// a frame whose `'transparent'` pass was switched off unless `R8` hands it
+  /// over after the resolve — and a contributor handed null draws as it would
+  /// without asking.
+  final TextureHandle? sceneDepth;
 }
 
 /// How a reactive sprite's coverage is worked out — `R4`, and the shapes
