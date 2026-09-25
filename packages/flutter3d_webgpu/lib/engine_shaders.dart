@@ -33763,6 +33763,117 @@ fn HistoryAt_u0028_vf2_u003b(uv: ptr<function, vec2<f32>>) -> vec3<f32> {
     return max(_e273, vec3<f32>(0f, 0f, 0f));
 }
 
+fn SameSurface_u0028_f1_u003b_f1_u003b(depth: ptr<function, f32>, then: ptr<function, f32>) -> f32 {
+    var sky: bool;
+    var bothSky: bool;
+    var close: bool;
+    var phi_391_: bool;
+
+    let _e56 = (*depth);
+    sky = (_e56 <= 0f);
+    let _e58 = sky;
+    let _e59 = (*then);
+    bothSky = (_e58 && (_e59 <= 0f));
+    let _e62 = sky;
+    let _e64 = (*then);
+    let _e66 = (!(_e62) && (_e64 > 0f));
+    phi_391_ = _e66;
+    if _e66 {
+        let _e67 = (*then);
+        let _e68 = (*depth);
+        let _e73 = temporal_info.params[1u];
+        let _e74 = (*depth);
+        let _e75 = (*then);
+        phi_391_ = (abs((_e67 - _e68)) <= (_e73 * min(_e74, _e75)));
+    }
+    let _e80 = phi_391_;
+    close = _e80;
+    let _e81 = bothSky;
+    let _e82 = close;
+    return select(0f, 1f, (_e81 || _e82));
+}
+
+fn DepthTrust_u0028_f1_u003b_vf2_u003b(depth_1: ptr<function, f32>, uv_1: ptr<function, vec2<f32>>) -> f32 {
+    var size_1: vec2<f32>;
+    var position_1: vec2<f32>;
+    var corner: vec2<f32>;
+    var f_1: vec2<f32>;
+    var at0_1: vec2<f32>;
+    var at1_: vec2<f32>;
+    var d00_: f32;
+    var d10_: f32;
+    var d01_: f32;
+    var d11_: f32;
+    var param_1: f32;
+    var param_2: f32;
+    var param_3: f32;
+    var param_4: f32;
+    var param_5: f32;
+    var param_6: f32;
+    var param_7: f32;
+    var param_8: f32;
+
+    let _e72 = temporal_info.params;
+    size_1 = _e72.zw;
+    let _e74 = (*uv_1);
+    let _e75 = size_1;
+    position_1 = ((_e74 * _e75) - vec2(0.5f));
+    let _e79 = position_1;
+    corner = floor(_e79);
+    let _e81 = position_1;
+    let _e82 = corner;
+    f_1 = (_e81 - _e82);
+    let _e84 = corner;
+    let _e87 = size_1;
+    at0_1 = ((_e84 + vec2(0.5f)) / _e87);
+    let _e89 = corner;
+    let _e92 = size_1;
+    at1_ = ((_e89 + vec2(1.5f)) / _e92);
+    let _e94 = at0_1;
+    let _e95 = textureSampleLevel(history_texture_tex, history_texture_smp, _e94, 0f);
+    d00_ = _e95.w;
+    let _e98 = at1_[0u];
+    let _e100 = at0_1[1u];
+    let _e102 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e98, _e100), 0f);
+    d10_ = _e102.w;
+    let _e105 = at0_1[0u];
+    let _e107 = at1_[1u];
+    let _e109 = textureSampleLevel(history_texture_tex, history_texture_smp, vec2<f32>(_e105, _e107), 0f);
+    d01_ = _e109.w;
+    let _e111 = at1_;
+    let _e112 = textureSampleLevel(history_texture_tex, history_texture_smp, _e111, 0f);
+    d11_ = _e112.w;
+    let _e114 = (*depth_1);
+    param_1 = _e114;
+    let _e115 = d00_;
+    param_2 = _e115;
+    let _e116 = SameSurface_u0028_f1_u003b_f1_u003b((&param_1), (&param_2));
+    let _e118 = f_1[0u];
+    let _e122 = f_1[1u];
+    let _e125 = (*depth_1);
+    param_3 = _e125;
+    let _e126 = d10_;
+    param_4 = _e126;
+    let _e127 = SameSurface_u0028_f1_u003b_f1_u003b((&param_3), (&param_4));
+    let _e129 = f_1[0u];
+    let _e132 = f_1[1u];
+    let _e136 = (*depth_1);
+    param_5 = _e136;
+    let _e137 = d01_;
+    param_6 = _e137;
+    let _e138 = SameSurface_u0028_f1_u003b_f1_u003b((&param_5), (&param_6));
+    let _e140 = f_1[0u];
+    let _e144 = f_1[1u];
+    let _e147 = (*depth_1);
+    param_7 = _e147;
+    let _e148 = d11_;
+    param_8 = _e148;
+    let _e149 = SameSurface_u0028_f1_u003b_f1_u003b((&param_7), (&param_8));
+    let _e151 = f_1[0u];
+    let _e154 = f_1[1u];
+    return (((((_e116 * (1f - _e118)) * (1f - _e122)) + ((_e127 * _e129) * (1f - _e132))) + ((_e138 * (1f - _e140)) * _e144)) + ((_e149 * _e151) * _e154));
+}
+
 fn RgbToYCoCg_u0028_vf3_u003b(c_3: ptr<function, vec3<f32>>) -> vec3<f32> {
     let _e53 = (*c_3)[0u];
     let _e56 = (*c_3)[1u];
@@ -33776,12 +33887,12 @@ fn RgbToYCoCg_u0028_vf3_u003b(c_3: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn Weigh_u0028_vf3_u003b(c_4: ptr<function, vec3<f32>>) -> vec3<f32> {
-    var param_1: vec3<f32>;
+    var param_9: vec3<f32>;
 
     let _e53 = (*c_4);
     let _e54 = (*c_4);
-    param_1 = _e54;
-    let _e55 = Luma_u0028_vf3_u003b((&param_1));
+    param_9 = _e54;
+    let _e55 = Luma_u0028_vf3_u003b((&param_9));
     let _e58 = temporal_info.params[0u];
     return (_e53 / vec3((1f + (_e55 * _e58))));
 }
@@ -33800,122 +33911,122 @@ fn main_1() {
     var dx: i32;
     var at_1: vec2<f32>;
     var c_5: vec3<f32>;
-    var param_2: vec3<f32>;
-    var param_3: vec3<f32>;
+    var param_10: vec3<f32>;
+    var param_11: vec3<f32>;
     var around_1: array<vec3<f32>, 9>;
-    var depth: f32;
+    var depth_2: f32;
     var current_1: vec3<f32>;
-    var depth_1: f32;
-    var then: vec2<f32>;
-    var thenDepth: f32;
+    var depth_3: f32;
+    var then_1: vec2<f32>;
     var trust: f32;
+    var param_12: f32;
+    var param_13: vec2<f32>;
     var mean_1: vec3<f32>;
     var sigma_1: vec3<f32>;
     var lo_2: vec3<f32>;
     var hi_2: vec3<f32>;
     var remembered: vec3<f32>;
-    var param_4: vec2<f32>;
-    var param_5: vec3<f32>;
-    var param_6: vec3<f32>;
-    var clipped: vec3<f32>;
-    var local_3: vec3<f32>;
-    var param_7: vec3<f32>;
-    var param_8: vec3<f32>;
-    var param_9: vec3<f32>;
-    var param_10: vec3<f32>;
-    var param_11: array<vec3<f32>, 9>;
-    var param_12: vec3<f32>;
-    var param_13: vec3<f32>;
-    var param_14: vec3<f32>;
-    var history_1: vec3<f32>;
+    var param_14: vec2<f32>;
     var param_15: vec3<f32>;
     var param_16: vec3<f32>;
+    var clipped: vec3<f32>;
+    var local_3: vec3<f32>;
+    var param_17: vec3<f32>;
+    var param_18: vec3<f32>;
+    var param_19: vec3<f32>;
+    var param_20: vec3<f32>;
+    var param_21: array<vec3<f32>, 9>;
+    var param_22: vec3<f32>;
+    var param_23: vec3<f32>;
+    var param_24: vec3<f32>;
+    var history_1: vec3<f32>;
+    var param_25: vec3<f32>;
+    var param_26: vec3<f32>;
     var reactive: f32;
     var keep: f32;
     var exposure: f32;
     var wCurrent: f32;
-    var param_17: vec3<f32>;
+    var param_27: vec3<f32>;
     var wHistory: f32;
-    var param_18: vec3<f32>;
+    var param_28: vec3<f32>;
     var resolved: vec3<f32>;
-    var phi_768_: bool;
-    var phi_775_: bool;
-    var phi_782_: bool;
-    var phi_789_: bool;
-    var phi_834_: bool;
+    var phi_931_: bool;
+    var phi_938_: bool;
+    var phi_945_: bool;
+    var phi_952_: bool;
 
-    let _e103 = temporal_info.scene_texel;
-    texel = _e103.xy;
-    let _e105 = v_uv_1;
-    let _e107 = temporal_info.jitter;
-    sceneUv = (_e105 + _e107.xy);
-    let _e110 = sceneUv;
-    let _e112 = temporal_info.scene_texel;
-    let _e118 = texel;
-    centre_1 = ((floor((_e110 * _e112.zw)) + vec2(0.5f)) * _e118);
+    let _e104 = temporal_info.scene_texel;
+    texel = _e104.xy;
+    let _e106 = v_uv_1;
+    let _e108 = temporal_info.jitter;
+    sceneUv = (_e106 + _e108.xy);
+    let _e111 = sceneUv;
+    let _e113 = temporal_info.scene_texel;
+    let _e119 = texel;
+    centre_1 = ((floor((_e111 * _e113.zw)) + vec2(0.5f)) * _e119);
     sum_2 = vec3<f32>(0f, 0f, 0f);
     sumSquares_1 = vec3<f32>(0f, 0f, 0f);
     lowest_1 = vec3<f32>(1000000000000000000000000000000f, 1000000000000000000000000000000f, 1000000000000000000000000000000f);
     highest_1 = vec3<f32>(-1000000000000000000000000000000f, -1000000000000000000000000000000f, -1000000000000000000000000000000f);
     nearest = 1000000000000000000000000000000f;
-    let _e120 = centre_1;
-    nearestUv = _e120;
+    let _e121 = centre_1;
+    nearestUv = _e121;
     dy = -1i;
     loop {
-        let _e121 = dy;
-        if (_e121 <= 1i) {
+        let _e122 = dy;
+        if (_e122 <= 1i) {
             dx = -1i;
             loop {
-                let _e123 = dx;
-                if (_e123 <= 1i) {
-                    let _e125 = centre_1;
-                    let _e126 = dx;
-                    let _e128 = dy;
-                    let _e131 = texel;
-                    at_1 = (_e125 + (vec2<f32>(f32(_e126), f32(_e128)) * _e131));
-                    let _e134 = at_1;
-                    let _e135 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e134, 0f);
-                    param_2 = _e135.xyz;
-                    let _e137 = Weigh_u0028_vf3_u003b((&param_2));
-                    param_3 = _e137;
-                    let _e138 = RgbToYCoCg_u0028_vf3_u003b((&param_3));
-                    c_5 = _e138;
-                    let _e139 = dy;
-                    let _e142 = dx;
-                    let _e145 = c_5;
-                    around_1[((((_e139 + 1i) * 3i) + _e142) + 1i)] = _e145;
-                    let _e147 = c_5;
-                    let _e148 = sum_2;
-                    sum_2 = (_e148 + _e147);
-                    let _e150 = c_5;
+                let _e124 = dx;
+                if (_e124 <= 1i) {
+                    let _e126 = centre_1;
+                    let _e127 = dx;
+                    let _e129 = dy;
+                    let _e132 = texel;
+                    at_1 = (_e126 + (vec2<f32>(f32(_e127), f32(_e129)) * _e132));
+                    let _e135 = at_1;
+                    let _e136 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e135, 0f);
+                    param_10 = _e136.xyz;
+                    let _e138 = Weigh_u0028_vf3_u003b((&param_10));
+                    param_11 = _e138;
+                    let _e139 = RgbToYCoCg_u0028_vf3_u003b((&param_11));
+                    c_5 = _e139;
+                    let _e140 = dy;
+                    let _e143 = dx;
+                    let _e146 = c_5;
+                    around_1[((((_e140 + 1i) * 3i) + _e143) + 1i)] = _e146;
+                    let _e148 = c_5;
+                    let _e149 = sum_2;
+                    sum_2 = (_e149 + _e148);
                     let _e151 = c_5;
-                    let _e153 = sumSquares_1;
-                    sumSquares_1 = (_e153 + (_e150 * _e151));
-                    let _e155 = lowest_1;
-                    let _e156 = c_5;
-                    lowest_1 = min(_e155, _e156);
-                    let _e158 = highest_1;
-                    let _e159 = c_5;
-                    highest_1 = max(_e158, _e159);
-                    let _e161 = at_1;
-                    let _e162 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e161, 0f);
-                    depth = _e162.w;
-                    let _e164 = depth;
-                    let _e166 = depth;
-                    let _e167 = nearest;
-                    if ((_e164 > 0f) && (_e166 < _e167)) {
-                        let _e170 = depth;
-                        nearest = _e170;
-                        let _e171 = at_1;
-                        nearestUv = _e171;
+                    let _e152 = c_5;
+                    let _e154 = sumSquares_1;
+                    sumSquares_1 = (_e154 + (_e151 * _e152));
+                    let _e156 = lowest_1;
+                    let _e157 = c_5;
+                    lowest_1 = min(_e156, _e157);
+                    let _e159 = highest_1;
+                    let _e160 = c_5;
+                    highest_1 = max(_e159, _e160);
+                    let _e162 = at_1;
+                    let _e163 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e162, 0f);
+                    depth_2 = _e163.w;
+                    let _e165 = depth_2;
+                    let _e167 = depth_2;
+                    let _e168 = nearest;
+                    if ((_e165 > 0f) && (_e167 < _e168)) {
+                        let _e171 = depth_2;
+                        nearest = _e171;
+                        let _e172 = at_1;
+                        nearestUv = _e172;
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e172 = dx;
-                    dx = (_e172 + 1i);
+                    let _e173 = dx;
+                    dx = (_e173 + 1i);
                 }
             }
             continue;
@@ -33923,162 +34034,143 @@ fn main_1() {
             break;
         }
         continuing {
-            let _e174 = dy;
-            dy = (_e174 + 1i);
+            let _e175 = dy;
+            dy = (_e175 + 1i);
         }
     }
-    let _e176 = sceneUv;
-    let _e177 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e176, 0f);
-    current_1 = _e177.xyz;
-    let _e179 = nearest;
-    let _e181 = nearest;
-    depth_1 = select(0f, _e181, (_e179 < 1000000000000000000000000000000f));
-    let _e183 = v_uv_1;
-    let _e184 = nearestUv;
-    let _e185 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e184, 0f);
-    then = (_e183 - _e185.xy);
-    let _e190 = temporal_info.jitter[3u];
-    let _e191 = (_e190 < 0.5f);
-    phi_768_ = _e191;
-    if !(_e191) {
-        let _e194 = then[0u];
-        phi_768_ = (_e194 < 0f);
+    let _e177 = sceneUv;
+    let _e178 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e177, 0f);
+    current_1 = _e178.xyz;
+    let _e180 = nearest;
+    let _e182 = nearest;
+    depth_3 = select(0f, _e182, (_e180 < 1000000000000000000000000000000f));
+    let _e184 = v_uv_1;
+    let _e185 = nearestUv;
+    let _e186 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e185, 0f);
+    then_1 = (_e184 - _e186.xy);
+    let _e191 = temporal_info.jitter[3u];
+    let _e192 = (_e191 < 0.5f);
+    phi_931_ = _e192;
+    if !(_e192) {
+        let _e195 = then_1[0u];
+        phi_931_ = (_e195 < 0f);
     }
-    let _e197 = phi_768_;
-    phi_775_ = _e197;
-    if !(_e197) {
-        let _e200 = then[0u];
-        phi_775_ = (_e200 > 1f);
+    let _e198 = phi_931_;
+    phi_938_ = _e198;
+    if !(_e198) {
+        let _e201 = then_1[0u];
+        phi_938_ = (_e201 > 1f);
     }
-    let _e203 = phi_775_;
-    phi_782_ = _e203;
-    if !(_e203) {
-        let _e206 = then[1u];
-        phi_782_ = (_e206 < 0f);
+    let _e204 = phi_938_;
+    phi_945_ = _e204;
+    if !(_e204) {
+        let _e207 = then_1[1u];
+        phi_945_ = (_e207 < 0f);
     }
-    let _e209 = phi_782_;
-    phi_789_ = _e209;
-    if !(_e209) {
-        let _e212 = then[1u];
-        phi_789_ = (_e212 > 1f);
+    let _e210 = phi_945_;
+    phi_952_ = _e210;
+    if !(_e210) {
+        let _e213 = then_1[1u];
+        phi_952_ = (_e213 > 1f);
     }
-    let _e215 = phi_789_;
-    if _e215 {
-        let _e216 = current_1;
-        let _e217 = depth_1;
-        frag_color = vec4<f32>(_e216.x, _e216.y, _e216.z, _e217);
+    let _e216 = phi_952_;
+    if _e216 {
+        let _e217 = current_1;
+        let _e218 = depth_3;
+        frag_color = vec4<f32>(_e217.x, _e217.y, _e217.z, _e218);
         return;
     }
-    let _e222 = then;
-    let _e223 = textureSampleLevel(history_texture_tex, history_texture_smp, _e222, 0f);
-    thenDepth = _e223.w;
-    trust = 1f;
-    let _e225 = depth_1;
-    let _e227 = thenDepth;
-    if ((_e225 > 0f) != (_e227 > 0f)) {
-        trust = 0f;
-    }
-    let _e230 = depth_1;
-    let _e232 = thenDepth;
-    let _e234 = ((_e230 > 0f) && (_e232 > 0f));
-    phi_834_ = _e234;
-    if _e234 {
-        let _e235 = thenDepth;
-        let _e236 = depth_1;
-        let _e241 = temporal_info.params[1u];
-        let _e242 = depth_1;
-        let _e243 = thenDepth;
-        phi_834_ = (abs((_e235 - _e236)) > (_e241 * min(_e242, _e243)));
-    }
-    let _e248 = phi_834_;
-    if _e248 {
-        trust = 0f;
-    }
-    let _e249 = sum_2;
-    mean_1 = (_e249 / vec3(9f));
-    let _e252 = sumSquares_1;
-    let _e255 = mean_1;
-    let _e256 = mean_1;
-    sigma_1 = sqrt(max(((_e252 / vec3(9f)) - (_e255 * _e256)), vec3<f32>(0f, 0f, 0f)));
-    let _e261 = lowest_1;
-    let _e262 = mean_1;
-    let _e263 = sigma_1;
-    lo_2 = max(_e261, (_e262 - (_e263 * 1.25f)));
-    let _e267 = highest_1;
-    let _e268 = mean_1;
-    let _e269 = sigma_1;
-    hi_2 = min(_e267, (_e268 + (_e269 * 1.25f)));
-    let _e273 = then;
-    param_4 = _e273;
-    let _e274 = HistoryAt_u0028_vf2_u003b((&param_4));
-    param_5 = _e274;
-    let _e275 = Weigh_u0028_vf3_u003b((&param_5));
-    param_6 = _e275;
-    let _e276 = RgbToYCoCg_u0028_vf3_u003b((&param_6));
-    remembered = _e276;
-    let _e279 = temporal_info.clip[0u];
-    if (_e279 > 0.5f) {
-        let _e281 = current_1;
-        param_7 = _e281;
-        let _e282 = Weigh_u0028_vf3_u003b((&param_7));
-        param_8 = _e282;
-        let _e283 = RgbToYCoCg_u0028_vf3_u003b((&param_8));
-        param_9 = _e283;
-        let _e284 = remembered;
-        param_10 = _e284;
-        let _e285 = around_1;
-        param_11 = _e285;
-        let _e286 = ClipToDop_u0028_vf3_u003b_vf3_u003b_vf3_u005b_9_u005d_u003b((&param_9), (&param_10), (&param_11));
-        local_3 = _e286;
+    let _e223 = depth_3;
+    param_12 = _e223;
+    let _e224 = then_1;
+    param_13 = _e224;
+    let _e225 = DepthTrust_u0028_f1_u003b_vf2_u003b((&param_12), (&param_13));
+    trust = _e225;
+    let _e226 = sum_2;
+    mean_1 = (_e226 / vec3(9f));
+    let _e229 = sumSquares_1;
+    let _e232 = mean_1;
+    let _e233 = mean_1;
+    sigma_1 = sqrt(max(((_e229 / vec3(9f)) - (_e232 * _e233)), vec3<f32>(0f, 0f, 0f)));
+    let _e238 = lowest_1;
+    let _e239 = mean_1;
+    let _e240 = sigma_1;
+    lo_2 = max(_e238, (_e239 - (_e240 * 1.25f)));
+    let _e244 = highest_1;
+    let _e245 = mean_1;
+    let _e246 = sigma_1;
+    hi_2 = min(_e244, (_e245 + (_e246 * 1.25f)));
+    let _e250 = then_1;
+    param_14 = _e250;
+    let _e251 = HistoryAt_u0028_vf2_u003b((&param_14));
+    param_15 = _e251;
+    let _e252 = Weigh_u0028_vf3_u003b((&param_15));
+    param_16 = _e252;
+    let _e253 = RgbToYCoCg_u0028_vf3_u003b((&param_16));
+    remembered = _e253;
+    let _e256 = temporal_info.clip[0u];
+    if (_e256 > 0.5f) {
+        let _e258 = current_1;
+        param_17 = _e258;
+        let _e259 = Weigh_u0028_vf3_u003b((&param_17));
+        param_18 = _e259;
+        let _e260 = RgbToYCoCg_u0028_vf3_u003b((&param_18));
+        param_19 = _e260;
+        let _e261 = remembered;
+        param_20 = _e261;
+        let _e262 = around_1;
+        param_21 = _e262;
+        let _e263 = ClipToDop_u0028_vf3_u003b_vf3_u003b_vf3_u005b_9_u005d_u003b((&param_19), (&param_20), (&param_21));
+        local_3 = _e263;
     } else {
-        let _e287 = lo_2;
-        param_12 = _e287;
-        let _e288 = hi_2;
-        param_13 = _e288;
-        let _e289 = remembered;
-        param_14 = _e289;
-        let _e290 = ClipToBox_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_12), (&param_13), (&param_14));
-        local_3 = _e290;
+        let _e264 = lo_2;
+        param_22 = _e264;
+        let _e265 = hi_2;
+        param_23 = _e265;
+        let _e266 = remembered;
+        param_24 = _e266;
+        let _e267 = ClipToBox_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_22), (&param_23), (&param_24));
+        local_3 = _e267;
     }
-    let _e291 = local_3;
-    clipped = _e291;
-    let _e292 = clipped;
-    param_15 = _e292;
-    let _e293 = YCoCgToRgb_u0028_vf3_u003b((&param_15));
-    param_16 = _e293;
-    let _e294 = Unweigh_u0028_vf3_u003b((&param_16));
-    history_1 = _e294;
-    let _e295 = centre_1;
-    let _e296 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e295, 0f);
-    reactive = clamp(_e296.z, 0f, 1f);
-    let _e301 = temporal_info.jitter[2u];
-    let _e302 = trust;
-    let _e304 = reactive;
-    keep = ((_e301 * _e302) * (1f - _e304));
-    let _e309 = temporal_info.params[0u];
-    exposure = _e309;
-    let _e310 = keep;
-    let _e312 = current_1;
-    param_17 = _e312;
-    let _e313 = Luma_u0028_vf3_u003b((&param_17));
-    let _e314 = exposure;
-    wCurrent = ((1f - _e310) / (1f + (_e313 * _e314)));
-    let _e318 = keep;
-    let _e319 = history_1;
-    param_18 = _e319;
-    let _e320 = Luma_u0028_vf3_u003b((&param_18));
-    let _e321 = exposure;
-    wHistory = (_e318 / (1f + (_e320 * _e321)));
-    let _e325 = current_1;
-    let _e326 = wCurrent;
-    let _e328 = history_1;
-    let _e329 = wHistory;
-    let _e332 = wCurrent;
-    let _e333 = wHistory;
-    resolved = (((_e325 * _e326) + (_e328 * _e329)) / vec3(max((_e332 + _e333), 0.000001f)));
-    let _e338 = resolved;
-    let _e339 = depth_1;
-    frag_color = vec4<f32>(_e338.x, _e338.y, _e338.z, _e339);
+    let _e268 = local_3;
+    clipped = _e268;
+    let _e269 = clipped;
+    param_25 = _e269;
+    let _e270 = YCoCgToRgb_u0028_vf3_u003b((&param_25));
+    param_26 = _e270;
+    let _e271 = Unweigh_u0028_vf3_u003b((&param_26));
+    history_1 = _e271;
+    let _e272 = centre_1;
+    let _e273 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e272, 0f);
+    reactive = clamp(_e273.z, 0f, 1f);
+    let _e278 = temporal_info.jitter[2u];
+    let _e279 = trust;
+    let _e281 = reactive;
+    keep = ((_e278 * _e279) * (1f - _e281));
+    let _e286 = temporal_info.params[0u];
+    exposure = _e286;
+    let _e287 = keep;
+    let _e289 = current_1;
+    param_27 = _e289;
+    let _e290 = Luma_u0028_vf3_u003b((&param_27));
+    let _e291 = exposure;
+    wCurrent = ((1f - _e287) / (1f + (_e290 * _e291)));
+    let _e295 = keep;
+    let _e296 = history_1;
+    param_28 = _e296;
+    let _e297 = Luma_u0028_vf3_u003b((&param_28));
+    let _e298 = exposure;
+    wHistory = (_e295 / (1f + (_e297 * _e298)));
+    let _e302 = current_1;
+    let _e303 = wCurrent;
+    let _e305 = history_1;
+    let _e306 = wHistory;
+    let _e309 = wCurrent;
+    let _e310 = wHistory;
+    resolved = (((_e302 * _e303) + (_e305 * _e306)) / vec3(max((_e309 + _e310), 0.000001f)));
+    let _e315 = resolved;
+    let _e316 = depth_3;
+    frag_color = vec4<f32>(_e315.x, _e315.y, _e315.z, _e316);
     return;
 }
 
