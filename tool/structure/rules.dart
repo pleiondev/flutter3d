@@ -2088,13 +2088,7 @@ const String _countedGoldenSet = 'cpu';
 /// leave the name here, and the rule reports the entry as spent. Neither state
 /// survives a run.
 final Map<String, Map<String, String>> _goldenSetGaps =
-    <String, Map<String, String>>{
-      'webgpu': <String, String>{
-        'taa-embers':
-            'WebGPU draws this scene black with nothing in the console; '
-            'recorded once the cause is found',
-      },
-    };
+    <String, Map<String, String>>{};
 
 /// The scene names a set has recorded.
 ///

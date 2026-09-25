@@ -668,7 +668,17 @@ final class WebGpuEncoder implements CommandEncoder {
       entryPoint: webgpuEntryPoint,
       targets: <GPUColorTargetState>[
         for (var i = 0; i < _colorFormats.length; i++)
-          if (_blends[i] case final BlendState blend)
+          // A target the stage writes nothing to is left as it was, which is
+          // what the other backends do with it and the only thing WebGPU
+          // accepts: a non-zero mask over a missing output invalidates the
+          // pipeline, and the command buffer that draws with it. Blending is
+          // left off there too, since there is nothing to blend.
+          if (!(pipeline.fragmentOutputs?.contains(i) ?? true))
+            GPUColorTargetState.opaque(
+              format: _colorFormats[i],
+              writeMask: GpuColorWrite.none,
+            )
+          else if (_blends[i] case final BlendState blend)
             GPUColorTargetState(
               format: _colorFormats[i],
               blend: _blendStateOf(blend),
