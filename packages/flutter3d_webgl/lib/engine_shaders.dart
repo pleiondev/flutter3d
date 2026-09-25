@@ -26866,6 +26866,28 @@ uniform sampler2D surface_texture;
 uniform sampler2D shadow_texture;
 uniform sampler2D light_list_texture;
 
+// The cube atlas the lit draws read, and the block they read it through —
+// `PointShadow` as `surface.glsl` declares it, member for member, because a
+// block is one layout whichever stage names it. The march reads the atlas
+// rows, the face matrices and the frame's numbers; the slot table is a draw's
+// and goes unread here, since a light's row rides in its list row.
+uniform sampler2D point_shadow_texture;
+uniform sampler2D point_shadow_static_texture;
+
+// `kShadowSlots` and `kMaxLights` from `surface.glsl`.
+#define kFogShadowSlots 6
+#define kFogSlotLights 8
+
+layout(std140) uniform PointShadow {
+  mat4 faces[6 * kFogShadowSlots];
+  vec4 lights[kFogShadowSlots];
+  vec4 slots[kFogSlotLights];
+  vec4 params;
+  vec4 params2;
+  vec4 params3;
+}
+point_shadow;
+
 // The most lights one step of the march reads from its cell. A cell lists
 // every light whose range reaches into it, and a loop a scene can lengthen
 // without limit is a hang rather than a slow frame.
@@ -26985,6 +27007,57 @@ float LitAt(vec3 world, float viewDistance) {
   return 1.0;
 }
 
+// How lit [world] is by the light whose list row ends in [cone]: one tap of
+// its atlas row, without a normal to offset along — a point in the air has
+// none — and so without the filter the surfaces use either. A soft edge in
+// the air comes from the march's jitter, and nine taps a step per light would
+// be the whole budget of the pass.
+//
+// `cone.z` is the atlas row plus one, nought for a light that holds none;
+// `cone.w` is one for a spot's single tile. The face, the flip and the pair of
+// atlases are `PointShadowFactor`'s and `PointShadowDistance`'s.
+float LocalLitAt(vec3 world, vec4 cone) {
+  float strength = point_shadow.params.z;
+  if (cone.z < 0.5 || strength <= 0.0) return 1.0;
+  int slot = int(cone.z - 0.5);
+  vec3 toFragment = world - point_shadow.lights[slot].xyz;
+  float distance = length(toFragment);
+  float range = max(point_shadow.lights[slot].w, 1e-4);
+  if (distance >= range) return 1.0;
+
+  int face = 0;
+  if (cone.w < 0.5) {
+    vec3 a = abs(toFragment);
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
+  }
+
+  vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(world, 1.0);
+  if (clip.w <= 0.0) return 1.0;
+  vec2 ndc = clip.xy / clip.w;
+  if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) return 1.0;
+  vec2 uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+  float inset = point_shadow.params.x;
+  vec2 local = clamp(uv, inset, 1.0 - inset);
+  vec2 atlas = (local + vec2(float(face), float(slot))) *
+               vec2(1.0 / 6.0, 1.0 / float(kFogShadowSlots));
+  if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
+  // Level zero by name: this stands behind the slot test and the light loop's
+  // own branches, where WGSL takes no implicit derivative.
+  float stored = min(textureLod(point_shadow_texture, atlas, 0.0).r,
+                     textureLod(point_shadow_static_texture, atlas, 0.0).r) *
+                 range;
+  // Nothing was drawn in that direction by either, so nothing is in the way.
+  if (stored >= range * 0.999) return 1.0;
+  float lit = distance - point_shadow.params.y > stored ? 0.0 : 1.0;
+  return mix(1.0, lit, clamp(strength, 0.0, 1.0));
+}
+
 // One texel of the light list texture, [texel] across and [row] down.
 vec4 ListTexel(float texel, float row) {
   return textureLod(light_list_texture,
@@ -27004,7 +27077,9 @@ float Lane(vec4 four, float lane) {
 //
 // `FindCluster` and `ClusterRow` from `surface.glsl`, with nothing of a draw
 // in them: a cell lists every light that reaches it, and the air has no
-// slots holding some of them already. Points and spots only — a rectangle's
+// slots holding some of them already. A light that owns a row of the cube
+// atlas is shadowed through it, so a torch behind a wall lights no air on
+// this side of the wall. Points and spots only — a rectangle's
 // intensity is spread over its area in a way a point in the air has no
 // normal to integrate against, and a directional light is the sun's job.
 vec3 ClusterLight(vec3 world, vec3 along, float g) {
@@ -27059,8 +27134,10 @@ vec3 ClusterLight(vec3 world, vec3 along, float g) {
       float cosAngle = dot(normalize(direction.xyz), -l);
       attenuation *= clamp((cosAngle - cone.y) / (cone.x - cone.y), 0.0, 1.0);
     }
-    total += color.rgb *
-             (color.w * attenuation * usable * HenyeyGreenstein(dot(along, l), g));
+    // Asked only of a light that reaches here, since it costs two reads.
+    float visibility = attenuation * usable > 0.0 ? LocalLitAt(world, cone) : 1.0;
+    total += color.rgb * (color.w * attenuation * usable * visibility *
+                          HenyeyGreenstein(dot(along, l), g));
   }
   return total;
 }
@@ -27072,13 +27149,24 @@ void main() {
   vec2 xy = vec2(v_uv.x * 2.0 - 1.0, 1.0 - v_uv.y * 2.0);
   vec4 nearH = fog_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
   vec4 farH = fog_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
-  vec3 origin = nearH.xyz / nearH.w;
-  vec3 along = normalize(farH.xyz / farH.w - origin);
+  vec3 nearPoint = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - nearPoint);
+  float cosine = max(dot(along, fog_info.forward.xyz), 1e-4);
+
+  // **From the eye's plane, not the near plane.** The surface buffer's depth
+  // is measured from the eye, so a march starting at the near plane and
+  // running that depth ends the near distance behind the surface — inside
+  // the wall, where a torch on its far side still reaches, and the one step
+  // there glowed through the stone. Stepped back along the ray to where the
+  // depth is nought: the eye itself for a perspective view.
+  vec3 origin = nearPoint -
+                along * (dot(nearPoint - fog_info.camera.xyz,
+                             fog_info.forward.xyz) /
+                         cosine);
 
   // How far there is air, as `light_shafts.frag` measures it: the surface
   // buffer's depth along the view axis over the cosine to this ray.
   float surfaceDepth = texture(surface_texture, v_uv).a;
-  float cosine = max(dot(along, fog_info.forward.xyz), 1e-4);
   float toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
   float distance = min(fog_info.camera.w, toSurface);
   if (steps < 1 || distance <= 0.0) {

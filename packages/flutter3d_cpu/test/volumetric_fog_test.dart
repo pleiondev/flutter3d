@@ -138,6 +138,74 @@ Float32List _fogTorches({required bool clustered, required double albedo}) {
   return device.readHdrPixels(render().frame);
 }
 
+/// A torch three metres behind a black wall three metres ahead of the eye, seen
+/// through air of [albedo], its shadow cast when [castsShadow]. Eight more
+/// lights far off to the side overflow the slots, so the cells are cut and
+/// the air reads the torch from them. The last of four frames.
+Float32List _torchBehindWall({
+  required bool castsShadow,
+  required double albedo,
+}) {
+  final device = CpuDevice(
+    width: _size,
+    height: _size,
+    shaders: CpuShaderLibrary(builtinCpuShaders()),
+  );
+  final camera = CameraNode();
+  final scene = Scene()
+    ..add(
+      MeshNode(
+        DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(40, 40, 0.2)).build(),
+        ),
+        Material(
+          lighting: LightingModel.lambert,
+          baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        ),
+      )..setPosition(0.0, 0.0, -3.0),
+    )
+    ..add(
+      LightNode(
+        type: LightType.point,
+        intensity: 20.0,
+        range: 8.0,
+        castsShadow: castsShadow,
+      )..setPosition(0.0, 0.0, -6.0),
+    )
+    ..add(camera);
+  for (var i = 0; i < 8; i++) {
+    scene.add(
+      LightNode(type: LightType.point, intensity: 0.5, range: 0.5)
+        ..setPosition(30.0 + i, 0.0, -10.0),
+    );
+  }
+  final renderer = Renderer.create(device: device);
+  final settings = RenderSettings(
+    tonemap: false,
+    bloom: const BloomSettings(enabled: false),
+    clusteredLights: true,
+    volumetricFog: const VolumetricFogSettings(
+      enabled: true,
+      density: 0.2,
+      heightFalloff: 0.0,
+      steps: 16,
+      distance: 20.0,
+    ).copyWith(color: Vector3.all(albedo)),
+  );
+  FrameResult render() => renderer.render(
+    width: _size,
+    height: _size,
+    scene: scene,
+    views: <RenderView>[RenderView(camera: camera)],
+    settings: settings,
+  );
+  for (var i = 0; i < 3; i++) {
+    render();
+  }
+  return device.readHdrPixels(render().frame);
+}
+
 const int _creaseWidth = 64;
 const int _creaseHeight = 48;
 
@@ -300,6 +368,26 @@ void main() {
       _fogTorches(clustered: false, albedo: 1.0),
       _fogTorches(clustered: false, albedo: 0.0),
     );
+  });
+
+  test('a torch behind a wall lights no air on this side of it', () {
+    // What the air in front of the wall scatters of the torch: the frame
+    // with an albedo, less the same frame only absorbing.
+    double glow({required bool castsShadow}) =>
+        _sum(_torchBehindWall(castsShadow: castsShadow, albedo: 1.0)) -
+        _sum(_torchBehindWall(castsShadow: castsShadow, albedo: 0.0));
+    final leaking = glow(castsShadow: false);
+    final shadowed = glow(castsShadow: true);
+    // Without its shadow the torch lights the air through the stone, a halo
+    // on a wall that is black.
+    expect(leaking, greaterThan(0.5));
+    // With it every point between the eye and the wall is behind the wall
+    // from the torch, all but the last few centimetres against its face,
+    // which the depth bias leaves lit as it leaves the face itself. Mutation:
+    // leave the atlas row out of the light's list row, and the two glows are
+    // the same; start the march at the near plane again, and its last step
+    // lands inside the stone, lit, and the glow is a quarter of the leak.
+    expect(shadowed, lessThan(leaking * 0.2));
   });
 
   test('fog-crease: the occlusion darkens the wall and not the air', () {

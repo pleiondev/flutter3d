@@ -13,6 +13,7 @@ import 'package:vector_math/vector_math.dart';
 import 'cpu_shader.dart';
 import 'cpu_shaders_lighting.dart';
 import 'cpu_shaders_reflections.dart';
+import 'cpu_shaders_shadow_point.dart';
 
 const String _block = 'VolumeFogInfo';
 
@@ -40,16 +41,19 @@ final class VolumetricFogShader implements CpuFragmentShader {
     final ndcY = 1.0 - v[1] * 2.0;
     final nearH = inverse.transformed(Vector4(ndcX, ndcY, 0.0, 1.0));
     final farH = inverse.transformed(Vector4(ndcX, ndcY, 1.0, 1.0));
-    final origin = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
+    final nearPoint = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
     final farPoint = Vector3(farH.x, farH.y, farH.z)..scale(1.0 / farH.w);
-    final along = (farPoint - origin)..normalize();
+    final along = (farPoint - nearPoint)..normalize();
+    final axis = Vector3(forward.x, forward.y, forward.z);
+    final cosine = math.max(along.dot(axis), 1e-4);
 
+    // From the eye's plane, where the surface buffer's depth is measured
+    // from: started at the near plane, the march ends inside the wall.
     final camera = b.vec4(_block, 'camera', Vector4.zero());
+    final eye = Vector3(camera.x, camera.y, camera.z);
+    final origin =
+        nearPoint - along * ((nearPoint - eye).dot(axis) / cosine);
     final surfaceDepth = b.textures['surface_texture']?.sample(v[0], v[1]).w;
-    final cosine = math.max(
-      along.dot(Vector3(forward.x, forward.y, forward.z)),
-      1e-4,
-    );
     final depth = surfaceDepth ?? 0.0;
     final toSurface = depth > 0.0 ? depth / cosine : 1e9;
     final distance = math.min(camera.w, toSurface);
@@ -111,7 +115,6 @@ final class VolumetricFogShader implements CpuFragmentShader {
     final ambient = b.vec4(_block, 'ambient', Vector4.zero());
     final albedo = b.vec4(_block, 'albedo', Vector4.zero());
     final clustered = albedo.w > 0.5;
-    final eye = Vector3(camera.x, camera.y, camera.z);
 
     var transmittance = 1.0;
     final inscatter = Vector3.zero();
@@ -145,6 +148,61 @@ Vector4 _listTexel(ShaderBindings b, double texel, double row) {
   final texture = b.textures['light_list_texture'];
   if (texture == null) return Vector4.zero();
   return texture.sample((texel + 0.5) * list.x, (row + 0.5) * list.y);
+}
+
+/// `LocalLitAt`: one tap of the atlas row the light whose list row ends in
+/// [cone] owns, with no normal to offset along and no filter.
+///
+/// `cone.z` is the row plus one, nought for a light that holds none, and
+/// `cone.w` one for a spot's single tile. The atlas is read the way
+/// [pointShadowFactor] reads it, with no flip: this backend's render targets
+/// start at the top, so `params3.x` is never set here.
+double _localLitAt(ShaderBindings b, Vector3 world, Vector4 cone) {
+  final params = b.vec4('PointShadow', 'params', Vector4.zero());
+  final strength = params.z;
+  if (cone.z < 0.5 || strength <= 0.0) return 1.0;
+  final slot = (cone.z - 0.5).floor();
+  final light = b.vec4('PointShadow', 'lights', Vector4.zero(), at: slot);
+  final toFragment = world - Vector3(light.x, light.y, light.z);
+  final distance = toFragment.length;
+  final range = math.max(light.w, 1e-4);
+  if (distance >= range) return 1.0;
+
+  final int face;
+  if (cone.w >= 0.5) {
+    face = 0;
+  } else {
+    final ax = toFragment.x.abs();
+    final ay = toFragment.y.abs();
+    final az = toFragment.z.abs();
+    face = ax >= ay && ax >= az
+        ? (toFragment.x > 0.0 ? 0 : 1)
+        : ay >= az
+        ? (toFragment.y > 0.0 ? 2 : 3)
+        : (toFragment.z > 0.0 ? 4 : 5);
+  }
+
+  final matrix = b.mat4('PointShadow', 'faces', at: slot * 6 + face);
+  final clip = matrix.transformed(Vector4(world.x, world.y, world.z, 1.0));
+  if (clip.w <= 0.0) return 1.0;
+  final ndcX = clip.x / clip.w;
+  final ndcY = clip.y / clip.w;
+  if (ndcX.abs() > 1.0 || ndcY.abs() > 1.0) return 1.0;
+  final stored = atlasDistance(
+    b,
+    ndcX * 0.5 + 0.5,
+    0.5 - ndcY * 0.5,
+    0.0,
+    0.0,
+    face.toDouble(),
+    slot.toDouble(),
+    range,
+    params.x,
+  );
+  // Nothing was drawn in that direction by either map.
+  if (stored >= range * 0.999) return 1.0;
+  final lit = distance - params.y > stored ? 0.0 : 1.0;
+  return 1.0 + (lit - 1.0) * strength.clamp(0.0, 1.0);
 }
 
 /// `ClusterLight`: what the lights of [world]'s cell send along [along].
@@ -203,9 +261,10 @@ Vector3 _clusterLight(
       final cosAngle = aim.dot(-l);
       falloff *= ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(0.0, 1.0);
     }
+    final visibility = falloff > 0.0 ? _localLitAt(b, world, cone) : 1.0;
     total.addScaled(
       Vector3(colour.x, colour.y, colour.z),
-      colour.w * falloff * _henyeyGreenstein(along.dot(l), g),
+      colour.w * falloff * visibility * _henyeyGreenstein(along.dot(l), g),
     );
   }
   return total;
