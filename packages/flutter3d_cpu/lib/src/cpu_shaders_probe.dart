@@ -59,7 +59,7 @@ final class ProbePrefilterShader implements CpuFragmentShader {
     }
 
     final alpha = math.max(roughness * roughness, 1e-3);
-    final power = 2.0 / (alpha * alpha) - 2.0;
+    final alpha2 = alpha * alpha;
 
     final up = axis.z.abs() < 0.999
         ? Vector3(0.0, 0.0, 1.0)
@@ -73,15 +73,17 @@ final class ProbePrefilterShader implements CpuFragmentShader {
     var bl = 0.0;
     var weight = 0.0;
     for (var i = 0; i < samples; i++) {
-      final z = 1.0 - (i + 0.5) / samples;
-      final radius = math.sqrt(math.max(1.0 - z * z, 0.0));
+      final e = (i + 0.5) / samples;
       final theta = golden * i;
-      final spread = math.pow(z, 1.0 / (power + 1.0)).toDouble();
+      // A GGX half vector about the axis and the axis reflected about it;
+      // its sine is the rest of the unit length and nothing smaller.
+      final cosH = math.sqrt((1.0 - e) / (1.0 + (alpha2 - 1.0) * e));
+      final sinH = math.sqrt(math.max(1.0 - cosH * cosH, 0.0));
       final tap = Vector3(
-        radius * math.cos(theta) * (1.0 - spread),
-        radius * math.sin(theta) * (1.0 - spread),
-        spread,
-      )..normalize();
+        2.0 * cosH * sinH * math.cos(theta),
+        2.0 * cosH * sinH * math.sin(theta),
+        2.0 * cosH * cosH - 1.0,
+      );
       final dir = right * tap.x + ahead * tap.y + axis * tap.z;
       final cosine = dir.dot(axis);
       if (cosine <= 0.0) continue;
