@@ -370,6 +370,38 @@ void schedulerTests() {
       });
     });
 
+    group('under an allowance (N3)', () {
+      test('a tile left out of the record stays pending', () {
+        final scheduler = ShadowFaceScheduler(tileCount: 3);
+        scheduler.select(<int?>[1, 2, 3]);
+        scheduler.recordDrawn(<int>{0});
+
+        // Mutation: record the whole selection regardless of `only`, and
+        // this comes back empty.
+        expect(scheduler.select(<int?>[1, 2, 3]), <int>[1, 2]);
+      });
+
+      test('the first tile refused leads the next scan', () {
+        // The tiles ahead of it change every frame; without the cursor the
+        // one behind them would lose to them for ever.
+        final scheduler = ShadowFaceScheduler(tileCount: 4);
+        scheduler.select(<int?>[1, 1, 1, 1]);
+        scheduler.recordDrawn(<int>{0, 1});
+
+        expect(scheduler.select(<int?>[2, 2, 1, 1]), <int>[2, 3, 0, 1]);
+        expect(scheduler.scanStart, 2);
+      });
+
+      test('a frame that drew everything starts the next scan at the top', () {
+        final scheduler = ShadowFaceScheduler(tileCount: 3);
+        scheduler.select(<int?>[1, 2, 3]);
+        scheduler.recordDrawn(<int>{0, 1, 2});
+
+        scheduler.select(<int?>[4, 5, 6]);
+        expect(scheduler.scanStart, 0);
+      });
+    });
+
     test('reset forgets what was drawn', () {
       final scheduler = ShadowFaceScheduler(tileCount: 2);
       scheduler.select(<int?>[1, 2]);
