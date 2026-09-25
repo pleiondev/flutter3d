@@ -251,6 +251,43 @@ void main() {
       );
     });
 
+    test(
+      'a blurred foreground spreads over the sharp plane behind it',
+      () async {
+        // Focused on the wall, so the ball at four metres is the blurred
+        // foreground and the wall beside it is sharp. A gather that reached
+        // only as far as each pixel's own circle left every sharp wall pixel
+        // alone, and the ball kept a hard outline against the wall. Reaching
+        // as far as the largest circle in the tile neighbourhood, the wall
+        // just outside the ball takes on its red. Mutation: gather over the
+        // pixel's own radius in the CPU mirror (`gather = radius`).
+        //
+        // A 200mm lens, because at 85mm the ball's circle on this small a
+        // frame is a texel and a half: at 200mm it is about eight.
+        final plain = await _frame(const DepthOfFieldSettings());
+        final onWall = await _frame(
+          _portrait.copyWith(focusDistance: 11.5, focalLength: 0.2),
+        );
+
+        // The wall just right of the ball, level with its middle: the ball
+        // ends near column 50 on row 64, and the wall there is at 11.5
+        // metres, in focus to within a hundredth of a texel.
+        final redder = <int>[
+          for (var y = 56; y < 72; y++)
+            for (var x = 51; x < 58; x++)
+              onWall[(y * _size + x) * 4] - plain[(y * _size + x) * 4],
+        ];
+        // Measured: about nine levels of red a pixel on average, twenty to
+        // forty at the silhouette and nothing six texels out. Gathering only
+        // over each pixel's own circle it is nought throughout.
+        expect(
+          redder.fold<int>(0, (sum, added) => sum + added),
+          greaterThan(redder.length * 4),
+          reason: 'the ball bleeds a soft rim onto the in-focus wall',
+        );
+      },
+    );
+
     test('the pass takes its name out of the graph when told to', () async {
       // The switch `gfx-31n` added, applied to the newest pass: a name in
       // `disabledPasses` is a pass that did not run, and the frame is byte for

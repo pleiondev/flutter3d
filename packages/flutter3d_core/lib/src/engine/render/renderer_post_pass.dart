@@ -237,11 +237,16 @@ extension _PostPasses on Renderer {
   /// `R7`: the three exposures' weights from [scene] at [target]'s size,
   /// blurred across and down, the second blur writing the exposure in stops
   /// into [target].
+  ///
+  /// [exposure] is the frame's own, the composite's `params.x`: the weights
+  /// judge the scene as the camera exposed it, or the local stops would
+  /// compound with the global ones.
   void _encodeLocalExposure({
     required TextureHandle target,
     required TextureHandle scene,
     required LocalExposureSettings options,
     required FrameResources resources,
+    required double exposure,
   }) {
     TextureHandle scratch() => resources.transient(
       RenderTargetSpec(
@@ -257,6 +262,7 @@ extension _PostPasses on Renderer {
       ..[1] = math.max(options.highlightStops, 0.0)
       ..[2] = 1.0 / math.max(scene.width, 1)
       ..[3] = 1.0 / math.max(scene.height, 1);
+    _localExposureInfo.camera[0] = math.max(exposure, 0.0);
     drawFullscreen(
       FullscreenDraw(
         target: weights,
@@ -721,6 +727,14 @@ extension _PostPasses on Renderer {
 
   /// `gfx-34n`: defocuses the lit colour through a thin lens.
   ///
+  /// Four draws: the largest circle along each tile's rows (`DofTileMax`),
+  /// then along its columns and over its neighbourhood — the motion blur's
+  /// `VelocityTileMax` and `VelocityNeighborMax`, reading the circle as a
+  /// motion along x — and the gather, which reaches as far as that
+  /// neighbourhood's largest circle so a blurred foreground spreads over a
+  /// sharp background beside it. The tile is as wide as the largest circle,
+  /// so one tile either side is as far as any disc can reach.
+  ///
   /// **Everything about scale is taken from the scene texture rather than
   /// from the frame**, which is what keeps `gfx-35n`'s resolution lever
   /// honest. Half the width is half the texels per metre and half the radius
@@ -762,6 +776,13 @@ extension _PostPasses on Renderer {
     // spend less on the same photograph, not to take a different one.
     _dofParams[3] = scene.width / math.max(settings.sensorWidth, 1e-4);
 
+    final tiles = _encodeCircleTiles(
+      surface: surface,
+      width: scene.width,
+      height: scene.height,
+      resources: resources,
+    );
+
     drawFullscreen(
       FullscreenDraw(
         target: target,
@@ -769,6 +790,7 @@ extension _PostPasses on Renderer {
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'surface_texture': surface,
+          'coc_tile_texture': tiles,
         },
         uniforms: <String, Map<String, Float32List>>{
           _dofInfo.name: _dofInfo.members,
@@ -779,11 +801,106 @@ extension _PostPasses on Renderer {
         // blurred foreground — a halo of the sharp object spread into the sky.
         samplers: const <String, SamplerOptions>{
           'surface_texture': SamplerOptions.nearestClamp,
+          // A tile's circle is a bound, not a colour: a filtered read between
+          // two tiles is a bound neither had.
+          'coc_tile_texture': SamplerOptions.nearestClamp,
         },
       ),
     );
     developer.Timeline.finishSync();
     return target;
+  }
+
+  /// The largest circle of confusion within a tile of each tile, one texel
+  /// a tile — `gfx-34n`, for [_encodeDepthOfField], whose lens and bound
+  /// (`_dofInfo`) it reads. Scratch from [FrameResources.transient].
+  TextureHandle _encodeCircleTiles({
+    required TextureHandle surface,
+    required int width,
+    required int height,
+    required FrameResources resources,
+  }) {
+    final radius = _dofParams[2];
+    final tile = math.max(1, math.min(radius.ceil(), 64));
+    final tilesAcross = (width + tile - 1) ~/ tile;
+    final tilesDown = (height + tile - 1) ~/ tile;
+    // Half floats: a circle is up to 64 texels, which a byte cannot hold.
+    final format = device.hdrColorFormat;
+    TextureHandle scratch(int across, int down) => resources.transient(
+      RenderTargetSpec(width: across, height: down, format: format),
+    );
+
+    final alongRows = scratch(tilesAcross, height);
+    for (var i = 0; i < 4; i++) {
+      _dofTileInfo.lens[i] = _dofLens[i];
+      _dofTileInfo.params[i] = _dofParams[i];
+    }
+    // One texel of the scene, the grid the tiles are counted in and the
+    // gather samples on, rather than of the surface buffer: a surface of
+    // another size would leave part of the frame outside every tile.
+    _dofTileInfo.source
+      ..[0] = 1.0 / math.max(width, 1)
+      ..[1] = 1.0 / math.max(height, 1)
+      ..[2] = tile.toDouble();
+    _dofTileInfo.target
+      ..[0] = tilesAcross.toDouble()
+      ..[1] = height.toDouble();
+    drawFullscreen(
+      FullscreenDraw(
+        target: alongRows,
+        fragment: shaders['DofTileMax']!,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _dofTileInfo.name: _dofTileInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+
+    // The columns: the circle in red is a motion along x whose length is
+    // the circle, scaled by one and bounded by the largest circle.
+    final circles = scratch(tilesAcross, tilesDown);
+    _tileMaxInfo.source
+      ..[0] = 1.0 / tilesAcross
+      ..[1] = 1.0 / height
+      ..[2] = 0.0
+      ..[3] = 1.0;
+    _tileMaxInfo.params
+      ..[0] = 1.0
+      ..[1] = 1.0
+      ..[2] = radius
+      ..[3] = tile.toDouble();
+    _tileMaxInfo.target
+      ..[0] = tilesAcross.toDouble()
+      ..[1] = tilesDown.toDouble();
+    drawFullscreen(
+      FullscreenDraw(
+        target: circles,
+        fragment: velocityTileMaxShader,
+        textures: <String, TextureHandle>{'velocity_texture': alongRows},
+        uniforms: <String, Map<String, Float32List>>{
+          _tileMaxInfo.name: _tileMaxInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+
+    final neighbours = scratch(tilesAcross, tilesDown);
+    _neighborMaxInfo.texel
+      ..[0] = 1.0 / tilesAcross
+      ..[1] = 1.0 / tilesDown;
+    drawFullscreen(
+      FullscreenDraw(
+        target: neighbours,
+        fragment: velocityNeighborMaxShader,
+        textures: <String, TextureHandle>{'tile_texture': circles},
+        uniforms: <String, Map<String, Float32List>>{
+          _neighborMaxInfo.name: _neighborMaxInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    return neighbours;
   }
 
   /// `R6`: blurs the lit colour along the velocity buffer.

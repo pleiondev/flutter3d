@@ -42,8 +42,9 @@ void main() {
     doc: '''
 /// A display transform for `TonemapCurve.aces2` — `L2`: 33³ entries as a
 /// strip of 33 slices (1089×33, blue picks the slice, red runs across it,
-/// green down), rgba16f, indexed through a log2 shaper of −10…+6 stops about
-/// 0.18 (`kDisplayShaperLow`, `kDisplayShaperStops`).
+/// green down), rgba16f, indexed through a log2 shaper of −10…+10 stops about
+/// 0.18 (`DisplayTransform`'s shaper), which reaches past 128, where the
+/// SDR tonescale meets the display's peak.
 ///
 /// **The ACES 2.0 tonescale, not the whole ACES 2.0 output transform.** Each
 /// entry is the SDR (100 nit, Rec.709) tonescale Daniele Siragusano wrote for
@@ -170,8 +171,13 @@ const int _kDisplaySize = 33;
 
 /// The shaper: an entry `i` of `n` holds the colour
 /// `0.18 · 2^(low + stops · i / (n − 1))`.
+///
+/// Twenty stops, so the last entry is 0.18 · 2^10 ≈ 184: the tonescale only
+/// reaches the display's peak at 128 (`r_hit_min`), 9.47 stops over grey.
+/// Sixteen stopped at 11.5, where the curve is at 0.92 of peak, and every
+/// highlight above it clamped to that one grey short of white.
 const double _kShaperLow = -10.0;
-const double _kShaperStops = 16.0;
+const double _kShaperStops = 20.0;
 
 /// The ACES 2.0 tonescale for a peak of [peak] nits, as nits — the forward
 /// half of `Lib.Academy.Tonescale` with its published constants.

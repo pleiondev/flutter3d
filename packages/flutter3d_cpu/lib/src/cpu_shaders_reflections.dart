@@ -407,21 +407,31 @@ final class DepthOfFieldShader implements CpuFragmentShader {
 
     final centreDepth = surfaceTexture.sample(v[0], v[1]).w;
     final radius = circleAt(centreDepth);
-    // Inside half a texel the disc is smaller than the pixel it lands on,
-    // which is what "in focus" means.
-    if (radius < 0.5) return centre;
+    // As far as anything nearby could spread — the tile neighbourhood's
+    // largest circle — and never less than this pixel's own.
+    final tiles = b.textures['coc_tile_texture'];
+    final gather = math.max(
+      tiles == null ? 0.0 : tiles.sample(v[0], v[1]).x,
+      radius,
+    );
+    if (gather < 0.5) return centre;
 
     var totalX = centre.x;
     var totalY = centre.y;
     var totalZ = centre.z;
     var weight = 1.0;
+    var nearX = 0.0;
+    var nearY = 0.0;
+    var nearZ = 0.0;
+    var nearWeight = 0.0;
+    var nearCover = 0.0;
 
     final centreFar = centreDepth <= 0.0 ? 1e9 : centreDepth;
     final turn = 6.2831853 * bayerCell(c.coord.x, c.coord.y);
 
     for (var i = 1; i <= samples && i <= 64; i++) {
       final t = (i - 0.5) / samples;
-      final r = math.sqrt(t) * radius;
+      final r = math.sqrt(t) * gather;
       final angle = i * _golden + turn;
       final atU = v[0] + math.cos(angle) * r * params.x;
       final atV = v[1] + math.sin(angle) * r * params.y;
@@ -436,13 +446,73 @@ final class DepthOfFieldShader implements CpuFragmentShader {
           ? math.min(tapRadius, radius)
           : tapRadius;
       final reach = (tapReach - r + 0.5).clamp(0.0, 1.0);
-      totalX += tap.x * reach;
-      totalY += tap.y * reach;
-      totalZ += tap.z * reach;
-      weight += reach;
+
+      if (tapFar < centreFar && tapRadius > radius) {
+        // In front and more blurred: the share of this pixel its disc
+        // covers, 1 / (pi c^2) of it per unit of the gather's area.
+        final spread = gather / math.max(tapRadius, 0.5);
+        nearX += tap.x * reach;
+        nearY += tap.y * reach;
+        nearZ += tap.z * reach;
+        nearWeight += reach;
+        nearCover += reach * spread * spread;
+      } else {
+        totalX += tap.x * reach;
+        totalY += tap.y * reach;
+        totalZ += tap.z * reach;
+        weight += reach;
+      }
     }
 
-    return Vector4(totalX / weight, totalY / weight, totalZ / weight, centre.w);
+    final nearScale = 1.0 / math.max(nearWeight, 1e-5);
+    final cover = (nearCover / samples).clamp(0.0, 1.0);
+    double mix(double far, double near) => far + (near - far) * cover;
+    return Vector4(
+      mix(totalX / weight, nearX * nearScale),
+      mix(totalY / weight, nearY * nearScale),
+      mix(totalZ / weight, nearZ * nearScale),
+      centre.w,
+    );
+  }
+}
+
+/// `dof_tile_max.frag`: the largest circle of confusion along one row of a
+/// tile — `gfx-34n`. The columns and the neighbourhood after it are the
+/// motion blur's own passes.
+final class DofTileMaxShader implements CpuFragmentShader {
+  const DofTileMaxShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final surface = b.textures['surface_texture'];
+    if (surface == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final lens = b.vec4('DofTileInfo', 'lens', Vector4.zero());
+    final params = b.vec4('DofTileInfo', 'params', Vector4.zero());
+    final source = b.vec4('DofTileInfo', 'source', Vector4.zero());
+    final target = b.vec4('DofTileInfo', 'target', Vector4.zero());
+
+    final taps = (source.z + 0.5).floor();
+    final texelX = (v[0] * target.x).floorToDouble();
+    final texelY = (v[1] * target.y).floorToDouble();
+    final row = (texelY + 0.5) * source.y;
+    final first = texelX * taps;
+
+    var largest = 0.0;
+    for (var i = 0; i < 64 && i < taps; i++) {
+      final depth = surface.sample((first + i + 0.5) * source.x, row).w;
+      largest = math.max(
+        largest,
+        DepthOfFieldShader.circleOfConfusion(
+          depth,
+          focusDistance: lens.x,
+          focalLength: lens.y,
+          aperture: lens.z,
+          maxRadius: params.z,
+          texelsPerMetre: params.w,
+        ),
+      );
+    }
+    return Vector4(largest, 0.0, 0.0, 1.0);
   }
 }
 

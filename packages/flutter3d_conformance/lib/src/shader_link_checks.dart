@@ -135,6 +135,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'VolumetricFog',
       'VolumetricFogUpsample',
       'DepthOfField',
+      // `gfx-34n`: the circle's tile search in front of the gather.
+      'DofTileMax',
       // `R6`: the two tile passes and the gather behind them.
       'VelocityTileMax',
       'VelocityNeighborMax',

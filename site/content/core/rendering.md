@@ -256,7 +256,7 @@ It takes the lit picture (after the temporal resolve, when one runs) three times
 
 ### Display transforms
 
-`LookSettings.displayTransform` puts a baked float colour table where the tone curve was, indexed through a log2 shaper that covers ten stops below mid grey and six above. `TonemapCurve.aces2` is the table the engine ships: the ACES 2.0 SDR tonescale at 100 nits with the hue held. It is the tonescale alone, without the reference transform's gamut mapping. A table set on the look wins over whichever curve is chosen, and `tonemap: false` still turns it off with the rest.
+`LookSettings.displayTransform` puts a baked float colour table where the tone curve was, indexed through a log2 shaper that covers ten stops below mid grey and ten above, past the 128 where the SDR tonescale reaches the display's peak. `TonemapCurve.aces2` is the table the engine ships: the ACES 2.0 SDR tonescale at 100 nits with the hue held. It is the tonescale alone, without the reference transform's gamut mapping. A table set on the look wins over whichever curve is chosen, and `tonemap: false` still turns it off with the rest.
 
 ### HDR output
 

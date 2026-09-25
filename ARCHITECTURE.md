@@ -1063,7 +1063,7 @@ may rebuild the light list without them.
 
 **The tone curve can be a table, and white can be exceeded.**
 `LookSettings.displayTransform` takes a float colour table over a log2 shaper
-from -10 to +6 stops about 0.18, read after exposure in place of the curve.
+from -10 to +10 stops about 0.18, read after exposure in place of the curve.
 `TonemapCurve.aces2` is the one the engine ships: 33 entries an axis of the
 ACES 2.0 SDR tonescale at 100 nits, with the hue held. It is the tonescale
 alone, without the reference transform's gamut mapping.

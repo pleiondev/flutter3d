@@ -228,6 +228,31 @@ final class DofInfoBlock extends UniformBlock {
   };
 }
 
+/// `DofTileInfo`.
+final class DofTileInfoBlock extends UniformBlock {
+  DofTileInfoBlock() : super('DofTileInfo');
+
+  /// `lens`: Vector4, at byte 0.
+  final Float32List lens = Float32List(4);
+
+  /// `params`: Vector4, at byte 16.
+  final Float32List params = Float32List(4);
+
+  /// `source`: Vector4, at byte 32.
+  final Float32List source = Float32List(4);
+
+  /// `target`: Vector4, at byte 48.
+  final Float32List target = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'lens': lens,
+    'params': params,
+    'source': source,
+    'target': target,
+  };
+}
+
 /// `EasuInfo`.
 final class EasuInfoBlock extends UniformBlock {
   EasuInfoBlock() : super('EasuInfo');
@@ -626,9 +651,13 @@ final class LocalExposureInfoBlock extends UniformBlock {
   /// `stops`: Vector4, at byte 0.
   final Float32List stops = Float32List(4);
 
+  /// `camera`: Vector4, at byte 16.
+  final Float32List camera = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'stops': stops,
+    'camera': camera,
   };
 }
 
