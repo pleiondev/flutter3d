@@ -629,5 +629,85 @@ void main() {
         <int>[2, 3, 4],
       );
     });
+
+    test('every fragment stage says which targets it writes', () {
+      // A stage this cannot read falls back to writing every target, which is
+      // the mistake that drew `taa-embers` black; none of the engine's may.
+      for (final entry in engineShaders.fragment.entries) {
+        expect(
+          wgslFragmentOutputs(entry.value.wgsl),
+          isNotNull,
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('a particle writes the colour and not the velocity beside it', () {
+      // The temporal pass carries both targets and the particle stage has one
+      // output. Mutation: report every target as written, and the pipeline
+      // WebGPU is handed claims the velocity it has nothing for.
+      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final pipeline =
+          createWebGpuPipeline(
+                library['ParticleVertex']!,
+                library['Particle']!,
+              ).backend
+              as WebGpuPipeline;
+      expect(pipeline.fragmentOutputs, <int>{0});
+      final lit =
+          createWebGpuPipeline(library['MeshVertex']!, library['Pbr']!).backend
+              as WebGpuPipeline;
+      expect(lit.fragmentOutputs, containsAll(<int>[0, 1]));
+    });
+  });
+
+  group('what a fragment stage writes', () {
+    test('one location, returned directly', () {
+      expect(
+        wgslFragmentOutputs('''
+@fragment
+fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+  return vec4<f32>(uv, 0.0, 1.0);
+}
+'''),
+        <int>{0},
+      );
+    });
+
+    test('the members of the struct it returns', () {
+      expect(
+        wgslFragmentOutputs('''
+struct Other { @location(5) x: vec4<f32>, }
+struct FragmentOutput {
+    @location(2) member: vec4<f32>,
+    @location(0) member_2: vec4<f32>,
+}
+@fragment
+fn main(@builtin(position) at: vec4<f32>) -> FragmentOutput {
+  return FragmentOutput(vec4<f32>(0.0), vec4<f32>(1.0));
+}
+'''),
+        <int>{0, 2},
+      );
+    });
+
+    test('nothing, from a stage that only discards or writes depth', () {
+      expect(
+        wgslFragmentOutputs('@fragment\nfn main() {\n  discard;\n}\n'),
+        isEmpty,
+      );
+      expect(
+        wgslFragmentOutputs(
+          '@fragment\nfn main() -> @builtin(frag_depth) f32 {\n'
+          '  return 0.5;\n}\n',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('null where the text does not read as a fragment stage', () {
+      expect(wgslFragmentOutputs('@vertex fn main() {}'), isNull);
+      expect(wgslFragmentOutputs('@fragment fn main() -> Missing { }'), isNull);
+    });
   });
 }

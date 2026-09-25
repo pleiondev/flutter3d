@@ -336,6 +336,7 @@ final class WebGpuPipeline {
     required Map<String, WebGpuBlock> blocks,
     required Map<String, WebGpuSampler> samplers,
     required List<WebGpuGroupShape> groups,
+    this.fragmentOutputs,
   }) : buffers = List<WebGpuVertexBuffer>.unmodifiable(buffers),
        blocks = Map<String, WebGpuBlock>.unmodifiable(blocks),
        samplers = Map<String, WebGpuSampler>.unmodifiable(samplers),
@@ -389,6 +390,54 @@ final class WebGpuPipeline {
   /// rather than a habit of whoever iterates it — an offset list out of order
   /// draws the last object's transform on this one and reports nothing.
   final List<WebGpuGroupShape> groups;
+
+  /// The colour locations the fragment stage writes, or null where its WGSL
+  /// could not be read for them — in which case every target is written, as
+  /// before anyone asked.
+  ///
+  /// **A pass may carry more colour targets than a stage writes, and WebGPU
+  /// is the one API that refuses the pipeline for it.** The temporal pass
+  /// draws into the colour and the velocity target together, and a particle's
+  /// fragment stage writes only the colour: GL and Metal leave the velocity
+  /// alone, and the reactive pass marks it afterwards. Here a target with no
+  /// output behind it must have a write mask of zero, and a pipeline that says
+  /// otherwise is invalid. Nothing throws: the pass that uses it is dropped
+  /// with the command buffer it was in, and the frame reads back black.
+  final Set<int>? fragmentOutputs;
+}
+
+/// The `@location`s the `@fragment` entry point of [wgsl] writes, or null
+/// where the text does not read as one.
+///
+/// Read off the text rather than carried in the reflection, because the text
+/// is all there is to read: a `GPUShaderModule` answers no questions about
+/// itself, and the entry point's return type is the one place the answer is
+/// written — either `-> @location(n) T` or a struct whose members carry the
+/// locations. A shape this does not recognise answers null, and the pipeline
+/// writes every target as it always did; the failure it guards against is
+/// then the one it was before, rather than a target silently masked off.
+Set<int>? wgslFragmentOutputs(String wgsl) {
+  final entry = RegExp(r'@fragment\s+fn\s+\w+\s*\(([^{]*)\{').firstMatch(wgsl);
+  if (entry == null) return null;
+  final header = entry.group(1)!;
+  final arrow = header.lastIndexOf('->');
+  if (arrow < 0) return const <int>{};
+  final returned = header.substring(arrow + 2).trim();
+  final location = RegExp(r'@location\s*\(\s*(\d+)[^)]*\)');
+  if (returned.startsWith('@')) {
+    final direct = location.firstMatch(returned);
+    return direct == null ? const <int>{} : <int>{int.parse(direct.group(1)!)};
+  }
+  final type = RegExp(r'^\w+').firstMatch(returned)?.group(0);
+  if (type == null) return null;
+  final body = RegExp(
+    'struct\\s+${RegExp.escape(type)}\\s*\\{([^}]*)\\}',
+  ).firstMatch(wgsl);
+  if (body == null) return null;
+  return <int>{
+    for (final member in location.allMatches(body.group(1)!))
+      int.parse(member.group(1)!),
+  };
 }
 
 /// Which stages one binding is visible to.
@@ -476,6 +525,7 @@ PipelineHandle createWebGpuPipeline(
       blocks: _mergedBlocks(vertexStage, fragmentStage),
       samplers: _mergedSamplers(vertexStage, fragmentStage),
       groups: _groupShapes(vertexStage, fragmentStage),
+      fragmentOutputs: wgslFragmentOutputs(fragmentStage.stage.wgsl),
     ),
     name: name,
   );
