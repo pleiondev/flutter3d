@@ -51,6 +51,9 @@ String _componentLabel(AnimationPath path, int component) => switch (path) {
   AnimationPath.scale => const <String>['X', 'Y', 'Z'][component],
   AnimationPath.rotation => const <String>['X', 'Y', 'Z', 'W'][component],
   AnimationPath.weights => 'W$component',
+  // A `KHR_animation_pointer` track: a colour, an offset or one number,
+  // whichever property it names, so its lanes are numbered rather than named.
+  AnimationPath.pointer => '#$component',
 };
 
 /// Which handle of a key is being dragged, or the key's own value.
