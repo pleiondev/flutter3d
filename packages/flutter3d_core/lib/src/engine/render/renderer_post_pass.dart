@@ -835,9 +835,12 @@ extension _PostPasses on Renderer {
       _dofTileInfo.lens[i] = _dofLens[i];
       _dofTileInfo.params[i] = _dofParams[i];
     }
+    // One texel of the scene, the grid the tiles are counted in and the
+    // gather samples on, rather than of the surface buffer: a surface of
+    // another size would leave part of the frame outside every tile.
     _dofTileInfo.source
-      ..[0] = 1.0 / math.max(surface.width, 1)
-      ..[1] = 1.0 / math.max(surface.height, 1)
+      ..[0] = 1.0 / math.max(width, 1)
+      ..[1] = 1.0 / math.max(height, 1)
       ..[2] = tile.toDouble();
     _dofTileInfo.target
       ..[0] = tilesAcross.toDouble()

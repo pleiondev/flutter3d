@@ -31,7 +31,8 @@ uniform DofTileInfo {
   // per metre across the sensor.
   vec4 params;
 
-  // xy: one texel of the surface buffer. z: texels per tile. w unused.
+  // xy: one texel of the scene, the grid the gather samples on. z: texels
+  // per tile. w unused.
   vec4 source;
 
   // xy: this target's size in texels. zw unused.
