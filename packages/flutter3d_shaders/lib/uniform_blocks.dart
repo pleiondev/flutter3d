@@ -1371,6 +1371,12 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'forward': (offset: 144, byteLength: 16, elements: 1, type: 'Vector4'),
       'params': (offset: 160, byteLength: 16, elements: 1, type: 'Vector4'),
       'screen': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
+      'environment': (
+        offset: 192,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
     },
   },
   'SceneColourCopy': <String, Map<String, UniformMemberLayout>>{

@@ -458,8 +458,24 @@ vec3 SceneColourAt(vec3 world, float lod) {
 
 /// The scene seen through the surface — `M3`: where the ray the index bends
 /// leaves the far side of the volume, as the copy made before this pass holds
-/// it, at a level chosen by the roughness as [TransmittedRadiance] chooses
-/// one. A thin wall bends nothing and reads what lies straight behind it.
+/// it, at a level chosen by the roughness. A thin wall bends nothing and
+/// reads what lies straight behind it.
+///
+/// **The level is log2 of the base width times the roughness**, the way the
+/// glTF sample renderer reads its transmission target, and not the roughness
+/// times the chain's own length. Each level is a box average of the scene,
+/// as a mip level is, so level k is a blur of 2^k texels however long the
+/// chain is, and the halvings a width has are what take roughness 1 to a
+/// single texel. Scaled by the chain instead, a 0.5-rough glass at an index
+/// of 1.5 read level 2.5 where it should read 5, a blur of about six texels
+/// against thirty-two, and frosted glass looked nearly clear. The chain
+/// still ends at `SceneColourChain.maxLevels`, where [SceneColourAt] clamps,
+/// so at a thousand texels wide anything rougher than about half reads its
+/// last level.
+///
+/// The width is the base level's, in texels: its rectangle's width over one
+/// texel of the texture, which is the size of the scene the chain was copied
+/// from.
 ///
 /// **The thickness is in world units as authored.** glTF measures it in the
 /// mesh's own space; a node scaled up or down refracts as if it were not,
@@ -467,8 +483,10 @@ vec3 SceneColourAt(vec3 world, float lod) {
 vec3 SceneBehind(Surface s) {
   float ior = RefractionIor();
   float spread = DispersionSpread(ior);
-  float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) *
-              (layer_info.scene_colour.x - 1.0);
+  float width =
+      layer_info.scene_levels[0].z / max(layer_info.scene_colour.y, 1e-9);
+  float lod = log2(max(width, 1.0)) * s.roughness *
+              clamp(ior * 2.0 - 2.0, 0.0, 1.0);
   bool thin = g_thickness <= 0.0;
   vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
   vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);

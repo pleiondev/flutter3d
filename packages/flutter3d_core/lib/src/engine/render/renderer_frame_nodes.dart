@@ -956,7 +956,7 @@ base mixin _NeedsSurfaceBuffer on RenderNode {
 /// asking why reflections did not run got no answer, because with the
 /// setting off there was no node to have an answer about.
 final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
-  _ReflectionsNode(this._renderer, this._view, this._settings);
+  _ReflectionsNode(this._renderer, this._view, this._settings, this._scene);
 
   @override
   Renderer get owner => _renderer;
@@ -964,6 +964,9 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   final Renderer _renderer;
   final RenderView _view;
   final RenderSettings _settings;
+
+  /// For its environment, whose reflection a hit replaces.
+  final Scene _scene;
 
   @override
   String get name => 'reflections';
@@ -984,6 +987,7 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   void execute(NodeFrame frame) {
     final lit = _renderer._encodeReflections(
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      sceneGraph: _scene,
       settings: frame.settings,
       view: _view,
       width: frame.width,
