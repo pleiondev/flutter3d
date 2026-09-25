@@ -281,6 +281,26 @@ final class FrameGraph {
 
     final keep = _reachable(producer, runnable, current, edges, outputs);
 
+    // Write-after-read, added only now because it orders and must not keep:
+    // the in-place writer of v+1 does not need a reader of v, so that reader
+    // stays out of the reachability walk above. The edge is needed at all
+    // because a pass that reads a resource and writes it back draws into the
+    // texture it read ([FrameResources.beginNode]), so v and v+1 stand on one
+    // texture, and a reader of v scheduled after that pass would sample v+1's
+    // pixels. A graph that renames on every write and runs in setup order
+    // (O'Donnell, "FrameGraph", GDC 2017) cannot meet the hazard; one that
+    // reorders has to say it as an edge. A registration that also forces the
+    // reader after the writer now comes out as the loop it is, instead of as a
+    // silently wrong read.
+    for (var i = 0; i < active.length; i++) {
+      if (!runnable[i]) continue;
+      reads[i].forEach((name, version) {
+        final p = producer[ResourceVersion(ResourceId(name), version + 1)];
+        if (p == null || p == i || !runnable[p]) return;
+        if (reads[p][name] == version) edges[p].add(i);
+      });
+    }
+
     final order = <FrameGraphNode>[];
     final orderOf = <int>[]; // index into `active`, per position in `order`
     final state = List<int>.filled(active.length, 0); // 0 new, 1 open, 2 done
