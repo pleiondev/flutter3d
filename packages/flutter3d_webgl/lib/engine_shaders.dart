@@ -7992,12 +7992,14 @@ void ApplyNormalMap(inout Surface s) {
   // matrix's inverse, times its determinant, whose sign a mirror flips and the
   // bitangent's sign with it. Measured on the front face's frame, which is
   // the frame the transform was authored on. A plain scale leaves the frame
-  // as it was, bit for bit, which is why the test is on the matrix.
+  // as it was, bit for bit, which is why the test is on the matrix. That
+  // column is `m11 dP/du - m10 dP/dv`, and dP/dv is **minus** the bitangent:
+  // `v` runs down the texture, a normal map's green up it.
   vec4 m = MapMatrix(kMapNormal);
   float det = m.x * m.w - m.y * m.z;
   float flip = det < 0.0 ? -1.0 : 1.0;
   vec3 front = gl_FrontFacing ? b : -b;
-  vec3 turned = (t * m.w - front * m.z) * flip;
+  vec3 turned = (t * m.w + front * m.z) * flip;
   bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
                dot(turned, turned) > 1e-12;
   t = turns ? normalize(turned) : t;
@@ -10396,12 +10398,14 @@ void ApplyNormalMap(inout Surface s) {
   // matrix's inverse, times its determinant, whose sign a mirror flips and the
   // bitangent's sign with it. Measured on the front face's frame, which is
   // the frame the transform was authored on. A plain scale leaves the frame
-  // as it was, bit for bit, which is why the test is on the matrix.
+  // as it was, bit for bit, which is why the test is on the matrix. That
+  // column is `m11 dP/du - m10 dP/dv`, and dP/dv is **minus** the bitangent:
+  // `v` runs down the texture, a normal map's green up it.
   vec4 m = MapMatrix(kMapNormal);
   float det = m.x * m.w - m.y * m.z;
   float flip = det < 0.0 ? -1.0 : 1.0;
   vec3 front = gl_FrontFacing ? b : -b;
-  vec3 turned = (t * m.w - front * m.z) * flip;
+  vec3 turned = (t * m.w + front * m.z) * flip;
   bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
                dot(turned, turned) > 1e-12;
   t = turns ? normalize(turned) : t;
@@ -12835,12 +12839,14 @@ void ApplyNormalMap(inout Surface s) {
   // matrix's inverse, times its determinant, whose sign a mirror flips and the
   // bitangent's sign with it. Measured on the front face's frame, which is
   // the frame the transform was authored on. A plain scale leaves the frame
-  // as it was, bit for bit, which is why the test is on the matrix.
+  // as it was, bit for bit, which is why the test is on the matrix. That
+  // column is `m11 dP/du - m10 dP/dv`, and dP/dv is **minus** the bitangent:
+  // `v` runs down the texture, a normal map's green up it.
   vec4 m = MapMatrix(kMapNormal);
   float det = m.x * m.w - m.y * m.z;
   float flip = det < 0.0 ? -1.0 : 1.0;
   vec3 front = gl_FrontFacing ? b : -b;
-  vec3 turned = (t * m.w - front * m.z) * flip;
+  vec3 turned = (t * m.w + front * m.z) * flip;
   bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
                dot(turned, turned) > 1e-12;
   t = turns ? normalize(turned) : t;
@@ -13343,6 +13349,24 @@ vec3 g_transmittance = vec3(1.0);
 float g_iridescence = 0.0;
 vec3 g_irid_fresnel = vec3(0.04);
 
+/// Whether the index is `KHR_materials_ior`'s nought: the value its
+/// specular-glossiness migration writes, which means an index of infinity —
+/// a Fresnel of one at every angle, and no dispersion.
+bool IorInfinite() { return layer_info.coat.z == 0.0; }
+
+/// The index the refraction bends by. Infinity is stood in for by an index
+/// so large that the ray leaves along the normal, which is where an infinite
+/// one sends it; anything else below one is held at one.
+float RefractionIor() {
+  return IorInfinite() ? 1.0e4 : max(layer_info.coat.z, 1.0);
+}
+
+/// How far the dispersion spreads the index over red and blue; nothing at an
+/// infinite index, which the extension says dispersion leaves alone.
+float DispersionSpread(float ior) {
+  return IorInfinite() ? 0.0 : (ior - 1.0) * 0.025 * layer_info.transmission.w;
+}
+
 /// Fills the globals above from the block and the coat map.
 ///
 /// Called before the normal map bends `s.n`, because the coat is lit on the
@@ -13358,9 +13382,10 @@ void ReadLayers(Surface s) {
   // `KHR_materials_ior` and `KHR_materials_specular`: the reflectance a
   // dielectric of this index has head-on, tinted and scaled, and the
   // strength alone at grazing. 1.5, white and one give 0.04 and 1 — plain
-  // metal-rough.
+  // metal-rough. An index of nought is infinity, whose reflectance is one
+  // head-on as at grazing, so the tint and the strength are all that is left.
   float ior = max(layer_info.coat.z, 1.0);
-  float r = (ior - 1.0) / (ior + 1.0);
+  float r = IorInfinite() ? 1.0 : (ior - 1.0) / (ior + 1.0);
   g_f0_dielectric =
       min(vec3(r * r) * layer_info.specular.rgb, vec3(1.0)) *
       layer_info.specular.w;
@@ -13582,8 +13607,8 @@ void ReadIridescence(Surface s) {
 /// capture, the view model — still sees. Dispersion spreads the index over
 /// red, green and blue and reads each on its own ray.
 vec3 TransmittedRadiance(Surface s, float levels) {
-  float ior = max(layer_info.coat.z, 1.0);
-  float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
+  float ior = RefractionIor();
+  float spread = DispersionSpread(ior);
   // A rough glass blurs what is behind it more the denser it is.
   float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) * levels;
   bool thin = g_thickness <= 0.0;
@@ -13635,8 +13660,8 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// mesh's own space; a node scaled up or down refracts as if it were not,
 /// because the stage has no model matrix to scale it by.
 vec3 SceneBehind(Surface s) {
-  float ior = max(layer_info.coat.z, 1.0);
-  float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
+  float ior = RefractionIor();
+  float spread = DispersionSpread(ior);
   float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) *
               (layer_info.scene_colour.x - 1.0);
   bool thin = g_thickness <= 0.0;
@@ -16051,12 +16076,14 @@ void ApplyNormalMap(inout Surface s) {
   // matrix's inverse, times its determinant, whose sign a mirror flips and the
   // bitangent's sign with it. Measured on the front face's frame, which is
   // the frame the transform was authored on. A plain scale leaves the frame
-  // as it was, bit for bit, which is why the test is on the matrix.
+  // as it was, bit for bit, which is why the test is on the matrix. That
+  // column is `m11 dP/du - m10 dP/dv`, and dP/dv is **minus** the bitangent:
+  // `v` runs down the texture, a normal map's green up it.
   vec4 m = MapMatrix(kMapNormal);
   float det = m.x * m.w - m.y * m.z;
   float flip = det < 0.0 ? -1.0 : 1.0;
   vec3 front = gl_FrontFacing ? b : -b;
-  vec3 turned = (t * m.w - front * m.z) * flip;
+  vec3 turned = (t * m.w + front * m.z) * flip;
   bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
                dot(turned, turned) > 1e-12;
   t = turns ? normalize(turned) : t;
@@ -16559,6 +16586,24 @@ vec3 g_transmittance = vec3(1.0);
 float g_iridescence = 0.0;
 vec3 g_irid_fresnel = vec3(0.04);
 
+/// Whether the index is `KHR_materials_ior`'s nought: the value its
+/// specular-glossiness migration writes, which means an index of infinity —
+/// a Fresnel of one at every angle, and no dispersion.
+bool IorInfinite() { return layer_info.coat.z == 0.0; }
+
+/// The index the refraction bends by. Infinity is stood in for by an index
+/// so large that the ray leaves along the normal, which is where an infinite
+/// one sends it; anything else below one is held at one.
+float RefractionIor() {
+  return IorInfinite() ? 1.0e4 : max(layer_info.coat.z, 1.0);
+}
+
+/// How far the dispersion spreads the index over red and blue; nothing at an
+/// infinite index, which the extension says dispersion leaves alone.
+float DispersionSpread(float ior) {
+  return IorInfinite() ? 0.0 : (ior - 1.0) * 0.025 * layer_info.transmission.w;
+}
+
 /// Fills the globals above from the block and the coat map.
 ///
 /// Called before the normal map bends `s.n`, because the coat is lit on the
@@ -16574,9 +16619,10 @@ void ReadLayers(Surface s) {
   // `KHR_materials_ior` and `KHR_materials_specular`: the reflectance a
   // dielectric of this index has head-on, tinted and scaled, and the
   // strength alone at grazing. 1.5, white and one give 0.04 and 1 — plain
-  // metal-rough.
+  // metal-rough. An index of nought is infinity, whose reflectance is one
+  // head-on as at grazing, so the tint and the strength are all that is left.
   float ior = max(layer_info.coat.z, 1.0);
-  float r = (ior - 1.0) / (ior + 1.0);
+  float r = IorInfinite() ? 1.0 : (ior - 1.0) / (ior + 1.0);
   g_f0_dielectric =
       min(vec3(r * r) * layer_info.specular.rgb, vec3(1.0)) *
       layer_info.specular.w;
@@ -16798,8 +16844,8 @@ void ReadIridescence(Surface s) {
 /// capture, the view model — still sees. Dispersion spreads the index over
 /// red, green and blue and reads each on its own ray.
 vec3 TransmittedRadiance(Surface s, float levels) {
-  float ior = max(layer_info.coat.z, 1.0);
-  float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
+  float ior = RefractionIor();
+  float spread = DispersionSpread(ior);
   // A rough glass blurs what is behind it more the denser it is.
   float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) * levels;
   bool thin = g_thickness <= 0.0;
@@ -16851,8 +16897,8 @@ vec3 SceneColourAt(vec3 world, float lod) {
 /// mesh's own space; a node scaled up or down refracts as if it were not,
 /// because the stage has no model matrix to scale it by.
 vec3 SceneBehind(Surface s) {
-  float ior = max(layer_info.coat.z, 1.0);
-  float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
+  float ior = RefractionIor();
+  float spread = DispersionSpread(ior);
   float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) *
               (layer_info.scene_colour.x - 1.0);
   bool thin = g_thickness <= 0.0;
@@ -19235,12 +19281,14 @@ void ApplyNormalMap(inout Surface s) {
   // matrix's inverse, times its determinant, whose sign a mirror flips and the
   // bitangent's sign with it. Measured on the front face's frame, which is
   // the frame the transform was authored on. A plain scale leaves the frame
-  // as it was, bit for bit, which is why the test is on the matrix.
+  // as it was, bit for bit, which is why the test is on the matrix. That
+  // column is `m11 dP/du - m10 dP/dv`, and dP/dv is **minus** the bitangent:
+  // `v` runs down the texture, a normal map's green up it.
   vec4 m = MapMatrix(kMapNormal);
   float det = m.x * m.w - m.y * m.z;
   float flip = det < 0.0 ? -1.0 : 1.0;
   vec3 front = gl_FrontFacing ? b : -b;
-  vec3 turned = (t * m.w - front * m.z) * flip;
+  vec3 turned = (t * m.w + front * m.z) * flip;
   bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
                dot(turned, turned) > 1e-12;
   t = turns ? normalize(turned) : t;

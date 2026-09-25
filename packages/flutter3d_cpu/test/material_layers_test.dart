@@ -204,6 +204,36 @@ void main() {
     expect(diamond, greaterThan(glass * 1.2));
   });
 
+  test(
+    'an index of nought reflects fully: a black dielectric is a white metal',
+    () {
+      // `KHR_materials_ior`'s special case: nought is an infinite index, whose
+      // Fresnel is one at every angle. A black dielectric has no diffuse, so
+      // what is left is a reflection of one head-on and at grazing — exactly a
+      // white metal's, under the light and the environment both.
+      Material sphere(double metallic, Vector4 colour, double ior) => Material(
+        lighting: LightingModel.pbrLayered,
+        baseColor: colour,
+        metallic: metallic,
+        roughness: 0.4,
+        extensions: MaterialExtensions(ior: ior),
+      );
+      final infinite = _render(
+        (_) => sphere(0.0, Vector4(0.0, 0.0, 0.0, 1.0), 0.0),
+        environment: true,
+      ).hdr;
+      final metal = _render(
+        (_) => sphere(1.0, Vector4(1.0, 1.0, 1.0, 1.0), 1.5),
+        environment: true,
+      ).hdr;
+      // Mutation: reading nought as the clamp to one (`r` from `max(ior, 1)`
+      // alone) leaves a head-on reflection of nothing and only a grazing rim,
+      // which misses the metal by most of its brightness.
+      expect(_largestDifference(infinite, metal), lessThan(1e-4));
+      expect(_peak(infinite), greaterThan(0.1));
+    },
+  );
+
   test('specular strength and tint scale the dielectric reflection', () {
     final full = _meanGreen(
       _hdr((_) => _paint(layers: MaterialExtensions(ior: 1.49))),
