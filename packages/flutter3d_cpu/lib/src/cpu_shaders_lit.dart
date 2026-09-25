@@ -856,6 +856,8 @@ final class PbrShader implements CpuFragmentShader {
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
         ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z));
+      // The single-scatter albedo, thin film included, read by both the
+      // specular term and the multiscatter term — as `pbr.frag` builds it.
       final single =
           (layers == null ? f0 : layers.withFilm(f0)) * ab.x +
           Vector3.all(f90 * ab.y);
