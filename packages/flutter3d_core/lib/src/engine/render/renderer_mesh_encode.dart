@@ -457,6 +457,13 @@ extension _MeshEncode on Renderer {
       _emissiveData[0] = material.emissive.x;
       _emissiveData[1] = material.emissive.y;
       _emissiveData[2] = material.emissive.z;
+      // A normal map with only x and y has its z rebuilt in the shader: the
+      // sampler hands blue as zero, which read as it stands is a normal
+      // pointing into the surface. The flag rides in emissive's unused w.
+      _emissiveData[3] = switch (material.normal?.format) {
+        TextureFormat.bc5RGUNormInt || TextureFormat.r8g8UNormInt => 1.0,
+        _ => 0.0,
+      };
 
       _materialData[0] = material.metallic;
       _materialData[1] = material.roughness;

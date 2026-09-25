@@ -11,6 +11,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_morph.dart';
 
 /// `v_current` and `v_previous`, four floats each, then `v_depth`.
@@ -120,7 +121,6 @@ final class VelocitySkinnedVertexShader implements CpuVertexShaderByIndex {
   // Position, then joints, then weights: the layout declares these three.
   static const int _joints = 3;
   static const int _weights = 7;
-  static const int _maxJoints = 64;
 
   @override
   int get varyingCount => _kVelocityVaryings;
@@ -152,13 +152,9 @@ final class VelocitySkinnedVertexShader implements CpuVertexShaderByIndex {
     final skin = Matrix4.zero();
     final prevSkin = Matrix4.zero();
     for (var i = 0; i < 4; i++) {
-      final joint = a[_joints + i];
-      final current = bindings.mat4(
-        'SkinInfo',
-        'joint_matrices',
-        at: joint.toInt(),
-      );
-      final v = (joint + 0.5) / _maxJoints;
+      final joint = MeshSkinnedVertexShader.jointIndex(a[_joints + i]);
+      final current = bindings.mat4('SkinInfo', 'joint_matrices', at: joint);
+      final v = (joint + 0.5) / MeshSkinnedVertexShader.maxJoints;
       for (var column = 0; column < 4; column++) {
         final texel =
             previousJoints?.sample((column + 0.5) / 4.0, v) ??
