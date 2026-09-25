@@ -73,6 +73,9 @@ dependencies:
   image: ^4.10.1
 
 dev_dependencies:
+  # `RecordingDevice`, which a test wraps round the impostor bake's device to
+  # count what the bake uploads against what it releases.
+  flutter3d_hardware: ^0.8.0
   test: ^1.25.0
   flutter_lints: ^6.0.0
 

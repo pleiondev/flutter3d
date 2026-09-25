@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/trace.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -201,6 +202,123 @@ void main() {
     expect(back.grid, impostor.grid);
     expect(back.radius, closeTo(impostor.radius, 1e-5));
     expect((back.centre - impostor.centre).length, lessThan(1e-5));
+  });
+
+  test('a placed node bakes its card where its surface draws', () async {
+    // The shape a glTF scene walk hands the bake: the node carries the
+    // placement, the surface carries the same placement baked into its
+    // `transform` as a record of where it ends up, and the vertices are in the
+    // node's own space — which is where `instantiate` draws them, at identity
+    // under the node, and where the card is drawn too. Applying the surface's
+    // transform here as well would place the card twice.
+    final placement = Matrix4.compose(
+      Vector3(4, 0, -3),
+      Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2),
+      Vector3.all(2),
+    );
+    final translation = Vector3.zero();
+    final rotation = Quaternion.identity();
+    final scale = Vector3.zero();
+    placement.decompose(translation, rotation, scale);
+    final document = PlainModelDocument(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          mesh: const SphereShape(radius: 0.3, segments: 12, rings: 8)
+              .build(layout: VertexLayout.standard)
+              .transformed(Matrix4.translationValues(0.5, 1, 0)),
+          transform: placement,
+          materialIndex: 0,
+        ),
+      ],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(baseColor: Vector4(0.8, 0.2, 0.2, 1)),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(
+          name: 'placed',
+          translation: translation,
+          rotation: rotation,
+          scale: scale,
+          surfaces: <int>[0],
+        ),
+      ],
+    );
+
+    final card = (await bakeImpostors(
+      document,
+      cell: 8,
+    )).nodes.single.lods.single.impostor!;
+    // Mutation: build the sphere from `surface.transform`-ed vertices. The
+    // centre lands at the placement's image of the ball, (4, 2, -4), and the
+    // node then carries it there a second time.
+    expect((card.centre - Vector3(0.5, 1, 0)).length, lessThan(1e-3));
+    expect(card.radius, closeTo(0.3, 1e-3));
+    // And in the model's space that is where the surface draws.
+    expect(
+      (placement.transformed3(card.centre) - Vector3(4, 2, -4)).length,
+      lessThan(1e-3),
+    );
+  });
+
+  test('a bake leaves nothing on the device it drew with', () async {
+    // With a bark texture, so the image the bake decodes has to go too.
+    final source = tree();
+    final textured = PlainModelDocument(
+      surfaces: source.surfaces,
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(
+          name: 'bark',
+          baseColor: Vector4(1, 1, 1, 1),
+          baseColorTexture: const TextureBinding(imageIndex: 0),
+        ),
+        ...source.materials.skip(1),
+      ],
+      images: <EncodedImage>[
+        EncodedImage(
+          bytes: encodePng(
+            Uint8List.fromList(<int>[
+              for (var i = 0; i < 16; i++) ...[115, 77, 46, 255],
+            ]),
+            4,
+            4,
+          ),
+          mimeType: 'image/png',
+        ),
+      ],
+      nodes: source.nodes,
+    );
+    final device = RecordingDevice(cpuDevice(8));
+    await bakeImpostors(textured, cell: 8, device: device);
+
+    final geometry = <int>{};
+    final textures = <int>{};
+    var uploads = 0;
+    for (final event in device.events) {
+      switch (event) {
+        case TraceUploadGeometry(:final id):
+          uploads++;
+          geometry.add(id);
+        case TraceReleaseGeometry(:final buffer):
+          geometry.remove(buffer);
+        case TraceCreateTexture(:final id) ||
+            TraceCreateTextureFromPixels(:final id) ||
+            TraceCreateCubeTextureFromPixels(:final id) ||
+            TraceCreateCubeRenderTarget(:final id):
+          textures.add(id);
+        case TraceReleaseTexture(:final texture):
+          textures.remove(texture);
+        default:
+      }
+    }
+    // Mutations: drop the release of the node's meshes and twelve buffers
+    // stay; skip `Renderer.dispose` and its own two do; upload a depth copy
+    // once a view, as the bake first did, and 384 do.
+    expect(geometry, isEmpty, reason: 'geometry buffers never released');
+    expect(textures, isEmpty, reason: 'textures never released');
+    // Two buffers for each of the tree's three surfaces and its three depth
+    // copies, plus the few the renderer makes for itself — not a depth copy
+    // for each of sixty-four views, even one released straight after.
+    expect(uploads, lessThan(3 * 2 * 2 + 16));
   });
 
   test('impostor-forest matches the meshes at the switch distance', () async {
