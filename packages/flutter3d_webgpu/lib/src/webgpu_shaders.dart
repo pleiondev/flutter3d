@@ -451,18 +451,44 @@ typedef WebGpuVisibility = ({bool vertex, bool fragment});
 
 /// One uniform block of a group, and which stages see it.
 final class WebGpuBoundBlock {
-  const WebGpuBoundBlock({required this.block, required this.visibility});
+  const WebGpuBoundBlock({
+    required this.block,
+    required this.visibility,
+    this.bindable = true,
+  });
 
   final WebGpuBlock block;
   final WebGpuVisibility visibility;
+
+  /// Whether a caller may be asked to bind it. See
+  /// [WebGpuBoundSampler.bindable].
+  final bool bindable;
 }
 
 /// One texture-and-sampler pair of a group, and which stages see it.
 final class WebGpuBoundSampler {
-  const WebGpuBoundSampler({required this.sampler, required this.visibility});
+  const WebGpuBoundSampler({
+    required this.sampler,
+    required this.visibility,
+    this.bindable = true,
+  });
 
   final WebGpuSampler sampler;
   final WebGpuVisibility visibility;
+
+  /// Whether a caller may be asked to bind it: false where every stage that
+  /// declares it says, through `ShaderHandle.kept`, that the compiler dropped
+  /// it.
+  ///
+  /// **The WGSL keeps more than the bundle's table says.** The table is the
+  /// hardware compiler's, and it drops a sampler whose value nothing uses —
+  /// Lambert reads the metal-rough map and throws the answer away, so its
+  /// compiled stage has no `metallic_roughness_texture` — while the WGSL made
+  /// from the same source still declares it. The encoder refuses a bind the
+  /// table names as absent, as every backend does, so the engine cannot fill
+  /// the slot, and the neutral resource that fills it is not the caller's
+  /// mistake to report.
+  final bool bindable;
 }
 
 /// What one `@group` of a pipeline holds, each list in binding order.
@@ -524,7 +550,12 @@ PipelineHandle createWebGpuPipeline(
       buffers: _resolvedBuffers(vertex.name, vertexStage.stage, spec),
       blocks: _mergedBlocks(vertexStage, fragmentStage),
       samplers: _mergedSamplers(vertexStage, fragmentStage),
-      groups: _groupShapes(vertexStage, fragmentStage),
+      groups: _groupShapes(
+        vertexStage,
+        fragmentStage,
+        vertexKept: vertex.kept,
+        fragmentKept: fragment.kept,
+      ),
       fragmentOutputs: wgslFragmentOutputs(fragmentStage.stage.wgsl),
     ),
     name: name,
@@ -598,8 +629,15 @@ VertexLayoutSpec _derivedLayout(WebGpuStage stage) {
 /// layout has to state every one of them up front.
 List<WebGpuGroupShape> _groupShapes(
   WebGpuShader vertex,
-  WebGpuShader fragment,
-) {
+  WebGpuShader fragment, {
+  StageBindings? vertexKept,
+  StageBindings? fragmentKept,
+}) {
+  bool keptBlock(StageBindings? kept, String name) =>
+      kept?.blocks.contains(name) ?? true;
+  bool keptSampler(StageBindings? kept, String name) =>
+      kept?.samplers.contains(name) ?? true;
+
   bool declaresBlock(WebGpuShader shader, int group, int binding) => shader
       .stage
       .blocks
@@ -641,6 +679,11 @@ List<WebGpuGroupShape> _groupShapes(
                 vertex: declaresBlock(vertex, group, block.binding),
                 fragment: declaresBlock(fragment, group, block.binding),
               ),
+              bindable:
+                  (declaresBlock(vertex, group, block.binding) &&
+                      keptBlock(vertexKept, block.name)) ||
+                  (declaresBlock(fragment, group, block.binding) &&
+                      keptBlock(fragmentKept, block.name)),
             ),
         ],
         samplers: <WebGpuBoundSampler>[
@@ -659,6 +702,11 @@ List<WebGpuGroupShape> _groupShapes(
                   sampler.textureBinding,
                 ),
               ),
+              bindable:
+                  (declaresSampler(vertex, group, sampler.textureBinding) &&
+                      keptSampler(vertexKept, sampler.name)) ||
+                  (declaresSampler(fragment, group, sampler.textureBinding) &&
+                      keptSampler(fragmentKept, sampler.name)),
             ),
         ],
       ),
