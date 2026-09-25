@@ -477,6 +477,11 @@ extension _MeshEncode on Renderer {
         // anything more negative was free, where a second number would have
         // been a member added to a block six shaders share.
         MaterialAlphaMode.hashed => -2.0,
+        // Not masked either, and the one mode whose colour the shader weights
+        // by its alpha: the blend takes its source premultiplied, and glTF's
+        // blend is over on straight colour. Opaque keeps -1 and its colour
+        // whole. See `g_premultiply` in `color.glsl`.
+        MaterialAlphaMode.blend => -0.5,
         _ => -1.0,
       };
       // Zero without a normal map of its own. The fallback's 0.5 lands on
