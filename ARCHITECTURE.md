@@ -1735,7 +1735,20 @@ What has not changed is the other direction — a stage still has to exist in
 *some* bundle for *this* backend, and the software rasteriser's version of that
 is a Dart stage handed to its device under the same name.
 
-### 7.4 Two rules a fragment stage keeps
+### 7.4 Three rules a fragment stage keeps
+
+**Y points the other way on WebGL2.** WebGL2 counts rows from the bottom
+(`FramebufferOrigin.bottomLeft`); Impeller, WebGPU and the software rasteriser
+count them from the top. Flip for patterns, never for lookups: a screen-space
+pattern (dither, grain, a kernel's rotation) reads `FragCoordFromTop(rows)`, so
+it lands on the same pixels everywhere, while a lookup of a texture the same
+backend drew at this pixel (the surface buffer's depth, the scene colour copy)
+reads `gl_FragCoord` unchanged, because that texture was drawn into the same
+rows. Flipping the lookup reads the mirrored row: the velocity pass did so
+until 0.8.0 and discarded nearly every fragment on WebGL2. Velocity is a
+difference of the backend's own texture coordinates, so its green changes sign
+between the two kinds and only the raw debug view shows it. Every place the
+difference appears is tabled in the site's backend guide, "Which way Y points".
 
 **A fragment stage declares exactly the outputs its target has.** The scene pass
 carries one colour attachment when nothing reads the surface buffer and two when

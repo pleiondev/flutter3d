@@ -414,12 +414,22 @@ enum DepthRange {
 
 /// Where a render target's first row of pixels is.
 ///
-/// Metal and Impeller put it at the top left; OpenGL and WebGL put it at the
-/// bottom left, and there is no switch for that.
+/// Metal and Impeller, WebGPU and the software rasteriser put it at the top
+/// left; OpenGL and WebGL2 put it at the bottom left, and there is no switch
+/// for that. So `gl_FragCoord.y` and a rendered texture's `v` run the other
+/// way on WebGL2.
 ///
 /// It matters wherever the engine *reads back* what it drew rather than only
 /// showing it. A backend can hide the difference when it presents a frame, and
 /// cannot when a shader samples a texture the engine rendered: a shadow map is
 /// sampled through a matrix, and the matrix has to agree with which end of the
 /// texture row zero is.
+///
+/// **Flip for patterns, never for lookups.** A screen-space pattern (dither,
+/// grain, a kernel's rotation) is turned to count rows from the top through
+/// `FragCoordFromTop`, so it lands on the same pixels on every backend. A
+/// lookup of a texture this backend drew at the fragment's own pixel reads
+/// `gl_FragCoord` as it is: flipping it reads the mirrored row. The table of
+/// every place the difference shows is in the site's backend guide, under
+/// "Which way Y points".
 enum FramebufferOrigin { topLeft, bottomLeft }
