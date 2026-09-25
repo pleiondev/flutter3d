@@ -1163,7 +1163,10 @@ abstract final class GoldenStages {
       nodes: <SceneNode>[wheel],
       everyFrame: (frame, _) {
         _look(stage.camera, Vector3.zero(), Vector3(0.0, 0.0, -1.0));
-        wheel.setRotationYawPitchRoll(0.0, 0.0, frame * 0.12);
+        // Fast enough that the rim moves tens of pixels between frames: at
+        // a slower turn the streak is a pixel or two and the reference would
+        // not show the effect it exists for.
+        wheel.setRotationYawPitchRoll(0.0, 0.0, frame * 0.35);
       },
     );
   }
@@ -1171,7 +1174,10 @@ abstract final class GoldenStages {
   static RenderSettings motionBlurSpinSettings(RenderSettings settings) =>
       settings.copyWith(
         surfaceBuffer: true,
-        motionBlur: const MotionBlurSettings(enabled: true),
+        motionBlur: const MotionBlurSettings(
+          enabled: true,
+          shutterFraction: 1.0,
+        ),
       );
 
   // ------------------------------------------------------------------ R7
