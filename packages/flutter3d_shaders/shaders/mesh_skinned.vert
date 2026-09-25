@@ -54,6 +54,17 @@ out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
 
+/// [joint] as an index into `joint_matrices`, kept inside the array.
+///
+/// glTF requires every JOINTS_0 value to name a joint of the skin, and the
+/// palette past the skin's own joints is padded with identity, but the loader
+/// does not police the vertex data. Indexing a uniform array out of range is
+/// undefined, and a stray NaN there survives even a zero weight, so an index
+/// past the end reads the last (padding) slot instead.
+int JointIndex(float joint) {
+  return clamp(int(joint), 0, kMaxJoints - 1);
+}
+
 /// The blended bone transform for this vertex.
 mat4 SkinMatrix() {
   // Renormalizing costs three adds and a divide, and it is what stops a mesh
@@ -64,10 +75,10 @@ mat4 SkinMatrix() {
   float total = weights.x + weights.y + weights.z + weights.w;
   vec4 w = total > 1e-5 ? weights / total : vec4(1.0, 0.0, 0.0, 0.0);
 
-  return w.x * skin_info.joint_matrices[int(joints.x)] +
-         w.y * skin_info.joint_matrices[int(joints.y)] +
-         w.z * skin_info.joint_matrices[int(joints.z)] +
-         w.w * skin_info.joint_matrices[int(joints.w)];
+  return w.x * skin_info.joint_matrices[JointIndex(joints.x)] +
+         w.y * skin_info.joint_matrices[JointIndex(joints.y)] +
+         w.z * skin_info.joint_matrices[JointIndex(joints.z)] +
+         w.w * skin_info.joint_matrices[JointIndex(joints.w)];
 }
 
 void main() {

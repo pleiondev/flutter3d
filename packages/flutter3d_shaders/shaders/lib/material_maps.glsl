@@ -133,6 +133,13 @@ void ApplyNormalMap(inout Surface s) {
   if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
+  // A two-channel map (BC5, RG8) stores only x and y and samples as
+  // (x, y, 0, 1); read as it stands, blue 0 is z = -1 and the normal points
+  // into the surface. z is rebuilt from the unit length instead, before the
+  // scale, which glTF applies to the stored normal. `emissive.w` is the flag.
+  if (frag_info.emissive.w > 0.5) {
+    sampled.z = sqrt(max(1.0 - dot(sampled.xy, sampled.xy), 0.0));
+  }
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 

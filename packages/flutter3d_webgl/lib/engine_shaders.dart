@@ -484,6 +484,17 @@ out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
 
+/// [joint] as an index into `joint_matrices`, kept inside the array.
+///
+/// glTF requires every JOINTS_0 value to name a joint of the skin, and the
+/// palette past the skin's own joints is padded with identity, but the loader
+/// does not police the vertex data. Indexing a uniform array out of range is
+/// undefined, and a stray NaN there survives even a zero weight, so an index
+/// past the end reads the last (padding) slot instead.
+int JointIndex(float joint) {
+  return clamp(int(joint), 0, kMaxJoints - 1);
+}
+
 /// The blended bone transform for this vertex.
 mat4 SkinMatrix() {
   // Renormalizing costs three adds and a divide, and it is what stops a mesh
@@ -494,10 +505,10 @@ mat4 SkinMatrix() {
   float total = weights.x + weights.y + weights.z + weights.w;
   vec4 w = total > 1e-5 ? weights / total : vec4(1.0, 0.0, 0.0, 0.0);
 
-  return w.x * skin_info.joint_matrices[int(joints.x)] +
-         w.y * skin_info.joint_matrices[int(joints.y)] +
-         w.z * skin_info.joint_matrices[int(joints.z)] +
-         w.w * skin_info.joint_matrices[int(joints.w)];
+  return w.x * skin_info.joint_matrices[JointIndex(joints.x)] +
+         w.y * skin_info.joint_matrices[JointIndex(joints.y)] +
+         w.z * skin_info.joint_matrices[JointIndex(joints.z)] +
+         w.w * skin_info.joint_matrices[JointIndex(joints.w)];
 }
 
 void main() {
@@ -1595,6 +1606,11 @@ mat4 PrevJoint(float joint) {
               texture(prev_joint_texture, vec2(0.875, v)));
 }
 
+/// [joint] kept inside the palette, as `mesh_skinned.vert` does it.
+int JointIndex(float joint) {
+  return clamp(int(joint), 0, kMaxJoints - 1);
+}
+
 vec4 BlendWeights() {
   float total = weights.x + weights.y + weights.z + weights.w;
   return total > 1e-5 ? weights / total : vec4(1.0, 0.0, 0.0, 0.0);
@@ -1602,12 +1618,14 @@ vec4 BlendWeights() {
 
 void main() {
   vec4 w = BlendWeights();
-  mat4 skin = w.x * skin_info.joint_matrices[int(joints.x)] +
-              w.y * skin_info.joint_matrices[int(joints.y)] +
-              w.z * skin_info.joint_matrices[int(joints.z)] +
-              w.w * skin_info.joint_matrices[int(joints.w)];
-  mat4 prevSkin = w.x * PrevJoint(joints.x) + w.y * PrevJoint(joints.y) +
-                  w.z * PrevJoint(joints.z) + w.w * PrevJoint(joints.w);
+  ivec4 j = ivec4(JointIndex(joints.x), JointIndex(joints.y),
+                  JointIndex(joints.z), JointIndex(joints.w));
+  mat4 skin = w.x * skin_info.joint_matrices[j.x] +
+              w.y * skin_info.joint_matrices[j.y] +
+              w.z * skin_info.joint_matrices[j.z] +
+              w.w * skin_info.joint_matrices[j.w];
+  mat4 prevSkin = w.x * PrevJoint(float(j.x)) + w.y * PrevJoint(float(j.y)) +
+                  w.z * PrevJoint(float(j.z)) + w.w * PrevJoint(float(j.w));
 
   vec3 now = MorphPositionWith(position, morph_info.morph_weights[0],
                                morph_info.morph_weights[1]);
@@ -3087,7 +3105,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -4867,7 +4887,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -6633,7 +6655,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -8039,6 +8063,13 @@ void ApplyNormalMap(inout Surface s) {
   if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
+  // A two-channel map (BC5, RG8) stores only x and y and samples as
+  // (x, y, 0, 1); read as it stands, blue 0 is z = -1 and the normal points
+  // into the surface. z is rebuilt from the unit length instead, before the
+  // scale, which glTF applies to the stored normal. `emissive.w` is the flag.
+  if (frag_info.emissive.w > 0.5) {
+    sampled.z = sqrt(max(1.0 - dot(sampled.xy, sampled.xy), 0.0));
+  }
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -9069,7 +9100,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -10475,6 +10508,13 @@ void ApplyNormalMap(inout Surface s) {
   if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
+  // A two-channel map (BC5, RG8) stores only x and y and samples as
+  // (x, y, 0, 1); read as it stands, blue 0 is z = -1 and the normal points
+  // into the surface. z is rebuilt from the unit length instead, before the
+  // scale, which glTF applies to the stored normal. `emissive.w` is the flag.
+  if (frag_info.emissive.w > 0.5) {
+    sampled.z = sqrt(max(1.0 - dot(sampled.xy, sampled.xy), 0.0));
+  }
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -11540,7 +11580,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -12946,6 +12988,13 @@ void ApplyNormalMap(inout Surface s) {
   if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
+  // A two-channel map (BC5, RG8) stores only x and y and samples as
+  // (x, y, 0, 1); read as it stands, blue 0 is z = -1 and the normal points
+  // into the surface. z is rebuilt from the unit length instead, before the
+  // scale, which glTF applies to the stored normal. `emissive.w` is the flag.
+  if (frag_info.emissive.w > 0.5) {
+    sampled.z = sqrt(max(1.0 - dot(sampled.xy, sampled.xy), 0.0));
+  }
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -14842,7 +14891,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -16248,6 +16299,13 @@ void ApplyNormalMap(inout Surface s) {
   if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
+  // A two-channel map (BC5, RG8) stores only x and y and samples as
+  // (x, y, 0, 1); read as it stands, blue 0 is z = -1 and the normal points
+  // into the surface. z is rebuilt from the unit length instead, before the
+  // scale, which glTF applies to the stored normal. `emissive.w` is the flag.
+  if (frag_info.emissive.w > 0.5) {
+    sampled.z = sqrt(max(1.0 - dot(sampled.xy, sampled.xy), 0.0));
+  }
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -18112,7 +18170,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -19518,6 +19578,13 @@ void ApplyNormalMap(inout Surface s) {
   if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
+  // A two-channel map (BC5, RG8) stores only x and y and samples as
+  // (x, y, 0, 1); read as it stands, blue 0 is z = -1 and the normal points
+  // into the surface. z is rebuilt from the unit length instead, before the
+  // scale, which glTF applies to the stored normal. `emissive.w` is the flag.
+  if (frag_info.emissive.w > 0.5) {
+    sampled.z = sqrt(max(1.0 - dot(sampled.xy, sampled.xy), 0.0));
+  }
   // normalScale attenuates the tangent-space xy, per the glTF spec.
   sampled.xy *= frag_info.material2.y;
 
@@ -31851,7 +31918,9 @@ layout(std140) uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.

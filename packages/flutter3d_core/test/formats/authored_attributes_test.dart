@@ -29,17 +29,28 @@ final class _BytesSource extends AssetSource {
 }
 
 /// A one-triangle glTF whose primitive declares exactly [attributes] — a
-/// subset of `{'NORMAL', 'TEXCOORD_0'}` on top of the `POSITION` every
-/// primitive needs.
+/// subset of `{'NORMAL', 'TEXCOORD_0', 'TANGENT'}` on top of the `POSITION`
+/// every primitive needs.
+///
+/// The triangle lies in z = 0 facing +z with u along +x, so the tangent a
+/// generator derives is (1, 0, 0). The authored TANGENT is deliberately not
+/// that: it points along the normal with the opposite handedness, so a test
+/// can tell which of the two the mesh ended up with.
 Uint8List _triangleGltf(Set<String> attributes) {
   final positions = Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1, 0]);
   final normals = Float32List.fromList(<double>[0, 0, 1, 0, 0, 1, 0, 0, 1]);
   final texcoords = Float32List.fromList(<double>[0, 0, 1, 0, 0, 1]);
+  final tangents = Float32List.fromList(<double>[
+    0, 0, 1, -1, //
+    0, 0, 1, -1,
+    0, 0, 1, -1,
+  ]);
 
   final buffers = <Float32List>[
     positions,
     if (attributes.contains('NORMAL')) normals,
     if (attributes.contains('TEXCOORD_0')) texcoords,
+    if (attributes.contains('TANGENT')) tangents,
   ];
   final blob = BytesBuilder();
   final byteOffsets = <int>[];
@@ -96,6 +107,20 @@ Uint8List _triangleGltf(Set<String> attributes) {
       'type': 'VEC2',
     });
     gltfAttributes['TEXCOORD_0'] = accessors.length - 1;
+  }
+  if (attributes.contains('TANGENT')) {
+    bufferViews.add(<String, Object?>{
+      'buffer': 0,
+      'byteOffset': byteOffsets[next++],
+      'byteLength': tangents.lengthInBytes,
+    });
+    accessors.add(<String, Object?>{
+      'bufferView': bufferViews.length - 1,
+      'componentType': 5126,
+      'count': 3,
+      'type': 'VEC4',
+    });
+    gltfAttributes['TANGENT'] = accessors.length - 1;
   }
 
   final document = <String, Object?>{
@@ -201,8 +226,48 @@ void main() {
         surface.authoredAttributes,
         containsAll(<String>['position', 'normal', 'texcoord']),
       );
-      // TANGENT is never in this fixture, so it is always generated.
+      // TANGENT is not in this fixture, so it is generated.
       expect(surface.authoredAttributes, isNot(contains('tangent')));
+    });
+
+    test('TANGENT next to NORMAL is kept as the file wrote it', () async {
+      final document = await decodeModel(
+        ModelLoadRequest(
+          source: _BytesSource(
+            _triangleGltf(const <String>{'NORMAL', 'TEXCOORD_0', 'TANGENT'}),
+          ),
+        ),
+      );
+      final surface = document.surfaces.single;
+      expect(surface.authoredAttributes, contains('tangent'));
+      expect(_tangents(surface.mesh), everyElement(<double>[0, 0, 1, -1]));
+    });
+
+    test('TANGENT without NORMAL is ignored and generated from the flat '
+        'normals', () async {
+      final document = await decodeModel(
+        ModelLoadRequest(
+          source: _BytesSource(
+            _triangleGltf(const <String>{'TEXCOORD_0', 'TANGENT'}),
+          ),
+        ),
+      );
+      final surface = document.surfaces.single;
+      // Mutation: keep reading TANGENT when NORMAL is missing and the flat
+      // normal (0, 0, 1) is drawn with the file's tangent (0, 0, 1, -1) — a
+      // frame whose tangent is the normal itself — and 'tangent' is claimed
+      // as authored besides.
+      expect(surface.authoredAttributes, isNot(contains('tangent')));
+      for (final t in _tangents(surface.mesh)) {
+        expect(t[0], closeTo(1, 1e-6));
+        expect(t[1], closeTo(0, 1e-6));
+        expect(t[2], closeTo(0, 1e-6));
+        expect(t[3].abs(), closeTo(1, 1e-6));
+      }
+      expect(
+        document.warnings,
+        contains(contains('TANGENT but no usable NORMAL')),
+      );
     });
   });
 
@@ -311,6 +376,18 @@ f 1 2 3
       });
     },
   );
+}
+
+/// Each vertex's tangent in [mesh], as four floats.
+List<List<double>> _tangents(MeshData mesh) {
+  final stride = mesh.layout.floatsPerVertex;
+  final offset = mesh.layout.floatOffsetOf(VertexLayout.tangent.name);
+  return <List<double>>[
+    for (var v = 0; v < mesh.vertices.length ~/ stride; v++)
+      <double>[
+        for (var c = 0; c < 4; c++) mesh.vertices[v * stride + offset + c],
+      ],
+  ];
 }
 
 /// [bytes] with the `surfaceAttributes` directory entry's kind changed to one
