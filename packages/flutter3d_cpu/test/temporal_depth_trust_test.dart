@@ -44,7 +44,9 @@ CpuTexture _filled(double Function(int x, int y, int channel) value) {
 Vector4 _resolve(int x, double motionX) {
   // A checkerboard, so the neighbourhood's box spans the grey history and
   // the clip leaves it as it is.
-  final scene = _filled((x, y, c) => c == 3 ? 1.0 : ((x + y).isEven ? 1.0 : 0.0));
+  final scene = _filled(
+    (x, y, c) => c == 3 ? 1.0 : ((x + y).isEven ? 1.0 : 0.0),
+  );
   final surface = _filled((x, y, c) => c == 3 ? 5.0 : 0.0);
   final velocity = _filled((x, y, c) => c == 0 ? motionX : 0.0);
   final history = _filled(

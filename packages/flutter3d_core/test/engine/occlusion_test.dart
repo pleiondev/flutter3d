@@ -10,7 +10,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_core/geometry.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -251,9 +250,8 @@ void main() {
             .setPosition(-2.5 + i, 0.0, -4.0);
       }
       scene
-        ..add(
-          MeshNode(cube, Material(), name: 'front'),
-        ).setPosition(0.0, 0.0, 3.0);
+          .add(MeshNode(cube, Material(), name: 'front'))
+          .setPosition(0.0, 0.0, 3.0);
       final camera = scene.add(_camera());
       return (scene: scene, camera: camera);
     }
