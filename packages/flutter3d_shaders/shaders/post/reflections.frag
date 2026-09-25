@@ -287,7 +287,10 @@ void main() {
   // four times the reflection on a floor seen from above.
   float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
   vec3 reflection = hitColor * hit * intensity * polish * fresnel;
-  float confidence = hit * polish;
+  // The share of the hit that is used, [intensity] included: a reflection
+  // dialled down to seventy percent takes the sky's place in the same
+  // seventy percent, or it would take the sky out and put less back.
+  float confidence = hit * intensity * polish;
   // **A hit replaces the environment's reflection rather than adding to it.**
   // The lit colour already holds the environment's specular wherever the
   // scene has one: the metal-rough stage reflects the cube along this same

@@ -197,7 +197,8 @@ final class ReflectionsShader implements CpuFragmentShader {
     // Schlick, F0 = 0.04, as the GLSL.
     final fresnel = 0.04 + 0.96 * math.pow(1.0 - facing, 5.0).toDouble();
     final reflection = hitColour * (hit * intensity * polish * fresnel);
-    final confidence = hit * polish;
+    // The share of the hit that is used, intensity included, as the GLSL.
+    final confidence = hit * intensity * polish;
     // A hit takes the place of the environment's reflection the lit pass
     // already added, read along the same ray at the same roughness, in the
     // share the hit is trusted. See the end of the GLSL's `main`.

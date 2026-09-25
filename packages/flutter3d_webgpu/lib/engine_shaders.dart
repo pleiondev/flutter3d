@@ -28156,45 +28156,46 @@ fn main_1() {
     let _e370 = fresnel;
     reflection = ((((_e363 * _e364) * _e366) * _e368) * _e370);
     let _e372 = hit;
-    let _e373 = polish;
-    confidence = (_e372 * _e373);
-    let _e377 = reflection_info.environment[0u];
-    levels = _e377;
-    let _e378 = levels;
-    if (_e378 > 0f) {
-        let _e380 = ray;
-        let _e381 = roughness;
-        let _e382 = levels;
-        let _e384 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e380, (_e381 * _e382));
-        let _e388 = reflection_info.environment[1u];
-        local_5 = (_e384.xyz * _e388);
+    let _e373 = intensity;
+    let _e375 = polish;
+    confidence = ((_e372 * _e373) * _e375);
+    let _e379 = reflection_info.environment[0u];
+    levels = _e379;
+    let _e380 = levels;
+    if (_e380 > 0f) {
+        let _e382 = ray;
+        let _e383 = roughness;
+        let _e384 = levels;
+        let _e386 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e382, (_e383 * _e384));
+        let _e390 = reflection_info.environment[1u];
+        local_5 = (_e386.xyz * _e390);
     } else {
         local_5 = vec3<f32>(0f, 0f, 0f);
     }
-    let _e390 = local_5;
-    environment = _e390;
-    let _e391 = environment;
-    let _e392 = confidence;
-    let _e394 = fresnel;
-    replaced = ((_e391 * _e392) * _e394);
-    let _e396 = levels;
-    if (_e396 > 0f) {
-        let _e398 = scene;
-        let _e399 = reflection;
-        let _e401 = replaced;
-        local_6 = max(((_e398 + _e399) - _e401), vec3<f32>(0f, 0f, 0f));
+    let _e392 = local_5;
+    environment = _e392;
+    let _e393 = environment;
+    let _e394 = confidence;
+    let _e396 = fresnel;
+    replaced = ((_e393 * _e394) * _e396);
+    let _e398 = levels;
+    if (_e398 > 0f) {
+        let _e400 = scene;
+        let _e401 = reflection;
+        let _e403 = replaced;
+        local_6 = max(((_e400 + _e401) - _e403), vec3<f32>(0f, 0f, 0f));
     } else {
-        let _e404 = scene;
-        let _e405 = reflection;
-        local_6 = (_e404 + _e405);
+        let _e406 = scene;
+        let _e407 = reflection;
+        local_6 = (_e406 + _e407);
     }
-    let _e407 = local_6;
-    composed = _e407;
-    let _e408 = debugOnly;
-    let _e409 = reflection;
-    let _e410 = composed;
-    let _e412 = select(_e410, _e409, vec3(_e408));
-    frag_color = vec4<f32>(_e412.x, _e412.y, _e412.z, 1f);
+    let _e409 = local_6;
+    composed = _e409;
+    let _e410 = debugOnly;
+    let _e411 = reflection;
+    let _e412 = composed;
+    let _e414 = select(_e412, _e411, vec3(_e410));
+    frag_color = vec4<f32>(_e414.x, _e414.y, _e414.z, 1f);
     return;
 }
 
