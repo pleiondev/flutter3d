@@ -89,7 +89,7 @@ final class VelocityNeighborMaxShader implements CpuFragmentShader {
 }
 
 /// `motion_blur.frag`: the reconstruction gather along each neighbourhood's
-/// dominant motion and each pixel's own.
+/// dominant motion.
 final class MotionBlurShader implements CpuFragmentShader {
   const MotionBlurShader();
 
@@ -100,15 +100,6 @@ final class MotionBlurShader implements CpuFragmentShader {
 
   static double _cylinder(double gap, double span) =>
       1.0 - smoothstep(0.95 * span, 1.05 * span, gap);
-
-  /// `Along`: how far a motion of [span] pixels runs along the unit line
-  /// ([lineX], [lineY]).
-  static double _along(
-    Vector2 motion,
-    double span,
-    double lineX,
-    double lineY,
-  ) => span < 0.5 ? 1.0 : ((motion.x * lineX + motion.y * lineY) / span).abs();
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -128,67 +119,41 @@ final class MotionBlurShader implements CpuFragmentShader {
 
     final hereX = v[0] * size.z;
     final hereY = v[1] * size.w;
-    final pixelX = c.coord.x;
-    final pixelY = c.coord.y;
     final tileWidth = math.max(tiles.z, 1.0);
-    final nudgeX = pixelNoise(b, pixelX + 2.0, pixelY + 1.0) - 0.5;
-    final nudgeY = pixelNoise(b, pixelX + 1.0, pixelY + 3.0) - 0.5;
-    final tileX = ((hereX + nudgeX * 0.5 * tileWidth) / tileWidth)
-        .floorToDouble()
-        .clamp(0.0, math.max(tiles.x - 1.0, 0.0));
-    final tileY = ((hereY + nudgeY * 0.5 * tileWidth) / tileWidth)
-        .floorToDouble()
-        .clamp(0.0, math.max(tiles.y - 1.0, 0.0));
     final dominant = neighbors.sample(
-      (tileX + 0.5) / tiles.x,
-      (tileY + 0.5) / tiles.y,
+      ((hereX / tileWidth).floorToDouble() + 0.5) / tiles.x,
+      ((hereY / tileWidth).floorToDouble() + 0.5) / tiles.y,
     );
     final samples = (params.w + 0.5).floor();
-    final reachFar = math.sqrt(
-      dominant.x * dominant.x + dominant.y * dominant.y,
-    );
-    if (reachFar <= 0.5 || samples < 1) {
+    if (math.sqrt(dominant.x * dominant.x + dominant.y * dominant.y) <= 0.5 ||
+        samples < 1) {
       return centre;
     }
 
-    Vector2 motionAt(double u, double w) {
+    double spanAt(double u, double w) {
       final motion = velocity.sample(u, w);
-      return _halfMotion(motion.x, motion.y, params, params.z);
+      return math.max(
+        _halfMotion(motion.x, motion.y, params, params.z).length,
+        0.5,
+      );
     }
 
-    final own = motionAt(v[0], v[1]);
-    final ownLength = own.length;
-    final ownSpan = math.max(ownLength, 0.5);
+    final ownSpan = spanAt(v[0], v[1]);
     final ownDepth = _far(surface.sample(v[0], v[1]).w);
     final extent = math.max(tiles.w, 1e-4);
 
-    final acrossX = dominant.x / reachFar;
-    final acrossY = dominant.y / reachFar;
-    final flip = -acrossY * own.x + acrossX * own.y < 0.0 ? -1.0 : 1.0;
-    final sideX = -acrossY * flip;
-    final sideY = acrossX * flip;
-    final ownLineX = ownLength > 1e-6 ? own.x / ownLength : sideX;
-    final ownLineY = ownLength > 1e-6 ? own.y / ownLength : sideY;
-    final turn = ((ownLength - 0.5) / 1.5).clamp(0.0, 1.0);
-    final mixedX = sideX + (ownLineX - sideX) * turn;
-    final mixedY = sideY + (ownLineY - sideY) * turn;
-    final mixedLength = math.sqrt(mixedX * mixedX + mixedY * mixedY);
-    final mineX = mixedX / mixedLength;
-    final mineY = mixedY / mixedLength;
-
-    var weight = samples / (40.0 * ownSpan);
+    var weight = 1.0 / ownSpan;
     var totalX = centre.x * weight;
     var totalY = centre.y * weight;
     var totalZ = centre.z * weight;
 
-    final jitter = pixelNoise(b, pixelX, pixelY) - 0.5;
+    final jitter = pixelNoise(b, c.coord.x, c.coord.y) - 0.5;
+    final middle = (samples - 1) ~/ 2;
     for (var i = 0; i < 64 && i < samples; i++) {
-      final onMine = i % 2 == 1;
-      final lineX = onMine ? mineX : acrossX;
-      final lineY = onMine ? mineY : acrossY;
+      if (i == middle) continue;
       final t = -1.0 + 2.0 * ((i + jitter + 1.0) / (samples + 1));
-      final thereX = (hereX + lineX * (t * reachFar)).floorToDouble() + 0.5;
-      final thereY = (hereY + lineY * (t * reachFar)).floorToDouble() + 0.5;
+      final thereX = (hereX + dominant.x * t).floorToDouble() + 0.5;
+      final thereY = (hereY + dominant.y * t).floorToDouble() + 0.5;
       final atU = thereX * size.x;
       final atW = thereY * size.y;
       final gap = math.sqrt(
@@ -197,23 +162,15 @@ final class MotionBlurShader implements CpuFragmentShader {
       );
 
       final tap = scene.sample(atU, atW);
-      final tapMotion = motionAt(atU, atW);
-      final tapLength = tapMotion.length;
-      final tapSpan = math.max(tapLength, 0.5);
+      final tapSpan = spanAt(atU, atW);
       final tapDepth = _far(surface.sample(atU, atW).w);
-
-      final ownAlong = (mineX * lineX + mineY * lineY).abs();
-      final tapAlong = _along(tapMotion, tapLength, lineX, lineY);
 
       final front = (1.0 - (tapDepth - ownDepth) / extent).clamp(0.0, 1.0);
       final back = (1.0 - (ownDepth - tapDepth) / extent).clamp(0.0, 1.0);
       final reach =
-          front * _cone(gap, tapSpan) * tapAlong +
-          back * _cone(gap, ownSpan) * ownAlong +
-          _cylinder(gap, tapSpan) *
-              _cylinder(gap, ownSpan) *
-              math.max(ownAlong, tapAlong) *
-              2.0;
+          front * _cone(gap, tapSpan) +
+          back * _cone(gap, ownSpan) +
+          _cylinder(gap, tapSpan) * _cylinder(gap, ownSpan) * 2.0;
       totalX += tap.x * reach;
       totalY += tap.y * reach;
       totalZ += tap.z * reach;
