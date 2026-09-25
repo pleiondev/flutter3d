@@ -17,6 +17,17 @@
 //
 // **Composited before the tone map**: the scene behind keeps the share the
 // air lets through and the in-scatter is added, both in linear light.
+//
+// **The occlusion lands on the surface here, before the air, and not in the
+// composite.** Ambient occlusion and the contact shadow say how much light
+// reaches the surface a ray stopped at; they have nothing to say about the
+// air in front of it. The composite multiplies them into the whole colour,
+// which, once the fog is in that colour, draws the creases of a far wall on
+// the air in front of it: dark lines that thicker fog should wash out and
+// instead makes plainer. So this pass takes them over, the same 2×2 average
+// and the same strengths the composite uses, and the renderer zeroes the
+// composite's strengths on a frame where it did. Zero strengths here are a
+// multiplier of exactly one, so fog without occlusion is what it was.
 
 in vec2 v_uv;
 
@@ -25,10 +36,17 @@ out vec4 frag_color;
 uniform sampler2D scene_texture;
 uniform sampler2D fog_texture;
 uniform sampler2D surface_texture;
+uniform sampler2D ao_texture;
+uniform sampler2D contact_shadow_texture;
 
 uniform FogUpsampleInfo {
-  // xy: the fog texture's size in texels. zw unused.
+  // xy: the fog texture's size in texels. zw: one texel of the occlusion
+  // buffer, for the composite's 2×2 average.
   vec4 size;
+  // x: the occlusion's strength, y: the contact shadow's, z: one when the
+  // occlusion buffer holds bounced light in rgb (`L5`). All nought when the
+  // composite keeps them. w unused.
+  vec4 occlusion;
 }
 upsample_info;
 
@@ -67,5 +85,19 @@ void main() {
   Tap(base + vec2(1.0, 1.0), f.x * f.y, here, sum, weight);
   vec4 fog = weight > 1e-6 ? sum / weight : vec4(0.0, 0.0, 0.0, 1.0);
 
-  frag_color = vec4(scene.rgb * fog.a + fog.rgb, scene.a);
+  // What `composite.frag` does to the scene, operation for operation.
+  vec2 half_texel = upsample_info.size.zw * 0.5;
+  vec4 occlusion =
+      0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)) +
+              texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)) +
+              texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)) +
+              texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)));
+  float strength = clamp(upsample_info.occlusion.x, 0.0, 1.0);
+  float ao = mix(1.0, occlusion.a, strength);
+  float contact = texture(contact_shadow_texture, v_uv).r;
+  ao *= mix(1.0, contact, clamp(upsample_info.occlusion.y, 0.0, 1.0));
+  vec3 surfaceLight =
+      scene.rgb * ao + occlusion.rgb * upsample_info.occlusion.z * strength;
+
+  frag_color = vec4(surfaceLight * fog.a + fog.rgb, scene.a);
 }

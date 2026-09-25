@@ -260,10 +260,44 @@ final class VolumetricFogUpsampleShader implements CpuFragmentShader {
         ? (sum..scale(1.0 / weight))
         : Vector4(0.0, 0.0, 0.0, 1.0);
 
+    // The occlusion and the contact shadow on the surface, before the air:
+    // what `composite.frag` does to the scene, which leaves them out on a
+    // frame where this ran.
+    final occlusionInfo = b.vec4(
+      'FogUpsampleInfo',
+      'occlusion',
+      Vector4.zero(),
+    );
+    final strength = occlusionInfo.x.clamp(0.0, 1.0);
+    var ao = 1.0;
+    var bouncedX = 0.0;
+    var bouncedY = 0.0;
+    var bouncedZ = 0.0;
+    final aoTexture = b.textures['ao_texture'];
+    if (aoTexture != null && strength > 0.0) {
+      final hx = info.z * 0.5;
+      final hy = info.w * 0.5;
+      final t0 = aoTexture.sample(v[0] + hx, v[1] + hy);
+      final t1 = aoTexture.sample(v[0] - hx, v[1] + hy);
+      final t2 = aoTexture.sample(v[0] + hx, v[1] - hy);
+      final t3 = aoTexture.sample(v[0] - hx, v[1] - hy);
+      ao = 1.0 + (0.25 * (t0.w + t1.w + t2.w + t3.w) - 1.0) * strength;
+      final k = 0.25 * occlusionInfo.z * strength;
+      bouncedX = (t0.x + t1.x + t2.x + t3.x) * k;
+      bouncedY = (t0.y + t1.y + t2.y + t3.y) * k;
+      bouncedZ = (t0.z + t1.z + t2.z + t3.z) * k;
+    }
+    final contactTexture = b.textures['contact_shadow_texture'];
+    final contactStrength = occlusionInfo.y.clamp(0.0, 1.0);
+    if (contactTexture != null && contactStrength > 0.0) {
+      final contact = contactTexture.sample(v[0], v[1]).x;
+      ao *= 1.0 + (contact - 1.0) * contactStrength;
+    }
+
     return Vector4(
-      scene.x * fog.w + fog.x,
-      scene.y * fog.w + fog.y,
-      scene.z * fog.w + fog.z,
+      (scene.x * ao + bouncedX) * fog.w + fog.x,
+      (scene.y * ao + bouncedY) * fog.w + fog.y,
+      (scene.z * ao + bouncedZ) * fog.w + fog.z,
       scene.w,
     );
   }

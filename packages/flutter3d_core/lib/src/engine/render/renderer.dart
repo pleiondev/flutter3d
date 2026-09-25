@@ -740,6 +740,11 @@ final class Renderer implements RenderServices {
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
   final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
   final FogUpsampleInfoBlock _fogUpsampleInfo = FogUpsampleInfoBlock();
+
+  /// Whether this frame's fog already laid the occlusion and the contact
+  /// shadow on the surface behind it — `S4`. Set by the fog pass, and read
+  /// and cleared by the composite, which then multiplies neither in again.
+  bool _occlusionBeforeFog = false;
   final SsaoBlurInfoBlock _ssaoBlurInfo = SsaoBlurInfoBlock();
   final SsaoInfoBlock _ssaoInfo = SsaoInfoBlock();
 
@@ -2576,7 +2581,10 @@ final class Renderer implements RenderServices {
     // `S4`. Before the shafts, beside them in what it reads: the air dims
     // the scene behind it and adds its own light, and the shafts, when both
     // are on, add theirs to that rather than being dimmed by a fog that has
-    // already scattered the same sun.
+    // already scattered the same sun. The fog does not share the shafts'
+    // compromise: it lays the occlusion and the contact shadow on the
+    // surface itself, before the air, and the composite leaves them out.
+    // After the accumulate nodes, so it reads the versions they left.
     graph.addNode(_VolumetricFogNode(this, view, s, fogToLight, fogRadiance));
     graph.addNode(_LightShaftsNode(this, view, s, sunToLight, sunRadiance));
     // `gfx-34n`. After the shafts, because a lens is in front of everything

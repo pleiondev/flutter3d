@@ -1836,6 +1836,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
   'VolumetricFogUpsample': <String, Map<String, UniformMemberLayout>>{
     'FogUpsampleInfo': <String, UniformMemberLayout>{
       'size': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'occlusion': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'Xray': <String, Map<String, UniformMemberLayout>>{
