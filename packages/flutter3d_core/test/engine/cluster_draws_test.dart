@@ -164,9 +164,7 @@ void main() {
       // Close to the sphere and looking at its side: the far side faces
       // away and the top and bottom bands leave the frustum.
       final camera =
-          CameraNode(
-              projection: const PerspectiveProjection(fovYRadians: 0.5),
-            )
+          CameraNode(projection: const PerspectiveProjection(fovYRadians: 0.5))
             ..setPosition(0.0, 0.0, 2.2)
             ..lookAt(Vector3.zero());
       final viewProjection = camera.viewProjection(1.0);

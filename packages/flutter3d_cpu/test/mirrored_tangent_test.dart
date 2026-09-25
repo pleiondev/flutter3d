@@ -17,8 +17,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_layout.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_mesh_vertex.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
