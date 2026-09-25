@@ -20654,6 +20654,13 @@ precision highp samplerCube;
 // between two pixel centres is gone before this reads it, which MSAA would
 // have caught. Named here because it is the honest limit of the technique
 // rather than a defect in this implementation.
+//
+// The algorithm is FXAA 3.11 Quality at preset 12: the early exit on local
+// contrast, the direction from the 3x3 second differences, the search along
+// the edge for both of its ends, and the sub-pixel term, the larger of the
+// two offsets winning. The search is what smooths a long, shallow staircase:
+// without it a pixel only knows its neighbours and moves the same whether it
+// sits at the start of a step or at its end.
 precision highp float;
 
 in vec2 v_uv;
@@ -20665,8 +20672,9 @@ uniform sampler2D source_texture;
 
 layout(std140) uniform FxaaInfo {
   /// x, y: one texel. z: the contrast a pixel needs before it is worth
-  /// touching, as a fraction of the local maximum. w: how far along the edge
-  /// to sample, in texels.
+  /// touching, as a fraction of the local maximum. w: the sub-pixel amount,
+  /// FXAA's `subpix`: the most a pixel moves on local contrast alone, in
+  /// texels.
   vec4 params;
 
   /// x: contrast-adaptive sharpening, 0 for none. y: one for the robust
@@ -20758,24 +20766,31 @@ vec3 Sharpen(vec3 centre, vec3 n, vec3 s, vec3 w, vec3 e) {
 /// that.
 float Weight(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
 
+/// The edge search's steps, in texels, after the first one texel —
+/// FXAA 3.11's quality preset 12 (`FXAA_QUALITY__P1` to `P4`). Selects
+/// rather than a table: the OpenGL ES target has no constant arrays worth
+/// indexing, and a chain of ternaries is one select per step.
+float SearchStep(int i) {
+  return i == 1 ? 1.5 : (i == 2 ? 2.0 : (i == 3 ? 4.0 : 12.0));
+}
+
+/// Steps the edge search takes, the first included.
+const int kSearchSteps = 5;
+
 void main() {
   vec2 texel = fxaa_info.params.xy;
 
-  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
-  // last of these six taps sits after the early return below, so a WGSL
-  // backend sees a sample that need not be reached by every invocation of a
-  // quad and refuses the implicit derivative as possibly non-uniform. The
-  // composited frame is read at its native size with no mipmap of its own, so
-  // naming level zero directly changes no pixel.
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: every
+  // tap after the early return below, the edge search's above all, sits in
+  // control flow that differs per fragment, so a WGSL backend refuses the
+  // implicit derivative as possibly non-uniform. The composited frame is read
+  // at its native size with no mipmap of its own, so naming level zero
+  // directly changes no pixel.
   vec3 middle = textureLod(source_texture, v_uv, 0.0).rgb;
   float mid = Weight(middle);
 
-  // The four edge neighbours. Diagonals are deliberately left out: they cost
-  // four more samples and only sharpen the direction estimate on a corner,
-  // which is the one place this pass should be doing the least.
-  // The colours are kept, not just their weights: the sharpening at the end
-  // needs the neighbourhood itself, and these are the same four taps either
-  // way. Discarding the colour and re-fetching it would be four more.
+  // The four edge neighbours, colours kept: the sharpening at the end needs
+  // the neighbourhood itself, and these are the same four taps either way.
   vec3 northRgb = textureLod(source_texture, v_uv + vec2(0.0, -texel.y), 0.0).rgb;
   vec3 southRgb = textureLod(source_texture, v_uv + vec2(0.0, texel.y), 0.0).rgb;
   vec3 westRgb = textureLod(source_texture, v_uv + vec2(-texel.x, 0.0), 0.0).rgb;
@@ -20799,38 +20814,97 @@ void main() {
     return;
   }
 
-  // Which way the edge runs. The vertical difference is larger on a
-  // horizontal edge, which is the one to blend across.
-  float vertical = abs(north + south - 2.0 * mid);
-  float horizontal = abs(west + east - 2.0 * mid);
-  bool horizontalEdge = vertical >= horizontal;
+  // FXAA 3.11 Quality from here on, step for step. The diagonals only for
+  // pixels past the early exit: they sharpen the direction estimate at a
+  // corner and weigh into the sub-pixel average.
+  float northWest = Weight(textureLod(source_texture, v_uv - texel, 0.0).rgb);
+  float southEast = Weight(textureLod(source_texture, v_uv + texel, 0.0).rgb);
+  float northEast = Weight(
+      textureLod(source_texture, v_uv + vec2(texel.x, -texel.y), 0.0).rgb);
+  float southWest = Weight(
+      textureLod(source_texture, v_uv + vec2(-texel.x, texel.y), 0.0).rgb);
 
-  // And which side of it is the darker one, so the blend moves towards the
-  // neighbour rather than away from it.
-  float towards = horizontalEdge ? south - mid : east - mid;
-  float away = horizontalEdge ? north - mid : west - mid;
-  float step_length = horizontalEdge ? texel.y : texel.x;
-  if (abs(away) > abs(towards)) step_length = -step_length;
+  // Which way the edge runs: the second differences across it, the middle
+  // row counted twice. A horizontal edge changes most from north to south.
+  float edgeHorizontal =
+      abs(northWest + southWest - 2.0 * west) +
+      2.0 * abs(north + south - 2.0 * mid) +
+      abs(northEast + southEast - 2.0 * east);
+  float edgeVertical =
+      abs(northWest + northEast - 2.0 * north) +
+      2.0 * abs(west + east - 2.0 * mid) +
+      abs(southWest + southEast - 2.0 * south);
+  bool horizontalSpan = edgeHorizontal >= edgeVertical;
 
-  // **How far to go: how wrong this pixel is against its neighbourhood.** A
-  // white pixel with a black neighbour sits far from the average of the four
-  // and has to move most; a pixel already near that average is already the
-  // blend and moves least.
-  //
-  // Measuring the distance from the *end* of the range instead — which the
-  // first version of this did — gives exactly zero on a hard black-to-white
-  // edge, because every pixel there is at one end or the other. The pass ran,
-  // cost a draw, and changed nothing, which is the failure this arithmetic
-  // exists to avoid.
-  float average = (north + south + west + east) * 0.25;
-  float blend = clamp(abs(average - mid) / max(contrast, 1e-5), 0.0, 1.0);
-  // Squared, so a faint gradient is left alone and a real edge gets the whole
-  // step: the difference between smoothing an edge and smearing a texture.
-  blend = blend * blend * fxaa_info.params.w;
+  // The sub-pixel term: how far the middle sits from the 3x3 low-pass (the
+  // cross twice, the corners once, over twelve), against the local range,
+  // through a smoothstep and squared.
+  float lowPass = (2.0 * (north + south + west + east) +
+                   northWest + northEast + southWest + southEast) / 12.0;
+  float subpixC = clamp(abs(lowPass - mid) / contrast, 0.0, 1.0);
+  float subpixF = (3.0 - 2.0 * subpixC) * subpixC * subpixC;
+  float subpixH = subpixF * subpixF * fxaa_info.params.w;
 
-  vec2 offset = horizontalEdge ? vec2(0.0, step_length * blend)
-                               : vec2(step_length * blend, 0.0);
-  vec3 smoothed = textureLod(source_texture, v_uv + offset, 0.0).rgb;
+  // The two neighbours across the edge, and the steeper side. On a tie the
+  // north (or west) one, as FXAA's `pairN` has it.
+  float lumaN = horizontalSpan ? north : west;
+  float lumaS = horizontalSpan ? south : east;
+  float gradientN = lumaN - mid;
+  float gradientS = lumaS - mid;
+  bool pairN = abs(gradientN) >= abs(gradientS);
+  float gradient = max(abs(gradientN), abs(gradientS));
+  float lengthSign = horizontalSpan ? texel.y : texel.x;
+  if (pairN) lengthSign = -lengthSign;
+  float pairAverage = 0.5 * (pairN ? lumaN + mid : lumaS + mid);
+
+  // **The edge search.** Half a texel onto the steeper side, so a bilinear
+  // tap straddles the edge, then outwards both ways along it until the
+  // straddled average leaves the pair's average by a quarter of the
+  // gradient: that is where the edge ends. Knowing both ends is what lets a
+  // pixel on a long shallow staircase know where on its step it sits, which
+  // the local neighbourhood alone cannot say.
+  vec2 along = horizontalSpan ? vec2(texel.x, 0.0) : vec2(0.0, texel.y);
+  vec2 start = v_uv + (horizontalSpan ? vec2(0.0, lengthSign * 0.5)
+                                      : vec2(lengthSign * 0.5, 0.0));
+  float gradientScaled = gradient * 0.25;
+  vec2 posN = start - along;
+  vec2 posP = start + along;
+  float endN = Weight(textureLod(source_texture, posN, 0.0).rgb) - pairAverage;
+  float endP = Weight(textureLod(source_texture, posP, 0.0).rgb) - pairAverage;
+  bool doneN = abs(endN) >= gradientScaled;
+  bool doneP = abs(endP) >= gradientScaled;
+  for (int i = 1; i < kSearchSteps; i++) {
+    if (doneN && doneP) break;
+    float stride = SearchStep(i);
+    if (!doneN) {
+      posN -= along * stride;
+      endN = Weight(textureLod(source_texture, posN, 0.0).rgb) - pairAverage;
+      doneN = abs(endN) >= gradientScaled;
+    }
+    if (!doneP) {
+      posP += along * stride;
+      endP = Weight(textureLod(source_texture, posP, 0.0).rgb) - pairAverage;
+      doneP = abs(endP) >= gradientScaled;
+    }
+  }
+
+  // The nearer end decides. Its luma has to have gone the other way from the
+  // middle's, or this pixel is on the far side of that end's step and is
+  // not moved by the edge at all; otherwise it moves by how near that end
+  // it is, half a texel at the end itself and nothing at the span's middle.
+  float distanceN = horizontalSpan ? v_uv.x - posN.x : v_uv.y - posN.y;
+  float distanceP = horizontalSpan ? posP.x - v_uv.x : posP.y - v_uv.y;
+  bool middleBelow = mid - pairAverage < 0.0;
+  bool nearerN = distanceN < distanceP;
+  bool goodSpan = nearerN ? (endN < 0.0) != middleBelow
+                          : (endP < 0.0) != middleBelow;
+  float nearest = min(distanceN, distanceP);
+  float pixelOffset = 0.5 - nearest / (distanceN + distanceP);
+  float offset = max(goodSpan ? pixelOffset : 0.0, subpixH);
+
+  vec2 at = v_uv + (horizontalSpan ? vec2(0.0, offset * lengthSign)
+                                   : vec2(offset * lengthSign, 0.0));
+  vec3 smoothed = textureLod(source_texture, at, 0.0).rgb;
   frag_color =
       vec4(Sharpen(smoothed, northRgb, southRgb, westRgb, eastRgb), 1.0);
 }
