@@ -171,5 +171,58 @@ void main() {
         throwsA(anything),
       );
     });
+
+    test('a device class reads its own file first, and the single one when '
+        'the build wrote none for it', () async {
+      // Mutation: drop the class read in `loadModelAsset` — the first load
+      // asks for `chair.f3d` straight away.
+      final asked = <String>[];
+      AssetSource serve(Set<String> present, String path) {
+        asked.add(path);
+        return FileAssetSource(
+          present.contains(path) ? '$kSamples/Box.glb' : '/nonexistent/x.f3d',
+        );
+      }
+
+      await loadModelAsset(
+        'assets_src/chair.glb',
+        deviceClass: DeviceClass.phone,
+        generatedSource: (path) =>
+            serve(<String>{'flutter3d_generated/chair.phone.f3d'}, path),
+        fallbackSource: (path) => fail('the class file was there'),
+      );
+      expect(asked, <String>['flutter3d_generated/chair.phone.f3d']);
+
+      asked.clear();
+      await loadModelAsset(
+        'assets_src/chair.glb',
+        deviceClass: DeviceClass.phone,
+        generatedSource: (path) =>
+            serve(<String>{'flutter3d_generated/chair.f3d'}, path),
+        fallbackSource: (path) => fail('the single file was there'),
+      );
+      expect(asked, <String>[
+        'flutter3d_generated/chair.phone.f3d',
+        'flutter3d_generated/chair.f3d',
+      ]);
+    });
+
+    test('the class picked for the application applies to every load, and '
+        'none reads exactly the file it always did', () async {
+      final asked = <String>[];
+      AssetSource serve(String path) {
+        asked.add(path);
+        return const FileAssetSource('$kSamples/Box.glb');
+      }
+
+      await loadModelAsset('assets_src/chair.glb', generatedSource: serve);
+      expect(asked, <String>['flutter3d_generated/chair.f3d']);
+
+      asked.clear();
+      assetDeviceClass = DeviceClass.desktop;
+      addTearDown(() => assetDeviceClass = null);
+      await loadModelByPath('assets_src/chair.glb', bundleSource: serve);
+      expect(asked, <String>['flutter3d_generated/chair.desktop.f3d']);
+    });
   });
 }
