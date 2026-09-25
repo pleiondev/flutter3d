@@ -75,7 +75,7 @@ void main() {
   test('no taps is no pass, and is the default', () async {
     // The occlusion is already off by default, and this is a second
     // full-screen pass over it — so nothing pays for either until two things
-    // are switched on. Forty-four goldens depend on the frame being what it
+    // are switched on. Seventy-eight goldens depend on the frame being what it
     // was.
     expect(const AmbientOcclusionSettings().blurTaps, 0);
     expect(await _frame(blurTaps: 0), await _frame(blurTaps: 0));

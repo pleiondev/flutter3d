@@ -10,7 +10,7 @@
 /// twenty-five five. `anisotropic-floor` is the scene built to sit exactly
 /// there: 2059 of its 172800 pixels differed between a reference recorded on
 /// macOS and the same code run on a Linux runner, and nothing else in
-/// forty-four scenes differed at all.
+/// seventy-eight scenes differed at all.
 ///
 /// **The same rule the simulation already keeps.** `flutter3d_sim`'s
 /// `Portable` exists for this, and a step in that package is forbidden from

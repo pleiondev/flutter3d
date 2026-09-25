@@ -50,7 +50,7 @@ tool/ci.sh                                   # shaders, analyze, every test
 
 ## Four independent golden sets, not one
 
-Forty-four scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+Seventy-eight scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 The browser sets are recorded when a branch lands, not beside it (`golden_web.sh` holds one fixed port for the whole of its run), so a new scene is in the other sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
 
@@ -63,7 +63,7 @@ The browser sets are recorded when a branch lands, not beside it (`golden_web.sh
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
 <div class="why">
-<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps forty-four scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps seventy-eight scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.

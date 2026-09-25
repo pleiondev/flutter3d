@@ -121,7 +121,7 @@ final class GoldenRunner {
       scene,
       // The store's answer wins where it has one. A desktop run takes the
       // direction from the environment and a browser run from the URL, for the
-      // same reason on both: one build has to serve forty-four scenes in both
+      // same reason on both: one build has to serve seventy-eight scenes in both
       // directions, and anything the compiler sees is another build.
       update:
           updateOverride ??

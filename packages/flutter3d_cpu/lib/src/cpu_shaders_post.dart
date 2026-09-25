@@ -142,7 +142,7 @@ final class CompositeShader implements CpuFragmentShader {
 
     // Skipped at exactly one, which is what both settings off comes to: a
     // multiply by one is exact, so this is a shortcut rather than a difference,
-    // and it keeps the frames forty-four goldens hold untouched by arithmetic
+    // and it keeps the frames seventy-eight goldens hold untouched by arithmetic
     // they never used to go through.
     if (shade != 1.0) colour.scale(shade);
 
