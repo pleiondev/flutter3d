@@ -29,9 +29,12 @@ vec2 VogelDisc(int i, int n, float turn) {
 /// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
 /// frame's slice while a temporal resolve runs (`target_origin.w`) so the
 /// history averages the rotations. The pattern needs no texture, which keeps
-/// the lit stages at the samplers they have.
+/// the lit stages at the samplers they have. Rows are counted from the top
+/// (`target_origin.x`), as the point shadow's rotation counts them, so WebGL2
+/// turns the kernel on the same pixels as every other backend.
 float ShadowNoise() {
-  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  vec2 at = FragCoordFromTop(frag_info.target_origin.x) +
+            5.588238 * max(frag_info.target_origin.w, 0.0);
   return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
 }
 

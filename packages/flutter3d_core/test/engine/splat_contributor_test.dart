@@ -79,6 +79,7 @@ void main() {
       SplatContributor contributor, {
       required bool temporal,
       int frameIndex = 0,
+      FramebufferOrigin origin = FramebufferOrigin.topLeft,
     }) {
       final pass = FakePass(
         const RenderPassDescriptor(colors: <ColorTarget>[]),
@@ -86,7 +87,7 @@ void main() {
       contributor.encode(
         ContributorFrame(
           encoder: pass,
-          device: FakeBackend(),
+          device: FakeBackend(framebufferOrigin: origin),
           services: _NoServices(),
           state: FramePassState(),
           settings: const RenderSettings(),
@@ -125,6 +126,21 @@ void main() {
         pass.recordedOf<RecordedTexture>().map((t) => t.slot),
         contains('blue_noise_texture'),
       );
+    });
+
+    test('the hashed stage is told the rows where row zero is the bottom, '
+        'and nought where it is the top', () {
+      // Mutation: leave `frame[1]` at nought — WebGL2 reads the noise tile
+      // upside down against every other backend, and the first expectation
+      // fails.
+      double rows(FramebufferOrigin origin) =>
+          encode(SplatContributor(_cloud(4)), temporal: true, origin: origin)
+              .recordedOf<RecordedUniformBlock>()
+              .singleWhere((b) => b.block == 'SplatHashInfo')
+              .members['frame']![1];
+
+      expect(rows(FramebufferOrigin.bottomLeft), 200.0);
+      expect(rows(FramebufferOrigin.topLeft), 0.0);
     });
 
     test('without one it sorts and blends exactly as before', () {
