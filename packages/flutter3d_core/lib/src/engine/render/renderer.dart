@@ -3723,8 +3723,11 @@ final class Renderer implements RenderServices {
     finished.clear();
 
     // `C9`: the split meshes' index buffers no view drew with for longer than
-    // the frames in flight go back to the device.
+    // the frames in flight go back to the device. And no view is being drawn
+    // yet: a frame that threw inside the scene pass left its last view here,
+    // and the shadow pass below would cull split meshes by that camera.
     _clusterDraws?.beginFrame(_frameIndex);
+    _clusterView = null;
 
     // Lights are gathered once up front now, because the shadow pass needs the
     // caster before any view is drawn — and the packed buffer is per frame, not
