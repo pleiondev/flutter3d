@@ -167,27 +167,23 @@ final class BlinnPhongShader implements CpuFragmentShader {
 /// count and is zero when there is none, and the flat hemispheric ambient
 /// stands in then. Operation for operation with `pbr.frag`, because thirty
 /// golden images compare the two.
-/// `MultiscatterScale` from `pbr.frag` — `L1`.
-Vector3 _multiscatterScale(Vector3 f0, Surface s) {
-  final ab = _envBrdfApprox(s.roughness, s.nDotV);
+/// `MultiscatterScale` from `pbr.frag` — `L1`: from the albedo of the lobe
+/// it scales, at the roughness that lobe is evaluated at.
+Vector3 _multiscatterScale(Vector3 f0, Surface s, ShaderBindings b) {
+  final ab = _envBrdf(
+    b,
+    math.max(s.roughness, PbrShader.minGgxRoughness),
+    s.nDotV,
+  );
   final ess = math.max(ab.x + ab.y, 1e-4);
   return Vector3.all(1.0) + f0 * (1.0 / ess - 1.0);
 }
 
-/// `EnvBrdfApprox` from `pbr.frag`: the split-sum BRDF as arithmetic.
-///
-/// Karis' analytic fit, in place of the 2D lookup table this would otherwise
-/// need. What it buys is a third texture that would have to be built, bound on
-/// every backend, and mirrored here — for a difference visible only on a
-/// grazing mirror. Returns the scale and bias to apply to F0.
-Vector2 _envBrdfApprox(double roughness, double nDotV) {
-  final rx = roughness * -1.0 + 1.0;
-  final ry = roughness * -0.0275 + 0.0425;
-  final rz = roughness * -0.572 + 1.04;
-  final rw = roughness * 0.022 - 0.04;
-  final a004 =
-      math.min(rx * rx, math.pow(2.0, -9.28 * nDotV).toDouble()) * rx + ry;
-  return Vector2(-1.04 * a004 + rz, 1.04 * a004 + rw);
+/// `EnvBrdf` from `pbr.frag`: the split-sum scale and bias on F0, read from
+/// the LTC table the renderer binds — see [envBrdf].
+Vector2 _envBrdf(ShaderBindings b, double roughness, double nDotV) {
+  final dfg = envBrdf(b.textures['ltc_texture'], roughness, nDotV);
+  return Vector2(dfg.scale, dfg.bias);
 }
 
 /// The layers `lib/pbr.glsl` reads under `F3D_LAYERED` — `M1`: resolved once
@@ -482,9 +478,13 @@ final class PbrShader implements CpuFragmentShader {
 
   static const double _pi = 3.141592653589793;
 
+  /// `kMinGgxRoughness`: the least perceptual roughness the GGX lobe is
+  /// evaluated at, which keeps its peak clear of [_dGgx]'s guard.
+  static const double minGgxRoughness = 0.045;
+
   static double _dGgx(double nDotH, double alpha) {
     final a = nDotH * alpha;
-    final k = alpha / math.max(1.0 - nDotH * nDotH + a * a, 1e-6);
+    final k = alpha / math.max(1.0 - nDotH * nDotH + a * a, 1e-7);
     return k * k * (1.0 / _pi);
   }
 
@@ -531,7 +531,8 @@ final class PbrShader implements CpuFragmentShader {
           specularStrength /
           math.max(light.nDotL, 1e-6);
     }
-    final alpha = layers.coatRoughness * layers.coatRoughness;
+    final lobe = math.max(layers.coatRoughness, minGgxRoughness);
+    final alpha = lobe * lobe;
     final h = (light.direction + s.view)..normalize();
     final nDotL = math.max(layers.coatNormal.dot(light.direction), 0.0);
     final nDotH = math.max(layers.coatNormal.dot(h), 0.0);
@@ -669,8 +670,10 @@ final class PbrShader implements CpuFragmentShader {
       shadowed: true,
       shade: (s, light) {
         // Perceptual roughness squared is the GGX alpha; this is what makes the
-        // roughness slider feel linear.
-        final alpha = s.roughness * s.roughness;
+        // roughness slider feel linear. Held at the lobe's own floor, which
+        // sits above the surface's.
+        final lobe = math.max(s.roughness, minGgxRoughness);
+        final alpha = lobe * lobe;
 
         // Dielectrics reflect about four percent head-on; metals tint the
         // reflection with their albedo and have no diffuse response.
@@ -727,7 +730,7 @@ final class PbrShader implements CpuFragmentShader {
                     f0.z * ltc.y + (f90 - f0.z) * ltc.z,
                   ) *
                   (ltc.x * specularStrength / math.max(light.nDotL, 1e-6));
-        if (compensate) specular.multiply(_multiscatterScale(f0, s));
+        if (compensate) specular.multiply(_multiscatterScale(f0, s, b));
         // Energy left over after reflection is what scatters diffusely.
         final diffuse = eon
             // `L8`: on the direction to the light, as `pbr.glsl` has it.
@@ -848,7 +851,7 @@ final class PbrShader implements CpuFragmentShader {
       // not this raw one clamped to zero. They part only at grazing angles,
       // where the split-sum term is steepest, and a multiscatter term built
       // on top of it would widen the gap it was handed.
-      final ab = _envBrdfApprox(s.roughness, s.nDotV);
+      final ab = _envBrdf(b, s.roughness, s.nDotV);
 
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
@@ -906,7 +909,7 @@ final class PbrShader implements CpuFragmentShader {
           coatReflected.z,
           layers.coatRoughness * levels,
         );
-        final coatAb = _envBrdfApprox(layers.coatRoughness, layers.coatNDotV);
+        final coatAb = _envBrdf(b, layers.coatRoughness, layers.coatNDotV);
         coatAmbient =
             Vector3(coatPrefiltered.x, coatPrefiltered.y, coatPrefiltered.z)
               ..scale(
@@ -929,7 +932,7 @@ final class PbrShader implements CpuFragmentShader {
       // `M3`: the scene behind, less what the dielectric reflects and the
       // medium takes, tinted by the base colour — light already, so neither
       // the ambient strength nor the occlusion scales it.
-      final ab = _envBrdfApprox(s.roughness, s.nDotV);
+      final ab = _envBrdf(b, s.roughness, s.nDotV);
       final reflects =
           layers.withFilm(layers.f0Dielectric) * ab.x +
           Vector3.all(layers.f90 * ab.y);
