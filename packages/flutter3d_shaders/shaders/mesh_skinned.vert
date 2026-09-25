@@ -95,8 +95,13 @@ void main() {
   mat3 skinRotation = mat3(skin);
   v_normal =
       mat3(frame_info.normal_matrix) * (skinRotation * morphed_normal);
+  // The bitangent sign flips with a mirror (see mesh.vert), and here the
+  // tangent has gone through two matrices, either of which may be one.
+  bool mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=
+                  (determinant(skinRotation) < 0.0);
   v_tangent = vec4(
-      mat3(frame_info.model) * (skinRotation * morphed_tangent.xyz), morphed_tangent.w);
+      mat3(frame_info.model) * (skinRotation * morphed_tangent.xyz),
+      mirrored ? -morphed_tangent.w : morphed_tangent.w);
 
   v_texcoord = texcoord;
   v_color = color;

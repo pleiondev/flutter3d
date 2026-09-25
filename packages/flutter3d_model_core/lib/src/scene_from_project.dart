@@ -255,7 +255,12 @@ MeshData _editedMeshDataFor(
       Uint32List.sublistView(plan.indices, 0, plan.triangleCount * 3),
     ),
   );
-  if (layout.has(VertexLayout.tangent)) drawn = drawn.withGeneratedTangents();
+  // Unsplit: the shape blend and the weight gradient below write the plan's
+  // rows by number, and a vertex copied onto the end for a mirrored seam
+  // would be a row neither of them knows about.
+  if (layout.has(VertexLayout.tangent)) {
+    drawn = drawn.withGeneratedTangents(splitSeams: false);
+  }
 
   if (blend) {
     drawn = _withShapeBlend(drawn, plan, mesh, object.shapeSet, layout);

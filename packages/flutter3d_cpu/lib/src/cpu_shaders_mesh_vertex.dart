@@ -110,7 +110,11 @@ final class MeshVertexShader implements CpuVertexShaderByIndex {
     out[kVTangent] = t.x;
     out[kVTangent + 1] = t.y;
     out[kVTangent + 2] = t.z;
-    out[kVTangent + 3] = a[kTangent + 3];
+    // The bitangent sign turned round under a mirroring model, as the GLSL
+    // does: cross(n, t) of two transformed vectors carries the determinant.
+    out[kVTangent + 3] = model.getRotation().determinant() < 0.0
+        ? -a[kTangent + 3]
+        : a[kTangent + 3];
 
     return mvp * local;
   }
@@ -275,7 +279,11 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
     out[kVTangent] = t.x;
     out[kVTangent + 1] = t.y;
     out[kVTangent + 2] = t.z;
-    out[kVTangent + 3] = a[kTangent + 3];
+    // Mirrored by the node or by the instance, and by both is not mirrored.
+    final mirrored =
+        (model.getRotation().determinant() < 0.0) !=
+        (rotation.determinant() < 0.0);
+    out[kVTangent + 3] = mirrored ? -a[kTangent + 3] : a[kTangent + 3];
 
     return mvp * local;
   }
@@ -392,7 +400,10 @@ final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
     out[kVTangent] = t.x;
     out[kVTangent + 1] = t.y;
     out[kVTangent + 2] = t.z;
-    out[kVTangent + 3] = a[kTangent + 3];
+    final mirrored =
+        (model.getRotation().determinant() < 0.0) !=
+        (skinRotation.determinant() < 0.0);
+    out[kVTangent + 3] = mirrored ? -a[kTangent + 3] : a[kTangent + 3];
 
     return mvp * skinned;
   }

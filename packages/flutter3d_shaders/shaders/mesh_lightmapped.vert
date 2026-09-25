@@ -41,8 +41,10 @@ void main() {
   v_world_position = world.xyz;
   v_normal = mat3(frame_info.normal_matrix) * morphed_normal;
   v_texcoord = texcoord;
-  v_tangent =
-      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
+  // The bitangent sign flips with a mirroring model; see mesh.vert.
+  bool mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  v_tangent = vec4(mat3(frame_info.model) * morphed_tangent.xyz,
+                   mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = vec4(1.0);
   v_lightmap_uv = color.xy;
 
