@@ -27,6 +27,21 @@ import 'dart:typed_data';
 
 final ByteData _bits = ByteData(8);
 
+/// Answers [portableRoot] has already given, by argument: a direct-mapped
+/// table, one entry per slot, indexed by the argument's own bits.
+///
+/// **The same bits either way.** The root is a pure function of `x` and `n`,
+/// so an answer read back from here is the one the loop below would have
+/// stopped at. What makes it worth keeping is where the calls come from: the
+/// sRGB curve on every fragment of a surface, with a material's tint and the
+/// texel of a one-pixel fallback map among its arguments — the same few
+/// values, frame after frame, each costing a Newton descent.
+const int _memoSlots = 4096;
+final Float64List _memoX = Float64List(_memoSlots)
+  ..fillRange(0, _memoSlots, double.nan);
+final Int32List _memoN = Int32List(_memoSlots);
+final Float64List _memoRoot = Float64List(_memoSlots);
+
 /// The [n]th root of [x], for `x > 0` and a small `n > 1`, identically on
 /// every platform and to within an ulp or two of the exact value.
 ///
@@ -39,8 +54,16 @@ double portableRoot(double x, int n) {
   if (!(x > 0.0)) return 0.0;
   if (x.isInfinite) return x;
 
-  _bits.setFloat64(0, x);
-  final exponent = ((_bits.getUint32(0) >> 20) & 0x7FF) - 1023;
+  // Little-endian, so the high word — sign, exponent and the top of the
+  // mantissa — is the second one; the byte order changes where the word is
+  // read from and nothing about its value.
+  _bits.setFloat64(0, x, Endian.little);
+  final high = _bits.getUint32(4, Endian.little);
+  final low = _bits.getUint32(0, Endian.little);
+  final slot = (low ^ (low >> 13) ^ high ^ (high >> 11) ^ n) & (_memoSlots - 1);
+  if (_memoX[slot] == x && _memoN[slot] == n) return _memoRoot[slot];
+
+  final exponent = ((high >> 20) & 0x7FF) - 1023;
   // x < 2^(exponent + 1), so its root is under 2^((exponent + 1) / n), and
   // rounding that exponent up keeps the start above the root. Built by
   // doubling or halving, each of which is exact.
@@ -57,9 +80,13 @@ double portableRoot(double x, int n) {
       power *= y;
     }
     final next = (m * y + x / power) / n;
-    if (!(next < y)) return y;
+    if (!(next < y)) break;
     y = next;
   }
+  _memoX[slot] = x;
+  _memoN[slot] = n;
+  _memoRoot[slot] = y;
+  return y;
 }
 
 /// `x^(12/5)` for `x >= 0`: the sRGB decoding curve's exponent.
