@@ -622,9 +622,13 @@ final class LocalExposureInfoBlock extends UniformBlock {
   /// `stops`: Vector4, at byte 0.
   final Float32List stops = Float32List(4);
 
+  /// `camera`: Vector4, at byte 16.
+  final Float32List camera = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'stops': stops,
+    'camera': camera,
   };
 }
 

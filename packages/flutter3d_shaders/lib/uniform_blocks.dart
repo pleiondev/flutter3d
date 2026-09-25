@@ -631,6 +631,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
   'LocalExposure': <String, Map<String, UniformMemberLayout>>{
     'LocalExposureInfo': <String, UniformMemberLayout>{
       'stops': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'camera': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'LocalExposureBlur': <String, Map<String, UniformMemberLayout>>{

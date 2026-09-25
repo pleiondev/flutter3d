@@ -25531,6 +25531,7 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
       wgsl: r'''
 struct LocalExposureInfo {
     stops: vec4<f32>,
+    camera: vec4<f32>,
 }
 
 @group(1) @binding(0) 
@@ -25546,19 +25547,19 @@ fn WellExposed_u0028_f1_u003b(y: ptr<function, f32>) -> f32 {
     var display: f32;
     var off: f32;
 
-    let _e23 = (*y);
     let _e24 = (*y);
-    display = pow((_e23 / (1f + _e24)), 0.45454547f);
-    let _e28 = display;
-    off = (_e28 - 0.5f);
-    let _e30 = off;
-    let _e32 = off;
-    return exp(((-(_e30) * _e32) / 0.08f));
+    let _e25 = (*y);
+    display = pow((_e24 / (1f + _e25)), 0.45454547f);
+    let _e29 = display;
+    off = (_e29 - 0.5f);
+    let _e31 = off;
+    let _e33 = off;
+    return exp(((-(_e31) * _e33) / 0.08f));
 }
 
 fn Luma_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> f32 {
-    let _e21 = (*c);
-    return dot(_e21, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
+    let _e22 = (*c);
+    return dot(_e22, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
 }
 
 fn main_1() {
@@ -25574,51 +25575,52 @@ fn main_1() {
     var param_5: f32;
     var param_6: f32;
 
-    let _e32 = local_exposure_info.stops;
-    t = (_e32.zw * 2f);
-    let _e35 = v_uv_1;
-    let _e37 = t[0u];
-    let _e40 = t[1u];
-    let _e44 = textureSample(scene_texture_tex, scene_texture_smp, (_e35 + vec2<f32>(-(_e37), -(_e40))));
-    param = _e44.xyz;
-    let _e46 = Luma_u0028_vf3_u003b((&param));
-    let _e47 = v_uv_1;
-    let _e49 = t[0u];
-    let _e51 = t[1u];
-    let _e55 = textureSample(scene_texture_tex, scene_texture_smp, (_e47 + vec2<f32>(_e49, -(_e51))));
-    param_1 = _e55.xyz;
-    let _e57 = Luma_u0028_vf3_u003b((&param_1));
-    let _e59 = v_uv_1;
-    let _e61 = t[0u];
-    let _e64 = t[1u];
-    let _e67 = textureSample(scene_texture_tex, scene_texture_smp, (_e59 + vec2<f32>(-(_e61), _e64)));
-    param_2 = _e67.xyz;
-    let _e69 = Luma_u0028_vf3_u003b((&param_2));
-    let _e71 = v_uv_1;
-    let _e73 = t[0u];
-    let _e75 = t[1u];
-    let _e78 = textureSample(scene_texture_tex, scene_texture_smp, (_e71 + vec2<f32>(_e73, _e75)));
-    param_3 = _e78.xyz;
-    let _e80 = Luma_u0028_vf3_u003b((&param_3));
-    y_1 = (0.25f * (((_e46 + _e57) + _e69) + _e80));
-    let _e83 = y_1;
-    y_1 = max(_e83, 0f);
-    let _e87 = local_exposure_info.stops[0u];
-    shadow = exp2(_e87);
-    let _e91 = local_exposure_info.stops[1u];
-    highlight = exp2(-(_e91));
-    let _e94 = y_1;
-    let _e95 = shadow;
-    param_4 = (_e94 * _e95);
-    let _e97 = WellExposed_u0028_f1_u003b((&param_4));
-    let _e99 = y_1;
-    param_5 = _e99;
-    let _e100 = WellExposed_u0028_f1_u003b((&param_5));
-    let _e102 = y_1;
-    let _e103 = highlight;
-    param_6 = (_e102 * _e103);
-    let _e105 = WellExposed_u0028_f1_u003b((&param_6));
-    frag_color = vec4<f32>((_e97 + 0.0001f), (_e100 + 0.0001f), (_e105 + 0.0001f), 1f);
+    let _e33 = local_exposure_info.stops;
+    t = (_e33.zw * 2f);
+    let _e36 = v_uv_1;
+    let _e38 = t[0u];
+    let _e41 = t[1u];
+    let _e45 = textureSample(scene_texture_tex, scene_texture_smp, (_e36 + vec2<f32>(-(_e38), -(_e41))));
+    param = _e45.xyz;
+    let _e47 = Luma_u0028_vf3_u003b((&param));
+    let _e48 = v_uv_1;
+    let _e50 = t[0u];
+    let _e52 = t[1u];
+    let _e56 = textureSample(scene_texture_tex, scene_texture_smp, (_e48 + vec2<f32>(_e50, -(_e52))));
+    param_1 = _e56.xyz;
+    let _e58 = Luma_u0028_vf3_u003b((&param_1));
+    let _e60 = v_uv_1;
+    let _e62 = t[0u];
+    let _e65 = t[1u];
+    let _e68 = textureSample(scene_texture_tex, scene_texture_smp, (_e60 + vec2<f32>(-(_e62), _e65)));
+    param_2 = _e68.xyz;
+    let _e70 = Luma_u0028_vf3_u003b((&param_2));
+    let _e72 = v_uv_1;
+    let _e74 = t[0u];
+    let _e76 = t[1u];
+    let _e79 = textureSample(scene_texture_tex, scene_texture_smp, (_e72 + vec2<f32>(_e74, _e76)));
+    param_3 = _e79.xyz;
+    let _e81 = Luma_u0028_vf3_u003b((&param_3));
+    y_1 = (0.25f * (((_e47 + _e58) + _e70) + _e81));
+    let _e84 = y_1;
+    let _e88 = local_exposure_info.camera[0u];
+    y_1 = (max(_e84, 0f) * max(_e88, 0f));
+    let _e93 = local_exposure_info.stops[0u];
+    shadow = exp2(_e93);
+    let _e97 = local_exposure_info.stops[1u];
+    highlight = exp2(-(_e97));
+    let _e100 = y_1;
+    let _e101 = shadow;
+    param_4 = (_e100 * _e101);
+    let _e103 = WellExposed_u0028_f1_u003b((&param_4));
+    let _e105 = y_1;
+    param_5 = _e105;
+    let _e106 = WellExposed_u0028_f1_u003b((&param_5));
+    let _e108 = y_1;
+    let _e109 = highlight;
+    param_6 = (_e108 * _e109);
+    let _e111 = WellExposed_u0028_f1_u003b((&param_6));
+    frag_color = vec4<f32>((_e103 + 0.0001f), (_e106 + 0.0001f), (_e111 + 0.0001f), 1f);
     return;
 }
 
@@ -25636,9 +25638,14 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
           name: 'LocalExposureInfo',
           group: 1,
           binding: 0,
-          sizeInBytes: 16,
+          sizeInBytes: 32,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'stops', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
           ],
         ),
       ],

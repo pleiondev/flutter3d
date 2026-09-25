@@ -20548,6 +20548,10 @@ layout(std140) uniform LocalExposureInfo {
   /// x: how many stops the shadow exposure lifts by. y: how many the
   /// highlight exposure pulls down by. zw: one texel of the scene.
   vec4 stops;
+
+  /// x: the frame's own exposure, the one the composite multiplies by after
+  /// this (auto exposure's answer when it is on). yzw unused.
+  vec4 camera;
 }
 local_exposure_info;
 
@@ -20567,7 +20571,13 @@ void main() {
                     Luma(texture(scene_texture, v_uv + vec2(t.x, -t.y)).rgb) +
                     Luma(texture(scene_texture, v_uv + vec2(-t.x, t.y)).rgb) +
                     Luma(texture(scene_texture, v_uv + vec2(t.x, t.y)).rgb));
-  y = max(y, 0.0);
+  // **As shot means as the camera exposed it.** The scene buffer is not
+  // pre-exposed: the composite multiplies by the frame's exposure after the
+  // local stops. Judged at exposure one, a dark room the meter has already
+  // lifted three stops still looked underexposed and was lifted again, and a
+  // scene authored in physical units looked blown everywhere. Exposure
+  // fusion weighs the exposures a camera would actually have taken.
+  y = max(y, 0.0) * max(local_exposure_info.camera.x, 0.0);
   float shadow = exp2(local_exposure_info.stops.x);
   float highlight = exp2(-local_exposure_info.stops.y);
   frag_color = vec4(WellExposed(y * shadow) + 1e-4, WellExposed(y) + 1e-4,
