@@ -1,12 +1,12 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10468 tests need a GPU.
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10468 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10469 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10469 tests need a GPU.
 ---
 
 # Testing
 
-10468 tests across 38 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
-10468 tests across 38 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+10469 tests across 38 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+10469 tests across 38 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 62 |
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 63 |
 | `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 64 |
-| `flutter3d_cpu` | 296 | | `apps/flutter3d_demo_strategy` | 50 |
+| `flutter3d_cpu` | 297 | | `apps/flutter3d_demo_strategy` | 50 |
 | `apps/flutter3d_editor` | 215 | | `apps/flutter3d_demo_arcade` | 8 |
 | `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 182 | | `flutter3d_webgpu` | 192 |
@@ -40,7 +40,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 | `flame_flutter3d` | 47 | | `apps/flutter3d_showcase` | 84 |
 
-The rows sum to 10444 rather than 10468: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 10445 rather than 10469: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
