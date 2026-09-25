@@ -9,7 +9,9 @@
 /// the same amount. That case needs no uniform at all: the same numbers
 /// applied to the coordinates give the same picture, and they are applied here.
 /// A material whose textures disagree is the case that does need the uniform,
-/// and [sharedTextureTransform] says so by returning null.
+/// and [sharedTextureTransform] says so by returning null; the layered model
+/// has one — `C8`, `Material.textureTransforms` — and so does a material whose
+/// offset a clip moves, since coordinates fixed at upload cannot follow it.
 ///
 /// **Not in the decoder**, which is the first place anybody would put it. A
 /// decoded document keeps both the coordinates the file had and the transform

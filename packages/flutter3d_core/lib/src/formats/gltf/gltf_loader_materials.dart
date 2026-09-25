@@ -67,9 +67,9 @@ extension _GltfMaterials on GltfLoader {
       // `extensionsUsed` only.
       //
       // `fmt-19` gave the numbers somewhere to go, and they are carried, not
-      // applied: a writer gets back what the file said. Whether they can be
-      // honoured is a question about the whole material rather than about
-      // this texture, so it is asked once the material is built, below.
+      // applied: a writer gets back what the file said. How they are honoured
+      // is a question about the whole material and about the model that draws
+      // it, so whoever draws it answers — see `ModelAsset.fromDocument`.
       final infoExtensions = value['extensions'];
       final transformExt = infoExtensions is Map
           ? infoExtensions['KHR_texture_transform']
@@ -92,24 +92,6 @@ extension _GltfMaterials on GltfLoader {
       );
     }
 
-    /// The material, and a warning when its textures cannot all be honoured.
-    ///
-    /// One transform shared by every texture of a material is what an atlas
-    /// export writes, and a consumer honours it by moving the coordinates —
-    /// see `texture_transform_bake.dart`. Textures that disagree would each
-    /// need a matrix of their own at the sampler, which nothing here has, so
-    /// that material draws untransformed and this is where it is said.
-    SurfaceMaterial checked(SurfaceMaterial material, int index) {
-      if (hasConflictingTextureTransforms(material)) {
-        warnings.add(
-          'materials[$index] gives its textures different '
-          'KHR_texture_transform values; one set of coordinates cannot honour '
-          'them all, so none is applied and each samples its whole image.',
-        );
-      }
-      return material;
-    }
-
     return <SurfaceMaterial>[
       for (final (index, material) in materials.indexed)
         () {
@@ -130,49 +112,46 @@ extension _GltfMaterials on GltfLoader {
           final name = material['name'];
           final alphaMode = material['alphaMode'];
 
-          return checked(
-            SurfaceMaterial(
-              name: name is String ? name : null,
-              // Linear in the file, authored in the engine: converted once,
-              // here. Taken raw, the shader's own conversion ran on a value
-              // already linear, and a factor of 0.5 drew as 0.21.
-              baseColor: _authoredTint(_vec4(pbrMap['baseColorFactor'])),
-              metallic: _asDouble(pbrMap['metallicFactor']) ?? 1.0,
-              roughness: _asDouble(pbrMap['roughnessFactor']) ?? 1.0,
-              baseColorTexture: textureRef(pbrMap['baseColorTexture']),
-              metallicRoughnessTexture: textureRef(
-                pbrMap['metallicRoughnessTexture'],
-              ),
-              normalTexture: textureRef(normalTex),
-              normalScale: normalTex is Map
-                  ? (_asDouble(normalTex['scale']) ?? 1.0)
-                  : 1.0,
-              occlusionTexture: textureRef(occlusionTex),
-              occlusionStrength: occlusionTex is Map
-                  ? (_asDouble(occlusionTex['strength']) ?? 1.0)
-                  : 1.0,
-              emissiveTexture: textureRef(material['emissiveTexture']),
-              emissive: _vec3(material['emissiveFactor']),
-              emissiveStrength: emissiveStrengthExt is Map
-                  ? (_asDouble(emissiveStrengthExt['emissiveStrength']) ?? 1.0)
-                  : 1.0,
-              alphaMode: switch (alphaMode) {
-                'MASK' => SurfaceAlphaMode.mask,
-                'BLEND' => SurfaceAlphaMode.blend,
-                _ => SurfaceAlphaMode.opaque,
-              },
-              alphaCutoff: _asDouble(material['alphaCutoff']) ?? 0.5,
-              doubleSided: material['doubleSided'] == true,
-              unlit: extensionsMap.containsKey('KHR_materials_unlit'),
-              extensions: materialExtensionsFromJson(
-                extensionsMap,
-                texture: textureRef,
-                warnings: warnings,
-                where: 'materials[$index]',
-              ),
-              extras: _extrasOf(material),
+          return SurfaceMaterial(
+            name: name is String ? name : null,
+            // Linear in the file, authored in the engine: converted once,
+            // here. Taken raw, the shader's own conversion ran on a value
+            // already linear, and a factor of 0.5 drew as 0.21.
+            baseColor: _authoredTint(_vec4(pbrMap['baseColorFactor'])),
+            metallic: _asDouble(pbrMap['metallicFactor']) ?? 1.0,
+            roughness: _asDouble(pbrMap['roughnessFactor']) ?? 1.0,
+            baseColorTexture: textureRef(pbrMap['baseColorTexture']),
+            metallicRoughnessTexture: textureRef(
+              pbrMap['metallicRoughnessTexture'],
             ),
-            index,
+            normalTexture: textureRef(normalTex),
+            normalScale: normalTex is Map
+                ? (_asDouble(normalTex['scale']) ?? 1.0)
+                : 1.0,
+            occlusionTexture: textureRef(occlusionTex),
+            occlusionStrength: occlusionTex is Map
+                ? (_asDouble(occlusionTex['strength']) ?? 1.0)
+                : 1.0,
+            emissiveTexture: textureRef(material['emissiveTexture']),
+            emissive: _vec3(material['emissiveFactor']),
+            emissiveStrength: emissiveStrengthExt is Map
+                ? (_asDouble(emissiveStrengthExt['emissiveStrength']) ?? 1.0)
+                : 1.0,
+            alphaMode: switch (alphaMode) {
+              'MASK' => SurfaceAlphaMode.mask,
+              'BLEND' => SurfaceAlphaMode.blend,
+              _ => SurfaceAlphaMode.opaque,
+            },
+            alphaCutoff: _asDouble(material['alphaCutoff']) ?? 0.5,
+            doubleSided: material['doubleSided'] == true,
+            unlit: extensionsMap.containsKey('KHR_materials_unlit'),
+            extensions: materialExtensionsFromJson(
+              extensionsMap,
+              texture: textureRef,
+              warnings: warnings,
+              where: 'materials[$index]',
+            ),
+            extras: _extrasOf(material),
           );
         }(),
     ];
