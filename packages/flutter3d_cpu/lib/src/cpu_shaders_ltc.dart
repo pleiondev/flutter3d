@@ -22,6 +22,29 @@ double sheenAlbedo(BoundTexture table, double roughness, double nDotV) {
   return table.sample(uv.u, uv.v).z;
 }
 
+/// `EnvBrdf` in `lib/pbr.glsl`: the split-sum scale and bias on F0, from
+/// the second table's norm and Fresnel lanes — the GGX lobe with
+/// height-correlated Smith integrated over the hemisphere, plain and
+/// weighted by `(1 − v·h)⁵`.
+///
+/// A stage run without the table, as a test that binds by hand may run it,
+/// reflects as a mirror does: all of F0 and no bias. Every draw the renderer
+/// makes binds it.
+({double scale, double bias}) envBrdf(
+  BoundTexture? table,
+  double roughness,
+  double nDotV,
+) {
+  if (table == null) return (scale: 1.0, bias: 0.0);
+  final uv = _uv(
+    roughness.clamp(0.0, 1.0),
+    math.sqrt((1.0 - nDotV).clamp(0.0, 1.0)),
+    1.0,
+  );
+  final dfg = table.sample(uv.u, uv.v);
+  return (scale: dfg.x - dfg.y, bias: dfg.y);
+}
+
 /// `LtcEdge`.
 Vector3 _edge(Vector3 a, Vector3 b) {
   final axis = a.cross(b);

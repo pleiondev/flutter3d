@@ -13504,24 +13504,36 @@ void ReadLayersOnMaps(Surface s) {
 /// is rough enough to stand in for irradiance. Built by `EnvironmentMap`.
 uniform samplerCube environment_texture;
 
-/// The split-sum BRDF, as arithmetic rather than as a lookup table.
+/// The split-sum BRDF: the scale and bias to apply to F0, whose sum is the
+/// lobe's directional albedo `Ess`.
 ///
-/// The usual form of this is a 2D texture indexed by roughness and view angle.
-/// Karis' analytic fit replaces it at a cost too small to see on anything but a
-/// grazing mirror, and what it buys is a third texture binding this renderer
-/// does not have to find, bind on every backend, and mirror in the software
-/// rasteriser. Returns the scale and bias to apply to F0.
-vec2 EnvBrdfApprox(float roughness, float n_dot_v) {
-  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
-  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
-  vec4 r = roughness * c0 + c1;
-  float a004 = min(r.x * r.x, exp2(-9.28 * n_dot_v)) * r.x + r.y;
-  return vec2(-1.04, 1.04) * a004 + r.zw;
+/// **Read from the LTC table, not fitted.** Its second half already holds,
+/// in x and y, the GGX lobe with height-correlated Smith — the lobe
+/// [ShadeLight] evaluates — integrated over the hemisphere at this
+/// roughness and view, plain and weighted by Schlick's `(1 − v·h)⁵`: the
+/// scale is their difference and the bias the second. An analytic fit stood
+/// here before, made against another BRDF; it was a sixth dark head-on at
+/// mid roughness and turned the falloff of a rough metal upside down, and
+/// the energy compensation that divides by its sum inherited both.
+vec2 EnvBrdf(float roughness, float n_dot_v) {
+  vec2 dfg = textureLod(ltc_texture,
+                        LtcUv(clamp(roughness, 0.0, 1.0),
+                              sqrt(clamp(1.0 - n_dot_v, 0.0, 1.0)), 1.0),
+                        0.0)
+                 .xy;
+  return vec2(dfg.x - dfg.y, dfg.y);
 }
+
+/// The least perceptual roughness the GGX lobe is evaluated at, above the
+/// surface's own floor. At 0.045 alpha² is 4·10⁻⁶, which keeps the peak of
+/// [D_GGX] representable and its denominator, which is never below alpha²,
+/// clear of the guard that stops a division by nought; below it the guard
+/// cut the peak and a mirror's highlight lost most of its light.
+const float kMinGgxRoughness = 0.045;
 
 float D_GGX(float n_dot_h, float alpha) {
   float a = n_dot_h * alpha;
-  float k = alpha / max(1.0 - n_dot_h * n_dot_h + a * a, 1e-6);
+  float k = alpha / max(1.0 - n_dot_h * n_dot_h + a * a, 1e-7);
   return k * k * (1.0 / kPi);
 }
 
@@ -13564,7 +13576,8 @@ float CoatLobe(Surface s, LightSample light) {
     return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
            max(light.n_dot_l, 1e-6);
   }
-  float alpha = g_coat_roughness * g_coat_roughness;
+  float lobe = max(g_coat_roughness, kMinGgxRoughness);
+  float alpha = lobe * lobe;
   float n_dot_l = max(dot(g_coat_n, light.l), 0.0);
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
@@ -13781,9 +13794,11 @@ bool EnergyCompensation() { return frag_info.target_origin.z > 0.5; }
 /// The light GGX loses on a rough metal, returned as the factor its single
 /// scattering has to be multiplied by: one plus f0 times the share of the
 /// hemisphere the single-scattering albedo misses. Fdez-Agüera's term, with
-/// the albedo the split sum already computes.
+/// the albedo the split sum already reads — the albedo of the very lobe it
+/// scales, at the roughness [ShadeLight] evaluates it at, or the white
+/// furnace would not come back white.
 vec3 MultiscatterScale(vec3 f0, Surface s) {
-  vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
+  vec2 ab = EnvBrdf(max(s.roughness, kMinGgxRoughness), s.n_dot_v);
   float ess = max(ab.x + ab.y, 1e-4);
   return vec3(1.0) + f0 * (1.0 / ess - 1.0);
 }
@@ -13852,8 +13867,10 @@ vec3 EonAlbedo(vec3 rho, float r, float mu) {
 
 vec3 ShadeLight(Surface s, LightSample light) {
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
-  // the roughness slider feel linear.
-  float alpha = s.roughness * s.roughness;
+  // the roughness slider feel linear. Held at the lobe's own floor, which
+  // sits above the surface's.
+  float lobe = max(s.roughness, kMinGgxRoughness);
+  float alpha = lobe * lobe;
 
   // Dielectrics reflect ~4% at normal incidence; metals tint the reflection
   // with their own albedo and have no diffuse response.
@@ -14005,7 +14022,7 @@ void main() {
     vec3 irradiance = textureLod(environment_texture, s.n, levels).rgb;
     vec3 prefiltered =
         textureLod(environment_texture, reflected, s.roughness * levels).rgb;
-    vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
+    vec2 ab = EnvBrdf(s.roughness, s.n_dot_v);
 
     // Scaled by the strength in the slot the flat term above reads, which is
     // why the two are interchangeable rather than additive: whichever term
@@ -14058,7 +14075,7 @@ void main() {
                                       reflect(-s.v, g_coat_n),
                                       g_coat_roughness * levels)
                                .rgb;
-    vec2 coatAb = EnvBrdfApprox(g_coat_roughness, g_coat_n_dot_v);
+    vec2 coatAb = EnvBrdf(g_coat_roughness, g_coat_n_dot_v);
     coatAmbient = coatPrefiltered * (0.04 * coatAb.x + coatAb.y) * g_coat *
                   frag_info.material.z * s.occlusion;
     sheenIncoming =
@@ -14072,7 +14089,7 @@ void main() {
   // takes, tinted by the base colour. Light already, so neither the ambient
   // strength nor the occlusion scales it.
   if (SceneColourBound()) {
-    vec2 sceneAb = EnvBrdfApprox(s.roughness, s.n_dot_v);
+    vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
     vec3 sceneReflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
         g_f90 * sceneAb.y;
@@ -16771,24 +16788,36 @@ void ReadLayersOnMaps(Surface s) {
 /// is rough enough to stand in for irradiance. Built by `EnvironmentMap`.
 uniform samplerCube environment_texture;
 
-/// The split-sum BRDF, as arithmetic rather than as a lookup table.
+/// The split-sum BRDF: the scale and bias to apply to F0, whose sum is the
+/// lobe's directional albedo `Ess`.
 ///
-/// The usual form of this is a 2D texture indexed by roughness and view angle.
-/// Karis' analytic fit replaces it at a cost too small to see on anything but a
-/// grazing mirror, and what it buys is a third texture binding this renderer
-/// does not have to find, bind on every backend, and mirror in the software
-/// rasteriser. Returns the scale and bias to apply to F0.
-vec2 EnvBrdfApprox(float roughness, float n_dot_v) {
-  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
-  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
-  vec4 r = roughness * c0 + c1;
-  float a004 = min(r.x * r.x, exp2(-9.28 * n_dot_v)) * r.x + r.y;
-  return vec2(-1.04, 1.04) * a004 + r.zw;
+/// **Read from the LTC table, not fitted.** Its second half already holds,
+/// in x and y, the GGX lobe with height-correlated Smith — the lobe
+/// [ShadeLight] evaluates — integrated over the hemisphere at this
+/// roughness and view, plain and weighted by Schlick's `(1 − v·h)⁵`: the
+/// scale is their difference and the bias the second. An analytic fit stood
+/// here before, made against another BRDF; it was a sixth dark head-on at
+/// mid roughness and turned the falloff of a rough metal upside down, and
+/// the energy compensation that divides by its sum inherited both.
+vec2 EnvBrdf(float roughness, float n_dot_v) {
+  vec2 dfg = textureLod(ltc_texture,
+                        LtcUv(clamp(roughness, 0.0, 1.0),
+                              sqrt(clamp(1.0 - n_dot_v, 0.0, 1.0)), 1.0),
+                        0.0)
+                 .xy;
+  return vec2(dfg.x - dfg.y, dfg.y);
 }
+
+/// The least perceptual roughness the GGX lobe is evaluated at, above the
+/// surface's own floor. At 0.045 alpha² is 4·10⁻⁶, which keeps the peak of
+/// [D_GGX] representable and its denominator, which is never below alpha²,
+/// clear of the guard that stops a division by nought; below it the guard
+/// cut the peak and a mirror's highlight lost most of its light.
+const float kMinGgxRoughness = 0.045;
 
 float D_GGX(float n_dot_h, float alpha) {
   float a = n_dot_h * alpha;
-  float k = alpha / max(1.0 - n_dot_h * n_dot_h + a * a, 1e-6);
+  float k = alpha / max(1.0 - n_dot_h * n_dot_h + a * a, 1e-7);
   return k * k * (1.0 / kPi);
 }
 
@@ -16831,7 +16860,8 @@ float CoatLobe(Surface s, LightSample light) {
     return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
            max(light.n_dot_l, 1e-6);
   }
-  float alpha = g_coat_roughness * g_coat_roughness;
+  float lobe = max(g_coat_roughness, kMinGgxRoughness);
+  float alpha = lobe * lobe;
   float n_dot_l = max(dot(g_coat_n, light.l), 0.0);
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
@@ -17048,9 +17078,11 @@ bool EnergyCompensation() { return frag_info.target_origin.z > 0.5; }
 /// The light GGX loses on a rough metal, returned as the factor its single
 /// scattering has to be multiplied by: one plus f0 times the share of the
 /// hemisphere the single-scattering albedo misses. Fdez-Agüera's term, with
-/// the albedo the split sum already computes.
+/// the albedo the split sum already reads — the albedo of the very lobe it
+/// scales, at the roughness [ShadeLight] evaluates it at, or the white
+/// furnace would not come back white.
 vec3 MultiscatterScale(vec3 f0, Surface s) {
-  vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
+  vec2 ab = EnvBrdf(max(s.roughness, kMinGgxRoughness), s.n_dot_v);
   float ess = max(ab.x + ab.y, 1e-4);
   return vec3(1.0) + f0 * (1.0 / ess - 1.0);
 }
@@ -17119,8 +17151,10 @@ vec3 EonAlbedo(vec3 rho, float r, float mu) {
 
 vec3 ShadeLight(Surface s, LightSample light) {
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
-  // the roughness slider feel linear.
-  float alpha = s.roughness * s.roughness;
+  // the roughness slider feel linear. Held at the lobe's own floor, which
+  // sits above the surface's.
+  float lobe = max(s.roughness, kMinGgxRoughness);
+  float alpha = lobe * lobe;
 
   // Dielectrics reflect ~4% at normal incidence; metals tint the reflection
   // with their own albedo and have no diffuse response.
@@ -17272,7 +17306,7 @@ void main() {
     vec3 irradiance = textureLod(environment_texture, s.n, levels).rgb;
     vec3 prefiltered =
         textureLod(environment_texture, reflected, s.roughness * levels).rgb;
-    vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
+    vec2 ab = EnvBrdf(s.roughness, s.n_dot_v);
 
     // Scaled by the strength in the slot the flat term above reads, which is
     // why the two are interchangeable rather than additive: whichever term
@@ -17325,7 +17359,7 @@ void main() {
                                       reflect(-s.v, g_coat_n),
                                       g_coat_roughness * levels)
                                .rgb;
-    vec2 coatAb = EnvBrdfApprox(g_coat_roughness, g_coat_n_dot_v);
+    vec2 coatAb = EnvBrdf(g_coat_roughness, g_coat_n_dot_v);
     coatAmbient = coatPrefiltered * (0.04 * coatAb.x + coatAb.y) * g_coat *
                   frag_info.material.z * s.occlusion;
     sheenIncoming =
@@ -17339,7 +17373,7 @@ void main() {
   // takes, tinted by the base colour. Light already, so neither the ambient
   // strength nor the occlusion scales it.
   if (SceneColourBound()) {
-    vec2 sceneAb = EnvBrdfApprox(s.roughness, s.n_dot_v);
+    vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
     vec3 sceneReflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
         g_f90 * sceneAb.y;
