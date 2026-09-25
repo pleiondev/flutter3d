@@ -832,6 +832,113 @@ void main() {
     ]);
   });
 
+  group('write after read', () {
+    const ResourceId x = ResourceId('x');
+    const ResourceId y = ResourceId('y');
+    const ResourceId out = ResourceId('out');
+
+    test('a reader of the old version runs before the in-place writer', () {
+      // "overlay" draws into the texture "blur" samples. Nothing the outputs
+      // need orders the two, and the walk from "final" reaches "overlay" first,
+      // so only the anti-dependency keeps "blur" from seeing the overlay.
+      final graph = FrameGraph()
+        ..addNode(
+          const TestNode(
+            'final',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[out],
+          ),
+        )
+        ..addNode(const TestNode('scene', writes: <ResourceId>[x]))
+        ..addNode(
+          const TestNode(
+            'blur',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[y],
+          ),
+        )
+        ..addNode(
+          const TestNode(
+            'overlay',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[x],
+          ),
+        )
+        ..addNode(
+          const TestNode(
+            'mix',
+            reads: <ResourceId>[y, out],
+            writes: <ResourceId>[out],
+          ),
+        );
+
+      final compiled = graph.compile(outputs: <ResourceId>[out]);
+      final order = names(compiled.order);
+
+      expect(order.indexOf('blur'), lessThan(order.indexOf('overlay')));
+      expect(compiled.readVersionOf(order.indexOf('blur'), x), 1);
+      expect(compiled.readVersionOf(order.indexOf('final'), x), 2);
+    });
+
+    test('a registration that needs the old version after it is gone '
+        'is a loop, not a wrong read', () {
+      // "late" must follow "early" (both write out) and must read x before
+      // "overlay" draws over it, while "early" needs what "overlay" left.
+      final graph = FrameGraph()
+        ..addNode(
+          const TestNode(
+            'early',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[out],
+          ),
+        )
+        ..addNode(const TestNode('scene', writes: <ResourceId>[x]))
+        ..addNode(
+          const TestNode(
+            'late',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[out],
+          ),
+        )
+        ..addNode(
+          const TestNode(
+            'overlay',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[x],
+          ),
+        );
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[out]),
+        throwsA(isA<FrameGraphError>()),
+      );
+    });
+
+    test('a reader nobody needs is not kept alive by the ordering edge', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene', writes: <ResourceId>[x]))
+        ..addNode(
+          const TestNode(
+            'unused',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[y],
+          ),
+        )
+        ..addNode(
+          const TestNode(
+            'overlay',
+            reads: <ResourceId>[x],
+            writes: <ResourceId>[x],
+          ),
+        );
+
+      final compiled = graph.compile(outputs: <ResourceId>[x]);
+
+      expect(names(compiled.order), <String>['scene', 'overlay']);
+      expect(names(compiled.culled), <String>['unused']);
+    });
+  });
+
   test('an empty graph asking for an external resource is not an error', () {
     // The frame that draws nothing but the clear.
     final graph = FrameGraph()..addExternal(colour);
