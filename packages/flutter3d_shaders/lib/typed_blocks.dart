@@ -1062,6 +1062,27 @@ final class SkinInfoBlock extends UniformBlock {
   };
 }
 
+/// `SoftParticleInfo`.
+final class SoftParticleInfoBlock extends UniformBlock {
+  SoftParticleInfoBlock() : super('SoftParticleInfo');
+
+  /// `target`: Vector4, at byte 0.
+  final Float32List target = Float32List(4);
+
+  /// `eye`: Vector4, at byte 16.
+  final Float32List eye = Float32List(4);
+
+  /// `forward`: Vector4, at byte 32.
+  final Float32List forward = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'target': target,
+    'eye': eye,
+    'forward': forward,
+  };
+}
+
 /// `SplatHashInfo`.
 final class SplatHashInfoBlock extends UniformBlock {
   SplatHashInfoBlock() : super('SplatHashInfo');

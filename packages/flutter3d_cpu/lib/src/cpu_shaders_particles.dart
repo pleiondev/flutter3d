@@ -11,6 +11,37 @@ import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
 import 'cpu_shaders_lighting.dart';
 
+/// `lib/particle_soft.glsl`'s `SoftParticleFade`: how much of a particle
+/// fragment at world `(x, y, z)` is left once it nears the scene the surface
+/// buffer holds at [c]'s pixel — one a softness in front or further, nought
+/// at it, and one where nothing was drawn.
+///
+/// One as well while no depth is bound, which is never how a soft stage is
+/// drawn and is how a test that leaves the slot empty reads the stage.
+double softParticleFade(
+  ShaderBindings b,
+  FragmentContext c,
+  double x,
+  double y,
+  double z,
+) {
+  final surface = b.textures['scene_depth_texture'];
+  if (surface == null) return 1.0;
+  const block = 'SoftParticleInfo';
+  final target = b.vec4(block, 'target', Vector4.zero());
+  final eye = b.vec4(block, 'eye', Vector4.zero());
+  final forward = b.vec4(block, 'forward', Vector4.zero());
+  // `FragCoordFromTop`.
+  final row = target.z > 0.0 ? target.z - c.coord.y : c.coord.y;
+  final stored = surface.sample(c.coord.x * target.x, row * target.y).w;
+  final depth =
+      (x - eye.x) * forward.x +
+      (y - eye.y) * forward.y +
+      (z - eye.z) * forward.z;
+  final fade = ((stored - depth) * target.w).clamp(0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
 /// `particle.vert`: a billboard corner, and the world position for the fog.
 final class ParticleVertexShader implements CpuVertexShader {
   const ParticleVertexShader();
@@ -41,7 +72,10 @@ final class ParticleVertexShader implements CpuVertexShader {
 /// but this stage could know that, which is why the derivative is passed in
 /// rather than read off the texture.
 final class ParticleTexturedShader implements CpuFragmentShader {
-  const ParticleTexturedShader();
+  const ParticleTexturedShader({this.soft = false});
+
+  /// `particle_textured_soft.frag`: the same, faded by [softParticleFade].
+  final bool soft;
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -74,7 +108,11 @@ final class ParticleTexturedShader implements CpuFragmentShader {
 
     // The texture's alpha is coverage and the particle's is brightness, so the
     // two multiply.
-    final scale = v[3] * texel.w * fogged;
+    final scale =
+        v[3] *
+        texel.w *
+        fogged *
+        (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
     return Vector4(
       v[0] * texel.x * scale,
       v[1] * texel.y * scale,
@@ -90,7 +128,11 @@ final class ParticleTexturedShader implements CpuFragmentShader {
 /// The same varyings as the sprite stage: colour in 0..3, the cell's texture
 /// coordinate in 4..5, the world position in 6..8.
 final class ParticleSixWayShader implements CpuFragmentShader {
-  const ParticleSixWayShader();
+  const ParticleSixWayShader({this.soft = false});
+
+  /// `particle_six_way_soft.frag`: the same, its coverage faded by
+  /// [softParticleFade].
+  final bool soft;
 
   static const String _block = 'SixWayInfo';
 
@@ -159,7 +201,11 @@ final class ParticleSixWayShader implements CpuFragmentShader {
         ..z = fog.z + (colour.z - fog.z) * fogged;
     }
 
-    final coverage = (v[3] * positive.w).clamp(0.0, 1.0);
+    // Coverage, not colour: the blend is premultiplied, so a fading puff has
+    // to let what is behind it through as well.
+    final coverage =
+        (v[3] * positive.w).clamp(0.0, 1.0) *
+        (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
     return Vector4(
       colour.x * coverage,
       colour.y * coverage,
@@ -248,7 +294,10 @@ final class ParticleMeshShader implements CpuFragmentShader {
 
 /// `particle.frag`: a radial falloff, premultiplied, fogged.
 final class ParticleShader implements CpuFragmentShader {
-  const ParticleShader();
+  const ParticleShader({this.soft = false});
+
+  /// `particle_soft.frag`: the same, faded by [softParticleFade].
+  final bool soft;
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -256,7 +305,10 @@ final class ParticleShader implements CpuFragmentShader {
     final cy = v[5] * 2.0 - 1.0;
     final radius = math.sqrt(cx * cx + cy * cy);
     final falloff = 1.0 - smoothstep(0.0, 1.0, radius);
-    final intensity = falloff * falloff;
+    final intensity =
+        falloff *
+        falloff *
+        (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
 
     var fogged = 1.0;
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());

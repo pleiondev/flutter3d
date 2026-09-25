@@ -162,6 +162,11 @@ extension _TransparencyPasses on Renderer {
   /// Draws [views]' transparent halves into the weighted blended targets,
   /// resolves them over the scene target, and draws [contributors] after —
   /// the passes the module comment lists, in its order.
+  ///
+  /// [sceneDepth] is the surface buffer where the scene pass attached it.
+  /// Nothing here attaches it, and the layers write their revealage where it
+  /// would be, so what it holds is the opaque half's depth — what a
+  /// contributor that reads it wants.
   void _encodeWeightedBlended({
     required Scene scene,
     required List<_DeferredTransparency> views,
@@ -172,6 +177,7 @@ extension _TransparencyPasses on Renderer {
     required _SceneProbes probes,
     required FramePassState passState,
     required List<PassContributor> contributors,
+    TextureHandle? sceneDepth,
   }) {
     final targets = _weightedBlendedTargets();
     final independent = device.supportsIndependentBlend;
@@ -295,34 +301,63 @@ extension _TransparencyPasses on Renderer {
     passState.invalidatePipeline();
 
     if (contributors.isNotEmpty) {
-      final temporal =
-          settings.antiAlias.temporal.enabled && device.maxColorAttachments > 1;
       for (final deferred in views) {
         _restoreView(deferred, rebuildClusters: multiView);
         _beginView(pass, deferred, passState);
-        _contributorLights.begin(lights, settings);
-        for (final plugin in contributors) {
-          plugin.encode(
-            ContributorFrame(
-              encoder: pass,
-              device: device,
-              services: this,
-              state: passState,
-              settings: settings,
-              width: width,
-              height: height,
-              view: deferred.view,
-              viewProjection: deferred.viewProjection,
-              frameIndex: _frameIndex,
-              temporal: temporal,
-              lights: _contributorLights,
-            ),
-          );
-        }
-        _contributorLights.end();
+        _encodeContributors(
+          pass: pass,
+          deferred: deferred,
+          contributors: contributors,
+          settings: settings,
+          width: width,
+          height: height,
+          passState: passState,
+          sceneDepth: sceneDepth,
+        );
       }
     }
     _clustersActive = false;
     pass.submit();
+  }
+
+  /// Hands [contributors] [pass], open on [deferred]'s view, as the scene
+  /// pass would have.
+  ///
+  /// [sceneDepth] goes to the ones that asked for it, and only to them: a
+  /// contributor that did not ask has made no promise about what it does
+  /// with one. See [PassContributor.readsSceneDepth].
+  void _encodeContributors({
+    required PassEncoder pass,
+    required _DeferredTransparency deferred,
+    required List<PassContributor> contributors,
+    required RenderSettings settings,
+    required int width,
+    required int height,
+    required FramePassState passState,
+    TextureHandle? sceneDepth,
+  }) {
+    final temporal =
+        settings.antiAlias.temporal.enabled && device.maxColorAttachments > 1;
+    _contributorLights.begin(lights, settings);
+    for (final plugin in contributors) {
+      plugin.encode(
+        ContributorFrame(
+          encoder: pass,
+          device: device,
+          services: this,
+          state: passState,
+          settings: settings,
+          width: width,
+          height: height,
+          view: deferred.view,
+          viewProjection: deferred.viewProjection,
+          frameIndex: _frameIndex,
+          temporal: temporal,
+          lights: _contributorLights,
+          sceneDepth: plugin.readsSceneDepth ? sceneDepth : null,
+        ),
+      );
+    }
+    _contributorLights.end();
   }
 }
