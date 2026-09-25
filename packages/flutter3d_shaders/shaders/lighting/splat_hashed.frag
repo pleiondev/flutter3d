@@ -36,6 +36,15 @@
 //     one pixel and is the same at every pixel of one: its colour, and its
 //     distance along the view axis, which is constant across a quad because
 //     every quad lies in the camera's own plane.
+//
+// **Both are counted the same way on every backend.** The pixel is read with
+// row zero at the top (`FragCoordFromTop`), so WebGL2 does not turn the tile
+// upside down. The offset is hashed in whole numbers under 2^24, where a
+// 32-bit float is exact, instead of through `sin`, whose argument ran to
+// hundreds of thousands and whose last bits no GPU promises: a GPU and the
+// software rasteriser now give one splat the same offset.
+
+#include <lib/frag_coord.glsl>
 
 in vec4 v_color;
 in vec2 v_uv;
@@ -57,7 +66,9 @@ fog_info;
 uniform sampler2D blue_noise_texture;
 
 uniform SplatHashInfo {
-  /// x: the frame's slice of the blue noise, `frameIndex % 32`.
+  /// x: the frame's slice of the blue noise, `frameIndex % 32`. y: the
+  /// target's rows where its row zero is the bottom, nought where it is the
+  /// top — see `FragCoordFromTop`. zw unused.
   vec4 frame;
 
   /// xyz: the camera's position in world space.
@@ -88,15 +99,24 @@ void main() {
       floor(along * 1000.0) +
       floor(dot(v_color, vec4(255.0, 255.0 * 7.0, 255.0 * 31.0, 255.0 * 127.0)));
   identity = mod(identity, 4096.0);
-  vec2 offset = floor(
-      fract(sin(identity * vec2(12.9898, 78.233)) * 43758.5453) * 64.0);
+
+  // One of the 4096 cells of the tile per identity, and a different one for
+  // each: an affine step and `2a² + a`, each a permutation of the whole
+  // numbers modulo 4096, then the high six bits stirred into the low six so
+  // the column depends on all of them. No product reaches 2^24 and every
+  // divisor is a power of two, so each step is exact in a 32-bit float.
+  float mixed = mod(identity * 1597.0 + 2531.0, 4096.0);
+  mixed = mod(mixed * mod(2.0 * mixed + 1.0, 4096.0), 4096.0);
+  float row = floor(mixed / 64.0);
+  vec2 offset = vec2(mod(mixed + row * 37.0, 64.0), row);
 
   // This frame's slice of the blue noise at the pixel, moved by the splat's
   // offset. The same arithmetic as `BlueNoise` in `lib/blue_noise.glsl`,
   // which this does not include because it brings the `NoiseInfo` block the
   // post passes share and a slice this stage already has.
   float slice = splat_hash_info.frame.x;
-  vec2 cell = mod(floor(gl_FragCoord.xy) + offset, 64.0);
+  vec2 cell = mod(floor(FragCoordFromTop(splat_hash_info.frame.y)) + offset,
+                  64.0);
   vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
   float threshold =
       textureLod(blue_noise_texture,

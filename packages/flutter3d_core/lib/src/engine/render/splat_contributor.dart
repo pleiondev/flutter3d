@@ -625,7 +625,13 @@ final class SplatContributor extends PassContributor {
       // The frame's slice of the engine's blue noise, the same slice the
       // post effects read; the eye and the view axis, from which each splat
       // measures the distance its offset into that noise is hashed from.
-      _hashInfo.frame[0] = (frame.frameIndex % 32).toDouble();
+      // And the target's rows where row zero is its bottom, so the stage
+      // reads the tile the right way up on WebGL2 too — `FragCoordFromTop`.
+      _hashInfo.frame
+        ..[0] = (frame.frameIndex % 32).toDouble()
+        ..[1] = frame.device.framebufferOrigin == FramebufferOrigin.bottomLeft
+            ? frame.height.toDouble()
+            : 0.0;
       _hashInfo.eye
         ..[0] = eye.x
         ..[1] = eye.y
