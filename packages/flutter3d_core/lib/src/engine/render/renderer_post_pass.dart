@@ -746,6 +746,7 @@ extension _PostPasses on Renderer {
     required TextureHandle scene,
     required TextureHandle surface,
     required DepthOfFieldSettings settings,
+    required RenderView view,
     required FrameResources resources,
     required int width,
     required int height,
@@ -762,8 +763,22 @@ extension _PostPasses on Renderer {
       ),
     );
 
+    // The lens that took this view's picture: the focal length and the width
+    // of sensor its angle spans, agreed with the projection so the circle is
+    // drawn at the scale the scene was. The view's own share of the texture,
+    // for a camera that sees only part of the frame.
+    final rect = Renderer._viewportPixels(
+      view.viewportFraction,
+      scene.width,
+      scene.height,
+    );
+    final lens = settings.lensFor(
+      verticalFieldOfView: view.camera.projection.verticalFieldOfView,
+      aspect: rect.width / rect.height,
+    );
+
     _dofLens[0] = math.max(settings.focusDistance, 1e-3);
-    _dofLens[1] = math.max(settings.focalLength, 1e-4);
+    _dofLens[1] = math.max(lens.focalLength, 1e-4);
     _dofLens[2] = math.max(settings.aperture, 1e-3);
     _dofLens[3] = settings.samples.clamp(0, 64).toDouble();
 
@@ -774,7 +789,7 @@ extension _PostPasses on Renderer {
     // than the frame's, so that under `renderScale` the lens keeps blurring
     // the same fraction of the picture: the resolution lever is there to
     // spend less on the same photograph, not to take a different one.
-    _dofParams[3] = scene.width / math.max(settings.sensorWidth, 1e-4);
+    _dofParams[3] = rect.width / math.max(lens.sensorWidth, 1e-4);
 
     final tiles = _encodeCircleTiles(
       surface: surface,
