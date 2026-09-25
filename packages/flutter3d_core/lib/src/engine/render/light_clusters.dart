@@ -73,6 +73,8 @@ final class LightClusters {
   int get entryRows =>
       math.max((_total + entriesPerRow - 1) ~/ entriesPerRow, 1);
 
+  /// How many lights [cluster] holds — for a profiler or a debugger
+  /// overlay that shows where the cells are crowded.
   int countAt(int cluster) => _counts[cluster];
 
   /// The lights of [cluster], as candidate indices of the table it was built

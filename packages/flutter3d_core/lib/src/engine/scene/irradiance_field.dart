@@ -153,7 +153,8 @@ final class IrradianceField {
   int get version => _version;
   int _version = 0;
 
-  /// Says the contents changed, for a writer that went past the methods here.
+  /// Says the contents changed, for a caller that wrote [irradiance],
+  /// [depth] or [active] directly rather than through the methods here.
   void markChanged() => _version++;
 
   /// The field as one float texture — `L3`.

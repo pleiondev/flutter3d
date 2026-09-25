@@ -289,12 +289,13 @@ final class VelocityShader implements CpuFragmentShader {
 final class CameraVelocityShader implements CpuFragmentShader {
   const CameraVelocityShader();
 
-  static final Vector4 _still = Vector4(0.0, 0.0, 0.0, 1.0);
+  /// No motion, full weight: a fresh one each time, since a caller owns it.
+  static Vector4 get _still => Vector4(0.0, 0.0, 0.0, 1.0);
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final surfaceMap = b.textures['surface_texture'];
-    if (surfaceMap == null) return _still.clone();
+    if (surfaceMap == null) return _still;
 
     final u = v[0];
     final w = v[1];
@@ -324,7 +325,7 @@ final class CameraVelocityShader implements CpuFragmentShader {
     }
 
     // Behind last frame's eye: nothing to reproject from.
-    if (then.w <= 0.0) return _still.clone();
+    if (then.w <= 0.0) return _still;
     final thenU = then.x / then.w * 0.5 + 0.5;
     final thenV = 0.5 - then.y / then.w * 0.5;
     return Vector4(u - thenU, w - thenV, 0.0, 1.0);

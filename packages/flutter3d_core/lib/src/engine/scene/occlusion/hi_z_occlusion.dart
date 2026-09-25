@@ -60,7 +60,8 @@ final class HiZOcclusion {
   bool _hasReading = false;
   int _readings = 0;
 
-  /// Whether a reading has arrived since the last [reset].
+  /// Whether a reading has arrived since the last [reset] — for a caller
+  /// that wants to know whether culling is live yet or still drawing all.
   bool get hasReading => _hasReading;
 
   /// Readings accepted since this was made.
