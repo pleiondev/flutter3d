@@ -488,6 +488,32 @@ void main() {
         closeTo(kSplatReach * math.sqrt(limit * limit + filter), 1e-5),
       );
     });
+
+    test('a needle pointing at the eye is a point, off axis too', () {
+      // The tests above hold the lean's size, which squares away its sign;
+      // this holds its direction. A needle lying along the ray from the eye
+      // through its centre covers one point of the screen whatever its
+      // length, so all that is left of it is the filter. Mutation: flip the
+      // lean's sign and the needle spreads across the screen.
+      final centre = Vector3(2.5, 0.0, -5.0);
+      final quads = SplatQuads(
+        _cloud(
+          centres: <Vector3>[centre],
+          scales: <Vector3>[Vector3(0.0, 0.0, 1.0)],
+          rotations: <Quaternion>[
+            Quaternion.fromTwoVectors(
+              Vector3(0.0, 0.0, 1.0),
+              centre.normalized(),
+            ),
+          ],
+        ),
+      );
+      build(quads, through: lens);
+      final filter = 0.3 * math.pow(5.0 / focal, 2);
+      final (x, y) = extents(quads, centre);
+      expect(x, closeTo(kSplatReach * math.sqrt(filter), 1e-5));
+      expect(y, closeTo(kSplatReach * math.sqrt(filter), 1e-5));
+    });
   });
 
   test('an empty cloud builds nothing at all', () {
