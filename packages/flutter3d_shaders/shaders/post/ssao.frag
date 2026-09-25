@@ -179,6 +179,27 @@ vec2 Rotation(vec2 uv) {
   return vec2(1.0, 0.0);
 }
 
+/// How many pixels of this target [radius] metres span at [point] — the
+/// reach of the horizon searches below.
+///
+/// **In pixels, and stepped in pixels**, because a pixel is the one unit
+/// the projection keeps square. A uv unit is the target's width one way and
+/// its height the other, so a radius measured across the screen and stepped
+/// as uv reached only height/width of it up the screen — a little over half
+/// on a landscape frame, and nearly twice too far on a phone held upright —
+/// and slices spread evenly in uv were not spread evenly in angle.
+///
+/// Measured across the view, along a horizontal line through [point]; the
+/// world up is swapped for x when the eye looks nearly straight along it.
+float PixelRadius(vec3 point, vec3 view, float radius) {
+  vec3 across = normalize(
+      cross(view, abs(view.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec4 here = ssao_info.view_projection * vec4(point, 1.0);
+  vec4 there = ssao_info.view_projection * vec4(point + across * radius, 1.0);
+  return length((UvFromNdc(there.xy / there.w) - UvFromNdc(here.xy / here.w)) /
+                ssao_info.screen.xy);
+}
+
 /// Ground-truth ambient occlusion (Jimenez et al. 2016) — `L5`.
 ///
 /// Two slices through the point, turned by the pixel's noise; along each,
@@ -196,13 +217,7 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
   vec3 view = normalize(ssao_info.camera.xyz - point);
   float radius = max(ssao_info.params.x, 1e-4);
   int steps = clamp(int(ssao_info.params.y + 0.5) / 4, 1, 4);
-
-  // How far the radius reaches on screen, at this point's depth.
-  vec3 across = normalize(
-      cross(view, abs(view.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
-  vec4 here = ssao_info.view_projection * vec4(point, 1.0);
-  vec4 there = ssao_info.view_projection * vec4(point + across * radius, 1.0);
-  float uvRadius = length(UvFromNdc(there.xy / there.w) - UvFromNdc(here.xy / here.w));
+  float pixelRadius = PixelRadius(point, view, radius);
 
   vec2 pixel = floor(uv / ssao_info.screen.xy);
   float noise = PixelNoise(pixel);
@@ -212,11 +227,12 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
   float slices = 0.0;
   for (int slice = 0; slice < 2; slice++) {
     float phi = (float(slice) + noise) * 1.5707963;
-    vec2 direction = vec2(cos(phi), sin(phi));
+    // One pixel along the slice, in uv: the angle is an angle on the screen.
+    vec2 direction = vec2(cos(phi), sin(phi)) * ssao_info.screen.xy;
 
     // The slice's direction in the world: the same screen step taken at this
     // point's depth, with the eye's component removed.
-    vec3 along = WorldAtDepth(uv + direction * 1e-3, depth) - point;
+    vec3 along = WorldAtDepth(uv + direction, depth) - point;
     vec3 tangent = along - view * dot(along, view);
     float tangentLength = length(tangent);
     if (tangentLength < 1e-6) continue;
@@ -235,7 +251,7 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
       for (int i = 0; i < 4; i++) {
         if (i >= steps) break;
         float t = (float(i) + 0.5 + 0.5 * noise) / float(steps);
-        vec2 at = uv + s * direction * uvRadius * t;
+        vec2 at = uv + s * direction * pixelRadius * t;
         if (at.x < 0.0 || at.x > 1.0 || at.y < 0.0 || at.y > 1.0) continue;
         float d = textureLod(surface_texture, at, 0.0).a;
         if (d <= 0.0) continue;
@@ -321,12 +337,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
   float radius = max(ssao_info.params.x, 1e-4);
   float thickness = max(ssao_info.screen.w, 1e-3);
   int steps = clamp(int(ssao_info.params.y + 0.5) / 4, 1, 4);
-
-  vec3 across = normalize(
-      cross(view, abs(view.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
-  vec4 here = ssao_info.view_projection * vec4(point, 1.0);
-  vec4 there = ssao_info.view_projection * vec4(point + across * radius, 1.0);
-  float uvRadius = length(UvFromNdc(there.xy / there.w) - UvFromNdc(here.xy / here.w));
+  float pixelRadius = PixelRadius(point, view, radius);
 
   vec2 pixel = floor(uv / ssao_info.screen.xy);
   float noise = PixelNoise(pixel);
@@ -337,8 +348,8 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
   float slices = 0.0;
   for (int slice = 0; slice < 2; slice++) {
     float phi = (float(slice) + noise) * 1.5707963;
-    vec2 direction = vec2(cos(phi), sin(phi));
-    vec3 along = WorldAtDepth(uv + direction * 1e-3, depth) - point;
+    vec2 direction = vec2(cos(phi), sin(phi)) * ssao_info.screen.xy;
+    vec3 along = WorldAtDepth(uv + direction, depth) - point;
     vec3 tangent = along - view * dot(along, view);
     float tangentLength = length(tangent);
     if (tangentLength < 1e-6) continue;
@@ -359,16 +370,17 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
       for (int i = 0; i < 4; i++) {
         if (i >= steps) break;
         float t = (float(i) + 0.5 + 0.5 * noise) / float(steps);
-        vec2 at = uv + s * direction * uvRadius * t;
+        vec2 at = uv + s * direction * pixelRadius * t;
         if (at.x < 0.0 || at.x > 1.0 || at.y < 0.0 || at.y > 1.0) continue;
-        float d = textureLod(surface_texture, at, 0.0).a;
-        if (d <= 0.0) continue;
-        vec3 front = WorldAtDepth(at, d) - point;
+        vec4 sampled = textureLod(surface_texture, at, 0.0);
+        if (sampled.a <= 0.0) continue;
+        vec3 front = WorldAtDepth(at, sampled.a) - point;
         if (length(front) > radius) continue;
+        vec3 toward = normalize(front);
         vec3 back = front - view * thickness;
         // Angles from the eye, signed by the side, over the half circle
         // centred on the normal: nought at one end, one at the other.
-        float a = s * acos(clamp(dot(normalize(front), view), -1.0, 1.0));
+        float a = s * acos(clamp(dot(toward, view), -1.0, 1.0));
         float b = s * acos(clamp(dot(normalize(back), view), -1.0, 1.0));
         float lowAngle = (min(a, b) - n + 1.5707963) / 3.1415927;
         float highAngle = (max(a, b) - n + 1.5707963) / 3.1415927;
@@ -380,7 +392,11 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
         float fresh = SectorCount(m0 * (1.0 - c0), m1 * (1.0 - c1),
                                   m2 * (1.0 - c2), m3 * (1.0 - c3));
         vec3 radiance = textureLod(scene_texture, at, 0.0).rgb;
-        float cosine = max(dot(normal, normalize(front)), 0.0);
+        // Both ends' cosines: the receiver's to the sample, and the sample's
+        // back to the receiver. Without the second, the lit top of a table
+        // bled onto the floor it faces away from.
+        float cosine = max(dot(normal, toward), 0.0) *
+                       max(dot(DecodeOctahedral(sampled.rg), -toward), 0.0);
         light += radiance * cosine * fresh / 16.0;
         c0 = max(c0, m0);
         c1 = max(c1, m1);
