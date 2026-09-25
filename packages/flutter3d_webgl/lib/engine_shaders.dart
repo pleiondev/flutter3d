@@ -21220,7 +21220,13 @@ precision highp int;
 precision highp sampler2D;
 precision highp samplerCube;
 
-// Particles, as a procedural round sprite.
+// Particles, as a procedural round sprite. The body, and why it has no
+// sampler, is `lib/particle.glsl`; `particle_soft.frag` is the same body
+// faded against the scene's depth.
+
+// --- lib/particle.glsl ---
+// Particles, as a procedural round sprite: the body of `lighting/particle.frag`
+// and, with `F3D_SOFT_PARTICLE`, of `lighting/particle_soft.frag`.
 //
 // No texture, and that is a decision rather than a placeholder. A sampler here
 // would be one more slot to bind correctly, and this engine's most expensive
@@ -21236,6 +21242,107 @@ precision highp samplerCube;
 // they need no sorting — addition does not care about order, which is the whole
 // reason additive is the right mode for fire and sparks and the wrong one for
 // smoke.
+//
+// The soft variant is the one exception to "no sampler", and it is a stage of
+// its own for the reason above: it reads the scene's depth, and only a
+// contributor that was handed one picks it.
+
+// --- lib/particle_soft.glsl ---
+// Soft particles: a sprite that fades as it nears the opaque scene behind it.
+//
+// **What this removes is a seam.** A particle is a flat quad, depth-tested and
+// never depth-written, so where it passes through a floor or a wall the test
+// cuts it along the line the two planes meet — a hard straight edge across a
+// puff of smoke that has no edges anywhere else. Lorach's fix ("Soft
+// Particles", 2007) scales the particle by how far the scene lies behind it:
+//
+//   fade = saturate((sceneDepth - particleDepth) / softness)
+//
+// so a fragment a softness or more in front of the scene is untouched, one
+// touching it is gone, and the line becomes a ramp.
+//
+// Included by every particle stage, and empty unless the stage defines
+// `F3D_SOFT_PARTICLE`: the soft stages are stages of their own, picked only by
+// a contributor that was handed the scene's depth, so the ones every recorded
+// frame goes through declare nothing new — no sampler to leave unbound, which
+// on Metal is a native crash.
+
+#ifndef PARTICLE_SOFT_GLSL_
+#define PARTICLE_SOFT_GLSL_
+
+#ifdef F3D_SOFT_PARTICLE
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// The surface buffer: in `a`, the opaque scene's depth along the view axis,
+/// in metres, and zero where nothing was drawn. Read with nearest filtering.
+uniform sampler2D scene_depth_texture;
+
+layout(std140) uniform SoftParticleInfo {
+  /// xy: one over the target's size. z: the target's height where its row
+  /// zero is the bottom, nought where it is the top — see `FragCoordFromTop`.
+  /// w: one over the softness, in metres.
+  vec4 target;
+
+  /// xyz: the camera position in world space.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector — the axis the
+  /// surface buffer measures its depths along.
+  vec4 forward;
+}
+soft_particle_info;
+
+/// How much of a particle fragment at [world] is left once it nears the
+/// scene: one a softness in front of it or further, nought at it.
+///
+/// One where nothing was drawn behind — the sky is infinitely far — and a
+/// select rather than an early return, which a phi of constants would make
+/// SPIRV-Cross refuse. `textureLod` for WGSL, which will not take an implicit
+/// level where the caller's control flow may not be uniform.
+float SoftParticleFade(vec3 world) {
+  vec2 uv = FragCoordFromTop(soft_particle_info.target.z) *
+            soft_particle_info.target.xy;
+  float stored = textureLod(scene_depth_texture, uv, 0.0).a;
+  float depth = dot(world - soft_particle_info.eye.xyz,
+                    soft_particle_info.forward.xyz);
+  float fade =
+      clamp((stored - depth) * soft_particle_info.target.w, 0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
+#endif  // F3D_SOFT_PARTICLE
+
+#endif  // PARTICLE_SOFT_GLSL_
+
 
 in vec4 v_color;
 in vec2 v_uv;
@@ -21285,8 +21392,13 @@ void main() {
         1.0);
   }
 
+#ifdef F3D_SOFT_PARTICLE
+  intensity *= SoftParticleFade(v_world_position);
+#endif
+
   frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);
 }
+
 
 ''',
     'ParticleTextured': r'''#version 300 es
@@ -21295,7 +21407,14 @@ precision highp int;
 precision highp sampler2D;
 precision highp samplerCube;
 
-// Particles with a texture, beside the procedural one rather than replacing it.
+// Particles with a texture. The body is `lib/particle_textured.glsl`;
+// `particle_textured_soft.frag` is the same body faded against the scene's
+// depth.
+
+// --- lib/particle_textured.glsl ---
+// Particles with a texture, beside the procedural one rather than replacing it:
+// the body of `lighting/particle_textured.frag` and, with `F3D_SOFT_PARTICLE`,
+// of `lighting/particle_textured_soft.frag`.
 //
 // `lighting/particle.frag` computes a round falloff from the quad's own
 // coordinates and has no sampler at all. Its comment says why, and the reason
@@ -21311,6 +21430,103 @@ precision highp samplerCube;
 // The same vertex stage feeds both — `particle.vert` already carries `v_uv`
 // across, which the procedural stage uses for its radius and this one uses as a
 // texture coordinate.
+
+// --- lib/particle_soft.glsl ---
+// Soft particles: a sprite that fades as it nears the opaque scene behind it.
+//
+// **What this removes is a seam.** A particle is a flat quad, depth-tested and
+// never depth-written, so where it passes through a floor or a wall the test
+// cuts it along the line the two planes meet — a hard straight edge across a
+// puff of smoke that has no edges anywhere else. Lorach's fix ("Soft
+// Particles", 2007) scales the particle by how far the scene lies behind it:
+//
+//   fade = saturate((sceneDepth - particleDepth) / softness)
+//
+// so a fragment a softness or more in front of the scene is untouched, one
+// touching it is gone, and the line becomes a ramp.
+//
+// Included by every particle stage, and empty unless the stage defines
+// `F3D_SOFT_PARTICLE`: the soft stages are stages of their own, picked only by
+// a contributor that was handed the scene's depth, so the ones every recorded
+// frame goes through declare nothing new — no sampler to leave unbound, which
+// on Metal is a native crash.
+
+#ifndef PARTICLE_SOFT_GLSL_
+#define PARTICLE_SOFT_GLSL_
+
+#ifdef F3D_SOFT_PARTICLE
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// The surface buffer: in `a`, the opaque scene's depth along the view axis,
+/// in metres, and zero where nothing was drawn. Read with nearest filtering.
+uniform sampler2D scene_depth_texture;
+
+layout(std140) uniform SoftParticleInfo {
+  /// xy: one over the target's size. z: the target's height where its row
+  /// zero is the bottom, nought where it is the top — see `FragCoordFromTop`.
+  /// w: one over the softness, in metres.
+  vec4 target;
+
+  /// xyz: the camera position in world space.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector — the axis the
+  /// surface buffer measures its depths along.
+  vec4 forward;
+}
+soft_particle_info;
+
+/// How much of a particle fragment at [world] is left once it nears the
+/// scene: one a softness in front of it or further, nought at it.
+///
+/// One where nothing was drawn behind — the sky is infinitely far — and a
+/// select rather than an early return, which a phi of constants would make
+/// SPIRV-Cross refuse. `textureLod` for WGSL, which will not take an implicit
+/// level where the caller's control flow may not be uniform.
+float SoftParticleFade(vec3 world) {
+  vec2 uv = FragCoordFromTop(soft_particle_info.target.z) *
+            soft_particle_info.target.xy;
+  float stored = textureLod(scene_depth_texture, uv, 0.0).a;
+  float depth = dot(world - soft_particle_info.eye.xyz,
+                    soft_particle_info.forward.xyz);
+  float fade =
+      clamp((stored - depth) * soft_particle_info.target.w, 0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
+#endif  // F3D_SOFT_PARTICLE
+
+#endif  // PARTICLE_SOFT_GLSL_
+
 
 in vec4 v_color;
 in vec2 v_uv;
@@ -21355,8 +21571,12 @@ void main() {
   // half-transparent sprite contributes a quarter, which is what additive
   // blending means by both of those at once.
   float scale = v_color.a * texel.a * fogged;
+#ifdef F3D_SOFT_PARTICLE
+  scale *= SoftParticleFade(v_world_position);
+#endif
   frag_color = vec4(v_color.rgb * texel.rgb * scale, 1.0);
 }
+
 
 ''',
     'ParticleSixWay': r'''#version 300 es
@@ -21365,7 +21585,14 @@ precision highp int;
 precision highp sampler2D;
 precision highp samplerCube;
 
-// Particles lit from six directions — `N6`.
+// Particles lit from six directions — `N6`. The body is
+// `lib/particle_six_way.glsl`; `particle_six_way_soft.frag` is the same body
+// faded against the scene's depth.
+
+// --- lib/particle_six_way.glsl ---
+// Particles lit from six directions — `N6`: the body of
+// `lighting/particle_six_way.frag` and, with `F3D_SOFT_PARTICLE`, of
+// `lighting/particle_six_way_soft.frag`.
 //
 // Smoke is the one effect additive blending cannot draw: it is dark where it
 // is thick and lit where a light reaches into it, and addition can only ever
@@ -21681,6 +21908,102 @@ void ContributorLight(int index, vec3 world, out vec3 toLight,
 
 #endif  // CONTRIBUTOR_LIGHTS_GLSL_
 
+// --- lib/particle_soft.glsl ---
+// Soft particles: a sprite that fades as it nears the opaque scene behind it.
+//
+// **What this removes is a seam.** A particle is a flat quad, depth-tested and
+// never depth-written, so where it passes through a floor or a wall the test
+// cuts it along the line the two planes meet — a hard straight edge across a
+// puff of smoke that has no edges anywhere else. Lorach's fix ("Soft
+// Particles", 2007) scales the particle by how far the scene lies behind it:
+//
+//   fade = saturate((sceneDepth - particleDepth) / softness)
+//
+// so a fragment a softness or more in front of the scene is untouched, one
+// touching it is gone, and the line becomes a ramp.
+//
+// Included by every particle stage, and empty unless the stage defines
+// `F3D_SOFT_PARTICLE`: the soft stages are stages of their own, picked only by
+// a contributor that was handed the scene's depth, so the ones every recorded
+// frame goes through declare nothing new — no sampler to leave unbound, which
+// on Metal is a native crash.
+
+#ifndef PARTICLE_SOFT_GLSL_
+#define PARTICLE_SOFT_GLSL_
+
+#ifdef F3D_SOFT_PARTICLE
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// The surface buffer: in `a`, the opaque scene's depth along the view axis,
+/// in metres, and zero where nothing was drawn. Read with nearest filtering.
+uniform sampler2D scene_depth_texture;
+
+layout(std140) uniform SoftParticleInfo {
+  /// xy: one over the target's size. z: the target's height where its row
+  /// zero is the bottom, nought where it is the top — see `FragCoordFromTop`.
+  /// w: one over the softness, in metres.
+  vec4 target;
+
+  /// xyz: the camera position in world space.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector — the axis the
+  /// surface buffer measures its depths along.
+  vec4 forward;
+}
+soft_particle_info;
+
+/// How much of a particle fragment at [world] is left once it nears the
+/// scene: one a softness in front of it or further, nought at it.
+///
+/// One where nothing was drawn behind — the sky is infinitely far — and a
+/// select rather than an early return, which a phi of constants would make
+/// SPIRV-Cross refuse. `textureLod` for WGSL, which will not take an implicit
+/// level where the caller's control flow may not be uniform.
+float SoftParticleFade(vec3 world) {
+  vec2 uv = FragCoordFromTop(soft_particle_info.target.z) *
+            soft_particle_info.target.xy;
+  float stored = textureLod(scene_depth_texture, uv, 0.0).a;
+  float depth = dot(world - soft_particle_info.eye.xyz,
+                    soft_particle_info.forward.xyz);
+  float fade =
+      clamp((stored - depth) * soft_particle_info.target.w, 0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
+#endif  // F3D_SOFT_PARTICLE
+
+#endif  // PARTICLE_SOFT_GLSL_
+
 
 in vec4 v_color;
 in vec2 v_uv;
@@ -21770,8 +22093,904 @@ void main() {
   color = mix(fog_info.fog.rgb, color, fogged);
 
   float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);
+#ifdef F3D_SOFT_PARTICLE
+  // Coverage, not colour: the blend is premultiplied, so a puff fading into
+  // the floor has to let the floor through as well as stop covering it.
+  coverage *= SoftParticleFade(v_world_position);
+#endif
   frag_color = vec4(color * coverage, coverage);
 }
+
+
+''',
+    'ParticleSoft': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `particle.frag`, faded where it nears the opaque scene — soft particles.
+// See `lib/particle_soft.glsl`.
+
+#define F3D_SOFT_PARTICLE
+// --- lib/particle.glsl ---
+// Particles, as a procedural round sprite: the body of `lighting/particle.frag`
+// and, with `F3D_SOFT_PARTICLE`, of `lighting/particle_soft.frag`.
+//
+// No texture, and that is a decision rather than a placeholder. A sampler here
+// would be one more slot to bind correctly, and this engine's most expensive
+// recurring bug is binding a texture a compiled shader has no room for — the
+// crash is native and carries no Dart stack. A smooth falloff computed from the
+// quad's own coordinates costs a length and a smoothstep, needs no asset, and
+// scales to any resolution without a mip chain, which this channel cannot
+// produce anyway.
+//
+// The alpha is folded into the colour instead of being blended with it. These
+// are drawn additively, where the destination is only ever added to: a spark
+// brightens what is behind it and a faded spark adds nothing. That is also why
+// they need no sorting — addition does not care about order, which is the whole
+// reason additive is the right mode for fire and sparks and the wrong one for
+// smoke.
+//
+// The soft variant is the one exception to "no sampler", and it is a stage of
+// its own for the reason above: it reads the scene's depth, and only a
+// contributor that was handed one picks it.
+
+// --- lib/particle_soft.glsl ---
+// Soft particles: a sprite that fades as it nears the opaque scene behind it.
+//
+// **What this removes is a seam.** A particle is a flat quad, depth-tested and
+// never depth-written, so where it passes through a floor or a wall the test
+// cuts it along the line the two planes meet — a hard straight edge across a
+// puff of smoke that has no edges anywhere else. Lorach's fix ("Soft
+// Particles", 2007) scales the particle by how far the scene lies behind it:
+//
+//   fade = saturate((sceneDepth - particleDepth) / softness)
+//
+// so a fragment a softness or more in front of the scene is untouched, one
+// touching it is gone, and the line becomes a ramp.
+//
+// Included by every particle stage, and empty unless the stage defines
+// `F3D_SOFT_PARTICLE`: the soft stages are stages of their own, picked only by
+// a contributor that was handed the scene's depth, so the ones every recorded
+// frame goes through declare nothing new — no sampler to leave unbound, which
+// on Metal is a native crash.
+
+#ifndef PARTICLE_SOFT_GLSL_
+#define PARTICLE_SOFT_GLSL_
+
+#ifdef F3D_SOFT_PARTICLE
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// The surface buffer: in `a`, the opaque scene's depth along the view axis,
+/// in metres, and zero where nothing was drawn. Read with nearest filtering.
+uniform sampler2D scene_depth_texture;
+
+layout(std140) uniform SoftParticleInfo {
+  /// xy: one over the target's size. z: the target's height where its row
+  /// zero is the bottom, nought where it is the top — see `FragCoordFromTop`.
+  /// w: one over the softness, in metres.
+  vec4 target;
+
+  /// xyz: the camera position in world space.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector — the axis the
+  /// surface buffer measures its depths along.
+  vec4 forward;
+}
+soft_particle_info;
+
+/// How much of a particle fragment at [world] is left once it nears the
+/// scene: one a softness in front of it or further, nought at it.
+///
+/// One where nothing was drawn behind — the sky is infinitely far — and a
+/// select rather than an early return, which a phi of constants would make
+/// SPIRV-Cross refuse. `textureLod` for WGSL, which will not take an implicit
+/// level where the caller's control flow may not be uniform.
+float SoftParticleFade(vec3 world) {
+  vec2 uv = FragCoordFromTop(soft_particle_info.target.z) *
+            soft_particle_info.target.xy;
+  float stored = textureLod(scene_depth_texture, uv, 0.0).a;
+  float depth = dot(world - soft_particle_info.eye.xyz,
+                    soft_particle_info.forward.xyz);
+  float fade =
+      clamp((stored - depth) * soft_particle_info.target.w, 0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
+#endif  // F3D_SOFT_PARTICLE
+
+#endif  // PARTICLE_SOFT_GLSL_
+
+
+in vec4 v_color;
+in vec2 v_uv;
+in vec3 v_world_position;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The lit shaders' block, declared again because this shader shares none of
+/// their headers — it has a different vertex layout and none of their varyings.
+///
+/// **The first two members of it, not all three.** `color.glsl` carries a
+/// `forward` beside these, for the view axis the surface buffer measures its
+/// depths along; a particle writes no surface buffer, so it neither declares
+/// that member nor is bound one. The two blocks share a name and not a shape,
+/// which is fine — they belong to different programs — and a check that binds
+/// this one has to bind what it declares.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space.
+  vec4 eye;
+}
+fog_info;
+
+void main() {
+  // Distance from the middle of the quad, where the corners sit at 1.
+  vec2 centred = v_uv * 2.0 - 1.0;
+  float radius = length(centred);
+
+  // Soft edge, and a brighter core: a flat disc reads as a paper cut-out, and
+  // the falloff is what makes a cluster of these look like light rather than
+  // like confetti.
+  float falloff = 1.0 - smoothstep(0.0, 1.0, radius);
+  float intensity = falloff * falloff;
+
+  // Fog on an additive particle is attenuation, not a mix. Blending toward
+  // the fog colour would make a distant flame *add* fog to the wall behind it
+  // and come out brighter than the wall it is supposed to be fading into;
+  // multiplying toward zero is what "further away contributes less" means when
+  // the destination is only ever added to.
+  float fogged = 1.0;
+  if (fog_info.fog.w > 0.0) {
+    fogged = clamp(
+        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        0.0,
+        1.0);
+  }
+
+#ifdef F3D_SOFT_PARTICLE
+  intensity *= SoftParticleFade(v_world_position);
+#endif
+
+  frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);
+}
+
+
+''',
+    'ParticleTexturedSoft': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `particle_textured.frag`, faded where it nears the opaque scene — soft
+// particles. See `lib/particle_soft.glsl`.
+
+#define F3D_SOFT_PARTICLE
+// --- lib/particle_textured.glsl ---
+// Particles with a texture, beside the procedural one rather than replacing it:
+// the body of `lighting/particle_textured.frag` and, with `F3D_SOFT_PARTICLE`,
+// of `lighting/particle_textured_soft.frag`.
+//
+// `lighting/particle.frag` computes a round falloff from the quad's own
+// coordinates and has no sampler at all. Its comment says why, and the reason
+// has not expired: "this engine's most expensive recurring bug is binding a
+// texture a compiled shader has no room for — the crash is native and carries
+// no Dart stack". A stage with a sampler and a stage without are two stages,
+// and a contributor picks between them by whether it was given a texture.
+//
+// What the procedural one cannot do is be a *shape*: smoke needs an edge that
+// is not a circle, a flipbook needs frames, and an ember needs to look like
+// something burnt rather than like a dot. That is what this is for.
+//
+// The same vertex stage feeds both — `particle.vert` already carries `v_uv`
+// across, which the procedural stage uses for its radius and this one uses as a
+// texture coordinate.
+
+// --- lib/particle_soft.glsl ---
+// Soft particles: a sprite that fades as it nears the opaque scene behind it.
+//
+// **What this removes is a seam.** A particle is a flat quad, depth-tested and
+// never depth-written, so where it passes through a floor or a wall the test
+// cuts it along the line the two planes meet — a hard straight edge across a
+// puff of smoke that has no edges anywhere else. Lorach's fix ("Soft
+// Particles", 2007) scales the particle by how far the scene lies behind it:
+//
+//   fade = saturate((sceneDepth - particleDepth) / softness)
+//
+// so a fragment a softness or more in front of the scene is untouched, one
+// touching it is gone, and the line becomes a ramp.
+//
+// Included by every particle stage, and empty unless the stage defines
+// `F3D_SOFT_PARTICLE`: the soft stages are stages of their own, picked only by
+// a contributor that was handed the scene's depth, so the ones every recorded
+// frame goes through declare nothing new — no sampler to leave unbound, which
+// on Metal is a native crash.
+
+#ifndef PARTICLE_SOFT_GLSL_
+#define PARTICLE_SOFT_GLSL_
+
+#ifdef F3D_SOFT_PARTICLE
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// The surface buffer: in `a`, the opaque scene's depth along the view axis,
+/// in metres, and zero where nothing was drawn. Read with nearest filtering.
+uniform sampler2D scene_depth_texture;
+
+layout(std140) uniform SoftParticleInfo {
+  /// xy: one over the target's size. z: the target's height where its row
+  /// zero is the bottom, nought where it is the top — see `FragCoordFromTop`.
+  /// w: one over the softness, in metres.
+  vec4 target;
+
+  /// xyz: the camera position in world space.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector — the axis the
+  /// surface buffer measures its depths along.
+  vec4 forward;
+}
+soft_particle_info;
+
+/// How much of a particle fragment at [world] is left once it nears the
+/// scene: one a softness in front of it or further, nought at it.
+///
+/// One where nothing was drawn behind — the sky is infinitely far — and a
+/// select rather than an early return, which a phi of constants would make
+/// SPIRV-Cross refuse. `textureLod` for WGSL, which will not take an implicit
+/// level where the caller's control flow may not be uniform.
+float SoftParticleFade(vec3 world) {
+  vec2 uv = FragCoordFromTop(soft_particle_info.target.z) *
+            soft_particle_info.target.xy;
+  float stored = textureLod(scene_depth_texture, uv, 0.0).a;
+  float depth = dot(world - soft_particle_info.eye.xyz,
+                    soft_particle_info.forward.xyz);
+  float fade =
+      clamp((stored - depth) * soft_particle_info.target.w, 0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
+#endif  // F3D_SOFT_PARTICLE
+
+#endif  // PARTICLE_SOFT_GLSL_
+
+
+in vec4 v_color;
+in vec2 v_uv;
+in vec3 v_world_position;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D particle_texture;
+
+/// Declared again for the same reason the other particle stages declare it:
+/// this shader shares none of the lit path's headers.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space.
+  vec4 eye;
+}
+fog_info;
+
+void main() {
+  // `texture`, not `textureLod`. The level is chosen from the derivative the
+  // hardware computes for this fragment, which is the whole point of building
+  // the chain — and it is the one place the software backend cannot follow
+  // exactly, since it has no neighbouring fragments to difference. See
+  // `BoundTexture.sample`.
+  vec4 texel = texture(particle_texture, v_uv);
+
+  // Attenuation rather than a mix. Blending an additive particle toward the
+  // fog colour makes a distant one *add* fog to the wall behind it — the same
+  // note as the other two particle stages, kept because each is read alone.
+  float fogged = 1.0;
+  if (fog_info.fog.w > 0.0) {
+    fogged = clamp(
+        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        0.0,
+        1.0);
+  }
+
+  // The texture's alpha is coverage and the particle's is brightness, so the
+  // two multiply rather than one replacing the other: a faded spark of a
+  // half-transparent sprite contributes a quarter, which is what additive
+  // blending means by both of those at once.
+  float scale = v_color.a * texel.a * fogged;
+#ifdef F3D_SOFT_PARTICLE
+  scale *= SoftParticleFade(v_world_position);
+#endif
+  frag_color = vec4(v_color.rgb * texel.rgb * scale, 1.0);
+}
+
+
+''',
+    'ParticleSixWaySoft': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `particle_six_way.frag`, faded where it nears the opaque scene — soft
+// particles, and the case they matter most for: smoke resting on the ground.
+// See `lib/particle_soft.glsl`.
+
+#define F3D_SOFT_PARTICLE
+// --- lib/particle_six_way.glsl ---
+// Particles lit from six directions — `N6`: the body of
+// `lighting/particle_six_way.frag` and, with `F3D_SOFT_PARTICLE`, of
+// `lighting/particle_six_way_soft.frag`.
+//
+// Smoke is the one effect additive blending cannot draw: it is dark where it
+// is thick and lit where a light reaches into it, and addition can only ever
+// brighten. So this stage blends over what is behind it, and lights each
+// fragment by the scene's lights through six pictures of the same puff, each
+// rendered with a light from one side. Mixing those by where a light really is
+// gives the self-shadowing a volume would have, at the cost of two texture
+// reads: a light low on the right brightens the lower right rim and leaves the
+// far side in the puff's own shade.
+//
+// **Its own stage beside `particle_textured.frag`, not a branch inside it.**
+// The textured stage has one sampler and one block, and every recorded frame
+// with a sprite in it goes through it; a six-way branch there would declare
+// three samplers and two blocks more that every sprite then has to be bound.
+// `ParticleContributor` picks this one when it is handed a six-way material,
+// the way it already picks between the sprite and the procedural disc.
+//
+// ## The layout
+//
+// Two textures, the channels as the engine's baker writes them and the
+// EmberGen and Houdini six-way exports lay them out:
+//
+//  * `six_way_positive` — r: lit from the right, g: from the top, b: from the
+//    back, a: coverage.
+//  * `six_way_negative` — r: lit from the left, g: from the bottom, b: from
+//    the front, a: emission.
+//
+// "Back" is the far side of the puff from the viewer, so a light behind smoke
+// shows through its thin edges; "front" is the viewer's side. Right and top are
+// the quad's own: top is the way a cell's texture coordinate rises, which
+// `ParticleSystem.writeQuads` points along the camera's up.
+//
+// The responses are unpremultiplied — light as it would read at full coverage
+// — and the blend is premultiplied, so this multiplies by the coverage once.
+
+// --- lib/contributor_lights.glsl ---
+// The scene's lights, for a stage a contributor draws rather than a surface —
+// `N6`.
+//
+// A surface reads its lights out of `FragInfo`, a block that also carries a
+// material, three shadow cascades and an environment: close to six kilobytes a
+// stage cannot afford to declare for the sake of four arrays. This is those
+// four arrays alone, in the order `FragInfo` holds them, plus the light list
+// and its clusters from `lib/light_list.glsl`, which is the same one the lit
+// models read. `ContributorLights.bind` on the Dart side writes both, from the
+// same selection a mesh of the same bounds would be given.
+//
+// **No shadows, and no rectangle integral.** A particle is a translucent
+// sprite: sampling a shadow map at a point inside a cloud of smoke answers a
+// question about an opaque surface that is not there. A rectangular light is
+// read as a point at its centre with the inverse square, which is the right
+// answer at the distances a puff of smoke is from a window and the wrong one
+// only close enough to touch it.
+
+#ifndef CONTRIBUTOR_LIGHTS_GLSL_
+#define CONTRIBUTOR_LIGHTS_GLSL_
+
+// --- lib/light_list.glsl ---
+// The frame's light list, and how a fragment finds its tail in it — `gfx-74n`
+// and `L6`.
+//
+// Split out of `surface.glsl` so a stage that is not a surface can read the
+// same lights: `N6`'s six-way particles light each fragment by the list the
+// lit models read, clusters and all, without declaring `FragInfo`. The text is
+// the one that stood in `surface.glsl`, moved rather than copied, so the lit
+// models compile to what they compiled to before.
+
+#ifndef LIGHT_LIST_GLSL_
+#define LIGHT_LIST_GLSL_
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+
+  /// `L6`: the view-projection the light clusters were cut with, so this
+  /// finds a fragment's cell the way `LightClusters.clusterOf` does.
+  mat4 cluster_view_projection;
+
+  /// xyz: tiles across, tiles up, slices deep. w: one when this draw reads
+  /// its tail from the cell it is in rather than from `indices`.
+  vec4 cluster_grid;
+
+  /// x: where slices begin, in clip w. y: slices per unit of `ln(w / x)`.
+  /// z: the texture row the cells' headers start at, four to a row, each
+  /// (offset, count). w: the row their entries start at, sixteen to a row.
+  vec4 cluster_depth;
+
+  /// Which rows this draw already holds in its eight slots, minus one for
+  /// an empty slot. A cell lists every light that reaches it, and one the
+  /// slots already carry must not be counted again.
+  vec4 slot_rows[2];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
+/// The cell this fragment falls in, as `LightClusters` wrote it: where its
+/// entries start and how many there are. Found once, in [LightCount], and
+/// read by every [SampleLight] of the loop that follows.
+float g_cluster_offset = 0.0;
+float g_cluster_count = 0.0;
+
+bool Clustered() { return light_list_info.cluster_grid.w > 0.5; }
+
+/// One texel of the light list texture, [texel] across and [row] down.
+vec4 LightListTexel(float texel, float row) {
+  return textureLod(light_list_texture,
+                    vec2((texel + 0.5) * light_list_info.list.y,
+                         (row + 0.5) * light_list_info.list.z),
+                    0.0);
+}
+
+void FindCluster(vec3 world) {
+  vec4 clip = light_list_info.cluster_view_projection * vec4(world, 1.0);
+  vec2 ndc = clip.xy / max(clip.w, 1e-6);
+  vec3 grid = light_list_info.cluster_grid.xyz;
+  float near = light_list_info.cluster_depth.x;
+  float tx = clamp(floor((ndc.x * 0.5 + 0.5) * grid.x), 0.0, grid.x - 1.0);
+  float ty = clamp(floor((ndc.y * 0.5 + 0.5) * grid.y), 0.0, grid.y - 1.0);
+  float tz = clip.w <= near
+                 ? 0.0
+                 : clamp(floor(log(clip.w / near) *
+                               light_list_info.cluster_depth.y),
+                         0.0, grid.z - 1.0);
+  float cell = tx + ty * grid.x + tz * grid.x * grid.y;
+  float row = floor(cell / 4.0);
+  vec4 header =
+      LightListTexel(cell - row * 4.0, light_list_info.cluster_depth.z + row);
+  g_cluster_offset = header.x;
+  g_cluster_count = header.y;
+}
+
+/// The row entry [slot] of this fragment's cell names.
+float ClusterRow(int slot) {
+  float entry = g_cluster_offset + float(slot);
+  float row = floor(entry / 16.0);
+  float within = entry - row * 16.0;
+  float texel = floor(within / 4.0);
+  vec4 four = LightListTexel(texel, light_list_info.cluster_depth.w + row);
+  return LightListLane(four, int(within - texel * 4.0 + 0.5));
+}
+
+/// Whether one of the draw's slots already holds light list row [row].
+bool InSlots(float row) {
+  vec4 a = abs(light_list_info.slot_rows[0] - vec4(row));
+  vec4 b = abs(light_list_info.slot_rows[1] - vec4(row));
+  return min(min(min(a.x, a.y), min(a.z, a.w)), min(min(b.x, b.y), min(b.z, b.w))) < 0.5;
+}
+#endif  // F3D_NO_LIGHT_LIST
+
+#endif  // LIGHT_LIST_GLSL_
+
+
+/// The slots a draw is handed, and the tail it may read past them. The same
+/// eight and twenty-four as `kMaxLights` and `kExtraLights` in `surface.glsl`,
+/// named apart so a stage may include both headers.
+#define kContributorSlots 8
+#define kContributorTail 24
+#define kContributorLights (kContributorSlots + kContributorTail)
+
+layout(std140) uniform ContributorLightInfo {
+  /// xyz: world position. w: type, 0 directional 1 point 2 spot 3 rectangle.
+  vec4 light_position[kContributorSlots];
+
+  /// rgb: linear colour. w: intensity.
+  vec4 light_color[kContributorSlots];
+
+  /// xyz: the direction the light points. w: range, 0 unbounded.
+  vec4 light_direction[kContributorSlots];
+
+  /// x: cos(inner cone angle). y: cos(outer cone angle).
+  vec4 light_cone[kContributorSlots];
+
+  /// x: how many of the slots hold a light. yzw unused.
+  vec4 slots;
+}
+contributor_light_info;
+
+/// How many lights reach [world]: the draw's slots and its tail, or the
+/// cell's tail when the view is clustered.
+int ContributorLightCount(vec3 world) {
+  float tail = light_list_info.list.x;
+  if (Clustered()) {
+    FindCluster(world);
+    tail = g_cluster_count;
+  }
+  return clamp(int(contributor_light_info.slots.x + 0.5), 0,
+               kContributorSlots) +
+         clamp(int(tail + 0.5), 0, kContributorTail);
+}
+
+/// Light [index] as [world] receives it: [toLight] the unit direction towards
+/// it, and [radiance] what arrives, zero for a light that does not reach.
+///
+/// Selects rather than early returns, for SPIR-V Cross's sake: a function that
+/// returns a constant from two branches becomes a phi of constants it refuses.
+void ContributorLight(int index, vec3 world, out vec3 toLight,
+                      out vec3 radiance) {
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kContributorSlots) {
+    position = contributor_light_info.light_position[index];
+    color = contributor_light_info.light_color[index];
+    direction = contributor_light_info.light_direction[index];
+    cone = contributor_light_info.light_cone[index];
+  } else {
+    // The list's row, read the way `SampleLight` reads it: from the cell when
+    // the view is clustered, skipping a light the slots already hold.
+    int slot = index - kContributorSlots;
+    bool clustered = Clustered();
+    float listRow = clustered ? ClusterRow(slot) : LightListRow(slot);
+    float v = (listRow + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    color.w *= clustered ? (InSlots(listRow) ? 0.0 : 1.0)
+                         : LightListScale(slot);
+  }
+
+  float type = position.w;
+  bool directional = type < 0.5;
+  vec3 offset = position.xyz - world;
+  float distance = length(offset);
+  vec3 aim = normalize(direction.xyz);
+
+  // A light exactly at the point has no direction; it contributes nothing
+  // rather than a NaN that spreads through the blend.
+  bool degenerate = !directional && distance < 1e-6;
+  toLight = directional ? -aim : offset / max(distance, 1e-6);
+
+  // The glTF window, as `PunctualAttenuation` has it.
+  float ratio = direction.w > 0.0 ? distance / direction.w : 0.0;
+  float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+  float falloff = window * window / max(distance * distance, 1e-4);
+
+  // A spot's ramp between its two cone cosines. Only a spot's direction is an
+  // aim; a rectangle's is the edge of its panel.
+  bool spot = type > 1.5 && type < 2.5;
+  float ramp = spot ? clamp((dot(aim, -toLight) - cone.y) /
+                                max(cone.x - cone.y, 1e-4),
+                            0.0, 1.0)
+                    : 1.0;
+
+  float attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
+  radiance = color.rgb * color.w * attenuation;
+}
+
+#endif  // CONTRIBUTOR_LIGHTS_GLSL_
+
+// --- lib/particle_soft.glsl ---
+// Soft particles: a sprite that fades as it nears the opaque scene behind it.
+//
+// **What this removes is a seam.** A particle is a flat quad, depth-tested and
+// never depth-written, so where it passes through a floor or a wall the test
+// cuts it along the line the two planes meet — a hard straight edge across a
+// puff of smoke that has no edges anywhere else. Lorach's fix ("Soft
+// Particles", 2007) scales the particle by how far the scene lies behind it:
+//
+//   fade = saturate((sceneDepth - particleDepth) / softness)
+//
+// so a fragment a softness or more in front of the scene is untouched, one
+// touching it is gone, and the line becomes a ramp.
+//
+// Included by every particle stage, and empty unless the stage defines
+// `F3D_SOFT_PARTICLE`: the soft stages are stages of their own, picked only by
+// a contributor that was handed the scene's depth, so the ones every recorded
+// frame goes through declare nothing new — no sampler to leave unbound, which
+// on Metal is a native crash.
+
+#ifndef PARTICLE_SOFT_GLSL_
+#define PARTICLE_SOFT_GLSL_
+
+#ifdef F3D_SOFT_PARTICLE
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// The surface buffer: in `a`, the opaque scene's depth along the view axis,
+/// in metres, and zero where nothing was drawn. Read with nearest filtering.
+uniform sampler2D scene_depth_texture;
+
+layout(std140) uniform SoftParticleInfo {
+  /// xy: one over the target's size. z: the target's height where its row
+  /// zero is the bottom, nought where it is the top — see `FragCoordFromTop`.
+  /// w: one over the softness, in metres.
+  vec4 target;
+
+  /// xyz: the camera position in world space.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector — the axis the
+  /// surface buffer measures its depths along.
+  vec4 forward;
+}
+soft_particle_info;
+
+/// How much of a particle fragment at [world] is left once it nears the
+/// scene: one a softness in front of it or further, nought at it.
+///
+/// One where nothing was drawn behind — the sky is infinitely far — and a
+/// select rather than an early return, which a phi of constants would make
+/// SPIRV-Cross refuse. `textureLod` for WGSL, which will not take an implicit
+/// level where the caller's control flow may not be uniform.
+float SoftParticleFade(vec3 world) {
+  vec2 uv = FragCoordFromTop(soft_particle_info.target.z) *
+            soft_particle_info.target.xy;
+  float stored = textureLod(scene_depth_texture, uv, 0.0).a;
+  float depth = dot(world - soft_particle_info.eye.xyz,
+                    soft_particle_info.forward.xyz);
+  float fade =
+      clamp((stored - depth) * soft_particle_info.target.w, 0.0, 1.0);
+  return stored > 0.0 ? fade : 1.0;
+}
+
+#endif  // F3D_SOFT_PARTICLE
+
+#endif  // PARTICLE_SOFT_GLSL_
+
+
+in vec4 v_color;
+in vec2 v_uv;
+in vec3 v_world_position;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D six_way_positive;
+uniform sampler2D six_way_negative;
+
+/// Declared again, as in the other particle stages, since this shares none of
+/// the lit path's headers.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space.
+  vec4 eye;
+}
+fog_info;
+
+layout(std140) uniform SixWayInfo {
+  /// xyz: the quad's right, which is the camera's, in world space.
+  vec4 right;
+
+  /// xyz: the quad's up, the way a cell's v rises.
+  vec4 up;
+
+  /// xyz: away from the viewer, which is where "back" is.
+  vec4 forward;
+
+  /// rgb: what the emission channel's full value emits, linear. w unused.
+  vec4 emission;
+
+  /// rgb: light arriving evenly from every side. w unused.
+  vec4 ambient;
+}
+six_way_info;
+
+/// How much of a light arriving from [l] the puff sends to the viewer.
+///
+/// The squared components of a unit direction sum to one, so they are weights:
+/// a light straight to the right reads the right picture alone, and one up and
+/// to the right reads half of each. The sign picks which of a pair.
+float SixWayResponse(vec3 l, vec3 positive, vec3 negative) {
+  float x = dot(l, six_way_info.right.xyz);
+  float y = dot(l, six_way_info.up.xyz);
+  float z = dot(l, six_way_info.forward.xyz);
+  return x * x * (x > 0.0 ? positive.r : negative.r) +
+         y * y * (y > 0.0 ? positive.g : negative.g) +
+         z * z * (z > 0.0 ? positive.b : negative.b);
+}
+
+void main() {
+  // `texture`, as the sprite stage has it: the level comes from the
+  // footprint, and a receding puff wants its chain.
+  vec4 positive = texture(six_way_positive, v_uv);
+  vec4 negative = texture(six_way_negative, v_uv);
+
+  vec3 lit = vec3(0.0);
+  int count = ContributorLightCount(v_world_position);
+  for (int i = 0; i < kContributorLights; i++) {
+    if (i >= count) break;
+    vec3 l;
+    vec3 radiance;
+    ContributorLight(i, v_world_position, l, radiance);
+    lit += radiance * SixWayResponse(l, positive.rgb, negative.rgb);
+  }
+
+  // Light from every side at once reads each picture for a sixth of the
+  // sphere, so the ambient term is their mean.
+  float mean = (positive.r + positive.g + positive.b + negative.r +
+                negative.g + negative.b) /
+               6.0;
+  vec3 color = v_color.rgb * (lit + six_way_info.ambient.rgb * mean) +
+               six_way_info.emission.rgb * negative.a;
+
+  // A mix toward the fog, unlike the additive stages: this one covers what is
+  // behind it, and covered smoke far away should read as the fog does.
+  float fogged = 1.0;
+  if (fog_info.fog.w > 0.0) {
+    fogged = clamp(
+        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        0.0,
+        1.0);
+  }
+  color = mix(fog_info.fog.rgb, color, fogged);
+
+  float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);
+#ifdef F3D_SOFT_PARTICLE
+  // Coverage, not colour: the blend is premultiplied, so a puff fading into
+  // the floor has to let the floor through as well as stop covering it.
+  coverage *= SoftParticleFade(v_world_position);
+#endif
+  frag_color = vec4(color * coverage, coverage);
+}
+
 
 ''',
     'Splat': r'''#version 300 es

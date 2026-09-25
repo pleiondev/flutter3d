@@ -464,6 +464,7 @@ extension _ScenePasses on Renderer {
         probes: probes,
         passState: passState,
         contributors: contributors,
+        sceneDepth: surface,
       );
     }
 

@@ -181,6 +181,13 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ParticleTextured': const CpuStage.fragment(ParticleTexturedShader()),
     'ParticleSixWay': const CpuStage.fragment(ParticleSixWayShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
+    'ParticleSoft': const CpuStage.fragment(ParticleShader(soft: true)),
+    'ParticleTexturedSoft': const CpuStage.fragment(
+      ParticleTexturedShader(soft: true),
+    ),
+    'ParticleSixWaySoft': const CpuStage.fragment(
+      ParticleSixWayShader(soft: true),
+    ),
     'Splat': const CpuStage.fragment(SplatShader()),
     'SplatHashed': const CpuStage.fragment(SplatHashedShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),

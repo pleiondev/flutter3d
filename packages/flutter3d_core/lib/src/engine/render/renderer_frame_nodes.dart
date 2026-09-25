@@ -571,7 +571,9 @@ final class _ReflectionProbeNode extends RenderNode {
 /// transparent half after it; see `renderer_transmission_pass.dart`. Both are
 /// built here, from the same scene and views, and registered beside this
 /// node whatever the frame holds, so their names are always known; on any
-/// other frame they are inactive and culled.
+/// other frame they are inactive and culled. A contributor that reads the
+/// scene's depth — soft particles — splits the frame the same way, without
+/// the copy: see [PassContributor.readsSceneDepth].
 final class _SceneNode extends RenderNode {
   _SceneNode(
     this._renderer, {
@@ -582,12 +584,17 @@ final class _SceneNode extends RenderNode {
     required this.lightOverflow,
   }) {
     final transmits = _TransmissionPasses._holdsTransmission(scene, ordered);
+    // A contributor that reads the scene's depth splits the frame too, and
+    // for the same reason: what it reads is an attachment of this pass. It
+    // needs no copy of the colour, so that node stays as the glass has it.
+    final readsDepth = contributors.any((c) => c.readsSceneDepth);
     copy = _SceneColourCopyNode(_renderer, active: transmits);
     transparent = _TransparentNode(
       _renderer,
       scene: scene,
       contributors: contributors,
-      active: transmits,
+      active: transmits || readsDepth,
+      readsDepth: readsDepth,
       samples: optionalReads,
     );
   }
@@ -827,6 +834,7 @@ final class _TransparentNode extends RenderNode {
     required this.scene,
     required this.contributors,
     required this.active,
+    required this.readsDepth,
     required this.samples,
   });
 
@@ -834,8 +842,15 @@ final class _TransparentNode extends RenderNode {
   final Scene scene;
   final List<PassContributor> contributors;
 
-  /// Whether the frame holds a transmissive draw.
+  /// Whether the frame holds a transmissive draw, or a contributor that
+  /// reads the scene's depth.
   final bool active;
+
+  /// Whether a contributor reads the scene's depth — which is the surface
+  /// buffer, so this pass then reads it as well as writing it, and that read
+  /// is what has the scene pass attach it. Optional: on a device with one
+  /// attachment there is none, and the contributor draws without it.
+  final bool readsDepth;
 
   /// What the scene pass samples, which the glass samples too: declared
   /// again here so every one of them lives until this pass has run.
@@ -857,6 +872,7 @@ final class _TransparentNode extends RenderNode {
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
     FrameResourceIds.sceneColour,
+    if (readsDepth) FrameResourceIds.surfaceBuffer,
     ...samples,
   ];
 

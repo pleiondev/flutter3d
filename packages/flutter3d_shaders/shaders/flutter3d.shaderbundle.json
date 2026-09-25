@@ -131,6 +131,18 @@
     "type": "fragment",
     "file": "shaders/lighting/particle_six_way.frag"
   },
+  "ParticleSoft": {
+    "type": "fragment",
+    "file": "shaders/lighting/particle_soft.frag"
+  },
+  "ParticleTexturedSoft": {
+    "type": "fragment",
+    "file": "shaders/lighting/particle_textured_soft.frag"
+  },
+  "ParticleSixWaySoft": {
+    "type": "fragment",
+    "file": "shaders/lighting/particle_six_way_soft.frag"
+  },
   "Splat": {
     "type": "fragment",
     "file": "shaders/lighting/splat.frag"
