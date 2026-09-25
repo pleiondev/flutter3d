@@ -1702,6 +1702,10 @@ final class RenderSettings {
     // Reflection probes are registered here, one per probe in the scene, and
     // are named by index rather than by a constant — see [probePassName].
     'scene',
+    // `M3`: on a frame with glass, the scene as the opaque half left it, and
+    // the glass and the transparent half drawn over it. Culled on any other.
+    'scene colour copy',
+    'transparent',
     'object ids',
     'reflections',
     'luminance',

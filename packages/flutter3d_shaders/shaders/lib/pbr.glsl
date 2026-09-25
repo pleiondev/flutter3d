@@ -73,6 +73,25 @@ uniform LayerInfo {
   /// gets: one set of coordinates can carry one transform, and this is the
   /// material whose maps disagree, or whose offset a clip moves.
   vec4 uv_transform[10];
+
+  /// The copy of the scene behind the transmissive draws — `M3`. x: how many
+  /// levels the copy has, its base included, and nought outside the pass
+  /// that draws them, where the environment stands in as it always did. y,
+  /// z: one over the copy's width and height in texels. w: unused.
+  vec4 scene_colour;
+
+  /// Where this view sits in the copy's base level, in its texture
+  /// coordinates: xy the corner, zw the size.
+  vec4 scene_viewport;
+
+  /// Each level's rectangle in the copy, in its texture coordinates: xy the
+  /// corner, zw the size. The levels share one texture side by side — see
+  /// `SceneColourChain`.
+  vec4 scene_levels[6];
+
+  /// The view-projection the draw was made with, turned to the rows of the
+  /// framebuffer as every screen-space pass turns it.
+  mat4 scene_view_projection;
 }
 layer_info;
 
@@ -96,8 +115,12 @@ uniform sampler2D coat_texture;
 
 /// The sheen map — `M2`: rgb the sheen colour, sRGB as authored, and a its
 /// roughness, each multiplying its factor. White when a material has none.
-/// The stage's sixteenth sampler, and the last WebGL2 promises.
 uniform sampler2D sheen_texture;
+
+/// The scene as it stood before the transmissive draws, every level of it in
+/// one texture — `M3`. Black, and never read, outside the pass that draws
+/// them. The stage's sixteenth sampler, and the last WebGL2 promises.
+uniform sampler2D scene_colour_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -350,13 +373,14 @@ void ReadIridescence(Surface s) {
 
 /// The environment seen through the surface — `M3`.
 ///
-/// **The environment, not the scene behind.** What passes through glass is
-/// read from the cube the reflections read, bent by the index when the
-/// material has a volume and straight through when it is thin-walled, as
+/// **The environment, where there is no scene to read.** What passes through
+/// glass is read from the cube the reflections read, bent by the index when
+/// the material has a volume and straight through when it is thin-walled, as
 /// the volume extension distinguishes them. The objects behind the glass are
-/// not in that cube, which is the limit this has: a scene-colour copy
-/// between an opaque and a transparent pass would lift it. Dispersion
-/// spreads the index over red, green and blue and reads each on its own ray.
+/// not in that cube; [SceneBehind] reads them instead wherever the frame made
+/// a copy of the scene, and this is what a draw outside that pass — a probe's
+/// capture, the view model — still sees. Dispersion spreads the index over
+/// red, green and blue and reads each on its own ray.
 vec3 TransmittedRadiance(Surface s, float levels) {
   float ior = max(layer_info.coat.z, 1.0);
   float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
@@ -369,6 +393,59 @@ vec3 TransmittedRadiance(Surface s, float levels) {
   return vec3(textureLod(environment_texture, red, lod).r,
               textureLod(environment_texture, green, lod).g,
               textureLod(environment_texture, blue, lod).b);
+}
+
+/// Whether this draw has the copy of the scene to read — `M3`.
+bool SceneColourBound() { return layer_info.scene_colour.x > 0.0; }
+
+/// Level [level] of the copy at [uv], a coordinate of the picture as a whole.
+/// Held half a texel inside the level's rectangle, so a bilinear tap never
+/// reaches the level beside it in the same texture.
+vec3 SceneColourLevel(vec2 uv, int level) {
+  vec4 rect = layer_info.scene_levels[level];
+  vec2 inset = 0.5 * layer_info.scene_colour.yz;
+  vec2 at = rect.xy + clamp(uv * rect.zw, inset, max(rect.zw - inset, inset));
+  return textureLod(scene_colour_texture, at, 0.0).rgb;
+}
+
+/// The copy where [world] lands on the screen, blurred to level [lod] and
+/// blended between the two levels either side of it, as a trilinear sampler
+/// would. Held inside this view, so a ray bent past its edge reads the edge
+/// rather than the view beside it.
+vec3 SceneColourAt(vec3 world, float lod) {
+  vec4 clip = layer_info.scene_view_projection * vec4(world, 1.0);
+  vec2 ndc = clip.xy / max(clip.w, 1e-6);
+  vec2 view = clamp(vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5), vec2(0.0),
+                    vec2(1.0));
+  vec2 uv = layer_info.scene_viewport.xy + view * layer_info.scene_viewport.zw;
+  float top = layer_info.scene_colour.x - 1.0;
+  float level = clamp(lod, 0.0, top);
+  float lower = floor(level);
+  vec3 near = SceneColourLevel(uv, int(lower));
+  vec3 far = SceneColourLevel(uv, int(min(lower + 1.0, top)));
+  return mix(near, far, level - lower);
+}
+
+/// The scene seen through the surface — `M3`: where the ray the index bends
+/// leaves the far side of the volume, as the copy made before this pass holds
+/// it, at a level chosen by the roughness as [TransmittedRadiance] chooses
+/// one. A thin wall bends nothing and reads what lies straight behind it.
+///
+/// **The thickness is in world units as authored.** glTF measures it in the
+/// mesh's own space; a node scaled up or down refracts as if it were not,
+/// because the stage has no model matrix to scale it by.
+vec3 SceneBehind(Surface s) {
+  float ior = max(layer_info.coat.z, 1.0);
+  float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
+  float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) *
+              (layer_info.scene_colour.x - 1.0);
+  bool thin = g_thickness <= 0.0;
+  vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
+  vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
+  vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
+  return vec3(SceneColourAt(v_world_position + red * g_thickness, lod).r,
+              SceneColourAt(v_world_position + green * g_thickness, lod).g,
+              SceneColourAt(v_world_position + blue * g_thickness, lod).b);
 }
 
 /// Neubelt and Pettineo's visibility for cloth.
@@ -586,8 +663,10 @@ void main() {
   vec3 ambient = diffuseColor * s.ambient * s.occlusion;
 #ifdef F3D_LAYERED
   // `M3`: without an environment the light passing through is the flat
-  // ambient too, less what the medium takes.
-  ambient *= mix(vec3(1.0), g_transmittance, g_transmission);
+  // ambient too, less what the medium takes — unless the scene behind is
+  // there to be read, when that share is the scene instead (below).
+  ambient *= mix(vec3(1.0), SceneColourBound() ? vec3(0.0) : g_transmittance,
+                 g_transmission);
 #endif
 
   float levels = frag_info.frame_params.w;
@@ -665,10 +744,14 @@ void main() {
     // `M3`: the transmitted share of the diffuse light is the environment
     // behind the surface instead, less what the dielectric reflects and what
     // the medium takes, tinted by the base colour as glTF tints it.
+    // With the scene behind to read, the environment's share is taken away
+    // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = TransmittedRadiance(s, levels) * g_transmittance *
-                   (vec3(1.0) - min(reflects, vec3(1.0)));
+    vec3 through = SceneColourBound()
+                       ? vec3(0.0)
+                       : TransmittedRadiance(s, levels) * g_transmittance *
+                             (vec3(1.0) - min(reflects, vec3(1.0)));
     ambient += diffuseColor * (through - irradiance) * g_transmission *
                frag_info.material.z * s.occlusion;
     // The coat reflects the environment too, on its own normal and at its
@@ -685,6 +768,20 @@ void main() {
         frag_info.material.z;
 #endif
   }
+#ifdef F3D_LAYERED
+  // `M3`: the transmitted share is the scene behind, where the pass has a
+  // copy of it — less what the dielectric reflects and what the medium
+  // takes, tinted by the base colour. Light already, so neither the ambient
+  // strength nor the occlusion scales it.
+  if (SceneColourBound()) {
+    vec2 sceneAb = EnvBrdfApprox(s.roughness, s.n_dot_v);
+    vec3 sceneReflects =
+        mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
+        g_f90 * sceneAb.y;
+    ambient += diffuseColor * SceneBehind(s) * g_transmittance *
+               (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  }
+#endif
   // The light the level's walls throw on each other, baked: diffuse only,
   // since a lightmap holds irradiance and a metal has no diffuse response.
   // Zero from the one-texel black a material without a map is bound to.

@@ -334,6 +334,64 @@ final class _Layers {
     );
   }
 
+  /// `SceneBehind` — `M3`: the copy of the scene where the ray the index
+  /// bends leaves the far side of the volume, at the level the roughness
+  /// chooses; straight behind for a thin wall.
+  Vector3 sceneBehind(Surface s, Float32List v, ShaderBindings b) {
+    final info = b.vec4('LayerInfo', 'scene_colour', Vector4.zero());
+    final viewport = b.vec4('LayerInfo', 'scene_viewport', Vector4.zero());
+    final matrix = b.mat4('LayerInfo', 'scene_view_projection');
+    final copy = b.textures['scene_colour_texture'];
+    final ior = f0Ior;
+    final spread = (ior - 1.0) * 0.025 * dispersion;
+    final top = info.x - 1.0;
+    final lod = s.roughness * (ior * 2.0 - 2.0).clamp(0.0, 1.0) * top;
+    final incident = -s.view;
+    final position = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
+
+    // `SceneColourLevel`: held half a texel inside the level's rectangle.
+    Vector4 level(double u, double w, int index) {
+      if (copy == null) return Vector4.zero();
+      final rect = b.vec4(
+        'LayerInfo',
+        'scene_levels',
+        Vector4.zero(),
+        at: index,
+      );
+      final insetX = 0.5 * info.y;
+      final insetY = 0.5 * info.z;
+      return copy.sample(
+        rect.x + (u * rect.z).clamp(insetX, math.max(rect.z - insetX, insetX)),
+        rect.y + (w * rect.w).clamp(insetY, math.max(rect.w - insetY, insetY)),
+      );
+    }
+
+    // `SceneColourAt`.
+    Vector4 at(Vector3 ray) {
+      final world = position + ray * thickness;
+      final clip = matrix.transform(Vector4(world.x, world.y, world.z, 1.0));
+      final w = math.max(clip.w, 1e-6);
+      final u =
+          viewport.x + (clip.x / w * 0.5 + 0.5).clamp(0.0, 1.0) * viewport.z;
+      final t =
+          viewport.y + (0.5 - clip.y / w * 0.5).clamp(0.0, 1.0) * viewport.w;
+      final chosen = lod.clamp(0.0, top);
+      final lower = chosen.floorToDouble();
+      final near = level(u, t, lower.toInt());
+      final far = level(u, t, math.min(lower + 1.0, top).toInt());
+      final blend = chosen - lower;
+      return near + (far - near) * blend;
+    }
+
+    Vector3 ray(double eta) =>
+        thickness <= 0.0 ? incident : _refract(incident, s.normal, eta);
+    return Vector3(
+      at(ray(1.0 / math.max(ior - spread, 1.0))).x,
+      at(ray(1.0 / ior)).y,
+      at(ray(1.0 / (ior + spread))).z,
+    );
+  }
+
   /// GLSL's `refract`.
   static Vector3 _refract(Vector3 i, Vector3 n, double eta) {
     final d = n.dot(i);
@@ -673,9 +731,15 @@ final class PbrShader implements CpuFragmentShader {
     var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
       s.occlusion,
     );
+    // `SceneColourBound()` — `M3`: the transparent pass lends a copy of the
+    // scene, and the transmitted share is read from it instead.
+    final sceneBound =
+        layers != null &&
+        b.vec4('LayerInfo', 'scene_colour', Vector4.zero()).x > 0.0;
     if (layers != null) {
-      // `M3`: without an environment, the flat ambient passes through too.
-      final (tr, tg, tb) = layers.transmittance;
+      // `M3`: without an environment, the flat ambient passes through too —
+      // unless the scene behind is there to be read.
+      final (tr, tg, tb) = sceneBound ? (0.0, 0.0, 0.0) : layers.transmittance;
       final t = layers.transmission;
       ambient.multiply(
         Vector3(
@@ -764,14 +828,15 @@ final class PbrShader implements CpuFragmentShader {
             layers.withFilm(layers.f0Dielectric) * ab.x +
             Vector3.all(layers.f90 * ab.y);
         final (tr, tg, tb) = layers.transmittance;
-        final passed = layers.transmitted(s, environment, levels)
-          ..multiply(
-            Vector3(
-              tr * (1.0 - math.min(reflects.x, 1.0)),
-              tg * (1.0 - math.min(reflects.y, 1.0)),
-              tb * (1.0 - math.min(reflects.z, 1.0)),
-            ),
-          );
+        final passed = sceneBound
+            ? Vector3.zero()
+            : (layers.transmitted(s, environment, levels)..multiply(
+                Vector3(
+                  tr * (1.0 - math.min(reflects.x, 1.0)),
+                  tg * (1.0 - math.min(reflects.y, 1.0)),
+                  tb * (1.0 - math.min(reflects.z, 1.0)),
+                ),
+              ));
         ambient.add(
           (diffuseColour.clone()..multiply(
                 passed - Vector3(irradiance.x, irradiance.y, irradiance.z),
@@ -805,6 +870,28 @@ final class PbrShader implements CpuFragmentShader {
         sheenIncoming = Vector3(incoming.x, incoming.y, incoming.z)
           ..scale(strength);
       }
+    }
+    if (sceneBound) {
+      // `M3`: the scene behind, less what the dielectric reflects and the
+      // medium takes, tinted by the base colour — light already, so neither
+      // the ambient strength nor the occlusion scales it.
+      final ab = _envBrdfApprox(s.roughness, s.nDotV);
+      final reflects =
+          layers.withFilm(layers.f0Dielectric) * ab.x +
+          Vector3.all(layers.f90 * ab.y);
+      final (tr, tg, tb) = layers.transmittance;
+      ambient.add(
+        (diffuseColour.clone()..multiply(
+              layers.sceneBehind(s, v, b)..multiply(
+                Vector3(
+                  tr * (1.0 - math.min(reflects.x, 1.0)),
+                  tg * (1.0 - math.min(reflects.y, 1.0)),
+                  tb * (1.0 - math.min(reflects.z, 1.0)),
+                ),
+              ),
+            ))
+            .scaled(layers.transmission),
+      );
     }
     // The baked bounce light, diffuse only, as `pbr.frag` adds it.
     ambient += (diffuseColour.clone()..multiply(sampleLightmap(v, b, c)))

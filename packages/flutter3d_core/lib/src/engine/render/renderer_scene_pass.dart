@@ -36,6 +36,11 @@ extension _ScenePasses on Renderer {
   /// a setting: it decides both whether the second attachment is present and
   /// whether the pass may multisample, and those two must agree.
   ///
+  /// [split] draws the opaque half alone and keeps the rest for the
+  /// transparent pass that follows a copy of the scene — `M3`, see
+  /// `renderer_transmission_pass.dart`. The kept draws come back on the
+  /// result.
+  ///
   /// [shadows] is the same shape of answer: every map this pass samples, taken
   /// from the frame by the node that declared it and handed down rather than
   /// looked up here. The atlases used to be the exception — bound deep in
@@ -64,6 +69,7 @@ extension _ScenePasses on Renderer {
     required List<PassContributor> contributors,
     required bool surfaceIsRead,
     bool albedoIsRead = false,
+    bool split = false,
   }) {
     final hdr = _hdrColor!;
     var culled = 0;
@@ -86,7 +92,11 @@ extension _ScenePasses on Renderer {
     // the resolve reads, so the depth is one-sample too.
     final orderIndependent =
         settings.transparency == TransparencyMode.weightedBlended;
-    final msaa = surfaceIsRead || orderIndependent ? null : _hdrMsaa;
+    // Nor on a frame split around a copy of the scene — `M3`: its second
+    // pass loads the colour and the depth this one leaves, and the
+    // multisampled pair is tile memory that keeps nothing past the pass.
+    final keeps = orderIndependent || split;
+    final msaa = surfaceIsRead || keeps ? null : _hdrMsaa;
     final deferred = <_DeferredTransparency>[];
     // The clear colour is authored the way a colour picker shows it, but the
     // scene target holds linear light and the composite pass encodes on the way
@@ -131,10 +141,13 @@ extension _ScenePasses on Renderer {
             ColorTarget(texture: _albedoColor!, clearValue: vm.Vector4.zero()),
         ],
         // Standard depth: clear to the far plane, nearer fragments win.
-        // Stored for the transparent layers when they are drawn apart.
-        depth: orderIndependent
+        // Stored for the transparent layers when they are drawn apart, and
+        // for the transparent pass when the scene is split.
+        depth: keeps
             ? DepthTarget(
-                texture: _weightedBlendedTargets().depth,
+                texture: orderIndependent
+                    ? _weightedBlendedTargets().depth
+                    : _storedSceneDepth(),
                 storeAction: StoreAction.store,
               )
             : DepthTarget(
@@ -292,14 +305,28 @@ extension _ScenePasses on Renderer {
         }
       }
 
+      // `M3`: on a split frame the glass waits for the copy of what is
+      // behind it, and the rest of the opaque half is drawn as always.
+      final List<int> transmissive;
+      final List<int> opaque;
+      if (split) {
+        bool glass(int index) => _TransmissionPasses._transmits(
+          _renderList.itemAt(index).requireNode.material,
+        );
+        transmissive = _renderList.opaque.where(glass).toList();
+        opaque = _renderList.opaque.where((i) => !glass(i)).toList();
+      } else {
+        transmissive = const <int>[];
+        opaque = _renderList.opaque;
+      }
       if (settings.batchIdenticalDraws) {
         _encodeBatchedOpaque(
-          indices: _renderList.opaque,
+          indices: opaque,
           probes: probes,
           encode: encodeOne,
         );
       } else {
-        encodeHalf(_renderList.opaque);
+        encodeHalf(opaque);
       }
       // Between the two halves, which is the one place it can go. After the
       // opaque half, so every pixel already covered by geometry fails the depth
@@ -313,9 +340,9 @@ extension _ScenePasses on Renderer {
         viewProjection: viewProjection,
         state: passState,
       );
-      if (orderIndependent) {
+      if (keeps) {
         // Kept rather than drawn, with what the passes after this one need
-        // to draw them as this view would have — `R8`.
+        // to draw them as this view would have — `R8`, `M3`.
         deferred.add((
           view: view,
           rect: viewRect,
@@ -326,6 +353,10 @@ extension _ScenePasses on Renderer {
           forward: _forward.clone(),
           transparent: <MeshNode>[
             for (final index in _renderList.transparent)
+              _renderList.itemAt(index).requireNode,
+          ],
+          transmissive: <MeshNode>[
+            for (final index in transmissive)
               _renderList.itemAt(index).requireNode,
           ],
         ));
@@ -352,9 +383,9 @@ extension _ScenePasses on Renderer {
       // `N6`: this view's lights, cells and all, for a contributor that
       // binds them. One that does not never asks, and nothing is built for it.
       _contributorLights.begin(lights, settings);
-      // After the resolve instead, when there is one — `R8`.
-      for (final plugin
-          in orderIndependent ? const <PassContributor>[] : contributors) {
+      // After the resolve instead, when there is one — `R8` — or in the
+      // transparent pass, when the scene is split — `M3`.
+      for (final plugin in keeps ? const <PassContributor>[] : contributors) {
         plugin.encode(
           ContributorFrame(
             encoder: pass,
@@ -406,7 +437,8 @@ extension _ScenePasses on Renderer {
     stopwatch.stop();
     developer.Timeline.finishSync();
 
-    if (orderIndependent) {
+    // A split frame's layers follow its transparent pass instead.
+    if (orderIndependent && !split) {
       _encodeWeightedBlended(
         scene: scene,
         views: deferred,
@@ -425,6 +457,7 @@ extension _ScenePasses on Renderer {
       debugLines: debugLines,
       lightOverflow: lightOverflow,
       submitMicros: stopwatch.elapsedMicroseconds,
+      deferred: split ? deferred : null,
       // `gfx-20n`. What the pass drew with, not what was asked for: `msaa`
       // above is null whenever the surface buffer is attached, and that is
       // the case a caller cannot otherwise see.
@@ -445,7 +478,11 @@ extension _ScenePasses on Renderer {
                       : (orderIndependent
                             ? 'weighted blended transparency draws its '
                                   'layers against a one-sample depth'
-                            : null))),
+                            : (split
+                                  ? 'a transmissive draw reads a copy of the '
+                                        'scene, and the multisampled targets '
+                                        'keep nothing for the pass after it'
+                                  : null)))),
     );
   }
 

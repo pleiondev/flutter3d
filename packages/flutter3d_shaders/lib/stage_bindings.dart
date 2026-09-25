@@ -255,6 +255,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'occlusion_texture',
       'point_shadow_static_texture',
       'point_shadow_texture',
+      'scene_colour_texture',
       'shadow_texture',
       'sheen_texture',
     },
@@ -282,6 +283,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'scene_texture',
       'surface_texture',
     },
+  ),
+  'SceneColourCopy': (
+    blocks: <String>{'SceneCopyInfo'},
+    samplers: <String>{'source_texture'},
   ),
   'ShadowCopy': (
     blocks: <String>{'ShadowCopyInfo'},
