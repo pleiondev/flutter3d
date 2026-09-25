@@ -1026,7 +1026,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'private to the sketch: the two horizontal axes a wall runs '
         'along. There is no third horizontal axis',
   },
-  'flutter3d_core/lib/src/formats/model_node.dart': <String, String>{
+  'flutter3d_core/lib/src/formats/splat/splat_cloud.dart': <String, String>{
     'SplatColourSpace':
         "how a capture's colours were stored, which decides the one "
         'conversion the reader makes. A colour is stored encoded or it '
@@ -1043,6 +1043,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
             'its component count. A path it cannot apply is refused on '
             'load, so a new one is code in the player first',
       },
+  'flutter3d_core/lib/src/geometry/mesh_tangents.dart': <String, String>{
+    'TangentMethod':
+        'the two tangent frames the generator has code for: the one glTF '
+        'and every baker assume, and a one-pass fast path. A third frame is '
+        'a third generator in the same file before it is a value',
+  },
   'flutter3d_core/lib/src/engine/render/renderer_shadow_pass.dart':
       <String, String>{
         '_StaticTile':

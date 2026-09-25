@@ -3,7 +3,7 @@
 ///
 ///     dart test test/splat_ewa_test.dart
 ///
-/// Two scenes the quads used to get wrong, each with one white splat on a
+/// A pair of cases the quads used to get wrong, each with one white splat on a
 /// black ground. `splat-edge-on`: a flat disc seen exactly along its own
 /// plane, which without the screen's low-pass filter is a zero-width quad
 /// and draws nothing at all. `splat-grazing`: a splat long along the view
