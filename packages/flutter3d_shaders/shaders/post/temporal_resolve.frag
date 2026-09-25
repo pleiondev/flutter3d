@@ -21,6 +21,11 @@
 //     and is not any more is not remembered. Clipped in a weighted space —
 //     each colour divided by one plus its exposed luminance — so a single
 //     bright texel does not stretch the box for everything around it.
+//     With `TemporalClip` set to a k-DOP (`N4`), the box gives way to k/2
+//     slabs along optimised axes that hug the nine colours, and the history
+//     moves along the line to this frame's colour until it is inside every
+//     slab: a colour of the right brightness and the wrong hue, which sits
+//     inside the box, is outside the k-DOP.
 //   * **The history is dropped** where the nearest surface there last frame
 //     was at a different depth: a pixel that was the floor and is now a crate
 //     has no past worth blending. The history's alpha is that depth.
@@ -58,6 +63,13 @@ uniform TemporalInfo {
   /// as a fraction of the nearer, and still be one surface. zw: the output's
   /// size in pixels, which the history has.
   vec4 params;
+
+  /// x: how many of [clip_axes] bound the neighbourhood — `N4`. Nought is
+  /// the box, the resolve's clip before them.
+  vec4 clip;
+
+  /// The k-DOP's axes in weighted YCoCg, xyz; the first `clip.x` are used.
+  vec4 clip_axes[16];
 }
 temporal_info;
 
@@ -89,6 +101,48 @@ vec3 ClipToBox(vec3 lo, vec3 hi, vec3 q) {
   vec3 units = abs(v / extent);
   float most = max(units.x, max(units.y, units.z));
   return most > 1.0 ? centre + v / most : q;
+}
+
+/// [history] moved along the line to [current] until it lies inside every
+/// slab the neighbourhood [around] spans along the first `clip.x` axes.
+///
+/// Each slab is tightened the way the box is, to the projections' mean
+/// ± 1.25σ inside their min–max, so that along the box's own three axes the
+/// k-DOP is never looser than the box and one bright texel stretches
+/// neither. Then it is widened to take in [current] itself, which is read
+/// between texels and can sit outside the nine: the line then always starts
+/// inside, and the answer is how far along it the first slab is left.
+vec3 ClipToDop(vec3 current, vec3 history, vec3 around[9]) {
+  vec3 toward = history - current;
+  float reach = 1.0;
+  for (int a = 0; a < 16; a++) {
+    if (float(a) < temporal_info.clip.x) {
+      vec3 axis = temporal_info.clip_axes[a].xyz;
+      float at = dot(current, axis);
+      float lowest = 1e30;
+      float highest = -1e30;
+      float sum = 0.0;
+      float sumSquares = 0.0;
+      for (int n = 0; n < 9; n++) {
+        float p = dot(around[n], axis);
+        lowest = min(lowest, p);
+        highest = max(highest, p);
+        sum += p;
+        sumSquares += p * p;
+      }
+      float mean = sum / 9.0;
+      float sigma = sqrt(max(sumSquares / 9.0 - mean * mean, 0.0));
+      float lo = min(max(lowest, mean - 1.25 * sigma), at);
+      float hi = max(min(highest, mean + 1.25 * sigma), at);
+      float along = dot(toward, axis);
+      // Selects rather than branches returning constants: SPIRV-Cross will
+      // not take a phi of them.
+      float leave = along > 1e-8 ? (hi - at) / along
+                  : (along < -1e-8 ? (lo - at) / along : 1.0);
+      reach = min(reach, leave);
+    }
+  }
+  return current + toward * max(reach, 0.0);
 }
 
 /// Catmull-Rom over the history, in nine bilinear taps.
@@ -131,10 +185,12 @@ void main() {
   vec3 highest = vec3(-1e30);
   float nearest = 1e30;
   vec2 nearestUv = centre;
+  vec3 around[9];
   for (int dy = -1; dy <= 1; dy++) {
     for (int dx = -1; dx <= 1; dx++) {
       vec2 at = centre + vec2(float(dx), float(dy)) * texel;
       vec3 c = RgbToYCoCg(Weigh(texture(scene_texture, at).rgb));
+      around[(dy + 1) * 3 + dx + 1] = c;
       sum += c;
       sumSquares += c * c;
       lowest = min(lowest, c);
@@ -173,8 +229,11 @@ void main() {
   vec3 sigma = sqrt(max(sumSquares / 9.0 - mean * mean, vec3(0.0)));
   vec3 lo = max(lowest, mean - 1.25 * sigma);
   vec3 hi = min(highest, mean + 1.25 * sigma);
-  vec3 history = Unweigh(
-      YCoCgToRgb(ClipToBox(lo, hi, RgbToYCoCg(Weigh(HistoryAt(then))))));
+  vec3 remembered = RgbToYCoCg(Weigh(HistoryAt(then)));
+  vec3 clipped = temporal_info.clip.x > 0.5
+      ? ClipToDop(RgbToYCoCg(Weigh(current)), remembered, around)
+      : ClipToBox(lo, hi, remembered);
+  vec3 history = Unweigh(YCoCgToRgb(clipped));
 
   // Read at the pixel itself rather than at the nearest surface: a particle
   // writes no depth, so the nearest surface around it is whatever it flew

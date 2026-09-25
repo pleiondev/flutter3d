@@ -10,6 +10,7 @@ import 'auto_exposure.dart';
 import 'debug_draw.dart';
 import 'shadow_settings.dart';
 import 'sky_settings.dart';
+import 'tables/kdop_axes.dart';
 
 // Re-exported so that `render_settings.dart` stays the one import an
 // application needs: what moved out is still part of the same vocabulary.
@@ -92,6 +93,22 @@ final class ReflectionSettings {
   /// floor turned out to be the point light, and the reflection was
   /// contributing nothing at all.
   final bool debugOnly;
+
+  ReflectionSettings copyWith({
+    bool? enabled,
+    int? steps,
+    double? stride,
+    double? thickness,
+    double? intensity,
+    bool? debugOnly,
+  }) => ReflectionSettings(
+    enabled: enabled ?? this.enabled,
+    steps: steps ?? this.steps,
+    stride: stride ?? this.stride,
+    thickness: thickness ?? this.thickness,
+    intensity: intensity ?? this.intensity,
+    debugOnly: debugOnly ?? this.debugOnly,
+  );
 }
 
 /// Contact shadows: a short march toward the light, in screen space —
@@ -282,6 +299,28 @@ final class AmbientOcclusionSettings {
   /// a different physical distance at every range, so one tuned against a near
   /// wall leaves acne on a far one.
   final double bias;
+
+  AmbientOcclusionSettings copyWith({
+    bool? enabled,
+    double? radius,
+    int? samples,
+    double? strength,
+    double? bias,
+    int? blurTaps,
+    double? blurDepthFalloff,
+    AmbientOcclusionMethod? method,
+    double? thickness,
+  }) => AmbientOcclusionSettings(
+    enabled: enabled ?? this.enabled,
+    radius: radius ?? this.radius,
+    samples: samples ?? this.samples,
+    strength: strength ?? this.strength,
+    bias: bias ?? this.bias,
+    blurTaps: blurTaps ?? this.blurTaps,
+    blurDepthFalloff: blurDepthFalloff ?? this.blurDepthFalloff,
+    method: method ?? this.method,
+    thickness: thickness ?? this.thickness,
+  );
 }
 
 /// How the occlusion pass finds what hides a point — `L5`.
@@ -2294,9 +2333,14 @@ final class TemporalSettings {
     this.historyWeight = 0.9,
     this.sharpen = 0.25,
     this.reactive = 0.0,
+    this.clip = TemporalClip.aabb,
   });
 
   final bool enabled;
+
+  /// What the history is held to — `N4`. [TemporalClip.aabb], the box the
+  /// resolve has always used, is the default.
+  final TemporalClip clip;
 
   /// How many offsets the jitter cycles through before it repeats. Sixteen
   /// covers a pixel evenly enough that a still frame converges to within a
@@ -2337,13 +2381,65 @@ final class TemporalSettings {
     double? historyWeight,
     double? sharpen,
     double? reactive,
+    TemporalClip? clip,
   }) => TemporalSettings(
     enabled: enabled ?? this.enabled,
     sequenceLength: sequenceLength ?? this.sequenceLength,
     historyWeight: historyWeight ?? this.historyWeight,
     sharpen: sharpen ?? this.sharpen,
     reactive: reactive ?? this.reactive,
+    clip: clip ?? this.clip,
   );
+}
+
+/// How the temporal resolve decides which of the history is still true —
+/// `N4`.
+///
+/// **The history is pulled into the colours this frame's neighbourhood
+/// could make.** A pixel that was a crate's edge and is now open floor must
+/// not remember the crate; the resolve limits the remembered colour to a
+/// hull around the nine colours about the pixel this frame, and whatever
+/// lies outside is what ghosts.
+///
+/// [aabb] is a box in YCoCg, tightened to the neighbourhood's mean ± 1.25σ
+/// and clipped towards its centre: cheap, and loose along every diagonal of
+/// colour space, so a history colour that is the right brightness and the
+/// wrong hue can sit inside it — the trail a red object leaves on green. A
+/// k-DOP adds slabs along more axes until the hull hugs the nine colours
+/// (Ikkala et al., SIGGRAPH Asia 2024: about 0.2 ms at 1080p for the 32-DOP),
+/// and the history is moved along the line to this frame's own colour until
+/// it is inside every slab. The axes are in `tables/kdop_axes.dart`; each set
+/// contains the box's three, so a k-DOP never keeps more than the plain
+/// min–max box would.
+///
+/// An enum and not a count, because the axes of each size are an optimised
+/// set rather than any k directions.
+enum TemporalClip {
+  /// The variance-tightened YCoCg box, the resolve's own since `R2`.
+  aabb(0),
+
+  /// Four axes: the box and one diagonal.
+  kdop8(4),
+
+  /// Eight axes.
+  kdop16(8),
+
+  /// Sixteen axes, the paper's recommendation where the budget allows.
+  kdop32(16);
+
+  const TemporalClip(this.axisCount);
+
+  /// How many slabs bound the neighbourhood; nought for the box, which the
+  /// shader takes as its signal to clip the old way.
+  final int axisCount;
+
+  /// The slabs' axes, in weighted YCoCg; empty for the box.
+  List<(double, double, double)> get axes => switch (this) {
+    aabb => const <(double, double, double)>[],
+    kdop8 => kdop8Axes,
+    kdop16 => kdop16Axes,
+    kdop32 => kdop32Axes,
+  };
 }
 
 /// The colour table that changes nothing, [size] slices wide — `gfx-18n`.

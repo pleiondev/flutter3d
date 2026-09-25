@@ -53,4 +53,8 @@ dev_dependencies:
   # dependency: nothing this package ships builds a `ModelDocument`.
   flutter3d_samples: ^0.8.0
 
+  # Decodes the FLIP reference crops in `test/flip/` synchronously, the
+  # package the engine already reads PNGs with.
+  image: ^4.10.1
+
 resolution: workspace
