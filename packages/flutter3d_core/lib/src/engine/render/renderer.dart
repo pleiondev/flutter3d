@@ -2514,7 +2514,7 @@ final class Renderer implements RenderServices {
     // the occlusion are: a name has to be known for a read of it to compile,
     // and a node left out when its setting is off cannot be reported on.
     // `gfx-38n` — this was the last post node still registered inside an `if`.
-    graph.addNode(_ReflectionsNode(this, view, s));
+    graph.addNode(_ReflectionsNode(this, view, s, scene.scene));
     // After reflections and before bloom: the meter reads the scene as the
     // composite will, glow not yet added. Registered whether or not it is on,
     // for the reason every other node is — a name has to be known — and

@@ -292,6 +292,30 @@ void main() {
     expect(contrast(frosted), lessThan(contrast(clear) * 0.5));
   });
 
+  test('frosted glass blurs by the width of the frame, not the chain', () {
+    // Mutation: scale the level `sceneBehind` chooses by the chain's length
+    // (`top`) rather than log2 of its base width. At half roughness a
+    // 128-texel frame then reads level 2.5, a blur of under six texels,
+    // where log2(128) * 0.5 reads 3.5, about eleven.
+    const size = 128;
+    final frame = _render(pane: (q) => _glass(q, roughness: 0.5), size: size);
+    // Across the pane's middle row: how many pixels the seam's red takes to
+    // fall from nine tenths of its drop to one tenth.
+    final row = <double>[
+      for (var x = 48; x <= 80; x++)
+        _at(frame.hdr, x, size ~/ 2, width: size).x,
+    ];
+    final high = row.reduce(math.max);
+    final low = row.reduce(math.min);
+    final spread = row
+        .where(
+          (r) => r < low + 0.9 * (high - low) && r > low + 0.1 * (high - low),
+        )
+        .length;
+    // Ten on this frame, four with the old slope.
+    expect(spread, greaterThanOrEqualTo(8));
+  });
+
   test('a thick pane bends what is behind it and a thin one does not', () {
     // Mutation: leave the thickness out of the exit point in
     // `sceneBehind`. The turned pane reads straight through either way.

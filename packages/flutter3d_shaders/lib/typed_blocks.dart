@@ -896,6 +896,9 @@ final class ReflectionInfoBlock extends UniformBlock {
   /// `screen`: Vector4, at byte 176.
   final Float32List screen = Float32List(4);
 
+  /// `environment`: Vector4, at byte 192.
+  final Float32List environment = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'view_projection': viewProjection,
@@ -904,6 +907,7 @@ final class ReflectionInfoBlock extends UniformBlock {
     'forward': forward,
     'params': params,
     'screen': screen,
+    'environment': environment,
   };
 }
 
