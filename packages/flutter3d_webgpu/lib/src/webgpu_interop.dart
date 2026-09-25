@@ -1250,6 +1250,8 @@ abstract final class GpuShaderStage {
 
 /// The channels a colour target writes, for `GPUColorTargetState.writeMask`.
 abstract final class GpuColorWrite {
+  /// No channel: what a target the fragment stage writes nothing to must say.
+  static const int none = 0x0;
   static const int red = 0x1;
   static const int green = 0x2;
   static const int blue = 0x4;

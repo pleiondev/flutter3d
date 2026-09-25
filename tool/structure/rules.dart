@@ -2096,11 +2096,6 @@ final Map<String, Map<String, String>> _goldenSetGaps =
         'motion-blur-spin':
             'the same empty velocity leaves the wheel unblurred on WebGL2',
       },
-      'webgpu': <String, String>{
-        'taa-embers':
-            'WebGPU draws this scene black with nothing in the console; '
-            'recorded once the cause is found',
-      },
     };
 
 /// The scene names a set has recorded.

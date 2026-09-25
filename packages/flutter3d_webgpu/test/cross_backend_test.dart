@@ -200,15 +200,19 @@ const Map<String, double> _budgets = <String, double>{
   // texels differently.
   'smoke-six-way': 2.25,
   'splat-gltf': 0.01,
-  // 36.701% measured: each backend's hash keeps a different subset of splats
-  // per pixel, so the grain differs everywhere and only the average agrees;
-  // splat_stochastic_test.dart holds the average.
-  'splat-stochastic': 40.38,
+  // Was 40.38, over a reference that was a black frame: the hashed splats'
+  // pipeline claimed a velocity target it has no output for, WebGPU refused
+  // it, and the 36.701% it measured was the whole cloud missing rather than a
+  // different grain. 0 of 172800 since the same fix as `taa-embers`.
+  'splat-stochastic': 0.01,
   // 4.938% measured: the bounce differs by a few levels across the band where
   // wall meets floor.
   'ssil-room': 5.44,
   'sun-contact-hardening': 0.01,
   'taa-converge': 0.01,
+  // Black until the particles' pipeline stopped claiming the velocity target
+  // it has no output for; 0 of 172800 since.
+  'taa-embers': 0.01,
   'taa-railing': 0.01,
   'taa-railing-kdop16': 0.01,
   'taa-railing-kdop8': 0.01,
