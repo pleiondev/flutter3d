@@ -159,28 +159,55 @@ typedef LightSample = ({
   // `L7`: the GGX lobe integrated over a rectangle, its norm and Fresnel
   // term, when the model binds the LTC tables; null otherwise.
   Vector3? ltc,
+  // The rectangle's corners relative to the shading point, for the clear
+  // coat's own integral — `g_rect_corners`; null for a punctual light.
+  List<Vector3>? corners,
 });
+
+/// `LambertEdge`: one edge of Lambert's sum, from [a] to [b], neither of
+/// which need be a unit vector.
+double _lambertEdge(Vector3 a, Vector3 b, Vector3 n) {
+  // A floor rather than `normalized`, for the GLSL's reason: a zero vector
+  // subtends nothing, and normalising it is a NaN.
+  final ua = a / math.max(a.length, 1e-12);
+  final ub = b / math.max(b.length, 1e-12);
+  // Clamped before the `acos`: rounding can put a dot a hair past one, and
+  // `acos` of that is a NaN that spreads to the whole pixel.
+  final angle = math.acos(ua.dot(ub).clamp(-1.0, 1.0));
+  final axis = ua.cross(ub);
+  final len = axis.length;
+  return len > 1e-6 ? angle * axis.dot(n) / len : 0.0;
+}
 
 /// `RectangleFormFactor` — `gfx-77n`.
 ///
 /// Lambert's polygon form factor, exact rather than fitted: each edge's
 /// subtended angle weighted by how much its plane leans into the normal, summed
-/// and halved. See the GLSL of the same name for why no table is shipped, and
-/// for why the sum is negated — the rectangle emits along
-/// `cross(halfWidth, halfHeight)` and this winding is clockwise seen from
-/// there.
+/// and halved, over the rectangle clipped to the surface's horizon. See the
+/// GLSL of the same name for why no table is shipped, why the clip is four
+/// trimmed edges and one along the horizon, and why the sum is negated — the
+/// rectangle emits along `cross(halfWidth, halfHeight)` and this winding is
+/// clockwise seen from there.
 double rectangleFormFactor(List<Vector3> corners, Vector3 n) {
   var total = 0.0;
+  var exit = Vector3.zero();
+  var entry = Vector3.zero();
   for (var i = 0; i < 4; i++) {
-    final a = corners[i].normalized();
-    final b = corners[(i + 1) & 3].normalized();
-    // Clamped before the `acos`: rounding can put a dot a hair past one, and
-    // `acos` of that is a NaN that spreads to the whole pixel.
-    final angle = math.acos(a.dot(b).clamp(-1.0, 1.0));
-    final axis = a.cross(b);
-    final len = axis.length;
-    if (len > 1e-6) total += angle * (axis..scale(1.0 / len)).dot(n);
+    final a = corners[i];
+    final b = corners[i == 3 ? 0 : i + 1];
+    final ha = a.dot(n);
+    final hb = b.dot(n);
+    final d = ha - hb;
+    final q = a + (b - a) * (d.abs() > 1e-12 ? ha / d : 0.0);
+    final aAbove = ha > 0.0;
+    final bAbove = hb > 0.0;
+    if (aAbove || bAbove) {
+      total += _lambertEdge(aAbove ? a : q, bAbove ? b : q, n);
+    }
+    if (aAbove && !bAbove) exit = q;
+    if (!aAbove && bAbove) entry = q;
   }
+  total += _lambertEdge(exit, entry, n);
   return math.max(-total * 0.5, 0.0);
 }
 
@@ -270,6 +297,9 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       toCentre + halfWidth + halfHeight,
       toCentre - halfWidth + halfHeight,
     ];
+    // One face emits: a point on the other side gets nothing, the test
+    // `SampleLight` makes before the form factor.
+    if (toCentre.dot(halfWidth.cross(halfHeight)) >= 0.0) return null;
     final formFactor = rectangleFormFactor(corners, s.normal);
     if (formFactor <= 0.0) return null;
 
@@ -315,6 +345,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
         ),
         null => null,
       },
+      corners: corners,
     );
   }
 
@@ -366,6 +397,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
     nDotH: math.max(s.normal.dot(half), 0.0),
     vDotH: math.max(s.view.dot(half), 0.0),
     ltc: null,
+    corners: null,
   );
 }
 
