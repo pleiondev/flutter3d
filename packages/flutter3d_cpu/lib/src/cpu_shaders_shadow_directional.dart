@@ -177,8 +177,10 @@ double shadowFactor(
     lit /= 9.0;
   } else {
     // `S3`: sixteen taps each way on a Vogel disc turned per pixel, and the
-    // penumbra in metres — mirroring `shadow.glsl` step for step.
-    final spread = 2.0 * math.tan(math.min(softness, 0.5));
+    // penumbra in metres — mirroring `shadow.glsl` step for step. The tangent
+    // of the angular radius, not twice it: the disc's radius is half the
+    // penumbra it sweeps.
+    final spread = math.tan(math.min(softness, 0.5));
     final turn = shadowNoise(b, c) * 6.2831853;
     final searchRadius = (spread * projected.z * cascadeDepth / cascadeTexel)
         .clamp(1.0, 16.0);
