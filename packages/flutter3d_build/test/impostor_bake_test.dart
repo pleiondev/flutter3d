@@ -260,6 +260,88 @@ void main() {
     );
   });
 
+  test('a skinned or morphed node keeps its meshes and gets no card', () async {
+    // A skinned surface's vertices are in the skeleton's bind space, not the
+    // node's, so a card the node places would stand where the character is
+    // not — here the node is moved and turned while the skin is not. The
+    // morphed one rests at a full weight the bake would not draw. Neither is
+    // a picture a distant animated character looks like.
+    MeshData ball() => const SphereShape(
+      radius: 0.3,
+      segments: 12,
+      rings: 8,
+    ).build(layout: VertexLayout.standard);
+    final morphed = ball();
+    final document = PlainModelDocument(
+      surfaces: <ModelSurface>[
+        ModelSurface(mesh: ball(), materialIndex: 0),
+        ModelSurface(mesh: ball(), materialIndex: 0, skinIndex: 0),
+        ModelSurface(
+          mesh: morphed.withMorphTargets(<MorphTarget>[
+            MorphTarget(
+              vertexCount: morphed.vertexCount,
+              positions: Float32List(morphed.vertexCount * 3)
+                ..fillRange(0, morphed.vertexCount * 3, 0.5),
+            ),
+          ]),
+          materialIndex: 0,
+          morphWeights: <double>[1],
+        ),
+      ],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(baseColor: Vector4(0.8, 0.2, 0.2, 1)),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(name: 'rock', surfaces: <int>[0]),
+        ModelNode(
+          name: 'walker',
+          translation: Vector3(5, 0, -2),
+          rotation: Quaternion.axisAngle(Vector3(0, 1, 0), 1),
+          surfaces: <int>[1],
+        ),
+        ModelNode(name: 'face', surfaces: <int>[2]),
+        ModelNode(name: 'hip'),
+      ],
+      skins: <ModelSkin>[
+        ModelSkin(joints: <int>[3], inverseBindMatrices: [Matrix4.identity()]),
+      ],
+    );
+
+    final messages = <String>[];
+    final out = await bakeImpostors(document, cell: 8, report: messages.add);
+    // Mutation: drop the skip and both nodes get a card, with four more
+    // images and no word of why.
+    expect(out.nodes[1].lods, isEmpty, reason: 'the skinned node');
+    expect(out.nodes[2].lods, isEmpty, reason: 'the morphed node');
+    expect(out.nodes[0].lods.single.impostor, isNotNull);
+    expect(out.images, hasLength(2));
+    expect(messages, contains(contains('walker: no impostor')));
+    expect(messages, contains(contains('face: no impostor')));
+    expect(
+      messages.singleWhere((m) => m.startsWith('walker')),
+      contains('skinned'),
+    );
+    expect(
+      messages.singleWhere((m) => m.startsWith('face')),
+      contains('morphed'),
+    );
+
+    // The still node beside them bakes the same bytes it bakes alone.
+    final alone = await bakeImpostors(
+      PlainModelDocument(
+        surfaces: <ModelSurface>[document.surfaces[0]],
+        materials: document.materials,
+        nodes: <ModelNode>[
+          ModelNode(name: 'rock', surfaces: <int>[0]),
+        ],
+      ),
+      cell: 8,
+    );
+    for (var i = 0; i < 2; i++) {
+      expect(out.images[i].bytes, alone.images[i].bytes);
+    }
+  });
+
   test('a bake leaves nothing on the device it drew with', () async {
     // With a bark texture, so the image the bake decodes has to go too.
     final source = tree();
