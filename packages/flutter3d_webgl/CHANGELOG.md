@@ -17,6 +17,46 @@ included, and a draw turns off its per-instance arrays: an instanced batch's
 buffer no longer steps per vertex into the next draw on the same pipeline.
 `GeometryBuffer`'s offset is honoured for vertices and indices.
 
+**The shader table is rebuilt against `flutter3d_shaders` 0.8.0 and holds 78
+stages, up from 49.** `flutter3d_core` 0.8.0 draws with the new ones: the
+velocity and temporal stages (`CameraVelocity`, `Velocity` and its three
+vertex stages, `TemporalResolve`, `TemporalAccumulate`, `Easu`,
+`VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `Reactive`,
+`ReactiveSprite`), `PbrLayered`, `Impostor` and `ImpostorVertex`,
+`VolumetricFog` and its upsample, `EvsmFilter`, `ShadowCopy`,
+`WboitResolve`, `SceneColourCopy`, `DepthPyramid`, `IrradianceConvolve`,
+`LocalExposure` and its blur, `ParticleSixWay`, `SplatHashed` and
+`FieldDecay`. Upgrade this package with `flutter3d_core`; a 0.7 table has
+none of them. Every stage stays within WebGL2's 16 samplers and 12 uniform
+blocks, which a test now holds.
+
+**Screen patterns are no longer upside down.** The Bayer dither, the film
+grain, the march jitter and the point-shadow kernel rotation read
+`gl_FragCoord` rows from the top of the target on every backend now. WebGL2
+counts rows from the bottom, so here each of them came out flipped.
+
+**`supportsFloat32Filtering` answers whether `OES_texture_float_linear` was
+granted**, which the EVSM shadow filter asks before it runs; without it that
+filter falls back to the fixed kernel.
+
+**`supportsIndependentBlend` is true where the context offers
+`OES_draw_buffers_indexed`**, and `setBlend` with a non-zero attachment index
+goes through it to that draw buffer alone. Attachment zero stays on the plain
+blend functions, which set every draw buffer, so a pass that sets only
+attachment zero is the pass it was. Without the extension weighted blended
+transparency draws its list once per target.
+
+**A pass loads or clears depth as the descriptor says**, so a later pass can
+test against depth an earlier one stored.
+
+**`deviceTransient` attachments are invalidated when the pass ends**, after
+the MSAA resolve blits that read them, through `invalidateFramebuffer`. A
+tiling GPU then need not write depth or multisampled colour back to memory.
+
+**Compute, GPU timestamps and extended-range output are not offered.**
+`supportsCompute` and `supportsGpuTimestamps` are false, `hdrOutputFormats`
+is empty, and the compute creators throw `UnsupportedError`.
+
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
 ## 0.7.4

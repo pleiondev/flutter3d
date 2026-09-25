@@ -13,6 +13,34 @@ impellerc's Metal reflection, and `stage_bindings_test.dart` holds the
 committed table to a fresh compile. `impellercPath()` finds the compiler for
 both.
 
+**A block or sampler the compiled stage dropped is refused before it reaches
+Metal.** Every engine stage carries that table as `ShaderHandle.kept`, and its
+block layouts as `ShaderHandle.layouts`, so `bindUniformBlock` and
+`bindTexture` answer false for a slot impellerc optimised away. Binding one
+was a native crash, the 0.7.1 crash among them.
+
+**`maxColorAttachments` answers four off the OpenGL ES path**, up from two;
+one on it, as before. Four is what Metal and Vulkan both guarantee, and the
+renderer's albedo buffer is a third attachment.
+
+**`supportsIndependentBlend` is true.** `setBlend` has always passed its
+attachment index to flutter_gpu's `colorAttachmentIndex`; weighted blended
+transparency is the first caller that relies on it.
+
+**A pass loads and stores depth as the descriptor says.** The defaults are
+flutter_gpu's own clear and discard, so a pass that names neither is the pass
+it was.
+
+**Compute, GPU timestamps, float32 filtering and extended-range output are
+not offered.** `supportsCompute`, `supportsGpuTimestamps` and
+`supportsFloat32Filtering` are false and `hdrOutputFormats` is empty: flutter_gpu
+has no compute pipelines or timer queries yet. The compute creators throw
+`UnsupportedError`, and the EVSM shadow filter falls back to the fixed kernel.
+
+**The shader bundle is compiled from `flutter3d_shaders` 0.8.0**, 78 stages
+where 0.7.4 had 49, which `flutter3d_core` 0.8.0 draws with. Upgrade the two
+together.
+
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
 ## 0.7.4

@@ -1,8 +1,50 @@
 ## 0.8.0
 
-**A texture bound to a slot the stage lacks is false**, a new check: a name
-no stage declares, and a fragment sampler bound through the vertex stage's
-handle, on every backend that reflects its stages. Thirty-eight checks.
+**Four new checks, forty-one in all, and thirty-one of them need the shader
+pipeline.** A backend written against 0.7 meets each as a failure or a
+decline until it implements the members they ask about.
+
+- `a texture bound to a slot the stage lacks is false`: a name no stage
+  declares, and a fragment sampler bound through the vertex stage's handle, on
+  every backend that reflects its stages.
+- `a device that filters 32-bit floats filters and renders them` holds a
+  device answering `supportsFloat32Filtering` with true to both halves of it:
+  a bilinear tap between float texels, and a float target that renders and
+  samples back. A device answering false declines.
+- `a field steps in a float target and reads back through a vertex` steps a
+  decay kernel three times from a start of two in each float format the device
+  renders to, and reads the result through a vertex stage: 0.425 is right, and
+  0.3 means the target clamped to one. The upload check never covered
+  rendering into a float target.
+- `a compute pass scans a buffer in place`, the one entry of the new
+  `computeChecks`, which `conformanceChecks` now includes: a prefix sum over
+  1024 integers, read back and held to i(i+1)/2. It declines where
+  `supportsCompute` is false, which is Impeller and WebGL2.
+
+**The link check covers the stages 0.8.0 added.** `PbrLayered` links against
+every mesh vertex stage; the three velocity vertex stages against `Velocity`
+and `Reactive`; the full-screen stage against `DepthPyramid`,
+`CameraVelocity`, `TemporalResolve`, `TemporalAccumulate`, `VolumetricFog`,
+`VolumetricFogUpsample`, `VelocityTileMax`, `VelocityNeighborMax`,
+`MotionBlur`, `FieldDecay`, `IrradianceConvolve`, `EvsmFilter`,
+`WboitResolve` and `SceneColourCopy`; and four pairs are new:
+`ImpostorVertex` with `Impostor`, and `ParticleVertex` with `ParticleSixWay`,
+`ReactiveSprite` and `SplatHashed`.
+
+**Fuzzing, new.** `generateFuzzProgram` turns a seed into a program of draws
+over the probe stages every bundle ships, with viewports, scissors, blending
+and depth chosen at random, and `drawFuzzProgram` draws it on a fresh device
+from any `DeviceFactory`. The oracle is the program against itself: each
+`FuzzTransform` (`SplitDraw`, `SwapDisjointDraws`, `FoldPowerOfTwo`) rewrites
+it into one that must draw the same bytes, exactly in IEEE 754. `fuzzSeed`
+draws a seed's program and its rewrites and returns the ones that came out
+different, and `shrinkFinding` cuts a finding down to the draws that still
+show it. `fuzzDifference` compares a device against a reference device
+instead, as the share of pixels more than a few steps apart. `FuzzRandom` is Park and Miller's
+generator, so a seed is the same program on the VM and in a browser. Two
+hundred seeds run on the software rasteriser, and fifty on each of WebGL2 and
+WebGPU against it, held to 2% of pixels. The first run found two bugs in the
+software rasteriser's scissor and blending, fixed in `flutter3d_cpu`. `H4`
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
