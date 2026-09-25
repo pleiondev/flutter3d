@@ -411,7 +411,7 @@ final class CpuEncoder implements CommandEncoder {
         ? PackedFetch(vertices, _floatsPerVertex(vertices, _vertexCount))
         : LayoutFetch.build(layout, vertices, _slots, instance);
     final stride = fetch.floatsPerVertex;
-    final bindings = ShaderBindings(_blocks, _textures);
+    final bindings = ShaderBindings.forDraw(_blocks, _textures);
     final varyingCount = pipeline.vertex.varyingCount;
 
     final clip = <Vector4>[Vector4.zero(), Vector4.zero(), Vector4.zero()];
@@ -948,6 +948,32 @@ final class CpuEncoder implements CommandEncoder {
     // draws had shown it, because its passes set the two to the same
     // rectangle; the fuzzer's programs do not, and found it on its first run
     // against WebGPU.
+    // The corners as locals from here on: the lists above hold boxed
+    // doubles, and the loop below reads them for every pixel of the box.
+    final sx0 = sx[0];
+    final sx1 = sx[1];
+    final sx2 = sx[2];
+    final sy0 = sy[0];
+    final sy1 = sy[1];
+    final sy2 = sy[2];
+    final sz0 = sz[0];
+    final sz1 = sz[1];
+    final sz2 = sz[2];
+    final invW0 = invW[0];
+    final invW1 = invW[1];
+    final invW2 = invW[2];
+    final varyings0 = varyings[0];
+    final varyings1 = varyings[1];
+    final varyings2 = varyings[2];
+    // The edge functions' constant factors, which are the same subtraction
+    // whether it is done here or at every pixel.
+    final edge0x = sx1 - sx0;
+    final edge0y = sy1 - sy0;
+    final edge1x = sx2 - sx1;
+    final edge1y = sy2 - sy1;
+    final edge2x = sx0 - sx2;
+    final edge2y = sy0 - sy2;
+
     final clipRect = _clipRect(view, target);
     var minX = sx.reduce((a, b) => a < b ? a : b).floor();
     var maxX = sx.reduce((a, b) => a > b ? a : b).ceil();
@@ -1025,12 +1051,9 @@ final class CpuEncoder implements CommandEncoder {
       for (var x = minX; x <= maxX; x++) {
         final px = x + 0.5;
         final py = y + 0.5;
-        final w0 =
-            (sx[1] - sx[0]) * (py - sy[0]) - (sy[1] - sy[0]) * (px - sx[0]);
-        final w1 =
-            (sx[2] - sx[1]) * (py - sy[1]) - (sy[2] - sy[1]) * (px - sx[1]);
-        final w2 =
-            (sx[0] - sx[2]) * (py - sy[2]) - (sy[0] - sy[2]) * (px - sx[2]);
+        final w0 = edge0x * (py - sy0) - edge0y * (px - sx0);
+        final w1 = edge1x * (py - sy1) - edge1y * (px - sx1);
+        final w2 = edge2x * (py - sy2) - edge2y * (px - sx2);
         if (w0 < 0 || (w0 == 0 && !fill0)) continue;
         if (w1 < 0 || (w1 == 0 && !fill1)) continue;
         if (w2 < 0 || (w2 == 0 && !fill2)) continue;
@@ -1042,7 +1065,7 @@ final class CpuEncoder implements CommandEncoder {
         final b1 = w2 / area;
         final b2 = w0 / area;
 
-        final z = _asStored(sz[0] * b0 + sz[1] * b1 + sz[2] * b2);
+        final z = _asStored(sz0 * b0 + sz1 * b1 + sz2 * b2);
         final index = y * target.width + x;
         final fate = _fateOf(stencil, stencilState, index, z, depth);
         final op = _operationFor(fate, stencilState);
@@ -1051,12 +1074,12 @@ final class CpuEncoder implements CommandEncoder {
         if (fate != _fatePass && op == StencilOperation.keep) continue;
 
         // Perspective-correct: interpolate over 1/w and divide back.
-        final iw = invW[0] * b0 + invW[1] * b1 + invW[2] * b2;
+        final iw = invW0 * b0 + invW1 * b1 + invW2 * b2;
         for (var v = 0; v < varyingCount; v++) {
           interpolated[v] =
-              (varyings[0][v] * invW[0] * b0 +
-                  varyings[1][v] * invW[1] * b1 +
-                  varyings[2][v] * invW[2] * b2) /
+              (varyings0[v] * invW0 * b0 +
+                  varyings1[v] * invW1 * b1 +
+                  varyings2[v] * invW2 * b2) /
               iw;
         }
 
