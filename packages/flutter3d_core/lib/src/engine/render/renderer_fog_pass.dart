@@ -15,6 +15,11 @@ extension _FogPass on Renderer {
   /// is nought when there is no directional light at all. The cells are the
   /// ones the scene pass left in [_fogCells], read only when it left any.
   ///
+  /// [pointShadow] and [pointShadowStatic] are the cube atlas the lit draws
+  /// read, null when the frame has none: a clustered light that owns a row of
+  /// it is shadowed in the air as it is on the walls, one tap a step. White
+  /// stands in for a missing one, which reads as nothing in the way.
+  ///
   /// Reuses the shadow pass's matrices and splits, for the reason
   /// `_encodeLightShafts` does: a second derivation is a second thing to
   /// disagree with the map.
@@ -22,6 +27,8 @@ extension _FogPass on Renderer {
     required TextureHandle scene,
     required TextureHandle surface,
     required TextureHandle? shadow,
+    required TextureHandle? pointShadow,
+    required TextureHandle? pointShadowStatic,
     required TextureHandle? ao,
     required TextureHandle? contactShadow,
     required RenderSettings renderSettings,
@@ -138,6 +145,9 @@ extension _FogPass on Renderer {
       ..[1] = _lightClusters.sliceScale
       ..[2] = _clusterHeaderRow.toDouble()
       ..[3] = _clusterEntryRow.toDouble();
+    // The atlas's frame-wide numbers; the slot table is left as the last draw
+    // packed it, because the march reads each light's row from its list row.
+    _writePointShadowParams(renderSettings);
     info.list
       ..[0] = 0.25
       ..[1] = cells == null ? 0.0 : 1.0 / math.max(_fogCellRows, 1)
@@ -153,10 +163,13 @@ extension _FogPass on Renderer {
           'shadow_texture': shadow ?? fallbackBlack,
           'light_list_texture': cells ?? fallbackBlack,
           'blue_noise_texture': _blueNoise,
+          'point_shadow_texture': pointShadow ?? fallbackAlbedo,
+          'point_shadow_static_texture': pointShadowStatic ?? fallbackAlbedo,
         },
         uniforms: <String, Map<String, Float32List>>{
           info.name: info.members,
           _noiseInfo.name: _noiseInfo.members,
+          _pointShadow.name: _pointShadow.members,
         },
         // Nearest on everything that holds numbers rather than colour: a
         // filtered depth at a silhouette stops the march at a depth nothing
@@ -164,6 +177,8 @@ extension _FogPass on Renderer {
         samplers: const <String, SamplerOptions>{
           'surface_texture': SamplerOptions.nearestClamp,
           'light_list_texture': SamplerOptions.nearestClamp,
+          'point_shadow_texture': Renderer._clampSampler,
+          'point_shadow_static_texture': Renderer._clampSampler,
         },
       ),
     );

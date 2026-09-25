@@ -481,7 +481,7 @@ RenderSettings(
 )
 ```
 
-It is marched at half resolution and brought up by depth, so a halo behind a pillar stops at the pillar's edge. Two full-screen passes, one of them a march with a shadow lookup and a cell's lights at every step. Point lights cast no shadow into the air, so a torch's glow reaches through the wall beside it. With `lightShafts` on as well the sun is scattered twice; the two are alternatives.
+It is marched at half resolution and brought up by depth, so a halo behind a pillar stops at the pillar's edge. Two full-screen passes, one of them a march with a shadow lookup and a cell's lights at every step. A point or spot light that holds a row of the cube shadow atlas is shadowed in the air too, so a torch's glow stops at the wall beside it; a light with no row (`castsShadow` off, or past the atlas's six) still reaches through. With `lightShafts` on as well the sun is scattered twice; the two are alternatives.
 
 ## Sky
 

@@ -1879,6 +1879,14 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'NoiseInfo': <String, UniformMemberLayout>{
       'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
+    'PointShadow': <String, UniformMemberLayout>{
+      'faces': (offset: 0, byteLength: 2304, elements: 36, type: 'Matrix'),
+      'lights': (offset: 2304, byteLength: 96, elements: 6, type: 'Vector4'),
+      'slots': (offset: 2400, byteLength: 128, elements: 8, type: 'Vector4'),
+      'params': (offset: 2528, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params2': (offset: 2544, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params3': (offset: 2560, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
     'VolumeFogInfo': <String, UniformMemberLayout>{
       'inverse_view_projection': (
         offset: 0,
