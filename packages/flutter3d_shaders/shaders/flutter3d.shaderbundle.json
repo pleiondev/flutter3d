@@ -203,6 +203,10 @@
     "type": "fragment",
     "file": "shaders/post/depth_of_field.frag"
   },
+  "DofTileMax": {
+    "type": "fragment",
+    "file": "shaders/post/dof_tile_max.frag"
+  },
   "VelocityTileMax": {
     "type": "fragment",
     "file": "shaders/post/velocity_tile_max.frag"

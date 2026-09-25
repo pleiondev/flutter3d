@@ -709,6 +709,7 @@ final class Renderer implements RenderServices {
   }
 
   final DofInfoBlock _dofInfo = DofInfoBlock();
+  final DofTileInfoBlock _dofTileInfo = DofTileInfoBlock();
   final TileMaxInfoBlock _tileMaxInfo = TileMaxInfoBlock();
   final NeighborMaxInfoBlock _neighborMaxInfo = NeighborMaxInfoBlock();
   final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();

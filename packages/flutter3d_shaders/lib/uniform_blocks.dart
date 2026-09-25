@@ -266,6 +266,14 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'range': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'DofTileMax': <String, Map<String, UniformMemberLayout>>{
+    'DofTileInfo': <String, UniformMemberLayout>{
+      'lens': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'source': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'target': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Easu': <String, Map<String, UniformMemberLayout>>{
     'EasuInfo': <String, UniformMemberLayout>{
       'source': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
