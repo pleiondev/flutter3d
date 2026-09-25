@@ -7784,7 +7784,8 @@ vec3 AccumulateLights(Surface s) {
 //
 // Weights per probe, as `IrradianceField.sample` on the host: trilinear by
 // the point's place in its cell, the square of a half-cosine towards the
-// probe, and Chebyshev's bound from the depth moments. The point is moved
+// probe, and Chebyshev's bound from the depth moments, the last two floored
+// and crushed so no active probe's weight reaches nought. The point is moved
 // off its surface along the normal and towards the eye first, so a surface
 // does not read the probe's own view of it as a wall.
 //
@@ -7891,19 +7892,26 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
     float distance = length(toProbe);
     if (distance > 1e-6) {
       vec3 direction = toProbe / distance;
+      // Facing and visibility are floored, then crushed, rather than let
+      // fall to nought (Majercik et al. 2019): a probe behind the surface or
+      // past a wall counts for almost nothing but never for nothing, so a
+      // point every probe of its cell is cut off from still reads a blend of
+      // them rather than black.
       float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
+      float probeWeight = facing * facing + 0.2;
 
       vec2 moments = TileBilinear(momentCorner, depthTile,
                                   ProbeOctahedral(-direction)).xy;
+      float chebyshev = 1.0;
       if (distance > moments.x) {
         float variance = max(moments.y - moments.x * moments.x, 1e-6);
         float difference = distance - moments.x;
-        float chebyshev = variance / (variance + difference * difference);
-        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+        chebyshev = variance / (variance + difference * difference);
+        chebyshev = chebyshev * chebyshev * chebyshev;
       }
-      if (weight <= 0.0) continue;
+      probeWeight = max(probeWeight * max(chebyshev, 0.05), 1e-6);
+      if (probeWeight < 0.2) probeWeight *= probeWeight * probeWeight * 25.0;
+      weight *= probeWeight;
     }
 
     total += TileBilinear(irradianceCorner, irradianceTile,
@@ -7911,7 +7919,7 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
              weight;
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : vec3(0.0);
+  return weights > 0.0 ? total / weights : vec3(0.0);
 }
 
 #endif  // IRRADIANCE_GLSL_
@@ -10209,7 +10217,8 @@ vec3 AccumulateLights(Surface s) {
 //
 // Weights per probe, as `IrradianceField.sample` on the host: trilinear by
 // the point's place in its cell, the square of a half-cosine towards the
-// probe, and Chebyshev's bound from the depth moments. The point is moved
+// probe, and Chebyshev's bound from the depth moments, the last two floored
+// and crushed so no active probe's weight reaches nought. The point is moved
 // off its surface along the normal and towards the eye first, so a surface
 // does not read the probe's own view of it as a wall.
 //
@@ -10316,19 +10325,26 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
     float distance = length(toProbe);
     if (distance > 1e-6) {
       vec3 direction = toProbe / distance;
+      // Facing and visibility are floored, then crushed, rather than let
+      // fall to nought (Majercik et al. 2019): a probe behind the surface or
+      // past a wall counts for almost nothing but never for nothing, so a
+      // point every probe of its cell is cut off from still reads a blend of
+      // them rather than black.
       float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
+      float probeWeight = facing * facing + 0.2;
 
       vec2 moments = TileBilinear(momentCorner, depthTile,
                                   ProbeOctahedral(-direction)).xy;
+      float chebyshev = 1.0;
       if (distance > moments.x) {
         float variance = max(moments.y - moments.x * moments.x, 1e-6);
         float difference = distance - moments.x;
-        float chebyshev = variance / (variance + difference * difference);
-        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+        chebyshev = variance / (variance + difference * difference);
+        chebyshev = chebyshev * chebyshev * chebyshev;
       }
-      if (weight <= 0.0) continue;
+      probeWeight = max(probeWeight * max(chebyshev, 0.05), 1e-6);
+      if (probeWeight < 0.2) probeWeight *= probeWeight * probeWeight * 25.0;
+      weight *= probeWeight;
     }
 
     total += TileBilinear(irradianceCorner, irradianceTile,
@@ -10336,7 +10352,7 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
              weight;
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : vec3(0.0);
+  return weights > 0.0 ? total / weights : vec3(0.0);
 }
 
 #endif  // IRRADIANCE_GLSL_
@@ -12669,7 +12685,8 @@ vec3 AccumulateLights(Surface s) {
 //
 // Weights per probe, as `IrradianceField.sample` on the host: trilinear by
 // the point's place in its cell, the square of a half-cosine towards the
-// probe, and Chebyshev's bound from the depth moments. The point is moved
+// probe, and Chebyshev's bound from the depth moments, the last two floored
+// and crushed so no active probe's weight reaches nought. The point is moved
 // off its surface along the normal and towards the eye first, so a surface
 // does not read the probe's own view of it as a wall.
 //
@@ -12776,19 +12793,26 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
     float distance = length(toProbe);
     if (distance > 1e-6) {
       vec3 direction = toProbe / distance;
+      // Facing and visibility are floored, then crushed, rather than let
+      // fall to nought (Majercik et al. 2019): a probe behind the surface or
+      // past a wall counts for almost nothing but never for nothing, so a
+      // point every probe of its cell is cut off from still reads a blend of
+      // them rather than black.
       float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
+      float probeWeight = facing * facing + 0.2;
 
       vec2 moments = TileBilinear(momentCorner, depthTile,
                                   ProbeOctahedral(-direction)).xy;
+      float chebyshev = 1.0;
       if (distance > moments.x) {
         float variance = max(moments.y - moments.x * moments.x, 1e-6);
         float difference = distance - moments.x;
-        float chebyshev = variance / (variance + difference * difference);
-        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+        chebyshev = variance / (variance + difference * difference);
+        chebyshev = chebyshev * chebyshev * chebyshev;
       }
-      if (weight <= 0.0) continue;
+      probeWeight = max(probeWeight * max(chebyshev, 0.05), 1e-6);
+      if (probeWeight < 0.2) probeWeight *= probeWeight * probeWeight * 25.0;
+      weight *= probeWeight;
     }
 
     total += TileBilinear(irradianceCorner, irradianceTile,
@@ -12796,7 +12820,7 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
              weight;
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : vec3(0.0);
+  return weights > 0.0 ? total / weights : vec3(0.0);
 }
 
 #endif  // IRRADIANCE_GLSL_
@@ -15960,7 +15984,8 @@ vec3 AccumulateLights(Surface s) {
 //
 // Weights per probe, as `IrradianceField.sample` on the host: trilinear by
 // the point's place in its cell, the square of a half-cosine towards the
-// probe, and Chebyshev's bound from the depth moments. The point is moved
+// probe, and Chebyshev's bound from the depth moments, the last two floored
+// and crushed so no active probe's weight reaches nought. The point is moved
 // off its surface along the normal and towards the eye first, so a surface
 // does not read the probe's own view of it as a wall.
 //
@@ -16067,19 +16092,26 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
     float distance = length(toProbe);
     if (distance > 1e-6) {
       vec3 direction = toProbe / distance;
+      // Facing and visibility are floored, then crushed, rather than let
+      // fall to nought (Majercik et al. 2019): a probe behind the surface or
+      // past a wall counts for almost nothing but never for nothing, so a
+      // point every probe of its cell is cut off from still reads a blend of
+      // them rather than black.
       float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
+      float probeWeight = facing * facing + 0.2;
 
       vec2 moments = TileBilinear(momentCorner, depthTile,
                                   ProbeOctahedral(-direction)).xy;
+      float chebyshev = 1.0;
       if (distance > moments.x) {
         float variance = max(moments.y - moments.x * moments.x, 1e-6);
         float difference = distance - moments.x;
-        float chebyshev = variance / (variance + difference * difference);
-        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+        chebyshev = variance / (variance + difference * difference);
+        chebyshev = chebyshev * chebyshev * chebyshev;
       }
-      if (weight <= 0.0) continue;
+      probeWeight = max(probeWeight * max(chebyshev, 0.05), 1e-6);
+      if (probeWeight < 0.2) probeWeight *= probeWeight * probeWeight * 25.0;
+      weight *= probeWeight;
     }
 
     total += TileBilinear(irradianceCorner, irradianceTile,
@@ -16087,7 +16119,7 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
              weight;
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : vec3(0.0);
+  return weights > 0.0 ? total / weights : vec3(0.0);
 }
 
 #endif  // IRRADIANCE_GLSL_
@@ -19219,7 +19251,8 @@ vec3 AccumulateLights(Surface s) {
 //
 // Weights per probe, as `IrradianceField.sample` on the host: trilinear by
 // the point's place in its cell, the square of a half-cosine towards the
-// probe, and Chebyshev's bound from the depth moments. The point is moved
+// probe, and Chebyshev's bound from the depth moments, the last two floored
+// and crushed so no active probe's weight reaches nought. The point is moved
 // off its surface along the normal and towards the eye first, so a surface
 // does not read the probe's own view of it as a wall.
 //
@@ -19326,19 +19359,26 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
     float distance = length(toProbe);
     if (distance > 1e-6) {
       vec3 direction = toProbe / distance;
+      // Facing and visibility are floored, then crushed, rather than let
+      // fall to nought (Majercik et al. 2019): a probe behind the surface or
+      // past a wall counts for almost nothing but never for nothing, so a
+      // point every probe of its cell is cut off from still reads a blend of
+      // them rather than black.
       float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
+      float probeWeight = facing * facing + 0.2;
 
       vec2 moments = TileBilinear(momentCorner, depthTile,
                                   ProbeOctahedral(-direction)).xy;
+      float chebyshev = 1.0;
       if (distance > moments.x) {
         float variance = max(moments.y - moments.x * moments.x, 1e-6);
         float difference = distance - moments.x;
-        float chebyshev = variance / (variance + difference * difference);
-        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+        chebyshev = variance / (variance + difference * difference);
+        chebyshev = chebyshev * chebyshev * chebyshev;
       }
-      if (weight <= 0.0) continue;
+      probeWeight = max(probeWeight * max(chebyshev, 0.05), 1e-6);
+      if (probeWeight < 0.2) probeWeight *= probeWeight * probeWeight * 25.0;
+      weight *= probeWeight;
     }
 
     total += TileBilinear(irradianceCorner, irradianceTile,
@@ -19346,7 +19386,7 @@ vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
              weight;
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : vec3(0.0);
+  return weights > 0.0 ? total / weights : vec3(0.0);
 }
 
 #endif  // IRRADIANCE_GLSL_
@@ -30538,6 +30578,14 @@ precision highp samplerCube;
 // the face's own axis; the distance along a direction is that over the
 // direction's component on the axis.
 //
+// **Every texel of the capture, each by the solid angle it covers**, rather
+// than a fixed set of directions through it. A fixed set gave every update
+// of a still room the same estimate, so the hysteresis settled on that
+// estimate's error rather than averaging it away: a lamp or a sunlit patch a
+// few texels wide was missed by one probe and counted twice by the next. At
+// sixteen texels a side the whole cube is 1536 taps, cheap for a kernel that
+// runs over two small tiles.
+//
 // Gutters are filled here too, from the interior texel `fillGutters` would
 // copy, so a probe's tiles stay continuous without a second pass.
 //
@@ -30563,18 +30611,23 @@ layout(std140) uniform ConvolveInfo {
   /// saw only sky is given.
   vec4 tiles;
 
-  /// xy: the atlas's size in texels. zw unused.
+  /// xy: the atlas's size in texels. z: the capture's side in texels.
+  /// w unused.
   vec4 atlas;
 }
 convolve_info;
 
-const int kSamples = 64;
-
-vec3 SphereDirection(int i) {
-  float z = 1.0 - (2.0 * float(i) + 1.0) / float(kSamples);
-  float r = sqrt(max(1.0 - z * z, 0.0));
-  float phi = float(i) * 2.39996323;
-  return vec3(r * cos(phi), r * sin(phi), z);
+/// Towards the centre of a texel of cube face [face] (+X, −X, +Y, −Y, +Z,
+/// −Z), [a] and [b] across it in −1..1: unnormalised, the face's axis at one.
+/// Which of the other two axes each coordinate names does not matter — the
+/// texel centres are symmetric under either — only that every texel is
+/// reached once.
+vec3 CubeTexel(int face, float a, float b) {
+  float side = (face & 1) == 0 ? 1.0 : -1.0;
+  int axis = face >> 1;
+  if (axis == 0) return vec3(side, a, b);
+  if (axis == 1) return vec3(a, side, b);
+  return vec3(a, b, side);
 }
 
 /// `decodeOctahedral` in `irradiance_field.dart`.
@@ -30641,24 +30694,37 @@ void main() {
   vec2 texel = InteriorOf(local - tile * stride, interior);
   vec3 normal = DecodeProbeOctahedral((texel + 0.5) / interior);
 
+  int captureSide = max(int(convolve_info.atlas.z + 0.5), 1);
+  float span = 2.0 / float(captureSide);
   vec3 light = vec3(0.0);
   float mean = 0.0;
   float square = 0.0;
   float weight = 0.0;
-  for (int i = 0; i < kSamples; i++) {
-    vec3 direction = SphereDirection(i);
-    float cosine = dot(normal, direction);
-    if (cosine <= 0.0) continue;
-    if (moments) {
-      float c2 = cosine * cosine;
-      float w = c2 * c2 * c2;
-      float distance = DistanceAlong(direction);
-      mean += distance * w;
-      square += distance * distance * w;
-      weight += w;
-    } else {
-      light += textureLod(radiance_texture, direction, 0.0).rgb * cosine;
-      weight += cosine;
+  for (int face = 0; face < 6; face++) {
+    for (int row = 0; row < captureSide; row++) {
+      for (int column = 0; column < captureSide; column++) {
+        float a = (float(column) + 0.5) * span - 1.0;
+        float b = (float(row) + 0.5) * span - 1.0;
+        // A texel's solid angle goes as one over its distance from the
+        // centre cubed: the square for the distance, one more for the slant.
+        float inverse = inversesqrt(1.0 + a * a + b * b);
+        vec3 direction = CubeTexel(face, a, b) * inverse;
+        float solidAngle = inverse * inverse * inverse;
+        float cosine = dot(normal, direction);
+        if (cosine <= 0.0) continue;
+        if (moments) {
+          float c2 = cosine * cosine;
+          float w = c2 * c2 * c2 * solidAngle;
+          float distance = DistanceAlong(direction);
+          mean += distance * w;
+          square += distance * distance * w;
+          weight += w;
+        } else {
+          float w = cosine * solidAngle;
+          light += textureLod(radiance_texture, direction, 0.0).rgb * w;
+          weight += w;
+        }
+      }
     }
   }
   float keep = convolve_info.probe.z;

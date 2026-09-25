@@ -36,13 +36,33 @@ Vector2 _octahedral(Vector3 d) {
 final class IrradianceConvolveShader implements CpuFragmentShader {
   const IrradianceConvolveShader();
 
-  static const int _samples = 64;
+  /// `CubeTexel`, normalised, with its solid angle, for every texel of a
+  /// capture [side] texels wide — the same list for every fragment, so
+  /// built once per side.
+  static final Map<int, List<(Vector3, double)>> _texels =
+      <int, List<(Vector3, double)>>{};
 
-  static Vector3 _sphere(int i) {
-    final z = 1.0 - (2.0 * i + 1.0) / _samples;
-    final r = math.sqrt(math.max(1.0 - z * z, 0.0));
-    final phi = i * 2.39996323;
-    return Vector3(r * math.cos(phi), r * math.sin(phi), z);
+  static List<(Vector3, double)> _cubeTexels(int side) =>
+      _texels[side] ??= <(Vector3, double)>[
+        for (var face = 0; face < 6; face++)
+          for (var row = 0; row < side; row++)
+            for (var column = 0; column < side; column++)
+              _cubeTexel(
+                face,
+                (column + 0.5) * (2.0 / side) - 1.0,
+                (row + 0.5) * (2.0 / side) - 1.0,
+              ),
+      ];
+
+  static (Vector3, double) _cubeTexel(int face, double a, double b) {
+    final side = (face & 1) == 0 ? 1.0 : -1.0;
+    final inverse = 1.0 / math.sqrt(1.0 + a * a + b * b);
+    final ray = switch (face >> 1) {
+      0 => Vector3(side, a, b),
+      1 => Vector3(a, side, b),
+      _ => Vector3(a, b, side),
+    };
+    return (ray * inverse, inverse * inverse * inverse);
   }
 
   static Vector3 _decode(double u, double v) {
@@ -111,13 +131,14 @@ final class IrradianceConvolveShader implements CpuFragmentShader {
     var mean = 0.0;
     var square = 0.0;
     var weight = 0.0;
-    for (var i = 0; i < _samples; i++) {
-      final d = _sphere(i);
+    for (final (d, solidAngle) in _cubeTexels(
+      math.max((atlas.z + 0.5).floor(), 1),
+    )) {
       final cosine = normal.dot(d);
       if (cosine <= 0.0) continue;
       if (moments) {
         final c2 = cosine * cosine;
-        final w = c2 * c2 * c2;
+        final w = c2 * c2 * c2 * solidAngle;
         final depth = surface?.sampleCube(d.x, d.y, d.z).w ?? 0.0;
         final axis = math.max(d.x.abs(), math.max(d.y.abs(), d.z.abs()));
         final distance = depth <= 0.0 ? tiles.w : depth / math.max(axis, 1e-4);
@@ -125,9 +146,10 @@ final class IrradianceConvolveShader implements CpuFragmentShader {
         square += distance * distance * w;
         weight += w;
       } else {
+        final w = cosine * solidAngle;
         final l = radiance?.sampleCube(d.x, d.y, d.z) ?? Vector4.zero();
-        light.add(Vector3(l.x, l.y, l.z) * cosine);
-        weight += cosine;
+        light.add(Vector3(l.x, l.y, l.z) * w);
+        weight += w;
       }
     }
     final keep = probe.z;
@@ -149,6 +171,16 @@ final class IrradianceConvolveShader implements CpuFragmentShader {
       old.w,
     );
   }
+}
+
+/// Chebyshev's bound, cubed, on a point [distance] from a probe whose
+/// moments that way are [mean] and [meanSquare]; one nearer than the mean.
+double _chebyshevCubed(double mean, double meanSquare, double distance) {
+  if (distance <= mean) return 1.0;
+  final variance = math.max(meanSquare - mean * mean, 1e-6);
+  final difference = distance - mean;
+  final bound = variance / (variance + difference * difference);
+  return bound * bound * bound;
 }
 
 /// Whether the field is read this draw.
@@ -253,8 +285,6 @@ Vector3 sampleIrradiance(
     if (distance > 1e-6) {
       final direction = toProbe / distance;
       final facing = unit.dot((probePosition - world).normalized()) * 0.5 + 0.5;
-      weight *= facing * facing;
-      if (weight <= 0.0) continue;
 
       final moments = bilinear(
         momentX,
@@ -262,13 +292,12 @@ Vector3 sampleIrradiance(
         depthTile,
         _octahedral(-direction),
       );
-      if (distance > moments.x) {
-        final variance = math.max(moments.y - moments.x * moments.x, 1e-6);
-        final difference = distance - moments.x;
-        final chebyshev = variance / (variance + difference * difference);
-        weight *= math.max(chebyshev * chebyshev * chebyshev, 0.0);
-      }
-      if (weight <= 0.0) continue;
+      final chebyshev = _chebyshevCubed(moments.x, moments.y, distance);
+      final floored = math.max(
+        (facing * facing + 0.2) * math.max(chebyshev, 0.05),
+        1e-6,
+      );
+      weight *= floored < 0.2 ? floored * floored * floored * 25.0 : floored;
     }
 
     final light = bilinear(
@@ -280,5 +309,5 @@ Vector3 sampleIrradiance(
     total.add(Vector3(light.x, light.y, light.z) * weight);
     weights += weight;
   }
-  return weights > 1e-6 ? total / weights : Vector3.zero();
+  return weights > 0.0 ? total / weights : Vector3.zero();
 }

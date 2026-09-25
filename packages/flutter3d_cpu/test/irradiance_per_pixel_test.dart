@@ -18,7 +18,7 @@ import 'package:vector_math/vector_math.dart';
 const int _width = 48;
 const int _height = 32;
 
-IrradianceField _field() {
+IrradianceField _field({double wall = 100.0}) {
   final field = IrradianceField(
     origin: Vector3(-2.0, -1.0, -2.0),
     spacing: Vector3(4.0, 2.0, 4.0),
@@ -38,10 +38,10 @@ IrradianceField _field() {
             field.writeIrradianceTexel(probe, tx, ty, colour);
           }
         }
-        // Far walls: nothing between any probe and any point.
+        // Far walls by default: nothing between any probe and any point.
         for (var ty = 0; ty < field.depthTile; ty++) {
           for (var tx = 0; tx < field.depthTile; tx++) {
-            field.writeDepthTexel(probe, tx, ty, 100.0, 10000.0);
+            field.writeDepthTexel(probe, tx, ty, wall, wall * wall);
           }
         }
       }
@@ -51,7 +51,7 @@ IrradianceField _field() {
   return field;
 }
 
-Float32List _frame({required bool withField}) {
+Float32List _frame({required bool withField, double wall = 100.0}) {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -71,7 +71,7 @@ Float32List _frame({required bool withField}) {
     ..ambientIntensity = 1.0
     ..add(floor)
     ..add(camera);
-  if (withField) scene.irradianceField = _field();
+  if (withField) scene.irradianceField = _field(wall: wall);
   final result = Renderer.create(device: device).render(
     width: _width,
     height: _height,
@@ -99,6 +99,17 @@ void main() {
     // Mutation: read the field at the node's centre instead, as 0.7 did.
     // Both sides come back the same colour.
     expect(right - left, greaterThan(0.2));
+  });
+
+  test('a floor every probe is walled off from still takes their light', () {
+    // Each probe sees a wall a hundredth of a unit away, so none can see the
+    // floor. Mutation: drop the 0.05 floor on the visibility in the mirror.
+    // Every weight falls under 1e-18 and the floor reads black.
+    final frame = _frame(withField: true, wall: 0.01);
+    final left = _green(frame, _width ~/ 6);
+    final right = _green(frame, _width - 1 - _width ~/ 6);
+    expect(right, greaterThan(0.2));
+    expect(right - left, greaterThan(0.1));
   });
 
   test('with no field, the hemisphere stands as it did', () {
