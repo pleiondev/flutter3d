@@ -586,8 +586,9 @@ final class LuminanceShader implements CpuFragmentShader {
 }
 
 /// `depth_pyramid.frag`: the farthest view depth under each texel's block of
-/// the surface buffer, as 24 bits of the far plane, and whether the whole
-/// block was drawn — `C3`. `HiZOcclusion.accept` is the other end.
+/// the surface buffer, as 24 bits of the far plane, and in alpha whether the
+/// whole block was drawn and how near its nearest depth comes to that —
+/// `C3`. `HiZOcclusion.accept` is the other end.
 final class DepthPyramidShader implements CpuFragmentShader {
   const DepthPyramidShader();
 
@@ -605,6 +606,7 @@ final class DepthPyramidShader implements CpuFragmentShader {
     final stepV = block.y / tapsY;
 
     var farthest = 0.0;
+    var nearest = 3.0e38;
     var empty = false;
     for (var j = 0; j < tapsY; j++) {
       for (var i = 0; i < tapsX; i++) {
@@ -613,8 +615,13 @@ final class DepthPyramidShader implements CpuFragmentShader {
             .w;
         if (!(depth > 0.0)) empty = true;
         if (depth > farthest) farthest = depth;
+        if (depth < nearest) nearest = depth;
       }
     }
+    // The nearest depth as a fraction of the farthest, rounded down, in
+    // alpha's upper half.
+    final ratio = farthest > 0.0 ? (nearest / farthest).clamp(0.0, 1.0) : 0.0;
+    final flatness = 128.0 + (ratio * 127.0 + 1e-3).floorToDouble();
 
     const steps = 16777215.0;
     final scaled = ((farthest * range.x).clamp(0.0, 1.0) * steps)
@@ -627,7 +634,7 @@ final class DepthPyramidShader implements CpuFragmentShader {
       high / 255.0,
       middle / 255.0,
       low / 255.0,
-      empty ? 0.0 : 1.0,
+      empty ? 0.0 : flatness / 255.0,
     );
   }
 }
