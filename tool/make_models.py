@@ -60,6 +60,18 @@ def q(value):
     return round(value * GRID) / GRID
 
 
+def linear(c):
+    """A display colour channel as the linear value glTF stores.
+
+    **The colours below are picked by eye, so they are display (sRGB) values**,
+    and glTF's `baseColorFactor` and `emissiveFactor` are linear. Written
+    as they were picked, a loader that reads the factors the way the
+    specification says draws every model lighter than it was chosen: a 0.5
+    shows as 0.73. Converted here, the picture is the one that was picked.
+    """
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
 class Mesh:
     """Triangles being accumulated, with a colour per run."""
 
@@ -82,7 +94,7 @@ class Mesh:
         """
         material = {
             'pbrMetallicRoughness': {
-                'baseColorFactor': [q(c) for c in colour] + [1.0],
+                'baseColorFactor': [q(linear(c)) for c in colour] + [1.0],
                 # **Written, not defaulted.** See the note at the top.
                 'metallicFactor': 0.0,
                 'roughnessFactor': q(roughness),
@@ -94,7 +106,7 @@ class Mesh:
                 'index': len(self.images) - 1,
             }
         if glow is not None:
-            material['emissiveFactor'] = [q(c) for c in glow]
+            material['emissiveFactor'] = [q(linear(c)) for c in glow]
         self.materials.append(material)
         self.runs.append([len(self.indices), 0, len(self.materials) - 1])
         return len(self.materials) - 1
