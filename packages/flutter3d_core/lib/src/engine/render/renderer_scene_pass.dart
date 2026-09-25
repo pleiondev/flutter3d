@@ -359,6 +359,11 @@ extension _ScenePasses on Renderer {
       );
       developer.Timeline.finishSync();
 
+      // `C9`: the view's own draws are done. A contributor may draw another
+      // scene through another matrix, and its split meshes are not this
+      // view's to cull.
+      _clusterView = null;
+
       // After the resolve instead, when there is one — `R8`.
       for (final plugin
           in orderIndependent ? const <PassContributor>[] : contributors) {
@@ -376,8 +381,6 @@ extension _ScenePasses on Renderer {
           ),
         );
       }
-
-      _clusterView = null;
 
       // The debug overlay is deliberately NOT drawn here. Anything written into
       // the HDR target is scene light: it would be tone mapped, and a bright
