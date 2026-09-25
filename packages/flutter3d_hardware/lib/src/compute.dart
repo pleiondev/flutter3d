@@ -1,15 +1,15 @@
 /// Compute: storage buffers, compute pipelines and the encoder that dispatches
 /// them — `H6`.
 ///
-/// **In the contract before any backend runs it.** Every interface here is
-/// implemented by each backend package, which is pinned to this one by a caret
-/// range, so a member added in a patch release would break the backend that
-/// shipped before it. 0.8.0 therefore carries the whole shape, and every
-/// backend answers [GraphicsDevice.supportsCompute] with false and refuses the
-/// creators with an [UnsupportedError]. WebGPU and the software rasteriser
-/// turn it on in a 0.8 patch; Impeller follows when flutter_gpu exposes
-/// compute pipelines (flutter/flutter#188480), and the shape follows its
-/// proposal (#188474) so that becomes a mapping rather than a redesign.
+/// **In the contract whole, before every backend runs it.** Every interface
+/// here is implemented by each backend package, which is pinned to this one by
+/// a caret range, so a member added in a patch release would break the backend
+/// that shipped before it. 0.8.0 therefore carries the whole shape. WebGPU and
+/// the software rasteriser run it; WebGL2 and Impeller answer
+/// [GraphicsDevice.supportsCompute] with false and refuse the creators with an
+/// [UnsupportedError]. Impeller follows when flutter_gpu exposes compute
+/// pipelines (flutter/flutter#188480), and the shape follows its proposal
+/// (#188474) so that becomes a mapping rather than a redesign.
 library;
 
 import 'dart:typed_data';
