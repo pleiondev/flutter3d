@@ -310,6 +310,21 @@ Half of what a backend must *do* is in no signature. These were prose once, whic
 | **`bindPipeline` forgets every binding** | A draw that missed a bind reads the previous draw's and draws a plausible picture, on the one backend that kept it, while the others fail |
 | **Ask before requesting what a backend may not have** | `supportsWireframe`, `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`, `preferredSampleCount`, and the 0.8 members: `supportsCompute`, `supportsGpuTimestamps`, `supportsFloat32Filtering`, `supportsIndependentBlend`, `hdrOutputFormats` |
 
+### Which way Y points {#y-axis}
+
+**WebGL2 counts rows from the bottom; Impeller (Metal), WebGPU and the software rasteriser count them from the top.** A backend says which it is through `framebufferOrigin`: `bottomLeft` for WebGL2, `topLeft` for the other three. The picture comes out upright on every one of them. What differs is where row zero of a render target sits, and so what `gl_FragCoord.y`, a texture's `v` and a velocity's green mean.
+
+| Where it shows | Top-left backends | WebGL2 (bottom-left) | Rule |
+|---|---|---|---|
+| `gl_FragCoord.y` | 0 at the top of the picture | 0 at the bottom | A **screen-space pattern** (Bayer dither, grain, the jitter a ray march starts from, a shadow kernel's rotation) reads `FragCoordFromTop(rows)` from `lib/frag_coord.glsl`, with `rows` the target's height on a bottom-left backend and 0 on the others, so the pattern lands on the same pixels everywhere |
+| Reading back a texture the same backend drew at this pixel (the surface buffer's depth, the scene colour copy) | `gl_FragCoord` | `gl_FragCoord` | **Never flip.** The backend drew that texture into the same rows it is shading now. Flipping reads the row mirrored about the middle: the velocity pass did this until 0.8.0 and discarded nearly every fragment on WebGL2 |
+| Velocity, stored as a difference of texture coordinates | green positive for motion down the picture | green positive for motion up it | Consumers (motion blur, the temporal resolve) read it in the same backend's coordinates and agree. Only the raw `showVelocity` view looks different, and the WebGL2 reference for `velocity-shapes` is recorded that way on purpose |
+| Viewport and scissor rectangles | as given | the backend flips them | **Stated from the top left** in the contract; the engine never flips them for you |
+| A cube face or an offscreen target sampled through a matrix | as is | y negated in the projection | The engine does this per origin (see the reflection probe capture); a backend only has to answer `framebufferOrigin` truthfully |
+| `readPixels` | rows from the top | rows from the top (the backend flips them) | The contract promises top-first on every backend |
+
+The rule that matters most when writing a shader: **flip for patterns, never for lookups.** A pattern has to be the same on every screen. A lookup has to find the texel this backend just wrote at this pixel.
+
 ### The sampler default, and why it is written down
 
 The two hardware backends had each chosen `linearRepeat` for a null sampler and therefore agreed **without anybody writing it down**. The third read the contract, took the `SamplerOptions` constructor defaults, and drew hard seams everywhere the others drew soft ones, two percent of every textured golden, looking exactly like a filtering bug in the new backend rather than like a question the contract had never answered.
