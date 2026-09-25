@@ -196,9 +196,9 @@ const Map<String, double> _budgets = <String, double>{
   'rough-metals': 0.01,
   'scan-chunks': 0.01,
   'sheen-fabric': 0.01,
-  // 2.039% measured: the puffs' fringes, where the sheet is sampled between
-  // texels differently.
-  'smoke-six-way': 2.25,
+  // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
+  // 64-bit integers, so a browser baked a different sheet.
+  'smoke-six-way': 0.01,
   'splat-gltf': 0.01,
   // Was 40.38, over a reference that was a black frame: the hashed splats'
   // pipeline claimed a velocity target it has no output for, WebGPU refused
