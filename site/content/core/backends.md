@@ -383,15 +383,15 @@ for (final RequiredShader shader in kRequiredShaders) {
 }
 ```
 
-Seventy-eight entry points. `kRequiredShaders` and the bundle manifest are kept in step with each other by `flutter3d_shaders/test/manifest_test.dart`, and this table is kept in step with both by the `the site names every shader a bundle must answer to` rule. It was eleven names short for as long as nothing compared it with anything, and a missing name is not a degraded picture: `Renderer.create` throws on the first one it cannot find.
+Eighty-two entry points. `kRequiredShaders` and the bundle manifest are kept in step with each other by `flutter3d_shaders/test/manifest_test.dart`, and this table is kept in step with both by the `the site names every shader a bundle must answer to` rule. It was eleven names short for as long as nothing compared it with anything, and a missing name is not a degraded picture: `Renderer.create` throws on the first one it cannot find.
 
 | Stage | Names |
 |---|---|
 | Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `PolylineVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex`, `ImpostorVertex`, `VelocityVertex`, `VelocitySkinnedVertex`, `VelocityInstancedVertex` |
 | Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals`, `PbrLayered`, `Impostor` |
 | Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowDepthMasked`, `ShadowDistanceMasked`, `ShadowTileReset`, `EvsmFilter`, `ShadowCopy` |
-| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve` |
-| Particles | `Particle`, `ParticleTextured`, `ParticleMesh`, `ParticleSixWay`, `ReactiveSprite`, `SplatHashed` |
+| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve`, `DofTileMax` |
+| Particles | `Particle`, `ParticleTextured`, `ParticleMesh`, `ParticleSixWay`, `ReactiveSprite`, `SplatHashed`, `ParticleSoft`, `ParticleTexturedSoft`, `ParticleSixWaySoft` |
 | Sky | `Sky`, `SkyCube` |
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |
 | Probes | `VertexTextureProbeVertex`, `VertexTextureProbe`, `IrradianceConvolve`, `FieldDecay` |
