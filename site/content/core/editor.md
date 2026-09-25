@@ -129,6 +129,16 @@ Two of the tools are not commands and both were missing from every sketch of thi
 
 **It draws in software, flat.** `screenshot` renders the level through `flutter3d_cpu` at 320×200, with no GPU and no Flutter: the scene comes from `LevelScene` in `flutter3d_editor_core`, the half of loading a level that never needed a window. Textures are decoded by the application that ships them, so every brush shows in its material's colour and every light and entity as a small box. `report` reads the same frame's object ids, with the level drawn one brush per draw, and says for every brush, light and entity how many pixels it owns, where, how far away, and which pieces cover the part of the screen it would fill. "The torch is hidden by brush 3" is then a count of pixels after the depth test, not a guess from boxes.
 
+## Fewer lights, from the command line
+
+A level with fifty lights where thirty would draw the same picture pays for the other twenty in every frame. `flutter3d_build` has a command for that, and it needs no window either:
+
+```sh
+dart run flutter3d_build:lights --optimize assets/levels/crypt.json --dry-run
+```
+
+It draws every light alone in software from views a player would have, removes the lights others already cover, merges close pairs, retunes the rest, and keeps a change only while the picture stays within its bounds. The set it arrives at goes into the level as one `setLights` command, so it is one step of history like any other edit. Like `⌘S`, it will not write over a generated level; `--out` writes a copy that owns itself. The options, lighting states and per-device-class copies are on [the asset pipeline](/reference/asset-pipeline/#lights) page.
+
 ## What it does not do yet
 
 An agent cannot join a session somebody else has open. A socket into a running editor, with one level changing under two writers while a person watches, is the arrangement worth having and a much harder program: two writers on one undo stack, a selection that has to mean something to both, and a test that needs a device before it can assert anything. What exists is the half a plain `dart test` can hold still.
