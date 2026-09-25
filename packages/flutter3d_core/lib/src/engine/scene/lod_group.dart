@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/geometry.dart';
+
 import '../render/material.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';
@@ -34,11 +35,22 @@ final class LodLevel {
 /// Levels are given finest-first and sorted on construction, so declaring them
 /// out of order is not a silent bug.
 final class LodGroup extends SceneNode {
-  LodGroup({required List<LodLevel> levels, super.name})
-    : _levels = List<LodLevel>.of(levels)
-        ..sort((a, b) => b.maxScreenFraction.compareTo(a.maxScreenFraction)) {
+  LodGroup({
+    required List<LodLevel> levels,
+    this.hysteresis = defaultHysteresis,
+    super.name,
+  }) : _levels = List<LodLevel>.of(levels)
+         ..sort((a, b) => b.maxScreenFraction.compareTo(a.maxScreenFraction)) {
     if (_levels.isEmpty) {
       throw ArgumentError('A LOD group needs at least one level.');
+    }
+    if (hysteresis < 0.0) {
+      throw ArgumentError.value(
+        hysteresis,
+        'hysteresis',
+        'must be zero or positive: a negative band would switch finer before '
+            'the threshold it is meant to widen',
+      );
     }
     for (final level in _levels) {
       add(level.node);
@@ -68,6 +80,7 @@ final class LodGroup extends SceneNode {
     required MeshGeometry mesh,
     required List<Material> materials,
     required List<double> maxScreenFractions,
+    double hysteresis = defaultHysteresis,
     String? name,
   }) {
     if (materials.length != maxScreenFractions.length) {
@@ -79,6 +92,7 @@ final class LodGroup extends SceneNode {
     }
     return LodGroup(
       name: name,
+      hysteresis: hysteresis,
       levels: <LodLevel>[
         for (var i = 0; i < materials.length; i++)
           LodLevel(
@@ -90,6 +104,22 @@ final class LodGroup extends SceneNode {
       ],
     );
   }
+
+  /// The band given by default: a tenth of each threshold.
+  static const double defaultHysteresis = 0.1;
+
+  /// How far past a threshold, as a fraction of it, the object has to grow
+  /// before a finer level takes back over from a coarser one.
+  ///
+  /// **A hard threshold flips every frame at its edge.** An object parked on
+  /// one, under a camera that bobs or a TAA jitter that moves the eye by a
+  /// fraction of a pixel, lands a hair either side of it frame after frame, and
+  /// each crossing swaps the mesh — a flicker far more visible than either
+  /// level alone. With a band the coarser level is let go only once the object
+  /// is clearly bigger than the threshold it came in under, and coarsening
+  /// still happens at the threshold itself, so the declared numbers keep their
+  /// meaning on the way out. Zero restores the hard switch.
+  final double hysteresis;
 
   final List<LodLevel> _levels;
   int _active = -1;
@@ -133,9 +163,16 @@ final class LodGroup extends SceneNode {
     // is the *last* of them — the coarsest that still qualifies. Taking the
     // first instead would always answer "finest", because the finest level's
     // threshold is the largest.
+    //
+    // The level already showing, and every finer one, is held a little longer:
+    // its threshold widens by [hysteresis], so leaving it for a finer level
+    // takes a clear step past the line rather than a jitter across it. Levels
+    // coarser than the active one keep their plain threshold.
     var chosen = 0;
     for (var i = 0; i < _levels.length; i++) {
-      if (fraction > _levels[i].maxScreenFraction) break;
+      final threshold = _levels[i].maxScreenFraction;
+      final held = i <= _active ? threshold * (1.0 + hysteresis) : threshold;
+      if (fraction > held) break;
       chosen = i;
     }
     _apply(chosen);
