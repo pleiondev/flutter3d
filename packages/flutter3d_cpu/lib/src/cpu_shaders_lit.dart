@@ -536,11 +536,11 @@ final class PbrShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final s = readSurface(v, b, c);
+    final s = readSurface(v, b, c, transformed: layered);
     if (s == null) return null;
     final layers = layered ? _Layers.read(s, v, b, c) : null;
-    applyCommonMaps(s, v, b, c);
-    applyMetallicRoughnessMap(s, v, b, c);
+    applyCommonMaps(s, v, b, c, transformed: layered);
+    applyMetallicRoughnessMap(s, v, b, c, transformed: layered);
     layers?.readOnMaps(s, b, c);
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     // `EnergyCompensation()` — `L1`.

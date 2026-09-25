@@ -77,14 +77,35 @@ final class TextureBinding {
   /// file named the extension — `fmt-19`'s own row. Null for a texture info
   /// with no such extension, which is every file before this one existed.
   ///
-  /// **Carried here, and honoured by whoever draws the surface.** No shader
-  /// samples a texture through this. What draws — `ModelAsset` — moves the
-  /// surface's texture coordinates instead, when every texture of the
-  /// material names the same transform, which is what an atlas export
-  /// writes: see `texture_transform_bake.dart`. The document keeps the
-  /// coordinates the file had beside the numbers it named, so a round trip
-  /// gives the file back.
+  /// **Carried here, and honoured by whoever draws the surface.** What draws —
+  /// `ModelAsset` — moves the surface's texture coordinates when every
+  /// texture of the material names the same transform, which is what an
+  /// atlas export writes: see `texture_transform_bake.dart`. A material whose
+  /// textures disagree, or whose offset a clip moves, is read through a
+  /// matrix per map at the sampler instead — `C8`, `Material.textureTransforms`.
+  /// The document keeps the coordinates the file had beside the numbers it
+  /// named, so a round trip gives the file back.
   final TextureTransform? transform;
+}
+
+/// The maps of a metal-rough material, in the order the layered stage keeps
+/// their transforms — `C8`, `LayerInfo.uv_transform` and `kMapBaseColor` and
+/// the rest in `lib/surface.glsl`.
+enum MaterialMap {
+  baseColor,
+  metallicRoughness,
+  normal,
+  occlusion,
+  emissive;
+
+  /// [material]'s binding for this map, or null.
+  TextureBinding? of(SurfaceMaterial material) => switch (this) {
+    baseColor => material.baseColorTexture,
+    metallicRoughness => material.metallicRoughnessTexture,
+    normal => material.normalTexture,
+    occlusion => material.occlusionTexture,
+    emissive => material.emissiveTexture,
+  };
 }
 
 /// `KHR_texture_transform`'s three fields — see [TextureBinding.transform].
@@ -122,6 +143,14 @@ final class TextureTransform {
       scale.x == other.scale.x &&
       scale.y == other.scale.y &&
       rotation == other.rotation;
+
+  /// An independent copy, whose [offset] a clip may move without moving the
+  /// document's.
+  TextureTransform clone() => TextureTransform(
+    offset: offset.clone(),
+    scale: scale.clone(),
+    rotation: rotation,
+  );
 
   @override
   String toString() =>

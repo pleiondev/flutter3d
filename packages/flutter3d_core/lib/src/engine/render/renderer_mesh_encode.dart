@@ -29,6 +29,27 @@ final class _DrawOverride {
   final BlendState? blend;
 }
 
+/// Writes [transform] into [out] at [at] as the two rows `MapUv` reads — `C8`.
+///
+/// `KHR_texture_transform`'s own order, the one `withTextureTransform` bakes
+/// with: scale, then rotate, then move. Null is the identity, whose rows read
+/// a coordinate back unchanged.
+void _writeUvTransform(Float32List out, int at, TextureTransform? transform) {
+  final (cosine, sine, scale, offset) = switch (transform) {
+    null => (1.0, 0.0, vm.Vector2(1.0, 1.0), vm.Vector2.zero()),
+    final t => (math.cos(t.rotation), math.sin(t.rotation), t.scale, t.offset),
+  };
+  out
+    ..[at] = cosine * scale.x
+    ..[at + 1] = -sine * scale.y
+    ..[at + 2] = offset.x
+    ..[at + 3] = 0.0
+    ..[at + 4] = sine * scale.x
+    ..[at + 5] = cosine * scale.y
+    ..[at + 6] = offset.y
+    ..[at + 7] = 0.0;
+}
+
 extension _MeshEncode on Renderer {
   /// Binds the morph state for a draw through one of the mesh vertex stages.
   ///
@@ -669,6 +690,14 @@ extension _MeshEncode on Renderer {
         ..[0] = layers?.iridescence ?? 0.0
         ..[1] = layers?.iridescenceIor ?? 1.3
         ..[2] = layers?.iridescenceThicknessMaximum ?? 400.0;
+      // `C8`: a matrix per map, the identity where the material names none.
+      for (final map in MaterialMap.values) {
+        _writeUvTransform(
+          _layerInfo.uvTransform,
+          map.index * 8,
+          material.textureTransforms[map],
+        );
+      }
       encoder.bindBlock(fragmentShader, _layerInfo);
     }
 

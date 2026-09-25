@@ -196,8 +196,15 @@ final class LightingModel {
   /// one: [pbrLayered] in place of [pbr] when a layer changes the shading,
   /// and this model unchanged otherwise — `M1`. Every other model has no
   /// layered form, and a surface that picked one keeps it.
-  LightingModel withLayers(MaterialExtensions? layers) =>
-      identical(this, pbr) && (layers?.shades ?? false) ? pbrLayered : this;
+  ///
+  /// [textureTransforms] asks for the layered model too — `C8`: it is the
+  /// one that reads a transform per map at the sampler.
+  LightingModel withLayers(
+    MaterialExtensions? layers, {
+    bool textureTransforms = false,
+  }) => identical(this, pbr) && ((layers?.shades ?? false) || textureTransforms)
+      ? pbrLayered
+      : this;
 
   /// Shown in the UI.
   final String label;

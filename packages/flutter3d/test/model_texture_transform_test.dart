@@ -9,14 +9,16 @@
 /// could go wrong without anybody seeing: the document being changed under a
 /// caller who means to write it out again, and two materials on one mesh
 /// getting each other's coordinates.
+///
+/// `C8` added the other half: a material whose maps disagree, or whose offset
+/// a clip moves, keeps its transforms for the sampler and the layered model
+/// instead, and its mesh is uploaded as the file had it.
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/model_asset.dart';
-import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_core/geometry.dart';
-import 'package:flutter3d_core/src/engine/geometry/device_mesh.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -143,4 +145,127 @@ void main() {
       expect(asset.parts.first.mesh.source, same(quad));
     },
   );
+
+  group('at the sampler — C8', () {
+    SurfaceMaterial disagreeing() => SurfaceMaterial(
+      baseColorTexture: TextureBinding(
+        imageIndex: 0,
+        transform: TextureTransform(offset: Vector2(0.5, 0.0)),
+      ),
+      emissiveTexture: TextureBinding(
+        imageIndex: 0,
+        transform: TextureTransform(offset: Vector2(0.0, 0.5)),
+      ),
+    );
+
+    PlainModelDocument documentOf(
+      MeshData quad,
+      SurfaceMaterial material, {
+      List<AnimationClip> animations = const <AnimationClip>[],
+    }) => PlainModelDocument(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          mesh: quad,
+          transform: Matrix4.identity(),
+          materialIndex: 0,
+        ),
+      ],
+      materials: <SurfaceMaterial>[material],
+      animations: animations,
+    );
+
+    // Mutation: `atSampler` answering false leaves the material metal-rough
+    // with no transforms, and the first two expectations fail.
+    test('maps that disagree are each read through their own', () async {
+      final quad = _quad();
+      final asset = await ModelAsset.fromDocument(
+        documentOf(quad, disagreeing()),
+        device: FakeBackend(),
+      );
+      final material = asset.parts.single.material;
+
+      expect(material.lighting, same(LightingModel.pbrLayered));
+      expect(
+        material.textureTransforms[MaterialMap.emissive]?.offset,
+        Vector2(0.0, 0.5),
+      );
+      expect(
+        material.textureTransforms[MaterialMap.baseColor]?.offset,
+        Vector2(0.5, 0.0),
+      );
+      expect(asset.parts.single.mesh.source, same(quad));
+      expect(
+        asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+        isEmpty,
+      );
+    });
+
+    test('a model with no matrices says it cannot honour them', () async {
+      final asset = await ModelAsset.fromDocument(
+        documentOf(_quad(), disagreeing()),
+        device: FakeBackend(),
+        lighting: LightingModel.lambert,
+      );
+
+      expect(asset.parts.single.material.textureTransforms, isEmpty);
+      expect(
+        asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+        hasLength(1),
+      );
+    });
+
+    // Mutation: dropping `animatedOffsets` from `atSampler` bakes the offset
+    // into the mesh, where the clip cannot reach it, and the mesh expectation
+    // fails.
+    test('an offset a clip moves is not baked, and moves a copy', () async {
+      final quad = _quad();
+      final document = documentOf(
+        quad,
+        _packedInto(Vector2(0.5, 0.0)),
+        animations: <AnimationClip>[
+          AnimationClip(
+            name: 'scroll',
+            tracks: <AnimationTrack>[
+              AnimationTrack(
+                nodeIndex: -1,
+                path: AnimationPath.pointer,
+                interpolation: AnimationInterpolation.linear,
+                times: Float32List.fromList(<double>[0.0, 1.0]),
+                values: Float32List.fromList(<double>[0.5, 0.0, 0.0, 0.5]),
+                componentCount: 2,
+                pointer: AnimationPointer.of(
+                  AnimationPointerProperty.textureOffset,
+                  0,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      final asset = await ModelAsset.fromDocument(
+        document,
+        device: FakeBackend(),
+      );
+      final material = asset.parts.single.material;
+
+      expect(asset.parts.single.mesh.source, same(quad));
+      expect(material.lighting, same(LightingModel.pbrLayered));
+
+      PointerTargets.applyToMaterial(
+        material,
+        AnimationPointer.of(AnimationPointerProperty.textureOffset, 0),
+        <double>[0.25, 0.75],
+      );
+      expect(
+        material.textureTransforms[MaterialMap.baseColor]?.offset,
+        Vector2(0.25, 0.75),
+      );
+      // The document is what a writer writes back, and a clip playing does
+      // not rewrite the file.
+      expect(
+        document.materials.single.baseColorTexture?.transform?.offset,
+        Vector2(0.5, 0.0),
+      );
+    });
+  });
 }

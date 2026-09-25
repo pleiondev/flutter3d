@@ -289,10 +289,26 @@ final class ModelAsset {
       );
     });
 
+    // `C8`: the materials whose transforms are read at the sampler rather
+    // than baked into the coordinates — those whose maps disagree, which one
+    // set of coordinates cannot honour, and those whose offset a clip moves,
+    // which coordinates fixed at upload cannot follow.
+    final animatedOffsets = <int>{
+      for (final clip in document.animations)
+        for (final track in clip.tracks)
+          if (track.pointer case final pointer?
+              when pointer.property == AnimationPointerProperty.textureOffset)
+            pointer.index,
+    };
+    bool atSampler(int index) =>
+        animatedOffsets.contains(index) ||
+        hasConflictingTextureTransforms(document.materials[index]);
+
     Future<Material> materialAt(int index) async =>
         materialCache[index] ??= await bindSurfaceMaterial(
           document.materials[index],
           lighting: lighting,
+          transformsAtSampler: atSampler(index),
           textureFor: textureFor,
           // `M1`–`M3`: the layer maps packed at load, for a variant's
           // material as for the default one.
@@ -302,16 +318,42 @@ final class ModelAsset {
           ),
         );
 
+    /// The transform baked into the coordinates of a surface drawn with
+    /// material [index], bound as [material]: the one its maps share, unless
+    /// the material reads its own at the sampler — `C8`.
+    TextureTransform? bakedFor(int index, Material material) =>
+        atSampler(index) &&
+            identical(material.lighting, LightingModel.pbrLayered)
+        ? null
+        : sharedTextureTransform(document.materials[index]);
+
+    // Said once per material rather than once per surface: the maps of a
+    // material another model draws disagree, and that model has no matrices
+    // to read them through.
+    for (var index = 0; index < document.materials.length; index++) {
+      if (!hasConflictingTextureTransforms(document.materials[index])) continue;
+      final material = await materialAt(index);
+      if (material.textureTransforms.isNotEmpty) continue;
+      warnings.add(
+        'materials[$index] gives its textures different '
+        'KHR_texture_transform values and is drawn with '
+        '${material.lighting.label}, which reads one set of coordinates; '
+        'none is applied and each samples its whole image.',
+      );
+    }
+
     final parts = <ModelPart>[];
     for (final surface in document.surfaces) {
       final index = surface.materialIndex;
+      final hasMaterial =
+          index != null && index >= 0 && index < document.materials.length;
+      final material = hasMaterial
+          ? await materialAt(index)
+          : materialCache[-1] ??= Material(lighting: lighting);
       // `KHR_texture_transform`, honoured in the coordinates: see
-      // `texture_transform_bake.dart` for why here and not in the decoder or
-      // the sampler.
-      final moved =
-          index != null && index >= 0 && index < document.materials.length
-          ? sharedTextureTransform(document.materials[index])
-          : null;
+      // `texture_transform_bake.dart` for why here and not in the decoder, and
+      // `bakedFor` for the materials that take theirs at the sampler instead.
+      final moved = hasMaterial ? bakedFor(index, material) : null;
       final mesh = meshCache.putIfAbsent(
         (surface.mesh, moved),
         () => DeviceMesh.upload(
@@ -323,11 +365,6 @@ final class ModelAsset {
       );
       final morph = morphFor(surface.mesh, surface.name ?? 'a surface');
 
-      final material =
-          index != null && index >= 0 && index < document.materials.length
-          ? await materialAt(index)
-          : materialCache[-1] ??= Material(lighting: lighting);
-
       // Each variant's material is bound now, with the default one, so that
       // switching variants is an assignment rather than an upload. The mesh
       // is not re-uploaded per variant: the texture transform baked into it
@@ -337,8 +374,9 @@ final class ModelAsset {
       for (final MapEntry(key: variant, value: other)
           in surface.variantMaterials.entries) {
         if (other < 0 || other >= document.materials.length) continue;
-        variantMaterials[variant] = await materialAt(other);
-        final theirs = sharedTextureTransform(document.materials[other]);
+        final theirMaterial = await materialAt(other);
+        variantMaterials[variant] = theirMaterial;
+        final theirs = bakedFor(other, theirMaterial);
         final same = theirs == null
             ? moved == null
             : moved != null && theirs.sameAs(moved);
