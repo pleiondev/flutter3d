@@ -8,7 +8,7 @@ Written by `tool/pacing.sh` on 2026-09-24 at `34ee1f9c`. `shooter.f3drun` played
 
 - device: GpuRenderBackend, macos Version 27.2 (Build 26B5091g)
 - build: profile
-- host load average when the run began: 19,74, 49,30, 96,24
+- host load average when the run began: 19.74, 49.30, 96.24
 - frame: 1280 x 720
 - `RenderSettings.frameWorkBudget`: none
 

@@ -72,8 +72,9 @@ dart run tool/pacing_report.dart defines "$RUN" "$WORK/defines.json" \
   "$REPEATS" "$BUDGET" || exit 2
 
 # Read before the run, so the build's own load is over and the run's has not
-# begun. macOS has no /proc.
-LOAD="$( (sysctl -n vm.loadavg 2>/dev/null || cut -d' ' -f1-3 /proc/loadavg) |
+# begun. macOS has no /proc. In the C locale, because sysctl otherwise
+# writes a decimal comma and the three numbers run together in the report.
+LOAD="$( (LC_ALL=C sysctl -n vm.loadavg 2>/dev/null || cut -d' ' -f1-3 /proc/loadavg) |
   tr -d '{}' | awk '{print $1", "$2", "$3}')"
 
 echo "playing $(basename "$RUN") on $DEVICE, $REPEATS passes…"
