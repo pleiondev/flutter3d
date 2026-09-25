@@ -292,4 +292,45 @@ void main() {
       expect(added, lessThan(0.25 * mirror));
     });
   });
+
+  test('the sheen sees the direction to a panel, not its form factor', () {
+    // A floor seen at a grazing angle, and a panel whose representative point
+    // is 37 degrees off its normal. Under a rectangle `nDotL` is the form
+    // factor; the loop multiplies by it, so the lobe must not read it too.
+    final view = Vector3(0.0, 0.3, -math.sqrt(1.0 - 0.09));
+    final surface = Surface(
+      Vector3.all(0.5),
+      1.0,
+      Vector3(0.0, 1.0, 0.0),
+      Vector3.zero(),
+      Vector3.zero(),
+      0.0,
+      0.8,
+      view,
+      0.3,
+      Vector4(1.0, 0.0, 0.0, 1.0),
+    );
+    final l = Vector3(0.0, 0.8, 0.6);
+    final h = (l + view)..normalize();
+    LightSample panel(double nDotL) => (
+      direction: l,
+      radiance: Vector3.all(1.0),
+      nDotL: nDotL,
+      nDotH: h.y,
+      vDotH: view.dot(h),
+      ltc: null,
+      corners: null,
+    );
+    final cosine = PbrShader.sheenLobe(0.5, surface, panel(0.8));
+    // Mutation: hand `light.nDotL` to `_vNeubelt` again. A near panel, form
+    // factor 2.5, darkens the lobe to under half; a far one, 0.05, brightens it
+    // two and a half times.
+    expect(cosine, greaterThan(0.0));
+    for (final formFactor in <double>[0.05, 2.5]) {
+      expect(
+        PbrShader.sheenLobe(0.5, surface, panel(formFactor)),
+        closeTo(cosine, cosine * 1e-9),
+      );
+    }
+  });
 }

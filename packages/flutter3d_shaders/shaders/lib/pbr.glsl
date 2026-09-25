@@ -689,9 +689,10 @@ vec3 ShadeLight(Surface s, LightSample light) {
   // default were calibrated against.
 #ifdef F3D_LAYERED
   // Under the sheen, what its albedo leaves; under the coat, what its
-  // Fresnel lets through; on top, the coat's own lobe.
+  // Fresnel lets through; on top, the coat's own lobe. The sheen's
+  // visibility takes a cosine, which `n_dot_l` is not under a rectangle.
   vec3 sheen = g_sheen * D_Charlie(g_sheen_roughness, light.n_dot_h) *
-               V_Neubelt(s.n_dot_v, light.n_dot_l);
+               V_Neubelt(s.n_dot_v, clamp(dot(s.n, light.l), 0.0, 1.0));
   return (((diffuse + specular) * g_sheen_scale + sheen) * g_coat_through +
           vec3(g_coat * CoatLobe(s, light))) *
          kPi;
