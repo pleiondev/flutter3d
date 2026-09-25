@@ -112,16 +112,41 @@ vec2 UvFromNdc(vec2 ndc) {
 ///
 /// y undoes [UvFromNdc]: a point projected and then reconstructed has to come
 /// back where it started.
-vec3 WorldAtDepth(vec2 uv, float depth) {
+///
+/// [PixelRay] is the ray on its own: where it starts and which way it goes.
+/// Reversed it is also the way to the eye, for either camera — see [EyeWard].
+void PixelRay(vec2 uv, out vec3 origin, out vec3 along) {
   vec2 xy = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
   vec4 nearH = ssao_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
   vec4 farH = ssao_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
-  vec3 origin = nearH.xyz / nearH.w;
-  vec3 along = normalize(farH.xyz / farH.w - origin);
+  origin = nearH.xyz / nearH.w;
+  along = normalize(farH.xyz / farH.w - origin);
+}
+
+vec3 WorldAtDepth(vec2 uv, float depth) {
+  vec3 origin;
+  vec3 along;
+  PixelRay(uv, origin, along);
   vec3 axis = ssao_info.forward.xyz;
   return origin +
          along * ((depth - dot(origin - ssao_info.camera.xyz, axis)) /
                   dot(along, axis));
+}
+
+/// The way to the eye from what [uv] shows: the pixel's ray, reversed — the
+/// zenith the horizon slices below are measured from.
+///
+/// **The ray rather than the camera position.** Under a perspective camera
+/// the two agree, since every ray starts at the eye. An orthographic camera's
+/// rays are parallel, so the samples along a screen line lie in the plane of
+/// that line and the view axis; a zenith pointed at the camera position tilts
+/// out of that plane towards the frame's edges, and the occlusion measured
+/// against it drifted with the distance from the centre.
+vec3 EyeWard(vec2 uv) {
+  vec3 origin;
+  vec3 along;
+  PixelRay(uv, origin, along);
+  return -along;
 }
 
 /// How deep [at] is, in the metres the buffer holds.
@@ -214,7 +239,7 @@ float PixelRadius(vec3 point, vec3 view, float radius) {
 /// and falloff towards the radius is a smooth fade of each horizon back to
 /// the eye's own, so a wall just past the radius does not snap in.
 float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
-  vec3 view = normalize(ssao_info.camera.xyz - point);
+  vec3 view = EyeWard(uv);
   float radius = max(ssao_info.params.x, 1e-4);
   int steps = clamp(int(ssao_info.params.y + 0.5) / 4, 1, 4);
   float pixelRadius = PixelRadius(point, view, radius);
@@ -241,8 +266,12 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
     vec3 projected = normal - axis * dot(normal, axis);
     float projectedLength = length(projected);
     if (projectedLength < 1e-4) continue;
+    // The normal's angle from the eye, kept within a quarter turn of it: a
+    // stored normal turned away from the eye — an interpolated one at a
+    // smooth mesh's silhouette — would otherwise put a horizon on the wrong
+    // side of the zenith, and the arc below would take visibility away.
     float n = sign(dot(projected, tangent)) *
-              acos(clamp(dot(projected / projectedLength, view), -1.0, 1.0));
+              acos(clamp(dot(projected / projectedLength, view), 0.0, 1.0));
 
     float horizons[2];
     for (int side = 0; side < 2; side++) {
@@ -265,8 +294,10 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
       }
       horizons[side] = s * acos(clamp(best, -1.0, 1.0));
     }
-    float h1 = n + max(horizons[0] - n, -1.5707963);
-    float h2 = n + min(horizons[1] - n, 1.5707963);
+    // Both horizons within the quarter turns either side of the normal, bound
+    // from above and below alike.
+    float h1 = n + clamp(horizons[0] - n, -1.5707963, 1.5707963);
+    float h2 = n + clamp(horizons[1] - n, -1.5707963, 1.5707963);
     visibility += projectedLength * 0.25 *
                   ((-cos(2.0 * h1 - n) + cos(n) + 2.0 * h1 * sin(n)) +
                    (-cos(2.0 * h2 - n) + cos(n) + 2.0 * h2 * sin(n)));
@@ -333,7 +364,7 @@ float SectorCount(vec4 m0, vec4 m1, vec4 m2, vec4 m3) {
 /// what is behind it and lets the light past it on either side, where a
 /// horizon would have hidden everything behind the pole.
 vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
-  vec3 view = normalize(ssao_info.camera.xyz - point);
+  vec3 view = EyeWard(uv);
   float radius = max(ssao_info.params.x, 1e-4);
   float thickness = max(ssao_info.screen.w, 1e-3);
   int steps = clamp(int(ssao_info.params.y + 0.5) / 4, 1, 4);
@@ -359,7 +390,7 @@ vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
     float projectedLength = length(projected);
     if (projectedLength < 1e-4) continue;
     float n = sign(dot(projected, tangent)) *
-              acos(clamp(dot(projected / projectedLength, view), -1.0, 1.0));
+              acos(clamp(dot(projected / projectedLength, view), 0.0, 1.0));
 
     vec4 c0 = vec4(0.0);
     vec4 c1 = vec4(0.0);
