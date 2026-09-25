@@ -230,6 +230,43 @@ void main() {
       expect(_largestDifference(atSampler, baked), lessThan(1e-3));
     });
 
+    test('a turned normal map lights as the turned coordinates\' own frame', () {
+      // The test above holds the sampler to the bake, and both could turn the
+      // frame the same wrong way. This one holds it to the geometry: the frame
+      // `withGeneratedTangents` derives from the moved coordinates, which knows
+      // nothing of transforms. A turn and an even stretch, where a turned unit
+      // tangent is exact.
+      final plane = const PlaneShape(width: 2.0, depth: 2.0).build();
+      final turn = TextureTransform(
+        offset: Vector2(0.2, 0.6),
+        scale: Vector2(0.8, 0.8),
+        rotation: 0.9,
+      );
+      Material bumpy(CpuDevice device, {TextureTransform? transform}) =>
+          Material(
+            lighting: LightingModel.pbrLayered,
+            normal: _leaningNormals(device),
+            normalSampler: SamplerOptions.nearestClamp,
+            roughness: 0.7,
+            textureTransforms: <MaterialMap, TextureTransform>{
+              MaterialMap.normal: ?transform,
+            },
+          );
+      final atSampler = _render(
+        (device) => bumpy(device, transform: turn),
+        lit: true,
+      );
+      final generated = _render(
+        bumpy,
+        mesh: withTextureTransform(plane, turn).withGeneratedTangents(),
+        lit: true,
+      );
+
+      // Mutation: `t * m11 - front * m10` in `applyNormalMap`, taking the
+      // bitangent for dP/dv, turns the relief twice the angle and this fails.
+      expect(_largestDifference(atSampler, generated), lessThan(1e-3));
+    });
+
     test('the identity draws what no transform draws, to the bit', () {
       final none = _render(
         (device) => Material(

@@ -33,7 +33,8 @@ final class _DrawOverride {
 ///
 /// `KHR_texture_transform`'s own order, the one `withTextureTransform` bakes
 /// with: scale, then rotate, then move. Null is the identity, whose rows read
-/// a coordinate back unchanged.
+/// a coordinate back unchanged. The rotation is counter-clockwise in a texture
+/// whose `v` runs down, as `withTextureTransform` turns it.
 void _writeUvTransform(Float32List out, int at, TextureTransform? transform) {
   final (cosine, sine, scale, offset) = switch (transform) {
     null => (1.0, 0.0, vm.Vector2(1.0, 1.0), vm.Vector2.zero()),
@@ -41,10 +42,10 @@ void _writeUvTransform(Float32List out, int at, TextureTransform? transform) {
   };
   out
     ..[at] = cosine * scale.x
-    ..[at + 1] = -sine * scale.y
+    ..[at + 1] = sine * scale.y
     ..[at + 2] = offset.x
     ..[at + 3] = 0.0
-    ..[at + 4] = sine * scale.x
+    ..[at + 4] = -sine * scale.x
     ..[at + 5] = cosine * scale.y
     ..[at + 6] = offset.y
     ..[at + 7] = 0.0;
