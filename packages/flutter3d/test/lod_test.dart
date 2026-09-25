@@ -123,6 +123,63 @@ void main() {
       expect(group.select(camera), 0);
     });
 
+    test('an object jittering across a threshold keeps its level', () {
+      // Under a 90° lens a bounding sphere of radius r covers r / d of the
+      // frame, so the 0.2 threshold between high and medium sits at d = 5r. A
+      // camera wobbling a hair either side of that used to swap the mesh every
+      // frame.
+      final (:group, :scene, :camera) = build();
+      final edge = group.levels.first.node.worldBoundsRadius / 0.2;
+
+      camera.setPosition(0.0, 0.0, edge * 1.02);
+      expect(group.select(camera), 1, reason: 'just under the threshold');
+      for (var frame = 0; frame < 8; frame++) {
+        final wobble = frame.isEven ? 0.98 : 1.02;
+        camera.setPosition(0.0, 0.0, edge * wobble);
+        expect(group.select(camera), 1, reason: 'flipped on frame $frame');
+      }
+
+      // A clear step past the band still brings the finer level back, and
+      // pulling out again coarsens at the threshold itself.
+      camera.setPosition(0.0, 0.0, edge * 0.85);
+      expect(group.select(camera), 0);
+      camera.setPosition(0.0, 0.0, edge * 0.98);
+      expect(group.select(camera), 0, reason: 'held by the band');
+      camera.setPosition(0.0, 0.0, edge * 1.02);
+      expect(group.select(camera), 1);
+    });
+
+    test('a zero band is the hard switch', () {
+      final group = LodGroup(
+        hysteresis: 0.0,
+        levels: <LodLevel>[
+          LodLevel(node: level('high'), maxScreenFraction: 1.0),
+          LodLevel(node: level('medium'), maxScreenFraction: 0.2),
+        ],
+      );
+      final scene = Scene()..add(group);
+      final camera = scene.add(CameraNode())
+        ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+      final edge = group.levels.first.node.worldBoundsRadius / 0.2;
+
+      camera.setPosition(0.0, 0.0, edge * 1.02);
+      expect(group.select(camera), 1);
+      camera.setPosition(0.0, 0.0, edge * 0.98);
+      expect(group.select(camera), 0);
+    });
+
+    test('a negative band is refused', () {
+      expect(
+        () => LodGroup(
+          hysteresis: -0.1,
+          levels: <LodLevel>[
+            LodLevel(node: level('only'), maxScreenFraction: 1.0),
+          ],
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('the group refuses to be built with no levels', () {
       expect(() => LodGroup(levels: const <LodLevel>[]), throwsArgumentError);
     });
