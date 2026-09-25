@@ -18,6 +18,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart' show Issue;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -242,6 +243,48 @@ void main() {
       );
     });
   });
+
+  group('a loading screen', () {
+    test('settles once every model it asked for has been answered', () async {
+      // `N3`: a warm-up run before the models arrive never sees their
+      // meshes. A model that will not load is an answer too — the actor
+      // stays a capsule — and it is one a test can wait for without a file
+      // to read. A source path, so the answer comes from the disk and takes
+      // real time rather than a microtask or two.
+      final order = <String>[];
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _ModelLook(),
+        device: FakeBackend(),
+        onIssue: (Issue issue) => order.add('answered'),
+      )..add(_actor());
+      final settled = visuals.settled.then((_) => order.add('settled'));
+      expect(order, isEmpty, reason: 'the load has only just begun');
+
+      await settled;
+
+      // Mutation: complete `settled` at once. It then settles before the
+      // load has answered.
+      expect(order, <String>['answered', 'settled']);
+    });
+  });
+}
+
+/// Asks for a model nobody packaged.
+final class _ModelLook implements ActorAppearance {
+  const _ModelLook();
+
+  @override
+  String meshKeyFor(Actor actor) => 'modelled';
+
+  @override
+  Material materialFor(Actor actor) => Material();
+
+  @override
+  String? modelFor(Actor actor) => 'assets_src/models/nobody_packaged_this.glb';
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
 }
 
 /// One capsule, one material, no models — the least a bridge needs to draw.

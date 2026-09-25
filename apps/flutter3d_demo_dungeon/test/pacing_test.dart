@@ -88,4 +88,39 @@ void main() {
     expect(pacing.frames, demo.tape.frames.length);
     expect(pacing.max, greaterThan(0.0));
   });
+
+  test('warmed up the way the harness warms up, the first frames of play '
+      'capture no probe and make no target', () async {
+    // What the pacing run found on macOS: frames one to three of the first
+    // pass at over a hundred milliseconds, after a warm-up that had linked
+    // every pipeline. The crypt's four probes were still standing one a
+    // frame, and the pool had nothing to lend the frames after the warm-up.
+    final demo = _demo();
+    final crypt = await _crypt();
+    final settings = crypt.settings();
+    await crypt.settled();
+    crypt
+      ..rewind(demo)
+      ..placeCamera();
+    crypt.renderer.warmUp(
+      width: 32,
+      height: 20,
+      scene: crypt.level.loaded.scene,
+      views: crypt.views(),
+      settings: settings,
+    );
+    final probes = crypt.level.loaded.scene.probes;
+    expect(probes, hasLength(greaterThan(1)), reason: 'one per room');
+    expect(probes.where((p) => !p.isCaptured), isEmpty);
+
+    final made = crypt.renderer.targetPool.createdCount;
+    final playback = InputTapePlayback(demo.tape);
+    for (var frame = 0; frame < 6; frame++) {
+      playback.applyTo(crypt.input);
+      crypt.step(_dt);
+      crypt.input.endStep();
+      crypt.draw(width: 32, height: 20, settings: settings);
+    }
+    expect(crypt.renderer.targetPool.createdCount, made);
+  });
 }

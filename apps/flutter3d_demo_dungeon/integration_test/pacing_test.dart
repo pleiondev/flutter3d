@@ -69,8 +69,11 @@ void main() {
     final settings = crypt.settings(frameWorkBudget: _budget);
 
     // The loading screen's work, done where the game does it: every
-    // pipeline the level needs is linked before the first timed frame, so a
-    // spike below is a spike of play and not of a cold start.
+    // pipeline the level needs is linked, and every probe captured, before
+    // the first timed frame, so a spike below is a spike of play and not of
+    // a cold start. The models first: a monster that is still a capsule when
+    // the warm-up runs has its skinned pipelines linked by the first frame.
+    await crypt.settled();
     crypt
       ..rewind(demo)
       ..placeCamera();
@@ -78,7 +81,7 @@ void main() {
       width: _width,
       height: _height,
       scene: crypt.level.loaded.scene,
-      views: <RenderView>[RenderView(camera: crypt.camera)],
+      views: crypt.views(),
       settings: settings,
     );
     await gpuSettled(device);

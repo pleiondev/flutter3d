@@ -774,6 +774,10 @@ final class Renderer implements RenderServices {
   /// `_claimWholeProbeCapture`. Cleared where the probe nodes are built,
   /// which is once per `render`.
   bool _wholeProbeCaptured = false;
+
+  /// Set while [warmUp] draws, which lifts that ration: a loading screen is
+  /// where every probe's first cube belongs — `N3`.
+  bool _warmingUp = false;
   Float32List get _probeParams => _probeInfo.params;
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
@@ -3604,11 +3608,31 @@ final class Renderer implements RenderServices {
   /// first use: the frame a door opens on a room with a new material pays
   /// for it, and that frame is the spike a player notices. So every mesh the
   /// scene holds gets its lit pipeline here whether or not any view can see
-  /// it yet, and then one frame is drawn, which links what the frame graph's
+  /// it yet, and then frames are drawn, which link what the frame graph's
   /// passes use at these settings — shadows, the post chain, the composite.
   ///
+  /// **Linking was not the whole of it.** The pacing run on macOS still found
+  /// the first three frames after a one-frame warm-up at 104–127 ms, and a
+  /// recording of them showed two more costs a first frame leaves behind:
+  ///
+  /// - **Reflection probes.** A frame captures one probe's whole cube and the
+  ///   rest wait their turn (see `_claimWholeProbeCapture`), so the crypt's
+  ///   four probes stood one a frame, and until they all stood the level drew
+  ///   without culling. While warming up the ration is lifted, and every
+  ///   probe captures here.
+  /// - **Pooled targets.** A target a frame hands back is kept from the pool
+  ///   for the frames in flight, so the frames after a single warm-up frame
+  ///   found the pool empty and each made its own bloom chain and luminance
+  ///   targets. As many frames are drawn here as there are frames in flight,
+  ///   which leaves the pool holding what a running frame needs.
+  ///
+  /// So what this leaves behind is a renderer a few frames into the scene:
+  /// [frameIndex] has moved and an adapting exposure has had those frames to
+  /// adapt, as it would have on the first frames of play.
+  ///
   /// A mesh added later, or a setting switched on later, links on first use
-  /// as before.
+  /// as before; so does a model that arrives after this runs, which is why a
+  /// loading screen waits for its models before calling it.
   void warmUp({
     required int width,
     required int height,
@@ -3642,13 +3666,20 @@ final class Renderer implements RenderServices {
         scene.meshes.any((node) => node.shadowIsStatic)) {
       _shadowCopyPipeline ??= device.createPipeline(fullscreen, copy);
     }
-    render(
-      width: width,
-      height: height,
-      scene: scene,
-      views: views,
-      settings: settings,
-    );
+    _warmingUp = true;
+    try {
+      for (var frame = 0; frame < _kFramesInFlight; frame++) {
+        render(
+          width: width,
+          height: height,
+          scene: scene,
+          views: views,
+          settings: settings,
+        );
+      }
+    } finally {
+      _warmingUp = false;
+    }
   }
 
   FrameResult render({

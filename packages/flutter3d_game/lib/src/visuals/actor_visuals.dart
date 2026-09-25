@@ -72,6 +72,17 @@ final class ActorVisuals {
   /// not restarted sixty times a second.
   final Map<Actor, String> _playing = <Actor, String>{};
 
+  /// The models [add] started dressing actors in that have not arrived yet.
+  final Set<Future<void>> _dressing = <Future<void>>{};
+
+  /// Completes once every actor added so far wears its model — `N3`.
+  ///
+  /// Play does not wait for the models, but a loading screen that warms the
+  /// renderer up should: the crypt's monsters are skinned, and a model
+  /// arriving after `Renderer.warmUp` left the first frame of play to link
+  /// the skinned pipelines.
+  Future<void> get settled => Future.wait(_dressing.toList());
+
   /// Gives an actor something to be drawn as.
   ///
   /// An actor with no body is skipped rather than refused: a turret, a trigger
@@ -87,7 +98,9 @@ final class ActorVisuals {
       // alternative — nothing until it loads — is a monster that walks up to
       // you invisible, which is worse than one that is briefly a capsule.
       _addCapsule(actor, body);
-      unawaited(_dress(actor, model));
+      final dressing = _dress(actor, model);
+      _dressing.add(dressing);
+      unawaited(dressing.whenComplete(() => _dressing.remove(dressing)));
       return;
     }
     _addCapsule(actor, body);
