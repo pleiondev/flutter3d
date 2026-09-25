@@ -3,6 +3,8 @@ import 'package:vector_math/vector_math.dart';
 
 import 'splat/splat_cloud.dart';
 
+export 'splat/splat_cloud.dart' show SplatColourSpace;
+
 /// One drawable piece of a decoded model.
 final class ModelSurface {
   ModelSurface({
@@ -185,16 +187,6 @@ final class ModelImpostor {
   String toString() =>
       'ModelImpostor(${grid}x$grid views, radius $radius, images '
       '$albedoImage and $normalDepthImage)';
-}
-
-/// The colour space a splat's colours were fitted in, as
-/// `KHR_gaussian_splatting`'s `colorSpace` names it.
-enum SplatColourSpace {
-  /// `srgb_rec709_display`: the fitted colours are sRGB-encoded.
-  srgb,
-
-  /// `lin_rec709_display`: the fitted colours are already linear.
-  linear,
 }
 
 /// A cloud of Gaussian splats a node of a decoded model carries — `C1`.

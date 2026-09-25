@@ -8,15 +8,22 @@
 /// comment made that call for particles; splats reuse that vertex stage exactly,
 /// so the whole of the GPU side is one fragment shader.
 ///
-/// **The projection is orthographic about each splat, which is a stated
-/// approximation.** The exact screen-space covariance is `J W Σ Wᵀ Jᵀ`, where
-/// `J` is the Jacobian of the perspective divide at that splat's depth; this
-/// drops `J` and projects the ellipsoid's own axes onto the camera's right and
-/// up. The two agree at the middle of the frame and part company toward the
-/// corners of a wide one, where a splat should shear slightly and here does
-/// not. It is the difference between an ellipse and a slightly wrong ellipse,
-/// on something whose whole extent is a few pixels, and it costs two dot
-/// products a splat instead of a matrix triple product.
+/// **The ellipse is the perspective one, `J W Σ Wᵀ Jᵀ`, drawn in the plane
+/// through the splat parallel to the glass.** `J` is the Jacobian of the
+/// perspective divide at the splat's centre. A plane at constant depth `z`
+/// reaches the screen at one uniform scale, `f / z`, so the quad can stay in
+/// world units there and `J`'s two rows reduce to the camera's right and up
+/// each leaned along the view axis by the splat's offset from it:
+/// `r − (x/z)·forward` and `u − (y/z)·forward`. Leaving the lean out — the
+/// covariance projected onto right and up alone — is exact at the middle of
+/// the frame and loses everything a splat holds along the view ray toward
+/// the edges, which is most of a ground disc seen at a grazing angle.
+///
+/// **Every footprint is widened by 0.3 px² on the screen**, the low-pass
+/// filter of the EWA splatting the method comes from, which the captures
+/// were trained with and so have in their look: a thin or distant splat
+/// keeps at least about half a pixel of standard deviation rather than
+/// eroding to nothing, or to a zero-width quad when seen edge on.
 library;
 
 import 'dart:math' as math;
@@ -49,6 +56,72 @@ const int kSplatFloatsPerVertex = 9;
 /// through the identity index buffer `MeshOverlay` also reaches for, since
 /// this engine has no unindexed draw at all.
 const int kSplatVerticesPerSplat = 6;
+
+/// The screen-space low-pass filter every splat's footprint is widened by, in
+/// pixels squared: the variance a Gaussian at least one pixel across has.
+const double kSplatLowPass = 0.3;
+
+/// How far off the view axis the perspective lean is taken, as a multiple of
+/// the half field of view: a splat centred beyond the frame's edge is leaned
+/// as if it sat at 1.3 times the edge, so one far off to the side and close
+/// to the eye does not become a streak across the whole screen.
+const double kSplatLeanLimit = 1.3;
+
+/// What [SplatQuads.build] needs of a camera beyond its right and up axes:
+/// its view axis, and how the projection turns depth into pixels.
+///
+/// Read out of the projection matrix rather than the camera's settings, so
+/// that whatever matrix the frame is actually drawn with — jittered,
+/// orthographic, handed in whole by an application — is the one the ellipses
+/// follow.
+final class SplatLens {
+  const SplatLens({
+    required this.forward,
+    required this.focal,
+    this.depthWeight = 1.0,
+    this.depthOffset = 0.0,
+    this.tanHalfWidth = 1.0,
+    this.tanHalfHeight = 1.0,
+  });
+
+  /// The lens of [projection], drawn into a viewport [viewportHeight] pixels
+  /// tall, looking along [forward].
+  factory SplatLens.of(
+    Matrix4 projection,
+    Vector3 forward,
+    double viewportHeight,
+  ) {
+    final p = projection.storage;
+    return SplatLens(
+      forward: forward,
+      focal: 0.5 * p[5] * viewportHeight,
+      // Clip w is `p[11]·z + p[15]` of an eye-space z, and the depth along
+      // [forward] is `−z`: one for a perspective divide, nought for an
+      // orthographic one, whose `w` is one everywhere.
+      depthWeight: -p[11],
+      depthOffset: p[15],
+      tanHalfWidth: p[0] != 0.0 ? 1.0 / p[0].abs() : 1.0,
+      tanHalfHeight: p[5] != 0.0 ? 1.0 / p[5].abs() : 1.0,
+    );
+  }
+
+  /// The camera's view axis, unit length, in world space.
+  final Vector3 forward;
+
+  /// Pixels per unit of `x / w` on the screen: half the viewport's height
+  /// times the projection's vertical scale.
+  final double focal;
+
+  /// Clip `w` as `depthWeight · depth + depthOffset`, depth measured along
+  /// [forward]: `(1, 0)` for a perspective projection, `(0, 1)` for an
+  /// orthographic one.
+  final double depthWeight;
+  final double depthOffset;
+
+  /// The tangents of the half fields of view, which bound the lean.
+  final double tanHalfWidth;
+  final double tanHalfHeight;
+}
 
 /// Builds the vertex data for [cloud], back to front, as [camera] sees it.
 ///
@@ -137,12 +210,20 @@ final class SplatQuads {
   /// the cloud's own order — `N5`'s hashed splats, which the depth test
   /// orders. The last sort is kept, so going back to sorting re-sorts only if
   /// the eye has moved since.
+  ///
+  /// [lens] is the rest of the camera: with it each ellipse is the
+  /// perspective one and is widened by [kSplatLowPass] on the screen, which
+  /// is how [SplatContributor] always builds. Without it the covariance is
+  /// projected onto [right] and [up] alone and nothing is added — the exact
+  /// ellipse on the view axis, and a quad whose size is the splat's own, for
+  /// a caller with no projection to hand.
   void build({
     required Vector3 eye,
     required Vector3 right,
     required Vector3 up,
     Matrix4? model,
     bool sorted = true,
+    SplatLens? lens,
   }) {
     // A tree's cut is chosen where the sort runs, so a hashed build still
     // sorts when the cut moves: the order and the cut have to agree.
@@ -190,29 +271,78 @@ final class SplatQuads {
     final wrx = right.x, wry = right.y, wrz = right.z;
     final wux = up.x, wuy = up.y, wuz = up.z;
 
+    // The view axis, in the world and in the cloud's space as above, when
+    // there is a lens to lean the rows of `J` along it.
+    final forward = lens?.forward;
+    final wfx = forward?.x ?? 0.0;
+    final wfy = forward?.y ?? 0.0;
+    final wfz = forward?.z ?? 0.0;
+    final fx = m == null ? wfx : m[0] * wfx + m[1] * wfy + m[2] * wfz;
+    final fy = m == null ? wfy : m[4] * wfx + m[5] * wfy + m[6] * wfz;
+    final fz = m == null ? wfz : m[8] * wfx + m[9] * wfy + m[10] * wfz;
+    final leanX = lens == null ? 0.0 : kSplatLeanLimit * lens.tanHalfWidth;
+    final leanY = lens == null ? 0.0 : kSplatLeanLimit * lens.tanHalfHeight;
+
     var at = 0;
     for (var n = 0; n < count; n++) {
       final i = order == null ? n : order[n];
       cloud.covarianceOf(i, _covariance);
 
-      // The 3D covariance seen from the camera, restricted to the plane of the
-      // glass: `[right; up] Σ [right; up]ᵀ`, which is the 2×2 the ellipse comes
-      // from. Written out rather than multiplied as matrices because two of the
-      // three rows of the result are never used.
+      final lx = cloud.centres[i * 3];
+      final ly = cloud.centres[i * 3 + 1];
+      final lz = cloud.centres[i * 3 + 2];
+      final cx = m == null ? lx : m[0] * lx + m[4] * ly + m[8] * lz + m[12];
+      final cy = m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13];
+      final cz = m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14];
+
+      // Where the splat sits in the camera's frame, and so how far `J`'s rows
+      // lean: `x/w` and `y/w` along the view axis, bounded as [kSplatLeanLimit]
+      // says, and nothing for an orthographic lens, whose `w` does not move.
+      // Its size in pixels is `focal / w` per world unit in the quad's plane.
+      final double leanR, leanU, pixel;
+      if (lens == null) {
+        (leanR, leanU, pixel) = (0.0, 0.0, 0.0);
+      } else {
+        final tx = (cx - eye.x) * wrx + (cy - eye.y) * wry + (cz - eye.z) * wrz;
+        final ty = (cx - eye.x) * wux + (cy - eye.y) * wuy + (cz - eye.z) * wuz;
+        final tz = (cx - eye.x) * wfx + (cy - eye.y) * wfy + (cz - eye.z) * wfz;
+        final w = lens.depthWeight * tz + lens.depthOffset;
+        // Behind the eye nothing is drawn, and the divide means nothing.
+        final ahead = w > 1e-6;
+        leanR = ahead
+            ? lens.depthWeight * (tx / w).clamp(-leanX, leanX).toDouble()
+            : 0.0;
+        leanU = ahead
+            ? lens.depthWeight * (ty / w).clamp(-leanY, leanY).toDouble()
+            : 0.0;
+        pixel = ahead && lens.focal > 0.0 ? w / lens.focal : 0.0;
+      }
+
+      // The rows of `J`, rescaled to the quad's plane: right and up, each
+      // leaned along the view axis by the splat's offset from it.
+      final jrx = rx - leanR * fx, jry = ry - leanR * fy, jrz = rz - leanR * fz;
+      final jux = ux - leanU * fx, juy = uy - leanU * fy, juz = uz - leanU * fz;
+
+      // The 3D covariance seen from the camera: `J Σ Jᵀ`, the 2×2 the ellipse
+      // comes from. Written out rather than multiplied as matrices because
+      // two of the three rows of the result are never used.
       final sxx = _covariance[0], sxy = _covariance[1], sxz = _covariance[2];
       final syy = _covariance[3], syz = _covariance[4], szz = _covariance[5];
 
-      // Σ·right and Σ·up.
-      final arx = sxx * rx + sxy * ry + sxz * rz;
-      final ary = sxy * rx + syy * ry + syz * rz;
-      final arz = sxz * rx + syz * ry + szz * rz;
-      final aux = sxx * ux + sxy * uy + sxz * uz;
-      final auy = sxy * ux + syy * uy + syz * uz;
-      final auz = sxz * ux + syz * uy + szz * uz;
+      // Σ·j1 and Σ·j2.
+      final arx = sxx * jrx + sxy * jry + sxz * jrz;
+      final ary = sxy * jrx + syy * jry + syz * jrz;
+      final arz = sxz * jrx + syz * jry + szz * jrz;
+      final aux = sxx * jux + sxy * juy + sxz * juz;
+      final auy = sxy * jux + syy * juy + syz * juz;
+      final auz = sxz * jux + syz * juy + szz * juz;
 
-      final a = rx * arx + ry * ary + rz * arz;
-      final b = rx * aux + ry * auy + rz * auz;
-      final d = ux * aux + uy * auy + uz * auz;
+      // With the screen's low-pass filter added to the diagonal, taken from
+      // pixels squared to the quad's world units squared.
+      final dilation = kSplatLowPass * pixel * pixel;
+      final a = jrx * arx + jry * ary + jrz * arz + dilation;
+      final b = jrx * aux + jry * auy + jrz * auz;
+      final d = jux * aux + juy * auy + juz * auz + dilation;
 
       // The 2×2's eigenvectors and the standard deviations along them. A
       // closed form rather than an iteration: for a symmetric 2×2 the whole
@@ -247,12 +377,6 @@ final class SplatQuads {
       final ayY = (-e1y * sigma2) * wry + (e1x * sigma2) * wuy;
       final ayZ = (-e1y * sigma2) * wrz + (e1x * sigma2) * wuz;
 
-      final lx = cloud.centres[i * 3];
-      final ly = cloud.centres[i * 3 + 1];
-      final lz = cloud.centres[i * 3 + 2];
-      final cx = m == null ? lx : m[0] * lx + m[4] * ly + m[8] * lz + m[12];
-      final cy = m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13];
-      final cz = m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14];
       final r = cloud.colours[i * 4];
       final g = cloud.colours[i * 4 + 1];
       final bl = cloud.colours[i * 4 + 2];
@@ -416,6 +540,18 @@ final class SplatContributor extends PassContributor {
     final right = Vector3(m[0], m[1], m[2])..normalize();
     final up = Vector3(m[4], m[5], m[6])..normalize();
     final eye = camera.readWorldPosition();
+    final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
+
+    // The projection the frame draws with, recovered from the matrix it was
+    // handed — `P = (P V) V⁻¹`, and `V⁻¹` is the camera's world matrix — so
+    // a jittered or application-supplied one is followed as it is. Pixels
+    // are the view's own, not the whole target's.
+    final projection = viewProjection.multiplied(camera.worldMatrix);
+    final lens = SplatLens.of(
+      projection,
+      forward,
+      frame.height * view.viewportFraction.height,
+    );
 
     quads.build(
       eye: eye,
@@ -423,6 +559,7 @@ final class SplatContributor extends PassContributor {
       up: up,
       model: node?.worldMatrix,
       sorted: !hashed,
+      lens: lens,
     );
     if (quads.vertexCount == 0) return;
 
@@ -466,7 +603,6 @@ final class SplatContributor extends PassContributor {
         ..[0] = eye.x
         ..[1] = eye.y
         ..[2] = eye.z;
-      final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
       _hashInfo.forward
         ..[0] = forward.x
         ..[1] = forward.y
