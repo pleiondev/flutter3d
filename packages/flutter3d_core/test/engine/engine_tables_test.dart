@@ -15,6 +15,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart' show TextureFormat;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 
+import '../../tool/make_tables.dart' show aces2DisplayTable, ltcTable, toHalf;
+
 int _fnv1a(Uint8List bytes) => bytes.fold(
   0x811c9dc5,
   (hash, byte) => ((hash ^ byte) * 0x01000193) & 0xffffffff,
@@ -122,6 +124,31 @@ void main() {
 
     test('slices differ from each other', () {
       expect(slice(0), isNot(slice(1)));
+    });
+  });
+
+  group('the generator', () {
+    test('rounds a half up into the next exponent', () {
+      // Mutation: OR the rounded mantissa into the exponent instead of adding
+      // it. The carry is lost under an odd exponent: 0.4999 comes out 0.25.
+      expect(toHalf(0.4999), 0x3800);
+      expect(_half(toHalf(0.4999)), 0.5);
+      expect(toHalf(0.124995), 0x3000);
+      // An even exponent, and no carry at all, were right before.
+      expect(toHalf(0.99999), 0x3c00);
+      expect(toHalf(1.0), 0x3c00);
+      expect(toHalf(0.18), 0x31c3);
+      // Past the largest half, rounding reaches infinity, not 32768.
+      expect(toHalf(65535.0), 0x7c00);
+      expect(toHalf(65504.0), 0x7bff);
+    });
+
+    test('rebakes the shipped half tables byte for byte', () {
+      // The fixed rounding moves no entry the tables hold today.
+      Uint8List shipped(String name) =>
+          EngineTables.all.firstWhere((table) => table.name == name).bytes;
+      expect(aces2DisplayTable(), shipped('aces2Display'));
+      expect(ltcTable(), shipped('ltc'));
     });
   });
 
