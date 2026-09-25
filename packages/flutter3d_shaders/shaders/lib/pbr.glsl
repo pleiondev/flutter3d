@@ -279,19 +279,30 @@ vec3 F_SchlickF90(vec3 f0, vec3 f90, float v_dot_h) {
 /// The clear coat's own GGX lobe for [light], on the coat's normal, with the
 /// Fresnel of a dielectric of index 1.5. Scaled so that the loop's `n_dot_l`,
 /// which is the base's, becomes the coat's: the coat faces the geometric
-/// normal and the base may face the normal map's. A rectangle's `n_dot_l` is
-/// a form factor rather than a cosine and is left as it is.
-float CoatLobe(LightSample light) {
+/// normal and the base may face the normal map's.
+///
+/// **A rectangle's coat is integrated over the panel, as the base's is** —
+/// `L7`. Evaluated at the representative point instead, the lobe's peak
+/// multiplied the panel's whole form factor: wherever the mirror ray lands on
+/// the panel the half vector is the normal, and a coat as smooth as a
+/// varnish has a peak in the tens of thousands, so the panel's reflection
+/// came out thousands of times brighter than the few per cent a coat
+/// reflects. The same tables at the coat's roughness, on the coat's normal,
+/// over the corners `SampleLight` kept; over `n_dot_l` for the base's reason.
+float CoatLobe(Surface s, LightSample light) {
+  if (light.integrated > 0.5) {
+    vec3 ltc = LtcRectangle(g_coat_n, s.v, g_coat_roughness, g_rect_corners);
+    return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
+           max(light.n_dot_l, 1e-6);
+  }
   float alpha = g_coat_roughness * g_coat_roughness;
   float n_dot_l = max(dot(g_coat_n, light.l), 0.0);
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(g_coat_n_dot_v, n_dot_l, alpha);
   float f = 0.04 + 0.96 * pow(1.0 - light.v_dot_h, 5.0);
-  float scale = light.integrated > 0.5
-                    ? 1.0
-                    : n_dot_l / max(light.n_dot_l, 1e-6);
-  return d * vis * f * frag_info.material.w * scale;
+  return d * vis * f * frag_info.material.w * n_dot_l /
+         max(light.n_dot_l, 1e-6);
 }
 
 /// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
@@ -628,7 +639,7 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 sheen = g_sheen * D_Charlie(g_sheen_roughness, light.n_dot_h) *
                V_Neubelt(s.n_dot_v, light.n_dot_l);
   return (((diffuse + specular) * g_sheen_scale + sheen) * g_coat_through +
-          vec3(g_coat * CoatLobe(light))) *
+          vec3(g_coat * CoatLobe(s, light))) *
          kPi;
 #else
   return (diffuse + specular) * kPi;

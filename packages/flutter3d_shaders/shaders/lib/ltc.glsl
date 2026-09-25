@@ -45,6 +45,11 @@ vec3 LtcEdge(vec3 a, vec3 b) {
 /// polygon: the vector form factor's length and elevation name a sphere
 /// with the same, and the table holds how much of that sphere's clamped
 /// cosine lies above the horizon.
+///
+/// Says nothing about which face of the panel the point is on: the vector
+/// form factor points the same way in the world from either side, so this is
+/// as bright behind the panel as in front of it. `SampleLight` tests the side
+/// and leaves a point behind unlit before this is asked.
 vec3 LtcRectangle(vec3 n, vec3 v, float roughness, vec3 corners[4]) {
   vec2 uv = vec2(clamp(roughness, 0.0, 1.0),
                  sqrt(clamp(1.0 - dot(n, v), 0.0, 1.0)));

@@ -475,14 +475,32 @@ final class PbrShader implements CpuFragmentShader {
   }
 
   /// `CoatLobe`: the clear coat's GGX lobe on its own normal, scaled so the
-  /// loop's `nDotL` — the base's — becomes the coat's. A rectangle's is a form
-  /// factor and is left alone.
+  /// loop's `nDotL` — the base's — becomes the coat's.
+  ///
+  /// Under a rectangle with the LTC tables bound it is integrated over the
+  /// panel at the coat's roughness and normal, as the base is; see the GLSL
+  /// for the blow-out the representative point gave there.
   static double _coatLobe(
     _Layers layers,
     Surface s,
     LightSample light,
     double specularStrength,
+    BoundTexture? table,
   ) {
+    final corners = light.corners;
+    if (light.ltc != null && table != null && corners != null) {
+      final ltc = ltcRectangle(
+        table,
+        layers.coatNormal,
+        s.view,
+        layers.coatRoughness,
+        corners,
+      );
+      return ltc.x *
+          (0.04 * ltc.y + 0.96 * ltc.z) *
+          specularStrength /
+          math.max(light.nDotL, 1e-6);
+    }
     final alpha = layers.coatRoughness * layers.coatRoughness;
     final h = (light.direction + s.view)..normalize();
     final nDotL = math.max(layers.coatNormal.dot(light.direction), 0.0);
@@ -490,8 +508,7 @@ final class PbrShader implements CpuFragmentShader {
     final d = _dGgx(nDotH, alpha);
     final vis = _vSmith(layers.coatNDotV, nDotL, alpha);
     final f = 0.04 + 0.96 * math.pow(1.0 - light.vDotH, 5.0).toDouble();
-    final scale = light.ltc != null ? 1.0 : nDotL / math.max(light.nDotL, 1e-6);
-    return d * vis * f * specularStrength * scale;
+    return d * vis * f * specularStrength * nDotL / math.max(light.nDotL, 1e-6);
   }
 
   /// `D_Charlie`.
@@ -709,7 +726,14 @@ final class PbrShader implements CpuFragmentShader {
             (_dCharlie(layers.sheenRoughness, light.nDotH) *
                 _vNeubelt(s.nDotV, light.nDotL));
         final coat =
-            layers.coat * _coatLobe(layers, s, light, specularStrength);
+            layers.coat *
+            _coatLobe(
+              layers,
+              s,
+              light,
+              specularStrength,
+              b.textures['ltc_texture'],
+            );
         return (base
             ..scale(layers.sheenScale)
             ..add(sheen)
