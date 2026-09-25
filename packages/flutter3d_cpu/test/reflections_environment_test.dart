@@ -60,7 +60,11 @@ final class _Probe extends RenderNode {
 
 /// The lit frame of a polished floor with a red cube standing on it, under a
 /// white environment when [sky] says so, with reflections [on].
-Float32List _render({required bool on, required bool sky}) {
+Float32List _render({
+  required bool on,
+  required bool sky,
+  double intensity = 1.0,
+}) {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -132,7 +136,7 @@ Float32List _render({required bool on, required bool sky}) {
           steps: 48,
           stride: 0.1,
           thickness: 0.15,
-          intensity: 1.0,
+          intensity: intensity,
         ),
       ),
     );
@@ -160,6 +164,22 @@ void main() {
     expect(darker, greaterThan(hits.length * 0.8));
     // Nothing is taken below nought.
     expect(on.reduce(math.min), greaterThanOrEqualTo(0.0));
+  });
+
+  test('a reflection dialled to nothing takes nothing of the sky', () {
+    // The share of the sky a hit replaces is the share of the hit used, so
+    // at an intensity of nought the floor is the frame with reflections off.
+    //
+    // Mutation: leave `intensity` out of `confidence` in
+    // `ReflectionsShader`. The hits then take the sky out and put nothing
+    // back, and the floor goes dark under the cube.
+    final on = _render(on: true, sky: true, intensity: 0.0);
+    final off = _render(on: false, sky: true);
+    var lowest = 0.0;
+    for (var i = 0; i < on.length; i++) {
+      lowest = math.min(lowest, on[i] - off[i]);
+    }
+    expect(lowest, greaterThan(-1e-3));
   });
 
   test('without an environment a hit only adds, as it always did', () {
