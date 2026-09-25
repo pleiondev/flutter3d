@@ -24,7 +24,7 @@
 /// which spends the taps and throws away what they bought — contrast drops
 /// *below* the trilinear baseline and the first assertion fails; and letting
 /// a sampler that asked for one reach the new path at all, which would move a
-/// backend forty-four golden scenes are recorded on.
+/// backend seventy-eight golden scenes are recorded on.
 ///
 /// **One they do not catch, said rather than hidden:** taking the taps along
 /// the *short* axis instead of the long one passes every line here. The
@@ -213,7 +213,7 @@ void main() {
   });
 
   test('asking for one tap is the old sampler exactly', () async {
-    // What makes this safe to add to the backend forty-four golden scenes are
+    // What makes this safe to add to the backend seventy-eight golden scenes are
     // recorded on. Not "close": the same bytes, because with `anisotropy` at
     // one the new path is not reached at all.
     expect(await _floorAt(1), await _floorAt(1));

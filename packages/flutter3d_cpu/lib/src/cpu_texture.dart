@@ -300,7 +300,7 @@ final class BoundTexture {
     // from the short one.
     //
     // **A sampler that did not ask is untouched**, which is what makes this
-    // safe to add to a backend forty-four golden scenes are recorded on: with
+    // safe to add to a backend seventy-eight golden scenes are recorded on: with
     // `anisotropy` at one — the default everywhere in this engine — the
     // arithmetic below is not reached and the bytes are the ones that were
     // recorded. `anisotropic-floor` is the one scene that asks.

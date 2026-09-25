@@ -2087,8 +2087,57 @@ const String _countedGoldenSet = 'cpu';
 /// picture and the rule reports the gap it was hiding; record the picture and
 /// leave the name here, and the rule reports the entry as spent. Neither state
 /// survives a run.
-const Map<String, Map<String, String>> _goldenSetGaps =
-    <String, Map<String, String>>{};
+final Map<String, Map<String, String>> _goldenSetGaps =
+    <String, Map<String, String>>{
+      'impeller': _awaitingGpuRecording,
+      'webgl': _awaitingGpuRecording,
+      'webgpu': _awaitingGpuRecording,
+    };
+
+/// The scenes 0.8 added whose software pictures are recorded and whose three GPU
+/// pictures are not yet: they are recorded on a machine with a GPU and a
+/// browser after the software set, which needs neither. **Not a refusal** —
+/// each entry is spent the moment its picture lands, and the rule then says to
+/// take it out, which is how this table empties.
+final Map<String, String> _awaitingGpuRecording = <String, String>{
+  for (final name in <String>[
+    'velocity-shapes',
+    'taa-converge',
+    'taa-railing',
+    'taa-railing-scaled',
+    'taa-railing-kdop8',
+    'taa-railing-kdop16',
+    'ao-temporal',
+    'gtao-corner',
+    'ssil-room',
+    'rough-metals',
+    'rough-dielectrics',
+    'tonemap-aces2',
+    'irradiance-room',
+    'many-lights',
+    'fog-torches',
+    'area-light-gloss',
+    'cascade-walk',
+    'evsm-soft',
+    'sun-contact-hardening',
+    'clearcoat-car-paint',
+    'sheen-fabric',
+    'anisotropy-disc',
+    'transmission-glass',
+    'splat-gltf',
+    'splat-stochastic',
+    'impostor-forest',
+    'taa-embers',
+    'easu-half',
+    'motion-blur-spin',
+    'window-interior',
+    'glass-stack-oit',
+    'texture-transform-per-map',
+    'scan-chunks',
+    'smoke-six-way',
+  ])
+    name: 'recorded in the software set first; the GPU set follows',
+};
 
 /// The scene names a set has recorded.
 ///
@@ -2616,6 +2665,13 @@ const List<String> _countedInWords = <String>[
   'thirty-two', 'thirty-three', 'thirty-four', 'thirty-five', 'thirty-six',
   'thirty-seven', 'thirty-eight', 'thirty-nine', 'forty', 'forty-one',
   'forty-two', 'forty-three', 'forty-four', 'forty-five', 'forty-six',
+  'forty-seven', 'forty-eight', 'forty-nine', 'fifty', 'fifty-one',
+  'fifty-two', 'fifty-three', 'fifty-four', 'fifty-five', 'fifty-six',
+  'fifty-seven', 'fifty-eight', 'fifty-nine', 'sixty', 'sixty-one',
+  'sixty-two', 'sixty-three', 'sixty-four', 'sixty-five', 'sixty-six',
+  'sixty-seven', 'sixty-eight', 'sixty-nine', 'seventy', 'seventy-one',
+  'seventy-two', 'seventy-three', 'seventy-four', 'seventy-five',
+  'seventy-six', 'seventy-seven', 'seventy-eight', 'seventy-nine', 'eighty',
 ];
 
 /// A count said both ways, so a finding can be read and searched for.

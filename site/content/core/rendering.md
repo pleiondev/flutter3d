@@ -487,7 +487,7 @@ It is marched at half resolution and brought up by depth, so a halo behind a pil
 
 ```dart
 SkySettings(
-  enabled: true,        // off by default: sixty goldens are recorded against none
+  enabled: true,        // off by default: seventy-eight goldens are recorded against none
   zenith: Vector3(0.10, 0.22, 0.52),
   horizon: Vector3(0.42, 0.50, 0.62),
   nadir: Vector3(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
