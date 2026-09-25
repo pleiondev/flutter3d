@@ -1,8 +1,8 @@
 /// `post/temporal_resolve.frag`, on the software rasteriser — `R2`.
 ///
 /// Line for line: the jittered read, the nearest-depth velocity, the
-/// Catmull-Rom history, the YCoCg box and the depth test on the history's
-/// alpha. See the GLSL for why each is there.
+/// Catmull-Rom history, the YCoCg box or the k-DOP (`N4`) and the depth test
+/// on the history's alpha. See the GLSL for why each is there.
 library;
 
 import 'dart:math' as math;
@@ -39,6 +39,45 @@ Vector3 _clipToBox(Vector3 lo, Vector3 hi, Vector3 q) {
     math.max((v.y / extent.y).abs(), (v.z / extent.z).abs()),
   );
   return most > 1.0 ? centre + v / most : q;
+}
+
+/// `ClipToDop`: [history] moved along the line to [current] until it is
+/// inside every slab of [around] along the first [count] axes of [b], each
+/// slab tightened to mean ± 1.25σ and widened to take in [current].
+Vector3 _clipToDop(
+  Vector3 current,
+  Vector3 history,
+  List<Vector3> around,
+  ShaderBindings b,
+  int count,
+) {
+  final toward = history - current;
+  final reach = Iterable<int>.generate(math.min(count, 16)).fold(1.0, (
+    double reach,
+    int a,
+  ) {
+    final axis4 = b.vec4(_block, 'clip_axes', Vector4.zero(), at: a);
+    final axis = Vector3(axis4.x, axis4.y, axis4.z);
+    final at = current.dot(axis);
+    final projected = [for (final c in around) c.dot(axis)];
+    final lowest = projected.reduce(math.min);
+    final highest = projected.reduce(math.max);
+    final mean = projected.fold(0.0, (double s, p) => s + p) / 9.0;
+    final sigma = math.sqrt(
+      math.max(
+        projected.fold(0.0, (double s, p) => s + p * p) / 9.0 - mean * mean,
+        0.0,
+      ),
+    );
+    final lo = math.min(math.max(lowest, mean - 1.25 * sigma), at);
+    final hi = math.max(math.min(highest, mean + 1.25 * sigma), at);
+    final along = toward.dot(axis);
+    final leave = along > 1e-8
+        ? (hi - at) / along
+        : (along < -1e-8 ? (lo - at) / along : 1.0);
+    return math.min(reach, leave);
+  });
+  return current + toward * math.max(reach, 0.0);
 }
 
 Vector3 _rgb(Vector4 v) => Vector3(v.x, v.y, v.z);
@@ -126,11 +165,13 @@ final class TemporalResolveShader implements CpuFragmentShader {
     var nearest = 1e30;
     var nearestU = cu;
     var nearestW = cw;
+    final around = <Vector3>[];
     for (var dy = -1; dy <= 1; dy++) {
       for (var dx = -1; dx <= 1; dx++) {
         final au = cu + dx * sceneTexel.x;
         final aw = cw + dy * sceneTexel.y;
         final col = _toYCoCg(_weigh(_rgb(scene.sample(au, aw)), exposure));
+        around.add(col);
         sum.add(col);
         sumSquares.add(Vector3(col.x * col.x, col.y * col.y, col.z * col.z));
         Vector3.min(lowest, col, lowest);
@@ -181,16 +222,20 @@ final class TemporalResolveShader implements CpuFragmentShader {
     final hi = Vector3.zero();
     Vector3.max(lowest, mean - sigma * 1.25, lo);
     Vector3.min(highest, mean + sigma * 1.25, hi);
-    final past = _unweigh(
-      _fromYCoCg(
-        _clipToBox(
-          lo,
-          hi,
-          _toYCoCg(_weigh(_historyAt(history, thenU, thenW, params), exposure)),
-        ),
-      ),
-      exposure,
+    final remembered = _toYCoCg(
+      _weigh(_historyAt(history, thenU, thenW, params), exposure),
     );
+    final axes = b.vec4(_block, 'clip', Vector4.zero()).x;
+    final clipped = axes > 0.5
+        ? _clipToDop(
+            _toYCoCg(_weigh(current, exposure)),
+            remembered,
+            around,
+            b,
+            axes.round(),
+          )
+        : _clipToBox(lo, hi, remembered);
+    final past = _unweigh(_fromYCoCg(clipped), exposure);
 
     final keep = jitter.z * trust;
     final wCurrent = (1.0 - keep) / (1.0 + _luma(current) * exposure);

@@ -951,11 +951,19 @@ final class TemporalInfoBlock extends UniformBlock {
   /// `params`: Vector4, at byte 32.
   final Float32List params = Float32List(4);
 
+  /// `clip`: Vector4, at byte 48.
+  final Float32List clip = Float32List(4);
+
+  /// `clip_axes`: 16 × Vector4, at byte 64.
+  final Float32List clipAxes = Float32List(64);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'scene_texel': sceneTexel,
     'jitter': jitter,
     'params': params,
+    'clip': clip,
+    'clip_axes': clipAxes,
   };
 }
 

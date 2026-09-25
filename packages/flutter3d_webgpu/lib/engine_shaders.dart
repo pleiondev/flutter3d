@@ -23795,6 +23795,8 @@ struct TemporalInfo {
     scene_texel: vec4<f32>,
     jitter: vec4<f32>,
     params: vec4<f32>,
+    clip: vec4<f32>,
+    clip_axes: array<vec4<f32>, 16>,
 }
 
 @group(1) @binding(0) 
@@ -23819,31 +23821,31 @@ var velocity_texture_smp: sampler;
 var<private> frag_color: vec4<f32>;
 
 fn Luma_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> f32 {
-    let _e44 = (*c);
-    return dot(_e44, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
+    let _e52 = (*c);
+    return dot(_e52, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
 }
 
 fn Unweigh_u0028_vf3_u003b(c_1: ptr<function, vec3<f32>>) -> vec3<f32> {
     var param: vec3<f32>;
 
-    let _e45 = (*c_1);
-    let _e46 = (*c_1);
-    param = _e46;
-    let _e47 = Luma_u0028_vf3_u003b((&param));
-    let _e50 = temporal_info.params[0u];
-    return (_e45 / vec3(max((1f - (_e47 * _e50)), 0.0001f)));
+    let _e53 = (*c_1);
+    let _e54 = (*c_1);
+    param = _e54;
+    let _e55 = Luma_u0028_vf3_u003b((&param));
+    let _e58 = temporal_info.params[0u];
+    return (_e53 / vec3(max((1f - (_e55 * _e58)), 0.0001f)));
 }
 
 fn YCoCgToRgb_u0028_vf3_u003b(c_2: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e45 = (*c_2)[0u];
-    let _e47 = (*c_2)[1u];
-    let _e50 = (*c_2)[2u];
     let _e53 = (*c_2)[0u];
-    let _e55 = (*c_2)[2u];
-    let _e58 = (*c_2)[0u];
-    let _e60 = (*c_2)[1u];
+    let _e55 = (*c_2)[1u];
+    let _e58 = (*c_2)[2u];
+    let _e61 = (*c_2)[0u];
     let _e63 = (*c_2)[2u];
-    return vec3<f32>(((_e45 + _e47) - _e50), (_e53 + _e55), ((_e58 - _e60) - _e63));
+    let _e66 = (*c_2)[0u];
+    let _e68 = (*c_2)[1u];
+    let _e71 = (*c_2)[2u];
+    return vec3<f32>(((_e53 + _e55) - _e58), (_e61 + _e63), ((_e66 - _e68) - _e71));
 }
 
 fn ClipToBox_u0028_vf3_u003b_vf3_u003b_vf3_u003b(lo: ptr<function, vec3<f32>>, hi: ptr<function, vec3<f32>>, q: ptr<function, vec3<f32>>) -> vec3<f32> {
@@ -23854,34 +23856,165 @@ fn ClipToBox_u0028_vf3_u003b_vf3_u003b_vf3_u003b(lo: ptr<function, vec3<f32>>, h
     var most: f32;
     var local: vec3<f32>;
 
-    let _e52 = (*hi);
-    let _e53 = (*lo);
-    centre = ((_e52 + _e53) * 0.5f);
-    let _e56 = (*hi);
-    let _e57 = (*lo);
-    extent = (((_e56 - _e57) * 0.5f) + vec3<f32>(0.00001f, 0.00001f, 0.00001f));
-    let _e61 = (*q);
-    let _e62 = centre;
-    v = (_e61 - _e62);
-    let _e64 = v;
-    let _e65 = extent;
-    units = abs((_e64 / _e65));
-    let _e69 = units[0u];
-    let _e71 = units[1u];
-    let _e73 = units[2u];
-    most = max(_e69, max(_e71, _e73));
-    let _e76 = most;
-    if (_e76 > 1f) {
-        let _e78 = centre;
-        let _e79 = v;
-        let _e80 = most;
-        local = (_e78 + (_e79 / vec3(_e80)));
+    let _e60 = (*hi);
+    let _e61 = (*lo);
+    centre = ((_e60 + _e61) * 0.5f);
+    let _e64 = (*hi);
+    let _e65 = (*lo);
+    extent = (((_e64 - _e65) * 0.5f) + vec3<f32>(0.00001f, 0.00001f, 0.00001f));
+    let _e69 = (*q);
+    let _e70 = centre;
+    v = (_e69 - _e70);
+    let _e72 = v;
+    let _e73 = extent;
+    units = abs((_e72 / _e73));
+    let _e77 = units[0u];
+    let _e79 = units[1u];
+    let _e81 = units[2u];
+    most = max(_e77, max(_e79, _e81));
+    let _e84 = most;
+    if (_e84 > 1f) {
+        let _e86 = centre;
+        let _e87 = v;
+        let _e88 = most;
+        local = (_e86 + (_e87 / vec3(_e88)));
     } else {
-        let _e84 = (*q);
-        local = _e84;
+        let _e92 = (*q);
+        local = _e92;
     }
-    let _e85 = local;
-    return _e85;
+    let _e93 = local;
+    return _e93;
+}
+
+fn ClipToDop_u0028_vf3_u003b_vf3_u003b_vf3_u005b_9_u005d_u003b(current: ptr<function, vec3<f32>>, history: ptr<function, vec3<f32>>, around: ptr<function, array<vec3<f32>, 9>>) -> vec3<f32> {
+    var toward: vec3<f32>;
+    var reach: f32;
+    var a: i32;
+    var axis: vec3<f32>;
+    var at: f32;
+    var lowest: f32;
+    var highest: f32;
+    var sum: f32;
+    var sumSquares: f32;
+    var n: i32;
+    var p: f32;
+    var mean: f32;
+    var sigma: f32;
+    var lo_1: f32;
+    var hi_1: f32;
+    var along: f32;
+    var leave: f32;
+    var local_1: f32;
+    var local_2: f32;
+
+    let _e73 = (*history);
+    let _e74 = (*current);
+    toward = (_e73 - _e74);
+    reach = 1f;
+    a = 0i;
+    loop {
+        let _e76 = a;
+        if (_e76 < 16i) {
+            let _e78 = a;
+            let _e82 = temporal_info.clip[0u];
+            if (f32(_e78) < _e82) {
+                let _e84 = a;
+                let _e87 = temporal_info.clip_axes[_e84];
+                axis = _e87.xyz;
+                let _e89 = (*current);
+                let _e90 = axis;
+                at = dot(_e89, _e90);
+                lowest = 1000000000000000000000000000000f;
+                highest = -1000000000000000000000000000000f;
+                sum = 0f;
+                sumSquares = 0f;
+                n = 0i;
+                loop {
+                    let _e92 = n;
+                    if (_e92 < 9i) {
+                        let _e94 = n;
+                        let _e96 = (*around)[_e94];
+                        let _e97 = axis;
+                        p = dot(_e96, _e97);
+                        let _e99 = lowest;
+                        let _e100 = p;
+                        lowest = min(_e99, _e100);
+                        let _e102 = highest;
+                        let _e103 = p;
+                        highest = max(_e102, _e103);
+                        let _e105 = p;
+                        let _e106 = sum;
+                        sum = (_e106 + _e105);
+                        let _e108 = p;
+                        let _e109 = p;
+                        let _e111 = sumSquares;
+                        sumSquares = (_e111 + (_e108 * _e109));
+                        continue;
+                    } else {
+                        break;
+                    }
+                    continuing {
+                        let _e113 = n;
+                        n = (_e113 + 1i);
+                    }
+                }
+                let _e115 = sum;
+                mean = (_e115 / 9f);
+                let _e117 = sumSquares;
+                let _e119 = mean;
+                let _e120 = mean;
+                sigma = sqrt(max(((_e117 / 9f) - (_e119 * _e120)), 0f));
+                let _e125 = lowest;
+                let _e126 = mean;
+                let _e127 = sigma;
+                let _e131 = at;
+                lo_1 = min(max(_e125, (_e126 - (1.25f * _e127))), _e131);
+                let _e133 = highest;
+                let _e134 = mean;
+                let _e135 = sigma;
+                let _e139 = at;
+                hi_1 = max(min(_e133, (_e134 + (1.25f * _e135))), _e139);
+                let _e141 = toward;
+                let _e142 = axis;
+                along = dot(_e141, _e142);
+                let _e144 = along;
+                if (_e144 > 0.00000001f) {
+                    let _e146 = hi_1;
+                    let _e147 = at;
+                    let _e149 = along;
+                    local_1 = ((_e146 - _e147) / _e149);
+                } else {
+                    let _e151 = along;
+                    if (_e151 < -0.00000001f) {
+                        let _e153 = lo_1;
+                        let _e154 = at;
+                        let _e156 = along;
+                        local_2 = ((_e153 - _e154) / _e156);
+                    } else {
+                        local_2 = 1f;
+                    }
+                    let _e158 = local_2;
+                    local_1 = _e158;
+                }
+                let _e159 = local_1;
+                leave = _e159;
+                let _e160 = reach;
+                let _e161 = leave;
+                reach = min(_e160, _e161);
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e163 = a;
+            a = (_e163 + 1i);
+        }
+    }
+    let _e165 = (*current);
+    let _e166 = toward;
+    let _e167 = reach;
+    return (_e165 + (_e166 * max(_e167, 0f)));
 }
 
 fn HistoryAt_u0028_vf2_u003b(uv: ptr<function, vec2<f32>>) -> vec3<f32> {
@@ -23897,255 +24030,268 @@ fn HistoryAt_u0028_vf2_u003b(uv: ptr<function, vec2<f32>>) -> vec3<f32> {
     var at0_: vec2<f32>;
     var at3_: vec2<f32>;
     var at12_: vec2<f32>;
-    var sum: vec3<f32>;
+    var sum_1: vec3<f32>;
 
-    let _e58 = temporal_info.params;
-    size = _e58.zw;
-    let _e60 = (*uv);
-    let _e61 = size;
-    position = (_e60 * _e61);
-    let _e63 = position;
-    centre1_ = (floor((_e63 - vec2(0.5f))) + vec2(0.5f));
-    let _e69 = position;
-    let _e70 = centre1_;
-    f = (_e69 - _e70);
-    let _e72 = f;
-    let _e73 = f;
-    let _e74 = f;
-    w0_ = (_e72 * (vec2(-0.5f) + (_e73 * (vec2(1f) - (_e74 * 0.5f)))));
+    let _e66 = temporal_info.params;
+    size = _e66.zw;
+    let _e68 = (*uv);
+    let _e69 = size;
+    position = (_e68 * _e69);
+    let _e71 = position;
+    centre1_ = (floor((_e71 - vec2(0.5f))) + vec2(0.5f));
+    let _e77 = position;
+    let _e78 = centre1_;
+    f = (_e77 - _e78);
+    let _e80 = f;
+    let _e81 = f;
     let _e82 = f;
-    let _e83 = f;
-    let _e85 = f;
-    w1_ = (vec2(1f) + ((_e82 * _e83) * (vec2(-2.5f) + (_e85 * 1.5f))));
-    let _e92 = f;
+    w0_ = (_e80 * (vec2(-0.5f) + (_e81 * (vec2(1f) - (_e82 * 0.5f)))));
+    let _e90 = f;
+    let _e91 = f;
     let _e93 = f;
-    let _e94 = f;
-    w2_ = (_e92 * (vec2(0.5f) + (_e93 * (vec2(2f) - (_e94 * 1.5f)))));
+    w1_ = (vec2(1f) + ((_e90 * _e91) * (vec2(-2.5f) + (_e93 * 1.5f))));
+    let _e100 = f;
+    let _e101 = f;
     let _e102 = f;
-    let _e103 = f;
-    let _e105 = f;
-    w3_ = ((_e102 * _e103) * (vec2(-0.5f) + (_e105 * 0.5f)));
-    let _e110 = w1_;
-    let _e111 = w2_;
-    w12_ = (_e110 + _e111);
-    let _e113 = centre1_;
-    let _e116 = size;
-    at0_ = ((_e113 - vec2(1f)) / _e116);
-    let _e118 = centre1_;
-    let _e121 = size;
-    at3_ = ((_e118 + vec2(2f)) / _e121);
-    let _e123 = centre1_;
-    let _e124 = w2_;
-    let _e125 = w12_;
-    let _e128 = size;
-    at12_ = ((_e123 + (_e124 / _e125)) / _e128);
-    sum = vec3<f32>(0f, 0f, 0f);
-    let _e131 = at0_[0u];
-    let _e133 = at0_[1u];
-    let _e135 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e131, _e133));
-    let _e138 = w0_[0u];
-    let _e141 = w0_[1u];
-    let _e143 = sum;
-    sum = (_e143 + ((_e135.xyz * _e138) * _e141));
-    let _e146 = at12_[0u];
-    let _e148 = at0_[1u];
-    let _e150 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e146, _e148));
-    let _e153 = w12_[0u];
-    let _e156 = w0_[1u];
-    let _e158 = sum;
-    sum = (_e158 + ((_e150.xyz * _e153) * _e156));
-    let _e161 = at3_[0u];
-    let _e163 = at0_[1u];
-    let _e165 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e161, _e163));
-    let _e168 = w3_[0u];
-    let _e171 = w0_[1u];
-    let _e173 = sum;
-    sum = (_e173 + ((_e165.xyz * _e168) * _e171));
-    let _e176 = at0_[0u];
-    let _e178 = at12_[1u];
-    let _e180 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e176, _e178));
-    let _e183 = w0_[0u];
-    let _e186 = w12_[1u];
-    let _e188 = sum;
-    sum = (_e188 + ((_e180.xyz * _e183) * _e186));
-    let _e191 = at12_[0u];
-    let _e193 = at12_[1u];
-    let _e195 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e191, _e193));
-    let _e198 = w12_[0u];
-    let _e201 = w12_[1u];
-    let _e203 = sum;
-    sum = (_e203 + ((_e195.xyz * _e198) * _e201));
-    let _e206 = at3_[0u];
-    let _e208 = at12_[1u];
-    let _e210 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e206, _e208));
-    let _e213 = w3_[0u];
-    let _e216 = w12_[1u];
-    let _e218 = sum;
-    sum = (_e218 + ((_e210.xyz * _e213) * _e216));
-    let _e221 = at0_[0u];
-    let _e223 = at3_[1u];
-    let _e225 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e221, _e223));
-    let _e228 = w0_[0u];
-    let _e231 = w3_[1u];
-    let _e233 = sum;
-    sum = (_e233 + ((_e225.xyz * _e228) * _e231));
-    let _e236 = at12_[0u];
-    let _e238 = at3_[1u];
-    let _e240 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e236, _e238));
-    let _e243 = w12_[0u];
-    let _e246 = w3_[1u];
-    let _e248 = sum;
-    sum = (_e248 + ((_e240.xyz * _e243) * _e246));
-    let _e251 = at3_[0u];
-    let _e253 = at3_[1u];
-    let _e255 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e251, _e253));
-    let _e258 = w3_[0u];
-    let _e261 = w3_[1u];
-    let _e263 = sum;
-    sum = (_e263 + ((_e255.xyz * _e258) * _e261));
-    let _e265 = sum;
-    return max(_e265, vec3<f32>(0f, 0f, 0f));
+    w2_ = (_e100 * (vec2(0.5f) + (_e101 * (vec2(2f) - (_e102 * 1.5f)))));
+    let _e110 = f;
+    let _e111 = f;
+    let _e113 = f;
+    w3_ = ((_e110 * _e111) * (vec2(-0.5f) + (_e113 * 0.5f)));
+    let _e118 = w1_;
+    let _e119 = w2_;
+    w12_ = (_e118 + _e119);
+    let _e121 = centre1_;
+    let _e124 = size;
+    at0_ = ((_e121 - vec2(1f)) / _e124);
+    let _e126 = centre1_;
+    let _e129 = size;
+    at3_ = ((_e126 + vec2(2f)) / _e129);
+    let _e131 = centre1_;
+    let _e132 = w2_;
+    let _e133 = w12_;
+    let _e136 = size;
+    at12_ = ((_e131 + (_e132 / _e133)) / _e136);
+    sum_1 = vec3<f32>(0f, 0f, 0f);
+    let _e139 = at0_[0u];
+    let _e141 = at0_[1u];
+    let _e143 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e139, _e141));
+    let _e146 = w0_[0u];
+    let _e149 = w0_[1u];
+    let _e151 = sum_1;
+    sum_1 = (_e151 + ((_e143.xyz * _e146) * _e149));
+    let _e154 = at12_[0u];
+    let _e156 = at0_[1u];
+    let _e158 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e154, _e156));
+    let _e161 = w12_[0u];
+    let _e164 = w0_[1u];
+    let _e166 = sum_1;
+    sum_1 = (_e166 + ((_e158.xyz * _e161) * _e164));
+    let _e169 = at3_[0u];
+    let _e171 = at0_[1u];
+    let _e173 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e169, _e171));
+    let _e176 = w3_[0u];
+    let _e179 = w0_[1u];
+    let _e181 = sum_1;
+    sum_1 = (_e181 + ((_e173.xyz * _e176) * _e179));
+    let _e184 = at0_[0u];
+    let _e186 = at12_[1u];
+    let _e188 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e184, _e186));
+    let _e191 = w0_[0u];
+    let _e194 = w12_[1u];
+    let _e196 = sum_1;
+    sum_1 = (_e196 + ((_e188.xyz * _e191) * _e194));
+    let _e199 = at12_[0u];
+    let _e201 = at12_[1u];
+    let _e203 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e199, _e201));
+    let _e206 = w12_[0u];
+    let _e209 = w12_[1u];
+    let _e211 = sum_1;
+    sum_1 = (_e211 + ((_e203.xyz * _e206) * _e209));
+    let _e214 = at3_[0u];
+    let _e216 = at12_[1u];
+    let _e218 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e214, _e216));
+    let _e221 = w3_[0u];
+    let _e224 = w12_[1u];
+    let _e226 = sum_1;
+    sum_1 = (_e226 + ((_e218.xyz * _e221) * _e224));
+    let _e229 = at0_[0u];
+    let _e231 = at3_[1u];
+    let _e233 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e229, _e231));
+    let _e236 = w0_[0u];
+    let _e239 = w3_[1u];
+    let _e241 = sum_1;
+    sum_1 = (_e241 + ((_e233.xyz * _e236) * _e239));
+    let _e244 = at12_[0u];
+    let _e246 = at3_[1u];
+    let _e248 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e244, _e246));
+    let _e251 = w12_[0u];
+    let _e254 = w3_[1u];
+    let _e256 = sum_1;
+    sum_1 = (_e256 + ((_e248.xyz * _e251) * _e254));
+    let _e259 = at3_[0u];
+    let _e261 = at3_[1u];
+    let _e263 = textureSample(history_texture_tex, history_texture_smp, vec2<f32>(_e259, _e261));
+    let _e266 = w3_[0u];
+    let _e269 = w3_[1u];
+    let _e271 = sum_1;
+    sum_1 = (_e271 + ((_e263.xyz * _e266) * _e269));
+    let _e273 = sum_1;
+    return max(_e273, vec3<f32>(0f, 0f, 0f));
 }
 
 fn RgbToYCoCg_u0028_vf3_u003b(c_3: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e45 = (*c_3)[0u];
-    let _e48 = (*c_3)[1u];
-    let _e52 = (*c_3)[2u];
-    let _e56 = (*c_3)[0u];
-    let _e59 = (*c_3)[2u];
-    let _e63 = (*c_3)[0u];
-    let _e66 = (*c_3)[1u];
-    let _e70 = (*c_3)[2u];
-    return vec3<f32>((((0.25f * _e45) + (0.5f * _e48)) + (0.25f * _e52)), ((0.5f * _e56) - (0.5f * _e59)), (((-0.25f * _e63) + (0.5f * _e66)) - (0.25f * _e70)));
+    let _e53 = (*c_3)[0u];
+    let _e56 = (*c_3)[1u];
+    let _e60 = (*c_3)[2u];
+    let _e64 = (*c_3)[0u];
+    let _e67 = (*c_3)[2u];
+    let _e71 = (*c_3)[0u];
+    let _e74 = (*c_3)[1u];
+    let _e78 = (*c_3)[2u];
+    return vec3<f32>((((0.25f * _e53) + (0.5f * _e56)) + (0.25f * _e60)), ((0.5f * _e64) - (0.5f * _e67)), (((-0.25f * _e71) + (0.5f * _e74)) - (0.25f * _e78)));
 }
 
 fn Weigh_u0028_vf3_u003b(c_4: ptr<function, vec3<f32>>) -> vec3<f32> {
     var param_1: vec3<f32>;
 
-    let _e45 = (*c_4);
-    let _e46 = (*c_4);
-    param_1 = _e46;
-    let _e47 = Luma_u0028_vf3_u003b((&param_1));
-    let _e50 = temporal_info.params[0u];
-    return (_e45 / vec3((1f + (_e47 * _e50))));
+    let _e53 = (*c_4);
+    let _e54 = (*c_4);
+    param_1 = _e54;
+    let _e55 = Luma_u0028_vf3_u003b((&param_1));
+    let _e58 = temporal_info.params[0u];
+    return (_e53 / vec3((1f + (_e55 * _e58))));
 }
 
 fn main_1() {
     var texel: vec2<f32>;
     var sceneUv: vec2<f32>;
     var centre_1: vec2<f32>;
-    var sum_1: vec3<f32>;
-    var sumSquares: vec3<f32>;
-    var lowest: vec3<f32>;
-    var highest: vec3<f32>;
+    var sum_2: vec3<f32>;
+    var sumSquares_1: vec3<f32>;
+    var lowest_1: vec3<f32>;
+    var highest_1: vec3<f32>;
     var nearest: f32;
     var nearestUv: vec2<f32>;
     var dy: i32;
     var dx: i32;
-    var at: vec2<f32>;
+    var at_1: vec2<f32>;
     var c_5: vec3<f32>;
     var param_2: vec3<f32>;
     var param_3: vec3<f32>;
+    var around_1: array<vec3<f32>, 9>;
     var depth: f32;
-    var current: vec3<f32>;
+    var current_1: vec3<f32>;
     var depth_1: f32;
     var then: vec2<f32>;
     var thenDepth: f32;
     var trust: f32;
-    var mean: vec3<f32>;
-    var sigma: vec3<f32>;
-    var lo_1: vec3<f32>;
-    var hi_1: vec3<f32>;
-    var history: vec3<f32>;
+    var mean_1: vec3<f32>;
+    var sigma_1: vec3<f32>;
+    var lo_2: vec3<f32>;
+    var hi_2: vec3<f32>;
+    var remembered: vec3<f32>;
     var param_4: vec2<f32>;
     var param_5: vec3<f32>;
     var param_6: vec3<f32>;
+    var clipped: vec3<f32>;
+    var local_3: vec3<f32>;
     var param_7: vec3<f32>;
     var param_8: vec3<f32>;
     var param_9: vec3<f32>;
     var param_10: vec3<f32>;
-    var param_11: vec3<f32>;
+    var param_11: array<vec3<f32>, 9>;
+    var param_12: vec3<f32>;
+    var param_13: vec3<f32>;
+    var param_14: vec3<f32>;
+    var history_1: vec3<f32>;
+    var param_15: vec3<f32>;
+    var param_16: vec3<f32>;
     var keep: f32;
     var exposure: f32;
     var wCurrent: f32;
-    var param_12: vec3<f32>;
+    var param_17: vec3<f32>;
     var wHistory: f32;
-    var param_13: vec3<f32>;
+    var param_18: vec3<f32>;
     var resolved: vec3<f32>;
-    var phi_605_: bool;
-    var phi_612_: bool;
-    var phi_619_: bool;
-    var phi_626_: bool;
-    var phi_671_: bool;
+    var phi_768_: bool;
+    var phi_775_: bool;
+    var phi_782_: bool;
+    var phi_789_: bool;
+    var phi_834_: bool;
 
-    let _e85 = temporal_info.scene_texel;
-    texel = _e85.xy;
-    let _e87 = v_uv_1;
-    let _e89 = temporal_info.jitter;
-    sceneUv = (_e87 + _e89.xy);
-    let _e92 = sceneUv;
-    let _e94 = temporal_info.scene_texel;
-    let _e100 = texel;
-    centre_1 = ((floor((_e92 * _e94.zw)) + vec2(0.5f)) * _e100);
-    sum_1 = vec3<f32>(0f, 0f, 0f);
-    sumSquares = vec3<f32>(0f, 0f, 0f);
-    lowest = vec3<f32>(1000000000000000000000000000000f, 1000000000000000000000000000000f, 1000000000000000000000000000000f);
-    highest = vec3<f32>(-1000000000000000000000000000000f, -1000000000000000000000000000000f, -1000000000000000000000000000000f);
+    let _e102 = temporal_info.scene_texel;
+    texel = _e102.xy;
+    let _e104 = v_uv_1;
+    let _e106 = temporal_info.jitter;
+    sceneUv = (_e104 + _e106.xy);
+    let _e109 = sceneUv;
+    let _e111 = temporal_info.scene_texel;
+    let _e117 = texel;
+    centre_1 = ((floor((_e109 * _e111.zw)) + vec2(0.5f)) * _e117);
+    sum_2 = vec3<f32>(0f, 0f, 0f);
+    sumSquares_1 = vec3<f32>(0f, 0f, 0f);
+    lowest_1 = vec3<f32>(1000000000000000000000000000000f, 1000000000000000000000000000000f, 1000000000000000000000000000000f);
+    highest_1 = vec3<f32>(-1000000000000000000000000000000f, -1000000000000000000000000000000f, -1000000000000000000000000000000f);
     nearest = 1000000000000000000000000000000f;
-    let _e102 = centre_1;
-    nearestUv = _e102;
+    let _e119 = centre_1;
+    nearestUv = _e119;
     dy = -1i;
     loop {
-        let _e103 = dy;
-        if (_e103 <= 1i) {
+        let _e120 = dy;
+        if (_e120 <= 1i) {
             dx = -1i;
             loop {
-                let _e105 = dx;
-                if (_e105 <= 1i) {
-                    let _e107 = centre_1;
-                    let _e108 = dx;
-                    let _e110 = dy;
-                    let _e113 = texel;
-                    at = (_e107 + (vec2<f32>(f32(_e108), f32(_e110)) * _e113));
-                    let _e116 = at;
-                    let _e117 = textureSample(scene_texture_tex, scene_texture_smp, _e116);
-                    param_2 = _e117.xyz;
-                    let _e119 = Weigh_u0028_vf3_u003b((&param_2));
-                    param_3 = _e119;
-                    let _e120 = RgbToYCoCg_u0028_vf3_u003b((&param_3));
-                    c_5 = _e120;
-                    let _e121 = c_5;
-                    let _e122 = sum_1;
-                    sum_1 = (_e122 + _e121);
-                    let _e124 = c_5;
-                    let _e125 = c_5;
-                    let _e127 = sumSquares;
-                    sumSquares = (_e127 + (_e124 * _e125));
-                    let _e129 = lowest;
-                    let _e130 = c_5;
-                    lowest = min(_e129, _e130);
-                    let _e132 = highest;
-                    let _e133 = c_5;
-                    highest = max(_e132, _e133);
-                    let _e135 = at;
-                    let _e136 = textureSample(surface_texture_tex, surface_texture_smp, _e135);
-                    depth = _e136.w;
-                    let _e138 = depth;
-                    let _e140 = depth;
-                    let _e141 = nearest;
-                    if ((_e138 > 0f) && (_e140 < _e141)) {
-                        let _e144 = depth;
-                        nearest = _e144;
-                        let _e145 = at;
-                        nearestUv = _e145;
+                let _e122 = dx;
+                if (_e122 <= 1i) {
+                    let _e124 = centre_1;
+                    let _e125 = dx;
+                    let _e127 = dy;
+                    let _e130 = texel;
+                    at_1 = (_e124 + (vec2<f32>(f32(_e125), f32(_e127)) * _e130));
+                    let _e133 = at_1;
+                    let _e134 = textureSample(scene_texture_tex, scene_texture_smp, _e133);
+                    param_2 = _e134.xyz;
+                    let _e136 = Weigh_u0028_vf3_u003b((&param_2));
+                    param_3 = _e136;
+                    let _e137 = RgbToYCoCg_u0028_vf3_u003b((&param_3));
+                    c_5 = _e137;
+                    let _e138 = dy;
+                    let _e141 = dx;
+                    let _e144 = c_5;
+                    around_1[((((_e138 + 1i) * 3i) + _e141) + 1i)] = _e144;
+                    let _e146 = c_5;
+                    let _e147 = sum_2;
+                    sum_2 = (_e147 + _e146);
+                    let _e149 = c_5;
+                    let _e150 = c_5;
+                    let _e152 = sumSquares_1;
+                    sumSquares_1 = (_e152 + (_e149 * _e150));
+                    let _e154 = lowest_1;
+                    let _e155 = c_5;
+                    lowest_1 = min(_e154, _e155);
+                    let _e157 = highest_1;
+                    let _e158 = c_5;
+                    highest_1 = max(_e157, _e158);
+                    let _e160 = at_1;
+                    let _e161 = textureSample(surface_texture_tex, surface_texture_smp, _e160);
+                    depth = _e161.w;
+                    let _e163 = depth;
+                    let _e165 = depth;
+                    let _e166 = nearest;
+                    if ((_e163 > 0f) && (_e165 < _e166)) {
+                        let _e169 = depth;
+                        nearest = _e169;
+                        let _e170 = at_1;
+                        nearestUv = _e170;
                     }
                     continue;
                 } else {
                     break;
                 }
                 continuing {
-                    let _e146 = dx;
-                    dx = (_e146 + 1i);
+                    let _e171 = dx;
+                    dx = (_e171 + 1i);
                 }
             }
             continue;
@@ -24153,136 +24299,158 @@ fn main_1() {
             break;
         }
         continuing {
-            let _e148 = dy;
-            dy = (_e148 + 1i);
+            let _e173 = dy;
+            dy = (_e173 + 1i);
         }
     }
-    let _e150 = sceneUv;
-    let _e151 = textureSample(scene_texture_tex, scene_texture_smp, _e150);
-    current = _e151.xyz;
-    let _e153 = nearest;
-    let _e155 = nearest;
-    depth_1 = select(0f, _e155, (_e153 < 1000000000000000000000000000000f));
-    let _e157 = v_uv_1;
-    let _e158 = nearestUv;
-    let _e159 = textureSample(velocity_texture_tex, velocity_texture_smp, _e158);
-    then = (_e157 - _e159.xy);
-    let _e164 = temporal_info.jitter[3u];
-    let _e165 = (_e164 < 0.5f);
-    phi_605_ = _e165;
-    if !(_e165) {
-        let _e168 = then[0u];
-        phi_605_ = (_e168 < 0f);
+    let _e175 = sceneUv;
+    let _e176 = textureSample(scene_texture_tex, scene_texture_smp, _e175);
+    current_1 = _e176.xyz;
+    let _e178 = nearest;
+    let _e180 = nearest;
+    depth_1 = select(0f, _e180, (_e178 < 1000000000000000000000000000000f));
+    let _e182 = v_uv_1;
+    let _e183 = nearestUv;
+    let _e184 = textureSample(velocity_texture_tex, velocity_texture_smp, _e183);
+    then = (_e182 - _e184.xy);
+    let _e189 = temporal_info.jitter[3u];
+    let _e190 = (_e189 < 0.5f);
+    phi_768_ = _e190;
+    if !(_e190) {
+        let _e193 = then[0u];
+        phi_768_ = (_e193 < 0f);
     }
-    let _e171 = phi_605_;
-    phi_612_ = _e171;
-    if !(_e171) {
-        let _e174 = then[0u];
-        phi_612_ = (_e174 > 1f);
+    let _e196 = phi_768_;
+    phi_775_ = _e196;
+    if !(_e196) {
+        let _e199 = then[0u];
+        phi_775_ = (_e199 > 1f);
     }
-    let _e177 = phi_612_;
-    phi_619_ = _e177;
-    if !(_e177) {
-        let _e180 = then[1u];
-        phi_619_ = (_e180 < 0f);
+    let _e202 = phi_775_;
+    phi_782_ = _e202;
+    if !(_e202) {
+        let _e205 = then[1u];
+        phi_782_ = (_e205 < 0f);
     }
-    let _e183 = phi_619_;
-    phi_626_ = _e183;
-    if !(_e183) {
-        let _e186 = then[1u];
-        phi_626_ = (_e186 > 1f);
+    let _e208 = phi_782_;
+    phi_789_ = _e208;
+    if !(_e208) {
+        let _e211 = then[1u];
+        phi_789_ = (_e211 > 1f);
     }
-    let _e189 = phi_626_;
-    if _e189 {
-        let _e190 = current;
-        let _e191 = depth_1;
-        frag_color = vec4<f32>(_e190.x, _e190.y, _e190.z, _e191);
+    let _e214 = phi_789_;
+    if _e214 {
+        let _e215 = current_1;
+        let _e216 = depth_1;
+        frag_color = vec4<f32>(_e215.x, _e215.y, _e215.z, _e216);
         return;
     }
-    let _e196 = then;
-    let _e197 = textureSample(history_texture_tex, history_texture_smp, _e196);
-    thenDepth = _e197.w;
+    let _e221 = then;
+    let _e222 = textureSample(history_texture_tex, history_texture_smp, _e221);
+    thenDepth = _e222.w;
     trust = 1f;
-    let _e199 = depth_1;
-    let _e201 = thenDepth;
-    if ((_e199 > 0f) != (_e201 > 0f)) {
+    let _e224 = depth_1;
+    let _e226 = thenDepth;
+    if ((_e224 > 0f) != (_e226 > 0f)) {
         trust = 0f;
     }
-    let _e204 = depth_1;
-    let _e206 = thenDepth;
-    let _e208 = ((_e204 > 0f) && (_e206 > 0f));
-    phi_671_ = _e208;
-    if _e208 {
-        let _e209 = thenDepth;
-        let _e210 = depth_1;
-        let _e215 = temporal_info.params[1u];
-        let _e216 = depth_1;
-        let _e217 = thenDepth;
-        phi_671_ = (abs((_e209 - _e210)) > (_e215 * min(_e216, _e217)));
+    let _e229 = depth_1;
+    let _e231 = thenDepth;
+    let _e233 = ((_e229 > 0f) && (_e231 > 0f));
+    phi_834_ = _e233;
+    if _e233 {
+        let _e234 = thenDepth;
+        let _e235 = depth_1;
+        let _e240 = temporal_info.params[1u];
+        let _e241 = depth_1;
+        let _e242 = thenDepth;
+        phi_834_ = (abs((_e234 - _e235)) > (_e240 * min(_e241, _e242)));
     }
-    let _e222 = phi_671_;
-    if _e222 {
+    let _e247 = phi_834_;
+    if _e247 {
         trust = 0f;
     }
-    let _e223 = sum_1;
-    mean = (_e223 / vec3(9f));
-    let _e226 = sumSquares;
-    let _e229 = mean;
-    let _e230 = mean;
-    sigma = sqrt(max(((_e226 / vec3(9f)) - (_e229 * _e230)), vec3<f32>(0f, 0f, 0f)));
-    let _e235 = lowest;
-    let _e236 = mean;
-    let _e237 = sigma;
-    lo_1 = max(_e235, (_e236 - (_e237 * 1.25f)));
-    let _e241 = highest;
-    let _e242 = mean;
-    let _e243 = sigma;
-    hi_1 = min(_e241, (_e242 + (_e243 * 1.25f)));
-    let _e247 = then;
-    param_4 = _e247;
-    let _e248 = HistoryAt_u0028_vf2_u003b((&param_4));
-    param_5 = _e248;
-    let _e249 = Weigh_u0028_vf3_u003b((&param_5));
-    param_6 = _e249;
-    let _e250 = RgbToYCoCg_u0028_vf3_u003b((&param_6));
-    let _e251 = lo_1;
-    param_7 = _e251;
-    let _e252 = hi_1;
-    param_8 = _e252;
-    param_9 = _e250;
-    let _e253 = ClipToBox_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_7), (&param_8), (&param_9));
-    param_10 = _e253;
-    let _e254 = YCoCgToRgb_u0028_vf3_u003b((&param_10));
-    param_11 = _e254;
-    let _e255 = Unweigh_u0028_vf3_u003b((&param_11));
-    history = _e255;
-    let _e258 = temporal_info.jitter[2u];
-    let _e259 = trust;
-    keep = (_e258 * _e259);
-    let _e263 = temporal_info.params[0u];
-    exposure = _e263;
-    let _e264 = keep;
-    let _e266 = current;
-    param_12 = _e266;
-    let _e267 = Luma_u0028_vf3_u003b((&param_12));
-    let _e268 = exposure;
-    wCurrent = ((1f - _e264) / (1f + (_e267 * _e268)));
-    let _e272 = keep;
-    let _e273 = history;
-    param_13 = _e273;
-    let _e274 = Luma_u0028_vf3_u003b((&param_13));
-    let _e275 = exposure;
-    wHistory = (_e272 / (1f + (_e274 * _e275)));
-    let _e279 = current;
-    let _e280 = wCurrent;
-    let _e282 = history;
-    let _e283 = wHistory;
-    let _e286 = wCurrent;
-    let _e287 = wHistory;
-    resolved = (((_e279 * _e280) + (_e282 * _e283)) / vec3(max((_e286 + _e287), 0.000001f)));
-    let _e292 = resolved;
-    let _e293 = depth_1;
-    frag_color = vec4<f32>(_e292.x, _e292.y, _e292.z, _e293);
+    let _e248 = sum_2;
+    mean_1 = (_e248 / vec3(9f));
+    let _e251 = sumSquares_1;
+    let _e254 = mean_1;
+    let _e255 = mean_1;
+    sigma_1 = sqrt(max(((_e251 / vec3(9f)) - (_e254 * _e255)), vec3<f32>(0f, 0f, 0f)));
+    let _e260 = lowest_1;
+    let _e261 = mean_1;
+    let _e262 = sigma_1;
+    lo_2 = max(_e260, (_e261 - (_e262 * 1.25f)));
+    let _e266 = highest_1;
+    let _e267 = mean_1;
+    let _e268 = sigma_1;
+    hi_2 = min(_e266, (_e267 + (_e268 * 1.25f)));
+    let _e272 = then;
+    param_4 = _e272;
+    let _e273 = HistoryAt_u0028_vf2_u003b((&param_4));
+    param_5 = _e273;
+    let _e274 = Weigh_u0028_vf3_u003b((&param_5));
+    param_6 = _e274;
+    let _e275 = RgbToYCoCg_u0028_vf3_u003b((&param_6));
+    remembered = _e275;
+    let _e278 = temporal_info.clip[0u];
+    if (_e278 > 0.5f) {
+        let _e280 = current_1;
+        param_7 = _e280;
+        let _e281 = Weigh_u0028_vf3_u003b((&param_7));
+        param_8 = _e281;
+        let _e282 = RgbToYCoCg_u0028_vf3_u003b((&param_8));
+        param_9 = _e282;
+        let _e283 = remembered;
+        param_10 = _e283;
+        let _e284 = around_1;
+        param_11 = _e284;
+        let _e285 = ClipToDop_u0028_vf3_u003b_vf3_u003b_vf3_u005b_9_u005d_u003b((&param_9), (&param_10), (&param_11));
+        local_3 = _e285;
+    } else {
+        let _e286 = lo_2;
+        param_12 = _e286;
+        let _e287 = hi_2;
+        param_13 = _e287;
+        let _e288 = remembered;
+        param_14 = _e288;
+        let _e289 = ClipToBox_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_12), (&param_13), (&param_14));
+        local_3 = _e289;
+    }
+    let _e290 = local_3;
+    clipped = _e290;
+    let _e291 = clipped;
+    param_15 = _e291;
+    let _e292 = YCoCgToRgb_u0028_vf3_u003b((&param_15));
+    param_16 = _e292;
+    let _e293 = Unweigh_u0028_vf3_u003b((&param_16));
+    history_1 = _e293;
+    let _e296 = temporal_info.jitter[2u];
+    let _e297 = trust;
+    keep = (_e296 * _e297);
+    let _e301 = temporal_info.params[0u];
+    exposure = _e301;
+    let _e302 = keep;
+    let _e304 = current_1;
+    param_17 = _e304;
+    let _e305 = Luma_u0028_vf3_u003b((&param_17));
+    let _e306 = exposure;
+    wCurrent = ((1f - _e302) / (1f + (_e305 * _e306)));
+    let _e310 = keep;
+    let _e311 = history_1;
+    param_18 = _e311;
+    let _e312 = Luma_u0028_vf3_u003b((&param_18));
+    let _e313 = exposure;
+    wHistory = (_e310 / (1f + (_e312 * _e313)));
+    let _e317 = current_1;
+    let _e318 = wCurrent;
+    let _e320 = history_1;
+    let _e321 = wHistory;
+    let _e324 = wCurrent;
+    let _e325 = wHistory;
+    resolved = (((_e317 * _e318) + (_e320 * _e321)) / vec3(max((_e324 + _e325), 0.000001f)));
+    let _e330 = resolved;
+    let _e331 = depth_1;
+    frag_color = vec4<f32>(_e330.x, _e330.y, _e330.z, _e331);
     return;
 }
 
@@ -24300,7 +24468,7 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
           name: 'TemporalInfo',
           group: 1,
           binding: 0,
-          sizeInBytes: 48,
+          sizeInBytes: 320,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(
               name: 'scene_texel',
@@ -24316,6 +24484,12 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
               name: 'params',
               offsetInBytes: 32,
               sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(name: 'clip', offsetInBytes: 48, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'clip_axes',
+              offsetInBytes: 64,
+              sizeInBytes: 256,
             ),
           ],
         ),
