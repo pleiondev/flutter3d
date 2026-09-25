@@ -245,6 +245,40 @@ classes:
       expect(File('$generated/sphere.web.f3d').existsSync(), isFalse);
     });
 
+    test('a class the build carries but the manifest leaves out reads the '
+        'single .f3d, which is written for it', () async {
+      // Mutation: drop the single target when classes are named, and the
+      // desktop build below ships no file its desktop could read.
+      manifest('classes:\n  phone: {impostor: false, lods: [0.5]}\n');
+      List<String> left() => <String>[
+        for (final entity in Directory(generated).listSync())
+          if (entity.path.endsWith('.f3d'))
+            entity.path.substring(generated.length + 1),
+      ]..sort();
+
+      await runAssetBuild(
+        project,
+        log: _quiet(),
+        deviceClasses: deviceClassesForTargetOS(OS.macOS),
+      );
+      expect(left(), <String>['sphere.f3d', 'sphere.phone.f3d']);
+
+      await runAssetBuild(
+        project,
+        log: _quiet(),
+        deviceClasses: deviceClassesForTargetOS(null),
+      );
+      expect(left(), <String>['sphere.f3d']);
+
+      // Every class the build carries named: the single file goes.
+      await runAssetBuild(
+        project,
+        log: _quiet(),
+        deviceClasses: <DeviceClass>[DeviceClass.phone],
+      );
+      expect(left(), <String>['sphere.phone.f3d']);
+    });
+
     test('a project that asks for no classes gets exactly the single .f3d, '
         'and the cache entry it always had', () async {
       await runAssetBuild(

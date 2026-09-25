@@ -163,7 +163,9 @@ void _writeCache(String path, Map<String, _CacheEntry> cache) {
 ///
 /// [deviceClasses] are the classes this build carries (`N7`), of those the
 /// manifest's `classes:` names; null carries every one it names. A manifest
-/// that names none writes the single `.f3d` whatever this says.
+/// that names none writes the single `.f3d` whatever this says, and so does
+/// one that leaves out a class this build carries: the loader falls back to
+/// the single file for a class with none of its own, so that class needs it.
 Future<AssetBuildReport> runAssetBuild(
   Directory projectRoot, {
   IOSink? log,
@@ -186,6 +188,14 @@ Future<AssetBuildReport> runAssetBuild(
       if (deviceClasses == null || deviceClasses.contains(budget.deviceClass))
         budget,
   ];
+  // A class this build carries that the manifest names no budget for — a
+  // web build of `classes: [phone, desktop]` — reads the single file, so it
+  // is written beside the class files rather than leaving that class nothing.
+  final single =
+      classes.isEmpty ||
+      (deviceClasses ?? const <DeviceClass>[]).any(
+        (c) => !building.any((b) => b.deviceClass == c),
+      );
 
   for (final job in plan) {
     final bytes = File(job.source).readAsBytesSync();
@@ -199,7 +209,7 @@ Future<AssetBuildReport> runAssetBuild(
     // before the project named classes — would ship with this one.
     if (classes.isNotEmpty) {
       for (final stale in <String>[
-        job.destination,
+        if (!single) job.destination,
         for (final c in DeviceClass.values)
           if (!building.any((b) => b.deviceClass == c))
             deviceClassDestination(job.destination, c),
@@ -209,34 +219,32 @@ Future<AssetBuildReport> runAssetBuild(
       }
     }
 
-    // One target per class, or the one file a project without classes has
-    // always had — with the cache key and stamp it always had, so turning
-    // this feature off is not a rebuild.
-    final targets = classes.isEmpty
-        ? <_Target>[
-            _Target(
-              key: job.source,
-              destination: job.destination,
-              lods: ruleLods,
-              impostor: ruleImpostor,
-              stamp: '',
-            ),
-          ]
-        : <_Target>[
-            for (final budget in building)
-              _Target(
-                key: '${job.source}#${budget.deviceClass.name}',
-                destination: deviceClassDestination(
-                  job.destination,
-                  budget.deviceClass,
-                ),
-                lods: budget.lods ?? ruleLods,
-                impostor: budget.impostor ?? ruleImpostor,
-                impostorCell: budget.impostorCell,
-                maxTextureSide: budget.textures.maxSide,
-                stamp: ' ${budget.stamp}',
-              ),
-          ];
+    // One target per class, and the one file a project without classes has
+    // always had when [single] says so — with the cache key and stamp it
+    // always had, so turning this feature off is not a rebuild.
+    final targets = <_Target>[
+      if (single)
+        _Target(
+          key: job.source,
+          destination: job.destination,
+          lods: ruleLods,
+          impostor: ruleImpostor,
+          stamp: '',
+        ),
+      for (final budget in building)
+        _Target(
+          key: '${job.source}#${budget.deviceClass.name}',
+          destination: deviceClassDestination(
+            job.destination,
+            budget.deviceClass,
+          ),
+          lods: budget.lods ?? ruleLods,
+          impostor: budget.impostor ?? ruleImpostor,
+          impostorCell: budget.impostorCell,
+          maxTextureSide: budget.textures.maxSide,
+          stamp: ' ${budget.stamp}',
+        ),
+    ];
 
     var anyConverted = false;
     var allSkipped = true;
