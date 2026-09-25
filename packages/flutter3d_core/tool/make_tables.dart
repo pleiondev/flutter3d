@@ -116,7 +116,7 @@ Uint8List ltcTable() {
       final at = ((64 + row) * 64 + column) * 8 + 4;
       view.setUint16(
         at,
-        _toHalf(sheenAlbedo(nDotV, column / 63.0)),
+        toHalf(sheenAlbedo(nDotV, column / 63.0)),
         Endian.little,
       );
     }
@@ -241,9 +241,9 @@ Uint8List aces2DisplayTable() {
         final value = aces2Display(<double>[shaped(r), shaped(g), shaped(b)]);
         final at = (g * n * n + b * n + r) * 8;
         for (var ch = 0; ch < 3; ch++) {
-          out.setUint16(at + ch * 2, _toHalf(value[ch]), Endian.little);
+          out.setUint16(at + ch * 2, toHalf(value[ch]), Endian.little);
         }
-        out.setUint16(at + 6, _toHalf(1.0), Endian.little);
+        out.setUint16(at + 6, toHalf(1.0), Endian.little);
       }
     }
   }
@@ -251,7 +251,12 @@ Uint8List aces2DisplayTable() {
 }
 
 /// [value] as an IEEE half, rounded to nearest. Finite and non-negative here.
-int _toHalf(double value) {
+///
+/// The rounded mantissa is added to the exponent, not OR-ed into it: when
+/// rounding carries out of the ten mantissa bits, the carry has to bump the
+/// exponent. OR-ed, it vanished whenever the exponent was odd, and 0.4999
+/// came out as 0.25. A carry out of the largest exponent reaches infinity.
+int toHalf(double value) {
   final bits = ByteData(4)..setFloat32(0, value, Endian.little);
   final f = bits.getUint32(0, Endian.little);
   final sign = (f >> 16) & 0x8000;
@@ -263,7 +268,8 @@ int _toHalf(double value) {
     return sign | ((m + 0x1000) >> 13);
   }
   if (exponent >= 31) return sign | 0x7c00;
-  return sign | (exponent << 10) | ((mantissa + 0x1000) >> 13);
+  return sign |
+      math.min((exponent << 10) + ((mantissa + 0x1000) >> 13), 0x7c00);
 }
 
 /// [slices] rankings of a [size]×[size] torus, each as bytes 0–255.
