@@ -5,6 +5,7 @@
 library;
 
 export 'src/build_assets.dart';
+export 'src/chunk_generate.dart';
 export 'src/convert.dart';
 export 'src/impostor_bake.dart';
 export 'src/init.dart';

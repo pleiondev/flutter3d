@@ -151,6 +151,13 @@ abstract final class F3dSection {
   /// none, and the 132-byte material record is what every existing file is
   /// written to.
   static const int materialExtensions = 22;
+
+  /// The cluster runs of a mesh the splitter cut up — `C9`, see
+  /// `MeshData.clusters`. Sparse, one record per mesh that has any, and
+  /// written only when one does. The triangles are already in cluster order
+  /// in the mesh's own index array, so a reader without this section loads
+  /// the same mesh and draws all of it every frame.
+  static const int clusters = 26;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -258,6 +265,11 @@ abstract final class F3dRecord {
   /// `{"image": i, "texCoord": n, "sampling": flags}`, the flags those of
   /// [F3dSamplingFlags].
   static const int materialExtensions = 12;
+
+  /// u32 meshIndex, u32 clusterCount, u32 firstIndicesOffset, u32
+  /// dataOffset — `clusterCount + 1` u32 run starts and `clusterCount * 11`
+  /// f32 of boxes and cones in the blob, exactly as `MeshClusters` holds them.
+  static const int clusters = 16;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

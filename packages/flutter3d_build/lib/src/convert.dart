@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 
+import 'chunk_generate.dart';
 import 'impostor_bake.dart';
 import 'lod_generate.dart';
 import 'texture_encode.dart';
@@ -103,6 +104,10 @@ Options:
                              draws something: 8x8 views of its colour and its
                              normals, drawn by the software rasteriser into
                              two atlases, as the level its chain ends in.
+  --chunks[=<triangles>]    Split every static mesh of more than this many
+                             triangles (default 65536) into clusters of up
+                             to 4096 that the renderer culls one by one by
+                             view, facing and occlusion. For scans and CAD.
   -h, --help                Show this text.
 ''';
 
@@ -114,6 +119,7 @@ final class ConvertOptions {
     this.mips = true,
     this.lods = const <double>[],
     this.impostor = false,
+    this.chunks,
   });
 
   final String input;
@@ -129,6 +135,10 @@ final class ConvertOptions {
   /// see [bakeImpostors].
   final bool impostor;
 
+  /// The triangle count `--chunks` splits meshes above, or null for none —
+  /// see [splitLargeMeshes].
+  final int? chunks;
+
   /// Parses [arguments], or returns null for anything [usage] should answer
   /// — an unknown flag, a missing value, more than one positional argument.
   static ConvertOptions? parse(List<String> arguments) {
@@ -138,6 +148,7 @@ final class ConvertOptions {
     var mips = true;
     var lods = const <double>[];
     var impostor = false;
+    int? chunks;
 
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
@@ -154,6 +165,11 @@ final class ConvertOptions {
           mips = false;
         case '--impostor':
           impostor = true;
+        case '--chunks':
+          chunks = kDefaultChunkThreshold;
+        case _ when argument.startsWith('--chunks='):
+          chunks = parseChunkThreshold(argument.substring('--chunks='.length));
+          if (chunks == null) return null;
         case '--lods':
           if (i + 1 >= arguments.length) return null;
           lods = parseLodRatios(arguments[++i]) ?? const <double>[];
@@ -182,6 +198,7 @@ final class ConvertOptions {
       mips: mips,
       lods: lods,
       impostor: impostor,
+      chunks: chunks,
     );
   }
 }
@@ -253,6 +270,7 @@ Future<int> runConvert(
             mips: options.mips,
             lods: options.lods,
             impostor: options.impostor,
+            chunks: options.chunks,
             decoders: decoders,
           );
     if (!ok) failures++;
@@ -419,6 +437,7 @@ Future<bool> convertOne(
   bool mips = true,
   List<double> lods = const <double>[],
   bool impostor = false,
+  int? chunks,
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -447,6 +466,14 @@ Future<bool> convertOne(
     lods,
     report: (level) => out.writeln('  $level'),
   );
+
+  // After the levels, so a level still above the threshold is split too, and
+  // before the impostor, whose bake draws the mesh whichever way it is cut.
+  if (chunks != null) {
+    final (split, count) = splitLargeMeshes(document, threshold: chunks);
+    document = split;
+    out.writeln('  chunks: $count meshes above $chunks triangles split');
+  }
 
   // Before the textures: the bake reads the source's own images, and a
   // block-compressed one is not something it can decode. The atlases it adds

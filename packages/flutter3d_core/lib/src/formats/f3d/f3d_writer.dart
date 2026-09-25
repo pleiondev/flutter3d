@@ -109,6 +109,7 @@ final class F3dWriter {
     final meshTable = _writeMeshes();
     final (morphTable, morphCount) = _writeMorphTargets();
     final (weightTable, weightCount) = _writeMorphWeights();
+    final (clusterTable, clusterCount) = _writeClusters();
     final surfaceTable = _writeSurfaces();
     final surfaceAttributeTable = _writeSurfaceAttributes();
     final meshNameTable = _writeMeshNames();
@@ -135,6 +136,9 @@ final class F3dWriter {
       (F3dSection.meshes, meshTable, _meshes.length),
       (F3dSection.morphTargets, morphTable, morphCount),
       (F3dSection.morphWeights, weightTable, weightCount),
+      // Only when a mesh was split, so every other file is the bytes it was.
+      if (clusterCount > 0)
+        (F3dSection.clusters, clusterTable, clusterCount),
       (F3dSection.surfaces, surfaceTable, document.surfaces.length),
       (
         F3dSection.surfaceAttributes,
