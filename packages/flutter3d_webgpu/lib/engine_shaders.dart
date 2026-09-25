@@ -30247,7 +30247,7 @@ fn main_1() {
     var phi_660_: bool;
     var phi_667_: bool;
     var phi_718_: bool;
-    var phi_770_: bool;
+    var phi_772_: bool;
 
     let _e132 = v_uv_1;
     let _e133 = textureSample(surface_texture_tex, surface_texture_smp, _e132);
@@ -30411,149 +30411,150 @@ fn main_1() {
                     let _e284 = march;
                     let _e285 = ray;
                     let _e286 = stride;
-                    lo = (_e284 - (_e285 * _e286));
-                    let _e289 = march;
-                    hi = _e289;
+                    let _e287 = travelled;
+                    lo = (_e284 - (_e285 * min(_e286, _e287)));
+                    let _e291 = march;
+                    hi = _e291;
                     j = 0i;
                     loop {
-                        let _e290 = j;
-                        if (_e290 < 5i) {
-                            let _e292 = lo;
-                            let _e293 = hi;
-                            mid = ((_e292 + _e293) * 0.5f);
-                            let _e296 = mid;
-                            param_19 = _e296;
-                            let _e297 = UvOf_u0028_vf3_u003b((&param_19));
-                            at_5 = _e297;
-                            let _e299 = at_5[0u];
-                            if (_e299 < -0.5f) {
+                        let _e292 = j;
+                        if (_e292 < 5i) {
+                            let _e294 = lo;
+                            let _e295 = hi;
+                            mid = ((_e294 + _e295) * 0.5f);
+                            let _e298 = mid;
+                            param_19 = _e298;
+                            let _e299 = UvOf_u0028_vf3_u003b((&param_19));
+                            at_5 = _e299;
+                            let _e301 = at_5[0u];
+                            if (_e301 < -0.5f) {
                                 local_4 = 0f;
                             } else {
-                                let _e301 = at_5;
-                                let _e302 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e301, 0f);
-                                local_4 = _e302.w;
+                                let _e303 = at_5;
+                                let _e304 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e303, 0f);
+                                local_4 = _e304.w;
                             }
-                            let _e304 = local_4;
-                            d = _e304;
-                            let _e305 = d;
-                            let _e306 = (_e305 > 0f);
-                            phi_770_ = _e306;
-                            if _e306 {
-                                let _e307 = mid;
-                                param_20 = _e307;
-                                let _e308 = DepthOf_u0028_vf3_u003b((&param_20));
-                                let _e309 = d;
-                                phi_770_ = (_e308 > _e309);
+                            let _e306 = local_4;
+                            d = _e306;
+                            let _e307 = d;
+                            let _e308 = (_e307 > 0f);
+                            phi_772_ = _e308;
+                            if _e308 {
+                                let _e309 = mid;
+                                param_20 = _e309;
+                                let _e310 = DepthOf_u0028_vf3_u003b((&param_20));
+                                let _e311 = d;
+                                phi_772_ = (_e310 > _e311);
                             }
-                            let _e312 = phi_770_;
-                            if _e312 {
-                                let _e313 = mid;
-                                hi = _e313;
+                            let _e314 = phi_772_;
+                            if _e314 {
+                                let _e315 = mid;
+                                hi = _e315;
                             } else {
-                                let _e314 = mid;
-                                lo = _e314;
+                                let _e316 = mid;
+                                lo = _e316;
                             }
                             continue;
                         } else {
                             break;
                         }
                         continuing {
-                            let _e315 = j;
-                            j = (_e315 + 1i);
+                            let _e317 = j;
+                            j = (_e317 + 1i);
                         }
                     }
-                    let _e317 = hi;
-                    param_21 = _e317;
-                    let _e318 = UvOf_u0028_vf3_u003b((&param_21));
-                    hitUv = _e318;
-                    let _e320 = hitUv[0u];
-                    if (_e320 < -0.5f) {
-                        let _e322 = uv_3;
-                        hitUv = _e322;
+                    let _e319 = hi;
+                    param_21 = _e319;
+                    let _e320 = UvOf_u0028_vf3_u003b((&param_21));
+                    hitUv = _e320;
+                    let _e322 = hitUv[0u];
+                    if (_e322 < -0.5f) {
+                        let _e324 = uv_3;
+                        hitUv = _e324;
                     }
-                    let _e323 = hitUv;
-                    let _e324 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e323, 0f);
-                    hitColor = _e324.xyz;
-                    let _e326 = hitUv;
-                    edge = abs(((_e326 * 2f) - vec2(1f)));
-                    let _e332 = edge[0u];
-                    let _e334 = edge[1u];
-                    border = (1f - max(_e332, _e334));
-                    let _e337 = travelled;
-                    let _e338 = reach;
-                    along_2 = clamp((1f - (_e337 / _e338)), 0f, 1f);
-                    let _e342 = border;
-                    let _e344 = along_2;
+                    let _e325 = hitUv;
+                    let _e326 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e325, 0f);
+                    hitColor = _e326.xyz;
+                    let _e328 = hitUv;
+                    edge = abs(((_e328 * 2f) - vec2(1f)));
+                    let _e334 = edge[0u];
+                    let _e336 = edge[1u];
+                    border = (1f - max(_e334, _e336));
+                    let _e339 = travelled;
+                    let _e340 = reach;
+                    along_2 = clamp((1f - (_e339 / _e340)), 0f, 1f);
+                    let _e344 = border;
                     let _e346 = along_2;
-                    hit = ((smoothstep(0f, 0.15f, _e342) * _e344) * _e346);
+                    let _e348 = along_2;
+                    hit = ((smoothstep(0f, 0.15f, _e344) * _e346) * _e348);
                     break;
                 }
             }
-            let _e348 = ray;
-            let _e349 = stride;
-            let _e351 = march;
-            march = (_e351 + (_e348 * _e349));
-            let _e353 = stride;
-            let _e354 = travelled;
-            travelled = (_e354 + _e353);
+            let _e350 = ray;
+            let _e351 = stride;
+            let _e353 = march;
+            march = (_e353 + (_e350 * _e351));
+            let _e355 = stride;
+            let _e356 = travelled;
+            travelled = (_e356 + _e355);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e356 = i;
-            i = (_e356 + 1i);
+            let _e358 = i;
+            i = (_e358 + 1i);
         }
     }
-    let _e358 = facing;
-    fresnel = (0.04f + (0.96f * pow((1f - _e358), 5f)));
-    let _e363 = hitColor;
-    let _e364 = hit;
-    let _e366 = intensity;
-    let _e368 = polish;
-    let _e370 = fresnel;
-    reflection = ((((_e363 * _e364) * _e366) * _e368) * _e370);
-    let _e372 = hit;
-    let _e373 = intensity;
-    let _e375 = polish;
-    confidence = ((_e372 * _e373) * _e375);
-    let _e379 = reflection_info.environment[0u];
-    levels = _e379;
-    let _e380 = levels;
-    if (_e380 > 0f) {
-        let _e382 = ray;
-        let _e383 = roughness;
-        let _e384 = levels;
-        let _e386 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e382, (_e383 * _e384));
-        let _e390 = reflection_info.environment[1u];
-        local_5 = (_e386.xyz * _e390);
+    let _e360 = facing;
+    fresnel = (0.04f + (0.96f * pow((1f - _e360), 5f)));
+    let _e365 = hitColor;
+    let _e366 = hit;
+    let _e368 = intensity;
+    let _e370 = polish;
+    let _e372 = fresnel;
+    reflection = ((((_e365 * _e366) * _e368) * _e370) * _e372);
+    let _e374 = hit;
+    let _e375 = intensity;
+    let _e377 = polish;
+    confidence = ((_e374 * _e375) * _e377);
+    let _e381 = reflection_info.environment[0u];
+    levels = _e381;
+    let _e382 = levels;
+    if (_e382 > 0f) {
+        let _e384 = ray;
+        let _e385 = roughness;
+        let _e386 = levels;
+        let _e388 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e384, (_e385 * _e386));
+        let _e392 = reflection_info.environment[1u];
+        local_5 = (_e388.xyz * _e392);
     } else {
         local_5 = vec3<f32>(0f, 0f, 0f);
     }
-    let _e392 = local_5;
-    environment = _e392;
-    let _e393 = environment;
-    let _e394 = confidence;
-    let _e396 = fresnel;
-    replaced = ((_e393 * _e394) * _e396);
-    let _e398 = levels;
-    if (_e398 > 0f) {
-        let _e400 = scene;
-        let _e401 = reflection;
-        let _e403 = replaced;
-        local_6 = max(((_e400 + _e401) - _e403), vec3<f32>(0f, 0f, 0f));
+    let _e394 = local_5;
+    environment = _e394;
+    let _e395 = environment;
+    let _e396 = confidence;
+    let _e398 = fresnel;
+    replaced = ((_e395 * _e396) * _e398);
+    let _e400 = levels;
+    if (_e400 > 0f) {
+        let _e402 = scene;
+        let _e403 = reflection;
+        let _e405 = replaced;
+        local_6 = max(((_e402 + _e403) - _e405), vec3<f32>(0f, 0f, 0f));
     } else {
-        let _e406 = scene;
-        let _e407 = reflection;
-        local_6 = (_e406 + _e407);
+        let _e408 = scene;
+        let _e409 = reflection;
+        local_6 = (_e408 + _e409);
     }
-    let _e409 = local_6;
-    composed = _e409;
-    let _e410 = debugOnly;
-    let _e411 = reflection;
-    let _e412 = composed;
-    let _e414 = select(_e412, _e411, vec3(_e410));
-    frag_color = vec4<f32>(_e414.x, _e414.y, _e414.z, 1f);
+    let _e411 = local_6;
+    composed = _e411;
+    let _e412 = debugOnly;
+    let _e413 = reflection;
+    let _e414 = composed;
+    let _e416 = select(_e414, _e413, vec3(_e412));
+    frag_color = vec4<f32>(_e416.x, _e416.y, _e416.z, 1f);
     return;
 }
 

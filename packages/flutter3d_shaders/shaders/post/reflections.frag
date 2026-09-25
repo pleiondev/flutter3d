@@ -250,7 +250,14 @@ void main() {
         // overshot it by up to a stride; halving the last stride five times
         // lands within a thirty-second of it, so the colour is read where the
         // ray met the surface rather than where the step happened to stop.
-        vec3 lo = march - ray * stride;
+        //
+        // The bracket starts no further back than the march has come. The
+        // first step travels only the jittered fraction of a stride, and a
+        // full stride back from it can sit under the reflecting surface, where
+        // the depth test also reads "behind"; a bracket with two behind ends
+        // lets the halvings settle on the floor itself, and a contact
+        // reflection reads the floor's own colour back.
+        vec3 lo = march - ray * min(stride, travelled);
         vec3 hi = march;
         for (int j = 0; j < 5; j++) {
           vec3 mid = 0.5 * (lo + hi);
