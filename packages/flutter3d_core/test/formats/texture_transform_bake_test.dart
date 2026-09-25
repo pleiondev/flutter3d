@@ -2,10 +2,11 @@
 ///
 ///     dart test test/formats/texture_transform_bake_test.dart
 ///
-/// The numbers here are the extension's own: its sample shader multiplies
-/// `translation * rotation * scale`, column-major, so a coordinate is scaled,
-/// then turned counter-clockwise, then moved. Every expectation below is that
-/// matrix worked by hand rather than this file's arithmetic run a second time.
+/// The numbers here are the extension's own: a coordinate is scaled, then
+/// turned counter-clockwise as the image is seen, with `v` running down it,
+/// then moved. Every expectation below is that worked by hand rather than this
+/// file's arithmetic run a second time, and the tangent is held to the one
+/// `withGeneratedTangents` derives from the moved coordinates.
 library;
 
 import 'dart:math' as math;
@@ -54,19 +55,23 @@ void main() {
       expect(uv.v, closeTo(0.5, 1e-6));
     });
 
-    test('turn counter-clockwise: a quarter turn sends +u to +v', () {
+    test('turn counter-clockwise as seen: a quarter turn sends +u to -v', () {
+      // `v` runs down the image, so -v is up it: +u, to the right, turned a
+      // quarter counter-clockwise points up. The matrix the extension's text
+      // prints sends it to +v, down, and the extension's own test asset marks
+      // that as the wrong way round.
       final moved = withTextureTransform(
         _vertex(1.0, 0.0),
         TextureTransform(rotation: math.pi / 2),
       );
       final uv = _uvOf(moved);
       expect(uv.u, closeTo(0.0, 1e-6));
-      expect(uv.v, closeTo(1.0, 1e-6));
+      expect(uv.v, closeTo(-1.0, 1e-6));
     });
 
     test('are scaled before they are turned, and moved after both', () {
-      // (1, 0) scaled by (2, 3) is (2, 0); a quarter turn makes it (0, 2); the
-      // offset makes it (10, 22). Any other order gives a different answer:
+      // (1, 0) scaled by (2, 3) is (2, 0); a quarter turn makes it (0, -2);
+      // the offset makes it (10, 18). Any other order gives a different answer:
       // offset first would turn the offset too.
       final moved = withTextureTransform(
         _vertex(1.0, 0.0),
@@ -78,7 +83,7 @@ void main() {
       );
       final uv = _uvOf(moved);
       expect(uv.u, closeTo(10.0, 1e-5));
-      expect(uv.v, closeTo(22.0, 1e-5));
+      expect(uv.v, closeTo(18.0, 1e-5));
     });
 
     test('leave the source alone', () {
@@ -110,9 +115,9 @@ void main() {
     });
 
     test('turns with the texture', () {
-      // Normal +Z and tangent +X make the bitangent +Y. After a quarter turn
-      // the new `u` runs where the old `v` ran backwards, so it increases
-      // along -Y on the surface.
+      // Normal +Z and tangent +X make the bitangent +Y, which is where `v`
+      // decreases. After a quarter turn the new `u` is the old `v`, so it
+      // increases along -Y on the surface.
       final moved = withTextureTransform(
         _vertex(0.5, 0.5),
         TextureTransform(rotation: math.pi / 2),
@@ -122,6 +127,43 @@ void main() {
       expect(tangent.y, closeTo(-1.0, 1e-6));
       expect(tangent.z, closeTo(0.0, 1e-6));
       expect(tangent.w, 1.0);
+    });
+
+    test('is the one the moved coordinates generate, turned any way', () {
+      // A quad facing +Z whose `v` runs down it, as glTF's does, so the
+      // generator gives tangent +X and bitangent +Y. Moved at an angle that is
+      // not a quarter turn, with the stretch even both ways where the turned
+      // unit tangent is exact, the tangent carried through the transform has
+      // to be the one the moved coordinates give from scratch.
+      final quad = MeshData(
+        layout: VertexLayout.positionNormalTexcoordTangent,
+        vertices: Float32List.fromList(<double>[
+          -1, -1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, //
+          1, -1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, //
+          1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, //
+          -1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, //
+        ]),
+        indices: Uint32List.fromList(<int>[0, 1, 2, 0, 2, 3]),
+      );
+      for (final rotation in <double>[0.7, math.pi / 2, 2.5, -1.2]) {
+        final moved = withTextureTransform(
+          quad,
+          TextureTransform(
+            offset: Vector2(0.3, -0.1),
+            scale: Vector2(2.0, 2.0),
+            rotation: rotation,
+          ),
+        );
+        final carried = _tangentOf(moved);
+        final generated = _tangentOf(moved.withGeneratedTangents());
+        // Mutation: turning the bitangent term's sign (`alongB = +sine /
+        // scaleY`), or the coordinates the other way, puts the carried
+        // tangent the rotation's double away from the generated one.
+        expect(carried.x, closeTo(generated.x, 1e-5), reason: '$rotation');
+        expect(carried.y, closeTo(generated.y, 1e-5), reason: '$rotation');
+        expect(carried.z, closeTo(generated.z, 1e-5), reason: '$rotation');
+        expect(carried.w, generated.w, reason: '$rotation');
+      }
     });
 
     test('changes hands when the texture is mirrored on one axis', () {

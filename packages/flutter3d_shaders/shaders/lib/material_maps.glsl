@@ -113,12 +113,14 @@ void ApplyNormalMap(inout Surface s) {
   // matrix's inverse, times its determinant, whose sign a mirror flips and the
   // bitangent's sign with it. Measured on the front face's frame, which is
   // the frame the transform was authored on. A plain scale leaves the frame
-  // as it was, bit for bit, which is why the test is on the matrix.
+  // as it was, bit for bit, which is why the test is on the matrix. That
+  // column is `m11 dP/du - m10 dP/dv`, and dP/dv is **minus** the bitangent:
+  // `v` runs down the texture, a normal map's green up it.
   vec4 m = MapMatrix(kMapNormal);
   float det = m.x * m.w - m.y * m.z;
   float flip = det < 0.0 ? -1.0 : 1.0;
   vec3 front = gl_FrontFacing ? b : -b;
-  vec3 turned = (t * m.w - front * m.z) * flip;
+  vec3 turned = (t * m.w + front * m.z) * flip;
   bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
                dot(turned, turned) > 1e-12;
   t = turns ? normalize(turned) : t;
