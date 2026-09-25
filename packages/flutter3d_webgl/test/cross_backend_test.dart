@@ -249,16 +249,28 @@ const Map<String, double> _budgets = <String, double>{
   // texels differently.
   'smoke-six-way': 2.25,
   'splat-gltf': 0.01,
-  // 36.688% measured: each backend's hash keeps a different subset of splats
-  // per pixel, so the grain differs everywhere and only the average agrees;
-  // splat_stochastic_test.dart holds the average.
-  'splat-stochastic': 40.36,
+  // 41.569% measured, against a reference that finally has splats in it. The
+  // old 40.36% budget covered an empty frame: every hashed splat draw was
+  // refused (a one-output stage in the two-attachment temporal pass), and 36%
+  // was simply how much of Impeller's picture the cloud covers. What differs
+  // now is the grain. The hash reads the blue noise at `gl_FragCoord`, which
+  // counts rows from the bottom here and from the top on the other backends,
+  // so each keeps a different subset of splats per pixel and only the average
+  // agrees; splat_stochastic_test.dart holds the average. The row order is
+  // not the whole of it: the software backend counts from the top and still
+  // differs from Impeller by 41.7%, because its `sin` in the hash is not the
+  // GPU's. WebGPU, top-first on the same GPU, matches Impeller pixel for
+  // pixel.
+  'splat-stochastic': 45.73,
   // 4.645% measured: the bounce differs by a few levels across the band where
   // wall meets floor.
   'ssil-room': 5.11,
   'sun-contact-hardening': 0.45,
   'taa-converge': 0.01,
-  'taa-embers': 0.58,
+  // Zero measured. It was 0.527% against a reference with no embers in it:
+  // the particle stage writes only the colour, the temporal pass also carries
+  // the velocity, and WebGL2 refused every particle draw for it.
+  'taa-embers': 0.01,
   // **Zero measured for three of the four, and they were 0.345%, 0.287% and
   // 0.369%** — the kdop16 variant 1.326%, now 1.115%. The sliding bars'
   // velocity was being dropped against the wrong row of the surface buffer,

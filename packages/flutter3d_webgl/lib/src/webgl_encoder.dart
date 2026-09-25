@@ -41,7 +41,7 @@ final class WebGlEncoder implements CommandEncoder {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
 
-    final buffers = <int>[];
+    final buffers = _attachments;
     for (var i = 0; i < descriptor.colors.length; i++) {
       final color = descriptor.colors[i];
       final attachment = web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i;
@@ -63,6 +63,7 @@ final class WebGlEncoder implements CommandEncoder {
       }
     }
     _gl.drawBuffers(buffers.map((int b) => b.toJS).toList().toJS);
+    _drawBuffers = List<int>.unmodifiable(buffers);
 
     // A clear covers the whole attachment, whatever the scissor says. That is
     // the contract the HAL states and the one this engine relies on — the
@@ -296,6 +297,46 @@ final class WebGlEncoder implements CommandEncoder {
   final List<int> _faces = <int>[];
   final List<int> _mipLevels = <int>[];
 
+  /// Every colour attachment of the pass, `COLOR_ATTACHMENT0 + i` at `i`.
+  final List<int> _attachments = <int>[];
+
+  /// The draw buffers the framebuffer currently has, set by the constructor
+  /// to every attachment and by [bindPipeline] to the ones its program
+  /// writes. Held so a pipeline that writes the same set does not call
+  /// `drawBuffers` again.
+  List<int> _drawBuffers = const <int>[];
+
+  /// Points the pass's draw buffers at the attachments [program] writes, and
+  /// the rest at `NONE`.
+  ///
+  /// GL ES refuses a draw that leaves an active draw buffer without a
+  /// fragment output behind it (`INVALID_OPERATION`, and nothing drawn), and
+  /// the draw buffers are the one thing that says which attachments a draw
+  /// touches. `NONE` leaves an attachment as it was, which is what Impeller
+  /// does with a target a stage does not write and what WebGPU does under a
+  /// zero write mask. A program that writes them all, or whose outputs could
+  /// not be read, gets the full list back.
+  void _selectDrawBuffers(WebGlProgram program) {
+    final outputs = program.fragmentOutputs;
+    final wanted = <int>[
+      for (var i = 0; i < _attachments.length; i++)
+        (outputs?.contains(i) ?? true)
+            ? _attachments[i]
+            : web.WebGLRenderingContext.NONE,
+    ];
+    if (_sameBuffers(wanted, _drawBuffers)) return;
+    _gl.drawBuffers(wanted.map((int b) => b.toJS).toList().toJS);
+    _drawBuffers = wanted;
+  }
+
+  static bool _sameBuffers(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   WebGlProgram? _program;
   int _primitive = web.WebGLRenderingContext.TRIANGLES;
   IndexType _indexType = IndexType.int32;
@@ -470,6 +511,7 @@ final class WebGlEncoder implements CommandEncoder {
     clearBindings();
     _program = program;
     _gl.useProgram(program.program);
+    _selectDrawBuffers(program);
     // Each sampler on the unit it owns, before anything is bound. A sampler's
     // uniform starts at unit zero, so one a draw never binds would otherwise
     // read whichever sampler owns zero.
@@ -1043,8 +1085,9 @@ final class WebGlEncoder implements CommandEncoder {
         ..bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer)
         ..invalidateFramebuffer(
           web.WebGLRenderingContext.FRAMEBUFFER,
-          <JSNumber>[for (final attachment in _invalidated) attachment.toJS]
-              .toJS,
+          <JSNumber>[
+            for (final attachment in _invalidated) attachment.toJS,
+          ].toJS,
         );
     }
 
