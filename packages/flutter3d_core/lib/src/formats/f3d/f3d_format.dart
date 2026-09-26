@@ -158,6 +158,15 @@ abstract final class F3dSection {
   /// in the mesh's own index array, so a reader without this section loads
   /// the same mesh and draws all of it every frame.
   static const int clusters = 26;
+
+  /// How far each surface level strays from its node's full mesh —
+  /// `ModelLod.error`. One record per record of [lods], in the same order,
+  /// and written only when some level was measured. A section of its own
+  /// rather than a wider [lods] record, because every file with levels is
+  /// written to the 16-byte one: a reader that predates this skips it and
+  /// switches by the screen fraction alone, and a file without it reads as
+  /// every level unmeasured.
+  static const int lodErrors = 27;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -249,6 +258,10 @@ abstract final class F3dRecord {
   /// u32 nodeIndex, f32 maxScreenFraction, u32 surfaceOffset, u32
   /// surfaceCount
   static const int lod = 16;
+
+  /// f32 error, in the node's own units; negative for a level nobody
+  /// measured, since a real distance never is.
+  static const int lodError = 4;
 
   /// u32 nodeIndex, f32 maxScreenFraction, u32 albedoImage, u32
   /// normalDepthImage, u32 grid, f32 centre x, y, z, f32 radius

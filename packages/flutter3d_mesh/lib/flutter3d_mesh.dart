@@ -55,6 +55,7 @@ export 'src/sculpt_mesh.dart';
 export 'src/sculpt_mesh_bvh.dart';
 export 'src/selection.dart';
 export 'src/shape_key.dart';
+export 'src/simplify_error.dart';
 export 'src/skin/vertex_weights.dart';
 export 'src/smooth.dart';
 export 'src/subdivide.dart';

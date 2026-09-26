@@ -76,6 +76,14 @@ void main() {
         reason: 'level $level has $triangles triangles for $target',
       );
     }
+    // Every level carries the distance it was measured at, through the
+    // file, growing down the chain and a small fraction of the unit radius.
+    final stored = <double>[for (final lod in node.lods) lod.error!];
+    expect(stored[0], greaterThan(0.0));
+    expect(stored[1], greaterThanOrEqualTo(stored[0]));
+    expect(stored[2], greaterThanOrEqualTo(stored[1]));
+    expect(stored[2], lessThan(0.1));
+
     // Coarser levels take over at smaller sizes on screen.
     expect(
       node.lods[0].maxScreenFraction,
@@ -107,6 +115,10 @@ void main() {
     final errors = <double>[for (final r in reports.skip(3)) r.error];
     expect(errors[0], greaterThan(0));
     expect(errors[1], greaterThan(errors[0]));
+    // The report and the file say the same thing.
+    for (var level = 0; level < 3; level++) {
+      expect(stored[level], closeTo(errors[level], errors[level] * 1e-3));
+    }
     expect(errors[2], greaterThan(errors[1]));
   });
 
