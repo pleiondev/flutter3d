@@ -236,7 +236,14 @@ extension ModelAssetInstantiate on ModelAsset {
                 )
               else if (lod.surfaceIndices.length == 1)
                 if (addSurface(lod.surfaceIndices.single) case final MeshNode m)
-                  LodLevel(node: m, maxScreenFraction: lod.maxScreenFraction),
+                  // The group sits at the node with no transform of its
+                  // own, so the node's units the error is measured in are
+                  // the group's.
+                  LodLevel(
+                    node: m,
+                    maxScreenFraction: lod.maxScreenFraction,
+                    error: lod.error,
+                  ),
           ];
           node.add(LodGroup(levels: levels, name: model.name));
         }

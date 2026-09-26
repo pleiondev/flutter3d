@@ -146,6 +146,8 @@ scene.add(LodGroup(levels: <LodLevel>[
 
 Selection is by **screen coverage**, not distance: coverage already folds in the field of view and the object's size, so one threshold works for a pebble and a cathedral.
 
+A level can also carry `error:`, how far its surface is from the finest one in the group's units. The converter measures it for every level it cuts. With it the renderer switches by **pixels of error**: the coarsest level wrong by no more than `pixelError` (default one pixel) at the object's nearest point, for the view's own height and projection. Levels without an error fall back to their screen fraction, and either way a level is held a tenth past its threshold (`hysteresis`) so a camera sitting on the edge does not make it flicker.
+
 ## Skeletons
 
 A glTF skin decodes into a `Skeleton` of ordinary scene nodes, not a parallel hierarchy, so an animated parent carries its subtree the same way any node does.

@@ -50,7 +50,11 @@ void main() {
             name: 'lodded',
             surfaces: <int>[0],
             lods: <ModelLod>[
-              const ModelLod(surfaceIndices: <int>[1], maxScreenFraction: 0.5),
+              const ModelLod(
+                surfaceIndices: <int>[1],
+                maxScreenFraction: 0.5,
+                error: 0.02,
+              ),
               const ModelLod(surfaceIndices: <int>[2], maxScreenFraction: 0.1),
             ],
           ),
@@ -75,6 +79,10 @@ void main() {
       expect(group.levels.first.maxScreenFraction, 2.0);
       expect(group.levels[1].maxScreenFraction, 0.5);
       expect(group.levels[2].maxScreenFraction, 0.1);
+      // A measured level brings its error, and an unmeasured one does not
+      // invent one.
+      expect(group.levels[1].error, 0.02);
+      expect(group.levels[2].error, isNull);
 
       // The group actually ran its own constructor logic (`_apply(0)`) rather
       // than being a stand-in — the finest level is active until something

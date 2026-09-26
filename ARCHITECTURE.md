@@ -747,6 +747,15 @@ detail through different lenses. Selection happens once per view, before the
 render list is built, because the choice changes which nodes are visible. Hidden
 levels fall out of culling and picking for free.
 
+A level that knows how far it strays from the full mesh (`LodLevel.error`) is
+switched by that instead: projected at the bounding sphere's nearest point, with
+the view's height in pixels and the camera's projection (perspective or
+orthographic), the coarsest level wrong by no more than `LodGroup.pixelError`
+(one pixel by default) wins. Unlike a screen fraction this holds for any viewport
+size. A level without an error keeps the fraction rule, and the two mix along one
+chain. Both rules keep the finer level for another tenth past its threshold
+(`hysteresis`), so an object parked on a threshold does not flicker.
+
 `LodGroup.forMaterials` builds a group from one mesh and several materials, so a
 distant object samples a smaller *texture*. It is per object rather than per
 pixel, so a floor running to the horizon still aliases, but it covers the common
@@ -755,9 +764,13 @@ of screen.
 
 **A converted model brings its own levels, and the chain can end in a card.**
 `convert --lods=0.5,0.25,0.1` cuts one level per ratio from every node's full
-mesh with `flutter3d_mesh`'s `simplifyMeshWithAttributesMeasured`, switching at
-a screen fraction of half the square root of the ratio; a surface with morph
-targets stays whole in every level. `convert --impostor` then bakes each node
+mesh with `flutter3d_mesh`'s `simplifyMeshWithAttributesMeasured` and measures
+each against the full one with `surfaceDeviation`, a sampled two-way Hausdorff
+distance written beside the level as `ModelLod.error` (`.f3d` section 27). The
+simplifier's own quadric error is not used for this: on a sphere cut to a tenth
+it reads four to five times the measured distance. Half the square root of the
+ratio stays as each level's screen fraction, for a viewer without pixels to
+count; a surface with morph targets stays whole in every level. `convert --impostor` then bakes each node
 that draws something from 8×8 directions laid out on an octahedral map, into an
 albedo atlas and a normal-depth atlas. The bake runs on the software rasteriser,
 so the atlases are the same bytes on every machine that builds them. At run time

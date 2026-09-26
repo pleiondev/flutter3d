@@ -185,6 +185,166 @@ void main() {
     });
   });
 
+  group('switching by measured error', () {
+    // Under a 90° lens and a 1000-pixel viewport a unit at distance `s` from
+    // the object's nearest point covers 1000 / (2 s) pixels, so a level
+    // wrong by 0.01 is under a pixel from s = 5 out and one wrong by 0.05
+    // from s = 25.
+    const viewport = 1000.0;
+
+    ({Scene scene, LodGroup group, CameraNode camera}) measured({
+      double pixelError = LodGroup.defaultPixelError,
+      double lowError = 0.05,
+      bool lowMeasured = true,
+    }) {
+      final scene = Scene();
+      final group = LodGroup(
+        pixelError: pixelError,
+        levels: <LodLevel>[
+          LodLevel(node: level('high'), maxScreenFraction: 1.0, error: 0.0),
+          LodLevel(node: level('medium'), maxScreenFraction: 0.2, error: 0.01),
+          LodLevel(
+            node: level('low'),
+            maxScreenFraction: 0.05,
+            error: lowMeasured ? lowError : null,
+          ),
+        ],
+      );
+      scene.add(group);
+      final camera = scene.add(CameraNode())
+        ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+      return (scene: scene, group: group, camera: camera);
+    }
+
+    /// Puts [camera] [gap] units from [group]'s nearest point.
+    void standOff(CameraNode camera, LodGroup group, double gap) => camera
+        .setPosition(0.0, 0.0, group.levels.first.node.worldBoundsRadius + gap);
+
+    test('a perspective view switches where the error reaches a pixel', () {
+      final (:group, :scene, :camera) = measured();
+      standOff(camera, group, 4.8);
+      expect(group.select(camera, viewportHeight: viewport), 0);
+      standOff(camera, group, 5.2);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+      standOff(camera, group, 24.0);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+      standOff(camera, group, 26.0);
+      expect(group.select(camera, viewportHeight: viewport), 2);
+      expect(
+        group.pixelsPerUnit(camera, viewportHeight: viewport),
+        // Positions are single precision.
+        closeTo(viewport / (2 * 26.0), 1e-4),
+      );
+    });
+
+    test('where the screen fraction would already have gone coarse, the '
+        'error holds the finer level; without a viewport the fraction '
+        'rule is back', () {
+      final (:group, :scene, :camera) = measured();
+      // The bounding sphere covers well under 5% of the frame here, which
+      // alone would pick the coarsest level; the coarsest is 1.25 pixels
+      // wrong at this distance, so the error does not.
+      standOff(camera, group, 20.0);
+      expect(group.screenFraction(camera), lessThan(0.05));
+      expect(group.select(camera, viewportHeight: viewport), 1);
+      expect(group.select(camera), 2);
+    });
+
+    test('a larger viewport keeps a finer level at the same distance', () {
+      final (:group, :scene, :camera) = measured();
+      standOff(camera, group, 10.0);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+      expect(group.select(camera, viewportHeight: viewport * 4), 0);
+    });
+
+    test('an orthographic view counts pixels by its own height, at any '
+        'distance', () {
+      final (:group, :scene, :camera) = measured();
+      // 1000 pixels over 4 units: 250 a unit, medium 2.5 pixels wrong.
+      camera.projection = const OrthographicProjection(height: 4.0);
+      for (final gap in <double>[1.0, 100.0, 5000.0]) {
+        standOff(camera, group, gap);
+        expect(group.select(camera, viewportHeight: viewport), 0);
+      }
+      // Over 40 units: 25 a unit, medium a quarter of a pixel and low 1.25.
+      camera.projection = const OrthographicProjection(height: 40.0);
+      for (final gap in <double>[1.0, 100.0, 5000.0]) {
+        standOff(camera, group, gap);
+        expect(group.select(camera, viewportHeight: viewport), 1);
+      }
+      expect(
+        group.pixelsPerUnit(camera, viewportHeight: viewport),
+        closeTo(25.0, 1e-9),
+      );
+    });
+
+    test('an object jittering across a pixel of error keeps its level', () {
+      final (:group, :scene, :camera) = measured();
+      standOff(camera, group, 5.1);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+      for (var frame = 0; frame < 8; frame++) {
+        standOff(camera, group, frame.isEven ? 4.9 : 5.1);
+        expect(
+          group.select(camera, viewportHeight: viewport),
+          1,
+          reason: 'flipped on frame $frame',
+        );
+      }
+      // A clear step inside the band brings the finer level back, and
+      // backing off coarsens at the pixel itself.
+      standOff(camera, group, 4.4);
+      expect(group.select(camera, viewportHeight: viewport), 0);
+      standOff(camera, group, 4.9);
+      expect(group.select(camera, viewportHeight: viewport), 0);
+      standOff(camera, group, 5.1);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+    });
+
+    test('a level with no error in the same chain switches by its '
+        'fraction', () {
+      // The shape a converted chain ending in an impostor has.
+      final (:group, :scene, :camera) = measured(lowMeasured: false);
+      standOff(camera, group, 20.0);
+      expect(group.select(camera, viewportHeight: viewport), 2);
+      standOff(camera, group, 10.0);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+    });
+
+    test('the error scales with the group, and the threshold is '
+        'configurable', () {
+      final (:group, :scene, :camera) = measured();
+      standOff(camera, group, 7.0);
+      expect(group.select(camera, viewportHeight: viewport), 1);
+      // Twice the size, twice the error in world units: 1.43 pixels.
+      group.setScale(2.0, 2.0, 2.0);
+      standOff(camera, group, 7.0);
+      expect(group.select(camera, viewportHeight: viewport), 0);
+
+      final loose = measured(pixelError: 4.0);
+      standOff(loose.camera, loose.group, 7.0);
+      expect(loose.group.select(loose.camera, viewportHeight: viewport), 2);
+      expect(
+        () => LodGroup(
+          pixelError: -1.0,
+          levels: <LodLevel>[
+            LodLevel(node: level('only'), maxScreenFraction: 1.0),
+          ],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('inside the bounding sphere no measured level is good enough', () {
+      final (:group, :scene, :camera) = measured();
+      camera.setPosition(0.0, 0.0, 0.0);
+      expect(
+        group.pixelsPerUnit(camera, viewportHeight: viewport),
+        double.infinity,
+      );
+      expect(group.select(camera, viewportHeight: viewport), 0);
+    });
+  });
+
   group('interaction with the rest of the scene', () {
     test('hidden levels are skipped by culling and picking', () {
       // The point of hiding rather than detaching: everything downstream

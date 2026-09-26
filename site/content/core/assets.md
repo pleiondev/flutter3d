@@ -143,7 +143,7 @@ Vertex and index arrays are stored exactly as `MeshData` holds them, so loading 
 
 `F3dDocument` is a `ModelDocument`, so `ModelAsset.fromDocument`, the cache and instancing are all unchanged. The converter re-reads what it wrote and compares it against the source before reporting success.
 
-Everything 0.8.0 added went in as new sections, each written only when a file has something to put in it: material layers (22), variants (23), animation pointers (24), a baked impostor (25) and mesh clusters (26). A reader that predates one skips it. For clusters that means drawing the whole mesh, and for an impostor the chain ends at its coarsest mesh. What the converter can add, and the per-device-class files `loadModelAsset` reads first, are on [the asset pipeline](/reference/asset-pipeline/#lods) page.
+Everything 0.8.0 added went in as new sections, each written only when a file has something to put in it: material layers (22), variants (23), animation pointers (24), a baked impostor (25), mesh clusters (26) and each level of detail's measured error (27). A reader that predates one skips it. For clusters that means drawing the whole mesh, for an impostor the chain ends at its coarsest mesh, and without the errors the levels switch by screen fraction. What the converter can add, and the per-device-class files `loadModelAsset` reads first, are on [the asset pipeline](/reference/asset-pipeline/#lods) page.
 
 <div class="note">
 <p>The file is <em>larger</em> than its source, 102 KB against 69 KB for the teapot, because indices stay 32-bit and nothing is compressed. That is the trade: narrowing indices or deflating the blob would reintroduce the per-load work the format exists to remove.</p>

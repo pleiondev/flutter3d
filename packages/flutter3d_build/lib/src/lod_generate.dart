@@ -26,8 +26,9 @@ final class LodLevelReport {
   /// What the simplifier actually reached, summed the same way.
   final int triangles;
 
-  /// The largest `SimplifiedMesh.error` any surface of this level reached, in
-  /// model units.
+  /// The largest distance any surface of this level strays from its full
+  /// mesh, in model units, as `surfaceDeviation` measures it — the number
+  /// written beside the level as `ModelLod.error`.
   final double error;
 
   @override
@@ -37,7 +38,9 @@ final class LodLevelReport {
 }
 
 /// The screen fraction below which a level cut to [ratio] of the base takes
-/// over.
+/// over — for a viewer that cannot count pixels, since every generated level
+/// also carries its measured `ModelLod.error` and a `LodGroup` given a
+/// viewport switches by that instead.
 ///
 /// **The square root, because triangles cover area and the fraction is a
 /// height.** Holding triangles per pixel steady as an object shrinks means the
@@ -84,6 +87,9 @@ ModelDocument generateLods(
   final errors = List<double>.filled(ordered.length, 0.0);
   // One simplification per surface and ratio, however many nodes draw it.
   final cut = <(int, int), int>{};
+  // How far each cut strayed; a surface kept whole is not in here and is
+  // zero away from itself.
+  final deviation = <(int, int), double>{};
 
   int levelSurface(int surfaceIndex, int level) => cut.putIfAbsent(
     (surfaceIndex, level),
@@ -103,7 +109,12 @@ ModelDocument generateLods(
       );
       targets[level] += target;
       reached[level] += simplified.mesh.triangleCount;
-      errors[level] = math.max(errors[level], simplified.error);
+      // Measured against the base rather than taken from the simplifier's
+      // own bound, which runs several times the real distance and would
+      // hold every level back that many times closer than it needs.
+      final measured = surfaceDeviation(base, simplified.mesh);
+      deviation[(surfaceIndex, level)] = measured;
+      errors[level] = math.max(errors[level], measured);
       surfaces.add(
         ModelSurface(
           mesh: simplified.mesh.convertedTo(base.layout),
@@ -124,6 +135,33 @@ ModelDocument generateLods(
   bool simplifiable(int surfaceIndex) =>
       document.surfaces[surfaceIndex].mesh.morphTargets.isEmpty;
 
+  // A node's levels, cut, with the error each is written with: the worst of
+  // its surfaces, and never less than a finer level's. The measurement is
+  // not monotonic on its own — a coarser cut can happen to land closer at
+  // its single worst point — and a chain claiming a coarse level is better
+  // than a fine one would switch to it first.
+  List<ModelLod> levelsOf(ModelNode node) {
+    // Cut first: cutting is what measures.
+    final levelSurfaces = <List<int>>[
+      for (var level = 0; level < ordered.length; level++)
+        <int>[for (final s in node.surfaces) levelSurface(s, level)],
+    ];
+    final measured = <double>[
+      for (var level = 0; level < ordered.length; level++)
+        node.surfaces
+            .map((s) => deviation[(s, level)] ?? 0.0)
+            .fold(0.0, math.max),
+    ];
+    return <ModelLod>[
+      for (var level = 0; level < ordered.length; level++)
+        ModelLod(
+          surfaceIndices: levelSurfaces[level],
+          maxScreenFraction: lodScreenFraction(ordered[level]),
+          error: measured.take(level + 1).fold<double>(0.0, math.max),
+        ),
+    ];
+  }
+
   final withLevels = <ModelNode>[
     for (final node in nodes)
       if (node.lods.isNotEmpty ||
@@ -141,15 +179,7 @@ ModelDocument generateLods(
           extras: node.extras,
           lightIndex: node.lightIndex,
           cameraIndex: node.cameraIndex,
-          lods: <ModelLod>[
-            for (var level = 0; level < ordered.length; level++)
-              ModelLod(
-                surfaceIndices: <int>[
-                  for (final s in node.surfaces) levelSurface(s, level),
-                ],
-                maxScreenFraction: lodScreenFraction(ordered[level]),
-              ),
-          ],
+          lods: levelsOf(node),
         ),
   ];
 
