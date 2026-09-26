@@ -7,7 +7,7 @@
 /// **A measure more than a pass mark.** The reconstruction is an estimate from
 /// one frame, so each bound below is what the filter reaches today, a little
 /// above it, and it is here so that a change to the gather is judged by these
-/// numbers rather than by eye. Two scenes, so that a change is not tuned to
+/// numbers rather than by eye. Two cases, so that a change is not tuned to
 /// one: a turning wheel over black, where each spoke sweeps a fan, and a box
 /// sliding across a checkerboard, where what shows behind it matters.
 ///
