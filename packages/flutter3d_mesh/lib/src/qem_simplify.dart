@@ -841,9 +841,9 @@ typedef SimplifiedMesh = ({
   /// every original face it absorbed. Zero for a mesh returned unchanged or
   /// simplified only across flat regions. **An upper bound, and a loose
   /// one**: the planes are summed rather than maximised, so on a sphere cut
-  /// to a tenth it reads about six times the furthest any vertex actually
-  /// moved off the original. Good for comparing levels and for a budget, not
-  /// for a tolerance in millimetres.
+  /// to a tenth it reads four to five times what `surfaceDeviation` measures
+  /// between the two surfaces. Good for comparing levels and for a budget, not
+  /// for a tolerance in millimetres: that is `surfaceDeviation`'s job.
   ///
   /// **The faces alone, not the boundary penalty.** The heap orders collapses
   /// by the penalised cost so an open edge holds, but that penalty is a
