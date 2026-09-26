@@ -11,22 +11,22 @@ mise exec -- flutter run -d macos              # says there is no backend yet
 
 ## Why this exists, and why it is here rather than in a game
 
-`packages/pad_input`'s own tests cover everything above the platform channel — the
-dead zone, the trigger's travel, the browser's mapping table, Android's choice of
-trigger axis. The specification is explicit that the rest can only be checked by
-a person holding a controller: whether half a deflection is half a wish, whether
-letting go stops dead, whether the dead zone wants to be bigger, whether going to
-the background lets go of everything. This is the screen for walking that list,
-and it takes about a minute.
+The tests of `packages/pad_input` cover everything above the platform channel:
+the dead zone, the trigger's travel, the browser's mapping table, and Android's
+choice of trigger axis. The specification says the rest can only be checked by
+a person holding a controller: whether half a deflection gives half the input,
+whether letting go stops dead, whether the dead zone should be bigger, and
+whether going to the background releases everything. This screen is for going
+through that list, which takes about a minute.
 
-It lives in the package rather than in one of the three games because the games
-have no Android runner and no on-screen controls — and because what is being
+It lives in the package and not in one of the three games because the games
+have no Android runner and no on-screen controls, and because the thing being
 checked here is the device, not the game.
 
 ## Building for Android
 
-The repository pins a JDK in `.mise.toml`, and this project is the reason: the
-Android Gradle Plugin's `core-for-system-modules` transform runs
-`jlink --disable-plugin system-modules`, which a JDK 26 refuses, and the error it
-produces names neither Java nor the transform. `mise exec --` is what applies the
-pin.
+The repository pins a JDK in `.mise.toml` because of this project. The Android
+Gradle Plugin's `core-for-system-modules` transform runs
+`jlink --disable-plugin system-modules`, which a JDK 26 refuses, and the
+resulting error names neither Java nor the transform. `mise exec --` applies
+the pin.

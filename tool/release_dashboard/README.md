@@ -1,10 +1,10 @@
 # release_dashboard
 
-The state of a release in one look, and a page that shows it. It answers one
-question while the work is going on: what is still between this tree and the day
-the shelf goes out.
+The state of a release in one look, and a page that shows it. While the work is
+going on, it answers what is still between this tree and the day the shelf goes
+out.
 
-There are two halves, and neither is a server.
+The tool has two halves, and neither is a server.
 
 - **`bin/release_dashboard.dart`** takes one look and prints JSON. It reads the
   tree, asks git, GitHub, pub.dev and the modeller's own server, and runs the

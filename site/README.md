@@ -1,11 +1,10 @@
 # site
 
-The documentation site for this engine, at **https://flutter3d.pleion.dev/**.
+The documentation site for this engine, at https://flutter3d.pleion.dev/.
 
 Thirty pages of Markdown, a 250-line build script, and no framework. Every page
-is a file on disk, which is what makes it serveable by nginx with `try_files`
-and nothing else — and what makes a broken page a broken page rather than a
-blank screen.
+is a file on disk, so nginx can serve the site with `try_files` and nothing
+else, and a broken page shows up as a broken page instead of a blank screen.
 
 ## Building
 
@@ -27,7 +26,7 @@ tool/deploy.sh
 ```
 
 Builds and rsyncs `dist/` to `bob:/opt/flutter3d`. Nothing else changes on a
-redeploy — the nginx vhost, the credentials and the tunnel all stay put.
+redeploy: the nginx vhost, the credentials and the tunnel all stay put.
 
 ## How it is put together
 
@@ -65,10 +64,10 @@ Add the file to `NAV` in `tool/build.mjs` and it appears in the sidebar, the
 pager and the build. Nothing scans the directory, so a half-written page cannot
 turn up in the nav by accident.
 
-The conventions behind all of this — the palette's two load-bearing choices,
-when numbered steps are allowed, the mermaid label-clipping trap, and the rule
-that every snippet is checked against `packages/*/lib/` before it is written —
-are in [CLAUDE.md](CLAUDE.md).
+[CLAUDE.md](CLAUDE.md) has the conventions behind all of this: the palette's
+two load-bearing choices, when numbered steps are allowed, the mermaid
+label-clipping trap, and the rule that every snippet is checked against
+`packages/*/lib/` before it is written.
 
 Fenced ```mermaid blocks become diagrams, themed from the same tokens as the
 page. The mermaid runtime is vendored out of `node_modules` at build time, so
@@ -76,11 +75,11 @@ the published page loads nothing from a CDN.
 
 ## Where it runs
 
-- **Files** — `bob:/opt/flutter3d`, owned by `www-data`
-- **nginx** — `/etc/nginx/sites-available/flutter3d.pleion.dev`, listening on `127.0.0.1:8790`
-- **Headers** — COOP/COEP site-wide (the demos' audio and skwasm threads need
-  `SharedArrayBuffer`) and `.mjs → text/javascript`, both set in the vhost
-- **Tunnel** — `cloudflared-flutter3d.service`, config at `/etc/cloudflared/flutter3d.yml`
+- Files: `bob:/opt/flutter3d`, owned by `www-data`
+- nginx: `/etc/nginx/sites-available/flutter3d.pleion.dev`, listening on `127.0.0.1:8790`
+- Headers: COOP/COEP site-wide (the demos' audio and skwasm threads need
+  `SharedArrayBuffer`) and `.mjs` served as `text/javascript`, both set in the vhost
+- Tunnel: `cloudflared-flutter3d.service`, config at `/etc/cloudflared/flutter3d.yml`
 
 Cloudflare terminates TLS, so nginx serves plain HTTP on a loopback port and is
 not reachable from outside the machine.
