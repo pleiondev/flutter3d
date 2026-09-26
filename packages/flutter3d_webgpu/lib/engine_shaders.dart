@@ -37731,17 +37731,11 @@ var surface_texture_tex: texture_2d<f32>;
 @group(1) @binding(10) 
 var surface_texture_smp: sampler;
 
-fn Cylinder_u0028_f1_u003b_f1_u003b(gap: ptr<function, f32>, span: ptr<function, f32>) -> f32 {
-    let _e66 = (*span);
-    let _e68 = (*span);
-    let _e70 = (*gap);
-    return (1f - smoothstep((0.95f * _e66), (1.05f * _e68), _e70));
-}
-
-fn Cone_u0028_f1_u003b_f1_u003b(gap_1: ptr<function, f32>, span_1: ptr<function, f32>) -> f32 {
-    let _e66 = (*gap_1);
-    let _e67 = (*span_1);
-    return clamp((1f - (_e66 / _e67)), 0f, 1f);
+fn Reaches_u0028_f1_u003b_f1_u003b(gap: ptr<function, f32>, span: ptr<function, f32>) -> f32 {
+    let _e65 = (*span);
+    let _e67 = (*span);
+    let _e69 = (*gap);
+    return (1f - smoothstep((_e65 - 0.5f), (_e67 + 0.5f), _e69));
 }
 
 fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
@@ -37750,72 +37744,72 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
     var index: i32;
     var value: f32;
 
-    let _e70 = (*at)[0u];
-    x = i32((_e70 - (floor((_e70 / 4f)) * 4f)));
-    let _e77 = (*at)[1u];
-    y = i32((_e77 - (floor((_e77 / 4f)) * 4f)));
-    let _e83 = y;
-    let _e85 = x;
-    index = ((_e83 * 4i) + _e85);
+    let _e69 = (*at)[0u];
+    x = i32((_e69 - (floor((_e69 / 4f)) * 4f)));
+    let _e76 = (*at)[1u];
+    y = i32((_e76 - (floor((_e76 / 4f)) * 4f)));
+    let _e82 = y;
+    let _e84 = x;
+    index = ((_e82 * 4i) + _e84);
     value = 0f;
-    let _e87 = index;
-    if (_e87 == 0i) {
+    let _e86 = index;
+    if (_e86 == 0i) {
         value = 0f;
     } else {
-        let _e89 = index;
-        if (_e89 == 1i) {
+        let _e88 = index;
+        if (_e88 == 1i) {
             value = 8f;
         } else {
-            let _e91 = index;
-            if (_e91 == 2i) {
+            let _e90 = index;
+            if (_e90 == 2i) {
                 value = 2f;
             } else {
-                let _e93 = index;
-                if (_e93 == 3i) {
+                let _e92 = index;
+                if (_e92 == 3i) {
                     value = 10f;
                 } else {
-                    let _e95 = index;
-                    if (_e95 == 4i) {
+                    let _e94 = index;
+                    if (_e94 == 4i) {
                         value = 12f;
                     } else {
-                        let _e97 = index;
-                        if (_e97 == 5i) {
+                        let _e96 = index;
+                        if (_e96 == 5i) {
                             value = 4f;
                         } else {
-                            let _e99 = index;
-                            if (_e99 == 6i) {
+                            let _e98 = index;
+                            if (_e98 == 6i) {
                                 value = 14f;
                             } else {
-                                let _e101 = index;
-                                if (_e101 == 7i) {
+                                let _e100 = index;
+                                if (_e100 == 7i) {
                                     value = 6f;
                                 } else {
-                                    let _e103 = index;
-                                    if (_e103 == 8i) {
+                                    let _e102 = index;
+                                    if (_e102 == 8i) {
                                         value = 3f;
                                     } else {
-                                        let _e105 = index;
-                                        if (_e105 == 9i) {
+                                        let _e104 = index;
+                                        if (_e104 == 9i) {
                                             value = 11f;
                                         } else {
-                                            let _e107 = index;
-                                            if (_e107 == 10i) {
+                                            let _e106 = index;
+                                            if (_e106 == 10i) {
                                                 value = 1f;
                                             } else {
-                                                let _e109 = index;
-                                                if (_e109 == 11i) {
+                                                let _e108 = index;
+                                                if (_e108 == 11i) {
                                                     value = 9f;
                                                 } else {
-                                                    let _e111 = index;
-                                                    if (_e111 == 12i) {
+                                                    let _e110 = index;
+                                                    if (_e110 == 12i) {
                                                         value = 15f;
                                                     } else {
-                                                        let _e113 = index;
-                                                        if (_e113 == 13i) {
+                                                        let _e112 = index;
+                                                        if (_e112 == 13i) {
                                                             value = 7f;
                                                         } else {
-                                                            let _e115 = index;
-                                                            if (_e115 == 14i) {
+                                                            let _e114 = index;
+                                                            if (_e114 == 14i) {
                                                                 value = 13f;
                                                             } else {
                                                                 value = 5f;
@@ -37834,8 +37828,8 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
             }
         }
     }
-    let _e117 = value;
-    return (_e117 / 16f);
+    let _e116 = value;
+    return (_e116 / 16f);
 }
 
 fn BlueNoise_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
@@ -37844,21 +37838,21 @@ fn BlueNoise_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
     var corner: vec2<f32>;
     var uv: vec2<f32>;
 
-    let _e71 = noise_info.noise[1u];
-    slice = _e71;
-    let _e72 = (*at_1);
-    let _e73 = floor(_e72);
-    let _e74 = vec2(64f);
-    cell = (_e73 - (floor((_e73 / _e74)) * _e74));
-    let _e79 = slice;
-    let _e84 = slice;
-    corner = (vec2<f32>((_e79 - (floor((_e79 / 8f)) * 8f)), floor((_e84 / 8f))) * 64f);
-    let _e89 = corner;
-    let _e90 = cell;
-    uv = (((_e89 + _e90) + vec2(0.5f)) / vec2<f32>(512f, 256f));
-    let _e95 = uv;
-    let _e96 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e95, 0f);
-    return (_e96.x * 0.99609375f);
+    let _e70 = noise_info.noise[1u];
+    slice = _e70;
+    let _e71 = (*at_1);
+    let _e72 = floor(_e71);
+    let _e73 = vec2(64f);
+    cell = (_e72 - (floor((_e72 / _e73)) * _e73));
+    let _e78 = slice;
+    let _e83 = slice;
+    corner = (vec2<f32>((_e78 - (floor((_e78 / 8f)) * 8f)), floor((_e83 / 8f))) * 64f);
+    let _e88 = corner;
+    let _e89 = cell;
+    uv = (((_e88 + _e89) + vec2(0.5f)) / vec2<f32>(512f, 256f));
+    let _e94 = uv;
+    let _e95 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e94, 0f);
+    return (_e95.x * 0.99609375f);
 }
 
 fn PixelNoise_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
@@ -37866,80 +37860,80 @@ fn PixelNoise_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
     var param: vec2<f32>;
     var param_1: vec2<f32>;
 
-    let _e70 = noise_info.noise[0u];
-    if (_e70 > 0.5f) {
-        let _e72 = (*at_2);
-        param = _e72;
-        let _e73 = BlueNoise_u0028_vf2_u003b((&param));
-        local = _e73;
+    let _e69 = noise_info.noise[0u];
+    if (_e69 > 0.5f) {
+        let _e71 = (*at_2);
+        param = _e71;
+        let _e72 = BlueNoise_u0028_vf2_u003b((&param));
+        local = _e72;
     } else {
-        let _e74 = (*at_2);
-        param_1 = _e74;
-        let _e75 = BayerCell_u0028_vf2_u003b((&param_1));
-        local = _e75;
+        let _e73 = (*at_2);
+        param_1 = _e73;
+        let _e74 = BayerCell_u0028_vf2_u003b((&param_1));
+        local = _e74;
     }
-    let _e76 = local;
-    return _e76;
+    let _e75 = local;
+    return _e75;
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
     var local_1: vec2<f32>;
 
-    let _e66 = (*rows);
-    if (_e66 > 0f) {
-        let _e69 = gl_FragCoord_1[0u];
-        let _e70 = (*rows);
-        let _e72 = gl_FragCoord_1[1u];
-        local_1 = vec2<f32>(_e69, (_e70 - _e72));
+    let _e65 = (*rows);
+    if (_e65 > 0f) {
+        let _e68 = gl_FragCoord_1[0u];
+        let _e69 = (*rows);
+        let _e71 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e68, (_e69 - _e71));
     } else {
-        let _e75 = gl_FragCoord_1;
-        local_1 = _e75.xy;
+        let _e74 = gl_FragCoord_1;
+        local_1 = _e74.xy;
     }
-    let _e77 = local_1;
-    return _e77;
+    let _e76 = local_1;
+    return _e76;
 }
 
 fn TargetFragCoord_u0028_() -> vec2<f32> {
     var param_2: f32;
 
-    let _e67 = frag_coord_info.origin[0u];
-    param_2 = _e67;
-    let _e68 = FragCoordFromTop_u0028_f1_u003b((&param_2));
-    return _e68;
+    let _e66 = frag_coord_info.origin[0u];
+    param_2 = _e66;
+    let _e67 = FragCoordFromTop_u0028_f1_u003b((&param_2));
+    return _e67;
 }
 
 fn Far_u0028_f1_u003b(depth: ptr<function, f32>) -> f32 {
-    let _e65 = (*depth);
-    let _e67 = (*depth);
-    return select(_e67, 1000000000f, (_e65 <= 0f));
+    let _e64 = (*depth);
+    let _e66 = (*depth);
+    return select(_e66, 1000000000f, (_e64 <= 0f));
 }
 
 fn HalfMotion_u0028_vf2_u003b(motion: ptr<function, vec2<f32>>) -> vec2<f32> {
     var pixels: vec2<f32>;
-    var span_2: f32;
+    var span_1: f32;
     var most: f32;
     var local_2: vec2<f32>;
 
-    let _e69 = (*motion);
-    let _e71 = blur_info.params;
-    pixels = (_e69 * _e71.xy);
-    let _e74 = pixels;
-    span_2 = length(_e74);
-    let _e78 = blur_info.params[2u];
-    most = max(_e78, 0f);
-    let _e80 = span_2;
-    let _e81 = most;
-    if (_e80 > _e81) {
-        let _e83 = pixels;
-        let _e84 = most;
-        let _e85 = span_2;
-        local_2 = (_e83 * (_e84 / _e85));
+    let _e68 = (*motion);
+    let _e70 = blur_info.params;
+    pixels = (_e68 * _e70.xy);
+    let _e73 = pixels;
+    span_1 = length(_e73);
+    let _e77 = blur_info.params[2u];
+    most = max(_e77, 0f);
+    let _e79 = span_1;
+    let _e80 = most;
+    if (_e79 > _e80) {
+        let _e82 = pixels;
+        let _e83 = most;
+        let _e84 = span_1;
+        local_2 = (_e82 * (_e83 / _e84));
     } else {
-        let _e88 = pixels;
-        local_2 = _e88;
+        let _e87 = pixels;
+        local_2 = _e87;
     }
-    let _e89 = local_2;
-    return _e89;
+    let _e88 = local_2;
+    return _e88;
 }
 
 fn main_1() {
@@ -37947,14 +37941,21 @@ fn main_1() {
     var here: vec2<f32>;
     var tile: vec2<f32>;
     var dominant: vec2<f32>;
+    var reach: f32;
     var samples: i32;
     var ownSpan: f32;
     var param_3: vec2<f32>;
     var ownDepth: f32;
     var param_4: f32;
     var extent: f32;
-    var weight: f32;
-    var total: vec3<f32>;
+    var stride: f32;
+    var ownShare: f32;
+    var front: vec3<f32>;
+    var frontCover: f32;
+    var level: vec3<f32>;
+    var levelCover: f32;
+    var back: vec3<f32>;
+    var backWeight: f32;
     var jitter: f32;
     var param_5: vec2<f32>;
     var middle: i32;
@@ -37962,162 +37963,214 @@ fn main_1() {
     var t: f32;
     var there: vec2<f32>;
     var at_3: vec2<f32>;
-    var gap_2: f32;
-    var tap: vec4<f32>;
+    var gap_1: f32;
+    var tap: vec3<f32>;
     var tapSpan: f32;
     var param_6: vec2<f32>;
     var tapDepth: f32;
     var param_7: f32;
-    var front: f32;
-    var back: f32;
-    var reach: f32;
+    var nearer: f32;
+    var behind: f32;
+    var share: f32;
     var param_8: f32;
     var param_9: f32;
-    var param_10: f32;
-    var param_11: f32;
-    var param_12: f32;
-    var param_13: f32;
-    var param_14: f32;
-    var param_15: f32;
+    var nearness: f32;
+    var own: vec3<f32>;
+    var behindColor: vec3<f32>;
+    var local_3: vec3<f32>;
+    var under: vec3<f32>;
+    var over: vec3<f32>;
+    var local_4: vec3<f32>;
 
-    let _e100 = v_uv_1;
-    let _e101 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e100, 0f);
-    centre = _e101;
-    let _e102 = v_uv_1;
-    let _e104 = blur_info.scene;
-    here = (_e102 * _e104.zw);
-    let _e107 = here;
-    let _e110 = blur_info.tiles[2u];
-    tile = floor((_e107 / vec2(max(_e110, 1f))));
-    let _e115 = tile;
-    let _e119 = blur_info.tiles;
-    let _e122 = textureSampleLevel(neighbor_texture_tex, neighbor_texture_smp, ((_e115 + vec2(0.5f)) / _e119.xy), 0f);
-    dominant = _e122.xy;
-    let _e126 = blur_info.params[3u];
-    samples = i32((_e126 + 0.5f));
-    let _e129 = dominant;
-    let _e132 = samples;
-    if ((length(_e129) <= 0.5f) || (_e132 < 1i)) {
-        let _e135 = centre;
-        frag_color = _e135;
+    let _e107 = v_uv_1;
+    let _e108 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e107, 0f);
+    centre = _e108;
+    let _e109 = v_uv_1;
+    let _e111 = blur_info.scene;
+    here = (_e109 * _e111.zw);
+    let _e114 = here;
+    let _e117 = blur_info.tiles[2u];
+    tile = floor((_e114 / vec2(max(_e117, 1f))));
+    let _e122 = tile;
+    let _e126 = blur_info.tiles;
+    let _e129 = textureSampleLevel(neighbor_texture_tex, neighbor_texture_smp, ((_e122 + vec2(0.5f)) / _e126.xy), 0f);
+    dominant = _e129.xy;
+    let _e131 = dominant;
+    reach = length(_e131);
+    let _e135 = blur_info.params[3u];
+    samples = i32((_e135 + 0.5f));
+    let _e138 = reach;
+    let _e140 = samples;
+    if ((_e138 <= 0.5f) || (_e140 < 1i)) {
+        let _e143 = centre;
+        frag_color = _e143;
         return;
     }
-    let _e136 = v_uv_1;
-    let _e137 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e136, 0f);
-    param_3 = _e137.xy;
-    let _e139 = HalfMotion_u0028_vf2_u003b((&param_3));
-    ownSpan = max(length(_e139), 0.5f);
-    let _e142 = v_uv_1;
-    let _e143 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e142, 0f);
-    param_4 = _e143.w;
-    let _e145 = Far_u0028_f1_u003b((&param_4));
-    ownDepth = _e145;
-    let _e148 = blur_info.tiles[3u];
-    extent = max(_e148, 0.0001f);
-    let _e150 = ownSpan;
-    weight = (1f / _e150);
-    let _e152 = centre;
-    let _e154 = weight;
-    total = (_e152.xyz * _e154);
-    let _e156 = TargetFragCoord_u0028_();
-    param_5 = _e156;
-    let _e157 = PixelNoise_u0028_vf2_u003b((&param_5));
-    jitter = (_e157 - 0.5f);
-    let _e159 = samples;
-    middle = ((_e159 - 1i) / 2i);
+    let _e144 = v_uv_1;
+    let _e145 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e144, 0f);
+    param_3 = _e145.xy;
+    let _e147 = HalfMotion_u0028_vf2_u003b((&param_3));
+    ownSpan = max(length(_e147), 0.5f);
+    let _e150 = v_uv_1;
+    let _e151 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e150, 0f);
+    param_4 = _e151.w;
+    let _e153 = Far_u0028_f1_u003b((&param_4));
+    ownDepth = _e153;
+    let _e156 = blur_info.tiles[3u];
+    extent = max(_e156, 0.0001f);
+    let _e158 = reach;
+    let _e160 = samples;
+    stride = ((2f * _e158) / f32((_e160 + 1i)));
+    let _e164 = stride;
+    let _e166 = ownSpan;
+    ownShare = min((max(_e164, 1f) / (2f * _e166)), 1f);
+    front = vec3<f32>(0f, 0f, 0f);
+    frontCover = 0f;
+    let _e170 = centre;
+    let _e172 = ownShare;
+    level = (_e170.xyz * _e172);
+    let _e174 = ownShare;
+    levelCover = _e174;
+    back = vec3<f32>(0f, 0f, 0f);
+    backWeight = 0f;
+    let _e175 = TargetFragCoord_u0028_();
+    param_5 = _e175;
+    let _e176 = PixelNoise_u0028_vf2_u003b((&param_5));
+    jitter = (_e176 - 0.5f);
+    let _e178 = samples;
+    middle = ((_e178 - 1i) / 2i);
     i = 0i;
     loop {
-        let _e162 = i;
-        if (_e162 < 64i) {
-            let _e164 = i;
-            let _e165 = samples;
-            if (_e164 >= _e165) {
+        let _e181 = i;
+        if (_e181 < 64i) {
+            let _e183 = i;
+            let _e184 = samples;
+            if (_e183 >= _e184) {
                 break;
             }
-            let _e167 = i;
-            let _e168 = middle;
-            if (_e167 == _e168) {
+            let _e186 = i;
+            let _e187 = middle;
+            if (_e186 == _e187) {
                 continue;
             }
-            let _e170 = i;
-            let _e172 = jitter;
-            let _e175 = samples;
-            t = mix(-1f, 1f, (((f32(_e170) + _e172) + 1f) / f32((_e175 + 1i))));
-            let _e180 = here;
-            let _e181 = dominant;
-            let _e182 = t;
-            there = (floor((_e180 + (_e181 * _e182))) + vec2(0.5f));
-            let _e188 = there;
-            let _e190 = blur_info.scene;
-            at_3 = (_e188 * _e190.xy);
-            let _e193 = there;
-            let _e194 = here;
-            gap_2 = length((_e193 - _e194));
-            let _e197 = at_3;
-            let _e198 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e197, 0f);
-            tap = _e198;
-            let _e199 = at_3;
-            let _e200 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e199, 0f);
-            param_6 = _e200.xy;
-            let _e202 = HalfMotion_u0028_vf2_u003b((&param_6));
-            tapSpan = max(length(_e202), 0.5f);
-            let _e205 = at_3;
-            let _e206 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e205, 0f);
-            param_7 = _e206.w;
-            let _e208 = Far_u0028_f1_u003b((&param_7));
-            tapDepth = _e208;
-            let _e209 = tapDepth;
-            let _e210 = ownDepth;
-            let _e212 = extent;
-            front = clamp((1f - ((_e209 - _e210) / _e212)), 0f, 1f);
-            let _e216 = ownDepth;
-            let _e217 = tapDepth;
-            let _e219 = extent;
-            back = clamp((1f - ((_e216 - _e217) / _e219)), 0f, 1f);
-            let _e223 = front;
-            let _e224 = gap_2;
-            param_8 = _e224;
-            let _e225 = tapSpan;
-            param_9 = _e225;
-            let _e226 = Cone_u0028_f1_u003b_f1_u003b((&param_8), (&param_9));
-            let _e228 = back;
-            let _e229 = gap_2;
-            param_10 = _e229;
-            let _e230 = ownSpan;
-            param_11 = _e230;
-            let _e231 = Cone_u0028_f1_u003b_f1_u003b((&param_10), (&param_11));
-            let _e234 = gap_2;
-            param_12 = _e234;
-            let _e235 = tapSpan;
-            param_13 = _e235;
-            let _e236 = Cylinder_u0028_f1_u003b_f1_u003b((&param_12), (&param_13));
-            let _e237 = gap_2;
-            param_14 = _e237;
-            let _e238 = ownSpan;
-            param_15 = _e238;
-            let _e239 = Cylinder_u0028_f1_u003b_f1_u003b((&param_14), (&param_15));
-            reach = (((_e223 * _e226) + (_e228 * _e231)) + ((_e236 * _e239) * 2f));
-            let _e243 = tap;
-            let _e245 = reach;
-            let _e247 = total;
-            total = (_e247 + (_e243.xyz * _e245));
-            let _e249 = reach;
-            let _e250 = weight;
-            weight = (_e250 + _e249);
+            let _e189 = i;
+            let _e191 = jitter;
+            let _e194 = samples;
+            t = mix(-1f, 1f, (((f32(_e189) + _e191) + 1f) / f32((_e194 + 1i))));
+            let _e199 = here;
+            let _e200 = dominant;
+            let _e201 = t;
+            there = (floor((_e199 + (_e200 * _e201))) + vec2(0.5f));
+            let _e207 = there;
+            let _e209 = blur_info.scene;
+            at_3 = (_e207 * _e209.xy);
+            let _e212 = there;
+            let _e213 = here;
+            gap_1 = length((_e212 - _e213));
+            let _e216 = at_3;
+            let _e217 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e216, 0f);
+            tap = _e217.xyz;
+            let _e219 = at_3;
+            let _e220 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e219, 0f);
+            param_6 = _e220.xy;
+            let _e222 = HalfMotion_u0028_vf2_u003b((&param_6));
+            tapSpan = max(length(_e222), 0.5f);
+            let _e225 = at_3;
+            let _e226 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e225, 0f);
+            param_7 = _e226.w;
+            let _e228 = Far_u0028_f1_u003b((&param_7));
+            tapDepth = _e228;
+            let _e229 = ownDepth;
+            let _e230 = tapDepth;
+            let _e232 = extent;
+            nearer = clamp(((_e229 - _e230) / _e232), 0f, 1f);
+            let _e235 = tapDepth;
+            let _e236 = ownDepth;
+            let _e238 = extent;
+            behind = clamp(((_e235 - _e236) / _e238), 0f, 1f);
+            let _e241 = gap_1;
+            param_8 = _e241;
+            let _e242 = tapSpan;
+            param_9 = _e242;
+            let _e243 = Reaches_u0028_f1_u003b_f1_u003b((&param_8), (&param_9));
+            let _e244 = stride;
+            let _e245 = tapSpan;
+            share = (_e243 * min((_e244 / (2f * _e245)), 1f));
+            let _e250 = tap;
+            let _e251 = nearer;
+            let _e252 = share;
+            let _e255 = front;
+            front = (_e255 + (_e250 * (_e251 * _e252)));
+            let _e257 = nearer;
+            let _e258 = share;
+            let _e260 = frontCover;
+            frontCover = (_e260 + (_e257 * _e258));
+            let _e262 = tap;
+            let _e263 = nearer;
+            let _e265 = behind;
+            let _e267 = share;
+            let _e270 = level;
+            level = (_e270 + (_e262 * (((1f - _e263) - _e265) * _e267)));
+            let _e272 = nearer;
+            let _e274 = behind;
+            let _e276 = share;
+            let _e278 = levelCover;
+            levelCover = (_e278 + (((1f - _e272) - _e274) * _e276));
+            let _e280 = behind;
+            let _e281 = gap_1;
+            let _e282 = gap_1;
+            nearness = (_e280 / max((_e281 * _e282), 1f));
+            let _e286 = tap;
+            let _e287 = nearness;
+            let _e289 = back;
+            back = (_e289 + (_e286 * _e287));
+            let _e291 = nearness;
+            let _e292 = backWeight;
+            backWeight = (_e292 + _e291);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e252 = i;
-            i = (_e252 + 1i);
+            let _e294 = i;
+            i = (_e294 + 1i);
         }
     }
-    let _e254 = total;
-    let _e255 = weight;
-    let _e257 = (_e254 / vec3(_e255));
-    let _e259 = centre[3u];
-    frag_color = vec4<f32>(_e257.x, _e257.y, _e257.z, _e259);
+    let _e296 = level;
+    let _e297 = levelCover;
+    own = (_e296 / vec3(_e297));
+    let _e300 = backWeight;
+    if (_e300 > 0f) {
+        let _e302 = back;
+        let _e303 = backWeight;
+        local_3 = (_e302 / vec3(_e303));
+    } else {
+        let _e306 = own;
+        local_3 = _e306;
+    }
+    let _e307 = local_3;
+    behindColor = _e307;
+    let _e308 = behindColor;
+    let _e309 = own;
+    let _e310 = levelCover;
+    under = mix(_e308, _e309, vec3(min(_e310, 1f)));
+    let _e314 = frontCover;
+    if (_e314 > 0f) {
+        let _e316 = front;
+        let _e317 = frontCover;
+        local_4 = (_e316 / vec3(_e317));
+    } else {
+        let _e320 = under;
+        local_4 = _e320;
+    }
+    let _e321 = local_4;
+    over = _e321;
+    let _e322 = under;
+    let _e323 = over;
+    let _e324 = frontCover;
+    let _e327 = mix(_e322, _e323, vec3(min(_e324, 1f)));
+    let _e329 = centre[3u];
+    frag_color = vec4<f32>(_e327.x, _e327.y, _e327.z, _e329);
     return;
 }
 

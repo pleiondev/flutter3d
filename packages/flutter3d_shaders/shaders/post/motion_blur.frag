@@ -2,7 +2,7 @@
 
 // Motion blur: a gather along the motion that dominates each neighbourhood
 // — `R6`, after McGuire, Hennessy, Bukowski and Osman's reconstruction
-// filter (2012).
+// filter (2012), composited the way the exposure is.
 //
 // **Along the neighbourhood's motion, not the pixel's own.** A still pixel
 // beside a moving object is still crossed by it for part of the exposure, so
@@ -12,13 +12,27 @@
 // `VelocityNeighborMax` pass's answer — and asks of every sample whether its
 // colour could have reached here.
 //
-// **Three ways a sample reaches a pixel**, weighed by which of the two is in
-// front: a sample in front, blurred by its own motion far enough to cover
-// here; a sample behind, seen because this pixel's own motion spread it
-// across; and two samples moving together, where neither is in front and
-// both are the same streak. The depth is the surface buffer's alpha, view
-// distance in metres, and "in front" is soft over a few centimetres so a
-// surface does not occlude itself.
+// **For how long, rather than whether.** A sample stands for one stride of
+// the line, and a stride of surface sweeping a streak `2 × span` pixels long
+// sits over any one pixel of it for `stride / (2 × span)` of the exposure.
+// That is the sample's share of the time, and the shares say how much of the
+// exposure something covered this pixel; what they leave over is time the
+// pixel showed whatever was behind. The 2012 filter normalised its weights
+// instead, and a still background has no weight there once a sample is half
+// a pixel away, so where a spoke swept over the background the spoke was all
+// that was left to normalise: it came out nearly opaque across its whole fan
+// where the exposure shows it for the share of the time it was there.
+//
+// **Three layers, by depth against this pixel's.** Samples in front are
+// occluders, over everything for their share. Samples level with it are
+// this pixel's own surface, the pixel itself among them, over what is behind
+// for their share. Samples behind are what shows where this pixel's surface
+// is not: the pixel cannot see what its surface hid, so it borrows the
+// nearest of what the line saw behind it, weighted by the inverse square of
+// the distance. The depth is the surface buffer's alpha, view distance in
+// metres, and "in front" is soft over a few centimetres so a surface does
+// not occlude itself. The shares are summed in linear light, before the
+// tone curve, which is where a camera integrates.
 //
 // Fifteen samples, offset along the line by the per-pixel noise so the
 // steps between them are grain rather than fifteen copies of the object.
@@ -68,16 +82,10 @@ float Far(float depth) {
   return depth <= 0.0 ? 1e9 : depth;
 }
 
-// How much of a streak [span] pixels long covers a point [gap] away:
-// all of it at the source, none at the streak's end.
-float Cone(float gap, float span) {
-  return clamp(1.0 - gap / span, 0.0, 1.0);
-}
-
-// Whether a point [gap] away is inside a streak [span] pixels long,
-// with a tenth of a streak of soft edge.
-float Cylinder(float gap, float span) {
-  return 1.0 - smoothstep(0.95 * span, 1.05 * span, gap);
+// Whether a point [gap] away is inside a streak [span] pixels long, with a
+// pixel's width of soft edge.
+float Reaches(float gap, float span) {
+  return 1.0 - smoothstep(span - 0.5, span + 0.5, gap);
 }
 
 void main() {
@@ -88,10 +96,11 @@ void main() {
   vec2 tile = floor(here / max(blur_info.tiles.z, 1.0));
   vec2 dominant =
       textureLod(neighbor_texture, (tile + 0.5) / blur_info.tiles.xy, 0.0).rg;
+  float reach = length(dominant);
   int samples = int(blur_info.params.w + 0.5);
   // Under half a pixel of motion anywhere near: nothing here would move a
   // sample off this pixel.
-  if (length(dominant) <= 0.5 || samples < 1) {
+  if (reach <= 0.5 || samples < 1) {
     frag_color = centre;
     return;
   }
@@ -102,11 +111,20 @@ void main() {
       max(length(HalfMotion(textureLod(velocity_texture, v_uv, 0.0).rg)), 0.5);
   float ownDepth = Far(textureLod(surface_texture, v_uv, 0.0).a);
   float extent = max(blur_info.tiles.w, 1e-4);
+  // The length of line each sample stands for.
+  float stride = 2.0 * reach / float(samples + 1);
 
-  // The pixel itself, weighted by how little it moves: a still pixel keeps
-  // most of its own colour, a fast one is mostly what streaks across it.
-  float weight = 1.0 / ownSpan;
-  vec3 total = centre.rgb * weight;
+  // The pixel itself is level with itself, and covers itself for its share:
+  // all of the exposure when it is still, little of it when it is fast. It
+  // stands for a pixel at least, so a short line whose samples crowd closer
+  // than a pixel does not leave a still pixel partly see-through.
+  float ownShare = min(max(stride, 1.0) / (2.0 * ownSpan), 1.0);
+  vec3 front = vec3(0.0);
+  float frontCover = 0.0;
+  vec3 level = centre.rgb * ownShare;
+  float levelCover = ownShare;
+  vec3 back = vec3(0.0);
+  float backWeight = 0.0;
 
   float jitter = PixelNoise(TargetFragCoord()) - 0.5;
   int middle = (samples - 1) / 2;
@@ -119,22 +137,33 @@ void main() {
     vec2 at = there * blur_info.scene.xy;
     float gap = length(there - here);
 
-    vec4 tap = textureLod(scene_texture, at, 0.0);
+    vec3 tap = textureLod(scene_texture, at, 0.0).rgb;
     float tapSpan =
         max(length(HalfMotion(textureLod(velocity_texture, at, 0.0).rg)), 0.5);
     float tapDepth = Far(textureLod(surface_texture, at, 0.0).a);
 
-    // Whether the sample is in front of this pixel, and whether this pixel
-    // is in front of the sample: both are one within the soft extent.
-    float front = clamp(1.0 - (tapDepth - ownDepth) / extent, 0.0, 1.0);
-    float back = clamp(1.0 - (ownDepth - tapDepth) / extent, 0.0, 1.0);
-    float reach =
-        front * Cone(gap, tapSpan) +
-        back * Cone(gap, ownSpan) +
-        Cylinder(gap, tapSpan) * Cylinder(gap, ownSpan) * 2.0;
-    total += tap.rgb * reach;
-    weight += reach;
+    // How far the sample is in front of this pixel, and how far behind:
+    // each is one past the soft extent, and neither is level.
+    float nearer = clamp((ownDepth - tapDepth) / extent, 0.0, 1.0);
+    float behind = clamp((tapDepth - ownDepth) / extent, 0.0, 1.0);
+    // The share of the exposure the sample's stride spends over this pixel.
+    float share = Reaches(gap, tapSpan) * min(stride / (2.0 * tapSpan), 1.0);
+    front += tap * (nearer * share);
+    frontCover += nearer * share;
+    level += tap * ((1.0 - nearer - behind) * share);
+    levelCover += (1.0 - nearer - behind) * share;
+    // A sample on this very pixel is no nearer than one a pixel away.
+    float nearness = behind / max(gap * gap, 1.0);
+    back += tap * nearness;
+    backWeight += nearness;
   }
 
-  frag_color = vec4(total / weight, centre.a);
+  // Behind, under this pixel's surface, under what passed in front — each
+  // layer for the part of the exposure the one above it left over, and the
+  // average of a layer standing for it when it covers more than the whole.
+  vec3 own = level / levelCover;
+  vec3 behindColor = backWeight > 0.0 ? back / backWeight : own;
+  vec3 under = mix(behindColor, own, min(levelCover, 1.0));
+  vec3 over = frontCover > 0.0 ? front / frontCover : under;
+  frag_color = vec4(mix(under, over, min(frontCover, 1.0)), centre.a);
 }
