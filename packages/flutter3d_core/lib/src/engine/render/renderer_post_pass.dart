@@ -387,6 +387,56 @@ extension _PostPasses on Renderer {
     resources.provide(FrameResourceIds.ao, target);
   }
 
+  /// The contact shadow averaged over one 4 x 4 window of its dither, weighted
+  /// by depth — see `post/contact_shadow_resolve.frag`.
+  ///
+  /// Into a transient of the same shape, handed back under the same name, for
+  /// [_encodeSsaoBlur]'s reason: a buffer cannot be sampled and written in one
+  /// pass.
+  void _encodeContactShadowResolve({
+    required TextureHandle source,
+    required TextureHandle surface,
+    required FrameResources resources,
+  }) {
+    developer.Timeline.startSync('Renderer.contactShadowResolve');
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: source.width,
+        height: source.height,
+        format: source.format,
+      ),
+    );
+
+    _contactShadowResolveInfo.params
+      ..[0] = 1.0 / math.max(source.width, 1)
+      ..[1] = 1.0 / math.max(source.height, 1)
+      // Relative, as the occlusion blur's default: a difference of a fiftieth
+      // of the centre's depth drops a tap to 1/e, so a floor carries its
+      // neighbours and an object a hand's width in front of it does not.
+      ..[2] = 0.02
+      ..[3] = 0.0;
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: contactShadowResolveShader,
+        textures: <String, TextureHandle>{
+          'contact_shadow_texture': source,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          _contactShadowResolveInfo.name: _contactShadowResolveInfo.members,
+        },
+        // Nearest on both: each tap has to be one pixel's march, one phase of
+        // the pattern, and a filtered one would mix two phases and two depths.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    developer.Timeline.finishSync();
+
+    resources.provide(FrameResourceIds.contactShadow, target);
+  }
+
   /// The contact shadow's own march — `gfx-76n`.
   ///
   /// Everything about the reconstruction is `_encodeSsao`'s below, and for its

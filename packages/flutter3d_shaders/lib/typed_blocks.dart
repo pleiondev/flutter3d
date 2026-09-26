@@ -144,6 +144,19 @@ final class ContactShadowInfoBlock extends UniformBlock {
   };
 }
 
+/// `ContactShadowResolveInfo`.
+final class ContactShadowResolveInfoBlock extends UniformBlock {
+  ContactShadowResolveInfoBlock() : super('ContactShadowResolveInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
+  };
+}
+
 /// `ContributorLightInfo`.
 final class ContributorLightInfoBlock extends UniformBlock {
   ContributorLightInfoBlock() : super('ContributorLightInfo');

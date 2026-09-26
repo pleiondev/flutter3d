@@ -158,6 +158,7 @@ final class Renderer implements RenderServices {
     required this.reflectionShader,
     required this.ssaoShader,
     required this.contactShadowShader,
+    required this.contactShadowResolveShader,
     required this.cameraVelocityShader,
     required this.velocityShader,
     required this.velocityVertexShader,
@@ -306,6 +307,10 @@ final class Renderer implements RenderServices {
 
   /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
   final ShaderHandle contactShadowShader;
+
+  /// `post/contact_shadow_resolve.frag`: the march averaged over one window of
+  /// its dither pattern, for a frame no temporal resolve smooths.
+  final ShaderHandle contactShadowResolveShader;
 
   /// `post/camera_velocity.frag` — `R1`.
   final ShaderHandle cameraVelocityShader;
@@ -678,6 +683,8 @@ final class Renderer implements RenderServices {
   final BloomInfoBlock _bloomInfo = BloomInfoBlock();
   final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
   final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
+  final ContactShadowResolveInfoBlock _contactShadowResolveInfo =
+      ContactShadowResolveInfoBlock();
   final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
   final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
   final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
@@ -1566,6 +1573,7 @@ final class Renderer implements RenderServices {
         reflectionShader: require('Reflections'),
         ssaoShader: require('Ssao'),
         contactShadowShader: require('ContactShadow'),
+        contactShadowResolveShader: require('ContactShadowResolve'),
         cameraVelocityShader: require('CameraVelocity'),
         velocityShader: require('Velocity'),
         velocityVertexShader: require('VelocityVertex'),
@@ -2553,6 +2561,10 @@ final class Renderer implements RenderServices {
     // not matter here — it writes a name nothing else writes — and this is
     // simply where the pass it belongs next to is.
     graph.addNode(_ContactShadowNode(this, view, s, contactToLight));
+    // Right after the march, as a link in its chain: with no temporal resolve
+    // to average the dither away, this does it within the frame. Inactive
+    // while one runs, so the history below reads the march itself.
+    graph.addNode(_ContactShadowResolveNode(this, s, contactToLight));
     // `R1`: the motion of every pixel, for the temporal resolve. Before any
     // reader of it, which is all registration order has to promise here.
     graph

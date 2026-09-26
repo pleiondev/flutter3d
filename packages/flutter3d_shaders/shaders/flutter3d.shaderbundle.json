@@ -175,6 +175,10 @@
     "type": "fragment",
     "file": "shaders/post/contact_shadow.frag"
   },
+  "ContactShadowResolve": {
+    "type": "fragment",
+    "file": "shaders/post/contact_shadow_resolve.frag"
+  },
   "CameraVelocity": {
     "type": "fragment",
     "file": "shaders/post/camera_velocity.frag"

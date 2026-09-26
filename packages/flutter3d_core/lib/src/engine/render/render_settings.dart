@@ -1793,6 +1793,9 @@ final class RenderSettings {
     // Beside the occlusion because it reads the same buffer and its result is
     // applied in the same place — `gfx-76n`.
     'contact shadows',
+    // The march's dither averaged within the frame, on a frame with no
+    // temporal resolve to average it across frames.
+    'contact shadow resolve',
     // `R1`: the motion of every pixel, and then of what moved over it.
     'camera velocity',
     'object velocity',
