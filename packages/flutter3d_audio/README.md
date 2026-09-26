@@ -1,25 +1,25 @@
 # flutter3d_audio
 
 Positional audio: attenuation, panning, occlusion and voice limiting, with a
-pluggable backend. A sibling of `flutter3d_game` rather than a `RenderPlugin` —
+pluggable backend. It is a sibling of `flutter3d_game`, not a `RenderPlugin`:
 it draws nothing, so the renderer's plugin seam does not apply to it.
 
-Depends on neither `flutter3d` nor `flutter_gpu`. It is handed a listener pose
-and emitter positions; where those come from is the application's business.
+It depends on neither `flutter3d` nor `flutter_gpu`. It is handed a listener
+pose and emitter positions, and where those come from is up to the application.
 
 ## Why the geometry is computed here
 
-SoLoud has a 3D layer, and it cannot be used for anything that moves.
-Applying a moved source or a turned listener requires `update3dAudio()`, and
-`flutter_soloud` 4.1.7 exposes neither that call nor anything that makes it:
-its `set3dSourcePosition` passes straight through to a SoLoud method that only
-marks the source dirty. A source set once at `play3d` never moves again, and in
-a first-person game the listener turns constantly.
+SoLoud has a 3D layer, but it cannot be used for anything that moves. Applying a
+moved source or a turned listener requires `update3dAudio()`, and
+`flutter_soloud` 4.1.7 exposes neither that call nor anything that makes it. Its
+`set3dSourcePosition` passes straight through to a SoLoud method that only marks
+the source dirty. A source set once at `play3d` never moves again, and in a
+first-person game the listener turns constantly.
 
 So `AudioScene` computes gain and pan, and the backend is asked only for a flat
-voice with a volume and a pan — which every backend can do and which takes
-effect immediately. If a later `flutter_soloud` exposes the call, the right
-change is a second backend, not an edit to this one.
+voice with a volume and a pan. Every backend can do that, and it takes effect
+immediately. If a later `flutter_soloud` exposes the call, the right change is a
+second backend, not an edit to this one.
 
 ## Shape
 
@@ -41,40 +41,43 @@ listener.aimAt(eyePosition, yaw);
 scene.update(listener);
 ```
 
-An emitter is returned so whatever owns a moving source can move it; the mixer
-updates that voice rather than restarting it.
+`play` returns an emitter so whatever owns a moving source can move it. The
+mixer updates that voice instead of restarting it.
 
 ## What the mixer decides
 
-- **Attenuation** — `InverseRolloff` by default, the only one of the three that
+- Attenuation is `InverseRolloff` by default, the only one of the three that
   sounds right when the player walks *past* something. `LinearRolloff` and
-  `ExponentialRolloff` are there because designers ask for them, and
-  `NoAttenuation` for music.
-- **Panning** — the left-right component of the direction, and nothing else.
-  Yaw only: tilting your head back does not swap left and right.
-- **Voice limiting** — priority first, loudness second. A door closing outranks
-  the ninth footstep even when the footstep is nearer.
-- **Instance limiting** — ten identical grunts on one frame are a click, not
-  ten times as loud.
+  `ExponentialRolloff` exist because designers ask for them, and
+  `NoAttenuation` is for music.
+- Panning uses the left-right component of the direction and nothing else. It
+  is yaw only, so tilting your head back does not swap left and right.
+- Voice limiting ranks by priority first and loudness second. A door closing
+  outranks the ninth footstep even when the footstep is nearer.
+- With instance limiting, ten identical grunts on one frame are a click instead
+  of ten times as loud.
 
 ## Testing
 
 `SilentBackend` records every call and makes no sound, so the whole mix is
-testable without an audio device — and it is what a headless build or a player
-who has turned sound off should use, rather than a branch at every call site.
+testable without an audio device. A headless build, or a player who has turned
+sound off, should use it too, instead of a branch at every call site.
 
 ---
 
-Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
-implementation** of a 3D engine for Flutter — not a fork or a binding of
-another engine, and not affiliated with the Flutter team. Three switchable
-rendering backends: Impeller via Flutter GPU, WebGL2, and a software
-rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
-skinning, animation, BVH culling and picking; a deterministic fixed-step game
-layer with collision, navigation, positional audio, and gamepad and touch
-input. Three example games — shooter, platformer, racing — each built on its
-genre package: [`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
+implementation of a 3D engine for Flutter. It is not a fork or a binding of
+another engine, and it is not affiliated with the Flutter team. It has four
+switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
+software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
+shadows, bloom, skinning, animation, BVH culling and picking, plus a
+deterministic fixed-step game layer with collision, navigation, positional
+audio, and gamepad and touch input. Four example games (shooter, platformer,
+racing, strategy) are each built on a genre package:
+[`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
 [`flutter3d_game_platformer`](https://pub.dev/packages/flutter3d_game_platformer),
-[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing). A new game starts from the
-editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
-Documentation: <https://flutter3d.pleion.dev>.
+[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing),
+[`flutter3d_game_strategy`](https://pub.dev/packages/flutter3d_game_strategy).
+A new game starts from the editor's scaffold, which writes one from a template:
+<https://flutter3d.pleion.dev/first-project/>. Documentation:
+<https://flutter3d.pleion.dev>.

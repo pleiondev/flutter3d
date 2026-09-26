@@ -8,5 +8,6 @@ The acceptance tool for `StereoRig`, `StereoSurface` and `OffAxisProjection` on
 real hardware: two eyes side by side, a checkerboard floor and pillars at
 several distances, and a head that moves when the device does.
 
-Not a demo of VR — a phone has no compositor, no predicted pose and no seventy
-two hertz. It has the other half, and that is what this checks.
+This is not a VR demo. A phone has no compositor, no predicted pose and no
+seventy two hertz. What it does have is the other half, and that half is what
+this example checks.

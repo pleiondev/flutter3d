@@ -1,18 +1,18 @@
 # flutter3d_net
 
 Rollback netcode over [flutter3d_sim](https://pub.dev/packages/flutter3d_sim),
-part of [flutter3d](https://flutter3d.pleion.dev): input frames exchanged
-per step, prediction by the last frame that arrived, a rollback when a
-confirmation disagreed, and a dropped-correction count a game can show
-without asking what a rollback is.
+part of [flutter3d](https://flutter3d.pleion.dev). Peers exchange input frames
+every step, predict with the last frame that arrived, and roll back when a
+confirmation disagrees. The session also keeps a count of dropped corrections
+that a game can show without having to explain what a rollback is.
 
-**Plain Dart.** `NetSession` reads a caller's input through two callbacks
-and never names a genre, a widget or a socket. `NetTransport` is the one
-door to a real network; `LoopbackTransport` stands in for it with a real
-fixed delay and a real, seeded loss rate, which is what the test suite
-drives two sessions through rather than a mock that cannot lie about
-timing. A real transport — a relay over WebSocket, or WebRTC through
-[flutter3d_net_webrtc](https://pub.dev/packages/flutter3d_net_webrtc) —
+It is plain Dart. `NetSession` reads the caller's input through two callbacks
+and never names a genre, a widget or a socket. `NetTransport` is the only way
+out to a real network. `LoopbackTransport` stands in for it with a real fixed
+delay and a real, seeded loss rate, and the test suite drives two sessions
+through it instead of through a mock that cannot lie about timing. A real
+transport, such as a relay over WebSocket or WebRTC through
+[flutter3d_net_webrtc](https://pub.dev/packages/flutter3d_net_webrtc),
 implements the same interface.
 
 ```dart
@@ -27,6 +27,6 @@ final session = NetSession(
 );
 ```
 
-`bin/relay.dart` is `net-02`'s relay: one process, rooms by a short code
-in the URL path, no accounts, its role narrowed to signalling and a
-WebSocket fallback for a network WebRTC cannot cross.
+`bin/relay.dart` is the relay from `net-02`: one process, rooms identified by a
+short code in the URL path, and no accounts. Its role is limited to signalling
+and a WebSocket fallback for networks WebRTC cannot cross.

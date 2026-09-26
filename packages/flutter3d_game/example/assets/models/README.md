@@ -1,15 +1,14 @@
 # Empty on purpose
 
-This application is the template **without** the models. A project scaffolded
-from a template in `apps/flutter3d_editor/assets/templates` gets its models
-copied in here; the seed itself ships none, which is what its own level test
-says when it skips.
+This application is the template without the models. A project scaffolded from
+a template in `apps/flutter3d_editor/assets/templates` gets its models copied in
+here. The seed itself ships none, and its own level test says so when it skips.
 
 The directory still has to exist. `pubspec.yaml` declares `assets/models/`, and
 Flutter refuses to analyse a package that names an asset directory which is not
-there — with `unable to find directory entry in pubspec.yaml`, at a point where
-nothing says the cause is an empty folder. Git does not track directories, only
-files, so on a fresh checkout this file is the whole reason the directory
-arrives.
+there. The error is `unable to find directory entry in pubspec.yaml`, and
+nothing at that point says the cause is an empty folder. Git tracks files, not
+directories, so on a fresh checkout this file is the only reason the directory
+exists.
 
-Deleting it turns every clean clone red.
+Deleting it makes every clean clone fail.
