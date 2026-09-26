@@ -120,6 +120,7 @@ final class F3dWriter {
     final imageTable = _writeImages();
     final nodeTable = _writeNodes();
     final (lodTable, lodCount) = _writeLods();
+    final lodErrorTable = _writeLodErrors();
     final (impostorTable, impostorCount) = _writeImpostors();
     final rootTable = _writeRoots();
     final (animationTable, trackTable, animationCount, trackCount) =
@@ -137,8 +138,7 @@ final class F3dWriter {
       (F3dSection.morphTargets, morphTable, morphCount),
       (F3dSection.morphWeights, weightTable, weightCount),
       // Only when a mesh was split, so every other file is the bytes it was.
-      if (clusterCount > 0)
-        (F3dSection.clusters, clusterTable, clusterCount),
+      if (clusterCount > 0) (F3dSection.clusters, clusterTable, clusterCount),
       (F3dSection.surfaces, surfaceTable, document.surfaces.length),
       (
         F3dSection.surfaceAttributes,
@@ -153,6 +153,8 @@ final class F3dWriter {
       (F3dSection.images, imageTable, document.images.length),
       (F3dSection.nodes, nodeTable, document.nodes.length),
       (F3dSection.lods, lodTable, lodCount),
+      if (lodErrorTable != null)
+        (F3dSection.lodErrors, lodErrorTable, lodCount),
       // Only when there is one, so a file with no impostor is byte for byte
       // the file this writer produced before the section existed.
       if (impostorCount > 0)

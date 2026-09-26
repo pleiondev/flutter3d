@@ -117,6 +117,17 @@ extension _F3dScene on F3dDocument {
   Map<int, List<ModelLod>> _readLods() {
     final table = _table(F3dSection.lods, F3dRecord.lod);
     final grouped = <int, List<ModelLod>>{};
+    // One per lod record when present; absent, or shorter than the table,
+    // reads as a level nobody measured, and a negative value says so too.
+    final errors = _table(F3dSection.lodErrors, F3dRecord.lodError);
+    double? errorOf(int record) {
+      if (record >= errors.count) return null;
+      final error = _view.getFloat32(
+        errors.offset + record * F3dRecord.lodError,
+        Endian.little,
+      );
+      return error < 0.0 ? null : error;
+    }
 
     for (var i = 0; i < table.count; i++) {
       final o = table.offset + i * F3dRecord.lod;
@@ -131,6 +142,7 @@ extension _F3dScene on F3dDocument {
         ModelLod(
           surfaceIndices: surfaceIndices,
           maxScreenFraction: maxScreenFraction,
+          error: errorOf(i),
         ),
       );
     }

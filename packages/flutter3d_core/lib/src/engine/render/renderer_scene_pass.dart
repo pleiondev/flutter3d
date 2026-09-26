@@ -238,7 +238,9 @@ extension _ScenePasses on Renderer {
       // and the whole thing was decoration.
       developer.Timeline.startSync('LodGroup.select');
       for (final group in scene.lodGroups) {
-        group.select(camera);
+        // The view's own height in pixels, so a measured level is switched
+        // by how many of them it would be wrong by.
+        group.select(camera, viewportHeight: viewRect.height.toDouble());
       }
       developer.Timeline.finishSync();
       final frustum = vm.Frustum.matrix(viewProjection);
