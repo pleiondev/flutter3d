@@ -8,25 +8,17 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: twenty-seven packages, published by
-[pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
-[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. What is there
-is the **0.6.0** set, twenty-five packages at one number, so a pubspec that names
-them all names one tree —
-[`pad_input`](https://pub.dev/packages/pad_input) and
+On pub.dev: thirty-eight packages, published by
+[pleion.dev](https://pub.dev/publishers/pleion.dev/packages). Start with
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. Thirty-six of
+them are the **0.8.0** set, one number for all, so any `^0.8.0` resolves against
+every other; [`pad_input`](https://pub.dev/packages/pad_input) and
 [`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
-at 0.4.1, and [`flutter3d_samples`](https://pub.dev/packages/flutter3d_samples)
-keeps its at 0.4.2.
-
-This tree is **0.7.0**, prepared and not published yet. The workspace holds
-thirty-seven packages, thirty-four of them at the one number. Fourteen go out for
-the first time, `flutter3d_core` and the modeller's among them, and four names
-pub.dev has are folded into `flutter3d_app` and `flutter3d_game`, so an importer
-of 0.6.0 changes import lines:
-[`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) lists which. It goes out after
-the modeller's tutorial has been walked by people other than its author. Until
-then, build it from this repository — see [Running](#running),
-[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+at 0.4.2, since neither names a sibling. Coming from 0.6.0, several packages were
+folded into others, and [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) lists
+which import lines move. To work on the engine itself, see
+[Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
+[SECURITY.md](SECURITY.md).
 
 Documentation: <https://flutter3d.pleion.dev> — guides, tutorials for three of
 the four genres, and the generated API reference. The model editor runs in a

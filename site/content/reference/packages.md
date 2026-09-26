@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Thirty-eight packages and twelve applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package is on pub.dev. Thirty-five of them carry 0.7.0, and any `^0.7.0` on one of them resolves against every other. `pad_input` and `pointer_lock` keep a line of their own at 0.4.1 and `flutter3d_samples` its own at 0.4.3, since none of the three names a sibling. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
+Thirty-eight packages and twelve applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package is on pub.dev. Thirty-six of them carry 0.8.0, and any `^0.8.0` on one of them resolves against every other. `pad_input` and `pointer_lock` keep a line of their own at 0.4.2, since neither names a sibling. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
 
 ## Engine
 
@@ -53,7 +53,7 @@ It is the first backend whose shaders are not the same text the others read, and
 
 **What it declines, by name rather than by silence:** the blend constant, because WebGPU has `"constant"` and `"one-minus-constant"` and no colour/alpha split for `BlendFactor.blendAlpha`; and wireframe, because the API has no polygon fill mode. Those two are how the conformance suite comes back 41 of 41 with two honest refusals in it. Block compression left that list when the device started asking the adapter which of `texture-compression-bc`, `-etc2` and `-astc` it carries and requesting exactly those, because asking for one it lacks rejects the device outright, which is why the intersection is taken and why the capability answers from what was *granted*. Three formats stay refused whatever the adapter: `a8UNormInt` and the two HDR ASTC layouts have no WebGPU spelling at all.
 
-**Status:** it draws, and its conformance run is an ordinary test file, because Chrome has a real WebGPU device inside `flutter test`, the one thing this backend gets that Impeller cannot. It is on pub.dev with the rest of 0.7.0, and it is not what a browser build opens by default: `--dart-define=FLUTTER3D_WEBGPU=true` is the ask. It is off because a build that can try both backends ships both, which measured 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%.
+**Status:** it draws, and its conformance run is an ordinary test file, because Chrome has a real WebGPU device inside `flutter test`, the one thing this backend gets that Impeller cannot. It is on pub.dev with the rest of 0.8.0, and it is not what a browser build opens by default: `--dart-define=FLUTTER3D_WEBGPU=true` is the ask. It is off because a build that can try both backends ships both, which measured 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%.
 
 ### `flutter3d_cpu`: software
 A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG output and Dart transcriptions of the shaders.
