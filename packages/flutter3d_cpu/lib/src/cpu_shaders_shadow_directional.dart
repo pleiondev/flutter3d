@@ -100,7 +100,9 @@ double shadowFactor(
         tileTexel *
         (s.normal.dot(axisX).abs() / (rowX * rowX) +
             s.normal.dot(axisY).abs() / (rowY * rowY));
-    final origin = s.world + s.normal * (params.z + reach);
+    // The flat part held to a texel of this cascade, as the GLSL explains.
+    final flatOffset = math.min(params.z, texelMetres);
+    final origin = s.world + s.normal * (flatOffset + reach);
     final Vector4 lightSpace =
         matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
     if (lightSpace.w <= 0.0) continue;

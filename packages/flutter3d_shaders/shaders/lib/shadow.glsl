@@ -112,7 +112,15 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float reach = 1.5 * 2.0 * frag_info.shadow_cascades.w *
         (abs(dot(s.n, axisX)) / (rowX * rowX) +
          abs(dot(s.n, axisY)) / (rowY * rowY));
-    vec3 origin = v_world_position + s.n * (frag_info.shadow_params.z + reach);
+    // **The flat part is held to a texel of this cascade.** It is there for
+    // sampling error, which is smaller than a texel; past that it no longer
+    // clears the surface's own depth, it only walks the lookup sideways onto
+    // whatever lies next to it. A sheet folded over itself a centimetre or two
+    // apart was lit through the upper layer that way: at a grazing sun a step
+    // along the normal is nearly all across the map, and two centimetres in a
+    // sharp near cascade is several texels past the edge of the fold.
+    float flatOffset = min(frag_info.shadow_params.z, texelMetres);
+    vec3 origin = v_world_position + s.n * (flatOffset + reach);
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;

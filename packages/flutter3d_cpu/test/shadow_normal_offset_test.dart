@@ -41,8 +41,14 @@ BoundTexture _map(double Function(double x, double y) depth) {
   return BoundTexture(texture, SamplerOptions.nearestClamp);
 }
 
-/// The light that survives at [world] with [normal], against [map].
-double _shadowAt(BoundTexture map, Vector3 world, Vector3 normal) {
+/// The light that survives at [world] with [normal], against [map], with a
+/// flat offset of [flat] metres on top of the kernel's.
+double _shadowAt(
+  BoundTexture map,
+  Vector3 world,
+  Vector3 normal, {
+  double flat = 0.0,
+}) {
   final surface = Surface(
     Vector3.all(1.0),
     1.0,
@@ -58,11 +64,11 @@ double _shadowAt(BoundTexture map, Vector3 world, Vector3 normal) {
   final bindings = ShaderBindings(
     <String, Map<String, Float32List>>{
       'FragInfo': <String, Float32List>{
-        // One texel across, a small bias, no flat offset, full strength.
+        // One texel across, a small bias, the flat offset, full strength.
         'shadow_params': Float32List.fromList(<double>[
           1.0 / _tile,
           1e-4,
-          0.0,
+          flat,
           1.0,
         ]),
         'frame_params': Float32List(4),
@@ -150,6 +156,22 @@ void main() {
       final x = k * 0.173 * _texel;
       final world = Vector3(x, 0.0, slope.depth(x, 0.0));
       expect(_shadowAt(slope.map, world, slope.normal), 0.0);
+    }
+  });
+
+  test('a flat offset of many texels is held to one', () {
+    // A sheet folded over itself under a low sun: ten texels of depth
+    // between the layers along the light, sixty degrees off. The kernel's
+    // part and a texel of flat offset clear the lower layer by 2.6 + 2
+    // texels along the ray and the taps downhill reach 2.6 more, all under
+    // the upper one. Mutation: take the flat offset whole, and nearly ten
+    // texels along the normal is nineteen along the ray, out past the upper
+    // layer, and the lower one is lit through it.
+    final sheet = _plane(60.0 * math.pi / 180.0, 0.0, lift: 10.0 * _texel);
+    for (var k = 0; k < 10; k++) {
+      final x = k * 0.173 * _texel;
+      final world = Vector3(x, 0.0, sheet.depth(x, 0.0));
+      expect(_shadowAt(sheet.map, world, sheet.normal, flat: 0.3), 0.0);
     }
   });
 }
