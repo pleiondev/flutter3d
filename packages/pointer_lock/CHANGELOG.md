@@ -1,3 +1,9 @@
+## 0.4.2
+
+* **The package ships a skill** under `skills/` for an agent that has to
+  capture the mouse through it, and the README says where it is. The method
+  channel, the web backend and the platform interface are 0.4.1's.
+
 ## 0.4.1
 
 * **The page pub.dev serves stops pointing at a directory nobody visiting it

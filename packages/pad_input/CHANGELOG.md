@@ -1,3 +1,14 @@
+## 0.4.2
+
+* **An iOS build no longer fails on the buttons the plugin reads.** The Swift
+  package declared iOS 12.0 and macOS 10.14 as its floor, and Swift Package
+  Manager compiles the target against that floor, so the stick clicks (12.1),
+  menu and options (13.0) and the home button (14.0) in `GamepadPlugin.swift`
+  failed the build. The floor is now iOS 14.0 and macOS 11.0, what the sources
+  have always needed.
+* **The package ships a skill** under `skills/` for an agent that has to read a
+  gamepad through it, and the README says where it is.
+
 ## 0.4.1
 
 * **The page pub.dev serves stops pointing at a directory nobody visiting it

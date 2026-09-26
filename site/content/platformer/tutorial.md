@@ -23,13 +23,13 @@ dependencies:
   flutter: { sdk: flutter }
 
   # The backend; why it is the one named line is covered in the quickstart.
-  flutter3d_impeller:  ^0.7.1
-  flutter3d:           ^0.7.1
-  flutter3d_game:      ^0.7.1
-  flutter3d_game_platformer: ^0.7.1
-  flutter3d_app:       ^0.7.1
-  flutter3d_audio:     ^0.7.1
-  flutter3d_particles: ^0.7.1
+  flutter3d_impeller:  ^0.8.0
+  flutter3d:           ^0.8.0
+  flutter3d_game:      ^0.8.0
+  flutter3d_game_platformer: ^0.8.0
+  flutter3d_app:       ^0.8.0
+  flutter3d_audio:     ^0.8.0
+  flutter3d_particles: ^0.8.0
   vector_math: ^2.2.0
 ```
 
