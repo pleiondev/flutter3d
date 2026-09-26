@@ -88,18 +88,17 @@ final class VelocityNeighborMaxShader implements CpuFragmentShader {
   }
 }
 
-/// `motion_blur.frag`: the reconstruction gather along each neighbourhood's
-/// dominant motion.
+/// `motion_blur.frag`: the gather along each neighbourhood's dominant
+/// motion, composited as the time each sample covers the pixel.
 final class MotionBlurShader implements CpuFragmentShader {
   const MotionBlurShader();
 
   static double _far(double depth) => depth <= 0.0 ? 1e9 : depth;
 
-  static double _cone(double gap, double span) =>
-      (1.0 - gap / span).clamp(0.0, 1.0);
+  static Vector3 _mix(Vector3 a, Vector3 b, double t) => a * (1.0 - t) + b * t;
 
-  static double _cylinder(double gap, double span) =>
-      1.0 - smoothstep(0.95 * span, 1.05 * span, gap);
+  static double _reaches(double gap, double span) =>
+      1.0 - smoothstep(span - 0.5, span + 0.5, gap);
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -124,9 +123,9 @@ final class MotionBlurShader implements CpuFragmentShader {
       ((hereX / tileWidth).floorToDouble() + 0.5) / tiles.x,
       ((hereY / tileWidth).floorToDouble() + 0.5) / tiles.y,
     );
+    final reach = math.sqrt(dominant.x * dominant.x + dominant.y * dominant.y);
     final samples = (params.w + 0.5).floor();
-    if (math.sqrt(dominant.x * dominant.x + dominant.y * dominant.y) <= 0.5 ||
-        samples < 1) {
+    if (reach <= 0.5 || samples < 1) {
       return centre;
     }
 
@@ -141,11 +140,15 @@ final class MotionBlurShader implements CpuFragmentShader {
     final ownSpan = spanAt(v[0], v[1]);
     final ownDepth = _far(surface.sample(v[0], v[1]).w);
     final extent = math.max(tiles.w, 1e-4);
+    final stride = 2.0 * reach / (samples + 1);
 
-    var weight = 1.0 / ownSpan;
-    var totalX = centre.x * weight;
-    var totalY = centre.y * weight;
-    var totalZ = centre.z * weight;
+    final ownShare = math.min(math.max(stride, 1.0) / (2.0 * ownSpan), 1.0);
+    final front = Vector3.zero();
+    var frontCover = 0.0;
+    final level = Vector3(centre.x, centre.y, centre.z) * ownShare;
+    var levelCover = ownShare;
+    final back = Vector3.zero();
+    var backWeight = 0.0;
 
     final jitter = pixelNoise(b, c.coord.x, c.coord.y) - 0.5;
     final middle = (samples - 1) ~/ 2;
@@ -161,22 +164,29 @@ final class MotionBlurShader implements CpuFragmentShader {
             (thereY - hereY) * (thereY - hereY),
       );
 
-      final tap = scene.sample(atU, atW);
+      final tapColor = scene.sample(atU, atW);
+      final tap = Vector3(tapColor.x, tapColor.y, tapColor.z);
       final tapSpan = spanAt(atU, atW);
       final tapDepth = _far(surface.sample(atU, atW).w);
 
-      final front = (1.0 - (tapDepth - ownDepth) / extent).clamp(0.0, 1.0);
-      final back = (1.0 - (ownDepth - tapDepth) / extent).clamp(0.0, 1.0);
-      final reach =
-          front * _cone(gap, tapSpan) +
-          back * _cone(gap, ownSpan) +
-          _cylinder(gap, tapSpan) * _cylinder(gap, ownSpan) * 2.0;
-      totalX += tap.x * reach;
-      totalY += tap.y * reach;
-      totalZ += tap.z * reach;
-      weight += reach;
+      final nearer = ((ownDepth - tapDepth) / extent).clamp(0.0, 1.0);
+      final behind = ((tapDepth - ownDepth) / extent).clamp(0.0, 1.0);
+      final share =
+          _reaches(gap, tapSpan) * math.min(stride / (2.0 * tapSpan), 1.0);
+      front.addScaled(tap, nearer * share);
+      frontCover += nearer * share;
+      level.addScaled(tap, (1.0 - nearer - behind) * share);
+      levelCover += (1.0 - nearer - behind) * share;
+      final nearness = behind / math.max(gap * gap, 1.0);
+      back.addScaled(tap, nearness);
+      backWeight += nearness;
     }
 
-    return Vector4(totalX / weight, totalY / weight, totalZ / weight, centre.w);
+    final own = level / levelCover;
+    final behindColor = backWeight > 0.0 ? back / backWeight : own;
+    final under = _mix(behindColor, own, math.min(levelCover, 1.0));
+    final over = frontCover > 0.0 ? front / frontCover : under;
+    final blurred = _mix(under, over, math.min(frontCover, 1.0));
+    return Vector4(blurred.x, blurred.y, blurred.z, centre.w);
   }
 }
