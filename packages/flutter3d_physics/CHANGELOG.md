@@ -1,3 +1,14 @@
+## 0.8.1
+
+* **A sheet resists shear.** `ClothMesh.grid` built edges along rows and
+  columns and nothing across a quad, so every quad could fold flat into a
+  rhombus. A square sheet dropped on a ball stretched its corners into strands
+  that reached the floor, and what lay on the floor spread into a blot with no
+  straight edge. The grid now carries both diagonals of every quad as
+  `ClothMesh.shearPairs`, solved with `ClothSettings.shearCompliance` (5e-2 by
+  default, soft enough that the sheet still follows a sphere). A `ClothMesh`
+  built by hand without them shears as it did.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

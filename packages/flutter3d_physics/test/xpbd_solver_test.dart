@@ -381,6 +381,50 @@ void main() {
       expect(mean, greaterThan(0.0));
     });
   });
+  group('0.8.1: a sheet resists shear', () {
+    // A square too small to reach the floor over the ball: half its diagonal
+    // is 1.24 m, the way from the top of the ball to the floor 1.41. Its
+    // corners have to hang in the air. Without shear constraints every quad
+    // folded into a rhombus, the corners stretched into strands that lay on
+    // the floor, and the hem spread into a blot with no straight edge.
+    test('a square too small to reach the floor hangs its corners over it', () {
+      const cols = 33;
+      const spacing = 0.055;
+      const radius = 0.55;
+      final mesh = ClothMesh.grid(
+        cols: cols,
+        rows: cols,
+        spacing: spacing,
+        height: 2 * radius + 0.3,
+      );
+      const half = (cols - 1) * spacing / 2;
+      for (var i = 0; i < mesh.particleCount; i++) {
+        mesh.positions[3 * i] -= half;
+        mesh.positions[3 * i + 2] -= half;
+        mesh.invMass[i] = 1 / 0.0004;
+      }
+      final obstacles = [
+        ClothObstacle(CollisionSphere(radius), Vector3(0.0, radius, 0.0)),
+        ClothObstacle(CollisionBox(Vector3(10, 0.5, 10)), Vector3(0, -0.5, 0)),
+      ];
+      const settings = ClothSettings(substeps: 12, iterations: 4);
+      for (var step = 0; step < 600; step++) {
+        stepCloth(mesh, settings, 1 / 120, obstacles: obstacles);
+      }
+      for (final corner in <int>[
+        0,
+        cols - 1,
+        cols * (cols - 1),
+        cols * cols - 1,
+      ]) {
+        expect(
+          mesh.positions[3 * corner + 1],
+          greaterThan(0.05),
+          reason: 'corner $corner reached the floor',
+        );
+      }
+    });
+  });
 }
 
 /// A plain copy of a mesh's own arrays, for a before/after comparison a

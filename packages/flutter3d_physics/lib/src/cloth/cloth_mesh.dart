@@ -19,7 +19,11 @@ final class ClothMesh {
     required this.bendPairs,
     required this.bendRestLength,
     required this.triangles,
-  }) : particleCount = cols * rows;
+    Int32List? shearPairs,
+    Float64List? shearRestLength,
+  }) : particleCount = cols * rows,
+       shearPairs = shearPairs ?? Int32List(0),
+       shearRestLength = shearRestLength ?? Float64List(0);
 
   final int cols;
   final int rows;
@@ -49,6 +53,18 @@ final class ClothMesh {
   /// its own, softer compliance.
   final Int32List bendPairs;
   final Float64List bendRestLength;
+
+  /// Shear constraints: both diagonals of every grid quad, solved with their
+  /// own compliance.
+  ///
+  /// **Without them a sheet has no resistance to shear at all.** The edges
+  /// along rows and columns hold their lengths while each quad folds flat
+  /// into a rhombus, so a square sheet dropped on a ball stretched its
+  /// corners into strands that reached the floor, and what lay on the floor
+  /// spread into a blot with no straight edge left. Empty for a mesh built
+  /// without them, which then shears as before.
+  final Int32List shearPairs;
+  final Float64List shearRestLength;
 
   /// Three particle indices per triangle, for wind's own drag-along-normal
   /// force. Two triangles per grid quad.
@@ -119,6 +135,23 @@ final class ClothMesh {
       }
     }
 
+    final shearPairs = <int>[];
+    final shearRestLength = <double>[];
+    for (var row = 0; row + 1 < rows; row++) {
+      for (var col = 0; col + 1 < cols; col++) {
+        final tl = row * cols + col;
+        for (final (a, b) in <(int, int)>[
+          (tl, tl + cols + 1),
+          (tl + 1, tl + cols),
+        ]) {
+          shearPairs
+            ..add(a)
+            ..add(b);
+          shearRestLength.add(_distance(positions, a, b));
+        }
+      }
+    }
+
     // Cross-edge bending: skip-one neighbours along each row and column,
     // which is exactly the pair of corners a quad's own two triangles do
     // not share when the quad next to it is folded along their common
@@ -152,6 +185,8 @@ final class ClothMesh {
       bendPairs: Int32List.fromList(bendPairs),
       bendRestLength: Float64List.fromList(bendRestLength),
       triangles: Int32List.fromList(triangles),
+      shearPairs: Int32List.fromList(shearPairs),
+      shearRestLength: Float64List.fromList(shearRestLength),
     );
   }
 

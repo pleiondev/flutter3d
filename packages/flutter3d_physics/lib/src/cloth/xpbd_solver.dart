@@ -9,7 +9,7 @@ import 'cloth_settings.dart';
 ///
 /// **One call, [ClothSettings.substeps] XPBD substeps inside it.** Each
 /// substep: integrate gravity, wind and damping into a predicted position;
-/// solve every structural and bending constraint once against that
+/// solve every structural, bending and shear constraint once against that
 /// prediction, each with its own Lagrange multiplier reset to zero for the
 /// substep (the "X" in XPBD — a multiplier does not carry across a substep
 /// boundary, which is what keeps a stiff constraint's own apparent
@@ -34,6 +34,7 @@ void stepCloth(
   final predicted = Float64List(3 * n);
   final structuralLambda = Float64List(mesh.structuralRestLength.length);
   final bendLambda = Float64List(mesh.bendRestLength.length);
+  final shearLambda = Float64List(mesh.shearRestLength.length);
   final push = Float64List(3);
   final friction = settings.friction;
   // Each particle's contact push, summed over the substep's iterations — the
@@ -49,6 +50,7 @@ void stepCloth(
     // Every multiplier starts the substep at zero, and so does the contact.
     structuralLambda.fillRange(0, structuralLambda.length, 0.0);
     bendLambda.fillRange(0, bendLambda.length, 0.0);
+    shearLambda.fillRange(0, shearLambda.length, 0.0);
     contact?.fillRange(0, contact.length, 0.0);
     for (var iter = 0; iter < settings.iterations; iter++) {
       _solveDistance(
@@ -67,6 +69,15 @@ void stepCloth(
         mesh.bendRestLength,
         bendLambda,
         settings.bendCompliance,
+        subDt,
+      );
+      _solveDistance(
+        predicted,
+        mesh.invMass,
+        mesh.shearPairs,
+        mesh.shearRestLength,
+        shearLambda,
+        settings.shearCompliance,
         subDt,
       );
       // **Inside the iteration loop, as XPBD and Flex solve contacts, not

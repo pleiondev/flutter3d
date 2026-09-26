@@ -13,6 +13,7 @@ final class ClothSettings {
     this.iterations = 2,
     this.distanceCompliance = 0.0,
     this.bendCompliance = 1e-3,
+    this.shearCompliance = 5e-2,
     this.damping = 0.02,
     this.wind = const WindSettings(),
     this.collisionThickness = 0.01,
@@ -52,6 +53,16 @@ final class ClothSettings {
   /// than the structural ones, since cloth that resists folding as hard as
   /// it resists stretching reads as cardboard, not fabric.
   final double bendCompliance;
+
+  /// Compliance of the shear constraints, the diagonals of each quad.
+  ///
+  /// **Soft, and not zero.** Woven cloth follows a ball by shearing its
+  /// threads, so a stiff shear stood a sheet off the top of the ball in a
+  /// tent and set it shaking; none let every quad fold into a rhombus.
+  /// Measured on a 1.8 m square over a 0.55 m ball, 5e-2 keeps the corners
+  /// 8 to 24 cm above the floor they cannot reach, and still lets the sheet
+  /// lie on the sphere. See `ClothMesh.shearPairs`.
+  final double shearCompliance;
 
   /// Fraction of velocity removed every **substep**, applied to the old
   /// velocity before gravity adds the substep's own. Zero is undamped; this
