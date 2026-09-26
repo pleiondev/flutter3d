@@ -65,6 +65,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'ContactShadowInfo', 'FragCoordInfo', 'NoiseInfo'},
     samplers: <String>{'blue_noise_texture', 'surface_texture'},
   ),
+  'ContactShadowResolve': (
+    blocks: <String>{'ContactShadowResolveInfo'},
+    samplers: <String>{'contact_shadow_texture', 'surface_texture'},
+  ),
   'DebugLine': (blocks: <String>{}, samplers: <String>{}),
   'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
   'DepthOfField': (

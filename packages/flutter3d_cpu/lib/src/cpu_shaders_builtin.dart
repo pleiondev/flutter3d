@@ -193,6 +193,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
     'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
+    'ContactShadowResolve': const CpuStage.fragment(
+      ContactShadowResolveShader(),
+    ),
     'CameraVelocity': const CpuStage.fragment(CameraVelocityShader()),
     'Velocity': const CpuStage.fragment(VelocityShader()),
     'Reactive': const CpuStage.fragment(ReactiveShader()),

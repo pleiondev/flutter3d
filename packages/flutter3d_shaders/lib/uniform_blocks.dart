@@ -241,6 +241,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'ContactShadowResolve': <String, Map<String, UniformMemberLayout>>{
+    'ContactShadowResolveInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'DebugLineVertex': <String, Map<String, UniformMemberLayout>>{
     'LineInfo': <String, UniformMemberLayout>{
       'view_projection': (

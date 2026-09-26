@@ -406,7 +406,7 @@ point shadows (static) → point shadows → directional shadows → shadow mome
 reflection probe 0 … n → irradiance update
 scene → scene colour copy → transparent → object ids
 (overlay nodes) → reflections → luminance → depth pyramid
-ssao → ssao blur → contact shadows
+ssao → ssao blur → contact shadows → contact shadow resolve
 camera velocity → object velocity → reactive mask
   → ssao history → contact shadow history
 volumetric fog → light shafts → depth of field → motion blur
@@ -985,6 +985,11 @@ histories of their own through `TemporalAccumulate`, the *ssao history* and
 this frame's neighbourhood with nine tenths kept. Their rotation, and the march
 offsets of reflections and light shafts, come from one slice of 32 of the
 engine's blue noise a frame ([§4.11](#411-budgets-tables-and-device-classes)).
+Without the resolve the contact shadow's march is offset by a fixed 4 × 4
+Bayer pattern and nothing averages it across frames, so the *contact shadow
+resolve* node averages it within the frame instead: a 4 × 4 window, one tap of
+each phase, weighted by depth closeness to the centre so it stops at a
+silhouette. It is culled whenever the resolve runs.
 What writes no velocity of its own (particles, splats, blended meshes) would be
 reprojected from the wall behind it and show at a fraction of its brightness,
 so with `TemporalSettings.reactive` above nought the *reactive mask* node marks

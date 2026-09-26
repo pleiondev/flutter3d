@@ -1878,6 +1878,67 @@ final class _SsaoBlurNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// The contact shadow averaged over its own dither, for a frame no temporal
+/// resolve smooths.
+///
+/// **Why only then.** Without the resolve the march is jittered by a fixed
+/// 4 x 4 pattern and every pixel keeps the hard answer its own offset found,
+/// so a shadow edge carries the pattern as a comb. With the resolve on, the
+/// march reads blue noise and `_AccumulateNode` averages it over frames; a
+/// spatial pass on top would only blur what the history already smooths.
+///
+/// A read-modify-write link like [_SsaoBlurNode], and for its reason: it
+/// produces the next version of `contactShadow`, so the composite and the fog
+/// bind whichever version is last without knowing whether this ran.
+final class _ContactShadowResolveNode extends RenderNode
+    with _NeedsSurfaceBuffer {
+  _ContactShadowResolveNode(this._renderer, this._settings, this._toLight);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  /// The same light [_ContactShadowNode] marches toward: without one the
+  /// march does not run and there is nothing here to resolve.
+  final vm.Vector3? _toLight;
+
+  @override
+  String get name => 'contact shadow resolve';
+
+  @override
+  bool get isActive =>
+      !_renderer._temporalEffects &&
+      _settings.contactShadows.enabled &&
+      _settings.contactShadows.strength > 0.0 &&
+      _settings.contactShadows.length > 0.0 &&
+      _settings.contactShadows.steps > 0 &&
+      _toLight != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.contactShadow,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.contactShadow,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeContactShadowResolve(
+      source: frame.resources.texture(FrameResourceIds.contactShadow),
+      surface: surface,
+      resources: frame.resources,
+    );
+  }
+}
+
 /// The bloom pyramid, as a graph node.
 ///
 /// The first pass in the frame whose output the graph **allocates**: everything

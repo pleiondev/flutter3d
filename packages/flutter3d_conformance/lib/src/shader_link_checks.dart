@@ -122,6 +122,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'Ssao',
       'SsaoBlur',
       'ContactShadow',
+      // The contact shadow's dither averaged away when no temporal resolve
+      // runs.
+      'ContactShadowResolve',
       // `R1`: the reconstruction the temporal resolve reprojects through.
       'CameraVelocity',
       // `R2`: four samplers and the history it keeps.

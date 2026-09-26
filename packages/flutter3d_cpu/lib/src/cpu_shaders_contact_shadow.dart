@@ -114,3 +114,47 @@ final class ContactShadowShader implements CpuFragmentShader {
     return Vector4(1.0, 1.0, 1.0, 1.0);
   }
 }
+
+/// `contact_shadow_resolve.frag`: the march above averaged over one window of
+/// the Bayer pattern, depth-aware, for a frame no temporal resolve smooths.
+///
+/// Mirrors the GLSL operation for operation, as [ContactShadowShader] does:
+/// the comb this pass removes is exactly the kind of thing a backend
+/// disagreement would hide behind.
+final class ContactShadowResolveShader implements CpuFragmentShader {
+  const ContactShadowResolveShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final contact = b.textures['contact_shadow_texture'];
+    if (contact == null) return Vector4(1.0, 1.0, 1.0, 1.0);
+    final centre = contact.sample(v[0], v[1]);
+    final surface = b.textures['surface_texture'];
+    if (surface == null) return centre;
+
+    final centreDepth = surface.sample(v[0], v[1]).w;
+    // The sky: the march wrote one here and there is no depth to weigh by.
+    if (centreDepth <= 0.0) return centre;
+
+    final params = b.vec4('ContactShadowResolveInfo', 'params', Vector4.zero());
+    final falloff = math.max(params.z, 1e-4) * math.max(centreDepth, 1e-3);
+
+    final total = Vector4.zero();
+    var weightSum = 0.0;
+    // Offsets -2..+1 on both axes: every cell of the 4 x 4 pattern once.
+    for (var y = -2; y <= 1; y++) {
+      for (var x = -2; x <= 1; x++) {
+        final u = v[0] + x * params.x;
+        final w = v[1] + y * params.y;
+        final depth = surface.sample(u, w).w;
+        if (depth <= 0.0) continue;
+        final weight = math.exp(-(depth - centreDepth).abs() / falloff);
+        total.addScaled(contact.sample(u, w), weight);
+        weightSum += weight;
+      }
+    }
+
+    // The centre is always one of the taps and always weighs one.
+    return total..scale(1.0 / math.max(weightSum, 1e-4));
+  }
+}

@@ -32974,6 +32974,151 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
         ),
       ],
     ),
+    'ContactShadowResolve': WebGpuStage(
+      wgsl: r'''
+struct ContactShadowResolveInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(1) 
+var contact_shadow_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var contact_shadow_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(3) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var surface_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(0) 
+var<uniform> resolve_info: ContactShadowResolveInfo;
+
+fn main_1() {
+    var centre: vec4<f32>;
+    var centreDepth: f32;
+    var falloff: f32;
+    var total: vec4<f32>;
+    var weightSum: f32;
+    var y: i32;
+    var x: i32;
+    var at: vec2<f32>;
+    var depth: f32;
+    var weight: f32;
+
+    let _e26 = v_uv_1;
+    let _e27 = textureSample(contact_shadow_texture_tex, contact_shadow_texture_smp, _e26);
+    centre = _e27;
+    let _e28 = v_uv_1;
+    let _e29 = textureSample(surface_texture_tex, surface_texture_smp, _e28);
+    centreDepth = _e29.w;
+    let _e31 = centreDepth;
+    if (_e31 <= 0f) {
+        let _e33 = centre;
+        frag_color = _e33;
+        return;
+    }
+    let _e36 = resolve_info.params[2u];
+    let _e38 = centreDepth;
+    falloff = (max(_e36, 0.0001f) * max(_e38, 0.001f));
+    total = vec4<f32>(0f, 0f, 0f, 0f);
+    weightSum = 0f;
+    y = -2i;
+    loop {
+        let _e41 = y;
+        if (_e41 <= 1i) {
+            x = -2i;
+            loop {
+                let _e43 = x;
+                if (_e43 <= 1i) {
+                    let _e45 = v_uv_1;
+                    let _e46 = x;
+                    let _e48 = y;
+                    let _e52 = resolve_info.params;
+                    at = (_e45 + (vec2<f32>(f32(_e46), f32(_e48)) * _e52.xy));
+                    let _e56 = at;
+                    let _e57 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e56, 0f);
+                    depth = _e57.w;
+                    let _e59 = depth;
+                    if (_e59 <= 0f) {
+                        continue;
+                    }
+                    let _e61 = depth;
+                    let _e62 = centreDepth;
+                    let _e66 = falloff;
+                    weight = exp((-(abs((_e61 - _e62))) / _e66));
+                    let _e69 = at;
+                    let _e70 = textureSampleLevel(contact_shadow_texture_tex, contact_shadow_texture_smp, _e69, 0f);
+                    let _e71 = weight;
+                    let _e73 = total;
+                    total = (_e73 + (_e70 * _e71));
+                    let _e75 = weight;
+                    let _e76 = weightSum;
+                    weightSum = (_e76 + _e75);
+                    continue;
+                } else {
+                    break;
+                }
+                continuing {
+                    let _e78 = x;
+                    x = (_e78 + 1i);
+                }
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e80 = y;
+            y = (_e80 + 1i);
+        }
+    }
+    let _e82 = total;
+    let _e83 = weightSum;
+    frag_color = (_e82 / vec4(max(_e83, 0.0001f)));
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'ContactShadowResolveInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'contact_shadow_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'CameraVelocity': WebGpuStage(
       wgsl: r'''
 struct CameraVelocityInfo {
