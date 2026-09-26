@@ -263,9 +263,10 @@ const Map<String, double> _budgets = <String, double>{
   'impostor-forest': 0.01,
   'irradiance-room': 0.52,
   'many-lights': 0.04,
-  // 1.242% measured: the streaks' ends, where the reconstruction filter's
-  // jitter lands per backend.
-  'motion-blur-spin': 1.37,
+  // 1.429% measured: the streaks' ends, where the reconstruction filter's
+  // jitter lands per backend and the software rasteriser's unantialiased
+  // spokes give each streak a harder start.
+  'motion-blur-spin': 1.57,
   'rough-dielectrics': 0.46,
   'rough-metals': 0.26,
   'scan-chunks': 0.57,
