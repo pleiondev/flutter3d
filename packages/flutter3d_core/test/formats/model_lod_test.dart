@@ -105,4 +105,113 @@ void main() {
 
     expect(reread.nodes.single.lods, isEmpty);
   });
+
+  group('a level\'s measured error', () {
+    /// The section kinds a file's directory lists.
+    List<int> sectionKinds(Uint8List bytes) {
+      final view = ByteData.sublistView(bytes);
+      final count = view.getUint32(8, Endian.little);
+      return <int>[
+        for (var i = 0; i < count; i++)
+          view.getUint32(
+            kF3dHeaderBytes + i * kF3dSectionEntryBytes,
+            Endian.little,
+          ),
+      ];
+    }
+
+    test('survives a round trip across nodes, a missing one staying '
+        'missing', () {
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[for (var i = 0; i < 5; i++) _surface()],
+        nodes: <ModelNode>[
+          ModelNode(
+            surfaces: <int>[0],
+            lods: <ModelLod>[
+              const ModelLod(
+                surfaceIndices: <int>[1],
+                maxScreenFraction: 0.5,
+                error: 0.0125,
+              ),
+              const ModelLod(surfaceIndices: <int>[2], maxScreenFraction: 0.1),
+            ],
+          ),
+          ModelNode(
+            surfaces: <int>[3],
+            lods: <ModelLod>[
+              const ModelLod(
+                surfaceIndices: <int>[4],
+                maxScreenFraction: 0.3,
+                error: 0.0,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final bytes = F3dWriter(document).write();
+      expect(sectionKinds(bytes), contains(F3dSection.lodErrors));
+      final reread = F3dDocument.parse(bytes);
+
+      expect(reread.nodes[0].lods[0].error, closeTo(0.0125, 1e-7));
+      expect(reread.nodes[0].lods[1].error, isNull);
+      // Zero is a measurement — a level that did not move — not an absence.
+      expect(reread.nodes[1].lods.single.error, 0.0);
+    });
+
+    test('a file with no measured level has no section for it, and reads '
+        'every level as unmeasured — the file every earlier writer made', () {
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[_surface(), _surface()],
+        nodes: <ModelNode>[
+          ModelNode(
+            surfaces: <int>[0],
+            lods: <ModelLod>[
+              const ModelLod(surfaceIndices: <int>[1], maxScreenFraction: 0.5),
+            ],
+          ),
+        ],
+      );
+
+      final bytes = F3dWriter(document).write();
+      expect(sectionKinds(bytes), isNot(contains(F3dSection.lodErrors)));
+      final lod = F3dDocument.parse(bytes).nodes.single.lods.single;
+      expect(lod.error, isNull);
+      expect(lod.maxScreenFraction, 0.5);
+    });
+
+    test('a reader that does not know the section still reads the levels', () {
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[_surface(), _surface()],
+        nodes: <ModelNode>[
+          ModelNode(
+            surfaces: <int>[0],
+            lods: <ModelLod>[
+              const ModelLod(
+                surfaceIndices: <int>[1],
+                maxScreenFraction: 0.5,
+                error: 0.25,
+              ),
+            ],
+          ),
+        ],
+      );
+      final bytes = F3dWriter(document).write();
+      // Renumber the section to a kind nobody knows, which is what it looks
+      // like to a build from before it existed.
+      final view = ByteData.sublistView(bytes);
+      final kinds = sectionKinds(bytes);
+      view.setUint32(
+        kF3dHeaderBytes +
+            kinds.indexOf(F3dSection.lodErrors) * kF3dSectionEntryBytes,
+        0xFFFF,
+        Endian.little,
+      );
+
+      final lod = F3dDocument.parse(bytes).nodes.single.lods.single;
+      expect(lod.surfaceIndices, <int>[1]);
+      expect(lod.maxScreenFraction, 0.5);
+      expect(lod.error, isNull);
+    });
+  });
 }

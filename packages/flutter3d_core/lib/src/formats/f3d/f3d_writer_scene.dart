@@ -181,6 +181,22 @@ extension _F3dWriteScene on F3dWriter {
     return (records.toBytes(), count);
   }
 
+  /// One `f32` per record [_writeLods] writes, in its order: the level's
+  /// `ModelLod.error`, or −1 where it has none. Null when no level has one,
+  /// so a file without measured levels is the bytes it was before the
+  /// section existed.
+  Uint8List? _writeLodErrors() {
+    final errors = <double?>[
+      for (final node in document.nodes)
+        for (final lod in node.lods)
+          if (lod.impostor == null) lod.error,
+    ];
+    if (errors.every((error) => error == null)) return null;
+    return Float32List.fromList(<double>[
+      for (final error in errors) error ?? -1.0,
+    ]).buffer.asUint8List();
+  }
+
   /// One record per impostor level — `C4`. Kept out of [_writeLods] so a
   /// reader that predates it finds an ordinary chain of surface levels rather
   /// than a level naming no surfaces at all.

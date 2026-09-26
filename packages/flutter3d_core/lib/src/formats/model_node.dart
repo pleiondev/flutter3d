@@ -113,6 +113,7 @@ final class ModelLod {
     required this.surfaceIndices,
     required this.maxScreenFraction,
     this.impostor,
+    this.error,
   });
 
   /// The last level a node can fall to — `C4`: a card showing [impostor]'s
@@ -124,7 +125,8 @@ final class ModelLod {
   const ModelLod.impostor({
     required ModelImpostor this.impostor,
     required this.maxScreenFraction,
-  }) : surfaceIndices = const <int>[];
+  }) : surfaceIndices = const <int>[],
+       error = null;
 
   /// Indices into `ModelDocument.surfaces`, replacing the node's own
   /// [ModelNode.surfaces] when this level is the one in use. Empty for an
@@ -140,10 +142,23 @@ final class ModelLod {
   /// screen than the next level's own threshold.
   final double maxScreenFraction;
 
+  /// How far this level's surfaces stray from the node's full ones, in the
+  /// node's own units — the largest distance between the two surfaces, as
+  /// `surfaceDeviation` in `flutter3d_mesh` measures it. Null where nobody
+  /// measured: an impostor, a level made by hand, and every level of a file
+  /// written before the field existed.
+  ///
+  /// **What a viewer switches by when it has it.** Projected to the screen it
+  /// is how many pixels the level is wrong by from where the camera stands,
+  /// which is the question a level of detail answers; [maxScreenFraction] is
+  /// a rule of thumb about triangles per pixel and stays as the fallback.
+  final double? error;
+
   @override
   String toString() => impostor == null
       ? 'ModelLod(${surfaceIndices.length} surfaces, '
-            'maxScreenFraction: $maxScreenFraction)'
+            'maxScreenFraction: $maxScreenFraction'
+            '${error == null ? '' : ', error: $error'})'
       : 'ModelLod($impostor, maxScreenFraction: $maxScreenFraction)';
 }
 
