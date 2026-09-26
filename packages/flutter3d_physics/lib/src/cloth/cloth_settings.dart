@@ -18,6 +18,9 @@ final class ClothSettings {
     this.wind = const WindSettings(),
     this.collisionThickness = 0.01,
     this.friction = 0.0,
+    this.selfCollision = true,
+    this.selfCollisionThickness,
+    this.selfCollisionFriction = 0.1,
   });
 
   /// Downward acceleration, metres per second squared.
@@ -90,6 +93,49 @@ final class ClothSettings {
   /// slows the slide, and around 1 holds a sheet dropped off-centre where it
   /// landed.
   final double friction;
+
+  /// Whether the sheet keeps its own layers apart.
+  ///
+  /// **Without it a sheet passes through itself.** An 80×80 square dropped
+  /// on a ball folds a corner under itself where it meets the floor, and the
+  /// two layers interpenetrate; drawn, that is a flat grey triangle and
+  /// patches that flicker between the layers. With it every particle is a
+  /// sphere of [selfCollisionThickness] that the others are pushed out of,
+  /// except the ones already that close in the rest shape
+  /// (`ClothMesh.restPositions`).
+  ///
+  /// **On by default, because it is cheap next to the rest of the step.**
+  /// Measured on an 80×80 sheet at 12 substeps and 4 iterations: 33.6 ms a
+  /// step without it and 35.9 with it while the sheet falls onto a ball,
+  /// 37.4 and 40.6 once it lies folded on the floor, where it has pairs to
+  /// push. The close pairs are only gathered again once a particle has moved
+  /// far enough to need it; see `stepCloth`. Turn it off for a sheet that
+  /// cannot reach itself, a flag or a curtain, to save that.
+  final bool selfCollision;
+
+  /// How close two particles that are not neighbours in the rest shape may
+  /// come, in metres; `null`, the default, is the mesh's own mean rest edge
+  /// (`ClothMesh.meanRestEdge`).
+  ///
+  /// **One spacing, because the drawn surface is triangles, not points.**
+  /// Two layers held a spacing apart cannot have a triangle of one pass
+  /// between the corners of the other; held half a spacing apart they can,
+  /// and the fold still shows through. It also means the direct neighbours
+  /// along rows and columns, exactly one spacing apart at rest, are left to
+  /// the structural constraints, and the diagonals (1.41 spacings) are
+  /// pushed only once a quad shears past sixty degrees.
+  final double? selfCollisionThickness;
+
+  /// How much of two touching particles' relative slide is taken out each
+  /// time they are pushed apart, from 0 (layers slide freely over each
+  /// other) to 1 (they move as one).
+  ///
+  /// **A little, so a fold settles.** Two layers lying on each other are
+  /// pushed apart every iteration, and with nothing taking out the motion
+  /// along them they keep sliding. Measured on the folded 80×80 sheet, 0.1
+  /// brings the fastest particle down to 0.02 m/s after ten seconds where
+  /// none leaves it at 0.04; both keep the layers apart equally well.
+  final double selfCollisionFriction;
 }
 
 /// A uniform wind field, applied per triangle as drag along its own normal.
