@@ -1,3 +1,18 @@
+## 0.8.1
+
+**An example to start from.** `example/` is the smallest hybrid game: a Flame
+HUD over a 3D yard, a cube whose Flame position drives its scene node, and a
+crate that falls under `flutter3d_physics` onto a trigger pad and reports the
+landing through Flame's own `onCollisionStart`. It runs the physics step as a
+Flame component, so the order within a frame is the component tree's.
+
+The README is rewritten around what the bridge does. Nothing in `lib/`
+changed.
+
+It asks for `flutter3d` and `flutter3d_physics` `^0.8.1`, which bring the
+contact-shadow and folded-cloth fixes; the rest of its `flutter3d_*`
+dependencies stay at `^0.8.0`.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

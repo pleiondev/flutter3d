@@ -215,6 +215,16 @@ const NAV = [
     ],
   },
   {
+    // A Flame game over a 3D yard: the one demo that uses every bridge in
+    // flame_flutter3d at once. No genre package of its own, so one page.
+    section: 'Arcade',
+    slug: 'arcade',
+    badge: 'genre',
+    pages: [
+      { file: 'arcade/demo.md', url: '/arcade/demo/', title: 'Playable demo', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Showcase',
     slug: 'showcase',
     badge: 'engine',
