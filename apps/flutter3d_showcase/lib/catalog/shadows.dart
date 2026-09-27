@@ -55,6 +55,12 @@ const List<Feature> shadowsFeatures = <Feature>[
             'A near cascade reaches back to a tall caster standing outside it, and shadows stop bleeding across the atlas tiles.',
         evidence: 'Shadows reach further and stop bleeding across tiles.',
       ),
+      Change(
+        version: '0.8.1',
+        note:
+            'The flat part of the normal offset is held to one texel of its cascade, so a folded sheet no longer lets the sun through its upper layer.',
+        evidence: 'A fold no longer lets the sun through its upper layer.',
+      ),
     ],
   ),
   Feature(
