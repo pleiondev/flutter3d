@@ -1,3 +1,20 @@
+## 0.8.1
+
+**A contact shadow resolve stage.** `post/contact_shadow_resolve.frag`
+averages a 4×4 window of the contact shadow buffer, offsets -2 to +1 on both
+axes, so every phase of the march's 4×4 Bayer dither is counted exactly once.
+Each tap weighs less the further its depth is from the centre's, so the
+average stops at silhouettes, and sky taps are skipped. It is in the bundle
+and in `stageBindings`, `uniformBlocks` and `typed_blocks.dart`.
+
+**The sun's flat normal offset is held to a texel of its cascade.**
+`ShadowFactor` in `lib/shadow.glsl` took `ShadowSettings.normalOffset` whole,
+two centimetres by default, on top of what the 3×3 kernel needs. Under a low
+sun a step along the normal is nearly all sideways across the map, and in a
+sharp near cascade two centimetres is several texels: a sheet folded a
+centimetre or two over itself was lit through its upper layer along the
+crest. Shadow edges move by about a pixel.
+
 ## 0.8.0
 
 The stages behind `flutter3d_core` 0.8.0; its CHANGELOG says what each effect

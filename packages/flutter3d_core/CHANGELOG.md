@@ -1,3 +1,24 @@
+## 0.8.1
+
+Upgrade `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu` and
+`flutter3d_cpu` with this: with contact shadows on and the temporal resolve
+off, the renderer draws the `ContactShadowResolve` stage, which only their
+0.8.1 shaders have.
+
+- **Contact shadows lose their comb when no temporal resolve runs.** The
+  march starts a fixed 4×4 Bayer cell in, per pixel, and each pixel keeps
+  the hard first hit its own offset finds. With TAA the offset changes every
+  frame and the history averages it; without it the pattern never moves, and
+  along a thin blocker just off the floor the shadow's edge carried it as a
+  comb, neighbouring pixels 181 levels apart. A `contact shadow resolve`
+  pass runs right after the march while the temporal resolve is off and
+  averages every phase of the pattern once, weighted by depth so it stops at
+  silhouettes. Frames with TAA are unchanged.
+- **A fold no longer lets the sun through its upper layer.** The flat part
+  of `ShadowSettings.normalOffset` is held to one texel of the cascade the
+  lookup lands in; its documentation says why. Shadow edges move by about a
+  pixel, and twelve golden scenes were recorded again on all four backends.
+
 ## 0.8.0
 
 This release fixes the hardware contract for the whole 0.8 line and builds

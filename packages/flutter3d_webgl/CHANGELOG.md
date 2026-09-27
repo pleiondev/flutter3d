@@ -1,3 +1,14 @@
+## 0.8.1
+
+**The generated tables carry the contact shadow resolve stage**, which
+`flutter3d_core` 0.8.1 draws on a frame with contact shadows and no temporal
+resolve, and the sun's normal offset held to a texel of its cascade. Twelve
+golden scenes move a shadow edge by about a pixel; the budgets against
+Impeller are unchanged.
+
+It asks for `^0.8.1` of `flutter3d_core`, `flutter3d_shaders`,
+`flutter3d_cpu` and `flutter3d_conformance`.
+
 ## 0.8.0
 
 **Each uniform block and sampler owns its binding point or texture unit for

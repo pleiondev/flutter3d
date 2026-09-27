@@ -425,6 +425,12 @@ final class ShadowSettings {
   /// How far along the surface normal the sample point moves before being
   /// projected, in world units. Fixes the acne a depth bias cannot, because that
   /// error scales with the surface's slope rather than with depth.
+  ///
+  /// Held to one texel of the cascade the lookup lands in, on top of what the
+  /// filter's own reach needs. Past a texel it no longer clears the surface's
+  /// own depth, it only moves the lookup sideways onto whatever lies next to
+  /// it: under a low sun, a sheet folded a centimetre or two over itself was
+  /// lit through its upper layer.
   final double normalOffset;
 
   /// How dark a fully shadowed fragment gets, from 0 to 1.

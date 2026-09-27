@@ -1,3 +1,12 @@
+## 0.8.1
+
+**The bundle carries the contact shadow resolve stage**, which
+`flutter3d_core` 0.8.1 draws on a frame with contact shadows and no temporal
+resolve, and the sun's normal offset held to a texel of its cascade. Twelve
+golden scenes move a shadow edge by about a pixel.
+
+It asks for `flutter3d_shaders` `^0.8.1`.
+
 ## 0.8.0
 
 **`bindTexture` returns false for a slot the stage does not declare**, which

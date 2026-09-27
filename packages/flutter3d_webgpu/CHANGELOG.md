@@ -1,3 +1,13 @@
+## 0.8.1
+
+**The generated tables carry the contact shadow resolve stage**, through
+glslang and naga like every other, and the sun's normal offset held to a
+texel of its cascade. Twelve golden scenes move a shadow edge by about a
+pixel; WebGPU still draws them as WebGL does.
+
+It asks for `^0.8.1` of `flutter3d_core`, `flutter3d_shaders`,
+`flutter3d_cpu`, `flutter3d_conformance` and `flutter3d_webgl`.
+
 ## 0.8.0
 
 **A declared slot left unbound is named.** The bind group still fills it with

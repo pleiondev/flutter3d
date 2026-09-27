@@ -1,3 +1,12 @@
+## 0.8.1
+
+**The linking check names `ContactShadowResolve`**, the stage
+`flutter3d_core` 0.8.1 draws, so a backend whose bundle lacks it fails the
+check rather than the first frame with contact shadows and no temporal
+resolve.
+
+It asks for `flutter3d_shaders` `^0.8.1`.
+
 ## 0.8.0
 
 **Four new checks, forty-one in all, and thirty-one of them need the shader

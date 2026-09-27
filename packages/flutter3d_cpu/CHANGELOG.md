@@ -1,3 +1,15 @@
+## 0.8.1
+
+**The contact shadow resolve and the held normal offset, as the GLSL has
+them.** `ContactShadowResolveShader` averages the 4×4 window of the contact
+shadow buffer by depth, and the directional `shadowFactor` holds the flat
+normal offset to a texel of its cascade. `shadow_normal_offset_test.dart`
+puts two layers ten texels apart under a sixty-degree sun and fails with the
+offset taken whole. Twelve golden scenes move a shadow edge by about a pixel.
+
+It asks for `^0.8.1` of `flutter3d_core`, `flutter3d_shaders` and
+`flutter3d_conformance`.
+
 ## 0.8.0
 
 **Bindings follow the contract.** `bindPipeline` forgets every binding, as

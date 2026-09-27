@@ -1,3 +1,14 @@
+## 0.8.1
+
+* **Contact shadows without TAA and folded cloth under a low sun are drawn
+  right**, through `flutter3d_core` 0.8.1, which this library re-exports:
+  the contact shadow's dither no longer shows as a comb when no temporal
+  resolve runs, and the sun no longer reaches a layer through the one folded
+  over it. Upgrade the backend with it.
+
+It asks for `^0.8.1` of `flutter3d_core`, `flutter3d_shaders` and
+`flutter3d_cpu`.
+
 ## 0.8.0
 
 * **The renderer's changes arrive through `flutter3d_core` 0.8.0**, which this
