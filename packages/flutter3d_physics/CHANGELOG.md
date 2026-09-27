@@ -1,3 +1,18 @@
+## 0.8.2
+
+* **A ball no longer shows through the cloth draped over it.** A sphere and
+  a capsule pushed each particle to their radius plus
+  `ClothSettings.collisionThickness`, and the flat triangles between the
+  particles sagged back inside by as much as their chord: a sheet of 0.09 m
+  cells on a 0.2 m ball had its triangle edges 0.35 mm inside the ball, and
+  the ball's facets showed through. Each particle is now pushed far enough
+  that the widest of its own triangles, measured where the sheet stands at
+  the start of the step, keeps its plane half a thickness clear of the
+  surface, and never closer than a whole thickness as before. On that sheet
+  the edges now rest 6.6 mm above the ball. `pushParticleOutside` and
+  `pushOutsideObstacle` take the width as `span`; zero keeps the old answer,
+  and boxes, wedges and heightfields ignore it.
+
 ## 0.8.1
 
 * **A sheet resists shear.** `ClothMesh.grid` built edges along rows and

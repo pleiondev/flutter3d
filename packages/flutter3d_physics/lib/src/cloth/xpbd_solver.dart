@@ -51,6 +51,13 @@ void stepCloth(
   final self = settings.selfCollision && thickness > 0.0 && n > 1
       ? _SelfCollision(mesh, thickness, settings.selfCollisionFriction)
       : null;
+  // Each particle's widest triangle as the sheet stands at the start of the
+  // step, so a round obstacle keeps whole triangles outside it and not only
+  // their corners. Per particle: the widest over the whole sheet is a strand
+  // stretched in the air far from the ball, and it lifted the sheet two
+  // centimetres clear of a 0.2 m ball. Once a step: a triangle does not grow
+  // much within one.
+  final span = obstacles.isEmpty ? null : _widestTriangles(mesh);
 
   for (var sub = 0; sub < settings.substeps; sub++) {
     _predict(mesh, settings, subDt, predicted);
@@ -104,6 +111,7 @@ void stepCloth(
         mesh,
         obstacles,
         settings.collisionThickness,
+        span,
         push,
         contact,
       );
@@ -293,6 +301,43 @@ void _solveDistance(
   }
 }
 
+/// For each particle of [mesh], the largest radius of the circle through the
+/// three corners of a triangle it belongs to, where the sheet stands now:
+/// how far a flat triangle sags inside a sphere its corners sit on.
+/// `abc / 4A`, with a triangle folded flat onto a line left out. Only
+/// `+ - * /` and `sqrt`, so the same bits on every platform.
+Float64List _widestTriangles(ClothMesh mesh) {
+  final p = mesh.positions;
+  final t = mesh.triangles;
+  final widest = Float64List(mesh.particleCount);
+  for (var k = 0; k < t.length; k += 3) {
+    final a = 3 * t[k], b = 3 * t[k + 1], c = 3 * t[k + 2];
+    final abx = p[b] - p[a],
+        aby = p[b + 1] - p[a + 1],
+        abz = p[b + 2] - p[a + 2];
+    final acx = p[c] - p[a],
+        acy = p[c + 1] - p[a + 1],
+        acz = p[c + 2] - p[a + 2];
+    final bcx = p[c] - p[b],
+        bcy = p[c + 1] - p[b + 1],
+        bcz = p[c + 2] - p[b + 2];
+    final cx = aby * acz - abz * acy;
+    final cy = abz * acx - abx * acz;
+    final cz = abx * acy - aby * acx;
+    // |ab × ac| is twice the area.
+    final twiceArea = math.sqrt(cx * cx + cy * cy + cz * cz);
+    if (twiceArea <= 1e-12) continue;
+    final ab = math.sqrt(abx * abx + aby * aby + abz * abz);
+    final ac = math.sqrt(acx * acx + acy * acy + acz * acz);
+    final bc = math.sqrt(bcx * bcx + bcy * bcy + bcz * bcz);
+    final r = ab * ac * bc / (2.0 * twiceArea);
+    for (var j = k; j < k + 3; j++) {
+      if (r > widest[t[j]]) widest[t[j]] = r;
+    }
+  }
+  return widest;
+}
+
 /// Pushes every free particle out of [obstacles], adding each push to
 /// [contact] when there is one to keep.
 ///
@@ -304,6 +349,7 @@ void _resolveCollisions(
   ClothMesh mesh,
   List<ClothObstacle> obstacles,
   double thickness,
+  Float64List? span,
   Float64List push,
   Float64List? contact,
 ) {
@@ -312,7 +358,14 @@ void _resolveCollisions(
   for (var i = 0; i < mesh.particleCount; i++) {
     if (invMass[i] == 0) continue;
     for (final obstacle in obstacles) {
-      if (!pushParticleOutside(predicted, i, obstacle, thickness, push)) {
+      if (!pushParticleOutside(
+        predicted,
+        i,
+        obstacle,
+        thickness,
+        push,
+        span: span == null ? 0.0 : span[i],
+      )) {
         continue;
       }
       if (contact == null) continue;

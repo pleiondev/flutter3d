@@ -22,12 +22,20 @@ final class ClothObstacle {
 bool pushOutsideObstacle(
   Vector3 point,
   ClothObstacle obstacle,
-  double thickness,
-) {
+  double thickness, {
+  double span = 0.0,
+}) {
   _single[0] = point.x;
   _single[1] = point.y;
   _single[2] = point.z;
-  final moved = pushParticleOutside(_single, 0, obstacle, thickness, _push);
+  final moved = pushParticleOutside(
+    _single,
+    0,
+    obstacle,
+    thickness,
+    _push,
+    span: span,
+  );
   if (moved) point.setValues(_single[0], _single[1], _single[2]);
   return moved;
 }
@@ -50,13 +58,27 @@ final Float64List _push = Float64List(3);
 ///
 /// Only `+ - * /` and `sqrt` reach the result, so the answer is the same bits
 /// on every platform.
+///
+/// **[span] keeps the sheet's triangles outside a round shape, not only its
+/// particles.** A triangle whose corners all sit on a sphere of radius `T`
+/// has its plane `sqrt(T² - ρ²)` from the centre, where `ρ` is the radius of
+/// the circle through its corners, so a flat triangle between particles
+/// pushed to `radius + thickness` sags back inside the ball by as much as
+/// the chord. A sheet of 0.09 m cells on a 0.2 m ball reached 0.35 mm into
+/// it, and the ball's own facets showed through the cloth. With [span] as
+/// the widest such `ρ` among the particle's own triangles, a sphere and a
+/// capsule push the particle far enough that the plane stays half a
+/// thickness clear of the surface, and never closer than a whole thickness.
+/// Zero keeps the old answer; flat shapes ignore it, since a triangle lying
+/// on a plane does not sag through it.
 bool pushParticleOutside(
   Float64List xyz,
   int i,
   ClothObstacle obstacle,
   double thickness,
-  Float64List push,
-) {
+  Float64List push, {
+  double span = 0.0,
+}) {
   final o = obstacle.position;
   final px = xyz[3 * i];
   final py = xyz[3 * i + 1];
@@ -72,7 +94,7 @@ bool pushParticleOutside(
         px - o.x,
         py - o.y,
         pz - o.z,
-        radius + thickness,
+        _clearing(radius, thickness, span),
         push,
       );
     case final CollisionCapsule capsule:
@@ -87,7 +109,7 @@ bool pushParticleOutside(
         px - o.x,
         ly - cy,
         pz - o.z,
-        capsule.radius + thickness,
+        _clearing(capsule.radius, thickness, span),
         push,
       );
     case final CollisionHeightfield field:
@@ -146,6 +168,26 @@ bool pushParticleOutside(
 /// (a box) has six planes, a wedge five.
 final Float64List _planes = Float64List(4 * 8);
 final Vector3 _noGrowth = Vector3.zero();
+
+/// How far from a round shape's core a particle has to sit: at least
+/// [radius] plus [thickness], as a particle always has, and far enough that
+/// a triangle of circumradius [span] with its corners there keeps its plane
+/// half a thickness clear of the surface. See [pushParticleOutside].
+///
+/// Half, not the whole: the thickness is there so a particle in contact does
+/// not chatter in and out of it, and a plane has no contact to chatter. Held
+/// to the whole of it, a sheet on a 0.2 m ball rested with its triangles a
+/// centimetre off the ball and its corners two. [span] is held to the plane's
+/// own radius, because a triangle as wide as the ball cannot wrap it anyway,
+/// and a sheet stretched that far should not be thrown clear of it.
+double _clearing(double radius, double thickness, double span) {
+  final contact = radius + thickness;
+  if (span <= 0.0) return contact;
+  final plane = radius + 0.5 * thickness;
+  final s = span < plane ? span : plane;
+  final lifted = math.sqrt(plane * plane + s * s);
+  return lifted > contact ? lifted : contact;
+}
 
 bool _outOfBall(
   Float64List xyz,

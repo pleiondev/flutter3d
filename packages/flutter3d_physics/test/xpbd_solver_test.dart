@@ -303,6 +303,55 @@ void main() {
       expect(checked, greaterThan(0));
     });
 
+    test('a sheet on a ball keeps its triangles outside it, not only its '
+        'corners', () {
+      // The showcase's cloth page: 0.09 m cells over a 0.2 m ball. Pushing
+      // each particle to the radius plus the thickness left the flat
+      // triangles between them sagging back inside the ball, their edges
+      // 0.35 mm into it, and the ball's own facets showed through the cloth.
+      // Mutation: pass no span to the obstacle push, and the midpoints go
+      // back inside.
+      const radius = 0.2;
+      final centre = Vector3(0.68, 1.0, 0.6);
+      final mesh = ClothMesh.grid(
+        cols: 16,
+        rows: 16,
+        spacing: 0.09,
+        height: 1.7,
+      );
+      final obstacles = [ClothObstacle(CollisionSphere(radius), centre)];
+      for (var step = 0; step < 400; step++) {
+        stepCloth(mesh, const ClothSettings(), 1 / 60, obstacles: obstacles);
+      }
+      final p = mesh.positions;
+      final t = mesh.triangles;
+      double fromCentre(double x, double y, double z) => math.sqrt(
+        (x - centre.x) * (x - centre.x) +
+            (y - centre.y) * (y - centre.y) +
+            (z - centre.z) * (z - centre.z),
+      );
+      var near = 0;
+      for (var k = 0; k < t.length; k += 3) {
+        final corners = [t[k], t[k + 1], t[k + 2]];
+        final touching = corners.any(
+          (i) =>
+              fromCentre(p[3 * i], p[3 * i + 1], p[3 * i + 2]) < radius + 0.05,
+        );
+        if (!touching) continue;
+        near++;
+        for (var e = 0; e < 3; e++) {
+          final a = 3 * corners[e], b = 3 * corners[(e + 1) % 3];
+          final mid = fromCentre(
+            (p[a] + p[b]) / 2,
+            (p[a + 1] + p[b + 1]) / 2,
+            (p[a + 2] + p[b + 2]) / 2,
+          );
+          expect(mid, greaterThan(radius), reason: 'triangle ${k ~/ 3}');
+        }
+      }
+      expect(near, greaterThan(20), reason: 'the sheet never reached the ball');
+    });
+
     test('a 48x48 sheet on a ball and a floor stays bounded, wind or not', () {
       // The scene that reached NaN at step 177: one Gauss–Seidel sweep with
       // the contacts outside it pumped energy into a sheet wrapped round the
