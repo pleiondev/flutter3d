@@ -10,7 +10,8 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' show KeyEventResult;
+import 'package:flutter/widgets.dart'
+    show Color, EdgeInsets, KeyEventResult, Paint;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
@@ -251,6 +252,34 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// Asks for the level just lost to be played again, from the next frame.
   void retry() => _retryRequested = true;
 
+  /// The on-screen stick, on a device with a touch screen and no keys.
+  ///
+  /// **Flame's own [JoystickComponent], reaching the ship through the same
+  /// [InputState] the keys do.** Flame's layer is on top and gets the
+  /// touches, so the stick is an ordinary Flame component in its viewport;
+  /// each frame its deflection is written with [InputState.setStickAxis],
+  /// the call a gamepad's stick goes through, and [InputState.moveAxis]
+  /// adds it to whatever keys are held. The ship, the ram rule and the
+  /// dodging drones read that one axis and never learn where it came from.
+  JoystickComponent? joystick;
+
+  /// Puts [joystick] in the bottom-left corner of the viewport.
+  void addJoystick() {
+    final stick = JoystickComponent(
+      knob: CircleComponent(
+        radius: 28.0,
+        paint: Paint()..color = const Color(0xCCFFFFFF),
+      ),
+      background: CircleComponent(
+        radius: 72.0,
+        paint: Paint()..color = const Color(0x44FFFFFF),
+      ),
+      margin: const EdgeInsets.only(left: 48.0, bottom: 64.0),
+    );
+    joystick = stick;
+    camera.viewport.add(stick);
+  }
+
   /// Clears the yard of drones and starts [index] of [arcadeLevels]: the
   /// ship back at [shipStart], no hits, this level's drones in their lanes.
   ///
@@ -324,6 +353,12 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
     if (levelCleared && !cleared) {
       _nextLevelIn -= dt;
       if (_nextLevelIn <= 0.0) startLevel(levelIndex + 1);
+    }
+    // The stick's deflection, screen-down as positive, into the forward-up
+    // convention of the axis the keys feed.
+    final stick = joystick;
+    if (stick != null) {
+      inputState.setStickAxis(stick.relativeDelta.x, -stick.relativeDelta.y);
     }
     if (!gameOver && !levelCleared) {
       final axis = inputState.moveAxis;

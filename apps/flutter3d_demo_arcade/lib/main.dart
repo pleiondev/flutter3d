@@ -38,6 +38,7 @@ import 'dart:async';
 
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -132,6 +133,17 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
     });
   }
 
+  /// A phone or a tablet has no keys to fly with, so it gets the on-screen
+  /// stick. A desktop and a browser keep the keys and a clean screen.
+  @override
+  void initState() {
+    super.initState();
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      _game.addJoystick();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFF14161A),
@@ -150,7 +162,13 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
           },
           onTick: _onTick,
         ),
-        Positioned(left: 16, top: 16, child: _Hud(game: _game)),
+        // Below the status bar and any notch: a phone draws the app edge to
+        // edge, and the HUD sat under the clock.
+        Positioned(
+          left: 16,
+          top: 16,
+          child: SafeArea(child: _Hud(game: _game)),
+        ),
       ],
     ),
   );
@@ -173,14 +191,17 @@ class _Hud extends StatelessWidget {
       shadows: <Shadow>[Shadow(blurRadius: 4.0)],
     );
     final int levelNumber = game.levelIndex + 1;
+    final bool touch = game.joystick != null;
     final String status = game.gameOver
-        ? 'LEVEL $levelNumber LOST — Enter to try again'
+        ? 'LEVEL $levelNumber LOST — ${touch ? 'tap to' : 'Enter to'} try again'
         : game.cleared
         ? 'YARD CLEARED — ${game.elapsed.toStringAsFixed(1)}s'
         : game.levelCleared
         ? 'LEVEL $levelNumber CLEARED — next one coming'
         : game.level.hunters > 0
         ? 'Ram them head on. Magenta drones hunt you'
+        : touch
+        ? 'Ram the drones head on. Stick to fly'
         : 'Ram the drones head on. WASD / arrows to fly';
 
     return DefaultTextStyle(
@@ -194,7 +215,12 @@ class _Hud extends StatelessWidget {
           Text('Drones left: ${game.drones.length}'),
           Text('Rammed: ${game.rammed}'),
           const SizedBox(height: 8.0),
-          Text(status),
+          // A lost level is replayed with Enter on a keyboard, and with a
+          // tap on this line where there is none.
+          if (game.gameOver)
+            GestureDetector(onTap: game.retry, child: Text(status))
+          else
+            Text(status),
         ],
       ),
     );
