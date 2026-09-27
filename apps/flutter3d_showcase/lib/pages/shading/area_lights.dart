@@ -1,5 +1,6 @@
-/// `LightType.area`: a rectangle with extent, so a wall reads as lit by a
-/// window rather than by a bright dot painted behind one.
+/// `LightType.area`: a rectangle with extent, so a room reads as lit by a
+/// window rather than by a bright dot painted behind one, and a polished
+/// floor shows the window's shape.
 ///
 /// Quoted by `area_lights.md` and shown whole in the Source tab.
 library;
@@ -13,61 +14,96 @@ import 'package:vector_math/vector_math.dart';
 final class AreaLightsDemo extends ShowcaseDemo {
   double width = 2.5;
   double height = 1.5;
+  double floorRoughness = 0.25;
 
   late final LightNode _window;
+  late final MeshNode _pane;
+  late final Material _floorMaterial;
+
+  /// A plane is built lying down, facing +Y; a quarter turn about X stands
+  /// it up facing +Z, into the room.
+  static Quaternion get _standUp =>
+      Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2);
 
   @override
   void configureView(DemoContext context) {
     context.orbit
-      ..distance = 6.5
-      ..yaw = 0.6
-      ..pitch = 0.1;
+      ..distance = 7.5
+      ..yaw = 0.45
+      ..pitch = 0.4;
   }
 
   @override
   Scene build(DemoContext context) {
     // #region window
+    // The panel faces the node's local -Z. Set in the back wall and aimed
+    // at a point in front of it, it shines into the room.
     _window = LightNode(name: 'window', type: LightType.area, intensity: 8.0)
       ..width = width
       ..height = height
-      ..setPosition(0.0, 0.5, 2.0);
-    _window.lookAt(Vector3(0.0, 0.0, 0.0));
+      ..setPosition(0.0, 0.3, -1.45);
+    _window.lookAt(Vector3(0.0, 0.3, 3.0));
     // #endregion window
 
+    // #region pane
+    // The light itself is not drawn. A glowing rectangle of the same size,
+    // just behind it, is what a person sees as the window.
+    _pane =
+        MeshNode(
+            DeviceMesh.upload(
+              context.device,
+              const PlaneShape(width: 1, depth: 1).build(),
+            ),
+            Material(
+              name: 'window glass',
+              baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+              emissive: Vector3(3.0, 3.0, 2.8),
+            ),
+            name: 'window pane',
+          )
+          ..setRotation(_standUp)
+          ..setPosition(0.0, 0.3, -1.48);
+    // #endregion pane
+
     // #region room
-    final Material wallMaterial = Material(
-      name: 'wall',
-      baseColor: Vector4(0.85, 0.83, 0.78, 1.0),
-      roughness: 0.9,
-      doubleSided: true,
-    );
     final MeshNode backWall =
         MeshNode(
             DeviceMesh.upload(
               context.device,
               const PlaneShape(width: 6, depth: 4).build(),
             ),
-            wallMaterial,
+            Material(
+              name: 'wall',
+              baseColor: Vector4(0.6, 0.58, 0.55, 1.0),
+              roughness: 0.9,
+              doubleSided: true,
+            ),
             name: 'back wall',
           )
-          // A plane is built lying down, facing +Y; a quarter turn about X
-          // stands it up facing +Z, toward the window.
-          ..setRotation(
-            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
-          )
+          ..setRotation(_standUp)
           ..setPosition(0.0, 0.0, -1.5);
+    // #endregion room
+
+    // #region floor
+    // A floor of its own, so its roughness can go down to a polish.
+    _floorMaterial = Material(
+      name: 'floor',
+      baseColor: Vector4(0.45, 0.45, 0.47, 1.0),
+      roughness: floorRoughness,
+    );
     final MeshNode floor = MeshNode(
       DeviceMesh.upload(
         context.device,
         const PlaneShape(width: 6, depth: 5).build(),
       ),
-      wallMaterial,
+      _floorMaterial,
       name: 'floor',
-    )..setPosition(0.0, -1.8, 0.5);
-    // #endregion room
+    )..setPosition(0.0, -1.8, 1.0);
+    // #endregion floor
 
     return Scene()
       ..add(backWall)
+      ..add(_pane)
       ..add(floor)
       ..add(_window);
   }
@@ -78,6 +114,8 @@ final class AreaLightsDemo extends ShowcaseDemo {
     _window
       ..width = width
       ..height = height;
+    _pane.setScale(width, 1.0, height);
+    _floorMaterial.roughness = floorRoughness;
     // #endregion live
   }
 
@@ -97,6 +135,13 @@ final class AreaLightsDemo extends ShowcaseDemo {
       value: () => height,
       onChanged: (double v) => height = v,
     ),
+    SliderControl(
+      'Floor roughness',
+      min: 0.05,
+      max: 1,
+      value: () => floorRoughness,
+      onChanged: (double v) => floorRoughness = v,
+    ),
   ];
 
   @override
@@ -113,7 +158,10 @@ final class AreaLightsDemo extends ShowcaseDemo {
     if (halfWidth.length2 == 0.0 || halfHeight.length2 == 0.0) {
       throw StateError('the panel has no extent to shade against');
     }
-    if (frame.drawCalls < 2) {
+    if (_floorMaterial.roughness != floorRoughness) {
+      throw StateError('the floor roughness did not track its slider');
+    }
+    if (frame.drawCalls < 3) {
       throw StateError('the room was not drawn');
     }
     // #endregion check

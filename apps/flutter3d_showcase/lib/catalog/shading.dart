@@ -207,6 +207,14 @@ const List<Feature> shadingFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.8.0',
+        note:
+            'The highlight is integrated over the whole panel, so a polished floor reflects the window\'s shape; the page now has a floor roughness slider to show it.',
+        evidence: 'A rectangle light\'s highlight covers the whole panel.',
+      ),
+    ],
   ),
   Feature(
     id: 'photometric-units',

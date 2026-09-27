@@ -10,22 +10,44 @@ bright dot with a window painted behind it.
 
 The panel faces the node's local `-Z`, the same axis a spot light and a
 camera both look along, so `lookAt` aims it exactly the way it aims
-everything else in the scene.
+everything else in the scene. Here it sits in the back wall and looks into
+the room.
 
 {{code window}}
 
-## Step 2: A room for it to light
+## Step 2: Something to see
 
-A back wall and a floor, both plain and rough, so the light falling across
-them is easy to read.
+The light itself is not drawn, so a room lit by it has a window you cannot
+see. A glowing rectangle of the same size, just behind the light, stands in
+for the glass.
+
+{{code pane}}
+
+## Step 3: A room for it to light
+
+A plain, rough back wall. The window shines away from it, into the room, so
+the wall stays dim and the window reads against it.
 
 {{code room}}
 
-## Step 3: Resize the window
+## Step 4: A floor that can shine
+
+The floor has a material of its own, so its roughness can change on its own.
+
+{{code floor}}
+
+## Step 5: Resize the window, polish the floor
 
 The sliders' `width` and `height` are written back into the light every frame, so the
-sliders change the panel a person can see rather than a copy nothing reads.
+sliders change the panel a person can see rather than a copy nothing reads. The glowing
+pane is scaled to the same size, and the floor's roughness is written back the same way.
 
 {{code live}}
+
+Bring **Floor roughness** down toward 0.05 and the floor reflects the window as a sharp
+rectangle. Widen the window and the reflection widens with it. Raise the roughness and the
+reflection spreads into a soft patch that keeps the panel's proportions. The highlight is
+integrated over the whole rectangle, not read at one point of it, which is why a long
+window gives a long reflection.
 
 {{code check}}
