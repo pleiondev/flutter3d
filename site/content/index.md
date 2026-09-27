@@ -1,14 +1,14 @@
 ---
-description: A 3D engine on Flutter GPU, a game layer on top of it, and three shipped games of different genres built from both.
+description: A 3D engine on Flutter GPU, a game layer on top of it, and five games built from both, four genres and a Flame hybrid.
 ---
 
 <p class="hero-kicker">A 3D engine on Flutter GPU</p>
 
-# Three games, one engine, no edits in between
+# Five games, one engine, no edits in between
 
-flutter3d is a renderer, a game layer, and three finished games of different genres. The second and third were built without changing a line in the first one's engine packages.
+flutter3d is a renderer, a game layer, and five games built on them: a shooter, a platformer, a racing game and a strategy game, each with a genre package of its own, and Meteor Yard, a Flame game over a 3D yard. The platformer and the racer were built without changing a line in the shooter's engine packages.
 
-**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/) · [Meteor Yard](/arcade/demo/), a Flame game over a 3D yard. **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
+**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/) · [the strategy game](/strategy/demo/) · [Meteor Yard](/arcade/demo/), a Flame game over a 3D yard. **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
 
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>
@@ -69,6 +69,11 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
     <h3>Racing</h3>
     <p>A track as a measured curve, a tire that falls away past its peak, laps that cannot be cheated, AI drivers and ghosts.</p>
   </a></li>
+  <li><a href="/strategy/demo/">
+    <span class="card-kind">Genre · playable</span>
+    <h3>Strategy</h3>
+    <p>A crowd on a hillside, fog that belongs to one side, a pointer answered by pixel, and a bot that gives its orders through the same handles you do.</p>
+  </a></li>
   <li><a href="/arcade/demo/">
     <span class="card-kind">Flame · playable</span>
     <h3>Meteor Yard</h3>
@@ -76,7 +81,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
   </a></li>
 </ul>
 
-All four run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout, at well under a frame a second for months, and [its demo page keeps the hunt](/racing/demo/). The cost turned out to be a cube shadow atlas sized from the sun's setting: four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
+All five run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout, at well under a frame a second for months, and [its demo page keeps the hunt](/racing/demo/). The cost turned out to be a cube shadow atlas sized from the sun's setting: four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
 
 ## The package split
 
@@ -149,8 +154,8 @@ The renderer talks to a hardware abstraction layer and never to a graphics API. 
 
 | Backend | Runs on | Status |
 |---|---|---|
-| `flutter3d_impeller` | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | Complete. All three games ship on it |
-| `flutter3d_webgl` | WebGL2, in the browser | Runs all three games, slower and at a fixed resolution. The racing game was the holdout for months and drives now; the cost was a cube shadow atlas sized from the sun's setting, not the frame |
+| `flutter3d_impeller` | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | Complete. Every game ships on it |
+| `flutter3d_webgl` | WebGL2, in the browser | Runs all five games, slower, and the four genre games at a fixed resolution. The racing game was the holdout for months and drives now; the cost was a cube shadow atlas sized from the sun's setting, not the frame |
 | `flutter3d_cpu` | Nothing. It rasterises in Dart | Complete for the golden set. A dev dependency of every game, and now `flutter3d_app`'s last resort too |
 | `flutter3d_webgpu` | WebGPU, in a browser that has an adapter | Draws, and answers the whole conformance suite against a live device. Declines three capabilities by name. You get it by asking for it, not by default; see below |
 
@@ -159,7 +164,7 @@ The renderer talks to a hardware abstraction layer and never to a graphics API. 
 `flutter3d_app`, the assembly-layer package, picks which of these an application gets. It tries Impeller first on every native build and only reaches for the CPU backend at runtime, if Impeller throws. In a browser it opens WebGL2, and tries WebGPU first only when the build says `--dart-define=FLUTTER3D_WEBGPU=true`. [Assembling an application](/core/session/) documents those fallbacks.
 
 <div class="why">
-<p><strong>WebGPU is not the browser default, and the reason is a number.</strong> Whether <code>navigator.gpu</code> hands out an adapter depends on the browser, the driver and the machine's blocklist, so finding out means trying, and code that can try is code dart2js ships. Measured on the strategy demo, <code>flutter build web --release</code> writes 2,529,865 bytes of <code>main.dart.js</code> without the flag and 2,906,514 with it: <strong>376,649 bytes, 14.9%</strong>, for a second backend a build may never open. WebGL2 is also the browser backend the three shipped games have been checked on, and the one whose reference set is recorded. Switching the probe on for everybody would change what those games draw and charge each of them the bytes, so it stays a game's own call, and making it takes one flag.</p>
+<p><strong>WebGPU is not the browser default, and the reason is a number.</strong> Whether <code>navigator.gpu</code> hands out an adapter depends on the browser, the driver and the machine's blocklist, so finding out means trying, and code that can try is code dart2js ships. Measured on the strategy demo, <code>flutter build web --release</code> writes 2,529,865 bytes of <code>main.dart.js</code> without the flag and 2,906,514 with it: <strong>376,649 bytes, 14.9%</strong>, for a second backend a build may never open. WebGL2 is also the browser backend all five games have been checked on, and the one whose reference set is recorded. Switching the probe on for everybody would change what those games draw and charge each of them the bytes, so it stays a game's own call, and making it takes one flag.</p>
 </div>
 
 An application names a backend in its pubspec and hands the device to `Renderer.create`. Moving between backends is that line and one constructor call.
