@@ -19,10 +19,13 @@ import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The WebGPU backend's budget, which that backend measured at 0.85%, once the
-/// software rasteriser clipped to its viewport and stored eight-bit targets as
-/// eight bits — before those two fixes, four of the fifty were 16-26% apart.
-const double _budget = 0.02;
+/// Measured on the Linux runner, whose Chrome draws through SwiftShader: seed
+/// 16 came out 2.96% apart there and 0.85% on a Mac's GPU. The difference is
+/// edge coverage on a 32×32 target, where thirty pixels are three per cent.
+/// Before the software rasteriser clipped to its viewport and stored
+/// eight-bit targets as eight bits, four of the fifty were 16-26% apart,
+/// which this still catches.
+const double _budget = 0.04;
 
 void main() {
   test('fifty programs draw what the software rasteriser draws', () async {

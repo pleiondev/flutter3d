@@ -247,9 +247,13 @@ jobs:
   # conversion now goes through `flutter3d_cpu`'s `portable_root.dart`, which
   # uses only the arithmetic IEEE 754 rounds one way, and the comparison stays
   # exact: a difference of one step is still a golden that moved.
+  #
+  # Ninety minutes, because the seventy-eight scenes take about an hour on the
+  # runner: at forty-five the job was cancelled at scene fifty-eight, every
+  # one of them passing.
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
@@ -302,10 +306,11 @@ jobs:
   # suite is most of an hour — inside `check` it took the job past the limit
   # it kept overrunning. Here it runs in parallel with that job, so a pull
   # request that moves a tutorial screenshot fails on the runner rather than
-  # on somebody's machine, and `check` keeps its own time.
+  # on somebody's machine, and `check` keeps its own time. Two hours, because a
+  # failing run draws the suite twice: once to compare, once to record.
   render-apps:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -325,6 +330,23 @@ jobs:
       - name: golden tag
         working-directory: apps/${{ matrix.app }}
         run: flutter test --tags golden
+
+      # **The runner's pictures are the reference, not a Mac's.** A screenshot
+      # with Roboto in it rasterises its glyphs differently on the two, one to
+      # three per cent of the frame, so a set recorded on a Mac never passes
+      # here. When the comparison fails, the same tests record over the
+      # checkout and the whole set goes up as an artifact: download it,
+      # look at what moved, and commit the ones that were meant to.
+      - name: record the goldens the runner draws
+        if: failure()
+        working-directory: apps/${{ matrix.app }}
+        run: flutter test --tags golden --update-goldens
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: goldens-linux-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/test/goldens/
 
   # **Windows and Linux** — `gfx-73n`. The pubspec declared four platform
   # folders across ten applications and neither desktop was among them, so a
