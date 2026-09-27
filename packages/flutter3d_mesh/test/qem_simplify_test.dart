@@ -450,7 +450,195 @@ void main() {
         expect(simplified.triangleCount, greaterThan(10));
       },
     );
+
+    test('the error reached grows as the target falls', () {
+      final sphere = _sphere(radius: 1.0, segments: 40, rings: 40);
+      final errors = <double>[
+        for (final ratio in <double>[0.5, 0.25, 0.1])
+          simplifyMeshWithAttributesMeasured(
+            sphere,
+            targetTriangleCount: (sphere.triangleCount * ratio).round(),
+          ).error,
+      ];
+      expect(errors.first, greaterThan(0.0));
+      expect(errors[1], greaterThan(errors[0]));
+      expect(errors[2], greaterThan(errors[1]));
+      // A tenth of a unit sphere is still a sphere: the error is a fraction of
+      // the radius, not a number in the boundary penalty's thousands.
+      expect(errors[2], lessThan(0.5));
+    });
+
+    test('the error bounds how far the surface actually moved', () {
+      // Every surviving vertex carries the planes of every face it absorbed,
+      // so its distance off the original sphere is no more than the error the
+      // run reports — the number means something about the shape, not only
+      // about the order collapses happened in.
+      final sphere = _sphere(radius: 1.0, segments: 40, rings: 40);
+      final result = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: sphere.triangleCount ~/ 10,
+      );
+      final positions = result.mesh.vertices;
+      final stride = result.mesh.layout.floatsPerVertex;
+      var worst = 0.0;
+      for (var v = 0; v < result.mesh.vertexCount; v++) {
+        final p = Vector3(
+          positions[v * stride],
+          positions[v * stride + 1],
+          positions[v * stride + 2],
+        );
+        worst = math.max(worst, (p.length - 1.0).abs());
+      }
+      expect(worst, greaterThan(0.0));
+      expect(worst, lessThanOrEqualTo(result.error));
+    });
+
+    test('a target error stops the run short of the triangle target', () {
+      final sphere = _sphere(radius: 1.0, segments: 40, rings: 40);
+      final free = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: 100,
+      );
+      final capped = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: 100,
+        targetError: free.error / 4,
+      );
+      expect(capped.error, lessThanOrEqualTo(free.error / 4));
+      expect(capped.mesh.triangleCount, greaterThan(free.mesh.triangleCount));
+    });
+
+    test('a mesh already under its target reports no error', () {
+      final sphere = _sphere(radius: 1.0, segments: 8, rings: 8);
+      final result = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: sphere.triangleCount,
+      );
+      expect(result.mesh, same(sphere));
+      expect(result.error, 0.0);
+    });
   });
+
+  group('seams and hard edges survive the collapse', () {
+    // Positions are welded so a seam is not a crack, but each side of it
+    // keeps its own UV and normal: a triangle next to the seam must read the
+    // attributes of its own side, never the other one's.
+    test("a sphere's wrap seam keeps both of its U values", () {
+      final sphere = const SphereShape(
+        segments: 32,
+        rings: 16,
+      ).build(layout: VertexLayout.positionNormalTexcoord);
+      expect(_widestUSpan(sphere), lessThan(0.05));
+
+      final simplified = simplifyMeshWithAttributes(
+        sphere,
+        targetTriangleCount: sphere.triangleCount ~/ 2,
+      );
+      expect(simplified.triangleCount, lessThan(sphere.triangleCount * 0.6));
+      // A triangle reading u = 1 on one corner and u = 0 on another would
+      // squeeze the whole texture backwards across one column.
+      expect(_widestUSpan(simplified), lessThan(0.25));
+    });
+
+    test('a flat-shaded box keeps each face its own normal', () {
+      final box = _gridBox(6);
+      final simplified = simplifyMeshWithAttributes(
+        box,
+        targetTriangleCount: box.triangleCount ~/ 4,
+      );
+      expect(simplified.triangleCount, lessThan(box.triangleCount ~/ 2));
+
+      final normalOffset = simplified.layout.floatOffsetOf(
+        VertexLayout.normal.name,
+      );
+      final stride = simplified.layout.floatsPerVertex;
+      for (var t = 0; t < simplified.triangleCount; t++) {
+        final corners = <int>[
+          for (var k = 0; k < 3; k++) simplified.indices[t * 3 + k],
+        ];
+        final p = corners.map(simplified.positionAt).toList();
+        final face = (p[1] - p[0]).cross(p[2] - p[0])..normalize();
+        for (final v in corners) {
+          final o = v * stride + normalOffset;
+          final normal = Vector3(
+            simplified.vertices[o],
+            simplified.vertices[o + 1],
+            simplified.vertices[o + 2],
+          );
+          expect(
+            normal.dot(face),
+            greaterThan(0.99),
+            reason: 'triangle $t reads a normal from another face',
+          );
+        }
+      }
+    });
+
+    test('the box stays closed while its faces keep apart', () {
+      final box = _gridBox(6);
+      final simplified = simplifyMeshWithAttributes(
+        box,
+        targetTriangleCount: box.triangleCount ~/ 4,
+      );
+      // Welded by position, every edge still has two triangles: the seams
+      // did not open into cracks.
+      expect(_boundaryEdges(simplified), isEmpty);
+    });
+  });
+}
+
+/// The widest spread of U across the three corners of any one triangle.
+double _widestUSpan(MeshData mesh) {
+  final uvOffset = mesh.layout.floatOffsetOf(VertexLayout.texcoord.name);
+  final stride = mesh.layout.floatsPerVertex;
+  var widest = 0.0;
+  for (var t = 0; t < mesh.triangleCount; t++) {
+    final us = <double>[
+      for (var k = 0; k < 3; k++)
+        mesh.vertices[mesh.indices[t * 3 + k] * stride + uvOffset],
+    ];
+    widest = math.max(widest, us.reduce(math.max) - us.reduce(math.min));
+  }
+  return widest;
+}
+
+/// A unit cube, flat-shaded, each face a [segments] by [segments] grid of
+/// its own vertices — the corners and edges repeat once per face with that
+/// face's normal, the way an exported hard-edged model arrives.
+MeshData _gridBox(int segments) {
+  final vertices = <double>[];
+  final indices = <int>[];
+  final faces = <(Vector3, Vector3, Vector3)>[
+    (Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)),
+    (Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0)),
+    (Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0)),
+    (Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)),
+    (Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)),
+    (Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0)),
+  ];
+  for (final (normal, s, t) in faces) {
+    final first = vertices.length ~/ 8;
+    for (var j = 0; j <= segments; j++) {
+      for (var i = 0; i <= segments; i++) {
+        final u = i / segments, v = j / segments;
+        final p = normal * 0.5 + s * (u - 0.5) + t * (v - 0.5);
+        vertices.addAll(<double>[p.x, p.y, p.z, normal.x, normal.y, normal.z]);
+        vertices.addAll(<double>[u, v]);
+      }
+    }
+    for (var j = 0; j < segments; j++) {
+      for (var i = 0; i < segments; i++) {
+        final a = first + j * (segments + 1) + i;
+        final b = a + 1, c = a + segments + 1, d = c + 1;
+        indices.addAll(<int>[a, b, d, a, d, c]);
+      }
+    }
+  }
+  return MeshData(
+    layout: VertexLayout.positionNormalTexcoord,
+    vertices: Float32List.fromList(vertices),
+    indices: Uint32List.fromList(indices),
+  );
 }
 
 /// A boundary edge is one touched by exactly one triangle. Deduplicated by

@@ -9,7 +9,7 @@
 #
 # What it does NOT do, stated so the gap is not mistaken for coverage:
 #
-#   * The Impeller half of the golden set. Those forty-four scenes render through
+#   * The Impeller half of the golden set. Those seventy-eight scenes render through
 #     flutter_gpu and need a real device, so they run from
 #     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
 #     half runs here, and cross_backend_test.dart compares the two committed
@@ -20,6 +20,9 @@
 #     one — packages/flutter3d_webgl/tool/profile_web.py, with its numbers in
 #     its own header — and it is not run here: it builds a demo and drives a
 #     browser, which is minutes, and nothing it measures fails a build yet.
+#   * Frame pacing. tool/pacing.sh plays a recorded run through Impeller and
+#     fails on any frame over 50 ms, which needs a GPU; .github/workflows/ci.yml
+#     runs it in a macOS job of its own, and its report lives in doc/pacing/.
 #   * The Android and iOS builds. They are compiled, but not by this script:
 #     .github/workflows/ci.yml has a job apiece, because one wants an Android
 #     toolchain and the other only builds on macOS, and a script that asked a
@@ -111,7 +114,11 @@ step "icons" python3 tool/check_icons.py
 # same reason the icons are — and for one more: `math.sin` is libm, so a
 # generator that did not quantise its coordinates produces different bytes on a
 # different machine, and this is the step that would say so.
-step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets_src/models"'
+#
+# The templates' own documents — the vocabulary, the first level, the manifest
+# listing these models — are written by the level step below, after this one,
+# because the manifest reads which models are here.
+step "models" bash -c 'python3 tool/make_models.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets_src/models"'
 
 # **The levels and the tracks, which `ARCHITECTURE.md` claimed were covered and
 # were not.** §13 says anything a tool produces is regenerated here and diffed;
@@ -126,9 +133,10 @@ step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/ma
 # are byte-reproducible"; by then there were twelve, and two of them —
 # `make_cistern.py` and `make_sanctum.py` — had never been run here at all,
 # though both write a tracked, shipped document. They were reproducible. Nothing
-# had ever asked. `tool/regenerate_levels.py` reads `generatedBy` out of the
+# had ever asked. `tool/regenerate_levels.dart` reads `generatedBy` out of the
 # documents themselves, so a new level is covered the day it is committed and
-# there is no list left to forget.
+# there is no list left to forget. The generators are Dart, in
+# `flutter3d_editor_core/tool/levels/`, and write the templates too.
 # `apps` and not `apps/*/assets`: a wildcard pathspec in the middle of a path
 # matches nothing here, so the diff passed whatever the generators wrote — a
 # check that cannot fail, which is worse than the stale list it replaced. Caught
@@ -136,7 +144,7 @@ step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/ma
 # clean by the time this step runs, so the wider pathspec costs nothing.
 step "levels" bash -c '
   set -e
-  python3 tool/regenerate_levels.py
+  (cd packages/flutter3d_editor_core && dart run tool/regenerate_levels.dart)
   git diff --exit-code -- apps
 '
 
@@ -158,6 +166,13 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 # reason the shader bundle step does: a check that quietly does nothing is worse
 # than no check, because it reports green.
 step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
+# `H6`: the compute stages, from their own manifest, through the same glslang
+# and naga. The same shape of check: regenerate, and fail on any difference.
+step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_compute_shaders.dart'
+
+# `G1`: the engine's data tables are generated and seeded, so running the
+# generator again must write the same bytes the test pins by hash.
+step "engine tables" bash -c 'cd packages/flutter3d_core && dart run tool/make_tables.dart >/dev/null && git diff --exit-code -- lib/src/engine/render/tables'
 
 # **`qa-09`: the real Khronos validator, against a fresh `GltfWriter` export.**
 # `fmt-11`'s own checker
@@ -361,30 +376,23 @@ for example in packages/*/example/; do
   step "test $(basename "$(dirname "$example")") example" in_dir "$example" flutter test
 done
 
-# **The `golden` tag is excluded here, and it is meant to come back.**
+# **The `golden` tag runs in its own CI job, not here.**
 #
 # What the tag covers is in apps/flutter3d_modeler/dart_test.yaml: not only a
 # picture held against a committed PNG but every test that draws a scene at
 # all, because under `flutter test` there is no Impeller and each pixel is
 # paid for in Dart. Two applications carry it, the modeller and the showcase.
 #
-# Why it is off, as of 2026-09-22. 43 of the modeller's tutorial screenshots
-# fail here and pass on a developer's machine, and the difference grades by
-# how much of the frame the software rasteriser fills: 1.0-1.3% of pixels on
-# a flat widget screen, 16-19% with a mesh in the viewport, 56-74% for the lit
-# scenes. `cpu_shaders_color.dart` runs every pixel through `math.pow` on the
-# sRGB conversion and `pow` is not required to agree between one platform's
-# libm and another's, so a surface can differ in every pixel by one step in
-# the last place and still look identical. The comparator counts any
-# difference at all, which is what turns that into 74%. Fixing it properly
-# means a threshold on the size of a channel's difference rather than on the
-# fact of one, and that is a change to what the suite promises, not a switch.
+# It was off everywhere from 2026-09-22: 43 of the modeller's tutorial
+# screenshots failed on a Linux runner and passed on a developer's machine,
+# because `cpu_shaders_color.dart` ran every pixel's sRGB conversion through
+# `math.pow` and libm does not agree between platforms. That conversion now
+# uses `portable_root.dart` (`gfx-90n`), and the comparison is still exact.
 #
-# The same suite is also 51 minutes of an 89-minute run, which is why turning
-# it off takes the job back under the hour it kept overrunning.
-#
-# To put it back: delete this variable and the one use below it, and the
-# `render` job's `if: false` in .github/workflows/ci.yml.
+# What keeps it out of this script is time, not correctness: the suite is 51
+# minutes of what was an 89-minute run, and the `check` job kept overrunning
+# its hour. `render-apps` in .github/workflows/ci.yml runs it beside `check`.
+# Locally, `flutter test --tags golden` in either application.
 GOLDEN_EXCLUDE=(--exclude-tags golden)
 
 for app in apps/*/; do

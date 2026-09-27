@@ -6,29 +6,42 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
 import '../scene/instanced_mesh_node.dart';
+import '../scene/irradiance_field.dart';
+import '../scene/irradiance_gather.dart' show kIrradianceReach;
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
 import '../scene/morph_state.dart';
+import '../scene/occlusion/hi_z_occlusion.dart';
+import '../scene/occlusion/occlusion_test.dart';
+import '../scene/occlusion/software_occlusion.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
+import 'cluster_draws.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'empty_frame.dart';
+import 'engine_tables.dart';
+import 'field_pass.dart';
 import 'frame_capture.dart';
 import 'frame_graph.dart';
+import 'frame_history.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
+import 'frame_work_budget.dart';
 import 'identity_indices.dart';
+import 'light_clusters.dart';
 import 'material.dart';
+import 'object_id_frame.dart';
 import 'pass_contributor.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
@@ -36,6 +49,7 @@ import 'render_list.dart';
 import 'render_node.dart';
 import 'render_settings.dart';
 import 'render_view.dart';
+import 'scene_colour_chain.dart';
 import 'shadow_slots.dart';
 import 'sky_settings.dart';
 import 'static_bake_key.dart';
@@ -44,10 +58,16 @@ import 'static_bake_key.dart';
 // of `Renderer`'s own concerns, so they live in their own file. Re-exported
 // here rather than added to `flutter3d.dart` directly, so this file keeps
 // being the one place that decides what a consumer reaches through.
+//
+// What `Renderer.captureObjectIds` answers with, for the same reason.
+export 'object_id_frame.dart';
 export 'render_settings.dart';
 
 part 'renderer_batch.dart';
+part 'renderer_contributor_lights.dart';
+part 'renderer_fog_pass.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
@@ -57,43 +77,34 @@ part 'renderer_resources.dart';
 part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
+part 'renderer_temporal_pass.dart';
+part 'renderer_transmission_pass.dart';
+part 'renderer_transparency_pass.dart';
+part 'renderer_velocity_pass.dart';
 part 'renderer_xray_pass.dart';
 
-/// Uniform-block names as seen by shader reflection.
-///
-/// A backend may reflect a uniform block under its struct TYPE name, so
-/// `uniform FrameInfo { ... } frame_info;` is looked up as `FrameInfo`. Using
-/// the variable name instead is not an error at bind time — it just reflects as
-/// a missing block, which surfaces much later as "no uniform block named ...".
-const String _kReflectionInfoBlock = 'ReflectionInfo';
-const String _kSsaoInfoBlock = 'SsaoInfo';
-const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 
 /// The per-draw half of the light list — `gfx-74n`.
 const String _kLightListBlock = 'LightListInfo';
 
-/// The contact shadow's own block — `gfx-76n`.
-const String _kContactShadowBlock = 'ContactShadowInfo';
-const String _kFogInfoBlock = 'FogInfo';
 const String _kMorphInfoBlock = 'MorphInfo';
-const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
-const String _kLineInfoBlock = 'LineInfo';
-const String _kSkinInfoBlock = 'SkinInfo';
-const String _kBloomInfoBlock = 'BloomInfo';
-const String _kFxaaInfoBlock = 'FxaaInfo';
-const String _kCompositeInfoBlock = 'CompositeInfo';
-const String _kLuminanceInfoBlock = 'LuminanceInfo';
-const String _kIdInfoBlock = 'IdInfo';
-const String _kProbeInfoBlock = 'ProbeInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
 
-/// `gfx-60n`: the cutoff and the base alpha a cut-out shadow stage reads.
-const String _kShadowMaskBlock = 'MaskInfo';
 const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
+
+/// The LTC tables — `L7`. Metal-rough only; see `lib/ltc.glsl`.
+const String _kLtcTextureSlot = 'ltc_texture';
+
+/// The layered model's coat map and its block — `M1`. See `lib/pbr.glsl`.
+const String _kCoatTextureSlot = 'coat_texture';
+const String _kSheenTextureSlot = 'sheen_texture';
+
+/// The copy of the scene a transmissive draw reads — `M3`. Layered only.
+const String _kSceneColourTextureSlot = 'scene_colour_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
 const String _kLightmapTextureSlot = 'lightmap_texture';
@@ -147,10 +158,26 @@ final class Renderer implements RenderServices {
     required this.reflectionShader,
     required this.ssaoShader,
     required this.contactShadowShader,
+    required this.contactShadowResolveShader,
+    required this.cameraVelocityShader,
+    required this.velocityShader,
+    required this.velocityVertexShader,
+    required this.velocitySkinnedVertexShader,
+    required this.velocityInstancedVertexShader,
+    required this.reactiveShader,
+    required this.temporalResolveShader,
+    required this.temporalAccumulateShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
+    required this.volumetricFogShader,
+    required this.volumetricFogUpsampleShader,
     required this.depthOfFieldShader,
+    required this.velocityTileMaxShader,
+    required this.velocityNeighborMaxShader,
+    required this.motionBlurShader,
     required this.viewportShadeShader,
+    required this.wboitResolveShader,
+    required this.sceneColourCopyShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -281,17 +308,69 @@ final class Renderer implements RenderServices {
   /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
   final ShaderHandle contactShadowShader;
 
+  /// `post/contact_shadow_resolve.frag`: the march averaged over one window of
+  /// its dither pattern, for a frame no temporal resolve smooths.
+  final ShaderHandle contactShadowResolveShader;
+
+  /// `post/camera_velocity.frag` — `R1`.
+  final ShaderHandle cameraVelocityShader;
+
+  /// `post/velocity.frag` and the three vertex stages that feed it, for
+  /// nodes that moved — `R1`.
+  final ShaderHandle velocityShader;
+  final ShaderHandle velocityVertexShader;
+  final ShaderHandle velocitySkinnedVertexShader;
+  final ShaderHandle velocityInstancedVertexShader;
+
+  /// `post/reactive.frag` — `R4`: a blended surface marked in the velocity's
+  /// blue, through the same three vertex stages.
+  final ShaderHandle reactiveShader;
+
+  /// `post/temporal_resolve.frag` — `R2`.
+  final ShaderHandle temporalResolveShader;
+
+  /// `post/temporal_accumulate.frag` — `R3`.
+  final ShaderHandle temporalAccumulateShader;
+
+  /// The temporal resolve's two histories, at the output's size: one read,
+  /// one written, swapped each frame. The renderer's own, like the cube
+  /// atlases, because what they hold outlives the frame.
+  final List<TextureHandle?> _history = <TextureHandle?>[null, null];
+  int _historyRead = 0;
+
+  /// Whether [_history] holds a frame worth blending: false at first, after a
+  /// resize, and after a frame drawn with temporal anti-aliasing off.
+  bool _historyValid = false;
+
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
   final ShaderHandle ssaoBlurShader;
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
   final ShaderHandle lightShaftsShader;
 
+  /// `S4`'s half-resolution march through the air, and the depth-aware pass
+  /// that lays it over the scene.
+  final ShaderHandle volumetricFogShader;
+  final ShaderHandle volumetricFogUpsampleShader;
+
   /// `gfx-34n`'s thin lens and its gather.
   final ShaderHandle depthOfFieldShader;
 
+  /// `R6`'s motion blur: the tile search, walked once per axis, the
+  /// neighbourhood over the tiles, and the gather.
+  final ShaderHandle velocityTileMaxShader;
+  final ShaderHandle velocityNeighborMaxShader;
+  final ShaderHandle motionBlurShader;
+
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
   final ShaderHandle viewportShadeShader;
+
+  /// `R8`'s resolve: the transparent layers' weighted average, laid over the
+  /// scene.
+  final ShaderHandle wboitResolveShader;
+
+  /// `M3`'s copy: one level of the scene behind the transmissive draws.
+  final ShaderHandle sceneColourCopyShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -399,6 +478,8 @@ final class Renderer implements RenderServices {
   void dispose() {
     _pipelineCache.clear();
     _fragmentShaders.clear();
+    _clusterDraws?.dispose();
+    _clusterDraws = null;
 
     // Whatever the last frames queued but no frame has retired yet: pooled
     // targets go back through the pool so the trim below frees them, owned
@@ -426,26 +507,47 @@ final class Renderer implements RenderServices {
       _hdrColor,
       _hdrMsaa,
       _surfaceColor,
+      _albedoColor,
       _surfaceMsaa,
       _reflectionColor,
       _depthStencil,
       _depthStencilSingle,
+      _wboitAccumulation,
+      _wboitRevealage,
+      _wboitDepth,
       ..._ldrFrames,
+      ..._history,
+      for (final effect in _effectHistories.values) ...effect.textures,
+      _irradianceAtlas,
+      _irradianceGpu?.atlas.current,
+      _irradianceGpu?.radiance,
+      _irradianceGpu?.surface,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
+    _effectHistories.clear();
+    _history
+      ..[0] = null
+      ..[1] = null;
+    _historyValid = false;
     _hdrColor = null;
     _hdrMsaa = null;
     _surfaceColor = null;
+    _albedoColor = null;
     _surfaceMsaa = null;
     _reflectionColor = null;
     _depthStencil = null;
     _depthStencilSingle = null;
+    _wboitAccumulation = null;
+    _wboitRevealage = null;
+    _wboitDepth = null;
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
     _targetWidth = 0;
     _targetHeight = 0;
+    _frameTargetWidth = 0;
+    _frameTargetHeight = 0;
 
     // Released rather than merely dropped, and nulled so a second call is the
     // no-op this method promises to be.
@@ -455,7 +557,11 @@ final class Renderer implements RenderServices {
       _fallbackBlack,
       _fallbackEnvironment,
       _shadowMap,
+      _shadowMapStatic,
+      _shadowMapStaticSpare,
       _shadowDepth,
+      _shadowMoments,
+      _shadowMomentsScratch,
       _cubeShadow,
       _cubeShadowStatic,
       _cubeShadowDepth,
@@ -473,7 +579,12 @@ final class Renderer implements RenderServices {
     _fallbackBlack = null;
     _fallbackEnvironment = null;
     _shadowMap = null;
+    _shadowMapStatic = null;
+    _shadowMapStaticSpare = null;
     _shadowDepth = null;
+    _shadowMoments = null;
+    _shadowMomentsScratch = null;
+    _shadowMomentsKey = null;
     _cubeShadow = null;
     _cubeShadowStatic = null;
     _cubeShadowDepth = null;
@@ -494,11 +605,11 @@ final class Renderer implements RenderServices {
 
     _renderList.materialIds.clear();
 
-    // A question no frame will ever answer is answered now, with nothing:
-    // a future that never completes is a caller waiting for a renderer that
-    // is gone.
+    // A question no frame will ever answer is answered now — a pixel with
+    // nothing, a whole frame with an error: a future that never completes is
+    // a caller waiting for a renderer that is gone.
     for (final pick in _pendingPicks) {
-      pick.completer.complete(null);
+      pick.abandon();
     }
     _pendingPicks.clear();
   }
@@ -513,6 +624,18 @@ final class Renderer implements RenderServices {
   /// `GraphicsDevice.beginFrame` rotates them. The ring length is the same fact
   /// twice, which is why it is named once here and once there.
   int _frameIndex = 0;
+
+  /// How many frames this renderer has drawn — `G2`.
+  ///
+  /// Public because everything temporal is a function of it and of nothing
+  /// else: a jitter sequence, a noise layer, a history's age. Two runs that
+  /// draw the same frames in the same order see the same numbers, which is
+  /// what keeps a multi-frame golden as deterministic as a still.
+  int get frameIndex => _frameIndex;
+
+  /// What the previous frame looked like — `G2`. Recorded at the end of each
+  /// frame while [FrameHistory.tracking] is on, and read during the next.
+  final FrameHistory frameHistory = FrameHistory();
 
   static const int _kFramesInFlight = 3;
 
@@ -553,25 +676,105 @@ final class Renderer implements RenderServices {
   /// Written on every mesh draw, neutral when the mesh has no targets: the
   /// vertex stage declares the block whatever is drawn through it, so leaving
   /// it unbound is the arrangement that killed Metal in `sky.frag`.
-  final Float32List _morphWeights = Float32List(8);
-  final Float32List _morphParams = Float32List(4);
-  final Float32List _morphInstanceParams = Float32List(4);
+  // The uniform blocks the renderer fills, one object each and laid out as
+  // the compiler lays them out — `H1`. The scratch arrays below were fields
+  // of their own and are now the blocks' members under their old names, so
+  // every write that filled them fills the block.
+  final BloomInfoBlock _bloomInfo = BloomInfoBlock();
+  final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
+  final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
+  final ContactShadowResolveInfoBlock _contactShadowResolveInfo =
+      ContactShadowResolveInfoBlock();
+  final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
+  final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
+  final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
+  final ReactiveInfoBlock _reactiveInfo = ReactiveInfoBlock();
+  final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
+  final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
+  final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
 
-  final Float32List _fogData = Float32List(4);
-  final Float32List _cameraData = Float32List(4);
+  /// Whether this frame's screen-space effects read the blue noise and keep
+  /// histories — `R3`: while a temporal resolve runs, on a device that can
+  /// run one. Set at the top of [render].
+  bool _temporalEffects = false;
+
+  /// The noisy effects' histories, by the resource each one smooths — `R3`.
+  final Map<ResourceId, _EffectHistory> _effectHistories =
+      <ResourceId, _EffectHistory>{};
+
+  /// The texture every noise-reading effect binds this frame, with
+  /// [_noiseInfo] filled to match — `R3`. The engine's blue noise while
+  /// [_temporalEffects], uploaded on first use; the one-texel stand-in
+  /// otherwise, which the shader does not read.
+  TextureHandle get _blueNoise {
+    _noiseInfo.noise
+      ..[0] = _temporalEffects ? 1.0 : 0.0
+      ..[1] = (_frameIndex % 32).toDouble();
+    return _temporalEffects
+        ? EngineTables.of(device).blueNoise
+        : fallbackAlbedo;
+  }
+
+  final DofInfoBlock _dofInfo = DofInfoBlock();
+  final DofTileInfoBlock _dofTileInfo = DofTileInfoBlock();
+  final TileMaxInfoBlock _tileMaxInfo = TileMaxInfoBlock();
+  final NeighborMaxInfoBlock _neighborMaxInfo = NeighborMaxInfoBlock();
+  final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();
+  final FogInfoBlock _fogInfo = FogInfoBlock();
+  final LayerInfoBlock _layerInfo = LayerInfoBlock();
+  final SceneCopyInfoBlock _sceneCopyInfo = SceneCopyInfoBlock();
+  final FrameInfoBlock _frameInfo = FrameInfoBlock();
+  final IdInfoBlock _idInfo = IdInfoBlock();
+  final LineInfoBlock _lineInfo = LineInfoBlock();
+  final SkinInfoBlock _skinInfo = SkinInfoBlock();
+  final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
+  final FragInfoBlock _fragInfo = FragInfoBlock();
+  final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final EasuInfoBlock _easuInfo = EasuInfoBlock();
+  final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
+  final LocalExposureBlurInfoBlock _localExposureBlurInfo =
+      LocalExposureBlurInfoBlock();
+  final LightListInfoBlock _lightListInfo = LightListInfoBlock();
+  final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
+  final DepthPyramidInfoBlock _depthPyramidInfo = DepthPyramidInfoBlock();
+  final MaskInfoBlock _maskInfo = MaskInfoBlock();
+  final MorphInfoBlock _morphInfo = MorphInfoBlock();
+  final MorphInstanceInfoBlock _morphInstanceInfo = MorphInstanceInfoBlock();
+  final PointShadowBlock _pointShadow = PointShadowBlock();
+  final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
+  final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
+  final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
+  final ShadowLightBlock _shadowLight = ShadowLightBlock();
+  final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
+  final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
+  final FogUpsampleInfoBlock _fogUpsampleInfo = FogUpsampleInfoBlock();
+
+  /// Whether this frame's fog already laid the occlusion and the contact
+  /// shadow on the surface behind it — `S4`. Set by the fog pass, and read
+  /// and cleared by the composite, which then multiplies neither in again.
+  bool _occlusionBeforeFog = false;
+  final SsaoBlurInfoBlock _ssaoBlurInfo = SsaoBlurInfoBlock();
+  final SsaoInfoBlock _ssaoInfo = SsaoInfoBlock();
+
+  Float32List get _morphWeights => _morphInfo.morphWeights;
+  Float32List get _morphParams => _morphInfo.morphParams;
+  Float32List get _morphInstanceParams => _morphInstanceInfo.instanceParams;
+
+  Float32List get _fogData => _fogInfo.fog;
+  Float32List get _cameraData => _fragInfo.cameraPosition;
 
   /// Which way the camera of the pass being encoded looks, in world space.
   ///
   /// Beside the camera position because the surface buffer's depth is measured
   /// along it — see `ViewDepth` in `lib/color.glsl`. Written wherever
   /// [_cameraData] is, and the two are meaningless apart.
-  final Float32List _forwardData = Float32List(4);
+  Float32List get _forwardData => _fogInfo.forward;
   final vm.Vector3 _forward = vm.Vector3.zero();
-  final Float32List _baseColorData = Float32List(4);
-  final Float32List _emissiveData = Float32List(4);
-  final Float32List _materialData = Float32List(4);
-  final Float32List _material2Data = Float32List(4);
-  final Float32List _frameParams = Float32List(4);
+  Float32List get _baseColorData => _fragInfo.baseColor;
+  Float32List get _emissiveData => _fragInfo.emissive;
+  Float32List get _materialData => _fragInfo.material;
+  Float32List get _material2Data => _fragInfo.material2;
+  Float32List get _frameParams => _fragInfo.frameParams;
 
   /// The reflection probes this renderer has drawn, by the node that placed
   /// them. Two cubes each, kept across frames — see `renderer_probe_pass.dart`.
@@ -584,7 +787,11 @@ final class Renderer implements RenderServices {
   /// `_claimWholeProbeCapture`. Cleared where the probe nodes are built,
   /// which is once per `render`.
   bool _wholeProbeCaptured = false;
-  final Float32List _probeParams = Float32List(4);
+
+  /// Set while [warmUp] draws, which lifts that ration: a loading screen is
+  /// where every probe's first cube belongs — `N3`.
+  bool _warmingUp = false;
+  Float32List get _probeParams => _probeInfo.params;
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
 
@@ -671,6 +878,8 @@ final class Renderer implements RenderServices {
     _skinnedMaskedCubeShadowPipeline = null;
     _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
+    _wboitResolvePipeline = null;
+    _sceneColourCopyPipeline = null;
     _compositePipeline = null;
     _probePrefilterPipeline = null;
     _skyPipeline = null;
@@ -679,6 +888,7 @@ final class Renderer implements RenderServices {
     _skinnedCubeShadowPipeline = null;
     _instancedCubeShadowPipeline = null;
     _cubeShadowResetPipeline = null;
+    _shadowCopyPipeline = null;
   }
 
   final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
@@ -718,8 +928,47 @@ final class Renderer implements RenderServices {
   /// that owns its own renderer calls it from wherever its platform says.
   void releaseTransientTargets() => targetPool.trim();
 
+  /// Called with every pooled target of a [render] frame at the moment its
+  /// lifetime in the frame ends — `H7`. Null, and so nothing, by default.
+  ///
+  /// A test hook, and the way `RenderSettings.aliasTargets` is proved safe: a
+  /// callback that fills the texture with garbage makes a pass that reads a
+  /// resource after its last declared use, or loads a target it never wrote,
+  /// show up as a changed picture.
+  void Function(TextureHandle texture)? debugOnTargetRetired;
+
   int _targetWidth = 0;
   int _targetHeight = 0;
+
+  /// The finished frame's size, which is [_targetWidth] × [_targetHeight]
+  /// except while temporal anti-aliasing reconstructs a larger one — `R2`.
+  int _frameTargetWidth = 0;
+  int _frameTargetHeight = 0;
+
+  /// The finished frame's format — `R9`: the device's first HDR output
+  /// format under `OutputTransform.extendedSrgb` where it has one, its
+  /// default colour format otherwise. Set per frame by [render].
+  TextureFormat _frameFormat = TextureFormat.r8g8b8a8UNormInt;
+  TextureFormat? _frameTargetFormat;
+
+  /// Whether this frame is encoded for an extended-range display — `R9`.
+  bool _extendedOutput = false;
+
+  /// This frame's allowance for work that can wait — `N3`. Remade when the
+  /// setting changes, started again at the top of every frame.
+  FrameWorkBudget _workBudget = FrameWorkBudget();
+
+  /// The allowance the last frame ran under, for a caller or a test to read
+  /// what it spent and what it put off.
+  FrameWorkBudget get frameWorkBudget => _workBudget;
+
+  /// This frame's output size, as [render] worked it out.
+  int _outputWidth = 0;
+  int _outputHeight = 0;
+
+  /// The nodes that run at the output size rather than the scene's: those
+  /// registered after the temporal resolve. Empty while it is off.
+  Set<FrameGraphNode> _outputSized = const <FrameGraphNode>{};
 
   /// The scene, in linear light with no upper bound. Everything post-processing
   /// does depends on values above display white surviving this far, which is
@@ -778,14 +1027,17 @@ final class Renderer implements RenderServices {
 
   /// The frame currently being drawn into.
   TextureHandle? get _ldrColor => _ldrCurrent;
-  final Float32List _reflectionParams = Float32List(4);
-  final Float32List _reflectionScreen = Float32List(4);
-  final Float32List _reflectionCameraData = Float32List(4);
+  Float32List get _reflectionParams => _reflectionInfo.params;
+  Float32List get _reflectionScreen => _reflectionInfo.screen;
+  Float32List get _reflectionCameraData => _reflectionInfo.camera;
   final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
-  final Float32List _reflectionForwardData = Float32List(4);
+  Float32List get _reflectionForwardData => _reflectionInfo.forward;
   final vm.Vector3 _reflectionForward = vm.Vector3.zero();
   TextureHandle? _reflectionColor;
   TextureHandle? _surfaceColor;
+
+  /// The albedo buffer — `L5`. See [FrameResourceIds.albedoBuffer].
+  TextureHandle? _albedoColor;
   TextureHandle? _surfaceMsaa;
   TextureHandle? _depthStencil;
 
@@ -793,6 +1045,26 @@ final class Renderer implements RenderServices {
   /// they want the surface buffer. Attachments in one target must agree on
   /// sample count, so a four-sample depth cannot sit beside a resolved colour.
   TextureHandle? _depthStencilSingle;
+
+  /// Weighted blended transparency's targets — `R8`: the accumulation, the
+  /// revealage, and a one-sample depth the scene pass stores for the
+  /// transparent passes to load. Made the first time a frame asks, released
+  /// with the others on a resize; see `renderer_transparency_pass.dart`.
+  ///
+  /// Their own depth rather than [_depthStencilSingle], which is
+  /// `deviceTransient` — memoryless on Apple GPUs, with nothing to load. The
+  /// same depth carries the opaque half over to the transparent pass when a
+  /// frame splits the scene around a copy of it — `M3`; see
+  /// `_storedSceneDepth`.
+  TextureHandle? _wboitAccumulation;
+  TextureHandle? _wboitRevealage;
+  TextureHandle? _wboitDepth;
+
+  /// The copy of the scene the transparent pass lends its draws — `M3`: the
+  /// texture and the layout of its levels, for exactly as long as that pass
+  /// draws, and null everywhere else. Every other draw of the layered model
+  /// binds black in its place and reads the environment, as it always did.
+  ({TextureHandle texture, SceneColourChain chain})? _sceneColourRead;
 
   // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
   // caches that key off it.
@@ -843,9 +1115,11 @@ final class Renderer implements RenderServices {
   PipelineHandle? _instancedMaskedCubeShadowPipeline;
 
   /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
-  final Float32List _shadowMask = Float32List(4);
+  Float32List get _shadowMask => _maskInfo.mask;
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
+  PipelineHandle? _wboitResolvePipeline;
+  PipelineHandle? _sceneColourCopyPipeline;
   PipelineHandle? _compositePipeline;
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
@@ -874,7 +1148,7 @@ final class Renderer implements RenderServices {
 
   /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
   /// there are. w: one texel of a tile, vertically.
-  final Float32List _shadowCascades = Float32List(4);
+  Float32List get _shadowCascades => _fragInfo.shadowCascades;
 
   int _shadowCascadeCount = 1;
 
@@ -899,8 +1173,59 @@ final class Renderer implements RenderServices {
 
   /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
   final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
-  final Float32List _shadowParams = Float32List(4);
+  Float32List get _shadowParams => _fragInfo.shadowParams;
+
+  /// `FragInfo.target_origin`: the rows of the target the scene draws into
+  /// when its row zero is the bottom of the picture — see
+  /// `lib/frag_coord.glsl`. Set where each pass that draws meshes begins.
+  Float32List get _targetOrigin => _fragInfo.targetOrigin;
+
+  /// `FragCoordInfo.origin`, the same number for a full-screen pass.
+  Float32List get _fragCoordOrigin => _fragCoordInfo.origin;
+
+  /// How many rows [target] has if this backend counts them from the bottom,
+  /// and zero if it counts from the top — what `FragCoordFromTop` turns
+  /// `gl_FragCoord` around with.
+  double _rowsFromBottom(TextureHandle target) =>
+      device.framebufferOrigin == FramebufferOrigin.bottomLeft
+      ? ScreenRect.of(target).height.toDouble()
+      : 0.0;
+
+  /// Binds `FragCoordInfo` for [stage] drawing into [target]. A stage that
+  /// does not declare the block answers false and nothing is bound.
+  void _bindFragCoord(
+    PassEncoder pass,
+    ShaderHandle stage,
+    TextureHandle target,
+  ) {
+    _fragCoordOrigin[0] = _rowsFromBottom(target);
+    pass.bindBlock(stage, _fragCoordInfo);
+  }
+
+  /// `ShadowSettings.bias` per cascade, in each cascade's own depth: see
+  /// `shadow_bias` in `surface.glsl`.
+  Float32List get _shadowCascadeBias => _fragInfo.shadowBias;
+  final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
   TextureHandle? _shadowMap;
+
+  /// The static casters' own directional atlas — `S1`: drawn when they
+  /// change, and copied tile by tile into [_shadowMap] under the dynamic
+  /// ones. Null while nothing in the scene is marked static.
+  TextureHandle? _shadowMapStatic;
+
+  /// The other static atlas, which a frame that changes a static tile draws
+  /// into from [_shadowMapStatic] before the two change places — `S1`.
+  TextureHandle? _shadowMapStaticSpare;
+
+  /// The matrices each static tile was drawn with, for the next frame to
+  /// scroll it by, and the static casters' key it was drawn under.
+  final List<vm.Matrix4?> _staticShaderMatrices = <vm.Matrix4?>[
+    null,
+    null,
+    null,
+  ];
+  final List<vm.Matrix4?> _staticRawMatrices = <vm.Matrix4?>[null, null, null];
+  int? _staticSceneKey;
 
   /// The depth buffer the cascade atlas is drawn with, kept for as long as the
   /// atlas is rather than borrowed from the pool a frame at a time.
@@ -917,6 +1242,21 @@ final class Renderer implements RenderServices {
   /// Owning it costs one texture the size of the atlas and takes the question
   /// away.
   TextureHandle? _shadowDepth;
+
+  /// The directional atlas as blurred exponential moments, and the atlas the
+  /// first of the two blur passes lands in — `S2`. Null until a frame asks
+  /// for [ShadowFilter.evsm] on a device that can filter them.
+  TextureHandle? _shadowMoments;
+  TextureHandle? _shadowMomentsScratch;
+
+  /// Counts the frames that drew into [_shadowMap], so the moments are made
+  /// again only when the depth they are made of changed — a kept atlas keeps
+  /// its moments too.
+  int _shadowMapVersion = 0;
+
+  /// What [_shadowMoments] was last made from: [_shadowMapVersion], the blur
+  /// radius and the cascade count. Null when it holds nothing yet.
+  (int, int, int)? _shadowMomentsKey;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
   int _shadowsDenied = 0;
@@ -927,40 +1267,40 @@ final class Renderer implements RenderServices {
   /// empty frames, not once per empty frame and not once per renderer.
   bool _emptyFrameReported = false;
 
-  final Float32List _bloomParams = Float32List(4);
+  Float32List get _bloomParams => _bloomInfo.params;
 
   /// The upsample step's per-channel factor: the ratio of this level's
   /// halation and scatter weight to the one above's. See `_renderBloom`.
-  final Float32List _bloomTint = Float32List(4);
-  final Float32List _fxaaParams = Float32List(4);
+  Float32List get _bloomTint => _bloomInfo.tint;
+  Float32List get _fxaaParams => _fxaaInfo.params;
 
   /// `gfx-29n`: x is the sharpening amount, the rest unclaimed.
-  final Float32List _fxaaSharpen = Float32List(4);
+  Float32List get _fxaaSharpen => _fxaaInfo.sharpen;
 
   /// `gfx-32n`: one texel of the occlusion buffer, the tap count, and how
   /// fast a tap's weight falls off with depth.
-  final Float32List _ssaoBlurParams = Float32List(4);
+  Float32List get _ssaoBlurParams => _ssaoBlurInfo.params;
 
   /// `gfx-33n`'s own four vectors. The three matrices it also needs are the
   /// shadow pass's, reused rather than recomputed.
-  final Float32List _shaftCamera = Float32List(4);
-  final Float32List _shaftForward = Float32List(4);
-  final Float32List _shaftScatter = Float32List(4);
+  Float32List get _shaftCamera => _shaftInfo.camera;
+  Float32List get _shaftForward => _shaftInfo.forward;
+  Float32List get _shaftScatter => _shaftInfo.scatter;
 
   /// The shafts' `sun`: the direction towards the caster, and the phase's g.
-  final Float32List _shaftSun = Float32List(4);
-  final Float32List _shaftCascades = Float32List(4);
+  Float32List get _shaftSun => _shaftInfo.sun;
+  Float32List get _shaftCascades => _shaftInfo.cascades;
   final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
   final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
-  final Float32List _dofLens = Float32List(4);
-  final Float32List _dofParams = Float32List(4);
-  final Float32List _shadeParams = Float32List(4);
-  final Float32List _shadeScreen = Float32List(4);
-  final Float32List _shadeLight = Float32List(4);
+  Float32List get _dofLens => _dofInfo.lens;
+  Float32List get _dofParams => _dofInfo.params;
+  Float32List get _shadeParams => _shadeInfo.params;
+  Float32List get _shadeScreen => _shadeInfo.screen;
+  Float32List get _shadeLight => _shadeInfo.light;
   final vm.Vector3 _shadeLightVec = vm.Vector3.zero();
-  final Float32List _compositeParams = Float32List(4);
-  final Float32List _compositeAoTexel = Float32List(4);
-  final Float32List _luminanceParams = Float32List(4);
+  Float32List get _compositeParams => _compositeInfo.params;
+  Float32List get _compositeAoTexel => _compositeInfo.aoTexel;
+  Float32List get _luminanceParams => _luminanceInfo.params;
 
   /// The exposure as it stands, while auto exposure is on; null until a frame
   /// has asked for it.
@@ -979,6 +1319,44 @@ final class Renderer implements RenderServices {
   /// gains a view gains an adapter starting where the frame's own exposure is
   /// rather than at the setting's number and a fresh climb.
   final List<ExposureAdapter> _viewExposure = <ExposureAdapter>[];
+
+  /// `C2`: the occluders rasterised on the CPU, made on the first frame
+  /// that asks for [OcclusionMode.software] and kept, so a renderer that
+  /// never does allocates no buffer.
+  SoftwareOcclusion? _softwareOcclusion;
+
+  /// `C3`: the last depth reading and the grid it is reprojected into, made
+  /// on the first frame that asks for [OcclusionMode.hiZ].
+  HiZOcclusion? _hiZ;
+
+  /// `C9`: the repacked index buffers of split meshes, made on the first draw
+  /// of a mesh that has clusters, so a scene without one allocates nothing.
+  ClusterDraws? _clusterDraws;
+
+  /// `C9`: what the view being drawn culls clusters against, set by the
+  /// scene pass for each of its views and null everywhere else — a shadow,
+  /// a probe face or a layer drawn after the pass draws a split mesh whole.
+  ({
+    int view,
+    vm.Frustum frustum,
+    vm.Matrix4 viewProjection,
+    OcclusionTest? occlusion,
+  })?
+  _clusterView;
+
+  /// Advanced whenever the reading is thrown away, so a readback that was
+  /// already in the air lands on nothing rather than restoring a reading of
+  /// a scene the frame has since stopped trusting.
+  int _hiZEpoch = 0;
+
+  /// Whether a depth-pyramid readback has been asked for and not yet
+  /// answered — one at a time, for the reason [_meterInFlight] gives.
+  bool _pyramidInFlight = false;
+
+  /// The occlusion reading, for tests and a profiler: how many readings of
+  /// the depth pyramid have arrived and been kept. Null until a frame has
+  /// asked for [OcclusionMode.hiZ].
+  HiZOcclusion? get debugHiZ => _hiZ;
 
   /// Readbacks of the luminance target that came back as an error. Diagnostic:
   /// a meter that has stopped hearing from the device holds its last answer,
@@ -1061,7 +1439,27 @@ final class Renderer implements RenderServices {
   /// copy is refused or a fence never signals. A caller that awaits this from
   /// a pointer handler catches, and treats the error as "nothing there".
   Future<MeshNode?> pickPixel(double u, double v) {
-    final request = _PickRequest(u, v);
+    final request = _PixelPick(u, v);
+    _pendingPicks.add(request);
+    return request.completer.future;
+  }
+
+  /// Which mesh the next frame draws at every pixel: [pickPixel]'s pass, run
+  /// for the whole frame and read back whole.
+  ///
+  /// Answered the way [pickPixel] is — by the frame after this call, when its
+  /// readback arrives — and with the same rules about masked, blended and
+  /// instanced meshes, since it is the same pass; a frame with both kinds of
+  /// question pending draws the ids once. It costs a scene's worth of draws
+  /// and a readback of the whole frame, so it is for a tool that has to say
+  /// what is on the screen — how much of a wall shows, and what hides a torch
+  /// — and not for anything that runs every frame.
+  ///
+  /// Fails with the frame when the frame fails, and with a [StateError] when
+  /// the renderer is disposed before any frame answers: an empty frame would
+  /// read as a scene with nothing in it.
+  Future<ObjectIdFrame> captureObjectIds() {
+    final request = _FramePick();
     _pendingPicks.add(request);
     return request.completer.future;
   }
@@ -1092,26 +1490,26 @@ final class Renderer implements RenderServices {
   /// Two vectors rather than one because std140 pads a `vec3` to sixteen bytes
   /// anyway, so seven floats cost the same as eight and the split reads better
   /// on the shader's side: grading in one, the lens and the film in the other.
-  final Float32List _compositeLook = Float32List(4);
-  final Float32List _compositeLookMore = Float32List(4);
+  Float32List get _compositeLook => _compositeInfo.look;
+  Float32List get _compositeLookMore => _compositeInfo.lookMore;
 
   /// `gfx-24n`'s fifth block: x is the dither amount, y and z the white
   /// balance pair `gfx-27n` added. Allocated once and zero on every frame
   /// that does not ask for any of them.
-  final Float32List _compositeOutputEncode = Float32List(4);
+  Float32List get _compositeOutputEncode => _compositeInfo.outputEncode;
 
   /// `gfx-27n`'s three ranges. Neutral is (0,0,0) for the lift and (1,1,1)
   /// for the other two, which is what the composite reads as "do nothing".
-  final Float32List _compositeLift = Float32List(4);
-  final Float32List _compositeGamma = Float32List(4);
-  final Float32List _compositeGain = Float32List(4);
+  Float32List get _compositeLift => _compositeInfo.lift;
+  Float32List get _compositeGamma => _compositeInfo.gamma;
+  Float32List get _compositeGain => _compositeInfo.gain;
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: forty-four goldens go through this
+  /// strength has, and for the same reason: seventy-eight goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
-  final Float32List _compositeContact = Float32List(4);
+  Float32List get _compositeContact => _compositeInfo.contact;
 
   /// Builds a renderer on [device].
   ///
@@ -1159,41 +1557,89 @@ final class Renderer implements RenderServices {
     }
 
     return Renderer._(
-      device: device,
-      vertexShader: require('MeshVertex'),
-      skinnedVertexShader: require('MeshSkinnedVertex'),
-      instancedVertexShader: require('MeshInstancedVertex'),
-      lightmappedVertexShader: require('MeshLightmappedVertex'),
-      debugLineVertexShader: require('DebugLineVertex'),
-      debugLineFragmentShader: require('DebugLine'),
-      fullscreenVertexShader: require('FullscreenVertex'),
-      bloomThresholdShader: require('BloomThreshold'),
-      bloomDownsampleShader: require('BloomDownsample'),
-      bloomUpsampleShader: require('BloomUpsample'),
-      compositeShader: require('Composite'),
-      fxaaShader: require('Fxaa'),
-      reflectionShader: require('Reflections'),
-      ssaoShader: require('Ssao'),
-      contactShadowShader: require('ContactShadow'),
-      ssaoBlurShader: require('SsaoBlur'),
-      lightShaftsShader: require('LightShafts'),
-      depthOfFieldShader: require('DepthOfField'),
-      viewportShadeShader: require('ViewportShade'),
-      fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
-      fallbackNormal:
-          fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
-      fallbackBlack: SolidColorTexture(
-        vm.Vector4(0.0, 0.0, 0.0, 1.0),
-      ).upload(device),
-      msaaEnabled: device.supportsOffscreenMsaa,
-    ).._shaders = library;
+        device: device,
+        vertexShader: require('MeshVertex'),
+        skinnedVertexShader: require('MeshSkinnedVertex'),
+        instancedVertexShader: require('MeshInstancedVertex'),
+        lightmappedVertexShader: require('MeshLightmappedVertex'),
+        debugLineVertexShader: require('DebugLineVertex'),
+        debugLineFragmentShader: require('DebugLine'),
+        fullscreenVertexShader: require('FullscreenVertex'),
+        bloomThresholdShader: require('BloomThreshold'),
+        bloomDownsampleShader: require('BloomDownsample'),
+        bloomUpsampleShader: require('BloomUpsample'),
+        compositeShader: require('Composite'),
+        fxaaShader: require('Fxaa'),
+        reflectionShader: require('Reflections'),
+        ssaoShader: require('Ssao'),
+        contactShadowShader: require('ContactShadow'),
+        contactShadowResolveShader: require('ContactShadowResolve'),
+        cameraVelocityShader: require('CameraVelocity'),
+        velocityShader: require('Velocity'),
+        velocityVertexShader: require('VelocityVertex'),
+        velocitySkinnedVertexShader: require('VelocitySkinnedVertex'),
+        velocityInstancedVertexShader: require('VelocityInstancedVertex'),
+        reactiveShader: require('Reactive'),
+        temporalResolveShader: require('TemporalResolve'),
+        temporalAccumulateShader: require('TemporalAccumulate'),
+        ssaoBlurShader: require('SsaoBlur'),
+        lightShaftsShader: require('LightShafts'),
+        volumetricFogShader: require('VolumetricFog'),
+        volumetricFogUpsampleShader: require('VolumetricFogUpsample'),
+        depthOfFieldShader: require('DepthOfField'),
+        velocityTileMaxShader: require('VelocityTileMax'),
+        velocityNeighborMaxShader: require('VelocityNeighborMax'),
+        motionBlurShader: require('MotionBlur'),
+        viewportShadeShader: require('ViewportShade'),
+        wboitResolveShader: require('WboitResolve'),
+        sceneColourCopyShader: require('SceneColourCopy'),
+        fallbackAlbedo:
+            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
+        fallbackNormal:
+            fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
+        fallbackBlack: SolidColorTexture(
+          vm.Vector4(0.0, 0.0, 0.0, 1.0),
+        ).upload(device),
+        msaaEnabled: device.supportsOffscreenMsaa,
+      )
+      .._shaders = library
+      .._listenForGpuTimings();
+  }
+
+  /// What the GPU spent in each graph node's passes, from the last frame a
+  /// device reported on — `H2`. A frame or two behind the one being drawn,
+  /// because the GPU has to finish a frame before its timestamps can be read.
+  Map<String, int> _lastGpuMicros = const <String, int>{};
+
+  void _listenForGpuTimings() {
+    if (!device.supportsGpuTimestamps) return;
+    device.onGpuTimings((GpuFrameTimings timings) {
+      final byNode = <String, int>{};
+      for (final pass in timings.passes) {
+        byNode[pass.label] = (byNode[pass.label] ?? 0) + pass.micros;
+      }
+      _lastGpuMicros = byNode;
+    });
   }
 
   // `_fragmentShaderFor` and `_pipelineFor` are declared in
   // `renderer_resources.dart`, next to the caches they read and fill.
 
-  void _ensureTargets(int width, int height) {
-    if (width == _targetWidth && height == _targetHeight) return;
+  void _ensureTargets(
+    int width,
+    int height, [
+    int? outputWidth,
+    int? outputHeight,
+  ]) {
+    final frameWidth = outputWidth ?? width;
+    final frameHeight = outputHeight ?? height;
+    if (width == _targetWidth &&
+        height == _targetHeight &&
+        frameWidth == _frameTargetWidth &&
+        frameHeight == _frameTargetHeight &&
+        _frameFormat == _frameTargetFormat) {
+      return;
+    }
 
     // **Everything below is about to be replaced by assigning over a field.**
     // Where the collector frees a texture that is the whole story; where it
@@ -1204,10 +1650,19 @@ final class Renderer implements RenderServices {
     _destroyAfterFrame(_hdrColor);
     _destroyAfterFrame(_hdrMsaa);
     _destroyAfterFrame(_surfaceColor);
+    _destroyAfterFrame(_albedoColor);
     _destroyAfterFrame(_surfaceMsaa);
     _destroyAfterFrame(_reflectionColor);
     _destroyAfterFrame(_depthStencil);
     _destroyAfterFrame(_depthStencilSingle);
+    // `R8`'s, which are made on demand rather than here: dropped, and the
+    // next frame that asks makes them at the new size.
+    _destroyAfterFrame(_wboitAccumulation);
+    _destroyAfterFrame(_wboitRevealage);
+    _destroyAfterFrame(_wboitDepth);
+    _wboitAccumulation = null;
+    _wboitRevealage = null;
+    _wboitDepth = null;
     // The composited frames are the one set with an owner outside this class:
     // `Texture.asImage` hands one to the widget tree, and the compositor may
     // still be holding the last of them. The ring is what covers that, and it
@@ -1258,14 +1713,34 @@ final class Renderer implements RenderServices {
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
-    _makeLdrFrame = () =>
-        make(StorageMode.devicePrivate, device.defaultColorFormat);
+    //
+    // At the output size, which is the scene's except while temporal
+    // anti-aliasing reconstructs a larger picture — `R2`.
+    final frameFormat = _frameFormat;
+    _makeLdrFrame = () => device.createTexture(
+      RenderTargetSpec(
+        width: frameWidth,
+        height: frameHeight,
+        format: frameFormat,
+        storageMode: StorageMode.devicePrivate,
+      ),
+    );
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
     // resize is the only moment any of this is allowed to be reallocated and a
     // buffer that appears mid-session would be the one that is the wrong size.
     _surfaceColor = make(StorageMode.devicePrivate, hdrFormat);
+    // `L5`: the albedo buffer. **In the surface buffer's format, although
+    // eight bits a channel would hold a colour.** On Impeller the third
+    // attachment is written as if it had the second one's format: an RGBA8
+    // albedo beside a half-float surface buffer came back holding the raw
+    // bytes of two half floats, sRGB 0.78 stored as 61 and an alpha of 58.
+    // The horizon method's bounces and the indirect light then read an albedo
+    // a quarter of the real one, and `gtao-corner` and `ssil-room` stood
+    // 1.6% and 4.8% apart from the other three backends. One format for both
+    // attachments leaves nothing to take from the wrong one.
+    _albedoColor = make(StorageMode.devicePrivate, hdrFormat);
     _reflectionColor = make(StorageMode.devicePrivate, hdrFormat);
 
     _surfaceMsaa = msaaEnabled
@@ -1288,6 +1763,9 @@ final class Renderer implements RenderServices {
 
     _targetWidth = width;
     _targetHeight = height;
+    _frameTargetWidth = frameWidth;
+    _frameTargetHeight = frameHeight;
+    _frameTargetFormat = _frameFormat;
   }
 
   /// Index of the first directional light in the packed buffer that asks to
@@ -1357,6 +1835,12 @@ final class Renderer implements RenderServices {
         buffer,
         caster >= 0 ? caster : _directionalIndexIn(buffer, castingOnly: false),
       );
+
+  /// Which light the volumetric fog scatters as its sun — `S4`: the shadow
+  /// map's caster when there is one, so the air is shadowed by the map it
+  /// reads, and the first directional light otherwise, unshadowed.
+  static int _airLightIn(LightBuffer buffer, int caster) =>
+      caster >= 0 ? caster : _directionalIndexIn(buffer, castingOnly: false);
 
   /// The colour times the intensity of the light at [index] in [buffer], or
   /// null when there is none — what the light shafts scatter.
@@ -1559,18 +2043,32 @@ final class Renderer implements RenderServices {
   /// level with five torches had one that could never cast a shadow anywhere.
   static const int kShadowedLights = 6;
 
-  final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
+  Float32List get _cubeFaceMatrices => _pointShadow.faces;
 
-  /// Scratch for the two irradiance samples a draw takes — `gfx-81n`. Kept
-  /// here for the reason every other staging buffer is: a draw must allocate
-  /// nothing, and a scene with a field takes two of these per object.
-  final vm.Vector3 _irradianceUp = vm.Vector3.zero();
-  final vm.Vector3 _irradianceDown = vm.Vector3.zero();
+  /// The irradiance field's atlas and how to read it — `L3`. Uploaded when
+  /// the scene's field changes identity or version; see `_bindIrradiance`.
+  final IrradianceInfoBlock _irradianceInfo = IrradianceInfoBlock();
+  IrradianceField? _irradianceField;
+  int _irradianceVersion = -1;
+  TextureHandle? _irradianceAtlas;
+  int _irradianceColumns = 1;
+  int _irradianceMomentsTop = 0;
+
+  /// The field being updated on the GPU, when one is — `L4`.
+  _IrradianceGpu? _irradianceGpu;
+  final ConvolveInfoBlock _convolveInfo = ConvolveInfoBlock();
+
+  /// The texture the lit stages read the irradiance field from this frame:
+  /// the GPU-updated atlas when the field is kept current there, the
+  /// uploaded bake otherwise, null with no field — `L4`. For tools and tests
+  /// that want to look at what the field has become.
+  TextureHandle? get irradianceAtlas =>
+      _irradianceGpu?.atlas.current ?? _irradianceAtlas;
 
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].
-  final Float32List _ambientSky = Float32List(4);
-  final Float32List _ambientGround = Float32List(4);
+  Float32List get _ambientSky => _fragInfo.ambientSky;
+  Float32List get _ambientGround => _fragInfo.ambientGround;
 
   /// Resolves the two ends of the hemispheric ambient for this frame.
   ///
@@ -1618,6 +2116,10 @@ final class Renderer implements RenderServices {
     _ambientGround[0] = downX * tint.x;
     _ambientGround[1] = downY * tint.y;
     _ambientGround[2] = downZ * tint.z;
+    // `L8`: the metal-rough models' diffuse lobe rides in the sky colour's
+    // spare lane — frame-wide, as this is, and set here rather than in the
+    // scene pass so a probe captured before it shades the room the same way.
+    _ambientSky[3] = settings.diffuseModel == DiffuseModel.eon ? 1.0 : 0.0;
   }
 
   /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
@@ -1628,7 +2130,7 @@ final class Renderer implements RenderServices {
   /// a spot's tile through the matrix in `faces[]`, which already carries the
   /// aim. This is what the *pass* needs in order to build that matrix.
   final Float32List _cubeLightAim = Float32List(4 * kShadowedLights);
-  final Float32List _cubeLightData = Float32List(4 * kShadowedLights);
+  Float32List get _cubeLightData => _pointShadow.lights;
 
   /// One vec4 per light the shading knows about; x is its atlas row or -1.
   final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
@@ -1653,11 +2155,15 @@ final class Renderer implements RenderServices {
   final LightBuffer _drawLights = LightBuffer();
   final Float32List _drawShadowSlots = Float32List(4 * LightBuffer.maxLights);
 
-  final Float32List _pointShadowParams = Float32List(4);
-  final Float32List _pointShadowParams2 = Float32List(4);
+  /// What a lit contributor binds its lights through — `N6`. One for the
+  /// renderer, pointed at each view's lights as its contributors run.
+  late final _ContributorLights _contributorLights = _ContributorLights(this);
+
+  Float32List get _pointShadowParams => _pointShadow.params;
+  Float32List get _pointShadowParams2 => _pointShadow.params2;
 
   /// x: whether this backend stores the cube atlas bottom-up. See surface.glsl.
-  final Float32List _pointShadowParams3 = Float32List(4);
+  Float32List get _pointShadowParams3 => _pointShadow.params3;
 
   /// Number of atlas rows in use, or -1 when none are.
   int _cubeShadowLight = -1;
@@ -1955,14 +2461,18 @@ final class Renderer implements RenderServices {
     required _CubeShadowNode cube,
     required _ShadowMapNode shadow,
     required List<_ReflectionProbeNode> probes,
+    required _IrradianceUpdateNode irradiance,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
     required _LuminanceNode luminance,
     required _ObjectIdNode objectIds,
+    required int viewCount,
     required vm.Vector3? sunToLight,
     required vm.Vector3? sunRadiance,
     required vm.Vector3? contactToLight,
+    required vm.Vector3? fogToLight,
+    required vm.Vector3? fogRadiance,
   }) {
     final graph = FrameGraph()
       // The atlas before the directional map, which is the order they were
@@ -1987,7 +2497,11 @@ final class Renderer implements RenderServices {
       // deleting it.
       ..addNode(cubeStatic)
       ..addNode(cube)
-      ..addNode(shadow);
+      ..addNode(shadow)
+      // `S2`: after the map it is made of and before anything lit reads it.
+      // Active only for the `evsm` filter, and refused as unsupported on a
+      // device that cannot filter the moments.
+      ..addNode(_ShadowMomentsNode(this, s.shadows));
 
     // After the shadows, which a probe's capture samples, and before the
     // scene, which samples the probe. Both orderings are derived from reads —
@@ -1996,8 +2510,16 @@ final class Renderer implements RenderServices {
     for (final probe in probes) {
       graph.addNode(probe);
     }
+    // `L4`: beside the probes, for their reason — it draws the lit scene and
+    // the scene reads what it writes.
+    graph.addNode(irradiance);
     graph
       ..addNode(scene)
+      // `M3`: the copy of the scene and the transparent half drawn over it,
+      // straight after the scene they split, and culled on a frame without
+      // glass.
+      ..addNode(scene.copy)
+      ..addNode(scene.transparent)
       // After the scene, whose render list it builds and sorts again the same
       // way, and before anything else: it reads nothing and writes a name
       // nothing else reads, so its place in the chain is nobody's concern,
@@ -2011,12 +2533,17 @@ final class Renderer implements RenderServices {
     // the occlusion are: a name has to be known for a read of it to compile,
     // and a node left out when its setting is off cannot be reported on.
     // `gfx-38n` — this was the last post node still registered inside an `if`.
-    graph.addNode(_ReflectionsNode(this, view, s));
+    graph.addNode(_ReflectionsNode(this, view, s, scene.scene));
     // After reflections and before bloom: the meter reads the scene as the
     // composite will, glow not yet added. Registered whether or not it is on,
     // for the reason every other node is — a name has to be known — and
     // culled when it is off.
     graph.addNode(luminance);
+    // `C3`: beside the meter, for its reason — a small target read back, a
+    // frame output while it is on, culled when it is off. After the scene,
+    // whose surface buffer it reduces.
+    final depthPyramid = _DepthPyramidNode(this, view, s, viewCount);
+    graph.addNode(depthPyramid);
     // Before bloom, because the composite reads both and the registration order
     // is the version chain. Registered whether or not it is switched on, for
     // the reason bloom is: a name has to be known for a read of it to compile,
@@ -2034,6 +2561,34 @@ final class Renderer implements RenderServices {
     // not matter here — it writes a name nothing else writes — and this is
     // simply where the pass it belongs next to is.
     graph.addNode(_ContactShadowNode(this, view, s, contactToLight));
+    // Right after the march, as a link in its chain: with no temporal resolve
+    // to average the dither away, this does it within the frame. Inactive
+    // while one runs, so the history below reads the march itself.
+    graph.addNode(_ContactShadowResolveNode(this, s, contactToLight));
+    // `R1`: the motion of every pixel, for the temporal resolve. Before any
+    // reader of it, which is all registration order has to promise here.
+    graph
+      ..addNode(_CameraVelocityNode(this, view, s))
+      // And the nodes that moved, over it: the next version of the same
+      // resource, so registration order is what puts them on top.
+      ..addNode(_ObjectVelocityNode(this, view, s, composite._scene))
+      // `R4`: what blends, marked over both for the resolve to trust less.
+      ..addNode(_ReactiveNode(this, view, s, composite._scene))
+      // `R3`: the two effects that march with noise, each carried into a
+      // history of its own. After the velocity, which they reproject by, and
+      // before anything reads them: the composite takes the last version.
+      ..addNode(
+        _AccumulateNode(this, view, s, FrameResourceIds.ao, 'ssao history'),
+      )
+      ..addNode(
+        _AccumulateNode(
+          this,
+          view,
+          s,
+          FrameResourceIds.contactShadow,
+          'contact shadow history',
+        ),
+      );
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
     // the air, so it should glow the way any other light does. It is not a
     // surface, and the occlusion should have nothing to say about it — but
@@ -2041,12 +2596,23 @@ final class Renderer implements RenderServices {
     // included, so a crease darkens the air in front of it too. A known
     // compromise rather than a claim: separating them needs the in-scatter as
     // a resource of its own, which would also take it out of bloom and focus.
+    // `S4`. Before the shafts, beside them in what it reads: the air dims
+    // the scene behind it and adds its own light, and the shafts, when both
+    // are on, add theirs to that rather than being dimmed by a fog that has
+    // already scattered the same sun. The fog does not share the shafts'
+    // compromise: it lays the occlusion and the contact shadow on the
+    // surface itself, before the air, and the composite leaves them out.
+    // After the accumulate nodes, so it reads the versions they left.
+    graph.addNode(_VolumetricFogNode(this, view, s, fogToLight, fogRadiance));
     graph.addNode(_LightShaftsNode(this, view, s, sunToLight, sunRadiance));
     // `gfx-34n`. After the shafts, because a lens is in front of everything
     // the scene emits and light in the air defocuses exactly as the geometry
     // behind it does; before bloom, because a glow is what the sensor does
     // with light that has already been through the lens.
-    graph.addNode(_DepthOfFieldNode(this, s));
+    graph.addNode(_DepthOfFieldNode(this, view, s));
+    // `R6`. After the lens, whose light the exposure smears, and before the
+    // resolve, which blends the smeared frames as it would sharp ones.
+    graph.addNode(_MotionBlurNode(this, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.
@@ -2057,28 +2623,54 @@ final class Renderer implements RenderServices {
     // setting is off would make that read conditional too, which is the branch
     // moved rather than deleted. Registered and inactive, nothing produces the
     // glow, the graph culls the node, and the optional read comes back null.
+    final fxaa = _FxaaNode(
+      this,
+      s.antiAlias,
+      upscaleSharpen: _upscales(s) ? s.spatialUpscale.sharpen : 0.0,
+    );
+    // `R5`: after the composite and before the sharpening, inactive (and so
+    // culled) unless the frame is upscaled.
+    final easu = _EasuNode(this, s, fxaa);
+    final shade = _ViewportShadeNode(this, view, s);
+    // `R2`: after everything that reads the scene's own buffers and before
+    // bloom, so the glow is taken from the resolved picture and the
+    // screen-space effects work at the scene's size.
+    final resolve = _TemporalResolveNode(this, view, s);
     graph
+      ..addNode(resolve)
+      ..addNode(_LocalExposureNode(this, s))
       ..addNode(bloom)
       ..addNode(composite)
+      ..addNode(easu)
       // And the smoothing after the composite, which is what lets it read a
       // finished picture — `gfx-04n`. Registered whether or not it is on, for
       // the same reason bloom is: registration order is the version chain, and
       // an inactive node is culled rather than branched around.
-      ..addNode(_FxaaNode(this, s.antiAlias))
+      ..addNode(fxaa)
       // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished
       // picture, so it goes after the tone map and after the edges are
       // smoothed. Before the antialias it would have had its own outline
       // blurred, which is the one thing an outline must not be.
-      ..addNode(_ViewportShadeNode(this, view, s));
+      ..addNode(shade);
 
     // After the composite, which is the whole of what [FramePhase.present]
     // means: registration order is the version chain, so a node here reads the
     // version the composite wrote and produces the next one. Nothing about the
     // node changes between the two phases — it is where it is registered that
     // decides what it sees.
-    for (final node in nodes.of(FramePhase.present)) {
+    final present = nodes.of(FramePhase.present).toList();
+    for (final node in present) {
       graph.addNode(node);
     }
+
+    // `R2`: everything after the resolve works on the picture it
+    // reconstructed, at the size that was asked for.
+    // `R5`: with the spatial upscale, everything after it.
+    _outputSized = s.antiAlias.temporal.enabled
+        ? <FrameGraphNode>{resolve, bloom, composite, fxaa, shade, ...present}
+        : _upscales(s)
+        ? <FrameGraphNode>{easu, fxaa, shade, ...present}
+        : const <FrameGraphNode>{};
 
     return graph.compile(
       disabled: s.disabledPasses,
@@ -2101,6 +2693,7 @@ final class Renderer implements RenderServices {
         // graph cannot see, so both are outputs while their node is active or
         // the node is culled for producing something nobody wants.
         if (luminance.isActive) FrameResourceIds.luminance,
+        if (depthPyramid.isActive) FrameResourceIds.depthPyramid,
         if (objectIds.isActive) FrameResourceIds.objectIds,
       ],
     );
@@ -2203,12 +2796,29 @@ final class Renderer implements RenderServices {
 
   /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
-  final Float32List _cubeLight = Float32List(4);
+  Float32List get _cubeLight => _shadowLight.light;
 
   /// This frame's light rows, or null while the scene fits in eight slots —
   /// `gfx-74n`. See `renderer_light_list.dart`.
   TextureHandle? _lightListTexture;
   int _lightListRows = 0;
+
+  /// `L6`: the cells of the view being drawn, and whether its draws read
+  /// them. Set per view in the scene pass and cleared after it, so a pass
+  /// with another camera — a probe's — never reads a view's cells.
+  final LightClusters _lightClusters = LightClusters();
+  bool _clustersActive = false;
+
+  /// Where the cells' headers and entries start in [_lightListTexture].
+  int _clusterHeaderRow = 0;
+  int _clusterEntryRow = 0;
+
+  /// `S4`: the light list the view's cells were written into, and its row
+  /// count, kept past the scene pass for the fog's march — which runs after
+  /// [_clustersActive] is cleared, and after later passes may have rebuilt
+  /// the list without cells. Null when the fog is off or the view drew none.
+  TextureHandle? _fogCells;
+  int _fogCellRows = 0;
 
   /// The rows [_lightListTexture] was last uploaded with, compared against
   /// this frame's rather than trusting `SceneNode.changeEpoch`: a light's
@@ -2222,15 +2832,15 @@ final class Renderer implements RenderServices {
 
   /// Staging for the per-draw list, beside every other uniform this renderer
   /// writes: arrays reused rather than allocated per draw.
-  final Float32List _lightListParams = Float32List(4);
-  final Float32List _lightListIndices = Float32List(LightBuffer.maxExtraLights);
-  final Float32List _lightListScales = Float32List(LightBuffer.maxExtraLights);
+  Float32List get _lightListParams => _lightListInfo.list;
+  Float32List get _lightListIndices => _lightListInfo.indices;
+  Float32List get _lightListScales => _lightListInfo.scales;
 
   /// Staging for the contact shadow's block — `gfx-76n`.
-  final Float32List _contactParams = Float32List(4);
-  final Float32List _contactCamera = Float32List(4);
-  final Float32List _contactForward = Float32List(4);
-  final Float32List _contactLight = Float32List(4);
+  Float32List get _contactParams => _contactShadowInfo.params;
+  Float32List get _contactCamera => _contactShadowInfo.camera;
+  Float32List get _contactForward => _contactShadowInfo.forward;
+  Float32List get _contactLight => _contactShadowInfo.toLight;
 
   /// The capture being filled, or null — `gfx-70n`.
   FrameCaptureBuilder? _capture;
@@ -2276,14 +2886,23 @@ final class Renderer implements RenderServices {
     wanted.complete(builder.build());
   }
 
-  /// What the directional atlas currently holds, as the key that drew it —
-  /// `gfx-68n`. Null until a first pass.
-  ({int matrices, int epoch, int generation, int faces, int casters})?
-  _directionalBaked;
+  /// What each tile of the directional atlas currently holds, as the key
+  /// that drew it — `gfx-68n`, per cascade since `S1`. Null until a first
+  /// pass, and a null entry is a tile that has to be drawn.
+  final List<int?> _directionalBaked = <int?>[null, null, null];
 
-  /// How many casters the last directional pass actually drew, so a frame that
-  /// skips the pass can put the figure back after the frame zeroed it.
-  int _directionalCasters = 0;
+  /// Whether a frame with [settings] runs the spatial upscale — `R5`: asked
+  /// for, below full size, no temporal resolve, and a bundle with the stage.
+  bool _upscales(RenderSettings settings) =>
+      SpatialUpscaleSettings.runsFor(settings) && shaders['Easu'] != null;
+
+  /// What each tile of [_shadowMapStatic] holds, as the key that drew it.
+  final List<int?> _directionalStaticBaked = <int?>[null, null, null];
+
+  /// The copy from the static atlas into the frame's — `S1`.
+  PipelineHandle? _shadowCopyPipeline;
+  final ShadowCopyInfoBlock _shadowCopyInfo = ShadowCopyInfoBlock();
+  final EvsmFilterInfoBlock _evsmFilterInfo = EvsmFilterInfoBlock();
 
   /// One reusable batch per mesh-and-material pair — `gfx-67n`.
   ///
@@ -2411,6 +3030,10 @@ final class Renderer implements RenderServices {
   /// while the set is fixed and closed. An application's stage has no field to
   /// live in, and building the pipeline per frame is the one mistake this
   /// helper exists to make impossible.
+  /// The frame graph node being executed, as the label every pass it opens
+  /// carries — `H2`. Null between nodes.
+  String? _passLabel;
+
   final Map<ShaderHandle, PipelineHandle> _fullscreenPipelines =
       <ShaderHandle, PipelineHandle>{};
 
@@ -2422,6 +3045,7 @@ final class Renderer implements RenderServices {
     // passes need.
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(texture: draw.target, loadAction: draw.loadAction),
         ],
@@ -2451,8 +3075,26 @@ final class Renderer implements RenderServices {
         sampler: draw.samplerFor(slot),
       );
     });
+    // Before the draw's own blocks, so an application stage that happens to
+    // name `FragCoordInfo` itself is the one that wins.
+    _bindFragCoord(pass, draw.fragment, draw.target);
+    // Through the stage's layout where it is known, like `bindBlock`: an
+    // engine block handed to a stage that declares a narrower one of the same
+    // name — bloom's threshold and its upsample — keeps only what that stage
+    // has. An application's stage has no layout here and takes its map as it
+    // is.
     draw.uniforms.forEach((block, members) {
-      pass.bindUniformBlock(draw.fragment, block, members);
+      final layout = draw.fragment.layouts?[block];
+      pass.bindUniformBlock(
+        draw.fragment,
+        block,
+        layout == null || layout.length >= members.length
+            ? members
+            : <String, Float32List>{
+                for (final MapEntry(:key, :value) in members.entries)
+                  if (layout.containsKey(key)) key: value,
+              },
+      );
     });
 
     pass.draw();
@@ -2553,6 +3195,15 @@ final class Renderer implements RenderServices {
   static const PassState _kShadowTileResetState = PassState(
     cullMode: CullMode.none,
     depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The static tile's copy — `S1`: no test, and depth written, since the
+  /// stage writes the depth it copies and the dynamic casters that follow
+  /// test against it.
+  static const PassState _kShadowCopyState = PassState(
+    cullMode: CullMode.none,
+    depthWrite: true,
     depthCompare: CompareFunction.always,
   );
 
@@ -2753,6 +3404,40 @@ final class Renderer implements RenderServices {
   vm.Matrix4 _viewProjection(CameraNode camera, double aspect) =>
       toDepthRange(camera.viewProjection(aspect), device.depthRange);
 
+  /// The matrix the scene's own draws use: [_viewProjection], moved by this
+  /// frame's jitter while temporal anti-aliasing is on — `R1`.
+  ///
+  /// Only the draws that feed the resolve take it: the meshes, the sky and
+  /// the contributors in the scene pass. Everything drawn after the resolve,
+  /// or read back at a pixel — picking, the debug overlay, the post passes
+  /// that reconstruct positions — keeps the unjittered matrix, because the
+  /// picture they work on has had the jitter averaged out of it.
+  vm.Matrix4 _drawViewProjection(
+    CameraNode camera,
+    ScreenRect rect,
+    RenderSettings settings,
+  ) {
+    final aspect = rect.width / rect.height;
+    final temporal = settings.antiAlias.temporal;
+    // No jitter where there can be no resolve: a device that opens one colour
+    // attachment has no surface buffer, and a jittered picture nobody
+    // averages is a picture that shakes.
+    if (!temporal.enabled || device.maxColorAttachments < 2) {
+      return _viewProjection(camera, aspect);
+    }
+    final jittered = JitteredProjection.frame(
+      camera.projection,
+      frame: _frameIndex,
+      length: temporal.sequenceLength,
+      width: rect.width,
+      height: rect.height,
+    );
+    return toDepthRange(
+      jittered.toMatrix(aspect) * camera.viewMatrix,
+      device.depthRange,
+    );
+  }
+
   /// A view's rectangle in pixels of a [width] × [height] target.
   ///
   /// **Held inside the target**, which rounding each term on its own did not
@@ -2875,6 +3560,11 @@ final class Renderer implements RenderServices {
       sunToLight: _toLightIn(planLights, shadowCaster),
       sunRadiance: _radianceIn(planLights, shadowCaster),
       contactToLight: _contactToLightIn(planLights, shadowCaster),
+      fogToLight: _toLightIn(planLights, _airLightIn(planLights, shadowCaster)),
+      fogRadiance: _radianceIn(
+        planLights,
+        _airLightIn(planLights, shadowCaster),
+      ),
       cubeStatic: _CubeShadowStaticNode(
         this,
         scene: scene,
@@ -2896,6 +3586,12 @@ final class Renderer implements RenderServices {
         settings: settings.shadows,
         casterIndex: shadowCaster,
         camera: ordered.isEmpty ? null : ordered.first.camera,
+      ),
+      irradiance: _IrradianceUpdateNode(
+        this,
+        scene: scene,
+        shadowCaster: shadowCaster,
+        clearColor: ordered.first.clearColor,
       ),
       probes: <_ReflectionProbeNode>[
         for (var i = 0; i < scene.probes.length; i++)
@@ -2926,7 +3622,90 @@ final class Renderer implements RenderServices {
         ordered: ordered,
         picks: const <_PickRequest>[],
       ),
+      viewCount: ordered.length,
     );
+  }
+
+  /// Links, before the first frame, every pipeline drawing [scene] through
+  /// [views] with [settings] will need — `N3`, for a loading screen.
+  ///
+  /// **A pipeline linked in the middle of play is a hitch.** Linking is the
+  /// slowest thing a frame can ask the device to do, and a renderer links on
+  /// first use: the frame a door opens on a room with a new material pays
+  /// for it, and that frame is the spike a player notices. So every mesh the
+  /// scene holds gets its lit pipeline here whether or not any view can see
+  /// it yet, and then frames are drawn, which link what the frame graph's
+  /// passes use at these settings — shadows, the post chain, the composite.
+  ///
+  /// **Linking was not the whole of it.** The pacing run on macOS still found
+  /// the first three frames after a one-frame warm-up at 104–127 ms, and a
+  /// recording of them showed two more costs a first frame leaves behind:
+  ///
+  /// - **Reflection probes.** A frame captures one probe's whole cube and the
+  ///   rest wait their turn (see `_claimWholeProbeCapture`), so the crypt's
+  ///   four probes stood one a frame, and until they all stood the level drew
+  ///   without culling. While warming up the ration is lifted, and every
+  ///   probe captures here.
+  /// - **Pooled targets.** A target a frame hands back is kept from the pool
+  ///   for the frames in flight, so the frames after a single warm-up frame
+  ///   found the pool empty and each made its own bloom chain and luminance
+  ///   targets. As many frames are drawn here as there are frames in flight,
+  ///   which leaves the pool holding what a running frame needs.
+  ///
+  /// So what this leaves behind is a renderer a few frames into the scene:
+  /// [frameIndex] has moved and an adapting exposure has had those frames to
+  /// adapt, as it would have on the first frames of play.
+  ///
+  /// A mesh added later, or a setting switched on later, links on first use
+  /// as before; so does a model that arrives after this runs, which is why a
+  /// loading screen waits for its models before calling it.
+  void warmUp({
+    required int width,
+    required int height,
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    for (final node in scene.meshes) {
+      final skinned = node.skeleton != null;
+      final instanced = node is InstancedMeshNode;
+      _pipelineFor(
+        node.material.lighting,
+        skinned: skinned,
+        instanced: instanced,
+        lightmapped: node.lightmapped && !skinned && !instanced,
+      );
+    }
+    // And what only a later frame reaches: the tile reset a kept cascade
+    // atlas redraws a tile with (`S1`), and the copy a static one is read
+    // through — neither runs on a first frame, which draws every tile from a
+    // clear.
+    final reset = shaders['ShadowTileReset'];
+    final resetVertex = shaders['ShadowTileResetVertex'];
+    if (reset != null && resetVertex != null) {
+      _cubeShadowResetPipeline ??= device.createPipeline(resetVertex, reset);
+    }
+    final copy = shaders['ShadowCopy'];
+    final fullscreen = shaders['FullscreenVertex'];
+    if (copy != null &&
+        fullscreen != null &&
+        scene.meshes.any((node) => node.shadowIsStatic)) {
+      _shadowCopyPipeline ??= device.createPipeline(fullscreen, copy);
+    }
+    _warmingUp = true;
+    try {
+      for (var frame = 0; frame < _kFramesInFlight; frame++) {
+        render(
+          width: width,
+          height: height,
+          scene: scene,
+          views: views,
+          settings: settings,
+        );
+      }
+    } finally {
+      _warmingUp = false;
+    }
   }
 
   FrameResult render({
@@ -2944,17 +3723,57 @@ final class Renderer implements RenderServices {
     // chain and the composite all take their size from these two numbers.
     // Clamped to at least one pixel: a viewport animating open is a real
     // state and a zero-pixel target is not.
+    //
+    // **Two sizes while temporal anti-aliasing is on — `R2`.** The scene and
+    // everything that reads its buffers draw at the scaled size, and the
+    // resolve reconstructs the asked-for size from the jittered frames, so
+    // bloom, the composite and the frame are output-sized. Off, the output is
+    // the scaled size too, which is the frame this setting has always
+    // returned.
+    final temporal = settings.antiAlias.temporal.enabled;
+    final requestedWidth = width;
+    final requestedHeight = height;
     final scale = settings.renderScale.clamp(0.1, 1.0);
     if (scale != 1.0) {
       width = math.max(1, (width * scale).round());
       height = math.max(1, (height * scale).round());
+    }
+    // `R5`: and with the spatial upscale, the composite draws small and the
+    // upscale brings it to the asked-for size.
+    final upscaled = temporal || _upscales(settings);
+    final outputWidth = upscaled ? requestedWidth : width;
+    final outputHeight = upscaled ? requestedHeight : height;
+    _outputWidth = outputWidth;
+    _outputHeight = outputHeight;
+    // `N3`: the allowance for work that can wait, from nothing each frame.
+    if (_workBudget.microseconds != settings.frameWorkBudget) {
+      _workBudget = FrameWorkBudget(microseconds: settings.frameWorkBudget);
+    }
+    _workBudget.beginFrame();
+    // `R9`: the extended output where it was asked for and the device can
+    // present it; the standard frame everywhere else.
+    final hdrFormats = device.hdrOutputFormats;
+    _extendedOutput =
+        settings.outputTransform == OutputTransform.extendedSrgb &&
+        hdrFormats.isNotEmpty;
+    _frameFormat = _extendedOutput
+        ? hdrFormats.first
+        : device.defaultColorFormat;
+    // A frame drawn without the resolve leaves the history describing a
+    // picture from before it; turning it back on starts again.
+    if (!temporal) _historyValid = false;
+    _temporalEffects = temporal && device.maxColorAttachments > 1;
+    if (!_temporalEffects) {
+      for (final history in _effectHistories.values) {
+        history.valid = false;
+      }
     }
     // Timeline markers, not print statements: the phases below are only
     // meaningful next to Flutter's own build and raster spans, and only in
     // profile or release, where the debug interpreter is not the bottleneck.
     developer.Timeline.startSync('Renderer.render');
     final frameClock = Stopwatch()..start();
-    _ensureTargets(width, height);
+    _ensureTargets(width, height, outputWidth, outputHeight);
 
     // A texture nothing is reading, so that what is drawn now is not what a
     // compositor is still showing — see [_ldrFrames].
@@ -2995,6 +3814,13 @@ final class Renderer implements RenderServices {
       device.releaseTexture(texture);
     }
     finished.clear();
+
+    // `C9`: the split meshes' index buffers no view drew with for longer than
+    // the frames in flight go back to the device. And no view is being drawn
+    // yet: a frame that threw inside the scene pass left its last view here,
+    // and the shadow pass below would cull split meshes by that camera.
+    _clusterDraws?.beginFrame(_frameIndex);
+    _clusterView = null;
 
     // Lights are gathered once up front now, because the shadow pass needs the
     // caster before any view is drawn — and the packed buffer is per frame, not
@@ -3060,7 +3886,16 @@ final class Renderer implements RenderServices {
       _cubeLightData[row * 4 + 2] = _cubePosition.z;
       _cubeLightData[row * 4 + 3] = owner.range > 0.0 ? owner.range : 20.0;
 
-      final spot = owner.type == LightType.spot;
+      // **A cone wider than a cube face is drawn as the cube.** One tile
+      // through a frustum of half-angle θ spreads its texels over `tan θ` of
+      // what a face covers, so past forty-five degrees the single tile is
+      // coarser than the six faces would be, and past the clamp below it is
+      // cut off: the rim of a floodlight read as lit. As a cube the row is a
+      // point light's, and the cone still limits where its light falls,
+      // because that is the lighting's attenuation and not the shadow's.
+      final spot =
+          owner.type == LightType.spot &&
+          owner.outerConeAngle * _kSpotFrustumMargin <= math.pi / 4;
       // The frustum this row is drawn and read through. A cube face is ninety
       // degrees, so `tan(45°)` is exactly one; a cone opens to twice its outer
       // angle, and the margin is what keeps the very edge of the cone inside
@@ -3070,7 +3905,10 @@ final class Renderer implements RenderServices {
       // narrower cone than the light.
       final tanHalf = spot
           ? math.tan(
-              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(0.02, 1.5),
+              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(
+                0.02,
+                math.pi / 4,
+              ),
             )
           : 1.0;
       if (spot) owner.readDirection(_shadowAim);
@@ -3262,16 +4100,25 @@ final class Renderer implements RenderServices {
         cube: cubeNode,
         shadow: shadowNode,
         probes: probeNodes,
+        irradiance: _IrradianceUpdateNode(
+          this,
+          scene: scene,
+          shadowCaster: shadowCaster,
+          clearColor: ordered.first.clearColor,
+        ),
         scene: sceneNode,
         bloom: bloomNode,
         composite: compositeNode,
         luminance: luminanceNode,
         objectIds: objectIdNode,
+        viewCount: ordered.length,
         // The same light the shadow map casts from, so the seam the march draws
         // continues the shadow the map drew rather than crossing it.
         sunToLight: _toLightIn(lights, shadowCaster),
         sunRadiance: _radianceIn(lights, shadowCaster),
         contactToLight: _contactToLightIn(lights, shadowCaster),
+        fogToLight: _toLightIn(lights, _airLightIn(lights, shadowCaster)),
+        fogRadiance: _radianceIn(lights, _airLightIn(lights, shadowCaster)),
       );
 
       // The frame's own resources: the graph names the lit scene and each
@@ -3281,23 +4128,34 @@ final class Renderer implements RenderServices {
       // the finished image, and each of them does it from inside the node that
       // produced it. What is left in this method is the one thing the graph
       // allocates for itself.
+      final sceneColourChain = SceneColourChain(width, height);
       resources =
           FrameResources(
               source: _DeferredTextureSource(this),
               graph: frameGraph,
               frameWidth: width,
               frameHeight: height,
+              alias: settings.aliasTargets,
+              onRetire: debugOnTargetRetired,
             )
             // Half the frame, in the same HDR format, which is what the bloom
             // chain's top level has always been.
             // Not const any more: the format comes from the device, which is
             // the point — a description of a resource cannot be a compile-time
             // constant once it depends on which backend is drawing.
+            //
+            // Half the *output* while temporal anti-aliasing is on, because
+            // the glow is taken from the resolved picture — `R2`.
             ..declare(
               ResourceDesc(
                 id: FrameResourceIds.bloom,
                 format: hdrFormat,
-                size: const FrameFraction(2),
+                size: temporal
+                    ? AbsolutePixels(
+                        math.max(1, outputWidth ~/ 2),
+                        math.max(1, outputHeight ~/ 2),
+                      )
+                    : const FrameFraction(2),
               ),
             )
             // Half again, and the same format for the same reason: HDR is the
@@ -3324,6 +4182,19 @@ final class Renderer implements RenderServices {
                 format: hdrFormat,
               ),
             )
+            // `R7`: an eighth of the frame; the stops are blurred wide.
+            ..declare(
+              ResourceDesc(
+                id: FrameResourceIds.localExposure,
+                format: hdrFormat,
+                size: const FrameFraction(8),
+              ),
+            )
+            // The frame's size: a velocity is per pixel of the picture the
+            // resolve reprojects.
+            ..declare(
+              ResourceDesc(id: FrameResourceIds.velocity, format: hdrFormat),
+            )
             // A fixed small square of bytes, whatever the window does: the
             // meter reads it back, and sixteen kilobytes is what a readback
             // per frame may cost. Eight bits because that is what comes back
@@ -3336,6 +4207,16 @@ final class Renderer implements RenderServices {
                 size: AbsolutePixels(ExposureMeter.size, ExposureMeter.size),
               ),
             )
+            // `C3`: a fixed grid the occlusion reprojects, in the bytes a
+            // readback hands back. 128 KB a reading, and one in the air at a
+            // time.
+            ..declare(
+              const ResourceDesc(
+                id: FrameResourceIds.depthPyramid,
+                format: TextureFormat.r8g8b8a8UNormInt,
+                size: AbsolutePixels(HiZOcclusion.width, HiZOcclusion.height),
+              ),
+            )
             // The frame's size, because a pick is a pixel of the frame, and
             // eight bits per channel because the id is three bytes and a
             // readback hands back exactly those.
@@ -3343,6 +4224,18 @@ final class Renderer implements RenderServices {
               const ResourceDesc(
                 id: FrameResourceIds.objectIds,
                 format: TextureFormat.r8g8b8a8UNormInt,
+              ),
+            )
+            // `M3`: the scene and its halvings side by side, in the scene's
+            // own format, so the glass reads the light the scene held.
+            ..declare(
+              ResourceDesc(
+                id: FrameResourceIds.sceneColour,
+                format: hdrFormat,
+                size: AbsolutePixels(
+                  sceneColourChain.atlasWidth,
+                  sceneColourChain.atlasHeight,
+                ),
               ),
             );
     } catch (error, stack) {
@@ -3388,34 +4281,52 @@ final class Renderer implements RenderServices {
         final trianglesBefore = passState.triangles;
         final switchesBefore = passState.pipelineSwitches;
         final passClock = Stopwatch()..start();
-        node.execute(
-          NodeFrame(
-            device: device,
-            resources: resources,
-            services: this,
-            state: passState,
-            settings: settings,
-            width: width,
-            height: height,
-            // Only for a node that asked for it. This convenience used to hand
-            // the scene colour to every node in the frame, including the shadow
-            // passes that run before one exists and never wanted it — a read
-            // the graph was never told about, ordered against nothing. It was
-            // invisible until an undeclared read became an error.
-            //
-            // Still `tryTexture` for the nodes that did declare it: the scene
-            // runs first and a node drawing over the world has to cope with
-            // there being nothing yet. The view model returns early.
-            sceneColor:
-                frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) == null
-                ? null
-                : resources.tryTexture(FrameResourceIds.hdrColour),
-          ),
-        );
+        // One span and one pass label per node, named by the node — `H2`.
+        // The label reaches every pass the node opens through this renderer,
+        // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
+        // own names rather than a pass nobody can place.
+        _passLabel = node.name;
+        developer.Timeline.startSync(node.name);
+        try {
+          node.execute(
+            NodeFrame(
+              device: device,
+              resources: resources,
+              services: this,
+              state: passState,
+              settings: settings,
+              // `R2`: after the temporal resolve, the output's size.
+              width: _outputSized.contains(node) ? _outputWidth : width,
+              height: _outputSized.contains(node) ? _outputHeight : height,
+              // Only for a node that asked for it. This convenience used to
+              // hand the scene colour to every node in the frame, including
+              // the shadow passes that run before one exists and never wanted
+              // it — a read the graph was never told about, ordered against
+              // nothing. It was invisible until an undeclared read became an
+              // error.
+              //
+              // Still `tryTexture` for the nodes that did declare it: the
+              // scene runs first and a node drawing over the world has to cope
+              // with there being nothing yet. The view model returns early.
+              sceneColor:
+                  frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) ==
+                      null
+                  ? null
+                  : resources.tryTexture(FrameResourceIds.hdrColour),
+            ),
+          );
+        } finally {
+          developer.Timeline.finishSync();
+          _passLabel = null;
+        }
         passTimings.add((
           name: node.name,
           active: node.isActive,
           micros: passClock.elapsedMicroseconds,
+          // The last timings a measuring device reported for this node,
+          // which are a frame or two old — see `_lastGpuMicros`. Null where
+          // the device does not measure, or has not reported this node yet.
+          gpuMicros: _lastGpuMicros[node.name],
           drawCalls: passState.drawCalls - drawsBefore,
           triangles: passState.triangles - trianglesBefore,
           pipelineSwitches: passState.pipelineSwitches - switchesBefore,
@@ -3485,6 +4396,28 @@ final class Renderer implements RenderServices {
     // produced no version of `frame` at all — where the engine's own target is
     // genuinely all there is.
     final frame = resources.output(FrameResourceIds.frame) ?? _ldrColor!;
+
+    // After every pass, so that nothing drawn this frame read its own state
+    // back as last frame's. The view-projections are the unjittered ones, the
+    // same matrices the scene pass derived, because a reprojection has to
+    // undo motion and not the jitter.
+    if (settings._wantsVelocity) frameHistory.tracking = true;
+    if (frameHistory.tracking) {
+      frameHistory.endFrame(
+        frame: _frameIndex,
+        meshes: scene.meshes,
+        views: <(CameraNode, vm.Matrix4)>[
+          for (final view in views)
+            if (_viewportPixels(view.viewportFraction, width, height)
+                case final rect)
+              (
+                view.camera,
+                view.camera.viewProjection(rect.width / rect.height),
+              ),
+        ],
+      );
+    }
+
     // The frame is encoded and submitted: everything it released is in this
     // slot, and the next two frames must not touch it.
     _frameIndex++;
@@ -3530,6 +4463,10 @@ final class Renderer implements RenderServices {
         msaaSamples: scenePass.msaaSamples,
         fxaa: passTimings.any((p) => p.name == 'antialias'),
         msaaDeclined: scenePass.msaaDeclined,
+        // Whether the resolve ran, which asking the setting would not say: a
+        // device with one colour attachment has no surface buffer, and the
+        // node is refused there.
+        temporal: passTimings.any((p) => p.name == 'temporal resolve'),
       ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
@@ -3747,11 +4684,11 @@ final class Renderer implements RenderServices {
     );
   }
 
-  final Float32List _ssaoParams = Float32List(4);
-  final Float32List _ssaoScreen = Float32List(4);
-  final Float32List _ssaoCameraData = Float32List(4);
+  Float32List get _ssaoParams => _ssaoInfo.params;
+  Float32List get _ssaoScreen => _ssaoInfo.screen;
+  Float32List get _ssaoCameraData => _ssaoInfo.camera;
   final vm.Vector3 _ssaoCamera = vm.Vector3.zero();
-  final Float32List _ssaoForwardData = Float32List(4);
+  Float32List get _ssaoForwardData => _ssaoInfo.forward;
   final vm.Vector3 _ssaoForward = vm.Vector3.zero();
 
   /// Draws into two colour attachments and reports what came back.
@@ -3797,6 +4734,7 @@ final class Renderer implements RenderServices {
     try {
       final pass = device.beginRenderPass(
         RenderPassDescriptor(
+          label: _passLabel,
           colors: <ColorTarget>[
             ColorTarget(texture: first, clearValue: vm.Vector4.zero()),
             ColorTarget(texture: second, clearValue: vm.Vector4.zero()),
@@ -3964,9 +4902,8 @@ final class Renderer implements RenderServices {
       IndexType.int32,
       vertexCount,
     );
-    encoder.bindUniformBlock(debugLineVertexShader, _kLineInfoBlock, {
-      'view_projection': viewProjection.storage,
-    });
+    _lineInfo.viewProjection.setAll(0, viewProjection.storage);
+    encoder.bindBlock(debugLineVertexShader, _lineInfo);
 
     encoder.draw();
     developer.Timeline.finishSync();

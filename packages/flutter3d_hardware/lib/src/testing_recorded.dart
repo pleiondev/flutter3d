@@ -42,10 +42,15 @@ final class RecordedBlendColor extends Recorded {
 }
 
 final class RecordedTexture extends Recorded {
-  const RecordedTexture(this.slot, this.texture, this.sampler);
+  const RecordedTexture(this.slot, this.texture, this.sampler, {this.shader});
   final String slot;
   final TextureHandle texture;
   final SamplerOptions? sampler;
+
+  /// The stage it was bound through. It was not recorded, so a test could not
+  /// tell a texture bound to the vertex stage from one bound to the fragment
+  /// stage. Null only where a test built one by hand.
+  final ShaderHandle? shader;
 }
 
 final class RecordedUniformBlock extends Recorded {

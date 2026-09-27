@@ -22,12 +22,19 @@
 // the first version did: the walls of the crypt lit up and the floor did not.
 precision highp float;
 
+#include <lib/frag_coord_info.glsl>
+#include <lib/blue_noise.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
 
 uniform sampler2D scene_texture;
 uniform sampler2D surface_texture;
+/// The scene's environment, which the lit pass has already reflected. Bound
+/// always, to a one-texel cube when there is none, for the reason
+/// `lib/pbr.glsl` gives: a declared sampler nobody binds is a crash on Metal.
+uniform samplerCube environment_texture;
 
 uniform ReflectionInfo {
   /// World to clip, and back. Both carry the framebuffer origin — see
@@ -46,6 +53,11 @@ uniform ReflectionInfo {
   /// x: 1/width, y: 1/height, z: unused, w: 1 to show only what the march
   /// found, which is the only way to see whether it found anything.
   vec4 screen;
+  /// The environment the lit pass reflected, so that a hit can take its place
+  /// — see the end of [main]. x: its levels, nought when the lit pass read
+  /// none. y: the strength it was read at, `Scene.ambientIntensity`. zw:
+  /// unused.
+  vec4 environment;
 }
 reflection_info;
 
@@ -111,33 +123,6 @@ vec3 WorldAt(vec2 uv, float depth) {
 /// How deep [at] is, in the metres the buffer holds.
 float DepthOf(vec3 at) {
   return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
-}
-
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `light_shafts.frag` and `composite.frag` keep: a pattern rather than a hash,
-// so the software backend lands on the same offsets bit for bit.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
 }
 
 /// Where [at] lands in the textures this pass reads, or a negative x when it
@@ -210,7 +195,7 @@ void main() {
   // the reflection comes back as a stack of shifted copies of it. Half a
   // stride at least, off a centimetre of normal bias, so the first sample does
   // not land on the pixel it came from.
-  float jitter = 0.5 + BayerCell(gl_FragCoord.xy);
+  float jitter = 0.5 + PixelNoise(TargetFragCoord());
   float travelled = stride * jitter;
   vec3 march = position + normal * 0.01 + ray * travelled;
   float reach = stride * (float(steps) + 0.5);
@@ -265,7 +250,14 @@ void main() {
         // overshot it by up to a stride; halving the last stride five times
         // lands within a thirty-second of it, so the colour is read where the
         // ray met the surface rather than where the step happened to stop.
-        vec3 lo = march - ray * stride;
+        //
+        // The bracket starts no further back than the march has come. The
+        // first step travels only the jittered fraction of a stride, and a
+        // full stride back from it can sit under the reflecting surface, where
+        // the depth test also reads "behind"; a bracket with two behind ends
+        // lets the halvings settle on the floor itself, and a contact
+        // reflection reads the floor's own colour back.
+        vec3 lo = march - ray * min(stride, travelled);
         vec3 hi = march;
         for (int j = 0; j < 5; j++) {
           vec3 mid = 0.5 * (lo + hi);
@@ -302,5 +294,36 @@ void main() {
   // four times the reflection on a floor seen from above.
   float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
   vec3 reflection = hitColor * hit * intensity * polish * fresnel;
-  frag_color = vec4(debugOnly ? reflection : scene + reflection, 1.0);
+  // The share of the hit that is used, [intensity] included: a reflection
+  // dialled down to seventy percent takes the sky's place in the same
+  // seventy percent, or it would take the sky out and put less back.
+  float confidence = hit * intensity * polish;
+  // **A hit replaces the environment's reflection rather than adding to it.**
+  // The lit colour already holds the environment's specular wherever the
+  // scene has one: the metal-rough stage reflects the cube along this same
+  // ray, prefiltered to this roughness. Adding the hit on top made every
+  // reflected object a second reflection laid over the sky's, brighter than
+  // the light there is and see-through where it should hide the sky behind
+  // it. So the cube is read here the way the lit pass read it and taken
+  // away in the share the hit is trusted, which leaves the environment
+  // wherever the march found nothing. Weighted by this pass's Fresnel for
+  // both, so the swap stays a swap; the lit pass's own weight differs a
+  // little, and the difference is what stays of the sky.
+  //
+  // What is taken away is an estimate of what was added, read from the
+  // scene's own cube: this pass cannot tell which pixels a probe lit instead,
+  // so the renderer sends no levels while the scene has probes, and a surface
+  // shaded by a model with no environment term (Lambert, Phong, toon) loses a
+  // share it never had. Hence the clamp at nought, applied only when
+  // something is taken, so a scene with no environment is the sum it was.
+  float levels = reflection_info.environment.x;
+  vec3 environment =
+      levels > 0.0
+          ? textureLod(environment_texture, ray, roughness * levels).rgb *
+                reflection_info.environment.y
+          : vec3(0.0);
+  vec3 replaced = environment * confidence * fresnel;
+  vec3 composed = levels > 0.0 ? max(scene + reflection - replaced, vec3(0.0))
+                               : scene + reflection;
+  frag_color = vec4(debugOnly ? reflection : composed, 1.0);
 }

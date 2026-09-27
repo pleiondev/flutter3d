@@ -42,6 +42,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'webgpu_bundle_section.dart';
+import 'webgpu_compute.dart';
+import 'webgpu_compute_stage.dart';
 import 'webgpu_encoder.dart';
 import 'webgpu_formats.dart';
 import 'webgpu_interop.dart';
@@ -49,10 +51,20 @@ import 'webgpu_loaded_shaders.dart';
 import 'webgpu_pipeline_cache.dart';
 import 'webgpu_resources.dart';
 import 'webgpu_shaders.dart';
+import 'webgpu_timer.dart';
 import 'webgpu_types.dart';
 
 @JS('document')
 external _Document get _document;
+
+/// `window.matchMedia`, for whether the display reports a high dynamic range
+/// — `R9`.
+@JS('matchMedia')
+external _MediaQueryList _matchMedia(String query);
+
+extension type _MediaQueryList._(JSObject _) implements JSObject {
+  external bool get matches;
+}
 
 extension type _Document._(JSObject _) implements JSObject {
   external JSObject createElement(String tag);
@@ -149,6 +161,103 @@ final class _StagePairKey {
 /// WebGPU as a [GraphicsDevice], and as the compiler its shader libraries reach
 /// a browser through.
 final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
+  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
+  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
+  // makes a caller take its fallback.
+
+  // `H2`: timestamps where the adapter granted `timestamp-query`, written
+  // per labelled pass and read back a frame or two later.
+  @override
+  bool get supportsGpuTimestamps =>
+      gpuDevice.features.has(GpuFeature.timestampQuery);
+
+  void Function(GpuFrameTimings timings)? _timingListener;
+  late final WebGpuTimer _timer = WebGpuTimer(gpuDevice);
+
+  @override
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
+      _timingListener = supportsGpuTimestamps ? listener : null;
+
+  // Compute — `H6`: storage buffers, pipelines built from the generated
+  // compute table, passes encoded as they go, and a readback through a
+  // mappable staging buffer.
+  @override
+  bool get supportsCompute => true;
+
+  @override
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  }) => guard(
+    'a ${bytes.lengthInBytes}-byte storage buffer',
+    () =>
+        webgpuCreateStorageBuffer(gpuDevice, bytes, hostReadable: hostReadable),
+  );
+
+  @override
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
+    final stage = shader.backend;
+    if (stage is! WebGpuComputeShader) {
+      throw ArgumentError.value(
+        shader.name,
+        'shader',
+        'is not a compute stage on this device',
+      );
+    }
+    return ComputePipelineHandle(
+      backend: guard(
+        'the compute pipeline for ${shader.name}',
+        () => webgpuCreateComputePipeline(gpuDevice, stage),
+      ),
+      shader: shader,
+    );
+  }
+
+  @override
+  ComputeEncoder beginComputePass({String? label}) =>
+      WebGpuComputeEncoder(gpuDevice, label: label);
+
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) =>
+      webgpuReadBuffer(gpuDevice, buffer);
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) =>
+      (buffer.backend as WebGpuStorage).buffer.destroy();
+
+  /// True where the adapter granted `float32-filterable`, which [create]
+  /// asks for whenever it is offered.
+  @override
+  bool get supportsFloat32Filtering =>
+      gpuDevice.features.has(GpuFeature.float32Filterable);
+
+  /// Every colour target in a WebGPU pipeline carries its own equation, and
+  /// the pipeline signature keys on the list of them, so the index has always
+  /// been honoured here — `R8` only asked.
+  @override
+  bool get supportsIndependentBlend => true;
+
+  /// `rgba16float` on a display the browser says has a high dynamic range —
+  /// `R9` — asked once, when the device is made. A frame in it is presented
+  /// through a canvas configured for extended tone mapping; see
+  /// [copyToCanvas].
+  @override
+  List<TextureFormat> get hdrOutputFormats => _hdrDisplay
+      ? const <TextureFormat>[TextureFormat.r16g16b16a16Float]
+      : const <TextureFormat>[];
+
+  late final bool _hdrDisplay = () {
+    try {
+      return _matchMedia('(dynamic-range: high)').matches;
+    } on Object {
+      return false;
+    }
+  }();
+
+  /// The format the canvas is configured for now: the frame's, since
+  /// presenting is a copy and a copy needs the two to match.
+  TextureFormat _canvasFormat = TextureFormat.r8g8b8a8UNormInt;
+
   WebGpuDevice._(this.gpuDevice, this._canvas, this._context, this._stages)
     : _slot = _CanvasSlot(_canvas),
       uniformArena = WebGpuFrameArena(
@@ -277,6 +386,7 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
         GpuFeature.textureCompressionBc,
         GpuFeature.textureCompressionEtc2,
         GpuFeature.textureCompressionAstc,
+        GpuFeature.timestampQuery,
       ])
         if (adapter.features.has(feature)) feature,
     ];
@@ -481,10 +591,14 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   /// has bound and cached by what went into it.
   ///
   /// A binding the pass never filled gets a neutral resource rather than being
-  /// left out: WebGPU refuses an incomplete group outright, and the contract
-  /// already says a declared sampler must have something bound to it. An
-  /// unfilled block reads the zeroed buffer, which is what GL would have given
-  /// it.
+  /// left out: WebGPU refuses an incomplete group outright. An unfilled block
+  /// reads the zeroed buffer and an unfilled sampler a white texel.
+  ///
+  /// **And says so, into [debugDrainErrors].** The contract makes a declared
+  /// slot left unbound the caller's mistake, and this is the one backend that
+  /// sees every stage's declarations at the draw. It used to fill the hole in
+  /// silence, which made it the backend that drew cleanly through the 0.7.2
+  /// regression that Metal failed on natively.
   GPUBindGroup bindGroupFor(
     WebGpuBindingLayouts layouts,
     int group,
@@ -497,7 +611,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     final entries = <GPUBindGroupEntry>[];
     for (final bound in shape.blocks) {
       final block = bound.block;
-      final buffer = blocks?[block.binding]?.buffer ?? _zeroBlock;
+      final filled = blocks?[block.binding]?.buffer;
+      if (filled == null && bound.bindable) {
+        _unbound('uniform block "${block.name}"');
+      }
+      final buffer = filled ?? _zeroBlock;
       resources.add(buffer);
       entries.add(
         GPUBindGroupEntry.buffer(
@@ -515,8 +633,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     }
     for (final bound in shape.samplers) {
       final sampler = bound.sampler;
-      final view =
-          views?[sampler.textureBinding] ?? _blankView(sampler.dimension);
+      final filledView = views?[sampler.textureBinding];
+      if (filledView == null && bound.bindable) {
+        _unbound('sampler "${sampler.name}"');
+      }
+      final view = filledView ?? _blankView(sampler.dimension);
       final object =
           samplers?[sampler.samplerBinding] ??
           samplerFor(SamplerOptions.linearRepeat);
@@ -551,6 +672,16 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       ),
     );
   }
+
+  /// Reports a declared slot a draw left unbound, once per slot per device, so
+  /// a mistake repeated every frame is one line and not a flood.
+  void _unbound(String what) {
+    if (_reportedUnbound.add(what)) {
+      _errors.add('$what is declared and nothing was bound to it');
+    }
+  }
+
+  final Set<String> _reportedUnbound = <String>{};
 
   /// One white texel, in the shape a slot with nothing bound to it wants.
   ///
@@ -763,10 +894,21 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
 
   // ------------------------------------------------------------- resources
 
+  /// Whether `deviceTransient` targets are allocated as WebGPU transient
+  /// attachments — `H7`. Asked of the browser once, since the answer is a
+  /// property of its API and not of this device.
+  late final bool _transientAttachments = gpuKnowsTransientAttachments();
+
   @override
   TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) => guard(
     'a ${spec.width}x${spec.height} ${spec.format.name} target',
-    () => webgpuCreateTexture(gpuDevice, _textures, spec, levels: levels),
+    () => webgpuCreateTexture(
+      gpuDevice,
+      _textures,
+      spec,
+      levels: levels,
+      transientAttachments: _transientAttachments,
+    ),
   );
 
   @override
@@ -971,6 +1113,7 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   /// finished with is safe, which is the only surprising thing about it.
   @override
   void beginFrame() {
+    _timer.endFrame(_timingListener);
     uniformArena.reset();
     vertexArena.reset();
     indexArena.reset();
@@ -994,7 +1137,14 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       maxColorAttachments,
       backend: 'this WebGPU device',
     );
-    return WebGpuEncoder(this, descriptor);
+    final label = descriptor.label;
+    return WebGpuEncoder(
+      this,
+      descriptor,
+      timestampWrites: _timingListener != null && label != null
+          ? _timer.next(label)
+          : null,
+    );
   }
 
   // --------------------------------------------------------------- output
@@ -1032,6 +1182,24 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       _canvas
         ..width = frame.width
         ..height = frame.height;
+    }
+    // `R9`: an extended-range frame needs a canvas of its format, composited
+    // with extended tone mapping; a standard one goes back to the canvas it
+    // had. Reconfigured only when the format changes.
+    if (frame.format != _canvasFormat) {
+      final extended = frame.format != TextureFormat.r8g8b8a8UNormInt;
+      _context.configure(
+        GPUCanvasConfiguration(
+          device: gpuDevice,
+          format: gpuTextureFormat(frame.format)!,
+          usage: GpuTextureUsage.copyDst,
+          alphaMode: 'opaque',
+          toneMapping: GPUCanvasToneMapping(
+            mode: extended ? 'extended' : 'standard',
+          ),
+        ),
+      );
+      _canvasFormat = frame.format;
     }
     final target = _context.getCurrentTexture();
     final source = frame.backend as WebGpuTexture;

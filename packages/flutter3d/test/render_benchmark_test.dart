@@ -10,13 +10,14 @@
 ///
 /// | size | time | throughput |
 /// |---|---|---|
-/// | 1920×1080 | 9.14 s | 4.40 µs/px |
-/// | 3840×2160 (plain 4K) | 34.45 s | 4.15 µs/px |
-/// | 7680×4320 (4K, 2x linear = SSAA×2) | 138.58 s | 4.18 µs/px |
+/// | 1920×1080 | 7.62 s | 3.67 µs/px |
+/// | 3840×2160 (plain 4K) | 26.68 s | 3.22 µs/px |
+/// | 7680×4320 (4K, 2x linear = SSAA×2) | 105.34 s | 3.18 µs/px |
 ///
-/// The threshold is 180 s; 138.58 s clears it with over a fifth to spare.
-/// Run to run variance on this machine stayed within a couple of seconds
-/// across repeated runs while writing this test.
+/// The threshold is 180 s; 105.34 s clears it with over two fifths to spare.
+/// Measured on 2026-09-25, once the rasteriser stopped allocating per texel;
+/// the 0.8 effects had carried the same frame from 138.58 s to the line
+/// before that.
 ///
 /// **"AOT" could not be measured, and the reason is structural rather than a
 /// gap in this row's own effort.** `flutter3d_hardware`'s own

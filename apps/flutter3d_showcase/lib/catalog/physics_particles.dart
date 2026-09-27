@@ -285,5 +285,14 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
       'packages/flutter3d_physics/lib/src/cloth/cloth_mesh.dart',
       'packages/flutter3d_physics/lib/src/cloth/xpbd_solver.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'Cloth meets a ball as a ball, stays calm when draped, feels wind as a force and holds on with friction.',
+        evidence: 'Cloth meets a sphere and a capsule as themselves.',
+        evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
+      ),
+    ],
   ),
 ];

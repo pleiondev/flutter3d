@@ -149,9 +149,53 @@ void main() {
       // Zero stored is mid grey, because the zeroth band is an offset from a
       // half. A reader that took it as a channel would make every flat-lit
       // capture come out black.
-      final cloud = parseSplatPly(_ply(<_Row>[_row(dc0: 0.0, dc1: 1.0)]));
+      // Read as linear (the file says nothing, so the test says it), which
+      // leaves the offset alone to check.
+      final cloud = parseSplatPly(
+        _ply(<_Row>[_row(dc0: 0.0, dc1: 1.0)]),
+        colourSpace: SplatColourSpace.linear,
+      );
       expect(cloud.colours[0], closeTo(0.5, 1e-6));
       expect(cloud.colours[1], closeTo(0.5 + kSplatShC0, 1e-6));
+    });
+
+    test('colour is sRGB-encoded, and decoded to linear by default', () {
+      // A trainer fits band 0 to sRGB photographs, so a stored grey of a half
+      // is a displayed grey of a half. Taken as linear it is encoded again on
+      // the way out and shows as about 0.735: the capture washed out.
+      // Mutation: drop the decode in `splatColour` and this reads 0.5.
+      final cloud = parseSplatPly(_ply(<_Row>[_row(dc0: 0.0, dc1: 1.0)]));
+      expect(cloud.colours[0], closeTo(_srgbToLinear(0.5), 1e-6));
+      expect(cloud.colours[1], closeTo(_srgbToLinear(0.5 + kSplatShC0), 1e-6));
+      expect(cloud.colours[0], closeTo(0.2140, 1e-4));
+    });
+
+    test('a colour below nought clamps, as the fit did', () {
+      // The reference rasteriser returns `max(0.5 + C0·c, 0)`, so nothing in
+      // training pushed such a coefficient back up and trained files are full
+      // of them. Left negative, the splat subtracts light under the
+      // premultiplied blend: a dark speck. Mutation: drop the `max` and these
+      // come out negative.
+      for (final space in SplatColourSpace.values) {
+        final cloud = parseSplatPly(
+          _ply(<_Row>[_row(dc0: -3.0, dc1: -1.7724538509055159 - 0.5)]),
+          colourSpace: space,
+        );
+        expect(cloud.colours[0], 0.0, reason: '$space');
+        expect(cloud.colours[1], 0.0, reason: '$space');
+      }
+    });
+
+    test('an sRGB colour clamps at one, and a linear one keeps its light', () {
+      // The sRGB curve is defined on [0, 1]; a linear channel above one is a
+      // highlight, which the tone curve and not the reader deals with.
+      final srgb = parseSplatPly(_ply(<_Row>[_row(dc0: 4.0)]));
+      expect(srgb.colours[0], closeTo(1.0, 1e-6));
+      final linear = parseSplatPly(
+        _ply(<_Row>[_row(dc0: 4.0)]),
+        colourSpace: SplatColourSpace.linear,
+      );
+      expect(linear.colours[0], closeTo(0.5 + 4.0 * kSplatShC0, 1e-6));
     });
   });
 
@@ -329,3 +373,8 @@ void main() {
     );
   });
 }
+
+/// IEC 61966-2-1's decode, written out here so the test does not check the
+/// engine's curve against itself.
+double _srgbToLinear(double c) =>
+    c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();

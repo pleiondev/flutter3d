@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:path/path.dart' as p;
 
+import 'backend.dart';
 import 'golden_scene.dart';
 import 'golden_scenes.dart';
 import 'golden_store.dart';
@@ -24,14 +25,28 @@ import 'png.dart';
 /// a match and 1 on a mismatch, so `tool/golden.sh` can launch the built
 /// application once per scene and read the code. The same three names still work
 /// as `--dart-define`s for a run driven by hand, but the environment is what the
-/// harness uses, because a define is a compile-time input and forty-four of
-/// them are forty-four builds.
+/// harness uses, because a define is a compile-time input and seventy-eight
+/// of them are seventy-eight builds.
 final class GoldenRunner {
   GoldenRunner._(this.scene, {required this.update, required this.directory});
 
   final GoldenScene scene;
   final bool update;
   final String directory;
+
+  /// The occlusion method this run draws with — `C2`, `C3`. None unless
+  /// `FLUTTER3D_GOLDEN_OCCLUSION` (or `?occlusion=` in a browser) names one;
+  /// with one named, every mesh is marked an occluder and the run compares
+  /// against the ordinary references, since occlusion must move no pixel.
+  /// Recording with it set would record what it was meant to be checked
+  /// against, so an update run ignores it.
+  OcclusionMode get occlusion => update
+      ? OcclusionMode.none
+      : switch (occlusionOverride) {
+          'software' => OcclusionMode.software,
+          'hiZ' => OcclusionMode.hiZ,
+          _ => OcclusionMode.none,
+        };
 
   /// Fraction of pixels allowed to differ beyond [channelTolerance].
   ///
@@ -107,7 +122,7 @@ final class GoldenRunner {
       scene,
       // The store's answer wins where it has one. A desktop run takes the
       // direction from the environment and a browser run from the URL, for the
-      // same reason on both: one build has to serve forty-four scenes in both
+      // same reason on both: one build has to serve seventy-eight scenes in both
       // directions, and anything the compiler sees is another build.
       update:
           updateOverride ??
@@ -148,6 +163,21 @@ final class GoldenRunner {
       final actual = await device.readPixels(target);
       if (actual == null) {
         printLine('GOLDEN ${scene.name}: the frame read back as nothing.');
+        finish(1);
+      }
+
+      // Before the frame is recorded or compared, because a frame the device
+      // refused part of is not a picture of the scene whatever it matches. The
+      // browser backends refuse without throwing, and three references were
+      // recorded that way: two black WebGPU frames and an empty WebGL2 splat
+      // cloud, each under a budget wide enough to pass. Impeller and the
+      // software backend have nothing to report here and answer null.
+      final errors = await deviceErrors(device);
+      if (errors != null) {
+        printLine(
+          'GOLDEN ${scene.name}: FAILED — the device reported errors while '
+          'drawing, so the frame is neither recorded nor compared. $errors',
+        );
         finish(1);
       }
 

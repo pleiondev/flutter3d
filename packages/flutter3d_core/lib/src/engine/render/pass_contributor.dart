@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene.dart';
@@ -88,6 +89,7 @@ final class FramePassState {
 final class SceneShadows {
   const SceneShadows({
     this.directional,
+    this.directionalMoments,
     this.point,
     this.pointStatic,
     this.casterIndex = -1,
@@ -126,6 +128,10 @@ final class SceneShadows {
       directional: drawnDirectional
           ? resources.tryTexture(FrameResourceIds.shadowMap)
           : null,
+      // Made from that map in this frame or not at all, so the same gate.
+      directionalMoments: drawnDirectional
+          ? declared(FrameResourceIds.shadowMoments)
+          : null,
       point: declared(FrameResourceIds.cubeShadow),
       pointStatic: declared(FrameResourceIds.cubeShadowStatic),
       casterIndex: casterIndex,
@@ -138,6 +144,13 @@ final class SceneShadows {
   /// shadow pass gave up, and binding a texture regardless would offer the last
   /// frame that had one.
   final TextureHandle? directional;
+
+  /// [directional] as blurred exponential moments, when the frame filters it
+  /// with `ShadowFilter.evsm` — `S2`. Null otherwise, and the draw then reads
+  /// [directional] with the fixed kernel: a node that did not declare the
+  /// moments, or a device that refused to make them, falls back rather than
+  /// going unshadowed.
+  final TextureHandle? directionalMoments;
 
   /// Which light in the packed buffer [directional] was drawn for; -1 for none.
   final int casterIndex;
@@ -315,6 +328,10 @@ final class ContributorFrame {
     required this.height,
     this.view,
     this.viewProjection,
+    this.frameIndex = 0,
+    this.temporal = false,
+    this.lights,
+    this.sceneDepth,
   });
 
   /// The pass being built. Drawing into it is the point.
@@ -339,4 +356,169 @@ final class ContributorFrame {
   /// The view being drawn.
   final RenderView? view;
   final vm.Matrix4? viewProjection;
+
+  /// `Renderer.frameIndex` for this frame, for a contributor whose noise has
+  /// to change from frame to frame for a temporal resolve to average it.
+  final int frameIndex;
+
+  /// Whether a temporal resolve integrates this frame — the setting, on a
+  /// device that can run it. What a contributor asks before it trades a
+  /// sorted blend for noise the resolve will average away (`N5`).
+  final bool temporal;
+
+  /// The frame's lights, for a contributor whose draw is lit — `N6`. Null
+  /// outside the scene pass, where there are none to give.
+  final ContributorLights? lights;
+
+  /// The opaque scene's depth, for a contributor that fades where it meets
+  /// the world — or null, which is the answer everywhere but two places.
+  ///
+  /// The surface buffer: in `a`, the depth along the view axis in metres of
+  /// whatever the opaque half drew there, and zero where it drew nothing. The
+  /// same size as the pass, so a fragment reads its own texel at
+  /// `gl_FragCoord` over that size, rows counted as `FragCoordFromTop` counts
+  /// them. Read it with [SamplerOptions.nearestClamp]: its other channels are
+  /// an encoded normal, which a filter averages into nonsense.
+  ///
+  /// Given only to a contributor whose [PassContributor.readsSceneDepth] is
+  /// true, where the buffer is not an attachment: in the pass the renderer
+  /// opens for it after the transparent half, or, under weighted blended
+  /// transparency (`R8`), in the pass after the resolve — there whenever the
+  /// scene pass attached the buffer, split or not. Null in the scene pass,
+  /// outside a renderer, on a device with a single colour attachment, and on
+  /// a frame whose `'transparent'` pass was switched off unless `R8` hands it
+  /// over after the resolve — and a contributor handed null draws as it would
+  /// without asking.
+  final TextureHandle? sceneDepth;
+}
+
+/// How a reactive sprite's coverage is worked out — `R4`, and the shapes
+/// `post/reactive_sprite.frag` knows, in its order.
+enum ReactiveShape {
+  /// `particle.frag`'s procedural disc: a squared smoothstep from the middle.
+  disc,
+
+  /// `splat.frag`'s Gaussian, with the quad's coordinates in standard
+  /// deviations.
+  gaussian,
+
+  /// The sprite texture's own alpha.
+  sprite,
+}
+
+/// Everything a contributor is handed to mark its pixels reactive — `R4`.
+///
+/// **A pass of its own, after the scene.** The mark lives in the velocity
+/// target's blue, and the velocity is drawn after the scene from the surface
+/// buffer the scene wrote, so a contributor draws its particles a second time
+/// here rather than into the scene pass. [PassContributor.encodeReactive] is
+/// that second draw: the same geometry, through its own vertex stage, with a
+/// fragment stage that writes how much of the pixel it covers instead of a
+/// colour.
+///
+/// The target has no depth attachment; the fragment stages test against the
+/// surface buffer instead, as the velocity passes do, which is why a draw
+/// here binds through [bindSprite] rather than naming the buffer itself.
+final class ReactiveFrame {
+  ReactiveFrame({
+    required this.encoder,
+    required this.device,
+    required this.view,
+    required this.viewProjection,
+    required TextureHandle surface,
+    required TextureHandle white,
+    required ReactiveInfoBlock info,
+  }) : // Private for the reason `Renderer`'s fallbacks are: a contributor
+       // binds these through [bindSprite] and has no business holding them.
+       // ignore: prefer_initializing_formals
+       _surface = surface,
+       // ignore: prefer_initializing_formals
+       _white = white,
+       // ignore: prefer_initializing_formals
+       _info = info;
+
+  /// The pass, open on the velocity target with the view's viewport set.
+  final PassEncoder encoder;
+
+  final GraphicsDevice device;
+
+  /// The view the velocity belongs to.
+  final RenderView view;
+
+  /// The matrix the scene pass drew [view] with — jittered while the resolve
+  /// runs — so a mark lands on the pixels the draw covered there.
+  final vm.Matrix4 viewProjection;
+
+  final TextureHandle _surface;
+  final TextureHandle _white;
+  final ReactiveInfoBlock _info;
+
+  /// What a reactive draw sets: added in, so the zeros in red, green and
+  /// alpha leave the velocity alone and overlapping sprites sum (the resolve
+  /// clamps the sum to one); no depth, since the target has none; no
+  /// culling, as a billboard has no back.
+  static const PassState state = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.additive,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The fragment stage for what `particle.vert` draws, or null when the
+  /// bundle predates it — in which case a contributor draws nothing here, as
+  /// it would with any other missing stage.
+  ShaderHandle? get spriteStage => device.shaders['ReactiveSprite'];
+
+  /// Binds [fragment] — [spriteStage] — for sprites of [shape], with
+  /// [texture] as the sprite when the shape reads one.
+  ///
+  /// The stage declares a sprite whatever the shape, so a draw without one
+  /// is bound a white texel rather than leaving the slot empty.
+  void bindSprite(
+    ShaderHandle fragment,
+    ReactiveShape shape, {
+    TextureHandle? texture,
+  }) {
+    _info.params[1] = shape.index.toDouble();
+    encoder
+      ..bindBlock(fragment, _info)
+      ..bindTexture(
+        fragment,
+        'surface_texture',
+        _surface,
+        sampler: SamplerOptions.nearestClamp,
+      )
+      ..bindTexture(
+        fragment,
+        'sprite_texture',
+        texture ?? _white,
+        sampler: SamplerOptions.trilinearRepeat,
+      );
+  }
+}
+
+/// The scene's lights, bound to a contributor's own stage — `N6`.
+///
+/// A contributor that wants its draw lit needs what a mesh of the same bounds
+/// would be given: the eight lights that reach it, the list's tail past those,
+/// and, in a clustered view, the cells. All of that is chosen and packed inside
+/// the renderer, and a second copy of the choosing would eventually choose
+/// differently — a puff of smoke lit by one set of torches beside a wall lit by
+/// another. So the renderer answers, as it answers `encodeScene`.
+///
+/// The stage declares `lib/contributor_lights.glsl`: the
+/// `ContributorLightInfo` block with the eight slots, and the light list's
+/// `LightListInfo` block and `light_list_texture` sampler. [bind] writes all
+/// three, and binds a stand-in for the texture when the frame has no list,
+/// because a declared sampler nobody binds is a native crash on Metal.
+abstract interface class ContributorLights {
+  /// Binds the lights reaching a sphere at [centre] of [radius] to [stage].
+  void bind(
+    PassEncoder encoder,
+    ShaderHandle stage, {
+    required vm.Vector3 centre,
+    required double radius,
+  });
 }

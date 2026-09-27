@@ -34,11 +34,101 @@ export 'cpu_vertex_fetch.dart';
 
 /// The software backend.
 final class CpuDevice implements GraphicsDevice {
+  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
+  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
+  // makes a caller take its fallback.
+
+  @override
+  bool get supportsGpuTimestamps => false;
+
+  @override
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+
+  // Compute runs here — `H6`: a stage is a `CpuComputeShader`, a storage
+  // buffer is its bytes, and a dispatch runs its workgroups before it returns,
+  // which is as synchronous as every draw on this backend.
+  @override
+  bool get supportsCompute => true;
+
+  @override
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  }) => StorageBuffer(
+    backend: ByteData.sublistView(
+      Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    ),
+    lengthInBytes: bytes.lengthInBytes,
+    hostReadable: hostReadable,
+  );
+
+  @override
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
+    final stage = shader.backend;
+    if (stage is! CpuStage || stage.compute == null) {
+      throw ArgumentError.value(
+        shader.name,
+        'shader',
+        'is not a compute stage on this device',
+      );
+    }
+    return ComputePipelineHandle(backend: stage.compute!, shader: shader);
+  }
+
+  @override
+  ComputeEncoder beginComputePass({String? label}) => _CpuComputeEncoder();
+
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) async {
+    if (!buffer.hostReadable) {
+      throw ArgumentError.value(
+        buffer,
+        'buffer',
+        'was not created hostReadable, so it cannot be read back',
+      );
+    }
+    final bytes = buffer.backend as ByteData;
+    return ByteData.sublistView(
+      Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    );
+  }
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) {}
+
+  /// True: every texture here is four 32-bit floats a texel whatever its
+  /// format says, and the sampler filters them the same way it filters
+  /// anything — `S2`'s moments atlas is no special case for this backend.
+  @override
+  bool get supportsFloat32Filtering => true;
+
+  /// True unless a test asks otherwise: the pass keeps a blend state for each
+  /// of its first two attachments — `R8`. A third, the albedo buffer, is
+  /// written unblended whatever is set, as it always was.
+  ///
+  /// A constructor argument, like [maxColorAttachments], so the fallback a
+  /// device without it takes — weighted blended transparency drawing its
+  /// list once per target — can be drawn here and compared with the path it
+  /// stands in for.
+  @override
+  final bool supportsIndependentBlend;
+
+  /// None unless a test hands some in — `R9`: there is no display here to
+  /// be HDR, and the extended output is exercised by asking for one.
+  @override
+  final List<TextureFormat> hdrOutputFormats;
+
   CpuDevice({
     required this.width,
     required this.height,
     required this.shaders,
-    this.maxColorAttachments = 2,
+    this.maxColorAttachments = 3,
+    this.hdrOutputFormats = const <TextureFormat>[],
+    this.supportsIndependentBlend = true,
   });
 
   final int width;
@@ -133,13 +223,14 @@ final class CpuDevice implements GraphicsDevice {
   // only by a sampler that asked.
   int get maxAnisotropy => 16;
 
-  /// Two by default, and settable — `gfx-50n`.
+  /// Three by default, and settable — `gfx-50n`, `L5`.
   ///
-  /// The rasteriser could write into any number of arrays, so the two is a
+  /// The rasteriser could write into any number of arrays, so the three is a
   /// choice rather than a limit: it answers what the hardware backends answer
-  /// where they work, because a reference that could do more than the thing
-  /// it is a reference for would record pictures no shipping backend can
-  /// reproduce.
+  /// where they work — the colour, the surface buffer and the albedo buffer,
+  /// which is all any pass here opens — because a reference that could do
+  /// more than the thing it is a reference for would record pictures no
+  /// shipping backend can reproduce.
   ///
   /// **Settable for the harder reason.** The device this stands in for is
   /// Impeller on OpenGL ES, which aborts rather than refusing, so the no-MRT
@@ -487,7 +578,7 @@ final class CpuDevice implements GraphicsDevice {
       maxColorAttachments,
       backend: 'the software rasteriser',
     );
-    return CpuEncoder(descriptor);
+    return CpuEncoder(descriptor, supportsIndependentBlend);
   }
 
   @override
@@ -578,6 +669,8 @@ int _texelBytes(TextureFormat format) => switch (format) {
   TextureFormat.r32g32b32a32Float => 16,
   TextureFormat.r16g16b16a16Float => 8,
   TextureFormat.r32Float => 4,
+  TextureFormat.r8UNormInt || TextureFormat.a8UNormInt => 1,
+  TextureFormat.r8g8UNormInt => 2,
   _ => 4,
 };
 
@@ -612,6 +705,31 @@ void _decodeInto(
         into[i * 4 + 2] = 0.0;
         into[i * 4 + 3] = 1.0;
       }
+    // The narrow unorm formats, one and two bytes a texel, as every other
+    // backend samples them: the channels there are, nought for the rest, and
+    // alpha at one — except for alpha-only, whose one channel is alpha. The
+    // engine's blue noise is the first table to arrive in one — `G1`.
+    case TextureFormat.r8UNormInt:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = pixels.getUint8(i) / 255.0;
+        into[i * 4 + 1] = 0.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = 1.0;
+      }
+    case TextureFormat.a8UNormInt:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = 0.0;
+        into[i * 4 + 1] = 0.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = pixels.getUint8(i) / 255.0;
+      }
+    case TextureFormat.r8g8UNormInt:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = pixels.getUint8(i * 2) / 255.0;
+        into[i * 4 + 1] = pixels.getUint8(i * 2 + 1) / 255.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = 1.0;
+      }
     default:
       for (var i = 0; i < count * 4; i++) {
         into[i] = pixels.getUint8(i) / 255.0;
@@ -641,4 +759,59 @@ double _twoTo(int power) {
     value *= 2.0;
   }
   return power < 0 ? 1.0 / value : value;
+}
+
+/// A compute pass on the software rasteriser: bindings, and dispatches that
+/// run before they return.
+final class _CpuComputeEncoder implements ComputeEncoder {
+  CpuComputeShader? _shader;
+  final Map<String, ByteData> _storage = <String, ByteData>{};
+  final Map<String, Map<String, Float32List>> _blocks =
+      <String, Map<String, Float32List>>{};
+
+  @override
+  void bindPipeline(ComputePipelineHandle pipeline) {
+    _shader = pipeline.backend as CpuComputeShader;
+    _storage.clear();
+    _blocks.clear();
+  }
+
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle stage,
+    String name,
+    StorageBuffer buffer,
+  ) {
+    _storage[name] = buffer.backend as ByteData;
+    return true;
+  }
+
+  @override
+  bool bindUniformBlock(
+    ShaderHandle stage,
+    String block,
+    Map<String, Float32List> members,
+  ) {
+    _blocks[block] = members;
+    return true;
+  }
+
+  @override
+  void dispatch(int x, [int y = 1, int z = 1]) {
+    final shader = _shader;
+    if (shader == null) {
+      throw StateError('dispatch before any compute pipeline was bound');
+    }
+    final bindings = CpuComputeBindings(_storage, _blocks);
+    for (var gz = 0; gz < z; gz++) {
+      for (var gy = 0; gy < y; gy++) {
+        for (var gx = 0; gx < x; gx++) {
+          shader.runWorkgroup((gx, gy, gz), bindings);
+        }
+      }
+    }
+  }
+
+  @override
+  void submit() {}
 }

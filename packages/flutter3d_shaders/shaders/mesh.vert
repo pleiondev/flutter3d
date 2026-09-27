@@ -57,8 +57,16 @@ void main() {
   // lies *in* the surface, so it stretches with the geometry rather than
   // resisting it. Using the inverse transpose here is the classic way to get a
   // TBN that is subtly wrong under non-uniform scale.
-  v_tangent =
-      vec4(mat3(frame_info.model) * morphed_tangent.xyz, morphed_tangent.w);
+  //
+  // The sign goes through a mirror too. The fragment stage rebuilds the
+  // bitangent as cross(n, t) * w, and a cross product of two transformed
+  // vectors comes out multiplied by the matrix's determinant, so under a
+  // negative scale it points the opposite way from the transformed bitangent
+  // and the green channel of a normal map on a mirrored copy lights from the
+  // wrong side. Folding the determinant's sign into w turns it back.
+  bool mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  v_tangent = vec4(mat3(frame_info.model) * morphed_tangent.xyz,
+                   mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
 

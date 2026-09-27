@@ -34,6 +34,61 @@ export 'webgl_types.dart';
 
 /// WebGL2 as a [GraphicsDevice].
 final class WebGlDevice implements GraphicsDevice {
+  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
+  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
+  // makes a caller take its fallback.
+
+  @override
+  bool get supportsGpuTimestamps => false;
+
+  @override
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+
+  @override
+  bool get supportsCompute => false;
+
+  @override
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  }) => throw UnsupportedError(_noCompute);
+
+  @override
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  ComputeEncoder beginComputePass({String? label}) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  static const String _noCompute =
+      'WebGL2 runs no compute: supportsCompute is false. Ask before '
+      'creating a storage buffer, a compute pipeline or a compute pass.';
+
+  /// Whether `OES_texture_float_linear` was granted — `S2`. Rendering into
+  /// a 32-bit float target is `EXT_color_buffer_float`, which [open]
+  /// already requires; filtering one is this extension alone, and without it
+  /// such a texture samples as zero.
+  @override
+  bool get supportsFloat32Filtering => _floatLinear;
+
+  /// Where `OES_draw_buffers_indexed` is offered, which is most desktop
+  /// browsers and not every phone — `R8`. Without it weighted blended
+  /// transparency draws its list once per target.
+  @override
+  bool get supportsIndependentBlend => _drawBuffersIndexed != null;
+
+  @override
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+
   WebGlDevice._(this._gl, this.canvas, this._library);
 
   /// Vertex attribute locations currently switched on in this context.
@@ -127,6 +182,9 @@ final class WebGlDevice implements GraphicsDevice {
     final floatLinear = gl.getExtension('OES_texture_float_linear');
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources))
       .._floatLinear = floatLinear != null
+      .._drawBuffersIndexed =
+          gl.getExtension('OES_draw_buffers_indexed')
+              as web.OES_draw_buffers_indexed?
       .._msaaSamples = _provenMsaaSamples(gl)
       .._maxAnisotropy = _queryMaxAnisotropy(gl)
       .._maxColorAttachments = _queryMaxColorAttachments(gl)
@@ -374,6 +432,14 @@ final class WebGlDevice implements GraphicsDevice {
   /// Whether this context can sample a half-float texture with linear
   /// filtering. False makes every shadow map read as zero.
   bool get supportsFloatLinearFiltering => _floatLinear;
+
+  /// `OES_draw_buffers_indexed`, when the context offers it — `R8`. What a
+  /// blend for one draw buffer is set through; null leaves the plain blend
+  /// functions, which set every draw buffer at once.
+  web.OES_draw_buffers_indexed? _drawBuffersIndexed;
+
+  /// The extension [_drawBuffersIndexed] holds, for the encoder.
+  web.OES_draw_buffers_indexed? get drawBuffersIndexed => _drawBuffersIndexed;
 
   /// What [_queryMaxAnisotropy] found at [create]. One without the extension.
   int _maxAnisotropy = 1;
@@ -778,8 +844,9 @@ final class WebGlDevice implements GraphicsDevice {
     // Drained first, so the code below reports this blit rather than whatever
     // the frame left behind. An error queue is cumulative and getError clears
     // one entry at a time, which is how a stale error gets blamed on the wrong
-    // call.
-    while (_gl.getError() != 0) {}
+    // call. Set aside rather than dropped: they are the frame's, and
+    // `debugDrainErrors` still answers for them.
+    _setAsideErrors('before a canvas blit');
 
     // **Not flipped**, and it used to be. The canvas wants row zero at the
     // bottom and that is now exactly where a finished frame keeps it: the
@@ -807,6 +874,10 @@ final class WebGlDevice implements GraphicsDevice {
       web.WebGLRenderingContext.NEAREST,
     );
     lastBlitError = _gl.getError();
+    if (lastBlitError != web.WebGLRenderingContext.NO_ERROR) {
+      final said = '${_errorName(lastBlitError)} from the canvas blit';
+      if (!_setAside.contains(said)) _setAside.add(said);
+    }
     _gl.deleteFramebuffer(source);
   }
 
@@ -1065,23 +1136,66 @@ final class WebGlDevice implements GraphicsDevice {
   /// exactly once. WebGL reports nothing when a call is rejected: the draw is
   /// dropped and the frame comes back the clear colour, which is
   /// indistinguishable from a scene that drew nothing.
+  ///
+  /// Declared slots a draw left unbound come first: the contract makes them
+  /// the caller's mistake, and this backend sees them at every draw. See
+  /// [reportUnbound].
+  ///
+  /// So do errors the canvas blit found queued and set aside: see
+  /// [_setAsideErrors].
   String? debugDrainErrors(String where) {
-    final seen = <String>[];
+    final seen = <String>[..._unbound, ..._setAside];
+    _unbound.clear();
+    _setAside.clear();
     for (var i = 0; i < 8; i++) {
       final error = _gl.getError();
       if (error == web.WebGLRenderingContext.NO_ERROR) break;
-      seen.add(switch (error) {
-        web.WebGLRenderingContext.INVALID_ENUM => 'INVALID_ENUM',
-        web.WebGLRenderingContext.INVALID_VALUE => 'INVALID_VALUE',
-        web.WebGLRenderingContext.INVALID_OPERATION => 'INVALID_OPERATION',
-        web.WebGLRenderingContext.INVALID_FRAMEBUFFER_OPERATION =>
-          'INVALID_FRAMEBUFFER_OPERATION',
-        web.WebGLRenderingContext.OUT_OF_MEMORY => 'OUT_OF_MEMORY',
-        _ => 'gl error $error',
-      });
+      seen.add(_errorName(error));
     }
     return seen.isEmpty ? null : '$where: ${seen.join(', ')}';
   }
+
+  static String _errorName(int error) => switch (error) {
+    web.WebGLRenderingContext.INVALID_ENUM => 'INVALID_ENUM',
+    web.WebGLRenderingContext.INVALID_VALUE => 'INVALID_VALUE',
+    web.WebGLRenderingContext.INVALID_OPERATION => 'INVALID_OPERATION',
+    web.WebGLRenderingContext.INVALID_FRAMEBUFFER_OPERATION =>
+      'INVALID_FRAMEBUFFER_OPERATION',
+    web.WebGLRenderingContext.OUT_OF_MEMORY => 'OUT_OF_MEMORY',
+    _ => 'gl error $error',
+  };
+
+  /// Empties the GL error queue into [_setAside], so a call that wants to
+  /// read its own error reads its own, and the ones before it are still
+  /// there for [debugDrainErrors].
+  ///
+  /// The canvas blit used to drop them. It drains the queue so a stale error
+  /// is not blamed on it, and every frame that reaches the screen goes through
+  /// it, so an error made while drawing a presented frame was thrown away one
+  /// blit later: a draw the browser refused every frame read, afterwards, as
+  /// a frame with no errors. Each distinct error is kept once, since the same
+  /// refusal repeats every frame.
+  void _setAsideErrors(String where) {
+    for (var i = 0; i < 8; i++) {
+      final error = _gl.getError();
+      if (error == web.WebGLRenderingContext.NO_ERROR) break;
+      final said = '${_errorName(error)} $where';
+      if (!_setAside.contains(said)) _setAside.add(said);
+    }
+  }
+
+  final List<String> _setAside = <String>[];
+
+  /// Records a declared slot a draw left unbound, once per slot per device, so
+  /// a mistake repeated every frame is one line rather than a flood.
+  void reportUnbound(String what) {
+    if (_reportedUnbound.add(what)) {
+      _unbound.add('$what is declared and nothing was bound to it');
+    }
+  }
+
+  final Set<String> _reportedUnbound = <String>{};
+  final List<String> _unbound = <String>[];
 
   /// Whether the currently bound framebuffer can be drawn to, in words.
   String debugFramebufferStatus() {

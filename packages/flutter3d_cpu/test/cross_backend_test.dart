@@ -240,6 +240,63 @@ const Map<String, double> _budgets = <String, double>{
   'cube-shadow-crowded': 0.02,
   'cube-shadow-many': 0.02,
   'shadow-map': 0.02,
+  // The scenes 0.8 added, measured once the three GPU sets were recorded on
+  // 2026-09-25; each budget is what the two drew apart with a tenth to spare.
+  'anisotropy-disc': 0.47,
+  'ao-temporal': 0.04,
+  'area-light-gloss': 0.57,
+  'cascade-walk': 0.3,
+  'clearcoat-car-paint': 0.33,
+  // 1.501% measured: the upscale sharpens the rasteriser's edges and
+  // Impeller's multisampled ones differently.
+  'easu-half': 1.66,
+  'evsm-soft': 0.5,
+  // 0.069% measured: the air right round a torch, where the light falls off
+  // as one over the distance squared, is shadowed by one unfiltered tap of
+  // the cube atlas, and the torch's own silhouette in it falls on different
+  // texels in single and double precision.
+  'fog-torches': 0.08,
+  'glass-stack-oit': 0.01,
+  // 0.003% measured. It was 1.584% while Impeller wrote the albedo buffer in
+  // the surface buffer's format, and the bounces read a quarter of the colour.
+  'gtao-corner': 0.01,
+  'impostor-forest': 0.01,
+  'irradiance-room': 0.52,
+  'many-lights': 0.04,
+  // 1.429% measured: the streaks' ends, where the reconstruction filter's
+  // jitter lands per backend and the software rasteriser's unantialiased
+  // spokes give each streak a harder start.
+  'motion-blur-spin': 1.57,
+  'rough-dielectrics': 0.46,
+  'rough-metals': 0.26,
+  'scan-chunks': 0.57,
+  'sheen-fabric': 0.39,
+  'smoke-six-way': 0.01,
+  'splat-gltf': 0.02,
+  // 0.011% measured, since the hash reads the pixel the same way up and
+  // computes the same numbers on every backend; it was 41.7% while each
+  // backend's hash picked its own subset of splats.
+  'splat-stochastic': 0.02,
+  // Nothing measured. It was 4.847% while Impeller's albedo buffer held the
+  // bytes of half floats; see gtao-corner.
+  'ssil-room': 0.01,
+  'sun-contact-hardening': 0.42,
+  'taa-converge': 0.01,
+  'taa-embers': 0.01,
+  'taa-railing': 0.11,
+  // 5.199% measured: the sixteen-sided hull is tight enough that single- and
+  // double-precision arithmetic put a moving bar's edge on different sides of
+  // it, and ninety frames of history carry the difference along every edge.
+  'taa-railing-kdop16': 5.72,
+  'taa-railing-kdop8': 0.03,
+  'taa-railing-scaled': 0.06,
+  'texture-transform-per-map': 0.81,
+  // 2.318% measured: patch edges only: Impeller multisamples them and the
+  // software rasteriser does not.
+  'tonemap-aces2': 2.55,
+  'transmission-glass': 0.01,
+  'velocity-shapes': 0.01,
+  'window-interior': 0.39,
 };
 
 /// How far apart two channels may be before the pixel counts as differing.

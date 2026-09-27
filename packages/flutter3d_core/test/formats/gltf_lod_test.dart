@@ -95,5 +95,36 @@ void main() {
 
       expect(readBack.nodes.single.lods, isEmpty);
     });
+
+    test('an impostor level is this engine\'s own and stays out', () async {
+      // `C4`: glTF has no word for a baked card. Written as a sibling it
+      // would be a level with no mesh that a viewer switches to and draws
+      // nothing, so the chain goes out without it.
+      final document = PlainModelDocument(
+        surfaces: <ModelSurface>[_surface(), _surface(x: 1)],
+        nodes: <ModelNode>[
+          ModelNode(
+            surfaces: <int>[0],
+            lods: <ModelLod>[
+              const ModelLod(surfaceIndices: <int>[1], maxScreenFraction: 0.3),
+              ModelLod.impostor(
+                maxScreenFraction: 0.05,
+                impostor: ModelImpostor(
+                  albedoImage: 0,
+                  normalDepthImage: 0,
+                  grid: 8,
+                  centre: Vector3.zero(),
+                  radius: 1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final readBack = await GltfLoader().load(GltfWriter(document).writeGlb());
+      expect(readBack.nodes, hasLength(2));
+      expect(readBack.nodes.first.lods.single.surfaceIndices, hasLength(1));
+    });
   });
 }

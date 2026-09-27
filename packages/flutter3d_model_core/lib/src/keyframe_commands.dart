@@ -125,7 +125,9 @@ AnimationPath? _pathFrom(Object? json) => AnimationPath.values
 /// or null for [AnimationPath.weights], which [PoseJoint] does not key; see
 /// [KeyShape] for that.
 List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
-  if (path == AnimationPath.weights) return null;
+  if (path == AnimationPath.weights || path == AnimationPath.pointer) {
+    return null;
+  }
   final translation = Vector3.zero();
   final rotation = Quaternion.identity();
   final scale = Vector3.zero();
@@ -143,7 +145,7 @@ List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
       rotation.w,
     ],
     AnimationPath.scale => <double>[scale.x, scale.y, scale.z],
-    AnimationPath.weights => null,
+    AnimationPath.weights || AnimationPath.pointer => null,
   };
 }
 

@@ -230,8 +230,17 @@ final class F3dDocument extends ModelDocument {
   final Map<int, MeshData> _meshCache = <int, MeshData>{};
 
   late final Map<int, List<MorphTarget>> _morphTargets = _readMorphTargets();
+  late final Map<int, MeshClusters> _clusters = _readClusters();
   late final Map<int, List<double>> _morphWeights = _readMorphWeights();
   late final Map<int, List<ModelLod>> _lods = _readLods();
+
+  /// Section 23 read once: the names, and each surface's variant → material
+  /// map for [_readSurfaces] to hand to its surface.
+  late final (List<String>, Map<int, Map<int, int>>) _variants =
+      _readVariants();
+
+  @override
+  List<String> get variants => _variants.$1;
 
   @override
   late final List<ModelSurface> surfaces = _readSurfaces();

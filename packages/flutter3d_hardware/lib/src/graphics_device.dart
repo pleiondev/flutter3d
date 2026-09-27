@@ -8,8 +8,10 @@ library;
 import 'dart:typed_data';
 
 import 'command_encoder.dart';
+import 'compute.dart';
 import 'formats.dart';
 import 'geometry_buffer.dart';
+import 'gpu_timings.dart';
 import 'render_target_pool.dart';
 import 'shader.dart';
 import 'texture.dart';
@@ -641,4 +643,81 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// reuse afterwards — a disposed device's handles are no longer valid on
   /// backends that actually freed them.
   void dispose();
+
+  // ------------------------------------------------------------------------
+  // The rest of this interface is the 0.8 cycle's, declared in 0.8.0 so that
+  // no patch release has to add a member: each backend is its own package on
+  // a caret range of this one, and a member added in 0.8.1 would break every
+  // backend published before it. A capability that is not built yet answers
+  // false or empty, and its creators throw an [UnsupportedError].
+  // ------------------------------------------------------------------------
+
+  /// Whether this device measures how long the GPU spends in each labelled
+  /// pass — `H2`. When true, [onGpuTimings] is called with them.
+  ///
+  /// False on Impeller (flutter_gpu has no timer query), on the software
+  /// rasteriser (whose passes run on the CPU and are timed where they are
+  /// encoded) and on WebGL2, which does not yet read
+  /// `EXT_disjoint_timer_query_webgl2`. WebGPU answers from whether the
+  /// adapter granted `timestamp-query`.
+  bool get supportsGpuTimestamps;
+
+  /// Sets where each frame's GPU timings go, a frame or two after it was
+  /// encoded; null stops them. Never called on a device whose
+  /// [supportsGpuTimestamps] is false.
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener);
+
+  /// Whether compute pipelines can be created and dispatched — `H6`. The
+  /// members below it throw an [UnsupportedError] where this is false.
+  bool get supportsCompute;
+
+  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer].
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  });
+
+  /// A pipeline from a compute stage of this device's shader library.
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader);
+
+  /// Opens a compute pass; [label] names it to a debugger and to
+  /// [onGpuTimings].
+  ComputeEncoder beginComputePass({String? label});
+
+  /// The contents of [buffer], once every pass submitted before this call has
+  /// finished writing it. [buffer] must be `hostReadable`.
+  Future<ByteData> readBuffer(StorageBuffer buffer);
+
+  /// Releases one storage buffer, as [releaseGeometry] releases geometry.
+  void releaseStorageBuffer(StorageBuffer buffer);
+
+  /// Whether a 32-bit float texture can be drawn into and sampled with
+  /// linear filtering.
+  ///
+  /// Asked by the shadow filter that stores moments in one (`S2`), which
+  /// declines on a device answering false and falls back to the fixed
+  /// kernel. Both halves are one answer because that filter needs both: a
+  /// target it can render its moments into, and a sampler that blends
+  /// neighbouring texels of it.
+  bool get supportsFloat32Filtering;
+
+  /// Whether a pass with several colour targets can blend each differently.
+  ///
+  /// Asked by weighted blended transparency (`R8`), whose two targets blend
+  /// additively and multiplicatively in one draw; without it the draws go
+  /// twice, once per target. True on Impeller, WebGPU and the software
+  /// rasteriser (for its first two attachments), and on WebGL2 where the
+  /// context offers `OES_draw_buffers_indexed`. See `PassEncoder.setBlend` for
+  /// what the index means where it is honoured.
+  bool get supportsIndependentBlend;
+
+  /// The formats this device can present an extended-range frame in, empty
+  /// when it can only present standard range.
+  ///
+  /// `R9`: empty on Impeller (whose Apple extended formats upstream
+  /// removed), WebGL2 and the software rasteriser; WebGPU answers
+  /// `rgba16float` on a display that reports a high dynamic range. A frame
+  /// rendered with `OutputTransform.extendedSrgb` is drawn in the first of
+  /// these.
+  List<TextureFormat> get hdrOutputFormats;
 }

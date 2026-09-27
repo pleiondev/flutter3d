@@ -1,3 +1,34 @@
+## 0.8.1
+
+* **A sheet resists shear.** `ClothMesh.grid` built edges along rows and
+  columns and nothing across a quad, so every quad could fold flat into a
+  rhombus. A square sheet dropped on a ball stretched its corners into strands
+  that reached the floor, and what lay on the floor spread into a blot with no
+  straight edge. The grid now carries both diagonals of every quad as
+  `ClothMesh.shearPairs`, solved with `ClothSettings.shearCompliance` (5e-2 by
+  default, soft enough that the sheet still follows a sphere). A `ClothMesh`
+  built by hand without them shears as it did.
+* **A sheet no longer passes through itself.** Nothing kept one part of a
+  sheet out of another, so a square dropped on a ball folded its corners
+  under itself on the floor and the two layers ran into each other, drawn as
+  a flat grey triangle and flickering patches. Each particle is now a sphere
+  of `ClothSettings.selfCollisionThickness` (the mesh's mean rest edge by
+  default) that the others are pushed out of inside the iteration loop,
+  except those already that close in the rest shape, which
+  `ClothMesh.restPositions` keeps. The close pairs come from a spatial hash
+  and are gathered again only once a particle has moved half a skin, so on
+  an 80×80 sheet at 12 substeps and 4 iterations a step costs 7 to 9% more
+  (33.6 to 35.9 ms falling, 37.4 to 40.6 folded). On by default;
+  `ClothSettings.selfCollision: false` turns it off.
+
+## 0.8.0
+
+**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
+`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
+bindings at `bindPipeline`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.4
 
 - **Cloth meets a sphere and a capsule as themselves.** Every obstacle pushed a

@@ -308,6 +308,7 @@ AnimationTrack? _retargetTrack(
 
     case AnimationPath.scale:
     case AnimationPath.weights:
+    case AnimationPath.pointer:
       // Passed through unchanged: this row's own acceptance names rotation
       // (rest-relative) and translation (height-scaled) only.
       return AnimationTrack(
@@ -317,6 +318,7 @@ AnimationTrack? _retargetTrack(
         times: track.times,
         values: Float32List.fromList(track.values),
         componentCount: track.componentCount,
+        pointer: track.pointer,
       );
   }
 }

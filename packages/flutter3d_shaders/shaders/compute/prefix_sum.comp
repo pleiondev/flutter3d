@@ -1,0 +1,52 @@
+#version 460 core
+
+// An inclusive prefix sum over 1024 unsigned integers, in one workgroup —
+// `H6`'s conformance probe.
+//
+// Chosen because it cannot pass by accident. Every output depends on every
+// input before it, so an invocation that ran out of order, a barrier that did
+// not hold, a storage buffer that was read before it was written or written
+// back to the wrong place each leave a wrong number somewhere in the answer —
+// and the answer is `i * (i + 1) / 2` for an input of `0, 1, 2, …`, so the
+// check knows every value without computing it the same way.
+//
+// 256 invocations of 4 elements each: WebGPU guarantees 256 invocations per
+// workgroup and no more. Each sums its own four, the 256 partial sums are
+// scanned in workgroup memory by Hillis and Steele's doubling, and each
+// invocation adds the total before it back onto its four.
+//
+// Bindings are written out rather than assigned by a packer: a compute stage
+// has no vertex half to agree with, and the numbers are the reflection.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) buffer Values {
+  uint values[];
+}
+values_buffer;
+
+shared uint partial[256];
+
+void main() {
+  uint i = gl_LocalInvocationID.x;
+  uint base = i * 4u;
+  uint s0 = values_buffer.values[base];
+  uint s1 = s0 + values_buffer.values[base + 1u];
+  uint s2 = s1 + values_buffer.values[base + 2u];
+  uint s3 = s2 + values_buffer.values[base + 3u];
+  partial[i] = s3;
+  barrier();
+
+  for (uint offset = 1u; offset < 256u; offset <<= 1u) {
+    uint add = i >= offset ? partial[i - offset] : 0u;
+    barrier();
+    partial[i] += add;
+    barrier();
+  }
+
+  uint before = i == 0u ? 0u : partial[i - 1u];
+  values_buffer.values[base] = before + s0;
+  values_buffer.values[base + 1u] = before + s1;
+  values_buffer.values[base + 2u] = before + s2;
+  values_buffer.values[base + 3u] = before + s3;
+}

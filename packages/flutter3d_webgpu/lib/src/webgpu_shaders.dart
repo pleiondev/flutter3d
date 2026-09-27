@@ -49,8 +49,12 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
 
+import '../engine_compute_shaders.dart';
 import 'webgpu_bundle_section.dart';
+import 'webgpu_compute_stage.dart';
 
 /// Turns WGSL text into whatever the backend's module object is.
 ///
@@ -179,7 +183,11 @@ ShaderHandle compileWebGpuStage(
   String name,
   WebGpuStage stage, {
   required bool isVertex,
+  StageBindings? kept,
+  Map<String, Map<String, UniformMemberLayout>>? layouts,
 }) => ShaderHandle(
+  kept: kept,
+  layouts: layouts,
   backend: WebGpuShader(
     name: name,
     isVertex: isVertex,
@@ -218,6 +226,19 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
       _handles.putIfAbsent(name, () => _compile(name));
 
   ShaderHandle? _compile(String name) {
+    // `H6`: a compute stage is its own kind of handle, with the module and the
+    // bindings its pipeline layout is built from.
+    final compute = engineComputeShaders[name];
+    if (compute != null) {
+      return ShaderHandle(
+        backend: WebGpuComputeShader(
+          name: name,
+          stage: compute,
+          module: _compiler.compileModule(name, compute.wgsl),
+        ),
+        name: name,
+      );
+    }
     final isVertex = _stages.vertex.containsKey(name);
     final stage = isVertex ? _stages.vertex[name] : _stages.fragment[name];
     // Null rather than throwing: the contract says a missing name comes back
@@ -226,7 +247,14 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
     if (stage == null) return null;
     // A failed compile throws out of `putIfAbsent`, so it is never cached and
     // the next ask tries again.
-    return compileWebGpuStage(_compiler, name, stage, isVertex: isVertex);
+    return compileWebGpuStage(
+      _compiler,
+      name,
+      stage,
+      isVertex: isVertex,
+      kept: stageBindings[name],
+      layouts: uniformBlocks[name],
+    );
   }
 
   /// Drops the handles this library has handed out.
@@ -308,6 +336,7 @@ final class WebGpuPipeline {
     required Map<String, WebGpuBlock> blocks,
     required Map<String, WebGpuSampler> samplers,
     required List<WebGpuGroupShape> groups,
+    this.fragmentOutputs,
   }) : buffers = List<WebGpuVertexBuffer>.unmodifiable(buffers),
        blocks = Map<String, WebGpuBlock>.unmodifiable(blocks),
        samplers = Map<String, WebGpuSampler>.unmodifiable(samplers),
@@ -361,6 +390,54 @@ final class WebGpuPipeline {
   /// rather than a habit of whoever iterates it — an offset list out of order
   /// draws the last object's transform on this one and reports nothing.
   final List<WebGpuGroupShape> groups;
+
+  /// The colour locations the fragment stage writes, or null where its WGSL
+  /// could not be read for them — in which case every target is written, as
+  /// before anyone asked.
+  ///
+  /// **A pass may carry more colour targets than a stage writes, and WebGPU
+  /// is the one API that refuses the pipeline for it.** The temporal pass
+  /// draws into the colour and the velocity target together, and a particle's
+  /// fragment stage writes only the colour: GL and Metal leave the velocity
+  /// alone, and the reactive pass marks it afterwards. Here a target with no
+  /// output behind it must have a write mask of zero, and a pipeline that says
+  /// otherwise is invalid. Nothing throws: the pass that uses it is dropped
+  /// with the command buffer it was in, and the frame reads back black.
+  final Set<int>? fragmentOutputs;
+}
+
+/// The `@location`s the `@fragment` entry point of [wgsl] writes, or null
+/// where the text does not read as one.
+///
+/// Read off the text rather than carried in the reflection, because the text
+/// is all there is to read: a `GPUShaderModule` answers no questions about
+/// itself, and the entry point's return type is the one place the answer is
+/// written — either `-> @location(n) T` or a struct whose members carry the
+/// locations. A shape this does not recognise answers null, and the pipeline
+/// writes every target as it always did; the failure it guards against is
+/// then the one it was before, rather than a target silently masked off.
+Set<int>? wgslFragmentOutputs(String wgsl) {
+  final entry = RegExp(r'@fragment\s+fn\s+\w+\s*\(([^{]*)\{').firstMatch(wgsl);
+  if (entry == null) return null;
+  final header = entry.group(1)!;
+  final arrow = header.lastIndexOf('->');
+  if (arrow < 0) return const <int>{};
+  final returned = header.substring(arrow + 2).trim();
+  final location = RegExp(r'@location\s*\(\s*(\d+)[^)]*\)');
+  if (returned.startsWith('@')) {
+    final direct = location.firstMatch(returned);
+    return direct == null ? const <int>{} : <int>{int.parse(direct.group(1)!)};
+  }
+  final type = RegExp(r'^\w+').firstMatch(returned)?.group(0);
+  if (type == null) return null;
+  final body = RegExp(
+    'struct\\s+${RegExp.escape(type)}\\s*\\{([^}]*)\\}',
+  ).firstMatch(wgsl);
+  if (body == null) return null;
+  return <int>{
+    for (final member in location.allMatches(body.group(1)!))
+      int.parse(member.group(1)!),
+  };
 }
 
 /// Which stages one binding is visible to.
@@ -374,18 +451,44 @@ typedef WebGpuVisibility = ({bool vertex, bool fragment});
 
 /// One uniform block of a group, and which stages see it.
 final class WebGpuBoundBlock {
-  const WebGpuBoundBlock({required this.block, required this.visibility});
+  const WebGpuBoundBlock({
+    required this.block,
+    required this.visibility,
+    this.bindable = true,
+  });
 
   final WebGpuBlock block;
   final WebGpuVisibility visibility;
+
+  /// Whether a caller may be asked to bind it. See
+  /// [WebGpuBoundSampler.bindable].
+  final bool bindable;
 }
 
 /// One texture-and-sampler pair of a group, and which stages see it.
 final class WebGpuBoundSampler {
-  const WebGpuBoundSampler({required this.sampler, required this.visibility});
+  const WebGpuBoundSampler({
+    required this.sampler,
+    required this.visibility,
+    this.bindable = true,
+  });
 
   final WebGpuSampler sampler;
   final WebGpuVisibility visibility;
+
+  /// Whether a caller may be asked to bind it: false where every stage that
+  /// declares it says, through `ShaderHandle.kept`, that the compiler dropped
+  /// it.
+  ///
+  /// **The WGSL keeps more than the bundle's table says.** The table is the
+  /// hardware compiler's, and it drops a sampler whose value nothing uses —
+  /// Lambert reads the metal-rough map and throws the answer away, so its
+  /// compiled stage has no `metallic_roughness_texture` — while the WGSL made
+  /// from the same source still declares it. The encoder refuses a bind the
+  /// table names as absent, as every backend does, so the engine cannot fill
+  /// the slot, and the neutral resource that fills it is not the caller's
+  /// mistake to report.
+  final bool bindable;
 }
 
 /// What one `@group` of a pipeline holds, each list in binding order.
@@ -447,7 +550,13 @@ PipelineHandle createWebGpuPipeline(
       buffers: _resolvedBuffers(vertex.name, vertexStage.stage, spec),
       blocks: _mergedBlocks(vertexStage, fragmentStage),
       samplers: _mergedSamplers(vertexStage, fragmentStage),
-      groups: _groupShapes(vertexStage, fragmentStage),
+      groups: _groupShapes(
+        vertexStage,
+        fragmentStage,
+        vertexKept: vertex.kept,
+        fragmentKept: fragment.kept,
+      ),
+      fragmentOutputs: wgslFragmentOutputs(fragmentStage.stage.wgsl),
     ),
     name: name,
   );
@@ -520,8 +629,15 @@ VertexLayoutSpec _derivedLayout(WebGpuStage stage) {
 /// layout has to state every one of them up front.
 List<WebGpuGroupShape> _groupShapes(
   WebGpuShader vertex,
-  WebGpuShader fragment,
-) {
+  WebGpuShader fragment, {
+  StageBindings? vertexKept,
+  StageBindings? fragmentKept,
+}) {
+  bool keptBlock(StageBindings? kept, String name) =>
+      kept?.blocks.contains(name) ?? true;
+  bool keptSampler(StageBindings? kept, String name) =>
+      kept?.samplers.contains(name) ?? true;
+
   bool declaresBlock(WebGpuShader shader, int group, int binding) => shader
       .stage
       .blocks
@@ -563,6 +679,11 @@ List<WebGpuGroupShape> _groupShapes(
                 vertex: declaresBlock(vertex, group, block.binding),
                 fragment: declaresBlock(fragment, group, block.binding),
               ),
+              bindable:
+                  (declaresBlock(vertex, group, block.binding) &&
+                      keptBlock(vertexKept, block.name)) ||
+                  (declaresBlock(fragment, group, block.binding) &&
+                      keptBlock(fragmentKept, block.name)),
             ),
         ],
         samplers: <WebGpuBoundSampler>[
@@ -581,6 +702,11 @@ List<WebGpuGroupShape> _groupShapes(
                   sampler.textureBinding,
                 ),
               ),
+              bindable:
+                  (declaresSampler(vertex, group, sampler.textureBinding) &&
+                      keptSampler(vertexKept, sampler.name)) ||
+                  (declaresSampler(fragment, group, sampler.textureBinding) &&
+                      keptSampler(fragmentKept, sampler.name)),
             ),
         ],
       ),

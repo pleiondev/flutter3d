@@ -99,6 +99,22 @@ final class FragmentContext {
   /// which is the same thing a pass with one attachment does.
   Vector4? surface;
 
+  /// What the stage wrote to attachment two, the albedo buffer — `L5`: the
+  /// surface's colour, sRGB-encoded. Set by `readSurface` in the lit models;
+  /// a stage that writes [surface] and not this leaves black there, which is
+  /// what `g_albedo` holds in the GLSL for a stage that reflects nothing.
+  Vector4? albedo;
+
+  /// `gl_FragDepth`, when the stage wrote one — `S1`: the depth the device
+  /// stores in place of the interpolated one. Null for every stage but the
+  /// shadow copy.
+  ///
+  /// **Written after the test, not tested.** The rasteriser tests depth
+  /// before running the stage, so a stage that moves its depth is tested at
+  /// the depth it had. The one stage that writes this draws with the test
+  /// off, where the order does not matter.
+  double? fragDepth;
+
   /// A picture a debug pass wants shown instead of the geometry.
   ///
   /// The stand-in for `g_debug_surface` and `g_debug_surface_on` in
@@ -138,9 +154,40 @@ abstract interface class CpuFragmentShader {
 
 /// A stage, which is one or the other.
 final class CpuStage {
-  const CpuStage.vertex(this.vertex) : fragment = null;
-  const CpuStage.fragment(this.fragment) : vertex = null;
+  const CpuStage.vertex(this.vertex) : fragment = null, compute = null;
+  const CpuStage.fragment(this.fragment) : vertex = null, compute = null;
+
+  /// A compute stage — `H6`.
+  const CpuStage.compute(this.compute) : vertex = null, fragment = null;
 
   final CpuVertexShader? vertex;
   final CpuFragmentShader? fragment;
+  final CpuComputeShader? compute;
+}
+
+/// What a compute stage is handed: its storage buffers and uniform blocks,
+/// by the names the GLSL gives them.
+final class CpuComputeBindings {
+  CpuComputeBindings(this.storage, this.blocks);
+
+  /// The buffers themselves, not copies: a stage writes into them.
+  final Map<String, ByteData> storage;
+  final Map<String, Map<String, Float32List>> blocks;
+}
+
+/// A compute stage in Dart, standing in for a `.comp` shader — `H6`.
+///
+/// **Run a workgroup at a time, not an invocation at a time.** A compute
+/// shader that shares memory between its invocations synchronises them with
+/// `barrier()`, and every invocation has to reach one before any passes it.
+/// Run one invocation to the end and then the next, and the second reads
+/// what the first wrote after the barrier as if it had been there before. So
+/// the mirror is handed the whole group and runs the phases between barriers
+/// across all of its invocations in turn, which is what a barrier means.
+abstract interface class CpuComputeShader {
+  /// `local_size_x`, `local_size_y`, `local_size_z`.
+  (int, int, int) get workgroupSize;
+
+  /// Runs every invocation of the workgroup at [group].
+  void runWorkgroup((int, int, int) group, CpuComputeBindings bindings);
 }

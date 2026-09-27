@@ -31,6 +31,13 @@ said. `addBrush` and `addLight` invent one, which they may do because a box and 
 point light are things the engine defines rather than words a particular game
 uses.
 
+**`generate` adds a whole room at once.** A room with doorways cut in its
+walls, a corridor, or a scatter of copies of one thing, built by a kit from a
+seed. The document keeps the recipe rather than the brushes — `list` will not
+show them, and the answer says how many there are — and the level is built
+from it wherever it is used, the same brushes for the same seed every time.
+Walls that meet another brush overlap it, so `validate` after it.
+
 **`setField` is the escape hatch and it is not a small one.** The typed verbs
 reach a position, a size, a light's strength and an entity's facing. Everything
 else — a brush's material, whether it is solid, whether it casts a shadow, its

@@ -381,6 +381,140 @@ void main() {
       expect(mean, greaterThan(0.0));
     });
   });
+  group('0.8.1: a sheet resists shear', () {
+    // A square too small to reach the floor over the ball: half its diagonal
+    // is 1.24 m, the way from the top of the ball to the floor 1.41. Its
+    // corners have to hang in the air. Without shear constraints every quad
+    // folded into a rhombus, the corners stretched into strands that lay on
+    // the floor, and the hem spread into a blot with no straight edge.
+    test('a square too small to reach the floor hangs its corners over it', () {
+      const cols = 33;
+      const spacing = 0.055;
+      const radius = 0.55;
+      final mesh = ClothMesh.grid(
+        cols: cols,
+        rows: cols,
+        spacing: spacing,
+        height: 2 * radius + 0.3,
+      );
+      const half = (cols - 1) * spacing / 2;
+      for (var i = 0; i < mesh.particleCount; i++) {
+        mesh.positions[3 * i] -= half;
+        mesh.positions[3 * i + 2] -= half;
+        mesh.invMass[i] = 1 / 0.0004;
+      }
+      final obstacles = [
+        ClothObstacle(CollisionSphere(radius), Vector3(0.0, radius, 0.0)),
+        ClothObstacle(CollisionBox(Vector3(10, 0.5, 10)), Vector3(0, -0.5, 0)),
+      ];
+      const settings = ClothSettings(substeps: 12, iterations: 4);
+      for (var step = 0; step < 600; step++) {
+        stepCloth(mesh, settings, 1 / 120, obstacles: obstacles);
+      }
+      for (final corner in <int>[
+        0,
+        cols - 1,
+        cols * (cols - 1),
+        cols * cols - 1,
+      ]) {
+        expect(
+          mesh.positions[3 * corner + 1],
+          greaterThan(0.05),
+          reason: 'corner $corner reached the floor',
+        );
+      }
+    });
+  });
+
+  group('0.8.1: a sheet does not pass through itself', () {
+    // A 2.3 m square of 40 x 40 dropped on a 0.55 m ball over a floor: half
+    // its diagonal is 1.63 m, more than the 1.41 m from the top of the ball
+    // to the floor, so its corners land on the floor and fold under the
+    // sheet coming down after them.
+    const cols = 40;
+    const radius = 0.55;
+    final obstacles = [
+      ClothObstacle(CollisionSphere(radius), Vector3(0.0, radius, 0.0)),
+      ClothObstacle(CollisionBox(Vector3(10, 0.5, 10)), Vector3(0, -0.5, 0)),
+    ];
+
+    ClothMesh dropped(int steps, {required bool selfCollision}) {
+      const spacing = 2.3 / (cols - 1);
+      final mesh = ClothMesh.grid(
+        cols: cols,
+        rows: cols,
+        spacing: spacing,
+        height: 2 * radius + 0.3,
+      );
+      for (var i = 0; i < mesh.particleCount; i++) {
+        mesh.positions[3 * i] -= 1.15;
+        mesh.positions[3 * i + 2] -= 1.15;
+        mesh.invMass[i] = 20;
+      }
+      final settings = ClothSettings(
+        substeps: 12,
+        iterations: 4,
+        selfCollision: selfCollision,
+      );
+      for (var step = 0; step < steps; step++) {
+        stepCloth(mesh, settings, 1 / 60, obstacles: obstacles);
+      }
+      return mesh;
+    }
+
+    /// Pairs that are not neighbours at rest, closer than [fraction] of the
+    /// default thickness (the mean rest edge).
+    int tooClose(ClothMesh mesh, double fraction) {
+      final t = mesh.meanRestEdge;
+      final p = mesh.positions;
+      final r = mesh.restPositions;
+      var count = 0;
+      for (var i = 0; i < mesh.particleCount; i++) {
+        for (var j = i + 1; j < mesh.particleCount; j++) {
+          final rx = r[3 * i] - r[3 * j];
+          final ry = r[3 * i + 1] - r[3 * j + 1];
+          final rz = r[3 * i + 2] - r[3 * j + 2];
+          if (rx * rx + ry * ry + rz * rz < t * t * (1 + 1e-6)) continue;
+          final dx = p[3 * i] - p[3 * j];
+          final dy = p[3 * i + 1] - p[3 * j + 1];
+          final dz = p[3 * i + 2] - p[3 * j + 2];
+          if (dx * dx + dy * dy + dz * dz < fraction * fraction * t * t) {
+            count++;
+          }
+        }
+      }
+      return count;
+    }
+
+    test('the corners folded under the sheet stay a thickness below it', () {
+      // Measured after 200 steps: without self-collision 347 pairs are
+      // closer than 0.8 of a thickness, the closest 0.55 of one; with it
+      // none, the closest 0.994.
+      expect(tooClose(dropped(200, selfCollision: false), 0.8), greaterThan(0));
+      expect(tooClose(dropped(200, selfCollision: true), 0.8), 0);
+    });
+
+    test('two runs land on the same bits', () {
+      final a = dropped(120, selfCollision: true);
+      final b = dropped(120, selfCollision: true);
+      expect(a.positions, orderedEquals(b.positions));
+      expect(a.velocities, orderedEquals(b.velocities));
+    });
+
+    test('the ball and floor scene stays bounded with it on', () {
+      // Measured peak: 0.91 m/s, the same as with it off.
+      final mesh = dropped(0, selfCollision: true);
+      const settings = ClothSettings(substeps: 12, iterations: 4);
+      var peak = 0.0;
+      for (var step = 0; step < 300; step++) {
+        stepCloth(mesh, settings, 1 / 60, obstacles: obstacles);
+        peak = math.max(peak, _maxSpeed(mesh));
+      }
+      expect(mesh.positions.every((v) => v.isFinite), isTrue);
+      expect(peak.isFinite, isTrue);
+      expect(peak, lessThan(1.5));
+    });
+  });
 }
 
 /// A plain copy of a mesh's own arrays, for a before/after comparison a

@@ -15,15 +15,20 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
+import 'portable_root.dart';
 
 /// sRGB to linear, per `color.glsl`.
+///
+/// Through `portable_root.dart` rather than `math.pow`: this runs on every
+/// pixel, and a libm that rounds its last bit differently turned a whole lit
+/// frame one step over on another platform.
 double toLinear(double c) =>
-    c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    c < 0.04045 ? c / 12.92 : portablePow12Over5((c + 0.055) / 1.055);
 
 /// Linear to sRGB, the inverse.
 double toSrgb(double c) => c < 0.0031308
     ? c * 12.92
-    : 1.055 * math.pow(math.max(c, 0.0), 1.0 / 2.4) - 0.055;
+    : 1.055 * portablePow5Over12(math.max(c, 0.0)) - 0.055;
 
 double smoothstep(double edge0, double edge1, double x) {
   // **Two equal edges are a step, not a division.** GLSL leaves this
@@ -221,8 +226,62 @@ Vector4 writeLit(
   required double roughness,
 }) {
   writeSurface(c, v, b, normal, roughness);
+  // `g_premultiply`: a blended material's colour is weighted by its alpha,
+  // after the fog, because the blend takes its source premultiplied.
+  final weight = premultiplies(b) ? alpha : 1.0;
   final fogged = applyFog(colour, v, b);
-  return Vector4(fogged.x, fogged.y, fogged.z, alpha);
+  return writeWeightedBlended(
+    c,
+    v,
+    b,
+    Vector4(fogged.x * weight, fogged.y * weight, fogged.z * weight, alpha),
+  );
+}
+
+/// `g_premultiply` as `ReadSurface` sets it: `material2.x` between -1 and
+/// nought, which the engine writes for `MaterialAlphaMode.blend` alone.
+///
+/// Asked of the bindings rather than carried on the surface, because it is
+/// the material's mode and not anything the fragment computed.
+bool premultiplies(ShaderBindings b) {
+  final cutoff = b
+      .vec4('FragInfo', 'material2', Vector4(-1.0, 1.0, 1.0, 1.0))
+      .x;
+  return cutoff < 0.0 && cutoff > -0.75;
+}
+
+/// `WeightedBlendedWeight` from `color.glsl` — `R8`: McGuire and Bavoil's
+/// depth weight, times [alpha].
+double weightedBlendedWeight(double alpha, Float32List v, ShaderBindings b) {
+  final z = viewDepth(v, b).abs();
+  final near = z / 5.0;
+  final far = z / 200.0;
+  final far3 = far * far * far;
+  return alpha * (10.0 / (1e-5 + near * near + far3 * far3)).clamp(1e-2, 3e3);
+}
+
+/// `WriteWeightedBlended` from `color.glsl` — `R8`: [colour] as it stands
+/// unless `FogInfo.forward.w` asks for the accumulation target's share (1),
+/// the revealage target's (2), or both, the second into attachment one (3).
+Vector4 writeWeightedBlended(
+  FragmentContext c,
+  Float32List v,
+  ShaderBindings b,
+  Vector4 colour,
+) {
+  final mode = b.vec4('FogInfo', 'forward', Vector4.zero()).w;
+  if (mode <= 0.5) return colour;
+  final alpha = colour.w;
+  final weight = weightedBlendedWeight(alpha, v, b);
+  if (mode > 2.5) c.surface = Vector4.all(alpha);
+  return mode > 1.5 && mode < 2.5
+      ? Vector4.all(alpha)
+      : Vector4(
+          colour.x * weight,
+          colour.y * weight,
+          colour.z * weight,
+          alpha * weight,
+        );
 }
 
 /// The Khronos PBR Neutral tone mapper, from `composite.frag`.
@@ -363,7 +422,7 @@ Vector3 tonemapAgx(Vector3 colour) {
   // output is display-encoded, and the sRGB encode after the grade is the
   // only encode this frame should get.
   double linear(double v) =>
-      (math.pow(math.max(v, 0.0), 2.2) as double).clamp(0.0, 1.0);
+      portablePow11Over5(math.max(v, 0.0)).clamp(0.0, 1.0);
   return Vector3(linear(out.x), linear(out.y), linear(out.z));
 }
 
@@ -379,11 +438,55 @@ Vector3 tonemapReinhard(Vector3 colour) {
 ///
 /// The numbers are `TonemapCurve`'s own and are part of the uniform layout —
 /// see `composite.frag`'s note on why 1 is the default rather than 0.
+///
+/// Code 6 is a display transform the composite reads from a table; with no
+/// table to hand, this answers with the function the engine's own table is
+/// baked from — [tonemapAces2] — which the table approximates to its
+/// sampling.
 Vector3 tonemapBy(Vector3 colour, int curve) => switch (curve) {
   1 => tonemapNeutral(colour),
   2 => tonemapAces(colour),
   3 => tonemapAgx(colour),
   4 => tonemapReinhard(colour),
   5 => tonemapAgxFull(colour),
+  6 => tonemapAces2(colour),
   _ => colour,
 };
+
+/// The ACES 2.0 SDR tonescale (100 nits), hue held, with a path to white —
+/// what `make_tables.dart` bakes into `EngineTables.aces2Display` — `L2`.
+Vector3 tonemapAces2(Vector3 colour) {
+  final peak = math.max(colour.x, math.max(colour.y, colour.z));
+  if (peak <= 0.0) return Vector3.zero();
+  final mapped = _aces2Tonescale(peak) / 100.0;
+  final scale = mapped / peak;
+  final white = mapped * mapped * mapped;
+  double channel(double c) =>
+      (c * scale * (1.0 - white) + mapped * white).clamp(0.0, 1.0);
+  return Vector3(channel(colour.x), channel(colour.y), channel(colour.z));
+}
+
+/// `aces2Tonescale` in `make_tables.dart`, at a peak of 100 nits.
+double _aces2Tonescale(double x) {
+  const nR = 100.0;
+  const peak = 100.0;
+  const g = 1.15;
+  const c = 0.18;
+  const cD = 10.013;
+  const t1 = 0.04;
+  const rHit = 128.0;
+  final m0 = peak / nR;
+  final m1 = 0.5 * (m0 + math.sqrt(m0 * (m0 + 4.0 * t1)));
+  final u = math.pow((rHit / m1) / ((rHit / m1) + 1.0), g);
+  final m = m1 / u;
+  const cT = cD / nR;
+  final gIp = 0.5 * (cT + math.sqrt(cT * (cT + 4.0 * t1)));
+  final ratio = math.pow(gIp / m, 1.0 / g);
+  final gIpp2 = -(m1 * ratio) / (ratio - 1.0);
+  final w2 = c / gIpp2;
+  final s2 = w2 * m1;
+  final u2 = math.pow((rHit / m1) / ((rHit / m1) + w2), g);
+  final m2 = m1 / u2;
+  final f = m2 * math.pow(math.max(0.0, x) / (x + s2), g);
+  return math.max(0.0, f * f / (f + t1)) * nR;
+}

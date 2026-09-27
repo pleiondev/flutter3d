@@ -24,6 +24,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../srgb.dart';
+
 /// The spherical-harmonic normalisation the 3D Gaussian Splatting papers and
 /// every exporter after them use for the zeroth band.
 ///
@@ -39,7 +41,10 @@ final class SplatCloud {
     required this.colours,
     required this.scales,
     required this.rotations,
-  }) : count = centres.length ~/ 3 {
+    this.shDegree = 0,
+    Float32List? shRest,
+  }) : count = centres.length ~/ 3,
+       shRest = shRest ?? Float32List(0) {
     if (colours.length != count * 4 ||
         scales.length != count * 3 ||
         rotations.length != count * 4) {
@@ -48,6 +53,16 @@ final class SplatCloud {
         '${count * 4} colour floats, ${count * 3} scale floats and '
         '${count * 4} rotation floats; got ${centres.length}, '
         '${colours.length}, ${scales.length} and ${rotations.length}.',
+      );
+    }
+    if (shDegree < 0 || shDegree > 4) {
+      throw ArgumentError('shDegree is $shDegree; a cloud carries 0 to 4.');
+    }
+    if (this.shRest.length != count * shRestFloatsPerSplat) {
+      throw ArgumentError(
+        'A cloud of $count splats at spherical-harmonic degree $shDegree '
+        'needs ${count * shRestFloatsPerSplat} higher-band floats; got '
+        '${this.shRest.length}.',
       );
     }
   }
@@ -69,6 +84,25 @@ final class SplatCloud {
   /// `xyzw`, normalised. The file's own order is `w` first; this is not, so
   /// that it matches every other quaternion in this engine.
   final Float32List rotations;
+
+  /// The highest spherical-harmonic band the source carried, 0 to 4 — glTF
+  /// stops at 3, SPZ goes to 4.
+  ///
+  /// **Carried, not drawn.** [colours] is band 0 alone, which is the colour a
+  /// splat has from every direction; the higher bands are what makes it
+  /// change with the viewing angle, and nothing in the draw evaluates them
+  /// yet. They are kept rather than dropped so that the stage which does
+  /// evaluate them finds them already loaded, from any file that had them.
+  final int shDegree;
+
+  /// Bands 1 to [shDegree], [shRestFloatsPerSplat] floats a splat: each
+  /// coefficient's `rgb` in the order the band lists them (lowest `m`
+  /// first), band 1 before band 2. Empty at degree 0.
+  final Float32List shRest;
+
+  /// How many floats of [shRest] each splat owns: `3 × ((d + 1)² − 1)`, so
+  /// 9, 24, 45 or 72 for degrees 1 to 4.
+  int get shRestFloatsPerSplat => 3 * ((shDegree + 1) * (shDegree + 1) - 1);
 
   /// The 3×3 covariance of splat [index], written into [out] as six floats:
   /// `xx, xy, xz, yy, yz, zz`.
@@ -152,9 +186,42 @@ final class SplatCloud {
 /// [logit] through the logistic function, which is how a file stores opacity.
 double splatOpacity(double logit) => 1.0 / (1.0 + math.exp(-logit));
 
-/// A zeroth-band spherical-harmonic coefficient as a colour channel.
+/// A zeroth-band spherical-harmonic coefficient as a colour channel, in the
+/// space it was fitted in and unclamped — the raw sum the file's numbers make.
 ///
-/// Not clamped: a fitted cloud can hold a coefficient that lands outside
-/// `[0, 1]`, the engine renders in linear HDR, and clamping here would be this
-/// file deciding what the tone curve is for.
+/// What the engine draws is [splatColour]'s answer, not this one.
 double splatChannel(double coefficient) => 0.5 + kSplatShC0 * coefficient;
+
+/// The colour space a splat's colours were fitted in, as
+/// `KHR_gaussian_splatting`'s `colorSpace` names it.
+///
+/// A PLY or SPZ file does not say, and every trainer that writes one fits it
+/// to sRGB-encoded photographs and blends it in that encoding, so [srgb] is
+/// what their readers assume unless told otherwise.
+enum SplatColourSpace {
+  /// `srgb_rec709_display`: the fitted colours are sRGB-encoded.
+  srgb,
+
+  /// `lin_rec709_display`: the fitted colours are already linear.
+  linear,
+}
+
+/// A zeroth-band coefficient as the linear channel the engine blends, for a
+/// cloud fitted in [space].
+///
+/// **Clamped at nought first**, because the fit was. The reference rasteriser
+/// returns `max(0.5 + C0·c, 0)`, so a coefficient below `−0.5 / C0` never met
+/// a gradient and a trained file is full of them; left negative, such a splat
+/// subtracts light under a premultiplied blend and draws as a dark speck.
+/// **Then decoded**, when the fit was in sRGB, since this engine blends in
+/// linear light and encodes on the way out: a mid-grey fitted as 0.5 taken as
+/// linear comes back out as about 0.735, which is the whole capture washed
+/// out. The curve is defined on `[0, 1]`, so an sRGB channel clamps at one
+/// too; a linear one keeps its highlights.
+double splatColour(double coefficient, SplatColourSpace space) {
+  final channel = math.max(0.0, splatChannel(coefficient));
+  return switch (space) {
+    SplatColourSpace.srgb => srgbToLinear(math.min(channel, 1.0)),
+    SplatColourSpace.linear => channel,
+  };
+}

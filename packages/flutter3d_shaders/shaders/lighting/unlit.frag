@@ -28,6 +28,9 @@ float LightVisibility(Surface s, LightSample light, int index) {
 
 void main() {
   Surface s = ReadSurface();
+  // `L5`: an unlit surface shows its colour and reflects no light, so the
+  // albedo buffer holds black for it.
+  g_albedo = vec3(0.0);
   // The albedo is already linear, and an unlit surface is best
   // understood as emitting exactly it, so it goes into the HDR
   // target as light like everything else.

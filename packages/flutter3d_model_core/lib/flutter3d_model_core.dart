@@ -33,6 +33,7 @@ library;
 // tracks and know nothing of a project; they were a package of their own
 // two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
 // until the only callers turned out to be this one and the server above it.
+export 'src/asset_audit.dart';
 export 'src/autosave.dart';
 export 'src/byte_size.dart';
 export 'src/command.dart';

@@ -629,5 +629,117 @@ void main() {
         <int>[2, 3, 4],
       );
     });
+
+    test('every fragment stage says which targets it writes', () {
+      // A stage this cannot read falls back to writing every target, which is
+      // the mistake that drew `taa-embers` black; none of the engine's may.
+      for (final entry in engineShaders.fragment.entries) {
+        expect(
+          wgslFragmentOutputs(entry.value.wgsl),
+          isNotNull,
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('a particle writes the colour and not the velocity beside it', () {
+      // The temporal pass carries both targets and the particle stage has one
+      // output. Mutation: report every target as written, and the pipeline
+      // WebGPU is handed claims the velocity it has nothing for.
+      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final pipeline =
+          createWebGpuPipeline(
+                library['ParticleVertex']!,
+                library['Particle']!,
+              ).backend
+              as WebGpuPipeline;
+      expect(pipeline.fragmentOutputs, <int>{0});
+      final lit =
+          createWebGpuPipeline(library['MeshVertex']!, library['Pbr']!).backend
+              as WebGpuPipeline;
+      expect(lit.fragmentOutputs, containsAll(<int>[0, 1]));
+    });
+  });
+
+  group('what a fragment stage writes', () {
+    test('one location, returned directly', () {
+      expect(
+        wgslFragmentOutputs('''
+@fragment
+fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+  return vec4<f32>(uv, 0.0, 1.0);
+}
+'''),
+        <int>{0},
+      );
+    });
+
+    test('the members of the struct it returns', () {
+      expect(
+        wgslFragmentOutputs('''
+struct Other { @location(5) x: vec4<f32>, }
+struct FragmentOutput {
+    @location(2) member: vec4<f32>,
+    @location(0) member_2: vec4<f32>,
+}
+@fragment
+fn main(@builtin(position) at: vec4<f32>) -> FragmentOutput {
+  return FragmentOutput(vec4<f32>(0.0), vec4<f32>(1.0));
+}
+'''),
+        <int>{0, 2},
+      );
+    });
+
+    test('nothing, from a stage that only discards or writes depth', () {
+      expect(
+        wgslFragmentOutputs('@fragment\nfn main() {\n  discard;\n}\n'),
+        isEmpty,
+      );
+      expect(
+        wgslFragmentOutputs(
+          '@fragment\nfn main() -> @builtin(frag_depth) f32 {\n'
+          '  return 0.5;\n}\n',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('null where the text does not read as a fragment stage', () {
+      expect(wgslFragmentOutputs('@vertex fn main() {}'), isNull);
+      expect(wgslFragmentOutputs('@fragment fn main() -> Missing { }'), isNull);
+    });
+  });
+
+  group('a slot the compiled stage dropped', () {
+    // Lambert reads the metal-rough map and discards the answer, so the
+    // hardware compiler drops the sampler and the bundle's table says so,
+    // while the WGSL made from the same source still declares it. The encoder
+    // refuses a bind the table names as absent, so the engine cannot fill it,
+    // and the device used to report it as the caller's mistake on every lit
+    // Lambert scene.
+    //
+    // Mutation: build every slot bindable. The first expectation fails.
+    test('is not the caller\'s to bind, and the kept ones still are', () {
+      final library = WebGpuShaderLibrary(_Compiler(), engineShaders);
+      final pipeline =
+          createWebGpuPipeline(
+                library['MeshVertex']!,
+                library['Lambert']!,
+              ).backend
+              as WebGpuPipeline;
+      final samplers = <String, bool>{
+        for (final group in pipeline.groups)
+          for (final bound in group.samplers)
+            bound.sampler.name: bound.bindable,
+      };
+      expect(samplers['metallic_roughness_texture'], isFalse);
+      expect(samplers['base_color_texture'], isTrue);
+      expect(
+        pipeline.groups.expand((g) => g.blocks).map((b) => b.bindable),
+        everyElement(isTrue),
+        reason: 'every block Lambert declares, its compiled stage keeps',
+      );
+    });
   });
 }

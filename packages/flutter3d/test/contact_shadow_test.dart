@@ -111,6 +111,52 @@ const int _height = 64;
   return (scene: scene, camera: camera);
 }
 
+/// A thin plate held a few centimetres over a floor, the sun low behind it —
+/// the hem of a cloth, in the shape that drew a comb.
+///
+/// The plate's shadow lands on the floor in front of it, toward the camera,
+/// and its edge runs across the screen. Every pixel along that edge marches
+/// from a different offset of the 4 x 4 pattern, and with nothing to average
+/// them the edge is exactly as ragged as the pattern.
+({Scene scene, CameraNode camera}) _plateOverFloor() {
+  final scene = Scene()..ambientIntensity = 0.35;
+  final device = CpuDevice(
+    width: 4,
+    height: 4,
+    shaders: CpuShaderLibrary(builtinCpuShaders()),
+  );
+
+  MeshNode slab(Vector3 size, Vector3 at, String name) => MeshNode(
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    Material(
+      name: name,
+      baseColor: Vector4(0.75, 0.75, 0.75, 1.0),
+      lighting: LightingModel.lambert,
+    ),
+    name: name,
+  )..setPosition(at.x, at.y, at.z);
+
+  scene
+    ..add(slab(Vector3(8.0, 0.4, 8.0), Vector3(0.0, -0.2, 0.0), 'floor'))
+    // Two centimetres thick, its underside three centimetres off the floor.
+    ..add(slab(Vector3(1.4, 0.02, 0.6), Vector3(0.0, 0.04, 0.0), 'plate'))
+    ..add(
+      LightNode(
+          type: LightType.directional,
+          intensity: 1.0,
+          castsShadow: false,
+          name: 'sun',
+        )
+        // Low and behind the plate, so its shadow falls toward the camera.
+        ..setLocalForward(Vector3(0.1, -0.5, -0.85)),
+    );
+
+  final camera = CameraNode()
+    ..setPosition(0.0, 1.6, -1.5)
+    ..lookAt(Vector3(0.0, 0.0, -0.3));
+  return (scene: scene, camera: camera);
+}
+
 RenderSettings _settings({required bool contact}) => RenderSettings(
   bloom: const BloomSettings(enabled: false),
   // Off throughout: with it on, the seam would sit inside a shadow the map
@@ -131,14 +177,15 @@ Future<Uint8List> _draw(
   RenderSettings settings, {
   bool sun = true,
   bool sunCasts = true,
+  ({Scene scene, CameraNode camera})? room,
 }) async {
   final engine = _engine();
-  final room = _boxOnPlane(sun: sun, sunCasts: sunCasts);
+  final at = room ?? _boxOnPlane(sun: sun, sunCasts: sunCasts);
   final frame = engine.renderer.render(
     width: _width,
     height: _height,
-    scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
+    scene: at.scene,
+    views: <RenderView>[RenderView(camera: at.camera)],
     settings: settings,
   );
   final pixels = await engine.device.readPixels(frame.frame);
@@ -212,6 +259,51 @@ void main() {
         greaterThan(far),
         reason:
             'the darkening was spread over the floor rather than at the join',
+      );
+    },
+  );
+
+  test(
+    'a thin edge over the floor is smooth without a temporal resolve',
+    () async {
+      // The comb this pins: each pixel's march starts at its own cell of the
+      // 4 x 4 pattern and keeps the hard answer that offset found, so along the
+      // edge of a plate held off the floor the shadow alternated pixel by pixel
+      // — measured before the fix at 204 190 208 185 across one row and
+      // 177 0 181 163 across the next, a jump of 181 between neighbours. The
+      // resolve averages the sixteen phases, and what is left along a row is
+      // the one-level wobble of the output's own dither.
+      final without = await _draw(
+        _settings(contact: false),
+        room: _plateOverFloor(),
+      );
+      final with_ = await _draw(
+        _settings(contact: true),
+        room: _plateOverFloor(),
+      );
+      int darkening(int x, int y) =>
+          without[(y * _width + x) * 4] - with_[(y * _width + x) * 4];
+
+      // The rows the shadow is on, found rather than assumed; the columns are
+      // the plate's interior, clear of its two ends where the shadow does end.
+      final rows = <int>[
+        for (var y = 0; y < _height; y++)
+          if (darkening(_width ~/ 2, y) > 20) y,
+      ];
+      expect(rows, isNotEmpty, reason: 'the plate cast no contact shadow');
+
+      final jump = rows.fold(
+        0,
+        (worst, y) => <int>[
+          worst,
+          for (var x = 18; x < 60; x++)
+            (darkening(x + 1, y) - darkening(x, y)).abs(),
+        ].reduce((a, b) => a > b ? a : b),
+      );
+      expect(
+        jump,
+        lessThan(8),
+        reason: 'neighbouring pixels along the edge differ by $jump levels',
       );
     },
   );

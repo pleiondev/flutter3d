@@ -24,10 +24,10 @@
 /// package's own tests, so [GpuBufferUsage] and its siblings hold them. Nothing
 /// in this file imports anything but `dart:js_interop`.
 ///
-/// **What is deliberately absent:** compute pipelines, query sets, render
-/// bundles, indirect draws and external textures. `flutter3d_hardware` asks for
-/// none of them, and a declaration nobody calls is a declaration nobody has
-/// checked against a browser.
+/// **What is deliberately absent:** query sets, render bundles, indirect draws
+/// and external textures. `flutter3d_hardware` asks for none of them, and a
+/// declaration nobody calls is a declaration nobody has checked against a
+/// browser. Compute pipelines arrived with `H6`, when the contract did ask.
 @JS()
 library;
 
@@ -173,6 +173,14 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   );
   external GPUBindGroup createBindGroup(GPUBindGroupDescriptor d);
   external GPUCommandEncoder createCommandEncoder();
+
+  /// A set of queries — `H2`'s timestamps.
+  external GPUQuerySet createQuerySet(GPUQuerySetDescriptor d);
+
+  /// A compute pipeline — `H6`.
+  external GPUComputePipeline createComputePipeline(
+    GPUComputePipelineDescriptor d,
+  );
 
   /// Starts catching errors of one kind instead of letting them reach the
   /// console.
@@ -337,6 +345,11 @@ extension type GPUBuffer._(JSObject _) implements JSObject {
 extension type GPUCommandEncoder._(JSObject _) implements JSObject {
   external GPURenderPassEncoder beginRenderPass(GPURenderPassDescriptor d);
 
+  /// Opens a compute pass — `H6`.
+  external GPUComputePassEncoder beginComputePass([
+    GPUComputePassDescriptor descriptor,
+  ]);
+
   /// Straight buffer-to-buffer bytes, for whoever is moving a staged upload
   /// into its final home rather than writing it through the queue.
   external void copyBufferToBuffer(
@@ -360,6 +373,16 @@ extension type GPUCommandEncoder._(JSObject _) implements JSObject {
     GPUTexelCopyTextureInfo source,
     GPUTexelCopyBufferInfo destination,
     GPUExtent3DDict copySize,
+  );
+
+  /// Writes [queryCount] query results from [querySet] into [destination] —
+  /// `H2`. Timestamps come out as 64-bit nanoseconds.
+  external void resolveQuerySet(
+    GPUQuerySet querySet,
+    int firstQuery,
+    int queryCount,
+    GPUBuffer destination,
+    int destinationOffset,
   );
 
   external GPUCommandBuffer finish();
@@ -821,6 +844,33 @@ extension type GPURenderPassDescriptor._(JSObject _) implements JSObject {
     GPURenderPassDepthStencilAttachment depthStencilAttachment,
     String label,
   });
+
+  /// Where the pass writes its start and end times — `H2`. Set after the
+  /// descriptor is built, only when there is one: the member left out means
+  /// "none", and `null` is refused.
+  external set timestampWrites(GPURenderPassTimestampWrites value);
+}
+
+/// The two queries a pass writes its start and end times into.
+extension type GPURenderPassTimestampWrites._(JSObject _) implements JSObject {
+  external factory GPURenderPassTimestampWrites({
+    GPUQuerySet querySet,
+    int beginningOfPassWriteIndex,
+    int endOfPassWriteIndex,
+  });
+}
+
+/// A set of queries — here only ever timestamps — `H2`.
+extension type GPUQuerySet._(JSObject _) implements JSObject {
+  external void destroy();
+}
+
+extension type GPUQuerySetDescriptor._(JSObject _) implements JSObject {
+  external factory GPUQuerySetDescriptor({
+    String type,
+    int count,
+    String label,
+  });
 }
 
 // -------------------------------------------------------------- the pipeline
@@ -1042,7 +1092,15 @@ extension type GPUCanvasConfiguration._(JSObject _) implements JSObject {
     String format,
     int usage,
     String alphaMode,
+    GPUCanvasToneMapping? toneMapping,
   });
+}
+
+/// How the browser maps a canvas's values to the display — `R9`: `standard`
+/// clamps to the SDR range, `extended` lets an `rgba16float` canvas past it
+/// on a display that can show it.
+extension type GPUCanvasToneMapping._(JSObject _) implements JSObject {
+  external factory GPUCanvasToneMapping({String mode});
 }
 
 // -------------------------------------------------------------- error scopes
@@ -1166,6 +1224,21 @@ abstract final class GpuTextureUsage {
   static const int textureBinding = 0x04;
   static const int storageBinding = 0x08;
   static const int renderAttachment = 0x10;
+
+  /// Contents that live for one pass and may never be given memory — `H7`.
+  /// Only with [renderAttachment] and nothing else, and only where
+  /// [gpuKnowsTransientAttachments] says the browser has it.
+  static const int transientAttachment = 0x20;
+}
+
+/// Whether this browser's `GPUTextureUsage` has `TRANSIENT_ATTACHMENT`.
+///
+/// A property of the API rather than a feature the adapter grants, so it is
+/// asked of the namespace object: a browser that predates the flag rejects a
+/// texture that names it, and one that has it lists it there.
+bool gpuKnowsTransientAttachments() {
+  final usage = globalContext.getProperty<JSObject?>('GPUTextureUsage'.toJS);
+  return usage != null && usage.has('TRANSIENT_ATTACHMENT');
 }
 
 /// Which stages a binding is visible to, for `GPUBindGroupLayoutEntry`.
@@ -1177,6 +1250,8 @@ abstract final class GpuShaderStage {
 
 /// The channels a colour target writes, for `GPUColorTargetState.writeMask`.
 abstract final class GpuColorWrite {
+  /// No channel: what a target the fragment stage writes nothing to must say.
+  static const int none = 0x0;
   static const int red = 0x1;
   static const int green = 0x2;
   static const int blue = 0x4;
@@ -1218,4 +1293,41 @@ abstract final class GpuFeature {
   /// `"unfilterable-float"` in a bind group layout and can only be read
   /// texel by texel.
   static const String float32Filterable = 'float32-filterable';
+
+  /// Timestamps written at the start and end of a pass — `H2`.
+  static const String timestampQuery = 'timestamp-query';
+}
+
+// ------------------------------------------------------------------ compute
+
+/// A compiled compute pipeline — `H6`.
+extension type GPUComputePipeline._(JSObject _) implements JSObject {
+  external GPUBindGroupLayout getBindGroupLayout(int index);
+}
+
+/// The stage a compute pipeline runs: a module and its entry point.
+extension type GPUProgrammableStage._(JSObject _) implements JSObject {
+  external factory GPUProgrammableStage({
+    GPUShaderModule module,
+    String entryPoint,
+  });
+}
+
+extension type GPUComputePipelineDescriptor._(JSObject _) implements JSObject {
+  external factory GPUComputePipelineDescriptor({
+    GPUPipelineLayout layout,
+    GPUProgrammableStage compute,
+    String label,
+  });
+}
+
+extension type GPUComputePassDescriptor._(JSObject _) implements JSObject {
+  external factory GPUComputePassDescriptor({String label});
+}
+
+extension type GPUComputePassEncoder._(JSObject _) implements JSObject {
+  external void setPipeline(GPUComputePipeline pipeline);
+  external void setBindGroup(int index, GPUBindGroup group);
+  external void dispatchWorkgroups(int x, [int y, int z]);
+  external void end();
 }

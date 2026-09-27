@@ -322,3 +322,76 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
     'ARCHITECTURE.md §7.1 and CommandEncoder.bindUniformBlock.',
   );
 }
+
+/// A texture bound to a sampler the stage does not declare is false, never a
+/// throw and never a quiet success — 0.8.0's half of `bindTexture`.
+///
+/// Until then each backend answered this its own way: Impeller threw "Failed
+/// to bind texture", WebGL and WebGPU did nothing, the software rasteriser
+/// bound it. The renderer handed `PolylineVertex` a morph texture it never
+/// declared for three releases, and only Metal noticed. Asked in both shapes
+/// the mistake took: a name no stage has, and a sampler the fragment stage
+/// declares bound through the vertex stage's handle.
+///
+/// A backend that does not reflect its stages answers true to everything, as
+/// it does for blocks, and is asked nothing further.
+Future<void> checkUndeclaredSamplerIsFalse(GraphicsDevice device) async {
+  final vertex = device.shaders['MeshVertex'];
+  final fragment = device.shaders['Unlit'];
+  require(vertex != null && fragment != null, 'MeshVertex or Unlit is missing');
+
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: 4,
+      height: 4,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final texel = device.createTextureFromPixels(
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData(4),
+  )!;
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(colors: <ColorTarget>[ColorTarget(texture: target)]),
+  );
+  pass.bindPipeline(device.createPipeline(vertex!, fragment!));
+
+  final reflects = !pass.bindUniformBlock(
+    vertex,
+    'NoBlockAnyShaderHasEverDeclared',
+    <String, Float32List>{'anything': Float32List(4)},
+  );
+  if (!reflects) {
+    pass.submit();
+    return;
+  }
+
+  final nowhere = pass.bindTexture(
+    fragment,
+    'NoSamplerAnyShaderHasEverDeclared',
+    texel,
+  );
+  final otherStage = pass.bindTexture(vertex, 'base_color_texture', texel);
+  final ownStage = pass.bindTexture(fragment, 'base_color_texture', texel);
+  pass.submit();
+
+  require(
+    !nowhere,
+    'bindTexture answered true for a sampler no stage declares. The contract '
+    'is false, so a caller binding what a stage does not have is told so on '
+    'every backend. See CommandEncoder.bindTexture.',
+  );
+  require(
+    !otherStage,
+    'bindTexture answered true for base_color_texture through the vertex '
+    'stage, which does not declare it. The contract asks of the stage, not '
+    'of the program.',
+  );
+  require(
+    ownStage,
+    'bindTexture answered false for base_color_texture through Unlit, which '
+    'declares it.',
+  );
+}

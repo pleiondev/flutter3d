@@ -49,6 +49,37 @@ enum Need {
   final String label;
 }
 
+/// A later release that changed what a page shows, after the one it arrived in.
+///
+/// **Read from a CHANGELOG the same way [Feature.since] is.** [evidence] is
+/// words the section `## version` of [evidenceFile] actually has, and the
+/// catalog test looks for them there, so the site's list of what changed in a
+/// release cannot say something the record does not.
+final class Change {
+  const Change({
+    required this.version,
+    required this.note,
+    required this.evidence,
+    this.evidenceFile = 'packages/flutter3d_core/CHANGELOG.md',
+  });
+
+  /// The release, `0.7.4`.
+  final String version;
+
+  /// One sentence for the site's changelog, in the page's own terms.
+  final String note;
+
+  final String evidence;
+  final String evidenceFile;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'version': version,
+    'note': note,
+    'evidence': evidence,
+    'evidenceFile': evidenceFile,
+  };
+}
+
 /// One capability of the engine: one page, one guide, one version tag.
 final class Feature {
   const Feature({
@@ -64,6 +95,7 @@ final class Feature {
     this.packages = const <String>['flutter3d'],
     this.engineFiles = const <String>[],
     this.needs = const <Need>{},
+    this.changes = const <Change>[],
   });
 
   /// Kebab-case and never changed: it is the address of the page, the name of
@@ -101,6 +133,10 @@ final class Feature {
   final List<String> engineFiles;
   final Set<Need> needs;
 
+  /// The releases after [since] that changed what this page shows, oldest
+  /// first. The site's changelog lists a page under each of them.
+  final List<Change> changes;
+
   /// The stem of the page's files.
   String get stem => id.replaceAll('-', '_');
 
@@ -123,6 +159,9 @@ final class Feature {
     'needs': <String>[for (final Need need in needs) need.name],
     'pageFile': pageFile,
     'tutorialFile': tutorialFile,
+    'changes': <Map<String, Object?>>[
+      for (final Change change in changes) change.toJson(),
+    ],
   };
 }
 

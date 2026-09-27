@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty-eight of the thirty-seven link stages and draw. A new
-/// backend following the old promise would have met twenty-eight shader checks
+/// pipeline: thirty-one of the forty-one link stages and draw. A new
+/// backend following the old promise would have met thirty-one shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -55,8 +55,10 @@ import 'package:test/test.dart' show markTestSkipped, test;
 import 'src/attachment_checks.dart';
 import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';
+import 'src/compute_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
+import 'src/field_checks.dart';
 import 'src/geometry_overwrite_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/multisample_checks.dart';
@@ -71,6 +73,23 @@ import 'src/shader_link_checks.dart';
 import 'src/stencil_checks.dart';
 import 'src/vertex_texture_checks.dart';
 
+export 'src/compute_checks.dart' show computeChecks;
+export 'src/fuzz/fuzz.dart'
+    show
+        FoldPowerOfTwo,
+        FuzzDraw,
+        FuzzFinding,
+        FuzzProgram,
+        FuzzRandom,
+        FuzzTransform,
+        SplitDraw,
+        SwapDisjointDraws,
+        drawFuzzProgram,
+        fuzzDifference,
+        fuzzSeed,
+        generateFuzzProgram,
+        shrinkFinding,
+        transformsFor;
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
 
@@ -212,7 +231,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit twenty-eight shader checks it had no way to act on yet. Clears,
+/// have hit thirty-one shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
@@ -265,6 +284,16 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     run: checkVertexTextureSampling,
   ),
   (name: 'a float texture uploads as floats', run: checkFloatTextureUpload),
+  // `S2`: what the evsm shadow filter needs, asked of a device that says it
+  // has it.
+  (
+    name: 'a device that filters 32-bit floats filters and renders them',
+    run: checkFloat32Filtering,
+  ),
+  (
+    name: 'a field steps in a float target and reads back through a vertex',
+    run: checkFloatFieldSteps,
+  ),
   (
     name: 'a buffer is uploaded for its declared use, and draws as it',
     run: checkGeometryUsage,
@@ -308,6 +337,12 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a block missing a member the caller named is refused',
     run: checkUniformMemberMismatchIsRefused,
+  ),
+  // `bindTexture`'s own answer since 0.8.0: false for a slot the stage does
+  // not declare, on every backend that can tell.
+  (
+    name: 'a texture bound to a slot the stage lacks is false',
+    run: checkUndeclaredSamplerIsFalse,
   ),
   // The clamp the HAL promises for `SamplerOptions.anisotropy`: a request
   // above `maxAnisotropy` is lowered, never refused, on every backend.
@@ -385,6 +420,7 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
 List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   ...coreChecks,
   ...shaderChecks,
+  ...computeChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders

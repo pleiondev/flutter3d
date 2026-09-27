@@ -109,7 +109,7 @@ void main() {
 
     test('and a radius changes the picture', () async {
       expect(
-        await _draw(0.4, radius: 100.0),
+        await _draw(0.4, radius: 0.1),
         isNot(await _draw(0.4, radius: 0.0)),
       );
     });
@@ -120,20 +120,16 @@ void main() {
       // The row's own acceptance. Three heights, so the reading is a trend
       // rather than one comparison that might have gone either way.
       final near = _penumbra(
-        await _draw(0.3, radius: 100.0),
+        await _draw(0.3, radius: 0.1),
         low: 130,
         high: 220,
       );
       final middle = _penumbra(
-        await _draw(1.2, radius: 100.0),
+        await _draw(1.2, radius: 0.1),
         low: 130,
         high: 220,
       );
-      final far = _penumbra(
-        await _draw(2.4, radius: 100.0),
-        low: 130,
-        high: 220,
-      );
+      final far = _penumbra(await _draw(2.4, radius: 0.1), low: 130, high: 220);
 
       expect(
         middle,
@@ -159,7 +155,7 @@ void main() {
       );
       final far = _penumbra(await _draw(2.4, radius: 0.0), low: 130, high: 220);
       final soft = _penumbra(
-        await _draw(2.4, radius: 100.0),
+        await _draw(2.4, radius: 0.1),
         low: 130,
         high: 220,
       );

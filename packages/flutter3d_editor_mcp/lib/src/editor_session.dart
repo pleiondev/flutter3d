@@ -1,13 +1,19 @@
 import 'dart:io';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
+    show Answer, PictureAnswer;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:vector_math/vector_math.dart';
+
+import 'level_view.dart';
 
 // What a tool call did, and the sentence to say about it — the one `Answer`
-// every server here shares. A refusal is an answer, not an exception:
-// `EditorCommand.apply` already decided that.
-export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
+// every server here shares, and the `PictureAnswer` that carries a PNG
+// beside it. A refusal is an answer, not an exception: `EditorCommand.apply`
+// already decided that.
+export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
+    show Answer, PictureAnswer;
 
 /// One level document, open, with the editor's own verbs on it.
 ///
@@ -98,6 +104,32 @@ final class EditorSession {
     );
   }
 
+  /// Adds a recipe to the level — a room, a corridor or a scatter, built by a
+  /// seeded kit — and says what it builds.
+  ///
+  /// The document keeps the recipe rather than its brushes, which is why the
+  /// answer counts them: `list` shows what the document holds, and a recipe
+  /// is expanded only where the level is used. Undoable like any change.
+  Answer generate(LevelRecipe recipe) {
+    try {
+      final built = editing.addRecipe(recipe);
+      String count(int n, String one, String many) =>
+          '$n ${n == 1 ? one : many}';
+      return (
+        did: true,
+        says:
+            'added a ${recipe.kind} from seed ${recipe.seed}: it builds '
+            '${count(built.brushes.length, 'brush', 'brushes')}, '
+            '${count(built.entities.length, 'entity', 'entities')} and '
+            '${count(built.lights.length, 'light', 'lights')} — the document '
+            'keeps the recipe, and the same seed builds the same thing every '
+            'time',
+      );
+    } on LevelFormatException catch (e) {
+      return (did: false, says: 'no ${recipe.kind} was added: ${e.message}');
+    }
+  }
+
   /// Puts the document back the way it was before the last change.
   Answer undo() {
     final says = editing.history.undoSays;
@@ -140,12 +172,105 @@ final class EditorSession {
     ].join('\n');
   }
 
+  /// Where a picture is taken from: [from] and [at] where the call named
+  /// them, the level's default view for whichever it left out. Null for a
+  /// level with nothing in it to look at.
+  LevelCamera? _camera(Vector3? from, Vector3? at) {
+    final fallback = LevelView.defaultCamera(editing.level);
+    if (fallback == null) return null;
+    return (from: from ?? fallback.from, at: at ?? fallback.at);
+  }
+
+  /// A picture of the level from [from] looking at [at].
+  Future<PictureAnswer> screenshot(Vector3? from, Vector3? at) async {
+    final camera = _camera(from, at);
+    if (camera == null) {
+      return (did: false, says: 'the level is empty', png: null);
+    }
+    final png = await LevelView.of(editing.level).picture(camera);
+    return (
+      did: true,
+      says:
+          'the level from ${_place(camera.from)} looking at '
+          '${_place(camera.at)}, ${LevelView.width}×${LevelView.height}',
+      png: png,
+    );
+  }
+
+  /// What the camera from [from] looking at [at] sees, one line per brush,
+  /// light and entity.
+  ///
+  /// **Answered from the frame's own object ids**, not from boxes against a
+  /// ray: the renderer draws the level once more with every draw's number in
+  /// place of its colour (`Renderer.captureObjectIds`), so a pixel counted as
+  /// a wall's is a pixel the wall was drawn at, after the depth test. The
+  /// level is built one draw per brush for this, so a pixel names a brush and
+  /// not a material.
+  Future<Answer> report(Vector3? from, Vector3? at) async {
+    final camera = _camera(from, at);
+    if (camera == null) return (did: false, says: 'the level is empty');
+    final rows = await LevelView.of(editing.level).report(camera);
+    final headline =
+        'from ${_place(camera.from)} looking at ${_place(camera.at)}, '
+        '${LevelView.width}×${LevelView.height}:';
+    return (
+      did: true,
+      says: <String>[headline, for (final row in rows) row.says].join('\n'),
+    );
+  }
+
+  /// Fewer lights, judged by the pictures they make from [views] — from the
+  /// spawn when none are given — and applied as one step of undo unless
+  /// [apply] is false.
+  ///
+  /// The picture is the new set's, from the first view; the sentence carries
+  /// the moves and the numbers, so an agent can judge the change before
+  /// keeping it and undo it after.
+  PictureAnswer optimizeLights({List<LightView>? views, bool apply = true}) {
+    final level = editing.level;
+    if (level.lights.isEmpty) {
+      return (did: false, says: 'the level has no lights', png: null);
+    }
+    final seen = views ?? defaultLightViews(level);
+    if (seen.isEmpty) {
+      return (
+        did: false,
+        says: 'no view to judge the lights from — name one, or add a spawn',
+        png: null,
+      );
+    }
+    final plan = const LightOptimizer().optimize(level, views: seen);
+    final said = <String>[
+      plan.says,
+      for (final move in plan.moves) '  $move',
+    ].join('\n');
+    if (!plan.changes) {
+      return (did: false, says: 'nothing to gain: $said', png: plan.pngs.after);
+    }
+    if (apply) editing.history.run(SetLights(plan.after, why: plan.says));
+    return (
+      did: apply,
+      says: apply
+          ? '$said\n(undo puts the old lights back)'
+          : 'proposed: $said',
+      png: plan.pngs.after,
+    );
+  }
+
+  static String _place(Vector3 it) => <double>[it.x, it.y, it.z]
+      .map(
+        (double v) => v == v.roundToDouble()
+            ? v.toStringAsFixed(0)
+            : v.toStringAsFixed(2),
+      )
+      .join(', ');
+
   /// Writes the document, to [path] or over the one it came from.
   ///
   /// **The refusal is half of what this tool is for.** A document that says
   /// `generatedBy` belongs to the program that generated it: editing
   /// `level.first.json` by hand and saving it produces a file that looks edited
-  /// right up until somebody runs `make_templates.py` again, at which point the
+  /// right up until somebody runs its generator again, at which point the
   /// work is gone and nothing ever said so. So a generated document may be
   /// opened, changed and saved *somewhere else*, and the copy claims itself —
   /// a file saved beside the original still naming the generator is a file that

@@ -29,6 +29,28 @@ final class _DrawOverride {
   final BlendState? blend;
 }
 
+/// Writes [transform] into [out] at [at] as the two rows `MapUv` reads — `C8`.
+///
+/// `KHR_texture_transform`'s own order, the one `withTextureTransform` bakes
+/// with: scale, then rotate, then move. Null is the identity, whose rows read
+/// a coordinate back unchanged. The rotation is counter-clockwise in a texture
+/// whose `v` runs down, as `withTextureTransform` turns it.
+void _writeUvTransform(Float32List out, int at, TextureTransform? transform) {
+  final (cosine, sine, scale, offset) = switch (transform) {
+    null => (1.0, 0.0, vm.Vector2(1.0, 1.0), vm.Vector2.zero()),
+    final t => (math.cos(t.rotation), math.sin(t.rotation), t.scale, t.offset),
+  };
+  out
+    ..[at] = cosine * scale.x
+    ..[at + 1] = sine * scale.y
+    ..[at + 2] = offset.x
+    ..[at + 3] = 0.0
+    ..[at + 4] = -sine * scale.x
+    ..[at + 5] = cosine * scale.y
+    ..[at + 6] = offset.y
+    ..[at + 7] = 0.0;
+}
+
 extension _MeshEncode on Renderer {
   /// Binds the morph state for a draw through one of the mesh vertex stages.
   ///
@@ -45,6 +67,21 @@ extension _MeshEncode on Renderer {
   /// this file already gives about the material binding: two copies of a
   /// binding eventually disagree, and the disagreement arrives as a picture
   /// nobody can explain.
+  /// Whether [stage] keeps [block]: what its compiled bundle says, and
+  /// [declared] only where the device cannot say — `gfx-92n`.
+  bool _keepsBlock(
+    ShaderHandle stage,
+    String block, {
+    required bool declared,
+  }) => stage.kept?.blocks.contains(block) ?? declared;
+
+  /// Whether [stage] keeps [sampler], as [_keepsBlock].
+  bool _keepsSampler(
+    ShaderHandle stage,
+    String sampler, {
+    required bool declared,
+  }) => stage.kept?.samplers.contains(sampler) ?? declared;
+
   void _bindMorph(PassEncoder pass, ShaderHandle stage, [MorphState? morph]) {
     final count = morph == null
         ? 0
@@ -64,10 +101,7 @@ extension _MeshEncode on Renderer {
     _morphParams[2] = morph == null ? 0.0 : 1.0 / morph.texture.height;
 
     pass
-      ..bindUniformBlock(stage, _kMorphInfoBlock, {
-        'morph_weights': _morphWeights,
-        'morph_params': _morphParams,
-      })
+      ..bindBlock(stage, _morphInfo)
       ..bindTexture(
         stage,
         'morph_texture',
@@ -101,9 +135,7 @@ extension _MeshEncode on Renderer {
     _morphInstanceParams[2] = texture == null ? 0.0 : 1.0 / texture.height;
 
     pass
-      ..bindUniformBlock(stage, _kMorphInstanceInfoBlock, {
-        'instance_params': _morphInstanceParams,
-      })
+      ..bindBlock(stage, _morphInstanceInfo)
       ..bindTexture(
         stage,
         'morph_instance_weights',
@@ -149,6 +181,11 @@ extension _MeshEncode on Renderer {
     // through one — see `probeFaceViewProjection` — and a mirror reverses
     // which way every triangle winds, so the winding set below flips with it.
     bool mirrored = false,
+    // `R8`'s, and null for every other draw: a transparent draw into the
+    // weighted blended targets takes their blends instead of its material's,
+    // and writes no depth whatever the material says. See
+    // `renderer_transparency_pass.dart`.
+    _OrderIndependentBlend? orderIndependent,
   }) {
     final mesh = node.mesh;
     // The scene deals in MeshGeometry so that culling and picking need no
@@ -171,6 +208,13 @@ extension _MeshEncode on Renderer {
     final instanced = node is InstancedMeshNode ? node : null;
     if (instanced != null && instanced.count == 0) return;
     final batched = instanced != null;
+    // `C9`: the clusters of a split mesh this view can see, repacked, or null
+    // to draw it whole. Before anything is bound, so a mesh with none in view
+    // leaves the pass as it found it.
+    final clustered = override == null && !mirrored && orderIndependent == null
+        ? _clusterIndicesFor(node, mesh, material, settings)
+        : null;
+    if (clustered != null && clustered.count == 0) return;
     // A level's batches read their colour as a lightmap coordinate; neither
     // a skinned mesh nor an instanced one is a level, so the flag is ignored
     // where it cannot apply rather than asserted against. Nor is a
@@ -215,15 +259,28 @@ extension _MeshEncode on Renderer {
     encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
 
     final blend = material.alphaMode == MaterialAlphaMode.blend;
-    encoder.setBlend(
-      override != null
-          ? override.blend
-          : (blend ? BlendState.alphaBlend : null),
-    );
+    if (orderIndependent == null) {
+      encoder.setBlend(
+        override != null
+            ? override.blend
+            : (blend ? BlendState.alphaBlend : null),
+      );
+    } else {
+      // Attachment zero first, then one: on WebGL2 the first call sets every
+      // draw buffer, and only the second is for one buffer alone.
+      encoder.setBlend(orderIndependent.first);
+      if (orderIndependent.second case final second?) {
+        encoder.setBlend(second, attachment: 1);
+      }
+    }
     // Transparent surfaces must not occlude what is behind them — unless the
     // material has an opinion, which is how a backdrop says it is drawn but
-    // is not there.
-    encoder.setDepthWrite(material.depthWrite ?? !blend);
+    // is not there. Never under weighted blended transparency: a layer that
+    // wrote depth would hide the layers drawn after it and not those drawn
+    // before, which is the order the targets exist to forget.
+    encoder.setDepthWrite(
+      orderIndependent == null && (material.depthWrite ?? !blend),
+    );
 
     // Only when it changes. A scene where nothing overrides the test never
     // emits this call, so the pass's own `less` stands and every frame the
@@ -235,7 +292,12 @@ extension _MeshEncode on Renderer {
     }
 
     encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
-    encoder.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
+    final indexCount = clustered?.count ?? mesh.indexCount;
+    encoder.bindIndexBuffer(
+      clustered?.buffer ?? mesh.indices,
+      mesh.indexType,
+      indexCount,
+    );
 
     if (instanced != null) {
       encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
@@ -260,11 +322,10 @@ extension _MeshEncode on Renderer {
     // annotation `.storage` here is an unchecked call on an untyped value,
     // and a typo in it would compile and fail at the draw.
     final vm.Matrix4 mvp = viewProjection * modelMatrix;
-    encoder.bindUniformBlock(activeVertexShader, _kFrameInfoBlock, {
-      'mvp': mvp.storage,
-      'model': modelMatrix.storage,
-      'normal_matrix': normalMatrix.storage,
-    });
+    _frameInfo.mvp.setAll(0, mvp.storage);
+    _frameInfo.model.setAll(0, modelMatrix.storage);
+    _frameInfo.normalMatrix.setAll(0, normalMatrix.storage);
+    encoder.bindBlock(activeVertexShader, _frameInfo);
 
     // Always for the engine's own mesh stages, even when nothing morphs: all
     // four declare the block and the sampler. See [_bindMorph].
@@ -278,7 +339,11 @@ extension _MeshEncode on Renderer {
     // the node is the wrong question: a stage declares what it declares.
     final ownStage =
         !batched && !lightmapped && material.lighting.vertexShaderName != null;
-    if (!ownStage || material.lighting.vertexStageMorphs) {
+    if (_keepsBlock(
+      activeVertexShader,
+      _kMorphInfoBlock,
+      declared: !ownStage || material.lighting.vertexStageMorphs,
+    )) {
       _bindMorph(encoder, activeVertexShader, node.morph);
     }
     if (batched) _bindInstanceMorph(encoder, activeVertexShader, instanced);
@@ -288,9 +353,8 @@ extension _MeshEncode on Renderer {
       // the mesh node's own world transform, which is exactly what the
       // renderer is holding at this point.
       skeleton.update(modelMatrix);
-      encoder.bindUniformBlock(activeVertexShader, _kSkinInfoBlock, {
-        'joint_matrices': skeleton.matrices,
-      });
+      _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+      encoder.bindBlock(activeVertexShader, _skinInfo);
       state.skinnedDraws++;
     }
 
@@ -338,7 +402,12 @@ extension _MeshEncode on Renderer {
     // coordinate, which is why the local `lightmapped` is the one asked here
     // rather than `node.lightmapped`. What a wall gives up is its specular
     // lobe, and a rough dielectric's is very nearly nothing.
-    final probe = material.lighting.usesEnvironment && !lightmapped
+    final readsEnvironment = _keepsSampler(
+      fragmentShader,
+      _kEnvironmentTextureSlot,
+      declared: material.lighting.usesEnvironment,
+    );
+    final probe = readsEnvironment && !lightmapped
         ? probes.nearest(node.worldBoundsCentre)
         : null;
     final environment =
@@ -361,12 +430,25 @@ extension _MeshEncode on Renderer {
       frameLights: lights,
       frameShadowSlots: shadowSlots,
       node: node,
-      fadeBand: settings.lightFadeBand,
+      // `L6`: with cells, a light that leaves the slots is still in the
+      // tail, so there is no edge to fade at.
+      fadeBand: _clustersActive ? 0.0 : settings.lightFadeBand,
     );
     final drawLights = draw.lights;
     final drawShadowSlots = draw.shadowSlots;
 
-    if (material.lighting.usesFragInfo) {
+    // **What the compiled stage kept decides, not what the model says —
+    // `gfx-92n`.** Each gate below asks `ShaderHandle.kept`, which the
+    // device fills from the bundle's own table for every stage of the
+    // engine's, and falls back to the model's declared flag only for a stage
+    // the device cannot answer for: one from an application's own bundle.
+    // The flags were kept in step with the shaders by hand, and 0.7.1 was
+    // the frame where one was not.
+    if (_keepsBlock(
+      fragmentShader,
+      _kFragInfoBlock,
+      declared: material.lighting.usesFragInfo,
+    )) {
       _baseColorData[0] = material.baseColor.x;
       _baseColorData[1] = material.baseColor.y;
       _baseColorData[2] = material.baseColor.z;
@@ -375,6 +457,13 @@ extension _MeshEncode on Renderer {
       _emissiveData[0] = material.emissive.x;
       _emissiveData[1] = material.emissive.y;
       _emissiveData[2] = material.emissive.z;
+      // A normal map with only x and y has its z rebuilt in the shader: the
+      // sampler hands blue as zero, which read as it stands is a normal
+      // pointing into the surface. The flag rides in emissive's unused w.
+      _emissiveData[3] = switch (material.normal?.format) {
+        TextureFormat.bc5RGUNormInt || TextureFormat.r8g8UNormInt => 1.0,
+        _ => 0.0,
+      };
 
       _materialData[0] = material.metallic;
       _materialData[1] = material.roughness;
@@ -396,6 +485,11 @@ extension _MeshEncode on Renderer {
         // anything more negative was free, where a second number would have
         // been a member added to a block six shaders share.
         MaterialAlphaMode.hashed => -2.0,
+        // Not masked either, and the one mode whose colour the shader weights
+        // by its alpha: the blend takes its source premultiplied, and glTF's
+        // blend is over on straight colour. Opaque keeps -1 and its colour
+        // whole. See `g_premultiply` in `color.glsl`.
+        MaterialAlphaMode.blend => -0.5,
         _ => -1.0,
       };
       // Zero without a normal map of its own. The fallback's 0.5 lands on
@@ -437,67 +531,36 @@ extension _MeshEncode on Renderer {
       // this is the last unspent component of a block six shaders share, and
       // the slot that was reserved for a frame-wide parameter went to the
       // line above. Zero keeps the 3×3 kernel every recorded golden holds.
-      _ambientGround[3] = settings.shadows.enabled
-          ? settings.shadows.directionalLightRadius
-          : 0.0;
-
-      // Its own block, bound beside FragInfo rather than folded into it. See
-      // the note in color.glsl: appending to a block six shaders share moves
-      // offsets nobody expected to move.
       //
-      // None for a silhouette. Fog is a property of a surface in air, and a
-      // silhouette is a marker: a sensor that lost its monsters to the far
-      // end of a corridor would be a sensor with the corridor's own range.
-      final fog = override == null ? settings.fog : const FogSettings();
-      _fogData[0] = fog.resolvedColor.x;
-      _fogData[1] = fog.resolvedColor.y;
-      _fogData[2] = fog.resolvedColor.z;
-      _fogData[3] = fog.density;
+      // `S2`: the filter decides what rides here. Below zero is `evsm`, with
+      // the light-bleeding cut as how far under minus one — but only where
+      // the frame made the moments; a device that refused them draws the
+      // 3×3 kernel rather than nothing. `pcss` asked for with no radius
+      // takes the sun's.
+      _ambientGround[3] = !settings.shadows.enabled
+          ? 0.0
+          : shadows.directionalMoments != null
+          ? -1.0 - settings.shadows.evsmBleedReduction.clamp(0.0, 0.95)
+          : settings.shadows.directionalFilter != ShadowFilter.pcss
+          ? 0.0
+          : settings.shadows.directionalLightRadius > 0.0
+          ? settings.shadows.directionalLightRadius
+          : ShadowSettings.sunAngularRadius;
+
       // Gated on the model, like every other block and sampler here. Unlit
       // declares FragInfo but reaches no lighting loop, so the compiler drops
       // all three of these — and binding a block the compiled shader does not
       // have is a native failure, not a no-op.
-      if (material.lighting.usesPointShadow) {
-        // Half a texel, in tile-local uv: what every tap is held inside its
-        // tile by, so none of them can reach the next face along.
-        final texel = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
-        _pointShadowParams[0] = texel * 0.5;
-        _pointShadowParams[1] = settings.shadows.pointBias;
-        _pointShadowParams[2] = _cubeShadowLight < 0
-            ? 0.0
-            : settings.shadows.strength;
-        _pointShadowParams[3] = settings.shadows.pointNormalOffset;
-        // Softness is authored in texels and spent in tile-local uv, so a
-        // penumbra keeps its width when the atlas resolution changes.
-        _pointShadowParams2[0] =
-            math.max(settings.shadows.pointSoftness, 0.0) * texel;
-        _pointShadowParams2[1] = math.max(
-          settings.shadows.pointLightRadius,
-          0.0,
-        );
-        _pointShadowParams2[2] =
-            math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
-        _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
-        // Asked of the device rather than assumed, like the depth range and the
-        // cascade matrices before it. See where it is read in surface.glsl.
-        _pointShadowParams3[0] =
-            device.framebufferOrigin == FramebufferOrigin.bottomLeft
-            ? 1.0
-            : 0.0;
-        // One over the tile's edge in texels. The shader turns it into the
-        // world width of a texel at whatever distance the fragment is, which is
-        // the quantity a normal offset has to clear — see `surface.glsl`.
-        _pointShadowParams3[1] = _cubeShadowTile > 0
-            ? 1.0 / _cubeShadowTile
-            : 0.0;
-        encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
-          'faces': _cubeFaceMatrices,
-          'lights': _cubeLightData,
-          'slots': drawShadowSlots,
-          'params': _pointShadowParams,
-          'params2': _pointShadowParams2,
-          'params3': _pointShadowParams3,
-        });
+      if (_keepsBlock(
+        fragmentShader,
+        'PointShadow',
+        declared: material.lighting.usesPointShadow,
+      )) {
+        _writePointShadowParams(settings);
+        // The slots are this draw's own packing; everything else in the
+        // block is the frame's, written where it was worked out.
+        _pointShadow.slots.setAll(0, drawShadowSlots);
+        encoder.bindBlock(fragmentShader, _pointShadow);
         encoder.bindTexture(
           fragmentShader,
           'point_shadow_texture',
@@ -520,25 +583,17 @@ extension _MeshEncode on Renderer {
         );
       }
 
-      encoder.bindUniformBlock(fragmentShader, _kFogInfoBlock, {
-        'fog': _fogData,
-        'eye': _cameraData,
-        'forward': _forwardData,
-      });
-
-      // **The irradiance field, where there is one — `gfx-81n`.** It replaces
-      // the two ambient colours for this draw and nothing else, which is the
-      // whole of why a scene without one is byte for byte what it was: the
-      // staged arrays are rewritten per draw either way, and with no field the
-      // values written are the ones `_updateAmbient` put there.
-      //
-      // Per object rather than per pixel, and that is the granularity this
-      // costs: a large floor reads one point of the field, so it takes the
-      // bounce of its own middle. The two samples are the surface facing up and
-      // the surface facing down, which is exactly the pair the shader already
-      // blends between — so the field arrives through a uniform that exists
-      // rather than through a texture and a fifth set of bindings.
-      _applyIrradiance(scene, node);
+      // **The irradiance field, per pixel — `L3`.** It replaces the
+      // hemisphere ambient in the shader wherever the scene has a field, and
+      // the atlas and its block are bound on every lit draw whether or not it
+      // does: a declared sampler nobody binds is a native crash on Metal.
+      if (_keepsBlock(
+        fragmentShader,
+        _irradianceInfo.name,
+        declared: material.lighting.usesLightList,
+      )) {
+        _bindIrradiance(encoder, fragmentShader, scene);
+      }
 
       // **Every lit draw, both halves — `gfx-74n`.** A draw with no tail binds
       // a count of nought and a one-by-one stand-in it never samples, because a
@@ -549,7 +604,11 @@ extension _MeshEncode on Renderer {
       // **Lit, and only lit.** The reverse is a crash too: an unlit stage
       // keeps neither half, and binding them was the first frame of every
       // unlit scene dying inside Metal's `setFragmentBuffer` on 0.7.0.
-      if (material.lighting.usesLightList) {
+      if (_keepsBlock(
+        fragmentShader,
+        _kLightListBlock,
+        declared: material.lighting.usesLightList,
+      )) {
         _bindLightList(
           encoder,
           fragmentShader,
@@ -557,29 +616,94 @@ extension _MeshEncode on Renderer {
           _buildLightList(lights),
         );
       }
-      encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
-        // Whole arrays written from their reflected base offset. A backend
-        // reflects the array, not its elements — `lights[0]` comes back
-        // null — but the std140 stride for a vec4 array is a flat 16
-        // bytes, so a contiguous write lands each element correctly.
-        'light_position': drawLights.positions,
-        'light_color': drawLights.colors,
-        'light_direction': drawLights.directions,
-        'light_cone': drawLights.cones,
-        'base_color': _baseColorData,
-        'emissive': _emissiveData,
-        'camera_position': _cameraData,
-        'material': _materialData,
-        'material2': _material2Data,
-        'frame_params': _frameParams,
-        'shadow_params': _shadowParams,
-        'shadow_matrix': _shadowMatrix.storage,
-        'shadow_matrix_far': _shadowMatrixFar.storage,
-        'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
-        'shadow_cascades': _shadowCascades,
-        'ambient_sky': _ambientSky,
-        'ambient_ground': _ambientGround,
-      });
+      // The lights are this draw's selection and the cascade matrices are
+      // vector_math's; everything else in the block is written in place.
+      _fragInfo.lightPosition.setAll(0, drawLights.positions);
+      _fragInfo.lightColor.setAll(0, drawLights.colors);
+      _fragInfo.lightDirection.setAll(0, drawLights.directions);
+      _fragInfo.lightCone.setAll(0, drawLights.cones);
+      _fragInfo.shadowMatrix.setAll(0, _shadowMatrix.storage);
+      _fragInfo.shadowMatrixFar.setAll(0, _shadowMatrixFar.storage);
+      _fragInfo.shadowMatrixFarthest.setAll(0, _shadowMatrixFarthest.storage);
+      encoder.bindBlock(fragmentShader, _fragInfo);
+    }
+
+    // Its own block, bound beside FragInfo rather than folded into it. See
+    // the note in color.glsl: appending to a block six shaders share moves
+    // offsets nobody expected to move.
+    //
+    // **Beside it, not inside its gate.** `color.glsl` declares it, so a stage
+    // that reads no FragInfo still keeps it, and one that was drawn with it
+    // unbound had no fog and a surface depth of nought — `loaded-shader`, on
+    // every backend, with only WebGL2 saying so.
+    //
+    // None for a silhouette. Fog is a property of a surface in air, and a
+    // silhouette is a marker: a sensor that lost its monsters to the far
+    // end of a corridor would be a sensor with the corridor's own range.
+    if (_keepsBlock(
+      fragmentShader,
+      _fogInfo.name,
+      declared: material.lighting.usesFogInfo,
+    )) {
+      final fog = override == null ? settings.fog : const FogSettings();
+      _fogData[0] = fog.resolvedColor.x;
+      _fogData[1] = fog.resolvedColor.y;
+      _fogData[2] = fog.resolvedColor.z;
+      _fogData[3] = fog.density;
+      _fogInfo.eye.setAll(0, _cameraData);
+      encoder.bindBlock(fragmentShader, _fogInfo);
+    }
+
+    // **The layers, for the one stage that reads them — `M1`.** A material
+    // with none drawn with the layered model binds the defaults, which draw
+    // plain metal-rough.
+    final layered = identical(material.lighting, LightingModel.pbrLayered);
+    if (_keepsBlock(fragmentShader, _layerInfo.name, declared: layered)) {
+      final layers = material.extensions;
+      _layerInfo.specular
+        ..[0] = layers?.specularColor.x ?? 1.0
+        ..[1] = layers?.specularColor.y ?? 1.0
+        ..[2] = layers?.specularColor.z ?? 1.0
+        ..[3] = layers?.specular ?? 1.0;
+      _layerInfo.coat
+        ..[0] = layers?.clearcoat ?? 0.0
+        ..[1] = layers?.clearcoatRoughness ?? 0.0
+        ..[2] = layers?.ior ?? 1.5;
+      _layerInfo.sheen
+        ..[0] = layers?.sheenColor.x ?? 0.0
+        ..[1] = layers?.sheenColor.y ?? 0.0
+        ..[2] = layers?.sheenColor.z ?? 0.0
+        ..[3] = layers?.sheenRoughness ?? 0.0;
+      final rotation = layers?.anisotropyRotation ?? 0.0;
+      _layerInfo.anisotropy
+        ..[0] = layers?.anisotropyStrength ?? 0.0
+        ..[1] = math.cos(rotation)
+        ..[2] = math.sin(rotation);
+      // An infinite attenuation distance, the default, is nought here: the
+      // stage reads nought as a medium that takes nothing away.
+      final distance = layers?.attenuationDistance ?? double.infinity;
+      _layerInfo.transmission
+        ..[0] = layers?.transmission ?? 0.0
+        ..[1] = layers?.thickness ?? 0.0
+        ..[2] = distance.isFinite ? distance : 0.0
+        ..[3] = layers?.dispersion ?? 0.0;
+      _layerInfo.attenuation
+        ..[0] = layers?.attenuationColor.x ?? 1.0
+        ..[1] = layers?.attenuationColor.y ?? 1.0
+        ..[2] = layers?.attenuationColor.z ?? 1.0;
+      _layerInfo.iridescence
+        ..[0] = layers?.iridescence ?? 0.0
+        ..[1] = layers?.iridescenceIor ?? 1.3
+        ..[2] = layers?.iridescenceThicknessMaximum ?? 400.0;
+      // `C8`: a matrix per map, the identity where the material names none.
+      for (final map in MaterialMap.values) {
+        _writeUvTransform(
+          _layerInfo.uvTransform,
+          map.index * 8,
+          material.textureTransforms[map],
+        );
+      }
+      encoder.bindBlock(fragmentShader, _layerInfo);
     }
 
     // Bound strictly according to the model's declared slots. The
@@ -611,7 +735,7 @@ extension _MeshEncode on Renderer {
       encoder.bindTexture(fragmentShader, slot.key, slot.value);
     }
 
-    if (material.lighting.usesEnvironment && environment != null) {
+    if (readsEnvironment && environment != null) {
       encoder.bindTexture(
         fragmentShader,
         _kEnvironmentTextureSlot,
@@ -624,7 +748,11 @@ extension _MeshEncode on Renderer {
     // once for the up-to-five binds below. The lightmap and the shadow map
     // are not model textures and keep their clamped samplers as they are.
     final anisotropy = _anisotropyLevel(settings.anisotropy);
-    if (material.lighting.usesAlbedoTexture) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kAlbedoTextureSlot,
+      declared: material.lighting.usesAlbedoTexture,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kAlbedoTextureSlot,
@@ -632,29 +760,51 @@ extension _MeshEncode on Renderer {
         sampler: _anisotropic(material.albedoSampler, anisotropy),
       );
     }
-    if (material.lighting.usesMaterialMaps) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kNormalTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kNormalTextureSlot,
         material.normal ?? fallbackNormal,
         sampler: _anisotropic(material.normalSampler, anisotropy),
       );
+    }
+    if (_keepsSampler(
+      fragmentShader,
+      _kOcclusionTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kOcclusionTextureSlot,
         material.occlusion ?? fallbackAlbedo,
         sampler: _anisotropic(material.occlusionSampler, anisotropy),
       );
+    }
+    if (_keepsSampler(
+      fragmentShader,
+      _kEmissiveTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kEmissiveTextureSlot,
         material.emissiveTexture ?? fallbackAlbedo,
         sampler: _anisotropic(material.emissiveSampler, anisotropy),
       );
-      // Black, not white: the lightmap is added, and a material without one
-      // adds nothing. Bound for every lit model because the shader samples
-      // the slot unconditionally, which is a texel cheaper than a branch and
-      // the same arrangement every other map here uses.
+    }
+    // Black, not white: the lightmap is added, and a material without one
+    // adds nothing. Bound for every lit model because the shader samples
+    // the slot unconditionally, which is a texel cheaper than a branch and
+    // the same arrangement every other map here uses.
+    if (_keepsSampler(
+      fragmentShader,
+      _kLightmapTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kLightmapTextureSlot,
@@ -662,18 +812,28 @@ extension _MeshEncode on Renderer {
         sampler: material.lightmapSampler ?? Renderer._clampSampler,
       );
     }
-    if (material.lighting.usesShadowMap) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kShadowTextureSlot,
+      declared: material.lighting.usesShadowMap,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kShadowTextureSlot,
         // With shadows off the slot still has to be satisfied, and a white
         // texture reads as "nothing between here and the light" — which is
-        // also what the zero strength above already guarantees.
-        shadows.directional ?? fallbackAlbedo,
+        // also what the zero strength above already guarantees. The moments
+        // in the map's place under `evsm` (`S2`), which the negative
+        // softness packed above tells the shader to expect.
+        shadows.directionalMoments ?? shadows.directional ?? fallbackAlbedo,
         sampler: Renderer._clampSampler,
       );
     }
-    if (material.lighting.usesMetallicRoughnessMap) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kMetallicRoughnessTextureSlot,
+      declared: material.lighting.usesMetallicRoughnessMap,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kMetallicRoughnessTextureSlot,
@@ -681,39 +841,218 @@ extension _MeshEncode on Renderer {
         sampler: _anisotropic(material.metallicRoughnessSampler, anisotropy),
       );
     }
+    // `L7`: the metal-rough model integrates its lobe over a rectangle
+    // light from these; filtered, since the fit is smooth between entries.
+    if (_keepsSampler(
+      fragmentShader,
+      _kLtcTextureSlot,
+      declared: material.lighting.usesMetallicRoughnessMap,
+    )) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kLtcTextureSlot,
+        EngineTables.of(device).ltc,
+        sampler: Renderer._clampSampler,
+      );
+    }
+    if (_keepsSampler(fragmentShader, _kCoatTextureSlot, declared: layered)) {
+      // White where there is no map, which leaves every factor as it is.
+      encoder.bindTexture(
+        fragmentShader,
+        _kCoatTextureSlot,
+        material.coatMap ?? fallbackAlbedo,
+        sampler: _anisotropic(material.coatMapSampler, anisotropy),
+      );
+    }
+    if (_keepsSampler(fragmentShader, _kSheenTextureSlot, declared: layered)) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kSheenTextureSlot,
+        material.sheenMap ?? fallbackAlbedo,
+        sampler: _anisotropic(material.sheenMapSampler, anisotropy),
+      );
+    }
+    // `M3`: the scene behind, while the transparent pass lends it, and black
+    // otherwise — the stage reads it only when `LayerInfo.scene_colour` says
+    // there is one, but a declared sampler nobody binds is a crash on Metal.
+    if (_keepsSampler(
+      fragmentShader,
+      _kSceneColourTextureSlot,
+      declared: layered,
+    )) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kSceneColourTextureSlot,
+        _sceneColourRead?.texture ?? fallbackBlack,
+        sampler: SamplerOptions.linearClamp,
+      );
+    }
 
     encoder.draw(instanceCount: instanced?.count ?? 1);
     state.drawCalls++;
-    state.triangles += (mesh.indexCount ~/ 3) * (instanced?.count ?? 1);
+    state.triangles += (indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
   }
 
-  /// Rewrites the two ambient colours for [node] from the scene's irradiance
-  /// field — `gfx-81n`. Does nothing at all when there is no field, which is
-  /// what keeps every recorded frame where it was.
-  void _applyIrradiance(Scene scene, MeshNode node) {
+  /// The index buffer that draws the clusters of [node]'s split mesh the
+  /// current view can see — `C9` — or null to draw [mesh] whole: outside the
+  /// scene pass's views, for a mesh with no clusters, and for a node whose
+  /// triangles are not where its vertices say (skinned, morphing, instanced)
+  /// or whose bounds it asked not to be culled by.
+  ///
+  /// The cone test only where the draw culls back faces, with the same
+  /// expression the cull mode is set from below.
+  ({GeometryBuffer buffer, int count})? _clusterIndicesFor(
+    MeshNode node,
+    DrawableGeometry mesh,
+    Material material,
+    RenderSettings settings,
+  ) {
+    final view = _clusterView;
+    if (view == null || mesh.clusters == null) return null;
+    if (node is InstancedMeshNode ||
+        node.skeleton != null ||
+        node.morph != null ||
+        !node.frustumCulled) {
+      return null;
+    }
+    final cullsBackFaces =
+        settings.backfaceCulling &&
+        !settings.wireframe &&
+        !material.doubleSided;
+    return (_clusterDraws ??= ClusterDraws(
+      device,
+      framesInFlight: Renderer._kFramesInFlight,
+    )).indicesFor(
+      node: node,
+      mesh: mesh,
+      view: view.view,
+      frustum: view.frustum,
+      eye: cullsBackFaces
+          ? clusterEye(view.viewProjection, node.worldMatrix)
+          : null,
+      occlusion: view.occlusion,
+    );
+  }
+
+  /// Binds [scene]'s irradiance field to [stage] — `L3`: the atlas, uploaded
+  /// again only when the field's version moved, and the block that says how
+  /// to read it. With no field, the block says "off" and a stand-in fills
+  /// the sampler.
+  void _bindIrradiance(PassEncoder encoder, ShaderHandle stage, Scene scene) {
     final field = scene.irradianceField;
-    if (field == null) return;
+    // The atlas the GPU keeps when the field is updated there (`L4`), the
+    // uploaded bake otherwise. Both have the same layout, so the block below
+    // is the same either way.
+    final gpu = _irradianceGpu;
+    final live =
+        field != null &&
+        gpu != null &&
+        identical(gpu.field, field) &&
+        gpu.seeded >= 0 &&
+        _updatesIrradianceOnGpu(field);
+    final atlas = field == null
+        ? null
+        : live
+        ? gpu.atlas.current
+        : _irradianceAtlasFor(field);
+    final info = _irradianceInfo;
+    if (field == null || atlas == null) {
+      info.origin[3] = 0.0;
+    } else {
+      final nearest = math.min(
+        field.spacing.x,
+        math.min(field.spacing.y, field.spacing.z),
+      );
+      info.origin
+        ..[0] = field.origin.x
+        ..[1] = field.origin.y
+        ..[2] = field.origin.z
+        ..[3] = 1.0;
+      // A tenth of the nearest spacing off the surface and towards the eye:
+      // enough that a surface is not read as the wall its own probe sees, and
+      // too little to carry the read through a wall of any real thickness.
+      info.spacing
+        ..[0] = field.spacing.x
+        ..[1] = field.spacing.y
+        ..[2] = field.spacing.z
+        ..[3] = nearest * 0.1;
+      info.counts
+        ..[0] = field.countX.toDouble()
+        ..[1] = field.countY.toDouble()
+        ..[2] = field.countZ.toDouble()
+        ..[3] = nearest * 0.1;
+      info.tiles
+        ..[0] = field.tile.toDouble()
+        ..[1] = field.depthTile.toDouble()
+        ..[2] = _irradianceColumns.toDouble()
+        ..[3] = _irradianceMomentsTop.toDouble();
+      info.atlas
+        ..[0] = 1.0 / atlas.width
+        ..[1] = 1.0 / atlas.height;
+    }
+    encoder
+      ..bindBlock(stage, info)
+      ..bindTexture(
+        stage,
+        'irradiance_texture',
+        atlas ?? fallbackAlbedo,
+        // Nearest: the shader filters inside each tile itself.
+        sampler: SamplerOptions.nearestClamp,
+      );
+  }
 
-    // The node's own middle. A point on its surface would be better and is not
-    // available here — the encode sees a bounding box, not the geometry — and
-    // the middle is the one point that is certainly inside the thing being lit.
-    final at = node.worldBoundsCentre;
-    final up = field.sample(at, _kUp, _irradianceUp);
-    final down = field.sample(at, _kDown, _irradianceDown);
+  /// [field]'s atlas on this device, uploaded when the field changed.
+  TextureHandle? _irradianceAtlasFor(IrradianceField field) {
+    if (identical(field, _irradianceField) &&
+        field.version == _irradianceVersion) {
+      return _irradianceAtlas;
+    }
+    final packed = field.toAtlas();
+    _destroyAfterFrame(_irradianceAtlas);
+    _irradianceAtlas = device.createTextureFromPixels(
+      width: packed.width,
+      height: packed.height,
+      format: TextureFormat.r32g32b32a32Float,
+      pixels: ByteData.sublistView(packed.texels),
+    );
+    _irradianceField = field;
+    _irradianceVersion = field.version;
+    _irradianceColumns = packed.columns;
+    _irradianceMomentsTop = packed.momentsTop;
+    return _irradianceAtlas;
+  }
 
-    // Scaled by the scene's own ambient knob, so the one control still dials
-    // indirect light: a field is a measurement of the room and this is how much
-    // of that measurement the author wants.
-    final tint = scene.ambientIntensity;
-    _ambientSky[0] = up.x * tint;
-    _ambientSky[1] = up.y * tint;
-    _ambientSky[2] = up.z * tint;
-    _ambientGround[0] = down.x * tint;
-    _ambientGround[1] = down.y * tint;
-    _ambientGround[2] = down.z * tint;
+  /// The frame's half of the `PointShadow` block: everything in it but the
+  /// slot table, which is each draw's own packing.
+  ///
+  /// Written by every lit draw that binds the block, and by the fog — `S4` —
+  /// which reads the atlas with no lit draw of its own to have written it.
+  void _writePointShadowParams(RenderSettings settings) {
+    // Half a texel, in tile-local uv: what every tap is held inside its
+    // tile by, so none of them can reach the next face along.
+    final texel = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
+    _pointShadowParams[0] = texel * 0.5;
+    _pointShadowParams[1] = settings.shadows.pointBias;
+    _pointShadowParams[2] = _cubeShadowLight < 0
+        ? 0.0
+        : settings.shadows.strength;
+    _pointShadowParams[3] = settings.shadows.pointNormalOffset;
+    // Softness is authored in texels and spent in tile-local uv, so a
+    // penumbra keeps its width when the atlas resolution changes.
+    _pointShadowParams2[0] =
+        math.max(settings.shadows.pointSoftness, 0.0) * texel;
+    _pointShadowParams2[1] = math.max(settings.shadows.pointLightRadius, 0.0);
+    _pointShadowParams2[2] =
+        math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
+    _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
+    // Asked of the device rather than assumed, like the depth range and the
+    // cascade matrices before it. See where it is read in surface.glsl.
+    _pointShadowParams3[0] =
+        device.framebufferOrigin == FramebufferOrigin.bottomLeft ? 1.0 : 0.0;
+    // One over the tile's edge in texels. The shader turns it into the
+    // world width of a texel at whatever distance the fragment is, which is
+    // the quantity a normal offset has to clear — see `surface.glsl`.
+    _pointShadowParams3[1] = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
   }
 }
-
-final vm.Vector3 _kUp = vm.Vector3(0.0, 1.0, 0.0);
-final vm.Vector3 _kDown = vm.Vector3(0.0, -1.0, 0.0);

@@ -18,8 +18,13 @@ final class GltfAsset extends ModelDocument {
     this.skins = const <ModelSkin>[],
     this.lights = const <ModelLight>[],
     this.cameras = const <ModelCamera>[],
+    this.splats = const <ModelSplat>[],
     this.asset,
+    this.variants = const <String>[],
   });
+
+  @override
+  final List<String> variants;
 
   @override
   final List<ModelSurface> surfaces;
@@ -52,6 +57,10 @@ final class GltfAsset extends ModelDocument {
 
   @override
   final List<ModelCamera> cameras;
+
+  /// `KHR_gaussian_splatting` primitives, one per node that draws one.
+  @override
+  final List<ModelSplat> splats;
 
   @override
   final DocumentAsset? asset;

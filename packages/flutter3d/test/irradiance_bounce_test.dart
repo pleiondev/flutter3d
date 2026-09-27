@@ -136,7 +136,7 @@ double _tint(Uint8List rgba) {
 void main() {
   test('off, the picture is the bytes it was', () async {
     // The clause every recorded frame depends on. A field is null by default,
-    // so this is the path forty-four goldens take.
+    // so this is the path seventy-eight goldens take.
     final a = await _draw(field: false, redWall: true);
     final b = await _draw(field: false, redWall: true);
     expect(a, orderedEquals(b));

@@ -174,6 +174,54 @@ const Map<String, double> _budgets = <String, double>{
   'lighting-toon': 0.01,
   'lighting-normals': 0.01,
   'mesh-overlay': 0.01,
+  // The scenes 0.8 added, measured against Impeller on 2026-09-25 with a tenth
+  // to spare.
+  'anisotropy-disc': 0.01,
+  'ao-temporal': 0.01,
+  'area-light-gloss': 0.01,
+  'cascade-walk': 0.01,
+  'clearcoat-car-paint': 0.01,
+  'easu-half': 0.01,
+  'evsm-soft': 0.33,
+  'fog-torches': 0.01,
+  'glass-stack-oit': 0.01,
+  // 0.000% measured. It was 1.607% while Impeller wrote the albedo buffer in the
+  // surface buffer's format and its bounces read a quarter of the colour.
+  'gtao-corner': 0.01,
+  'impostor-forest': 0.01,
+  'irradiance-room': 0.01,
+  'many-lights': 0.01,
+  'motion-blur-spin': 0.01,
+  'rough-dielectrics': 0.01,
+  'rough-metals': 0.01,
+  'scan-chunks': 0.01,
+  'sheen-fabric': 0.01,
+  // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
+  // 64-bit integers, so a browser baked a different sheet.
+  'smoke-six-way': 0.01,
+  'splat-gltf': 0.01,
+  // Was 40.38, over a reference that was a black frame: the hashed splats'
+  // pipeline claimed a velocity target it has no output for, WebGPU refused
+  // it, and the 36.701% it measured was the whole cloud missing rather than a
+  // different grain. 0 of 172800 since the same fix as `taa-embers`.
+  'splat-stochastic': 0.01,
+  // 0.000% measured. It was 4.938% while Impeller's albedo buffer held the
+  // bytes of half floats; see gtao-corner.
+  'ssil-room': 0.01,
+  'sun-contact-hardening': 0.01,
+  'taa-converge': 0.01,
+  // Black until the particles' pipeline stopped claiming the velocity target
+  // it has no output for; 0 of 172800 since.
+  'taa-embers': 0.01,
+  'taa-railing': 0.01,
+  'taa-railing-kdop16': 0.01,
+  'taa-railing-kdop8': 0.01,
+  'taa-railing-scaled': 0.01,
+  'texture-transform-per-map': 0.01,
+  'tonemap-aces2': 0.01,
+  'transmission-glass': 0.01,
+  'velocity-shapes': 0.01,
+  'window-interior': 0.01,
 };
 
 /// Scenes this set holds no picture of, and why the picture was refused.

@@ -231,6 +231,14 @@ final class _CubeShadowNode extends RenderNode {
         .select(_renderer._computeFaceSignatures(scene, slotCount, settings))
         .toSet();
     if (scheduled.isNotEmpty) {
+      // `N3`: with an allowance for deferred work, each face is a piece of
+      // it. The faces the allowance refuses are not recorded as drawn, so
+      // they stay pending and the first of them leads the next frame's scan.
+      // Without one, the frame draws every face it selected, as it always
+      // did.
+      final budget = _renderer._workBudget;
+      final limited = budget.microseconds > 0;
+      final drawnTiles = limited ? <int>{} : null;
       _renderer._renderCubeShadow(
         resources: frame.resources,
         scene: scene,
@@ -238,8 +246,11 @@ final class _CubeShadowNode extends RenderNode {
         static: false,
         slotCount: slotCount,
         tiles: scheduled,
+        firstTile: _renderer._shadowFaceScheduler.scanStart,
+        budget: limited ? budget : null,
+        drawnTiles: drawnTiles,
       );
-      _renderer._shadowFaceScheduler.recordDrawn();
+      _renderer._shadowFaceScheduler.recordDrawn(drawnTiles);
     }
 
     // Even when nothing was drawn. The tiles hold the pictures earlier frames
@@ -332,6 +343,72 @@ final class _ShadowMapNode extends RenderNode {
   }
 }
 
+/// The directional map as blurred exponential moments — `S2`.
+///
+/// **A node of its own after the map, not a step inside it.** The map is
+/// where `S1` combines the static and dynamic casters, and depth is what
+/// combines — the nearer of two wins. Moments do not, so they are made from
+/// the combined depth rather than drawn by the casters, and the light shafts
+/// and the debug views keep reading the depth they always read.
+///
+/// **Refused, not faked, on a device that cannot filter a 32-bit float
+/// target**: [supported] is false there, `FrameResult.skipped` names this
+/// pass with `PassSkip.unsupported`, nothing provides the moments, and the
+/// lit draws fall back to the 3×3 kernel.
+final class _ShadowMomentsNode extends RenderNode {
+  _ShadowMomentsNode(this._renderer, this.settings);
+
+  final Renderer _renderer;
+  final ShadowSettings settings;
+
+  /// The bundle's filter stage, or null for a bundle built before it.
+  ShaderHandle? get _filter => _renderer.shaders['EvsmFilter'];
+
+  @override
+  String get name => 'shadow moments';
+
+  @override
+  bool get isActive =>
+      settings.enabled &&
+      settings.strength > 0.0 &&
+      settings.directionalFilter == ShadowFilter.evsm &&
+      _filter != null;
+
+  /// Asked only of a frame that wants the filter, so a device that cannot
+  /// filter the moments is reported as refusing them to the caller who
+  /// asked, and not to every frame that never did.
+  @override
+  bool get supported =>
+      settings.directionalFilter != ShadowFilter.evsm ||
+      _renderer.device.supportsFloat32Filtering;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.shadowMap];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.shadowMoments,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    // Only a map this frame drew, for the reason `SceneShadows.from` gives:
+    // its matrices are this frame's, and so must be what they project into.
+    final resources = frame.resources;
+    if (resources.originOf(FrameResourceIds.shadowMap) !=
+        ResourceOrigin.drawn) {
+      return;
+    }
+    final depth = resources.tryTexture(FrameResourceIds.shadowMap);
+    final filter = _filter;
+    if (depth == null || filter == null) return;
+    resources.provide(
+      FrameResourceIds.shadowMoments,
+      _renderer._renderShadowMoments(depth, settings, filter),
+    );
+  }
+}
+
 /// One reflection probe, as a graph node: six captures and a chain.
 ///
 /// **Maintained, not written**, like the cube atlases and for the same
@@ -389,6 +466,9 @@ final class _ReflectionProbeNode extends RenderNode {
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
     FrameResourceIds.shadowMap,
+    // `S2`: what the lit draws sample in the map's place under the `evsm`
+    // filter.
+    FrameResourceIds.shadowMoments,
     FrameResourceIds.cubeShadow,
     FrameResourceIds.cubeShadowStatic,
   ];
@@ -484,6 +564,16 @@ final class _ReflectionProbeNode extends RenderNode {
 /// one submit — which is why the views are held here rather than derived from
 /// [NodeFrame], and why the node cannot be split per view without splitting the
 /// pass with it.
+///
+/// **It brings two nodes with it — `M3`.** On a frame that holds a
+/// transmissive draw the scene splits into this pass, a [copy] of what it
+/// drew, and a [transparent] pass that draws the glass over the copy and the
+/// transparent half after it; see `renderer_transmission_pass.dart`. Both are
+/// built here, from the same scene and views, and registered beside this
+/// node whatever the frame holds, so their names are always known; on any
+/// other frame they are inactive and culled. A contributor that reads the
+/// scene's depth — soft particles — splits the frame the same way, without
+/// the copy: see [PassContributor.readsSceneDepth].
 final class _SceneNode extends RenderNode {
   _SceneNode(
     this._renderer, {
@@ -492,7 +582,22 @@ final class _SceneNode extends RenderNode {
     required this.contributors,
     required this.shadowCaster,
     required this.lightOverflow,
-  });
+  }) {
+    final transmits = _TransmissionPasses._holdsTransmission(scene, ordered);
+    // A contributor that reads the scene's depth splits the frame too, and
+    // for the same reason: what it reads is an attachment of this pass. It
+    // needs no copy of the colour, so that node stays as the glass has it.
+    final readsDepth = contributors.any((c) => c.readsSceneDepth);
+    copy = _SceneColourCopyNode(_renderer, active: transmits);
+    transparent = _TransparentNode(
+      _renderer,
+      scene: scene,
+      contributors: contributors,
+      active: transmits || readsDepth,
+      readsDepth: readsDepth,
+      samples: optionalReads,
+    );
+  }
 
   final Renderer _renderer;
   final Scene scene;
@@ -510,12 +615,20 @@ final class _SceneNode extends RenderNode {
   /// What the pass counted, for the frame's own report.
   _ScenePass? result;
 
+  /// The copy of the scene the transmissive draws read, and the pass that
+  /// draws them over it — `M3`.
+  late final _SceneColourCopyNode copy;
+  late final _TransparentNode transparent;
+
   @override
   String get name => 'scene';
 
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
     FrameResourceIds.shadowMap,
+    // `S2`: what the lit draws sample in the map's place under the `evsm`
+    // filter.
+    FrameResourceIds.shadowMoments,
     FrameResourceIds.cubeShadow,
     FrameResourceIds.cubeShadowStatic,
     // Every probe the scene holds, by index. Optional for the reason the maps
@@ -523,6 +636,9 @@ final class _SceneNode extends RenderNode {
     // the world still draws.
     for (var i = 0; i < scene.probes.length; i++)
       FrameResourceIds.reflectionProbe(i),
+    // `L4`: the irradiance atlas the GPU keeps, for the same reason — the
+    // lit draws read it when it is there and the bake when it is not.
+    FrameResourceIds.irradianceAtlas,
   ];
 
   /// **Both names always, including on a device that cannot attach the
@@ -536,9 +652,13 @@ final class _SceneNode extends RenderNode {
   /// belongs on the *consumers*, where it is one more reason a pass did not
   /// run. See `RenderNode.supported` and `PassSkip.unsupported`.
   @override
-  List<ResourceId> get writes => const <ResourceId>[
+  List<ResourceId> get writes => <ResourceId>[
     FrameResourceIds.hdrColour,
     FrameResourceIds.surfaceBuffer,
+    // `L5`: always named, as the surface buffer is, and provided only where
+    // the device attached it — a reader that can do without takes it as an
+    // optional read and gets null on a device that opens two.
+    FrameResourceIds.albedoBuffer,
   ];
 
   /// The probes this frame produced, out of the resources this node declared.
@@ -589,8 +709,15 @@ final class _SceneNode extends RenderNode {
     // refuses, which the refusal turned into a throw. The pass attaches what
     // the device can open; the optional reader gets null and declines, which
     // is what optional means.
+    // `L5`: the third attachment on the same terms. The stages write it at
+    // location two, so reading it attaches the surface buffer as well, which
+    // keeps the attachments consecutive.
+    final albedoIsRead =
+        resources.graph.isConsumed(FrameResourceIds.albedoBuffer) &&
+        _renderer.device.maxColorAttachments > 2;
     final surfaceIsRead =
-        resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) &&
+        (resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) ||
+            albedoIsRead) &&
         _renderer.device.maxColorAttachments > 1;
 
     // Every map this pass samples, taken from the frame rather than from the
@@ -619,19 +746,168 @@ final class _SceneNode extends RenderNode {
         _renderer._surfaceColor ?? hdr,
       );
     }
+    if (albedoIsRead) {
+      resources.provide(FrameResourceIds.albedoBuffer, _renderer._albedoColor!);
+    }
 
-    result = _renderer._encodeScene(
+    // `M3`: split only when the pass that draws the second half is in this
+    // frame. Asked of the compiled order rather than of the node, because a
+    // caller can switch the pass off, and then this one draws everything.
+    final split = resources.graph.order.contains(transparent);
+    final probes = _probesFrom(resources);
+    final pass = result = _renderer._encodeScene(
       scene: scene,
       ordered: ordered,
       settings: frame.settings,
       width: frame.width,
       height: frame.height,
       shadows: shadows,
-      probes: _probesFrom(resources),
+      probes: probes,
       passState: frame.state,
       lightOverflowCount: lightOverflow,
       contributors: contributors,
       surfaceIsRead: surfaceIsRead,
+      albedoIsRead: albedoIsRead,
+      split: split,
+    );
+    if (pass.deferred case final views?) {
+      transparent.split = _SceneSplit(
+        views: views,
+        shadows: shadows,
+        probes: probes,
+        surfaceIsRead: surfaceIsRead,
+        albedoIsRead: albedoIsRead,
+      );
+    }
+  }
+}
+
+/// The scene as the opaque half left it, in levels for the transmissive
+/// draws to read — `M3`. Active only on a frame that holds one; see
+/// `renderer_transmission_pass.dart`.
+final class _SceneColourCopyNode extends RenderNode {
+  _SceneColourCopyNode(this._renderer, {required this.active});
+
+  final Renderer _renderer;
+
+  /// Whether the frame holds a transmissive draw.
+  final bool active;
+
+  @override
+  String get name => 'scene colour copy';
+
+  @override
+  bool get isActive => active;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.sceneColour,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final source = frame.resources.texture(FrameResourceIds.hdrColour);
+    _renderer._encodeSceneColourCopy(
+      source: source,
+      target: frame.resources.texture(FrameResourceIds.sceneColour),
+      chain: SceneColourChain(source.width, source.height),
+    );
+  }
+}
+
+/// The second half of a split scene — `M3`: the glass over the copy of what
+/// is behind it, then the transparent half and the contributors, into the
+/// scene's own targets, loaded.
+///
+/// A link in the chain of each of the scene's three targets: it reads the
+/// colour and writes the next version, and writes the next version of the
+/// two buffers the glass draws itself into. Those two are written rather
+/// than read, because a read would count as a consumer and attach both on
+/// every split frame; they are provided only when the scene pass attached
+/// them, which is the answer it hands over in [split].
+final class _TransparentNode extends RenderNode {
+  _TransparentNode(
+    this._renderer, {
+    required this.scene,
+    required this.contributors,
+    required this.active,
+    required this.readsDepth,
+    required this.samples,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final List<PassContributor> contributors;
+
+  /// Whether the frame holds a transmissive draw, or a contributor that
+  /// reads the scene's depth.
+  final bool active;
+
+  /// Whether a contributor reads the scene's depth — which is the surface
+  /// buffer, so this pass then reads it as well as writing it, and that read
+  /// is what has the scene pass attach it. Optional: on a device with one
+  /// attachment there is none, and the contributor draws without it.
+  final bool readsDepth;
+
+  /// What the scene pass samples, which the glass samples too: declared
+  /// again here so every one of them lives until this pass has run.
+  final List<ResourceId> samples;
+
+  /// What the scene pass kept for this one, handed over when it ran split.
+  _SceneSplit? split;
+
+  @override
+  String get name => 'transparent';
+
+  @override
+  bool get isActive => active;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  /// The copy, optional: switched off, the glass reads the environment.
+  @override
+  List<ResourceId> get optionalReads => <ResourceId>[
+    FrameResourceIds.sceneColour,
+    if (readsDepth) FrameResourceIds.surfaceBuffer,
+    ...samples,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+    FrameResourceIds.albedoBuffer,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resources = frame.resources;
+    final hdr = _renderer._hdrColor!;
+    resources.provide(FrameResourceIds.hdrColour, hdr);
+    final split = this.split;
+    if (split == null) return;
+    if (split.surfaceIsRead) {
+      resources.provide(
+        FrameResourceIds.surfaceBuffer,
+        _renderer._surfaceColor ?? hdr,
+      );
+    }
+    if (split.albedoIsRead) {
+      resources.provide(FrameResourceIds.albedoBuffer, _renderer._albedoColor!);
+    }
+    _renderer._encodeTransparentHalf(
+      scene: scene,
+      split: split,
+      settings: frame.settings,
+      width: frame.width,
+      height: frame.height,
+      passState: frame.state,
+      contributors: contributors,
+      sceneColour: resources.tryTexture(FrameResourceIds.sceneColour),
     );
   }
 }
@@ -680,7 +956,7 @@ base mixin _NeedsSurfaceBuffer on RenderNode {
 /// asking why reflections did not run got no answer, because with the
 /// setting off there was no node to have an answer about.
 final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
-  _ReflectionsNode(this._renderer, this._view, this._settings);
+  _ReflectionsNode(this._renderer, this._view, this._settings, this._scene);
 
   @override
   Renderer get owner => _renderer;
@@ -688,6 +964,9 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   final Renderer _renderer;
   final RenderView _view;
   final RenderSettings _settings;
+
+  /// For its environment, whose reflection a hit replaces.
+  final Scene _scene;
 
   @override
   String get name => 'reflections';
@@ -708,6 +987,7 @@ final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   void execute(NodeFrame frame) {
     final lit = _renderer._encodeReflections(
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      sceneGraph: _scene,
       settings: frame.settings,
       view: _view,
       width: frame.width,
@@ -749,10 +1029,26 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
       _settings.ambientOcclusion.enabled &&
       _settings.ambientOcclusion.strength > 0.0;
 
+  bool get _indirect =>
+      _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssil;
+
+  // `L5`: the indirect method bounces the lit scene, so it reads it.
   @override
-  List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.surfaceBuffer,
-  ];
+  List<ResourceId> get reads => _indirect
+      ? const <ResourceId>[
+          FrameResourceIds.surfaceBuffer,
+          FrameResourceIds.hdrColour,
+        ]
+      : const <ResourceId>[FrameResourceIds.surfaceBuffer];
+
+  // And the albedo buffer, for the indirect light and for the horizon
+  // method's bounces. A device with two attachments cannot give it: there
+  // the one takes a neutral grey and the other no bounces.
+  @override
+  List<ResourceId> get optionalReads =>
+      _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssao
+      ? const <ResourceId>[]
+      : const <ResourceId>[FrameResourceIds.albedoBuffer];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
@@ -770,6 +1066,12 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
       surface: surface,
       options: _settings.ambientOcclusion,
       view: _view,
+      scene: _indirect
+          ? frame.resources.tryTexture(FrameResourceIds.hdrColour)
+          : null,
+      albedo: _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssao
+          ? null
+          : frame.resources.tryTexture(FrameResourceIds.albedoBuffer),
     );
   }
 }
@@ -836,6 +1138,411 @@ final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
       view: _view,
       toLight: toLight,
     );
+  }
+}
+
+/// `L4`: the irradiance field's probes, a few a frame, drawn and folded into
+/// the atlas the lit stages read.
+///
+/// After the shadows, which the capture samples, and before the scene, which
+/// reads the atlas — the same place a reflection probe stands, for the same
+/// reasons.
+final class _IrradianceUpdateNode extends RenderNode {
+  _IrradianceUpdateNode(
+    this._renderer, {
+    required this.scene,
+    required this.shadowCaster,
+    required this.clearColor,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final int shadowCaster;
+  final vm.Vector4 clearColor;
+
+  @override
+  String get name => 'irradiance update';
+
+  @override
+  bool get isActive {
+    final field = scene.irradianceField;
+    return field != null && _renderer._updatesIrradianceOnGpu(field);
+  }
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    // `S2`: what the lit draws sample in the map's place under the `evsm`
+    // filter.
+    FrameResourceIds.shadowMoments,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.irradianceAtlas,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final field = scene.irradianceField!;
+    developer.Timeline.startSync('Renderer.irradianceUpdate');
+    _renderer._updateIrradiance(
+      field: field,
+      resources: frame.resources,
+      scene: scene,
+      settings: frame.settings,
+      shadows: SceneShadows.from(frame, casterIndex: shadowCaster),
+      passState: frame.state,
+      clearColor: clearColor,
+    );
+    developer.Timeline.finishSync();
+    frame.resources.provide(
+      FrameResourceIds.irradianceAtlas,
+      _renderer._irradianceGpu!.atlas.current,
+    );
+  }
+}
+
+/// `R1`'s camera velocity, as the producer of the velocity resource.
+///
+/// Active while temporal anti-aliasing or motion blur (`R6`) is on, the two
+/// readers of what it writes, and reading the surface buffer is what
+/// switches that buffer on — and multisampling off — for a frame that asked
+/// for either.
+final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
+  _CameraVelocityNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'camera velocity';
+
+  @override
+  bool get isActive => _settings._wantsVelocity;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeCameraVelocity(
+      target: frame.resources.texture(FrameResourceIds.velocity),
+      surface: surface,
+      view: _view,
+    );
+  }
+}
+
+/// `R1`'s object velocity: the nodes that moved, drawn over the camera's.
+///
+/// A link in the velocity chain rather than a second producer: it reads the
+/// camera's version and writes the next into the same texture, loading what
+/// is there. The surface buffer is its depth test — see
+/// `renderer_velocity_pass.dart`.
+final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ObjectVelocityNode(this._renderer, this._view, this._settings, this._scene);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final Scene _scene;
+
+  @override
+  String get name => 'object velocity';
+
+  @override
+  bool get isActive => _settings._wantsVelocity;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
+
+  @override
+  void execute(NodeFrame frame) {
+    final velocity = frame.resources.texture(FrameResourceIds.velocity);
+    // The same texture carries on as the next version: this pass draws over
+    // it rather than into a new one.
+    frame.resources.provide(FrameResourceIds.velocity, velocity);
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeObjectVelocity(
+      target: velocity,
+      surface: surface,
+      scene: _scene,
+      view: _view,
+      settings: _settings,
+      width: frame.width,
+      height: frame.height,
+    );
+  }
+}
+
+/// `R4`'s reactive mask: what blends, marked over the velocity for the
+/// resolve to keep less history under.
+///
+/// Another link in the velocity chain, after the object velocity, loading
+/// what is there and adding into blue alone. Active only while
+/// `TemporalSettings.reactive` is above nought, so a resolve without it reads
+/// the velocity exactly as the two passes before left it.
+final class _ReactiveNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ReactiveNode(this._renderer, this._view, this._settings, this._scene);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final Scene _scene;
+
+  @override
+  String get name => 'reactive mask';
+
+  @override
+  bool get isActive =>
+      _settings.antiAlias.temporal.enabled &&
+      _settings.antiAlias.temporal.reactive > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
+
+  @override
+  void execute(NodeFrame frame) {
+    final velocity = frame.resources.texture(FrameResourceIds.velocity);
+    frame.resources.provide(FrameResourceIds.velocity, velocity);
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeReactive(
+      target: velocity,
+      surface: surface,
+      scene: _scene,
+      view: _view,
+      settings: _settings,
+      contributors: _renderer.contributors.active.toList(growable: false),
+      width: frame.width,
+      height: frame.height,
+    );
+  }
+}
+
+/// `R3`: a noisy effect carried into its own history, as a link in that
+/// effect's chain.
+///
+/// Reads the effect's version so far and the velocity, and writes the next
+/// version: the blend, which is the renderer's own history texture. With
+/// the effect off, nothing produced the version it reads and the graph
+/// culls this too.
+final class _AccumulateNode extends RenderNode {
+  _AccumulateNode(
+    this._renderer,
+    this._view,
+    this._settings,
+    this._resource,
+    this.name,
+  );
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final ResourceId _resource;
+
+  @override
+  final String name;
+
+  @override
+  bool get isActive =>
+      _settings.antiAlias.temporal.enabled &&
+      _renderer.device.maxColorAttachments > 1;
+
+  @override
+  List<ResourceId> get reads => <ResourceId>[
+    _resource,
+    FrameResourceIds.velocity,
+  ];
+
+  @override
+  List<ResourceId> get writes => <ResourceId>[_resource];
+
+  @override
+  void execute(NodeFrame frame) {
+    final blended = _renderer._encodeAccumulate(
+      resource: _resource,
+      current: frame.resources.texture(_resource),
+      velocity: frame.resources.texture(FrameResourceIds.velocity),
+      view: _view,
+    );
+    frame.resources.provide(_resource, blended);
+  }
+}
+
+/// `R2`'s temporal resolve, as a link in the lit-colour chain.
+///
+/// Reads this frame's scene, its velocity and its surface buffer, and writes
+/// the next version of the lit colour — the resolved picture, at the output's
+/// size, which is also the history the next frame reads. So the history is
+/// provided under both names: as the lit colour for bloom and the composite,
+/// and as [FrameResourceIds.temporalHistory], which it keeps.
+final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
+  _TemporalResolveNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'temporal resolve';
+
+  @override
+  bool get isActive => _settings.antiAlias.temporal.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.temporalHistory,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resolved = _renderer._encodeTemporalResolve(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      velocity: frame.resources.texture(FrameResourceIds.velocity),
+      surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
+      view: _view,
+      settings: _settings,
+      outputWidth: frame.width,
+      outputHeight: frame.height,
+    );
+    frame.resources
+      ..provide(FrameResourceIds.hdrColour, resolved)
+      ..provide(FrameResourceIds.temporalHistory, resolved);
+  }
+}
+
+/// `S4`'s volumetric fog, as a link in the lit-colour chain.
+///
+/// **Reads the shadow map optionally, and unlike the shafts it does not
+/// decline without one.** Fog is a medium before it is a shadow-map product:
+/// with no caster the sun, if there is one, lights all of it, and the
+/// clustered lights and the ambient light it regardless. What it cannot go
+/// without is the surface buffer, which says where each ray stops.
+final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
+  _VolumetricFogNode(
+    this._renderer,
+    this._view,
+    this._settings,
+    this._toLight,
+    this._radiance,
+  );
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  /// Towards the light the air scatters as its sun, and its colour times
+  /// intensity; null when nothing directional lights the scene.
+  final vm.Vector3? _toLight;
+  final vm.Vector3? _radiance;
+
+  @override
+  String get name => 'volumetric fog';
+
+  @override
+  bool get isActive =>
+      _settings.volumetricFog.enabled &&
+      _settings.volumetricFog.density > 0.0 &&
+      _settings.volumetricFog.steps > 0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  /// The occlusion and the contact shadow as well, unconditionally for the
+  /// composite's reason: their nodes know whether they are on. The fog lays
+  /// them on the surface before the air, so a crease darkens the wall and not
+  /// the air in front of it. The cube atlas too, so a torch behind a wall
+  /// lights no air on this side of it.
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+    FrameResourceIds.ao,
+    FrameResourceIds.contactShadow,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    final fogged = _renderer._encodeVolumetricFog(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      surface: surface,
+      shadow: frame.resources.tryTexture(FrameResourceIds.shadowMap),
+      pointShadow: frame.resources.tryTexture(FrameResourceIds.cubeShadow),
+      pointShadowStatic: frame.resources.tryTexture(
+        FrameResourceIds.cubeShadowStatic,
+      ),
+      ao: frame.resources.tryTexture(FrameResourceIds.ao),
+      contactShadow: frame.resources.tryTexture(FrameResourceIds.contactShadow),
+      renderSettings: _settings,
+      settings: _settings.volumetricFog,
+      view: _view,
+      resources: frame.resources,
+      width: frame.width,
+      height: frame.height,
+      toLight: _toLight,
+      radiance: _radiance,
+    );
+    // A different texture from the one it read, handed on as the shafts do.
+    frame.resources.provide(FrameResourceIds.hdrColour, fogged);
   }
 }
 
@@ -938,12 +1645,15 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
 /// is computed from. Declaring it is what attaches the buffer, the same way
 /// the occlusion pass's declaration does.
 final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
-  _DepthOfFieldNode(this._renderer, this._settings);
+  _DepthOfFieldNode(this._renderer, this._view, this._settings);
 
   @override
   Renderer get owner => _renderer;
 
   final Renderer _renderer;
+
+  /// Whose projection the lens is made to agree with.
+  final RenderView _view;
   final RenderSettings _settings;
 
   @override
@@ -975,6 +1685,7 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       surface: surface,
       settings: _settings.depthOfField,
+      view: _view,
       resources: frame.resources,
       width: frame.width,
       height: frame.height,
@@ -982,6 +1693,73 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
     // A different texture from the one it read — a pass cannot sample and
     // write one — so the version it produced is told which texture it is.
     frame.resources.provide(FrameResourceIds.hdrColour, focused);
+  }
+}
+
+/// The two readers of the velocity buffer — `R1`, `R6` — which is what
+/// decides whether the passes that fill it run at all.
+extension _VelocityReaders on RenderSettings {
+  /// Whether [_MotionBlurNode] has anything to do: no shutter or less than a
+  /// pixel of streak is a sharp frame.
+  bool get _blursMotion =>
+      motionBlur.enabled &&
+      motionBlur.shutterFraction > 0.0 &&
+      motionBlur.maxRadius >= 1.0;
+
+  bool get _wantsVelocity => antiAlias.temporal.enabled || _blursMotion;
+}
+
+/// `R6`'s motion blur, as a link in the lit-colour chain.
+///
+/// **After the lens and before the temporal resolve.** A streak is what the
+/// exposure did with the light the lens already bent, so the lens goes
+/// first; and the resolve blends each frame's blurred picture into the
+/// history the way it would blend a sharp one, which is also what smooths
+/// the gather's noise.
+///
+/// Reads the velocity hard: with the setting on, the velocity nodes run
+/// whether or not the resolve does, so the read is always satisfied on a
+/// device that can attach the surface buffer they are built from.
+final class _MotionBlurNode extends RenderNode with _NeedsSurfaceBuffer {
+  _MotionBlurNode(this._renderer, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'motion blur';
+
+  @override
+  bool get isActive => _settings._blursMotion;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    // A hard read, so this should not happen — and the velocity next to it
+    // was reconstructed from this buffer, so without it there is no motion
+    // worth trusting either.
+    if (surface == null) return;
+    final blurred = _renderer._encodeMotionBlur(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      velocity: frame.resources.texture(FrameResourceIds.velocity),
+      surface: surface,
+      settings: _settings.motionBlur,
+      resources: frame.resources,
+    );
+    frame.resources.provide(FrameResourceIds.hdrColour, blurred);
   }
 }
 
@@ -1100,6 +1878,67 @@ final class _SsaoBlurNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// The contact shadow averaged over its own dither, for a frame no temporal
+/// resolve smooths.
+///
+/// **Why only then.** Without the resolve the march is jittered by a fixed
+/// 4 x 4 pattern and every pixel keeps the hard answer its own offset found,
+/// so a shadow edge carries the pattern as a comb. With the resolve on, the
+/// march reads blue noise and `_AccumulateNode` averages it over frames; a
+/// spatial pass on top would only blur what the history already smooths.
+///
+/// A read-modify-write link like [_SsaoBlurNode], and for its reason: it
+/// produces the next version of `contactShadow`, so the composite and the fog
+/// bind whichever version is last without knowing whether this ran.
+final class _ContactShadowResolveNode extends RenderNode
+    with _NeedsSurfaceBuffer {
+  _ContactShadowResolveNode(this._renderer, this._settings, this._toLight);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  /// The same light [_ContactShadowNode] marches toward: without one the
+  /// march does not run and there is nothing here to resolve.
+  final vm.Vector3? _toLight;
+
+  @override
+  String get name => 'contact shadow resolve';
+
+  @override
+  bool get isActive =>
+      !_renderer._temporalEffects &&
+      _settings.contactShadows.enabled &&
+      _settings.contactShadows.strength > 0.0 &&
+      _settings.contactShadows.length > 0.0 &&
+      _settings.contactShadows.steps > 0 &&
+      _toLight != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.contactShadow,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.contactShadow,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeContactShadowResolve(
+      source: frame.resources.texture(FrameResourceIds.contactShadow),
+      surface: surface,
+      resources: frame.resources,
+    );
+  }
+}
+
 /// The bloom pyramid, as a graph node.
 ///
 /// The first pass in the frame whose output the graph **allocates**: everything
@@ -1187,6 +2026,8 @@ final class _CompositeNode extends RenderNode {
     // unconditional read: its node knows whether it is on, and the graph
     // answering null is what "nobody produced it" looks like — `gfx-76n`.
     FrameResourceIds.contactShadow,
+    // `R7`: unconditional, for the occlusion's reason.
+    FrameResourceIds.localExposure,
     // Only when it is going to show it. An unconditional read would make
     // the buffer look wanted on every frame, and what wants it is what
     // decides whether the scene pass attaches it at all.
@@ -1205,6 +2046,9 @@ final class _CompositeNode extends RenderNode {
     // `RenderSettings.showStaticShadowMap`: there are two, the lighting
     // shader samples both, and only one of them had ever been looked at.
     if (_settings.showStaticShadowMap) FrameResourceIds.cubeShadowStatic,
+    // `R1`'s debug view, declared only when it is asked for, for the reason
+    // the surface buffer is.
+    if (_settings.showVelocity) FrameResourceIds.velocity,
   ];
 
   @override
@@ -1231,13 +2075,20 @@ final class _CompositeNode extends RenderNode {
     // stay the renderer's: a pooled one would be handed back while the
     // compositor was still reading it. So the composite draws into scratch
     // and the pass after it draws into the frame.
-    final smoothing = _settings.antiAlias.enabled;
+    // The antialias node's own condition, sharpening after a resolve
+    // included — `R2`.
+    final temporal = _settings.antiAlias.temporal;
+    final smoothing =
+        _settings.antiAlias.enabled ||
+        (temporal.enabled && temporal.sharpen > 0.0) ||
+        // `R5`: the upscale reads the composite's picture and writes its own.
+        _renderer._upscales(_settings);
     final target = smoothing
         ? frame.resources.transient(
             RenderTargetSpec(
               width: frame.width,
               height: frame.height,
-              format: _renderer.device.defaultColorFormat,
+              format: _renderer._frameFormat,
             ),
           )
         : _renderer._ldrColor!;
@@ -1253,6 +2104,7 @@ final class _CompositeNode extends RenderNode {
       // than a flag this pass was handed.
       ao: frame.resources.tryTexture(FrameResourceIds.ao),
       contactShadow: frame.resources.tryTexture(FrameResourceIds.contactShadow),
+      localExposure: frame.resources.tryTexture(FrameResourceIds.localExposure),
       surface: _showsSurface
           ? frame.resources.tryTexture(FrameResourceIds.surfaceBuffer)
           : null,
@@ -1267,6 +2119,9 @@ final class _CompositeNode extends RenderNode {
           : _settings.showShadowMap
           ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
                 frame.resources.tryTexture(FrameResourceIds.shadowMap)
+          : null,
+      velocity: _settings.showVelocity
+          ? frame.resources.tryTexture(FrameResourceIds.velocity)
           : null,
       sceneGraph: _scene,
       views: _views,
@@ -1296,16 +2151,24 @@ final class _CompositeNode extends RenderNode {
 /// renderer's, because a pooled one would be handed back to the pool while
 /// the compositor was still sampling it.
 final class _FxaaNode extends RenderNode {
-  _FxaaNode(this._renderer, this._settings);
+  _FxaaNode(this._renderer, this._settings, {this.upscaleSharpen = 0.0});
 
   final Renderer _renderer;
   final AntiAliasSettings _settings;
 
+  /// The sharpening a spatial upscale asks for — `R5` — nought otherwise.
+  final double upscaleSharpen;
+
   @override
   String get name => 'antialias';
 
+  /// On for the edges, or for the sharpening a temporal resolve asks for —
+  /// `R2` — which rides in this pass for the four taps it shares.
   @override
-  bool get isActive => _settings.enabled;
+  bool get isActive =>
+      _settings.enabled ||
+      (_settings.temporal.enabled && _settings.temporal.sharpen > 0.0) ||
+      upscaleSharpen > 0.0;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
@@ -1319,7 +2182,108 @@ final class _FxaaNode extends RenderNode {
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = _renderer._ldrColor!;
     frame.resources.provide(FrameResourceIds.frame, target);
-    _renderer._encodeFxaa(target: target, source: source, settings: _settings);
+    _renderer._encodeFxaa(
+      target: target,
+      source: source,
+      settings: _settings,
+      upscaleSharpen: upscaleSharpen,
+    );
+    developer.Timeline.finishSync();
+  }
+}
+
+/// The local exposure, measured and blurred — `R7`.
+///
+/// Three draws at an eighth of the frame: the weights of the three
+/// exposures, then a wide blur across and a wide blur down, the second of
+/// which writes the exposure in stops. The composite reads the result.
+final class _LocalExposureNode extends RenderNode {
+  _LocalExposureNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'local exposure';
+
+  @override
+  bool get isActive =>
+      _settings.localExposure.enabled &&
+      _settings.localExposure.strength > 0.0 &&
+      _renderer.shaders['LocalExposure'] != null &&
+      _renderer.shaders['LocalExposureBlur'] != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.localExposure,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.localExposure');
+    _renderer._encodeLocalExposure(
+      target: frame.resources.texture(FrameResourceIds.localExposure),
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      options: _settings.localExposure,
+      resources: frame.resources,
+      // The frame's exposure rather than each view's: the weights are one
+      // texture across all views.
+      exposure: _renderer._exposureFor(_settings),
+    );
+    frame.state.drawCalls += 3;
+    developer.Timeline.finishSync();
+  }
+}
+
+/// The finished picture brought up to the asked-for size — `R5`.
+///
+/// Registered after the composite and before the sharpening, so it reads the
+/// tone-mapped picture the composite drew at the scene's size and hands the
+/// next node one at the output's. Into the renderer's own finished-frame
+/// texture when nothing follows, for the reason [_FxaaNode] gives; into
+/// scratch when the sharpening does.
+final class _EasuNode extends RenderNode {
+  _EasuNode(this._renderer, this._settings, this._next);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+  final _FxaaNode _next;
+
+  @override
+  String get name => 'spatial upscale';
+
+  @override
+  bool get isActive => _renderer._upscales(_settings);
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.spatialUpscale');
+    final source = frame.resources.texture(FrameResourceIds.frame);
+    final target = _next.isActive
+        ? frame.resources.transient(
+            RenderTargetSpec(
+              width: frame.width,
+              height: frame.height,
+              format: _renderer._frameFormat,
+            ),
+          )
+        : _renderer._ldrColor!;
+    frame.resources.provide(FrameResourceIds.frame, target);
+    _renderer._encodeEasu(
+      target: target,
+      source: source,
+      grain: math.max(_settings.look.grain, 0.0),
+    );
+    frame.state.drawCalls++;
     developer.Timeline.finishSync();
   }
 }
@@ -1372,6 +2336,75 @@ final class _LuminanceNode extends RenderNode {
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
     );
     _renderer._meterExposure(target, _settings, views: _views);
+    frame.state.drawCalls++;
+  }
+}
+
+/// The depth pyramid, as a graph node, and the readback that feeds hi-Z
+/// occlusion — `C3`.
+///
+/// Reads the surface buffer the scene wrote and reduces its depth into a
+/// fixed 256 × 128 target; then asks for the bytes, which land in the
+/// renderer's [HiZOcclusion] and are reprojected by the next frames' scene
+/// passes. A frame output while it is active, for the luminance node's
+/// reason: its consumer is a readback the graph cannot see.
+///
+/// Its read of the surface buffer is a hard one, so on a device that cannot
+/// attach the buffer the node is culled with it and the occlusion test simply
+/// never gets a reading. One view only: the buffer is the whole frame's, and
+/// with a second view in it no one camera saw all of it.
+final class _DepthPyramidNode extends RenderNode {
+  _DepthPyramidNode(this._renderer, this._view, this._settings, this._views);
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final int _views;
+
+  @override
+  String get name => 'depth pyramid';
+
+  @override
+  bool get isActive =>
+      _settings.occlusion == OcclusionMode.hiZ &&
+      !_settings.wireframe &&
+      _views == 1 &&
+      _fillsFrame(_view.viewportFraction);
+
+  /// Whether a view covers the whole frame, which is the only view the
+  /// reduction's cells line up with.
+  static bool _fillsFrame(ViewportRect rect) =>
+      rect.x == 0.0 && rect.y == 0.0 && rect.width == 1.0 && rect.height == 1.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.depthPyramid,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final target = frame.resources.texture(FrameResourceIds.depthPyramid);
+    final camera = _view.camera;
+    _renderer._encodeDepthPyramid(
+      target: target,
+      surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
+      far: camera.projection.far,
+    );
+    final rect = Renderer._viewportPixels(
+      _view.viewportFraction,
+      frame.width,
+      frame.height,
+    );
+    _renderer._readDepthPyramid(
+      target,
+      camera: camera,
+      aspect: rect.width / rect.height,
+    );
     frame.state.drawCalls++;
   }
 }
@@ -1434,6 +2467,7 @@ final class _ScenePass {
     required this.submitMicros,
     this.msaaSamples = 1,
     this.msaaDeclined,
+    this.deferred,
   });
 
   final int culled;
@@ -1444,4 +2478,9 @@ final class _ScenePass {
   /// `gfx-20n`: samples the pass actually drew with, and why not more.
   final int msaaSamples;
   final String? msaaDeclined;
+
+  /// Each view's transmissive and transparent draws, kept for the transparent
+  /// pass on a frame split around a copy of the scene — `M3` — and null on
+  /// every other.
+  final List<_DeferredTransparency>? deferred;
 }

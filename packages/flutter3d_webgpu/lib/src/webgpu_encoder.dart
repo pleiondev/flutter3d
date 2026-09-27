@@ -62,35 +62,42 @@ import 'webgpu_types.dart';
 
 /// One pass, recorded and submitted.
 final class WebGpuEncoder implements CommandEncoder {
-  WebGpuEncoder(this._device, RenderPassDescriptor descriptor)
-    : _colorFormats = <String>[
-        for (final target in descriptor.colors)
-          gpuTextureFormat(target.texture.format)!,
-      ],
-      _blends = <BlendState?>[for (final _ in descriptor.colors) null],
-      _depthFormat = descriptor.depth == null
-          ? null
-          : gpuTextureFormat(descriptor.depth!.texture.format),
-      _sampleCount = descriptor.colors.isNotEmpty
-          ? descriptor.colors.first.texture.sampleCount
-          : (descriptor.depth?.texture.sampleCount ?? 1) {
+  WebGpuEncoder(
+    this._device,
+    RenderPassDescriptor descriptor, {
+    GPURenderPassTimestampWrites? timestampWrites,
+  }) : _colorFormats = <String>[
+         for (final target in descriptor.colors)
+           gpuTextureFormat(target.texture.format)!,
+       ],
+       _blends = <BlendState?>[for (final _ in descriptor.colors) null],
+       _depthFormat = descriptor.depth == null
+           ? null
+           : gpuTextureFormat(descriptor.depth!.texture.format),
+       _sampleCount = descriptor.colors.isNotEmpty
+           ? descriptor.colors.first.texture.sampleCount
+           : (descriptor.depth?.texture.sampleCount ?? 1) {
     final colors = <GPURenderPassColorAttachment>[
       for (final target in descriptor.colors) _colorAttachment(target),
     ];
     final depth = descriptor.depth;
     _encoder = _device.gpuDevice.createCommandEncoder();
-    _pass = _encoder.beginRenderPass(
-      depth == null
-          ? GPURenderPassDescriptor(
-              colorAttachments: colors.toJS,
-              label: 'flutter3d pass',
-            )
-          : GPURenderPassDescriptor.withDepth(
-              colorAttachments: colors.toJS,
-              depthStencilAttachment: _depthAttachment(depth),
-              label: 'flutter3d pass',
-            ),
-    );
+    final gpuDescriptor = depth == null
+        ? GPURenderPassDescriptor(
+            colorAttachments: colors.toJS,
+            label: descriptor.label ?? 'flutter3d pass',
+          )
+        : GPURenderPassDescriptor.withDepth(
+            colorAttachments: colors.toJS,
+            depthStencilAttachment: _depthAttachment(depth),
+            label: descriptor.label ?? 'flutter3d pass',
+          );
+    // `H2`: only when the device is timing this pass; the member left out is
+    // "none", and a null would be refused.
+    if (timestampWrites != null) {
+      gpuDescriptor.timestampWrites = timestampWrites;
+    }
+    _pass = _encoder.beginRenderPass(gpuDescriptor);
   }
 
   /// One colour attachment, with its resolve target where the store action asks
@@ -110,8 +117,16 @@ final class WebGpuEncoder implements CommandEncoder {
       level: target.mipLevel,
     );
     final clear = _colorOf(target.clearValue);
-    final load = gpuLoadOp(target.loadAction);
-    final store = gpuStoreOp(target.storeAction);
+    // A transient attachment is cleared and discarded whatever the pass
+    // asked — `H7`, and see [WebGpuTexture.transient].
+    final load = gpuAttachmentLoadOp(
+      target.loadAction,
+      transient: texture.transient,
+    );
+    final store = gpuAttachmentStoreOp(
+      target.storeAction,
+      transient: texture.transient,
+    );
     final resolve = target.resolveTexture;
     if (!gpuResolves(target.storeAction) || resolve == null) {
       return GPURenderPassColorAttachment(
@@ -136,30 +151,42 @@ final class WebGpuEncoder implements CommandEncoder {
   /// than a no-op, which is why the interop layer has two constructors and this
   /// asks `TextureFormatStencil.hasStencil` rather than always filling both.
   ///
-  /// The depth aspect is cleared on entry and stored on exit. The contract says
-  /// every pass in this engine clears and discards, and discarding is what a
-  /// tiler saves bandwidth by; there is no tile memory here to save, and a
-  /// stored depth buffer is one a debugger can look at.
+  /// The depth aspect is loaded or cleared as the descriptor says, and always
+  /// stored. Discarding is what a tiler saves bandwidth by; there is no tile
+  /// memory here to save, and a stored depth buffer is one a debugger can look
+  /// at — and one a later pass may load, which `R8`'s transparent passes do.
   static GPURenderPassDepthStencilAttachment _depthAttachment(
     DepthTarget target,
   ) {
-    final view = (target.texture.backend as WebGpuTexture).attachmentView();
+    final texture = target.texture.backend as WebGpuTexture;
+    final view = texture.attachmentView();
+    final depthLoadOp = gpuLoadOp(target.loadAction);
+    // Stored unless it is a transient attachment, which WebGPU will only
+    // discard — `H7`: tile memory is exactly the saving the paragraph above
+    // says there is none of on an ordinary texture.
+    final depthStore = texture.transient ? 'discard' : 'store';
     if (!target.texture.format.hasStencil) {
       return GPURenderPassDepthStencilAttachment.depthOnly(
         view: view,
         depthClearValue: target.clearValue,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
+        depthLoadOp: depthLoadOp,
+        depthStoreOp: depthStore,
       );
     }
     return GPURenderPassDepthStencilAttachment(
       view: view,
       depthClearValue: target.clearValue,
-      depthLoadOp: 'clear',
-      depthStoreOp: 'store',
+      depthLoadOp: depthLoadOp,
+      depthStoreOp: depthStore,
       stencilClearValue: StencilState.narrowReference(target.stencilClearValue),
-      stencilLoadOp: gpuLoadOp(target.stencilLoadAction),
-      stencilStoreOp: gpuStoreOp(target.stencilStoreAction),
+      stencilLoadOp: gpuAttachmentLoadOp(
+        target.stencilLoadAction,
+        transient: texture.transient,
+      ),
+      stencilStoreOp: gpuAttachmentStoreOp(
+        target.stencilStoreAction,
+        transient: texture.transient,
+      ),
     );
   }
 
@@ -393,6 +420,9 @@ final class WebGpuEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
     final stage = shader.backend as WebGpuShader;
     final block = stage.blockNamed(blockName);
     if (block == null) return false;
@@ -442,25 +472,25 @@ final class WebGpuEncoder implements CommandEncoder {
   /// in GLSL and two in WGSL, as it is in Vulkan and Metal, so the reflection
   /// carries the pair and this splits the bind across them.
   ///
-  /// A slot the translator dropped is ignored rather than refused, which is
-  /// what the WebGL2 backend does for the same reason: the engine gates its
-  /// call sites on what a material's lighting model declares, and a stage that
-  /// legitimately optimised a sampler away is not a caller mistake.
+  /// False for a slot this stage does not declare, as the contract says, and
+  /// never a throw: a stage that optimised a sampler away is not a caller
+  /// mistake, and the caller that did make one is told by the return value.
   ///
   /// A null [sampler] is `SamplerOptions.linearRepeat` — the contract's
   /// default, not the constructor's, which is nearest and clamp and which cost
   /// a third backend two percent of every textured golden before the rule was
   /// written down.
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
+    if (!shader.mayBindSampler(slot)) return false;
     final stage = shader.backend as WebGpuShader;
     final declared = stage.samplerNamed(slot);
-    if (declared == null) return;
+    if (declared == null) return false;
 
     final backend = texture.backend as WebGpuTexture;
     assert(
@@ -479,6 +509,7 @@ final class WebGpuEncoder implements CommandEncoder {
     )[declared.samplerBinding] = _device.samplerFor(
       sampler ?? SamplerOptions.linearRepeat,
     );
+    return true;
   }
 
   @override
@@ -637,7 +668,17 @@ final class WebGpuEncoder implements CommandEncoder {
       entryPoint: webgpuEntryPoint,
       targets: <GPUColorTargetState>[
         for (var i = 0; i < _colorFormats.length; i++)
-          if (_blends[i] case final BlendState blend)
+          // A target the stage writes nothing to is left as it was, which is
+          // what the other backends do with it and the only thing WebGPU
+          // accepts: a non-zero mask over a missing output invalidates the
+          // pipeline, and the command buffer that draws with it. Blending is
+          // left off there too, since there is nothing to blend.
+          if (!(pipeline.fragmentOutputs?.contains(i) ?? true))
+            GPUColorTargetState.opaque(
+              format: _colorFormats[i],
+              writeMask: GpuColorWrite.none,
+            )
+          else if (_blends[i] case final BlendState blend)
             GPUColorTargetState(
               format: _colorFormats[i],
               blend: _blendStateOf(blend),

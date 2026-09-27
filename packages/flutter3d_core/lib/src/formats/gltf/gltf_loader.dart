@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
@@ -9,7 +10,8 @@ import '../asset_resolver.dart';
 import '../draco/draco.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
-import '../texture_transform_bake.dart';
+import '../splat/splat_cloud.dart';
+import '../srgb.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
@@ -30,6 +32,7 @@ part 'gltf_loader_mesh.dart';
 // why.
 part 'gltf_loader_scene.dart';
 part 'gltf_loader_skins.dart';
+part 'gltf_loader_splats.dart';
 
 /// Decodes glTF 2.0 and GLB into engine geometry.
 ///
@@ -122,14 +125,23 @@ final class GltfLoader implements ModelDecoder {
     final materials = _decodeMaterials(json, warnings);
     final lights = _decodeLights(json, warnings);
     final cameras = _decodeCameras(json, warnings);
+    final variants = _decodeVariants(json);
     final graph = _decodeScene(
       json,
       reader,
       warnings,
       lights.length,
       cameras.length,
+      (variants: variants.length, materials: materials.length),
     );
-    final animations = _decodeAnimations(json, reader, graph.nodes, warnings);
+    final animations = _decodeAnimations(
+      json,
+      reader,
+      graph.nodes,
+      warnings,
+      materialCount: materials.length,
+      lightCount: lights.length,
+    );
     final skins = _decodeSkins(json, reader, graph.nodes.length, warnings);
 
     final assetBlock = json['asset'];
@@ -148,10 +160,12 @@ final class GltfLoader implements ModelDecoder {
       warnings: warnings,
       nodes: graph.nodes,
       roots: graph.roots,
+      splats: graph.splats,
       animations: animations,
       skins: skins,
       lights: lights,
       cameras: cameras,
+      variants: variants,
       asset: generator is String || documentExtras != null
           ? DocumentAsset(
               generator: generator is String ? generator : null,
@@ -161,22 +175,48 @@ final class GltfLoader implements ModelDecoder {
     );
   }
 
+  /// The root's `KHR_materials_variants.variants`, by name. A variant with
+  /// no name — the extension requires one — is called by its index, so a
+  /// primitive's mapping to it still has something to select it by.
+  List<String> _decodeVariants(Map<String, Object?> json) {
+    final extensions = json['extensions'];
+    final block = extensions is Map
+        ? extensions['KHR_materials_variants']
+        : null;
+    if (block is! Map) return const <String>[];
+    final variants = _mapList(block['variants']);
+    return <String>[
+      for (var i = 0; i < variants.length; i++)
+        switch (variants[i]['name']) {
+          final String name => name,
+          _ => 'variant $i',
+        },
+    ];
+  }
+
   void _checkRequiredExtensions(Map<String, Object?> json) {
     final required = json['extensionsRequired'];
     if (required is! List) return;
 
-    // Only what something downstream actually reads. `KHR_texture_transform`
-    // was on this list and nothing anywhere applied a transform: an
-    // atlas-packed model — the export that needs it — passed the gate and
-    // then drew every material sampling the whole atlas. A file that requires
-    // it is still refused here, because requiring it promises every transform
-    // in the file and only some can be kept: one shared by a material's
-    // textures is honoured in the coordinates by whoever draws the surface,
-    // and textures that disagree are not, which `_decodeMaterials` warns
-    // about. A file that merely uses it loads.
+    // Only what something downstream actually reads.
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
+      // `M1`: shaded by the layered model — see `MaterialExtensions`, which
+      // also says which of their textures are carried and not drawn.
+      'KHR_materials_ior',
+      'KHR_materials_specular',
+      'KHR_materials_clearcoat',
+      // `M2`, the same way.
+      'KHR_materials_sheen',
+      'KHR_materials_anisotropy',
+      // `M3`: transmission sees the environment rather than the scene behind
+      // it — see `lib/pbr.glsl` — and a file that requires it still draws
+      // glass that looks like glass.
+      'KHR_materials_transmission',
+      'KHR_materials_volume',
+      'KHR_materials_dispersion',
+      'KHR_materials_iridescence',
       // Supported as far as the KTX2 reader goes — both Basis Universal
       // encodings, ETC1S and UASTC LDR, and a file's own BC/ETC2/ASTC where the
       // device samples them. A texture the reader still refuses (UASTC HDR, a
@@ -207,6 +247,22 @@ final class GltfLoader implements ModelDecoder {
       // have no buffer views to fall back on; refusing the extension here
       // refused all of them.
       'KHR_draco_mesh_compression',
+      // `C1`: a splat primitive becomes a `ModelSplat` beside the surfaces —
+      // see `gltf_loader_splats.dart` for which text of it this follows.
+      'KHR_gaussian_splatting',
+      // `M4`: variants become `ModelSurface.variantMaterials` and
+      // `ModelInstance.selectVariant`; a pointer channel becomes a track
+      // on a material or light property. A pointer to a property the engine
+      // does not animate is skipped with a warning naming it, which costs
+      // that one channel rather than the file.
+      'KHR_materials_variants',
+      'KHR_animation_pointer',
+      // `C8`: every transform in the file is kept. One a material's textures
+      // share is honoured in the coordinates by whoever draws the surface;
+      // textures that disagree are read each through its own matrix at the
+      // sampler, by the layered model — see `ModelAsset.fromDocument`, which
+      // warns about the one case left, a material another model draws.
+      'KHR_texture_transform',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),
@@ -294,6 +350,18 @@ Vector3? _vec3(Object? value) {
     _asDouble(value[2]) ?? 0.0,
   );
 }
+
+/// glTF's `baseColorFactor`, which is linear, as the authored tint
+/// [SurfaceMaterial.baseColor] holds — see `srgb.dart`. Alpha is not a colour
+/// and passes through.
+Vector4? _authoredTint(Vector4? linear) => linear == null
+    ? null
+    : Vector4(
+        linearToSrgb(linear.x),
+        linearToSrgb(linear.y),
+        linearToSrgb(linear.z),
+        linear.w,
+      );
 
 Vector4? _vec4(Object? value) {
   if (value is! List || value.length < 4) return null;

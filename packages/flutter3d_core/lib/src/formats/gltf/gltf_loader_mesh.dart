@@ -18,6 +18,7 @@ extension _GltfMesh on GltfLoader {
     int meshIndex,
     GltfAccessorReader reader,
     List<String> warnings,
+    _VariantScope variantScope,
   ) {
     final primitives = _mapList(mesh['primitives']);
     final result = <_DecodedPrimitive>[];
@@ -38,6 +39,11 @@ extension _GltfMesh on GltfLoader {
     for (var i = 0; i < primitives.length; i++) {
       final primitive = primitives[i];
       final label = 'meshes[$meshIndex].primitives[$i]';
+
+      // A splat primitive is POINTS by rule and is read by
+      // `_decodeMeshSplats` instead; warning here that points are not drawn
+      // would be wrong about it.
+      if (_splatExtensionOf(primitive) != null) continue;
 
       final modeCode = _asInt(primitive['mode']) ?? 4;
       final GltfPrimitiveMode mode;
@@ -137,6 +143,12 @@ extension _GltfMesh on GltfLoader {
               materialIndex: decoded.materialIndex,
               authoredAttributes: decoded.authoredAttributes,
               meshName: meshName is String ? meshName : null,
+              variantMaterials: _variantMappings(
+                primitive,
+                label,
+                variantScope,
+                warnings,
+              ),
             ),
           );
         }
@@ -214,7 +226,27 @@ extension _GltfMesh on GltfLoader {
         ? null
         : reader.readAsFloats(texcoordAccessor);
 
-    final tangentAccessor = wantsTangent ? usable('TANGENT', vec4) : null;
+    // glTF: "When normals are not specified, client implementations MUST
+    // calculate flat normals and the provided tangents (if present) MUST be
+    // ignored." A tangent authored against normals the file does not carry
+    // need not be perpendicular to the face normal built below, nor have its
+    // handedness, so it is dropped and generated on the rebuilt mesh instead.
+    // The same holds when flat normals are switched off: the zero normal left
+    // there has no frame for an authored tangent to belong to either.
+    final tangentsIgnored =
+        wantsTangent &&
+        wantsNormal &&
+        normals == null &&
+        attributes['TANGENT'] != null;
+    if (tangentsIgnored) {
+      warnings.add(
+        '$label has TANGENT but no usable NORMAL; the tangents were ignored '
+        'and generated instead.',
+      );
+    }
+    final tangentAccessor = wantsTangent && !tangentsIgnored
+        ? usable('TANGENT', vec4)
+        : null;
     final tangents = tangentAccessor == null
         ? null
         : reader.readAsFloats(tangentAccessor);
@@ -435,8 +467,16 @@ extension _GltfMesh on GltfLoader {
         VertexLayout.weights.name,
       ],
     };
+
+    // MikkTSpace may copy a vertex that sits on a mirrored UV seam, so the
+    // count the morph targets are checked against is the one from before,
+    // and the copies are given their source's deltas below.
+    final builtVertexCount = mesh.vertexCount;
+    var copiedFrom = Uint32List(0);
     if (wantsTangent && tangents == null) {
-      mesh = mesh.withGeneratedTangents(target: primitiveLayout);
+      final generated = mesh.generateTangents(target: primitiveLayout);
+      mesh = generated.mesh;
+      copiedFrom = generated.copiedFrom;
     }
 
     // Last, because `withGeneratedTangents` returns a fresh mesh and would drop
@@ -447,12 +487,16 @@ extension _GltfMesh on GltfLoader {
         targets: targets,
         targetNames: targetNames,
         sourceVertexCount: vertexCount,
-        builtVertexCount: mesh.vertexCount,
+        builtVertexCount: builtVertexCount,
         split: needsFlatNormals,
         reader: reader,
         warnings: warnings,
       );
-      if (morphs.isNotEmpty) mesh = mesh.withMorphTargets(morphs);
+      if (morphs.isNotEmpty) {
+        mesh = mesh.withMorphTargets(<MorphTarget>[
+          for (final morph in morphs) _withCopies(morph, copiedFrom),
+        ]);
+      }
     }
 
     return _DecodedPrimitive(
@@ -546,6 +590,27 @@ String? _supplyDraco({
   }
 }
 
+/// [morph] grown to cover the vertices tangent generation appended: each copy
+/// moves exactly as the vertex it was copied from, which is what keeps the
+/// two sides of a split seam together while the shape blends.
+MorphTarget _withCopies(MorphTarget morph, Uint32List copiedFrom) {
+  if (copiedFrom.isEmpty) return morph;
+  Float32List? grown(Float32List? deltas) => deltas == null
+      ? null
+      : Float32List.fromList(<double>[
+          ...deltas,
+          for (final source in copiedFrom)
+            ...deltas.sublist(source * 3, source * 3 + 3),
+        ]);
+  return MorphTarget(
+    vertexCount: morph.vertexCount + copiedFrom.length,
+    positions: grown(morph.positions)!,
+    normals: grown(morph.normals),
+    tangents: grown(morph.tangents),
+    name: morph.name,
+  );
+}
+
 /// Reads a primitive's morph targets, or says why it could not.
 ///
 /// **Only where the built vertices are the file's vertices.** A target is a
@@ -624,16 +689,70 @@ List<MorphTarget> _readMorphTargets({
   return read;
 }
 
+/// How many variants the root declares and how many materials there are, so
+/// a primitive's `KHR_materials_variants` mappings can be checked against
+/// both before a surface is built from them.
+typedef _VariantScope = ({int variants, int materials});
+
+/// [primitive]'s `KHR_materials_variants` mappings as variant → material.
+///
+/// The file says it the other way round — each mapping is one material and
+/// the variants that choose it — which is the shape an author edits and the
+/// wrong one to look up at runtime. A variant named by two mappings keeps the
+/// first, with a warning: the extension forbids it, and the first is what a
+/// reader walking the list in order would have picked anyway.
+Map<int, int>? _variantMappings(
+  Map<String, Object?> primitive,
+  String label,
+  _VariantScope scope,
+  List<String> warnings,
+) {
+  final extensions = primitive['extensions'];
+  final block = extensions is Map ? extensions['KHR_materials_variants'] : null;
+  if (block is! Map) return null;
+
+  final byVariant = <int, int>{};
+  for (final mapping in _mapList(block['mappings'])) {
+    final material = _asInt(mapping['material']);
+    if (material == null || material < 0 || material >= scope.materials) {
+      warnings.add(
+        '$label maps variants to material $material, which does not exist; '
+        'that mapping skipped.',
+      );
+      continue;
+    }
+    for (final variant in _intList(mapping['variants'])) {
+      if (variant < 0 || variant >= scope.variants) {
+        warnings.add(
+          '$label maps variant $variant, which the file does not declare; '
+          'skipped.',
+        );
+      } else if (byVariant.containsKey(variant)) {
+        warnings.add(
+          '$label maps variant $variant twice; the first mapping is kept.',
+        );
+      } else {
+        byVariant[variant] = material;
+      }
+    }
+  }
+  return byVariant;
+}
+
 final class _DecodedPrimitive {
   const _DecodedPrimitive({
     required this.mesh,
     required this.materialIndex,
     required this.authoredAttributes,
     this.meshName,
+    this.variantMaterials,
   });
 
   final MeshData mesh;
   final int? materialIndex;
   final Set<String> authoredAttributes;
   final String? meshName;
+
+  /// See [ModelSurface.variantMaterials]; null for a primitive with none.
+  final Map<int, int>? variantMaterials;
 }

@@ -217,6 +217,17 @@ final class LightBuffer {
 
   static const int _kCandidateStride = 6;
 
+  /// [candidateData], read by the light clusters — `L6`.
+  Float32List get candidateData => _candidateData;
+
+  /// Floats per candidate in [candidateData].
+  static const int candidateStride = _kCandidateStride;
+
+  /// Which candidate of the table each packed slot holds, the first [count]
+  /// meaningful — `L6`. The clusters list candidates too, and a light a draw
+  /// already has in a slot must not be counted twice.
+  final Int32List slotCandidates = Int32List(maxLights);
+
   /// Which candidates the current pack chose, and how strongly each scored.
   ///
   /// Hot-loop scratch: [gatherNear] runs once per draw, and a fresh pair of
@@ -287,7 +298,7 @@ final class LightBuffer {
     collect(lights);
     _reset();
     for (var i = 0; i < candidates.length && _count < maxLights; i++) {
-      _pack(candidates[i]);
+      _pack(candidates[i], candidate: i);
     }
     _overflow = candidates.length - _count;
   }
@@ -446,6 +457,7 @@ final class LightBuffer {
     for (var i = 0; i < chosen; i++) {
       _pack(
         table.candidates[_chosen[i]],
+        candidate: _chosen[i],
         scale: fading ? _edgeFade(_chosenScore[i], rejected, ceiling) : 1.0,
       );
     }
@@ -496,7 +508,7 @@ final class LightBuffer {
     for (var i = 0; i < table.candidates.length && _count < maxLights; i++) {
       final light = table.candidates[i];
       if (!reaches(light, channels)) continue;
-      _pack(light);
+      _pack(light, candidate: i);
     }
     // Nothing is left waiting: what a channel excluded is not overflow, it is
     // a light that does not apply, and reporting it as pressure on the eight
@@ -669,7 +681,8 @@ final class LightBuffer {
   /// the shader and only one of them is a number nobody authored: dimming a
   /// light by writing a darker colour would show up in a debug view as a lamp
   /// somebody tinted.
-  void _pack(LightNode light, {double scale = 1.0}) {
+  void _pack(LightNode light, {double scale = 1.0, int candidate = -1}) {
+    slotCandidates[_count] = candidate;
     packed.add(light);
     final slot = _count * 4;
     light.readDirection(_direction);

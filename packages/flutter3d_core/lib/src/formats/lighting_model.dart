@@ -1,3 +1,5 @@
+import 'material_extensions.dart';
+
 /// A lighting model: one pre-built fragment shader and what the engine may
 /// bind to it.
 ///
@@ -29,6 +31,15 @@
 /// The truth is printed by `tool/build_shaders.sh` after every build, as a table
 /// of what each entry point actually kept. When this metadata and that table
 /// disagree, the table is right.
+///
+/// **And since 0.8.0 the table is what binds — `gfx-92n`.** Every backend hands
+/// the engine's own stages that table as `ShaderHandle.kept`, the renderer asks
+/// it first, and an encoder refuses anything it names as dropped. The binding
+/// flags below are the answer only for a stage the device cannot answer for —
+/// one from an application's own bundle, or a material language stage — and
+/// on the built-in models they are the fallback a device without the table
+/// would use. `usesMaterialParameters` and `usesMetallic` are not about
+/// binding at all: they tell an editor which controls do something.
 final class LightingModel {
   const LightingModel(
     this.label,
@@ -42,6 +53,7 @@ final class LightingModel {
     this.usesMetallic = false,
     this.usesEnvironment = false,
     this._usesLightList,
+    this._usesFogInfo,
     this.vertexStageMorphs = true,
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
@@ -101,6 +113,22 @@ final class LightingModel {
     vertexStageMorphs: false,
   );
 
+  /// An octahedral impostor's card — `C4`: its own `ImpostorVertex`, which
+  /// turns the card to the eye, and the `Impostor` stage, which reads the
+  /// albedo atlas from the base colour slot and the normal-depth atlas from
+  /// the normal map slot and lights the result diffusely.
+  ///
+  /// Absent from [builtIn] for the reason [polyline] is: it draws one kind of
+  /// geometry, and a picker offering it would offer to draw a cube as a card.
+  static const LightingModel impostor = LightingModel(
+    'Impostor',
+    'Impostor',
+    vertexShaderName: 'ImpostorVertex',
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+    vertexStageMorphs: false,
+  );
+
   static const LightingModel lambert = LightingModel(
     'Lambert',
     'Lambert',
@@ -113,6 +141,30 @@ final class LightingModel {
   static const LightingModel pbr = LightingModel(
     'PBR (GGX)',
     'Pbr',
+    usesMetallic: true,
+    usesEnvironment: true,
+  );
+
+  /// [pbr] with the layers glTF adds on top of it — `M1`–`M3`: a clear coat,
+  /// a specular strength and tint, an index of refraction, a sheen,
+  /// anisotropy, transmission through a volume, dispersion and a thin film.
+  /// See
+  /// `MaterialExtensions` for what each is.
+  ///
+  /// **A model of its own rather than a branch in [pbr]**, so a plain
+  /// metal-rough surface keeps its cost and its samplers: the layered stage
+  /// reads a block and a packed coat map the plain one never declares, and
+  /// the lit stages have two samplers left under WebGL2's sixteen. It is
+  /// `pbr.frag` compiled a second time with `F3D_LAYERED` defined, so the
+  /// two cannot drift apart below the layers. A loader hands it to a
+  /// material whose layers change its shading; with every layer at its
+  /// default it draws what [pbr] draws.
+  ///
+  /// Absent from [builtIn], for the reason [xray] is: it is not a choice a
+  /// picker offers, it is what a material's own layers ask for.
+  static const LightingModel pbrLayered = LightingModel(
+    'PBR (layered)',
+    'PbrLayered',
     usesMetallic: true,
     usesEnvironment: true,
   );
@@ -140,6 +192,20 @@ final class LightingModel {
     toon,
     normals,
   ];
+
+  /// The model a surface with [layers] is drawn with, when it asked for this
+  /// one: [pbrLayered] in place of [pbr] when a layer changes the shading,
+  /// and this model unchanged otherwise — `M1`. Every other model has no
+  /// layered form, and a surface that picked one keeps it.
+  ///
+  /// [textureTransforms] asks for the layered model too — `C8`: it is the
+  /// one that reads a transform per map at the sampler.
+  LightingModel withLayers(
+    MaterialExtensions? layers, {
+    bool textureTransforms = false,
+  }) => identical(this, pbr) && ((layers?.shades ?? false) || textureTransforms)
+      ? pbrLayered
+      : this;
 
   /// Shown in the UI.
   final String label;
@@ -230,6 +296,22 @@ final class LightingModel {
   /// such as one emitted from the material language, says `false`.
   bool get usesLightList => _usesLightList ?? usesMaterialMaps;
   final bool? _usesLightList;
+
+  /// Whether the shader reads the `FogInfo` block: the fog, the eye, and the
+  /// view axis the surface buffer measures depth along.
+  ///
+  /// `lib/color.glsl` declares it, so a stage that writes its colour through
+  /// `WriteSurface` keeps it whether or not it reads `FragInfo`. It was bound
+  /// only beside `FragInfo`, and a stage of one's own that reads no material
+  /// inputs was drawn with the block unbound: no fog, and a surface depth of
+  /// nought. WebGL2 named it at every draw of the `loaded-shader` golden.
+  ///
+  /// Defaults to [usesFragInfo], which is right for every model this package
+  /// ships; the engine's own stages are answered by their compiled bindings
+  /// anyway. A stage of one's own that includes `color.glsl` and skips
+  /// `FragInfo` says `true`.
+  bool get usesFogInfo => _usesFogInfo ?? usesFragInfo;
+  final bool? _usesFogInfo;
 
   /// Whether the material's own vertex stage declares the morph block and
   /// texture, and so has to be handed them on every draw.

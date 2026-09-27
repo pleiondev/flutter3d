@@ -93,15 +93,15 @@ UntitledSingleSelectEnumSchema _upAxis(String about) =>
       values: <String>[for (final a in UpAxis.values) a.name],
     );
 
-/// The three components [PoseJoint] can key — never `weights`, which the
-/// command itself refuses, so the schema does not offer a value guaranteed
-/// to fail.
+/// The three components [PoseJoint] can key — never `weights` or `pointer`,
+/// which the command itself refuses, so the schema does not offer a value
+/// guaranteed to fail.
 UntitledSingleSelectEnumSchema _posablePath(String about) =>
     UntitledSingleSelectEnumSchema(
       description: about,
       values: <String>[
         for (final p in AnimationPath.values)
-          if (p != AnimationPath.weights) p.name,
+          if (p != AnimationPath.weights && p != AnimationPath.pointer) p.name,
       ],
     );
 

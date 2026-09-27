@@ -200,6 +200,52 @@ void main() {
     }
   });
 
+  group('every later change is written in a CHANGELOG', () {
+    for (final Feature f in kCatalog.where(
+      (Feature f) => f.changes.isNotEmpty,
+    )) {
+      test(f.id, () {
+        // Mutation: list a page under a release whose CHANGELOG never says
+        // it changed, or under the release it arrived in. The site's
+        // changelog would then send a reader to a page for news it does not
+        // have.
+        String? previous;
+        for (final Change c in f.changes) {
+          expect(
+            compareVersions(c.version, f.since),
+            greaterThan(0),
+            reason: '${f.id}: a change at ${c.version} is not after ${f.since}',
+          );
+          if (previous != null) {
+            expect(
+              compareVersions(c.version, previous),
+              greaterThan(0),
+              reason: '${f.id}: changes are listed oldest first, once each',
+            );
+          }
+          previous = c.version;
+
+          final String path = '${_root.path}/${c.evidenceFile}';
+          expect(File(path).existsSync(), isTrue, reason: path);
+          final (String, String)? own = _sections(
+            _read(path),
+          ).where(((String, String) s) => s.$1 == c.version).firstOrNull;
+          expect(
+            own,
+            isNotNull,
+            reason: '${c.evidenceFile} has no "## ${c.version}"',
+          );
+          expect(
+            _squash(own!.$2).contains(_squash(c.evidence)),
+            isTrue,
+            reason: 'the evidence "${c.evidence}" is not under ## ${c.version}',
+          );
+          expect(c.note.trim(), isNotEmpty, reason: f.id);
+        }
+      });
+    }
+  });
+
   test('every category directory is declared as an asset', () {
     final String pubspec = _read('pubspec.yaml');
     for (final Category c in Category.values) {

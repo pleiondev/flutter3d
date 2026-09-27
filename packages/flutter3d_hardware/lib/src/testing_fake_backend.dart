@@ -14,9 +14,13 @@ import 'testing_fake_pass.dart';
 /// Withholding matters: `ParticleContributor` draws nothing when its stages are
 /// missing, and that path had never been exercised.
 final class FakeShaderLibrary implements ShaderLibrary {
-  FakeShaderLibrary({this.missing = const <String>{}});
+  FakeShaderLibrary({this.missing = const <String>{}, this.stageBindings});
 
   final Set<String> missing;
+
+  /// Handed to every stage as `ShaderHandle.kept`, the way a real backend
+  /// hands the compiled bundle's table — `gfx-92n`.
+  final Map<String, StageBindings>? stageBindings;
   final Map<String, ShaderHandle> _handles = <String, ShaderHandle>{};
 
   @override
@@ -24,7 +28,11 @@ final class FakeShaderLibrary implements ShaderLibrary {
       ? null
       : _handles.putIfAbsent(
           name,
-          () => ShaderHandle(backend: name, name: name),
+          () => ShaderHandle(
+            backend: name,
+            name: name,
+            kept: stageBindings?[name],
+          ),
         );
 }
 
@@ -83,6 +91,54 @@ final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
 
 /// A device that records rather than draws.
 final class FakeBackend implements GraphicsDevice {
+  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
+  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
+  // makes a caller take its fallback.
+
+  @override
+  bool get supportsGpuTimestamps => false;
+
+  @override
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+
+  @override
+  bool get supportsCompute => false;
+
+  @override
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  }) => throw UnsupportedError(_noCompute);
+
+  @override
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  ComputeEncoder beginComputePass({String? label}) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  static const String _noCompute =
+      'FakeBackend runs no compute: supportsCompute is false. Ask before '
+      'creating a storage buffer, a compute pipeline or a compute pass.';
+
+  @override
+  bool get supportsFloat32Filtering => false;
+
+  @override
+  bool get supportsIndependentBlend => false;
+
+  @override
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+
   FakeBackend({
     Set<String> missingShaders = const <String>{},
     this.supportsWireframe = true,
@@ -91,7 +147,25 @@ final class FakeBackend implements GraphicsDevice {
     this.unsupportedFormats = const <TextureFormat>{},
     this.maxAnisotropy = 16,
     this.maxColorAttachments = 2,
-  }) : shaders = FakeShaderLibrary(missing: missingShaders);
+    this.stageBindings,
+    this.framebufferOrigin = FramebufferOrigin.topLeft,
+  }) : shaders = FakeShaderLibrary(
+         missing: missingShaders,
+         stageBindings: stageBindings,
+       );
+
+  /// What each stage declares, by name, or null to accept every bind.
+  ///
+  /// Given it, every pass this device opens holds binds to the contract and
+  /// writes each declared slot a draw left unbound to [bindingViolations]. The
+  /// engine's own map is compiled from the real bundle: `stageBindings` in
+  /// `flutter3d_shaders`. This is what lets a missing or misdirected bind fail
+  /// on the VM instead of on the one backend that happens to crash on it.
+  final Map<String, StageBindings>? stageBindings;
+
+  /// Declared slots left unbound at a draw, across every pass. See
+  /// [stageBindings].
+  final List<String> bindingViolations = <String>[];
 
   /// Settable for the same reason [supportsWireframe] is: the case worth a
   /// test is the device that says no, where the x-ray stage has to draw
@@ -209,10 +283,12 @@ final class FakeBackend implements GraphicsDevice {
         )
       : null;
 
-  /// The engine's own convention, so a fake never exercises the remap. The
-  /// backends that need the other one are covered by running them.
+  /// The engine's own convention by default, so a fake never exercises the
+  /// remap. The backends that need the other one are covered by running
+  /// them; a test that pins what the engine hands such a backend asks for
+  /// [FramebufferOrigin.bottomLeft].
   @override
-  FramebufferOrigin get framebufferOrigin => FramebufferOrigin.topLeft;
+  final FramebufferOrigin framebufferOrigin;
 
   @override
   DepthRange get depthRange => DepthRange.zeroToOne;
@@ -481,7 +557,11 @@ final class FakeBackend implements GraphicsDevice {
       maxColorAttachments,
       backend: 'this fake device',
     );
-    final pass = FakePass(descriptor);
+    final pass = FakePass(
+      descriptor,
+      stageBindings: stageBindings,
+      violations: bindingViolations,
+    );
     passes.add(pass);
     return pass;
   }

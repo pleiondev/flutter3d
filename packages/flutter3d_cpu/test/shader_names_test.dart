@@ -33,7 +33,12 @@ void main() {
   });
 
   test('nothing is answered that the engine does not ask for', () {
-    final wanted = kRequiredShaders.map((s) => s.name).toSet();
+    // The compute stages too — `H6`: this backend computes, so it answers to
+    // them.
+    final wanted = <String>{
+      ...kRequiredShaders.map((s) => s.name),
+      ...kComputeShaders,
+    };
     final extra = builtinCpuShaders().keys.where((n) => !wanted.contains(n));
     expect(
       extra,
@@ -88,7 +93,12 @@ void main() {
           kUnimplementedCpuFragmentShaders.length,
       reason: 'a name appears on the list twice',
     );
-    final wanted = kRequiredShaders.map((s) => s.name).toSet();
+    // The compute stages too — `H6`: this backend computes, so it answers to
+    // them.
+    final wanted = <String>{
+      ...kRequiredShaders.map((s) => s.name),
+      ...kComputeShaders,
+    };
     expect(
       unimplemented.difference(wanted),
       isEmpty,

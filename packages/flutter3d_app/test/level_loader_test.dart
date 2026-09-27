@@ -150,6 +150,51 @@ void main() {
     },
   );
 
+  test('a device class reads its own light set, and the level itself when '
+      'there is none', () async {
+    // `N7`. Mutation: read `assetPath` alone in `_classDocument` — the phone
+    // level with its one lamp is never asked for.
+    final phoneLevel = _levelJson()..['lights'] = <Object?>[];
+    Future<({List<String> read, int lights})> load(
+      DeviceClass? deviceClass,
+      Map<String, Map<String, Object?>> documents,
+    ) async {
+      final read = <String>[];
+      final loaded = await const LevelLoader().load(
+        'levels/wall.json',
+        device: device,
+        registry: registry,
+        sidecars: false,
+        deviceClass: deviceClass,
+        readDocument: (AssetRequest request) async {
+          read.add(request.uri);
+          final document = documents[request.uri];
+          if (document == null) throw StateError('no ${request.uri}');
+          return jsonEncode(document);
+        },
+      );
+      return (read: read, lights: loaded.level.lights.length);
+    }
+
+    final both = <String, Map<String, Object?>>{
+      'levels/wall.json': _levelJson(),
+      'levels/wall.phone.json': phoneLevel,
+    };
+    final phone = await load(DeviceClass.phone, both);
+    expect(phone.read, <String>['levels/wall.phone.json']);
+    expect(phone.lights, 0);
+
+    final desktop = await load(DeviceClass.desktop, both);
+    expect(desktop.read, <String>[
+      'levels/wall.desktop.json',
+      'levels/wall.json',
+    ]);
+    expect(desktop.lights, 1);
+
+    final none = await load(null, both);
+    expect(none.read, <String>['levels/wall.json']);
+  });
+
   group('a lightmap', () {
     test('goes onto every brush batch as a second coordinate', () async {
       final level = _level();

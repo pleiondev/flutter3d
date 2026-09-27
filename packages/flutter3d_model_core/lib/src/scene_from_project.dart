@@ -255,7 +255,12 @@ MeshData _editedMeshDataFor(
       Uint32List.sublistView(plan.indices, 0, plan.triangleCount * 3),
     ),
   );
-  if (layout.has(VertexLayout.tangent)) drawn = drawn.withGeneratedTangents();
+  // Unsplit: the shape blend and the weight gradient below write the plan's
+  // rows by number, and a vertex copied onto the end for a mirrored seam
+  // would be a row neither of them knows about.
+  if (layout.has(VertexLayout.tangent)) {
+    drawn = drawn.withGeneratedTangents(splitSeams: false);
+  }
 
   if (blend) {
     drawn = _withShapeBlend(drawn, plan, mesh, object.shapeSet, layout);
@@ -487,13 +492,15 @@ Material _materialOf(ModelProject project, ModelObject object) {
   return Material(
     name: surface.name,
     lighting:
-        surface.lightingModel ??
-        (surface.unlit ? LightingModel.unlit : LightingModel.pbr),
+        (surface.lightingModel ??
+                (surface.unlit ? LightingModel.unlit : LightingModel.pbr))
+            .withLayers(surface.extensions),
     baseColor: surface.baseColor,
     metallic: surface.metallic,
     roughness: surface.roughness,
     emissive: surface.emissive,
     emissiveStrength: surface.emissiveStrength,
     doubleSided: surface.doubleSided,
+    extensions: surface.extensions,
   );
 }

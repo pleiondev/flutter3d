@@ -378,4 +378,75 @@ void main() {
     final high = grid.reduce((int a, int b) => a > b ? a : b);
     expect(high - low, greaterThan(25), reason: 'there is no shadow in it');
   });
+
+  test('a caster beyond the near cascade still shadows inside it', () async {
+    // A low sun behind a tower forty metres off: the tower's top is far out
+    // towards the light from anything the near cascade was fitted around, and
+    // its shadow runs all the way back to the camera's feet. The near
+    // cascade's depth used to start at its own sphere's edge, so the tower
+    // was cut by its near plane, and the floor in front of the camera, which
+    // that cascade shades, came back lit while one whole-scene map had the
+    // shadow there.
+    //
+    // Mutation: drop the reach towards the furthest caster in
+    // `_renderShadowMap`, leaving each near cascade its own depth.
+    ({Scene scene, CameraNode camera}) towerRoom() {
+      final room = _longRoom();
+      for (final node in room.scene.meshes.toList()) {
+        if (node.name == 'canopy') room.scene.remove(node);
+      }
+      for (final light in room.scene.lights) {
+        light.setLocalForward(Vector3(0.0, -0.35, -0.94)..normalize());
+      }
+      final device = CpuDevice(
+        width: 4,
+        height: 4,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      room.scene.add(
+        MeshNode(
+          DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3(3.0, 20.0, 3.0)).build(),
+          ),
+          Material(
+            name: 'tower',
+            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            lighting: LightingModel.pbr,
+          ),
+          name: 'tower',
+        )..setPosition(0.0, 10.0, 40.0),
+      );
+      return room;
+    }
+
+    final one = _shadowed(
+      await _grid(_engine(), towerRoom(), const ShadowSettings(cascades: 1)),
+    );
+    final three = _shadowed(
+      await _grid(_engine(), towerRoom(), const ShadowSettings(cascades: 3)),
+    );
+    // The lower third of the frame is the floor nearest the camera: the near
+    // cascade's ground.
+    final near = <int>{
+      for (
+        var i = kParityGrid * kParityGrid * 2 ~/ 3;
+        i < kParityGrid * kParityGrid;
+        i++
+      )
+        i,
+    };
+    expect(
+      one.intersection(near),
+      isNotEmpty,
+      reason: 'the tower does not reach the near floor even in one map',
+    );
+    expect(
+      three.intersection(near),
+      one.intersection(near),
+      reason:
+          'the near floor is shadowed by one whole-scene map and lit by the '
+          'near cascade: the tower is cut by that cascade\'s near plane',
+    );
+  });
 }

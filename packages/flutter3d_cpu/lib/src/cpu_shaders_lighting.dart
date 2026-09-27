@@ -12,6 +12,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
+import 'cpu_shaders_ltc.dart';
 import 'cpu_shaders_shadow_directional.dart';
 import 'cpu_shaders_shadow_point.dart';
 import 'cpu_shaders_surface.dart';
@@ -19,11 +20,74 @@ import 'cpu_shaders_surface.dart';
 /// `LightCount()`: the count lives in `frame_params.y`, not in a member of its
 /// own. Reading a member that does not exist is silent, which is how the first
 /// version of this file drew an unlit scene.
-int lightCount(ShaderBindings bindings) {
+int lightCount(ShaderBindings bindings, Vector3 world) {
   final params = bindings.vec4('FragInfo', 'frame_params', Vector4.zero());
   final list = bindings.vec4('LightListInfo', 'list', Vector4.zero());
+  // `L6`: the tail is the cell's, when the draw reads one.
+  // A draw with no list texture has `list.y` at nought and no cell to read,
+  // which keeps the ordinary draw at the one lookup it always made.
+  final tail = list.y > 0.0 && clustered(bindings)
+      ? clusterAt(bindings, world).count
+      : list.x;
   return (params.y + 0.5).floor().clamp(0, kMaxLights) +
-      (list.x + 0.5).floor().clamp(0, kExtraLights);
+      (tail + 0.5).floor().clamp(0, kExtraLights);
+}
+
+/// `Clustered` — `L6`.
+bool clustered(ShaderBindings bindings) =>
+    bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero()).w > 0.5;
+
+/// `FindCluster`: where the entries of [world]'s cell start, and how many.
+({double offset, double count}) clusterAt(
+  ShaderBindings bindings,
+  Vector3 world,
+) {
+  final m = bindings.mat4('LightListInfo', 'cluster_view_projection');
+  final grid = bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero());
+  final depth = bindings.vec4('LightListInfo', 'cluster_depth', Vector4.zero());
+  final clip = m.transformed(Vector4(world.x, world.y, world.z, 1.0));
+  final w = math.max(clip.w, 1e-6);
+  double cut(double at, double cells) =>
+      math.min(math.max((at * cells).floorToDouble(), 0.0), cells - 1.0);
+  final tx = cut(clip.x / w * 0.5 + 0.5, grid.x);
+  final ty = cut(clip.y / w * 0.5 + 0.5, grid.y);
+  final tz = clip.w <= depth.x
+      ? 0.0
+      : cut(math.log(clip.w / depth.x) * depth.y / grid.z, grid.z);
+  final cell = (tx + ty * grid.x + tz * grid.x * grid.y).round();
+  final header = lightListTexel(
+    bindings,
+    depth.z.round() + cell ~/ 4,
+    cell % 4,
+  );
+  return (offset: header.x, count: header.y);
+}
+
+/// `ClusterRow`: the row entry [slot] of [world]'s cell names.
+int clusterRow(ShaderBindings bindings, Vector3 world, int slot) {
+  final depth = bindings.vec4('LightListInfo', 'cluster_depth', Vector4.zero());
+  final entry = clusterAt(bindings, world).offset.round() + slot;
+  final four = lightListTexel(
+    bindings,
+    depth.w.round() + entry ~/ 16,
+    (entry % 16) ~/ 4,
+  );
+  return switch (entry % 4) {
+    0 => four.x,
+    1 => four.y,
+    2 => four.z,
+    _ => four.w,
+  }.round();
+}
+
+/// `InSlots`: whether one of the draw's slots already holds row [row].
+bool inSlots(ShaderBindings bindings, int row) {
+  for (var i = 0; i < kMaxLights; i++) {
+    if ((lightListLane(bindings, 'slot_rows', i) - row).abs() < 0.5) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /// `kExtraLights` in `lib/surface.glsl` — `gfx-74n`.
@@ -92,28 +156,58 @@ typedef LightSample = ({
   double nDotL,
   double nDotH,
   double vDotH,
+  // `L7`: the GGX lobe integrated over a rectangle, its norm and Fresnel
+  // term, when the model binds the LTC tables; null otherwise.
+  Vector3? ltc,
+  // The rectangle's corners relative to the shading point, for the clear
+  // coat's own integral — `g_rect_corners`; null for a punctual light.
+  List<Vector3>? corners,
 });
+
+/// `LambertEdge`: one edge of Lambert's sum, from [a] to [b], neither of
+/// which need be a unit vector.
+double _lambertEdge(Vector3 a, Vector3 b, Vector3 n) {
+  // A floor rather than `normalized`, for the GLSL's reason: a zero vector
+  // subtends nothing, and normalising it is a NaN.
+  final ua = a / math.max(a.length, 1e-12);
+  final ub = b / math.max(b.length, 1e-12);
+  // Clamped before the `acos`: rounding can put a dot a hair past one, and
+  // `acos` of that is a NaN that spreads to the whole pixel.
+  final angle = math.acos(ua.dot(ub).clamp(-1.0, 1.0));
+  final axis = ua.cross(ub);
+  final len = axis.length;
+  return len > 1e-6 ? angle * axis.dot(n) / len : 0.0;
+}
 
 /// `RectangleFormFactor` — `gfx-77n`.
 ///
 /// Lambert's polygon form factor, exact rather than fitted: each edge's
 /// subtended angle weighted by how much its plane leans into the normal, summed
-/// and halved. See the GLSL of the same name for why no table is shipped, and
-/// for why the sum is negated — the rectangle emits along
-/// `cross(halfWidth, halfHeight)` and this winding is clockwise seen from
-/// there.
+/// and halved, over the rectangle clipped to the surface's horizon. See the
+/// GLSL of the same name for why no table is shipped, why the clip is four
+/// trimmed edges and one along the horizon, and why the sum is negated — the
+/// rectangle emits along `cross(halfWidth, halfHeight)` and this winding is
+/// clockwise seen from there.
 double rectangleFormFactor(List<Vector3> corners, Vector3 n) {
   var total = 0.0;
+  var exit = Vector3.zero();
+  var entry = Vector3.zero();
   for (var i = 0; i < 4; i++) {
-    final a = corners[i].normalized();
-    final b = corners[(i + 1) & 3].normalized();
-    // Clamped before the `acos`: rounding can put a dot a hair past one, and
-    // `acos` of that is a NaN that spreads to the whole pixel.
-    final angle = math.acos(a.dot(b).clamp(-1.0, 1.0));
-    final axis = a.cross(b);
-    final len = axis.length;
-    if (len > 1e-6) total += angle * (axis..scale(1.0 / len)).dot(n);
+    final a = corners[i];
+    final b = corners[i == 3 ? 0 : i + 1];
+    final ha = a.dot(n);
+    final hb = b.dot(n);
+    final d = ha - hb;
+    final q = a + (b - a) * (d.abs() > 1e-12 ? ha / d : 0.0);
+    final aAbove = ha > 0.0;
+    final bAbove = hb > 0.0;
+    if (aAbove || bAbove) {
+      total += _lambertEdge(aAbove ? a : q, bAbove ? b : q, n);
+    }
+    if (aAbove && !bAbove) exit = q;
+    if (!aAbove && bAbove) entry = q;
   }
+  total += _lambertEdge(exit, entry, n);
   return math.max(-total * 0.5, 0.0);
 }
 
@@ -158,7 +252,14 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   // everything below this reads one shape.
   final fromList = index >= kMaxLights;
   final slot = index - kMaxLights;
-  final row = fromList ? lightListRow(bindings, slot).round() : -1;
+  // `L6`: from the cell, when the draw reads one; a light the slots already
+  // hold is skipped by its intensity.
+  final fromCell = fromList && clustered(bindings);
+  final row = !fromList
+      ? -1
+      : fromCell
+      ? clusterRow(bindings, s.world, slot)
+      : lightListRow(bindings, slot).round();
 
   final position = fromList
       ? lightListTexel(bindings, row, 0)
@@ -167,7 +268,9 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       ? (lightListTexel(bindings, row, 1)
           // The intensity and not the colour, for `_pack`'s own reason: the
           // same multiply, and only one of them is a number nobody authored.
-          ..w *= lightListScale(bindings, slot))
+          ..w *= fromCell
+              ? (inSlots(bindings, row) ? 0.0 : 1.0)
+              : lightListScale(bindings, slot))
       : bindings.vec4('FragInfo', 'light_color', Vector4.zero(), at: index);
   final direction = fromList
       ? lightListTexel(bindings, row, 2)
@@ -194,6 +297,9 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       toCentre + halfWidth + halfHeight,
       toCentre - halfWidth + halfHeight,
     ];
+    // One face emits: a point on the other side gets nothing, the test
+    // `SampleLight` makes before the form factor.
+    if (toCentre.dot(halfWidth.cross(halfHeight)) >= 0.0) return null;
     final formFactor = rectangleFormFactor(corners, s.normal);
     if (formFactor <= 0.0) return null;
 
@@ -229,6 +335,17 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       nDotL: formFactor,
       nDotH: math.max(s.normal.dot(h), 0.0),
       vDotH: math.max(s.view.dot(h), 0.0),
+      ltc: switch (bindings.textures['ltc_texture']) {
+        final table? => ltcRectangle(
+          table,
+          s.normal,
+          s.view,
+          s.roughness,
+          corners,
+        ),
+        null => null,
+      },
+      corners: corners,
     );
   }
 
@@ -279,6 +396,8 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
     nDotL: nDotL,
     nDotH: math.max(s.normal.dot(half), 0.0),
     vDotH: math.max(s.view.dot(half), 0.0),
+    ltc: null,
+    corners: null,
   );
 }
 
@@ -294,7 +413,7 @@ Vector3 accumulateLights(
   required bool shadowed,
 }) {
   var total = Vector3.zero();
-  final count = lightCount(b);
+  final count = lightCount(b, s.world);
   for (var i = 0; i < count; i++) {
     final light = sampleLight(b, i, s);
     if (light == null) continue;
@@ -303,7 +422,7 @@ Vector3 accumulateLights(
     // has no row to read and asking would index past the table.
     var visibility = 1.0;
     if (i < kMaxLights) {
-      visibility = shadowed ? shadowFactor(s, b, i, light.nDotL) : 1.0;
+      visibility = shadowed ? shadowFactor(s, b, i, light.nDotL, c) : 1.0;
       visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
     }
     if (visibility <= 0.0) continue;
@@ -315,4 +434,79 @@ Vector3 accumulateLights(
     )..scale(light.nDotL * visibility);
   }
   return total;
+}
+
+/// `ContributorLightCount` from `lib/contributor_lights.glsl` — `N6`: the
+/// slots a contributor's draw holds, and the list's tail or the cell's.
+int contributorLightCount(ShaderBindings bindings, Vector3 world) {
+  final slots = bindings.vec4('ContributorLightInfo', 'slots', Vector4.zero());
+  final list = bindings.vec4('LightListInfo', 'list', Vector4.zero());
+  final tail = list.y > 0.0 && clustered(bindings)
+      ? clusterAt(bindings, world).count
+      : list.x;
+  return (slots.x + 0.5).floor().clamp(0, kMaxLights) +
+      (tail + 0.5).floor().clamp(0, kExtraLights);
+}
+
+/// `ContributorLight` — `N6`: light [index] as [world] receives it, with no
+/// surface to face. A rectangle is read as a point at its centre, as the GLSL
+/// reads it.
+({Vector3 toLight, Vector3 radiance}) contributorLight(
+  ShaderBindings bindings,
+  int index,
+  Vector3 world,
+) {
+  const block = 'ContributorLightInfo';
+  final fromList = index >= kMaxLights;
+  final slot = index - kMaxLights;
+  final fromCell = fromList && clustered(bindings);
+  final row = !fromList
+      ? -1
+      : fromCell
+      ? clusterRow(bindings, world, slot)
+      : lightListRow(bindings, slot).round();
+
+  Vector4 read(String member, int column) => fromList
+      ? lightListTexel(bindings, row, column)
+      : bindings.vec4(block, member, Vector4.zero(), at: index);
+  final position = read('light_position', 0);
+  final colour = read('light_color', 1);
+  if (fromList) {
+    colour.w *= fromCell
+        ? (inSlots(bindings, row) ? 0.0 : 1.0)
+        : lightListScale(bindings, slot);
+  }
+  final direction = read('light_direction', 2);
+  final cone = read('light_cone', 3);
+
+  final type = position.w;
+  final directional = type < 0.5;
+  final offset = Vector3(position.x, position.y, position.z) - world;
+  final distance = offset.length;
+  final aim = Vector3(direction.x, direction.y, direction.z);
+  final aimLength = aim.length;
+  if (aimLength > 0.0) aim.scale(1.0 / aimLength);
+
+  final degenerate = !directional && distance < 1e-6;
+  final toLight = directional
+      ? -aim
+      : (offset..scale(1.0 / math.max(distance, 1e-6)));
+
+  final ratio = direction.w > 0.0 ? distance / direction.w : 0.0;
+  final window = (1.0 - ratio * ratio * ratio * ratio).clamp(0.0, 1.0);
+  final falloff = window * window / math.max(distance * distance, 1e-4);
+
+  final spot = type > 1.5 && type < 2.5;
+  final ramp = spot
+      ? ((aim.dot(-toLight) - cone.y) / math.max(cone.x - cone.y, 1e-4)).clamp(
+          0.0,
+          1.0,
+        )
+      : 1.0;
+
+  final attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
+  return (
+    toLight: toLight,
+    radiance: Vector3(colour.x, colour.y, colour.z) * (colour.w * attenuation),
+  );
 }

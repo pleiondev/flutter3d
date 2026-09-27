@@ -20,6 +20,7 @@
 #define SURFACE_GLSL_
 
 #include <lib/color.glsl>
+#include <lib/frag_coord.glsl>
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -46,77 +47,7 @@
 #define kExtraLights 24
 #define kTotalLights (kMaxLights + kExtraLights)
 
-/// Every light in the scene, one per row, four texels across — `gfx-74n`.
-///
-/// **A texture rather than a wider uniform block, and that is the design.**
-/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
-/// hold thirty-two lights would be a two-kilobyte upload per draw in every
-/// scene, including every scene with one light. This is built once a frame and
-/// only when a scene has more lights than a draw can hold in its slots.
-///
-/// Row layout, which `renderer_light_list.dart` writes and only this reads:
-///
-///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
-///  * texel 1 — rgb linear colour, w intensity
-///  * texel 2 — xyz the direction it points, w range
-///  * texel 3 — x cos(inner), y cos(outer), zw unused
-///
-/// The same four vectors the uniform arrays hold, in the same order, so one
-/// reader serves both.
-///
-/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
-/// lights. Such a model never reaches the reader below, so the compiler drops
-/// the block and the sampler from the Metal function while reflection still
-/// lists them, with no buffer or texture index assigned. The renderer used to
-/// bind them for every draw, Unlit included, and that bind is a crash inside
-/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
-/// without a word, which is how 0.7.0 shipped with it.
-#ifndef F3D_NO_LIGHT_LIST
-uniform sampler2D light_list_texture;
-
-uniform LightListInfo {
-  /// x: how many rows this draw reads, zero when it reads none.
-  /// y, z: one over the texture's width and height.
-  /// w: unused.
-  vec4 list;
-
-  /// Which rows, four to a vector, in the order they are read.
-  ///
-  /// Indices rather than the light data itself: the data is the same for every
-  /// draw in the frame and belongs in the texture; what differs per draw is
-  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
-  /// already decides.
-  vec4 indices[6];
-
-  /// How much of each of those survives the edge fade, in the same order.
-  ///
-  /// Per draw and not in the texture, because the row an index points at is
-  /// shared by every draw in the frame: a scale written into it would dim that
-  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
-  /// that is where a light stops contributing, and fading the slots against a
-  /// water line that no longer marks a cliff would dim a light for no reason
-  /// while its rival stayed bright, making the swap more visible rather than
-  /// less.
-  vec4 scales[6];
-}
-light_list_info;
-
-/// One lane of a six-vector table, [slot] counting from nought.
-float LightListLane(vec4 four, int slot) {
-  int lane = slot - (slot / 4) * 4;
-  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
-}
-
-/// The row light [slot] of the list reads.
-float LightListRow(int slot) {
-  return LightListLane(light_list_info.indices[slot / 4], slot);
-}
-
-/// How much of light [slot] of the list survives the edge fade.
-float LightListScale(int slot) {
-  return LightListLane(light_list_info.scales[slot / 4], slot);
-}
-#endif  // F3D_NO_LIGHT_LIST
+#include <lib/light_list.glsl>
 
 uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -134,7 +65,9 @@ uniform FragInfo {
   /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
 
-  /// rgb: emissive factor, already linear. w unused.
+  /// rgb: emissive factor, already linear. w: one when the normal map has
+  /// two channels (x, y) and its z is rebuilt — see `ApplyNormalMap`. It sits
+  /// here because this was the block's one unspent lane.
   vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
@@ -143,8 +76,9 @@ uniform FragInfo {
   /// x: metallic, y: roughness, z: ambient strength, w: specular strength.
   vec4 material;
 
-  /// x: alpha cutoff (negative when the material is not masked), y: normal
-  /// scale, z: occlusion strength, w: emissive strength.
+  /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
+  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
+  /// w: emissive strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -171,7 +105,9 @@ uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -195,8 +131,60 @@ uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. y: the mip bias every
+  /// material map is read with — `R2`: nought, except while a temporal
+  /// resolve reconstructs a picture larger than the scene is drawn at, when
+  /// the maps are read as sharp as the output they end up in. z: one when
+  /// the metal-rough model puts back the energy single scattering loses —
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
+  vec4 target_origin;
 }
 frag_info;
+
+/// The bias a material map is read with — see `target_origin.y`.
+float MaterialLodBias() { return frag_info.target_origin.y; }
+
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
 
 uniform sampler2D base_color_texture;
 
@@ -224,18 +212,27 @@ struct LightSample {
   float n_dot_l;
   float n_dot_h;
   float v_dot_h;
+
+  /// One when the specular below is already integrated over the light —
+  /// `L7`, a rectangle under a model that defines `F3D_LTC` — and nought
+  /// otherwise. Then `ltc.x` is the GGX lobe over the rectangle, `ltc.y` the
+  /// fitted norm and `ltc.z` the Fresnel term; see `LtcRectangle`.
+  float integrated;
+  vec3 ltc;
 };
 
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord);
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
              SrgbToLinear(frag_info.base_color.rgb) *
              v_color.rgb;
   s.alpha = texel.a * frag_info.base_color.a * v_color.a;
+  // `L5`: the albedo buffer carries it, for the indirect light.
+  g_albedo = s.albedo;
 
   // Alpha masking, glTF's third alpha mode. A negative cutoff means the
   // material is opaque or blended, and discard would then be wrong rather than
@@ -273,6 +270,10 @@ Surface ReadSurface() {
         sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
     if (s.alpha < noise) discard;
   }
+  // **Between -1 and nought is the blend mode**, which `WriteSurface` weights
+  // by its alpha: see [g_premultiply]. The engine writes -0.5 for it, -1 for
+  // opaque; neither is masked, and only the blend's source is premultiplied.
+  g_premultiply = cutoff < 0.0 && cutoff > -0.75;
 
   s.n = normalize(v_normal);
   // The back of a double-sided surface is lit from its own side: glTF asks
@@ -315,8 +316,14 @@ int LightCount() {
 #ifdef F3D_NO_LIGHT_LIST
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
 #else
+  // `L6`: the tail is the cell's, when the draw reads one.
+  float tail = light_list_info.list.x;
+  if (Clustered()) {
+    FindCluster(v_world_position);
+    tail = g_cluster_count;
+  }
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
-      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+      clamp(int(tail + 0.5), 0, kExtraLights);
 #endif
 }
 
@@ -344,18 +351,48 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// One edge of Lambert's sum, from [a] to [b], neither of which need be a
+/// unit vector: the angle between them times how much their plane leans into
+/// [n].
+float LambertEdge(vec3 a, vec3 b, vec3 n) {
+  // Normalised with a floor rather than `normalize`: a corner exactly at the
+  // shading point, or a horizon crossing that lands there, is a zero vector,
+  // and `normalize` of that is a NaN that spreads to the whole pixel and then
+  // to the bloom. A zero vector here subtends nothing, which is the answer.
+  vec3 ua = a / max(length(a), 1e-12);
+  vec3 ub = b / max(length(b), 1e-12);
+  // Clamped before the `acos`: two nearly parallel edge directions can give a
+  // dot a hair past one through rounding alone, and `acos` of that is the same
+  // NaN.
+  float angle = acos(clamp(dot(ua, ub), -1.0, 1.0));
+  vec3 axis = cross(ua, ub);
+  float len = length(axis);
+  // A degenerate edge — the shading point lies on the line through it —
+  // subtends nothing.
+  return len > 1e-6 ? angle * dot(axis, n) / len : 0.0;
+}
+
 /// How much of [s]'s sky a rectangle covers, weighted by the cosine —
 /// `gfx-77n`.
 ///
 /// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
 /// 1760: for each edge, the angle it subtends at the shading point times how
-/// much the edge's plane leans into the surface normal. Summed over four edges
-/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
-/// on the hemisphere — the quantity a punctual light approximates with a single
+/// much the edge's plane leans into the surface normal. Summed over the edges
+/// and halved, it is the integral of `cos θ` over the polygon's projection on
+/// the sphere — the quantity a punctual light approximates with a single
 /// `n · l`. So there is no table to ship and nothing to fit: the usual
 /// linearly-transformed-cosine approach exists to make the *specular* lobe
-/// tractable, and buys nothing here, where the diffuse answer is a closed form
-/// four `acos` calls long.
+/// tractable, and buys nothing here.
+///
+/// **Clipped to the horizon first.** Lambert's sum is signed: a part of the
+/// panel below the surface's horizon counts with a negative cosine and cancels
+/// light from the part above it, so a panel standing on the horizon read
+/// nought where half of it lights the surface. Irradiance wants the clamped
+/// cosine, and for a polygon that means cutting away what lies below before
+/// summing. A convex quadrilateral cut by a plane leaves one polygon with at
+/// most one edge leaving the hemisphere and one entering it, so the cut is the
+/// four edges trimmed where they cross plus one edge along the horizon from
+/// the exit back to the entry, with no list of vertices to build.
 ///
 /// Returns irradiance over radiance, so a surface facing a rectangle that fills
 /// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
@@ -370,23 +407,32 @@ float PunctualAttenuation(float distance, float range) {
 /// produces, and between them they name the sign with no room left to argue.
 float RectangleFormFactor(vec3 corners[4], vec3 n) {
   float total = 0.0;
+  vec3 exit = vec3(0.0);
+  vec3 entry = vec3(0.0);
   for (int i = 0; i < 4; i++) {
-    vec3 a = normalize(corners[i]);
-    vec3 b = normalize(corners[(i + 1) & 3]);
-    // Clamped before the `acos`: two nearly parallel edge directions can give a
-    // dot a hair past one through rounding alone, and `acos` of that is a NaN
-    // that spreads to the whole pixel and then to the bloom.
-    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
-    vec3 axis = cross(a, b);
-    float len = length(axis);
-    // A degenerate edge — the shading point lies on the line through it —
-    // subtends nothing, and normalising a zero vector is the other way to get
-    // that NaN.
-    if (len > 1e-6) total += angle * dot(axis / len, n);
+    vec3 a = corners[i];
+    vec3 b = corners[i == 3 ? 0 : i + 1];
+    float ha = dot(a, n);
+    float hb = dot(b, n);
+    // Where the edge meets the horizon; used only when it crosses it, and then
+    // the two heights differ in sign, so the division is safe.
+    float d = ha - hb;
+    vec3 q = a + (b - a) * (abs(d) > 1e-12 ? ha / d : 0.0);
+    bool aAbove = ha > 0.0;
+    bool bAbove = hb > 0.0;
+    total += aAbove || bAbove
+                 ? LambertEdge(aAbove ? a : q, bAbove ? b : q, n)
+                 : 0.0;
+    exit = aAbove && !bAbove ? q : exit;
+    entry = !aAbove && bAbove ? q : entry;
   }
-  // Clamped rather than tested separately: a surface on the panel's dark side,
-  // or facing away from it, comes out with the sign reversed, so "one-sided" is
-  // a property of the arithmetic instead of a flag somebody has to remember.
+  // The horizon edge closing the cut, from where the outline left the
+  // hemisphere to where it came back. Nothing when it never crossed: both are
+  // still zero and a zero vector subtends nothing.
+  total += LambertEdge(exit, entry, n);
+  // Clamped: a surface on the panel's dark side sees the outline wound the
+  // other way, and the clipped sum comes out negative. `SampleLight` tests the
+  // side as well, before any of this is paid for.
   return max(-total * 0.5, 0.0);
 }
 
@@ -437,13 +483,28 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
   return centre + halfWidth * u + halfHeight * v;
 }
 
+#ifdef F3D_LTC
+#include <lib/ltc.glsl>
+
+#ifdef F3D_LAYERED
+/// The corners of the rectangle [SampleLight] resolved last, relative to the
+/// shading point — `M1`. The clear coat integrates its own lobe over the same
+/// panel with its own normal and roughness, and those live in `pbr.glsl`,
+/// after this file; the loop shades each light straight after sampling it,
+/// so this is always the light being shaded.
+vec3 g_rect_corners[4];
+#endif  // F3D_LAYERED
+#endif  // F3D_LTC
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
-/// surface, out of range, outside the spot cone — so a model can skip it with
-/// one test instead of repeating the classification.
+/// surface, out of range, outside the spot cone, the dark face of a panel — so
+/// a model can skip it with one test instead of repeating the classification.
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
+  light.integrated = 0.0;
+  light.ltc = vec3(0.0);
 
   vec4 position;
   vec4 color;
@@ -466,7 +527,11 @@ LightSample SampleLight(int index, Surface s) {
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
     int slot = index - kMaxLights;
-    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    // `L6`: from the cell rather than the draw's own tail, and a light the
+    // slots already hold is skipped by its intensity, as a faded one is.
+    bool clustered = Clustered();
+    float listRow = clustered ? ClusterRow(slot) : LightListRow(slot);
+    float v = (listRow + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
     // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
     // reaches this branch through a function parameter, so a WGSL backend
@@ -479,7 +544,7 @@ LightSample SampleLight(int index, Surface s) {
     cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
-    color.w *= LightListScale(slot);
+    color.w *= clustered ? (InSlots(listRow) ? 0.0 : 1.0) : LightListScale(slot);
 #endif  // F3D_NO_LIGHT_LIST
   }
 
@@ -500,11 +565,19 @@ LightSample SampleLight(int index, Surface s) {
     corners[2] = toCentre + halfWidth + halfHeight;
     corners[3] = toCentre - halfWidth + halfHeight;
 
+    // **The panel emits from one face only**, and a point on the other side
+    // gets nothing: the room above a ceiling panel, the outside of the wall a
+    // window is set in. Tested here rather than left to the signs below,
+    // because the specular's vector form factor keeps the same orientation
+    // from either side of the panel, so a surface behind it facing away read
+    // as lit as one in front facing it.
+    bool behind = dot(toCentre, cross(halfWidth, halfHeight)) >= 0.0;
+
     // The cosine-weighted solid angle, which takes the place `n · l` holds for
     // a punctual light: the loop multiplies the shading by `n_dot_l`, so
     // putting the exact integral here makes the diffuse term exact rather than
     // sampled. See [RectangleFormFactor].
-    float formFactor = RectangleFormFactor(corners, s.n);
+    float formFactor = behind ? 0.0 : RectangleFormFactor(corners, s.n);
 
     // Radiance rather than intensity: `intensity` means the same thing for
     // every kind of light, so a panel's is spread over its own area here.
@@ -535,6 +608,16 @@ LightSample SampleLight(int index, Surface s) {
     light.n_dot_h = max(dot(s.n, light.h), 0.0);
     light.v_dot_h = max(dot(s.v, light.h), 0.0);
     light.radiance = color.rgb * color.w * radiance;
+#ifdef F3D_LTC
+    // `L7`: the specular over the whole panel rather than at one point of
+    // it. The diffuse keeps the exact form factor above.
+    light.integrated = 1.0;
+    light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#ifdef F3D_LAYERED
+    // Kept for the clear coat's own integral; see [g_rect_corners].
+    g_rect_corners = corners;
+#endif
+#endif
     return light;
   }
 
@@ -936,7 +1019,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);

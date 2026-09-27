@@ -1,14 +1,14 @@
 # cloud
 
-The service at **https://models.pleion.dev/**: an account with a confirmed
+The service at https://models.pleion.dev/: an account with a confirmed
 address, the models a person keeps in it, and the modeller's web build to open
 them in.
 
 It lives in this repository because it reads models with the engine's own
-packages — an upload that `flutter3d_formats` cannot decode is refused before it
-reaches the disk — and it lives outside the pub workspace because it is a
-service rather than a package: it is never published, and the counts the README
-and `tool/structure.dart` keep are counts of packages.
+packages. An upload that `flutter3d_formats` cannot decode is refused before it
+reaches the disk. It lives outside the pub workspace because it is a service
+and is never published, and the counts the README and `tool/structure.dart`
+keep are counts of packages.
 
 ## What is here
 
@@ -21,7 +21,7 @@ and `tool/structure.dart` keep are counts of packages.
 | `tool/` | Building the executable, building the viewer, deploying both |
 | `deploy/` | The systemd units, the nginx vhost, the tunnel config and an example environment |
 | `docker-compose.yml` | Postgres for development and the integration test |
-| `monitoring/` | Prometheus and Grafana for the service's own numbers — accounts, models, disk. [README](monitoring/README.md) |
+| `monitoring/` | Prometheus and Grafana for the service's own numbers (accounts, models, disk). [README](monitoring/README.md) |
 
 ## Running it
 
@@ -40,12 +40,12 @@ dart run lib/main.server.dart
 ```
 
 With no `MODELS_RESEND_API_KEY`, letters are printed to the terminal instead of
-sent — register, and the confirmation link is in the log. To open models in 3D
-locally, build the viewer (`cloud/tool/build_viewer.sh`) and add
-`MODELS_VIEWER_DIR=build/app`.
+sent, so after registering you will find the confirmation link in the log. To
+open models in 3D locally, build the viewer (`cloud/tool/build_viewer.sh`) and
+add `MODELS_VIEWER_DIR=build/app`.
 
-Every setting is read once at start, and a missing one stops the start with the
-names of everything that is missing.
+Every setting is read once at start. If any are missing, the start stops and
+names all of them.
 
 | Variable | |
 |---|---|
@@ -59,7 +59,7 @@ names of everything that is missing.
 | `MODELS_UPLOAD_LIMIT` | Bytes; default 100 MB, which is what a free Cloudflare tunnel passes |
 | `MODELS_ASSETS_DIR` | Default `web/assets` |
 | `MODELS_VIEWER_DIR` | Optional; serves the viewer at `/app/` when set |
-| `MODELS_LEARN_DIR` | Default `content/learn/modeler`, which is right in a checkout and nowhere else. A directory with no case in it is an empty tutorial and one line in the log, not a failed start |
+| `MODELS_LEARN_DIR` | Default `content/learn/modeler`, which is right in a checkout and nowhere else. A directory with no case in it gives an empty tutorial and one line in the log; the start does not fail |
 
 ## Tests
 
@@ -72,8 +72,8 @@ The journey test registers, confirms, uploads, checks that nobody else can see
 the model, signs out and back in, resets the password from another browser and
 checks that the first one was signed out, and deletes the model and its file.
 
-After editing a migration: `dart run tool/embed_migrations.dart`. With `--check`
-it fails when the generated file is stale.
+After editing a migration, run `dart run tool/embed_migrations.dart`. With
+`--check` it fails when the generated file is stale.
 
 ## Deploying
 
@@ -87,10 +87,11 @@ changes on a redeploy.
 
 ### The first time
 
-Done once, by hand, because each step creates something outside this repository.
+These steps are done once, by hand, because each one creates something outside
+this repository.
 
-1. **Database** — its own container, on a loopback port the other two Postgres
-   containers on bob do not use:
+1. Database. It gets its own container, on a loopback port the other two
+   Postgres containers on bob do not use:
 
    ```bash
    docker run -d --name models-postgres --restart unless-stopped \
@@ -99,79 +100,79 @@ Done once, by hand, because each step creates something outside this repository.
      -p 127.0.0.1:5434:5432 postgres:17-alpine
    ```
 
-2. **Environment** — `deploy/flutter3d-models.env.example` to
+2. Environment. Copy `deploy/flutter3d-models.env.example` to
    `/etc/flutter3d-models.env`, mode 600, with the real values.
 
-3. **Mail** — add `pleion.dev` in Resend, put the SPF, DKIM and DMARC records it
+3. Mail. Add `pleion.dev` in Resend, put the SPF, DKIM and DMARC records it
    lists into Cloudflare DNS, wait for it to show verified, and put the API key
    in the environment file.
 
-4. **Service** — `deploy/flutter3d-models.service` to `/etc/systemd/system/`,
-   `systemctl enable flutter3d-models`, then run `tool/deploy.sh`.
+4. Service. Copy `deploy/flutter3d-models.service` to `/etc/systemd/system/`,
+   run `systemctl enable flutter3d-models`, then run `tool/deploy.sh`.
 
    The unit is copied by hand and `tool/deploy.sh` does not touch it, so a
    setting added to it later is not on the server until it is copied again and
    `systemctl daemon-reload` is run. The script checks the one setting it
-   depends on, `MODELS_LEARN_DIR`, before it replaces anything, and stops with
-   these two steps in its message when the unit does not have it.
+   depends on, `MODELS_LEARN_DIR`, before it replaces anything. When the unit
+   does not have it, the script stops and its message lists these two steps.
 
-5. **nginx** — `deploy/nginx-models.pleion.dev.conf` to `sites-available`,
-   linked into `sites-enabled`, `nginx -t && systemctl reload nginx`.
+5. nginx. Copy `deploy/nginx-models.pleion.dev.conf` to `sites-available`,
+   link it into `sites-enabled`, and run `nginx -t && systemctl reload nginx`.
 
-6. **Tunnel** — `cloudflared tunnel create flutter3d-models`, the ID into
-   `deploy/cloudflared-models.yml` copied to `/etc/cloudflared/models.yml`, then
-   the DNS route **with the config and the UUID named explicitly**:
+6. Tunnel. Run `cloudflared tunnel create flutter3d-models`, put the ID into
+   `deploy/cloudflared-models.yml` and copy that to
+   `/etc/cloudflared/models.yml`. Then add the DNS route, naming the config and
+   the UUID explicitly:
 
    ```bash
    cloudflared --config /etc/cloudflared/models.yml \
      tunnel route dns --overwrite-dns <TUNNEL_ID> models.pleion.dev
    ```
 
-   Run without `--config`, it picked up bob's default `config.yml` and pointed
-   the record at a different tunnel than the one it was given by name — the
-   first setup did exactly that, and the line it printed named the wrong ID.
-   Read that line. Then enable `deploy/cloudflared-models.service`.
+   Without `--config`, the command picked up bob's default `config.yml` and
+   pointed the record at a different tunnel than the one it was given by name.
+   That happened on the first setup, and the line it printed named the wrong
+   ID, so read that line. Then enable `deploy/cloudflared-models.service`.
 
 ### Where it runs
 
-- **Executable** — `bob:/opt/flutter3d-models/models`, run by
+- Executable: `bob:/opt/flutter3d-models/models`, run by
   `flutter3d-models.service` as a dynamic user
-- **Files people uploaded** — `/var/lib/flutter3d-models/blobs`
-- **Database** — the `models-postgres` container, `127.0.0.1:5434`
-- **nginx** — `127.0.0.1:8793`, serving `/assets/` and `/app/` from disk and
+- Files people uploaded: `/var/lib/flutter3d-models/blobs`
+- Database: the `models-postgres` container, `127.0.0.1:5434`
+- nginx: `127.0.0.1:8793`, serving `/assets/` and `/app/` from disk and
   proxying everything else to the service on `127.0.0.1:8794`
-- **Tunnel** — `cloudflared-models.service`
+- Tunnel: `cloudflared-models.service`
 
 ## What is not here yet
 
-- **Author pages and attribution written into exported files.** A published
-  model's own page already names its owner, its licence and its category; a
+- Author pages, and attribution written into exported files. A published
+  model's own page already names its owner, its licence and its category. A
   page listing everything one account has published, and a downloaded file
-  carrying that licence in its own metadata, are both still ahead.
+  carrying that licence in its own metadata, are not built yet.
 
-Preview pictures and editing from the cabinet, with revisions, are both real
-now: the server has no GPU to render a frame, so a preview is captured in the
-viewer's own browser (`canvas.toBlob`) and POSTed to
-`/api/v1/models/<id>/preview`; a save-back goes to
-`/api/v1/models/<id>/source`, which keeps the file it replaces as a revision
-in `model_revisions`, downloadable by the owner at
+Preview pictures and editing from the cabinet, with revisions, both work. The
+server has no GPU to render a frame, so a preview is captured in the viewer's
+own browser (`canvas.toBlob`) and POSTed to `/api/v1/models/<id>/preview`. A
+save-back goes to `/api/v1/models/<id>/source`, which keeps the file it
+replaces as a revision in `model_revisions`, downloadable by the owner at
 `/files/<id>/revisions/<revisionId>`. Both endpoints check ownership and CSRF
 the same way every other mutating route here does.
 
-Projects, publishing and the public showcase are real now too. A model can
-live inside a project or stand alone — `models.project_id`, nullable, set to
-`null` by the database itself when its project is deleted rather than by any
-code walking the model to detach it. `POST /m/<id>/publish` records a licence
-and a category, each chosen from a fixed enum server-side so a client-supplied
-string never reaches the `check` constraint that backstops them; `/explore`
-lists every published model, searchable by title and description through
-`websearch_to_tsquery` (never raw `to_tsquery` on what somebody typed) and
-filterable by category. Every mutating route this added — project create,
-describe, delete, move, publish, unpublish — checks ownership and CSRF the
-same way every other one here does, and a cross-account project id is refused
-with the same clean 404 a cross-account model id already was, never a 403
-that would confirm the other account's project exists at all. An adversarial
-pass over all of it found one real gap and closed it: project creation had no
-rate limit at all, unlike every other row-creating action here, so it now
-carries `RateRule.projectCreatePerAccount` the same shape publishing already
-had.
+Projects, publishing and the public showcase also work. A model can live
+inside a project or stand alone. `models.project_id` is nullable, and the
+database itself sets it to `null` when the project is deleted; no code walks
+the models to detach them. `POST /m/<id>/publish` records a licence and a
+category, each chosen from a fixed enum server-side, so a client-supplied
+string never reaches the `check` constraint that backstops them. `/explore`
+lists every published model, filterable by category and searchable by title
+and description through `websearch_to_tsquery` (never raw `to_tsquery` on
+what somebody typed).
+
+Every mutating route added for this (project create, describe, delete, move,
+publish, unpublish) checks ownership and CSRF like the other routes here. A
+cross-account project id gets the same 404 a cross-account model id already
+got, never a 403 that would confirm the other account's project exists. An
+adversarial review of all of it found one real gap: project creation had no
+rate limit, unlike every other row-creating action here. It now carries
+`RateRule.projectCreatePerAccount`, in the same shape publishing already had.

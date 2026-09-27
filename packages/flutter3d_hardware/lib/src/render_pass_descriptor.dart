@@ -336,12 +336,13 @@ final class StencilState {
 
 /// The depth and stencil attachment of a pass.
 ///
-/// Narrower than what the backend offers, and that is the engine's model
-/// rather than an omission: every pass here clears depth on entry and
-/// discards it on exit, so those two have nothing to configure and nothing is
-/// offered. A pass that wanted to *load* depth would be asking for something
-/// no pass in this engine has ever asked for, and the interface should grow
-/// when one does.
+/// Almost every pass here clears depth on entry and discards it on exit, and
+/// those are the defaults. The one pass that asked for more is weighted
+/// blended transparency (`R8`): its transparent draws go into targets of their
+/// own, in passes after the opaque ones, and have to be tested against the
+/// depth those left — so the opaque pass stores its depth and the transparent
+/// passes load it. [loadAction] and [storeAction] are that request, and
+/// nothing else sets them.
 ///
 /// The stencil half *is* configurable, because the x-ray stage asked: it
 /// marks the stencil inside the scene pass and reads the marks back a few
@@ -353,6 +354,8 @@ final class DepthTarget {
   const DepthTarget({
     required this.texture,
     this.clearValue = 1.0,
+    this.loadAction = LoadAction.clear,
+    this.storeAction = StoreAction.dontCare,
     this.stencilLoadAction = LoadAction.clear,
     this.stencilStoreAction = StoreAction.dontCare,
     this.stencilClearValue = 0,
@@ -363,6 +366,19 @@ final class DepthTarget {
   /// The far plane. One under this engine's `[0, 1]` depth convention; a
   /// reversed-Z backend would want zero, which is why it is a parameter.
   final double clearValue;
+
+  /// What the depth holds when the pass opens: [clearValue] everywhere, or
+  /// with [LoadAction.load] what the last pass that stored it left.
+  final LoadAction loadAction;
+
+  /// Whether the depth survives the pass. [StoreAction.dontCare] lets a tiler
+  /// keep it in tile memory and throw it away, which is what every pass that
+  /// no later pass loads wants.
+  ///
+  /// **A texture another pass loads must be stored and must not be
+  /// `StorageMode.deviceTransient`**: on Apple GPUs that is memoryless, and
+  /// there is nothing to load.
+  final StoreAction storeAction;
 
   /// What the stencil holds when the pass opens. [LoadAction.clear] fills it
   /// with [stencilClearValue] across the whole attachment, as every clear
@@ -380,7 +396,12 @@ final class DepthTarget {
 
 /// Everything a pass draws into.
 final class RenderPassDescriptor {
-  const RenderPassDescriptor({required this.colors, this.depth});
+  const RenderPassDescriptor({required this.colors, this.depth, this.label});
+
+  /// What the pass is called, for a GPU debugger and for
+  /// `GraphicsDevice.onGpuTimings` — `H2`. The renderer passes its frame
+  /// graph node's name. A backend with nowhere to put it ignores it.
+  final String? label;
 
   /// In shader output order. Two of them exactly once — the scene pass, which
   /// writes lit colour and the surface buffer together.

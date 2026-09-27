@@ -8,7 +8,7 @@ import 'editor_tools.dart';
 /// A constant, because a compiled server has no pubspec to read. It said
 /// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
 /// comment and nothing checked it; `server_version_test.dart` does now.
-const String editorMcpVersion = '0.7.1';
+const String editorMcpVersion = '0.8.0';
 
 /// A level editor, offered to an agent as a table of tools.
 ///
@@ -26,14 +26,15 @@ const String editorMcpVersion = '0.7.1';
 /// agent's edit and a person's edit land on the document by one route, get one
 /// name in the history, and are undone by the same key. What a server is beyond
 /// its tools is `flutter3d_mcp_kit`'s [ToolTableServer].
-base class EditorMcpServer extends ToolTableServer<EditorSession, Answer> {
+base class EditorMcpServer
+    extends ToolTableServer<EditorSession, PictureAnswer> {
   EditorMcpServer(super.channel, {required super.session})
     : super(
         name: 'flutter3d_editor_mcp',
         version: editorMcpVersion,
         instructions: _instructions,
         tools: editorTools,
-        toResult: resultOf,
+        toResult: pictureResultOf,
       );
 }
 
@@ -57,5 +58,7 @@ what follows it, so call `list` again afterwards rather than counting.
 `validate` says what is wrong with the document as the game would see it, and is
 worth calling before `save`. `undo` goes back sixty-four steps.
 
-This process cannot draw. `screenshot` says so and why.
+`screenshot` draws the level in software, untextured, from a camera you may
+name; `report` says for every brush, light and entity how much of it that
+camera sees and what is in the way. Look before and after you change things.
 ''';

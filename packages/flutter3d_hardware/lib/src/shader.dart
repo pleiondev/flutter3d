@@ -34,8 +34,25 @@ import 'dart:typed_data';
 /// [name] is carried rather than derived because it is the only thing the
 /// engine can say about a stage in an error message, and because a fake in a
 /// test needs something to be recognised by.
+/// What a compiled stage keeps: the uniform blocks and samplers its compiled
+/// function has a slot for, by name.
+typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
+
+/// One member of a uniform block as the compiler lays it out — `H1`.
+typedef UniformMemberLayout = ({
+  int offset,
+  int byteLength,
+  int elements,
+  String type,
+});
+
 final class ShaderHandle {
-  const ShaderHandle({required this.backend, required this.name});
+  const ShaderHandle({
+    required this.backend,
+    required this.name,
+    this.kept,
+    this.layouts,
+  });
 
   /// The backend's own object for this stage.
   ///
@@ -46,6 +63,37 @@ final class ShaderHandle {
 
   /// The entry point this stage was found under, as the bundle spells it.
   final String name;
+
+  /// What the compiled stage kept, or null where the library cannot say —
+  /// `gfx-92n`.
+  ///
+  /// **The answer reflection cannot give.** Reflection reports a block the
+  /// GLSL declared even when the compiler dropped it, and binding that
+  /// phantom is a native crash inside Metal: the 0.7.1 crash, where an unlit
+  /// draw was handed a light list nobody declared live. The engine's own
+  /// stages come with `stageBindings`, generated from what impellerc kept and
+  /// held to a fresh compile by a test, and every backend fills this from it.
+  /// A stage from an application's own bundle has no such table and is null
+  /// here, and the renderer then goes by what its `LightingModel` declares.
+  ///
+  /// A backend refuses a bind this names as absent, answering false exactly
+  /// as it does for a slot the stage never declared.
+  final StageBindings? kept;
+
+  /// How the compiler laid out each of this stage's uniform blocks, or null
+  /// where the library cannot say — `H1`. From the bundle's own table
+  /// (`uniformBlocks` in `flutter3d_shaders`), for the backends that do not
+  /// reflect a block's members themselves, so a member the caller named and
+  /// the block does not have is refused by name everywhere.
+  final Map<String, Map<String, UniformMemberLayout>>? layouts;
+
+  /// Whether [block] may be bound: false when [kept] says it was dropped,
+  /// true otherwise.
+  bool mayBindBlock(String block) => kept?.blocks.contains(block) ?? true;
+
+  /// Whether [sampler] may be bound, as [mayBindBlock].
+  bool mayBindSampler(String sampler) =>
+      kept?.samplers.contains(sampler) ?? true;
 
   @override
   String toString() => 'ShaderHandle($name)';

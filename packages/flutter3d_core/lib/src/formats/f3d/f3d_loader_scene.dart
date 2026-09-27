@@ -49,9 +49,30 @@ extension _F3dScene on F3dDocument {
                 ? null
                 : _authoredAttributesAt(i),
             meshName: i < meshNameTable.count ? _meshNameAt(i) : null,
+            variantMaterials: _variants.$2[i],
           );
         }(),
     ];
+  }
+
+  /// Section 23: every variant's name, and its `(surface, material)` pairs
+  /// turned into the per-surface map a [ModelSurface] carries.
+  (List<String>, Map<int, Map<int, int>>) _readVariants() {
+    final table = _table(F3dSection.variants, F3dRecord.variant);
+    final bySurface = <int, Map<int, int>>{};
+    final names = <String>[
+      for (var v = 0; v < table.count; v++)
+        () {
+          final o = table.offset + v * F3dRecord.variant;
+          int word(int at) => _view.getUint32(o + at, Endian.little);
+          final pairs = _int32s(word(8), word(12) * 2);
+          for (var p = 0; p < pairs.length; p += 2) {
+            (bySurface[pairs[p]] ??= <int, int>{})[v] = pairs[p + 1];
+          }
+          return _string(word(0), word(4)) ?? 'variant $v';
+        }(),
+    ];
+    return (names, bySurface);
   }
 
   /// The string surface `i`'s `meshNames` record holds, or null.
@@ -96,6 +117,17 @@ extension _F3dScene on F3dDocument {
   Map<int, List<ModelLod>> _readLods() {
     final table = _table(F3dSection.lods, F3dRecord.lod);
     final grouped = <int, List<ModelLod>>{};
+    // One per lod record when present; absent, or shorter than the table,
+    // reads as a level nobody measured, and a negative value says so too.
+    final errors = _table(F3dSection.lodErrors, F3dRecord.lodError);
+    double? errorOf(int record) {
+      if (record >= errors.count) return null;
+      final error = _view.getFloat32(
+        errors.offset + record * F3dRecord.lodError,
+        Endian.little,
+      );
+      return error < 0.0 ? null : error;
+    }
 
     for (var i = 0; i < table.count; i++) {
       final o = table.offset + i * F3dRecord.lod;
@@ -110,6 +142,28 @@ extension _F3dScene on F3dDocument {
         ModelLod(
           surfaceIndices: surfaceIndices,
           maxScreenFraction: maxScreenFraction,
+          error: errorOf(i),
+        ),
+      );
+    }
+
+    // `C4`: an impostor is always the coarsest level, so it goes after the
+    // surface levels whatever order the sections sit in.
+    final impostors = _table(F3dSection.impostors, F3dRecord.impostor);
+    for (var i = 0; i < impostors.count; i++) {
+      final o = impostors.offset + i * F3dRecord.impostor;
+      double f32(int at) => _view.getFloat32(o + at, Endian.little);
+      int u32(int at) => _view.getUint32(o + at, Endian.little);
+      (grouped[u32(0)] ??= <ModelLod>[]).add(
+        ModelLod.impostor(
+          maxScreenFraction: f32(4),
+          impostor: ModelImpostor(
+            albedoImage: u32(8),
+            normalDepthImage: u32(12),
+            grid: u32(16),
+            centre: Vector3(f32(20), f32(24), f32(28)),
+            radius: f32(32),
+          ),
         ),
       );
     }

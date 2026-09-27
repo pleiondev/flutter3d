@@ -12,6 +12,11 @@
 /// rule near the top and a narrower exception below it behave the way a
 /// `.gitignore` override would.
 ///
+/// **`classes:` beside `rules:`** (`N7`) writes one `.f3d` per device class
+/// instead of one per source — `chair.phone.f3d`, `chair.web.f3d`,
+/// `chair.desktop.f3d` — each cut to its class's `DeviceClassBudget`. A
+/// manifest without it builds what it always built.
+///
 /// **`"**/*.obj"` matches a root-level `a.obj` too.** That is
 /// `package:glob`'s rule since 2.2.0, where `**` at the start of a pattern
 /// may match no directory at all; before it, the same pattern skipped every
@@ -26,7 +31,9 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:glob/glob.dart';
 import 'package:yaml/yaml.dart';
 
+import 'chunk_generate.dart';
 import 'convert.dart';
+import 'device_classes.dart';
 
 /// Thrown by [AssetManifest.parse] — always names the line the problem is
 /// on, because a manifest's own author is the one who reads this, not a
@@ -50,6 +57,9 @@ final class AssetRule {
     this.textures,
     this.mips,
     this.objNormals,
+    this.lods,
+    this.impostor = false,
+    this.chunks,
     this.exclude = false,
   });
 
@@ -57,15 +67,40 @@ final class AssetRule {
   final TextureFamily? textures;
   final bool? mips;
   final ObjNormals? objNormals;
+
+  /// `C5`: the triangle ratios of the levels of detail a matched model gains
+  /// — `lods: [0.5, 0.25, 0.1]`, the manifest's spelling of `convert
+  /// --lods`. Null leaves the model's own levels, if it has any, alone.
+  final List<double>? lods;
+
+  /// `C4`: whether a matched model's chains end in a baked impostor —
+  /// `impostor: true`, the manifest's spelling of `convert --impostor`.
+  final bool impostor;
+
+  /// `C9`: the triangle count above which a matched model's static meshes are
+  /// split into clusters — `chunks: true` for the default, `chunks: 200000`
+  /// for another, the manifest's spelling of `convert --chunks`. Null splits
+  /// nothing.
+  final int? chunks;
   final bool exclude;
 }
 
-const Set<String> _topLevelKeys = <String>{'rules'};
+const Set<String> _topLevelKeys = <String>{'rules', 'classes'};
+const Set<String> _classKeys = <String>{
+  'lods',
+  'impostor',
+  'impostorCell',
+  'maxTextureSide',
+  'lightDifference',
+};
 const Set<String> _ruleKeys = <String>{
   'glob',
   'textures',
   'mips',
   'objNormals',
+  'lods',
+  'impostor',
+  'chunks',
   'exclude',
 };
 
@@ -73,11 +108,20 @@ const Set<String> _ruleKeys = <String>{
 /// one gets — the same object either way, so nothing downstream branches on
 /// whether a file existed.
 final class AssetManifest {
-  const AssetManifest([this.rules = const <AssetRule>[]]);
+  const AssetManifest([
+    this.rules = const <AssetRule>[],
+    this.classes = const <DeviceClassBudget>[],
+  ]);
 
   static const AssetManifest empty = AssetManifest();
 
   final List<AssetRule> rules;
+
+  /// `N7`: the device classes a model is written for, one `.f3d` each —
+  /// `classes: [phone, web, desktop]` for the presets, or a mapping from a
+  /// class to the numbers it changes (`phone: {maxTextureSide: 512}`).
+  /// Empty, the default, writes the single `.f3d` a project always had.
+  final List<DeviceClassBudget> classes;
 
   /// Reads a project's manifest if it has one, or [empty] if it does not —
   /// the "no configuration" half of `ap-04`'s own acceptance.
@@ -110,24 +154,132 @@ final class AssetManifest {
       final name = _textOf(key as YamlNode, 'a top-level key');
       if (!_topLevelKeys.contains(name)) {
         throw ManifestFormatException(
-          'unknown key "$name" — the only one this reads is "rules"',
+          'unknown key "$name" — the ones this reads are '
+          '${_topLevelKeys.join(', ')}',
           key.span.start.line + 1,
         );
       }
     }
 
     final rulesNode = document.nodes['rules'];
-    if (rulesNode == null) return empty;
-    if (rulesNode is! YamlList) {
+    if (rulesNode != null && rulesNode is! YamlList) {
       throw ManifestFormatException(
         '"rules" must be a list',
         rulesNode.span.start.line + 1,
       );
     }
+    final classesNode = document.nodes['classes'];
+    if (rulesNode == null && classesNode == null) return empty;
 
-    return AssetManifest(<AssetRule>[
-      for (final ruleNode in rulesNode.nodes) _parseRule(ruleNode),
-    ]);
+    return AssetManifest(
+      <AssetRule>[
+        if (rulesNode is YamlList)
+          for (final ruleNode in rulesNode.nodes) _parseRule(ruleNode),
+      ],
+      classesNode == null
+          ? const <DeviceClassBudget>[]
+          : _parseClasses(classesNode),
+    );
+  }
+
+  /// `classes:` as a list of class names (their presets) or a mapping from
+  /// a class name to the budget numbers it changes.
+  static List<DeviceClassBudget> _parseClasses(YamlNode node) {
+    DeviceClass classOf(YamlNode name) {
+      final text = _textOf(name, 'a device class');
+      return DeviceClass.parse(text) ??
+          (throw ManifestFormatException(
+            'unknown device class "$text" — expected one of '
+            '${DeviceClass.values.join(', ')}',
+            name.span.start.line + 1,
+          ));
+    }
+
+    final budgets = switch (node) {
+      final YamlList list => <DeviceClassBudget>[
+        for (final entry in list.nodes)
+          DeviceClassBudget.presetFor(classOf(entry)),
+      ],
+      final YamlMap map => <DeviceClassBudget>[
+        for (final entry in map.nodes.entries)
+          _parseBudget(
+            DeviceClassBudget.presetFor(classOf(entry.key as YamlNode)),
+            entry.value,
+          ),
+      ],
+      _ => throw ManifestFormatException(
+        '"classes" must be a list of classes or a mapping of them',
+        node.span.start.line + 1,
+      ),
+    };
+    final seen = <DeviceClass>{};
+    for (final budget in budgets) {
+      if (!seen.add(budget.deviceClass)) {
+        throw ManifestFormatException(
+          'device class "${budget.deviceClass}" is named twice',
+          node.span.start.line + 1,
+        );
+      }
+    }
+    return budgets;
+  }
+
+  /// [preset] with the numbers [node] names replaced; an empty or null value
+  /// keeps the preset whole.
+  static DeviceClassBudget _parseBudget(
+    DeviceClassBudget preset,
+    YamlNode node,
+  ) {
+    if (node is YamlScalar && node.value == null) return preset;
+    if (node is! YamlMap) {
+      throw ManifestFormatException(
+        'a device class takes a mapping of the numbers it changes',
+        node.span.start.line + 1,
+      );
+    }
+    for (final key in node.nodes.keys) {
+      final name = _textOf(key as YamlNode, 'a device class key');
+      if (!_classKeys.contains(name)) {
+        throw ManifestFormatException(
+          'unknown key "$name" in a device class — expected one of '
+          '${_classKeys.join(', ')}',
+          key.span.start.line + 1,
+        );
+      }
+    }
+    int? positive(String key) => switch (node.nodes[key]) {
+      null => null,
+      final YamlNode value => switch (value.value) {
+        final int n when n > 0 => n,
+        _ => throw ManifestFormatException(
+          '$key must be a whole number above zero',
+          value.span.start.line + 1,
+        ),
+      },
+    };
+    final lightDifference = switch (node.nodes['lightDifference']) {
+      null => null,
+      final YamlNode value => switch (value.value) {
+        final num n when n >= 0 && n < 1 => n.toDouble(),
+        _ => throw ManifestFormatException(
+          'lightDifference must be a number from 0 up to 1',
+          value.span.start.line + 1,
+        ),
+      },
+    };
+    return preset.copyWith(
+      lods: switch (node.nodes['lods']) {
+        null => null,
+        final YamlNode value => _lodsOf(value),
+      },
+      impostor: switch (node.nodes['impostor']) {
+        null => null,
+        final YamlNode value => _boolOf(value, 'impostor'),
+      },
+      impostorCell: positive('impostorCell'),
+      maxTextureSide: positive('maxTextureSide'),
+      lightDifference: lightDifference,
+    );
   }
 
   static AssetRule _parseRule(YamlNode node) {
@@ -142,6 +294,9 @@ final class AssetManifest {
     TextureFamily? textures;
     bool? mips;
     ObjNormals? objNormals;
+    List<double>? lods;
+    var impostor = false;
+    int? chunks;
     var exclude = false;
 
     for (final entry in node.nodes.entries) {
@@ -191,6 +346,20 @@ final class AssetManifest {
               valueNode.span.start.line + 1,
             );
           }
+        case 'lods':
+          lods = _lodsOf(valueNode);
+        case 'impostor':
+          impostor = _boolOf(valueNode, 'impostor');
+        case 'chunks':
+          chunks = switch (valueNode.value) {
+            true => kDefaultChunkThreshold,
+            false => null,
+            final int threshold when threshold > 0 => threshold,
+            _ => throw ManifestFormatException(
+              'chunks must be true, false or a triangle count above zero',
+              valueNode.span.start.line + 1,
+            ),
+          };
         case 'exclude':
           exclude = _boolOf(valueNode, 'exclude');
       }
@@ -207,8 +376,32 @@ final class AssetManifest {
       textures: textures,
       mips: mips,
       objNormals: objNormals,
+      lods: lods,
+      impostor: impostor,
+      chunks: chunks,
       exclude: exclude,
     );
+  }
+
+  /// A list of ratios, each strictly between zero and one — the same rule
+  /// `convert --lods` holds, and refused on the line that broke it.
+  static List<double> _lodsOf(YamlNode node) {
+    if (node is! YamlList || node.nodes.isEmpty) {
+      throw ManifestFormatException(
+        'lods must be a list of ratios, e.g. [0.5, 0.25, 0.1]',
+        node.span.start.line + 1,
+      );
+    }
+    return <double>[
+      for (final entry in node.nodes)
+        switch (entry.value) {
+          final num ratio when ratio > 0 && ratio < 1 => ratio.toDouble(),
+          _ => throw ManifestFormatException(
+            'a lods ratio must be a number strictly between 0 and 1',
+            entry.span.start.line + 1,
+          ),
+        },
+    ];
   }
 
   static String _textOf(YamlNode node, String what) {

@@ -18,6 +18,13 @@ library;
 /// One entry point the engine requires.
 typedef RequiredShader = ({String name, bool fragment});
 
+/// Every compute stage, as `shaders/flutter3d.compute.json` lists them —
+/// `H6`. A manifest of its own because neither impellerc nor the WebGL2
+/// generator reads it; a backend that computes answers to these names, and
+/// one that does not answers `supportsCompute` false instead. Checked
+/// against the manifest by `test/manifest_test.dart`.
+const List<String> kComputeShaders = <String>['PrefixSum'];
+
 /// Every entry point, as the manifest lists them.
 ///
 /// Generated from `shaders/flutter3d.shaderbundle.json` and checked against it
@@ -32,9 +39,13 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'DebugLine', fragment: true),
   (name: 'DebugLineVertex', fragment: false),
   (name: 'FullscreenVertex', fragment: false),
+  (name: 'Easu', fragment: true),
   (name: 'Fxaa', fragment: true),
+  (name: 'LocalExposure', fragment: true),
+  (name: 'LocalExposureBlur', fragment: true),
   (name: 'Lambert', fragment: true),
   (name: 'Luminance', fragment: true),
+  (name: 'DepthPyramid', fragment: true),
   (name: 'MeshInstancedVertex', fragment: false),
   (name: 'MeshLightmappedVertex', fragment: false),
   (name: 'MeshSkinnedVertex', fragment: false),
@@ -46,22 +57,47 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'ParticleMesh', fragment: true),
   (name: 'ParticleMeshVertex', fragment: false),
   (name: 'ParticleTextured', fragment: true),
+  (name: 'ParticleSixWay', fragment: true),
+  (name: 'ParticleSoft', fragment: true),
+  (name: 'ParticleTexturedSoft', fragment: true),
+  (name: 'ParticleSixWaySoft', fragment: true),
   (name: 'ParticleVertex', fragment: false),
   (name: 'Pbr', fragment: true),
+  (name: 'PbrLayered', fragment: true),
   (name: 'PolylineVertex', fragment: false),
   (name: 'ProbePrefilter', fragment: true),
   (name: 'Reflections', fragment: true),
   (name: 'Ssao', fragment: true),
   (name: 'Splat', fragment: true),
+  (name: 'SplatHashed', fragment: true),
   (name: 'SsaoBlur', fragment: true),
   (name: 'ContactShadow', fragment: true),
+  (name: 'ContactShadowResolve', fragment: true),
+  (name: 'CameraVelocity', fragment: true),
+  (name: 'Velocity', fragment: true),
+  (name: 'Reactive', fragment: true),
+  (name: 'ReactiveSprite', fragment: true),
+  (name: 'TemporalResolve', fragment: true),
+  (name: 'TemporalAccumulate', fragment: true),
+  (name: 'IrradianceConvolve', fragment: true),
+  (name: 'VelocityVertex', fragment: false),
+  (name: 'VelocitySkinnedVertex', fragment: false),
+  (name: 'VelocityInstancedVertex', fragment: false),
   (name: 'LightShafts', fragment: true),
+  (name: 'VolumetricFog', fragment: true),
+  (name: 'VolumetricFogUpsample', fragment: true),
   (name: 'DepthOfField', fragment: true),
+  (name: 'DofTileMax', fragment: true),
+  (name: 'VelocityTileMax', fragment: true),
+  (name: 'VelocityNeighborMax', fragment: true),
+  (name: 'MotionBlur', fragment: true),
   (name: 'ViewportShade', fragment: true),
   (name: 'ShadowDepth', fragment: true),
   (name: 'ShadowDistance', fragment: true),
   (name: 'ShadowDepthMasked', fragment: true),
   (name: 'ShadowDistanceMasked', fragment: true),
+  (name: 'ShadowCopy', fragment: true),
+  (name: 'EvsmFilter', fragment: true),
   (name: 'ShadowTileReset', fragment: true),
   (name: 'ShadowTileResetVertex', fragment: false),
   (name: 'Sky', fragment: true),
@@ -72,5 +108,10 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'Unlit', fragment: true),
   (name: 'VertexTextureProbe', fragment: true),
   (name: 'VertexTextureProbeVertex', fragment: false),
+  (name: 'FieldDecay', fragment: true),
   (name: 'Xray', fragment: true),
+  (name: 'WboitResolve', fragment: true),
+  (name: 'SceneColourCopy', fragment: true),
+  (name: 'ImpostorVertex', fragment: false),
+  (name: 'Impostor', fragment: true),
 ];

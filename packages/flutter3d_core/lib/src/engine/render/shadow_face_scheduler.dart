@@ -33,6 +33,12 @@ final class ShadowFaceScheduler {
   /// and a light at the end of the atlas would never update at all.
   int _cursor = 0;
 
+  /// Where the last [select] began its scan: the order its tiles should be
+  /// drawn in, so that the tile a frame's allowance refused is the first one
+  /// offered to the next — see [recordDrawn].
+  int get scanStart => _scanStart;
+  int _scanStart = 0;
+
   final List<int> _selection = <int>[];
   List<int>? _pending;
 
@@ -45,6 +51,7 @@ final class ShadowFaceScheduler {
     assert(signatures.length == tileCount);
     _pending = List<int>.filled(tileCount, 0);
     _selection.clear();
+    _scanStart = _cursor;
     if (tileCount == 0) return _selection;
 
     for (var n = 0; n < tileCount; n++) {
@@ -65,17 +72,30 @@ final class ShadowFaceScheduler {
     return _selection;
   }
 
-  /// Records that the tiles from the last [select] were drawn.
+  /// Records that the tiles from the last [select] were drawn — or, given
+  /// [only], that just those were.
   ///
   /// Separate for the same reason the slot allocator's bake record is: a frame
   /// can decide and then not draw, and a scheduler that marked tiles clean on
   /// the strength of the decision would leave a shadow permanently stale.
-  void recordDrawn() {
+  ///
+  /// [only] is for a frame whose allowance for deferred work (`N3`,
+  /// `FrameWorkBudget`) ran out part way through the selection. A tile it
+  /// leaves out stays pending, so the next [select] names it again, and the
+  /// first of them becomes where the next scan starts: a face that keeps
+  /// losing to faces ahead of it in the atlas would otherwise never be drawn.
+  void recordDrawn([Set<int>? only]) {
     final pending = _pending;
     if (pending == null) return;
+    int? firstWaiting;
     for (final tile in _selection) {
-      _drawn[tile] = pending[tile];
+      if (only == null || only.contains(tile)) {
+        _drawn[tile] = pending[tile];
+      } else {
+        firstWaiting ??= tile;
+      }
     }
+    if (firstWaiting != null) _cursor = firstWaiting;
   }
 
   /// Forgets everything, for a reallocated atlas whose pixels are gone.
@@ -84,6 +104,7 @@ final class ShadowFaceScheduler {
       _drawn[i] = null;
     }
     _cursor = 0;
+    _scanStart = 0;
     _selection.clear();
     _pending = null;
   }

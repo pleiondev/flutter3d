@@ -21,6 +21,30 @@ double bayerCell(double x, double y) {
   return table[index] / 16.0;
 }
 
+/// `BlueNoise` from `lib/blue_noise.glsl` — `R3`: this frame's slice of the
+/// engine's blue noise at the pixel ([x], [y]), in [0, 1).
+double blueNoise(ShaderBindings b, double x, double y) {
+  final table = b.textures['blue_noise_texture'];
+  if (table == null) return bayerCell(x, y);
+  final slice = b.vec4('NoiseInfo', 'noise', Vector4.zero()).y;
+  final cellX = x.floorToDouble() % 64.0;
+  final cellY = y.floorToDouble() % 64.0;
+  final cornerX = (slice % 8.0).floorToDouble() * 64.0;
+  final cornerY = (slice / 8.0).floorToDouble() * 64.0;
+  final texel = table.sample(
+    (cornerX + cellX + 0.5) / 512.0,
+    (cornerY + cellY + 0.5) / 256.0,
+  );
+  return texel.x * (255.0 / 256.0);
+}
+
+/// `PixelNoise` from `lib/blue_noise.glsl`: the blue noise while a temporal
+/// resolve runs, [bayerCell] otherwise.
+double pixelNoise(ShaderBindings b, double x, double y) =>
+    b.vec4('NoiseInfo', 'noise', Vector4.zero()).x > 0.5
+    ? blueNoise(b, x, y)
+    : bayerCell(x, y);
+
 /// `reflections.frag`: screen-space reflections, marched against the surface
 /// buffer.
 ///
@@ -110,7 +134,7 @@ final class ReflectionsShader implements CpuFragmentShader {
 
     // Jittered start and reach, as the GLSL: half a stride at least, plus a
     // Bayer cell of one.
-    final jitter = 0.5 + bayerCell(c.coord.x, c.coord.y);
+    final jitter = 0.5 + pixelNoise(b, c.coord.x, c.coord.y);
     var travelled = stride * jitter;
     final march = position + normal * 0.01 + ray * travelled;
     final reach = stride * (steps + 0.5);
@@ -139,8 +163,10 @@ final class ReflectionsShader implements CpuFragmentShader {
         final behind = march.distanceTo(seen);
         final seenNormal = decodeOctahedral(seenSurface.x, seenSurface.y);
         if (behind < thickness && seenNormal.dot(ray) < 0.0) {
-          // Five halvings of the last stride, as the GLSL.
-          var lo = march - ray * stride;
+          // Five halvings of the last stride, as the GLSL, and no further back
+          // than the march has come: the first step travels only the jittered
+          // fraction, and a full stride back from it can sit under the floor.
+          var lo = march - ray * math.min(stride, travelled);
           var hi = march.clone();
           for (var j = 0; j < 5; j++) {
             final mid = (lo + hi)..scale(0.5);
@@ -173,7 +199,30 @@ final class ReflectionsShader implements CpuFragmentShader {
     // Schlick, F0 = 0.04, as the GLSL.
     final fresnel = 0.04 + 0.96 * math.pow(1.0 - facing, 5.0).toDouble();
     final reflection = hitColour * (hit * intensity * polish * fresnel);
-    return done(debugOnly ? reflection : scene + reflection);
+    // The share of the hit that is used, intensity included, as the GLSL.
+    final confidence = hit * intensity * polish;
+    // A hit takes the place of the environment's reflection the lit pass
+    // already added, read along the same ray at the same roughness, in the
+    // share the hit is trusted. See the end of the GLSL's `main`.
+    final environment = b.vec4('ReflectionInfo', 'environment', Vector4.zero());
+    final levels = environment.x;
+    final cube = b.textures['environment_texture'];
+    final Vector3 composed;
+    if (levels > 0.0 && cube != null) {
+      final texel = cube.sampleCube(ray.x, ray.y, ray.z, roughness * levels);
+      final replaced =
+          Vector3(texel.x, texel.y, texel.z) *
+          (environment.y * confidence * fresnel);
+      final sum = scene + reflection - replaced;
+      composed = Vector3(
+        math.max(sum.x, 0.0),
+        math.max(sum.y, 0.0),
+        math.max(sum.z, 0.0),
+      );
+    } else {
+      composed = scene + reflection;
+    }
+    return done(debugOnly ? reflection : composed);
   }
 }
 
@@ -184,9 +233,6 @@ final class ReflectionsShader implements CpuFragmentShader {
 /// this package keeps.
 final class LightShaftsShader implements CpuFragmentShader {
   const LightShaftsShader();
-
-  /// `BayerCell` from the shader, in [0, 1).
-  static double _bayer(double x, double y) => bayerCell(x, y);
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -206,6 +252,7 @@ final class LightShaftsShader implements CpuFragmentShader {
     final camera = b.vec4('ShaftInfo', 'camera', Vector4.zero());
     final scatter = b.vec4('ShaftInfo', 'scatter', Vector4.zero());
     final cascades = b.vec4('ShaftInfo', 'cascades', Vector4.zero());
+    final bias = b.vec4('ShaftInfo', 'bias', Vector4.zero());
 
     final ndcX = v[0] * 2.0 - 1.0;
     final ndcY = 1.0 - v[1] * 2.0;
@@ -223,7 +270,7 @@ final class LightShaftsShader implements CpuFragmentShader {
     if (distance <= 0.0) return scene;
 
     final stride = distance / steps;
-    final offset = _bayer(c.coord.x, c.coord.y) * stride;
+    final offset = pixelNoise(b, c.coord.x, c.coord.y) * stride;
 
     final matrices = <Matrix4>[
       b.mat4('ShaftInfo', 'shadow_matrix'),
@@ -255,7 +302,7 @@ final class LightShaftsShader implements CpuFragmentShader {
           candidate.z = 1.0;
         }
         final stored = shadow.sample((tileX + which) / cascadeCount, tileY).x;
-        return candidate.z - cascades.w > stored ? 0.0 : 1.0;
+        return candidate.z - bias[which] > stored ? 0.0 : 1.0;
       }
       // Outside the map is lit: a point with nothing recorded about it is not
       // in shadow, and calling it shadow would put a wall of darkness across
@@ -362,21 +409,31 @@ final class DepthOfFieldShader implements CpuFragmentShader {
 
     final centreDepth = surfaceTexture.sample(v[0], v[1]).w;
     final radius = circleAt(centreDepth);
-    // Inside half a texel the disc is smaller than the pixel it lands on,
-    // which is what "in focus" means.
-    if (radius < 0.5) return centre;
+    // As far as anything nearby could spread — the tile neighbourhood's
+    // largest circle — and never less than this pixel's own.
+    final tiles = b.textures['coc_tile_texture'];
+    final gather = math.max(
+      tiles == null ? 0.0 : tiles.sample(v[0], v[1]).x,
+      radius,
+    );
+    if (gather < 0.5) return centre;
 
     var totalX = centre.x;
     var totalY = centre.y;
     var totalZ = centre.z;
     var weight = 1.0;
+    var nearX = 0.0;
+    var nearY = 0.0;
+    var nearZ = 0.0;
+    var nearWeight = 0.0;
+    var nearCover = 0.0;
 
     final centreFar = centreDepth <= 0.0 ? 1e9 : centreDepth;
     final turn = 6.2831853 * bayerCell(c.coord.x, c.coord.y);
 
     for (var i = 1; i <= samples && i <= 64; i++) {
       final t = (i - 0.5) / samples;
-      final r = math.sqrt(t) * radius;
+      final r = math.sqrt(t) * gather;
       final angle = i * _golden + turn;
       final atU = v[0] + math.cos(angle) * r * params.x;
       final atV = v[1] + math.sin(angle) * r * params.y;
@@ -391,13 +448,73 @@ final class DepthOfFieldShader implements CpuFragmentShader {
           ? math.min(tapRadius, radius)
           : tapRadius;
       final reach = (tapReach - r + 0.5).clamp(0.0, 1.0);
-      totalX += tap.x * reach;
-      totalY += tap.y * reach;
-      totalZ += tap.z * reach;
-      weight += reach;
+
+      if (tapFar < centreFar && tapRadius > radius) {
+        // In front and more blurred: the share of this pixel its disc
+        // covers, 1 / (pi c^2) of it per unit of the gather's area.
+        final spread = gather / math.max(tapRadius, 0.5);
+        nearX += tap.x * reach;
+        nearY += tap.y * reach;
+        nearZ += tap.z * reach;
+        nearWeight += reach;
+        nearCover += reach * spread * spread;
+      } else {
+        totalX += tap.x * reach;
+        totalY += tap.y * reach;
+        totalZ += tap.z * reach;
+        weight += reach;
+      }
     }
 
-    return Vector4(totalX / weight, totalY / weight, totalZ / weight, centre.w);
+    final nearScale = 1.0 / math.max(nearWeight, 1e-5);
+    final cover = (nearCover / samples).clamp(0.0, 1.0);
+    double mix(double far, double near) => far + (near - far) * cover;
+    return Vector4(
+      mix(totalX / weight, nearX * nearScale),
+      mix(totalY / weight, nearY * nearScale),
+      mix(totalZ / weight, nearZ * nearScale),
+      centre.w,
+    );
+  }
+}
+
+/// `dof_tile_max.frag`: the largest circle of confusion along one row of a
+/// tile — `gfx-34n`. The columns and the neighbourhood after it are the
+/// motion blur's own passes.
+final class DofTileMaxShader implements CpuFragmentShader {
+  const DofTileMaxShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final surface = b.textures['surface_texture'];
+    if (surface == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final lens = b.vec4('DofTileInfo', 'lens', Vector4.zero());
+    final params = b.vec4('DofTileInfo', 'params', Vector4.zero());
+    final source = b.vec4('DofTileInfo', 'source', Vector4.zero());
+    final target = b.vec4('DofTileInfo', 'target', Vector4.zero());
+
+    final taps = (source.z + 0.5).floor();
+    final texelX = (v[0] * target.x).floorToDouble();
+    final texelY = (v[1] * target.y).floorToDouble();
+    final row = (texelY + 0.5) * source.y;
+    final first = texelX * taps;
+
+    var largest = 0.0;
+    for (var i = 0; i < 64 && i < taps; i++) {
+      final depth = surface.sample((first + i + 0.5) * source.x, row).w;
+      largest = math.max(
+        largest,
+        DepthOfFieldShader.circleOfConfusion(
+          depth,
+          focusDistance: lens.x,
+          focalLength: lens.y,
+          aperture: lens.z,
+          maxRadius: params.z,
+          texelsPerMetre: params.w,
+        ),
+      );
+    }
+    return Vector4(largest, 0.0, 0.0, 1.0);
   }
 }
 

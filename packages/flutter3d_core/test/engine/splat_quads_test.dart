@@ -55,7 +55,6 @@ void _build(SplatQuads quads) => quads.build(
   eye: Vector3.zero(),
   right: Vector3(_right.x, _right.y, _right.z),
   up: Vector3(0.0, 1.0, 0.0),
-  forward: Vector3(0.0, 0.0, -1.0),
 );
 
 /// The [component]th float of vertex [vertex].
@@ -212,6 +211,309 @@ void main() {
     final first = quads.vertices;
     _build(quads);
     expect(identical(quads.vertices, first), isTrue);
+  });
+
+  group('when it sorts — C1', () {
+    SplatQuads grid() => SplatQuads(
+      _cloud(
+        centres: <Vector3>[
+          for (var i = 0; i < 10; i++) Vector3(0.0, 0.0, -1.0 - i),
+        ],
+        scales: <Vector3>[for (var i = 0; i < 10; i++) Vector3.all(0.1)],
+      ),
+    );
+
+    test('a camera that only turns does not sort again', () {
+      // Mutation: make `_needsSort` return true — `sorts` counts every build.
+      final quads = grid();
+      _build(quads);
+      quads.build(
+        eye: Vector3.zero(),
+        right: Vector3(0.0, 0.0, 1.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      expect(quads.sorts, 1);
+    });
+
+    test('a small step does not sort again and a long one does', () {
+      // The range is 9 m, so the default 0.2 % allows 18 mm.
+      final quads = grid();
+      _build(quads);
+      void at(double x) => quads.build(
+        eye: Vector3(x, 0.0, 0.0),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      at(0.01);
+      expect(quads.sorts, 1, reason: '10 mm is inside the threshold');
+      at(0.05);
+      expect(quads.sorts, 2, reason: '50 mm is outside it');
+    });
+
+    test('a threshold of nought sorts on every move', () {
+      final quads = grid()..resortFraction = 0.0;
+      _build(quads);
+      quads.build(
+        eye: Vector3(0.001, 0.0, 0.0),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      expect(quads.sorts, 2);
+    });
+
+    test('invalidateSort and a moved model both force one', () {
+      final quads = grid();
+      _build(quads);
+      quads.invalidateSort();
+      _build(quads);
+      expect(quads.sorts, 2);
+      quads.build(
+        eye: Vector3.zero(),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+        model: Matrix4.translationValues(0.0, 0.0, 20.0),
+      );
+      expect(quads.sorts, 3);
+    });
+
+    test('the order a skipped sort keeps is still the one drawn', () {
+      // The far splat at −10 is first in the buffer, and stays first when
+      // the camera turns without the sort running.
+      final quads = grid();
+      _build(quads);
+      quads.build(
+        eye: Vector3.zero(),
+        right: Vector3(0.0, 0.0, 1.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      expect(_at(quads, 0, 2), closeTo(-10.0, 1.0));
+    });
+  });
+
+  test('a cloud placed by a matrix builds what the placed cloud builds', () {
+    // The claim `SplatQuads.build` makes for `model`: the ellipse of a cloud
+    // placed by `M` is the ellipse of the cloud whose covariance is
+    // `M Σ Mᵀ`. Checked against a cloud placed by hand — centres moved,
+    // quaternions turned, extents scaled — for a turn, a uniform scale and a
+    // move together.
+    // Mutation: use the world `right` in place of `Mᵀ right` in the 2×2 —
+    // the placed quad keeps the unscaled, unturned extents.
+    final turn = Quaternion.axisAngle(Vector3(0.3, 1.0, 0.2).normalized(), 0.7);
+    const s = 1.7;
+    final move = Vector3(0.4, -0.2, -3.0);
+    final model = Matrix4.compose(move, turn, Vector3.all(s));
+
+    final local = <Vector3>[Vector3(0.1, 0.2, 0.3), Vector3(-0.5, 0.0, 0.8)];
+    final extents = <Vector3>[Vector3(0.3, 0.1, 0.05), Vector3(0.05, 0.2, 0.1)];
+    final spins = <Quaternion>[
+      Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), 0.4),
+      Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 1.1),
+    ];
+
+    final placed = SplatQuads(
+      _cloud(centres: local, scales: extents, rotations: spins),
+    );
+    final byHand = SplatQuads(
+      _cloud(
+        centres: <Vector3>[for (final c in local) model.transformed3(c)],
+        scales: <Vector3>[for (final e in extents) e * s],
+        rotations: <Quaternion>[for (final q in spins) turn * q],
+      ),
+    );
+
+    final eye = Vector3(0.2, 0.5, 4.0);
+    final right = Vector3(1.0, 0.0, 0.2)..normalize();
+    final up = Vector3(0.0, 1.0, 0.0);
+    placed.build(eye: eye, right: right, up: up, model: model);
+    byHand.build(eye: eye, right: right, up: up);
+
+    expect(placed.vertexCount, byHand.vertexCount);
+    for (var k = 0; k < placed.vertexCount * kSplatFloatsPerVertex; k++) {
+      expect(
+        placed.vertices[k],
+        closeTo(byHand.vertices[k], 1e-4),
+        reason: 'float $k',
+      );
+    }
+  });
+
+  group('through a lens', () {
+    // A 60° camera at the origin looking down −Z into a viewport 480 pixels
+    // tall: `f = 240 / tan 30°` pixels at unit depth.
+    const height = 480.0;
+    final projection = makePerspectiveMatrix(math.pi / 3, 4 / 3, 0.1, 100.0);
+    final lens = SplatLens.of(projection, Vector3(0.0, 0.0, -1.0), height);
+    final focal = 0.5 * height / math.tan(math.pi / 6);
+
+    /// The quad's half extents along world X and Y.
+    (double, double) extents(SplatQuads quads, Vector3 centre) {
+      var x = 0.0, y = 0.0;
+      for (var v = 0; v < kSplatVerticesPerSplat; v++) {
+        x = math.max(x, (_at(quads, v, 0) - centre.x).abs());
+        y = math.max(y, (_at(quads, v, 1) - centre.y).abs());
+      }
+      return (x, y);
+    }
+
+    void build(SplatQuads quads, {SplatLens? through}) => quads.build(
+      eye: Vector3.zero(),
+      right: Vector3(1.0, 0.0, 0.0),
+      up: Vector3(0.0, 1.0, 0.0),
+      lens: through,
+    );
+
+    test('the lens is read out of the projection', () {
+      expect(lens.focal, closeTo(focal, 1e-3));
+      expect(lens.depthWeight, 1.0);
+      expect(lens.depthOffset, 0.0);
+      expect(lens.tanHalfHeight, closeTo(math.tan(math.pi / 6), 1e-6));
+      final ortho = SplatLens.of(
+        makeOrthographicMatrix(-2, 2, -1.5, 1.5, 0.1, 100.0),
+        Vector3(0.0, 0.0, -1.0),
+        height,
+      );
+      expect(ortho.depthWeight, 0.0);
+      expect(ortho.depthOffset, 1.0);
+      // Half the viewport's height covers 1.5 world units.
+      expect(1.0 / ortho.focal, closeTo(1.5 / (0.5 * height), 1e-9));
+    });
+
+    test('a splat long along the view ray and off to the side is a streak', () {
+      // `J W Σ Wᵀ Jᵀ` with `J`'s shear: half as far to the side as it is deep,
+      // a splat reaching σ = 1 along the ray should cover `(x/z)·σ` = 0.5 in
+      // the plane through its centre, across the screen. Projected onto right
+      // and up alone it is the 0.02 its narrow axes are — a dot.
+      // Mutation: drop the lean (`leanR = 0`) and the quad is 3 × 0.02 wide.
+      const sx = 0.02, sz = 1.0;
+      final centre = Vector3(2.5, 0.0, -5.0);
+      final quads = SplatQuads(
+        _cloud(
+          centres: <Vector3>[centre],
+          scales: <Vector3>[Vector3(sx, sx, sz)],
+        ),
+      );
+      build(quads, through: lens);
+
+      const lean = 2.5 / 5.0;
+      final pixel = 5.0 / focal;
+      final (x, y) = extents(quads, centre);
+      final wide = sx * sx + lean * lean * sz * sz + 0.3 * pixel * pixel;
+      expect(x, closeTo(kSplatReach * math.sqrt(wide), 1e-5));
+      final tall = sx * sx + 0.3 * pixel * pixel;
+      expect(y, closeTo(kSplatReach * math.sqrt(tall), 1e-5));
+    });
+
+    test('on the view axis the lens changes nothing but the filter', () {
+      // Exact at the middle of the frame, as the header says: the lean is
+      // nought there, and what is left is the low-pass filter.
+      final centre = Vector3(0.0, 0.0, -5.0);
+      final quads = SplatQuads(
+        _cloud(
+          centres: <Vector3>[centre],
+          scales: <Vector3>[Vector3(0.1, 0.3, 2.0)],
+        ),
+      );
+      build(quads, through: lens);
+      final filter = 0.3 * math.pow(5.0 / focal, 2);
+      final (x, y) = extents(quads, centre);
+      expect(x, closeTo(kSplatReach * math.sqrt(0.01 + filter), 1e-5));
+      expect(y, closeTo(kSplatReach * math.sqrt(0.09 + filter), 1e-5));
+    });
+
+    test('a flat splat seen edge on keeps half a pixel of width', () {
+      // A disc in the XZ plane, seen along its own plane, has no extent up the
+      // screen at all; without the screen's low-pass filter its quad is a
+      // zero-width sliver that rasterises nothing. With it the quad reaches
+      // `3 · √0.3` pixels either side of the line. Mutation: drop the
+      // dilation and `y` is nought.
+      final centre = Vector3(0.0, 0.0, -8.0);
+      final quads = SplatQuads(
+        _cloud(
+          centres: <Vector3>[centre],
+          scales: <Vector3>[Vector3(0.2, 0.0, 0.2)],
+        ),
+      );
+      build(quads);
+      expect(extents(quads, centre).$2, 0.0);
+
+      build(quads, through: lens);
+      final (_, y) = extents(quads, centre);
+      expect(y * focal / 8.0, closeTo(kSplatReach * math.sqrt(0.3), 1e-4));
+    });
+
+    test('an orthographic lens leans nothing and filters evenly', () {
+      // `w` is one everywhere, so the Jacobian has no shear and a pixel is the
+      // same size at every depth.
+      final ortho = SplatLens.of(
+        makeOrthographicMatrix(-2, 2, -1.5, 1.5, 0.1, 100.0),
+        Vector3(0.0, 0.0, -1.0),
+        height,
+      );
+      final filter = 0.3 * math.pow(1.5 / (0.5 * height), 2);
+      for (final centre in <Vector3>[
+        Vector3(0.0, 0.0, -5.0),
+        Vector3(1.5, 0.0, -30.0),
+      ]) {
+        final quads = SplatQuads(
+          _cloud(
+            centres: <Vector3>[centre],
+            scales: <Vector3>[Vector3(0.02, 0.02, 1.0)],
+          ),
+        );
+        build(quads, through: ortho);
+        final (x, _) = extents(quads, centre);
+        expect(
+          x,
+          closeTo(kSplatReach * math.sqrt(0.0004 + filter), 1e-5),
+          reason: '$centre',
+        );
+      }
+    });
+
+    test('the lean is bounded outside the frame', () {
+      // A splat far off to the side and close to the eye would otherwise
+      // become a streak the width of the screen.
+      final centre = Vector3(50.0, 0.0, -1.0);
+      final quads = SplatQuads(
+        _cloud(
+          centres: <Vector3>[centre],
+          scales: <Vector3>[Vector3(0.0, 0.0, 1.0)],
+        ),
+      );
+      build(quads, through: lens);
+      final limit = kSplatLeanLimit * lens.tanHalfWidth;
+      final filter = 0.3 * math.pow(1.0 / focal, 2);
+      expect(
+        extents(quads, centre).$1,
+        closeTo(kSplatReach * math.sqrt(limit * limit + filter), 1e-5),
+      );
+    });
+
+    test('a needle pointing at the eye is a point, off axis too', () {
+      // The tests above hold the lean's size, which squares away its sign;
+      // this holds its direction. A needle lying along the ray from the eye
+      // through its centre covers one point of the screen whatever its
+      // length, so all that is left of it is the filter. Mutation: flip the
+      // lean's sign and the needle spreads across the screen.
+      final centre = Vector3(2.5, 0.0, -5.0);
+      final quads = SplatQuads(
+        _cloud(
+          centres: <Vector3>[centre],
+          scales: <Vector3>[Vector3(0.0, 0.0, 1.0)],
+          rotations: <Quaternion>[
+            Quaternion.fromTwoVectors(
+              Vector3(0.0, 0.0, 1.0),
+              centre.normalized(),
+            ),
+          ],
+        ),
+      );
+      build(quads, through: lens);
+      final filter = 0.3 * math.pow(5.0 / focal, 2);
+      final (x, y) = extents(quads, centre);
+      expect(x, closeTo(kSplatReach * math.sqrt(filter), 1e-5));
+      expect(y, closeTo(kSplatReach * math.sqrt(filter), 1e-5));
+    });
   });
 
   test('an empty cloud builds nothing at all', () {

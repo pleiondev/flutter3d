@@ -13,7 +13,7 @@ import 'cpu_vertex_fetch.dart';
 
 /// Records state and rasterises on `draw`.
 final class CpuEncoder implements CommandEncoder {
-  CpuEncoder(this._descriptor) {
+  CpuEncoder(this._descriptor, [this._independentBlend = true]) {
     for (final color in _descriptor.colors) {
       final texture = _attachment(color);
       if (color.loadAction != LoadAction.clear) continue;
@@ -31,11 +31,16 @@ final class CpuEncoder implements CommandEncoder {
     final depth = _descriptor.depth;
     if (depth != null) {
       final texture = depth.texture.backend as CpuTexture;
-      texture.depthBuffer().fillRange(
-        0,
-        texture.width * texture.height,
-        depth.clearValue,
-      );
+      // Kept as the last pass left it when the pass loads — `R8`'s
+      // transparent passes test against the opaque pass's depth. Every
+      // buffer here is stored, so the store action has nothing to decide.
+      if (depth.loadAction == LoadAction.clear) {
+        texture.depthBuffer().fillRange(
+          0,
+          texture.width * texture.height,
+          depth.clearValue,
+        );
+      }
       _depthTarget = texture;
       // The stencil only where the format says there is one — the test
       // against an attachment without a stencil is specified to pass always,
@@ -51,6 +56,11 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   final RenderPassDescriptor _descriptor;
+
+  /// What the device answered for `supportsIndependentBlend`. False only for
+  /// a test drawing the fallback; then an index is ignored, as the contract
+  /// says of a backend without it.
+  final bool _independentBlend;
   CpuTexture? _depthTarget;
   Uint8List? _stencilTarget;
 
@@ -92,6 +102,11 @@ final class CpuEncoder implements CommandEncoder {
   bool _depthWrite = false;
   CompareFunction _depthCompare = CompareFunction.less;
   BlendState? _blend;
+
+  /// Attachment one's blend — `R8`. Null, which here means the stage's value
+  /// is written as it is, until a call names that attachment: that is what
+  /// attachment one has always had, so no pass that never names it moves.
+  BlendState? _surfaceBlend;
 
   /// The constant the four constant-reading factors multiply by.
   ///
@@ -179,22 +194,39 @@ final class CpuEncoder implements CommandEncoder {
   void setStencilReference(int value) =>
       _stencilReference = StencilState.narrowReference(value);
 
-  /// [attachment] is ignored, as it is on WebGL2 and for a plainer reason:
-  /// this pass keeps one blend state and every attachment it writes uses it.
+  /// Attachments zero and one each keep their own state; a higher index is
+  /// ignored, since the albedo buffer is never blended — `R8`.
   ///
-  /// The contract allows that — `CommandEncoder.setBlend` says the index is
-  /// honoured by one backend of three and what a caller may rely on instead —
-  /// and the engine's one indexed caller sets the same state on both
-  /// attachments, so nothing it draws depends on them differing.
+  /// Until weighted blended transparency asked, this pass kept one state and
+  /// ignored the index. Attachment one was never blended even so: the
+  /// surface buffer took the stage's value as it came, and still does until
+  /// something names it. A device built without independent blending goes
+  /// back to one state, whatever the index, which is the contract's word for
+  /// a backend that has none.
   @override
-  void setBlend(BlendState? state, {int attachment = 0}) => _blend = state;
+  void setBlend(BlendState? state, {int attachment = 0}) {
+    if (attachment == 0 || !_independentBlend) {
+      _blend = state;
+    } else if (attachment == 1) {
+      _surfaceBlend = state;
+    }
+  }
 
   @override
   void setBlendColor(Vector4 color) => _blendColor.setFrom(color);
 
+  /// Forgets every binding, as the contract says every backend does.
+  ///
+  /// It used to replace the pipeline and keep the rest, so a draw that forgot
+  /// a block read the previous draw's here and drew a plausible picture, while
+  /// Impeller, which clears on this call, failed. The software set is the
+  /// cross-backend reference; it cannot be the backend that hides a missing
+  /// bind.
   @override
-  void bindPipeline(PipelineHandle pipeline) =>
-      _pipeline = pipeline.backend as CpuPipeline;
+  void bindPipeline(PipelineHandle pipeline) {
+    _pipeline = pipeline.backend as CpuPipeline;
+    clearBindings();
+  }
 
   @override
   void bindVertexBuffer(
@@ -203,8 +235,20 @@ final class CpuEncoder implements CommandEncoder {
     int slot = 0,
   }) {
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
-    _bindSlot(slot, backend.bytes, vertexCount);
+    _bindSlot(slot, _range(backend.bytes, buffer), vertexCount);
   }
+
+  /// The bytes [buffer] names within [bytes]: its offset and length, which
+  /// `GeometryBuffer.slice` sets and this used to ignore, reading from byte
+  /// zero with a stride worked out from the whole buffer.
+  static ByteData _range(ByteData bytes, GeometryBuffer buffer) =>
+      buffer.offsetInBytes == 0 && buffer.lengthInBytes == bytes.lengthInBytes
+      ? bytes
+      : ByteData.sublistView(
+          bytes,
+          buffer.offsetInBytes,
+          buffer.offsetInBytes + buffer.lengthInBytes,
+        );
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
@@ -229,7 +273,7 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
-    _indices = backend.bytes;
+    _indices = _range(backend.bytes, buffer);
     _indexType = type;
     _indexCount = indexCount;
   }
@@ -247,33 +291,75 @@ final class CpuEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
+    // `H1`: where the stage's layout is known, a member it does not have, or
+    // more floats than the member holds, is refused by name — the same
+    // refusal Impeller, WebGL and WebGPU make from their own reflection. A
+    // Dart stage reads members by name, so without this a misspelt member
+    // read as zero here and threw on every other backend.
+    final layout = shader.layouts?[blockName];
+    if (layout != null) {
+      members.forEach((name, values) {
+        final member = layout[name];
+        if (member == null) {
+          throw StateError(
+            'uniform block "$blockName" has no member "$name" in stage '
+            '"${shader.name}". The engine and the shader disagree about this '
+            'block.',
+          );
+        }
+        if (values.length * 4 > member.byteLength) {
+          throw StateError(
+            'uniform block "$blockName" member "$name" wants ${values.length} '
+            'floats and has room for ${member.byteLength ~/ 4}.',
+          );
+        }
+      });
+    }
     _blocks[blockName] = members;
     return true;
   }
 
+  /// True always: a Dart stage declares no samplers, so "this stage has no
+  /// such slot" is not a state this backend has. See
+  /// `CommandEncoder.bindUniformBlock` for why that is the honest answer.
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
-  }) =>
-      // linearRepeat for a null sampler, which is now written down in
-      // `CommandEncoder.bindTexture` — it was not, and this backend picked the
-      // constructor's own defaults instead, nearest and clamped. Both hardware
-      // backends had independently chosen linearRepeat, so the two agreed and
-      // the rule stayed unstated until a third implementation read the
-      // interface and answered differently. It cost two percent of every
-      // textured golden and looked like a rendering bug.
-      _textures[slot] = BoundTexture(
-        texture.backend as CpuTexture,
-        sampler ?? SamplerOptions.linearRepeat,
-      );
+  }) {
+    if (!shader.mayBindSampler(slot)) return false;
+    // linearRepeat for a null sampler, which is now written down in
+    // `CommandEncoder.bindTexture` — it was not, and this backend picked the
+    // constructor's own defaults instead, nearest and clamped. Both hardware
+    // backends had independently chosen linearRepeat, so the two agreed and
+    // the rule stayed unstated until a third implementation read the
+    // interface and answered differently. It cost two percent of every
+    // textured golden and looked like a rendering bug.
+    _textures[slot] = BoundTexture(
+      texture.backend as CpuTexture,
+      sampler ?? SamplerOptions.linearRepeat,
+    );
+    return true;
+  }
 
+  /// Every binding, geometry included, as the contract says. It used to keep
+  /// the vertex slots and the index buffer, so a draw after this re-drew the
+  /// previous mesh here and an instanced slot the next layout declares and
+  /// did not bind passed with the previous batch's instances in it.
   @override
   void clearBindings() {
     _blocks.clear();
     _textures.clear();
+    _vertices = null;
+    _vertexCount = 0;
+    _slots = null;
+    _indices = null;
+    _indexCount = 0;
   }
 
   @override
@@ -325,7 +411,7 @@ final class CpuEncoder implements CommandEncoder {
         ? PackedFetch(vertices, _floatsPerVertex(vertices, _vertexCount))
         : LayoutFetch.build(layout, vertices, _slots, instance);
     final stride = fetch.floatsPerVertex;
-    final bindings = ShaderBindings(_blocks, _textures);
+    final bindings = ShaderBindings.forDraw(_blocks, _textures);
     final varyingCount = pipeline.vertex.varyingCount;
 
     final clip = <Vector4>[Vector4.zero(), Vector4.zero(), Vector4.zero()];
@@ -450,18 +536,17 @@ final class CpuEncoder implements CommandEncoder {
     // which says nothing about how fast a coordinate moves across the pixel.
     // Left unset, `BoundTexture.sample` takes the base level — the sharpest
     // one, and the only defensible choice for a primitive one pixel wide.
-    final scissor = _scissor;
+    // The viewport and the scissor both — see `_clipRect`.
+    final clipRect = _clipRect(view, target);
 
     for (var step = 0; step <= steps; step++) {
       final t = step / steps;
       final x = (sx[0] + dx * t).floor();
       final y = (sy[0] + dy * t).floor();
-      if (x < 0 || y < 0 || x >= target.width || y >= target.height) continue;
-      if (scissor != null &&
-          (x < scissor.x ||
-              y < scissor.y ||
-              x >= scissor.x + scissor.width ||
-              y >= scissor.y + scissor.height)) {
+      if (x < clipRect.x ||
+          y < clipRect.y ||
+          x >= clipRect.x + clipRect.width ||
+          y >= clipRect.y + clipRect.height) {
         continue;
       }
 
@@ -485,6 +570,7 @@ final class CpuEncoder implements CommandEncoder {
       // context serves every fragment, so a debug picture left over from the
       // last one would be shown for this one.
       context.debugSurface = null;
+      context.fragDepth = null;
       final colour = pipeline.fragment.run(interpolated, bindings, context);
       if (colour == null) continue;
       if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
@@ -495,7 +581,9 @@ final class CpuEncoder implements CommandEncoder {
       target.pixels[at + 1] = colour.y;
       target.pixels[at + 2] = colour.z;
       target.pixels[at + 3] = colour.w;
-      if (depth != null && _depthWrite) depth[index] = z;
+      if (depth != null && _depthWrite) {
+        depth[index] = context.fragDepth ?? z;
+      }
     }
   }
 
@@ -613,6 +701,64 @@ final class CpuEncoder implements CommandEncoder {
   int _indexAt(int i) => _indexType == IndexType.int16
       ? _indices!.getUint16(i * 2, Endian.little)
       : _indices!.getUint32(i * 4, Endian.little);
+
+  /// How a target keeps what is written to it — `H4`.
+  static _Storage _storageOf(TextureFormat format) => switch (format) {
+    TextureFormat.r8g8b8a8UNormInt ||
+    TextureFormat.b8g8r8a8UNormInt ||
+    TextureFormat.r8UNormInt ||
+    TextureFormat.r8g8UNormInt ||
+    TextureFormat.a8UNormInt => _Storage.unorm8,
+    TextureFormat.r8g8b8a8UNormIntSRGB ||
+    TextureFormat.b8g8r8a8UNormIntSRGB => _Storage.unorm8Srgb,
+    _ => _Storage.float,
+  };
+
+  /// What an eight-bit target would have kept of [v]: clamped to the unit
+  /// interval and, on a linear target, rounded to the nearest of its 256
+  /// steps — `H4`. What blending reads as its destination.
+  ///
+  /// **A GPU stores what it writes; this keeps every float.** Pixels are
+  /// floats here whatever the format, so a reverse subtraction left a negative
+  /// value in an eight-bit target — which reads back as black and looks the
+  /// same — and the next additive draw added to the negative number where the
+  /// GPU had stored nought. The fuzzer's programs blend over one another in a
+  /// way the engine's passes never do and found it against WebGPU. The float
+  /// stays in the target, because `readHdrPixels` exists to show it; what
+  /// the pipeline reads back through the blend is what the hardware would
+  /// have kept. An sRGB target is clamped only: its steps are in the encoded
+  /// space, and the value here is linear.
+  static double _settled(double v, _Storage storage) {
+    if (storage == _Storage.float) return v;
+    final clamped = v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
+    return storage == _Storage.unorm8
+        ? (clamped * 255.0).round() / 255.0
+        : clamped;
+  }
+
+  /// Where a primitive may write: the viewport, the scissor and the target,
+  /// intersected. Empty (zero width or height) where they do not meet.
+  ScreenRect _clipRect(ScreenRect view, CpuTexture target) {
+    final scissor = _scissor;
+    var x0 = view.x < 0 ? 0 : view.x;
+    var y0 = view.y < 0 ? 0 : view.y;
+    var x1 = view.x + view.width;
+    var y1 = view.y + view.height;
+    if (scissor != null) {
+      if (scissor.x > x0) x0 = scissor.x;
+      if (scissor.y > y0) y0 = scissor.y;
+      if (scissor.x + scissor.width < x1) x1 = scissor.x + scissor.width;
+      if (scissor.y + scissor.height < y1) y1 = scissor.y + scissor.height;
+    }
+    if (x1 > target.width) x1 = target.width;
+    if (y1 > target.height) y1 = target.height;
+    return ScreenRect(
+      x: x0,
+      y: y0,
+      width: x1 > x0 ? x1 - x0 : 0,
+      height: y1 > y0 ? y1 - y0 : 0,
+    );
+  }
 
   /// Smallest `w` a vertex may have and still be divided by.
   static const double _nearEpsilon = 1e-5;
@@ -793,21 +939,54 @@ final class CpuEncoder implements CommandEncoder {
     final fill1 = topLeft(sx[1], sy[1], sx[2], sy[2]);
     final fill2 = topLeft(sx[2], sy[2], sx[0], sy[0]);
 
-    final clipRect = _scissor;
+    // **The viewport and the scissor both, not one or the other — `H4`.** A
+    // GPU clips a triangle to the clip volume, which in window space is the
+    // viewport's rectangle, and then the scissor takes what it takes. This
+    // used the scissor where there was one and the viewport only where there
+    // was not, so a triangle reaching past ±1 drew outside a viewport that had
+    // a scissor beside it — up to the edge of the target. Nothing the engine
+    // draws had shown it, because its passes set the two to the same
+    // rectangle; the fuzzer's programs do not, and found it on its first run
+    // against WebGPU.
+    // The corners as locals from here on: the lists above hold boxed
+    // doubles, and the loop below reads them for every pixel of the box.
+    final sx0 = sx[0];
+    final sx1 = sx[1];
+    final sx2 = sx[2];
+    final sy0 = sy[0];
+    final sy1 = sy[1];
+    final sy2 = sy[2];
+    final sz0 = sz[0];
+    final sz1 = sz[1];
+    final sz2 = sz[2];
+    final invW0 = invW[0];
+    final invW1 = invW[1];
+    final invW2 = invW[2];
+    final varyings0 = varyings[0];
+    final varyings1 = varyings[1];
+    final varyings2 = varyings[2];
+    // The edge functions' constant factors, which are the same subtraction
+    // whether it is done here or at every pixel.
+    final edge0x = sx1 - sx0;
+    final edge0y = sy1 - sy0;
+    final edge1x = sx2 - sx1;
+    final edge1y = sy2 - sy1;
+    final edge2x = sx0 - sx2;
+    final edge2y = sy0 - sy2;
+
+    final clipRect = _clipRect(view, target);
     var minX = sx.reduce((a, b) => a < b ? a : b).floor();
     var maxX = sx.reduce((a, b) => a > b ? a : b).ceil();
     var minY = sy.reduce((a, b) => a < b ? a : b).floor();
     var maxY = sy.reduce((a, b) => a > b ? a : b).ceil();
-    minX = minX.clamp(clipRect?.x ?? view.x, target.width - 1);
-    maxX = maxX.clamp(
-      0,
-      ((clipRect?.x ?? view.x) + (clipRect?.width ?? view.width)) - 1,
-    );
-    minY = minY.clamp(clipRect?.y ?? view.y, target.height - 1);
-    maxY = maxY.clamp(
-      0,
-      ((clipRect?.y ?? view.y) + (clipRect?.height ?? view.height)) - 1,
-    );
+    if (minX < clipRect.x) minX = clipRect.x;
+    if (minY < clipRect.y) minY = clipRect.y;
+    if (maxX > clipRect.x + clipRect.width - 1) {
+      maxX = clipRect.x + clipRect.width - 1;
+    }
+    if (maxY > clipRect.y + clipRect.height - 1) {
+      maxY = clipRect.y + clipRect.height - 1;
+    }
 
     final depth = _depthTarget?.depthBuffer();
     // Per face, decided before the winding swap above changed what "front"
@@ -817,6 +996,7 @@ final class CpuEncoder implements CommandEncoder {
     final stencilState = frontFacing ? _stencilFront : _stencilBack;
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext()..frontFacing = frontFacing;
+    final storage = _storageOf(target.format);
 
     // **Screen-space gradients, which the triangle path did not have and the
     // line path did.** `CpuTexture.sample` picks the base level when it is
@@ -860,17 +1040,20 @@ final class CpuEncoder implements CommandEncoder {
     final extra = _descriptor.colors.length > 1
         ? _attachment(_descriptor.colors[1])
         : null;
+    // And the albedo buffer, attachment two, when the pass opened one — `L5`.
+    final albedoTarget = _descriptor.colors.length > 2
+        ? _attachment(_descriptor.colors[2])
+        : null;
+    final surfaceBlend = _surfaceBlend;
+    final extraStorage = extra == null ? null : _storageOf(extra.format);
 
     for (var y = minY; y <= maxY; y++) {
       for (var x = minX; x <= maxX; x++) {
         final px = x + 0.5;
         final py = y + 0.5;
-        final w0 =
-            (sx[1] - sx[0]) * (py - sy[0]) - (sy[1] - sy[0]) * (px - sx[0]);
-        final w1 =
-            (sx[2] - sx[1]) * (py - sy[1]) - (sy[2] - sy[1]) * (px - sx[1]);
-        final w2 =
-            (sx[0] - sx[2]) * (py - sy[2]) - (sy[0] - sy[2]) * (px - sx[2]);
+        final w0 = edge0x * (py - sy0) - edge0y * (px - sx0);
+        final w1 = edge1x * (py - sy1) - edge1y * (px - sx1);
+        final w2 = edge2x * (py - sy2) - edge2y * (px - sx2);
         if (w0 < 0 || (w0 == 0 && !fill0)) continue;
         if (w1 < 0 || (w1 == 0 && !fill1)) continue;
         if (w2 < 0 || (w2 == 0 && !fill2)) continue;
@@ -882,7 +1065,7 @@ final class CpuEncoder implements CommandEncoder {
         final b1 = w2 / area;
         final b2 = w0 / area;
 
-        final z = _asStored(sz[0] * b0 + sz[1] * b1 + sz[2] * b2);
+        final z = _asStored(sz0 * b0 + sz1 * b1 + sz2 * b2);
         final index = y * target.width + x;
         final fate = _fateOf(stencil, stencilState, index, z, depth);
         final op = _operationFor(fate, stencilState);
@@ -891,12 +1074,12 @@ final class CpuEncoder implements CommandEncoder {
         if (fate != _fatePass && op == StencilOperation.keep) continue;
 
         // Perspective-correct: interpolate over 1/w and divide back.
-        final iw = invW[0] * b0 + invW[1] * b1 + invW[2] * b2;
+        final iw = invW0 * b0 + invW1 * b1 + invW2 * b2;
         for (var v = 0; v < varyingCount; v++) {
           interpolated[v] =
-              (varyings[0][v] * invW[0] * b0 +
-                  varyings[1][v] * invW[1] * b1 +
-                  varyings[2][v] * invW[2] * b2) /
+              (varyings0[v] * invW0 * b0 +
+                  varyings1[v] * invW1 * b1 +
+                  varyings2[v] * invW2 * b2) /
               iw;
         }
 
@@ -905,7 +1088,10 @@ final class CpuEncoder implements CommandEncoder {
         // to it would see the next fragment's values.
         context.coord.setValues(px, py, z, iw);
         context.surface = null;
+        context.albedo = null;
         context.debugSurface = null;
+        context.fragDepth = null;
+        context.fragDepth = null;
         final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
         if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
@@ -917,10 +1103,31 @@ final class CpuEncoder implements CommandEncoder {
         final surface = context.surface;
         if (surface != null && extra != null) {
           final e = index * 4;
-          extra.pixels[e] = surface.x;
-          extra.pixels[e + 1] = surface.y;
-          extra.pixels[e + 2] = surface.z;
-          extra.pixels[e + 3] = surface.w;
+          if (surfaceBlend == null) {
+            extra.pixels[e] = surface.x;
+            extra.pixels[e + 1] = surface.y;
+            extra.pixels[e + 2] = surface.z;
+            extra.pixels[e + 3] = surface.w;
+          } else {
+            _blendInto(
+              surfaceBlend,
+              _blendColor,
+              extra.pixels,
+              e,
+              surface,
+              extraStorage!,
+            );
+          }
+        }
+        // Attachment two with it: whatever writes the surface writes its
+        // colour, black when it named none, as `WriteSurfaceGeometry` does.
+        if (surface != null && albedoTarget != null) {
+          final e = index * 4;
+          final albedo = context.albedo;
+          albedoTarget.pixels[e] = albedo?.x ?? 0.0;
+          albedoTarget.pixels[e + 1] = albedo?.y ?? 0.0;
+          albedoTarget.pixels[e + 2] = albedo?.z ?? 0.0;
+          albedoTarget.pixels[e + 3] = 1.0;
         }
 
         final at = index * 4;
@@ -931,10 +1138,12 @@ final class CpuEncoder implements CommandEncoder {
           target.pixels[at + 2] = colour.z;
           target.pixels[at + 3] = colour.w;
         } else {
-          _blendInto(blend, _blendColor, target.pixels, at, colour);
+          _blendInto(blend, _blendColor, target.pixels, at, colour, storage);
         }
 
-        if (depth != null && _depthWrite) depth[index] = z;
+        if (depth != null && _depthWrite) {
+          depth[index] = context.fragDepth ?? z;
+        }
       }
     }
   }
@@ -955,13 +1164,14 @@ final class CpuEncoder implements CommandEncoder {
     Float32List pixels,
     int at,
     Vector4 source,
+    _Storage storage,
   ) {
     final sa = source.w;
-    final da = pixels[at + 3];
+    final da = _settled(pixels[at + 3], storage);
     final ba = constant.w;
     for (var channel = 0; channel < 3; channel++) {
       final s = source[channel];
-      final d = pixels[at + channel];
+      final d = _settled(pixels[at + channel], storage);
       final bc = constant[channel];
       pixels[at + channel] = _combine(
         blend.colorOperation,
@@ -1060,3 +1270,6 @@ final class CpuEncoder implements CommandEncoder {
     CompareFunction.notEqual => incoming != stored,
   };
 }
+
+/// How a target keeps what is written to it.
+enum _Storage { float, unorm8, unorm8Srgb }

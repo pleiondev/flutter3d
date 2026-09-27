@@ -1,3 +1,31 @@
+## 0.8.0
+
+**`LevelLoader` builds the scene through `flutter3d_editor_core`'s
+`LevelScene`.** The part of loading that turns a level into brush meshes,
+materials, lights and probes moved there, so a program started with `dart run`
+can draw a level too. `LevelLoader` keeps the asset bundle and the image
+decoding, hands what they produced to `LevelScene`, and wraps the result in
+`LoadedLevel` as before; a game gets the same scene. Its public helpers
+forward to the new home, and `meshDataOf` is still exported from here.
+`flutter3d_editor_core` is a new dependency.
+
+**`LevelLoader.load` takes `batching` and `deviceClass`.** `batching:
+LevelBatching.perBrush` makes every brush its own draw so a tool can name the
+brush under a pixel; the default, `LevelBatching.perMaterial`, draws as
+before, and `LoadedLevel.batching` keeps the choice so a rebuild after a
+breach groups brushes the same way. `deviceClass`, or the application's
+`assetDeviceClass` when it is left out, reads `crypt.phone.json` before
+`crypt.json`, which is the file `flutter3d_build`'s `lights --classes` writes
+with the light set that class affords. The visibility table and the lightmap
+are shared by every class. With no class picked the loader reads what it read
+before. `N7`
+
+**A level's `recipes` are built when it loads.** A room, a corridor or a
+scatter written as a recipe is expanded into brushes, entities and lights
+before the level is validated and drawn.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **A widget drawn into a scene is unmounted when it goes.** `WidgetSurface` and

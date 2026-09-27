@@ -23,7 +23,8 @@ fades out; the sun does not.
 
 ## Step 3: Give the light a size
 
-`directionalLightRadius` is the sun's apparent size. At zero, the shadow uses the fixed
+`directionalLightRadius` is the sun's apparent radius, in radians. The real sun's is
+about 0.0047; a larger one reads as a hazier sky. At zero, the shadow uses the fixed
 narrow edge every earlier frame had. Above zero the renderer looks for what is
 blocking each shadowed point and widens the edge by how far away the blocker is. Drag
 **Sun size** up and watch the slab's shadow blur while the foot of the pole stays crisp.

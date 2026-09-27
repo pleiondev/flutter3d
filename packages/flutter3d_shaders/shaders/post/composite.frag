@@ -9,6 +9,8 @@
 // entirely a function of what is above display white.
 precision highp float;
 
+#include <lib/frag_coord_info.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
@@ -33,6 +35,11 @@ uniform sampler2D ao_texture;
 /// crash on Metal rather than a black texture.
 uniform sampler2D contact_shadow_texture;
 
+/// The local exposure, in stops, at an eighth of the frame — `R7`. A black
+/// stand-in when it is off, which is nought stops, and `contact.w` is nought
+/// beside it.
+uniform sampler2D local_exposure_texture;
+
 /// The colour table, as a strip: N slices of N×N laid out left to right, so
 /// the image is N² wide and N tall. Bound to whatever the engine has when no
 /// table is set — the strength is zero then and nothing samples it, but a
@@ -40,6 +47,12 @@ uniform sampler2D contact_shadow_texture;
 /// rather than a black texture, which is the same rule `ao_texture` above
 /// already follows.
 uniform sampler2D lut_texture;
+
+/// The display transform, as a strip in the colour table's shape but float
+/// and indexed through a log2 shaper — `L2`. Read **instead of** a tone curve
+/// when `params.z` is 6, bound to a stand-in otherwise, for the rule every
+/// sampler here follows.
+uniform sampler2D display_texture;
 
 uniform CompositeInfo {
   /// x: exposure, y: bloom intensity, z: which tone curve, w: how much of the
@@ -93,7 +106,10 @@ uniform CompositeInfo {
   vec4 gain;
 
   /// x: how much of the contact shadow reaches the picture, nought to one —
-  /// `gfx-76n`. y, z, w unclaimed.
+  /// `gfx-76n`. y: the display transform's entries per axis, its N — `L2`;
+  /// read only when the curve is 6. z: one when the occlusion buffer carries
+  /// indirect light in rgb as well — `L5`'s SSIL — nought otherwise.
+  /// w: how much of the local exposure applies, nought to one — `R7`.
   ///
   /// Appended after everything else, the way this block has grown before: a
   /// std140 block is laid out in declaration order, so adding here leaves every
@@ -357,7 +373,35 @@ vec3 SampleLut(vec3 color, float size) {
   return mix(a, b, slice - lower);
 }
 
+/// [color] through the display transform — `L2`: shaped to log2 stops about
+/// 0.18 over −10…+10, then looked up in the strip exactly as [SampleLut]
+/// looks up the grade. Scene-linear in, display-linear out, which is what a
+/// tone curve returns. Ten stops over grey is 184, past the 128 where the
+/// SDR tonescale reaches the display's peak: a range that stopped at +6
+/// clamped every highlight to 0.92 of white.
+vec3 SampleDisplay(vec3 color) {
+  float size = max(composite_info.contact.y, 2.0);
+  vec3 c = clamp((log2(max(color, vec3(1e-10)) / 0.18) + 10.0) / 20.0,
+                 vec3(0.0), vec3(1.0));
+
+  float sliceWidth = 1.0 / size;
+  float texel = 1.0 / (size * size);
+  float innerWidth = texel * (size - 1.0);
+
+  float u = texel * 0.5 + c.r * innerWidth;
+  float v = (0.5 / size) + c.g * ((size - 1.0) / size);
+
+  float slice = c.b * (size - 1.0);
+  float lower = floor(slice);
+  float upper = min(lower + 1.0, size - 1.0);
+
+  vec3 a = texture(display_texture, vec2(lower * sliceWidth + u, v)).rgb;
+  vec3 b = texture(display_texture, vec2(upper * sliceWidth + u, v)).rgb;
+  return mix(a, b, slice - lower);
+}
+
 vec3 TonemapBy(vec3 color, int curve) {
+  if (curve == 6) return SampleDisplay(color);
   if (curve == 1) return TonemapNeutral(color);
   if (curve == 2) return TonemapAces(color);
   if (curve == 3) return TonemapAgx(color);
@@ -394,10 +438,13 @@ void main() {
   // one without the other either leaves the pattern or smears the contact
   // shadows this whole pass exists to draw.
   vec2 half_texel = composite_info.ao_texel.xy * 0.5;
-  float ao = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)).r +
-                     texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)).r +
-                     texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)).r +
-                     texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)).r);
+  vec4 occlusion = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)) +
+                           texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)) +
+                           texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)) +
+                           texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)));
+  // The share left open is in a; the occlusion methods write it into every
+  // channel, and the indirect one keeps its light in rgb.
+  float ao = occlusion.a;
   // Lerped towards one by the strength, so "off" is exactly one and multiplies
   // nothing — every golden in the repository depends on that being exact rather
   // than nearly so.
@@ -428,7 +475,24 @@ void main() {
   // would mean a third attachment and rewriting all six lit stages. So an
   // emissive strip in a corner dims, which is physically wrong — the same
   // compromise `pbr.frag` already makes with the occlusion map from a glTF.
-  vec3 color = scene.rgb * ao + bloom * composite_info.params.y;
+  //
+  // **Except under fog** (`S4`): the fog's in-scatter is in this colour by
+  // now, and a crease behind the air must not darken the air. So the fog's
+  // upsample lays both multipliers on the surface before the air, and they
+  // arrive here at a strength of nought. The glow then reads the occluded
+  // scene, which is the price of the air being right.
+  // `R7`: each place of the scene at the exposure that shows it best, before
+  // the glow is added and the curve applied. Bilinear from an eighth of the
+  // frame: the stops were blurred wide, so there is no edge in them to keep.
+  float localStops = texture(local_exposure_texture, v_uv).r;
+  vec3 exposed = scene.rgb * exp2(localStops * composite_info.contact.w);
+  vec3 color = exposed * ao + bloom * composite_info.params.y;
+
+  // `L5`: the light that bounced onto the point off what it sees, by the same
+  // strength as the occlusion beside it, so a strength of nought is no light
+  // added as it is no darkening.
+  color += occlusion.rgb * composite_info.contact.z *
+           clamp(composite_info.params.w, 0.0, 1.0);
 
   // Exposure before the tone map, so it behaves like a camera stop — it moves
   // which part of the scene's range lands in the mapper's shoulder instead of
@@ -562,7 +626,7 @@ void main() {
   // percent of the output range rather than of the light, which is what a
   // film grain control has always meant on every other tool.
   float grain = composite_info.look_more.z;
-  if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+  if (grain > 0.0) encoded += vec3((Hash(TargetFragCoord()) - 0.5) * grain);
 
   // Dither last, because it is the one aimed at the quantiser itself.
   // **Centred exactly.** The cells run from -1/2 to 7/16, whose mean is
@@ -571,7 +635,7 @@ void main() {
   // gradient's bands fall changes.
   float dither = composite_info.output_encode.x;
   if (dither > 0.0) {
-    encoded += vec3((BayerCell(gl_FragCoord.xy) + 0.03125) * dither);
+    encoded += vec3((BayerCell(TargetFragCoord()) + 0.03125) * dither);
   }
 
   frag_color = vec4(encoded, scene.a);

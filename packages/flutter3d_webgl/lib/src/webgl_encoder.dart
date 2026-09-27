@@ -21,6 +21,7 @@ import 'package:web/web.dart' as web;
 import 'webgl_device.dart';
 import 'webgl_formats.dart';
 import 'webgl_framebuffer.dart';
+import 'webgl_shaders.dart';
 
 /// One pass, recorded straight into the context. See the library note above.
 final class WebGlEncoder implements CommandEncoder {
@@ -40,7 +41,7 @@ final class WebGlEncoder implements CommandEncoder {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
 
-    final buffers = <int>[];
+    final buffers = _attachments;
     for (var i = 0; i < descriptor.colors.length; i++) {
       final color = descriptor.colors[i];
       final attachment = web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i;
@@ -57,8 +58,12 @@ final class WebGlEncoder implements CommandEncoder {
       _sources.add(color.texture);
       _faces.add(color.face);
       _mipLevels.add(color.mipLevel);
+      if (color.texture.storageMode == StorageMode.deviceTransient) {
+        _invalidated.add(attachment);
+      }
     }
     _gl.drawBuffers(buffers.map((int b) => b.toJS).toList().toJS);
+    _drawBuffers = List<int>.unmodifiable(buffers);
 
     // A clear covers the whole attachment, whatever the scissor says. That is
     // the contract the HAL states and the one this engine relies on — the
@@ -87,11 +92,17 @@ final class WebGlEncoder implements CommandEncoder {
         web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT,
         depth.texture,
       );
+      if (depth.texture.storageMode == StorageMode.deviceTransient) {
+        _invalidated.add(web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT);
+      }
       // Depth must be writable for a clear to land, whatever the pass sets
-      // afterwards.
+      // afterwards. Not cleared at all when the pass loads it — `R8`: a
+      // texture keeps what was drawn into it, so loading is doing nothing.
       _gl.depthMask(true);
-      _gl.clearDepth(depth.clearValue);
-      _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
+      if (depth.loadAction == LoadAction.clear) {
+        _gl.clearDepth(depth.clearValue);
+        _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
+      }
 
       // The stencil starts every pass switched off, whatever the last pass
       // left — the contract says so, and here the setters are context state
@@ -277,17 +288,70 @@ final class WebGlEncoder implements CommandEncoder {
   final List<TextureHandle?> _resolves = <TextureHandle?>[];
   final List<TextureHandle> _sources = <TextureHandle>[];
 
+  /// The attachments whose texture is `deviceTransient`, which [submit] tells
+  /// the driver it may throw away — `H7`.
+  final List<int> _invalidated = <int>[];
+
   /// Which face and level each attachment named, so a resolve lands on the
   /// same subresource the pass drew into.
   final List<int> _faces = <int>[];
   final List<int> _mipLevels = <int>[];
 
+  /// Every colour attachment of the pass, `COLOR_ATTACHMENT0 + i` at `i`.
+  final List<int> _attachments = <int>[];
+
+  /// The draw buffers the framebuffer currently has, set by the constructor
+  /// to every attachment and by [bindPipeline] to the ones its program
+  /// writes. Held so a pipeline that writes the same set does not call
+  /// `drawBuffers` again.
+  List<int> _drawBuffers = const <int>[];
+
+  /// Points the pass's draw buffers at the attachments [program] writes, and
+  /// the rest at `NONE`.
+  ///
+  /// GL ES refuses a draw that leaves an active draw buffer without a
+  /// fragment output behind it (`INVALID_OPERATION`, and nothing drawn), and
+  /// the draw buffers are the one thing that says which attachments a draw
+  /// touches. `NONE` leaves an attachment as it was, which is what Impeller
+  /// does with a target a stage does not write and what WebGPU does under a
+  /// zero write mask. A program that writes them all, or whose outputs could
+  /// not be read, gets the full list back.
+  void _selectDrawBuffers(WebGlProgram program) {
+    final outputs = program.fragmentOutputs;
+    final wanted = <int>[
+      for (var i = 0; i < _attachments.length; i++)
+        (outputs?.contains(i) ?? true)
+            ? _attachments[i]
+            : web.WebGLRenderingContext.NONE,
+    ];
+    if (_sameBuffers(wanted, _drawBuffers)) return;
+    _gl.drawBuffers(wanted.map((int b) => b.toJS).toList().toJS);
+    _drawBuffers = wanted;
+  }
+
+  static bool _sameBuffers(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   WebGlProgram? _program;
   int _primitive = web.WebGLRenderingContext.TRIANGLES;
   IndexType _indexType = IndexType.int32;
   int _indexCount = 0;
-  int _nextTextureUnit = 0;
-  int _nextBlockBinding = 0;
+
+  /// Where the bound index buffer's range starts, in bytes. `drawElements`
+  /// takes it as its offset; it used to draw from byte zero of every buffer.
+  int _indexOffset = 0;
+
+  /// What has been bound since the pipeline was: block names, sampler names
+  /// and vertex slots. A draw holds the program's declarations against these
+  /// and names whatever it was not handed.
+  final Set<String> _boundBlocks = <String>{};
+  final Set<String> _boundSamplers = <String>{};
+  final Set<int> _boundSlots = <int>{};
 
   @override
   void setViewport(ScreenRect rect) =>
@@ -362,16 +426,42 @@ final class WebGlEncoder implements CommandEncoder {
   void setDepthCompare(CompareFunction compare) =>
       _gl.depthFunc(compareFunctionToGl(compare));
 
-  /// [attachment] is ignored, and that is a real limitation rather than an
-  /// oversight.
+  /// Attachment zero through the plain blend functions, which set every draw
+  /// buffer at once; any other through `OES_draw_buffers_indexed`, for that
+  /// buffer alone — `R8`. Without the extension the index is ignored and the
+  /// call sets them all, which is what `supportsIndependentBlend` answering
+  /// false promises.
   ///
-  /// Per-attachment blend state needs `EXT_draw_buffers_indexed`, which is an
-  /// optional WebGL2 extension. The engine uses the index exactly once — the
-  /// MRT probe switching blending off on attachment 1 — and it sets the same
-  /// state on both, so nothing it draws depends on them differing. If that ever
-  /// changes, this needs the extension and a capability query beside it.
+  /// Zero stays on the plain functions even with the extension, because they
+  /// are what put every *other* buffer back: the scene pass sets attachment
+  /// zero only and has always had the surface buffer blended with it, and a
+  /// pass after weighted blended transparency would otherwise inherit the
+  /// revealage target's equation on draw buffer one, since here the state
+  /// belongs to the context rather than to the pass.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
+    final indexed = _device.drawBuffersIndexed;
+    if (attachment != 0 && indexed != null) {
+      if (state == null) {
+        indexed.disableiOES(web.WebGLRenderingContext.BLEND, attachment);
+        return;
+      }
+      indexed
+        ..enableiOES(web.WebGLRenderingContext.BLEND, attachment)
+        ..blendEquationSeparateiOES(
+          attachment,
+          blendOperationToGl(state.colorOperation),
+          blendOperationToGl(state.alphaOperation),
+        )
+        ..blendFuncSeparateiOES(
+          attachment,
+          blendFactorToGl(state.sourceColorFactor),
+          blendFactorToGl(state.destinationColorFactor),
+          blendFactorToGl(state.sourceAlphaFactor),
+          blendFactorToGl(state.destinationAlphaFactor),
+        );
+      return;
+    }
     if (state == null) {
       _gl.disable(web.WebGLRenderingContext.BLEND);
       return;
@@ -412,14 +502,26 @@ final class WebGlEncoder implements CommandEncoder {
     // that puts the frame on screen — was silently discarded and the whole
     // frame came back black. Not "a scene without a sky": black. Nothing had
     // ever compared a sky between the backends, so nothing could see it.
-    if (!identical(program, _program)) {
-      for (final location in _enabledLocations) {
-        _gl.disableVertexAttribArray(location);
-      }
-      _enabledLocations.clear();
-    }
+    //
+    // **Now on every call, the same program included**, because the contract
+    // makes this call forget every binding. It used to skip the reset for the
+    // same program, so an instanced draw's per-instance arrays stayed enabled
+    // into the next draw on that pipeline, stepped per vertex once `draw` had
+    // put their divisors back: another batch's instances read as vertices.
+    clearBindings();
     _program = program;
     _gl.useProgram(program.program);
+    _selectDrawBuffers(program);
+    // Each sampler on the unit it owns, before anything is bound. A sampler's
+    // uniform starts at unit zero, so one a draw never binds would otherwise
+    // read whichever sampler owns zero.
+    for (final MapEntry(key: name, value: sampler)
+        in program.samplers.entries) {
+      _gl.uniform1i(
+        _gl.getUniformLocation(program.program, name),
+        sampler.unit,
+      );
+    }
   }
 
   /// Attribute locations switched on in this context, wherever they were
@@ -437,7 +539,9 @@ final class WebGlEncoder implements CommandEncoder {
       web.WebGLRenderingContext.ARRAY_BUFFER,
       buffer.backend as web.WebGLBuffer,
     );
-    _describeVertices(slot);
+    // The slice's own start, which `GeometryBuffer.slice` sets and this used
+    // to drop, reading every slice from byte zero.
+    _describeVertices(slot, base: buffer.offsetInBytes);
   }
 
   @override
@@ -463,7 +567,11 @@ final class WebGlEncoder implements CommandEncoder {
   /// draw in this engine did before instancing and what keeps every existing
   /// picture identical. **With a layout it stops guessing**, because a layout
   /// is the only thing that can say which of two buffers steps per instance.
-  void _describeVertices(int slot) {
+  ///
+  /// [base] is where the bound range starts in its buffer, added to every
+  /// attribute's own offset.
+  void _describeVertices(int slot, {int base = 0}) {
+    _boundSlots.add(slot);
     final program = _program;
     if (program == null) {
       _fail(
@@ -484,7 +592,7 @@ final class WebGlEncoder implements CommandEncoder {
         );
       }
       final stride = program.vertexFloats * 4;
-      var offset = 0;
+      var offset = base;
       for (final attribute in program.attributes) {
         _gl.enableVertexAttribArray(attribute.location);
         _enabledLocations.add(attribute.location);
@@ -530,7 +638,7 @@ final class WebGlEncoder implements CommandEncoder {
           attribute.format.componentCount,
           integer,
           buffer.strideInBytes,
-          attribute.offsetInBytes,
+          base + attribute.offsetInBytes,
         );
       } else {
         _gl.vertexAttribPointer(
@@ -539,7 +647,7 @@ final class WebGlEncoder implements CommandEncoder {
           web.WebGLRenderingContext.FLOAT,
           false,
           buffer.strideInBytes,
-          attribute.offsetInBytes,
+          base + attribute.offsetInBytes,
         );
       }
       _gl.vertexAttribDivisor(location, divisor);
@@ -581,6 +689,7 @@ final class WebGlEncoder implements CommandEncoder {
     );
     _indexType = type;
     _indexCount = indexCount;
+    _indexOffset = buffer.offsetInBytes;
   }
 
   @override
@@ -595,6 +704,7 @@ final class WebGlEncoder implements CommandEncoder {
     _transient.add(buffer);
     _indexType = type;
     _indexCount = indexCount;
+    _indexOffset = 0;
   }
 
   final List<web.WebGLBuffer?> _transient = <web.WebGLBuffer?>[];
@@ -606,12 +716,23 @@ final class WebGlEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
     final program = _program;
     if (program == null) return false;
     final block = program.blocks[blockName];
     // False rather than throwing, exactly as the contract says: a block the
-    // compiler dropped because nothing read it is not an error.
-    if (block == null) return false;
+    // compiler dropped because nothing read it is not an error. And false for
+    // a block this stage does not declare, even when the other one does: the
+    // contract asks of the stage, and Impeller and WebGPU answer so.
+    if (block == null ||
+        !(shader.backend as WebGlShader)
+            .declaredIn(_gl)
+            .blocks
+            .contains(blockName)) {
+      return false;
+    }
 
     final data = Float32List(block.sizeInBytes ~/ 4);
     members.forEach((String name, Float32List values) {
@@ -650,24 +771,41 @@ final class WebGlEncoder implements CommandEncoder {
       data.toJS,
       web.WebGLRenderingContext.STREAM_DRAW,
     );
-    final binding = _nextBlockBinding++;
-    _gl.uniformBlockBinding(program.program, block.index, binding);
-    _gl.bindBufferBase(web.WebGL2RenderingContext.UNIFORM_BUFFER, binding, ubo);
+    // **The block's own index as its binding point**, not the next number in
+    // this draw. The program keeps a block's binding until told otherwise, so
+    // numbering per draw let a block this draw did not bind read the buffer
+    // another block had been handed at its old number.
+    _gl.uniformBlockBinding(program.program, block.index, block.index);
+    _gl.bindBufferBase(
+      web.WebGL2RenderingContext.UNIFORM_BUFFER,
+      block.index,
+      ubo,
+    );
     _uniformBuffers.add(ubo);
+    _boundBlocks.add(blockName);
     return true;
   }
 
+  /// False for a slot the program lacks or this stage does not declare, as
+  /// the contract says.
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
+    if (!shader.mayBindSampler(slot)) return false;
     final program = _program;
-    if (program == null) return;
-    final location = program.samplers[slot];
-    if (location == null) return;
+    if (program == null) return false;
+    final declared = program.samplers[slot];
+    if (declared == null ||
+        !(shader.backend as WebGlShader)
+            .declaredIn(_gl)
+            .samplers
+            .contains(slot)) {
+      return false;
+    }
 
     final backend = texture.backend as WebGlTexture;
     assert(
@@ -676,8 +814,8 @@ final class WebGlEncoder implements CommandEncoder {
       'multisampled or deviceTransient — which can only ever be an attachment',
     );
 
-    final unit = _nextTextureUnit++;
-    _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + unit);
+    // The unit the sampler owns; `bindPipeline` already pointed it there.
+    _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + declared.unit);
     _gl.bindTexture(backend.target, backend.texture);
 
     final options = sampler ?? SamplerOptions.linearRepeat;
@@ -714,18 +852,24 @@ final class WebGlEncoder implements CommandEncoder {
       );
     }
 
-    _gl.uniform1i(_gl.getUniformLocation(program.program, slot), unit);
+    _boundSamplers.add(slot);
+    return true;
   }
 
   /// Forgets bindings without touching rasteriser state, as the contract says.
   ///
-  /// Texture units and uniform block bindings restart, which is what makes the
-  /// next thing drawn in this pass independent of what came before it.
+  /// Every block, sampler and vertex slot is forgotten, so the next draw is
+  /// held to exactly what is bound for it. The GL state behind a sampler or a
+  /// block stays, on the unit or binding point that slot owns; `draw` clears
+  /// any declared slot nobody rebound, rather than let it read a previous
+  /// draw's resource.
   @override
   void clearBindings() {
-    _nextTextureUnit = 0;
-    _nextBlockBinding = 0;
+    _boundBlocks.clear();
+    _boundSamplers.clear();
+    _boundSlots.clear();
     _indexCount = 0;
+    _indexOffset = 0;
     // Divisors, before anything else forgets which ones were set. They are
     // global per attribute location and survive both the draw and the buffer
     // binding, so an instanced draw followed by an ordinary one would otherwise
@@ -748,19 +892,25 @@ final class WebGlEncoder implements CommandEncoder {
   @override
   void draw({int instanceCount = 1}) {
     if (instanceCount <= 0) return;
+    _clearWhatWasNotBound();
     if (instanceCount == 1) {
       // Not `drawElementsInstanced` with a count of one. They are specified to
       // draw the same thing, but this path is every draw the engine has made
       // until now, and a golden that moves because a non-instanced draw quietly
       // became an instanced one would be a very expensive way to learn that a
       // driver disagrees with the specification.
-      _gl.drawElements(_primitive, _indexCount, indexTypeToGl(_indexType), 0);
+      _gl.drawElements(
+        _primitive,
+        _indexCount,
+        indexTypeToGl(_indexType),
+        _indexOffset,
+      );
     } else {
       _gl.drawElementsInstanced(
         _primitive,
         _indexCount,
         indexTypeToGl(_indexType),
-        0,
+        _indexOffset,
         instanceCount,
       );
     }
@@ -781,16 +931,76 @@ final class WebGlEncoder implements CommandEncoder {
     // Undoing it here instead makes the leak structurally impossible rather
     // than a thing each caller has to remember, which is what the enabled
     // arrays above already learned.
+    //
+    // The arrays go off with them, and their slots count as unbound. A draw on
+    // the same pipeline that did not bind its instance slot again used to read
+    // the last batch's buffer one element per vertex; now it reads the
+    // attribute defaults, and `_clearWhatWasNotBound` names the slot.
     for (final location in _instancedLocations) {
       _gl.vertexAttribDivisor(location, 0);
+      _gl.disableVertexAttribArray(location);
+      _enabledLocations.remove(location);
     }
     _instancedLocations.clear();
+    final layout = _program?.layout;
+    if (layout != null) {
+      for (var slot = 0; slot < layout.buffers.length; slot++) {
+        if (layout.buffers[slot].stepMode == VertexStepMode.instance) {
+          _boundSlots.remove(slot);
+        }
+      }
+    }
+  }
 
-    // A draw consumes the bindings that were set for it, in the sense that the
-    // next one rebinds from scratch. Unit counters reset so a pass with many
-    // draws does not run out of texture units.
-    _nextTextureUnit = 0;
-    _nextBlockBinding = 0;
+  /// Holds the program's declarations to what this draw was handed.
+  ///
+  /// **A declared slot left unbound is the caller's mistake, and it is named
+  /// rather than served another draw's resource.** A block gets a zeroed
+  /// buffer on its own binding point and a sampler an empty texture on its
+  /// own unit, so the draw reads nothing it was not given, and the device's
+  /// `debugDrainErrors` says which slot it was. A vertex slot the layout
+  /// declares is only named: its arrays are already off.
+  void _clearWhatWasNotBound() {
+    final program = _program;
+    if (program == null) return;
+    for (final MapEntry(key: name, value: block) in program.blocks.entries) {
+      if (_boundBlocks.contains(name)) continue;
+      _device.reportUnbound('uniform block "$name"');
+      final zero = _gl.createBuffer();
+      _gl.bindBuffer(web.WebGL2RenderingContext.UNIFORM_BUFFER, zero);
+      _gl.bufferData(
+        web.WebGL2RenderingContext.UNIFORM_BUFFER,
+        Float32List(block.sizeInBytes ~/ 4).toJS,
+        web.WebGLRenderingContext.STREAM_DRAW,
+      );
+      _gl.uniformBlockBinding(program.program, block.index, block.index);
+      _gl.bindBufferBase(
+        web.WebGL2RenderingContext.UNIFORM_BUFFER,
+        block.index,
+        zero,
+      );
+      _uniformBuffers.add(zero);
+    }
+    for (final MapEntry(key: name, value: sampler)
+        in program.samplers.entries) {
+      if (_boundSamplers.contains(name)) continue;
+      _device.reportUnbound('sampler "$name"');
+      _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + sampler.unit);
+      _gl.bindTexture(
+        sampler.cube
+            ? web.WebGLRenderingContext.TEXTURE_CUBE_MAP
+            : web.WebGLRenderingContext.TEXTURE_2D,
+        null,
+      );
+    }
+    final layout = program.layout;
+    if (layout != null) {
+      for (var slot = 0; slot < layout.buffers.length; slot++) {
+        if (!_boundSlots.contains(slot)) {
+          _device.reportUnbound('vertex slot $slot');
+        }
+      }
+    }
   }
 
   @override
@@ -862,6 +1072,23 @@ final class WebGlEncoder implements CommandEncoder {
         web.WebGLRenderingContext.NEAREST,
       );
       _gl.deleteFramebuffer(target);
+    }
+
+    // **Tile memory, said the only way GL can: after the resolves, these
+    // attachments hold nothing anyone will read** — `H7`. `deviceTransient`
+    // promises exactly that, and `invalidateFramebuffer` is what lets a tiling
+    // GPU skip writing a depth or multisampled buffer back to memory at the
+    // end of the pass, which is most of what a mobile browser spends on one.
+    // After the blits, which read the multisampled colour, and never before.
+    if (_invalidated.isNotEmpty) {
+      _gl
+        ..bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer)
+        ..invalidateFramebuffer(
+          web.WebGLRenderingContext.FRAMEBUFFER,
+          <JSNumber>[
+            for (final attachment in _invalidated) attachment.toJS,
+          ].toJS,
+        );
     }
 
     _release();

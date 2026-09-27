@@ -1,6 +1,6 @@
 name: flutter3d_editor_mcp
 description: "A level editor an agent can drive: the editor's own commands offered as tools over stdio, with one document open per process."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -19,10 +19,16 @@ dependencies:
   # this package small: the ten things an editor does are already values with a
   # name, a `toJson` and a `fromJson`, so a tool call is a map handed to
   # `EditorCommand.fromJson` rather than a switch written a second time here.
-  flutter3d_editor_core: ^0.7.1
+  flutter3d_editor_core: ^0.8.0
 
   # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
-  flutter3d_sim: ^0.7.1
+  flutter3d_sim: ^0.8.0
+
+  # What `screenshot` and `report` draw with: the renderer, and a device with
+  # no GPU behind it. Both plain Dart — `flutter3d_core` is the engine with
+  # the Flutter seams taken out, and the software rasteriser never had any.
+  flutter3d_core: ^0.8.0
+  flutter3d_cpu: ^0.8.0
 
   # The protocol, and nothing else it brings: `async`, `collection`,
   # `json_rpc_2`, `meta`, `stream_channel`, `stream_transform`. No Flutter
@@ -37,7 +43,7 @@ dependencies:
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
-  flutter3d_mcp_kit: ^0.7.1
+  flutter3d_mcp_kit: ^0.8.0
 
   vector_math: ^2.4.3
 
@@ -58,7 +64,8 @@ dev_dependencies:
 # that would drag a widget in behind it, and `the simulation names no Flutter` in
 # `tool/structure.dart` reads `lib/`, `bin/` and `test/` here to keep it that way.
 #
-# The same fact is why there is no `screenshot` tool that takes a picture. Every
-# renderer in this repository reaches `GraphicsDevice`, whose `present` returns a
-# Flutter `Widget`; a process that can draw a level is a Flutter process, and
-# this one is deliberately not.
+# It can draw all the same. `GraphicsDevice` stopped returning a Flutter widget
+# when the device registry replaced `present`, `flutter3d_core` carries the
+# renderer without Flutter, and the level's scene is built by
+# `flutter3d_editor_core`'s `LevelScene` — so `screenshot` renders through the
+# software rasteriser, flat, and `report` reads the same frame's object ids.

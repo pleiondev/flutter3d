@@ -237,3 +237,135 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
     'no API reports as an error and every model with a face pays for.',
   );
 }
+
+/// Whether a device that says `supportsFloat32Filtering` means it — `S2`.
+///
+/// The `evsm` shadow filter renders exponential moments into an
+/// `r32g32b32a32Float` atlas and reads them back with one bilinear tap, so
+/// the capability promises two things and this asks both. **Filtering**: two
+/// texels of nought and one, sampled halfway between their centres, must
+/// come back a half — nearest would give one or the other, and WebGL without
+/// `OES_texture_float_linear` gives nought, silently, for the whole texture.
+/// **Rendering into one**: a target of the format cleared to three quarters
+/// must sample back as three quarters.
+///
+/// Declines on a device answering false, which is a legitimate answer: the
+/// filter is refused there by name and the fixed kernel draws instead.
+Future<void> checkFloat32Filtering(GraphicsDevice device) async {
+  if (!device.supportsFloat32Filtering) {
+    throw const ConformanceDeclined(
+      'this device answers false to supportsFloat32Filtering, which is a '
+      'legitimate answer: the evsm shadow filter is refused there and the '
+      'fixed kernel draws instead',
+    );
+  }
+  final vertex = device.shaders['VertexTextureProbeVertex'];
+  final fragment = device.shaders['VertexTextureProbe'];
+  require(
+    vertex != null && fragment != null,
+    'the vertex-texture probe stages are missing from the bundle',
+  );
+
+  /// [texture] sampled linearly at [u] across its middle row, through the
+  /// probe [checkFloatTextureUpload] uses, as the red byte of the frame.
+  Future<int> sampled(TextureHandle texture, double u) async {
+    final target = device.createTexture(
+      const RenderTargetSpec(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final triangle = Float32List.fromList(<double>[
+      -1, -1, 0.5, //
+      3, -1, 0.5,
+      -1, 3, 0.5,
+    ]);
+    final indices = Uint16List.fromList(<int>[0, 1, 2]);
+    device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+            ),
+          ],
+        ),
+      )
+      ..setPrimitiveType(PrimitiveType.triangle)
+      ..setCullMode(CullMode.none)
+      ..bindPipeline(device.createPipeline(vertex!, fragment!))
+      ..bindUniformBlock(vertex, 'ProbeInfo', <String, Float32List>{
+        'at': Float32List.fromList(<double>[u, 0.5, 0.0, 0.0]),
+      })
+      ..bindTexture(
+        vertex,
+        'probe_texture',
+        texture,
+        sampler: SamplerOptions.linearClamp,
+      )
+      ..bindVertexData(ByteData.sublistView(triangle), 3)
+      ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+      ..draw()
+      ..submit();
+    final read = await device.readPixels(target);
+    require(read != null, 'the target could not be read back');
+    final bytes = read!.buffer.asUint8List();
+    require(
+      bytes[1] < 32,
+      'the frame came back the clear colour, so the draw never landed',
+    );
+    return bytes[0];
+  }
+
+  final pixels = ByteData(32)
+    ..setFloat32(0, 0.0, Endian.little)
+    ..setFloat32(12, 1.0, Endian.little)
+    ..setFloat32(16, 1.0, Endian.little)
+    ..setFloat32(28, 1.0, Endian.little);
+  final pair = device.createTextureFromPixels(
+    width: 2,
+    height: 1,
+    format: TextureFormat.r32g32b32a32Float,
+    pixels: pixels,
+  );
+  require(pair != null, 'a two-texel r32g32b32a32Float texture was refused');
+  final between = await sampled(pair!, 0.5);
+  require(
+    (between - 128).abs() <= 3,
+    'texels of 0 and 1 sampled halfway between with a linear sampler came '
+    'back ${between / 255.0}, not a half. Near 0 or 1 is nearest filtering; '
+    '0 everywhere is a float texture the driver will not filter at all. '
+    'Either way supportsFloat32Filtering should answer false here.',
+  );
+
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: 2,
+      height: 2,
+      format: TextureFormat.r32g32b32a32Float,
+    ),
+  );
+  device
+      .beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: Vector4(0.75, 0.0, 0.0, 1.0),
+            ),
+          ],
+        ),
+      )
+      .submit();
+  final cleared = await sampled(target, 0.5);
+  require(
+    (cleared - 191).abs() <= 3,
+    'an r32g32b32a32Float target cleared to 0.75 sampled back as '
+    '${cleared / 255.0}. The evsm filter renders its moments into exactly '
+    'such a target, so a device that cannot should answer false to '
+    'supportsFloat32Filtering.',
+  );
+}

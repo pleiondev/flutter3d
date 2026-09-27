@@ -19,6 +19,7 @@ extension _GltfSceneWalk on GltfLoader {
     List<String> warnings,
     int lightCount,
     int cameraCount,
+    _VariantScope variantScope,
   ) {
     final nodes = _mapList(json['nodes']);
     final meshes = _mapList(json['meshes']);
@@ -45,6 +46,8 @@ extension _GltfSceneWalk on GltfLoader {
     // mesh many times, and re-decoding it per node would multiply both work and
     // memory.
     final meshCache = <int, List<_DecodedPrimitive>>{};
+    final splatCache = <int, List<(SplatCloud, SplatColourSpace)>>{};
+    final splats = <ModelSplat>[];
     final instances = <ModelSurface>[];
     final onPath = <int>{};
 
@@ -80,7 +83,13 @@ extension _GltfSceneWalk on GltfLoader {
       if (meshIndex != null && meshIndex >= 0 && meshIndex < meshes.length) {
         final primitives = meshCache.putIfAbsent(
           meshIndex,
-          () => _decodeMesh(meshes[meshIndex], meshIndex, reader, warnings),
+          () => _decodeMesh(
+            meshes[meshIndex],
+            meshIndex,
+            reader,
+            warnings,
+            variantScope,
+          ),
         );
         // A mirroring transform reverses on-screen winding, so record it here
         // rather than making the renderer recompute the determinant per draw.
@@ -109,6 +118,25 @@ extension _GltfSceneWalk on GltfLoader {
               morphWeights: weights,
               authoredAttributes: primitive.authoredAttributes,
               meshName: primitive.meshName,
+              variantMaterials: primitive.variantMaterials,
+            ),
+          );
+        }
+
+        // Splats follow the node, not the skin: the extension places them by
+        // the node's global transform and says nothing of joints.
+        for (final (cloud, colourSpace) in splatCache.putIfAbsent(
+          meshIndex,
+          () =>
+              _decodeMeshSplats(meshes[meshIndex], meshIndex, reader, warnings),
+        )) {
+          splats.add(
+            ModelSplat(
+              node: nodeIndex,
+              cloud: cloud,
+              colourSpace: colourSpace,
+              transform: world.clone(),
+              meshIndex: meshIndex,
             ),
           );
         }
@@ -153,6 +181,7 @@ extension _GltfSceneWalk on GltfLoader {
                 siblingMeshIndex,
                 reader,
                 warnings,
+                variantScope,
               ),
             );
             final surfaceIndices = <int>[];
@@ -169,6 +198,7 @@ extension _GltfSceneWalk on GltfLoader {
                   materialIndex: primitive.materialIndex,
                   authoredAttributes: primitive.authoredAttributes,
                   meshName: primitive.meshName,
+                  variantMaterials: primitive.variantMaterials,
                 ),
               );
             }
@@ -197,6 +227,7 @@ extension _GltfSceneWalk on GltfLoader {
       surfaces: instances,
       nodes: modelNodes,
       roots: roots.where((i) => i >= 0 && i < modelNodes.length).toList(),
+      splats: splats,
     );
   }
 
@@ -316,9 +347,13 @@ final class _SceneGraph {
     required this.surfaces,
     required this.nodes,
     required this.roots,
+    required this.splats,
   });
 
   final List<ModelSurface> surfaces;
+
+  /// `KHR_gaussian_splatting` primitives, one per node that draws one.
+  final List<ModelSplat> splats;
 
   /// Index-aligned with the file's `nodes` array.
   final List<ModelNode> nodes;

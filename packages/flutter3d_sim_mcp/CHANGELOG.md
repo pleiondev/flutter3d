@@ -1,3 +1,30 @@
+## 0.8.0
+
+**An agent's claim about a run comes with the run that proves it.** The
+playing server has two new tools, eight in all. `expect` steps the open run
+holding one intent until a predicate holds or `limit` steps pass, then writes
+the run so far to `path` as a `.f3drun` and answers with the step and the
+state digest there. If the file cannot be written it refuses, naming the step
+and the digest, since the claim would have nothing behind it. If the subject
+leaves the reading mid-run, as it can in a game that removes what it kills,
+it stops there, writes what it has and says who went missing. `verify`
+replays a `.f3drun` into a fresh run of its own level, apart from the
+session's, checks the level hash and the starting state, and reports where
+the digests first part or that they agree, with an optional predicate checked
+where the replay ends.
+
+**The predicates read only what every game's reading shares.**
+`ReadingPredicate.fromJson` reads `NearPredicate`, `InsidePredicate`,
+`AlivePredicate` and `HealthPredicate` over the `player` row or an actor by
+name, so the server stays free of any genre; a claim it cannot read throws
+`ReadingPredicateException`. Contacts are left out, and both tool
+descriptions say why: game events are not saved in a run, so no replay could
+back a claim about them.
+
+`simMcpVersion` and `renderMcpVersion` are `'0.8.0'`.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **Released with the rest of the stack at 0.7.1.** Nothing in this package

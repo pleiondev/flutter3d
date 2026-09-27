@@ -1,6 +1,6 @@
 name: flutter3d_mesh
 description: "An editable mesh for flutter3d: half-edge topology on persistent typed arrays, selections, and the operations a modeller runs on them."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -20,7 +20,7 @@ dependencies:
   # direction is one-way — geometry describes a finished mesh, this package is
   # what a person is halfway through editing. `flutter3d_core`'s geometry
   # library; the package is plain Dart, so this one stays that way.
-  flutter3d_core: ^0.7.1
+  flutter3d_core: ^0.8.0
 
   vector_math: ^2.4.3
 

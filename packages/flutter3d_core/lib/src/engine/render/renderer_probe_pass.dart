@@ -169,7 +169,15 @@ extension _ProbePasses on Renderer {
   /// **not** rationed — it is one view, it is due every frame, and a car whose
   /// turn came round every fifth frame would reflect a track half a second
   /// old.
+  ///
+  /// **Except while [Renderer.warmUp] draws.** Rationed, the captures land on
+  /// the first frames of play instead, each paying a whole cube and drawn
+  /// without culling: the pacing run measured the crypt's three waiting
+  /// probes as its first three frames, each over a hundred milliseconds. A
+  /// loading screen is the one place nobody is waiting on a frame, so every
+  /// probe captures there.
   bool _claimWholeProbeCapture() {
+    if (_warmingUp) return true;
     if (_wholeProbeCaptured) return false;
     _wholeProbeCaptured = true;
     return true;
@@ -207,8 +215,43 @@ extension _ProbePasses on Renderer {
     required SceneShadows shadows,
     required FramePassState passState,
     required vm.Vector4 clearColor,
+  }) => _captureCubeFace(
+    resources: resources,
+    scene: scene,
+    position: probe.readWorldPosition(_probePosition),
+    near: probe.near,
+    far: probe.far,
+    excluded: probe.excluded,
+    colour: state.capture,
+    size: state.faceSize,
+    face: face,
+    settings: settings,
+    shadows: shadows,
+    passState: passState,
+    clearColor: clearColor,
+  );
+
+  /// Draws [scene] from [position] into [face] of the cube [colour], [size]
+  /// texels a side — and, when [surface] is given, the surface buffer into
+  /// the same face of that cube as the second attachment: the normal and the
+  /// depth along the face's axis, which the irradiance field's update reads
+  /// distances from (`L4`).
+  void _captureCubeFace({
+    required FrameResources resources,
+    required Scene scene,
+    required vm.Vector3 position,
+    required double near,
+    required double far,
+    required Set<SceneNode> excluded,
+    required TextureHandle colour,
+    TextureHandle? surface,
+    required int size,
+    required int face,
+    required RenderSettings settings,
+    required SceneShadows shadows,
+    required FramePassState passState,
+    required vm.Vector4 clearColor,
   }) {
-    final size = state.faceSize;
     final depth = resources.transient(
       RenderTargetSpec(
         width: size,
@@ -220,16 +263,27 @@ extension _ProbePasses on Renderer {
 
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
-            texture: state.capture,
+            texture: colour,
             face: face,
             clearValue: Renderer._srgbToLinear(clearColor),
           ),
+          if (surface != null)
+            ColorTarget(
+              texture: surface,
+              face: face,
+              clearValue: vm.Vector4.zero(),
+            ),
         ],
         depth: DepthTarget(texture: depth),
       ),
     );
+    // A cube face is square, so its rows are its size.
+    _targetOrigin[0] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
+        ? size.toDouble()
+        : 0.0;
 
     final rect = ScreenRect(width: size, height: size);
     pass.setState(
@@ -246,13 +300,12 @@ extension _ProbePasses on Renderer {
       ..depthCompare = CompareFunction.less
       ..invalidatePipeline();
 
-    final position = probe.readWorldPosition(_probePosition);
     final origin = device.framebufferOrigin;
     final viewProjection = probeFaceViewProjection(
       face,
       position,
-      near: probe.near,
-      far: probe.far,
+      near: near,
+      far: far,
       origin: origin,
       depthRange: device.depthRange,
     );
@@ -275,7 +328,7 @@ extension _ProbePasses on Renderer {
           continue;
         }
         if (node.material.isTransparent != blended) continue;
-        if (probe.excluded.contains(node)) continue;
+        if (excluded.contains(node)) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
         _encodeNode(
@@ -337,6 +390,7 @@ extension _ProbePasses on Renderer {
         _probeParams[0] = face.toDouble();
         final pass = device.beginRenderPass(
           RenderPassDescriptor(
+            label: _passLabel,
             colors: <ColorTarget>[
               ColorTarget(
                 texture: state.filtered,
@@ -359,9 +413,7 @@ extension _ProbePasses on Renderer {
           state.capture,
           sampler: Renderer._clampSampler,
         );
-        pass.bindUniformBlock(shader, _kProbeInfoBlock, <String, Float32List>{
-          'params': _probeParams,
-        });
+        pass.bindBlock(shader, _probeInfo);
         pass.draw();
         pass.submit();
       }

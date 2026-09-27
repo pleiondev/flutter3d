@@ -8,26 +8,38 @@
 /// comment made that call for particles; splats reuse that vertex stage exactly,
 /// so the whole of the GPU side is one fragment shader.
 ///
-/// **The projection is orthographic about each splat, which is a stated
-/// approximation.** The exact screen-space covariance is `J W Σ Wᵀ Jᵀ`, where
-/// `J` is the Jacobian of the perspective divide at that splat's depth; this
-/// drops `J` and projects the ellipsoid's own axes onto the camera's right and
-/// up. The two agree at the middle of the frame and part company toward the
-/// corners of a wide one, where a splat should shear slightly and here does
-/// not. It is the difference between an ellipse and a slightly wrong ellipse,
-/// on something whose whole extent is a few pixels, and it costs two dot
-/// products a splat instead of a matrix triple product.
+/// **The ellipse is the perspective one, `J W Σ Wᵀ Jᵀ`, drawn in the plane
+/// through the splat parallel to the glass.** `J` is the Jacobian of the
+/// perspective divide at the splat's centre. A plane at constant depth `z`
+/// reaches the screen at one uniform scale, `f / z`, so the quad can stay in
+/// world units there and `J`'s two rows reduce to the camera's right and up
+/// each leaned along the view axis by the splat's offset from it:
+/// `r − (x/z)·forward` and `u − (y/z)·forward`. Leaving the lean out — the
+/// covariance projected onto right and up alone — is exact at the middle of
+/// the frame and loses everything a splat holds along the view ray toward
+/// the edges, which is most of a ground disc seen at a grazing angle.
+///
+/// **Every footprint is widened by 0.3 px² on the screen**, the low-pass
+/// filter of the EWA splatting the method comes from, which the captures
+/// were trained with and so have in their look: a thin or distant splat
+/// keeps at least about half a pixel of standard deviation rather than
+/// eroding to nothing, or to a zero-width quad when seen edge on.
 library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
+import '../scene/scene_node.dart';
+import 'engine_tables.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
+import 'splat_lod.dart';
+import 'splat_sort.dart';
 
 /// How far out the quad reaches, in standard deviations.
 ///
@@ -45,22 +57,133 @@ const int kSplatFloatsPerVertex = 9;
 /// this engine has no unindexed draw at all.
 const int kSplatVerticesPerSplat = 6;
 
+/// The screen-space low-pass filter every splat's footprint is widened by, in
+/// pixels squared: the variance a Gaussian at least one pixel across has.
+const double kSplatLowPass = 0.3;
+
+/// How far off the view axis the perspective lean is taken, as a multiple of
+/// the half field of view: a splat centred beyond the frame's edge is leaned
+/// as if it sat at 1.3 times the edge, so one far off to the side and close
+/// to the eye does not become a streak across the whole screen.
+const double kSplatLeanLimit = 1.3;
+
+/// What [SplatQuads.build] needs of a camera beyond its right and up axes:
+/// its view axis, and how the projection turns depth into pixels.
+///
+/// Read out of the projection matrix rather than the camera's settings, so
+/// that whatever matrix the frame is actually drawn with — jittered,
+/// orthographic, handed in whole by an application — is the one the ellipses
+/// follow.
+final class SplatLens {
+  const SplatLens({
+    required this.forward,
+    required this.focal,
+    this.depthWeight = 1.0,
+    this.depthOffset = 0.0,
+    this.tanHalfWidth = 1.0,
+    this.tanHalfHeight = 1.0,
+  });
+
+  /// The lens of [projection], drawn into a viewport [viewportHeight] pixels
+  /// tall, looking along [forward].
+  factory SplatLens.of(
+    Matrix4 projection,
+    Vector3 forward,
+    double viewportHeight,
+  ) {
+    final p = projection.storage;
+    return SplatLens(
+      forward: forward,
+      focal: 0.5 * p[5] * viewportHeight,
+      // Clip w is `p[11]·z + p[15]` of an eye-space z, and the depth along
+      // [forward] is `−z`: one for a perspective divide, nought for an
+      // orthographic one, whose `w` is one everywhere.
+      depthWeight: -p[11],
+      depthOffset: p[15],
+      tanHalfWidth: p[0] != 0.0 ? 1.0 / p[0].abs() : 1.0,
+      tanHalfHeight: p[5] != 0.0 ? 1.0 / p[5].abs() : 1.0,
+    );
+  }
+
+  /// The camera's view axis, unit length, in world space.
+  final Vector3 forward;
+
+  /// Pixels per unit of `x / w` on the screen: half the viewport's height
+  /// times the projection's vertical scale.
+  final double focal;
+
+  /// Clip `w` as `depthWeight · depth + depthOffset`, depth measured along
+  /// [forward]: `(1, 0)` for a perspective projection, `(0, 1)` for an
+  /// orthographic one.
+  final double depthWeight;
+  final double depthOffset;
+
+  /// The tangents of the half fields of view, which bound the lean.
+  final double tanHalfWidth;
+  final double tanHalfHeight;
+}
+
 /// Builds the vertex data for [cloud], back to front, as [camera] sees it.
 ///
 /// Separated from the drawing so that the part with arithmetic in it can be
 /// checked without a device — the same split `MeshOverlay` makes between
 /// filling a batch and encoding one.
 final class SplatQuads {
-  SplatQuads(this.cloud);
+  SplatQuads(SplatCloud cloud) : _cloud = cloud, lod = null;
 
-  final SplatCloud cloud;
+  /// Draws a splat tree at [lod]'s budget instead of one fixed cloud: every
+  /// time this would sort, the cut is chosen again first and the cut is what
+  /// is sorted and drawn — see `splat_lod.dart`.
+  SplatQuads.lod(SplatLod this.lod) : _cloud = _noSplats();
+
+  static SplatCloud _noSplats() => SplatCloud(
+    centres: Float32List(0),
+    colours: Float32List(0),
+    scales: Float32List(0),
+    rotations: Float32List(0),
+  );
+
+  /// The tree and budget this draws from, or null for a fixed cloud.
+  final SplatLod? lod;
+
+  /// What is drawn: the cloud given, or the last cut [lod] chose.
+  SplatCloud get cloud => _cloud;
+  SplatCloud _cloud;
+
+  /// The tree's page version and the budget at the last cut: either moving
+  /// means a finer or coarser cut is on offer, so the next [build] sorts.
+  int _sortedPageVersion = -1;
+  int _sortedBudget = -1;
+
+  /// How far the eye may travel before the cloud is sorted again, as a
+  /// fraction of the distance between its nearest and farthest splat at the
+  /// last sort.
+  ///
+  /// **Why a fraction of the cloud's own depth.** A move of `δ` changes the
+  /// distance between the eye and any splat by at most `δ`, so two splats can
+  /// only swap places if they were within `2δ` of each other; measured
+  /// against the depth the sort quantised over, the default of 0.2 % is a
+  /// few hundred of the sixteen-bit key's 65 536 steps — splats that close
+  /// together are covering the same pixels at nearly the same depth, and
+  /// which lands on top of the other is not something a viewer can see. Zero
+  /// sorts on every move, the behaviour before this existed.
+  double resortFraction = 0.002;
+
+  final SplatSorter _sorter = SplatSorter();
+
+  /// Where the eye was, and where the cloud was placed, at the last sort.
+  /// Null until the first, and after [invalidateSort].
+  Vector3? _sortedEye;
+  final Float64List _sortedModel = Float64List(16);
+  bool _sortedWithModel = false;
+
+  /// How many times [build] has sorted. For the tests that hold it to not
+  /// sorting on every frame.
+  int get sorts => _sorts;
+  int _sorts = 0;
 
   /// The vertex floats, refilled in place every time the camera moves.
   Float32List _vertices = Float32List(0);
-
-  /// Sort scratch, kept so a camera turn allocates nothing.
-  Int32List _order = Int32List(0);
-  Float32List _depths = Float32List(0);
   final Float32List _covariance = Float32List(6);
 
   /// How many vertices [vertices] currently holds.
@@ -68,57 +191,158 @@ final class SplatQuads {
 
   Float32List get vertices => _vertices;
 
-  /// Fills the buffer for a camera at [eye] whose axes are [right], [up] and
-  /// [forward].
+  /// Makes the next [build] sort, however little the eye moved — for a
+  /// caller that has edited [cloud]'s centres in place.
+  void invalidateSort() => _sortedEye = null;
+
+  /// Fills the buffer for a camera at [eye] whose axes are [right] and [up],
+  /// with the cloud placed in the world by [model] when it is given.
   ///
-  /// All three are expected orthonormal, which is what a camera's own basis is.
+  /// Both axes are expected orthonormal, which is what a camera's own basis
+  /// is. The camera's forward axis is not needed: the order is by distance
+  /// from [eye], which a turn does not change — see `splat_sort.dart`.
+  ///
+  /// The quads are rebuilt every call, since their axes follow the camera's
+  /// own; the sort, which is most of the cost, runs only when the eye has
+  /// moved further than [resortFraction] allows or [model] has changed.
+  ///
+  /// With [sorted] false there is no sort at all and the quads come out in
+  /// the cloud's own order — `N5`'s hashed splats, which the depth test
+  /// orders. The last sort is kept, so going back to sorting re-sorts only if
+  /// the eye has moved since.
+  ///
+  /// [lens] is the rest of the camera: with it each ellipse is the
+  /// perspective one and is widened by [kSplatLowPass] on the screen, which
+  /// is how [SplatContributor] always builds. Without it the covariance is
+  /// projected onto [right] and [up] alone and nothing is added — the exact
+  /// ellipse on the view axis, and a quad whose size is the splat's own, for
+  /// a caller with no projection to hand.
   void build({
     required Vector3 eye,
     required Vector3 right,
     required Vector3 up,
-    required Vector3 forward,
+    Matrix4? model,
+    bool sorted = true,
+    SplatLens? lens,
   }) {
+    // A tree's cut is chosen where the sort runs, so a hashed build still
+    // sorts when the cut moves: the order and the cut have to agree.
+    if ((sorted || lod != null) && _needsSort(eye, model)) {
+      final lod = this.lod;
+      if (lod != null) {
+        // The cut is chosen by distance in the tree's own space, so the eye
+        // is taken there once rather than every node taken to the world.
+        _cloud = lod.choose(
+          model == null ? eye : Matrix4.inverted(model).transformed3(eye),
+        );
+        _sortedPageVersion = lod.tree.pageVersion;
+        _sortedBudget = lod.budget;
+      }
+      _sorter.sort(cloud, eye, model: model);
+      _sorts++;
+      _sortedEye = eye.clone();
+      _sortedWithModel = model != null;
+      if (model != null) _sortedModel.setAll(0, model.storage);
+    }
+    final order = sorted ? _sorter.order : null;
     final count = cloud.count;
     final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
     if (_vertices.length < needed) _vertices = Float32List(needed);
-    if (_order.length < count) {
-      _order = Int32List(count);
-      _depths = Float32List(count);
-    }
 
-    final order = cloud.sortedBackToFront(
-      eye,
-      forward,
-      into: _order,
-      depths: _depths,
-    );
+    // The camera's axes as the cloud's own space sees them, when it has one.
+    // The ellipse is `[r; u] M Σ Mᵀ [r; u]ᵀ` for a cloud placed by `M`, and
+    // that is the unplaced formula with `Mᵀr` and `Mᵀu` in place of `r` and
+    // `u` — so the placement costs six dot products once, not a matrix
+    // product per splat. The quad's own corners stay in world space, built
+    // from the world `r` and `u` below.
+    final m = model?.storage;
+    final rx = m == null
+        ? right.x
+        : m[0] * right.x + m[1] * right.y + m[2] * right.z;
+    final ry = m == null
+        ? right.y
+        : m[4] * right.x + m[5] * right.y + m[6] * right.z;
+    final rz = m == null
+        ? right.z
+        : m[8] * right.x + m[9] * right.y + m[10] * right.z;
+    final ux = m == null ? up.x : m[0] * up.x + m[1] * up.y + m[2] * up.z;
+    final uy = m == null ? up.y : m[4] * up.x + m[5] * up.y + m[6] * up.z;
+    final uz = m == null ? up.z : m[8] * up.x + m[9] * up.y + m[10] * up.z;
+    final wrx = right.x, wry = right.y, wrz = right.z;
+    final wux = up.x, wuy = up.y, wuz = up.z;
+
+    // The view axis, in the world and in the cloud's space as above, when
+    // there is a lens to lean the rows of `J` along it.
+    final forward = lens?.forward;
+    final wfx = forward?.x ?? 0.0;
+    final wfy = forward?.y ?? 0.0;
+    final wfz = forward?.z ?? 0.0;
+    final fx = m == null ? wfx : m[0] * wfx + m[1] * wfy + m[2] * wfz;
+    final fy = m == null ? wfy : m[4] * wfx + m[5] * wfy + m[6] * wfz;
+    final fz = m == null ? wfz : m[8] * wfx + m[9] * wfy + m[10] * wfz;
+    final leanX = lens == null ? 0.0 : kSplatLeanLimit * lens.tanHalfWidth;
+    final leanY = lens == null ? 0.0 : kSplatLeanLimit * lens.tanHalfHeight;
 
     var at = 0;
     for (var n = 0; n < count; n++) {
-      final i = order[n];
+      final i = order == null ? n : order[n];
       cloud.covarianceOf(i, _covariance);
 
-      // The 3D covariance seen from the camera, restricted to the plane of the
-      // glass: `[right; up] Σ [right; up]ᵀ`, which is the 2×2 the ellipse comes
-      // from. Written out rather than multiplied as matrices because two of the
-      // three rows of the result are never used.
+      final lx = cloud.centres[i * 3];
+      final ly = cloud.centres[i * 3 + 1];
+      final lz = cloud.centres[i * 3 + 2];
+      final cx = m == null ? lx : m[0] * lx + m[4] * ly + m[8] * lz + m[12];
+      final cy = m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13];
+      final cz = m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14];
+
+      // Where the splat sits in the camera's frame, and so how far `J`'s rows
+      // lean: `x/w` and `y/w` along the view axis, bounded as [kSplatLeanLimit]
+      // says, and nothing for an orthographic lens, whose `w` does not move.
+      // Its size in pixels is `focal / w` per world unit in the quad's plane.
+      final double leanR, leanU, pixel;
+      if (lens == null) {
+        (leanR, leanU, pixel) = (0.0, 0.0, 0.0);
+      } else {
+        final tx = (cx - eye.x) * wrx + (cy - eye.y) * wry + (cz - eye.z) * wrz;
+        final ty = (cx - eye.x) * wux + (cy - eye.y) * wuy + (cz - eye.z) * wuz;
+        final tz = (cx - eye.x) * wfx + (cy - eye.y) * wfy + (cz - eye.z) * wfz;
+        final w = lens.depthWeight * tz + lens.depthOffset;
+        // Behind the eye nothing is drawn, and the divide means nothing.
+        final ahead = w > 1e-6;
+        leanR = ahead
+            ? lens.depthWeight * (tx / w).clamp(-leanX, leanX).toDouble()
+            : 0.0;
+        leanU = ahead
+            ? lens.depthWeight * (ty / w).clamp(-leanY, leanY).toDouble()
+            : 0.0;
+        pixel = ahead && lens.focal > 0.0 ? w / lens.focal : 0.0;
+      }
+
+      // The rows of `J`, rescaled to the quad's plane: right and up, each
+      // leaned along the view axis by the splat's offset from it.
+      final jrx = rx - leanR * fx, jry = ry - leanR * fy, jrz = rz - leanR * fz;
+      final jux = ux - leanU * fx, juy = uy - leanU * fy, juz = uz - leanU * fz;
+
+      // The 3D covariance seen from the camera: `J Σ Jᵀ`, the 2×2 the ellipse
+      // comes from. Written out rather than multiplied as matrices because
+      // two of the three rows of the result are never used.
       final sxx = _covariance[0], sxy = _covariance[1], sxz = _covariance[2];
       final syy = _covariance[3], syz = _covariance[4], szz = _covariance[5];
 
-      final rx = right.x, ry = right.y, rz = right.z;
-      final ux = up.x, uy = up.y, uz = up.z;
+      // Σ·j1 and Σ·j2.
+      final arx = sxx * jrx + sxy * jry + sxz * jrz;
+      final ary = sxy * jrx + syy * jry + syz * jrz;
+      final arz = sxz * jrx + syz * jry + szz * jrz;
+      final aux = sxx * jux + sxy * juy + sxz * juz;
+      final auy = sxy * jux + syy * juy + syz * juz;
+      final auz = sxz * jux + syz * juy + szz * juz;
 
-      // Σ·right and Σ·up.
-      final arx = sxx * rx + sxy * ry + sxz * rz;
-      final ary = sxy * rx + syy * ry + syz * rz;
-      final arz = sxz * rx + syz * ry + szz * rz;
-      final aux = sxx * ux + sxy * uy + sxz * uz;
-      final auy = sxy * ux + syy * uy + syz * uz;
-      final auz = sxz * ux + syz * uy + szz * uz;
-
-      final a = rx * arx + ry * ary + rz * arz;
-      final b = rx * aux + ry * auy + rz * auz;
-      final d = ux * aux + uy * auy + uz * auz;
+      // With the screen's low-pass filter added to the diagonal, taken from
+      // pixels squared to the quad's world units squared.
+      final dilation = kSplatLowPass * pixel * pixel;
+      final a = jrx * arx + jry * ary + jrz * arz + dilation;
+      final b = jrx * aux + jry * auy + jrz * auz;
+      final d = jux * aux + juy * auy + juz * auz + dilation;
 
       // The 2×2's eigenvectors and the standard deviations along them. A
       // closed form rather than an iteration: for a symmetric 2×2 the whole
@@ -146,16 +370,13 @@ final class SplatQuads {
       final sigma2 = math.sqrt(minor) * kSplatReach;
 
       // The two quad axes, back in world space.
-      final axX = (e1x * sigma1) * rx + (e1y * sigma1) * ux;
-      final axY = (e1x * sigma1) * ry + (e1y * sigma1) * uy;
-      final axZ = (e1x * sigma1) * rz + (e1y * sigma1) * uz;
-      final ayX = (-e1y * sigma2) * rx + (e1x * sigma2) * ux;
-      final ayY = (-e1y * sigma2) * ry + (e1x * sigma2) * uy;
-      final ayZ = (-e1y * sigma2) * rz + (e1x * sigma2) * uz;
+      final axX = (e1x * sigma1) * wrx + (e1y * sigma1) * wux;
+      final axY = (e1x * sigma1) * wry + (e1y * sigma1) * wuy;
+      final axZ = (e1x * sigma1) * wrz + (e1y * sigma1) * wuz;
+      final ayX = (-e1y * sigma2) * wrx + (e1x * sigma2) * wux;
+      final ayY = (-e1y * sigma2) * wry + (e1x * sigma2) * wuy;
+      final ayZ = (-e1y * sigma2) * wrz + (e1x * sigma2) * wuz;
 
-      final cx = cloud.centres[i * 3];
-      final cy = cloud.centres[i * 3 + 1];
-      final cz = cloud.centres[i * 3 + 2];
       final r = cloud.colours[i * 4];
       final g = cloud.colours[i * 4 + 1];
       final bl = cloud.colours[i * 4 + 2];
@@ -188,16 +409,92 @@ final class SplatQuads {
 
     vertexCount = count * kSplatVerticesPerSplat;
   }
+
+  bool _needsSort(Vector3 eye, Matrix4? model) {
+    final last = _sortedEye;
+    if (last == null) return true;
+    final lod = this.lod;
+    if (lod != null &&
+        (lod.tree.pageVersion != _sortedPageVersion ||
+            lod.budget != _sortedBudget)) {
+      return true;
+    }
+    if ((model != null) != _sortedWithModel) return true;
+    if (model != null) {
+      final storage = model.storage;
+      for (var k = 0; k < 16; k++) {
+        if (storage[k] != _sortedModel[k]) return true;
+      }
+    }
+    return last.distanceTo(eye) > resortFraction * _sorter.lastRange;
+  }
+}
+
+/// How a cloud's overlapping splats are combined — `N5`.
+enum SplatComposite {
+  /// [hashed] while a temporal resolve runs, [sorted] otherwise: the noise is
+  /// only worth having when something averages it.
+  automatic,
+
+  /// Sorted back to front and alpha blended, the way a cloud has always been
+  /// drawn. Exact in a single frame; costs a sort whenever the eye moves.
+  sorted,
+
+  /// Unsorted: each splat kept or dropped whole at a pixel against noise, with
+  /// its opacity as the chance of keeping it, and written opaque with its
+  /// depth. One frame of it is speckle; a temporal resolve averages it into
+  /// the blended picture without the cloud ever being sorted.
+  ///
+  /// The cores come out as the sorted blend does. The faint tails come out
+  /// darker: their kept pixels are sparse, and the resolve clips its history
+  /// to each pixel's neighbourhood, which there often holds none of them.
+  hashed,
 }
 
 /// Draws a cloud into the scene pass.
 final class SplatContributor extends PassContributor {
-  SplatContributor(this.cloud) : quads = SplatQuads(cloud);
+  final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
+  final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
 
-  final SplatCloud cloud;
+  /// `FogInfo`'s two members as both splat stages declare them: the fog's
+  /// colour and density, and the eye. Not `FogInfoBlock`, which is the lit
+  /// stages' three-member layout.
+  final Float32List _fog = Float32List(4);
+  final Float32List _eye = Float32List(4);
+
+  SplatContributor(
+    SplatCloud cloud, {
+    this.node,
+    this.composite = SplatComposite.automatic,
+  }) : quads = SplatQuads(cloud);
+
+  /// Draws a splat tree at [lod]'s budget — the cut is chosen again each
+  /// time the cloud is re-sorted, and pages [lod] asks for are drawn as they
+  /// arrive. Off unless asked for: the plain constructor draws every splat.
+  SplatContributor.lod(
+    SplatLod lod, {
+    this.node,
+    this.composite = SplatComposite.automatic,
+  }) : quads = SplatQuads.lod(lod);
+
+  /// What is drawn: the cloud given, or the cut last chosen from a tree.
+  SplatCloud get cloud => quads.cloud;
   final SplatQuads quads;
 
+  /// Sorted, hashed, or whichever the frame's temporal setting calls for.
+  SplatComposite composite;
+
+  /// The node the cloud hangs from, when it has one: its world matrix places
+  /// the cloud, and hiding it hides the cloud. Null draws [cloud] in world
+  /// units as stored, which is what a PLY capture is.
+  ///
+  /// A glTF splat primitive belongs to the node that instantiates its mesh —
+  /// `ModelSplat.node` names it — and the node's scale and rotation reach
+  /// each splat's covariance, not only its centre, as the extension asks.
+  final SceneNode? node;
+
   PipelineHandle? _pipeline;
+  PipelineHandle? _hashedPipeline;
 
   /// The index sequence 0, 1, 2, … every draw in this engine needs — see
   /// `MeshOverlay._identityIndices`, which keeps the same sequence for the
@@ -212,7 +509,11 @@ final class SplatContributor extends PassContributor {
   int get order => 100;
 
   @override
-  bool get isActive => cloud.count > 0;
+  bool get isActive =>
+      // A tree has drawn nothing before its first cut, which is made in
+      // encode; asking the cut would keep it from ever being made.
+      (quads.lod != null || cloud.count > 0) &&
+      (node?.visibleInHierarchy ?? true);
 
   @override
   void encode(ContributorFrame frame) {
@@ -226,28 +527,60 @@ final class SplatContributor extends PassContributor {
     // called `Splat` and not `SplatFragment`. A missing name draws nothing
     // rather than throwing, because a backend whose bundle predates this row is
     // a backend that should still start.
+    final hashed = switch (composite) {
+      SplatComposite.automatic => frame.temporal,
+      SplatComposite.sorted => false,
+      SplatComposite.hashed => true,
+    };
     final vertexShader = frame.device.shaders['ParticleVertex'];
-    final fragmentShader = frame.device.shaders['Splat'];
+    final fragmentShader =
+        frame.device.shaders[hashed ? 'SplatHashed' : 'Splat'];
     if (vertexShader == null || fragmentShader == null) return;
 
-    // The camera's own basis, out of its world matrix: local +X is right, +Y
-    // is up, −Z is forward. Taken here rather than asked of the node, because
-    // `CameraNode` publishes only the forward axis — the other two have had no
-    // caller until now.
+    // The camera's own basis, out of its world matrix: local +X is right and
+    // +Y is up. Taken here rather than asked of the node, because
+    // `CameraNode` publishes only the forward axis — which the quads do not
+    // need, since the order is by distance.
     final camera = view.camera;
     final m = camera.worldMatrix.storage;
     final right = Vector3(m[0], m[1], m[2])..normalize();
     final up = Vector3(m[4], m[5], m[6])..normalize();
-    final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
     final eye = camera.readWorldPosition();
+    final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
 
-    quads.build(eye: eye, right: right, up: up, forward: forward);
+    // The projection the frame draws with, recovered from the matrix it was
+    // handed — `P = (P V) V⁻¹`, and `V⁻¹` is the camera's world matrix — so
+    // a jittered or application-supplied one is followed as it is. Pixels
+    // are the view's own, not the whole target's.
+    final projection = viewProjection.multiplied(camera.worldMatrix);
+    final lens = SplatLens.of(
+      projection,
+      forward,
+      frame.height * view.viewportFraction.height,
+    );
+
+    quads.build(
+      eye: eye,
+      right: right,
+      up: up,
+      model: node?.worldMatrix,
+      sorted: !hashed,
+      lens: lens,
+    );
     if (quads.vertexCount == 0) return;
 
     frame.encoder
       ..clearBindings()
       ..bindPipeline(
-        _pipeline ??= frame.device.createPipeline(vertexShader, fragmentShader),
+        hashed
+            ? _hashedPipeline ??= frame.device.createPipeline(
+                vertexShader,
+                fragmentShader,
+              )
+            : _pipeline ??= frame.device.createPipeline(
+                vertexShader,
+                fragmentShader,
+              ),
       );
     frame.state.invalidatePipeline();
 
@@ -257,20 +590,108 @@ final class SplatContributor extends PassContributor {
       quads.vertexCount * kSplatFloatsPerVertex * 4,
     );
 
+    _particleInfo.viewProjection.setAll(0, viewProjection.storage);
     frame.encoder
-      ..setState(_kSplatState)
+      ..setState(hashed ? _kHashedState : _kSplatState)
       ..bindVertexData(bytes, quads.vertexCount)
       ..bindIndexBuffer(
         _identityIndices.view(frame.device, quads.vertexCount),
         IndexType.int32,
         quads.vertexCount,
       )
-      ..bindUniformBlock(vertexShader, 'ParticleInfo', <String, Float32List>{
-        'view_projection': viewProjection.storage,
-      })
-      ..draw();
+      ..bindBlock(vertexShader, _particleInfo);
+
+    // **Fog, which both splat stages read and nothing bound.** An unbound
+    // block reads as zeros, a density of zero is no fog, and so a cloud stood
+    // out of the murk at full colour on every backend while the walls behind
+    // it faded. WebGL2 was the one that said so, naming the block at the draw.
+    final fog = frame.settings.fog;
+    final colour = fog.resolvedColor;
+    _fog
+      ..[0] = colour.x
+      ..[1] = colour.y
+      ..[2] = colour.z
+      ..[3] = fog.density;
+    _eye
+      ..[0] = eye.x
+      ..[1] = eye.y
+      ..[2] = eye.z;
+    frame.encoder.bindUniformBlock(
+      fragmentShader,
+      'FogInfo',
+      <String, Float32List>{'fog': _fog, 'eye': _eye},
+    );
+    if (hashed) {
+      // The frame's slice of the engine's blue noise, the same slice the
+      // post effects read; the eye and the view axis, from which each splat
+      // measures the distance its offset into that noise is hashed from.
+      // And the target's rows where row zero is its bottom, so the stage
+      // reads the tile the right way up on WebGL2 too — `FragCoordFromTop`.
+      _hashInfo.frame
+        ..[0] = (frame.frameIndex % 32).toDouble()
+        ..[1] = frame.device.framebufferOrigin == FramebufferOrigin.bottomLeft
+            ? frame.height.toDouble()
+            : 0.0;
+      _hashInfo.eye
+        ..[0] = eye.x
+        ..[1] = eye.y
+        ..[2] = eye.z;
+      _hashInfo.forward
+        ..[0] = forward.x
+        ..[1] = forward.y
+        ..[2] = forward.z;
+      frame.encoder
+        ..bindBlock(fragmentShader, _hashInfo)
+        ..bindTexture(
+          fragmentShader,
+          'blue_noise_texture',
+          EngineTables.of(frame.device).blueNoise,
+          sampler: SamplerOptions.nearestClamp,
+        );
+    }
+    frame.encoder.draw();
     frame.state.drawCalls++;
   }
+
+  /// Marks the cloud reactive — `R4`: each splat by its own falloff and
+  /// alpha, over the quads [encode] built for this frame's camera.
+  ///
+  /// Reused rather than rebuilt: the sort is the expensive half of a cloud,
+  /// and the camera has not moved since the scene pass drew it.
+  @override
+  void encodeReactive(ReactiveFrame frame) {
+    final vertexShader = frame.device.shaders['ParticleVertex'];
+    final fragmentShader = frame.spriteStage;
+    if (vertexShader == null || fragmentShader == null) return;
+    if (quads.vertexCount == 0) return;
+
+    final bytes = ByteData.view(
+      quads.vertices.buffer,
+      quads.vertices.offsetInBytes,
+      quads.vertexCount * kSplatFloatsPerVertex * 4,
+    );
+    _particleInfo.viewProjection.setAll(0, frame.viewProjection.storage);
+    frame.encoder
+      ..clearBindings()
+      ..bindPipeline(
+        _reactivePipeline ??= frame.device.createPipeline(
+          vertexShader,
+          fragmentShader,
+        ),
+      )
+      ..setState(ReactiveFrame.state)
+      ..bindVertexData(bytes, quads.vertexCount)
+      ..bindIndexBuffer(
+        _identityIndices.view(frame.device, quads.vertexCount),
+        IndexType.int32,
+        quads.vertexCount,
+      )
+      ..bindBlock(vertexShader, _particleInfo);
+    frame.bindSprite(fragmentShader, ReactiveShape.gaussian);
+    frame.encoder.draw();
+  }
+
+  PipelineHandle? _reactivePipeline;
 
   /// **Blended and depth tested, but not depth written.** A splat is
   /// translucent everywhere, so writing its depth would hide the splats behind
@@ -287,5 +708,16 @@ final class SplatContributor extends PassContributor {
     cullMode: CullMode.none,
     blend: BlendState.alphaBlend,
     depthWrite: false,
+  );
+
+  /// **Unblended and depth written**, which is the whole of `N5`: a hashed
+  /// splat is either wholly here or not at all, so the depth test can decide
+  /// which of the ones that survived is nearest, and the sort is not needed.
+  static const PassState _kHashedState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: true,
   );
 }

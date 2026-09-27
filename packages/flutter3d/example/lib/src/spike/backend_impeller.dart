@@ -25,3 +25,10 @@ Future<GraphicsDevice> createBackend({
 
 /// What to call this build in a diagnostic.
 String get kBackendName => kUseCpuBackend ? 'cpu' : 'impeller';
+
+/// What the device refused while drawing, for a golden run to hold a frame to.
+///
+/// Null here: Impeller and the software rasteriser have no queue of refusals
+/// to read, and fail loudly instead. The browser backends answer for real; see
+/// `backend_web.dart`.
+Future<String?> deviceErrors(GraphicsDevice device) async => null;

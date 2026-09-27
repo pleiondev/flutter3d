@@ -47,7 +47,19 @@ out vec4 frag_color;
 // rather than discovering.
 #ifndef F3D_NO_SURFACE_BUFFER
 layout(location = 1) out vec4 frag_surface;
+
+/// The surface's own colour, sRGB-encoded, alpha one where a surface was
+/// drawn — `L5`. The third attachment, present only when a pass reads it (the
+/// indirect light does) and the device opens three; like the surface buffer,
+/// written unconditionally and discarded when absent. Stored in the surface
+/// buffer's format rather than eight bits a channel, and `Renderer` says why.
+layout(location = 2) out vec4 frag_albedo;
 #endif
+
+/// What [frag_albedo] carries: the lit models set it in `ReadSurface`, and a
+/// stage that reflects nothing — unlit, the debug views — leaves it black,
+/// which is what light bounced onto it would come to.
+vec3 g_albedo = vec3(0.0);
 
 /// Octahedral encoding: a unit vector in two channels instead of three.
 ///
@@ -76,6 +88,18 @@ vec2 EncodeOctahedral(vec3 n) {
 vec3 g_debug_surface = vec3(0.0);
 bool g_debug_surface_on = false;
 
+/// Whether [WriteSurface] weights the colour by its alpha: set by
+/// `ReadSurface` for a material that blends, and false for everything else.
+///
+/// **The blend takes its source as premultiplied**, so a blended surface has
+/// to hand it the colour times the alpha — a pane at a fifth of opaque adds a
+/// fifth of its light, not all of it. glTF's blend mode is Porter and Duff's
+/// over on straight colour, and this is the one place that turns the lit
+/// radiance into what that means. An opaque or masked surface keeps its
+/// colour whole: its alpha is not a coverage, and nothing blends it.
+/// A global for the reason [g_debug_surface] is one.
+bool g_premultiply = false;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -100,7 +124,8 @@ uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -140,6 +165,34 @@ float ViewDepth() { return 0.0; }
 
 #endif  // F3D_NO_FOG
 
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
 /// Called from the same place that writes colour, so a surface cannot be lit
@@ -171,6 +224,8 @@ float ViewDepth() { return 0.0; }
 /// nothing is drawn in front of the near plane.
 void WriteSurfaceGeometry(float roughness) {
 #ifndef F3D_NO_SURFACE_BUFFER
+  // `L5`: the surface's colour, whatever the surface buffer ends up holding.
+  frag_albedo = vec4(LinearToSrgb(clamp(g_albedo, vec3(0.0), vec3(1.0))), 1.0);
   // A debug pass takes the buffer over rather than getting one of its own.
   // The surface buffer already has an attachment, a viewer and a golden; a
   // second one would need all three built before it could answer anything.
@@ -202,37 +257,59 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
-/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
-/// in linear space; skipping this is what makes naive renderers look muddy.
-vec3 SrgbToLinear(vec3 srgb) {
-  return mix(
-      srgb / 12.92,
-      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
-      step(vec3(0.04045), srgb));
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
 }
 
-/// Linear to sRGB. The render target is a plain UNorm format rather than an
-/// sRGB one, so the encode has to happen here.
-vec3 LinearToSrgb(vec3 linear) {
-  return mix(
-      linear * 12.92,
-      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
-      step(vec3(0.0031308), linear));
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
 }
 
-/// Writes scene-referred linear light into the HDR target.
-///
-/// No tone map and no sRGB encode: those moved into the composite pass, which
-/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
-/// them here meant every model wrote display-referred colour into an 8-bit
-/// buffer, so anything above display white was gone before post-processing
-/// could see it — and bloom is a function of exactly that.
-///
-/// Exposure moved with them, for the same reason: it belongs on the same side
-/// of the display transform as the tone map.
+/// The fog is mixed in before the weight, so a thin distant pane adds a thin
+/// share of the fog too rather than all of it. Times one when nothing blends,
+/// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
-  frag_color = vec4(ApplyFog(linearColor), alpha);
+  float weight = g_premultiply ? alpha : 1.0;
+  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.

@@ -9,16 +9,17 @@
 ///
 /// **Those three, stated once.** `opacity` is a logit and needs a logistic;
 /// `scale_*` are logarithms and need an exponential; `f_dc_*` are the zeroth
-/// spherical-harmonic band and need the constant in [kSplatShC0] plus a half.
+/// spherical-harmonic band and need the constant in [kSplatShC0] plus a half,
+/// which gives an sRGB-encoded colour rather than a linear one.
 /// A reader that skips any of them produces a cloud that loads, draws, and is
 /// wrong in a way that reads as a bad capture rather than a bad reader — which
 /// is why they are named here rather than left to the call site.
 ///
-/// Higher spherical-harmonic bands (`f_rest_*`) are skipped deliberately: they
+/// Higher spherical-harmonic bands (`f_rest_*`) are skipped by default: they
 /// are what makes a splat change colour with the viewing angle, they are
-/// forty-five floats a splat, and a first implementation that carried them
-/// would be four times the memory for a difference nothing here can yet show.
-/// The row says so too.
+/// forty-five floats a splat, and carrying them is four times the memory for
+/// a difference nothing here can yet show. `keepHigherBands` reads them, for
+/// a converter or a test that holds a cloud to another reader's.
 library;
 
 import 'dart:convert';
@@ -47,7 +48,21 @@ const Map<String, int> _scalarBytes = <String, int>{
 typedef _Property = ({String name, String type, int offset});
 
 /// The cloud in [bytes], or a thrown [SplatPlyException] saying why not.
-SplatCloud parseSplatPly(Uint8List bytes) {
+///
+/// [keepHigherBands] reads `f_rest_*` into [SplatCloud.shRest]. The file
+/// lists them channel by channel — every red coefficient, then every green,
+/// then every blue — and the cloud keeps each coefficient's `rgb` together,
+/// so they are transposed on the way in.
+///
+/// [colourSpace] is what the band-0 colours were fitted in. The file cannot
+/// say, and a trainer fits them to sRGB photographs, so sRGB is the default:
+/// they are clamped and decoded to the linear light the engine blends in —
+/// see [splatColour].
+SplatCloud parseSplatPly(
+  Uint8List bytes, {
+  bool keepHigherBands = false,
+  SplatColourSpace colourSpace = SplatColourSpace.srgb,
+}) {
   final header = _readHeader(bytes);
   final stride = header.stride;
   final count = header.count;
@@ -108,9 +123,9 @@ SplatCloud parseSplatPly(Uint8List bytes) {
     centres[i * 3 + 1] = read(y, i);
     centres[i * 3 + 2] = read(z, i);
 
-    colours[i * 4] = splatChannel(read(dc0, i));
-    colours[i * 4 + 1] = splatChannel(read(dc1, i));
-    colours[i * 4 + 2] = splatChannel(read(dc2, i));
+    colours[i * 4] = splatColour(read(dc0, i), colourSpace);
+    colours[i * 4 + 1] = splatColour(read(dc1, i), colourSpace);
+    colours[i * 4 + 2] = splatColour(read(dc2, i), colourSpace);
     colours[i * 4 + 3] = splatOpacity(read(opacity, i));
 
     scales[i * 3] = math.exp(read(s0, i));
@@ -138,11 +153,41 @@ SplatCloud parseSplatPly(Uint8List bytes) {
     rotations[i * 4 + 3] = length > 1e-12 ? w * scale : 1.0;
   }
 
+  // `f_rest_0` onwards, as far as they run unbroken; a count that is not
+  // three times a whole band set is not a spherical-harmonic layout.
+  final rest = <_Property>[
+    if (keepHigherBands)
+      for (var k = 0; header.properties.containsKey('f_rest_$k'); k++)
+        header.properties['f_rest_$k']!,
+  ];
+  final degree = switch (rest.length) {
+    0 => 0,
+    9 => 1,
+    24 => 2,
+    45 => 3,
+    72 => 4,
+    _ => throw SplatPlyException(
+      '${rest.length} f_rest properties, which is no whole number of '
+      'spherical-harmonic bands (9, 24, 45 or 72)',
+    ),
+  };
+  final dim = rest.length ~/ 3;
+  final shRest = Float32List(count * rest.length);
+  for (var i = 0; i < count; i++) {
+    for (var k = 0; k < dim; k++) {
+      for (var c = 0; c < 3; c++) {
+        shRest[(i * dim + k) * 3 + c] = read(rest[c * dim + k], i);
+      }
+    }
+  }
+
   return SplatCloud(
     centres: centres,
     colours: colours,
     scales: scales,
     rotations: rotations,
+    shDegree: degree,
+    shRest: shRest,
   );
 }
 

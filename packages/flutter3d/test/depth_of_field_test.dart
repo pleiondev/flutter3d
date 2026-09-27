@@ -15,6 +15,8 @@
 /// moves less of it, and that the plane in focus does not move at all.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -202,6 +204,69 @@ void main() {
     });
   });
 
+  group('the lens the camera already chose', () {
+    // The default camera: 45° tall, and square here.
+    final across = 2.0 * math.tan(math.pi / 8.0);
+
+    test('no focal length is the lens that frames the picture', () {
+      // A square picture 45° tall on a 36mm frame is a 43mm lens. Until the
+      // lens was tied to the projection a fifty was assumed whatever the
+      // camera showed, and the circle came out a third too large.
+      final lens = const DepthOfFieldSettings().lensFor(
+        verticalFieldOfView: math.pi / 4.0,
+        aspect: 1.0,
+      );
+      expect(lens.focalLength, closeTo(0.036 / across, 1e-12));
+      expect(lens.focalLength * 1000.0, closeTo(43.5, 0.1));
+      expect(lens.sensorWidth, 0.036);
+    });
+
+    test('a focal length given is kept, and the sensor follows', () {
+      // An 85mm lens seeing 45° across fills 70mm of sensor, not 36: the
+      // angle and the lens decide the frame between them.
+      final lens = _portrait.lensFor(
+        verticalFieldOfView: math.pi / 4.0,
+        aspect: 1.0,
+      );
+      expect(lens.focalLength, 0.085);
+      expect(lens.sensorWidth, closeTo(0.085 * across, 1e-12));
+    });
+
+    test('zooming in lengthens the lens, and a wider frame shortens it', () {
+      double focal(double fov, double aspect) => const DepthOfFieldSettings()
+          .lensFor(verticalFieldOfView: fov, aspect: aspect)
+          .focalLength;
+      expect(focal(math.pi / 8.0, 1.0), greaterThan(focal(math.pi / 4.0, 1.0)));
+      expect(focal(math.pi / 4.0, 16 / 9), lessThan(focal(math.pi / 4.0, 1.0)));
+    });
+
+    test('an orthographic camera has no angle, and keeps the numbers', () {
+      final lens = const DepthOfFieldSettings().lensFor(
+        verticalFieldOfView: const OrthographicProjection().verticalFieldOfView,
+        aspect: 1.0,
+      );
+      expect(lens.focalLength, 0.05);
+      expect(lens.sensorWidth, 0.036);
+    });
+
+    test('the frame is drawn with the lens the projection implies', () async {
+      // Mutation: hand the shader `settings.focalLength ?? 0.05` and
+      // `scene.width / settings.sensorWidth` again. The derived lens then
+      // draws the fifty's frame, not the one its own focal length given by
+      // hand draws.
+      const open = DepthOfFieldSettings(
+        enabled: true,
+        focusDistance: 4.0,
+        aperture: 1.4,
+      );
+      final derived = await _frame(open);
+      final byHand = await _frame(open.copyWith(focalLength: 0.036 / across));
+      final fifty = await _frame(open.copyWith(focalLength: 0.05));
+      expect(_changed(derived, byHand), 0);
+      expect(_changed(derived, fifty), greaterThan(0));
+    });
+  });
+
   group('the lens in a frame', () {
     test('off by default, and off is the frame it always was', () async {
       expect(const DepthOfFieldSettings().enabled, isFalse);
@@ -250,6 +315,47 @@ void main() {
         <int>[plain[at], plain[at + 1], plain[at + 2]],
       );
     });
+
+    test(
+      'a blurred foreground spreads over the sharp plane behind it',
+      () async {
+        // Focused on the wall, so the ball at four metres is the blurred
+        // foreground and the wall beside it is sharp. A gather that reached
+        // only as far as each pixel's own circle left every sharp wall pixel
+        // alone, and the ball kept a hard outline against the wall. Reaching
+        // as far as the largest circle in the tile neighbourhood, the wall
+        // just outside the ball takes on its red. Mutation: gather over the
+        // pixel's own radius in the CPU mirror (`gather = radius`).
+        //
+        // An 800mm lens, because the camera's 45° is what it frames on a
+        // sensor two thirds of a metre wide, and the circle in the picture
+        // grows with the lens: at 85mm the ball's is under a texel on this
+        // small a frame, at 800mm it is about eight. A long lens at this
+        // framing is a large-format camera, which is what a shallow focus
+        // across a scene this deep takes.
+        final plain = await _frame(const DepthOfFieldSettings());
+        final onWall = await _frame(
+          _portrait.copyWith(focusDistance: 11.5, focalLength: 0.8),
+        );
+
+        // The wall just right of the ball, level with its middle: the ball
+        // ends near column 50 on row 64, and the wall there is at 11.5
+        // metres, in focus to within a hundredth of a texel.
+        final redder = <int>[
+          for (var y = 56; y < 72; y++)
+            for (var x = 51; x < 58; x++)
+              onWall[(y * _size + x) * 4] - plain[(y * _size + x) * 4],
+        ];
+        // Measured: about nine levels of red a pixel on average, twenty to
+        // forty at the silhouette and nothing six texels out. Gathering only
+        // over each pixel's own circle it is nought throughout.
+        expect(
+          redder.fold<int>(0, (sum, added) => sum + added),
+          greaterThan(redder.length * 4),
+          reason: 'the ball bleeds a soft rim onto the in-focus wall',
+        );
+      },
+    );
 
     test('the pass takes its name out of the graph when told to', () async {
       // The switch `gfx-31n` added, applied to the newest pass: a name in

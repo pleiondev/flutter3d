@@ -66,6 +66,12 @@ final class Material {
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
+    this.extensions,
+    this.coatMap,
+    this.coatMapSampler,
+    this.sheenMap,
+    this.sheenMapSampler,
+    Map<MaterialMap, TextureTransform>? textureTransforms,
     this.drawBucket = 0,
     this.depthWrite,
     this.depthCompare,
@@ -73,6 +79,8 @@ final class Material {
     Map<String, Float32List>? parameters,
     Map<String, TextureHandle>? extraTextures,
   }) : parameters = parameters ?? const <String, Float32List>{},
+       textureTransforms =
+           textureTransforms ?? <MaterialMap, TextureTransform>{},
        extraTextures = extraTextures ?? const <String, TextureHandle>{},
        baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
@@ -112,6 +120,30 @@ final class Material {
         0,
       ]),
     },
+  );
+
+  /// The material an `ImpostorNode` is drawn with — `C4`.
+  ///
+  /// [albedo] is the baked colour and coverage, [normalDepth] the baked
+  /// normals and depths, each [kImpostorGrid] views to a side. They ride in
+  /// the albedo and normal map slots, which [LightingModel.impostor]'s stage
+  /// reads as atlases rather than as ordinary maps.
+  ///
+  /// **Opaque, not masked.** The stage discards by its own blended coverage;
+  /// a mask here would have the shared surface code discard first against a
+  /// read of the atlas at the card's own corner coordinates, which is not
+  /// any view at all.
+  factory Material.impostor({
+    String? name,
+    required TextureHandle albedo,
+    required TextureHandle normalDepth,
+  }) => Material(
+    name: name,
+    lighting: LightingModel.impostor,
+    albedo: albedo,
+    normal: normalDepth,
+    roughness: 1.0,
+    doubleSided: true,
   );
 
   /// The render target size a [Material.polyline] widens its line against, as
@@ -225,6 +257,47 @@ final class Material {
   double alphaCutoff;
   bool doubleSided;
 
+  /// The layers beyond metal-rough — clear coat, specular, index of
+  /// refraction, sheen, anisotropy, transmission and the rest — `M1`–`M3`.
+  /// Read only by [LightingModel.pbrLayered]: a material that has them and
+  /// asks for [LightingModel.pbr] is drawn without them, which is why the
+  /// loaders hand such a material the layered model.
+  ///
+  /// Only the factors are read from here; the texture bindings it carries
+  /// are the document's and reach the renderer packed into [coatMap] and
+  /// [sheenMap].
+  MaterialExtensions? extensions;
+
+  /// The coat map: red the clear coat, green its roughness, blue the
+  /// transmission and alpha the thickness, each multiplying its factor in
+  /// [extensions]. Null binds white, which leaves the factors as they are.
+  ///
+  /// One texture for what glTF gives as up to four, because the layered
+  /// stage has two samplers left under WebGL2's sixteen and this is one of
+  /// them — see `binding_budget_test.dart`.
+  TextureHandle? coatMap;
+  SamplerOptions? coatMapSampler;
+
+  /// The sheen map — `M2`: the sheen colour in red, green and blue, sRGB as
+  /// it was authored, and its roughness in alpha, each multiplying its factor
+  /// in [extensions]. Null binds white. The layered stage's sixteenth sampler,
+  /// and its last.
+  TextureHandle? sheenMap;
+  SamplerOptions? sheenMapSampler;
+
+  /// `KHR_texture_transform` per map, applied at the sampler — `C8`. A map
+  /// with no entry is read at the vertex's own coordinate.
+  ///
+  /// **Read only by [LightingModel.pbrLayered]**, whose block has the room: a
+  /// matrix per map for every draw of every model would be a widening of the
+  /// block six stages share, for a feature most models never meet. What most
+  /// models do meet — one transform on every map, an atlas export — is baked
+  /// into the coordinates at upload and leaves this empty; a loader fills it
+  /// for the material whose maps disagree, or whose offset a clip moves, and
+  /// hands that material the layered model. Mutable, so a clip moves an
+  /// [TextureTransform.offset] in place.
+  final Map<MaterialMap, TextureTransform> textureTransforms;
+
   /// Coarse manual ordering, borrowed from PlayCanvas: it outranks every other
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
@@ -312,6 +385,15 @@ final class Material {
           alphaMode: alphaMode,
           alphaCutoff: alphaCutoff,
           doubleSided: doubleSided,
+          extensions: extensions,
+          coatMap: coatMap,
+          coatMapSampler: coatMapSampler,
+          sheenMap: sheenMap,
+          sheenMapSampler: sheenMapSampler,
+          textureTransforms: <MaterialMap, TextureTransform>{
+            for (final MapEntry(:key, :value) in textureTransforms.entries)
+              key: value.clone(),
+          },
           drawBucket: drawBucket,
           depthWrite: depthWrite,
           depthCompare: depthCompare,

@@ -75,9 +75,13 @@ void main() {
   v_normal =
       mat3(frame_info.normal_matrix) * normalize(rotation * morphed_normal);
   v_texcoord = texcoord;
+  // The bitangent sign flips with a mirror (see mesh.vert), and an instance
+  // flipped by its own transform is as mirrored as a node flipped by its.
+  bool mirrored = (determinant(mat3(frame_info.model)) < 0.0) !=
+                  (determinant(rotation) < 0.0);
   v_tangent = vec4(
       mat3(frame_info.model) * (rotation * morphed_tangent.xyz),
-      morphed_tangent.w);
+      mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color * i_color;
   v_lightmap_uv = vec2(0.0);
   gl_Position = frame_info.mvp * local;

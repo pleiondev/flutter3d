@@ -19,7 +19,13 @@ final class ClothMesh {
     required this.bendPairs,
     required this.bendRestLength,
     required this.triangles,
-  }) : particleCount = cols * rows;
+    Int32List? shearPairs,
+    Float64List? shearRestLength,
+    Float64List? restPositions,
+  }) : particleCount = cols * rows,
+       shearPairs = shearPairs ?? Int32List(0),
+       shearRestLength = shearRestLength ?? Float64List(0),
+       restPositions = restPositions ?? Float64List.fromList(positions);
 
   final int cols;
   final int rows;
@@ -50,9 +56,47 @@ final class ClothMesh {
   final Int32List bendPairs;
   final Float64List bendRestLength;
 
+  /// Shear constraints: both diagonals of every grid quad, solved with their
+  /// own compliance.
+  ///
+  /// **Without them a sheet has no resistance to shear at all.** The edges
+  /// along rows and columns hold their lengths while each quad folds flat
+  /// into a rhombus, so a square sheet dropped on a ball stretched its
+  /// corners into strands that reached the floor, and what lay on the floor
+  /// spread into a blot with no straight edge left. Empty for a mesh built
+  /// without them, which then shears as before.
+  final Int32List shearPairs;
+  final Float64List shearRestLength;
+
   /// Three particle indices per triangle, for wind's own drag-along-normal
   /// force. Two triangles per grid quad.
   final Int32List triangles;
+
+  /// `3 * particleCount` doubles: where each particle sits in the sheet's
+  /// own rest shape, flat and unstretched.
+  ///
+  /// **What self-collision asks "are these two neighbours?" of.** Two
+  /// particles closer than `ClothSettings.selfCollisionThickness` in the
+  /// rest shape are held apart, or together, by the sheet's own constraints,
+  /// and pushing them apart as well would fight those; two further apart
+  /// that come that close are two layers of a fold. Only distances are read
+  /// from here, so a sheet moved or turned bodily after it was built keeps
+  /// the same answer.
+  ///
+  /// A copy of [positions] as they were when the mesh was constructed,
+  /// unless a rest shape is passed — for [ClothMesh.grid], the flat grid. A
+  /// mesh built by hand in an already folded pose should pass its unfolded
+  /// shape, or the layers it was built touching are taken for neighbours
+  /// and never pushed apart.
+  final Float64List restPositions;
+
+  /// The mean rest length of the structural edges, the sheet's own spacing:
+  /// the scale self-collision's default thickness is measured in. Zero for a
+  /// mesh with no structural edges.
+  late final double meanRestEdge = structuralRestLength.isEmpty
+      ? 0.0
+      : structuralRestLength.reduce((a, b) => a + b) /
+            structuralRestLength.length;
 
   /// A flat `cols * rows` grid of particles, `spacing` apart, lying in the
   /// XZ plane at `y = height` before gravity does anything to it — the top
@@ -119,6 +163,23 @@ final class ClothMesh {
       }
     }
 
+    final shearPairs = <int>[];
+    final shearRestLength = <double>[];
+    for (var row = 0; row + 1 < rows; row++) {
+      for (var col = 0; col + 1 < cols; col++) {
+        final tl = row * cols + col;
+        for (final (a, b) in <(int, int)>[
+          (tl, tl + cols + 1),
+          (tl + 1, tl + cols),
+        ]) {
+          shearPairs
+            ..add(a)
+            ..add(b);
+          shearRestLength.add(_distance(positions, a, b));
+        }
+      }
+    }
+
     // Cross-edge bending: skip-one neighbours along each row and column,
     // which is exactly the pair of corners a quad's own two triangles do
     // not share when the quad next to it is folded along their common
@@ -152,6 +213,8 @@ final class ClothMesh {
       bendPairs: Int32List.fromList(bendPairs),
       bendRestLength: Float64List.fromList(bendRestLength),
       triangles: Int32List.fromList(triangles),
+      shearPairs: Int32List.fromList(shearPairs),
+      shearRestLength: Float64List.fromList(shearRestLength),
     );
   }
 

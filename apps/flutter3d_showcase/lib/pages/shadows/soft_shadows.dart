@@ -9,7 +9,7 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class SoftShadowsDemo extends ShowcaseDemo {
-  double sunRadius = 100.0;
+  double sunRadius = 0.05;
   double lampRadius = 0.3;
   int lightChoice = 0;
 
@@ -128,10 +128,10 @@ final class SoftShadowsDemo extends ShowcaseDemo {
     SliderControl(
       'Sun size',
       min: 0,
-      max: 300,
+      max: 0.2,
       value: () => sunRadius,
       onChanged: (double v) => sunRadius = v,
-      format: (double v) => v.round().toString(),
+      format: (double v) => '${(v * 57.29578).toStringAsFixed(1)}°',
     ),
     SliderControl(
       'Lamp size',

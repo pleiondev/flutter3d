@@ -40,10 +40,10 @@ void reportLine(String message) {
 /// The scene named in the page's URL, if any.
 ///
 /// A run-time choice here, where the desktop path takes a compile-time define.
-/// The reason is arithmetic: the suite is forty-four scenes, and rebuilding
-/// the bundle for each is forty-four dart2js runs to compare forty-four
-/// pictures. One build and forty-four navigations is the same information in
-/// a fraction of the time.
+/// The reason is arithmetic: the suite is seventy-eight scenes, and rebuilding
+/// the bundle for each is seventy-eight dart2js runs to compare seventy-eight
+/// pictures. One build and seventy-eight navigations is the same information
+/// in a fraction of the time.
 ///
 /// These three said thirty-nine while the suite had been forty-three for some
 /// time. The structure rule that holds this count reads only the number
@@ -58,8 +58,8 @@ String? get sceneOverride {
 /// Whether this run records rather than compares, from the page's URL.
 ///
 /// A run-time choice for the same reason [sceneOverride] is one: the suite is
-/// forty-four scenes and rebuilding for each would be forty-four dart2js runs.
-/// One build serves both directions, and the URL says which.
+/// seventy-eight scenes and rebuilding for each would be seventy-eight dart2js
+/// runs. One build serves both directions, and the URL says which.
 bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 
 /// Where the references live, which in a browser is nowhere in particular.
@@ -69,6 +69,13 @@ bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 /// conditional export. Here the references are fetched relative to the page, so
 /// there is no directory to name and nothing for a caller to override.
 String? get directoryOverride => null;
+
+/// Which occlusion method to draw with, from the page's URL — `C2`, `C3`.
+/// `?occlusion=software` or `?occlusion=hiZ`; absent draws with none.
+String? get occlusionOverride {
+  final name = Uri.base.queryParameters['occlusion'];
+  return (name == null || name.isEmpty) ? null : name;
+}
 
 /// Whether a run has to be told where the references live.
 ///

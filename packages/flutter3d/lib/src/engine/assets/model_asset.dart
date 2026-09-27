@@ -15,6 +15,13 @@ export 'package:flutter3d_core/flutter3d_core.dart' show ModelPart;
 
 part 'model_instance.dart';
 
+/// An impostor level's uploaded card and atlases — see [ModelAsset.impostors].
+typedef ImpostorPart = ({
+  DeviceMesh card,
+  TextureHandle albedo,
+  TextureHandle normalDepth,
+});
+
 /// An immutable, GPU-resident model that can be placed in a scene any number of
 /// times.
 ///
@@ -31,11 +38,22 @@ final class ModelAsset {
     this.clips = const <AnimationClip>[],
     this.warnings = const <String>[],
     this.name,
-  }) : skins = List.unmodifiable(skins),
+    this.variants = const <String>[],
+    this.materials = const <int, Material>{},
+    Map<ModelImpostor, ImpostorPart> impostors =
+        const <ModelImpostor, ImpostorPart>{},
+  }) : impostors = Map.unmodifiable(impostors),
+       skins = List.unmodifiable(skins),
        nodes = nodes ?? _flatNodesFor(parts),
        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
 
   final List<ModelPart> parts;
+
+  /// What each impostor level in [nodes] draws with — `C4`: its card and its
+  /// two atlases, uploaded once however many instances stand in a scene.
+  /// Keyed by the level's own [ModelImpostor]; empty for the model with none,
+  /// which is nearly every model.
+  final Map<ModelImpostor, ImpostorPart> impostors;
 
   /// The model's hierarchy, index-aligned with whatever the decoder produced.
   ///
@@ -58,6 +76,19 @@ final class ModelAsset {
 
   final List<String> warnings;
   final String? name;
+
+  /// The material variants the file offers, by name — see
+  /// [ModelInstance.selectVariant] and [ModelPart.variantMaterials].
+  final List<String> variants;
+
+  /// The bound material for each of the document's materials that anything
+  /// uses, by its index there.
+  ///
+  /// Kept because an animation pointer addresses a material by that index,
+  /// not by the part that happens to wear it: one material on three parts is
+  /// one roughness track, and a material only a variant uses is still one a
+  /// clip may animate.
+  final Map<int, Material> materials;
 
   /// Whether the file brought any animation with it.
   ///
@@ -196,6 +227,26 @@ final class ModelAsset {
       return uploaded;
     }
 
+    // The pixels of each image the layers' maps pack, decoded once however
+    // many materials pack it — `M1`.
+    final decodedCache = <int, Future<Rgba8Image?>>{};
+    Future<Rgba8Image?> decodedImage(int imageIndex) {
+      if (imageIndex < 0 || imageIndex >= document.images.length) {
+        return Future<Rgba8Image?>.value();
+      }
+      return decodedCache[imageIndex] ??= () async {
+        try {
+          return await decodeImage(document.images[imageIndex].bytes);
+        } catch (_) {
+          warnings.add(
+            'images[$imageIndex] could not be decoded for a packed map; the '
+            'material falls back to its factors.',
+          );
+          return null;
+        }
+      }();
+    }
+
     /// Packs and uploads one mesh's morph deltas, or nothing when it has none.
     ///
     /// A failed upload is a model that draws its base shape, not a model that
@@ -238,16 +289,71 @@ final class ModelAsset {
       );
     });
 
+    // `C8`: the materials whose transforms are read at the sampler rather
+    // than baked into the coordinates — those whose maps disagree, which one
+    // set of coordinates cannot honour, and those whose offset a clip moves,
+    // which coordinates fixed at upload cannot follow.
+    final animatedOffsets = <int>{
+      for (final clip in document.animations)
+        for (final track in clip.tracks)
+          if (track.pointer case final pointer?
+              when pointer.property == AnimationPointerProperty.textureOffset)
+            pointer.index,
+    };
+    bool atSampler(int index) =>
+        animatedOffsets.contains(index) ||
+        hasConflictingTextureTransforms(document.materials[index]);
+
+    Future<Material> materialAt(int index) async =>
+        materialCache[index] ??= await bindSurfaceMaterial(
+          document.materials[index],
+          lighting: lighting,
+          transformsAtSampler: atSampler(index),
+          textureFor: textureFor,
+          // `M1`–`M3`: the layer maps packed at load, for a variant's
+          // material as for the default one.
+          layerImages: (
+            device: device,
+            image: (binding) => decodedImage(binding.imageIndex),
+          ),
+        );
+
+    /// The transform baked into the coordinates of a surface drawn with
+    /// material [index], bound as [material]: the one its maps share, unless
+    /// the material reads its own at the sampler — `C8`.
+    TextureTransform? bakedFor(int index, Material material) =>
+        atSampler(index) &&
+            identical(material.lighting, LightingModel.pbrLayered)
+        ? null
+        : sharedTextureTransform(document.materials[index]);
+
+    // Said once per material rather than once per surface: the maps of a
+    // material another model draws disagree, and that model has no matrices
+    // to read them through.
+    for (var index = 0; index < document.materials.length; index++) {
+      if (!hasConflictingTextureTransforms(document.materials[index])) continue;
+      final material = await materialAt(index);
+      if (material.textureTransforms.isNotEmpty) continue;
+      warnings.add(
+        'materials[$index] gives its textures different '
+        'KHR_texture_transform values and is drawn with '
+        '${material.lighting.label}, which reads one set of coordinates; '
+        'none is applied and each samples its whole image.',
+      );
+    }
+
     final parts = <ModelPart>[];
     for (final surface in document.surfaces) {
       final index = surface.materialIndex;
+      final hasMaterial =
+          index != null && index >= 0 && index < document.materials.length;
+      final material = hasMaterial
+          ? await materialAt(index)
+          : materialCache[-1] ??= Material(lighting: lighting);
       // `KHR_texture_transform`, honoured in the coordinates: see
-      // `texture_transform_bake.dart` for why here and not in the decoder or
-      // the sampler.
-      final moved =
-          index != null && index >= 0 && index < document.materials.length
-          ? sharedTextureTransform(document.materials[index])
-          : null;
+      // `texture_transform_bake.dart` for why here and not in the decoder, and
+      // `bakedFor` for the materials that take theirs at the sampler instead.
+      final moved = hasMaterial ? bakedFor(index, material) : null;
       final mesh = meshCache.putIfAbsent(
         (surface.mesh, moved),
         () => DeviceMesh.upload(
@@ -259,15 +365,28 @@ final class ModelAsset {
       );
       final morph = morphFor(surface.mesh, surface.name ?? 'a surface');
 
-      Material material;
-      if (index != null && index >= 0 && index < document.materials.length) {
-        material = materialCache[index] ??= await bindSurfaceMaterial(
-          document.materials[index],
-          lighting: lighting,
-          textureFor: textureFor,
-        );
-      } else {
-        material = materialCache[-1] ??= Material(lighting: lighting);
+      // Each variant's material is bound now, with the default one, so that
+      // switching variants is an assignment rather than an upload. The mesh
+      // is not re-uploaded per variant: the texture transform baked into it
+      // is the default material's, and a variant whose own transform differs
+      // is said so rather than drawn quietly with the wrong one.
+      final variantMaterials = <int, Material>{};
+      for (final MapEntry(key: variant, value: other)
+          in surface.variantMaterials.entries) {
+        if (other < 0 || other >= document.materials.length) continue;
+        final theirMaterial = await materialAt(other);
+        variantMaterials[variant] = theirMaterial;
+        final theirs = bakedFor(other, theirMaterial);
+        final same = theirs == null
+            ? moved == null
+            : moved != null && theirs.sameAs(moved);
+        if (!same) {
+          warnings.add(
+            '${surface.name ?? 'a surface'}: variant $variant\'s material has '
+            'a different KHR_texture_transform from the default one; the '
+            'default\'s is the one baked into the mesh.',
+          );
+        }
       }
 
       parts.add(
@@ -282,13 +401,57 @@ final class ModelAsset {
           morphTargetCount: morph.count,
           morphWeights: surface.morphWeights,
           morphReaches: morph.reaches,
+          variantMaterials: variantMaterials,
         ),
       );
     }
 
+    // `C4`: an impostor's atlases are read by view, so no mip chain — a chain
+    // averages each view's cell into its neighbours'. A level whose atlases
+    // will not decode is dropped with a warning, and the chain ends at the
+    // coarsest mesh instead.
+    const atlasSampling = TextureSampling(
+      useMipmaps: false,
+      wrapS: TextureWrap.clampToEdge,
+      wrapT: TextureWrap.clampToEdge,
+    );
+    final impostors = <ModelImpostor, ImpostorPart>{};
+    for (final node in document.nodes) {
+      for (final lod in node.lods) {
+        final impostor = lod.impostor;
+        if (impostor == null) continue;
+        final albedo = await textureFor(impostor.albedoImage, atlasSampling);
+        final normalDepth = await textureFor(
+          impostor.normalDepthImage,
+          atlasSampling,
+        );
+        if (albedo == null || normalDepth == null) {
+          warnings.add(
+            '${node.name ?? 'a node'}: its impostor atlases did not decode; '
+            'its levels end at the coarsest mesh.',
+          );
+          continue;
+        }
+        impostors[impostor] = (
+          card: DeviceMesh.upload(
+            device,
+            impostorCard(centre: impostor.centre, radius: impostor.radius),
+          ),
+          albedo: albedo,
+          normalDepth: normalDepth,
+        );
+      }
+    }
+
     return ModelAsset(
+      variants: document.variants,
+      materials: <int, Material>{
+        for (final MapEntry(:key, :value) in materialCache.entries)
+          if (key >= 0) key: value,
+      },
       name: name,
       parts: parts,
+      impostors: impostors,
       nodes: document.nodes,
       roots: document.roots,
       skins: document.skins,
@@ -314,17 +477,28 @@ final class ModelAsset {
   void release(GraphicsDevice device) {
     final meshes = Set<DeviceMesh>.identity();
     final textures = Set<TextureHandle>.identity();
+    for (final impostor in impostors.values) {
+      meshes.add(impostor.card);
+      textures
+        ..add(impostor.albedo)
+        ..add(impostor.normalDepth);
+    }
     for (final part in parts) {
       meshes.add(part.mesh);
-      final material = part.material;
-      for (final texture in <TextureHandle?>[
-        material.albedo,
-        material.normal,
-        material.metallicRoughness,
-        material.occlusion,
-        material.emissiveTexture,
+      // A variant's material holds textures the default one may not.
+      for (final material in <Material>[
+        part.material,
+        ...part.variantMaterials.values,
       ]) {
-        if (texture != null) textures.add(texture);
+        for (final texture in <TextureHandle?>[
+          material.albedo,
+          material.normal,
+          material.metallicRoughness,
+          material.occlusion,
+          material.emissiveTexture,
+        ]) {
+          if (texture != null) textures.add(texture);
+        }
       }
     }
     for (final mesh in meshes) {

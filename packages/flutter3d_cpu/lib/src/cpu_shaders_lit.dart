@@ -10,7 +10,9 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_layout.dart';
 import 'cpu_shaders_lighting.dart';
+import 'cpu_shaders_ltc.dart';
 import 'cpu_shaders_surface.dart';
 
 /// `unlit.frag`: the albedo, written into the HDR target as light.
@@ -20,6 +22,8 @@ final class UnlitShader implements CpuFragmentShader {
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
     final s = readSurface(v, bindings, c);
+    // `L5`: reflects no light, as `unlit.frag` says.
+    c.albedo = null;
     if (s == null) return null;
     // Fully rough, which is what WriteSurface's one-argument form means: a
     // surface that cannot say how polished it is should not be reflected off.
@@ -59,8 +63,16 @@ final class XrayShader implements CpuFragmentShader {
     // Discarded under a mask cutoff, exactly as every other model here is: a
     // silhouette must have the holes the thing it stands for has.
     if (s == null) return null;
+    // `WriteSurface`'s weight too: the GLSL calls it, so a blended material
+    // on this model is premultiplied there and has to be here.
+    final weight = premultiplies(bindings) ? s.alpha : 1.0;
     final fogged = applyFog(s.albedo, v, bindings);
-    return Vector4(fogged.x, fogged.y, fogged.z, s.alpha);
+    return Vector4(
+      fogged.x * weight,
+      fogged.y * weight,
+      fogged.z * weight,
+      s.alpha,
+    );
   }
 }
 
@@ -155,30 +167,324 @@ final class BlinnPhongShader implements CpuFragmentShader {
 /// count and is zero when there is none, and the flat hemispheric ambient
 /// stands in then. Operation for operation with `pbr.frag`, because thirty
 /// golden images compare the two.
-/// `EnvBrdfApprox` from `pbr.frag`: the split-sum BRDF as arithmetic.
-///
-/// Karis' analytic fit, in place of the 2D lookup table this would otherwise
-/// need. What it buys is a third texture that would have to be built, bound on
-/// every backend, and mirrored here — for a difference visible only on a
-/// grazing mirror. Returns the scale and bias to apply to F0.
-Vector2 _envBrdfApprox(double roughness, double nDotV) {
-  final rx = roughness * -1.0 + 1.0;
-  final ry = roughness * -0.0275 + 0.0425;
-  final rz = roughness * -0.572 + 1.04;
-  final rw = roughness * 0.022 - 0.04;
-  final a004 =
-      math.min(rx * rx, math.pow(2.0, -9.28 * nDotV).toDouble()) * rx + ry;
-  return Vector2(-1.04 * a004 + rz, 1.04 * a004 + rw);
+/// `MultiscatterScale` from `pbr.frag` — `L1`: from the albedo of the lobe
+/// it scales, at the roughness that lobe is evaluated at.
+Vector3 _multiscatterScale(Vector3 f0, Surface s, ShaderBindings b) {
+  final ab = _envBrdf(
+    b,
+    math.max(s.roughness, PbrShader.minGgxRoughness),
+    s.nDotV,
+  );
+  final ess = math.max(ab.x + ab.y, 1e-4);
+  return Vector3.all(1.0) + f0 * (1.0 / ess - 1.0);
+}
+
+/// `EnvBrdf` from `pbr.frag`: the split-sum scale and bias on F0, read from
+/// the LTC table the renderer binds — see [envBrdf].
+Vector2 _envBrdf(ShaderBindings b, double roughness, double nDotV) {
+  final dfg = envBrdf(b.textures['ltc_texture'], roughness, nDotV);
+  return Vector2(dfg.scale, dfg.bias);
+}
+
+/// The layers `lib/pbr.glsl` reads under `F3D_LAYERED` — `M1`: resolved once
+/// per fragment, as `ReadLayers` fills its globals.
+final class _Layers {
+  _Layers({
+    required this.f0Dielectric,
+    required this.f90,
+    required this.coat,
+    required this.coatRoughness,
+    required this.coatNormal,
+    required this.coatNDotV,
+    required this.sheen,
+    required this.sheenRoughness,
+    required this.transmission,
+    required this.thickness,
+    required this.transmittance,
+    required this.iridescence,
+    required this.dispersion,
+    required this.filmIor,
+    required this.filmThickness,
+  }) : coatThrough =
+           1.0 -
+           coat * (0.04 + 0.96 * math.pow(1.0 - coatNDotV, 5.0).toDouble());
+
+  /// `ReadLayers`, from the `LayerInfo` block and the coat map, on [s] as it
+  /// is before the normal map bends it.
+  factory _Layers.read(
+    Surface s,
+    Float32List v,
+    ShaderBindings b,
+    FragmentContext c,
+  ) {
+    final specular = b.vec4('LayerInfo', 'specular', Vector4(1, 1, 1, 1));
+    final coat = b.vec4('LayerInfo', 'coat', Vector4(0, 0, 1.5, 0));
+    final uv = uvFootprint(c, bias: materialLodBias(b));
+    Vector4 texel(String slot) => switch (b.textures[slot]) {
+      final map? => map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv),
+      null => Vector4(1, 1, 1, 1),
+    };
+    final coatTexel = texel('coat_texture');
+    final sheenTexel = texel('sheen_texture');
+    final sheen = b.vec4('LayerInfo', 'sheen', Vector4.zero());
+    final transmission = b.vec4('LayerInfo', 'transmission', Vector4.zero());
+    final attenuation = b.vec4('LayerInfo', 'attenuation', Vector4(1, 1, 1, 0));
+    final film = b.vec4('LayerInfo', 'iridescence', Vector4.zero());
+    final thickness = math.max(transmission.y * coatTexel.w, 0.0);
+    // Beer's law over the thickness, as `ReadLayers` takes it.
+    final distance = transmission.z;
+    double through(double colour) => distance > 0.0
+        ? math.pow(math.max(colour, 1e-4), thickness / distance).toDouble()
+        : 1.0;
+    // An index of nought is `KHR_materials_ior`'s infinity: a reflectance of
+    // one head-on as at grazing — `IorInfinite`.
+    final infinite = coat.z == 0.0;
+    final ior = math.max(coat.z, 1.0);
+    final r = infinite ? 1.0 : (ior - 1.0) / (ior + 1.0);
+    final layers = _Layers(
+      f0Dielectric: Vector3(
+        math.min(r * r * specular.x, 1.0) * specular.w,
+        math.min(r * r * specular.y, 1.0) * specular.w,
+        math.min(r * r * specular.z, 1.0) * specular.w,
+      ),
+      f90: specular.w,
+      coat: (coat.x * coatTexel.x).clamp(0.0, 1.0),
+      coatRoughness: (coat.y * coatTexel.y).clamp(0.02, 1.0),
+      coatNormal: s.normal.clone(),
+      coatNDotV: math.max(s.normal.dot(s.view), 1e-4),
+      sheen: Vector3(
+        sheen.x * toLinear(sheenTexel.x),
+        sheen.y * toLinear(sheenTexel.y),
+        sheen.z * toLinear(sheenTexel.z),
+      ),
+      sheenRoughness: (sheen.w * sheenTexel.w).clamp(0.07, 1.0),
+      transmission: (transmission.x * coatTexel.z).clamp(0.0, 1.0),
+      thickness: thickness,
+      transmittance: (
+        through(attenuation.x),
+        through(attenuation.y),
+        through(attenuation.z),
+      ),
+      iridescence: film.x.clamp(0.0, 1.0),
+      dispersion: transmission.w,
+      filmIor: film.y,
+      filmThickness: film.z,
+    );
+    // `RefractionIor`: infinity stood in for by an index that sends the ray
+    // along the normal.
+    return layers
+      .._ior = infinite ? 1.0e4 : ior
+      .._infinite = infinite;
+  }
+
+  /// `ReadLayersOnMaps`: the sheen's albedo at this view and the anisotropy's
+  /// frame, on the normal the maps left — `M2`.
+  void readOnMaps(Surface s, ShaderBindings b, FragmentContext c) {
+    final table = b.textures['ltc_texture'];
+    sheenAlbedoAtView = table == null
+        ? 0.0
+        : sheenAlbedo(table, sheenRoughness, s.nDotV);
+    sheenScale =
+        1.0 - math.max(math.max(sheen.x, sheen.y), sheen.z) * sheenAlbedoAtView;
+
+    final t = Vector3(s.tangent.x, s.tangent.y, s.tangent.z)
+      ..sub(
+        s.normal * s.normal.dot(Vector3(s.tangent.x, s.tangent.y, s.tangent.z)),
+      );
+    final usable = t.length2 > 1e-12;
+    if (usable) {
+      t.normalize();
+    } else {
+      t.setValues(1.0, 0.0, 0.0);
+    }
+    final bitangent = s.normal.cross(t)..scale(s.tangent.w);
+    if (!c.frontFacing) t.negate();
+    final turn = b.vec4('LayerInfo', 'anisotropy', Vector4.zero());
+    final along = t * turn.y + bitangent * turn.z;
+    anisotropy = usable && along.length2 > 1e-12 ? turn.x.clamp(0.0, 1.0) : 0.0;
+    anisotropyT = anisotropy > 0.0 ? (along..normalize()) : t;
+    anisotropyB = s.normal.cross(anisotropyT);
+
+    // `ReadIridescence`.
+    final metallic = s.metallic.clamp(0.0, 1.0);
+    iridFresnel = _fresnelIridescence(
+      filmIor,
+      s.nDotV,
+      filmThickness,
+      Vector3(
+        f0Dielectric.x + (s.albedo.x - f0Dielectric.x) * metallic,
+        f0Dielectric.y + (s.albedo.y - f0Dielectric.y) * metallic,
+        f0Dielectric.z + (s.albedo.z - f0Dielectric.z) * metallic,
+      ),
+    );
+  }
+
+  /// [f] with the thin film's colours mixed in, as the stage mixes them.
+  Vector3 withFilm(Vector3 f) => Vector3(
+    f.x + (iridFresnel.x - f.x) * iridescence,
+    f.y + (iridFresnel.y - f.y) * iridescence,
+    f.z + (iridFresnel.z - f.z) * iridescence,
+  );
+
+  /// `TransmittedRadiance`: the environment through the surface, bent by
+  /// the index when there is a volume and spread by the dispersion.
+  Vector3 transmitted(Surface s, BoundTexture environment, double levels) {
+    final ior = f0Ior;
+    final spread = _spread(ior);
+    final lod = s.roughness * (ior * 2.0 - 2.0).clamp(0.0, 1.0) * levels;
+    final incident = -s.view;
+    Vector3 ray(double eta) =>
+        thickness <= 0.0 ? incident : _refract(incident, s.normal, eta);
+    final red = ray(1.0 / math.max(ior - spread, 1.0));
+    final green = ray(1.0 / ior);
+    final blue = ray(1.0 / (ior + spread));
+    return Vector3(
+      environment.sampleCube(red.x, red.y, red.z, lod).x,
+      environment.sampleCube(green.x, green.y, green.z, lod).y,
+      environment.sampleCube(blue.x, blue.y, blue.z, lod).z,
+    );
+  }
+
+  /// `SceneBehind` — `M3`: the copy of the scene where the ray the index
+  /// bends leaves the far side of the volume, at the level the roughness
+  /// chooses; straight behind for a thin wall.
+  Vector3 sceneBehind(Surface s, Float32List v, ShaderBindings b) {
+    final info = b.vec4('LayerInfo', 'scene_colour', Vector4.zero());
+    final viewport = b.vec4('LayerInfo', 'scene_viewport', Vector4.zero());
+    final matrix = b.mat4('LayerInfo', 'scene_view_projection');
+    final copy = b.textures['scene_colour_texture'];
+    final ior = f0Ior;
+    final spread = _spread(ior);
+    final top = info.x - 1.0;
+    // log2 of the base level's width in texels, not the chain's length: a
+    // level is a box blur of 2^level texels, so this is what takes roughness
+    // 1 to one texel. See `SceneBehind` in pbr.glsl.
+    final base = b.vec4('LayerInfo', 'scene_levels', Vector4.zero());
+    final width = base.z / math.max(info.y, 1e-9);
+    final lod =
+        math.log(math.max(width, 1.0)) /
+        math.ln2 *
+        s.roughness *
+        (ior * 2.0 - 2.0).clamp(0.0, 1.0);
+    final incident = -s.view;
+    final position = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
+
+    // `SceneColourLevel`: held half a texel inside the level's rectangle.
+    Vector4 level(double u, double w, int index) {
+      if (copy == null) return Vector4.zero();
+      final rect = b.vec4(
+        'LayerInfo',
+        'scene_levels',
+        Vector4.zero(),
+        at: index,
+      );
+      final insetX = 0.5 * info.y;
+      final insetY = 0.5 * info.z;
+      return copy.sample(
+        rect.x + (u * rect.z).clamp(insetX, math.max(rect.z - insetX, insetX)),
+        rect.y + (w * rect.w).clamp(insetY, math.max(rect.w - insetY, insetY)),
+      );
+    }
+
+    // `SceneColourAt`.
+    Vector4 at(Vector3 ray) {
+      final world = position + ray * thickness;
+      final clip = matrix.transform(Vector4(world.x, world.y, world.z, 1.0));
+      final w = math.max(clip.w, 1e-6);
+      final u =
+          viewport.x + (clip.x / w * 0.5 + 0.5).clamp(0.0, 1.0) * viewport.z;
+      final t =
+          viewport.y + (0.5 - clip.y / w * 0.5).clamp(0.0, 1.0) * viewport.w;
+      final chosen = lod.clamp(0.0, top);
+      final lower = chosen.floorToDouble();
+      final near = level(u, t, lower.toInt());
+      final far = level(u, t, math.min(lower + 1.0, top).toInt());
+      final blend = chosen - lower;
+      return near + (far - near) * blend;
+    }
+
+    Vector3 ray(double eta) =>
+        thickness <= 0.0 ? incident : _refract(incident, s.normal, eta);
+    return Vector3(
+      at(ray(1.0 / math.max(ior - spread, 1.0))).x,
+      at(ray(1.0 / ior)).y,
+      at(ray(1.0 / (ior + spread))).z,
+    );
+  }
+
+  /// GLSL's `refract`.
+  static Vector3 _refract(Vector3 i, Vector3 n, double eta) {
+    final d = n.dot(i);
+    final k = 1.0 - eta * eta * (1.0 - d * d);
+    return k < 0.0 ? Vector3.zero() : (i * eta - n * (eta * d + math.sqrt(k)));
+  }
+
+  final Vector3 f0Dielectric;
+  final double f90;
+  final double coat;
+  final double coatRoughness;
+  final Vector3 coatNormal;
+  final double coatNDotV;
+
+  /// What the coat's Fresnel lets through to the layer beneath.
+  final double coatThrough;
+
+  /// The sheen's colour, linear, and its roughness — `M2`.
+  final Vector3 sheen;
+  final double sheenRoughness;
+
+  /// The transmission — `M3`: how much passes, through how much medium,
+  /// and what of each colour survives it.
+  final double transmission;
+  final double thickness;
+  final (double, double, double) transmittance;
+
+  /// The thin film: how much, spread and index — see `ReadIridescence`.
+  final double iridescence;
+  final double dispersion;
+  final double filmIor;
+  final double filmThickness;
+
+  /// The index `ReadLayers` took the dielectric's reflectance from, read back
+  /// out of it for the refraction.
+  double get f0Ior => _ior;
+  double _ior = 1.5;
+  bool _infinite = false;
+
+  /// `DispersionSpread`: nothing at the infinite index, which the extension
+  /// says dispersion leaves alone.
+  double _spread(double ior) =>
+      _infinite ? 0.0 : (ior - 1.0) * 0.025 * dispersion;
+
+  /// Filled by [readOnMaps].
+  Vector3 iridFresnel = Vector3.all(0.04);
+  double sheenAlbedoAtView = 0.0;
+  double sheenScale = 1.0;
+  double anisotropy = 0.0;
+  Vector3 anisotropyT = Vector3(1.0, 0.0, 0.0);
+  Vector3 anisotropyB = Vector3(0.0, 1.0, 0.0);
 }
 
 final class PbrShader implements CpuFragmentShader {
-  const PbrShader();
+  const PbrShader() : layered = false;
+
+  /// `pbr_layered.frag`: the same stage with `F3D_LAYERED` — `M1`.
+  const PbrShader.layered() : layered = true;
+
+  /// Whether this is the layered stage, which reads `LayerInfo` and the coat
+  /// map. Plain metal-rough takes none of the branches it guards, so the
+  /// thirty golden images of that stage see what they always saw.
+  final bool layered;
 
   static const double _pi = 3.141592653589793;
 
+  /// `kMinGgxRoughness`: the least perceptual roughness the GGX lobe is
+  /// evaluated at, which keeps its peak clear of [_dGgx]'s guard.
+  static const double minGgxRoughness = 0.045;
+
   static double _dGgx(double nDotH, double alpha) {
     final a = nDotH * alpha;
-    final k = alpha / math.max(1.0 - nDotH * nDotH + a * a, 1e-6);
+    final k = alpha / math.max(1.0 - nDotH * nDotH + a * a, 1e-7);
     return k * k * (1.0 / _pi);
   }
 
@@ -189,22 +495,184 @@ final class PbrShader implements CpuFragmentShader {
     return 0.5 / math.max(lambdaV + lambdaL, 1e-5);
   }
 
-  static Vector3 _fSchlick(Vector3 f0, double vDotH) {
+  static Vector3 _fSchlick(Vector3 f0, double vDotH, [double f90 = 1.0]) {
     final f = math.pow(1.0 - vDotH, 5.0).toDouble();
     return Vector3(
-      f0.x + (1.0 - f0.x) * f,
-      f0.y + (1.0 - f0.y) * f,
-      f0.z + (1.0 - f0.z) * f,
+      f0.x + (f90 - f0.x) * f,
+      f0.y + (f90 - f0.y) * f,
+      f0.z + (f90 - f0.z) * f,
     );
+  }
+
+  /// `CoatLobe`: the clear coat's GGX lobe on its own normal, scaled so the
+  /// loop's `nDotL` — the base's — becomes the coat's.
+  ///
+  /// Under a rectangle with the LTC tables bound it is integrated over the
+  /// panel at the coat's roughness and normal, as the base is; see the GLSL
+  /// for the blow-out the representative point gave there.
+  static double _coatLobe(
+    _Layers layers,
+    Surface s,
+    LightSample light,
+    double specularStrength,
+    BoundTexture? table,
+  ) {
+    final corners = light.corners;
+    if (light.ltc != null && table != null && corners != null) {
+      final ltc = ltcRectangle(
+        table,
+        layers.coatNormal,
+        s.view,
+        layers.coatRoughness,
+        corners,
+      );
+      return ltc.x *
+          (0.04 * ltc.y + 0.96 * ltc.z) *
+          specularStrength /
+          math.max(light.nDotL, 1e-6);
+    }
+    final lobe = math.max(layers.coatRoughness, minGgxRoughness);
+    final alpha = lobe * lobe;
+    final h = (light.direction + s.view)..normalize();
+    final nDotL = math.max(layers.coatNormal.dot(light.direction), 0.0);
+    final nDotH = math.max(layers.coatNormal.dot(h), 0.0);
+    final d = _dGgx(nDotH, alpha);
+    final vis = _vSmith(layers.coatNDotV, nDotL, alpha);
+    final f = 0.04 + 0.96 * math.pow(1.0 - light.vDotH, 5.0).toDouble();
+    return d * vis * f * specularStrength * nDotL / math.max(light.nDotL, 1e-6);
+  }
+
+  /// `D_Charlie`.
+  static double _dCharlie(double roughness, double nDotH) {
+    final invAlpha = 1.0 / (roughness * roughness);
+    final sin2h = math.max(1.0 - nDotH * nDotH, 0.0078125);
+    return (2.0 + invAlpha) *
+        math.pow(sin2h, invAlpha * 0.5).toDouble() /
+        (2.0 * _pi);
+  }
+
+  /// `kFonA` and `kFonAverage` in `pbr.glsl` — `L8`.
+  static const double _fonA = 0.5 - 2.0 / (3.0 * _pi);
+  static const double _fonAverage = 2.0 / 3.0 - 28.0 / (15.0 * _pi);
+
+  /// `FonAlbedo`: the Fujii Oren–Nayar lobe's directional albedo, fitted.
+  static double _fonAlbedo(double mu, double r) {
+    final m = 1.0 - mu;
+    final g =
+        m *
+        (0.0571085289 +
+            m * (0.491881867 + m * (-0.332181442 + m * 0.0714429953)));
+    return (1.0 + r * g) / (1.0 + _fonA * r);
+  }
+
+  /// `FonAverage`.
+  static double _fonAverageAlbedo(double r) =>
+      (1.0 + _fonAverage * r) / (1.0 + _fonA * r);
+
+  /// `EonMultiAlbedo`, one channel.
+  static double _eonMulti(double rho, double average) =>
+      rho * rho * average / (1.0 - rho * (1.0 - average));
+
+  /// `EonLobe`: EON for the diffuse colour [rho], divided by π.
+  static Vector3 eonLobe(
+    Vector3 rho,
+    double r,
+    double muI,
+    double muO,
+    double lDotV,
+  ) {
+    final s = lDotV - muI * muO;
+    final sOverT = s > 0.0 ? s / math.max(muI, muO) : s;
+    final single = 1.0 / (1.0 + _fonA * r) * (1.0 + r * sOverT);
+    final average = _fonAverageAlbedo(r);
+    final shape =
+        math.max(1.0 - _fonAlbedo(muO, r), 1e-7) *
+        math.max(1.0 - _fonAlbedo(muI, r), 1e-7) /
+        math.max(1.0 - average, 1e-7);
+    double channel(double c) =>
+        (c * single + _eonMulti(c, average) * shape) / _pi;
+    return Vector3(channel(rho.x), channel(rho.y), channel(rho.z));
+  }
+
+  /// `EonAlbedo`: [eonLobe] over the hemisphere of light, at [mu] to the eye.
+  static Vector3 eonAlbedo(Vector3 rho, double r, double mu) {
+    final e = _fonAlbedo(mu, r);
+    final average = _fonAverageAlbedo(r);
+    double channel(double c) => c * e + _eonMulti(c, average) * (1.0 - e);
+    return Vector3(channel(rho.x), channel(rho.y), channel(rho.z));
+  }
+
+  /// `V_Neubelt`.
+  static double _vNeubelt(double nDotV, double nDotL) =>
+      1.0 / (4.0 * (nDotL + nDotV - nDotL * nDotV));
+
+  /// The sheen's lobe in `ShadeLight`, before its colour: Charlie's
+  /// distribution at [roughness] times Neubelt's visibility.
+  ///
+  /// The visibility takes the cosine to the light, recomputed from its
+  /// direction: under a rectangle `nDotL` is the form factor, nought to π,
+  /// and the loop's multiply by it already stands for cosine times solid
+  /// angle.
+  static double sheenLobe(double roughness, Surface s, LightSample light) =>
+      _dCharlie(roughness, light.nDotH) *
+      _vNeubelt(s.nDotV, s.normal.dot(light.direction).clamp(0.0, 1.0));
+
+  /// `D_GGXAnisotropic`.
+  static double _dGgxAnisotropic(
+    double nDotH,
+    double tDotH,
+    double bDotH,
+    double at,
+    double ab,
+  ) {
+    final a2 = at * ab;
+    final fx = ab * tDotH;
+    final fy = at * bDotH;
+    final fz = a2 * nDotH;
+    final w2 = a2 / math.max(fx * fx + fy * fy + fz * fz, 1e-12);
+    return a2 * w2 * w2 / _pi;
+  }
+
+  /// `V_GGXAnisotropic`.
+  static double _vGgxAnisotropic(
+    double nDotL,
+    double nDotV,
+    double bDotV,
+    double tDotV,
+    double tDotL,
+    double bDotL,
+    double at,
+    double ab,
+  ) {
+    double length(double x, double y, double z) =>
+        math.sqrt(x * x + y * y + z * z);
+    final ggxV = nDotL * length(at * tDotV, ab * bDotV, nDotV);
+    final ggxL = nDotV * length(at * tDotL, ab * bDotL, nDotL);
+    return (0.5 / math.max(ggxV + ggxL, 1e-5)).clamp(0.0, 1.0);
   }
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final s = readSurface(v, b, c);
+    final s = readSurface(v, b, c, transformed: layered);
     if (s == null) return null;
-    applyCommonMaps(s, v, b, c);
-    applyMetallicRoughnessMap(s, v, b, c);
+    final layers = layered ? _Layers.read(s, v, b, c) : null;
+    applyCommonMaps(s, v, b, c, transformed: layered);
+    applyMetallicRoughnessMap(s, v, b, c, transformed: layered);
+    layers?.readOnMaps(s, b, c);
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
+    // `EnergyCompensation()` — `L1`.
+    final compensate =
+        b.vec4('FragInfo', 'target_origin', Vector4.zero()).z > 0.5;
+    // `EonDiffuse()` — `L8`. Read on its own, with a zero default: the
+    // surface reads this vector with a white one for the colour.
+    final eon = b.vec4('FragInfo', 'ambient_sky', Vector4.zero()).w > 0.5;
+    // Plain metal-rough reflects four per cent head-on and all of it at
+    // grazing; the layered stage takes both from its layers. Doubles, not a
+    // `Vector3`: its float32 lanes would round the plain stage's 0.04.
+    final (d0x, d0y, d0z) = switch (layers?.f0Dielectric) {
+      final Vector3 f0 => (f0.x, f0.y, f0.z),
+      null => (0.04, 0.04, 0.04),
+    };
 
     final lit = accumulateLights(
       s,
@@ -213,32 +681,106 @@ final class PbrShader implements CpuFragmentShader {
       shadowed: true,
       shade: (s, light) {
         // Perceptual roughness squared is the GGX alpha; this is what makes the
-        // roughness slider feel linear.
-        final alpha = s.roughness * s.roughness;
+        // roughness slider feel linear. Held at the lobe's own floor, which
+        // sits above the surface's.
+        final lobe = math.max(s.roughness, minGgxRoughness);
+        final alpha = lobe * lobe;
 
         // Dielectrics reflect about four percent head-on; metals tint the
         // reflection with their albedo and have no diffuse response.
         final f0 = Vector3(
-          0.04 + (s.albedo.x - 0.04) * s.metallic,
-          0.04 + (s.albedo.y - 0.04) * s.metallic,
-          0.04 + (s.albedo.z - 0.04) * s.metallic,
+          d0x + (s.albedo.x - d0x) * s.metallic,
+          d0y + (s.albedo.y - d0y) * s.metallic,
+          d0z + (s.albedo.z - d0z) * s.metallic,
         );
+        final f90 = layers == null
+            ? 1.0
+            : layers.f90 + (1.0 - layers.f90) * s.metallic;
         final diffuseColour = s.albedo * (1.0 - s.metallic);
 
-        final d = _dGgx(light.nDotH, alpha);
-        final vis = _vSmith(s.nDotV, light.nDotL, alpha);
-        final f = _fSchlick(f0, light.vDotH);
+        final (d, vis) = switch (layers) {
+          // `M2`: the lobe stretched along the tangent.
+          final layers? when layers.anisotropy > 0.0 => () {
+            final h = (light.direction + s.view)..normalize();
+            final at =
+                alpha + (1.0 - alpha) * layers.anisotropy * layers.anisotropy;
+            final ab = math.max(alpha, 1e-3);
+            final t = layers.anisotropyT;
+            final bt = layers.anisotropyB;
+            return (
+              _dGgxAnisotropic(light.nDotH, t.dot(h), bt.dot(h), at, ab),
+              _vGgxAnisotropic(
+                light.nDotL,
+                s.nDotV,
+                bt.dot(s.view),
+                t.dot(s.view),
+                t.dot(light.direction),
+                bt.dot(light.direction),
+                at,
+                ab,
+              ),
+            );
+          }(),
+          _ => (
+            _dGgx(light.nDotH, alpha),
+            _vSmith(s.nDotV, light.nDotL, alpha),
+          ),
+        };
+        final plainF = _fSchlick(f0, light.vDotH, f90);
+        // `M3`: the thin film's colours in place of the plain Fresnel.
+        final f = layers == null ? plainF : layers.withFilm(plainF);
 
-        final specular = f * (d * vis * specularStrength);
+        final ltc = light.ltc;
+        final specular = ltc == null
+            ? f * (d * vis * specularStrength)
+            // `L7`: integrated over the rectangle already, with the fit's own
+            // Fresnel, and over `nDotL` for `pbr.frag`'s reason.
+            : Vector3(
+                    f0.x * ltc.y + (f90 - f0.x) * ltc.z,
+                    f0.y * ltc.y + (f90 - f0.y) * ltc.z,
+                    f0.z * ltc.y + (f90 - f0.z) * ltc.z,
+                  ) *
+                  (ltc.x * specularStrength / math.max(light.nDotL, 1e-6));
+        if (compensate) specular.multiply(_multiscatterScale(f0, s, b));
         // Energy left over after reflection is what scatters diffusely.
-        final diffuse = Vector3(
-          diffuseColour.x * (1.0 - f.x) / _pi,
-          diffuseColour.y * (1.0 - f.y) / _pi,
-          diffuseColour.z * (1.0 - f.z) / _pi,
-        );
+        final diffuse = eon
+            // `L8`: on the direction to the light, as `pbr.glsl` has it.
+            ? (eonLobe(
+                diffuseColour,
+                s.roughness,
+                s.normal.dot(light.direction).clamp(1e-4, 1.0),
+                s.nDotV,
+                light.direction.dot(s.view),
+              )..multiply(Vector3(1.0 - f.x, 1.0 - f.y, 1.0 - f.z)))
+            : Vector3(
+                diffuseColour.x * (1.0 - f.x) / _pi,
+                diffuseColour.y * (1.0 - f.y) / _pi,
+                diffuseColour.z * (1.0 - f.z) / _pi,
+              );
+        // `M3`: what passes through is not scattered back.
+        if (layers != null) diffuse.scale(1.0 - layers.transmission);
         // The pi puts the result back on the scale the tone mapper and the
         // exposure default were calibrated against.
-        return (diffuse + specular)..scale(_pi);
+        final base = diffuse + specular;
+        if (layers == null) return base..scale(_pi);
+        // Under the sheen, what its albedo leaves; under the coat, what its
+        // Fresnel lets through; on top, the coat's lobe.
+        final sheen = layers.sheen * sheenLobe(layers.sheenRoughness, s, light);
+        final coat =
+            layers.coat *
+            _coatLobe(
+              layers,
+              s,
+              light,
+              specularStrength,
+              b.textures['ltc_texture'],
+            );
+        return (base
+            ..scale(layers.sheenScale)
+            ..add(sheen)
+            ..scale(layers.coatThrough))
+          ..add(Vector3.all(coat))
+          ..scale(_pi);
       },
     ).scaled(s.occlusion);
 
@@ -246,22 +788,60 @@ final class PbrShader implements CpuFragmentShader {
     // Not physical; with no IBL the flat ambient is far too weak for an
     // occlusion map to be visible otherwise.
     final metallic = s.metallic.clamp(0.0, 1.0);
-    final diffuseColour = s.albedo * (1.0 - metallic);
+    // `L8`: light from everywhere alike meets the EON lobe's albedo at this
+    // view rather than the colour itself.
+    final diffuseColour = eon
+        ? eonAlbedo(s.albedo * (1.0 - metallic), s.roughness, s.nDotV)
+        : s.albedo * (1.0 - metallic);
     var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
       s.occlusion,
     );
+    // `SceneColourBound()` — `M3`: the transparent pass lends a copy of the
+    // scene, and the transmitted share is read from it instead.
+    final sceneBound =
+        layers != null &&
+        b.vec4('LayerInfo', 'scene_colour', Vector4.zero()).x > 0.0;
+    if (layers != null) {
+      // `M3`: without an environment, the flat ambient passes through too —
+      // unless the scene behind is there to be read.
+      final (tr, tg, tb) = sceneBound ? (0.0, 0.0, 0.0) : layers.transmittance;
+      final t = layers.transmission;
+      ambient.multiply(
+        Vector3(
+          1.0 + (tr - 1.0) * t,
+          1.0 + (tg - 1.0) * t,
+          1.0 + (tb - 1.0) * t,
+        ),
+      );
+    }
+    var coatAmbient = Vector3.zero();
+    var sheenIncoming = s.ambient.clone();
 
     final levels = b.vec4('FragInfo', 'frame_params', Vector4.zero()).w;
     final environment = b.textures['environment_texture'];
     if (levels > 0.0 && environment != null) {
       // The term that made metal black: a metal has no diffuse response, so
       // with nothing to reflect it was lit by direct light alone.
-      final f0 =
-          Vector3(0.04, 0.04, 0.04) +
-          (s.albedo - Vector3(0.04, 0.04, 0.04)) * metallic;
+      final dielectric = Vector3(d0x, d0y, d0z);
+      final f0 = dielectric + (s.albedo - dielectric) * metallic;
+      final f90 = layers == null
+          ? 1.0
+          : layers.f90 + (1.0 - layers.f90) * metallic;
+      // `M2`: an anisotropic surface reflects along a normal bent towards the
+      // stretch.
+      final bent = switch (layers) {
+        final layers? when layers.anisotropy > 0.0 => () {
+          final across = layers.anisotropyT.cross(s.view);
+          final anisoN = across.cross(layers.anisotropyT);
+          final bend = 1.0 - layers.anisotropy * (1.0 - s.roughness);
+          final bend4 = bend * bend * bend * bend;
+          return (anisoN + (s.normal - anisoN) * bend4)..normalize();
+        }(),
+        _ => s.normal,
+      };
       // reflect(-v, n) = 2(n·v)n - v, with v already the direction to the eye.
-      final nDotV = s.normal.dot(s.view);
-      final reflected = s.normal * (2.0 * nDotV) - s.view;
+      final nDotV = bent.dot(s.view);
+      final reflected = bent * (2.0 * nDotV) - s.view;
 
       final irradiance = environment.sampleCube(
         s.normal.x,
@@ -275,20 +855,129 @@ final class PbrShader implements CpuFragmentShader {
         reflected.z,
         s.roughness * levels,
       );
-      final ab = _envBrdfApprox(s.roughness, math.max(nDotV, 0.0));
+      // The surface's own `n·v`, clamped to 1e-4 as `pbr.frag` passes it —
+      // not this raw one clamped to zero. They part only at grazing angles,
+      // where the split-sum term is steepest, and a multiscatter term built
+      // on top of it would widen the gap it was handed.
+      final ab = _envBrdf(b, s.roughness, s.nDotV);
 
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
         ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z));
+      // The single-scatter albedo, thin film included, read by both the
+      // specular term and the multiscatter term — as `pbr.frag` builds it.
+      final single =
+          (layers == null ? f0 : layers.withFilm(f0)) * ab.x +
+          Vector3.all(f90 * ab.y);
       final specularPart = Vector3(prefiltered.x, prefiltered.y, prefiltered.z)
-        ..multiply(f0 * ab.x + Vector3(ab.y, ab.y, ab.y));
+        ..multiply(single);
+      if (compensate) {
+        // Fdez-Agüera, as `pbr.frag` adds it — `L1`.
+        final missed = 1.0 - (ab.x + ab.y);
+        final average = f0 + (Vector3.all(1.0) - f0) / 21.0;
+        final multiple = Vector3(
+          single.x * average.x / (1.0 - missed * average.x),
+          single.y * average.y / (1.0 - missed * average.y),
+          single.z * average.z / (1.0 - missed * average.z),
+        );
+        specularPart.add(
+          multiple
+            ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z))
+            ..scale(missed),
+        );
+      }
       ambient = ((diffusePart + specularPart) * strength).scaled(s.occlusion);
+      if (layers != null) {
+        // `M3`: the transmitted share of the diffuse light is the
+        // environment behind, less what the dielectric reflects and the
+        // medium takes.
+        final reflects =
+            layers.withFilm(layers.f0Dielectric) * ab.x +
+            Vector3.all(layers.f90 * ab.y);
+        final (tr, tg, tb) = layers.transmittance;
+        final passed = sceneBound
+            ? Vector3.zero()
+            : (layers.transmitted(s, environment, levels)..multiply(
+                Vector3(
+                  tr * (1.0 - math.min(reflects.x, 1.0)),
+                  tg * (1.0 - math.min(reflects.y, 1.0)),
+                  tb * (1.0 - math.min(reflects.z, 1.0)),
+                ),
+              ));
+        ambient.add(
+          (diffuseColour.clone()..multiply(
+                passed - Vector3(irradiance.x, irradiance.y, irradiance.z),
+              ))
+              .scaled(layers.transmission * strength * s.occlusion),
+        );
+        // The coat's own reflection of the environment, on its normal.
+        final n = layers.coatNormal;
+        final coatReflected = n * (2.0 * n.dot(s.view)) - s.view;
+        final coatPrefiltered = environment.sampleCube(
+          coatReflected.x,
+          coatReflected.y,
+          coatReflected.z,
+          layers.coatRoughness * levels,
+        );
+        final coatAb = _envBrdf(b, layers.coatRoughness, layers.coatNDotV);
+        coatAmbient =
+            Vector3(coatPrefiltered.x, coatPrefiltered.y, coatPrefiltered.z)
+              ..scale(
+                (0.04 * coatAb.x + coatAb.y) *
+                    layers.coat *
+                    strength *
+                    s.occlusion,
+              );
+        final incoming = environment.sampleCube(
+          s.normal.x,
+          s.normal.y,
+          s.normal.z,
+          layers.sheenRoughness * levels,
+        );
+        sheenIncoming = Vector3(incoming.x, incoming.y, incoming.z)
+          ..scale(strength);
+      }
+    }
+    if (sceneBound) {
+      // `M3`: the scene behind, less what the dielectric reflects and the
+      // medium takes, tinted by the base colour — light already, so neither
+      // the ambient strength nor the occlusion scales it.
+      final ab = _envBrdf(b, s.roughness, s.nDotV);
+      final reflects =
+          layers.withFilm(layers.f0Dielectric) * ab.x +
+          Vector3.all(layers.f90 * ab.y);
+      final (tr, tg, tb) = layers.transmittance;
+      ambient.add(
+        (diffuseColour.clone()..multiply(
+              layers.sceneBehind(s, v, b)..multiply(
+                Vector3(
+                  tr * (1.0 - math.min(reflects.x, 1.0)),
+                  tg * (1.0 - math.min(reflects.y, 1.0)),
+                  tb * (1.0 - math.min(reflects.z, 1.0)),
+                ),
+              ),
+            ))
+            .scaled(layers.transmission),
+      );
     }
     // The baked bounce light, diffuse only, as `pbr.frag` adds it.
     ambient += (diffuseColour.clone()..multiply(sampleLightmap(v, b, c)))
         .scaled(s.occlusion);
 
-    final total = lit + ambient + s.emissive;
+    // Under a coat, the ambient and the emission come out through it.
+    final through = layers?.coatThrough ?? 1.0;
+    final total = switch (layers) {
+      null => lit + ambient + s.emissive,
+      final layers =>
+        lit +
+            (ambient.scaled(layers.sheenScale) +
+                    (layers.sheen.clone()
+                      ..multiply(sheenIncoming)
+                      ..scale(layers.sheenAlbedoAtView * s.occlusion)) +
+                    s.emissive)
+                .scaled(through) +
+            coatAmbient,
+    };
     return writeLit(
       c,
       v,
@@ -299,6 +988,102 @@ final class PbrShader implements CpuFragmentShader {
       roughness: s.roughness,
     );
   }
+}
+
+/// `IridescenceSensitivity` — Belcour and Barla's spectral sensitivity,
+/// taken to linear Rec. 709.
+Vector3 _iridescenceSensitivity(double opd, Vector3 shift) {
+  const pi = 3.141592653589793;
+  final phase = 2.0 * pi * opd * 1.0e-9;
+  const val = <double>[5.4856e-13, 4.4201e-13, 5.2481e-13];
+  const pos = <double>[1.6810e+06, 1.7953e+06, 2.2084e+06];
+  const variance = <double>[4.3278e+09, 9.3046e+09, 6.6121e+09];
+  final xyz = <double>[
+    for (var i = 0; i < 3; i++)
+      val[i] *
+          math.sqrt(2.0 * pi * variance[i]) *
+          math.cos(pos[i] * phase + shift[i]) *
+          math.exp(-(phase * phase) * variance[i]),
+  ];
+  xyz[0] +=
+      9.7470e-14 *
+      math.sqrt(2.0 * pi * 4.5282e+09) *
+      math.cos(2.2399e+06 * phase + shift.x) *
+      math.exp(-4.5282e+09 * phase * phase);
+  final x = xyz[0] / 1.0685e-7;
+  final y = xyz[1] / 1.0685e-7;
+  final z = xyz[2] / 1.0685e-7;
+  return Vector3(
+    3.2404542 * x - 1.5371385 * y - 0.4985314 * z,
+    -0.9692660 * x + 1.8760108 * y + 0.0415560 * z,
+    0.0556434 * x - 0.2040259 * y + 1.0572252 * z,
+  );
+}
+
+/// `FresnelIridescence`: the two-bounce Airy sum of a thin film of index
+/// [film] and [thickness] nanometres over a base of reflectance [base].
+Vector3 _fresnelIridescence(
+  double film,
+  double cos1,
+  double thickness,
+  Vector3 base,
+) {
+  const pi = 3.141592653589793;
+  final t = (thickness / 0.03).clamp(0.0, 1.0);
+  final eta2 = 1.0 + (film - 1.0) * (t * t * (3.0 - 2.0 * t));
+  final sin2Sq = (1.0 - cos1 * cos1) / (eta2 * eta2);
+  final cos2Sq = 1.0 - sin2Sq;
+  if (cos2Sq < 0.0) return Vector3.all(1.0);
+  final cos2 = math.sqrt(cos2Sq);
+
+  final r0 = (eta2 - 1.0) / (eta2 + 1.0);
+  final r12 = r0 * r0 + (1.0 - r0 * r0) * math.pow(1.0 - cos1, 5.0).toDouble();
+  final t121 = 1.0 - r12;
+  final phi12 = eta2 < 1.0 ? pi : 0.0;
+  final phi21 = pi - phi12;
+
+  double channel(int i, List<double> phis) {
+    final root = math.sqrt(base[i].clamp(0.0, 0.9999));
+    final baseIor = (1.0 + root) / (1.0 - root);
+    final r1 = math.pow((baseIor - eta2) / (baseIor + eta2), 2.0).toDouble();
+    final r23 = r1 + (1.0 - r1) * math.pow(1.0 - cos2, 5.0).toDouble();
+    phis.add(phi21 + (baseIor < eta2 ? pi : 0.0));
+    return r23;
+  }
+
+  final phis = <double>[];
+  final r23 = Vector3(channel(0, phis), channel(1, phis), channel(2, phis));
+  final phi = Vector3(phis[0], phis[1], phis[2]);
+  final opd = 2.0 * eta2 * thickness * cos2;
+  final total = Vector3.zero();
+  for (var i = 0; i < 3; i++) {
+    final r123 = (r12 * r23[i]).clamp(1e-5, 0.9999);
+    final rs = t121 * t121 * r23[i] / (1.0 - r123);
+    total[i] = r12 + rs;
+  }
+  final cm = Vector3(
+    (t121 * t121 * r23.x / (1.0 - (r12 * r23.x).clamp(1e-5, 0.9999))) - t121,
+    (t121 * t121 * r23.y / (1.0 - (r12 * r23.y).clamp(1e-5, 0.9999))) - t121,
+    (t121 * t121 * r23.z / (1.0 - (r12 * r23.z).clamp(1e-5, 0.9999))) - t121,
+  );
+  final root123 = Vector3(
+    math.sqrt((r12 * r23.x).clamp(1e-5, 0.9999)),
+    math.sqrt((r12 * r23.y).clamp(1e-5, 0.9999)),
+    math.sqrt((r12 * r23.z).clamp(1e-5, 0.9999)),
+  );
+  for (var m = 1; m <= 2; m++) {
+    cm.multiply(root123);
+    final sensitivity = _iridescenceSensitivity(m * opd, phi * m.toDouble());
+    total.add(
+      Vector3(cm.x * sensitivity.x, cm.y * sensitivity.y, cm.z * sensitivity.z)
+        ..scale(2.0),
+    );
+  }
+  return Vector3(
+    math.max(total.x, 0.0),
+    math.max(total.y, 0.0),
+    math.max(total.z, 0.0),
+  );
 }
 
 /// `toon.frag`: the diffuse response quantised into bands, plus a rim term.

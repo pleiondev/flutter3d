@@ -32,7 +32,9 @@ abstract final class GoldenExtras {
   /// binding, resolved against the library handed to the renderer, and the
   /// flags say the stage reads nothing the engine would bind — no FragInfo,
   /// no maps, no parameters — which is what keeps the renderer from binding a
-  /// block the compiled stage has no slot for.
+  /// block the compiled stage has no slot for. Except the fog: `color.glsl`
+  /// declares `FogInfo`, and `WriteSurface` reads it for the fog and for the
+  /// surface depth, so the stage keeps it and says so.
   static const LightingModel stripes = LightingModel(
     'Stripes',
     'ExampleStripes',
@@ -41,6 +43,7 @@ abstract final class GoldenExtras {
     usesMaterialMaps: false,
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
+    usesFogInfo: true,
   );
 
   /// Simulated seconds before the frame is drawn.

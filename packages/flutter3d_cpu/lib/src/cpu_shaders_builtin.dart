@@ -48,31 +48,43 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_bloom.dart';
+import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_evsm.dart';
+import 'cpu_shaders_impostor.dart';
+import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
+import 'cpu_shaders_motion_blur.dart';
 import 'cpu_shaders_particles.dart';
 import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
+import 'cpu_shaders_reactive.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
 import 'cpu_shaders_ssao.dart';
+import 'cpu_shaders_temporal.dart';
+import 'cpu_shaders_velocity.dart';
 import 'cpu_shaders_vertex_probe.dart';
+import 'cpu_shaders_volumetric_fog.dart';
 
 export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
 export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
+export 'cpu_shaders_irradiance.dart';
 export 'cpu_shaders_layout.dart';
 export 'cpu_shaders_lighting.dart';
 export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
+export 'cpu_shaders_motion_blur.dart';
 export 'cpu_shaders_particles.dart';
 export 'cpu_shaders_post.dart';
 export 'cpu_shaders_probe.dart';
+export 'cpu_shaders_reactive.dart';
 export 'cpu_shaders_reflections.dart';
 export 'cpu_shaders_shadow_directional.dart';
 export 'cpu_shaders_shadow_passes.dart';
@@ -80,7 +92,10 @@ export 'cpu_shaders_shadow_point.dart';
 export 'cpu_shaders_sky.dart';
 export 'cpu_shaders_ssao.dart';
 export 'cpu_shaders_surface.dart';
+export 'cpu_shaders_temporal.dart';
+export 'cpu_shaders_velocity.dart';
 export 'cpu_shaders_vertex_probe.dart';
+export 'cpu_shaders_volumetric_fog.dart';
 
 /// A stage that exists so the name resolves and fails if anybody draws with it.
 ///
@@ -131,10 +146,16 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Lambert': const CpuStage.fragment(LambertShader()),
     'BlinnPhong': const CpuStage.fragment(BlinnPhongShader()),
     'Pbr': const CpuStage.fragment(PbrShader()),
+    'PbrLayered': const CpuStage.fragment(PbrShader.layered()),
     'Toon': const CpuStage.fragment(ToonShader()),
     'Normals': const CpuStage.fragment(NormalsShader()),
     'ObjectId': const CpuStage.fragment(ObjectIdShader()),
     'Luminance': const CpuStage.fragment(LuminanceShader()),
+    // `C3`: the surface buffer reduced for the occlusion readback.
+    'DepthPyramid': const CpuStage.fragment(DepthPyramidShader()),
+    'FieldDecay': const CpuStage.fragment(FieldDecayShader()),
+    // `H6`: the compute stages, from `flutter3d.compute.json`.
+    'PrefixSum': const CpuStage.compute(PrefixSumShader()),
     'BloomThreshold': const CpuStage.fragment(BloomThresholdShader()),
     'BloomDownsample': const CpuStage.fragment(BloomDownsampleShader()),
     'BloomUpsample': const CpuStage.fragment(BloomUpsampleShader()),
@@ -145,6 +166,10 @@ Map<String, CpuStage> builtinCpuShaders() {
     ),
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
     'PolylineVertex': const CpuStage.vertex(PolylineVertexShader()),
+    // `C4`: the octahedral impostor's card and the stage that reads its
+    // atlases.
+    'ImpostorVertex': const CpuStage.vertex(ImpostorVertexShader()),
+    'Impostor': const CpuStage.fragment(ImpostorShader()),
     'VertexTextureProbeVertex': const CpuStage.vertex(
       VertexTextureProbeVertexShader(),
     ),
@@ -154,14 +179,48 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ParticleMeshVertex': const CpuStage.vertex(ParticleMeshVertexShader()),
     'ParticleMesh': const CpuStage.fragment(ParticleMeshShader()),
     'ParticleTextured': const CpuStage.fragment(ParticleTexturedShader()),
+    'ParticleSixWay': const CpuStage.fragment(ParticleSixWayShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
+    'ParticleSoft': const CpuStage.fragment(ParticleShader(soft: true)),
+    'ParticleTexturedSoft': const CpuStage.fragment(
+      ParticleTexturedShader(soft: true),
+    ),
+    'ParticleSixWaySoft': const CpuStage.fragment(
+      ParticleSixWayShader(soft: true),
+    ),
     'Splat': const CpuStage.fragment(SplatShader()),
+    'SplatHashed': const CpuStage.fragment(SplatHashedShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
     'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
+    'ContactShadowResolve': const CpuStage.fragment(
+      ContactShadowResolveShader(),
+    ),
+    'CameraVelocity': const CpuStage.fragment(CameraVelocityShader()),
+    'Velocity': const CpuStage.fragment(VelocityShader()),
+    'Reactive': const CpuStage.fragment(ReactiveShader()),
+    'ReactiveSprite': const CpuStage.fragment(ReactiveSpriteShader()),
+    'TemporalResolve': const CpuStage.fragment(TemporalResolveShader()),
+    'TemporalAccumulate': const CpuStage.fragment(TemporalAccumulateShader()),
+    'IrradianceConvolve': const CpuStage.fragment(IrradianceConvolveShader()),
+    'VelocityVertex': const CpuStage.vertex(VelocityVertexShader()),
+    'VelocitySkinnedVertex': const CpuStage.vertex(
+      VelocitySkinnedVertexShader(),
+    ),
+    'VelocityInstancedVertex': const CpuStage.vertex(
+      VelocityInstancedVertexShader(),
+    ),
     'SsaoBlur': const CpuStage.fragment(SsaoBlurShader()),
     'LightShafts': const CpuStage.fragment(LightShaftsShader()),
+    'VolumetricFog': const CpuStage.fragment(VolumetricFogShader()),
+    'VolumetricFogUpsample': const CpuStage.fragment(
+      VolumetricFogUpsampleShader(),
+    ),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),
+    'DofTileMax': const CpuStage.fragment(DofTileMaxShader()),
+    'VelocityTileMax': const CpuStage.fragment(VelocityTileMaxShader()),
+    'VelocityNeighborMax': const CpuStage.fragment(VelocityNeighborMaxShader()),
+    'MotionBlur': const CpuStage.fragment(MotionBlurShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
     'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
     'ShadowDistanceMasked': const CpuStage.fragment(
@@ -169,10 +228,17 @@ Map<String, CpuStage> builtinCpuShaders() {
     ),
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
+    'WboitResolve': const CpuStage.fragment(WboitResolveShader()),
+    'SceneColourCopy': const CpuStage.fragment(SceneColourCopyShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
+    'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),
+    'LocalExposure': const CpuStage.fragment(LocalExposureShader()),
+    'LocalExposureBlur': const CpuStage.fragment(LocalExposureBlurShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
+    'ShadowCopy': const CpuStage.fragment(ShadowCopyShader()),
+    'EvsmFilter': const CpuStage.fragment(EvsmFilterShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
     'ShadowTileResetVertex': const CpuStage.vertex(
       ShadowTileResetVertexShader(),

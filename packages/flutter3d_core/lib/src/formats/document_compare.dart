@@ -176,10 +176,40 @@ List<DocumentDifference> compareModelDocuments(
         b.morphTargets,
         tolerance,
       );
+      // `C9`: a lost table draws the same picture at a far higher cost, which
+      // is the kind of loss nobody sees until a scan stutters.
+      final difference = _clusterDifference(a.clusters, b.clusters);
+      if (difference != null) {
+        problems.add(DocumentDifference('surfaces[$i]: $difference'));
+      }
     }
   }
 
   return problems;
+}
+
+/// What changed between two cluster tables, or null when nothing did.
+String? _clusterDifference(MeshClusters? a, MeshClusters? b) {
+  if (a == null && b == null) return null;
+  if (a == null || b == null) {
+    return 'cluster table ${a == null ? 'appeared' : 'was lost'}';
+  }
+  if (a.length != b.length) {
+    return '${a.length} clusters became ${b.length}';
+  }
+  for (var i = 0; i < a.firstIndices.length; i++) {
+    if (a.firstIndices[i] != b.firstIndices[i]) {
+      return 'cluster run $i starts at ${a.firstIndices[i]} in, '
+          '${b.firstIndices[i]} out';
+    }
+  }
+  for (var i = 0; i < a.data.length; i++) {
+    // Negated for the NaN reason above; the floats are copied, not rounded.
+    if (!(a.data[i] == b.data[i])) {
+      return 'cluster float $i is ${a.data[i]} in, ${b.data[i]} out';
+    }
+  }
+  return null;
 }
 
 /// [source]'s own morph targets against [readBack]'s, for surface [i] —

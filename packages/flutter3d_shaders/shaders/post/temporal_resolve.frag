@@ -1,0 +1,279 @@
+#version 460 core
+
+// The temporal resolve: this frame's jittered scene blended into the history
+// of the frames before it, at the output's size — `R2`.
+//
+// Per output pixel:
+//
+//   * **This frame's colour** is read where the jitter put the pixel's centre,
+//     so a still picture's samples land on sixteen different sub-pixel
+//     positions over sixteen frames and the history averages them.
+//   * **The motion** is the velocity of the nearest surface in the 3 × 3
+//     scene texels around it. The nearest rather than the centre's, so an
+//     edge follows the object in front and does not smear the background
+//     over it.
+//   * **Last frame's colour** is read from the history where the motion says
+//     the pixel was, through a Catmull-Rom filter, which keeps a moving
+//     picture from going soft the way a bilinear read of a bilinear read
+//     does.
+//   * **The history is clipped** to the colours this frame's neighbourhood
+//     spans, as a box of mean ± 1.25 σ in YCoCg, so something that was there
+//     and is not any more is not remembered. Clipped in a weighted space —
+//     each colour divided by one plus its exposed luminance — so a single
+//     bright texel does not stretch the box for everything around it.
+//     With `TemporalClip` set to a k-DOP (`N4`), the box gives way to k/2
+//     slabs along optimised axes that hug the nine colours, and the history
+//     moves along the line to this frame's colour until it is inside every
+//     slab: a colour of the right brightness and the wrong hue, which sits
+//     inside the box, is outside the k-DOP.
+//   * **The history is dropped** where the nearest surface there last frame
+//     was at a different depth: a pixel that was the floor and is now a crate
+//     has no past worth blending. The history's alpha is that depth, and
+//     each of the four texels around the reprojected point is tested on its
+//     own rather than their blend, which on a silhouette is neither depth.
+//   * **The blend** weighs each side by one over one plus its exposed
+//     luminance, so a flickering highlight does not dominate its neighbours.
+//   * **A reactive pixel keeps less history** — `R4`. Particles, splats and
+//     blended surfaces write how much of the pixel they cover into the
+//     velocity's blue, and the history's share is lowered by that fraction:
+//     what moves without a velocity of its own is taken from this frame.
+//     Blue is nought wherever nothing reactive was drawn, and the share is
+//     then exactly what it was.
+//
+// The history is linear scene light, like the scene: the exposure is only a
+// weight here, and the composite applies it as it always did.
+
+in vec2 v_uv;
+
+out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+uniform sampler2D history_texture;
+uniform sampler2D velocity_texture;
+uniform sampler2D surface_texture;
+
+uniform TemporalInfo {
+  /// xy: one over the scene's size in pixels. zw: the scene's size.
+  vec4 scene_texel;
+
+  /// xy: this frame's jitter as an offset in UV. z: how much of each pixel
+  /// is history, nought to one. w: one when there is a history to blend,
+  /// nought on the first frame and after a cut.
+  vec4 jitter;
+
+  /// x: the exposure, for the weights. y: how far apart two depths may be,
+  /// as a fraction of the nearer, and still be one surface. zw: the output's
+  /// size in pixels, which the history has.
+  vec4 params;
+
+  /// x: how many of [clip_axes] bound the neighbourhood — `N4`. Nought is
+  /// the box, the resolve's clip before them.
+  vec4 clip;
+
+  /// The k-DOP's axes in weighted YCoCg, xyz; the first `clip.x` are used.
+  vec4 clip_axes[16];
+}
+temporal_info;
+
+float Luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+vec3 Weigh(vec3 c) {
+  return c / (1.0 + Luma(c) * temporal_info.params.x);
+}
+
+vec3 Unweigh(vec3 c) {
+  return c / max(1.0 - Luma(c) * temporal_info.params.x, 1e-4);
+}
+
+vec3 RgbToYCoCg(vec3 c) {
+  return vec3(0.25 * c.r + 0.5 * c.g + 0.25 * c.b,
+              0.5 * c.r - 0.5 * c.b,
+              -0.25 * c.r + 0.5 * c.g - 0.25 * c.b);
+}
+
+vec3 YCoCgToRgb(vec3 c) {
+  return vec3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z);
+}
+
+/// [q] pulled towards the box's centre until it lies inside it.
+vec3 ClipToBox(vec3 lo, vec3 hi, vec3 q) {
+  vec3 centre = 0.5 * (hi + lo);
+  vec3 extent = 0.5 * (hi - lo) + vec3(1e-5);
+  vec3 v = q - centre;
+  vec3 units = abs(v / extent);
+  float most = max(units.x, max(units.y, units.z));
+  return most > 1.0 ? centre + v / most : q;
+}
+
+/// [history] moved along the line to [current] until it lies inside every
+/// slab the neighbourhood [around] spans along the first `clip.x` axes.
+///
+/// Each slab is tightened the way the box is, to the projections' mean
+/// ± 1.25σ inside their min–max, so that along the box's own three axes the
+/// k-DOP is never looser than the box and one bright texel stretches
+/// neither. Then it is widened to take in [current] itself, which is read
+/// between texels and can sit outside the nine: the line then always starts
+/// inside, and the answer is how far along it the first slab is left.
+vec3 ClipToDop(vec3 current, vec3 history, vec3 around[9]) {
+  vec3 toward = history - current;
+  float reach = 1.0;
+  for (int a = 0; a < 16; a++) {
+    if (float(a) < temporal_info.clip.x) {
+      vec3 axis = temporal_info.clip_axes[a].xyz;
+      float at = dot(current, axis);
+      float lowest = 1e30;
+      float highest = -1e30;
+      float sum = 0.0;
+      float sumSquares = 0.0;
+      for (int n = 0; n < 9; n++) {
+        float p = dot(around[n], axis);
+        lowest = min(lowest, p);
+        highest = max(highest, p);
+        sum += p;
+        sumSquares += p * p;
+      }
+      float mean = sum / 9.0;
+      float sigma = sqrt(max(sumSquares / 9.0 - mean * mean, 0.0));
+      float lo = min(max(lowest, mean - 1.25 * sigma), at);
+      float hi = max(min(highest, mean + 1.25 * sigma), at);
+      float along = dot(toward, axis);
+      // Selects rather than branches returning constants: SPIRV-Cross will
+      // not take a phi of them.
+      float leave = along > 1e-8 ? (hi - at) / along
+                  : (along < -1e-8 ? (lo - at) / along : 1.0);
+      reach = min(reach, leave);
+    }
+  }
+  return current + toward * max(reach, 0.0);
+}
+
+/// One when a depth last frame [then] is the surface at [depth] — both sky,
+/// or both surfaces within `params.y` of the nearer — and nought when not.
+float SameSurface(float depth, float then) {
+  bool sky = depth <= 0.0;
+  bool bothSky = sky && then <= 0.0;
+  bool close = !sky && then > 0.0 &&
+      abs(then - depth) <= temporal_info.params.y * min(depth, then);
+  return (bothSky || close) ? 1.0 : 0.0;
+}
+
+/// How much of the history at [uv] is the surface at [depth]: each of the
+/// four texels a bilinear read there would blend is tested on its own, and
+/// those that pass count by their bilinear weight. The depths themselves are
+/// never blended — across a silhouette that is a depth belonging to neither
+/// side, and it would drop the history of both. The four are read at texel
+/// centres, where the colour's filtered sampler returns a texel as it is.
+float DepthTrust(float depth, vec2 uv) {
+  vec2 size = temporal_info.params.zw;
+  vec2 position = uv * size - 0.5;
+  vec2 corner = floor(position);
+  vec2 f = position - corner;
+  vec2 at0 = (corner + 0.5) / size;
+  vec2 at1 = (corner + 1.5) / size;
+  float d00 = textureLod(history_texture, at0, 0.0).a;
+  float d10 = textureLod(history_texture, vec2(at1.x, at0.y), 0.0).a;
+  float d01 = textureLod(history_texture, vec2(at0.x, at1.y), 0.0).a;
+  float d11 = textureLod(history_texture, at1, 0.0).a;
+  return SameSurface(depth, d00) * (1.0 - f.x) * (1.0 - f.y) +
+      SameSurface(depth, d10) * f.x * (1.0 - f.y) +
+      SameSurface(depth, d01) * (1.0 - f.x) * f.y +
+      SameSurface(depth, d11) * f.x * f.y;
+}
+
+/// Catmull-Rom over the history, in nine bilinear taps.
+vec3 HistoryAt(vec2 uv) {
+  vec2 size = temporal_info.params.zw;
+  vec2 position = uv * size;
+  vec2 centre1 = floor(position - 0.5) + 0.5;
+  vec2 f = position - centre1;
+  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+  vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+  vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+  vec2 w3 = f * f * (-0.5 + 0.5 * f);
+  vec2 w12 = w1 + w2;
+  vec2 at0 = (centre1 - 1.0) / size;
+  vec2 at3 = (centre1 + 2.0) / size;
+  vec2 at12 = (centre1 + w2 / w12) / size;
+
+  vec3 sum = vec3(0.0);
+  sum += textureLod(history_texture, vec2(at0.x, at0.y), 0.0).rgb * w0.x * w0.y;
+  sum += textureLod(history_texture, vec2(at12.x, at0.y), 0.0).rgb * w12.x * w0.y;
+  sum += textureLod(history_texture, vec2(at3.x, at0.y), 0.0).rgb * w3.x * w0.y;
+  sum += textureLod(history_texture, vec2(at0.x, at12.y), 0.0).rgb * w0.x * w12.y;
+  sum += textureLod(history_texture, vec2(at12.x, at12.y), 0.0).rgb * w12.x * w12.y;
+  sum += textureLod(history_texture, vec2(at3.x, at12.y), 0.0).rgb * w3.x * w12.y;
+  sum += textureLod(history_texture, vec2(at0.x, at3.y), 0.0).rgb * w0.x * w3.y;
+  sum += textureLod(history_texture, vec2(at12.x, at3.y), 0.0).rgb * w12.x * w3.y;
+  sum += textureLod(history_texture, vec2(at3.x, at3.y), 0.0).rgb * w3.x * w3.y;
+  // The negative lobes can take a sharp edge below zero.
+  return max(sum, vec3(0.0));
+}
+
+void main() {
+  vec2 texel = temporal_info.scene_texel.xy;
+  vec2 sceneUv = v_uv + temporal_info.jitter.xy;
+  vec2 centre = (floor(sceneUv * temporal_info.scene_texel.zw) + 0.5) * texel;
+
+  vec3 sum = vec3(0.0);
+  vec3 sumSquares = vec3(0.0);
+  vec3 lowest = vec3(1e30);
+  vec3 highest = vec3(-1e30);
+  float nearest = 1e30;
+  vec2 nearestUv = centre;
+  vec3 around[9];
+  for (int dy = -1; dy <= 1; dy++) {
+    for (int dx = -1; dx <= 1; dx++) {
+      vec2 at = centre + vec2(float(dx), float(dy)) * texel;
+      vec3 c = RgbToYCoCg(Weigh(textureLod(scene_texture, at, 0.0).rgb));
+      around[(dy + 1) * 3 + dx + 1] = c;
+      sum += c;
+      sumSquares += c * c;
+      lowest = min(lowest, c);
+      highest = max(highest, c);
+      float depth = textureLod(surface_texture, at, 0.0).a;
+      if (depth > 0.0 && depth < nearest) {
+        nearest = depth;
+        nearestUv = at;
+      }
+    }
+  }
+
+  vec3 current = textureLod(scene_texture, sceneUv, 0.0).rgb;
+  // The nearest depth around the pixel rather than the depth at it: on a
+  // silhouette the jitter moves the centre on and off the object every
+  // frame, and a history compared against that would be thrown away every
+  // frame. The nearest surface in the neighbourhood stays put.
+  float depth = nearest < 1e30 ? nearest : 0.0;
+  vec2 then = v_uv - textureLod(velocity_texture, nearestUv, 0.0).xy;
+
+  if (temporal_info.jitter.w < 0.5 || then.x < 0.0 || then.x > 1.0 ||
+      then.y < 0.0 || then.y > 1.0) {
+    frag_color = vec4(current, depth);
+    return;
+  }
+
+  float trust = DepthTrust(depth, then);
+
+  vec3 mean = sum / 9.0;
+  vec3 sigma = sqrt(max(sumSquares / 9.0 - mean * mean, vec3(0.0)));
+  vec3 lo = max(lowest, mean - 1.25 * sigma);
+  vec3 hi = min(highest, mean + 1.25 * sigma);
+  vec3 remembered = RgbToYCoCg(Weigh(HistoryAt(then)));
+  vec3 clipped = temporal_info.clip.x > 0.5
+      ? ClipToDop(RgbToYCoCg(Weigh(current)), remembered, around)
+      : ClipToBox(lo, hi, remembered);
+  vec3 history = Unweigh(YCoCgToRgb(clipped));
+
+  // Read at the pixel itself rather than at the nearest surface: a particle
+  // writes no depth, so the nearest surface around it is whatever it flew
+  // over, and the mark belongs to where the particle is.
+  float reactive =
+      clamp(textureLod(velocity_texture, centre, 0.0).b, 0.0, 1.0);
+  float keep = temporal_info.jitter.z * trust * (1.0 - reactive);
+  float exposure = temporal_info.params.x;
+  float wCurrent = (1.0 - keep) / (1.0 + Luma(current) * exposure);
+  float wHistory = keep / (1.0 + Luma(history) * exposure);
+  vec3 resolved =
+      (current * wCurrent + history * wHistory) / max(wCurrent + wHistory, 1e-6);
+  frag_color = vec4(resolved, depth);
+}

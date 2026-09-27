@@ -61,6 +61,15 @@ abstract interface class DrawableGeometry implements MeshGeometry {
 
   /// The width of one index. Chosen at upload from the vertex count.
   IndexType get indexType;
+
+  /// The runs [indices] is cut into for culling, with the indices themselves
+  /// on the CPU to repack a subset from — `C9`. Null for a mesh drawn whole,
+  /// which is every mesh the splitter was not asked about.
+  ///
+  /// The indices are here as well as the table because the device keeps no
+  /// readable copy and [MeshGeometry.source] may have been dropped; a mesh
+  /// with clusters keeps its indices either way.
+  ({MeshClusters table, Uint32List indices})? get clusters;
 }
 
 /// A [MeshData] that has been uploaded to a device.
@@ -90,6 +99,7 @@ final class DeviceMesh implements DrawableGeometry {
     required this.indexType,
     required this.bounds,
     required this.source,
+    required this.clusters,
   });
 
   /// Uploads [mesh] through [device].
@@ -112,8 +122,15 @@ final class DeviceMesh implements DrawableGeometry {
       indexType: packed.is16Bit ? IndexType.int16 : IndexType.int32,
       bounds: mesh.computeBounds(),
       source: keepSourceData ? mesh : null,
+      clusters: switch (mesh.clusters) {
+        final table? => (table: table, indices: mesh.indices),
+        null => null,
+      },
     );
   }
+
+  @override
+  final ({MeshClusters table, Uint32List indices})? clusters;
 
   @override
   final GeometryBuffer vertices;

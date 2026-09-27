@@ -197,6 +197,31 @@ base class MeshNode extends SceneNode {
   /// bounds do not describe where it actually ends up on screen.
   bool frustumCulled = true;
 
+  /// Whether this mesh hides what is behind it from the software occlusion
+  /// test — `C2`, `RenderSettings.occlusion` set to `OcclusionMode.software`.
+  ///
+  /// False by default, and meant for the few big opaque things a view is
+  /// mostly made of: walls, buildings, terrain. Each one marked costs its
+  /// triangles on the CPU every frame it is in view, so a scene where
+  /// everything occludes pays for a second rasteriser and saves little more
+  /// than one where the walls alone do. A frame draws at most
+  /// `SoftwareOcclusion.triangleBudget` occluder triangles, the largest on
+  /// screen first.
+  ///
+  /// A transparent, cut-out or depth-less material never occludes whatever
+  /// this says, and neither does a skinned or morphing mesh without an
+  /// [occluderMesh]: its triangles are not where its vertices say.
+  bool occluder = false;
+
+  /// The triangles to occlude with in place of [mesh]'s, in the same local
+  /// space. A box standing in for a detailed building, or the walls of a
+  /// room without its furniture. Null occludes with the mesh's own triangles,
+  /// which have to be on the CPU (`MeshGeometry.source`) to be used at all.
+  ///
+  /// Must lie *inside* what the mesh draws: an occluder bigger than its mesh
+  /// hides things through the gap between them.
+  MeshData? occluderMesh;
+
   final Aabb3 _worldBounds = Aabb3();
   final Vector3 _boundsCentre = Vector3.zero();
   double _boundsRadius = 0.0;

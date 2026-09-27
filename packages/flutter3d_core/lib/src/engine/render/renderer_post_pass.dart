@@ -78,7 +78,7 @@ extension _PostPasses on Renderer {
           fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
           textures: <String, TextureHandle>{_kPostSourceSlot: source},
           uniforms: <String, Map<String, Float32List>>{
-            _kBloomInfoBlock: <String, Float32List>{'params': _bloomParams},
+            _bloomInfo.name: _bloomInfo.members,
           },
         ),
       );
@@ -146,6 +146,7 @@ extension _PostPasses on Renderer {
   }) {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
             texture: target,
@@ -178,10 +179,7 @@ extension _PostPasses on Renderer {
       source,
       sampler: Renderer._clampSampler,
     );
-    pass.bindUniformBlock(bloomUpsampleShader, _kBloomInfoBlock, {
-      'params': _bloomParams,
-      'tint': _bloomTint,
-    });
+    pass.bindBlock(bloomUpsampleShader, _bloomInfo);
     pass.draw();
     pass.submit();
   }
@@ -195,26 +193,141 @@ extension _PostPasses on Renderer {
     required TextureHandle target,
     required TextureHandle source,
     required AntiAliasSettings settings,
+    double upscaleSharpen = 0.0,
   }) {
     _fxaaParams[0] = 1.0 / math.max(source.width, 1);
     _fxaaParams[1] = 1.0 / math.max(source.height, 1);
-    _fxaaParams[2] = settings.contrastThreshold.clamp(0.0, 1.0);
+    // `R2`: with only the sharpening asked for, no pixel is contrasted
+    // enough to be smoothed, and every one takes the sharpen path.
+    _fxaaParams[2] = settings.enabled
+        ? settings.contrastThreshold.clamp(0.0, 1.0)
+        : 1e9;
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
     // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
     // centre untouched at zero rather than running a kernel that rounds to
-    // nothing, and forty-four goldens depend on that being the same bytes.
-    _fxaaSharpen[0] = settings.sharpen.clamp(0.0, 1.0);
+    // nothing, and seventy-eight goldens depend on that being the same bytes.
+    //
+    // After a temporal resolve the robust kernel, at the resolve's own
+    // strength — `R2`: what softens a resolved picture is the history, and
+    // the kernel that follows one should not ring past what it averaged.
+    final temporal = settings.temporal;
+    // `R5`: after a spatial upscale the same robust kernel, at its strength.
+    final upscaled = upscaleSharpen > 0.0;
+    final robust = (temporal.enabled && temporal.sharpen > 0.0) || upscaled;
+    _fxaaSharpen[0] =
+        (upscaled
+                ? upscaleSharpen
+                : robust
+                ? temporal.sharpen
+                : settings.sharpen)
+            .clamp(0.0, 1.0);
+    _fxaaSharpen[1] = robust ? 1.0 : 0.0;
     drawFullscreen(
       FullscreenDraw(
         target: target,
         fragment: fxaaShader,
         textures: <String, TextureHandle>{_kPostSourceSlot: source},
         uniforms: <String, Map<String, Float32List>>{
-          _kFxaaInfoBlock: <String, Float32List>{
-            'params': _fxaaParams,
-            'sharpen': _fxaaSharpen,
-          },
+          _fxaaInfo.name: _fxaaInfo.members,
         },
+      ),
+    );
+  }
+
+  /// `R7`: the three exposures' weights from [scene] at [target]'s size,
+  /// blurred across and down, the second blur writing the exposure in stops
+  /// into [target].
+  ///
+  /// [exposure] is the frame's own, the composite's `params.x`: the weights
+  /// judge the scene as the camera exposed it, or the local stops would
+  /// compound with the global ones.
+  void _encodeLocalExposure({
+    required TextureHandle target,
+    required TextureHandle scene,
+    required LocalExposureSettings options,
+    required FrameResources resources,
+    required double exposure,
+  }) {
+    TextureHandle scratch() => resources.transient(
+      RenderTargetSpec(
+        width: target.width,
+        height: target.height,
+        format: target.format,
+      ),
+    );
+    final weights = scratch();
+    final across = scratch();
+    _localExposureInfo.stops
+      ..[0] = math.max(options.shadowStops, 0.0)
+      ..[1] = math.max(options.highlightStops, 0.0)
+      ..[2] = 1.0 / math.max(scene.width, 1)
+      ..[3] = 1.0 / math.max(scene.height, 1);
+    _localExposureInfo.camera[0] = math.max(exposure, 0.0);
+    drawFullscreen(
+      FullscreenDraw(
+        target: weights,
+        fragment: shaders['LocalExposure']!,
+        textures: <String, TextureHandle>{'scene_texture': scene},
+        uniforms: <String, Map<String, Float32List>>{
+          _localExposureInfo.name: _localExposureInfo.members,
+        },
+      ),
+    );
+    void blur(TextureHandle from, TextureHandle to, {required bool down}) {
+      _localExposureBlurInfo.step
+        ..[0] = down ? 0.0 : 1.0 / math.max(target.width, 1)
+        ..[1] = down ? 1.0 / math.max(target.height, 1) : 0.0
+        ..[2] = down ? 1.0 : 0.0
+        ..[3] = 0.0;
+      _localExposureBlurInfo.stops
+        ..[0] = math.max(options.shadowStops, 0.0)
+        ..[1] = math.max(options.highlightStops, 0.0)
+        ..[2] = 0.0
+        ..[3] = 0.0;
+      drawFullscreen(
+        FullscreenDraw(
+          target: to,
+          fragment: shaders['LocalExposureBlur']!,
+          textures: <String, TextureHandle>{'weight_texture': from},
+          uniforms: <String, Map<String, Float32List>>{
+            _localExposureBlurInfo.name: _localExposureBlurInfo.members,
+          },
+        ),
+      );
+    }
+
+    blur(weights, across, down: false);
+    blur(across, target, down: true);
+  }
+
+  /// `R5`: [source], the composited picture at the scene's size, into
+  /// [target] at the output's, by the edge-adaptive filter in `easu.frag`,
+  /// with the [grain] the composite left out.
+  void _encodeEasu({
+    required TextureHandle target,
+    required TextureHandle source,
+    required double grain,
+  }) {
+    _easuInfo.source
+      ..[0] = source.width.toDouble()
+      ..[1] = source.height.toDouble()
+      ..[2] = 1.0 / math.max(source.width, 1)
+      ..[3] = 1.0 / math.max(source.height, 1);
+    _easuInfo.params
+      ..[0] = grain
+      ..[1] = 0.0
+      ..[2] = 0.0
+      ..[3] = 0.0;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shaders['Easu']!,
+        textures: <String, TextureHandle>{'source_texture': source},
+        uniforms: <String, Map<String, Float32List>>{
+          _easuInfo.name: _easuInfo.members,
+        },
+        // Nearest: the filter picks its own twelve texels and weighs them.
+        sampler: SamplerOptions.nearestClamp,
       ),
     );
   }
@@ -255,7 +368,7 @@ extension _PostPasses on Renderer {
           'surface_texture': surface,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'SsaoBlurInfo': <String, Float32List>{'params': _ssaoBlurParams},
+          _ssaoBlurInfo.name: _ssaoBlurInfo.members,
         },
         // Nearest on the surface buffer, as the occlusion pass itself reads
         // it: this pass is at half resolution, so a filtered tap lands on the
@@ -272,6 +385,56 @@ extension _PostPasses on Renderer {
     // version it produced has to be told which texture that is — the same
     // hand-off `_ReflectionsNode` makes for the lit colour.
     resources.provide(FrameResourceIds.ao, target);
+  }
+
+  /// The contact shadow averaged over one 4 x 4 window of its dither, weighted
+  /// by depth — see `post/contact_shadow_resolve.frag`.
+  ///
+  /// Into a transient of the same shape, handed back under the same name, for
+  /// [_encodeSsaoBlur]'s reason: a buffer cannot be sampled and written in one
+  /// pass.
+  void _encodeContactShadowResolve({
+    required TextureHandle source,
+    required TextureHandle surface,
+    required FrameResources resources,
+  }) {
+    developer.Timeline.startSync('Renderer.contactShadowResolve');
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: source.width,
+        height: source.height,
+        format: source.format,
+      ),
+    );
+
+    _contactShadowResolveInfo.params
+      ..[0] = 1.0 / math.max(source.width, 1)
+      ..[1] = 1.0 / math.max(source.height, 1)
+      // Relative, as the occlusion blur's default: a difference of a fiftieth
+      // of the centre's depth drops a tap to 1/e, so a floor carries its
+      // neighbours and an object a hand's width in front of it does not.
+      ..[2] = 0.02
+      ..[3] = 0.0;
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: contactShadowResolveShader,
+        textures: <String, TextureHandle>{
+          'contact_shadow_texture': source,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          _contactShadowResolveInfo.name: _contactShadowResolveInfo.members,
+        },
+        // Nearest on both: each tap has to be one pixel's march, one phase of
+        // the pattern, and a filtered one would mix two phases and two depths.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    developer.Timeline.finishSync();
+
+    resources.provide(FrameResourceIds.contactShadow, target);
   }
 
   /// The contact shadow's own march — `gfx-76n`.
@@ -315,33 +478,91 @@ extension _PostPasses on Renderer {
     _contactLight[2] = toLight.z;
 
     _contactParams[0] = math.max(options.length, 1e-4);
-    _contactParams[1] = options.steps.clamp(1, 16).toDouble();
+    // `R3`: half the steps while a resolve runs, each frame's offset from the
+    // blue noise and a history to carry the rest.
+    _contactParams[1] =
+        (_temporalEffects ? math.max(4, options.steps ~/ 2) : options.steps)
+            .clamp(1, 16)
+            .toDouble();
     _contactParams[2] = math.max(options.thickness, 1e-4);
     // The strength is the composite's, for the reason the occlusion's is: "off"
     // has to be a multiplier of exactly one, and that is a property of one
     // `mix` rather than of arithmetic in two places.
     _contactParams[3] = options.bias;
 
+    _contactShadowInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _contactShadowInfo.viewProjection.setAll(0, viewProjection.storage);
     drawFullscreen(
       FullscreenDraw(
         target: target,
         fragment: contactShadowShader,
-        textures: <String, TextureHandle>{'surface_texture': surface},
+        textures: <String, TextureHandle>{
+          'surface_texture': surface,
+          'blue_noise_texture': _blueNoise,
+        },
         uniforms: <String, Map<String, Float32List>>{
-          _kContactShadowBlock: <String, Float32List>{
-            'inverse_view_projection': inverse.storage,
-            'view_projection': viewProjection.storage,
-            'params': _contactParams,
-            'camera': _contactCamera,
-            'forward': _contactForward,
-            'to_light': _contactLight,
-          },
+          _contactShadowInfo.name: _contactShadowInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // Unfiltered, for `_encodeSsao`'s measured reason below: a filtered tap
         // across a silhouette averages a foreground depth with the cleared
         // background and lands at a depth where nothing stands. Here that reads
         // as an occluder in front of the ray, so every silhouette in the frame
         // would grow its own thin dark outline.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    developer.Timeline.finishSync();
+  }
+
+  /// Writes how far each pixel moved because the camera did — `R1`.
+  ///
+  /// The reconstruction `_encodeContactShadow` does, carried one step
+  /// further through last frame's matrix from [frameHistory]. A camera with
+  /// no past — the first frame, a view that just appeared — is given its own
+  /// matrix as its past, which is a velocity of zero: the resolve has nothing
+  /// to reproject yet either way.
+  void _encodeCameraVelocity({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required RenderView view,
+  }) {
+    developer.Timeline.startSync('Renderer.cameraVelocity');
+
+    final aspect = surface.height == 0 ? 1.0 : surface.width / surface.height;
+    final current = view.camera.viewProjection(aspect);
+    final previous = frameHistory.viewProjection(view.camera) ?? current;
+    final origin = device.framebufferOrigin;
+    final inverse = vm.Matrix4.copy(toFramebufferOrigin(current, origin))
+      ..invert();
+
+    view.camera.readWorldPosition(_ssaoCamera);
+    view.camera.readForward(_ssaoForward);
+    _cameraVelocityInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _cameraVelocityInfo.previousViewProjection.setAll(
+      0,
+      toFramebufferOrigin(previous, origin).storage,
+    );
+    _cameraVelocityInfo.camera
+      ..[0] = _ssaoCamera.x
+      ..[1] = _ssaoCamera.y
+      ..[2] = _ssaoCamera.z;
+    _cameraVelocityInfo.forward
+      ..[0] = _ssaoForward.x
+      ..[1] = _ssaoForward.y
+      ..[2] = _ssaoForward.z;
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: cameraVelocityShader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _cameraVelocityInfo.name: _cameraVelocityInfo.members,
+        },
+        // Unfiltered, for the contact shadow's reason: a filtered depth
+        // across a silhouette is a depth where nothing stands, and its motion
+        // is the motion of nothing.
         sampler: SamplerOptions.nearestClamp,
       ),
     );
@@ -362,6 +583,8 @@ extension _PostPasses on Renderer {
     required TextureHandle surface,
     required AmbientOcclusionSettings options,
     required RenderView view,
+    TextureHandle? scene,
+    TextureHandle? albedo,
   }) {
     developer.Timeline.startSync('Renderer.ssao');
 
@@ -403,27 +626,37 @@ extension _PostPasses on Renderer {
     _ssaoForwardData[2] = _ssaoForward.z;
 
     _ssaoParams[0] = options.radius;
-    _ssaoParams[1] = options.samples.toDouble();
-    // z is the composite's to apply; see the block's docstring in ssao.frag.
-    _ssaoParams[2] = 0.0;
+    // `R3`: half the taps while a resolve runs, with a new rotation each
+    // frame and a history to carry the rest.
+    _ssaoParams[1] =
+        (_temporalEffects ? math.max(4, options.samples ~/ 2) : options.samples)
+            .toDouble();
+    // `L5`: whether the albedo buffer is the one bound, or a stand-in.
+    _ssaoParams[2] = albedo == null ? 0.0 : 1.0;
     _ssaoParams[3] = options.bias;
     _ssaoScreen[0] = 1.0 / math.max(target.width, 1);
     _ssaoScreen[1] = 1.0 / math.max(target.height, 1);
+    // `L5`: which method, read by the stage.
+    _ssaoScreen[2] = options.method.code;
+    _ssaoScreen[3] = math.max(options.thickness, 1e-3);
 
+    _ssaoInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _ssaoInfo.viewProjection.setAll(0, viewProjection.storage);
     drawFullscreen(
       FullscreenDraw(
         target: target,
         fragment: ssaoShader,
-        textures: <String, TextureHandle>{'surface_texture': surface},
+        textures: <String, TextureHandle>{
+          'surface_texture': surface,
+          'blue_noise_texture': _blueNoise,
+          // Read only by the indirect method; the other two get the
+          // cheapest textures that satisfy the samplers.
+          'scene_texture': scene ?? fallbackAlbedo,
+          'albedo_texture': albedo ?? fallbackAlbedo,
+        },
         uniforms: <String, Map<String, Float32List>>{
-          _kSsaoInfoBlock: <String, Float32List>{
-            'inverse_view_projection': inverse.storage,
-            'view_projection': viewProjection.storage,
-            'params': _ssaoParams,
-            'screen': _ssaoScreen,
-            'camera': _ssaoCameraData,
-            'forward': _ssaoForwardData,
-          },
+          _ssaoInfo.name: _ssaoInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // **Unfiltered**, unlike every other full-screen read in this renderer,
         // and measured rather than assumed: with linear filtering an isolated
@@ -507,11 +740,15 @@ extension _PostPasses on Renderer {
     _shaftCascades[0] = _shadowCascades[0];
     _shaftCascades[1] = _shadowCascades[1];
     _shaftCascades[2] = _shadowCascades[2];
-    // The same bias the surface lookup uses. A point in the air has no
-    // surface to lift off, so this is the only guard against a shaft
-    // shadowing itself along the map's own quantisation.
-    _shaftCascades[3] = _shadowParams[1];
+    // The same bias the surface lookup uses, cascade by cascade. A point in
+    // the air has no surface to lift off, so this is the only guard against a
+    // shaft shadowing itself along the map's own quantisation.
 
+    _shaftInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _shaftInfo.shadowMatrix.setAll(0, _shadowMatrix.storage);
+    _shaftInfo.shadowMatrixFar.setAll(0, _shadowMatrixFar.storage);
+    _shaftInfo.shadowMatrixFarthest.setAll(0, _shadowMatrixFarthest.storage);
+    _shaftInfo.bias.setAll(0, _shadowCascadeBias);
     drawFullscreen(
       FullscreenDraw(
         target: target,
@@ -520,19 +757,11 @@ extension _PostPasses on Renderer {
           'scene_texture': scene,
           'surface_texture': surface,
           'shadow_texture': shadow,
+          'blue_noise_texture': _blueNoise,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'ShaftInfo': <String, Float32List>{
-            'inverse_view_projection': inverse.storage,
-            'shadow_matrix': _shadowMatrix.storage,
-            'shadow_matrix_far': _shadowMatrixFar.storage,
-            'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
-            'camera': _shaftCamera,
-            'forward': _shaftForward,
-            'scatter': _shaftScatter,
-            'cascades': _shaftCascades,
-            'sun': _shaftSun,
-          },
+          _shaftInfo.name: _shaftInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // Nearest on the surface buffer, as every other reader of it takes: a
         // filtered depth at a silhouette against the sky averages with the
@@ -548,6 +777,14 @@ extension _PostPasses on Renderer {
 
   /// `gfx-34n`: defocuses the lit colour through a thin lens.
   ///
+  /// Four draws: the largest circle along each tile's rows (`DofTileMax`),
+  /// then along its columns and over its neighbourhood — the motion blur's
+  /// `VelocityTileMax` and `VelocityNeighborMax`, reading the circle as a
+  /// motion along x — and the gather, which reaches as far as that
+  /// neighbourhood's largest circle so a blurred foreground spreads over a
+  /// sharp background beside it. The tile is as wide as the largest circle,
+  /// so one tile either side is as far as any disc can reach.
+  ///
   /// **Everything about scale is taken from the scene texture rather than
   /// from the frame**, which is what keeps `gfx-35n`'s resolution lever
   /// honest. Half the width is half the texels per metre and half the radius
@@ -559,6 +796,7 @@ extension _PostPasses on Renderer {
     required TextureHandle scene,
     required TextureHandle surface,
     required DepthOfFieldSettings settings,
+    required RenderView view,
     required FrameResources resources,
     required int width,
     required int height,
@@ -575,8 +813,22 @@ extension _PostPasses on Renderer {
       ),
     );
 
+    // The lens that took this view's picture: the focal length and the width
+    // of sensor its angle spans, agreed with the projection so the circle is
+    // drawn at the scale the scene was. The view's own share of the texture,
+    // for a camera that sees only part of the frame.
+    final rect = Renderer._viewportPixels(
+      view.viewportFraction,
+      scene.width,
+      scene.height,
+    );
+    final lens = settings.lensFor(
+      verticalFieldOfView: view.camera.projection.verticalFieldOfView,
+      aspect: rect.width / rect.height,
+    );
+
     _dofLens[0] = math.max(settings.focusDistance, 1e-3);
-    _dofLens[1] = math.max(settings.focalLength, 1e-4);
+    _dofLens[1] = math.max(lens.focalLength, 1e-4);
     _dofLens[2] = math.max(settings.aperture, 1e-3);
     _dofLens[3] = settings.samples.clamp(0, 64).toDouble();
 
@@ -587,7 +839,14 @@ extension _PostPasses on Renderer {
     // than the frame's, so that under `renderScale` the lens keeps blurring
     // the same fraction of the picture: the resolution lever is there to
     // spend less on the same photograph, not to take a different one.
-    _dofParams[3] = scene.width / math.max(settings.sensorWidth, 1e-4);
+    _dofParams[3] = rect.width / math.max(lens.sensorWidth, 1e-4);
+
+    final tiles = _encodeCircleTiles(
+      surface: surface,
+      width: scene.width,
+      height: scene.height,
+      resources: resources,
+    );
 
     drawFullscreen(
       FullscreenDraw(
@@ -596,12 +855,10 @@ extension _PostPasses on Renderer {
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'surface_texture': surface,
+          'coc_tile_texture': tiles,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'DofInfo': <String, Float32List>{
-            'lens': _dofLens,
-            'params': _dofParams,
-          },
+          _dofInfo.name: _dofInfo.members,
         },
         // Nearest on the depth: a filtered tap at a silhouette against the
         // sky mixes the object's depth with the sky's zero into a nearer
@@ -609,6 +866,277 @@ extension _PostPasses on Renderer {
         // blurred foreground — a halo of the sharp object spread into the sky.
         samplers: const <String, SamplerOptions>{
           'surface_texture': SamplerOptions.nearestClamp,
+          // A tile's circle is a bound, not a colour: a filtered read between
+          // two tiles is a bound neither had.
+          'coc_tile_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
+  /// The largest circle of confusion within a tile of each tile, one texel
+  /// a tile — `gfx-34n`, for [_encodeDepthOfField], whose lens and bound
+  /// (`_dofInfo`) it reads. Scratch from [FrameResources.transient].
+  TextureHandle _encodeCircleTiles({
+    required TextureHandle surface,
+    required int width,
+    required int height,
+    required FrameResources resources,
+  }) {
+    final radius = _dofParams[2];
+    final tile = math.max(1, math.min(radius.ceil(), 64));
+    final tilesAcross = (width + tile - 1) ~/ tile;
+    final tilesDown = (height + tile - 1) ~/ tile;
+    // Half floats: a circle is up to 64 texels, which a byte cannot hold.
+    final format = device.hdrColorFormat;
+    TextureHandle scratch(int across, int down) => resources.transient(
+      RenderTargetSpec(width: across, height: down, format: format),
+    );
+
+    final alongRows = scratch(tilesAcross, height);
+    for (var i = 0; i < 4; i++) {
+      _dofTileInfo.lens[i] = _dofLens[i];
+      _dofTileInfo.params[i] = _dofParams[i];
+    }
+    // One texel of the scene, the grid the tiles are counted in and the
+    // gather samples on, rather than of the surface buffer: a surface of
+    // another size would leave part of the frame outside every tile.
+    _dofTileInfo.source
+      ..[0] = 1.0 / math.max(width, 1)
+      ..[1] = 1.0 / math.max(height, 1)
+      ..[2] = tile.toDouble();
+    _dofTileInfo.target
+      ..[0] = tilesAcross.toDouble()
+      ..[1] = height.toDouble();
+    drawFullscreen(
+      FullscreenDraw(
+        target: alongRows,
+        fragment: shaders['DofTileMax']!,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _dofTileInfo.name: _dofTileInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+
+    // The columns: the circle in red is a motion along x whose length is
+    // the circle, scaled by one and bounded by the largest circle.
+    final circles = scratch(tilesAcross, tilesDown);
+    _tileMaxInfo.source
+      ..[0] = 1.0 / tilesAcross
+      ..[1] = 1.0 / height
+      ..[2] = 0.0
+      ..[3] = 1.0;
+    _tileMaxInfo.params
+      ..[0] = 1.0
+      ..[1] = 1.0
+      ..[2] = radius
+      ..[3] = tile.toDouble();
+    _tileMaxInfo.target
+      ..[0] = tilesAcross.toDouble()
+      ..[1] = tilesDown.toDouble();
+    drawFullscreen(
+      FullscreenDraw(
+        target: circles,
+        fragment: velocityTileMaxShader,
+        textures: <String, TextureHandle>{'velocity_texture': alongRows},
+        uniforms: <String, Map<String, Float32List>>{
+          _tileMaxInfo.name: _tileMaxInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+
+    final neighbours = scratch(tilesAcross, tilesDown);
+    _neighborMaxInfo.texel
+      ..[0] = 1.0 / tilesAcross
+      ..[1] = 1.0 / tilesDown;
+    drawFullscreen(
+      FullscreenDraw(
+        target: neighbours,
+        fragment: velocityNeighborMaxShader,
+        textures: <String, TextureHandle>{'tile_texture': circles},
+        uniforms: <String, Map<String, Float32List>>{
+          _neighborMaxInfo.name: _neighborMaxInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    return neighbours;
+  }
+
+  /// `R6`: blurs the lit colour along the velocity buffer.
+  ///
+  /// Four draws: the longest motion in each tile's rows, then in its columns
+  /// — `VelocityTileMax` twice, the step between taps telling it which —
+  /// then the longest in each tile's neighbourhood, and the gather that
+  /// walks it. Everything but the last is a tile per texel and the whole
+  /// chain is scratch nobody outside this frame names, so all of it comes
+  /// from [FrameResources.transient].
+  ///
+  /// The tile is as wide as the longest streak, which is what makes one tile
+  /// either side enough for the neighbourhood: nothing further away can
+  /// reach a pixel.
+  TextureHandle _encodeMotionBlur({
+    required TextureHandle scene,
+    required TextureHandle velocity,
+    required TextureHandle surface,
+    required MotionBlurSettings settings,
+    required FrameResources resources,
+  }) {
+    developer.Timeline.startSync('Renderer.motionBlur');
+    final radius = settings.maxRadius.clamp(0.0, 64.0);
+    final tile = math.max(1, radius.ceil());
+    final width = velocity.width;
+    final height = velocity.height;
+    final tilesAcross = (width + tile - 1) ~/ tile;
+    final tilesDown = (height + tile - 1) ~/ tile;
+
+    // Half the exposed part of a frame's motion, in pixels: the velocity is
+    // a whole frame's worth in UV units, and the streak reaches half of the
+    // exposure either side of the pixel.
+    final shutter = settings.shutterFraction.clamp(0.0, 1.0);
+    final scaleX = 0.5 * shutter * width;
+    final scaleY = 0.5 * shutter * height;
+
+    TextureHandle tileMax({
+      required TextureHandle source,
+      required int across,
+      required int down,
+      required bool rows,
+      required double sx,
+      required double sy,
+    }) {
+      final target = resources.transient(
+        RenderTargetSpec(width: across, height: down, format: velocity.format),
+      );
+      _tileMaxInfo.source
+        ..[0] = 1.0 / source.width
+        ..[1] = 1.0 / source.height
+        ..[2] = rows ? 1.0 : 0.0
+        ..[3] = rows ? 0.0 : 1.0;
+      _tileMaxInfo.params
+        ..[0] = sx
+        ..[1] = sy
+        ..[2] = radius
+        ..[3] = tile.toDouble();
+      _tileMaxInfo.target
+        ..[0] = across.toDouble()
+        ..[1] = down.toDouble();
+      drawFullscreen(
+        FullscreenDraw(
+          target: target,
+          fragment: velocityTileMaxShader,
+          textures: <String, TextureHandle>{'velocity_texture': source},
+          uniforms: <String, Map<String, Float32List>>{
+            _tileMaxInfo.name: _tileMaxInfo.members,
+          },
+          // A motion is a value, not a colour: a filtered read between two
+          // texels is a motion neither pixel had.
+          sampler: SamplerOptions.nearestClamp,
+        ),
+      );
+      return target;
+    }
+
+    // The first pass scales into pixels; the second reads pixels already.
+    final alongRows = tileMax(
+      source: velocity,
+      across: tilesAcross,
+      down: height,
+      rows: true,
+      sx: scaleX,
+      sy: scaleY,
+    );
+    final tiles = tileMax(
+      source: alongRows,
+      across: tilesAcross,
+      down: tilesDown,
+      rows: false,
+      sx: 1.0,
+      sy: 1.0,
+    );
+
+    final neighbors = resources.transient(
+      RenderTargetSpec(
+        width: tilesAcross,
+        height: tilesDown,
+        format: velocity.format,
+      ),
+    );
+    _neighborMaxInfo.texel
+      ..[0] = 1.0 / tilesAcross
+      ..[1] = 1.0 / tilesDown;
+    drawFullscreen(
+      FullscreenDraw(
+        target: neighbors,
+        fragment: velocityNeighborMaxShader,
+        textures: <String, TextureHandle>{'tile_texture': tiles},
+        uniforms: <String, Map<String, Float32List>>{
+          _neighborMaxInfo.name: _neighborMaxInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+
+    // A transient of the scene's own shape, for the lens's reason: a pass
+    // cannot sample and write a single texture.
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+    _motionBlurInfo.scene
+      ..[0] = 1.0 / scene.width
+      ..[1] = 1.0 / scene.height
+      ..[2] = scene.width.toDouble()
+      ..[3] = scene.height.toDouble();
+    _motionBlurInfo.params
+      ..[0] = scaleX
+      ..[1] = scaleY
+      ..[2] = radius
+      // Fifteen, the reconstruction's own count: enough that the steps
+      // between samples are grain under the noise rather than copies.
+      ..[3] = 15.0;
+    _motionBlurInfo.tiles
+      ..[0] = tilesAcross.toDouble()
+      ..[1] = tilesDown.toDouble()
+      ..[2] = tile.toDouble()
+      // Five centimetres: two depths closer than that are one surface for
+      // the question of which is in front, so a surface at a grazing angle
+      // does not hide itself from its own streak.
+      ..[3] = 0.05;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: motionBlurShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'velocity_texture': velocity,
+          'surface_texture': surface,
+          'neighbor_texture': neighbors,
+          'blue_noise_texture': _blueNoise,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          _motionBlurInfo.name: _motionBlurInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
+        },
+        // Nearest on everything. The three buffers hold motions and depths,
+        // which a filtered read would invent; the scene is only ever read at
+        // texel centres, where nearest is the texel itself and a filtered
+        // read is that texel plus whatever rounding put the centre a hair
+        // off — enough, after the tone map, to move a still frame by a level.
+        samplers: const <String, SamplerOptions>{
+          'scene_texture': SamplerOptions.nearestClamp,
+          'velocity_texture': SamplerOptions.nearestClamp,
+          'surface_texture': SamplerOptions.nearestClamp,
+          'neighbor_texture': SamplerOptions.nearestClamp,
+          'blue_noise_texture': SamplerOptions.nearestClamp,
         },
       ),
     );
@@ -683,11 +1211,7 @@ extension _PostPasses on Renderer {
           'surface_texture': surface,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'ShadeInfo': <String, Float32List>{
-            'params': _shadeParams,
-            'screen': _shadeScreen,
-            'light': _shadeLight,
-          },
+          _shadeInfo.name: _shadeInfo.members,
         },
         // **Nearest on the surface buffer, for the reason the occlusion pass
         // gives at length**: a filtered tap at a silhouette averages a
@@ -709,8 +1233,14 @@ extension _PostPasses on Renderer {
   /// Its own target rather than in place: the pass samples the scene while it
   /// writes, and a texture cannot be both. Returns [scene] untouched when the
   /// effect is off, so the chain downstream never branches.
+  ///
+  /// [sceneGraph] is here for its environment: a hit takes the place
+  /// of the environment's reflection the lit pass already added, so the pass
+  /// needs the cube that reflection was read from — see the end of
+  /// `reflections.frag`.
   TextureHandle _encodeReflections({
     required TextureHandle scene,
+    required Scene sceneGraph,
     required RenderSettings settings,
     required RenderView view,
     required int width,
@@ -760,6 +1290,24 @@ extension _PostPasses on Renderer {
     _reflectionForwardData[1] = _reflectionForward.y;
     _reflectionForwardData[2] = _reflectionForward.z;
 
+    // The cube the lit pass reflected, and the strength it read it at — the
+    // same choice `_encodeNode` makes for a draw with no probe. **No levels
+    // while the scene has probes**: a probe is chosen per object, this pass
+    // sees pixels, and taking the sky's reflection out of a room its probe
+    // lit would put a hole where the room's own reflection was. There the
+    // hit is added as it always was. Bound either way, as the lit stage's
+    // cube is, and left out only on a device with no cubes at all.
+    final environment = sceneGraph.environment ?? _environmentFallback(device);
+    final replaces =
+        sceneGraph.environment != null &&
+        environment != null &&
+        sceneGraph.probes.isEmpty;
+    _reflectionInfo.environment
+      ..[0] = replaces ? sceneGraph.environmentLevels.toDouble() : 0.0
+      ..[1] = sceneGraph.ambientIntensity;
+
+    _reflectionInfo.viewProjection.setAll(0, viewProjection.storage);
+    _reflectionInfo.inverseViewProjection.setAll(0, inverse.storage);
     drawFullscreen(
       FullscreenDraw(
         target: target,
@@ -767,16 +1315,12 @@ extension _PostPasses on Renderer {
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'surface_texture': surface,
+          'blue_noise_texture': _blueNoise,
+          'environment_texture': ?environment,
         },
         uniforms: <String, Map<String, Float32List>>{
-          _kReflectionInfoBlock: <String, Float32List>{
-            'view_projection': viewProjection.storage,
-            'inverse_view_projection': inverse.storage,
-            'camera': _reflectionCameraData,
-            'forward': _reflectionForwardData,
-            'params': _reflectionParams,
-            'screen': _reflectionScreen,
-          },
+          _reflectionInfo.name: _reflectionInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // Nearest on the surface buffer, as every other reader of it takes:
         // a filtered tap at a silhouette averages the object's depth with the
@@ -784,6 +1328,7 @@ extension _PostPasses on Renderer {
         // which the march then "hits".
         samplers: const <String, SamplerOptions>{
           'surface_texture': SamplerOptions.nearestClamp,
+          'environment_texture': Renderer._environmentSampler,
         },
       ),
     );
@@ -818,9 +1363,7 @@ extension _PostPasses on Renderer {
         fragment: shader,
         textures: <String, TextureHandle>{_kSceneTextureSlot: scene},
         uniforms: <String, Map<String, Float32List>>{
-          _kLuminanceInfoBlock: <String, Float32List>{
-            'params': _luminanceParams,
-          },
+          _luminanceInfo.name: _luminanceInfo.members,
         },
       ),
     );
@@ -891,6 +1434,95 @@ extension _PostPasses on Renderer {
         .whenComplete(() => _meterInFlight = false);
   }
 
+  /// Reduces [surface] into [target], the small grid the occlusion readback
+  /// takes — `C3`, `depth_pyramid.frag`.
+  void _encodeDepthPyramid({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required double far,
+  }) {
+    developer.Timeline.startSync('Renderer.depthPyramid');
+    final shader = shaders['DepthPyramid'];
+    if (shader == null) {
+      throw StateError(
+        'The bundle has no "DepthPyramid" fragment shader, which hi-Z '
+        'occlusion reads the depth back through. Rebuild it with '
+        'tool/build_shaders.sh.',
+      );
+    }
+    final block = _depthPyramidInfo.block;
+    block[0] = 1.0 / math.max(target.width, 1);
+    block[1] = 1.0 / math.max(target.height, 1);
+    block[2] = surface.width / math.max(target.width, 1);
+    block[3] = surface.height / math.max(target.height, 1);
+    _depthPyramidInfo.range[0] = far > 0.0 ? 1.0 / far : 0.0;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _depthPyramidInfo.name: _depthPyramidInfo.members,
+        },
+        // Nearest: a depth filtered across a silhouette is the depth of
+        // neither surface, and the reduction wants the ones that are there.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+  }
+
+  /// Asks for the depth pyramid's bytes and hands them to [_hiZ] with the
+  /// view they were seen through. Returns at once; the reading lands a frame
+  /// or two later, and until then the occlusion test answers "visible".
+  ///
+  /// One ask at a time, and a refused copy costs nothing but the reading —
+  /// the same shape as [_meterExposure], for its reasons.
+  void _readDepthPyramid(
+    TextureHandle target, {
+    required CameraNode camera,
+    required double aspect,
+  }) {
+    final hiZ = _hiZ;
+    if (hiZ == null || _pyramidInFlight) return;
+    _pyramidInFlight = true;
+    final epoch = _hiZEpoch;
+    final viewProjection = camera.viewProjection(aspect);
+    final eye = camera.readWorldPosition();
+    final forward = camera.readForward();
+    final far = camera.projection.far;
+    Future<ByteData>.sync(() => device.readback(target))
+        .then((ByteData bytes) {
+          // Thrown away while it was in the air: a frame since has run
+          // without hi-Z, and the scene this saw is not one to trust.
+          if (epoch != _hiZEpoch) return;
+          hiZ.accept(
+            bytes,
+            viewProjection: viewProjection,
+            eye: eye,
+            forward: forward,
+            far: far,
+            camera: camera,
+          );
+        }, onError: (Object _, StackTrace _) {})
+        .whenComplete(() => _pyramidInFlight = false);
+  }
+
+  /// The occlusion buffer when the setting asks for it, and null otherwise:
+  /// what the composite multiplies in, or the fog pass before it.
+  TextureHandle? _occlusionOf(TextureHandle? ao, RenderSettings settings) =>
+      ao != null && settings.ambientOcclusion.enabled ? ao : null;
+
+  /// The contact shadow on the same terms — `gfx-76n`.
+  TextureHandle? _contactOf(
+    TextureHandle? contactShadow,
+    RenderSettings settings,
+  ) => contactShadow != null && settings.contactShadows.enabled
+      ? contactShadow
+      : null;
+
   /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
   ///
   /// One pass for both because the overlay has to land on the finished image
@@ -908,8 +1540,10 @@ extension _PostPasses on Renderer {
     required TextureHandle? bloom,
     required TextureHandle? ao,
     required TextureHandle? contactShadow,
+    TextureHandle? localExposure,
     required TextureHandle? surface,
     required TextureHandle? shadowView,
+    TextureHandle? velocity,
     required Scene sceneGraph,
     required List<RenderView> views,
     required RenderSettings settings,
@@ -918,6 +1552,7 @@ extension _PostPasses on Renderer {
   }) {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(texture: target, loadAction: LoadAction.dontCare),
         ],
@@ -933,7 +1568,7 @@ extension _PostPasses on Renderer {
     // itself — then one draw per view, scissored to its own rectangle, so the
     // exposure in the uniform is the one that view metered. With per-view
     // metering off, or with a single view, this is the one full-frame draw it
-    // has always been and the bytes are the bytes forty-four goldens hold.
+    // has always been and the bytes are the bytes seventy-eight goldens hold.
     final perView =
         settings.autoExposure.enabled &&
         settings.autoExposure.perView &&
@@ -949,10 +1584,30 @@ extension _PostPasses on Renderer {
       bloomIntensity: settings.bloom.intensity,
       tonemap: settings.tonemap,
       curve: settings.tonemapCurve,
+      showVelocity: settings.showVelocity,
+      hasVelocity: velocity != null,
     );
     _compositeParams[0] = mix.exposure;
     _compositeParams[1] = mix.bloomIntensity;
-    _compositeParams[2] = mix.tonemap;
+    // `L2`: a display transform in place of the curve, when one is set or
+    // the curve is the table the engine ships — and never for a raw view,
+    // which the mix has already told to leave the colour alone.
+    // `R9`: the extended output is exposed but not curved.
+    final display = mix.tonemap == 0.0 || _extendedOutput
+        ? null
+        : settings.look.displayTransform ??
+              (settings.tonemapCurve == TonemapCurve.aces2
+                  ? DisplayTransform(
+                      texture: EngineTables.of(device).aces2Display,
+                      size: EngineTables.aces2DisplaySize,
+                    )
+                  : null);
+    _compositeParams[2] = _extendedOutput
+        ? 0.0
+        : display != null
+        ? 6.0
+        : mix.tonemap;
+    _compositeContact[1] = display?.size.toDouble() ?? 0.0;
 
     pass.bindPipeline(
       _postPipeline(
@@ -969,6 +1624,7 @@ extension _PostPasses on Renderer {
       CompositeView.shadowMap => shadowView!,
       CompositeView.surfaceBuffer => surface ?? scene,
       CompositeView.scene => scene,
+      CompositeView.velocity => velocity!,
     }, sampler: Renderer._clampSampler);
     // With bloom culled there is still a sampler to satisfy, and the scene
     // itself is the cheapest texture to hand it — [CompositeMix] set the
@@ -987,12 +1643,22 @@ extension _PostPasses on Renderer {
     // strength is zeroed alongside it, so the stand-in is multiplied out rather
     // than relied upon — either alone would do, and having both means a
     // mismatch between them cannot darken anything.
-    final occlusion = ao != null && settings.ambientOcclusion.enabled
-        ? ao
-        : null;
+    //
+    // `S4`: none of it when the fog laid it on the surface already. Read and
+    // cleared here, so a frame whose fog did not run starts from false.
+    final applied = _occlusionBeforeFog;
+    _occlusionBeforeFog = false;
+    final occlusion = applied ? null : _occlusionOf(ao, settings);
     _compositeParams[3] = occlusion == null
         ? 0.0
         : settings.ambientOcclusion.strength;
+    // `L5`: the buffer's rgb is light only when the indirect method drew it;
+    // otherwise it is the occlusion again, or the white stand-in.
+    _compositeContact[2] =
+        occlusion != null &&
+            settings.ambientOcclusion.method == AmbientOcclusionMethod.ssil
+        ? 1.0
+        : 0.0;
     _compositeAoTexel[0] = 1.0 / math.max(occlusion?.width ?? 1, 1);
     _compositeAoTexel[1] = 1.0 / math.max(occlusion?.height ?? 1, 1);
     pass.bindTexture(
@@ -1007,12 +1673,20 @@ extension _PostPasses on Renderer {
     // and not the occlusion's — a scene may want a seam at a join without
     // wanting ambient occlusion, and folding the two would make one of those
     // settings silently govern the other.
-    final contact = contactShadow != null && settings.contactShadows.enabled
-        ? contactShadow
-        : null;
+    final contact = applied ? null : _contactOf(contactShadow, settings);
     _compositeContact[0] = contact == null
         ? 0.0
         : settings.contactShadows.strength.clamp(0.0, 1.0);
+    // `R7`: the stops, or a black stand-in at a strength of nought.
+    _compositeContact[3] = localExposure == null
+        ? 0.0
+        : settings.localExposure.strength.clamp(0.0, 1.0);
+    pass.bindTexture(
+      compositeShader,
+      'local_exposure_texture',
+      localExposure ?? fallbackBlack,
+      sampler: Renderer._clampSampler,
+    );
     pass.bindTexture(
       compositeShader,
       _kContactShadowTextureSlot,
@@ -1028,13 +1702,22 @@ extension _PostPasses on Renderer {
     // *is* N, and a table whose two dimensions disagree about that is a table
     // the engine should not be guessing about.
     final look = settings.look;
-    final lut = look.gradesThroughLut ? look.lut : null;
+    // `R9`: a table is authored for the SDR range.
+    final lut = look.gradesThroughLut && !_extendedOutput ? look.lut : null;
     _compositeAoTexel[2] = lut == null ? 0.0 : look.lutStrength.clamp(0.0, 1.0);
     _compositeAoTexel[3] = (lut?.height ?? 2).toDouble();
     pass.bindTexture(
       compositeShader,
       _kLutTextureSlot,
       lut ?? fallbackAlbedo,
+      sampler: Renderer._clampSampler,
+    );
+    // `L2`, the same pairing: the table when the curve reads one, the
+    // stand-in otherwise, never unbound.
+    pass.bindTexture(
+      compositeShader,
+      'display_texture',
+      display?.texture ?? fallbackAlbedo,
       sampler: Renderer._clampSampler,
     );
 
@@ -1047,7 +1730,10 @@ extension _PostPasses on Renderer {
     _compositeLook[3] = math.max(look.chromaticAberration, 0.0);
     _compositeLookMore[0] = look.vignette.clamp(0.0, 1.0);
     _compositeLookMore[1] = look.vignetteRoundness.clamp(0.0, 1.0);
-    _compositeLookMore[2] = math.max(look.grain, 0.0);
+    // `R5`: an upscaled frame takes its grain after the upscale instead.
+    _compositeLookMore[2] = _upscales(settings)
+        ? 0.0
+        : math.max(look.grain, 0.0);
     // The vignette is computed in UV space, which is square while the frame is
     // not — without this the falloff is an ellipse on screen.
     _compositeLookMore[3] = height <= 0 ? 1.0 : width / height;
@@ -1056,7 +1742,10 @@ extension _PostPasses on Renderer {
     // skips the whole branch at zero rather than adding a noise that rounds
     // to nothing, because "rounds to nothing" is a claim about the target's
     // bit depth and not about the arithmetic.
-    _compositeOutputEncode[0] = math.max(look.dither, 0.0);
+    // `R9`: a float target does not band.
+    _compositeOutputEncode[0] = _extendedOutput
+        ? 0.0
+        : math.max(look.dither, 0.0);
     _compositeOutputEncode[1] = look.whiteBalance.clamp(-1.0, 1.0);
     _compositeOutputEncode[2] = look.tint.clamp(-1.0, 1.0);
 
@@ -1078,21 +1767,12 @@ extension _PostPasses on Renderer {
     _compositeGain[1] = gain?.y ?? 1.0;
     _compositeGain[2] = gain?.z ?? 1.0;
 
-    // The whole block, in one map, because a bind replaces the block rather
-    // than patching it: rebinding with `params` alone would leave a per-view
-    // frame with no look, no grade and an occlusion texel of zero.
-    final block = <String, Float32List>{
-      'params': _compositeParams,
-      'ao_texel': _compositeAoTexel,
-      'look': _compositeLook,
-      'look_more': _compositeLookMore,
-      'output_encode': _compositeOutputEncode,
-      'lift': _compositeLift,
-      'gamma': _compositeGamma,
-      'gain': _compositeGain,
-      'contact': _compositeContact,
-    };
-    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, block);
+    // The whole block, every member at once, because a bind replaces the
+    // block rather than patching it: rebinding with `params` alone would
+    // leave a per-view frame with no look, no grade and an occlusion texel of
+    // zero.
+    pass.bindBlock(compositeShader, _compositeInfo);
+    _bindFragCoord(pass, compositeShader, target);
     var draws = 1;
     if (!perView) {
       pass.draw();
@@ -1113,7 +1793,7 @@ extension _PostPasses on Renderer {
           ..setScissor(rect);
         _compositeParams[0] = _exposureForView(settings, i);
         pass
-          ..bindUniformBlock(compositeShader, _kCompositeInfoBlock, block)
+          ..bindBlock(compositeShader, _compositeInfo)
           ..draw();
       }
       // Back to the whole frame, because the overlay loop below sets its own

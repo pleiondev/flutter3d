@@ -30,8 +30,17 @@ abstract final class FrameResourceIds {
   /// World normal and depth, the second attachment of the scene pass.
   static const ResourceId surfaceBuffer = ResourceId('surface_buffer');
 
+  /// Each surface's own colour, sRGB in eight bits, the scene pass's third
+  /// attachment — `L5`. Present only when a pass reads it, the surface buffer
+  /// is attached too and the device opens three colour attachments.
+  static const ResourceId albedoBuffer = ResourceId('albedo_buffer');
+
   /// The directional light's shadow map.
   static const ResourceId shadowMap = ResourceId('shadow_map');
+
+  /// The directional map as blurred exponential moments, for the `evsm`
+  /// filter — `S2`. Made from [shadowMap], never instead of it.
+  static const ResourceId shadowMoments = ResourceId('shadow_moments');
 
   /// The point lights' cube atlases, dynamic and baked.
   static const ResourceId cubeShadow = ResourceId('cube_shadow');
@@ -58,9 +67,42 @@ abstract final class FrameResourceIds {
   /// hemisphere, and only where a surface faces the light.
   static const ResourceId contactShadow = ResourceId('contact_shadow');
 
+  /// The local exposure, in stops per place, at an eighth of the frame —
+  /// `R7`. Produced only while `RenderSettings.localExposure` is on.
+  static const ResourceId localExposure = ResourceId('local_exposure');
+
+  /// How far each pixel moved on screen since the last frame, in UV units,
+  /// now minus then — `R1`. Red and green; produced only while temporal
+  /// anti-aliasing is on.
+  ///
+  /// The HDR format because it holds signed fractions, and there is no
+  /// two-channel float format in `TextureFormat` to be smaller with.
+  static const ResourceId velocity = ResourceId('velocity');
+
+  /// The temporal resolve's history, at the output's size — `R2`. The
+  /// renderer's own texture, maintained across frames, so it is a `keeps`
+  /// rather than a write: what it holds is the running blend of every frame
+  /// since the last cut.
+  static const ResourceId temporalHistory = ResourceId('temporal_history');
+
+  /// The irradiance field's atlas as the GPU keeps it — `L4`. Maintained
+  /// across frames, a `keeps` of the update node.
+  static const ResourceId irradianceAtlas = ResourceId('irradiance_atlas');
+
   /// The scene's log luminance at a fixed small size, for the exposure meter
   /// to read back. Produced only while auto exposure is on.
   static const ResourceId luminance = ResourceId('luminance');
+
+  /// The surface buffer's farthest depth over blocks of it, at a fixed small
+  /// size in RGBA8, for the occlusion readback to reproject — `C3`. Produced
+  /// only while `RenderSettings.occlusion` is `OcclusionMode.hiZ`.
+  static const ResourceId depthPyramid = ResourceId('depth_pyramid');
+
+  /// The scene as the opaque half left it, at its own size and at five
+  /// halvings, side by side in one texture — `M3`, for the transmissive draws
+  /// to read. Produced only on a frame that holds one; see
+  /// `SceneColourChain`.
+  static const ResourceId sceneColour = ResourceId('scene_colour');
 
   /// Which node drew each pixel, as an id in RGBA8. Produced only on a frame
   /// something asked to pick from.

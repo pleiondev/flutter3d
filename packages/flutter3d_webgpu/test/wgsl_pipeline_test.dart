@@ -139,9 +139,11 @@ void main() {
           );
         });
       }
-      // The seventeen names the manifest has today. Stated so that a shader
-      // adding an eighteenth has to come back and read the family rule.
-      expect(seen.length, 17);
+      // The twenty names the manifest has today: `R1`'s velocity stages
+      // brought v_current, v_previous and v_depth, a family of their own.
+      // Stated so that a shader adding a twenty-first has to come back and
+      // read the family rule.
+      expect(seen.length, 20);
     });
 
     test('keeps every family inside WebGPU\'s sixteen locations', () {
@@ -151,9 +153,9 @@ void main() {
         ),
         isTrue,
       );
-      // Four families and a widest of eight. One flat numbering would have
-      // needed seventeen.
-      expect(locations.length, 17);
+      // Five families and a widest of eight. One flat numbering would have
+      // needed twenty.
+      expect(locations.length, 20);
       expect(locations.values.toSet().length, 8);
     });
 

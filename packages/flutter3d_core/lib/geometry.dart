@@ -18,6 +18,7 @@ export 'src/geometry/box_shapes.dart';
 export 'src/geometry/intersections.dart';
 export 'src/geometry/lathe_shape.dart';
 export 'src/geometry/mesh_builder.dart';
+export 'src/geometry/mesh_clusters.dart';
 export 'src/geometry/mesh_data.dart';
 export 'src/geometry/mesh_geometry.dart';
 export 'src/geometry/mesh_tangents.dart';

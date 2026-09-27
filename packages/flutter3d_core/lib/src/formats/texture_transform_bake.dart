@@ -9,7 +9,9 @@
 /// the same amount. That case needs no uniform at all: the same numbers
 /// applied to the coordinates give the same picture, and they are applied here.
 /// A material whose textures disagree is the case that does need the uniform,
-/// and [sharedTextureTransform] says so by returning null.
+/// and [sharedTextureTransform] says so by returning null; the layered model
+/// has one — `C8`, `Material.textureTransforms` — and so does a material whose
+/// offset a clip moves, since coordinates fixed at upload cannot follow it.
 ///
 /// **Not in the decoder**, which is the first place anybody would put it. A
 /// decoded document keeps both the coordinates the file had and the transform
@@ -62,6 +64,11 @@ List<TextureBinding> _texturesOf(SurfaceMaterial material) => <TextureBinding>[
 /// in: scale, then rotation, then offset. Returns [mesh] itself when it has no
 /// coordinates to move.
 ///
+/// **Counter-clockwise as the texture is seen, with `v` running down.** The
+/// matrix the extension's text prints turns the other way in that space, and
+/// its sample asset marks that reading as wrong; a quarter turn here sends
+/// `+u` to `-v`, which is up the image.
+///
 /// **The tangent turns with the texture.** A tangent is the direction in which
 /// `u` increases across the surface, so rotating the coordinates leaves it
 /// pointing along an axis the normal map no longer uses, and lighting that was
@@ -85,8 +92,8 @@ MeshData withTextureTransform(MeshData mesh, TextureTransform transform) {
   for (var o = 0; o < out.length; o += stride) {
     final u = out[o + uvOffset] * scaleX;
     final v = out[o + uvOffset + 1] * scaleY;
-    out[o + uvOffset] = transform.offset.x + cosine * u - sine * v;
-    out[o + uvOffset + 1] = transform.offset.y + sine * u + cosine * v;
+    out[o + uvOffset] = transform.offset.x + cosine * u + sine * v;
+    out[o + uvOffset + 1] = transform.offset.y - sine * u + cosine * v;
   }
 
   final tangentOffset = layout.floatOffsetOf(VertexLayout.tangent.name);
@@ -108,7 +115,11 @@ MeshData withTextureTransform(MeshData mesh, TextureTransform transform) {
       final bx = (ny * tz - nz * ty) * w;
       final by = (nz * tx - nx * tz) * w;
       final bz = (nx * ty - ny * tx) * w;
-      // Where `u'` increases: the first column of the inverse of the 2x2.
+      // Where `u'` increases: the first column of the inverse of the 2x2,
+      // `(m11 dP/du - m10 dP/dv) / det`. The bitangent is **minus** dP/dv,
+      // because `v` runs down the texture and a normal map's green up it —
+      // `withGeneratedTangents` builds it so — which is what turns the
+      // `+sine` in `m10` negative here.
       final alongT = cosine / scaleX;
       final alongB = -sine / scaleY;
       final rx = tx * alongT + bx * alongB;
@@ -128,5 +139,8 @@ MeshData withTextureTransform(MeshData mesh, TextureTransform transform) {
     vertices: out,
     indices: mesh.indices,
     morphTargets: mesh.morphTargets,
+    // The positions and the order of the triangles are untouched, so the
+    // boxes and cones still describe them — `C9`.
+    clusters: mesh.clusters,
   );
 }

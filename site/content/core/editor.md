@@ -111,9 +111,9 @@ The palette, down the left, is built from the document instead of hardcoded. `pa
 
 ## Commands, history, saving, generated files
 
-Everything the editor does to a document is an `EditorCommand`. There are ten of them (`moveBy`, `resize`, `addBrush`, `addLight`, `place`, `duplicate`, `delete`, `setField`, `brighten`, `turn`), each a value with a name, arguments, a `toJson` and a sentence about itself. That last one is why the bar can say *undo move by 0.25, 0, 0* rather than *undo*.
+Everything the editor does to a document is an `EditorCommand`. There are eleven of them (`moveBy`, `resize`, `addBrush`, `addLight`, `place`, `duplicate`, `delete`, `setField`, `brighten`, `turn`, `setLights`), each a value with a name, arguments, a `toJson` and a sentence about itself. That last one is why the bar can say *undo move by 0.25, 0, 0* rather than *undo*.
 
-**Nothing here reverses itself, by decision.** The obvious shape for a command is a pair, do and undo, and this hierarchy leaves out the second half on purpose. Going back is implemented once, in `EditorHistory`, by putting a snapshot of the whole document back. A level is a few hundred numbers and a snapshot of one costs nothing worth measuring, while an inverse per command is ten more places where the way back can disagree with the way there, and that disagreement does not arrive as a crash. It arrives as somebody's brush a quarter of a metre from where they left it, three undos later, with nothing to blame.
+**Nothing here reverses itself, by decision.** The obvious shape for a command is a pair, do and undo, and this hierarchy leaves out the second half on purpose. Going back is implemented once, in `EditorHistory`, by putting a snapshot of the whole document back. A level is a few hundred numbers and a snapshot of one costs nothing worth measuring, while an inverse per command is eleven more places where the way back can disagree with the way there, and that disagreement does not arrive as a crash. It arrives as somebody's brush a quarter of a metre from where they left it, three undos later, with nothing to blame.
 
 Sixty-four steps deep, oldest off the end rather than newest refused: an editor that stops recording after the sixty-fourth change is an editor whose undo stops working halfway through an afternoon without telling anyone. A `transaction` is what makes a gesture one step: a whole mouse drag is one snapshot taken on the way in, however many frames it took, and nested transactions belong to the outermost.
 
@@ -123,11 +123,21 @@ The history also answers "is there unsaved work", which looks like a second job 
 
 ## The same editor with no screen at all
 
-`flutter3d_editor_mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio (`dart run flutter3d_editor_mcp:editor_mcp <level.json>`), holding one document for the life of one process. Seventeen tools, and **ten of them are the `EditorCommand` hierarchy above**, offered under the names that package already gives them: a tool call is its arguments handed to `EditorCommand.fromJson`. So an edit made by an agent and an edit made by a hand reach the document by one route, get one sentence in the undo stack, and come back under the same key. The table is built from `editorCommandNames`, and the suite holds it to that list both ways round, because a server keeping its own copy is a server that silently cannot call the eleventh command.
+`flutter3d_editor_mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio (`dart run flutter3d_editor_mcp:editor_mcp <level.json>`), holding one document for the life of one process. Twenty-one tools, and **eleven of them are the `EditorCommand` hierarchy above**, offered under the names that package already gives them: a tool call is its arguments handed to `EditorCommand.fromJson`. So an edit made by an agent and an edit made by a hand reach the document by one route, get one sentence in the undo stack, and come back under the same key. The table is built from `editorCommandNames`, and the suite holds it to that list both ways round, because a server keeping its own copy is a server that silently cannot call the twelfth command.
 
 Two of the tools are not commands and both were missing from every sketch of this. `list` prints everything in the level with the kind and index `select` takes. Every other verb works on "the selection", which a program with no screen cannot guess, so without it driving the editor means moving the third brush without ever finding out there is a third brush. `validate` runs the document through `LevelValidator`; without it the first news of a broken level is a diff somebody reads later.
 
-**It cannot draw, and says so.** `screenshot` is declared and refuses with the reason: every backend here reaches a `GraphicsDevice` whose finished frame is a Flutter widget, so a process that can render a level is a Flutter process, and `dart run` cannot resolve a package that depends on the Flutter SDK. An absent tool reads as an incomplete server and sends the caller looking for another way; a refusal with a reason ends the question.
+**It draws in software, flat.** `screenshot` renders the level through `flutter3d_cpu` at 320×200, with no GPU and no Flutter: the scene comes from `LevelScene` in `flutter3d_editor_core`, the half of loading a level that never needed a window. Textures are decoded by the application that ships them, so every brush shows in its material's colour and every light and entity as a small box. `report` reads the same frame's object ids, with the level drawn one brush per draw, and says for every brush, light and entity how many pixels it owns, where, how far away, and which pieces cover the part of the screen it would fill. "The torch is hidden by brush 3" is then a count of pixels after the depth test, not a guess from boxes.
+
+## Fewer lights, from the command line
+
+A level with fifty lights where thirty would draw the same picture pays for the other twenty in every frame. `flutter3d_build` has a command for that, and it needs no window either:
+
+```sh
+dart run flutter3d_build:lights --optimize assets/levels/crypt.json --dry-run
+```
+
+It draws every light alone in software from views a player would have, removes the lights others already cover, merges close pairs, retunes the rest, and keeps a change only while the picture stays within its bounds. The set it arrives at goes into the level as one `setLights` command, so it is one step of history like any other edit. Like `⌘S`, it will not write over a generated level; `--out` writes a copy that owns itself. The options, lighting states and per-device-class copies are on [the asset pipeline](/reference/asset-pipeline/#lights) page.
 
 ## What it does not do yet
 

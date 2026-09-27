@@ -39,6 +39,56 @@ export 'gpu_shader_library.dart';
 /// can check: `tool/structure.dart`'s "the hardware layer names no graphics
 /// API" rule scans for it.
 final class GpuRenderBackend implements GraphicsDevice {
+  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
+  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
+  // makes a caller take its fallback.
+
+  @override
+  bool get supportsGpuTimestamps => false;
+
+  @override
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+
+  @override
+  bool get supportsCompute => false;
+
+  @override
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  }) => throw UnsupportedError(_noCompute);
+
+  @override
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  ComputeEncoder beginComputePass({String? label}) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  static const String _noCompute =
+      'Impeller runs no compute: supportsCompute is false. Ask before '
+      'creating a storage buffer, a compute pipeline or a compute pass.';
+
+  @override
+  bool get supportsFloat32Filtering => false;
+
+  @override
+  // `R8`: flutter_gpu takes a `colorAttachmentIndex` on both blend setters,
+  // and `GpuCommandEncoder.setBlend` has always passed the index through.
+  bool get supportsIndependentBlend => true;
+
+  @override
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+
   GpuRenderBackend._(this._library, this._transients, this._granule);
 
   /// Loads [bundleAsset] and builds a backend around the running context.
@@ -274,8 +324,8 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsRenderToMip =>
       gpu.gpuContext.doesSupportFramebufferRenderMipmap;
 
-  /// Two where this backend is not on its OpenGL ES path, one where it is —
-  /// `gfx-50n`.
+  /// Four where this backend is not on its OpenGL ES path, one where it is —
+  /// `gfx-50n`, `L5`.
   ///
   /// **Inferred, and that is stated rather than hidden.** flutter_gpu
   /// publishes no MRT capability and no backend name, so there is nothing
@@ -291,13 +341,13 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// call that ends the process. An inference from a neighbouring capability
   /// is what is left.
   ///
-  /// Two rather than the four or eight Metal and Vulkan actually allow: two
-  /// is what this engine has ever opened and what the split above is evidence
-  /// for. A number this backend cannot support is not a number worth
-  /// publishing, and a caller who needs four should be told two and write the
-  /// pass that works.
+  /// Four where it is not, which is the floor both allow — Metal eight,
+  /// Vulkan's `maxColorAttachments` at least four on every conformant device.
+  /// Until `L5` this said two, because two was all the engine had ever opened;
+  /// the albedo buffer is a third, and the number published is now what the
+  /// two APIs guarantee rather than what the engine happened to use.
   @override
-  int get maxColorAttachments => supportsRenderToMip ? 2 : 1;
+  int get maxColorAttachments => supportsRenderToMip ? 4 : 1;
 
   @override
   TextureHandle? createCubeRenderTarget({
@@ -870,11 +920,13 @@ final class GpuRenderBackend implements GraphicsDevice {
         ],
         depthStencilAttachment: switch (descriptor.depth) {
           null => null,
-          // Depth cleared on entry and discarded on exit, because that is the
-          // only thing any pass in this engine has ever wanted; the stencil
-          // half is the descriptor's to say. See [DepthTarget].
+          // The descriptor's to say, both halves. Its depth defaults — clear on
+          // entry, discard on exit — are flutter_gpu's own, so a pass that
+          // names neither is the pass it always was. See [DepthTarget].
           final DepthTarget depth => gpu.DepthStencilAttachment(
             texture: depth.texture.gpuTexture,
+            depthLoadAction: depth.loadAction.toGpu(),
+            depthStoreAction: depth.storeAction.toGpu(),
             depthClearValue: depth.clearValue,
             stencilLoadAction: depth.stencilLoadAction.toGpu(),
             stencilStoreAction: depth.stencilStoreAction.toGpu(),

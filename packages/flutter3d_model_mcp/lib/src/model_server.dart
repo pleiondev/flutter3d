@@ -12,7 +12,7 @@ import 'render_tool.dart';
 /// 0.1.0 while the package moved through 0.6.0 to 0.7.0, since "kept beside
 /// the pubspec's" was a comment and nothing checked it;
 /// `server_version_test.dart` does now.
-const String modelMcpVersion = '0.7.1';
+const String modelMcpVersion = '0.8.0';
 
 /// [tool]'s own [Answer], carried into a [PictureAnswer] with a null `png` —
 /// every tool in [modelTools] answers this way; [renderTool] (`mcp-06n`) is
@@ -135,6 +135,7 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
              renderTool,
              renderSheetTool,
              renderSnapshotTool,
+             auditTool,
              ...extraTools,
            ])
              _watched(tool),
@@ -182,11 +183,11 @@ the same every time, as one step. `describe_type` says what fields a modifier
 kind, a shape or a texture node takes. The `modelling_strategy` prompt is the
 order to do all of it in.
 
-`check` says what is wrong with the project as an export would see it, and is
-worth calling before `export`. `save` writes the project's own format;
-`export` writes `.f3d`, `.glb`, `.obj`, `.stl` or `.usdz` for something else to
-read. `import` brings another file's objects in. `journal` writes every command
-run this session to a recovery file.
+`check` says what is wrong with the project as an export would see it; `audit`
+checks an imported asset's size, origin and meshes, and can repair them. `save`
+writes the project's own format; `export` writes `.f3d`, `.glb`, `.obj`, `.stl`
+or `.usdz` for something else to read. `import` brings another file's objects
+in. `journal` writes every command run this session to a recovery file.
 
 `undo`/`redo` walk the history one step at a time, where a step is whatever one
 tool call did — except a drag of many small changes, which nothing here can

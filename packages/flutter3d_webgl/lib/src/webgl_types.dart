@@ -55,17 +55,23 @@ final class WebGlTexture {
   bool get isSampleable => texture != null;
 }
 
+/// A sampler of a linked program: the texture unit it owns, and whether it
+/// samples a cube, which is the target a draw clears it on when it was left
+/// unbound.
+typedef WebGlSampler = ({int unit, bool cube});
+
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
   WebGlProgram(
     this.program,
     List<WebGlAttribute> attributes,
     Map<String, WebGlBlock> blocks,
-    Map<String, int> samplers, {
+    Map<String, WebGlSampler> samplers, {
     this.layout,
+    this.fragmentOutputs,
   }) : attributes = List<WebGlAttribute>.unmodifiable(attributes),
        blocks = Map<String, WebGlBlock>.unmodifiable(blocks),
-       samplers = Map<String, int>.unmodifiable(samplers);
+       samplers = Map<String, WebGlSampler>.unmodifiable(samplers);
 
   final web.WebGLProgram program;
 
@@ -95,8 +101,22 @@ final class WebGlProgram {
   /// Uniform block name to its index and size.
   final Map<String, WebGlBlock> blocks;
 
-  /// Sampler uniform name to its texture unit.
-  final Map<String, int> samplers;
+  /// Sampler uniform name to the texture unit it owns for the life of the
+  /// program, and whether it samples a cube. See `_reflectSamplers`.
+  final Map<String, WebGlSampler> samplers;
+
+  /// The colour locations the fragment stage writes, or null where its source
+  /// could not be read for them, in which case every attachment is drawn to.
+  ///
+  /// **A pass may carry more colour attachments than a stage writes, and GL
+  /// ES refuses the draw for it.** The temporal pass draws into the colour
+  /// and the velocity target together, and a hashed splat's fragment stage
+  /// writes only the colour. With both draw buffers active WebGL2 rejects
+  /// every such draw as `INVALID_OPERATION` ("active draw buffers with
+  /// missing fragment shader outputs") and draws nothing, so the encoder
+  /// turns the buffers this set leaves out to `NONE` for the draw, which
+  /// leaves those attachments as they were, as the other backends do.
+  final Set<int>? fragmentOutputs;
 
   int get vertexFloats {
     var total = 0;

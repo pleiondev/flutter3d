@@ -223,7 +223,7 @@ void main() {
   test('a caster with no map keeps the shadow it always cast', () async {
     // **The half that lets this land.** A material that is not cut out goes
     // through the stage it has always gone through, with no sampler in the
-    // pipeline and no texture bound per draw, so the forty-four goldens
+    // pipeline and no texture bound per draw, so the seventy-eight goldens
     // recorded against that stage cannot move. Asking for MASK with no map to
     // read is the same case: there is nothing to cut out.
     final plain = await _frame(masked: false, withTexture: false);

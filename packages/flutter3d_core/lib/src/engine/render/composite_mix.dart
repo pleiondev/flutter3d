@@ -27,6 +27,9 @@ enum CompositeView {
 
   /// The directional shadow map, or the cube atlas when there is one.
   shadowMap,
+
+  /// The velocity buffer, raw — `R1`.
+  velocity,
 }
 
 /// The composite's five knobs, worked out together.
@@ -57,6 +60,8 @@ final class CompositeMix {
     required double bloomIntensity,
     required bool tonemap,
     TonemapCurve curve = TonemapCurve.neutral,
+    bool showVelocity = false,
+    bool hasVelocity = false,
   }) {
     // The debug picture rides in the surface buffer rather than in an
     // attachment of its own, so asking for the point-shadow estimate is asking
@@ -65,10 +70,15 @@ final class CompositeMix {
     // A map nobody allocated cannot be shown, and falling back to the lit scene
     // is better than a black frame.
     final showingShadow = showShadowMap && hasShadowView;
-    final raw = showingSurface || showingShadow;
+    // The same rule for the velocity buffer: a frame without temporal
+    // anti-aliasing has none, and the lit scene is the fallback.
+    final showingVelocity = showVelocity && hasVelocity;
+    final raw = showingSurface || showingShadow || showingVelocity;
 
     return CompositeMix._(
-      view: showingShadow
+      view: showingVelocity
+          ? CompositeView.velocity
+          : showingShadow
           ? CompositeView.shadowMap
           : (showingSurface
                 ? CompositeView.surfaceBuffer

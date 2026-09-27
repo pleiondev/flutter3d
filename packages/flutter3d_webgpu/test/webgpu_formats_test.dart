@@ -371,6 +371,47 @@ void main() {
       expect(gpuLoadOp(LoadAction.dontCare), 'clear');
     });
 
+    test('tile memory is a transient attachment where the browser has it', () {
+      // `H7`. Mutation: drop the storage-mode check, and every render target
+      // is allocated unsampleable; drop the `supported` one, and a browser
+      // without the flag refuses the texture.
+      const tile = RenderTargetSpec(
+        width: 4,
+        height: 4,
+        format: TextureFormat.d32FloatS8UInt,
+        storageMode: StorageMode.deviceTransient,
+      );
+      const kept = RenderTargetSpec(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r16g16b16a16Float,
+      );
+      expect(webgpuIsTransientAttachment(tile, supported: true), isTrue);
+      expect(webgpuIsTransientAttachment(tile, supported: false), isFalse);
+      expect(webgpuIsTransientAttachment(kept, supported: true), isFalse);
+    });
+
+    test('a transient attachment is cleared and discarded, whatever the '
+        'pass asked', () {
+      // WebGPU refuses "load" from one and "store" into one. Mutation: return
+      // the pass's own operation, and a pass that keeps its MSAA samples
+      // stores into a texture that has no memory.
+      for (final action in LoadAction.values) {
+        expect(gpuAttachmentLoadOp(action, transient: true), 'clear');
+        expect(
+          gpuAttachmentLoadOp(action, transient: false),
+          gpuLoadOp(action),
+        );
+      }
+      for (final action in StoreAction.values) {
+        expect(gpuAttachmentStoreOp(action, transient: true), 'discard');
+        expect(
+          gpuAttachmentStoreOp(action, transient: false),
+          gpuStoreOp(action),
+        );
+      }
+    });
+
     test('a write is padded to four bytes, and only when it needs it', () {
       // Three sixteen-bit indices: the smallest draw in the engine, six bytes,
       // and the length `writeBuffer` refuses.

@@ -37,6 +37,11 @@ typedef FramePass = ({
   /// Wall-clock time inside this node's own `execute`.
   int micros,
 
+  /// What the GPU spent in the passes this node opened, or null where the
+  /// device does not measure it — `H2`. See
+  /// `GraphicsDevice.supportsGpuTimestamps`.
+  int? gpuMicros,
+
   /// Draws this node encoded. Zero for a node that only moves textures
   /// about — the composite's own full-screen triangle is a draw and counts.
   int drawCalls,
@@ -63,10 +68,15 @@ final class EffectiveAntiAliasing {
     required this.msaaSamples,
     required this.fxaa,
     required this.msaaDeclined,
+    this.temporal = false,
   });
 
   /// Samples the scene pass actually drew with. One means none.
   final int msaaSamples;
+
+  /// Whether the scene was jittered and resolved across frames — `R1`. On,
+  /// this is the reason [msaaSamples] is one.
+  final bool temporal;
 
   /// Whether the post-process pass ran.
   ///
@@ -84,11 +94,12 @@ final class EffectiveAntiAliasing {
   final String? msaaDeclined;
 
   /// Whether the frame got no anti-aliasing at all.
-  bool get none => msaaSamples <= 1 && !fxaa;
+  bool get none => msaaSamples <= 1 && !fxaa && !temporal;
 
   @override
   String toString() =>
       'EffectiveAntiAliasing(msaa $msaaSamples, fxaa $fxaa'
+      '${temporal ? ", temporal" : ""}'
       '${msaaDeclined == null ? "" : ", msaa declined: $msaaDeclined"})';
 }
 

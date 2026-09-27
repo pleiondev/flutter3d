@@ -61,6 +61,63 @@ export function indexMarkdown(bundle) {
   return lines.join('\n');
 }
 
+/** `a` against `b` as `major.minor.patch`, numerically: 0.10.0 after 0.9.0. */
+export function compareVersions(a, b) {
+  const parts = (v) => v.split(/[+-]/)[0].split('.').map((p) => Number.parseInt(p, 10) || 0);
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * The markdown that replaces `{{changelog}}`: every release, newest first, with
+ * the showcase pages it changed and the ones it added.
+ *
+ * **Read from the catalog, not written by hand.** A page is listed as new
+ * under its `since`, and as changed under each of its `changes`, and the
+ * catalog test holds both to the CHANGELOG they quote. So this list cannot name
+ * a page for news the record does not have, and a new page cannot be missing
+ * from it.
+ */
+export function changelogMarkdown(bundle) {
+  if (!bundle) return indexMarkdown(null);
+  const releases = new Map();
+  const release = (version) => {
+    if (!releases.has(version)) releases.set(version, { changed: [], added: [] });
+    return releases.get(version);
+  };
+  for (const f of bundle.manifest.features) {
+    release(f.since).added.push(f);
+    for (const c of f.changes ?? []) release(c.version).changed.push({ f, c });
+  }
+  const demo = (f) => `[live demo](/showcase/#/p/${f.id})`;
+  const lines = [];
+  for (const version of [...releases.keys()].sort((a, b) => compareVersions(b, a))) {
+    const { changed, added } = releases.get(version);
+    lines.push(`## ${version}`, '');
+    if (changed.length) {
+      lines.push('**Changed**', '');
+      for (const { f, c } of changed) {
+        lines.push(`- [${f.title}](/showcase/learn/${f.id}/): ${c.note} (${demo(f)})`);
+      }
+      lines.push('');
+    }
+    if (added.length) {
+      // An approximate tag is a bound, so the page says so where it is listed.
+      lines.push('**New in the showcase**', '');
+      for (const f of added) {
+        const bound = f.approximate ? ' (here or earlier)' : '';
+        lines.push(`- [${f.title}](/showcase/learn/${f.id}/)${bound}: ${f.summary} (${demo(f)})`);
+      }
+      lines.push('');
+    }
+  }
+  return lines.join('\n');
+}
+
 /**
  * Highlighted HTML cut into lines, each still well formed.
  *

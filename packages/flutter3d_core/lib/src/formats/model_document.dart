@@ -193,9 +193,22 @@ abstract class ModelDocument {
   /// `KHR_lights_punctual`.
   List<ModelLight> get lights => const <ModelLight>[];
 
+  /// Names of the material variants a surface may switch to —
+  /// `KHR_materials_variants`. A surface's own
+  /// [ModelSurface.variantMaterials] says which material it wears in each,
+  /// by index into this list. Empty for the models that come in one look,
+  /// which is nearly all of them and every format but glTF and `.f3d`.
+  List<String> get variants => const <String>[];
+
   /// Cameras a node in [nodes] may point at, by [ModelNode.cameraIndex].
   /// Empty for formats that carry none — OBJ and `.f3d` among them.
   List<ModelCamera> get cameras => const <ModelCamera>[];
+
+  /// Gaussian splat clouds, each with the node that carries it — `C1`.
+  /// Empty for every format except glTF with `KHR_gaussian_splatting`; a PLY
+  /// capture is read by `parseSplatPly` into a bare `SplatCloud` instead,
+  /// since it has no nodes to attach one to.
+  List<ModelSplat> get splats => const <ModelSplat>[];
 
   /// Non-fatal findings from decoding: ignored extensions, skipped primitives,
   /// unresolved references. Surfaced rather than logged so callers can decide

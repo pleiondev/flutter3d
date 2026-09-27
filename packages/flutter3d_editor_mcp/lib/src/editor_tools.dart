@@ -1,13 +1,56 @@
+import 'dart:async';
+
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show LevelRecipe, levelKits;
+import 'package:vector_math/vector_math.dart';
 
 import 'editor_session.dart';
 
 /// One tool: what an agent is offered, and what calling it does to the
 /// document — see `flutter3d_mcp_kit`'s [OfferedTool] for why a pair rather
 /// than a table and a switch.
-typedef EditorTool = OfferedTool<EditorSession, Answer>;
+///
+/// A [PictureAnswer], because one of them draws; every other tool's picture
+/// is null, and [_told] is how they say so.
+typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
+
+/// A tool whose answer is a sentence and nothing to look at.
+EditorTool _told(
+  Tool tool,
+  FutureOr<Answer> Function(EditorSession, Map<String, Object?>) run,
+) => EditorTool(tool, (
+  EditorSession session,
+  Map<String, Object?> arguments,
+) async {
+  final answer = await run(session, arguments);
+  return (did: answer.did, says: answer.says, png: null);
+});
+
+/// The point a call's [key] names, or null when it names none. The schema
+/// has already held it to three numbers.
+Vector3? _point(Map<String, Object?> arguments, String key) {
+  final value = arguments[key];
+  if (value is! List || value.length != 3) return null;
+  final numbers = value.whereType<num>().toList();
+  if (numbers.length != 3) return null;
+  return Vector3(
+    numbers[0].toDouble(),
+    numbers[1].toDouble(),
+    numbers[2].toDouble(),
+  );
+}
+
+/// The schema of where a picture is taken from, shared by the two tools
+/// that look.
+Map<String, Schema> get _cameraProperties => <String, Schema>{
+  'from': _vector(
+    'where the eye is, in metres; leave both out for a view from inside '
+    'the level near one upper corner, looking at its middle',
+  ),
+  'at': _vector('the point the eye looks at'),
+};
 
 /// Three numbers, which is how the document spells every position and size.
 ListSchema _vector(String about) => ListSchema(
@@ -76,7 +119,7 @@ Answer Function(EditorSession, Map<String, Object?>) _command(String name) =>
 /// command, with nothing to say so until somebody asks for it. `test/tools_test.dart`
 /// holds this file to that list, both ways round.
 List<EditorTool> get _commandTools => <EditorTool>[
-  EditorTool(
+  _told(
     Tool(
       name: 'moveBy',
       description:
@@ -90,7 +133,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('moveBy'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'resize',
       description:
@@ -107,7 +150,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('resize'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'addBrush',
       description:
@@ -128,7 +171,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('addBrush'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'addLight',
       description:
@@ -146,7 +189,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('addLight'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'place',
       description:
@@ -171,7 +214,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('place'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'duplicate',
       description:
@@ -182,7 +225,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('duplicate'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'delete',
       description:
@@ -192,7 +235,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('delete'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'setField',
       description:
@@ -225,7 +268,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('setField'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'brighten',
       description:
@@ -244,7 +287,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('brighten'),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'turn',
       description:
@@ -260,10 +303,49 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('turn'),
   ),
+  _told(
+    Tool(
+      name: 'setLights',
+      description:
+          'Replace every light in the level with the ones given, as one '
+          'change that one undo takes back. Each light is written the way the '
+          'level file spells one: type, at, direction, color, intensity, '
+          'range, castsShadow, name. optimizeLights uses this to apply what '
+          'it found.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'lights': ListSchema(
+            description: 'the whole new set, in order',
+            items: ObjectSchema(),
+          ),
+          'why': StringSchema(
+            description: 'what the change is called in the undo history',
+          ),
+        },
+        required: <String>['lights'],
+      ),
+    ),
+    _command('setLights'),
+  ),
 ];
 
-/// Everything this server offers: the ten commands, and the six verbs that are
-/// about the session rather than about the document.
+/// The views a call names under `views`, or null when it names none — each
+/// an object with `from` and `at`, three numbers each.
+List<LightView>? _views(Map<String, Object?> arguments) {
+  final rows = arguments['views'];
+  if (rows is! List || rows.isEmpty) return null;
+  final views = <LightView>[
+    for (final row in rows.whereType<Map<Object?, Object?>>())
+      if (_point(row.cast<String, Object?>(), 'from') case final Vector3 from)
+        if (_point(row.cast<String, Object?>(), 'at') case final Vector3 at)
+          (from: from, at: at),
+  ];
+  return views.isEmpty ? null : views;
+}
+
+/// Everything this server offers: the ten commands, the six verbs that are
+/// about the session rather than about the document, and the two that look
+/// at it — `screenshot` and `report`.
 ///
 /// **The two that are not commands are the two the plan was missing**, and they
 /// are missing in the same way. `list` is how a program with no screen finds out
@@ -272,7 +354,7 @@ List<EditorTool> get _commandTools => <EditorTool>[
 /// out whether what it just built is a level at all; without it the first news
 /// of a broken document is a diff somebody reads later.
 List<EditorTool> get editorTools => <EditorTool>[
-  EditorTool(
+  _told(
     Tool(
       name: 'list',
       description:
@@ -286,7 +368,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     (EditorSession session, Map<String, Object?> arguments) =>
         (did: true, says: session.listing()),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'select',
       description:
@@ -311,7 +393,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     },
   ),
   ..._commandTools,
-  EditorTool(
+  _told(
     Tool(
       name: 'undo',
       description:
@@ -322,7 +404,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     ),
     (EditorSession session, Map<String, Object?> arguments) => session.undo(),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'redo',
       description:
@@ -332,7 +414,49 @@ List<EditorTool> get editorTools => <EditorTool>[
     ),
     (EditorSession session, Map<String, Object?> arguments) => session.redo(),
   ),
-  EditorTool(
+  _told(
+    Tool(
+      name: 'generate',
+      description:
+          'Add a piece of level built by a seeded kit: a room with doorways '
+          'cut in its walls, a corridor, or a scatter of copies of one thing. '
+          'The document keeps the recipe — kind, seed and params — and the '
+          'level is built from it wherever it is used, so the same seed builds '
+          'the same brushes every time; the answer says how many. room reads '
+          'size [w, h, d] (required), at, doors [{side, offset, width, '
+          'height}], materials {floor, wall, ceiling} and clutter {count, '
+          'size, material}. corridor reads from, to, width, height, doors, '
+          'materials and clutter. scatter reads at, size, count, spacing, and '
+          'an entity row or a brush {size, material} to copy.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'kind': UntitledSingleSelectEnumSchema(
+            description: 'which kit builds it',
+            values: levelKits.keys.toList(),
+          ),
+          'seed': IntegerSchema(
+            description: 'what its chances are drawn from; default 0',
+          ),
+          'params': ObjectSchema(description: "the kit's settings"),
+        },
+        required: <String>['kind'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) {
+      final seed = arguments['seed'];
+      final params = arguments['params'];
+      return session.generate(
+        LevelRecipe(
+          kind: arguments['kind']! as String,
+          seed: seed is int ? seed : 0,
+          params: params is Map<String, Object?>
+              ? params
+              : const <String, Object?>{},
+        ),
+      );
+    },
+  ),
+  _told(
     Tool(
       name: 'validate',
       description:
@@ -347,7 +471,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     (EditorSession session, Map<String, Object?> arguments) =>
         (did: true, says: session.validate()),
   ),
-  EditorTool(
+  _told(
     Tool(
       name: 'save',
       description:
@@ -373,28 +497,73 @@ List<EditorTool> get editorTools => <EditorTool>[
     Tool(
       name: 'screenshot',
       description:
-          'Not available in this process, and offered so that the reason is an '
-          'answer rather than a missing tool.',
-      inputSchema: ObjectSchema(),
+          'A picture of the level as it stands, drawn in software: every '
+          'brush in its material\'s colour (no textures), lit by the level\'s '
+          'own lights, with a small yellow box at each light and a blue one at '
+          'each entity so things that have no shape can still be seen. Take '
+          'one before and after a change.',
+      inputSchema: ObjectSchema(properties: _cameraProperties),
     ),
-    // **Declared and refused, which is not the same as absent.** An agent that
-    // finds no `screenshot` tool concludes the server is incomplete and tries
-    // to get a picture some other way; one that is told why stops asking. The
-    // reason is a fact about this repository rather than an unfinished
-    // feature: every renderer here reaches `GraphicsDevice`, whose `present`
-    // returns a Flutter `Widget`, so a process that can draw a level is a
-    // Flutter process — and `dart run` cannot resolve a package that depends
-    // on the Flutter SDK, which is what
-    // `packages/flutter3d/tool/dump_fixture.dart` records finding out.
-    (EditorSession session, Map<String, Object?> arguments) => (
-      did: false,
-      says:
-          'this server cannot draw. Every backend in flutter3d reaches a '
-          'device whose finished frame is a Flutter widget, so rendering a '
-          'level needs the Flutter tool to run it — and this process is '
-          'started by dart run, which cannot resolve a package that depends on '
-          'the Flutter SDK. Open the level in apps/flutter3d_editor to look at '
-          'it; validate is what this process can say about it instead.',
+    // **It used to be declared and refused**, because every renderer reached a
+    // device whose finished frame was a Flutter widget. That stopped being
+    // true when the device registry replaced `present`, and the level's scene
+    // moved to `LevelScene` in the editor core, so this draws for real.
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.screenshot(_point(arguments, 'from'), _point(arguments, 'at')),
+  ),
+  _told(
+    Tool(
+      name: 'report',
+      description:
+          'What the camera sees, one line per brush, light and entity in the '
+          'order list prints them: how many pixels of a 320×200 frame it owns '
+          '(or whether it is hidden, outside the view or behind the camera), '
+          'the box on the screen those pixels fill, how far away it is, and '
+          'what covers the part of the screen it would fill — the things that '
+          'can be in front of it, each with its share of that part. The way to '
+          'find out whether a torch can be seen from where a player stands, '
+          'and which wall is in the way when it cannot.',
+      inputSchema: ObjectSchema(properties: _cameraProperties),
     ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.report(_point(arguments, 'from'), _point(arguments, 'at')),
+  ),
+  EditorTool(
+    Tool(
+      name: 'optimizeLights',
+      description:
+          'Fewer lights that light the level the way it is lit now. Draws '
+          'every light alone from the views, then removes the lights others '
+          'already cover and merges pairs close enough to be one, retuning '
+          'the strengths of the rest, and keeps only changes whose picture '
+          'stays within a small difference of the original with almost no '
+          'pixel going dark. Applied as one change that undo takes back; '
+          'answers with the moves, the numbers (lights, shading cost, '
+          'difference, darkened pixels) and a picture of the new lighting.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'views': ListSchema(
+            description:
+                'where players stand and look, each {from, at}; leave out to '
+                'look four ways from every player spawn',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'from': _vector('the eye'),
+                'at': _vector('the point it looks at'),
+              },
+              required: <String>['from', 'at'],
+            ),
+          ),
+          'apply': BooleanSchema(
+            description: 'false to only say what would change; default true',
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.optimizeLights(
+          views: _views(arguments),
+          apply: arguments['apply'] != false,
+        ),
   ),
 ];

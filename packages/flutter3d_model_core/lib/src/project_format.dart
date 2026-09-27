@@ -1787,6 +1787,13 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     // yet, since nothing here builds one.
     if (surface.lightingModel case final LightingModel model)
       'lightingModel': model.shaderName,
+    // `M1`: glTF's own extension objects, with this file's own binding shape
+    // wherever glTF puts a texture info. Absent for a material with no layer
+    // beyond metal-rough, which is read as exactly that.
+    if (surface.extensions case final layers?)
+      if (materialExtensionsToJson(layers, texture: _bindingJson)
+          case final written when written.isNotEmpty)
+        'extensions': written,
   };
 }
 
@@ -1933,6 +1940,17 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
               warnings,
               'Material $i\'s lightingModel',
             ),
+            extensions: switch (entry['extensions']) {
+              final Map<String, Object?> layers => materialExtensionsFromJson(
+                layers,
+                texture: (json) => _bindingFrom(
+                  json,
+                  warnings,
+                  'Material $i\'s extension texture',
+                ),
+              ),
+              _ => null,
+            },
           ),
         ),
       );

@@ -7,12 +7,17 @@
 /// exists.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 
+import 'chunk_generate.dart';
+import 'device_classes.dart';
+import 'impostor_bake.dart';
+import 'lod_generate.dart';
 import 'texture_encode.dart';
 
 /// The compression family a texture should target — `ap-09`'s own row.
@@ -61,7 +66,9 @@ const String usage = '''
 Usage: dart run flutter3d_build:convert <model-or-directory> [options]
 
 Converts a glTF, GLB, OBJ or STL model into the engine's .f3d container. A
-directory converts every recognised model file under it, recursively.
+Gaussian splat capture (.ply or .spz) becomes a .f3dsplat instead: a tree of
+merged levels of detail, paged so a viewer loads only what it draws. A
+directory converts every recognised file under it, recursively.
 
 Options:
   -o, --output <path>       Where to write the result. For a single input
@@ -89,6 +96,26 @@ Options:
   --no-mips                 Skip the mip chain and keep the base level alone.
                              Every compressed image otherwise carries one,
                              down to the last level that is whole 4x4 blocks.
+  --lods <ratios>           Comma-separated triangle ratios, each strictly
+                             between 0 and 1 (e.g. 0.5,0.25,0.1). Every node
+                             that draws something gains one simplified level
+                             per ratio, cut from its full mesh and switched
+                             in by screen size. Also --lods=<ratios>.
+  --impostor                Bake an octahedral impostor for every node that
+                             draws something: 8x8 views of its colour and its
+                             normals, drawn by the software rasteriser into
+                             two atlases, as the level its chain ends in.
+  --chunks[=<triangles>]    Split every static mesh of more than this many
+                             triangles (default 65536) into clusters of up
+                             to 4096 that the renderer culls one by one by
+                             view, facing and occlusion. For scans and CAD.
+  --classes <names>         Comma-separated device classes: phone, web,
+                             desktop. Writes one file per class beside the
+                             output (model.phone.f3d, model.web.f3d, ...)
+                             instead of model.f3d, each cut to its class's
+                             budget: its own level-of-detail chain, impostor
+                             and largest texture side. Where a class names
+                             no chain (desktop), --lods and --impostor apply.
   -h, --help                Show this text.
 ''';
 
@@ -98,12 +125,32 @@ final class ConvertOptions {
     this.output,
     this.textures = TextureFamily.auto,
     this.mips = true,
+    this.lods = const <double>[],
+    this.impostor = false,
+    this.chunks,
+    this.classes = const <DeviceClass>[],
   });
 
   final String input;
   final String? output;
   final TextureFamily textures;
   final bool mips;
+
+  /// The triangle ratios `--lods` asked for, or empty for none — see
+  /// [generateLods].
+  final List<double> lods;
+
+  /// Whether `--impostor` asked for a baked card at the end of each chain —
+  /// see [bakeImpostors].
+  final bool impostor;
+
+  /// The triangle count `--chunks` splits meshes above, or null for none —
+  /// see [splitLargeMeshes].
+  final int? chunks;
+
+  /// The device classes `--classes` asked for (`N7`), or empty for the
+  /// single file a conversion always wrote.
+  final List<DeviceClass> classes;
 
   /// Parses [arguments], or returns null for anything [usage] should answer
   /// — an unknown flag, a missing value, more than one positional argument.
@@ -112,6 +159,10 @@ final class ConvertOptions {
     String? output;
     var textures = TextureFamily.auto;
     var mips = true;
+    var lods = const <double>[];
+    var impostor = false;
+    int? chunks;
+    var classes = const <DeviceClass>[];
 
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
@@ -126,6 +177,26 @@ final class ConvertOptions {
           textures = family;
         case '--no-mips':
           mips = false;
+        case '--impostor':
+          impostor = true;
+        case '--chunks':
+          chunks = kDefaultChunkThreshold;
+        case _ when argument.startsWith('--chunks='):
+          chunks = parseChunkThreshold(argument.substring('--chunks='.length));
+          if (chunks == null) return null;
+        case '--classes':
+          if (i + 1 >= arguments.length) return null;
+          classes = parseDeviceClasses(arguments[++i]) ?? const <DeviceClass>[];
+          if (classes.isEmpty) return null;
+        case '--lods':
+          if (i + 1 >= arguments.length) return null;
+          lods = parseLodRatios(arguments[++i]) ?? const <double>[];
+          if (lods.isEmpty) return null;
+        case _ when argument.startsWith('--lods='):
+          lods =
+              parseLodRatios(argument.substring('--lods='.length)) ??
+              const <double>[];
+          if (lods.isEmpty) return null;
         case '-h' || '--help':
           return null;
         case _ when argument.startsWith('-'):
@@ -143,6 +214,10 @@ final class ConvertOptions {
       output: output,
       textures: textures,
       mips: mips,
+      lods: lods,
+      impostor: impostor,
+      chunks: chunks,
+      classes: classes,
     );
   }
 }
@@ -203,16 +278,43 @@ Future<int> runConvert(
 
   var failures = 0;
   for (final (source, destination) in jobs) {
-    final ok = await convertOne(
-      source,
-      destination,
-      stdoutSink,
-      stderrSink,
-      textures: options.textures,
-      mips: options.mips,
-      decoders: decoders,
-    );
-    if (!ok) failures++;
+    if (_isSplat(source)) {
+      final ok = await convertSplat(
+        source,
+        destination,
+        stdoutSink,
+        stderrSink,
+      );
+      if (!ok) failures++;
+      continue;
+    }
+    // One file per device class when `--classes` names any (`N7`), each with
+    // its class's budget over what the command line asked for; the single
+    // file otherwise, exactly as before.
+    final budgets = options.classes.isEmpty
+        ? const <DeviceClassBudget?>[null]
+        : <DeviceClassBudget?>[
+            for (final c in options.classes) DeviceClassBudget.presetFor(c),
+          ];
+    for (final budget in budgets) {
+      final ok = await convertOne(
+        source,
+        budget == null
+            ? destination
+            : deviceClassDestination(destination, budget.deviceClass),
+        stdoutSink,
+        stderrSink,
+        textures: options.textures,
+        mips: options.mips,
+        lods: budget?.lods ?? options.lods,
+        impostor: budget?.impostor ?? options.impostor,
+        chunks: options.chunks,
+        impostorCell: budget?.impostorCell ?? 64,
+        maxTextureSide: budget?.textures.maxSide,
+        decoders: decoders,
+      );
+      if (!ok) failures++;
+    }
   }
   return failures == 0 ? 0 : 1;
 }
@@ -234,7 +336,9 @@ List<(String, String)> _planDirectory(
   final root = Directory(directory);
   return <(String, String)>[
     for (final entity in root.listSync(recursive: true))
-      if (entity is File && _recognised(entity.path, decoders))
+      if (entity is File &&
+          (_recognised(entity.path, decoders) ||
+              _looksLikeSplatCapture(entity.path)))
         (
           entity.path,
           outputRoot == null
@@ -248,9 +352,37 @@ String _relativeF3d(String root, String path) {
   final relative = path.startsWith('$root/')
       ? path.substring(root.length + 1)
       : path;
+  final suffix = _outputSuffix(path);
   final dot = relative.lastIndexOf('.');
-  return dot < 0 ? '$relative.f3d' : '${relative.substring(0, dot)}.f3d';
+  return dot < 0 ? '$relative$suffix' : '${relative.substring(0, dot)}$suffix';
 }
+
+/// The suffixes read as a splat capture rather than a model: a binary PLY
+/// of fitted Gaussians, or its compressed SPZ form.
+const Set<String> splatExtensions = <String>{'.ply', '.spz'};
+
+bool _isSplat(String path) => splatExtensions.contains(_extensionOf(path));
+
+/// Whether a file found by a directory walk is a capture: any `.spz`, and a
+/// `.ply` only when its header names the fitted colour `f_dc_0`. A mesh or
+/// point cloud saved as PLY is left alone there, as it was before splats
+/// were converted at all; named on its own it is still tried and refused.
+bool _looksLikeSplatCapture(String path) {
+  if (!_isSplat(path)) return false;
+  if (_extensionOf(path) != '.ply') return true;
+  final file = File(path).openSync();
+  try {
+    final head = latin1.decode(file.readSync(4096));
+    final end = head.indexOf('end_header');
+    return head.substring(0, end < 0 ? head.length : end).contains('f_dc_0');
+  } finally {
+    file.closeSync();
+  }
+}
+
+/// `.f3dsplat` for a splat capture, `.f3d` for everything else.
+String _outputSuffix(String path) =>
+    _isSplat(path) ? kSplatOctreeExtension : '.f3d';
 
 String _extensionOf(String path) {
   final dot = path.lastIndexOf('.');
@@ -261,8 +393,72 @@ String _extensionOf(String path) {
 String _defaultOutput(String input) {
   final dot = input.lastIndexOf('.');
   final slash = input.lastIndexOf('/');
-  if (dot > slash) return '${input.substring(0, dot)}.f3d';
-  return '$input.f3d';
+  final suffix = _outputSuffix(input);
+  if (dot > slash) return '${input.substring(0, dot)}$suffix';
+  return '$input$suffix';
+}
+
+/// Converts one splat capture — a `.ply` or `.spz` — into the paged tree of
+/// levels of detail `SplatLod` draws from (`.f3dsplat`), and writes what
+/// happened to [out]/[err]. Returns whether it succeeded.
+///
+/// The cloud keeps the axes its source file stores: a PLY as written, an SPZ
+/// in its right, up, back. The written tree is read back and its leaves
+/// counted against the source, the same double-check [convertOne] makes: a
+/// tree that silently lost a box of splats draws a hole nobody would trace
+/// to the converter.
+Future<bool> convertSplat(
+  String inputPath,
+  String outputPath,
+  IOSink out,
+  IOSink err, {
+  int leafCapacity = 512,
+  int grid = 8,
+}) async {
+  final input = File(inputPath);
+  if (!input.existsSync()) {
+    err.writeln('No such file: $inputPath');
+    return false;
+  }
+  final bytes = input.readAsBytesSync();
+  final clock = Stopwatch()..start();
+  final SplatCloud cloud;
+  try {
+    cloud = _extensionOf(inputPath) == '.spz'
+        ? parseSplatSpz(bytes, keepHigherBands: false)
+        : parseSplatPly(bytes);
+  } on Object catch (error) {
+    err.writeln('Could not read $inputPath as a splat capture: $error');
+    return false;
+  }
+  final tree = buildSplatOctree(cloud, leafCapacity: leafCapacity, grid: grid);
+  final encoded = encodeSplatOctree(tree);
+  clock.stop();
+
+  final output = File(outputPath);
+  output.parent.createSync(recursive: true);
+  output.writeAsBytesSync(encoded);
+
+  final back = parseSplatOctree(encoded);
+  if (back.leafSplatCount != cloud.count) {
+    err.writeln(
+      'Round trip disagrees with the source ($inputPath): '
+      '${cloud.count} splats in, ${back.leafSplatCount} in the tree',
+    );
+    return false;
+  }
+
+  out
+    ..writeln('$inputPath -> $outputPath')
+    ..writeln(
+      '  ${cloud.count} splats, ${tree.nodes.length} nodes, root of '
+      '${tree.nodes.first.splatCount}',
+    )
+    ..writeln(
+      '  ${_bytes(bytes.length)} in, ${_bytes(encoded.length)} out, built in '
+      '${clock.elapsedMilliseconds} ms',
+    );
+  return true;
 }
 
 /// Converts one recognised model file, and writes what happened to [out]/
@@ -280,6 +476,11 @@ Future<bool> convertOne(
   IOSink err, {
   TextureFamily textures = TextureFamily.auto,
   bool mips = true,
+  List<double> lods = const <double>[],
+  bool impostor = false,
+  int? chunks,
+  int impostorCell = 64,
+  int? maxTextureSide,
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -299,6 +500,47 @@ Future<bool> convertOne(
     return false;
   }
   readClock.stop();
+
+  // The mesh levels first: a level is one more surface sharing its base's
+  // material, so it rides on whatever the images become, and the impostor
+  // below goes after the coarsest of them.
+  document = generateLods(
+    document,
+    lods,
+    report: (level) => out.writeln('  $level'),
+  );
+
+  // After the levels, so a level still above the threshold is split too, and
+  // before the impostor, whose bake draws the mesh whichever way it is cut.
+  if (chunks != null) {
+    final (split, count) = splitLargeMeshes(document, threshold: chunks);
+    document = split;
+    out.writeln('  chunks: $count meshes above $chunks triangles split');
+  }
+
+  // A device class's texture budget (`N7`): the source's images are fitted
+  // before anything reads them, so the impostor is baked from what that class
+  // will draw up close, and before they are compressed, so the chain is cut
+  // from the smaller image. The atlases the bake adds are not fitted: their
+  // size is the class's impostor cell, a budget of its own.
+  if (maxTextureSide != null) {
+    document = fitDocumentTextures(
+      document,
+      maxTextureSide,
+      report: (message) => out.writeln('  texture: $message'),
+    );
+  }
+
+  // Before the textures: the bake reads the source's own images, and a
+  // block-compressed one is not something it can decode. The atlases it adds
+  // are then compressed with the rest.
+  if (impostor) {
+    document = await bakeImpostors(
+      document,
+      cell: impostorCell,
+      report: (message) => out.writeln('  impostor: $message'),
+    );
+  }
 
   document = await encodeDocumentTextures(
     document,

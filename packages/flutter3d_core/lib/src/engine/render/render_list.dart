@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../scene/bvh.dart';
 import '../scene/mesh_node.dart';
+import '../scene/occlusion/occlusion_test.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import '../scene/scene_spheres.dart';
@@ -111,6 +112,12 @@ final class RenderList {
   /// frustum kept on the other.
   int considered = 0;
 
+  /// How many meshes the last [build] left out because its occlusion test
+  /// said they were hidden — `C2`. Meshes under a branch or a tree node the
+  /// test rejected whole are not counted here, since nobody looked at them;
+  /// `FrameResult.culled` counts both.
+  int occluded = 0;
+
   final Aabb3 _bvhScratch = Aabb3();
   Float32List _bvhSpheres = Float32List(0);
 
@@ -136,6 +143,7 @@ final class RenderList {
   void reset() {
     _used = 0;
     considered = 0;
+    occluded = 0;
     opaque.clear();
     transparent.clear();
   }
@@ -151,11 +159,18 @@ final class RenderList {
   /// whole branch whose subtree bounds miss the frustum — `gfx-66n`; at or
   /// above it, a query of the scene's spatial tree. Either way every candidate
   /// goes through the same per-mesh tests.
+  ///
+  /// [occlusion], when there is one, is asked after the frustum: of every
+  /// mesh the frustum keeps, and of every branch or tree node on the way
+  /// down, so a hidden block is rejected without visiting what is in it —
+  /// `C2`. A node that opts out of frustum culling opts out of this too, for
+  /// the same reason: its bounds do not say where it is drawn.
   void build(
     Scene scene,
     RenderView view, {
     required Matrix4 viewMatrix,
     required Frustum frustum,
+    OcclusionTest? occlusion,
   }) {
     reset();
 
@@ -197,6 +212,10 @@ final class RenderList {
         // The sphere is still what the BVH is built over, which is `gfx-62n`'s
         // row rather than this one.
         if (!frustum.intersectsWithAabb3(node.worldBounds)) return;
+        if (occlusion != null && !occlusion.mayBeVisible(node.worldBounds)) {
+          occluded++;
+          return;
+        }
       }
 
       // Eye-space depth is the third row of the view matrix applied to the
@@ -248,11 +267,20 @@ final class RenderList {
         _bvhEpoch = epoch;
         _bvhCount = meshes.length;
       }
-      bvh.queryFrustum(
-        frustum,
-        (index) => consider(meshes[index]),
-        scratch: _bvhScratch,
-      );
+      if (occlusion == null) {
+        bvh.queryFrustum(
+          frustum,
+          (index) => consider(meshes[index]),
+          scratch: _bvhScratch,
+        );
+      } else {
+        bvh.queryFrustumWhere(
+          frustum,
+          occlusion.mayBeVisible,
+          (index) => consider(meshes[index]),
+          scratch: _bvhScratch,
+        );
+      }
       return;
     }
 
@@ -280,7 +308,9 @@ final class RenderList {
       if (children.isNotEmpty) {
         final box = node.subtreeBounds;
         if (box == null) continue;
-        if (!node.subtreeAlwaysDrawn && !frustum.intersectsWithAabb3(box)) {
+        if (!node.subtreeAlwaysDrawn &&
+            (!frustum.intersectsWithAabb3(box) ||
+                (occlusion != null && !occlusion.mayBeVisible(box)))) {
           continue;
         }
       }

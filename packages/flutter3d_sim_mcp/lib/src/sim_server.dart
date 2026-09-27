@@ -9,7 +9,7 @@ import 'sim_tools.dart';
 /// A constant, because a compiled server has no pubspec to read. It said
 /// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
 /// comment and nothing checked it; `server_version_test.dart` does now.
-const String simMcpVersion = '0.7.1';
+const String simMcpVersion = '0.8.0';
 
 /// A level of whatever game [SimSession.game] is, offered to an agent as a
 /// table of tools — `ai-00`.
@@ -42,6 +42,13 @@ not.
 `digest` and `writeRun` are for handing a run to something else: `digest` is
 what `net-04`'s divergence check compares, and `writeRun` writes a `.f3drun`
 that `apps/flutter3d_editor`'s timeline opens like any other recorded run.
+
+`expect` and `verify` are for a claim somebody else should not have to take on
+trust: `expect` steps until a predicate over what `snapshot` reads holds (near
+a point, inside a box, alive, health) and writes the run that got there;
+`verify` replays such a file in a world of its own and says whether it retraces
+its digests. What touched what is not claimable — events are not saved in a
+run.
 
 Work in this order: `open` a level, `step` it forward in the direction you
 mean, `snapshot` to see what happened, and repeat. `writeRun` once, at the end,

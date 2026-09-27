@@ -18,7 +18,7 @@ dependencies:
   # `rootBundle`. This package is the same three functions, called from plain
   # `dart run` instead, reading the same bytes with `dart:io` — not a second
   # scaffolder.
-  flutter3d_editor_core: ^0.7.1
+  flutter3d_editor_core: ^0.8.0
 
 dev_dependencies:
   test: ^1.24.0

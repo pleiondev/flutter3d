@@ -114,6 +114,14 @@ extension _GltfWriterMaterials on GltfWriter {
             };
             extensionsUsed.add('KHR_materials_emissive_strength');
           }
+          if (material.extensions case final layers?) {
+            final written = materialExtensionsToJson(
+              layers,
+              texture: textureInfo,
+            );
+            extensions.addAll(written);
+            extensionsUsed.addAll(written.keys);
+          }
 
           return <String, Object?>{
             if (material.name != null) 'name': material.name,
@@ -122,10 +130,11 @@ extension _GltfWriterMaterials on GltfWriter {
               // (1.0) is not `SurfaceMaterial`'s (0.0 metallic, 0.5
               // roughness), so leaving either out on the strength of "that's
               // the default anyway" would read back as the wrong number.
+              // Back to linear, the loader's conversion undone.
               'baseColorFactor': <double>[
-                material.baseColor.x,
-                material.baseColor.y,
-                material.baseColor.z,
+                srgbToLinear(material.baseColor.x),
+                srgbToLinear(material.baseColor.y),
+                srgbToLinear(material.baseColor.z),
                 material.baseColor.w,
               ],
               'metallicFactor': material.metallic,

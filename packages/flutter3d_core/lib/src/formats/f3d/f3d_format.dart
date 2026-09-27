@@ -123,6 +123,50 @@ abstract final class F3dSection {
   /// record naming its own node index costs less than a table of zeros in
   /// every file that never uses the feature. See `ModelNode.lods`.
   static const int lods = 21;
+
+  /// One record per material variant — `ModelDocument.variants` — carrying
+  /// its name and, in the blob, the `(surface, material)` pairs that choose
+  /// it. Per variant rather than per surface because that is how many there
+  /// are: a handful of looks, against a surface table nearly every row of
+  /// which takes part in none. See `ModelSurface.variantMaterials`.
+  static const int variants = 23;
+
+  /// `KHR_animation_pointer` tracks, one record each, kept out of [tracks]
+  /// on purpose: a reader before this section checks a track's path against
+  /// the paths it knows and refuses the file on one it does not. Here, an
+  /// older build skips the section and plays the same clips without their
+  /// material and light tracks, which is the whole of what it cannot do.
+  static const int pointerTracks = 24;
+
+  /// The impostor level a node falls to last — `C4`, `ModelLod.impostor`.
+  /// Sparse like [lods], one record per node that has one; a reader without
+  /// it sees the surface levels alone and draws the coarsest mesh as far as
+  /// the eye goes, which is the right thing for a build that cannot draw the
+  /// card.
+  static const int impostors = 25;
+
+  /// The layers beyond metal-rough a material carries — `M1`, see
+  /// `MaterialExtensions`. Sparse, one record per material that has any, each
+  /// naming its material, for the reason [lods] is: nearly every material has
+  /// none, and the 132-byte material record is what every existing file is
+  /// written to.
+  static const int materialExtensions = 22;
+
+  /// The cluster runs of a mesh the splitter cut up — `C9`, see
+  /// `MeshData.clusters`. Sparse, one record per mesh that has any, and
+  /// written only when one does. The triangles are already in cluster order
+  /// in the mesh's own index array, so a reader without this section loads
+  /// the same mesh and draws all of it every frame.
+  static const int clusters = 26;
+
+  /// How far each surface level strays from its node's full mesh —
+  /// `ModelLod.error`. One record per record of [lods], in the same order,
+  /// and written only when some level was measured. A section of its own
+  /// rather than a wider [lods] record, because every file with levels is
+  /// written to the 16-byte one: a reader that predates this skips it and
+  /// switches by the screen fraction alone, and a file without it reads as
+  /// every level unmeasured.
+  static const int lodErrors = 27;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -166,6 +210,20 @@ abstract final class F3dRecord {
   /// u32 offset, u32 length into the strings section
   static const int warning = 8;
 
+  /// u32 nameOffset, u32 nameLength, u32 pairOffset, u32 pairCount — the
+  /// pairs are i32 surfaceIndex, i32 materialIndex in the blob.
+  static const int variant = 16;
+
+  /// u32 animationIndex, u32 trackPosition, u32 interpolation,
+  /// u32 componentCount, u32 timesOffset, u32 timesCount, u32 valuesOffset,
+  /// u32 valuesCount, u32 pointerOffset, u32 pointerLength
+  ///
+  /// `trackPosition` is the track's index in its clip, so a clip mixing node
+  /// and pointer tracks reads back in the order it was written. The pointer
+  /// is the JSON pointer string, resolved again at load — the same place a
+  /// glTF file's is.
+  static const int pointerTrack = 40;
+
   /// u32 nameOffset, u32 nameLength, u32 jointOffset, u32 jointCount,
   /// u32 matrixOffset, i32 skeletonRoot
   static const int skin = 24;
@@ -200,6 +258,31 @@ abstract final class F3dRecord {
   /// u32 nodeIndex, f32 maxScreenFraction, u32 surfaceOffset, u32
   /// surfaceCount
   static const int lod = 16;
+
+  /// f32 error, in the node's own units; negative for a level nobody
+  /// measured, since a real distance never is.
+  static const int lodError = 4;
+
+  /// u32 nodeIndex, f32 maxScreenFraction, u32 albedoImage, u32
+  /// normalDepthImage, u32 grid, f32 centre x, y, z, f32 radius
+  static const int impostor = 36;
+
+  /// u32 materialIndex, u32 jsonOffset, u32 jsonLength into the strings
+  /// section.
+  ///
+  /// **The layers as glTF's own extension JSON, not as fixed fields.** They
+  /// are a handful of numbers per material that has any, read once at load,
+  /// and the list of them grows with every `KHR_materials_*` the renderer
+  /// learns; a fixed record would change size with each, where JSON keeps
+  /// one record that an older reader reads what it knows of. A texture is
+  /// `{"image": i, "texCoord": n, "sampling": flags}`, the flags those of
+  /// [F3dSamplingFlags].
+  static const int materialExtensions = 12;
+
+  /// u32 meshIndex, u32 clusterCount, u32 firstIndicesOffset, u32
+  /// dataOffset — `clusterCount + 1` u32 run starts and `clusterCount * 11`
+  /// f32 of boxes and cones in the blob, exactly as `MeshClusters` holds them.
+  static const int clusters = 16;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

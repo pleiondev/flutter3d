@@ -1,44 +1,44 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 9886 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10554 tests need a GPU.
 ---
 
 # Testing
 
-9886 tests across 38 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+10554 tests across 38 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 1501 | | | |
-| | | | `flutter3d_mesh` | 583 |
+| `flutter3d` | 1581 | | | |
+| | | | `flutter3d_mesh` | 599 |
 | | | | `apps/flutter3d_modeler` | 1750 |
-| `flutter3d_sim` | 546 | | `pad_input` | 59 |
-| `flutter3d_lab` | 15 | | `flutter3d_core` | 545 |
+| `flutter3d_sim` | 559 | | `pad_input` | 59 |
+| `flutter3d_lab` | 15 | | `flutter3d_core` | 731 |
 | `flutter3d_lti` | 26 | | `apps/flutter3d_lab_pendulum` | 7 |
 | | | | `apps/flutter3d_lab_incident` | 13 |
 | `flutter3d_game_shooter` | 340 | | `flutter3d_audio` | 55 |
-| `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 58 |
-| `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 60 |
-| `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 63 |
-| `flutter3d_cpu` | 126 | | `apps/flutter3d_demo_strategy` | 50 |
-| `apps/flutter3d_editor` | 213 | | `apps/flutter3d_demo_arcade` | 8 |
+| `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 62 |
+| `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 63 |
+| `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 64 |
+| `flutter3d_cpu` | 328 | | `apps/flutter3d_demo_strategy` | 50 |
+| `apps/flutter3d_editor` | 215 | | `apps/flutter3d_demo_arcade` | 20 |
 | `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 182 | | `flutter3d_webgpu` | 180 |
-| `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 21 |
-| | | | `flutter3d_testing` | 16 |
-| `flutter3d_editor_core` | 128 | | `flutter3d_editor_widgets` | 90 |
-| `apps/flutter3d_demo_dungeon` | 112 | | `flutter3d_app` | 117 |
-| `flutter3d_game` | 254 | | `flutter3d_shaders` | 1 |
-| `flutter3d_particles` | 75 | | `flutter3d_stereo` | 50 |
-| `flutter3d_model_core` | 1163 | | `flutter3d_model_mcp` | 191 |
+| `flutter3d_physics` | 186 | | `flutter3d_webgpu` | 193 |
+| `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 28 |
+| | | | `flutter3d_testing` | 27 |
+| `flutter3d_editor_core` | 141 | | `flutter3d_editor_widgets` | 90 |
+| `apps/flutter3d_demo_dungeon` | 115 | | `flutter3d_app` | 118 |
+| `flutter3d_game` | 255 | | `flutter3d_shaders` | 5 |
+| `flutter3d_particles` | 94 | | `flutter3d_stereo` | 50 |
+| `flutter3d_model_core` | 1172 | | `flutter3d_model_mcp` | 195 |
 | | | | `flutter3d_net` | 14 |
 | | | | `flutter3d_net_webrtc` | 2 |
-| | | | `flutter3d_sim_mcp` | 14 |
-| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 81 |
+| | | | `flutter3d_sim_mcp` | 25 |
+| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 127 |
 | | | | `apps/flutter3d_lesson_viewer` | 48 |
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
-| `flame_flutter3d` | 47 | | `apps/flutter3d_showcase` | 84 |
+| `flame_flutter3d` | 47 | | `apps/flutter3d_showcase` | 85 |
 
-The rows sum to 9862 rather than 9886: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 10528 rather than 10554: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -50,7 +50,7 @@ tool/ci.sh                                   # shaders, analyze, every test
 
 ## Four independent golden sets, not one
 
-Forty-four scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+Seventy-eight scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 The browser sets are recorded when a branch lands, not beside it (`golden_web.sh` holds one fixed port for the whole of its run), so a new scene is in the other sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
 
@@ -63,7 +63,7 @@ The browser sets are recorded when a branch lands, not beside it (`golden_web.sh
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
 <div class="why">
-<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps forty-four scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps seventy-eight scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.
@@ -72,11 +72,23 @@ The browser sets are recorded when a branch lands, not beside it (`golden_web.sh
 <p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one, and it stood there showing a pass list to a human from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller runners are reachable</code> rule now keeps that script from going stale by checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
 </div>
 
-`flutter3d_webgpu` is the backend that gets the arrangement Impeller cannot. Chrome has a real WebGPU device inside `flutter test`, so `flutter test --platform chrome` runs the whole suite against live hardware as an ordinary test file: 33 of 33, two of them passing by declining a capability the device says it has not got: the blend constant and wireframe. Two more used to be there. Rendering into a mip left the list without moving the number, because the two checks that read the capability answered a smaller question rather than skipping when it was false. The block-compressed formats left it when the device started asking its adapter which compression families it carries and requesting exactly those, and the check that had been skipping three candidates now draws a block of each. A decline is reported as a decline and never as a pass, because "the suite is green" and "the suite is green, and here is what it never asked" are different sentences.
+`flutter3d_webgpu` is the backend that gets the arrangement Impeller cannot. Chrome has a real WebGPU device inside `flutter test`, so `flutter test --platform chrome` runs the whole suite against live hardware as an ordinary test file: 41 of 41, two of them passing by declining a capability the device says it has not got: the blend constant and wireframe. Two more used to be there. Rendering into a mip left the list without moving the number, because the two checks that read the capability answered a smaller question rather than skipping when it was false. The block-compressed formats left it when the device started asking its adapter which compression families it carries and requesting exactly those, and the check that had been skipping three candidates now draws a block of each. A decline is reported as a decline and never as a pass, because "the suite is green" and "the suite is green, and here is what it never asked" are different sentences.
 
 The rest of that package's tests are deliberately split by whether they need a browser at all. The translation table, the pipeline signature and every vertex-layout refusal live in files that import neither `dart:js_interop` nor `package:web`, so they run on the VM in about a second. A typo in `"less-equal"` fails there, not as a pipeline a browser rejects at run time on the one machine that has a GPU. The GLSL→WGSL pipeline is checked the same way the WebGL translation is: CI regenerates the table and fails on the diff, which catches a stale table *and* a different compiler on the machine, since this road runs through `glslangValidator` and `naga` rather than one generator.
 
 The same package has a second instrument in the same shape, held by the same rule: `tool/surface_probe.sh` measures flutter_gpu's `GpuImageSurface` against the `asImage()` path `presentFrame` uses, on a live GPU, and prints what each costs. The probe itself lives in the engine's example beside the entry point that runs it, not in the backend, because it reaches flutter_gpu directly and is no part of what the backend publishes. It is a measurement more than a check. Its exit code says only whether the last frame of each of the five present paths, and of the resized surface, came back holding the colour it was cleared to, which checks the image wrapping the right texture and nothing the compositor did. What it found is on the [backends](/core/backends/#presenting) page.
+
+## A budget for frames meant to differ {#flip}
+
+Zero differing pixels is the right bar for a frame that should not move. It is the wrong one for a frame that is supposed to differ from its reference a little everywhere: a lower render scale, or a stochastic effect against its sorted reference. A lower render scale moves nearly every pixel a little and looks almost the same, so a count of moved pixels cannot say how much worse the frame looks.
+
+`flutter3d_testing` answers that with FLIP. `flip` compares two 8-bit sRGB frames and `flipLinear` two in linear light; both return a `FlipResult` holding the per-pixel error map and its mean, where 0 is identical and 1 is as different as green is from blue. It is LDR-FLIP (Andersson et al., HPG 2020) ported line for line from the reference implementation, so a value here is the value there, and a test holds it to the error maps that implementation publishes. The viewing condition defaults to `defaultFlipPpd`, about 67 pixels per degree.
+
+```dart
+await expectMatchesGolden(frame, 'test/goldens/half_scale.png', flipBudget: 0.02);
+```
+
+`flipBudget` left null, the default, compares pixels as before. Given, the mean FLIP error replaces the share of differing pixels. `measureQualityTable` uses the same measure offline, to price each row of the table adaptive quality chooses from: its cost against full quality, and how different it looks.
 
 ## Every new test is written by breaking what it covers
 
@@ -274,4 +286,22 @@ flutter run -d macos \
 
 <div class="why">
 <p>Three attempts at an A/B comparison in the shooter were spoiled by a synthetic keystroke not reaching the window. The fog A/B toggles on the clock instead, so the measurement no longer depends on the window manager cooperating.</p>
+</div>
+
+## Frame pacing on a real device {#pacing}
+
+A run that averages sixty frames a second can still stop for a tenth of a second every few seconds, and that stop is what a player feels. So the measure is every frame's own time, and the line is 50 ms, three frames at 60 Hz.
+
+```bash
+tool/pacing.sh                                  # macOS through Impeller, the sample run
+tool/pacing.sh -d <device-id> --label a55       # a phone
+tool/pacing.sh --run path/to/run.f3drun --repeats 5 --budget 2000
+```
+
+The script plays a recorded run through the renderer in `apps/flutter3d_demo_dungeon` with `flutter drive --profile`, because `flutter test` on a device builds debug and a JIT frame time is not a frame time. It writes the report to `doc/pacing/<label>.md` (the device's id when there is no `--label`; `--no-report` keeps it out of the tree) and exits non-zero on any frame over the line. `--repeats` plays the tape that many times, three by default. `--budget` sets `RenderSettings.frameWorkBudget` in microseconds, and 0, the default, leaves it unlimited. The report keeps the median, the 99th percentile, the worst frame and where on the tape it fell, so a spike can be found again by replaying to it; the macOS report is committed, and the same command runs on the release phone by hand before a release.
+
+Underneath is `replayPacing` in `flutter3d_testing`. A frame is one step of the tape through `onStep` and one `drawFrame`, back to back and not on a display's clock, and a GPU device's `drawFrame` finishes with `gpuSettled`, which closes the frame and waits for the device's `onFrameComplete` so the GPU's share is counted. The result is a `FramePacing`: median, 99th percentile, the worst frame and its index, and every frame over `limitMillis` (50 by default). `repeats`, `rewind` and `warmUpFrames` play a tape several times from its start, or skip a level's first frames.
+
+<div class="why">
+<p>The CPU and GPU halves of each frame are serialised, which makes a frame look longer than it would in a game, where the GPU draws one frame while the CPU prepares the next. That is the right side to err on for a check that fails on spikes, and it puts each spike on the frame that caused it.</p>
 </div>

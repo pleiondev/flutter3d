@@ -68,6 +68,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     'Pbr',
     'Toon',
     'Normals',
+    // `M1`: not in `builtIn`, and drawn through every mesh stage all the same.
+    'PbrLayered',
   ];
   final pairs = <(String, String)>[
     for (final vertex in meshVertices) ...<(String, String)>[
@@ -93,6 +95,15 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'MeshSkinnedVertex',
       'MeshInstancedVertex',
     ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
+    // `R1`: the three stages a moved node is drawn through into the velocity
+    // buffer, each with the one fragment stage that differences them.
+    // `R4`: and with the stage that marks a blended surface reactive, which
+    // reads one of the three things they hand on.
+    for (final vertex in <String>[
+      'VelocityVertex',
+      'VelocitySkinnedVertex',
+      'VelocityInstancedVertex',
+    ]) ...<(String, String)>[(vertex, 'Velocity'), (vertex, 'Reactive')],
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     // Every post stage the renderer builds a pipeline for, through the one
     // vertex stage they all share. The probe's convolution reads a cube through
@@ -101,6 +112,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     for (final post in <String>[
       'Composite',
       'Luminance',
+      // `C3`: the surface buffer reduced for the occlusion readback.
+      'DepthPyramid',
       'ProbePrefilter',
       'BloomThreshold',
       'BloomDownsample',
@@ -109,10 +122,40 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'Ssao',
       'SsaoBlur',
       'ContactShadow',
+      // The contact shadow's dither averaged away when no temporal resolve
+      // runs.
+      'ContactShadowResolve',
+      // `R1`: the reconstruction the temporal resolve reprojects through.
+      'CameraVelocity',
+      // `R2`: four samplers and the history it keeps.
+      'TemporalResolve',
+      // `R3`: the history the occlusion and the contact shadow are blended
+      // into.
+      'TemporalAccumulate',
       'LightShafts',
+      // `S4`: the half-resolution march and the upsample that lays it over
+      // the scene.
+      'VolumetricFog',
+      'VolumetricFogUpsample',
       'DepthOfField',
+      // `gfx-34n`: the circle's tile search in front of the gather.
+      'DofTileMax',
+      // `R6`: the two tile passes and the gather behind them.
+      'VelocityTileMax',
+      'VelocityNeighborMax',
+      'MotionBlur',
       'ViewportShade',
       'MrtProbe',
+      // `H5`: the field kernel the conformance suite steps `FieldPass` with.
+      'FieldDecay',
+      // `L4`: the kernel that folds a probe's capture into the field.
+      'IrradianceConvolve',
+      // `S2`: the directional atlas turned into blurred moments.
+      'EvsmFilter',
+      // `R8`: the transparent layers, averaged back over the scene.
+      'WboitResolve',
+      // `M3`: the levels of the scene the transmissive draws read.
+      'SceneColourCopy',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),
@@ -122,14 +165,26 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // that is least likely to have been copied right — the line writes a normal
     // and a tangent it has no geometry for.
     ('PolylineVertex', 'Unlit'),
+    // `C4`: the card and the stage that reads the atlases through it. The
+    // vertex stage repacks the varyings — the eye's direction rides in the
+    // colour — so this is the other pair where a copied varying could be
+    // missing.
+    ('ImpostorVertex', 'Impostor'),
     // Both particle fragment stages, and the mesh particle's own vertex stage,
     // which is the only one in the bundle with a per-instance buffer.
     ('ParticleVertex', 'Particle'),
     ('ParticleVertex', 'ParticleTextured'),
+    // `N6`: the six-way stage reads the same three varyings, and is the one
+    // particle stage that also reads the light list.
+    ('ParticleVertex', 'ParticleSixWay'),
     // `gfx-80n` shares that vertex stage rather than adding a third one, so
     // this pair is the check that it really does read the same three
     // attributes and the same two varyings.
     ('ParticleVertex', 'Splat'),
+    // `R4`: both of them marked reactive, through the same vertex stage.
+    ('ParticleVertex', 'ReactiveSprite'),
+    // `N5`: the unsorted splat reads what the sorted one reads.
+    ('ParticleVertex', 'SplatHashed'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both

@@ -186,12 +186,13 @@ const Map<String, double> _budgets = <String, double>{
   // silhouette's interior agrees exactly, as a flat colour has to; the
   // number is its edge and the shadows' edges.
   'stencil-xray': 0.07,
-  // 0.247% measured. Two balls reflecting four coloured walls through a cube
+  // 0.288% measured. Two balls reflecting four coloured walls through a cube
   // captured on the device and convolved into its own chain — six renders
-  // into faces and levels on each backend, agreeing to a quarter of a
+  // into faces and levels on each backend, agreeing to under a third of a
   // percent, which is the silhouettes of the balls and the walls' edges in
-  // what they reflect.
-  'probe-car': 0.26,
+  // what they reflect. It was 0.247% before the prefilter sampled its whole
+  // lobe: the rough ball reflects a blur now, whose edges round differently.
+  'probe-car': 0.30,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
@@ -220,6 +221,73 @@ const Map<String, double> _budgets = <String, double>{
   // batch's own edges — the thin lines, the camera-facing point quad and the
   // filled selection — on top of it.
   'mesh-overlay': 0.46,
+  // The scenes 0.8 added, measured against Impeller on 2026-09-25 with a tenth
+  // to spare.
+  'anisotropy-disc': 0.25,
+  'ao-temporal': 0.05,
+  'area-light-gloss': 0.32,
+  'cascade-walk': 0.04,
+  'clearcoat-car-paint': 0.2,
+  'easu-half': 0.9,
+  'evsm-soft': 0.4,
+  // 0.047% measured: the air right round a torch, where the light falls off
+  // as one over the distance squared, is shadowed by one unfiltered tap of
+  // the cube atlas, and the torch's own silhouette in it falls on different
+  // texels here and on Impeller.
+  'fog-torches': 0.05,
+  'glass-stack-oit': 0.01,
+  // 0.000% measured. It was 1.559% while Impeller wrote the albedo buffer in the
+  // surface buffer's format and its bounces read a quarter of the colour.
+  'gtao-corner': 0.01,
+  'impostor-forest': 0.01,
+  'irradiance-room': 0.2,
+  'many-lights': 0.04,
+  // Zero measured once the velocity pass found its own pixel in the surface
+  // buffer; see `velocity-shapes` below.
+  'motion-blur-spin': 0.01,
+  'rough-dielectrics': 0.28,
+  'rough-metals': 0.14,
+  'scan-chunks': 0.14,
+  'sheen-fabric': 0.23,
+  // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
+  // 64-bit integers, so a browser baked a different sheet.
+  'smoke-six-way': 0.01,
+  'splat-gltf': 0.01,
+  // 0.001% measured, since the hash reads the pixel from the top on every
+  // backend and computes its offset without a `sin`. It was 41.569%: rows
+  // counted from the bottom here kept a different subset of splats per pixel.
+  'splat-stochastic': 0.01,
+  // 0.009% measured. It was 4.645% while Impeller's albedo buffer held the
+  // bytes of half floats; see gtao-corner.
+  'ssil-room': 0.02,
+  'sun-contact-hardening': 0.45,
+  'taa-converge': 0.01,
+  // Zero measured. It was 0.527% against a reference with no embers in it:
+  // the particle stage writes only the colour, the temporal pass also carries
+  // the velocity, and WebGL2 refused every particle draw for it.
+  'taa-embers': 0.01,
+  // **Zero measured for three of the four, and they were 0.345%, 0.287% and
+  // 0.369%** — the kdop16 variant 1.326%, now 1.115%. The sliding bars'
+  // velocity was being dropped against the wrong row of the surface buffer,
+  // the fault `velocity-shapes` below shows plainly, and the resolve then
+  // reprojected their history as if they stood still.
+  'taa-railing': 0.01,
+  'taa-railing-kdop16': 1.23,
+  'taa-railing-kdop8': 0.01,
+  'taa-railing-scaled': 0.01,
+  'texture-transform-per-map': 0.01,
+  'tonemap-aces2': 0.03,
+  'transmission-glass': 0.01,
+  // 3.799% measured, and all of it in green. The velocity buffer holds a
+  // difference in the texture's own coordinates, and this backend's rows run
+  // up the picture, so a mesh moving down the screen has a positive green on
+  // Impeller and a negative one here, which the raw view shows as none. Red
+  // agrees to the pixel. Before the fix the mesh fragments were tested against
+  // the mirrored row of the surface buffer, and only a few parts of the
+  // skinned figure, whose mirror happened to be something further away,
+  // reached the buffer at all.
+  'velocity-shapes': 4.18,
+  'window-interior': 0.07,
 };
 
 /// Scenes budgeted before this set had a picture of them.

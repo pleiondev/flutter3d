@@ -94,6 +94,8 @@ final class F3dWriter {
         dropped(document.lights.length, 'light(s)'),
       if (document.cameras.isNotEmpty)
         dropped(document.cameras.length, 'camera(s)'),
+      if (document.splats.isNotEmpty)
+        dropped(document.splats.length, 'splat cloud(s)'),
       if (withExtras > 0) dropped(withExtras, 'extras block(s)'),
       if (additive > 0) dropped(additive, 'additive clip reference time(s)'),
     ];
@@ -107,18 +109,24 @@ final class F3dWriter {
     final meshTable = _writeMeshes();
     final (morphTable, morphCount) = _writeMorphTargets();
     final (weightTable, weightCount) = _writeMorphWeights();
+    final (clusterTable, clusterCount) = _writeClusters();
     final surfaceTable = _writeSurfaces();
     final surfaceAttributeTable = _writeSurfaceAttributes();
     final meshNameTable = _writeMeshNames();
     final (assetTable, assetCount) = _writeAsset();
     final imageUriTable = _writeImageUris();
     final materialTable = _writeMaterials();
+    final (extensionTable, extensionCount) = _writeMaterialExtensions();
     final imageTable = _writeImages();
     final nodeTable = _writeNodes();
     final (lodTable, lodCount) = _writeLods();
+    final lodErrorTable = _writeLodErrors();
+    final (impostorTable, impostorCount) = _writeImpostors();
     final rootTable = _writeRoots();
     final (animationTable, trackTable, animationCount, trackCount) =
         _writeAnimations();
+    final (pointerTrackTable, pointerTrackCount) = _writePointerTracks();
+    final variantTable = _writeVariants();
     final warningTable = _writeWarnings();
     final skinTable = _writeSkins();
     final layoutTable = _writeLayouts();
@@ -129,6 +137,8 @@ final class F3dWriter {
       (F3dSection.meshes, meshTable, _meshes.length),
       (F3dSection.morphTargets, morphTable, morphCount),
       (F3dSection.morphWeights, weightTable, weightCount),
+      // Only when a mesh was split, so every other file is the bytes it was.
+      if (clusterCount > 0) (F3dSection.clusters, clusterTable, clusterCount),
       (F3dSection.surfaces, surfaceTable, document.surfaces.length),
       (
         F3dSection.surfaceAttributes,
@@ -139,12 +149,26 @@ final class F3dWriter {
       (F3dSection.asset, assetTable, assetCount),
       (F3dSection.imageUris, imageUriTable, document.images.length),
       (F3dSection.materials, materialTable, document.materials.length),
+      (F3dSection.materialExtensions, extensionTable, extensionCount),
       (F3dSection.images, imageTable, document.images.length),
       (F3dSection.nodes, nodeTable, document.nodes.length),
       (F3dSection.lods, lodTable, lodCount),
+      if (lodErrorTable != null)
+        (F3dSection.lodErrors, lodErrorTable, lodCount),
+      // Only when there is one, so a file with no impostor is byte for byte
+      // the file this writer produced before the section existed.
+      if (impostorCount > 0)
+        (F3dSection.impostors, impostorTable, impostorCount),
       (F3dSection.roots, rootTable, document.roots.length),
       (F3dSection.animations, animationTable, animationCount),
       (F3dSection.tracks, trackTable, trackCount),
+      // Only when there is something to say, so a document with neither
+      // writes the same bytes it did before these sections existed — a
+      // converted asset should not change on disk for a feature it lacks.
+      if (pointerTrackCount > 0)
+        (F3dSection.pointerTracks, pointerTrackTable, pointerTrackCount),
+      if (document.variants.isNotEmpty)
+        (F3dSection.variants, variantTable, document.variants.length),
       (F3dSection.warnings, warningTable, document.warnings.length),
       (F3dSection.skins, skinTable, document.skins.length),
       (F3dSection.strings, _strings.toBytes(), 0),

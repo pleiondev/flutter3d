@@ -724,6 +724,52 @@ void main() {
       expect(material.emissiveStrength, closeTo(3.0, 1e-6));
     });
 
+    test(
+      'a linear base colour factor becomes the authored tint and back',
+      () async {
+        // glTF's factor is linear; `SurfaceMaterial.baseColor` is the authored,
+        // non-linear tint every shader converts. Taken raw, a factor of 0.5 went
+        // through that conversion once more and drew as 0.21, so a model whose
+        // colour lives in its factor came out darker than in any other viewer.
+        //
+        // Mutation: load `baseColorFactor` without `_authoredTint`. The channel
+        // reads 0.5.
+        // Mutation: write `baseColor` without `srgbToLinear`. The file says
+        // 0.735, and the next viewer draws it lighter than it was.
+        final asset = await GltfLoader().load(
+          buildGlb(<String, Object?>{
+            'asset': {'version': '2.0'},
+            'materials': <Object?>[
+              {
+                'pbrMetallicRoughness': {
+                  'baseColorFactor': <Object?>[0.5, 0.0, 1.0, 0.5],
+                },
+              },
+            ],
+          }),
+        );
+        final tint = asset.materials.single.baseColor;
+        // 1.055 · 0.5^(1/2.4) − 0.055, the value a paint program shows for a
+        // linear half.
+        expect(tint.x, closeTo(0.7354, 1e-4));
+        expect(tint.y, 0.0);
+        expect(tint.z, closeTo(1.0, 1e-6));
+        expect(tint.w, 0.5, reason: 'alpha is not a colour');
+
+        final written = GlbContainer.parse(GltfWriter(asset).writeGlb()).json;
+        final factor =
+            ((written['materials']! as List<Object?>).single!
+                    as Map<String, Object?>)['pbrMetallicRoughness']!
+                as Map<String, Object?>;
+        final values = (factor['baseColorFactor']! as List<Object?>)
+            .cast<num>();
+        expect(values[0], closeTo(0.5, 1e-6));
+        expect(values[1], 0.0);
+        expect(values[2], closeTo(1.0, 1e-6));
+        expect(values[3], 0.5);
+      },
+    );
+
     test('decodes sampler wrap modes', () async {
       final asset = await GltfLoader().load(
         buildGlb(<String, Object?>{
@@ -760,17 +806,40 @@ void main() {
         GltfLoader().load(
           buildGlb(<String, Object?>{
             'asset': {'version': '2.0'},
-            'extensionsRequired': <Object?>['KHR_materials_transmission'],
+            'extensionsRequired': <Object?>[
+              'KHR_materials_diffuse_transmission',
+            ],
           }),
         ),
         throwsA(
           isA<FormatException>().having(
             (e) => e.message,
             'message',
-            contains('KHR_materials_transmission'),
+            contains('KHR_materials_diffuse_transmission'),
           ),
         ),
       );
+    });
+
+    // `M3`: this was the refusal above until the layered model drew
+    // transmission. Mutation: take 'KHR_materials_transmission' back out of
+    // `_checkRequiredExtensions`' supported set. The load throws.
+    test('a required KHR_materials_transmission loads', () async {
+      final asset = await GltfLoader().load(
+        buildGlb(<String, Object?>{
+          'asset': {'version': '2.0'},
+          'extensionsUsed': <Object?>['KHR_materials_transmission'],
+          'extensionsRequired': <Object?>['KHR_materials_transmission'],
+          'materials': <Object?>[
+            {
+              'extensions': {
+                'KHR_materials_transmission': {'transmissionFactor': 1.0},
+              },
+            },
+          ],
+        }),
+      );
+      expect(asset.materials.single.extensions?.transmission, 1.0);
     });
 
     test('a merely used extension does not block loading', () async {
@@ -784,28 +853,21 @@ void main() {
       expect(asset.materials, hasLength(1));
     });
 
-    // The extension was on the supported list and read by nothing, so an
-    // atlas-packed model — the export that needs it — loaded and drew every
-    // material sampling the whole atlas. Mutation: putting
-    // 'KHR_texture_transform' back in `_checkRequiredExtensions`'s
-    // `supported` set makes the load succeed and this expectation report
-    // false.
-    test('a required KHR_texture_transform is refused, not claimed', () async {
-      await expectLater(
-        GltfLoader().load(
-          buildGlb(<String, Object?>{
-            'asset': {'version': '2.0'},
-            'extensionsRequired': <Object?>['KHR_texture_transform'],
-          }),
-        ),
-        throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            contains('KHR_texture_transform'),
-          ),
-        ),
+    // `C8`: requiring the extension promises every transform in the file,
+    // and every one is kept now — one a material's maps share in the
+    // coordinates, maps that disagree each at the sampler. Mutation: taking
+    // 'KHR_texture_transform' out of `_checkRequiredExtensions`'s `supported`
+    // set refuses the file again.
+    test('a required KHR_texture_transform loads', () async {
+      final asset = await GltfLoader().load(
+        buildGlb(<String, Object?>{
+          'asset': {'version': '2.0'},
+          'extensionsUsed': <Object?>['KHR_texture_transform'],
+          'extensionsRequired': <Object?>['KHR_texture_transform'],
+          'materials': <Object?>[<String, Object?>{}],
+        }),
       );
+      expect(asset.materials, hasLength(1));
     });
 
     // The commoner half: a file that lists the extension under
@@ -866,11 +928,15 @@ void main() {
       },
     );
 
-    // The case nothing here can honour: two textures of one material, two
-    // transforms, one set of coordinates. Mutation: deleting the `checked`
-    // wrapper in `_decodeMaterials` empties `warnings`.
+    // Two textures of one material, two transforms, one set of coordinates:
+    // the decoder carries both and says nothing, because whether they can be
+    // honoured depends on the model that draws the material — the layered
+    // one reads each at the sampler (`C8`), and `ModelAsset` warns for any
+    // other; see `model_texture_transform_test.dart`. Mutation: dropping
+    // `transform:` from the `TextureBinding` in `textureRef` makes the
+    // emissive expectation report null.
     test(
-      'textures of one material that disagree are warned about, once',
+      'textures of one material that disagree are both carried, unwarned',
       () async {
         final asset = await GltfLoader().load(
           buildGlb(
@@ -886,10 +952,13 @@ void main() {
         );
 
         expect(
-          asset.warnings.where((w) => w.contains('KHR_texture_transform')),
-          hasLength(1),
+          asset.materials.single.emissiveTexture?.transform?.offset,
+          Vector2(0.0, 0.5),
         );
-        expect(asset.warnings.join(), contains('materials[0]'));
+        expect(
+          asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+          isEmpty,
+        );
       },
     );
   });

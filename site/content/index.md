@@ -8,7 +8,7 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and three sh
 
 flutter3d is a renderer, a game layer, and three finished games of different genres. The second and third were built without changing a line in the first one's engine packages.
 
-**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/). **Or try every capability, one page each, with live controls:** [the showcase](/showcase/).
+**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/). **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
 
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>
@@ -28,7 +28,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.7.1, so any `^0.7.1` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.1 |
+| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.8.0, so any `^0.8.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.2 |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start

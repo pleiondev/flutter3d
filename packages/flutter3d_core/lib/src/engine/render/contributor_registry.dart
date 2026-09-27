@@ -23,7 +23,32 @@ abstract base class PassContributor {
   /// a contributor with nothing to say costs no pass setup.
   bool get isActive => true;
 
+  /// Whether [encode] wants the opaque scene's depth to read —
+  /// [ContributorFrame.sceneDepth]. False by default, and false costs
+  /// nothing.
+  ///
+  /// **True changes how the frame is drawn**, which is why it is asked
+  /// rather than offered to everyone. A contributor draws inside the scene
+  /// pass, and the depth it would read is an attachment of that same pass, so
+  /// it cannot be sampled there. A frame with a contributor that says true
+  /// splits as a frame with glass does (`M3`): the opaque half first, and
+  /// this contributor in a pass of its own after the transparent half, with
+  /// the surface buffer bound instead of attached. That gives up
+  /// multisampling for the frame, as any reader of the surface buffer does.
+  bool get readsSceneDepth => false;
+
   void encode(ContributorFrame frame);
+
+  /// Marks where this contributor's draws cover the frame, for the temporal
+  /// resolve to keep less history there — `R4`. Called only while the
+  /// resolve runs with `TemporalSettings.reactive` above nought, after
+  /// [encode] has drawn the same frame.
+  ///
+  /// Nothing by default: a contributor that draws solid geometry, which the
+  /// velocity can follow, has nothing to mark. One that draws what blends —
+  /// particles, splats, anything without a depth of its own — redraws it here
+  /// through [ReactiveFrame.spriteStage] or a stage of its own.
+  void encodeReactive(ReactiveFrame frame) {}
 }
 
 /// The contributors a renderer draws, and the order it draws them in.

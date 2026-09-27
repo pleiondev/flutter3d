@@ -287,6 +287,25 @@ final class Editing {
   /// size to step by.
   double get _step => grid <= 0.0 ? 1.0 : grid * 4;
 
+  /// Adds [recipe] to the document and answers what it builds, on its own.
+  ///
+  /// **The recipe goes in, not what it expands to.** A room written as its
+  /// recipe stays one line that a seed and a size decide, and the level is
+  /// expanded wherever it is used — loaded, validated, baked — so the brushes
+  /// in the answer are the brushes a player gets.
+  ///
+  /// Expanded once before it is added, so a recipe no kit can build throws the
+  /// kit's own [LevelFormatException] and leaves the document as it was,
+  /// rather than being written into a document that then fails to validate.
+  Level addRecipe(LevelRecipe recipe) {
+    final alone = expandRecipes(
+      Level(name: level.name, recipes: <LevelRecipe>[recipe]),
+    );
+    _remember('generate a ${recipe.kind} from seed ${recipe.seed}');
+    level.recipes.add(recipe);
+    return alone;
+  }
+
   /// Adds a light where somebody is looking.
   ///
   /// **A light the editor may invent, unlike an entity.** A `LevelLight` is a
@@ -362,6 +381,24 @@ final class Editing {
         (it.intensity * by).clamp(0.05, 1000.0).toStringAsFixed(3),
       ),
     });
+  }
+
+  /// Puts [lights] where the level's lights were, all at once.
+  ///
+  /// One change rather than a delete and an add per light, because what
+  /// produces a whole set — the light optimizer — made one decision about all
+  /// of them, and one undo is what puts that decision back. A light selected
+  /// before is selected no longer: the index it had now names another light,
+  /// or none.
+  void setLights(List<LevelLight> lights) {
+    _remember('set the lights');
+    level.lights
+      ..clear()
+      ..addAll(lights);
+    if (kind == Piece.light) {
+      kind = null;
+      selected = null;
+    }
   }
 
   /// Turns the selected entity about the vertical, in radians.
