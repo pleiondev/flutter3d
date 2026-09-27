@@ -98,9 +98,10 @@ Map<String, ({Set<String> blocks, Set<String> samplers})> reflectStages({
                 type: member['type']! as String,
               ),
         };
-        (reflectedBlocks[name] ??= <String, Map<String, ReflectedMember>>{})[
-          buffer['name']! as String
-        ] = members;
+        (reflectedBlocks[name] ??=
+                <String, Map<String, ReflectedMember>>{})[buffer['name']!
+                as String] =
+            members;
       }
     }
     return stages;
@@ -121,7 +122,9 @@ String uniformBlocksSource(
     ..writeln('// Do not edit; run the tool after any shader edit.')
     ..writeln()
     ..writeln("/// How impellerc lays out the uniform blocks of every stage in")
-    ..writeln("/// the engine's bundle: each member's byte offset, byte length,")
+    ..writeln(
+      "/// the engine's bundle: each member's byte offset, byte length,",
+    )
     ..writeln('/// element count and reflected type, in declaration order.')
     ..writeln('/// Per stage, because one block name can be wider in one stage')
     ..writeln('/// than another.')
@@ -193,7 +196,9 @@ String typedBlocksSource(
     ..writeln('// Do not edit; run the tool after any shader edit.')
     ..writeln()
     ..writeln("/// A class per uniform block the engine's stages declare, one")
-    ..writeln('/// preallocated array per member, laid out as the compiler lays')
+    ..writeln(
+      '/// preallocated array per member, laid out as the compiler lays',
+    )
     ..writeln('/// it out. Filled in place and bound with')
     ..writeln('/// `PassEncoder.bindBlock`.')
     ..writeln('library;')

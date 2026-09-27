@@ -51,8 +51,7 @@ final class VolumetricFogShader implements CpuFragmentShader {
     // from: started at the near plane, the march ends inside the wall.
     final camera = b.vec4(_block, 'camera', Vector4.zero());
     final eye = Vector3(camera.x, camera.y, camera.z);
-    final origin =
-        nearPoint - along * ((nearPoint - eye).dot(axis) / cosine);
+    final origin = nearPoint - along * ((nearPoint - eye).dot(axis) / cosine);
     final surfaceDepth = b.textures['surface_texture']?.sample(v[0], v[1]).w;
     final depth = surfaceDepth ?? 0.0;
     final toSurface = depth > 0.0 ? depth / cosine : 1e9;

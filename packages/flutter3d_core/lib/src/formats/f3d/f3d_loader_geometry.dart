@@ -83,7 +83,10 @@ extension _F3dGeometry on F3dDocument {
       final count = _view.getUint32(o + 4, Endian.little);
       try {
         clusters[meshIndex] = MeshClusters(
-          firstIndices: _uint32s(_view.getUint32(o + 8, Endian.little), count + 1),
+          firstIndices: _uint32s(
+            _view.getUint32(o + 8, Endian.little),
+            count + 1,
+          ),
           data: _floats(
             _view.getUint32(o + 12, Endian.little),
             count * MeshClusters.floatsPerCluster,

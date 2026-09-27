@@ -17,11 +17,8 @@ import 'testing_recorded.dart';
 /// does not name is taken on trust. Without the map it records and accepts
 /// everything, which is what every test written before 0.8.0 expects.
 final class FakePass implements CommandEncoder {
-  FakePass(
-    this.descriptor, {
-    this.stageBindings,
-    List<String>? violations,
-  }) : violations = violations ?? <String>[];
+  FakePass(this.descriptor, {this.stageBindings, List<String>? violations})
+    : violations = violations ?? <String>[];
 
   final RenderPassDescriptor descriptor;
 

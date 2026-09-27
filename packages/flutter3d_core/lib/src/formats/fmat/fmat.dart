@@ -476,8 +476,7 @@ Object _writeLighting(LightingModel model) {
       'metallicRoughnessMap': model.usesMetallicRoughnessMap,
     if (model.usesLightList != model.usesMaterialMaps)
       'lightList': model.usesLightList,
-    if (model.usesFogInfo != model.usesFragInfo)
-      'fogInfo': model.usesFogInfo,
+    if (model.usesFogInfo != model.usesFragInfo) 'fogInfo': model.usesFogInfo,
     if (model.vertexStageMorphs != plain.vertexStageMorphs)
       'vertexMorphs': model.vertexStageMorphs,
     if (model.usesMaterialParameters != plain.usesMaterialParameters)

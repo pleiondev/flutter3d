@@ -1042,24 +1042,17 @@ extension _MeshEncode on Renderer {
     // penumbra keeps its width when the atlas resolution changes.
     _pointShadowParams2[0] =
         math.max(settings.shadows.pointSoftness, 0.0) * texel;
-    _pointShadowParams2[1] = math.max(
-      settings.shadows.pointLightRadius,
-      0.0,
-    );
+    _pointShadowParams2[1] = math.max(settings.shadows.pointLightRadius, 0.0);
     _pointShadowParams2[2] =
         math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
     _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
     // Asked of the device rather than assumed, like the depth range and the
     // cascade matrices before it. See where it is read in surface.glsl.
     _pointShadowParams3[0] =
-        device.framebufferOrigin == FramebufferOrigin.bottomLeft
-        ? 1.0
-        : 0.0;
+        device.framebufferOrigin == FramebufferOrigin.bottomLeft ? 1.0 : 0.0;
     // One over the tile's edge in texels. The shader turns it into the
     // world width of a texel at whatever distance the fragment is, which is
     // the quantity a normal offset has to clear — see `surface.glsl`.
-    _pointShadowParams3[1] = _cubeShadowTile > 0
-        ? 1.0 / _cubeShadowTile
-        : 0.0;
+    _pointShadowParams3[1] = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
   }
 }

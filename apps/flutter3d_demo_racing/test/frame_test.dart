@@ -580,7 +580,8 @@ void main() {
           expect(
             block,
             isA<Map<String, Object?>>(),
-            reason: 'run the level generators in flutter3d_editor_core (dart run tool/regenerate_levels.dart)',
+            reason:
+                'run the level generators in flutter3d_editor_core (dart run tool/regenerate_levels.dart)',
           );
 
           final written = SkyPreset.fromJson(block! as Map<String, Object?>);

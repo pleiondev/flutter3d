@@ -310,8 +310,18 @@ Map<String, String> ascent(GeneratorSource _) {
     ..route(<num>[0.0, -0.5, 42.5], <num>[120.0, 1.0, 27.0], 'stone')
     ..route(<num>[0.0, -0.5, 69.5], <num>[120.0, 1.0, 3.0], 'stone')
     ..route(<num>[0.0, -0.5, 96.0], <num>[120.0, 1.0, 50.0], 'wood')
-    ..route(<num>[0.0, -0.5, 124.5], <num>[120.0, 1.0, 7.0], 'ice', surface: 'ice')
-    ..route(<num>[0.0, -0.5, 156.5], <num>[120.0, 1.0, 21.0], 'ice', surface: 'ice')
+    ..route(
+      <num>[0.0, -0.5, 124.5],
+      <num>[120.0, 1.0, 7.0],
+      'ice',
+      surface: 'ice',
+    )
+    ..route(
+      <num>[0.0, -0.5, 156.5],
+      <num>[120.0, 1.0, 21.0],
+      'ice',
+      surface: 'ice',
+    )
     ..route(<num>[0.0, -0.5, 200.0], <num>[120.0, 1.0, 66.0], 'stone')
     ..route(<num>[-60.5, 4.0, 105.0], <num>[1.0, 8.0, 274.0], 'stone')
     ..route(<num>[60.5, 4.0, 105.0], <num>[1.0, 8.0, 274.0], 'stone')
@@ -465,7 +475,12 @@ Map<String, String> ascent(GeneratorSource _) {
     // Under the lowest one, so the only way out is down through it.
     ..coin(<num>[14.0, 0.8, 10.0])
     // A rink, and a kerb so an overshoot stops rather than skates on.
-    ..fill(<num>[-14.0, 0.05, 8.0], <num>[16.0, 0.1, 16.0], 'ice', surface: 'ice')
+    ..fill(
+      <num>[-14.0, 0.05, 8.0],
+      <num>[16.0, 0.1, 16.0],
+      'ice',
+      surface: 'ice',
+    )
     ..fill(<num>[-14.0, 1.0, 16.5], <num>[16.0, 2.0, 1.0], 'stone')
     ..coin(<num>[-18.0, 0.9, 12.0])
     ..coin(<num>[-10.0, 0.9, 12.0])
@@ -568,7 +583,10 @@ Map<String, String> ascent(GeneratorSource _) {
     ..coin(<num>[0.0, 3.0, 66.0], 'canyon coin three');
 
   // Two more ways across, so the canyon is a canyon rather than a doorway.
-  for (final (side, x) in const <(String, num)>[('west', -30.0), ('east', 30.0)]) {
+  for (final (side, x) in const <(String, num)>[
+    ('west', -30.0),
+    ('east', 30.0),
+  ]) {
     k
       ..mover(
         'platform',
@@ -967,11 +985,11 @@ Map<String, String> ascent(GeneratorSource _) {
   }
   for (final x in <num>[-44.0, 44.0]) {
     k
-      ..spring(
-        'the floe pad ${x < 0 ? 'west' : 'east'}',
-        <num>[x, 0.2, 164.0],
-        speed: 15.0,
-      )
+      ..spring('the floe pad ${x < 0 ? 'west' : 'east'}', <num>[
+        x,
+        0.2,
+        164.0,
+      ], speed: 15.0)
       ..coin(<num>[x, 5.5, 164.0]);
   }
   for (final x in <num>[-16.0, 16.0]) {
@@ -985,7 +1003,12 @@ Map<String, String> ascent(GeneratorSource _) {
   // fences cast no shadow).
   k.checkpoint('past the ice', 170.0, 6);
   for (final x in <num>[-13.0, 13.0]) {
-    k.route(<num>[x, 5.0, 181.0], <num>[2.0, 12.0, 28.0], 'stone', casts: false);
+    k.route(
+      <num>[x, 5.0, 181.0],
+      <num>[2.0, 12.0, 28.0],
+      'stone',
+      casts: false,
+    );
   }
   // The chimney: **two metres**, measured, because the wall probe reaches
   // fourteen centimetres.
@@ -1111,24 +1134,25 @@ Map<String, String> ascent(GeneratorSource _) {
       lights: <Map<String, Object?>>[
         // Back at an angle that casts: the renderer has cascades now.
         PlatformKit.sun,
-        for (final (x, y, z, colour, range) in const <(num, num, num, List<num>, num)>[
-          (0.0, 7.0, -12.0, <num>[0.6, 0.75, 1.0], 46.0),
-          (-38.0, 7.0, -10.0, <num>[1.0, 0.85, 0.6], 34.0),
-          (36.0, 8.0, -18.0, <num>[1.0, 0.85, 0.6], 40.0),
-          (0.0, 9.0, 44.0, <num>[1.0, 0.8, 0.55], 40.0),
-          (-30.0, 8.0, 40.0, <num>[1.0, 0.86, 0.62], 44.0),
-          (34.0, 8.0, 44.0, <num>[1.0, 0.86, 0.62], 44.0),
-          (0.0, 9.0, 62.0, <num>[0.8, 0.85, 1.0], 44.0),
-          (0.0, 7.0, 78.0, <num>[1.0, 0.86, 0.62], 40.0),
-          (0.0, 8.0, 96.0, <num>[1.0, 0.9, 0.7], 46.0),
-          (0.0, 8.0, 114.0, <num>[1.0, 0.9, 0.7], 46.0),
-          (-42.0, 8.0, 100.0, <num>[1.0, 0.88, 0.66], 44.0),
-          (42.0, 9.0, 100.0, <num>[1.0, 0.88, 0.66], 44.0),
-          (0.0, 8.0, 137.0, <num>[0.7, 0.9, 1.0], 48.0),
-          (0.0, 8.0, 155.0, <num>[0.7, 0.9, 1.0], 42.0),
-          (0.0, 8.0, 178.0, <num>[0.95, 0.95, 1.0], 46.0),
-          (0.0, 14.0, 214.0, <num>[0.9, 1.0, 0.95], 50.0),
-        ])
+        for (final (x, y, z, colour, range)
+            in const <(num, num, num, List<num>, num)>[
+              (0.0, 7.0, -12.0, <num>[0.6, 0.75, 1.0], 46.0),
+              (-38.0, 7.0, -10.0, <num>[1.0, 0.85, 0.6], 34.0),
+              (36.0, 8.0, -18.0, <num>[1.0, 0.85, 0.6], 40.0),
+              (0.0, 9.0, 44.0, <num>[1.0, 0.8, 0.55], 40.0),
+              (-30.0, 8.0, 40.0, <num>[1.0, 0.86, 0.62], 44.0),
+              (34.0, 8.0, 44.0, <num>[1.0, 0.86, 0.62], 44.0),
+              (0.0, 9.0, 62.0, <num>[0.8, 0.85, 1.0], 44.0),
+              (0.0, 7.0, 78.0, <num>[1.0, 0.86, 0.62], 40.0),
+              (0.0, 8.0, 96.0, <num>[1.0, 0.9, 0.7], 46.0),
+              (0.0, 8.0, 114.0, <num>[1.0, 0.9, 0.7], 46.0),
+              (-42.0, 8.0, 100.0, <num>[1.0, 0.88, 0.66], 44.0),
+              (42.0, 9.0, 100.0, <num>[1.0, 0.88, 0.66], 44.0),
+              (0.0, 8.0, 137.0, <num>[0.7, 0.9, 1.0], 48.0),
+              (0.0, 8.0, 155.0, <num>[0.7, 0.9, 1.0], 42.0),
+              (0.0, 8.0, 178.0, <num>[0.95, 0.95, 1.0], 46.0),
+              (0.0, 14.0, 214.0, <num>[0.9, 1.0, 0.95], 50.0),
+            ])
           <String, Object?>{
             'at': <num>[x, y, z],
             'color': colour,
@@ -1207,7 +1231,12 @@ Map<String, String> cisterns(GeneratorSource _) {
     );
   }
   for (final z in <num>[length.$1 - 0.5, length.$2 + 0.5]) {
-    k.route(<num>[0.0, 6.0, z], <num>[w + 2.0, 14.0, 1.0], 'stone', casts: false);
+    k.route(
+      <num>[0.0, 6.0, z],
+      <num>[w + 2.0, 14.0, 1.0],
+      'stone',
+      casts: false,
+    );
   }
 
   // The quay.
@@ -1389,7 +1418,11 @@ Map<String, String> cisterns(GeneratorSource _) {
   const shelves = <(num, num)>[(132.0, 1.2), (136.0, 2.4), (140.0, 3.6)];
   for (final (i, (z, y)) in _counted(shelves)) {
     k
-      ..oneway('the shelf $i', <num>[0.0, y, z], size: const <num>[6.0, 0.3, 4.0])
+      ..oneway(
+        'the shelf $i',
+        <num>[0.0, y, z],
+        size: const <num>[6.0, 0.3, 4.0],
+      )
       ..coin(<num>[0.0, y + 1.0, z], 'shelf coin $i');
   }
   for (final (i, (z, y)) in _counted(shelves)) {
@@ -1520,7 +1553,12 @@ Map<String, String> foundry(GeneratorSource _) {
     );
   }
   for (final z in <num>[length.$1 - 0.5, length.$2 + 0.5]) {
-    k.route(<num>[0.0, 7.0, z], <num>[w + 2.0, 16.0, 1.0], 'stone', casts: false);
+    k.route(
+      <num>[0.0, 7.0, z],
+      <num>[w + 2.0, 16.0, 1.0],
+      'stone',
+      casts: false,
+    );
   }
 
   // The cold floor.
@@ -1625,11 +1663,11 @@ Map<String, String> foundry(GeneratorSource _) {
   // fell in reads as a punishment.
   for (final x in <num>[-6.0, 6.0]) {
     k
-      ..spring(
-        'the relief pad ${x < 0 ? 'west' : 'east'}',
-        <num>[x, -2.3, 48.0],
-        speed: 17.0,
-      )
+      ..spring('the relief pad ${x < 0 ? 'west' : 'east'}', <num>[
+        x,
+        -2.3,
+        48.0,
+      ], speed: 17.0)
       ..coin(<num>[x, -1.4, 44.0]);
   }
 
@@ -1704,11 +1742,11 @@ Map<String, String> foundry(GeneratorSource _) {
       2.0,
       4.0,
     )
-    ..plate(
-      "the charging lift's plate",
-      'the charging lift',
-      <num>[-12.0, 1.6, 100.0],
-    )
+    ..plate("the charging lift's plate", 'the charging lift', <num>[
+      -12.0,
+      1.6,
+      100.0,
+    ])
     ..route(<num>[-12.0, 9.3, 114.0], <num>[6.0, 0.6, 20.0], 'wood');
   for (var i = 0; i < 4; i++) {
     k.coin(<num>[-12.0, 10.4, 107.0 + i * 5.0], 'gantry coin ${i + 1}');
@@ -2052,11 +2090,11 @@ Map<String, String> spire(GeneratorSource _) {
       ..coin(<num>[x, summitTop + 3.8, 134.5])
       ..crate(<num>[x, summitTop, 143.0]);
   }
-  k.exitAt(
-    'the beacon',
-    <num>[0.0, summitTop + 1.5, 144.5],
-    'The spire is climbed.',
-  );
+  k.exitAt('the beacon', <num>[
+    0.0,
+    summitTop + 1.5,
+    144.5,
+  ], 'The spire is climbed.');
 
   return <String, String>{
     '$_levels/spire.json': k.write(
