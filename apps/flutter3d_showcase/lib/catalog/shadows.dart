@@ -98,6 +98,22 @@ const List<Feature> shadowsFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'evsm-shadows',
+    title: 'EVSM shadows',
+    category: Category.shadows,
+    summary:
+        'The sun\'s shadow map blurred once for the whole frame, so each pixel '
+        'reads a soft edge with a single lookup.',
+    since: '0.8.0',
+    evidence: 'EVSM for the sun.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['evsm', 'ShadowFilter'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/shadow_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_shadow_pass.dart',
+    ],
+  ),
+  Feature(
     id: 'contact-shadows',
     title: 'Contact shadows',
     category: Category.shadows,

@@ -12,12 +12,17 @@ import 'package:flutter3d_showcase/pages/post/bloom.dart';
 import 'package:flutter3d_showcase/pages/post/color_grading.dart';
 import 'package:flutter3d_showcase/pages/post/depth_of_field.dart';
 import 'package:flutter3d_showcase/pages/post/disabled_passes.dart';
+import 'package:flutter3d_showcase/pages/post/horizon_occlusion.dart';
 import 'package:flutter3d_showcase/pages/post/light_shafts.dart';
+import 'package:flutter3d_showcase/pages/post/local_exposure.dart';
 import 'package:flutter3d_showcase/pages/post/lut_grading.dart';
+import 'package:flutter3d_showcase/pages/post/motion_blur.dart';
 import 'package:flutter3d_showcase/pages/post/msaa.dart';
 import 'package:flutter3d_showcase/pages/post/render_post.dart';
 import 'package:flutter3d_showcase/pages/post/screen_space_reflections.dart';
+import 'package:flutter3d_showcase/pages/post/spatial_upscale.dart';
 import 'package:flutter3d_showcase/pages/post/surface_buffer.dart';
+import 'package:flutter3d_showcase/pages/post/temporal_anti_aliasing.dart';
 import 'package:flutter3d_showcase/pages/post/tone_mapping.dart';
 import 'package:flutter3d_showcase/pages/post/viewport_shading.dart';
 import 'package:flutter3d_showcase/pages/post/xray.dart';
@@ -41,4 +46,9 @@ final Map<String, DemoBuilder> postDemos = <String, DemoBuilder>{
   'depth-of-field': DepthOfFieldDemo.new,
   'viewport-shading': ViewportShadingDemo.new,
   'xray': XrayDemo.new,
+  'temporal-anti-aliasing': TemporalAntiAliasingDemo.new,
+  'motion-blur': MotionBlurDemo.new,
+  'spatial-upscale': SpatialUpscaleDemo.new,
+  'horizon-occlusion': HorizonOcclusionDemo.new,
+  'local-exposure': LocalExposureDemo.new,
 };

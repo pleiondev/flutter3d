@@ -72,6 +72,40 @@ const List<Feature> sceneFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'impostors',
+    title: 'Impostors',
+    category: Category.scene,
+    summary:
+        'Draw a far tree as one card that turns to the eye and shows views baked in advance.',
+    since: '0.8.0',
+    evidence: 'Impostors.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['ModelImpostor', 'ImpostorNode'],
+    packages: <String>['flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/impostor_node.dart',
+      'packages/flutter3d_core/lib/src/formats/model_node.dart',
+      'packages/flutter3d/lib/src/engine/assets/model_instance.dart',
+    ],
+  ),
+  Feature(
+    id: 'occlusion-culling',
+    title: 'Occlusion culling',
+    category: Category.scene,
+    summary:
+        'Leave out meshes hidden behind a wall marked as an occluder, before they are drawn.',
+    since: '0.8.0',
+    evidence: 'Occlusion culling.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['OcclusionMode', 'SoftwareOcclusion'],
+    packages: <String>['flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/occlusion/software_occlusion.dart',
+      'packages/flutter3d_core/lib/src/engine/scene/occlusion/occlusion_buffer.dart',
+      'packages/flutter3d_core/lib/src/engine/scene/occlusion/hi_z_occlusion.dart',
+    ],
+  ),
+  Feature(
     id: 'debug-draw',
     title: 'Debug drawing',
     category: Category.scene,
@@ -177,6 +211,23 @@ const List<Feature> sceneFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/splat/splat_ply.dart',
       'packages/flutter3d_core/lib/src/formats/splat/splat_cloud.dart',
+      'packages/flutter3d_core/lib/src/engine/render/splat_contributor.dart',
+    ],
+  ),
+  Feature(
+    id: 'splat-budget',
+    title: 'Splats under a budget',
+    category: Category.scene,
+    summary:
+        'Cut a cloud of Gaussians into a tree and draw only as many splats as a budget allows.',
+    since: '0.8.0',
+    evidence: 'Large captures by budget.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['buildSplatOctree', 'SplatLod'],
+    packages: <String>['flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/splat/splat_octree.dart',
+      'packages/flutter3d_core/lib/src/engine/render/splat_lod.dart',
       'packages/flutter3d_core/lib/src/engine/render/splat_contributor.dart',
     ],
   ),

@@ -18,6 +18,7 @@ import 'package:flutter3d_showcase/pages/physics_particles/particle_lights.dart'
 import 'package:flutter3d_showcase/pages/physics_particles/particle_modifiers.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/particle_pool.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/rigid_bodies.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/six_way_smoke.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/textured_particles.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/xpbd_cloth.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
@@ -29,6 +30,7 @@ final Map<String, DemoBuilder> physicsParticlesDemos = <String, DemoBuilder>{
   'particle-curves': ParticleCurvesDemo.new,
   'particle-lights': ParticleLightsDemo.new,
   'burst-light': BurstLightDemo.new,
+  'six-way-smoke': SixWaySmokeDemo.new,
   'textured-particles': TexturedParticlesDemo.new,
   'flipbook': FlipbookDemo.new,
   'mesh-particles': MeshParticlesDemo.new,

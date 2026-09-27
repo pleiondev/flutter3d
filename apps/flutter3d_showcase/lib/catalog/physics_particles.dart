@@ -114,6 +114,24 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'six-way-smoke',
+    title: 'Smoke lit by the scene',
+    category: Category.physicsParticles,
+    summary:
+        'Puffs of smoke lit from each side by the lights around them, '
+        'through six pictures of one puff.',
+    since: '0.8.0',
+    evidence: 'Lit particle sheets.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['ContributorLights', 'SixWayMaterial'],
+    packages: <String>['flutter3d_particles', 'flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_particles/lib/src/six_way.dart',
+      'packages/flutter3d_particles/lib/src/particle_contributor.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_contributor_lights.dart',
+    ],
+  ),
+  Feature(
     id: 'textured-particles',
     title: 'Textured billboards',
     category: Category.physicsParticles,

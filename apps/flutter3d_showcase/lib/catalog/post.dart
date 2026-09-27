@@ -9,6 +9,9 @@ import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
 const String _settings =
     'packages/flutter3d_core/lib/src/engine/render/render_settings.dart';
+const String _frameNodes =
+    'packages/flutter3d_core/lib/src/engine/render/renderer_frame_nodes.dart';
+const String _coreChangelog = 'packages/flutter3d_core/CHANGELOG.md';
 
 const List<Feature> postFeatures = <Feature>[
   Feature(
@@ -291,5 +294,70 @@ const List<Feature> postFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/renderer_xray_pass.dart',
     ],
+  ),
+  Feature(
+    id: 'temporal-anti-aliasing',
+    title: 'Temporal anti-aliasing',
+    category: Category.post,
+    summary:
+        'Each frame is drawn a fraction of a pixel off and blended with the '
+        'frames before it, so thin edges stop stair-stepping and flickering.',
+    since: '0.8.0',
+    evidence: 'Temporal anti-aliasing.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['temporalsettings', 'temporalclip'],
+    engineFiles: <String>[_settings, _frameNodes],
+  ),
+  Feature(
+    id: 'motion-blur',
+    title: 'Motion blur',
+    category: Category.post,
+    summary:
+        'Whatever moved while the shutter was open is smeared along the way '
+        'it moved, as a camera would show it.',
+    since: '0.8.0',
+    evidence: 'Motion blur.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['motionblursettings'],
+    engineFiles: <String>[_settings, _frameNodes],
+  ),
+  Feature(
+    id: 'spatial-upscale',
+    title: 'Spatial upscaling',
+    category: Category.post,
+    summary:
+        'A frame drawn at a smaller size is brought back up with a filter '
+        'that follows edges, so outlines stay crisp.',
+    since: '0.8.0',
+    evidence: 'Spatial upscaling.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['spatialupscalesettings'],
+    engineFiles: <String>[_settings, _frameNodes],
+  ),
+  Feature(
+    id: 'horizon-occlusion',
+    title: 'Horizon occlusion and bounced light',
+    category: Category.post,
+    summary:
+        'Corners darkened by how much sky each point can see between its '
+        'horizons, and a coloured wall tinting the floor beside it.',
+    since: '0.8.0',
+    evidence: 'Horizon-based occlusion and indirect light.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['ambientocclusionmethod', 'gtao', 'ssil'],
+    engineFiles: <String>[_settings, _frameNodes],
+  ),
+  Feature(
+    id: 'local-exposure',
+    title: 'Local exposure',
+    category: Category.post,
+    summary:
+        'Each part of the picture gets its own exposure, so a dark room and '
+        'the bright window in it can both be seen.',
+    since: '0.8.0',
+    evidence: 'Local exposure.',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['localexposuresettings'],
+    engineFiles: <String>[_settings, _frameNodes],
   ),
 ];

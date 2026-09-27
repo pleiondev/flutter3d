@@ -41,6 +41,38 @@ const List<Feature> environmentFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'clustered-lights',
+    title: 'Clustered lights',
+    category: Category.environment,
+    summary:
+        'The view is cut into small cells that each list the lights reaching '
+        'them, so one floor under sixty-four lamps is lit by all of them.',
+    since: '0.8.0',
+    evidence: 'Clustered lights.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['clusteredLights', 'clustered lights'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/light_clusters.dart',
+    ],
+  ),
+  Feature(
+    id: 'volumetric-fog',
+    title: 'Volumetric fog',
+    category: Category.environment,
+    summary:
+        'Air that the lights shine through, so each lamp glows in the haze '
+        'around it and the air thins out with height.',
+    since: '0.8.0',
+    evidence: 'Volumetric fog.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['VolumetricFogSettings', 'volumetric fog'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_fog_pass.dart',
+    ],
+  ),
+  Feature(
     id: 'image-based-lighting',
     title: 'Image-based lighting',
     category: Category.environment,
@@ -95,6 +127,23 @@ const List<Feature> environmentFeatures = <Feature>[
             'Each pixel reads the eight probes around it, weighed by facing and by a visibility test, and the light is no longer scaled by the ambient strength twice.',
         evidence: 'An `IrradianceField` is read at every pixel.',
       ),
+    ],
+  ),
+  Feature(
+    id: 'irradiance-updates',
+    title: 'The field kept current',
+    category: Category.environment,
+    summary:
+        'The renderer looks at the room again from a few probes each frame, '
+        'so the bounced light follows a wall that changes colour.',
+    since: '0.8.0',
+    evidence: 'The irradiance field can update on the GPU.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['gpuUpdates'],
+    needs: <Need>{Need.cubeTextures},
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/irradiance_field.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_irradiance_pass.dart',
     ],
   ),
   Feature(

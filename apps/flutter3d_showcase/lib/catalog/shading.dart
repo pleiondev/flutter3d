@@ -308,4 +308,120 @@ const List<Feature> shadingFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/material_language/material_glsl.dart',
     ],
   ),
+  Feature(
+    id: 'clear-coat',
+    title: 'Clear coat',
+    category: Category.shading,
+    summary:
+        'A thin clear layer over the paint, with a sharp highlight of its own '
+        'on top of a matte colour, like a car or a varnished table.',
+    since: '0.8.0',
+    evidence: 'Material layers.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['clearcoat', 'clear coat', 'materialextensions'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
+      'packages/flutter3d_core/lib/src/engine/render/material.dart',
+    ],
+  ),
+  Feature(
+    id: 'sheen',
+    title: 'Sheen',
+    category: Category.shading,
+    summary:
+        'The bright rim of velvet and felt, where light grazing the fibres '
+        'comes back towards you.',
+    since: '0.8.0',
+    evidence: 'KHR_materials_ior, specular, clearcoat, sheen',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['sheen'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
+      'packages/flutter3d_core/lib/src/engine/render/material.dart',
+    ],
+  ),
+  Feature(
+    id: 'anisotropic-highlights',
+    title: 'Stretched highlights',
+    category: Category.shading,
+    summary:
+        'A highlight drawn out into a streak, the way brushed steel shines, '
+        'without modelling the grooves.',
+    since: '0.8.0',
+    evidence: 'anisotropy, transmission, volume',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['anisotropystrength', 'pbrlayered'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
+      'packages/flutter3d_core/lib/src/engine/render/material.dart',
+    ],
+  ),
+  Feature(
+    id: 'transmission',
+    title: 'Glass that shows the scene',
+    category: Category.shading,
+    summary:
+        'Glass that bends and blurs what stands behind it, drawn by reading a '
+        'copy of the picture made before the glass.',
+    since: '0.8.0',
+    evidence: 'Glass that sees the scene.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['transmission', 'scenecolourchain'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/renderer_transmission_pass.dart',
+      'packages/flutter3d_core/lib/src/engine/render/scene_colour_chain.dart',
+      'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
+    ],
+  ),
+  Feature(
+    id: 'order-independent-transparency',
+    title: 'Transparency without sorting',
+    category: Category.shading,
+    summary:
+        'See-through panes that cross each other come out the same from any '
+        'side, because nothing has to be drawn back to front.',
+    since: '0.8.0',
+    evidence: 'Order-independent transparency.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>[
+      'order-independent',
+      'weightedblended',
+      'transparencymode',
+    ],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_transparency_pass.dart',
+    ],
+  ),
+  Feature(
+    id: 'texture-transforms',
+    title: 'A texture transform per map',
+    category: Category.shading,
+    summary:
+        'Each texture of a material moved, tiled or turned on its own, so a '
+        'colour map and a glow map no longer have to line up.',
+    since: '0.8.0',
+    evidence: 'A texture transform per map.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['texturetransforms'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/surface_material.dart',
+      'packages/flutter3d_core/lib/src/engine/render/material.dart',
+    ],
+  ),
+  Feature(
+    id: 'rough-surfaces',
+    title: 'Rough metals and rough clay',
+    category: Category.shading,
+    summary:
+        'Rough gold as bright as polished gold, and rough clay that stops '
+        'looking like plastic, from two frame settings.',
+    since: '0.8.0',
+    evidence: 'Energy compensation for rough metals.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['energycompensation', 'diffusemodel', 'oren-nayar'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+    ],
+  ),
 ];

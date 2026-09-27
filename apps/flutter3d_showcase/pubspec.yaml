@@ -1,7 +1,7 @@
 name: flutter3d_showcase
 description: "Every capability of the flutter3d engine on a page of its own, with the version it appeared in and a step-by-step guide."
 publish_to: 'none'
-version: 0.7.0+1
+version: 0.8.1+1
 resolution: workspace
 
 environment:

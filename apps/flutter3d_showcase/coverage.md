@@ -45,6 +45,13 @@ statement (see `test/coverage_test.dart`).
 | ambient-light | Ambient light | `Scene.ambientColor/ambientIntensity` | unknown |
 | fmat-files | `.fmat` material files | `readFmat/writeFmat`, `MaterialDocument` (`formats/fmat/`) | F3D 0.3.0 |
 | material-language | The material expression language | `parseMaterial`, `evaluateMaterial`, `material_glsl` (`formats/material_language/`) | F3D 0.7.0 |
+| clear-coat | Clear coat | `MaterialExtensions` clearcoat on `LightingModel.pbrLayered` | `flutter3d_core` CL 0.8.0 "Material layers." |
+| sheen | Sheen | `MaterialExtensions` sheen | `flutter3d_core` CL 0.8.0 "KHR_materials_ior, specular, clearcoat, sheen" |
+| anisotropic-highlights | Stretched highlights | `MaterialExtensions` anisotropy | `flutter3d_core` CL 0.8.0 "anisotropy, transmission, volume" |
+| transmission | Glass that shows the scene | `MaterialExtensions` transmission, the scene colour copy | `flutter3d_core` CL 0.8.0 "Glass that sees the scene." |
+| order-independent-transparency | Transparency without sorting | `RenderSettings.transparency` | `flutter3d_core` CL 0.8.0 "Order-independent transparency." |
+| texture-transforms | A texture transform per map | `Material.textureTransforms` | `flutter3d_core` CL 0.8.0 "A texture transform per map." |
+| rough-surfaces | Rough metals and rough clay | `RenderSettings.energyCompensation`, `RenderSettings.diffuseModel` | `flutter3d_core` CL 0.8.0 "Energy compensation for rough metals." |
 
 ## Set B: environment and shadows (`lib/pages/environment/`, `lib/pages/shadows/`)
 
@@ -63,6 +70,10 @@ statement (see `test/coverage_test.dart`).
 | contact-shadows | Contact shadows | `ContactShadowSettings` | F3D 0.7.0 |
 | static-shadow-cache | The cached shadow map | `static_bake_key.dart`, `showStaticShadowMap`, `MeshNode.castShadow` | F3D 0.7.0 |
 | masked-shadow-casters | Shadows of cut-out leaves | `shadow_depth_masked.frag` | F3D 0.7.0 |
+| clustered-lights | Clustered lights | `RenderSettings.clusteredLights` | `flutter3d_core` CL 0.8.0 "Clustered lights." |
+| volumetric-fog | Volumetric fog | `RenderSettings.volumetricFog`, `VolumetricFogSettings` | `flutter3d_core` CL 0.8.0 "Volumetric fog." |
+| irradiance-updates | The field kept current | `IrradianceField.gpuUpdates` | `flutter3d_core` CL 0.8.0 "The irradiance field can update on the GPU." |
+| evsm-shadows | EVSM shadows | `ShadowSettings.filter`, `ShadowFilter.evsm` | `flutter3d_core` CL 0.8.0 "EVSM for the sun." |
 
 ## Set C: post-processing (`lib/pages/post/`)
 
@@ -86,6 +97,11 @@ statement (see `test/coverage_test.dart`).
 | xray | X-ray silhouettes | `XraySettings`, `renderer_xray_pass.dart` (needs stencil) | F3D 0.4.3 |
 | disabled-passes | Switching passes off | `RenderSettings.disabledPasses`, `passOrder` | F3D 0.7.0 |
 | render-post | Post effects on your own image | `Renderer.renderPost` | F3D 0.7.0 |
+| temporal-anti-aliasing | Temporal anti-aliasing | `AntiAliasSettings.temporal`, `TemporalSettings.clip` | `flutter3d_core` CL 0.8.0 "Temporal anti-aliasing." |
+| motion-blur | Motion blur | `RenderSettings.motionBlur`, `MotionBlurSettings` | `flutter3d_core` CL 0.8.0 "Motion blur." |
+| spatial-upscale | Spatial upscaling | `RenderSettings.spatialUpscale` | `flutter3d_core` CL 0.8.0 "Spatial upscaling." |
+| horizon-occlusion | Horizon occlusion and bounced light | `AmbientOcclusionSettings.method` (`gtao`, `ssil`) | `flutter3d_core` CL 0.8.0 "Horizon-based occlusion and indirect light." |
+| local-exposure | Local exposure | `RenderSettings.localExposure`, `LocalExposureSettings` | `flutter3d_core` CL 0.8.0 "Local exposure." |
 
 ## Set D: scene and geometry (`lib/pages/scene/`)
 
@@ -112,6 +128,9 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | frame-stats | What a frame reports | `FrameResult` counts, `FramePass` timings | F3D 0.7.0 |
 | frame-graph | The frame graph | `Renderer.planFrame`, `FrameResult.skipped`, `passOrder` | F3D 0.1.0; planFrame F3D 0.7.0 |
 | frame-capture | Capturing a frame | `Renderer.captureNextFrame`, `FrameCapture` | F3D 0.7.0 |
+| impostors | Impostors | `ModelLod.impostor`, `ModelImpostor`, `ImpostorNode` | `flutter3d_core` CL 0.8.0 "Impostors." |
+| occlusion-culling | Occlusion culling | `RenderSettings.occlusion`, `OcclusionMode`, `SoftwareOcclusion` | `flutter3d_core` CL 0.8.0 "Occlusion culling." |
+| splat-budget | Splats under a budget | `buildSplatOctree`, `SplatLod`, `SplatContributor.lod` | `flutter3d_core` CL 0.8.0 "Large captures by budget." |
 
 ## Set E: animation (`lib/pages/animation/`)
 
@@ -195,6 +214,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | rigid-bodies | Rigid bodies | `RigidBody`, `Dynamics`, snapshot (fold) | unknown |
 | heightfield-collision | Walking on terrain | `CollisionHeightfield` | 0.5.1 |
 | xpbd-cloth | Cloth | `ClothMesh.grid`, `stepCloth`, `ClothObstacle`, `WindSettings` | 0.7.0 |
+| six-way-smoke | Smoke lit by the scene | `SixWayMaterial`, `ContributorLights` | `flutter3d_core` CL 0.8.0 "Lit particle sheets." |
 
 ## Set I: simulation, audio, XR, widgets and the rest (`lib/pages/sim_audio_xr/`, `lib/pages/widgets_misc/`)
 
