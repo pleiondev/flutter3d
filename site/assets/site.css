@@ -264,6 +264,17 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 }
 .page tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface) 45%, transparent); }
 
+/* A yes or a no in a comparison table: a dot for the eye, a word for a
+   screen reader. The word is in the markup, so the table still reads when
+   the stylesheet does not load. */
+.page td.dot { text-align: center; white-space: nowrap; }
+.dot .yes, .dot .no {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  overflow: hidden; text-indent: 100%; white-space: nowrap; vertical-align: middle;
+}
+.dot .yes { background: var(--green); }
+.dot .no { background: var(--rose); }
+
 /* --- screenshots --------------------------------------------------------- */
 .page img {
   display: block; max-width: 100%; height: auto;

@@ -6,16 +6,13 @@ description: A factual comparison with Flutter Scene, the other 3D engine on Flu
 
 [Flutter Scene](https://fscene.dev) is the other engine built on Flutter GPU. It is maintained by the author of Flutter GPU itself, a former core Flutter engine team member who spent four years on Flutter, most of it building Impeller. That gives it a relationship with the underlying API that no third-party package can have: Scene's render tests catch Flutter GPU regressions before they ship, because the person writing the engine and the person writing the graphics API are the same person. flutter3d uses `flutter_gpu` the way any other package does, through the public surface.
 
-The two projects are not after the same thing. Scene is trying to be a complete, production-grade 3D engine and toolkit for anyone building on Flutter. flutter3d answers a narrower question: whether a HAL, a scene graph and a game layer of this shape can be built by someone with no inside access to Impeller, tested against three complete games of different genres that needed no engine-level code changes between them. The stars, likes and downloads below were pulled from pub.dev and the GitHub API on 2026-09-27, after flutter3d 0.8.1 went out. The flutter3d half of the feature lists was read against the source tree of 0.8.1 the same day. The Scene half describes its README, which was last changed on 2026-09-03 and was read again on 2026-09-27.
+The two projects are not after the same thing. Scene is trying to be a complete, production-grade 3D engine and toolkit for anyone building on Flutter. flutter3d answers a narrower question: whether a HAL, a scene graph and a game layer of this shape can be built by someone with no inside access to Impeller, tested against three complete games of different genres that needed no engine-level code changes between them. The flutter3d half of this page was read against the source tree of 0.8.1 on 2026-09-27. The Scene half describes its README, which was last changed on 2026-09-03 and was read again the same day.
 
 ## Quick facts
 
 | | flutter3d | Flutter Scene |
 |---|---|---|
 | First commit | 2026-08-08 | 2024-02-01 |
-| GitHub stars | 27 | 796 |
-| pub.dev likes | 8 | 340 |
-| pub.dev downloads, last 30 days | 830 | 13.8k |
 | Core package version | 0.8.1 | 0.23.0 |
 | Maintainer | An independent developer, unaffiliated with the Flutter team | The author of Flutter GPU, formerly on the core Flutter engine team |
 | Licence | MIT | MIT |
@@ -25,6 +22,63 @@ The two projects are not after the same thing. Scene is trying to be a complete,
 | CPU / GPU-less test backend | Yes: `flutter3d_cpu`, a software rasteriser used in CI | No: CI renders through Impeller on macOS runners |
 | Multiplayer | Rollback netcode for two peers (`flutter3d_net`, WebSocket or WebRTC transport), on pub.dev | [`flutter_scene_net`](https://pub.dev/packages/flutter_scene_net), over `dashwire` |
 | Editor with an MCP server | Yes: `flutter3d_editor_mcp`, published to pub.dev with the rest of the set | Yes: the Flutter Scene Editor stack, shipped as a desktop app, not on pub.dev, and explicitly "in active development" |
+
+## Feature by feature
+
+A green dot is a capability the engine has; a red one is a capability it does not. For flutter3d that is read from its source. For Flutter Scene it is read from its README: a red dot there means the README does not name it, which is not proof that Scene lacks it. Each row is one capability, so where both engines have something in different depths (physics, global illumination, the editor) the sections below say how they differ.
+
+<table class="compare">
+<thead><tr><th>Capability</th><th>flutter3d</th><th>Flutter Scene</th></tr></thead>
+<tbody>
+<tr class="group"><th colspan="3">Rendering</th></tr>
+<tr><td>Physically based materials with clearcoat, sheen, anisotropy and transmission</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Rectangle area lights</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Clustered lights, so a scene can hold many</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Cascaded sun shadows with soft penumbrae and contact shadows</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Exponential variance shadow maps (EVSM) for the sun</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Irradiance probe field with a visibility test per probe</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Horizon-based ambient occlusion and screen-space bounced light</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Screen-space reflections, depth of field, bloom, automatic exposure</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Volumetric fog</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Order-independent transparency</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Motion blur</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Local exposure and HDR output</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Temporal anti-aliasing and FXAA</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>SMAA</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Lens flares and radial lens distortion</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Projected decals</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Gaussian splats</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Octahedral impostors for distant models</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Occlusion culling</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr class="group"><th colspan="3">Assets and animation</th></tr>
+<tr><td>Skinning, morph targets and blended animation</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>glTF material variants</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>glTF animation pointers (a clip moves a material or a light)</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Retargeting a clip onto another skeleton</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Models converted at build time by a build hook</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Hot reload for models, shaders and textures</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr class="group"><th colspan="3">Backends</th></tr>
+<tr><td>Impeller through Flutter GPU</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>WebGL2 in the browser</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>WebGPU in the browser</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>A software rasteriser in Dart, so rendering tests run without a GPU</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr class="group"><th colspan="3">Games</th></tr>
+<tr><td>Physics in pure Dart, with no native binaries</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Native physics through Rapier or box3d</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Rigid bodies that rotate</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Cloth</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Particles</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Audio through SoLoud</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Multiplayer</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>Rollback netcode</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>Genre packages: shooter, platformer, racing, strategy</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr><td>A bridge to the Flame 2D engine</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="no">no</span></td></tr>
+<tr class="group"><th colspan="3">Tools and app integration</th></tr>
+<tr><td>A scene editor with an MCP server for coding agents</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>A declarative widget API for the scene</td><td class="dot"><span class="no">no</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+<tr><td>The scene described to a screen reader</td><td class="dot"><span class="yes">yes</span></td><td class="dot"><span class="yes">yes</span></td></tr>
+</tbody>
+</table>
 
 ## What Scene has that flutter3d doesn't
 
@@ -36,7 +90,7 @@ Reading its README against flutter3d's own feature table:
 - **A declarative widget API** (`SceneNode`, `SceneMesh`, `SceneModel`) alongside the imperative scene graph. flutter3d's scene graph is imperative only. Both describe the scene to a screen reader through Flutter semantics.
 - **Hot reload for assets.** Scene reloads models, shaders, textures, environments and scene documents while the app runs. Both convert models at build time through a build hook (`flutter3d_build` here), but flutter3d picks up a changed asset only on the next build.
 - **Two shipped games in the wild**, [Dashsurfers](https://github.com/bdero/dashsurfers) and [Dashmap](https://github.com/bdero/dashmap), plus 43 runnable feature examples in the example app.
-- **Two and a half years of runtime** against flutter3d's seven weeks, and an order of magnitude more stars, likes and downloads by every public number above.
+- **Two and a half years of runtime** against flutter3d's seven weeks.
 
 Global illumination was on this list until 0.8. Both engines now read a world-space irradiance probe field with a visibility test per probe and add horizon-based ambient occlusion and screen-space indirect light. Scene bakes its field offline or progressively; flutter3d traces it with the CPU raycaster and can update it on the GPU. Temporal anti-aliasing moved off the list the same way.
 
