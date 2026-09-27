@@ -431,6 +431,7 @@ gtag('config', 'G-6F6VZ4H7CF');
   <button class="rail-toggle" aria-expanded="false" aria-controls="rail">Menu</button>
   <div class="topbar-meta">
     <a class="chip chip-link" href="/showcase/">Showcase</a>
+    <a class="chip chip-link" href="/changelog/">Changelog</a>
     <a class="chip chip-link" href="/reference/packages/">${packageCount} packages</a>
     <a class="chip chip-link" href="/docs/">API reference</a>
     ${iconLinks()}
