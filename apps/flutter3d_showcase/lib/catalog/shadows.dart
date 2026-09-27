@@ -21,6 +21,13 @@ const List<Feature> shadowsFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/shadow_settings.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note: 'A double-sided material casts its shadow from every face.',
+        evidence: 'A double-sided material casts its shadow from both sides.',
+      ),
+    ],
   ),
   Feature(
     id: 'cascaded-shadows',
@@ -34,6 +41,14 @@ const List<Feature> shadowsFeatures = <Feature>[
     keywords: <String>['cascade', 'shadow map', 'sun shadow'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/shadow_settings.dart',
+    ],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'A long shadow no longer ends in a straight line at the far plane, and the normal offset grows with the cascade\'s texel.',
+        evidence: 'A long shadow no longer ends in a straight line.',
+      ),
     ],
   ),
   Feature(
@@ -81,6 +96,14 @@ const List<Feature> shadowsFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'The march is jittered, and it follows the sun even when the sun casts no shadow map.',
+        evidence: 'Contact shadows march without a shadow map.',
+      ),
+    ],
   ),
   Feature(
     id: 'static-shadow-cache',
@@ -97,6 +120,14 @@ const List<Feature> shadowsFeatures = <Feature>[
     needs: <Need>{Need.cubeTextures},
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/static_bake_key.dart',
+    ],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'Hiding a static caster drops it from the bake, and a swapped mesh or a morph redraws its shadow.',
+        evidence: 'Shadow caches notice what they missed.',
+      ),
     ],
   ),
   Feature(

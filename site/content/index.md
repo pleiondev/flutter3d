@@ -8,7 +8,7 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and three sh
 
 flutter3d is a renderer, a game layer, and three finished games of different genres. The second and third were built without changing a line in the first one's engine packages.
 
-**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/). **Or try every capability, one page each, with live controls:** [the showcase](/showcase/).
+**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/). **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
 
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>

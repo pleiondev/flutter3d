@@ -236,6 +236,14 @@ const List<Feature> shadingFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
       'packages/flutter3d_core/lib/src/engine/scene/light_buffer.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'The sun\'s shadow survives on a node lit through a channel of its own.',
+        evidence: 'The sun\'s shadow survives a light list gathered per draw.',
+      ),
+    ],
   ),
   Feature(
     id: 'many-lights',

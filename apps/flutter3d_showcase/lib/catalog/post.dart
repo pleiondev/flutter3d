@@ -22,6 +22,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'an HDR pipeline with tone mapping and bloom',
     keywords: <String>['bloom'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'Halation warms each level once, and a new scatter setting weighs the wide levels against the core.',
+        evidence: 'Bloom\'s halation warms each level once.',
+      ),
+    ],
   ),
   Feature(
     id: 'tone-mapping',
@@ -34,6 +42,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: '`TonemapCurve` with five curves',
     keywords: <String>['tonemapcurve'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'AgX is the whole Minimal AgX and comes out linear; its sigmoid used to be encoded to sRGB twice.',
+        evidence: 'AgX is AgX, and it is linear.',
+      ),
+    ],
   ),
   Feature(
     id: 'color-grading',
@@ -47,6 +63,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'colour grading, vignette, grain and chromatic aberration',
     keywords: <String>['vignette', 'chromatic aberration'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'Contrast pivots on mid grey, lift keeps white white, and a centred dither is on by default.',
+        evidence: 'Contrast pivots on linear light\'s mid grey',
+      ),
+    ],
   ),
   Feature(
     id: 'lut-grading',
@@ -59,6 +83,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'LookSettings.lut',
     keywords: <String>['looksettings.lut'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'The table is indexed and answered in sRGB, the space a .cube file is written in.',
+        evidence: 'A LUT is indexed and answered in sRGB',
+      ),
+    ],
   ),
   Feature(
     id: 'render-post',
@@ -111,6 +143,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'screen-space reflections',
     keywords: <String>['reflectionsettings'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'The march starts at a jittered point and refines its hit, so the smeared ghosts are gone.',
+        evidence: 'Screen-space reflections lose their ghosts.',
+      ),
+    ],
   ),
   Feature(
     id: 'ambient-occlusion',
@@ -123,6 +163,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'ambient occlusion',
     keywords: <String>['ambientocclusionsettings'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'The blur weighs depth relative to the centre, so a distant floor blurs like a near one.',
+        evidence: 'is a fraction of depth now',
+      ),
+    ],
   ),
   Feature(
     id: 'msaa',
@@ -150,6 +198,15 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'LightShaftSettings',
     keywords: <String>['lightshaftsettings'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'Shafts scatter the sun\'s own light through the air, with a density and a forward glow, instead of veiling the frame.',
+        evidence:
+            'Light shafts scatter the sun\'s light instead of veiling the frame.',
+      ),
+    ],
   ),
   Feature(
     id: 'anti-aliasing',
@@ -174,6 +231,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'DepthOfFieldSettings',
     keywords: <String>['depthoffieldsettings'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.7.4',
+        note:
+            'A sharp object no longer bleeds into the blur behind it, and the sky blurs as the far field does.',
+        evidence: 'Depth of field reads depth nearest.',
+      ),
+    ],
   ),
   Feature(
     id: 'viewport-shading',

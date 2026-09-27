@@ -13,7 +13,7 @@ import anchor from 'markdown-it-anchor';
 import attrs from 'markdown-it-attrs';
 import hljs from 'highlight.js';
 
-import { buildShowcasePages, indexMarkdown, readBundle } from './showcase.mjs';
+import { buildShowcasePages, changelogMarkdown, indexMarkdown, readBundle } from './showcase.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -220,6 +220,7 @@ const NAV = [
     badge: 'engine',
     pages: [
       { file: 'showcase/index.md', url: '/showcase/learn/', title: 'Guides by capability', kind: 'guide' },
+      { file: 'changelog.md', url: '/changelog/', title: 'What changed, by release' },
     ],
   },
   {
@@ -486,7 +487,9 @@ const catalog = [];
 flat.forEach((page, index) => {
   const source = readFileSync(sourceOf(page), 'utf8');
   const { data, body: written } = frontMatter(source);
-  const body = written.replace('{{showcase-index}}', () => indexMarkdown(showcaseBundle));
+  const body = written
+    .replace('{{showcase-index}}', () => indexMarkdown(showcaseBundle))
+    .replace('{{changelog}}', () => changelogMarkdown(showcaseBundle));
   catalog.push({
     url: page.url,
     title: page.title,
