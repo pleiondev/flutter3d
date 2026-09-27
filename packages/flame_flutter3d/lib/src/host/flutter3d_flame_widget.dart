@@ -131,13 +131,15 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
     }
   }
 
-  /// **Deferred to the next frame's start, not called from here directly.**
-  /// [BridgeClock.update] fires from inside `GameWidget`'s own `build` — a
-  /// `LayoutBuilder` callback — so a `setState` made right here throws
-  /// "called during build". A post-frame callback runs once this frame has
-  /// finished laying out and painting, which is the earliest a rebuild is
-  /// legal; [SceneSurface] then renders one frame behind Flame's own update,
-  /// the ordinary cost of two widgets sharing one clock instead of two.
+  /// **Deferred to a post-frame callback, and still in step.** A `setState`
+  /// made while a build or a layout is under way throws "called during
+  /// build", so the rebuild is asked for once this frame is done. That does
+  /// not put the 3D layer a frame behind, though this comment used to say it
+  /// did. The callback only marks this state dirty; the next frame runs its
+  /// transient callbacks first, and Flame's game loop is a `Ticker` among
+  /// them, so [BridgeClock.update] has already moved the game to that frame
+  /// when the build reaches [SceneSurface], which renders from its own
+  /// `LayoutBuilder`. Both layers paint the same update.
   void _onFlameTick(double dt) {
     widget.onTick?.call(dt);
     if (!mounted) return;
