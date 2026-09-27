@@ -88,6 +88,14 @@ const List<Feature> environmentFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/scene/irradiance_field.dart',
       'packages/flutter3d_core/lib/src/engine/scene/irradiance_gather.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.8.0',
+        note:
+            'Each pixel reads the eight probes around it, weighed by facing and by a visibility test, and the light is no longer scaled by the ambient strength twice.',
+        evidence: 'An `IrradianceField` is read at every pixel.',
+      ),
+    ],
   ),
   Feature(
     id: 'lightmaps',

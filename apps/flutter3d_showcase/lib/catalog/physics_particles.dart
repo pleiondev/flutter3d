@@ -293,6 +293,19 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
         evidence: 'Cloth meets a sphere and a capsule as themselves.',
         evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
       ),
+      Change(
+        version: '0.8.1',
+        note:
+            'A sheet resists shear, so a quad no longer folds flat into a rhombus, and one part of it no longer passes through another.',
+        evidence: 'A sheet no longer passes through itself.',
+        evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
+      ),
+      Change(
+        version: '0.8.1',
+        note:
+            'The sun no longer shines through the upper layer of a fold as a bright streak.',
+        evidence: 'A fold no longer lets the sun through its upper layer.',
+      ),
     ],
   ),
 ];

@@ -49,6 +49,12 @@ const List<Feature> shadowsFeatures = <Feature>[
             'A long shadow no longer ends in a straight line at the far plane, and the normal offset grows with the cascade\'s texel.',
         evidence: 'A long shadow no longer ends in a straight line.',
       ),
+      Change(
+        version: '0.8.0',
+        note:
+            'A near cascade reaches back to a tall caster standing outside it, and shadows stop bleeding across the atlas tiles.',
+        evidence: 'Shadows reach further and stop bleeding across tiles.',
+      ),
     ],
   ),
   Feature(
@@ -82,6 +88,14 @@ const List<Feature> shadowsFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/shadow_settings.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.8.0',
+        note:
+            'The sun\'s radius is its apparent size in radians, and the penumbra is worked out in metres from the gap between blocker and receiver.',
+        evidence: '`ShadowSettings.directionalLightRadius` is in radians.',
+      ),
+    ],
   ),
   Feature(
     id: 'contact-shadows',
@@ -102,6 +116,13 @@ const List<Feature> shadowsFeatures = <Feature>[
         note:
             'The march is jittered, and it follows the sun even when the sun casts no shadow map.',
         evidence: 'Contact shadows march without a shadow map.',
+      ),
+      Change(
+        version: '0.8.1',
+        note:
+            'Without a temporal resolve the edge no longer carries a comb: a resolve pass averages the march\'s fixed pattern.',
+        evidence:
+            'Contact shadows lose their comb when no temporal resolve runs.',
       ),
     ],
   ),
