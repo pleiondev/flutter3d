@@ -2,10 +2,13 @@
 /// wire its five bridges to real `flutter3d_sim`/`flutter3d_physics` objects.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
@@ -13,8 +16,10 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-import 'patrol_brain.dart';
+import 'drone_brain.dart';
 
+part 'crafts.dart';
+part 'levels.dart';
 part 'staging.dart';
 
 /// Half the yard's width and depth, and how the boundary wall colliders and
@@ -26,6 +31,10 @@ const double arenaHalfDepth = 9.0;
 /// How high above the ground the camera sits — its own [BridgePlane], distinct
 /// from the ground plane every prop and body sits on. See [ArcadeGame.cameraPlane].
 const double cameraHeight = 20.0;
+
+/// How many metres of the yard the orthographic camera shows top to bottom:
+/// the whole of its 18-metre depth and a margin.
+const double viewHeight = 22.0;
 
 /// A ship over a floating meteor yard, and the drones patrolling it.
 ///
@@ -79,8 +88,28 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// Metres per second the ship flies at full stick deflection.
   static const double shipSpeed = 5.5;
 
-  /// Hits the ship can take before the run ends.
-  static const int maxHits = 3;
+  /// Where the ship starts every level: the bottom of the yard, flying up.
+  /// A fresh vector every read, so nobody moving a copy moves the start.
+  static Vector3 get shipStart => Vector3(0.0, 1.2, arenaHalfDepth - 2.0);
+
+  /// Seconds between clearing a level and the next one starting.
+  static const double levelPause = 2.0;
+
+  /// A contact is a ram when the ship is flying at least this fast...
+  static const double ramSpeed = 1.0;
+
+  /// ...and the drone lies within 60 degrees of where it is flying.
+  static const double ramCosine = 0.5;
+
+  /// Whether a contact with a drone at [toDrone] from the ship, while the
+  /// ship flies along [heading], is the ship ramming it rather than the
+  /// drone running into the ship.
+  static bool isRam(Vector3 heading, Vector3 toDrone) {
+    final flat = Vector3(toDrone.x, 0.0, toDrone.z);
+    return heading.length >= ramSpeed &&
+        flat.length2 > 1e-9 &&
+        heading.normalized().dot(flat.normalized()) >= ramCosine;
+  }
 
   /// The 2D↔3D axis mapping every ground-level body shares.
   static final BridgePlane groundPlane = BridgePlane.ground();
@@ -110,6 +139,18 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   late final ShipComponent ship;
   late final RigidBody _shipBody;
 
+  /// A trigger a little larger than the ship, kept on it every step, that
+  /// the collision bridge listens on instead of the ship's own collider.
+  ///
+  /// **The ship's own collider never reports a drone.** Both are solid: the
+  /// ship's [Dynamics] pass stops it at a drone's surface, and a drone's
+  /// [CharacterController] sweep stops the drone at the ship's, never
+  /// inside. The world reports overlaps, and two solids that only ever
+  /// touch never overlap, so a hunter could chase the ship down and sit on
+  /// it without a hit. A trigger is not solid, so neither solver stops at
+  /// it, and a drone within a few centimetres of the hull overlaps it.
+  late final Collider shipSensor;
+
   /// Every collider this game knows a Flame component for, so
   /// [CollisionBridge.resolveOther] can answer "who is the other side" for a
   /// contact — a wall has no entry and is silently not reported, exactly as
@@ -118,32 +159,130 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   final Map<Collider, PositionComponent> _colliderComponents =
       <Collider, PositionComponent>{};
 
-  /// The drones still in play. Shrinks as the ship clears them.
+  /// The drones still in play. Shrinks as the ship rams them.
   final List<ActorComponent> drones = <ActorComponent>[];
 
+  /// Seconds flown, over every level of the run.
   double elapsed = 0.0;
+
+  /// Hits the ship has taken on this level.
   int hits = 0;
 
+  /// Drones the ship has rammed, over the whole run.
+  int rammed = 0;
+
+  /// Which of [arcadeLevels] is being played.
+  int levelIndex = 0;
+
+  ArcadeLevel get level => arcadeLevels[levelIndex];
+  int get maxHits => level.maxHits;
+
+  /// Where the ship is flying this step, on the ground plane. Its length is
+  /// the ship's speed. What a ram is judged by, and what a dodging drone
+  /// watches.
+  final Vector3 shipHeading = Vector3.zero();
+
+  /// Whether [ArcadeGameStaging.spawnWorld] has run. Before it the drone
+  /// list is empty because nothing is in the yard yet, not because the ship
+  /// cleared it.
+  bool spawned = false;
+
   bool get gameOver => hits >= maxHits;
-  bool get cleared => drones.isEmpty && !gameOver;
+
+  /// This level's drones are all down and the ship survived it.
+  bool get levelCleared => spawned && drones.isEmpty && !gameOver;
+
+  /// The last level is cleared: the run is won.
+  bool get cleared => levelCleared && levelIndex == arcadeLevels.length - 1;
 
   bool _stoppedStepping = false;
+  bool _retryRequested = false;
+  double _nextLevelIn = levelPause;
 
   /// Set by [ArcadeGameStaging.spawnWorld], in `staging.dart` — this class's
   /// one place that assembles a run.
   late final Component _actorStepper;
   late final Component _physicsStepper;
 
-  /// Drones the ship has hit this step, waiting for [_drainHits] to remove
-  /// them — see that method's own doc comment for why this cannot happen
-  /// right here.
+  /// What a level's drones are uploaded to and added to, kept from
+  /// [ArcadeGameStaging.spawnWorld] for every level after the first.
+  late final GraphicsDevice _device;
+  late final Scene _scene;
+
+  /// The craft models by role, once [ArcadeGameCrafts.dressWithCrafts] has
+  /// loaded them; a role missing here draws its primitive.
+  final Map<CraftRole, ModelAsset> _crafts = <CraftRole, ModelAsset>{};
+
+  /// Each drone's holder node and the part it plays, so a model that loads
+  /// after the drone was made can still find it.
+  final Map<SceneNode, CraftRole> _holderRoles = <SceneNode, CraftRole>{};
+
+  /// Each dressed holder's pivot, the node turned to face the course.
+  final Map<SceneNode, SceneNode> _pivots = <SceneNode, SceneNode>{};
+
+  /// Drones the ship has rammed this step, waiting for [_drainHits] to
+  /// remove them — see that method's own doc comment for why this cannot
+  /// happen right here.
   final List<ActorComponent> _pendingRemovals = <ActorComponent>[];
 
+  /// A contact between the ship and [drone], relayed from the physics world.
+  ///
+  /// **A ram downs the drone; anything else hits the ship.** The ship has to
+  /// be flying at the drone, by [isRam], for the drone to go. A drone that
+  /// runs into a ship standing still, or flying past it, strikes the ship
+  /// and keeps going. The ship blinks after a hit and cannot be hit again
+  /// while it does, or one drone brushing past would take several hits in
+  /// a row.
   void _onShipHitDrone(ActorComponent drone) {
-    if (!drones.remove(drone)) return; // already handled this contact
+    if (gameOver || !drones.contains(drone)) return;
+    final body = drone.actor.body;
+    if (body == null) return;
+    if (isRam(shipHeading, body.position - shipSensor.position)) {
+      drones.remove(drone);
+      rammed++;
+      _pendingRemovals.add(drone);
+      return;
+    }
+    if (ship.isFlashing) return;
     hits++;
     ship.flash();
-    _pendingRemovals.add(drone);
+  }
+
+  /// Asks for the level just lost to be played again, from the next frame.
+  void retry() => _retryRequested = true;
+
+  /// Clears the yard of drones and starts [index] of [arcadeLevels]: the
+  /// ship back at [shipStart], no hits, this level's drones in their lanes.
+  ///
+  /// Called from [update], between two frames, for the reason
+  /// [_drainHits] gives.
+  void startLevel(int index) {
+    for (final drone in <ActorComponent>[...drones, ..._pendingRemovals]) {
+      _removeDrone(drone);
+    }
+    drones.clear();
+    _pendingRemovals.clear();
+    levelIndex = index;
+    hits = 0;
+    _nextLevelIn = levelPause;
+    _shipBody.position.setFrom(shipStart);
+    _shipBody.velocity.setZero();
+    shipHeading.setZero();
+    if (_stoppedStepping) {
+      _stoppedStepping = false;
+      add(_actorStepper);
+      add(_physicsStepper);
+    }
+    _spawnDrones(_device, _scene);
+  }
+
+  void _removeDrone(ActorComponent drone) {
+    final body = drone.actor.body;
+    if (body != null) _colliderComponents.remove(body.collider);
+    _holderRoles.remove(drone.node);
+    _pivots.remove(drone.node);
+    actorSystem.remove(drone.actor);
+    drone.removeFromParent();
   }
 
   /// Actually removes every drone [_onShipHitDrone] queued last step, and
@@ -164,13 +303,9 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// frame's own pass begins, means every removal in this method runs
   /// between two frames rather than inside one.
   void _drainHits() {
-    for (final drone in _pendingRemovals) {
-      final body = drone.actor.body;
-      if (body != null) _colliderComponents.remove(body.collider);
-      actorSystem.remove(drone.actor);
-      drone.removeFromParent();
-    }
-    _pendingRemovals.clear();
+    _pendingRemovals
+      ..forEach(_removeDrone)
+      ..clear();
 
     if (gameOver && !_stoppedStepping) {
       _stoppedStepping = true;
@@ -182,15 +317,29 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   @override
   void update(double dt) {
     _drainHits();
-    if (!gameOver) {
+    if (_retryRequested) {
+      _retryRequested = false;
+      if (gameOver) startLevel(levelIndex);
+    }
+    if (levelCleared && !cleared) {
+      _nextLevelIn -= dt;
+      if (_nextLevelIn <= 0.0) startLevel(levelIndex + 1);
+    }
+    if (!gameOver && !levelCleared) {
       final axis = inputState.moveAxis;
       if (axis.x != 0.0 || axis.y != 0.0) _shipBody.wake();
-      _shipBody.velocity.setValues(axis.x * shipSpeed, 0.0, axis.y * shipSpeed);
+      // Forward is up the screen, and the camera looks down with its top
+      // towards -Z, so forward is -Z: `axis.y * shipSpeed` along +Z flew
+      // the ship down the screen on W.
+      shipHeading.setValues(axis.x * shipSpeed, 0.0, -axis.y * shipSpeed);
+      _shipBody.velocity.setFrom(shipHeading);
       elapsed += dt;
     } else {
+      shipHeading.setZero();
       _shipBody.velocity.setZero();
     }
     super.update(dt);
+    _turnCrafts();
   }
 
   @override
@@ -198,6 +347,13 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
+    if (event is KeyDownEvent &&
+        gameOver &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.space)) {
+      retry();
+      return KeyEventResult.handled;
+    }
     final propagate = inputBridge.onKeyEvent(event, keysPressed);
     return propagate ? KeyEventResult.ignored : KeyEventResult.handled;
   }
@@ -220,6 +376,9 @@ final class ShipComponent extends RigidBodyComponent {
   double _flashRemaining = 0.0;
 
   void flash() => _flashRemaining = _flashDuration;
+
+  /// Still blinking from the last hit, and so not to be hit again yet.
+  bool get isFlashing => _flashRemaining > 0.0;
 
   @override
   void update(double dt) {
@@ -244,15 +403,24 @@ final class ShipComponent extends RigidBodyComponent {
 /// step once, which is this game's responsibility rather than the
 /// package's.
 final class _PhysicsStepComponent extends Component {
-  _PhysicsStepComponent({required this.dynamics, required this.world});
+  _PhysicsStepComponent({
+    required this.dynamics,
+    required this.world,
+    required this.afterStep,
+  });
 
   final Dynamics dynamics;
   final CollisionWorld world;
+
+  /// Runs between the solver and the overlap dispatch: whatever follows a
+  /// body the solver just moved, [ArcadeGame.shipSensor] here.
+  final void Function() afterStep;
 
   @override
   void update(double dt) {
     super.update(dt);
     dynamics.step(dt);
+    afterStep();
     world.update();
   }
 }

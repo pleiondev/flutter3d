@@ -17,6 +17,8 @@ extension ArcadeGameStaging on ArcadeGame {
   /// bridges into [scene] and into this game's own component tree. Called
   /// exactly once, from `buildScene`.
   void spawnWorld(GraphicsDevice device, Scene scene) {
+    _device = device;
+    _scene = scene;
     scene
       ..add(_groundMesh(device))
       ..add(
@@ -71,11 +73,15 @@ extension ArcadeGameStaging on ArcadeGame {
     final physicsStepper = _PhysicsStepComponent(
       dynamics: dynamics,
       world: collisionWorld,
+      afterStep: () => shipSensor
+        ..position.setFrom(_shipBody.position)
+        ..refreshBounds(),
     )..priority = -110;
     add(actorStepper);
     add(physicsStepper);
     _actorStepper = actorStepper;
     _physicsStepper = physicsStepper;
+    spawned = true;
   }
 
   MeshNode _groundMesh(GraphicsDevice device) => MeshNode(
@@ -150,7 +156,7 @@ extension ArcadeGameStaging on ArcadeGame {
       RigidBody(
         world: collisionWorld,
         shape: CollisionBox(Vector3(0.45, 0.35, 0.45)),
-        position: Vector3(0.0, 1.2, -arenaHalfDepth + 2.5),
+        position: ArcadeGame.shipStart.clone(),
         mass: 1.0,
       ),
     );
@@ -166,19 +172,33 @@ extension ArcadeGameStaging on ArcadeGame {
         baseColor: Vector4(0.3, 0.78, 0.95, 1.0),
         roughness: 0.3,
       ),
-      name: 'ship',
+      name: 'ship primitive',
     );
+    // Bridged through a holder, drawn by its child: see [ArcadeGameCrafts]
+    // for why a model arriving later swaps the child and not the holder.
+    final holder = SceneNode(name: 'ship')..add(mesh);
 
     ship = ShipComponent(
       body: _shipBody,
-      node: mesh,
+      node: holder,
       scene: scene,
       plane: ArcadeGame.groundPlane,
     )..priority = -50;
     _colliderComponents[_shipBody.collider] = ship;
 
+    // The bridge listens on the sensor, not the hull: see [shipSensor] for
+    // why the hull never reports a drone. The sensor also overlaps the hull
+    // itself, which resolves to the ship and is not a drone, so nothing
+    // comes of it.
+    shipSensor = collisionWorld.add(
+      Collider(
+        shape: CollisionBox(Vector3(0.6, 0.5, 0.6)),
+        position: ArcadeGame.shipStart.clone(),
+        kind: ColliderKind.trigger,
+      ),
+    );
     CollisionBridge(
-      collider: _shipBody.collider,
+      collider: shipSensor,
       component: ship,
       resolveOther: (Collider other) => _colliderComponents[other],
     );
@@ -190,46 +210,81 @@ extension ArcadeGameStaging on ArcadeGame {
     add(ship);
   }
 
-  /// Three drones patrolling three lanes of the yard — see this class's own
-  /// doc comment for why each is an [ActorComponent] rather than a
+  /// The current [level]'s drones, one to a lane — see this class's own doc
+  /// comment for why each is an [ActorComponent] rather than a
   /// [RigidBodyComponent].
+  ///
+  /// The lanes run across the yard, spread evenly from its top to a few
+  /// metres short of [ArcadeGame.shipStart], so no drone starts on top of
+  /// the ship; neighbouring lanes walk opposite ways. The first
+  /// [ArcadeLevel.hunters] drones hunt, and glow magenta rather than orange
+  /// so a player can tell which ones will come for the ship.
   void _spawnDrones(GraphicsDevice device, Scene scene) {
-    const MovementTuning droneTuning = MovementTuning(
+    final level = this.level;
+    final droneTuning = MovementTuning(
       gravity: 0.0,
-      walkSpeed: 2.6,
+      walkSpeed: level.droneSpeed,
       groundAcceleration: 30.0,
     );
-    final beats = <(Vector3, Vector3)>[
-      (Vector3(-9.0, 1.3, -3.0), Vector3(9.0, 1.3, -3.0)),
-      (Vector3(9.0, 1.3, 1.0), Vector3(-9.0, 1.3, 1.0)),
-      (Vector3(-6.0, 1.3, 5.0), Vector3(6.0, 1.3, 5.0)),
-    ];
+    const double top = -arenaHalfDepth + 2.0;
+    final double bottom = ArcadeGame.shipStart.z - 3.5;
+    const double reach = arenaHalfWidth - 4.0;
 
-    for (var i = 0; i < beats.length; i++) {
-      final (from, to) = beats[i];
+    for (var i = 0; i < level.drones; i++) {
+      final z = level.drones == 1
+          ? top
+          : top + (bottom - top) * i / (level.drones - 1);
+      final left = Vector3(-reach, 1.3, z);
+      final right = Vector3(reach, 1.3, z);
+      final (from, to) = i.isEven ? (left, right) : (right, left);
+      final hunter = i < level.hunters;
+      // Each drone starts its own way along its lane, stepped by the golden
+      // ratio so no two start together. Started at the ends, every drone
+      // of a level kept pace with every other and the yard marched in two
+      // columns.
+      final along = (i * 0.618034) % 1.0;
+      final start = from + (to - from) * along;
+
       final body = CharacterController(
         world: collisionWorld,
         shape: CollisionBox(Vector3(0.4, 0.4, 0.4)),
-        position: from.clone(),
+        position: start,
         tuning: droneTuning,
       );
-      final actor = actorSystem.spawn(body: body, brain: PatrolBrain(from, to));
+      final actor = actorSystem.spawn(
+        body: body,
+        brain: DroneBrain(
+          from,
+          to,
+          chaseRadius: hunter ? level.chaseRadius : 0.0,
+          dodgeRadius: level.dodgeRadius,
+          shipHeading: () => shipHeading,
+        ),
+      );
 
       final mesh = MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.42).build()),
         engine.Material(
           name: 'drone $i',
           lighting: LightingModel.pbr,
-          baseColor: Vector4(0.92, 0.38, 0.22, 1.0),
+          baseColor: hunter
+              ? Vector4(0.85, 0.25, 0.75, 1.0)
+              : Vector4(0.92, 0.38, 0.22, 1.0),
           roughness: 0.4,
-          emissive: Vector3(0.25, 0.08, 0.02),
+          emissive: hunter
+              ? Vector3(0.3, 0.05, 0.25)
+              : Vector3(0.25, 0.08, 0.02),
         ),
-        name: 'drone $i',
+        name: 'drone $i primitive',
       );
+      final holder = SceneNode(name: 'drone $i')..add(mesh);
+      final role = hunter ? CraftRole.hunter : CraftRole.patrol;
+      _holderRoles[holder] = role;
+      _dress(holder, role);
 
       final drone = ActorComponent(
         actor: actor,
-        node: mesh,
+        node: holder,
         scene: scene,
         plane: ArcadeGame.groundPlane,
       )..priority = -50;

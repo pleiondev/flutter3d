@@ -12,11 +12,17 @@
 /// * **Transform** — the ship is a `RigidBodyComponent` (`ShipComponent`), so
 ///   its 3D collider is what actually moves and the Flame position is a read
 ///   of that, not the other way round.
-/// * **ECS** — three drones are `flutter3d_sim` `Actor`s, patrolling under a
-///   `PatrolBrain` stepped by a real `ActorSystem`, not animated by hand.
+/// * **ECS** — each level's drones are `flutter3d_sim` `Actor`s under a
+///   `DroneBrain` stepped by a real `ActorSystem`, not animated by hand: they
+///   patrol, and on the later levels chase the ship and sidestep a ram.
 /// * **Physics** — the ship and the drones' colliders share one
-///   `CollisionWorld`; a `CollisionBridge` on the ship reports a hit back
-///   into Flame, which blinks the ship and clears the drone.
+///   `CollisionWorld`; a `CollisionBridge` on the ship reports a contact back
+///   into Flame, where a head-on ram downs the drone and anything else hits
+///   the ship.
+///
+/// Four levels, in `lib/src/levels.dart`: more drones, faster, then hunting,
+/// then dodging, with fewer hits allowed. Clear every drone to move on;
+/// after a loss, Enter plays the level again.
 /// * **Input** — `FlameInputBridge` drives a `Bindings`/`InputState` pair,
 ///   the same objects `flutter3d_game`'s own `DesktopInput` would write into.
 /// * **Camera** — a `CameraSyncController` keeps an orthographic flutter3d
@@ -27,6 +33,8 @@
 /// `RigidBodyComponent`, because one physical collider cannot honestly be
 /// both.
 library;
+
+import 'dart:async';
 
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
@@ -57,7 +65,16 @@ class ArcadeScreen extends StatefulWidget {
 }
 
 class _ArcadeScreenState extends State<ArcadeScreen> {
-  final ArcadeGame _game = ArcadeGame();
+  /// Starts on the level `--dart-define=ARCADE_LEVEL=n` names, counting from
+  /// one, so a later level can be looked at without playing through the
+  /// ones before it. Set before [ArcadeGameStaging.spawnWorld], which builds
+  /// the drones of whatever level the game is on.
+  final ArcadeGame _game = ArcadeGame()
+    ..levelIndex =
+        (const int.fromEnvironment('ARCADE_LEVEL', defaultValue: 1) - 1).clamp(
+          0,
+          arcadeLevels.length - 1,
+        );
 
   /// Looks straight down at the yard, `up` chosen so the camera's own +Z
   /// points the same way Flame's own +Y already does on screen — the two
@@ -66,24 +83,53 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
   late final CameraNode _camera =
       CameraNode(
           name: 'eye',
-          projection: const OrthographicProjection(height: 22.0),
+          projection: const OrthographicProjection(height: viewHeight),
         )
         ..setPosition(0.0, cameraHeight, 0.0)
         ..setLocalForward(Vector3(0.0, -1.0, 0.0), up: Vector3(0.0, 0.0, -1.0));
 
+  /// **The viewfinder's zoom is set to the camera's height before the first
+  /// sync.** Flowing Flame to flutter3d, [CameraSyncController] writes
+  /// `1 / zoom` into the orthographic height every frame, and a viewfinder
+  /// left at Flame's default zoom of one turned the yard's 22 metres into
+  /// one: the ship filled the screen.
   late final CameraSyncController _cameraSync = CameraSyncController(
     camera: _camera,
-    viewfinder: _game.camera.viewfinder,
+    viewfinder: _game.camera.viewfinder..zoom = 1.0 / viewHeight,
     plane: ArcadeGame.cameraPlane,
     direction: SyncDirection.flameToScene,
   );
 
   /// Flame's own viewfinder follows the ship; the flutter3d camera then
   /// copies that onto its own plane, once a frame, in [_cameraSync.advance].
+  ///
+  /// **The HUD is rebuilt from here.** [Flutter3dFlameWidget] rebuilds only
+  /// itself, and the HUD is its sibling, so nothing else ever redraws it.
+  /// After the frame rather than now, for the reason the widget gives: this
+  /// runs inside `GameWidget`'s own build.
+  ///
+  /// **Held inside the yard.** Following the ship to the bottom of the yard
+  /// put half the window below its floor, on black. The view is
+  /// [viewHeight] metres tall and as wide as the window's shape makes it;
+  /// along each axis where that is smaller than the yard it follows the
+  /// ship up to the edge and no further, and where it is not, it stays on
+  /// the middle of the yard.
   void _onTick(double dt) {
     final Viewfinder viewfinder = _game.camera.viewfinder;
-    viewfinder.position = _game.ship.position;
+    final Vector2 window = _game.size;
+    final double aspect = window.y > 0.0 ? window.x / window.y : 16.0 / 9.0;
+    double held(double at, double halfView, double halfYard) =>
+        halfView >= halfYard
+        ? 0.0
+        : at.clamp(halfView - halfYard, halfYard - halfView);
+    viewfinder.position = Vector2(
+      held(_game.ship.position.x, viewHeight * 0.5 * aspect, arenaHalfWidth),
+      held(_game.ship.position.y, viewHeight * 0.5, arenaHalfDepth),
+    );
     _cameraSync.advance(dt);
+    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -97,6 +143,9 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
           buildScene: (GraphicsDevice device) {
             final scene = Scene();
             _game.spawnWorld(device, scene);
+            // The craft models arrive a moment later and replace the
+            // primitives the yard was built with; see [ArcadeGameCrafts].
+            unawaited(_game.dressWithCrafts());
             return scene;
           },
           onTick: _onTick,
@@ -108,8 +157,9 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
 }
 
 /// Score, hits and the win/lose banner — read straight off [ArcadeGame],
-/// which is safe because [Flutter3dFlameWidget] already rebuilds this whole
-/// subtree once a frame (see its own doc comment on `_onFlameTick`).
+/// and rebuilt once a frame by [_ArcadeScreenState._onTick]. Not by
+/// [Flutter3dFlameWidget]: its rebuild reaches only its own subtree, and this
+/// is its sibling.
 class _Hud extends StatelessWidget {
   const _Hud({required this.game});
 
@@ -122,20 +172,27 @@ class _Hud extends StatelessWidget {
       fontSize: 16.0,
       shadows: <Shadow>[Shadow(blurRadius: 4.0)],
     );
+    final int levelNumber = game.levelIndex + 1;
     final String status = game.gameOver
-        ? 'YARD LOST — ${game.elapsed.toStringAsFixed(1)}s'
+        ? 'LEVEL $levelNumber LOST — Enter to try again'
         : game.cleared
         ? 'YARD CLEARED — ${game.elapsed.toStringAsFixed(1)}s'
-        : 'WASD / arrows to fly';
+        : game.levelCleared
+        ? 'LEVEL $levelNumber CLEARED — next one coming'
+        : game.level.hunters > 0
+        ? 'Ram them head on. Magenta drones hunt you'
+        : 'Ram the drones head on. WASD / arrows to fly';
 
     return DefaultTextStyle(
       style: style,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Survived: ${game.elapsed.toStringAsFixed(1)}s'),
-          Text('Hits: ${game.hits} / ${ArcadeGame.maxHits}'),
+          Text('Level $levelNumber / ${arcadeLevels.length}'),
+          Text('Time: ${game.elapsed.toStringAsFixed(1)}s'),
+          Text('Hits: ${game.hits} / ${game.maxHits}'),
           Text('Drones left: ${game.drones.length}'),
+          Text('Rammed: ${game.rammed}'),
           const SizedBox(height: 8.0),
           Text(status),
         ],
