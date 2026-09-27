@@ -12,16 +12,16 @@
 /// * **Transform** — the ship is a `RigidBodyComponent` (`ShipComponent`), so
 ///   its 3D collider is what actually moves and the Flame position is a read
 ///   of that, not the other way round.
-/// * **ECS** — each level's drones are `flutter3d_sim` `Actor`s under a
-///   `DroneBrain` stepped by a real `ActorSystem`, not animated by hand: they
+/// * **ECS** — each level's bots are `flutter3d_sim` `Actor`s under a
+///   `BotBrain` stepped by a real `ActorSystem`, not animated by hand: they
 ///   patrol, and on the later levels chase the ship and sidestep a ram.
-/// * **Physics** — the ship and the drones' colliders share one
+/// * **Physics** — the ship and the bots' colliders share one
 ///   `CollisionWorld`; a `CollisionBridge` on the ship reports a contact back
-///   into Flame, where a head-on ram downs the drone and anything else hits
+///   into Flame, where a head-on ram downs the bot and anything else hits
 ///   the ship.
 ///
-/// Four levels, in `lib/src/levels.dart`: more drones, faster, then hunting,
-/// then dodging, with fewer hits allowed. Clear every drone to move on;
+/// Four levels, in `lib/src/levels.dart`: more bots, faster, then hunting,
+/// then dodging, with fewer hits allowed. Clear every bot to move on;
 /// after a loss, Enter plays the level again.
 /// * **Input** — `FlameInputBridge` drives a `Bindings`/`InputState` pair,
 ///   the same objects `flutter3d_game`'s own `DesktopInput` would write into.
@@ -29,7 +29,7 @@
 ///   camera framed on wherever Flame's own `Viewfinder` follows the ship to.
 ///
 /// See `lib/src/arcade_game.dart`'s own doc comment for the one non-obvious
-/// design call this app makes: a drone is an `ActorComponent`, never a
+/// design call this app makes: a bot is an `ActorComponent`, never a
 /// `RigidBodyComponent`, because one physical collider cannot honestly be
 /// both.
 library;
@@ -69,7 +69,7 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
   /// Starts on the level `--dart-define=ARCADE_LEVEL=n` names, counting from
   /// one, so a later level can be looked at without playing through the
   /// ones before it. Set before [ArcadeGameStaging.spawnWorld], which builds
-  /// the drones of whatever level the game is on.
+  /// the bots of whatever level the game is on.
   final ArcadeGame _game = ArcadeGame()
     ..levelIndex =
         (const int.fromEnvironment('ARCADE_LEVEL', defaultValue: 1) - 1).clamp(
@@ -199,10 +199,10 @@ class _Hud extends StatelessWidget {
         : game.levelCleared
         ? 'LEVEL $levelNumber CLEARED — next one coming'
         : game.level.hunters > 0
-        ? 'Ram them head on. Magenta drones hunt you'
+        ? 'Ram them head on. Magenta bots hunt you'
         : touch
-        ? 'Ram the drones head on. Stick to fly'
-        : 'Ram the drones head on. WASD / arrows to fly';
+        ? 'Ram the bots head on. Stick to fly'
+        : 'Ram the bots head on. WASD / arrows to fly';
 
     return DefaultTextStyle(
       style: style,
@@ -212,7 +212,7 @@ class _Hud extends StatelessWidget {
           Text('Level $levelNumber / ${arcadeLevels.length}'),
           Text('Time: ${game.elapsed.toStringAsFixed(1)}s'),
           Text('Hits: ${game.hits} / ${game.maxHits}'),
-          Text('Drones left: ${game.drones.length}'),
+          Text('Bots left: ${game.bots.length}'),
           Text('Rammed: ${game.rammed}'),
           const SizedBox(height: 8.0),
           // A lost level is replayed with Enter on a keyboard, and with a

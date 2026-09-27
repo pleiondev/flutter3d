@@ -40,7 +40,7 @@ const Map<CraftRole, _CraftLook> _looks = <CraftRole, _CraftLook>{
 /// The craft models, dressed onto the bodies the bridges already move.
 ///
 /// **A body is bridged through a holder, never through its model.** The
-/// ship's and every drone's bridged node is an empty [SceneNode]; what it
+/// ship's and every bot's bridged node is an empty [SceneNode]; what it
 /// draws is a child. Until [dressWithCrafts] has loaded the models, and
 /// always in the tests, which never load them, that child is the primitive
 /// the game was first written with. When a model arrives it replaces the
@@ -52,8 +52,8 @@ const Map<CraftRole, _CraftLook> _looks = <CraftRole, _CraftLook>{
 /// the way the craft is flying. The holder cannot be turned: the physics
 /// bridge writes the body's own rotation into it every frame.
 extension ArcadeGameCrafts on ArcadeGame {
-  /// Loads the three craft and dresses the ship and every drone in play.
-  /// Drones spawned later are dressed as they are made.
+  /// Loads the three craft and dresses the ship and every bot in play.
+  /// Bots spawned later are dressed as they are made.
   Future<void> dressWithCrafts() async {
     for (final role in CraftRole.values) {
       final look = _looks[role]!;
@@ -71,9 +71,9 @@ extension ArcadeGameCrafts on ArcadeGame {
       }
     }
     _dress(ship.node, CraftRole.ship);
-    for (final drone in drones) {
-      final role = _holderRoles[drone.node];
-      if (role != null) _dress(drone.node, role);
+    for (final bot in bots) {
+      final role = _holderRoles[bot.node];
+      if (role != null) _dress(bot.node, role);
     }
   }
 
@@ -115,14 +115,14 @@ extension ArcadeGameCrafts on ArcadeGame {
   }
 
   /// Turns every dressed craft to face the way it is flying: the ship by
-  /// [ArcadeGame.shipHeading], a drone by its body's velocity. A craft
+  /// [ArcadeGame.shipHeading], a bot by its body's velocity. A craft
   /// barely moving keeps the way it last faced rather than spinning to
   /// whatever the noise in its velocity says.
   void _turnCrafts() {
     _turnTowards(ship.node, shipHeading);
-    for (final drone in drones) {
-      final body = drone.actor.body;
-      if (body != null) _turnTowards(drone.node, body.velocity);
+    for (final bot in bots) {
+      final body = bot.actor.body;
+      if (body != null) _turnTowards(bot.node, body.velocity);
     }
   }
 

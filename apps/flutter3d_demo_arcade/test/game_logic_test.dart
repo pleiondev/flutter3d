@@ -29,14 +29,14 @@ void _run(ArcadeGame game, int steps) {
 }
 
 void main() {
-  test('spawnWorld wires the ship and three drones into one collision '
+  test('spawnWorld wires the ship and three bots into one collision '
       'world', () {
     final game = _newGame();
 
-    expect(game.drones, hasLength(3));
+    expect(game.bots, hasLength(3));
     expect(game.ship.body.collider.world, same(game.collisionWorld));
-    for (final drone in game.drones) {
-      expect(drone.actor.body!.collider.world, same(game.collisionWorld));
+    for (final bot in game.bots) {
+      expect(bot.actor.body!.collider.world, same(game.collisionWorld));
     }
   });
 
@@ -59,73 +59,73 @@ void main() {
     );
   });
 
-  test('a drone patrols under the actor system, not an animation', () {
+  test('a bot patrols under the actor system, not an animation', () {
     final game = _newGame();
-    final drone = game.drones.first;
-    final startX = drone.actor.body!.position.x;
+    final bot = game.bots.first;
+    final startX = bot.actor.body!.position.x;
 
     _run(game, 90);
 
     // `ActorSystemComponent.update` is what calls `ActorSystem.step`, which
     // is what calls `PatrolBrain.act`; nothing in this test moves the body
     // directly, so any movement at all is the actor system's own doing.
-    expect(drone.actor.body!.position.x, isNot(closeTo(startX, 1e-9)));
+    expect(bot.actor.body!.position.x, isNot(closeTo(startX, 1e-9)));
   });
 
-  test('a drone running into a still ship hits it, through the bridge, '
+  test('a bot running into a still ship hits it, through the bridge, '
       'and flies on', () {
     final game = _newGame();
-    final drone = game.drones.first;
+    final bot = game.bots.first;
 
-    // Put the ship exactly where the drone already is, the same way
+    // Put the ship exactly where the bot already is, the same way
     // `packages/flame_flutter3d/test/collision_bridge_test.dart` places two
     // real colliders on top of each other before asking the world to notice.
     // Dispatched directly, rather than through a full `game.update` frame:
     // a full frame also steps the actor system, whose own
-    // `CharacterController.step` would immediately depenetrate a drone
+    // `CharacterController.step` would immediately depenetrate a bot
     // planted exactly inside another solid body, shoving it away before the
     // world ever gets to notice the contact this test is asking about.
-    _touch(game, drone);
+    _touch(game, bot);
 
     expect(game.hits, 1);
     expect(game.rammed, 0);
-    expect(game.drones, contains(drone));
+    expect(game.bots, contains(bot));
     expect(game.ship.isFlashing, isTrue);
   });
 
-  test('a ship flying at a drone rams it, and takes no hit', () {
+  test('a ship flying at a bot rams it, and takes no hit', () {
     final game = _newGame();
-    final drone = game.drones.first;
+    final bot = game.bots.first;
 
-    // Flying up the screen, towards -Z, with the drone just ahead of it.
+    // Flying up the screen, towards -Z, with the bot just ahead of it.
     game.shipHeading.setValues(0.0, 0.0, -ArcadeGame.shipSpeed);
-    _touch(game, drone, offset: Vector3(0.0, 0.0, 0.3));
+    _touch(game, bot, offset: Vector3(0.0, 0.0, 0.3));
 
     expect(game.hits, 0);
     expect(game.rammed, 1);
-    expect(game.drones, isNot(contains(drone)));
+    expect(game.bots, isNot(contains(bot)));
   });
 
-  test('a ship flying past a drone is struck, not ramming', () {
+  test('a ship flying past a bot is struck, not ramming', () {
     final game = _newGame();
-    final drone = game.drones.first;
+    final bot = game.bots.first;
 
-    // Flying sideways, with the drone ahead along -Z: more than 60 degrees
+    // Flying sideways, with the bot ahead along -Z: more than 60 degrees
     // off the line of flight.
     game.shipHeading.setValues(ArcadeGame.shipSpeed, 0.0, 0.0);
-    _touch(game, drone, offset: Vector3(0.0, 0.0, 0.3));
+    _touch(game, bot, offset: Vector3(0.0, 0.0, 0.3));
 
     expect(game.hits, 1);
-    expect(game.drones, contains(drone));
+    expect(game.bots, contains(bot));
   });
 
   test('a hunter that catches a still ship hits it, frame by frame', () {
-    // Through whole frames, the way the game runs: the drone's sweep stops
+    // Through whole frames, the way the game runs: the bot's sweep stops
     // it at the hull and never inside, so only the sensor can hear this.
     // Mutation: bridge the hull's own collider instead, and the hunter sits
     // on the ship with no hit at all.
     final game = _newGame()..startLevel(1);
-    final hunter = game.drones.first;
+    final hunter = game.bots.first;
     expect(arcadeLevels[1].hunters, greaterThan(0));
     game.ship.body.position.setFrom(
       hunter.actor.body!.position + Vector3(2.5, -0.1, 0.0),
@@ -134,13 +134,13 @@ void main() {
     _run(game, 120);
 
     expect(game.hits, greaterThanOrEqualTo(1));
-    expect(game.drones, contains(hunter));
+    expect(game.bots, contains(hunter));
   });
 
   test('a blinking ship is not hit again by the same brush', () {
     final game = _newGame();
-    _touch(game, game.drones[0]);
-    _touch(game, game.drones[1]);
+    _touch(game, game.bots[0]);
+    _touch(game, game.bots[1]);
 
     expect(game.hits, 1);
   });
@@ -184,11 +184,11 @@ void main() {
     expect(game.gameOver, isFalse);
     expect(game.levelIndex, 0);
     expect(game.hits, 0);
-    expect(game.drones, hasLength(arcadeLevels.first.drones));
-    // Stepping again: the drones walk.
-    final x = game.drones.first.actor.body!.position.x;
+    expect(game.bots, hasLength(arcadeLevels.first.bots));
+    // Stepping again: the bots walk.
+    final x = game.bots.first.actor.body!.position.x;
     _run(game, 30);
-    expect(game.drones.first.actor.body!.position.x, isNot(closeTo(x, 1e-9)));
+    expect(game.bots.first.actor.body!.position.x, isNot(closeTo(x, 1e-9)));
   });
 
   test('clearing a level starts the next, harder one after a pause', () {
@@ -204,19 +204,19 @@ void main() {
 
     expect(game.levelIndex, 1);
     expect(game.hits, 0);
-    expect(game.drones, hasLength(arcadeLevels[1].drones));
-    expect(arcadeLevels[1].drones, greaterThan(arcadeLevels[0].drones));
+    expect(game.bots, hasLength(arcadeLevels[1].bots));
+    expect(arcadeLevels[1].bots, greaterThan(arcadeLevels[0].bots));
   });
 
   test('the levels only ever get harder', () {
     for (var i = 1; i < arcadeLevels.length; i++) {
       final (easier, harder) = (arcadeLevels[i - 1], arcadeLevels[i]);
-      expect(harder.drones, greaterThanOrEqualTo(easier.drones));
-      expect(harder.droneSpeed, greaterThan(easier.droneSpeed));
+      expect(harder.bots, greaterThanOrEqualTo(easier.bots));
+      expect(harder.botSpeed, greaterThan(easier.botSpeed));
       expect(harder.hunters, greaterThanOrEqualTo(easier.hunters));
       expect(harder.maxHits, lessThanOrEqualTo(easier.maxHits));
       // A hunter the ship cannot outrun can never be rammed.
-      expect(harder.droneSpeed, lessThan(ArcadeGame.shipSpeed));
+      expect(harder.botSpeed, lessThan(ArcadeGame.shipSpeed));
     }
   });
 
@@ -232,12 +232,12 @@ void main() {
   });
 }
 
-/// Puts the ship's sensor on [drone], [offset] from it, and has the world
+/// Puts the ship's sensor on [bot], [offset] from it, and has the world
 /// notice — see the first contact test for why the world is updated directly
 /// rather than through a frame, and [ArcadeGame.shipSensor] for why it is
-/// the sensor that reports a drone and not the hull.
-void _touch(ArcadeGame game, ActorComponent drone, {Vector3? offset}) {
-  final at = drone.actor.body!.position.clone();
+/// the sensor that reports a bot and not the hull.
+void _touch(ArcadeGame game, ActorComponent bot, {Vector3? offset}) {
+  final at = bot.actor.body!.position.clone();
   if (offset != null) at.add(offset);
   game.shipSensor
     ..position.setFrom(at)
@@ -251,19 +251,19 @@ void _touch(ArcadeGame game, ActorComponent drone, {Vector3? offset}) {
   game.collisionWorld.update();
 }
 
-/// Takes the level's hits, one drone each, letting the blink run out
+/// Takes the level's hits, one bot each, letting the blink run out
 /// between them.
 void _loseLevel(ArcadeGame game) {
   for (var i = 0; i < game.maxHits; i++) {
-    _touch(game, game.drones[i % game.drones.length]);
+    _touch(game, game.bots[i % game.bots.length]);
     game.ship.update(1.0);
   }
 }
 
-/// Rams every drone of the level, flying at each from just behind it.
+/// Rams every bot of the level, flying at each from just behind it.
 void _clearLevel(ArcadeGame game) {
   game.shipHeading.setValues(0.0, 0.0, -ArcadeGame.shipSpeed);
-  for (final drone in List<ActorComponent>.of(game.drones)) {
-    _touch(game, drone, offset: Vector3(0.0, 0.0, 0.3));
+  for (final bot in List<ActorComponent>.of(game.bots)) {
+    _touch(game, bot, offset: Vector3(0.0, 0.0, 0.3));
   }
 }
