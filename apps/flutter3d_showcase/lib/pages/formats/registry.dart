@@ -21,12 +21,14 @@ import 'package:flutter3d_showcase/pages/formats/stl.dart';
 import 'package:flutter3d_showcase/pages/formats/texture_compression.dart';
 import 'package:flutter3d_showcase/pages/formats/texture_transform.dart';
 import 'package:flutter3d_showcase/pages/formats/usdz.dart';
+import 'package:flutter3d_showcase/pages/formats/variants_and_pointers.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 final Map<String, DemoBuilder> formatsDemos = <String, DemoBuilder>{
   'gltf-load': GltfLoadDemo.new,
   'gltf-cameras-lights': GltfCamerasLightsDemo.new,
   'gltf-write': GltfWriteDemo.new,
+  'variants-and-pointers': VariantsAndPointersDemo.new,
   'export-validate': ExportValidateDemo.new,
   'obj': ObjDemo.new,
   'stl': StlDemo.new,

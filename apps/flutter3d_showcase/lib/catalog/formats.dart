@@ -60,6 +60,23 @@ const List<Feature> formatsFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'variants-and-pointers',
+    title: 'Variants and animation pointers',
+    category: Category.formats,
+    summary:
+        'One model that changes its look by name, and a clip that '
+        'animates a material and a light rather than a node.',
+    since: '0.8.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence: 'Variants and animation pointers.',
+    packages: <String>['flutter3d', 'flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/animation/animation_pointer.dart',
+      'packages/flutter3d_core/lib/src/engine/assets/pointer_targets.dart',
+      'packages/flutter3d/lib/src/engine/assets/model_instance.dart',
+    ],
+  ),
+  Feature(
     id: 'export-validate',
     title: 'Export, read back, compare',
     category: Category.formats,

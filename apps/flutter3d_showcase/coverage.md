@@ -74,6 +74,7 @@ statement (see `test/coverage_test.dart`).
 | volumetric-fog | Volumetric fog | `RenderSettings.volumetricFog`, `VolumetricFogSettings` | `flutter3d_core` CL 0.8.0 "Volumetric fog." |
 | irradiance-updates | The field kept current | `IrradianceField.gpuUpdates` | `flutter3d_core` CL 0.8.0 "The irradiance field can update on the GPU." |
 | evsm-shadows | EVSM shadows | `ShadowSettings.filter`, `ShadowFilter.evsm` | `flutter3d_core` CL 0.8.0 "EVSM for the sun." |
+| static-cascades | Cascades that keep what stands still | `MeshNode.shadowIsStatic` on a directional light's cascades | `flutter3d_core` CL 0.8.0 "Cascades are redrawn only where something changed." |
 
 ## Set C: post-processing (`lib/pages/post/`)
 
@@ -179,6 +180,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | gltf-load | glTF and GLB | `GltfLoader` and the extensions it reads | F3D 0.1.0 |
 | gltf-cameras-lights | Cameras and lights from a file | `ModelCamera`, `ModelLight` | 0.7.0 |
 | gltf-write | Writing GLB | `GltfWriter`, `compressGeometry` | 0.7.0 |
+| variants-and-pointers | Variants and animation pointers | `ModelInstance.selectVariant`, `AnimationPointer`, `ModelInstance.bindLight` | `flutter3d_core` CL 0.8.0 "Variants and animation pointers." |
 | export-validate | Export, read back, compare | `exportChecked`, `compareModelDocuments`, `validateGltfExport` | 0.7.0 |
 | obj | OBJ and MTL | `ObjLoader`, `ObjWriter`, `ObjNormals` | F3D 0.1.0 |
 | stl | STL | `StlLoader`, `StlWriter` | 0.7.0 |

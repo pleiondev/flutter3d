@@ -11,6 +11,7 @@ import 'package:flutter3d_showcase/pages/shadows/masked_shadow_casters.dart';
 import 'package:flutter3d_showcase/pages/shadows/point_light_shadows.dart';
 import 'package:flutter3d_showcase/pages/shadows/shadow_settings.dart';
 import 'package:flutter3d_showcase/pages/shadows/soft_shadows.dart';
+import 'package:flutter3d_showcase/pages/shadows/static_cascades.dart';
 import 'package:flutter3d_showcase/pages/shadows/static_shadow_cache.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
@@ -22,5 +23,6 @@ final Map<String, DemoBuilder> shadowsDemos = <String, DemoBuilder>{
   'evsm-shadows': EvsmShadowsDemo.new,
   'contact-shadows': ContactShadowsDemo.new,
   'static-shadow-cache': StaticShadowCacheDemo.new,
+  'static-cascades': StaticCascadesDemo.new,
   'masked-shadow-casters': MaskedShadowCastersDemo.new,
 };

@@ -1,8 +1,11 @@
 /// The curve that squeezes light of any brightness into a picture a display can
-/// show, and five of them side by side.
+/// show, the curves the engine has, and a display transform baked by the page.
 ///
 /// Quoted by `tone_mapping.md` and shown whole in the Source tab.
 library;
+
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
@@ -11,9 +14,12 @@ import 'package:vector_math/vector_math.dart';
 
 final class ToneMappingDemo extends ShowcaseDemo {
   int curve = 0;
+  int display = 0;
   double exposure = 1.6;
 
   static const List<TonemapCurve> _curves = TonemapCurve.values;
+
+  late final TextureHandle _table;
 
   @override
   void configureView(DemoContext context) =>
@@ -49,8 +55,62 @@ final class ToneMappingDemo extends ShowcaseDemo {
     }
     // #endregion lamps
 
+    // #region upload
+    _table = context.device.createTextureFromPixels(
+      width: _size * _size,
+      height: _size,
+      format: TextureFormat.r16g16b16a16Float,
+      pixels: _bake(),
+    )!;
+    // #endregion upload
+
     return stage.scene;
   }
+
+  // #region table
+  /// Entries per axis of the page's own table.
+  static const int _size = 17;
+
+  /// A display transform in the strip shape the engine reads: `_size` slices
+  /// of `_size` by `_size`, blue picking the slice, red across and green down.
+  /// Entry `i` holds the output for the input `0.18 * 2^(-10 + 20 * i / 16)`.
+  ///
+  /// The curve is Reinhard on the brightest channel, with the other two
+  /// scaled by the same amount so the hue holds. Nothing here walks towards
+  /// white: a bright red stays red however bright it gets.
+  static ByteData _bake() {
+    final ByteData strip = ByteData(_size * _size * _size * 8);
+    double input(int i) =>
+        0.18 * math.pow(2.0, -10.0 + 20.0 * i / (_size - 1)).toDouble();
+    for (var b = 0; b < _size; b++) {
+      for (var g = 0; g < _size; g++) {
+        for (var r = 0; r < _size; r++) {
+          final List<double> colour = <double>[input(r), input(g), input(b)];
+          final double peak = colour.reduce(math.max);
+          final double scale = 1.0 / (1.0 + peak);
+          final int at = (g * _size * _size + b * _size + r) * 8;
+          for (var c = 0; c < 3; c++) {
+            strip.setUint16(
+              at + c * 2,
+              _half(colour[c] * scale),
+              Endian.little,
+            );
+          }
+          strip.setUint16(at + 6, _half(1.0), Endian.little);
+        }
+      }
+    }
+    return strip;
+  }
+
+  /// [value], from 0 to 1, as the bits of a half float.
+  static int _half(double value) {
+    final int bits = (ByteData(4)..setFloat32(0, value)).getUint32(0);
+    final int exponent = ((bits >> 23) & 0xff) - 127 + 15;
+    if (exponent <= 0) return 0;
+    return (exponent << 10) | ((bits >> 13) & 0x3ff);
+  }
+  // #endregion table
 
   @override
   RenderSettings settings(DemoContext context) => RenderSettings(
@@ -60,6 +120,13 @@ final class ToneMappingDemo extends ShowcaseDemo {
     // #region curve
     tonemapCurve: _curves[curve],
     // #endregion curve
+    // #region display
+    look: LookSettings(
+      displayTransform: display == 1
+          ? DisplayTransform(texture: _table, size: _size)
+          : null,
+    ),
+    // #endregion display
   );
 
   @override
@@ -69,6 +136,12 @@ final class ToneMappingDemo extends ShowcaseDemo {
       options: <String>[for (final TonemapCurve c in _curves) c.name],
       index: () => curve,
       onChanged: (int i) => curve = i,
+    ),
+    ChoiceControl(
+      'Display transform',
+      options: const <String>['none', 'page table'],
+      index: () => display,
+      onChanged: (int i) => display = i,
     ),
     SliderControl(
       'Exposure',

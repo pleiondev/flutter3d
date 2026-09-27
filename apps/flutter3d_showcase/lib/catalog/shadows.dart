@@ -174,6 +174,21 @@ const List<Feature> shadowsFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'static-cascades',
+    title: 'Cascades that keep what stands still',
+    category: Category.shadows,
+    summary:
+        'Blocks that never move go into a sun atlas of their own, so a '
+        'walking camera draws only the strips that came into view.',
+    since: '0.8.0',
+    evidence: 'Cascades are redrawn only where something changed.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['cascades are redrawn', 'shadowIsStatic'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/renderer_shadow_pass.dart',
+    ],
+  ),
+  Feature(
     id: 'masked-shadow-casters',
     title: 'Shadows of cut-out leaves',
     category: Category.shadows,

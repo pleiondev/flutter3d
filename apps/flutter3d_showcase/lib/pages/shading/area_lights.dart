@@ -4,6 +4,8 @@
 /// Quoted by `area_lights.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:vector_math/vector_math.dart';
@@ -39,14 +41,21 @@ final class AreaLightsDemo extends ShowcaseDemo {
       roughness: 0.9,
       doubleSided: true,
     );
-    final MeshNode backWall = MeshNode(
-      DeviceMesh.upload(
-        context.device,
-        const PlaneShape(width: 6, depth: 4).build(),
-      ),
-      wallMaterial,
-      name: 'back wall',
-    )..setPosition(0.0, 0.0, -1.5);
+    final MeshNode backWall =
+        MeshNode(
+            DeviceMesh.upload(
+              context.device,
+              const PlaneShape(width: 6, depth: 4).build(),
+            ),
+            wallMaterial,
+            name: 'back wall',
+          )
+          // A plane is built lying down, facing +Y; a quarter turn about X
+          // stands it up facing +Z, toward the window.
+          ..setRotation(
+            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+          )
+          ..setPosition(0.0, 0.0, -1.5);
     final MeshNode floor = MeshNode(
       DeviceMesh.upload(
         context.device,

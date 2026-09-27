@@ -39,8 +39,9 @@ const List<Feature> postFeatures = <Feature>[
     title: 'Tone-map curves',
     category: Category.post,
     summary:
-        'Five ways to squeeze light of any brightness into what a display '
-        'can show, side by side on one scene.',
+        'Every tone curve the engine has, and a display transform table, '
+        'squeezing light of any brightness into what a display can show, '
+        'side by side on one scene.',
     since: '0.7.0',
     evidence: '`TonemapCurve` with five curves',
     keywords: <String>['tonemapcurve'],
@@ -51,6 +52,12 @@ const List<Feature> postFeatures = <Feature>[
         note:
             'AgX is the whole Minimal AgX and comes out linear; its sigmoid used to be encoded to sRGB twice.',
         evidence: 'AgX is AgX, and it is linear.',
+      ),
+      Change(
+        version: '0.8.0',
+        note:
+            'A baked display transform can take the curve\'s place, and the new aces2 curve is the ACES 2.0 tonescale the engine ships as one.',
+        evidence: 'A display transform in place of the tone curve.',
       ),
     ],
   ),
