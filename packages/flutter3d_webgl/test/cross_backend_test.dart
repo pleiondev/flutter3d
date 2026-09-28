@@ -287,7 +287,11 @@ const Map<String, double> _budgets = <String, double>{
   // skinned figure, whose mirror happened to be something further away,
   // reached the buffer at all.
   'velocity-shapes': 4.18,
-  'window-interior': 0.07,
+  // 0.003% measured. It was 0.07 while the sun recorded back faces: the
+  // dotted light along the room's inside corners fell on slightly different
+  // pixels here and on Impeller. Two-sided recording took the dots away, and
+  // the difference went with them.
+  'window-interior': 0.01,
 };
 
 /// Scenes budgeted before this set had a picture of them.
