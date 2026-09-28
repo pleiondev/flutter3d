@@ -49,8 +49,10 @@ const Map<CraftRole, _CraftLook> _looks = <CraftRole, _CraftLook>{
 /// still plays.
 ///
 /// Between holder and model sits a pivot that [_turnCrafts] turns to face
-/// the way the craft is flying. The holder cannot be turned: the physics
-/// bridge writes the body's own rotation into it every frame.
+/// the way the craft is flying. The holder is left unturned: a bridge leads
+/// it and reads its rotation back into the Flame component's `angle` every
+/// frame, and a body has no rotation of its own to give it. The pivot is
+/// below anything a bridge looks at, so it can turn freely.
 extension ArcadeGameCrafts on ArcadeGame {
   /// Loads the three craft and dresses the ship and every bot in play.
   /// Bots spawned later are dressed as they are made.

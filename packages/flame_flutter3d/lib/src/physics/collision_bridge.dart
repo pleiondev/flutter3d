@@ -50,10 +50,12 @@ import 'rigid_body_component.dart';
 /// to put them, and inventing a fake one would be worse than sending none.
 /// What it sends instead is the cheapest honest stand-in for "roughly where
 /// this touched": the midpoint of the two colliders' centres, projected
-/// through [component]'s own [BridgePlane] via `plane.to2d`. For two
-/// axis-aligned boxes that midpoint sits inside the overlap region along
-/// whichever axis penetrated least, which is close enough to "where they
-/// touch" for a callback whose real job is handing over a component
+/// through [component]'s own [BridgePlane] via `plane.to2d`. For two boxes
+/// of the same size that midpoint is the middle of their overlap; for boxes
+/// of different sizes it can fall outside it (a 0.6 sensor meeting a 0.4
+/// box 0.9 apart overlaps over [0.5, 0.6], and the midpoint is 0.45). That
+/// is close enough to "where they touch" for a callback whose real job is
+/// handing over a component
 /// reference, not reporting physics. A caller that needs the actual normal
 /// or depth reads [Collider.listener]'s own flutter3d-side callback
 /// directly — this bridge relays the event onward, it does not replace the
