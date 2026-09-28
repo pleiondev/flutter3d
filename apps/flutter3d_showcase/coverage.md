@@ -20,8 +20,10 @@ format and refuses it with a reason); a separate spot-shadow system (a spot ligh
 one face of the point-light cube slot).
 
 The **0.7.0 audit** at the end lists every `## 0.7.0` entry of the CHANGELOGs and the
-page that shows it, or the reason none does. It is what makes "new in 0.7" a checked
-statement (see `test/coverage_test.dart`).
+page that shows it, or the reason none does. The pages it names are checked where
+they are declared: `test/catalog_test.dart` holds each page's `since` and evidence to
+the CHANGELOG section they quote, and `tool/release_dashboard` reports whether this
+audit has been written out. There is no test that reads this file itself.
 
 ## Set A: shading (`lib/pages/shading/`)
 
