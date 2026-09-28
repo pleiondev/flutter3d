@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../collision_shape.dart';
 import 'cloth_collision.dart';
 import 'cloth_mesh.dart';
 import 'cloth_settings.dart';
@@ -57,7 +58,12 @@ void stepCloth(
   // stretched in the air far from the ball, and it lifted the sheet two
   // centimetres clear of a 0.2 m ball. Once a step: a triangle does not grow
   // much within one.
-  final span = obstacles.isEmpty ? null : _widestTriangles(mesh);
+  final span =
+      obstacles.any(
+        (o) => o.shape is CollisionSphere || o.shape is CollisionCapsule,
+      )
+      ? _widestTriangles(mesh)
+      : null;
 
   for (var sub = 0; sub < settings.substeps; sub++) {
     _predict(mesh, settings, subDt, predicted);
@@ -301,11 +307,13 @@ void _solveDistance(
   }
 }
 
-/// For each particle of [mesh], the largest radius of the circle through the
-/// three corners of a triangle it belongs to, where the sheet stands now:
-/// how far a flat triangle sags inside a sphere its corners sit on.
-/// `abc / 4A`, with a triangle folded flat onto a line left out. Only
-/// `+ - * /` and `sqrt`, so the same bits on every platform.
+/// For each particle of [mesh], the widest reach of a triangle it belongs
+/// to, where the sheet stands now: the distance in the triangle's plane
+/// from its corners to its point nearest a sphere they all sit on, which is
+/// how far that triangle sags inside the sphere. The circumradius `abc / 4A`
+/// for an acute or right triangle, half the longest edge for an obtuse one,
+/// with a triangle folded flat onto a line left out. Only `+ - * /` and
+/// `sqrt`, so the same bits on every platform.
 Float64List _widestTriangles(ClothMesh mesh) {
   final p = mesh.positions;
   final t = mesh.triangles;
@@ -327,10 +335,19 @@ Float64List _widestTriangles(ClothMesh mesh) {
     // |ab × ac| is twice the area.
     final twiceArea = math.sqrt(cx * cx + cy * cy + cz * cz);
     if (twiceArea <= 1e-12) continue;
-    final ab = math.sqrt(abx * abx + aby * aby + abz * abz);
-    final ac = math.sqrt(acx * acx + acy * acy + acz * acz);
-    final bc = math.sqrt(bcx * bcx + bcy * bcy + bcz * bcz);
-    final r = ab * ac * bc / (2.0 * twiceArea);
+    final ab2 = abx * abx + aby * aby + abz * abz;
+    final ac2 = acx * acx + acy * acy + acz * acz;
+    final bc2 = bcx * bcx + bcy * bcy + bcz * bcz;
+    final longest2 = math.max(ab2, math.max(ac2, bc2));
+    // The corners sit on a sphere, so the sphere's centre projects onto the
+    // triangle's plane at the circumcentre. Inside an acute triangle that is
+    // the nearest point of the triangle to the centre, `ρ` from the corners.
+    // An obtuse triangle's circumcentre lies past its longest edge, and the
+    // nearest point is that edge's midpoint instead, half the edge from its
+    // ends: using `ρ` there lifted a sliver up to √2 times the ball's radius.
+    final r = longest2 > ab2 + ac2 + bc2 - longest2
+        ? 0.5 * math.sqrt(longest2)
+        : math.sqrt(ab2 * ac2 * bc2) / (2.0 * twiceArea);
     for (var j = k; j < k + 3; j++) {
       if (r > widest[t[j]]) widest[t[j]] = r;
     }

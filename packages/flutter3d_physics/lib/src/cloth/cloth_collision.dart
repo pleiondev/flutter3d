@@ -63,14 +63,16 @@ final Float64List _push = Float64List(3);
 /// particles.** A triangle whose corners all sit on a sphere of radius `T`
 /// has its plane `sqrt(T² - ρ²)` from the centre, where `ρ` is the radius of
 /// the circle through its corners, so a flat triangle between particles
-/// pushed to `radius + thickness` sags back inside the ball by as much as
-/// the chord. A sheet of 0.09 m cells on a 0.2 m ball reached 0.35 mm into
-/// it, and the ball's own facets showed through the cloth. With [span] as
-/// the widest such `ρ` among the particle's own triangles, a sphere and a
+/// pushed to `radius + thickness` sags back inside the ball by its
+/// sagitta, `T - sqrt(T² - ρ²)`. A sheet of 0.09 m cells on a 0.2 m ball
+/// reached 0.35 mm into it, and the ball's own facets showed through the
+/// cloth. With [span] as the widest such reach among the particle's own
+/// triangles (`ρ`, or half the longest edge of an obtuse one), a sphere and a
 /// capsule push the particle far enough that the plane stays half a
 /// thickness clear of the surface, and never closer than a whole thickness.
-/// Zero keeps the old answer; flat shapes ignore it, since a triangle lying
-/// on a plane does not sag through it.
+/// Zero keeps the old answer. Boxes, wedges and heightfields ignore it: a
+/// triangle lying on one of their faces does not sag through it, though one
+/// bent across a box's edge or over a bump can still cut the corner.
 bool pushParticleOutside(
   Float64List xyz,
   int i,
@@ -182,7 +184,8 @@ final Vector3 _noGrowth = Vector3.zero();
 /// and a sheet stretched that far should not be thrown clear of it.
 double _clearing(double radius, double thickness, double span) {
   final contact = radius + thickness;
-  if (span <= 0.0) return contact;
+  // Written so a NaN span falls through to the old answer as well.
+  if (!(span > 0.0)) return contact;
   final plane = radius + 0.5 * thickness;
   final s = span < plane ? span : plane;
   final lifted = math.sqrt(plane * plane + s * s);
