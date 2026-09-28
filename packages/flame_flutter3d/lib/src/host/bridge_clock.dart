@@ -33,8 +33,10 @@ final class BridgeClock extends Component {
   /// with priorities in the tens or low hundreds, never anywhere near this.
   static const int _lastPriority = 1 << 20;
 
-  /// Called once a frame with the frame's own delta, in seconds — Flame's
-  /// own `dt`, not a second measurement of it.
+  /// Called every time Flame updates this component, with Flame's own `dt`
+  /// in seconds, not a second measurement of it: once a frame from the game
+  /// loop, and again with `dt == 0` when `GameWidget` updates the game from
+  /// its own layout, which [Flutter3dFlameWidget] makes happen every frame.
   final void Function(double dt) onTick;
 
   @override

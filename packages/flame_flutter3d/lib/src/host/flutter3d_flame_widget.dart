@@ -66,9 +66,15 @@ class Flutter3dFlameWidget extends StatefulWidget {
   /// is null.
   final ({GraphicsDevice device, Renderer renderer})? existing;
 
-  /// Called once a Flame frame, after [game]'s own components have updated,
-  /// with that frame's `dt` — the seam a physics step, an actor system step,
+  /// Called every time Flame updates [game], after its own components have,
+  /// with that update's `dt`: the seam a physics step, an actor system step,
   /// or a camera sync controller advances from.
+  ///
+  /// **Usually once a frame, and sometimes again with a `dt` of zero.**
+  /// `GameWidget` calls `update(0)` from its own layout whenever it is
+  /// rebuilt, and this widget rebuilds it every frame, so a second call with
+  /// `dt == 0` can follow the ticker's. A step that divides by `dt`, or
+  /// counts calls, should ignore a zero.
   final void Function(double dt)? onTick;
 
   /// The 3D layer's clear color, behind whatever [buildScene] draws.
@@ -139,7 +145,9 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
   /// transient callbacks first, and Flame's game loop is a `Ticker` among
   /// them, so [BridgeClock.update] has already moved the game to that frame
   /// when the build reaches [SceneSurface], which renders from its own
-  /// `LayoutBuilder`. Both layers paint the same update.
+  /// `LayoutBuilder`. Both layers paint the same update while the ticker
+  /// runs. A game stepped by hand while paused (`stepEngine`) updates
+  /// outside a frame, and there the 3D layer does follow a frame later.
   void _onFlameTick(double dt) {
     widget.onTick?.call(dt);
     if (!mounted) return;
