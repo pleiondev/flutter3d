@@ -1,4 +1,6 @@
-/// `ShadowSettings.casterFaces`, in a picture.
+/// Which faces the sun records, `ShadowSettings.directionalCasterFaces`, in a
+/// picture. Until 0.8.2 the sun read `casterFaces` with the lamps, and the
+/// history below is that setting's.
 ///
 ///     flutter test test/caster_faces_test.dart
 ///
@@ -95,7 +97,7 @@ const int _height = 72;
   return (scene: scene, camera: camera, sheet: sheet);
 }
 
-Future<List<int>> _grid(ShadowCasterFaces faces) async {
+Future<List<int>> _grid(ShadowSettings shadows) async {
   final it = cpuTestDevice(width: _width, height: _height);
   final renderer = Renderer.create(
     device: it.device,
@@ -110,7 +112,7 @@ Future<List<int>> _grid(ShadowCasterFaces faces) async {
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),
-      shadows: ShadowSettings(cascades: 1, casterFaces: faces),
+      shadows: shadows,
     ),
   );
   final pixels = await it.device.readPixels(frame.frame);
@@ -139,9 +141,30 @@ void main() {
     // both expectations below fail at once. Collapsing the switch to
     // `CullMode.none` fails only the `back` one, which is why that is the
     // expectation stated first.
-    final back = _shadowed(await _grid(ShadowCasterFaces.back));
-    final front = _shadowed(await _grid(ShadowCasterFaces.front));
-    final both = _shadowed(await _grid(ShadowCasterFaces.both));
+    final back = _shadowed(
+      await _grid(
+        const ShadowSettings(
+          cascades: 1,
+          directionalCasterFaces: ShadowCasterFaces.back,
+        ),
+      ),
+    );
+    final front = _shadowed(
+      await _grid(
+        const ShadowSettings(
+          cascades: 1,
+          directionalCasterFaces: ShadowCasterFaces.front,
+        ),
+      ),
+    );
+    final both = _shadowed(
+      await _grid(
+        const ShadowSettings(
+          cascades: 1,
+          directionalCasterFaces: ShadowCasterFaces.both,
+        ),
+      ),
+    );
 
     expect(
       back,
@@ -166,7 +189,8 @@ void main() {
 
   test('doubleSided overrides the setting rather than following it', () async {
     // The escape hatch `ShadowCastingMode.doubleSided` documents — "cast from
-    // every face, whatever ShadowSettings.casterFaces says" — which is the
+    // every face, whatever ShadowSettings.casterFaces says" (for the sun,
+    // `directionalCasterFaces`) — which is the
     // answer for exactly the geometry the test above shows losing its shadow.
     // Nothing drew it either.
     //
@@ -191,7 +215,7 @@ void main() {
         bloom: BloomSettings(enabled: false),
         shadows: ShadowSettings(
           cascades: 1,
-          casterFaces: ShadowCasterFaces.back,
+          directionalCasterFaces: ShadowCasterFaces.back,
         ),
       ),
     );
@@ -205,5 +229,20 @@ void main() {
           'the sheet asked to cast from every face and the setting that would '
           'have culled its only one was allowed to',
     );
+  });
+
+  test('the sun records a one-sided caster by default, whatever casterFaces '
+      'says', () async {
+    // `directionalCasterFaces` is the sun's own since 0.8.2, `both` by
+    // default: a one-sided sheet casts, and `casterFaces`, which the cube
+    // pass still reads, no longer reaches the sun. Mutation: read
+    // `casterFaces` in the directional pass again, and the `back` grid below
+    // loses the sheet's shadow.
+    final byDefault = await _grid(const ShadowSettings(cascades: 1));
+    final lampsBack = await _grid(
+      const ShadowSettings(cascades: 1, casterFaces: ShadowCasterFaces.back),
+    );
+    expect(_shadowed(byDefault), isNotEmpty);
+    expect(lampsBack, equals(byDefault));
   });
 }

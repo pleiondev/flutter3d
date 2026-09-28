@@ -38,9 +38,9 @@ void main() {
       // The point sampled sits in the shadow the wall casts on the floor
       // beside it — visible only because the wall casts a shadow at all.
       //
-      // Mutation: leave the sun's `castsShadow` false, or leave the
-      // shadow settings at the default `casterFaces: back` — a one-sided
-      // plane the shadow pass "sees straight through" by that default —
+      // Mutation: leave the sun's `castsShadow` false, or set the page's
+      // `directionalCasterFaces` to `back`, which "sees straight through" a
+      // one-sided plane like this wall,
       // and the floor beside the wall never actually falls into shadow,
       // so both frames come back the same flat white and this fails.
       final Uint8List on = await _shot(IrradianceFieldDemo()..baked = true);

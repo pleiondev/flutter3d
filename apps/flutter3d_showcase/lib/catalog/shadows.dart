@@ -58,7 +58,7 @@ const List<Feature> shadowsFeatures = <Feature>[
       Change(
         version: '0.8.1',
         note:
-            'The flat part of the normal offset is held to one texel of its cascade, so a folded sheet no longer lets the sun through its upper layer.',
+            'The flat part of the normal offset is held to one texel of its cascade, so shadow edges sit about a pixel closer to the pillars that cast them.',
         evidence: 'A fold no longer lets the sun through its upper layer.',
       ),
     ],

@@ -502,7 +502,10 @@ extension _ShadowPasses on Renderer {
     bool? only,
   }) {
     int mix(int key, int value) => 0x1fffffff & (key * 31 + value);
-    var key = mix(settings.casterFaces.hashCode, scene.staticShadowGeneration);
+    var key = mix(
+      settings.directionalCasterFaces.hashCode,
+      scene.staticShadowGeneration,
+    );
     for (final value in shaderMatrix?.storage ?? const <double>[]) {
       key = mix(key, value.hashCode);
     }
@@ -947,13 +950,13 @@ extension _ShadowPasses on Renderer {
 
     final depth = _shadowDepth!;
     final full = ScreenRect(width: atlasWidth, height: resolution);
-    // The same caster state the cube atlas uses, and now the same cull: whose
-    // side is recorded is `ShadowSettings.casterFaces`, which defaults to the
-    // back — the depth stored is then the far wall of each caster, which moves
-    // the comparison surface away from the lit face and removes most of the
-    // acne before bias and normal offset have to deal with any. That default is
-    // what this line used to say outright. See [_casterCull].
-    final casterCull = _casterCull(settings.casterFaces);
+    // The same caster state the cube atlas uses, with a cull of its own: whose
+    // side is recorded is `ShadowSettings.directionalCasterFaces`, which
+    // defaults to both. It shared the cube pass's `casterFaces` and its
+    // back until a sunlit room showed a dotted line of light along every
+    // inside corner, the floor compared against the wall's inner face at its
+    // own depth; the field's documentation has the rest. See [_casterCull].
+    final casterCull = _casterCull(settings.directionalCasterFaces);
     final meshes = scene.meshes;
     final mvp = vm.Matrix4.identity();
 

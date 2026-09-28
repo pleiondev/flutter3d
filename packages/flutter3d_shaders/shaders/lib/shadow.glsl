@@ -55,13 +55,12 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // relative to the light rather than to depth.
   //
   // **A flat distance plus what the kernel's reach needs, and no more.** The
-  // flat part alone was tuned for surfaces the map never recorded: with the
-  // default `casterFaces: back` a closed mesh writes only the faces turned
-  // away from the sun, so a lit face compares against its own far side. A
-  // double-sided material writes its lit faces too, and then the offset has
-  // to lift the point clear of its own plane as far out as the 3×3 kernel
-  // reads: a tap one texel over lands in a texel whose centre is up to a
-  // texel and a half away, where the plane is 1.5·texel·tanθ nearer the
+  // flat part alone was tuned for surfaces the map never recorded, when the
+  // sun wrote only the faces turned away from it. Since 0.8.2 its default
+  // `directionalCasterFaces` records both, as a double-sided material always
+  // did, so a lit face is in the map, and the offset has to lift the point
+  // clear of its own plane as far out as the 3×3 kernel reads: a tap one
+  // texel over lands in a texel whose centre is up to a texel and a half away, where the plane is 1.5·texel·tanθ nearer the
   // light. A step d along the normal clears the plane by d / cosθ along the
   // ray, so d = 1.5·texel·sinθ is exactly enough, taken per axis of the map
   // because a slope running diagonally across it reaches further in texels.

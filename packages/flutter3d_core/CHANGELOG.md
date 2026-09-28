@@ -1,3 +1,21 @@
+## 0.8.2
+
+- **A sunlit room's inside corners no longer leak light.** The sun recorded
+  the back faces of its casters, as the lamps' cube maps do, and the floor
+  at the foot of a wall sits at exactly the depth of the wall's inner face:
+  the comparison called it lit, and every inside corner showed a dotted line
+  of light along it, however thick the walls, whatever the resolution and
+  whatever the normal offset. `ShadowSettings.directionalCasterFaces` is the
+  sun's own choice now, `ShadowCasterFaces.both` by default, which records
+  the nearest surface whichever way a triangle is wound. `casterFaces` stays
+  the lamps', `back` by default. A one-sided caster turned away from the sun
+  now casts, where it let the sun through. The sun's map draws every face,
+  and on a lit slope a PCSS blocker search finds the surface's own depth, so
+  it runs its second pass there and reads a slightly narrower penumbra. A
+  scene that set `casterFaces` for the sun sets `directionalCasterFaces`
+  instead. Every golden scene with a sun was recorded again on all four
+  backends.
+
 ## 0.8.1
 
 Upgrade `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu` and

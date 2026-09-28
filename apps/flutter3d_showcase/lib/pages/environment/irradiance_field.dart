@@ -94,14 +94,14 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
   // #endregion live
 
   // #region shadow
-  // A one-sided wall, not a closed brush — the shadow pass's own default,
-  // `back`, is tuned for solid geometry and "sees straight through" a plane
-  // like this one, so the floor beside the wall never actually falls into
-  // shadow and the field's bounce light has nothing but full sun to compete
-  // with.
+  // A one-sided wall, not a closed brush. A pass that records only back
+  // faces sees straight through a plane like this one, so the floor beside
+  // the wall would never fall into shadow and the field's bounce light would
+  // have nothing but full sun to compete with. The sun records both sides by
+  // default since 0.8.2; named here because the shadow depends on it.
   @override
   RenderSettings settings(DemoContext context) => const RenderSettings(
-    shadows: ShadowSettings(casterFaces: ShadowCasterFaces.both),
+    shadows: ShadowSettings(directionalCasterFaces: ShadowCasterFaces.both),
   );
   // #endregion shadow
 

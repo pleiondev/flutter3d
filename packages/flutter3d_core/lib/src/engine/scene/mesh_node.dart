@@ -26,7 +26,8 @@ enum ShadowCastingMode {
   /// business in a light's view.
   off,
 
-  /// Cast from every face, whatever `ShadowSettings.casterFaces` says.
+  /// Cast from every face, whatever `ShadowSettings.casterFaces` (the lamps)
+  /// or `ShadowSettings.directionalCasterFaces` (the sun) says.
   ///
   /// For geometry that is a surface rather than a body: a single-sided wall, a
   /// fence, an open shell. Recording only the light-facing side of one leaves
@@ -52,7 +53,8 @@ enum ShadowCastingMode {
   /// Whether the colour pass draws this.
   bool get drawsColour => this != shadowsOnly;
 
-  /// Whether this ignores `ShadowSettings.casterFaces` and records every face.
+  /// Whether this ignores `ShadowSettings.casterFaces` and
+  /// `ShadowSettings.directionalCasterFaces` and records every face.
   bool get castsFromEveryFace => this == doubleSided;
 }
 
@@ -166,7 +168,8 @@ base class MeshNode extends SceneNode {
       shadowCasting = value ? ShadowCastingMode.on : ShadowCastingMode.off;
 
   /// Whether the shadow passes record every face of this node rather than the
-  /// side `ShadowSettings.casterFaces` names.
+  /// side `ShadowSettings.casterFaces` names for a lamp, or
+  /// `ShadowSettings.directionalCasterFaces` for the sun.
   ///
   /// The node asks for it with [ShadowCastingMode.doubleSided], or its
   /// material has no back to cull. A `doubleSided` material is a surface seen

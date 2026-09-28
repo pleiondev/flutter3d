@@ -101,6 +101,7 @@ final class ShadowSettings {
     this.pointLightRadius = 0.0,
     this.pointMaxSoftness = 16.0,
     this.casterFaces = ShadowCasterFaces.back,
+    this.directionalCasterFaces = ShadowCasterFaces.both,
     this.filter,
     this.evsmBlurRadius = 2,
     this.evsmBleedReduction = 0.2,
@@ -367,6 +368,33 @@ final class ShadowSettings {
   /// Which side of a caster the cube pass records.
   final ShadowCasterFaces casterFaces;
 
+  /// Which side of a caster the sun's cascades record.
+  ///
+  /// **Both, where the lamps' cube pass keeps the back.** Recording the far
+  /// side leaks light wherever a lit surface touches the inside of a solid:
+  /// the floor at the foot of a wall sits at exactly the depth of the wall's
+  /// inner face, the comparison calls it lit, and every inside corner of a
+  /// sunlit room showed a dotted line of light along it, however thick the
+  /// walls, whatever the resolution and whatever the normal offset.
+  ///
+  /// Both rather than the front, which also closes the corners: the map then
+  /// holds the nearest surface whichever way a triangle is wound, so a model
+  /// whose winding is not consistent keeps its whole shadow (the teapot
+  /// golden lost patches of its shadow under the front alone), and a
+  /// one-sided wall turned away from the sun still casts. The cost is a map
+  /// that draws every face.
+  ///
+  /// The sun's normal offset, flat part and kernel reach both, was sized for
+  /// a surface compared against its own depth, which is what a double-sided
+  /// material has always written, so the 3×3 PCF kernel shows no new acne.
+  /// PCSS reaches further than that kernel: on a lit slope its blocker search
+  /// now finds the surface's own depth, so it loses its early out there and
+  /// reads a slightly narrower penumbra; visible self-shadowing needs a sun
+  /// far larger than the real one and a slope near grazing. A lamp keeps the
+  /// back: its dungeon of blocky brushes is where second depth was chosen,
+  /// and its offsets were tuned against it.
+  final ShadowCasterFaces directionalCasterFaces;
+
   final bool enabled;
 
   /// Edge length of **one cascade's tile**, not of the whole atlas.
@@ -456,6 +484,7 @@ final class ShadowSettings {
     double? pointLightRadius,
     double? pointMaxSoftness,
     ShadowCasterFaces? casterFaces,
+    ShadowCasterFaces? directionalCasterFaces,
     int? cascades,
     double? cascadeSplit,
     double? viewDistance,
@@ -484,6 +513,8 @@ final class ShadowSettings {
         pointLightRadius: pointLightRadius ?? this.pointLightRadius,
         pointMaxSoftness: pointMaxSoftness ?? this.pointMaxSoftness,
         casterFaces: casterFaces ?? this.casterFaces,
+        directionalCasterFaces:
+            directionalCasterFaces ?? this.directionalCasterFaces,
         // The three the comment above was written about, missing for exactly
         // the reason it names: a caller who set `cascades: 3` and went through
         // `copyWith` got one cascade back and no way to tell.

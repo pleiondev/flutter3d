@@ -287,7 +287,7 @@ const BloomSettings(
 
 ## Shadows
 
-The shadow pass is a render view whose camera is the light, with an orthographic volume fitted to the scene. Depth goes into a **colour** target, because depth textures cannot be sampled on this platform. Front faces are culled, and the lookup is PCF 3×3 with both a depth bias and a normal offset.
+The shadow pass is a render view whose camera is the light, with an orthographic volume fitted to the scene. Depth goes into a **colour** target, because depth textures cannot be sampled on this platform. The sun records both faces of every caster (`directionalCasterFaces`, since 0.8.2), so a room's inside corners do not leak light and a one-sided wall still casts; a lamp's cube map records the back faces (`casterFaces`). The lookup is PCF 3×3 with both a depth bias and a normal offset.
 
 ### Cascades
 
@@ -300,7 +300,7 @@ const ShadowSettings(
   resolution: 1024,
   bias: 0.0015,
   normalOffset: 0.02,
-  casterFaces: ShadowCasterFaces.back,
+  directionalCasterFaces: ShadowCasterFaces.both,  // the sun; `casterFaces` is the lamps'
 )
 ```
 
@@ -347,7 +347,7 @@ Each mesh node says whether it belongs in a light's view at all:
 
 ```dart
 ground.shadowCasting = ShadowCastingMode.off;           // receives, never casts
-leaves.shadowCasting = ShadowCastingMode.doubleSided;   // from every face, whatever casterFaces says
+leaves.shadowCasting = ShadowCastingMode.doubleSided;   // from every face, whatever either caster-faces setting says
 proxy.shadowCasting = ShadowCastingMode.shadowsOnly;    // in the maps, not in the picture
 ```
 
