@@ -67,6 +67,9 @@ double shadowFactor(
   // light, of the cascade the fragment lands in.
   var cascadeTexel = 1.0;
   var cascadeDepth = 1.0;
+  // The fragment's own plane in stored depth per texel across the map, as
+  // `shadow.glsl` explains: what a PCSS tap past the normal offset finds.
+  var receiverSlope = 0.0;
   for (var attempt = 0; attempt < 3; attempt++) {
     final which = cascade + attempt;
     if (which >= count) break;
@@ -134,6 +137,23 @@ double shadowFactor(
           ).length,
           1e-6,
         );
+    final cosSlope =
+        (s.normal
+                    .dot(
+                      Vector3(
+                        matrix.entry(2, 0),
+                        matrix.entry(2, 1),
+                        matrix.entry(2, 2),
+                      ),
+                    )
+                    .abs() *
+                cascadeDepth)
+            .clamp(0.1, 1.0);
+    receiverSlope =
+        texelMetres *
+        math.sqrt(math.max(1.0 - cosSlope * cosSlope, 0.0)) /
+        cosSlope /
+        cascadeDepth;
     break;
   }
   if (projected == null) return 1.0;
@@ -188,13 +208,17 @@ double shadowFactor(
         .clamp(1.0, 16.0);
     var blockerSum = 0.0;
     var blockerCount = 0.0;
+    // Each tap allows for the surface's own slope past the normal offset's
+    // reach, as `shadow.glsl` explains.
     for (var i = 0; i < 16; i++) {
       final (dx, dy) = vogelDisc(i, 16, turn);
+      final reachTexels = math.sqrt(dx * dx + dy * dy) * searchRadius;
+      final tapBias = bias + math.max(reachTexels - 1.5, 0.0) * receiverSlope;
       final occluder = tap(
         dx * texelU * searchRadius,
         dy * texelV * searchRadius,
       );
-      if (projected.z - bias > occluder) {
+      if (projected.z - tapBias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
       }
@@ -206,8 +230,10 @@ double shadowFactor(
     final radius = (spread * gap / cascadeTexel).clamp(1.0, 16.0);
     for (var i = 0; i < 16; i++) {
       final (dx, dy) = vogelDisc(i, 16, turn + 1.0);
+      final reachTexels = math.sqrt(dx * dx + dy * dy) * radius;
+      final tapBias = bias + math.max(reachTexels - 1.5, 0.0) * receiverSlope;
       final occluder = tap(dx * texelU * radius, dy * texelV * radius);
-      lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      lit += projected.z - tapBias > occluder ? 0.0 : 1.0;
     }
     lit /= 16.0;
   }

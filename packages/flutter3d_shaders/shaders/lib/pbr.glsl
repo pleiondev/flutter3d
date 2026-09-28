@@ -543,8 +543,9 @@ bool EnergyCompensation() { return frag_info.target_origin.z > 0.5; }
 
 /// The light GGX loses on a rough metal, returned as the factor its single
 /// scattering has to be multiplied by: one plus f0 times the share of the
-/// hemisphere the single-scattering albedo misses. Fdez-Agüera's term, with
-/// the albedo the split sum already reads — the albedo of the very lobe it
+/// hemisphere the single-scattering albedo misses. Turquin's form for direct
+/// light (2019), `1 + f0(1/E - 1)`; the image-based part below uses
+/// Fdez-Agüera's. With the albedo the split sum already reads — the albedo of the very lobe it
 /// scales, at the roughness [ShadeLight] evaluates it at, or the white
 /// furnace would not come back white.
 vec3 MultiscatterScale(vec3 f0, Surface s) {

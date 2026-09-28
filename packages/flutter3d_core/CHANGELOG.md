@@ -10,8 +10,11 @@
   the nearest surface whichever way a triangle is wound. `casterFaces` stays
   the lamps', `back` by default. A one-sided caster turned away from the sun
   now casts, where it let the sun through. The sun's map draws every face,
-  and on a lit slope a PCSS blocker search finds the surface's own depth, so
-  it runs its second pass there and reads a slightly narrower penumbra. A
+  and a lit slope's own depth is now in it, which a PCSS tap a few texels
+  up the slope would have taken for a blocker: at a 75° slope under a sun
+  of 0.2 rad, 9% of the slope came out self-shadowed. Each PCSS tap now
+  allows for the receiver's own slope past the normal offset's reach, and
+  the same slope is fully lit. A
   scene that set `casterFaces` for the sun sets `directionalCasterFaces`
   instead. Every golden scene with a sun was recorded again on all four
   backends.

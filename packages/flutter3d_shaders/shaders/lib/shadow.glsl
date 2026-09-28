@@ -90,6 +90,10 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // texel across, and metres per unit of stored depth along the light.
   float cascadeTexel = 1.0;
   float cascadeDepth = 1.0;
+  // How far this fragment's own plane moves in stored depth for each texel
+  // across the map, along its steepest direction: what a PCSS tap beyond the
+  // normal offset's reach finds of the surface itself.
+  float receiverSlope = 0.0;
   for (int attempt = 0; attempt < 3; attempt++) {
     int which = cascade + attempt;
     if (which >= cascadeCount) break;
@@ -150,6 +154,16 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     cascadeTexel = texelMetres;
     cascadeDepth =
         1.0 / max(length(vec3(matrix[0][2], matrix[1][2], matrix[2][2])), 1e-6);
+    // The depth row is the light's axis. The cosine of the slope to the
+    // light is the normal's share along it, held away from grazing so the
+    // tangent stays under ten; its sign does not matter, since only a face
+    // turned to the light is lit to be spoilt.
+    float cosSlope = clamp(
+        abs(dot(s.n, vec3(matrix[0][2], matrix[1][2], matrix[2][2]))) *
+            cascadeDepth,
+        0.1, 1.0);
+    receiverSlope = texelMetres *
+        sqrt(max(1.0 - cosSlope * cosSlope, 0.0)) / cosSlope / cascadeDepth;
     found = true;
     break;
   }
@@ -257,13 +271,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
         clamp(spread * projected.z * cascadeDepth / cascadeTexel, 1.0, 16.0);
     float blockerSum = 0.0;
     float blockerCount = 0.0;
+    // **Each tap allows for the surface's own slope past the normal
+    // offset's reach.** The sun records both faces, so a lit slope's own
+    // depth is in the map, and a tap a few texels up the slope finds it
+    // nearer the light than this fragment. Counted as a blocker, it cost
+    // the early out below on every lit slope and pulled the averaged gap
+    // towards nought, narrowing real penumbrae. The offset already clears a
+    // texel and a half (see above); beyond that each texel of reach allows
+    // one texel of the plane's rise, `receiverSlope`.
     for (int i = 0; i < 16; i++) {
+      vec2 disc = VogelDisc(i, 16, turn);
+      float tapBias =
+          bias + max(length(disc) * searchRadius - 1.5, 0.0) * receiverSlope;
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + VogelDisc(i, 16, turn) * texel * searchRadius, tileLo,
-                tileHi),
+          clamp(uv + disc * texel * searchRadius, tileLo, tileHi),
           0.0).r;
-      if (projected.z - bias > occluder) {
+      if (projected.z - tapBias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
       }
@@ -277,12 +301,14 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float radius = clamp(spread * gap / cascadeTexel, 1.0, 16.0);
 
     for (int i = 0; i < 16; i++) {
+      vec2 disc = VogelDisc(i, 16, turn + 1.0);
+      float tapBias =
+          bias + max(length(disc) * radius - 1.5, 0.0) * receiverSlope;
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + VogelDisc(i, 16, turn + 1.0) * texel * radius, tileLo,
-                tileHi),
+          clamp(uv + disc * texel * radius, tileLo, tileHi),
           0.0).r;
-      lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      lit += projected.z - tapBias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 16.0;
   }

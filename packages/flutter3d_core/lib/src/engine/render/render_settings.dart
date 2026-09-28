@@ -1425,7 +1425,7 @@ final class RenderSettings {
   /// it, so the rougher a metal, the more of its reflection is simply
   /// missing: a rough gold sphere comes out darker than a polished one,
   /// which no real gold does. On, the metal-rough model scales its direct
-  /// specular by `1 + f0·(1/E − 1)`, with E the albedo the split sum already
+  /// specular by `1 + f0·(1/E − 1)` (Turquin 2019), with E the albedo the split sum already
   /// computes, and adds Fdez-Agüera's multiple-scattering term to the
   /// environment's. Dielectrics barely move; rough metals brighten.
   final bool energyCompensation;
