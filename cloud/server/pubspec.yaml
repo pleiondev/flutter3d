@@ -90,6 +90,9 @@ dev_dependencies:
 # `flutter3d_mesh` and `flutter3d_hardware` are here because
 # `flutter3d_model_core` and `flutter3d_core` name them as hosted
 # dependencies they cannot resolve until the next set is published.
+# `flutter3d_shaders` joins them for the same reason: the core by path asks
+# for the shaders at the version it is released with, which is not on pub.dev
+# until the release that publishes both.
 #
 # When it is, these lines go and the dependencies above become ordinary hosted
 # ones.
@@ -106,6 +109,8 @@ dependency_overrides:
     path: ../../packages/flutter3d_particles
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
+  flutter3d_shaders:
+    path: ../../packages/flutter3d_shaders
 
 jaspr:
   mode: server

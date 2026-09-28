@@ -311,40 +311,54 @@ void main() {
 
     test('a caster still counts, however far away it is', () async {
       // The other direction, and the one a careless fix breaks: `castersOnly`
-      // must narrow the set to non-casters only. A distant caster is *supposed*
-      // to enlarge the volume — dropping it would leave the thing unshadowed.
-      final near = _litRoom();
-      final far = _litRoom();
-      far.scene.add(
+      // must narrow the set to non-casters only. A caster far outside the
+      // view still belongs in the volume, or it leaves the floor it shades
+      // lit. This one hangs a hundred and fifty metres up, sunward of a spot
+      // on the floor in view, so its shadow lands in the frame while it does
+      // not.
+      //
+      // It used to be a large box three hundred metres off to the side,
+      // judged by whether stretching the volume that far moved any pixel.
+      // What moved was a speckle of self-shadow from the depth lost to the
+      // stretch. With each PCSS tap allowing for the receiver's slope it
+      // moved 1 pixel of 6912 on Linux and 35 on macOS, which tests rounding
+      // rather than the volume.
+      const double height = 150.0;
+      final double run = height / 0.95;
+      final alone = _litRoom();
+      final overhead = _litRoom();
+      overhead.scene.add(
         MeshNode(
           DeviceMesh.upload(
-            far.device,
-            CuboidShape(size: Vector3(20.0, 20.0, 20.0)).build(),
+            overhead.device,
+            CuboidShape(size: Vector3(8.0, 2.0, 8.0)).build(),
           ),
-          engine.Material(name: 'far', baseColor: Vector4(1.0, 1.0, 1.0, 1.0)),
-          name: 'far',
-        )..setPosition(0.0, 6.0, 300.0),
+          engine.Material(name: 'high', baseColor: Vector4(1.0, 1.0, 1.0, 1.0)),
+          name: 'high',
+        )..setPosition(0.2 * run, height, 15.0 - 0.25 * run),
       );
 
       const shadows = ShadowSettings(cascades: 1, resolution: 512);
-      final tight = await _draw(
+      final without = await _draw(
         _engine(),
-        near.scene,
-        near.camera,
+        alone.scene,
+        alone.camera,
         shadows: shadows,
       );
-      final loose = await _draw(
+      final with_ = await _draw(
         _engine(),
-        far.scene,
-        far.camera,
+        overhead.scene,
+        overhead.camera,
         shadows: shadows,
       );
 
+      // 70 more shadowed pixels were measured; a caster dropped from the
+      // volume adds none.
       expect(
-        _shadowedPixels(loose),
-        isNot(closeTo(_shadowedPixels(tight), 4.0)),
+        _shadowedPixels(with_) - _shadowedPixels(without),
+        greaterThan(35),
         reason:
-            'a caster three hundred metres out changed nothing, so the '
+            'a caster a hundred and fifty metres up cast nothing, so the '
             'volume is no longer fitted to the casters',
       );
     });

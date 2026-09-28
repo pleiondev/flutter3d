@@ -223,42 +223,49 @@ packages:
       path: "../../packages/flutter3d_core"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.8.2"
   flutter3d_hardware:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_hardware"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.8.0"
   flutter3d_mesh:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_mesh"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.8.0"
   flutter3d_model_core:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_model_core"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.8.0"
   flutter3d_particles:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_particles"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.8.0"
   flutter3d_physics:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_physics"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.8.2"
+  flutter3d_shaders:
+    dependency: "direct overridden"
+    description:
+      path: "../../packages/flutter3d_shaders"
+      relative: true
+    source: path
+    version: "0.8.2"
   frontend_server_client:
     dependency: transitive
     description:
@@ -679,10 +686,10 @@ packages:
     dependency: transitive
     description:
       name: vector_math
-      sha256: f36f9f3be64c6198714492bb455c11056e33e2f85d9a0b676a48301e44fdcf47
+      sha256: "92b9910f66ed1057fd4da7b040ae7c74cafacf885bdc81be496928d5049b032d"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.2"
+    version: "2.4.3"
   vm_service:
     dependency: transitive
     description:
