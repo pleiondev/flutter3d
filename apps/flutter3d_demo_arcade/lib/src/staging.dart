@@ -19,7 +19,16 @@ extension ArcadeGameStaging on ArcadeGame {
   void spawnWorld(GraphicsDevice device, Scene scene) {
     _device = device;
     _scene = scene;
+    // Seen straight down, a pillar is its top face and nothing else, so its
+    // shadow has to read as a shadow on its own: short, under a sun high
+    // enough that the pillar still seems to stand in it, and grey rather
+    // than a black hole in the floor. The default ambient of 0.06 made it
+    // black, and so did 0.6: the ambient term is on the scale of the sun's
+    // after its division by pi, and the tone curve crushes what is left of
+    // a dark floor near zero. At 2.0 the shadowed floor is about 40% of the
+    // lit one on screen.
     scene
+      ..ambientIntensity = 2.0
       ..add(_groundMesh(device))
       ..add(
         _prop(
@@ -59,7 +68,7 @@ extension ArcadeGameStaging on ArcadeGame {
       )
       ..add(
         LightNode(name: 'sun', intensity: 3.2)
-          ..setLocalForward(Vector3(-0.35, -1.0, -0.2)),
+          ..setLocalForward(Vector3(-0.2, -1.0, -0.12)),
       );
 
     _buildWalls();
