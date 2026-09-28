@@ -5,8 +5,8 @@ is inside the picture but behind a wall: the crate is drawn, every pixel of it l
 depth test, and the work is thrown away. Occlusion culling asks, before the draw, whether
 anything in front already covers the whole box, and skips the mesh if it does.
 
-The picture never changes when it works. A frame only reports how many meshes were left
-out, in `FrameResult.culled`. So this page puts a lookout in the yard, the small blue
+With the software test the picture does not change when it works. A frame only
+reports how many meshes were left out, in `FrameResult.culled`. So this page puts a lookout in the yard, the small blue
 ball, and paints the crates the lookout cannot see dark grey. The orange ones are the ones
 it would still draw.
 
@@ -14,8 +14,11 @@ it would still draw.
 
 `RenderSettings.occlusion` is `OcclusionMode.none` by default. With
 `OcclusionMode.software`, only meshes marked `occluder` hide anything, and nothing is
-marked by default, so switching the setting on alone changes nothing. A mesh that is
-transparent, cut out or skinned never occludes, whatever it is marked.
+marked by default, so switching the setting on alone changes nothing. A marked mesh
+still never occludes when its material is transparent or cut out, writes no depth, or
+compares depth other than by less or less-or-equal, nor when it is an instanced batch.
+A skinned or morphed mesh does not occlude with its own triangles, since they move;
+give it an `occluderMesh` and it occludes with that.
 
 A wall is a good occluder: a few triangles that cover a lot of the view. The software
 test draws at most two thousand occluder triangles a frame, the largest on screen first,
@@ -61,7 +64,9 @@ draw calls and a larger `FrameResult.culled`.
 
 `OcclusionMode.hiZ` needs nothing marked. It reads back last frame's depth and
 reprojects it to this frame's camera, and answers "visible" until the first reading has
-arrived, after a camera cut and with more than one view.
+arrived, after a camera cut and with more than one view. Reading that depth back turns
+multisampling off, so on a device that multisamples, `hiZ` does change the picture: its
+edges lose their smoothing.
 
 {{code settings}}
 

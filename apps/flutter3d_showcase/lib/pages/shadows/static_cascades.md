@@ -36,12 +36,15 @@ matrix, and the whole tile would be drawn again.
 ## Step 3: A sun and a walk
 
 The sun is a directional light, which asks for a shadow map by default. The ground
-receives shadows but casts none: a ground that cast would lie in every tile, and every
-tile would then hold something to redraw.
+receives shadows but casts none. A ground that cast would not make a tile redraw by
+standing still, but it would cost twice. The last cascade is fitted to the bounds of
+everything that casts, so an eighteen metre ground would widen it and coarsen its
+texels. And the ground lies in every tile, so every tile that is drawn again would
+draw the ground as well, one more draw than the check in Step 5 allows.
 
 {{code sun}}
 
-The camera slides sideways and back. A cascade's centre is snapped to whole texels in
+The camera slides from side to side. A cascade's centre is snapped to whole texels in
 the light's frame, so as the camera walks the near tiles move by whole texels, which is
 what lets the static atlas be scrolled instead of drawn again.
 

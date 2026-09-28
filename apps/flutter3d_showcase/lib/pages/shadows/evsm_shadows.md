@@ -10,9 +10,9 @@ it back with one filtered tap. The soft edge is already in the blurred texture.
 
 ## Step 1: A post and a raised box
 
-A post standing on the floor and a flat box held sixty centimetres above it. The post's
-shadow starts where the post touches the floor. The box's shadow has travelled the
-whole way down.
+A post standing on the floor and a flat box whose underside is held half a metre above
+it. The post's shadow starts where the post touches the floor. The box's shadow has
+travelled the whole way down.
 
 {{code casters}}
 
@@ -59,5 +59,5 @@ Switch **Filter** between the three and watch the post's shadow and the box's.
 > **Note.** EVSM needs an rgba32f atlas and two more blur passes over it, paid only when
 > the map changes. It also needs a device that can filter 32-bit float textures
 > (`supportsFloat32Filtering`). A device without it refuses the filter: the pass named
-> `shadow moments` is reported as skipped, `FrameResult.shadowsDenied` counts it, and
-> the frame draws the 3 by 3 kernel instead.
+> `shadow moments` shows up in `FrameResult.skipped` as unsupported, and the frame
+> draws the 3 by 3 kernel instead.

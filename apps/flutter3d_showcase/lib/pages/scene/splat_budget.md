@@ -35,7 +35,8 @@ their opacity and size, so it covers what they covered.
 
 `SplatContributor.lod` draws whatever cut `SplatLod` last chose. The cut starts
 at the root and keeps refining the node that looks largest from the eye, its
-radius over its distance, as long as that node's children still fit in the
+radius over the distance from the eye to the near side of its sphere (the distance
+to its centre less its radius), as long as that node's children still fit in the
 budget. It never holds more splats than the budget. A budget below the root's own
 count draws nothing, since there is no coarser cut to give.
 

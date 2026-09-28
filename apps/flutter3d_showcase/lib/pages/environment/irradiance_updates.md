@@ -21,7 +21,9 @@ set to one: the field is read at that strength, in place of the flat ambient.
 Eight probes in a 2 by 2 by 2 grid, between the floor and the lamp. Nothing is gathered
 here: a new field holds zeros, so it starts black. `gpuUpdates` is how many probes the
 renderer draws each frame, going round all of them in order. At two, each of the eight
-is looked at again every fourth frame. The first few frames fill the room in.
+is looked at again every fourth frame. The room fills in over its first seconds: at the
+default hysteresis a probe needs about twenty-two updates to reach nine tenths of its
+value, which is about eighty-eight frames, a second and a half at sixty a second.
 
 {{code field}}
 
@@ -31,8 +33,9 @@ Each frame the page writes the chosen colour into the wall's material and passes
 two sliders on to the field.
 
 `hysteresis` is how much of a probe's old value it keeps at each update, from nought
-to one; the default is 0.9. Pick another **Wall colour** and watch the tint on the
-floor near the wall change over from the old colour to the new one. Drag **Hysteresis**
+to 0.99; the renderer clamps anything higher to 0.99, so a probe always takes in some
+of what it sees. The default is 0.9. Pick another **Wall colour** and watch the tint
+on the floor near the wall change over from the old colour to the new one. Drag **Hysteresis**
 down and it changes faster, but a probe also jumps more from one update to the next.
 Drag **Probes a frame** up and every probe is visited sooner, at the cost of drawing
 more cubes each frame.

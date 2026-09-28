@@ -14,7 +14,8 @@ glow behind an object stops at its edge.
 
 The floor from the clustered lights page: a white slab and an eight by eight grid of
 point lights thirty centimetres above it, each a different hue. Here each light
-reaches a metre and a half, so the pools of light overlap. There is no sun.
+reaches a metre, as far as its neighbours, so the pools of light meet. There is no
+sun.
 
 {{code torches}}
 
@@ -23,6 +24,12 @@ reaches a metre and a half, so the pools of light overlap. There is no sun.
 The air finds its point and spot lights through the cells that clustered lights cut
 the view into. So this page switches `clusteredLights` on. Without it, the air is lit
 by the sun and by `ambient` alone, and this scene has neither.
+
+A step of the march reads at most sixteen lights from its cell, fewer than the
+twenty-four a surface takes, and past that the cell's later lights in scene order are
+left out of the air. That is why the torches reach only a metre: no cell here holds
+more than fifteen. At a metre and a half the fullest would hold about thirty, and
+some of the glow would go missing from the air while the floor under it stayed lit.
 
 {{code cells}}
 

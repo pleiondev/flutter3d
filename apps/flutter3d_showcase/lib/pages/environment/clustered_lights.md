@@ -2,8 +2,10 @@
 
 Each draw gets a short list of lights: eight slots, plus a tail of twenty-four more,
 ranked against the draw's bounding sphere. For a vase that is plenty. A floor that
-spans the whole map is a single draw, though, so it gets the thirty-two brightest
-lights anywhere on it, and every other lamp over it does nothing.
+spans the whole map is a single draw, though, and every lamp on this page stands
+inside its sphere, so every lamp scores the same. Ties go by scene order: the floor
+gets the first thirty-two lamps added, one half of the grid, and every other lamp
+over it does nothing.
 
 Clustered lights hand the list out per pixel instead. Each frame, the view is cut into
 16 by 9 tiles and 24 depth slices, and each of those cells gets the lights whose range
@@ -32,7 +34,10 @@ it.
 the sixty-four spots stay dark. Switch it on and all of them light up.
 
 Drag **Light range** up and the spots grow into each other. Each cell then holds more
-lights, and each pixel does more work.
+lights, and each pixel does more work. A fragment reads at most twenty-four lights
+from its cell, and past that the cell keeps the first twenty-four in scene order and
+drops the rest. At 0.8 metres the fullest cell here holds twelve; at the slider's
+3 metres it holds fifty-six, so the far end of the slider is already past the cap.
 
 {{code settings}}
 

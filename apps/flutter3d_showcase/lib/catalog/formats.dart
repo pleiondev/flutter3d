@@ -69,6 +69,7 @@ const List<Feature> formatsFeatures = <Feature>[
     since: '0.8.0',
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
     evidence: 'Variants and animation pointers.',
+    keywords: <String>['KHR_materials_variants', 'KHR_animation_pointer'],
     packages: <String>['flutter3d', 'flutter3d_core'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/animation/animation_pointer.dart',

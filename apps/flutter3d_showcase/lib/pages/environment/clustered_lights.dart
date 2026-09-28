@@ -102,9 +102,16 @@ final class ClusteredLightsDemo extends ShowcaseDemo {
     if (scene.lights.length != 64) {
       throw StateError('the grid should hold 64 lights');
     }
-    if (frame.lightsDropped == 0) {
+    if (!clustered) {
+      throw StateError('the page should start with clusteredLights on');
+    }
+    // The per-draw list reports the same loss with the cells on or off: 64
+    // lights less eight slots and a tail of twenty-four. Those 32 are the
+    // lamps the floor loses without the cells.
+    if (frame.lightsDropped != 32) {
       throw StateError(
-        'the frame fit its lights in the eight slots, so no cells were cut',
+        'a per-draw list should leave 32 of the 64 lamps out, '
+        'the frame reports ${frame.lightsDropped}',
       );
     }
   }

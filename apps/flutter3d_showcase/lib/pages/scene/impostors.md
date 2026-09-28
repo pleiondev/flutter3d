@@ -79,16 +79,20 @@ become cards. Zoom out or orbit and watch them switch.
 The card is drawn like any other mesh, with `LightingModel.impostor`, and it is lit by
 the same lights. For each pixel the shader reads the three baked views nearest the
 direction it is seen from and blends them. It reads the normal from the second atlas,
-so a card darkens on the side away from the sun the way the mesh does. Turn **Sun
-direction** and compare a near tree with a far one.
+so a card darkens on the side away from the sun the way the mesh does. The light is
+the same, but the shading is not quite: the mesh is lit with the full PBR model, while
+the card stage is diffuse only, because the atlases carry no roughness or metal. At the
+distance a tree turns into a card its highlights would be smaller than a pixel anyway.
+Turn **Sun direction** and compare a near tree with a far one.
 
 {{code sun}}
 
 {{code light}}
 
 Cards receive shadows but cast none. The shadow passes would draw the card as it was
-built, an upright square, not as it is seen. Look at the ground under the far trees:
-the near trees have shadows there and the cards do not.
+built, an upright square, not as it is seen. So look at the ground beside each tree.
+A near tree, drawn as a mesh, has its shadow there. A far tree, drawn as a card, has
+none.
 
 > **Note.** Each card is its own draw. A forest of cards is one draw per tree, not
 > one instanced draw, because the instanced path uses the engine's own vertex stage,

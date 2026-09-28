@@ -53,7 +53,7 @@ final class VolumetricFogDemo extends ShowcaseDemo {
             name: 'torch $i $j',
             type: LightType.point,
             intensity: 1.0,
-            range: 1.5,
+            range: 1.0,
             color: _hue((i * 8 + j) / 64.0),
           )..setPosition(i - 3.5, 0.3, j - 3.5),
         );
