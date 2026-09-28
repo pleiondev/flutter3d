@@ -16,6 +16,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import '../transform/object3d_component.dart' show SyncDirection;
 import '../transform/plane.dart';
+import 'camera_sync_component.dart';
 
 /// Reconciles a flutter3d [CameraNode] with a Flame [Viewfinder], on one
 /// [BridgePlane], one [direction] deciding who writes each frame.
@@ -25,8 +26,7 @@ import '../transform/plane.dart';
 /// step, called from wherever a bridged game already ticks its other
 /// controllers, the same way `OrbitController` is a plain Dart class with
 /// its own `advance`. A caller that wants this driven by Flame's own update
-/// loop wraps it in a one-line `Component.update` override; this class does
-/// not presume that wrapper exists.
+/// loop adds a [CameraSyncComponent]; this class does not presume one.
 ///
 /// **Takes a [Viewfinder], not a `CameraComponent`.** A [Viewfinder]'s
 /// `position`/`zoom`/`angle` setters only ever touch its own `Transform2D`

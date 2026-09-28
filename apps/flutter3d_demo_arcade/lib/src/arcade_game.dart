@@ -389,8 +389,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
       retry();
       return KeyEventResult.handled;
     }
-    final propagate = inputBridge.onKeyEvent(event, keysPressed);
-    return propagate ? KeyEventResult.ignored : KeyEventResult.handled;
+    return inputBridge.onGameKeyEvent(event, keysPressed);
   }
 }
 

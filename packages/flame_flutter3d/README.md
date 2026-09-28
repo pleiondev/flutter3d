@@ -58,10 +58,13 @@ per component.
   callbacks into calls on the `Bindings`/`InputState` of `flutter3d_game`.
   `DesktopInput`/`PadInput` already write into those same objects, so a
   bridged game and a native one share one input model, one rebinding UI and
-  one saved binding file.
+  one saved binding file. A game forwards its `KeyboardEvents` through
+  `onGameKeyEvent`, a component its `KeyboardHandler` through `onKeyEvent`.
 - Camera: `CameraSyncController` keeps a flutter3d `CameraNode` (typically
   orthographic) and Flame's own `Viewfinder` framed the same, reconciling
   position and zoom in whichever direction is authoritative.
+  `CameraSyncComponent` runs it as a Flame component, for a game that orders
+  it by priority.
 
 The `flame` pages of `apps/flutter3d_showcase` show one mechanism per page,
 each with a step-by-step guide.

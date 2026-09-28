@@ -1,5 +1,6 @@
 import 'package:flame/events.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -75,6 +76,22 @@ final class FlameInputBridge {
     }
     return false;
   }
+
+  /// [onKeyEvent] for a game rather than a component: the same translation,
+  /// answered in the [KeyEventResult] that `KeyboardEvents.onKeyEvent` on a
+  /// `FlameGame` returns.
+  ///
+  /// The two Flame hooks ask the same question with opposite answers: a
+  /// component's `true` means "keep propagating", a game's
+  /// [KeyEventResult.handled] means "stop". Every game that forwarded to
+  /// [onKeyEvent] wrote the flip itself, and getting it backwards swallows
+  /// every key the bridge has nothing bound to.
+  KeyEventResult onGameKeyEvent(
+    KeyEvent event,
+    Set<LogicalKeyboardKey> keysPressed,
+  ) => onKeyEvent(event, keysPressed)
+      ? KeyEventResult.ignored
+      : KeyEventResult.handled;
 
   /// Adds a Flame drag's movement to [inputState]'s accumulated look delta.
   ///

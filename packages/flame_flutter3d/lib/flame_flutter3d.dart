@@ -5,11 +5,12 @@
 /// ([Flutter3dFlameWidget], [BridgePlane], [Object3dComponent]), the actor
 /// system ([ActorComponent], [ActorSystemComponent]), physics
 /// ([RigidBodyComponent], [PhysicsStepComponent], [CollisionBridge]), input
-/// ([FlameInputBridge]),
-/// and camera ([CameraSyncController]). See `apps/flutter3d_showcase`'s
-/// `flame` pages for one mechanism per page.
+/// ([FlameInputBridge]) and camera ([CameraSyncController],
+/// [CameraSyncComponent]). See `apps/flutter3d_showcase`'s `flame` pages for
+/// one mechanism per page.
 library;
 
+export 'src/camera/camera_sync_component.dart';
 export 'src/camera/camera_sync_controller.dart';
 export 'src/ecs/actor_component.dart';
 export 'src/ecs/actor_system_component.dart';

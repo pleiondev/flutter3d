@@ -235,6 +235,9 @@ const Map<String, String> notARigCamera = <String, String>{
       'subject, no impulse and no wall — the smoothing and the pull-out '
       'CameraRig gives a followed subject would be a second opinion about '
       'where the camera already, definitionally, is',
+  'flame_flutter3d/lib/src/camera/camera_sync_component.dart':
+      'that same mirror called from a Flame component\'s update: it holds a '
+      'CameraSyncController and nothing else, so it follows nothing either',
   'flutter3d_showcase/lib/pages/flame/flame_camera_bridge.dart':
       'demonstrates that same mirror, not a rig: the camera it builds is '
       'the one CameraSyncController reads from or writes to directly, with '

@@ -228,9 +228,7 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
   KeyEventResult onKeyEvent(
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
-  ) => inputBridge.onKeyEvent(event, keysPressed)
-      ? KeyEventResult.ignored
-      : KeyEventResult.handled;
+  ) => inputBridge.onGameKeyEvent(event, keysPressed);
 }
 
 /// The crate: a physics body the scene and Flame both follow, and the

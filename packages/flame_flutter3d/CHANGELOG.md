@@ -29,6 +29,16 @@ a collider that outlives its component.
 **`ActorSystemComponent` takes a `priority`** in its constructor, as every
 other component does.
 
+**`CameraSyncComponent` runs a `CameraSyncController` as a component**, for
+a game that would rather order the camera sync among its components than
+tick it from `onTick`. The controller itself is unchanged.
+
+**`FlameInputBridge.onGameKeyEvent`** answers a `FlameGame`'s
+`KeyboardEvents.onKeyEvent` in its own `KeyEventResult`. `onKeyEvent` answers
+a component's `KeyboardHandler`, whose `true` means "keep propagating", and
+every game that forwarded to it wrote the flip to `ignored`/`handled` by
+hand.
+
 **A Flame turn on a ground plane is no longer drawn mirrored.**
 `BridgePlane.rotationFor` took its sign from `Quaternion.rotated`, which
 computes `q̄·v·q` and turns a vector by `-θ`, while a node is drawn through

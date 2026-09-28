@@ -8,6 +8,7 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/src/input/flame_input_bridge.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,6 +77,27 @@ void main() {
 
     expect(notConsumed, isTrue);
     expect(state.held(GameAction.moveForward), isFalse);
+  });
+
+  test('onGameKeyEvent answers a game: handled for a bound key, ignored for '
+      'the rest', () {
+    // Mutation: return the component's polarity unflipped, and an unbound
+    // key reads as handled, which is how a game loses its own shortcuts.
+    expect(
+      bridge.onGameKeyEvent(
+        _down(LogicalKeyboardKey.keyW),
+        <LogicalKeyboardKey>{LogicalKeyboardKey.keyW},
+      ),
+      KeyEventResult.handled,
+    );
+    expect(state.held(GameAction.moveForward), isTrue);
+    expect(
+      bridge.onGameKeyEvent(
+        _down(LogicalKeyboardKey.keyQ),
+        <LogicalKeyboardKey>{LogicalKeyboardKey.keyQ},
+      ),
+      KeyEventResult.ignored,
+    );
   });
 
   test('a drag accumulates into the shared look delta', () {
