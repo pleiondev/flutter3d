@@ -12,6 +12,14 @@ angle survived the round trip, which it did either way. An
 `Object3dComponent` syncing rotation `flameToScene` on the ground plane turns
 the other way than it did, which is the way Flame means.
 
+**Flame is updated once a frame, not twice.** The bridge redrew the 3D layer
+with a `setState` on the whole `Stack`, which rebuilt `GameWidget` every
+frame, and `GameWidget` calls `game.update(0)` from its layout whenever it is
+rebuilt: every frame the game updated twice and `onTick` saw a second call
+with a `dt` of zero. Now only the 3D layer is rebuilt, and the `GameWidget`
+is made once per game, so a rebuild from above (a HUD beside it) does not
+reach Flame either.
+
 ## 0.8.1
 
 **An example to start from.** `example/` is the smallest hybrid game: a Flame

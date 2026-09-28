@@ -70,11 +70,11 @@ class Flutter3dFlameWidget extends StatefulWidget {
   /// with that update's `dt`: the seam a physics step, an actor system step,
   /// or a camera sync controller advances from.
   ///
-  /// **Usually once a frame, and sometimes again with a `dt` of zero.**
-  /// `GameWidget` calls `update(0)` from its own layout whenever it is
-  /// rebuilt, and this widget rebuilds it every frame, so a second call with
-  /// `dt == 0` can follow the ticker's. A step that divides by `dt`, or
-  /// counts calls, should ignore a zero.
+  /// **Once a frame, and occasionally with a `dt` of zero.** `GameWidget`
+  /// calls `update(0)` from its own layout whenever it is rebuilt: on its
+  /// first frame, and when its size changes. This widget no longer rebuilds
+  /// it every frame, but a step that divides by `dt` should still ignore a
+  /// zero.
   final void Function(double dt)? onTick;
 
   /// The 3D layer's clear color, behind whatever [buildScene] draws.
@@ -103,6 +103,20 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
   ({Renderer renderer, Scene scene})? _ready;
   Object? _error;
   bool _clockAdded = false;
+
+  /// Bumped once a Flame update to redraw the 3D layer, and nothing else.
+  ///
+  /// **Only the 3D layer is rebuilt each frame.** A `setState` here used to
+  /// rebuild the whole `Stack`, `GameWidget` with it, and `GameWidget` calls
+  /// `game.update(0)` from its own layout whenever it is rebuilt, so every
+  /// frame the game was updated twice, [BridgeClock] fired twice and
+  /// `onTick` saw a second call with a `dt` of zero.
+  final ValueNotifier<int> _frames = ValueNotifier<int>(0);
+
+  /// The `GameWidget`, made once per game and handed back unchanged, so a
+  /// rebuild of this widget from above (a HUD beside it calling `setState`,
+  /// say) does not rebuild Flame's own widget either.
+  GameWidget<FlameGame>? _gameWidget;
 
   @override
   void initState() {
@@ -137,9 +151,10 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
     }
   }
 
-  /// **Deferred to a post-frame callback, and still in step.** A `setState`
-  /// made while a build or a layout is under way throws "called during
-  /// build", so the rebuild is asked for once this frame is done. That does
+  /// **Deferred to a post-frame callback, and still in step.** A rebuild
+  /// asked for while a build or a layout is under way throws "called during
+  /// build", so it is asked for once this frame is done, and only of the 3D
+  /// layer ([_frames]). That does
   /// not put the 3D layer a frame behind, though this comment used to say it
   /// did. The callback only marks this state dirty; the next frame runs its
   /// transient callbacks first, and Flame's game loop is a `Ticker` among
@@ -152,8 +167,14 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
     widget.onTick?.call(dt);
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-      if (mounted) setState(() {});
+      if (mounted) _frames.value++;
     });
+  }
+
+  @override
+  void dispose() {
+    _frames.dispose();
+    super.dispose();
   }
 
   @override
@@ -179,17 +200,27 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
       (_, (:final renderer, :final scene)?) => Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          SceneSurface(
-            renderer: renderer,
-            scene: scene,
-            view: _view,
-            settings: widget.settings ?? () => const RenderSettings(),
-            onBeforeFrame: () {},
-            presentFrame: presentFrame,
+          ValueListenableBuilder<int>(
+            valueListenable: _frames,
+            builder: (BuildContext context, int frame, Widget? child) =>
+                SceneSurface(
+                  renderer: renderer,
+                  scene: scene,
+                  view: _view,
+                  settings: widget.settings ?? () => const RenderSettings(),
+                  onBeforeFrame: () {},
+                  presentFrame: presentFrame,
+                ),
           ),
-          GameWidget(game: widget.game),
+          _gameWidgetFor(widget.game),
         ],
       ),
     };
+  }
+
+  GameWidget<FlameGame> _gameWidgetFor(FlameGame game) {
+    final GameWidget<FlameGame>? made = _gameWidget;
+    if (made != null && identical(made.game, game)) return made;
+    return _gameWidget = GameWidget<FlameGame>(game: game);
   }
 }

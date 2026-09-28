@@ -35,8 +35,8 @@ final class BridgeClock extends Component {
 
   /// Called every time Flame updates this component, with Flame's own `dt`
   /// in seconds, not a second measurement of it: once a frame from the game
-  /// loop, and again with `dt == 0` when `GameWidget` updates the game from
-  /// its own layout, which [Flutter3dFlameWidget] makes happen every frame.
+  /// loop, and with `dt == 0` when `GameWidget` updates the game from its own
+  /// layout, which it does when it is rebuilt (its first frame, a resize).
   final void Function(double dt) onTick;
 
   @override
