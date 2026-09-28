@@ -248,12 +248,13 @@ jobs:
   # uses only the arithmetic IEEE 754 rounds one way, and the comparison stays
   # exact: a difference of one step is still a golden that moved.
   #
-  # Ninety minutes, because the seventy-eight scenes take about an hour on the
-  # runner: at forty-five the job was cancelled at scene fifty-eight, every
-  # one of them passing.
+  # A hundred and fifty minutes. The seventy-eight scenes took about an hour
+  # on the runner when this was ninety; by 0.8.1 they took longer, and every
+  # run was cancelled a scene or two from the end, every scene before it
+  # passing. At forty-five it had stopped at scene fifty-eight.
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
 
