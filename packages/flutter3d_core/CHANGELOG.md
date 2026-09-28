@@ -15,6 +15,10 @@
   scene that set `casterFaces` for the sun sets `directionalCasterFaces`
   instead. Every golden scene with a sun was recorded again on all four
   backends.
+- **A correction to 0.8.0's EVSM entry.** It said a device that cannot
+  filter the moments "counts in `FrameResult.shadowsDenied`". It does not:
+  `shadowsDenied` counts cube-atlas rows a lamp could not have, and an EVSM
+  refusal shows in `FrameResult.skipped`, as `ShadowFilter.evsm` says.
 
 ## 0.8.1
 
