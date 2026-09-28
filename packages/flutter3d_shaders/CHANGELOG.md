@@ -1,3 +1,18 @@
+## 0.8.2
+
+**A PCSS tap allows for the receiver's own slope.** `ShadowFactor` in
+`lib/shadow.glsl` compared every tap of the soft-shadow kernel with the one
+bias the centre was given, and a lit slope's own depth, now in the sun's map
+since `flutter3d_core` 0.8.2 records both faces, rose past it a few texels
+up the slope: at a 75° slope under a sun of 0.2 rad, 9% of the slope came
+out self-shadowed. Each tap now adds the depth the receiver's plane gains
+over its distance from the centre, beyond the reach the normal offset
+already covers, and the same slope is fully lit. The blocker search and the
+filter both use it.
+
+The comment on the direct-light energy compensation in `lib/pbr.glsl` names
+its source, Turquin 2019.
+
 ## 0.8.1
 
 **A contact shadow resolve stage.** `post/contact_shadow_resolve.frag`

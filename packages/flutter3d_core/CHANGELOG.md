@@ -23,6 +23,10 @@
   `shadowsDenied` counts cube-atlas rows a lamp could not have, and an EVSM
   refusal shows in `FrameResult.skipped`, as `ShadowFilter.evsm` says.
 
+Upgrade the backend with this: it asks for `flutter3d_shaders` `^0.8.2`,
+whose PCSS allows for the receiver's slope that the two-sided sun map
+needs.
+
 ## 0.8.1
 
 Upgrade `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu` and

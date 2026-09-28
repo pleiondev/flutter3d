@@ -1,3 +1,14 @@
+## 0.8.2
+
+* **A sunlit room's inside corners stop leaking light, and a slope under a
+  low sun stops shadowing itself**, through `flutter3d_core` 0.8.2, which
+  this library re-exports. The sun records both faces of its casters, by
+  `ShadowSettings.directionalCasterFaces`; a scene that set `casterFaces`
+  for the sun sets that instead. Upgrade the backend with it.
+
+It asks for `^0.8.2` of `flutter3d_core`, `flutter3d_shaders` and
+`flutter3d_cpu`.
+
 ## 0.8.1
 
 * **Contact shadows without TAA and folded cloth under a low sun are drawn

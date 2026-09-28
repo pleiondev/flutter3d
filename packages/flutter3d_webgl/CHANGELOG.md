@@ -1,3 +1,11 @@
+## 0.8.2
+
+**The generated tables carry the PCSS receiver-plane bias** of
+`flutter3d_shaders` 0.8.2.
+
+It asks for `^0.8.2` of `flutter3d_shaders`, `flutter3d_cpu` and
+`flutter3d_core`.
+
 ## 0.8.1
 
 **The generated tables carry the contact shadow resolve stage**, which

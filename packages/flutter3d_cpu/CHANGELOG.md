@@ -1,3 +1,13 @@
+## 0.8.2
+
+**The PCSS receiver-plane bias, as the GLSL has it.** The directional
+`shadowFactor` gives each PCSS tap the bias of the receiver's own slope past
+the normal offset's reach, as `flutter3d_shaders` 0.8.2 does, so the
+software backend and the GPU ones agree on a lit slope under a low sun.
+
+It asks for `^0.8.2` of `flutter3d_shaders`, and of `flutter3d_core` for its
+tests.
+
 ## 0.8.1
 
 **The contact shadow resolve and the held normal offset, as the GLSL has

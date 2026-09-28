@@ -13,7 +13,7 @@ The two projects are not after the same thing. Scene is a complete 3D game engin
 | | flutter3d | Flutter Scene |
 |---|---|---|
 | First commit | 2026-08-08 | 2024-02-01 |
-| Core package version | 0.8.1 | 0.23.0 |
+| Core package version | 0.8.2 | 0.23.0 |
 | Maintainer | An independent developer, unaffiliated with the Flutter team | The author of Flutter GPU, formerly on the core Flutter engine team |
 | Licence | MIT | MIT |
 | Web backend | WebGL2, and WebGPU behind a flag | Built-in WebGL2 |

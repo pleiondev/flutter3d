@@ -2,7 +2,7 @@ name: flutter3d_cpu
 description: >-
   A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
-version: 0.8.1
+version: 0.8.2
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -20,7 +20,7 @@ dependencies:
   # `stageBindings`: what each of the engine's compiled stages keeps, which
   # the library hands every stage as `ShaderHandle.kept` and the encoder
   # refuses binds against — `gfx-92n`. A table of names and nothing else.
-  flutter3d_shaders: ^0.8.1
+  flutter3d_shaders: ^0.8.2
   vector_math: ^2.4.3
 
 dev_dependencies:
@@ -42,7 +42,7 @@ dev_dependencies:
   # and checked with; and for `mip_chain_quality_test.dart`, `ap-08`'s own
   # Kaiser-filtered chain from its formats library. Flat, like everything else
   # in this list.
-  flutter3d_core: ^0.8.1
+  flutter3d_core: ^0.8.2
   # For `reactive_mask_test.dart`: an ember is a particle, and `R4` is about
   # what the temporal resolve does to one — drawn through the engine's own
   # contributor rather than a stand-in for it.

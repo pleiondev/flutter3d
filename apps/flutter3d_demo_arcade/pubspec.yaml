@@ -13,7 +13,7 @@ dependencies:
 
   flutter3d: ^0.8.0
   flutter3d_app: ^0.8.0
-  flame_flutter3d: ^0.8.0
+  flame_flutter3d: ^0.8.2
   flutter3d_sim: ^0.8.0
   flutter3d_physics: ^0.8.0
 

@@ -1,3 +1,11 @@
+## 0.8.2
+
+**The generated tables carry the PCSS receiver-plane bias** of
+`flutter3d_shaders` 0.8.2, through glslang and naga like every other stage.
+
+It asks for `^0.8.2` of `flutter3d_shaders`, `flutter3d_cpu`,
+`flutter3d_core` and `flutter3d_webgl`.
+
 ## 0.8.1
 
 **The generated tables carry the contact shadow resolve stage**, through

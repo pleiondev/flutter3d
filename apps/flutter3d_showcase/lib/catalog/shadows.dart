@@ -61,6 +61,12 @@ const List<Feature> shadowsFeatures = <Feature>[
             'The flat part of the normal offset is held to one texel of its cascade, so shadow edges sit about a pixel closer to the pillars that cast them.',
         evidence: 'A fold no longer lets the sun through its upper layer.',
       ),
+      Change(
+        version: '0.8.2',
+        note:
+            'The sun records both faces of its casters, so where a caster stands on the ground its shadow no longer lets a thread of light through.',
+        evidence: "A sunlit room's inside corners no longer leak light.",
+      ),
     ],
   ),
   Feature(
@@ -100,6 +106,12 @@ const List<Feature> shadowsFeatures = <Feature>[
         note:
             'The sun\'s radius is its apparent size in radians, and the penumbra is worked out in metres from the gap between blocker and receiver.',
         evidence: '`ShadowSettings.directionalLightRadius` is in radians.',
+      ),
+      Change(
+        version: '0.8.2',
+        note:
+            'Each tap of the soft edge allows for the slope of the surface it lands on, so a slope the sun lights no longer darkens itself at the edge of its own penumbra.',
+        evidence: "Each PCSS tap now allows for the receiver's own slope",
       ),
     ],
   ),

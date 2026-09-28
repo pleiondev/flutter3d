@@ -49,6 +49,8 @@ with a `dt` of zero. Now only the 3D layer is rebuilt, and the `GameWidget`
 is made once per game, so a rebuild from above (a HUD beside it) does not
 reach Flame either.
 
+It asks for `flutter3d_physics` `^0.8.2`, which brings the cloth fix.
+
 ## 0.8.1
 
 **An example to start from.** `example/` is the smallest hybrid game: a Flame

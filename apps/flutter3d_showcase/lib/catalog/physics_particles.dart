@@ -318,6 +318,13 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
         evidence: 'A sheet no longer passes through itself.',
         evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
       ),
+      Change(
+        version: '0.8.2',
+        note:
+            'The ball\'s facets no longer show through the sheet draped over it: the flat triangles between the particles stay clear of the surface too.',
+        evidence: 'A ball no longer shows through the cloth draped over it.',
+        evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
+      ),
     ],
   ),
 ];
