@@ -4,7 +4,7 @@ A display cannot show anything brighter than white, but a scene can hold light t
 
 ## Step 1: A light brighter than the display
 
-The lamp is a small sphere whose `emissive` colour is multiplied by an `emissiveStrength` of nine. Nothing in the scene lights it: it emits nine times white on its own. Without bloom it would look like a flat pale disc, because everything above 1.0 is cut off at white.
+The lamp is a small sphere whose `emissive` colour is multiplied by an `emissiveStrength` of nine. Nothing in the scene lights it: it emits nine times white on its own. Without bloom it would look like a flat pale disc, because everything above 1.0 is cut off at white. Since it lights nothing, it hangs where the sun comes from; anywhere else the shapes would be lit from one side and glow from the other.
 
 {{code lamp}}
 

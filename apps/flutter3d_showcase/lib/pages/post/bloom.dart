@@ -22,6 +22,8 @@ final class BloomDemo extends ShowcaseDemo {
     final PostStage stage = PostStage.build(context);
 
     // #region lamp
+    // Hung on the side the sun comes from, so the lit faces of the shapes turn
+    // towards the glow: the lamp itself lights nothing.
     final MeshNode lamp = MeshNode(
       DeviceMesh.upload(
         context.device,
@@ -34,7 +36,7 @@ final class BloomDemo extends ShowcaseDemo {
         emissiveStrength: 9.0,
       ),
       name: 'lamp',
-    )..setPosition(0.0, 1.6, -1.0);
+    )..setPosition(1.0, 2.3, 0.7);
     // #endregion lamp
 
     return stage.scene..add(lamp);

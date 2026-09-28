@@ -30,6 +30,8 @@ final class ToneMappingDemo extends ShowcaseDemo {
     final PostStage stage = PostStage.build(context, sunIntensity: 6.0);
 
     // #region lamps
+    // The lamps light nothing, so they hang on the side the sun comes from,
+    // where the lit faces of the shapes already look.
     final DeviceMesh ball = DeviceMesh.upload(
       context.device,
       const SphereShape(radius: 0.28, segments: 24, rings: 12).build(),
@@ -50,7 +52,7 @@ final class ToneMappingDemo extends ShowcaseDemo {
             emissiveStrength: 6.0,
           ),
           name: 'lamp $i',
-        )..setPosition((i - 1) * 1.1, 1.7, -1.4),
+        )..setPosition((i - 1) * 1.1 + 0.5, 2.3, 0.8),
       );
     }
     // #endregion lamps
