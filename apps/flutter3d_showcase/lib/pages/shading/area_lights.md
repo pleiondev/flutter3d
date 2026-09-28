@@ -42,11 +42,18 @@ The sliders' `width` and `height` are written back into the light every frame, s
 sliders change the panel a person can see rather than a copy nothing reads. The glowing
 pane is scaled to the same size, and the floor's roughness is written back the same way.
 
+The light's `intensity` stays the same as the panel grows, and the shader spreads it over
+the area: each square metre of a bigger window is dimmer. The pane's glow is a material
+the light knows nothing about, so the page scales it by the same ratio, the starting
+2.5 by 1.5 over the current width times height, to keep the pane as bright as the
+reflection it stands for.
+
 {{code live}}
 
 Bring **Floor roughness** down toward 0.05 and the floor reflects the window as a sharp
-rectangle. Widen the window and the reflection widens with it. Raise the roughness and the
-reflection spreads into a soft patch that keeps the panel's proportions. The highlight is
+rectangle. Widen the window and the reflection widens with it and dims. Raise the
+roughness and the reflection softens: at middling roughness it still shows the panel's
+proportions, and near 1 it spreads into a blob. The highlight is
 integrated over the whole rectangle, not read at one point of it, which is why a long
 window gives a long reflection.
 

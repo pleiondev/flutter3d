@@ -352,9 +352,10 @@ final class AmbientOcclusionMethod {
 
   /// Screen-space indirect light: the slices of [gtao], each sample a slab
   /// of [AmbientOcclusionSettings.thickness] covering a run of sixteen
-  /// sectors, and the light of the sectors it uncovers first bounced onto
-  /// the point by the albedo buffer. Occlusion and one bounce from one
-  /// march; the composite adds the light by the same strength it darkens by.
+  /// sectors, and each sample's light bounced onto the point for the sectors
+  /// it is the first to cover, tinted by the receiver's albedo. Occlusion
+  /// and one bounce from one march; the composite adds the light by the same
+  /// strength it darkens by.
   static const AmbientOcclusionMethod ssil = AmbientOcclusionMethod._(
     'ssil',
     2.0,
@@ -417,8 +418,10 @@ enum OutputTransform {
 /// right exposures, and auto exposure has to pick one: the room black or the
 /// window white. This takes the scene three times over — [shadowStops] up,
 /// as it is, [highlightStops] down — weighs at each place how near mid-grey
-/// each would come out, blurs the weights wide so no edge grows a halo, and
-/// gives each place the exposure its weights choose, before the tone curve.
+/// each would come out, blurs the weights wide, and gives each place the
+/// exposure its weights choose, before the tone curve. The blur ignores
+/// edges, so the exposure changes gradually rather than cutting a seam at
+/// every edge, at the price of a soft glow round a bright window.
 /// [strength] is how much of that shift applies: nought is the one global
 /// exposure, one the full local answer.
 ///
@@ -1067,15 +1070,16 @@ enum DiffuseModel {
   /// every frame the metal-rough models drew before the other existed.
   lambert,
 
-  /// The energy-preserving Oren–Nayar lobe of Portsmouth, Kutz and Hill
-  /// (EON, 2024), rough by the material's own roughness.
+  /// The energy-preserving Oren-Nayar lobe of Portsmouth, Kutz and Hill
+  /// (EON, JCGT 2025, preprint 2024), rough by the material's own roughness.
   ///
   /// A rough dielectric is a surface of tiny facets, and Lambert treats it as
-  /// a flat one: clay, plaster and concrete come out as bright at the rim as
-  /// head-on, which reads as plastic. EON flattens the falloff and lifts the
-  /// side facing the light, as Oren–Nayar does, and then adds back the light
-  /// that bounces between the facets, so a white surface under a white sky
-  /// still reflects all of it. The colour saturates a little as it roughens,
+  /// a flat one: its shading falls off with the angle to the light to a dark
+  /// rim, where real clay, plaster and concrete stay brighter towards the rim
+  /// and scatter back towards the light, so Lambert reads as plastic. EON
+  /// flattens the falloff and lifts the side facing the light, as Oren-Nayar
+  /// does, and then adds back the light that bounces between the facets, so
+  /// a white surface under a white sky still reflects all of it. The colour saturates a little as it roughens,
   /// which is that interreflection too. A smooth surface is Lambert.
   ///
   /// Arithmetic only: no table and no sampler. Direct light gets the whole

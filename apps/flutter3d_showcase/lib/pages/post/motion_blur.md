@@ -26,20 +26,26 @@ buffer.
 
 `RenderSettings.motionBlur` takes a `MotionBlurSettings`, off by default. With
 `enabled` on, the pass finds the longest motion in each tile of the screen and
-its neighbours, and gathers fifteen samples along it for every pixel.
+its neighbours, and gathers fifteen samples along it for every pixel near
+something moving. Pixels with less than half a pixel of motion anywhere
+around them are left as they are. The gather follows the reconstruction
+filter of McGuire, Hennessy, Bukowski and Osman (2012), with the samples
+weighted by how long each one covers the pixel.
 
 `shutterFraction` is how much of the frame's motion the exposure sees, from
 nought, a still, to one, the shutter open for the whole frame. The default,
-0.5, is the 180 degree shutter of film. `maxRadius` bounds the streak in
-pixels, 20 by default and never more than 64. It is also the width of the
-tiles, so it bounds the cost too. Anything moving faster is blurred as if it
-moved exactly that far.
+0.5, is the 180 degree shutter of film. `maxRadius` bounds the streak on each
+side of a pixel, in pixels, 20 by default and never more than 64, so a whole
+streak can be about twice that long. It is also the width of the tiles, so it
+bounds the cost too. Anything moving faster is blurred as if it moved exactly
+that far.
 
 {{code settings}}
 
 Switch **Motion blur** off and the spokes are sharp. Switch it on and the
 tips smear round the circle while the hub stays sharp. Raise **Speed** and the
-streak grows until it reaches **Longest streak**, then stops growing.
+streak grows until each half of it reaches **Streak each side**, then stops
+growing.
 
 ## Step 4: Check that it ran
 

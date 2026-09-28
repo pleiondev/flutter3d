@@ -104,6 +104,9 @@ final class ToneMappingDemo extends ShowcaseDemo {
   }
 
   /// [value], from 0 to 1, as the bits of a half float.
+  ///
+  /// It truncates rather than rounds and flushes subnormals to nought, which
+  /// is harmless here: the error is under a thousandth of a display value.
   static int _half(double value) {
     final int bits = (ByteData(4)..setFloat32(0, value)).getUint32(0);
     final int exponent = ((bits >> 23) & 0xff) - 127 + 15;

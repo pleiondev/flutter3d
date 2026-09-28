@@ -107,6 +107,9 @@ final class ClearCoatDemo extends ShowcaseDemo {
     if (!identical(coated.material.lighting, LightingModel.pbrLayered)) {
       throw StateError('the coated paint is not on the layered model');
     }
+    if ((coated.material.extensions?.clearcoat ?? 0.0) <= 0.0) {
+      throw StateError('the coated paint has no clear coat');
+    }
     if (frame.drawCalls < 2) {
       throw StateError('the two spheres were not both drawn');
     }

@@ -146,7 +146,8 @@ final class TextureTransformsDemo extends ShowcaseDemo {
     SliderControl(
       'Glow map: slide',
       min: 0,
-      max: 1,
+      // Half a tile: the map repeats, so a slide of one looks like nought.
+      max: 0.5,
       value: () => slide,
       onChanged: (double v) => slide = v,
     ),

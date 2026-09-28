@@ -151,7 +151,8 @@ final class TransmissionDemo extends ShowcaseDemo {
       max: 1.5,
       value: () => thickness,
       onChanged: (double v) => thickness = v,
-      format: (double v) => '${v.toStringAsFixed(2)} m',
+      // In the mesh's own units, as glTF measures it, not metres.
+      format: (double v) => '${v.toStringAsFixed(2)} units',
     ),
     SliderControl(
       'Index of refraction',
@@ -165,8 +166,9 @@ final class TransmissionDemo extends ShowcaseDemo {
 
   @override
   void verify(Scene scene, FrameResult frame) {
-    // A pane with no transmission is ordinary opaque metal-rough, and the
-    // frame draws in one pass as it always did.
+    // A pane with no transmission is opaque, drawn in one pass as it always
+    // was; at an index of 1.5 it is ordinary metal-rough, and at another
+    // index it keeps that index's reflectance.
     if (transmission <= 0.0) return;
     final Set<String> ran = <String>{
       for (final FramePass pass in frame.passes) pass.name,

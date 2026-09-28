@@ -206,6 +206,7 @@ const List<Feature> shadingFeatures = <Feature>[
     keywords: <String>['lighttype.area'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
+      'packages/flutter3d_shaders/shaders/lib/ltc.glsl',
     ],
     changes: <Change>[
       Change(
@@ -330,6 +331,7 @@ const List<Feature> shadingFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
       'packages/flutter3d_core/lib/src/engine/render/material.dart',
+      'packages/flutter3d_shaders/shaders/lib/pbr.glsl',
     ],
   ),
   Feature(
@@ -346,6 +348,7 @@ const List<Feature> shadingFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
       'packages/flutter3d_core/lib/src/engine/render/material.dart',
+      'packages/flutter3d_shaders/shaders/lib/pbr.glsl',
     ],
   ),
   Feature(
@@ -362,6 +365,7 @@ const List<Feature> shadingFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/material_extensions.dart',
       'packages/flutter3d_core/lib/src/engine/render/material.dart',
+      'packages/flutter3d_shaders/shaders/lib/pbr.glsl',
     ],
   ),
   Feature(
@@ -415,6 +419,7 @@ const List<Feature> shadingFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/surface_material.dart',
       'packages/flutter3d_core/lib/src/engine/render/material.dart',
+      'packages/flutter3d_shaders/shaders/lib/material_maps.glsl',
     ],
   ),
   Feature(
@@ -430,6 +435,7 @@ const List<Feature> shadingFeatures = <Feature>[
     keywords: <String>['energycompensation', 'diffusemodel', 'oren-nayar'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+      'packages/flutter3d_shaders/shaders/lib/pbr.glsl',
     ],
   ),
 ];

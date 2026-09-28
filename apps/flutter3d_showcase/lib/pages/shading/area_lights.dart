@@ -18,6 +18,7 @@ final class AreaLightsDemo extends ShowcaseDemo {
 
   late final LightNode _window;
   late final MeshNode _pane;
+  late final Material _glass;
   late final Material _floorMaterial;
 
   /// A plane is built lying down, facing +Y; a quarter turn about X stands
@@ -48,17 +49,18 @@ final class AreaLightsDemo extends ShowcaseDemo {
     // #region pane
     // The light itself is not drawn. A glowing rectangle of the same size,
     // just behind it, is what a person sees as the window.
+    _glass = Material(
+      name: 'window glass',
+      baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+      emissive: Vector3(3.0, 3.0, 2.8),
+    );
     _pane =
         MeshNode(
             DeviceMesh.upload(
               context.device,
               const PlaneShape(width: 1, depth: 1).build(),
             ),
-            Material(
-              name: 'window glass',
-              baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-              emissive: Vector3(3.0, 3.0, 2.8),
-            ),
+            _glass,
             name: 'window pane',
           )
           ..setRotation(_standUp)
@@ -115,6 +117,11 @@ final class AreaLightsDemo extends ShowcaseDemo {
       ..width = width
       ..height = height;
     _pane.setScale(width, 1.0, height);
+    // The light's radiance is its intensity over its area, so a wider
+    // window is dimmer per square metre. The pane dims by the same ratio,
+    // measured from the 2.5 by 1.5 it starts at.
+    final double dim = (2.5 * 1.5) / (width * height);
+    _glass.emissive.setValues(3.0 * dim, 3.0 * dim, 2.8 * dim);
     _floorMaterial.roughness = floorRoughness;
     // #endregion live
   }

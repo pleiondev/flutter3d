@@ -119,7 +119,7 @@ final class MotionBlurDemo extends ShowcaseDemo {
       format: (double v) => '${(v * 360).round()}°',
     ),
     SliderControl(
-      'Longest streak',
+      'Streak each side',
       min: 1,
       max: 64,
       value: () => maxRadius,

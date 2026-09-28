@@ -6,8 +6,9 @@ what is behind it, and a thick lump of glass bends it. Both need the glass to re
 picture behind it, not just mix with it.
 
 The transmission layer does that. On a frame with glass in it, the renderer draws
-everything else first, keeps a copy of that picture, and then draws the glass reading
-the copy.
+everything opaque first, keeps a copy of that picture, and then draws the glass reading
+the copy. Alpha-blended surfaces come after the glass, in the same `transparent` pass,
+so they are not in the copy.
 
 ## Step 1: Something to look through
 

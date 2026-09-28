@@ -102,6 +102,9 @@ final class AnisotropicHighlightsDemo extends ShowcaseDemo {
     if (!identical(brushed.material.lighting, LightingModel.pbrLayered)) {
       throw StateError('the brushed sphere is not on the layered model');
     }
+    if ((brushed.material.extensions?.anisotropyStrength ?? 0.0) <= 0.0) {
+      throw StateError('the brushed sphere has no anisotropy');
+    }
     if (frame.drawCalls < 2) {
       throw StateError('the two spheres were not both drawn');
     }

@@ -36,7 +36,8 @@ from the controls and gives it to the material.
 
 Pick **White** and the rim reads as dust or fine fuzz; **Blue** on red shows plainly
 which part of the light is the sheen. **Sheen roughness** changes how the rim spreads
-across the sphere.
+across the sphere. The slider starts at 0.07 because the engine never draws a sheen
+smoother than that: below it, the lobe's exponent would overflow a half float.
 
 > **Note.** The light the sheen reflects is taken off what reaches the cloth beneath, so
 > a bright sheen dims the base colour a little.

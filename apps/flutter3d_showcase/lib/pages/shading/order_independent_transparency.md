@@ -35,9 +35,9 @@ resolves the two over the scene.
 
 Switch **Transparency** to **Sorted** and look at the yellow and purple panes. They share
 a centre, so the sort puts one of them first everywhere, and on one side of the crossing
-the pane that stands behind is drawn over the one in front. Drag the view round and that
-side stays wrong. Switch back to **Weighted blended** and both sides of the crossing are
-treated alike.
+the pane that stands behind is drawn over the one in front. Drag the view round and one
+side stays wrong from every angle. Switch back to **Weighted blended** and both sides
+of the crossing are treated alike.
 
 > **Note.** The price is accuracy. Sorted, the nearer pane covers the one behind it;
 > weighted, the nearer one only counts for more, so a stack of strongly coloured glass

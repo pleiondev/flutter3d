@@ -9,7 +9,7 @@ so the room and the window can both be seen at once.
 ## Step 1: A dark room
 
 A room six metres square with a window in the back wall, and a crate in the
-far corner. The walls are thick slabs that overlap where they meet.
+dark half of the room. The walls are thick slabs that overlap where they meet.
 
 {{code room}}
 
@@ -28,15 +28,18 @@ engine would add a light of its own to a scene that has none.
 default. With `enabled` on, the renderer looks at the frame three times over:
 `shadowStops` brighter, as it is, and `highlightStops` darker, 2 stops each by
 default. At each place it weighs how close each version comes to mid grey,
-blurs those weights wide so no edge grows a halo, and gives each place the
-exposure its weights choose. `strength` is how much of that shift applies.
-Nought is the one global exposure and one is the full local answer. The
-default is 0.7. This page uses 1.
+blurs those weights wide, and gives each place the exposure its weights
+choose. The blur ignores edges, so the exposure changes gradually across the
+frame instead of cutting a seam at every edge. The price is a soft glow
+around the bright window, whose edge is pulled down less than its middle.
+`strength` is how much of that shift applies. Nought is the one global
+exposure and one is the full local answer. The default is 0.7. This page
+uses 1.
 
 {{code settings}}
 
 Switch **Local exposure** off and you get one exposure for the whole frame:
-the crate in the corner is lost in the dark. Switch it on and the corner
+the crate is lost in the dark. Switch it on and the dark half of the room
 lifts while the window comes down. Raise **Shadow stops** to lift the dark
 parts further, and **Highlight stops** to bring more back from the window.
 

@@ -4,9 +4,11 @@ A metal-rough material treats a rough surface as a field of tiny facets. The usu
 counts one bounce of light off those facets and nothing after it, so the rougher the
 surface, the more of its reflection simply goes missing. Rough gold comes out darker
 than polished gold, which real gold does not do. The diffuse side has a problem of its
-own: a constant diffuse lobe looks the same from every angle you view it at, so a rough
-sphere is as bright at its rim as head-on, which makes clay and plaster look like
-plastic.
+own. A constant diffuse lobe, Lambert's, looks the same from every angle you view it
+at, so a sphere's shading follows only the angle to the light and falls off to a dark
+rim. Real rough surfaces such as clay and plaster stay brighter towards the rim and
+send more light back towards the light, as Oren and Nayar measured in 1994. Lambert
+misses that, which makes them look like plastic.
 
 Two frame settings fix these, one each. Both are off by default and both are arithmetic
 in the shader, with no extra pass.
@@ -41,10 +43,10 @@ brighten.
 
 `diffuseModel` picks the diffuse lobe. `DiffuseModel.lambert`, the default, is the
 constant one. `DiffuseModel.eon` is the energy-preserving Oren-Nayar lobe of Portsmouth,
-Kutz and Hill (2024), rough by the material's own roughness. It flattens the falloff
-across the sphere, lifts the side facing the light, and adds back the light that bounces
-between the facets. The colour gets a little richer as the surface roughens, which is
-that bouncing too. A smooth surface comes out the same as Lambert.
+Kutz and Hill (JCGT 2025, preprint 2024), rough by the material's own roughness. It
+flattens the falloff across the sphere, lifts the side facing the light, and adds back
+the light that bounces between the facets. The colour gets a little richer as the
+surface roughens, which is that bouncing too. A smooth surface comes out the same as Lambert.
 
 {{code settings}}
 

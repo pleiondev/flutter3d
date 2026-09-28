@@ -10,7 +10,7 @@ Sixteen frames of a still picture are sixteen samples of every pixel.
 ## Step 1: Thin bars in front of a wall
 
 Thirteen blue bars, four centimetres wide and tilted, stand just in front of a
-red wall. Both are unlit, so every colour on screen is one of two exact
+pink wall. Both are unlit, so every colour on screen is one of a few flat
 colours and anything in between is the resolve's work.
 
 {{code railing}}
@@ -18,7 +18,7 @@ colours and anything in between is the resolve's work.
 ## Step 2: Make something change
 
 A still picture is the easy case. The railing slides from side to side, and
-every two seconds the wall turns from red to green and back. Moving bars test
+every two seconds the wall turns from pink to yellow and back. Moving bars test
 whether the history follows the motion. A wall that changes colour tests
 whether the resolve lets go of a colour that is no longer there.
 
@@ -49,23 +49,35 @@ colours around the pixel in this frame. Whatever falls outside that range is
 old news and would otherwise show as a ghost. `TemporalSettings.clip` picks
 the shape of that range.
 
-`TemporalClip.aabb`, the default, is a box in YCoCg colour space. It is cheap
-but loose along the diagonals, so a remembered red can sit inside a box built
-from green and blue and leave a red trail. `kdop8`, `kdop16` and `kdop32`
-bound the neighbourhood with slabs along four, eight and sixteen axes, and
-hold the history closer to the colours that are really there.
+`TemporalClip.aabb`, the default, is a box in YCoCg colour space: brightness
+on one axis and two colour differences on the others. It is cheap but loose
+along the diagonals of that space. Its corners hold colours none of the
+neighbours have, so a remembered colour that is the right brightness and the
+wrong hue can sit inside it and survive. `kdop8`, `kdop16` and `kdop32` bound
+the neighbourhood with slabs along four, eight and sixteen axes, and hold the
+history closer to the colours that are really there.
+
+That is why the wall is pink and yellow. Next to a bar, the box is built from
+yellow and blue, and it is wide on every axis because those two differ on
+every axis. Pink is a brightness between theirs and a hue neither has, and it
+sits in a corner of that box. A pink wall turning yellow leaves a pink smear
+the box lets through. A red wall turning green would not show this: red is
+outside any box of green and blue, so the clip pulls it in towards the
+box's centre and at worst a greyish smear is left.
 
 {{code clips}}
 
-Watch the moment the wall turns green while the bars are sliding. Under
-`aabb` the old red can linger beside each bar for a few frames. Pick a k-DOP
+Watch the moment the wall turns yellow while the bars are sliding. Under
+`aabb` the old pink can linger along each bar for a few frames. Pick a k-DOP
 and compare. Lowering **History weight** also shortens any trail, under any
 clip, but it gives up the smoothing with it.
 
 ## Step 5: Read what the frame says
 
-`FrameResult.antiAliasing.temporal` says whether the scene was jittered and
-resolved this frame. The resolve reads the surface buffer, which cannot be
+The page checks that the `temporal resolve` pass ran, or that the frame says
+the device declined it. `FrameResult.antiAliasing.temporal` reports the same
+thing, since it is read off the frame's list of passes, so there is nothing
+more to check there. The resolve reads the surface buffer, which cannot be
 multisampled, so a frame with the resolve on draws without MSAA.
 
 {{code reported}}

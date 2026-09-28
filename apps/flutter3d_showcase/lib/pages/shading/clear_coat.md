@@ -45,5 +45,6 @@ out. Take **Coat** to nought and the right sphere matches the left.
 
 > **Note.** The coat's reflection takes a share of the light, and the paint beneath gets
 > what is left, so at a grazing angle a coated surface shows more of the coat and less
-> of the colour. The coat is lit on the surface's own normal: a normal map on the paint
-> does not bend it.
+> of the colour. The coat is lit on the geometric normal, before any normal map is
+> applied: a normal map on the paint does not bend it, and the coat's own normal map,
+> `clearcoatNormalTexture`, is carried but not drawn.

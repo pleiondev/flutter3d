@@ -87,7 +87,8 @@ final class SheenDemo extends ShowcaseDemo {
     ),
     SliderControl(
       'Sheen roughness',
-      min: 0,
+      // The shader floors sheen roughness at 0.07; below it nothing changes.
+      min: 0.07,
       max: 1,
       value: () => sheenRoughness,
       onChanged: (double v) => sheenRoughness = v,
