@@ -65,4 +65,45 @@ void main() {
 
     expect(plane.to3d(Vector2(0.0, 7.0)).y, 7.0);
   });
+
+  test('a node turned by rotationFor is drawn along the direction to3d puts '
+      "Flame's own angle, on every plane", () {
+    // Through the matrix a node is drawn with, not `Quaternion.rotated`,
+    // which turns the other way. The round trips above agreed with
+    // themselves while a ground plane drew every Flame turn mirrored:
+    // +0.5, clockwise on screen, came out anticlockwise. Mutation: take the
+    // sign from `rotated` again and the ground cases fail.
+    final planes = <String, BridgePlane>{
+      'ground': BridgePlane.ground(),
+      'ground, flipped': const BridgePlane(
+        axis: PlaneAxis.y,
+        constant: 0.0,
+        flipY: true,
+      ),
+      'backdrop': BridgePlane.backdrop(),
+      'backdrop, unflipped': BridgePlane.backdrop(flipY: false),
+    };
+    for (final MapEntry<String, BridgePlane>(:key, :value) in planes.entries) {
+      for (final angle in <double>[0.5, -1.2, 2.8]) {
+        final drawn = Matrix4.compose(
+          Vector3.zero(),
+          value.rotationFor(angle),
+          Vector3.all(1.0),
+        ).transform3(Vector3(1.0, 0.0, 0.0));
+        final want =
+            value.to3d(Vector2(math.cos(angle), math.sin(angle))) -
+            value.to3d(Vector2.zero());
+        expect(
+          (drawn - want).length,
+          lessThan(1e-5),
+          reason: '$key at $angle drew $drawn, wanted $want',
+        );
+        expect(
+          value.angleFor(value.rotationFor(angle)),
+          closeTo(angle, 1e-6),
+          reason: key,
+        );
+      }
+    }
+  });
 }

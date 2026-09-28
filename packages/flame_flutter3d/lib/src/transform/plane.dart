@@ -103,33 +103,45 @@ final class BridgePlane {
   };
 
   /// A flutter3d rotation turning [angle] radians about this plane's normal,
-  /// Flame's own sense of positive (clockwise on screen).
+  /// Flame's own sense of positive (clockwise on screen): the node's +X is
+  /// drawn along where [to3d] puts Flame's `(cos angle, sin angle)`.
   ///
-  /// **Negated before it reaches `axisAngle`.** `vector_math`'s
-  /// `Quaternion.axisAngle(axis, θ).rotated(v)` measurably turns a vector by
-  /// the *standard* right-hand rotation of `-θ`, not `θ` — checked directly
-  /// against `Quaternion.axisAngle(Vector3(0,0,1), -1.2).rotated(…)`, which
-  /// lands where a right-hand rotation of `+1.2` would. Negating here is
-  /// what lets [angleFor] read a rotation back with the ordinary right-hand
-  /// formulas, rather than every caller of this class needing to know the
-  /// library's own construction convention.
+  /// **Measured against the matrix a node is drawn with, not against
+  /// `Quaternion.rotated`.** `vector_math`'s `axisAngle(axis, θ)` is an
+  /// ordinary quaternion, and `Matrix4.compose`, which a `SceneNode` draws
+  /// through, turns by the right-hand `+θ`. `rotated(v)` computes `q̄·v·q`
+  /// and turns by `-θ`. This used to take its sign from `rotated`, and on a
+  /// ground plane a Flame turn drew mirrored: +0.5 clockwise on screen came
+  /// out anticlockwise. A backdrop happened to come out right, because there
+  /// the two sign flips cancelled, and the round trip through [angleFor]
+  /// agreed with itself either way, which is why nothing caught it.
+  ///
+  /// About Y, a right-hand turn of `φ` takes +X to `(cos φ, 0, -sin φ)`;
+  /// about Z, to `(cos φ, sin φ, 0)`. Matching those to [to3d]'s direction
+  /// gives `φ` below.
   Quaternion rotationFor(double angle) {
-    final double signed = flipY ? angle : -angle;
-    return Quaternion.axisAngle(normal, -signed);
+    final double phi = switch (axis) {
+      PlaneAxis.y => flipY ? angle : -angle,
+      PlaneAxis.z => flipY ? -angle : angle,
+    };
+    return Quaternion.axisAngle(normal, phi);
   }
 
   /// The scalar angle [rotation] turns about this plane's normal, inverting
   /// [rotationFor] for the component that carries angle the other way.
   ///
   /// Read off by turning the plane's own zero direction — flutter3d's world
-  /// +X — by [rotation] and measuring where it landed, with the ordinary
-  /// right-hand rotation formula for whichever axis is [normal]
-  /// (`atan2(y, x)` about Z, `atan2(-z, x)` about Y). A rotation with any
-  /// component off this plane's normal has no single answer here; this
+  /// +X — through [rotation]'s own matrix, the one the node is drawn with,
+  /// and measuring where it landed with the right-hand formula for whichever
+  /// axis is [normal] (`atan2(y, x)` about Z, `atan2(-z, x)` about Y); see
+  /// [rotationFor] for why not through `Quaternion.rotated`. A rotation with
+  /// any component off this plane's normal has no single answer here; this
   /// reports only the turn around the normal, which is the whole of what a
   /// `double angle` can hold.
   double angleFor(Quaternion rotation) {
-    final Vector3 turned = rotation.rotated(Vector3(1.0, 0.0, 0.0));
+    final Vector3 turned = rotation.asRotationMatrix().transform(
+      Vector3(1.0, 0.0, 0.0),
+    );
     final double sinComponent = switch (axis) {
       PlaneAxis.y => -turned.z,
       PlaneAxis.z => turned.y,
@@ -140,6 +152,10 @@ final class BridgePlane {
     // the last few bits between the Dart VM and a browser — `portable_math`
     // exists in `flutter3d_sim` for exactly this reason.
     final double measured = Portable.atan2(sinComponent, turned.x);
-    return flipY ? measured : -measured;
+    // [rotationFor] read backwards.
+    return switch (axis) {
+      PlaneAxis.y => flipY ? measured : -measured,
+      PlaneAxis.z => flipY ? -measured : measured,
+    };
   }
 }

@@ -1,3 +1,17 @@
+## 0.8.2
+
+**A Flame turn on a ground plane is no longer drawn mirrored.**
+`BridgePlane.rotationFor` took its sign from `Quaternion.rotated`, which
+computes `q̄·v·q` and turns a vector by `-θ`, while a node is drawn through
+its matrix, which turns by `+θ`. On `BridgePlane.ground` a Flame angle of
++0.5, clockwise on screen, was drawn anticlockwise; on a backdrop the two
+sign flips cancelled and it came out right. `rotationFor` and `angleFor` now
+both work through the matrix a node is drawn with, and a test checks where
+the node is drawn on every plane, where the old ones only checked that an
+angle survived the round trip, which it did either way. An
+`Object3dComponent` syncing rotation `flameToScene` on the ground plane turns
+the other way than it did, which is the way Flame means.
+
 ## 0.8.1
 
 **An example to start from.** `example/` is the smallest hybrid game: a Flame
