@@ -107,4 +107,17 @@ void main() {
 
     expect(() => component.update(1 / 60), returnsNormally);
   });
+
+  test('takes its priority at construction, like the physics stepper', () {
+    // A game orders the actor step before the physics step and both before
+    // their readers; a cascade after the constructor was the only way to
+    // say so for this one.
+    final component = ActorSystemComponent(
+      system: _system(),
+      focus: () => Vector3.zero(),
+      priority: -120,
+    );
+
+    expect(component.priority, -120);
+  });
 }

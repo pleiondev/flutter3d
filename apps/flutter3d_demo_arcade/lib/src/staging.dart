@@ -69,14 +69,16 @@ extension ArcadeGameStaging on ArcadeGame {
     final actorStepper = ActorSystemComponent(
       system: actorSystem,
       focus: () => _shipBody.position,
-    )..priority = -120;
-    final physicsStepper = _PhysicsStepComponent(
+      priority: -120,
+    );
+    final physicsStepper = PhysicsStepComponent(
       dynamics: dynamics,
       world: collisionWorld,
       afterStep: () => shipSensor
         ..position.setFrom(_shipBody.position)
         ..refreshBounds(),
-    )..priority = -110;
+      priority: -110,
+    );
     add(actorStepper);
     add(physicsStepper);
     _actorStepper = actorStepper;

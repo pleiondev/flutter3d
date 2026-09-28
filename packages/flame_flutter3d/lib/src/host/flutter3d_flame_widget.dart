@@ -102,7 +102,16 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
 
   ({Renderer renderer, Scene scene})? _ready;
   Object? _error;
-  bool _clockAdded = false;
+
+  /// The clock added to [Flutter3dFlameWidget.game], and the game it was
+  /// added to, so a new game passed in by a rebuild gets its own and the
+  /// old one stops calling back here.
+  ({FlameGame game, BridgeClock clock})? _clocked;
+
+  /// Whether this state opened the device and renderer in [_ready] itself,
+  /// and so has to release them. Not when they came in through
+  /// [Flutter3dFlameWidget.existing]: those belong to the caller.
+  bool _ownsDevice = false;
 
   /// Bumped once a Flame update to redraw the 3D layer, and nothing else.
   ///
@@ -139,9 +148,10 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
         width: widget.width,
         height: widget.height,
       );
+      if (!mounted) return device.dispose();
       final scene = widget.buildScene(device);
       if (scene.cameras.isEmpty) scene.add(widget.camera);
-      if (!mounted) return;
+      _ownsDevice = true;
       setState(
         () =>
             _ready = (renderer: Renderer.create(device: device), scene: scene),
@@ -171,20 +181,35 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
     });
   }
 
+  /// **Releases what it opened.** A device this state opened is closed with
+  /// it, renderer first; one passed in through
+  /// [Flutter3dFlameWidget.existing] is left to its owner. The clock is
+  /// taken off the game too, which may outlive this widget: a game kept
+  /// across a route change, say, would otherwise go on calling back into a
+  /// disposed state.
   @override
   void dispose() {
+    _clocked?.clock.removeFromParent();
     _frames.dispose();
+    final ready = _ready;
+    if (_ownsDevice && ready != null) {
+      ready.renderer.dispose();
+      ready.renderer.device.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Added once the game is actually in a tree Flame can attach a component
-    // to, and not again — `GameWidget` may rebuild this state without
-    // recreating `widget.game`.
-    if (!_clockAdded) {
-      _clockAdded = true;
-      widget.game.add(BridgeClock(onTick: _onFlameTick));
+    // Added once per game, not once per build: `GameWidget` may rebuild
+    // this state without recreating `widget.game`, and a rebuild from above
+    // may hand in a different game, whose clock then replaces the old one's.
+    final clocked = _clocked;
+    if (clocked == null || !identical(clocked.game, widget.game)) {
+      clocked?.clock.removeFromParent();
+      final clock = BridgeClock(onTick: _onFlameTick);
+      widget.game.add(clock);
+      _clocked = (game: widget.game, clock: clock);
     }
 
     return switch ((_error, _ready)) {

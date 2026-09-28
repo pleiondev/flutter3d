@@ -321,7 +321,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// **Why none of this can happen from inside the collision callback
   /// itself.** [_onShipHitBot] is called *from inside*
   /// [CollisionWorld.update]'s own overlap dispatch — itself called from
-  /// inside [_PhysicsStepComponent.update], itself called from inside this
+  /// inside [PhysicsStepComponent.update], itself called from inside this
   /// same frame's [Component.updateTree] pass over [children]. Calling
   /// [ActorSystem.remove] there would call [CollisionWorld.remove] while the
   /// world is mid-iteration over the very list that lives in — the class of
@@ -424,38 +424,5 @@ final class ShipComponent extends RigidBodyComponent {
     } else {
       node.visible = true;
     }
-  }
-}
-
-/// Steps the shared [Dynamics] once a frame and then dispatches
-/// [CollisionWorld]'s own overlap events — the one place a bridged game
-/// drives the physics half of the simulation, the same way
-/// [ActorSystemComponent] is the one place the ECS half is driven.
-///
-/// A plain [Component], not a bridge class this package's own
-/// `flame_flutter3d` exports: nothing here reads or writes a Flame
-/// transform, so there is nothing to bridge — only a shared simulation to
-/// step once, which is this game's responsibility rather than the
-/// package's.
-final class _PhysicsStepComponent extends Component {
-  _PhysicsStepComponent({
-    required this.dynamics,
-    required this.world,
-    required this.afterStep,
-  });
-
-  final Dynamics dynamics;
-  final CollisionWorld world;
-
-  /// Runs between the solver and the overlap dispatch: whatever follows a
-  /// body the solver just moved, [ArcadeGame.shipSensor] here.
-  final void Function() afterStep;
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    dynamics.step(dt);
-    afterStep();
-    world.update();
   }
 }

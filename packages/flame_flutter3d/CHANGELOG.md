@@ -1,5 +1,34 @@
 ## 0.8.2
 
+**`PhysicsStepComponent` steps the physics on Flame's clock.** A
+`RigidBodyComponent` never steps the shared world, so every bridged game
+wrote the same small component to do it once a frame: the arcade, the
+example, each its own copy. It is public now. It calls `Dynamics.step`, then
+an optional `afterStep` for anything that follows a body the solver just
+moved (a trigger sensor riding on a solid body), then `CollisionWorld.update`,
+which is what sends contacts to a `CollisionBridge`. Give it a priority below
+the components that read the bodies.
+
+**`Flutter3dFlameWidget` closes the device it opened.** Without `existing`
+it opens a `GraphicsDevice` and a `Renderer` of its own, and it never
+released either: a page that came and went left a GPU context behind each
+time. It now disposes both with itself, and still leaves a pair passed in
+through `existing` to whoever passed it. It also takes its `BridgeClock` off
+the game when it goes, so a game that outlives the widget stops calling
+back into it, and a rebuild that hands in a different game moves the clock
+to the new one. Before, the new game never got a clock, and the 3D layer
+stopped following it.
+
+**A removed component hears no more contacts.** `CollisionBridge` relayed
+to its component whether or not it was still in a game, so a ship removed
+on one frame could still be told it hit something on the next. Flame's own
+collision system does not call a removed component, and now the bridge does
+not either. `CollisionBridge.detach()` clears the collider's listener, for
+a collider that outlives its component.
+
+**`ActorSystemComponent` takes a `priority`** in its constructor, as every
+other component does.
+
 **A Flame turn on a ground plane is no longer drawn mirrored.**
 `BridgePlane.rotationFor` took its sign from `Quaternion.rotated`, which
 computes `q̄·v·q` and turns a vector by `-θ`, while a node is drawn through

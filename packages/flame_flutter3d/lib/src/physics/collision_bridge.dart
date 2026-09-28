@@ -86,8 +86,25 @@ final class CollisionBridge with CollisionListener {
   /// it belongs to.
   final PositionComponent? Function(Collider other) resolveOther;
 
+  /// Stops relaying: clears [collider]'s listener, if it is still this
+  /// bridge, and leaves it alone if something else has taken it since.
+  ///
+  /// For a collider that outlives its component, a body put back in a pool
+  /// say. A bridge whose collider leaves the world with its component needs
+  /// no call, and a removed [component] hears nothing either way (see
+  /// [onCollisionStart]).
+  void detach() {
+    if (identical(collider.listener, this)) collider.listener = null;
+  }
+
+  /// Relays the start of a contact to [component], unless [resolveOther]
+  /// finds nothing on the Flame side for [other] or [component] has been
+  /// removed from its game: Flame's own collision system does not call a
+  /// removed component either, and a despawned ship hearing it hit a bot
+  /// is a callback into a game object that is gone.
   @override
   void onCollisionStart(Collider self, Collider other) {
+    if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
     component.onCollisionStart(_pointFor(self, other), target);
@@ -95,6 +112,7 @@ final class CollisionBridge with CollisionListener {
 
   @override
   void onCollision(Collider self, Collider other) {
+    if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
     component.onCollision(_pointFor(self, other), target);
@@ -102,6 +120,7 @@ final class CollisionBridge with CollisionListener {
 
   @override
   void onCollisionEnd(Collider self, Collider other) {
+    if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
     component.onCollisionEnd(target);

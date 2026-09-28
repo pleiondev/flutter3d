@@ -40,6 +40,7 @@ final class ActorSystemComponent extends Component {
     required this.system,
     required this.focus,
     this.focusBody,
+    super.priority,
   });
 
   /// The actor system every [ActorComponent] in this game shares.

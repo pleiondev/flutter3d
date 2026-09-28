@@ -48,8 +48,10 @@ per component.
   pair that every `ActorComponent` in a game shares, so the system is stepped
   once a frame however many actors are bridged.
 - Physics: `RigidBodyComponent` extends `Object3dComponent` to carry the
-  position of a `flutter3d_physics` `RigidBody` the same way.
-  `CollisionBridge` re-fires flutter3d's `CollisionListener` events as
+  position of a `flutter3d_physics` `RigidBody` the same way; it never steps
+  the world itself. `PhysicsStepComponent` does, once a frame: the solver,
+  then an optional `afterStep` for whatever rides on a body, then the
+  contact dispatch. `CollisionBridge` re-fires flutter3d's `CollisionListener` events as
   Flame's own `CollisionCallbacks`, projecting a 3D contact point through the
   bridge's `BridgePlane` into the `Set<Vector2>` that Flame's callback expects.
 - Input: `FlameInputBridge` translates Flame's own keyboard and drag

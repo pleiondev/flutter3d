@@ -1503,7 +1503,7 @@ List<Finding> _testCount() {
   // "1230 tests in 12 packages" when there were 2732 in 24, because a number in
   // prose is a number nobody recounts.
   final root = repositoryRoot;
-  final declaration = RegExp(r'^\s*(test|testWidgets)\(');
+  final declaration = RegExp(r'^\s*(test|testWidgets|testWithFlameGame)\(');
   int testsIn(Directory dir) => dartFilesIn(dir)
       .map((f) => f.readAsLinesSync().where(declaration.hasMatch).length)
       .fold(0, (a, b) => a + b);

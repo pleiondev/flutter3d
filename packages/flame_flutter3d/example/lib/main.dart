@@ -187,7 +187,11 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
 
     addAll(<Component>[
       // Stepped before the components that read the bodies it moves.
-      _PhysicsStep(dynamics, collisionWorld)..priority = -100,
+      PhysicsStepComponent(
+        dynamics: dynamics,
+        world: collisionWorld,
+        priority: -100,
+      ),
       cube,
       crateComponent,
       hud,
@@ -249,21 +253,5 @@ class _CrateComponent extends RigidBodyComponent {
   ) {
     super.onCollisionStart(intersectionPoints, other);
     onLanded();
-  }
-}
-
-/// Steps the physics once a Flame frame and then dispatches its contacts:
-/// the one place the simulation moves, on Flame's clock.
-class _PhysicsStep extends Component {
-  _PhysicsStep(this.dynamics, this.world);
-
-  final Dynamics dynamics;
-  final CollisionWorld world;
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    dynamics.step(dt);
-    world.update();
   }
 }

@@ -4,7 +4,8 @@
 /// keeps the two reconciled: transforms and lifecycle
 /// ([Flutter3dFlameWidget], [BridgePlane], [Object3dComponent]), the actor
 /// system ([ActorComponent], [ActorSystemComponent]), physics
-/// ([RigidBodyComponent], [CollisionBridge]), input ([FlameInputBridge]),
+/// ([RigidBodyComponent], [PhysicsStepComponent], [CollisionBridge]), input
+/// ([FlameInputBridge]),
 /// and camera ([CameraSyncController]). See `apps/flutter3d_showcase`'s
 /// `flame` pages for one mechanism per page.
 library;
@@ -17,6 +18,7 @@ export 'src/host/flutter3d_flame_widget.dart';
 export 'src/host/transparent_flame_game.dart';
 export 'src/input/flame_input_bridge.dart';
 export 'src/physics/collision_bridge.dart';
+export 'src/physics/physics_step_component.dart';
 export 'src/physics/rigid_body_component.dart';
 export 'src/transform/object3d_component.dart';
 export 'src/transform/plane.dart';
