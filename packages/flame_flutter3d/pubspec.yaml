@@ -67,5 +67,8 @@ dev_dependencies:
   # back when it went.
   flutter3d_hardware: ^0.8.0
 
+  # A runner that climbs, for the character body's own test.
+  flutter3d_game_platformer: ^0.8.0
+
 flutter:
   uses-material-design: true

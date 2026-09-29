@@ -92,6 +92,17 @@ go of those that leave it. `Particles3dComponent` runs a
 `flutter3d_particles` pool on Flame's clock, additive for fire and
 darkening for smoke.
 
+For whole genres there is more. `HasFixedStep` runs a game's own logic in
+fixed steps, so a second of play comes out the same at any frame rate.
+`ProjectedViewfinder` makes Flame's own events and conversions land on the
+plane under the finger. `WrapSpace` is a world whose edges meet, with
+ghosts drawn and hit across the seam; `CurvilinearSpace` bends Flame's
+straight world along a road; `AtmosphereComponent` turns a day;
+`CellGridComponent` is a shield worn away where it is hit;
+`TrailComponent` draws a line behind a missile; `ModelAnimationComponent`
+plays a model's clips; and `CharacterBodyComponent` steps a platformer's
+runner.
+
 `BridgePriority` names the order all of this updates in, and the
 components take it by default.
 

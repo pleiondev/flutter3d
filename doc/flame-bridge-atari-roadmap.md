@@ -124,11 +124,15 @@
 - **Производительность.** Неподвижный мостовой объект больше ничего не пишет в сцену и не вызывает перерисовку теней каждый кадр.
 - **Попутно найденные ошибки движка.** Полосы теней в длинных сценах на Metal (смещение каскада меньше шага half-float) и молчащий звук у файлов 22 кГц (срез фильтра выше частоты Найквиста).
 
+### Сделано во втором заходе
+
+- Тела и акторы в покое больше не перерисовывают тени; ввод закрывает шаг сам (`stepEnd`), указатель и свайпы стали вводом.
+- Логика самой игры на фиксированном шаге (`HasFixedStep`, `FixedStepUpdate`); River Sortie пролетает одну и ту же дистанцию при любой частоте кадров.
+- `CollisionBridge` для любого компонента с коллбэками (акторы тоже), tint и opacity у инстансов, `owns` для мешей компонента, `ProjectedViewfinder`.
+- Анимация моделей (`ModelAnimationComponent`, `MeshFlipbookComponent`), пиксельно точная орто-камера и крен, оверлеи и фокус у виджета, позиционный звук в River.
+- Жанровые пункты: `WrapSpace` с призраками и хитбоксами через шов (Asteroids), `OpenPath`/`ribbon` и `CurvilinearSpace` (Enduro), `Atmosphere`/`AtmosphereCycle`/`LightGroup`/`Material.fogged` и `AtmosphereComponent` (Enduro), `CellGrid` и `CellGridComponent` (Invaders), `LineStripNode` и `TrailComponent` (Missile Command), `CharacterBodyComponent` поверх бегуна платформера с лестницами (Pitfall), замкнутая `buildPolyline`.
+
 ### Осталось
 
-- Анимация моделей в мосте (`AnimatedModelComponent`, флипбуки) — Pitfall, Invaders.
-- Точная подгонка ортографической камеры по пикселям и перенос `viewfinder.angle` в roll — Invaders.
-- `overlayBuilderMap`/`focusNode` у виджета.
-- Позиционные звуки в River: сейчас все плоские, как на картридже; предложено сделать позиционными взрывы и трассеры.
-- Жанровые пункты tier 3: `WrapSpace` (Asteroids), `BridgeSpace` с криволинейным пространством, `Atmosphere.lerp` и `OpenPath` с лентой (Enduro), `CellGridMesh` (Invaders), `LineStripNode`/`TrailComponent` (Missile Command), `PlatformerBody` (Pitfall).
-- Пересмотр состава пакетов: их 39, нужно понять, что стоит слить.
+- Пересмотр состава пакетов (39): предложение готово, ждёт решения — жанры в `flutter3d_game`, три MCP-пакета в один, `flutter3d_lab` в `flutter3d_sim`, `flutter3d_lti` из публикуемых.
+- Проверить новые страницы showcase и эффекты River глазами, не только тестами.

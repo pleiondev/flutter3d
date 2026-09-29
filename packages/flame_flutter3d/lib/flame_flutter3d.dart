@@ -28,6 +28,7 @@ export 'src/host/transparent_flame_game.dart';
 export 'src/input/flame_input_bridge.dart';
 export 'src/input/taps3d.dart';
 export 'src/particles/particles3d_component.dart';
+export 'src/physics/character_body_component.dart';
 export 'src/physics/collider_registry.dart';
 export 'src/physics/collision_bridge.dart';
 export 'src/physics/physics_step_component.dart';

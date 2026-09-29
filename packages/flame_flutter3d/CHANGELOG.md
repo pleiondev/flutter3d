@@ -81,6 +81,12 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A platformer's runner, reached from Flame.** `CharacterBodyComponent`
+carries a bare `CharacterController` across the bridge and steps it with
+`drive`, in the game's fixed steps when it has them: a
+`flutter3d_game_platformer` runner, which already runs, jumps twice and
+climbs ladders and ropes, moved by its own rules and drawn between steps.
+
 **A day, a worn shield and a missile's trail.** `AtmosphereComponent` runs
 an `AtmosphereCycle` on Flame's clock and puts the air on the game's scene,
 its sun and its sky, with the fog for its `renderSettings`.
