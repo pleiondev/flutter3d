@@ -1,3 +1,16 @@
+## 0.8.3
+
+* **`ModelAsset.instantiateFitted` places a model at a length, not a
+  scale.** Free models arrive in whatever unit their author used: of the
+  two jets one River Sortie loads, one is about a metre long and the other
+  nine hundred units. The method scales a model uniformly so one axis of
+  its bounds, z by default, is the length asked for, and centres it on the
+  parent, or stands it on the parent with `onGround`. Two demos did this
+  by hand, line for line the same.
+* **Vertex colours are linear, and `linearFromSrgb` gets a picked colour
+  there**, with `MeshData.withColor` to paint a whole mesh, through
+  `flutter3d_core`, which this library re-exports.
+
 ## 0.8.2
 
 * **A sunlit room's inside corners stop leaking light, and a slope under a

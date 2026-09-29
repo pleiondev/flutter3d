@@ -91,21 +91,14 @@ extension ArcadeGameCrafts on ArcadeGame {
     }
     final pivot = SceneNode(name: '${holder.name} pivot');
     holder.add(pivot);
-    final instance = asset.instantiate(
+    // Centred on the holder and scaled to [_CraftLook.length]: the kit's
+    // craft sit on the ground at an origin of their own, nose along -Z.
+    asset.instantiateFitted(
       _scene,
+      length: look.length,
       parent: pivot,
       name: '${holder.name} model',
     );
-
-    // Centred on the holder and scaled to [_CraftLook.length]: the kit's
-    // craft sit on the ground at an origin of their own, nose along -Z.
-    final bounds = asset.localBounds;
-    final length = bounds.max.z - bounds.min.z;
-    final scale = length > 1e-6 ? look.length / length : 1.0;
-    final centre = (bounds.min + bounds.max)..scale(0.5 * scale);
-    instance.root
-      ..setUniformScale(scale)
-      ..setPosition(-centre.x, -centre.y, -centre.z);
 
     final (r, g, b) = look.accent;
     pivot.traverse((SceneNode node) {

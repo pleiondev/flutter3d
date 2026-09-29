@@ -1,3 +1,19 @@
+## 0.8.3
+
+- **A vertex colour says it is linear, and a picked colour gets there.**
+  `VertexLayout.color` and `MeshBuilder.addVertex` now say what the shader
+  always did: a vertex colour is linear, as glTF's `COLOR_0` is, while a
+  material's `baseColor` is sRGB. A game painting scenery with colours
+  picked on screen wrote them straight into vertices and got pastel.
+  `linearFromSrgb(r, g, b)` makes the conversion, and `srgbToLinear` and
+  `linearToSrgb`, which the format readers had to themselves, are exported
+  with it from `formats.dart`.
+- **`MeshData.withColor` paints a whole mesh one colour.** With
+  `transformed` and `merge`, several shapes in several colours become one
+  mesh drawn with one white material: a tree is one draw, not a node and a
+  material per part. A layout with no colour attribute gets an unchanged
+  copy.
+
 ## 0.8.2
 
 - **A sunlit room's inside corners no longer leak light.** The sun recorded

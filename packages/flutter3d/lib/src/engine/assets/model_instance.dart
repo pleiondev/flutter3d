@@ -111,6 +111,53 @@ final class ModelInstance {
 /// extension is invisible outside the library that declares it no matter how
 /// many files `export` that library.
 extension ModelAssetInstantiate on ModelAsset {
+  /// [instantiate], scaled and moved so the model is [length] metres long
+  /// and sits on [parent]'s origin: centred on it, or standing on it when
+  /// [onGround].
+  ///
+  /// **Fitted to a size, not to a scale.** Free models come in whatever unit
+  /// their author worked in, and the same kind of object is a metre across in
+  /// one file and nine hundred units in the next; a game knows how long its
+  /// jet is, not what scale factor a given file needs. [axis] names which of
+  /// the model's own bounds is its length, 0 for x, 1 for y, 2 for z; z by
+  /// default, which is nose to tail for anything built facing along it.
+  ///
+  /// **Scaled uniformly**, so a model keeps its proportions and only the one
+  /// length is exact. Centred across the other two axes either way. The
+  /// scale and offset go on the instance's root, below [parent], so whatever
+  /// moves or turns [parent] moves and turns the model about the point it
+  /// was fitted to. An empty model is placed unscaled.
+  ModelInstance instantiateFitted(
+    Scene scene, {
+    required double length,
+    int axis = 2,
+    bool onGround = false,
+    SceneNode? parent,
+    String? name,
+    bool shareMaterials = true,
+  }) {
+    assert(length > 0.0, 'a model fitted to no length is not there');
+    assert(axis >= 0 && axis <= 2, 'axis is 0 for x, 1 for y or 2 for z');
+    final instance = instantiate(
+      scene,
+      parent: parent,
+      name: name,
+      shareMaterials: shareMaterials,
+    );
+    final bounds = localBounds;
+    final extent = bounds.max[axis] - bounds.min[axis];
+    final scale = extent > 1e-9 ? length / extent : 1.0;
+    final centre = (bounds.min + bounds.max)..scale(0.5 * scale);
+    instance.root
+      ..setUniformScale(scale)
+      ..setPosition(
+        -centre.x,
+        onGround ? -bounds.min.y * scale : -centre.y,
+        -centre.z,
+      );
+    return instance;
+  }
+
   /// Adds this model to [scene] and returns the instance.
   ///
   /// The asset's hierarchy is rebuilt as scene nodes, so a node the model

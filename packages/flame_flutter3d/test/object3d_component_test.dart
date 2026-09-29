@@ -6,7 +6,6 @@ import 'package:flame/components.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Plane;
 
 void main() {
   test('mounting adds the node to the scene, once', () {
@@ -69,6 +68,28 @@ void main() {
     expect(read.x, 5.0);
     expect(read.y, 1.5);
     expect(read.z, 6.0);
+  });
+
+  test('size and anchor go to Flame, and the anchor is the point the scene '
+      'gets', () {
+    final scene = Scene();
+    final node = SceneNode();
+    final component = Object3dComponent(
+      node: node,
+      scene: scene,
+      plane: BridgePlane.ground(),
+      direction: SyncDirection.flameToScene,
+      position: Vector2(4.0, -6.0),
+      size: Vector2(2.0, 1.0),
+      anchor: Anchor.center,
+    )..onMount();
+
+    component.update(1 / 60);
+
+    expect(component.size, Vector2(2.0, 1.0));
+    // The centre, not the top-left corner, is what lands in the scene.
+    expect(component.absoluteCenter, Vector2(4.0, -6.0));
+    expect(node.readPosition(), Vector3(4.0, 0.0, -6.0));
   });
 
   test('a sceneToFlame component leaves the node alone on update', () {

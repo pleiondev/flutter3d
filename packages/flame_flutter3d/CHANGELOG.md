@@ -1,3 +1,12 @@
+## 0.8.3
+
+**`Object3dComponent` takes a `size` and an `anchor`.** A bridged component
+that collides needs both: a `RectangleHitbox()` fills its parent's size, and
+the anchor decides whether the point written into the scene is the centre
+or the top-left corner. They were Flame's and set in every subclass's
+constructor body, five times in River Sortie alone; they pass through the
+constructor now.
+
 ## 0.8.2
 
 **`PhysicsStepComponent` steps the physics on Flame's clock.** A

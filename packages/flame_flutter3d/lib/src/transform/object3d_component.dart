@@ -29,6 +29,12 @@ enum SyncDirection {
 /// A Flame [PositionComponent] and a flutter3d [SceneNode] kept at the same
 /// place, on one [BridgePlane], one [direction] deciding who writes.
 ///
+/// **Size and anchor are Flame's, and usually wanted.** Nothing on the 3D side
+/// reads them, but a `RectangleHitbox()` fills its parent's [size], and the
+/// [anchor] decides whether [position] (the point written into the scene) is
+/// the component's centre or its corner. A bridged component that collides
+/// passes `anchor: Anchor.center` and the size of what it draws.
+///
 /// **Lifecycle follows Flame's.** [onMount] adds [node] to [scene]; [onRemove]
 /// calls `node.removeFromParent()`. A [SceneNode] never outlives the
 /// component that owns it, and never needs a caller to remember to detach
@@ -41,6 +47,8 @@ class Object3dComponent extends PositionComponent {
     required this.plane,
     this.direction = SyncDirection.sceneToFlame,
     super.position,
+    super.size,
+    super.anchor,
     super.angle,
     super.scale,
     super.children,

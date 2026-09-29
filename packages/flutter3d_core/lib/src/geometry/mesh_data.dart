@@ -217,6 +217,35 @@ final class MeshData {
     return total / 6.0;
   }
 
+  /// A copy with every vertex coloured [color], linear RGBA (see
+  /// [VertexLayout.color]).
+  ///
+  /// For building one mesh out of several shapes in several colours, drawn
+  /// with one white material: paint each part, place it with [transformed],
+  /// and [merge] them. A whole tree, or a stretch of scenery, is then one draw
+  /// rather than a node and a material per part. A layout with no colour
+  /// attribute has nowhere to put it, and gets an unchanged copy.
+  MeshData withColor(Vector4 color) {
+    final stride = layout.floatsPerVertex;
+    final at = layout.floatOffsetOf(VertexLayout.color.name);
+    final out = Float32List.fromList(vertices);
+    if (at >= 0) {
+      for (var i = at; i < out.length; i += stride) {
+        out[i] = color.x;
+        out[i + 1] = color.y;
+        out[i + 2] = color.z;
+        out[i + 3] = color.w;
+      }
+    }
+    return MeshData(
+      layout: layout,
+      vertices: out,
+      indices: indices,
+      morphTargets: morphTargets,
+      clusters: clusters,
+    );
+  }
+
   /// A transformed copy. Normals use the inverse-transpose, otherwise
   /// non-uniform scale skews them.
   MeshData transformed(Matrix4 matrix) {
