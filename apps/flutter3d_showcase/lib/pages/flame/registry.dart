@@ -7,9 +7,11 @@ library;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 import 'flame_camera_bridge.dart';
+import 'flame_crowd.dart';
 import 'flame_ecs_bridge.dart';
 import 'flame_input_bridge.dart';
 import 'flame_overview.dart';
+import 'flame_owned_world.dart';
 import 'flame_physics_bridge.dart';
 import 'flame_transform_bridge.dart';
 
@@ -20,4 +22,6 @@ final Map<String, DemoBuilder> flameDemos = <String, DemoBuilder>{
   'flame-physics-bridge': FlamePhysicsBridgeDemo.new,
   'flame-input-bridge': FlameInputBridgeDemo.new,
   'flame-camera-bridge': FlameCameraBridgeDemo.new,
+  'flame-owned-world': FlameOwnedWorldDemo.new,
+  'flame-crowd': FlameCrowdDemo.new,
 };

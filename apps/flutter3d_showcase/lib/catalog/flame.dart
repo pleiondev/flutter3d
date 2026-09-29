@@ -83,4 +83,28 @@ const List<Feature> flameFeatures = <Feature>[
     evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
     packages: <String>['flame_flutter3d'],
   ),
+  Feature(
+    id: 'flame-owned-world',
+    title: 'A Flame game that owns its 3D world',
+    category: Category.flame,
+    summary:
+        'A game that builds its own scene, and crates that hear a tap on '
+        'what the perspective camera shows of them.',
+    since: '0.8.3',
+    evidence: 'a flame game owns its 3d world',
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d'],
+  ),
+  Feature(
+    id: 'flame-crowd',
+    title: 'Eighty sparks in one draw, fire and smoke in two',
+    category: Category.flame,
+    summary:
+        'Flame components drawn through one instanced batch, and particle '
+        'pools that add light and take it away.',
+    since: '0.8.3',
+    evidence: 'draws many small things as one',
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d', 'flutter3d_particles'],
+  ),
 ];
