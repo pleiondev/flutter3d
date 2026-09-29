@@ -35,6 +35,10 @@ import 'vertex_layout.dart';
 /// gradient a slope or a speed is drawn with. Leave it out and every point is
 /// [colour].
 ///
+/// [closed] joins the last point back to the first, with an elbow there
+/// like every other: a ship's outline, a ring. Without it the two ends are
+/// cut square.
+///
 /// Throws [ArgumentError] for fewer than two points, or a colour list of the
 /// wrong length: a line with one point has no direction to be widened across,
 /// and colours that do not line up with points would shift the gradient along
@@ -44,6 +48,7 @@ MeshData buildPolyline(
   required double width,
   List<Vector4>? colours,
   Vector4? colour,
+  bool closed = false,
 }) {
   if (points.length < 2) {
     throw ArgumentError(
@@ -60,18 +65,31 @@ MeshData buildPolyline(
     throw ArgumentError('A line is wider than nothing; $width was given.');
   }
 
+  // Closed, the first point comes round again at the end: its own pair of
+  // vertices, so the distance along the line keeps counting, and its
+  // neighbours taken round the ring so both ends meet in an elbow.
+  final count = closed ? points.length + 1 : points.length;
+  final last = points.length - 1;
+  Vector3 at(int i) => points[i % points.length];
+  Vector3 beforeOf(int i) =>
+      i == 0 ? (closed ? points[last] : points[0]) : at(i - 1);
+  Vector3 afterOf(int i) => i == count - 1
+      ? (closed ? points[1 % points.length] : points[last])
+      : at(i + 1);
+  Vector4? tintOf(int i) => colours?[i % points.length];
+
   final stride = VertexLayout.standard.floatsPerVertex;
-  final vertices = Float32List(points.length * 2 * stride);
+  final vertices = Float32List(count * 2 * stride);
   final fallback = colour ?? Vector4(1, 1, 1, 1);
   final half = width / 2;
 
   var distance = 0.0;
-  for (var i = 0; i < points.length; i++) {
-    final here = points[i];
-    final before = points[i == 0 ? 0 : i - 1];
-    final after = points[i == points.length - 1 ? i : i + 1];
-    if (i > 0) distance += here.distanceTo(before);
-    final tint = colours?[i] ?? fallback;
+  for (var i = 0; i < count; i++) {
+    final here = at(i);
+    final before = beforeOf(i);
+    final after = afterOf(i);
+    if (i > 0) distance += here.distanceTo(at(i - 1));
+    final tint = tintOf(i) ?? fallback;
 
     for (var side = 0; side < 2; side++) {
       final at = (i * 2 + side) * stride;
@@ -96,8 +114,8 @@ MeshData buildPolyline(
   }
 
   // Two triangles per segment, sharing the pair of vertices at each point.
-  final indices = Uint32List((points.length - 1) * 6);
-  for (var i = 0; i < points.length - 1; i++) {
+  final indices = Uint32List((count - 1) * 6);
+  for (var i = 0; i < count - 1; i++) {
     final a = i * 2;
     indices.setRange(i * 6, i * 6 + 6, <int>[
       a,

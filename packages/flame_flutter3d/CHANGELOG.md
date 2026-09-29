@@ -81,6 +81,14 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A world whose edges meet.** `WrapSpace` wraps its children's positions
+round a rectangle, draws a ghost of each child within `margin` of an edge
+on the other side (three in a corner) so a ship half over an edge is seen
+on both, and gives the child ghost hitboxes one world across, so Flame's
+own collision detection finds a contact across the seam and reports it to
+the child itself. `shortestWay` is the direction across an edge when that
+is shorter.
+
 **An orthographic camera agrees with Flame to the pixel, and rolls.**
 `CameraSyncController` takes a `viewportHeight`: with it, Flame's zoom is
 pixels per world unit, the viewport's height over the camera's, rather

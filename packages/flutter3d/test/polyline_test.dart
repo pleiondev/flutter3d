@@ -296,4 +296,33 @@ void main() {
       ),
     );
   });
+
+  test('a closed line comes back round to its first point, with an elbow', () {
+    // A ship's outline drawn open left a square notch where the ends met.
+    //
+    // Mutation: ignore `closed`.
+    final square = <Vector3>[
+      Vector3(0.0, 0.0, 0.0),
+      Vector3(1.0, 0.0, 0.0),
+      Vector3(1.0, 1.0, 0.0),
+      Vector3(0.0, 1.0, 0.0),
+    ];
+    final open = buildPolyline(square, width: 2.0);
+    final ring = buildPolyline(square, width: 2.0, closed: true);
+    final stride = VertexLayout.standard.floatsPerVertex;
+    expect(
+      ring.indices.length,
+      open.indices.length + 6,
+      reason: 'one more side',
+    );
+    expect(ring.vertices.length, open.vertices.length + 2 * stride);
+
+    // The first point's neighbour behind it is the last point, not itself.
+    expect(ring.vertices[3], 0.0);
+    expect(ring.vertices[4], 1.0);
+    // And the last pair of vertices is the first point again.
+    final end = (ring.vertices.length ~/ stride - 2) * stride;
+    expect(ring.vertices[end], 0.0);
+    expect(ring.vertices[end + 1], 0.0);
+  });
 }

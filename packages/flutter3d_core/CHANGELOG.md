@@ -21,6 +21,9 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **`buildPolyline(closed: true)` joins the last point to the first** with
+  an elbow like every other: a ship's outline or a ring had a square notch
+  where its open ends met.
 - **A node can be tinted and faded on its own.** `MeshNode.tint` multiplies
   its material's colour for that node's draw alone, in linear light as a
   vertex colour is, and its alpha fades it: below one the node is drawn
