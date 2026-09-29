@@ -20,8 +20,11 @@ import '../transform/plane.dart';
 /// `onRendererReady` hands over; without one (a test, a server) the
 /// particles still live and die, and nothing is drawn.
 ///
-/// The contributor draws additively, so a particle can only add light: fire,
-/// sparks, a muzzle flash, a glow. Dark smoke is not a particle here.
+/// **Light added or light taken away.** Drawn with the default blend, a
+/// particle adds light: fire, sparks, a muzzle flash. Drawn with
+/// `MeshParticleContributor.darkening`, it takes its colour out of what is
+/// behind it: dark smoke, soot. One component is one blend, so a game with
+/// both keeps two, each its own pool and its own draw.
 class Particles3dComponent extends Component {
   Particles3dComponent({required this.system, required this.plane});
 
@@ -35,13 +38,17 @@ class Particles3dComponent extends Component {
   MeshParticleContributor? _contributor;
 
   /// Draws every particle as a copy of [mesh] through [renderer]'s scene
-  /// pass. Calling it again, with a new renderer after the old one was
-  /// replaced, moves the drawing there.
-  void drawWith(Renderer renderer, DrawableGeometry mesh) {
+  /// pass, blended by [blend]. Calling it again, with a new renderer after
+  /// the old one was replaced, moves the drawing there.
+  void drawWith(
+    Renderer renderer,
+    DrawableGeometry mesh, {
+    BlendState blend = BlendState.additive,
+  }) {
     _stopDrawing();
     _renderer = renderer;
     _contributor = renderer.addContributor(
-      MeshParticleContributor(system, mesh: mesh),
+      MeshParticleContributor(system, mesh: mesh, blend: blend),
     );
   }
 

@@ -78,9 +78,18 @@ void main() {
         renderer.contributors.all.whereType<MeshParticleContributor>(),
         hasLength(1),
       );
-      // Handed the renderer again: moved, not doubled.
-      particles.drawWith(renderer, shard);
+      // Handed the renderer again: moved, not doubled, and with the blend
+      // it was given this time.
+      particles.drawWith(
+        renderer,
+        shard,
+        blend: MeshParticleContributor.darkening,
+      );
       expect(renderer.contributors.all, hasLength(1));
+      expect(
+        (renderer.contributors.all.single as MeshParticleContributor).blend,
+        MeshParticleContributor.darkening,
+      );
 
       particles.removeFromParent();
       await game.ready();

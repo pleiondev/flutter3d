@@ -75,11 +75,11 @@ however many are in the air.
 
 **`Particles3dComponent` runs a `flutter3d_particles` system on Flame's
 clock**, bursting from a Flame point with `burstAt`, and draws it through a
-`MeshParticleContributor` once `drawWith` has the renderer. River Sortie's
-fire and sparks moved to it from a scene node per shard; its smoke and
-spray stayed, because the particles draw additively and dark smoke only
-darkens. The package now depends on `flutter3d_particles`, which is plain
-Dart.
+`MeshParticleContributor` once `drawWith` has the renderer, additively by
+default or with `blend: MeshParticleContributor.darkening` for smoke. River
+Sortie's fire, sparks and spray went into one pool and its smoke into
+another, and `BurstComponent`, a scene node per shard, is gone. The package
+now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
 ## 0.8.2
 

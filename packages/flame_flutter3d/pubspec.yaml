@@ -45,7 +45,7 @@ dependencies:
 
   # The pool and the instanced draw a Flame game's blasts go through. Plain
   # Dart, no native code: a game that throws no particles pays nothing.
-  flutter3d_particles: ^0.8.0
+  flutter3d_particles: ^0.8.1
 
   vector_math: ^2.4.3
 

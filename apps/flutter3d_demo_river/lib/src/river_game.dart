@@ -38,7 +38,9 @@ import 'package:flutter3d_particles/flutter3d_particles.dart'
         ConeEmitter,
         ParticleAffector,
         ParticleColorOverLife,
+        MeshParticleContributor,
         ParticleEffect,
+        ParticleFade,
         ParticleGravity,
         ParticleSizeOverLife,
         ParticleSystem,
@@ -204,10 +206,20 @@ final class RiverGame extends TransparentFlameGame
   void drawWith(Renderer drawing) {
     renderer = drawing;
     blasts.drawWith(drawing, _kit.shard);
+    soot.drawWith(
+      drawing,
+      _kit.shard,
+      blend: MeshParticleContributor.darkening,
+    );
   }
 
-  /// Fire and sparks: every blast on screen, one pool and one draw.
+  /// Fire, sparks and spray: everything on screen that glows or shines,
+  /// one pool and one draw.
   late final Particles3dComponent blasts;
+
+  /// Smoke: everything that darkens what is behind it, another pool and
+  /// another draw.
+  late final Particles3dComponent soot;
 
   /// Between the 3D camera and Flame's screen, once there is a camera:
   /// where a "+30" goes over a target that went down. Null in the tests.
@@ -416,38 +428,49 @@ final class RiverGame extends TransparentFlameGame
   static Vector4 get _flame => Vector4(4.0, 2.2, 0.6, 1.0);
   static Vector4 get _ember => Vector4(1.2, 0.2, 0.05, 1.0);
   static Vector4 get _spark => Vector4(4.0, 3.4, 1.6, 1.0);
+  static Vector4 get _spray => Vector4(0.7, 0.8, 0.9, 1.0);
 
-  /// A puff of dark smoke, rising slowly and swelling.
-  void smoke(Vector3 at) => add(
-    BurstComponent(
-      scene: _scene,
-      shard: _kit.shard,
-      material: _kit.smoke,
-      at: at,
-      count: 2,
-      reach: 0.4,
-      lift: 1.5,
-      gravity: -0.5,
-      lifetime: 1.4,
-      size: 0.9,
-      grows: true,
+  /// How much of what is behind it a puff of smoke takes away.
+  static Vector4 get _soot => Vector4(0.75, 0.75, 0.72, 1.0);
+
+  /// A puff of dark smoke, rising slowly, swelling and thinning: drawn by
+  /// [soot], which takes its colour out of what is behind it.
+  void smoke(Vector3 at) => soot.system.burst(
+    ParticleEffect(
+      count: 3,
+      emitter: const ConeEmitter(
+        speed: Range(0.6, 1.6),
+        halfAngleDegrees: 25.0,
+      ),
+      lifetime: const Range(1.2, 1.5),
+      size: const Range(0.8, 1.0),
+      color: _soot,
+      affectors: const <ParticleAffector>[
+        ParticleGravity(0.5),
+        ParticleSizeOverLife(from: 0.6, to: 1.8),
+        ParticleFade(startsAt: 0.3),
+      ],
     ),
+    at,
   );
 
   /// White water thrown up where something meets the river.
-  void splash(Vector3 at, {double size = 1.0}) => add(
-    BurstComponent(
-      scene: _scene,
-      shard: _kit.shard,
-      material: _kit.spray,
-      at: at,
+  void splash(Vector3 at, {double size = 1.0}) => blasts.system.burst(
+    ParticleEffect(
       count: (12 * size).round(),
-      reach: 2.0 * size,
-      lift: 6.0 * size,
-      gravity: 18.0,
-      lifetime: 0.8,
-      size: 0.6,
+      emitter: ConeEmitter(
+        speed: Range(3.0 * size, 9.0 * size),
+        halfAngleDegrees: 35.0,
+      ),
+      lifetime: const Range(0.6, 0.8),
+      size: const Range.exact(0.6),
+      color: _spray,
+      affectors: const <ParticleAffector>[
+        ParticleGravity(-18.0),
+        ParticleSizeOverLife(),
+      ],
     ),
+    at,
   );
 
   /// A shot glancing off something it cannot break.

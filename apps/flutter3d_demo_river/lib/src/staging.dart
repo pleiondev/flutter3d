@@ -26,7 +26,11 @@ extension RiverGameStaging on RiverGame {
       system: ParticleSystem(capacity: 512),
       plane: RiverGame.river,
     );
-    add(blasts);
+    soot = Particles3dComponent(
+      system: ParticleSystem(capacity: 128),
+      plane: RiverGame.river,
+    );
+    addAll(<Component>[blasts, soot]);
     wardrobe = ModelWardrobe<Craft>(
       device: device,
       scene: scene,
@@ -57,11 +61,9 @@ extension RiverGameStaging on RiverGame {
   void _restart() {
     _stretches.clear();
     blasts.system.clear();
+    soot.system.clear();
     for (final leftover in children.where(
-      (child) =>
-          child is ShotComponent ||
-          child is EnemyShotComponent ||
-          child is BurstComponent,
+      (child) => child is ShotComponent || child is EnemyShotComponent,
     )) {
       leftover.removeFromParent();
     }

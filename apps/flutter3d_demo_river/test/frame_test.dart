@@ -107,4 +107,42 @@ void main() {
     }
     expect(lit, greaterThan(20));
   });
+
+  test('smoke is drawn darkening what is behind it', () async {
+    Future<({Uint8List rgba, int drawCalls})> after({required bool smoke}) =>
+        _frame(
+          stage: (game) {
+            if (smoke) {
+              // Several puffs, so the darkened patch is more than a pixel
+              // or two at this size.
+              for (var i = 0; i < 6; i++) {
+                game.smoke(
+                  Vector3(
+                    game.jet.position.x - 1.5 + i * 0.6,
+                    1.0,
+                    -game.distance - 6.0,
+                  ),
+                );
+              }
+            }
+            for (var i = 0; i < 20; i++) {
+              game.update(1 / 60);
+            }
+          },
+        );
+
+    final clear = await after(smoke: false);
+    final smoky = await after(smoke: true);
+    expect(smoky.drawCalls, clear.drawCalls + 1, reason: 'one draw for all');
+    var darker = 0;
+    var brighter = 0;
+    for (var i = 0; i < clear.rgba.length; i += 4) {
+      final before = clear.rgba[i] + clear.rgba[i + 1] + clear.rgba[i + 2];
+      final now = smoky.rgba[i] + smoky.rgba[i + 1] + smoky.rgba[i + 2];
+      if (now < before - 60) darker++;
+      if (now > before + 30) brighter++;
+    }
+    expect(darker, greaterThan(20));
+    expect(brighter, 0, reason: 'smoke takes light away and adds none');
+  });
 }

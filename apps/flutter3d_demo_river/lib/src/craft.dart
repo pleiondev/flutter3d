@@ -108,19 +108,6 @@ final class _Kit {
     emissiveStrength: 5.0,
   );
 
-  final engine.Material smoke = engine.Material(
-    name: 'smoke',
-    baseColor: Vector4(0.06, 0.06, 0.06, 1.0),
-    roughness: 1.0,
-  );
-
-  final engine.Material spray = engine.Material(
-    name: 'spray',
-    baseColor: Vector4(0.85, 0.92, 1.0, 1.0),
-    emissive: Vector3(0.3, 0.35, 0.4),
-    roughness: 0.3,
-  );
-
   static DeviceMesh _upload(GraphicsDevice device, MeshData mesh, double yaw) =>
       DeviceMesh.upload(device, mesh.transformed(Matrix4.rotationY(yaw)));
 }
