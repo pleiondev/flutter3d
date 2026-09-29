@@ -81,6 +81,25 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A hidden parent hides its bridged children.** Flame does not draw the
+children of a component it hides, and a child's scene node is not under its
+parent's, so the child went on being drawn in 3D while the log it rode on
+blinked. A bridged component now shows its node only while it and every
+ancestor with `HasVisibility` are visible; `shownInFlame` answers that.
+
+**A child under a scaled parent is scaled by both.** Its place already
+carried the parent's scale, and its node was scaled by its own alone, so the
+model and the hitbox disagreed about its size. The node takes Flame's
+absolute scale. The same two fixes reach `InstancedObject3dComponent`.
+
+**`ActorComponent` turns with its actor**, by the actor's yaw, and copies
+the body only when the scene is authoritative. It and `RigidBodyComponent`
+take a `size`, an `anchor` and an `elevation`, as `Object3dComponent` does:
+a `RectangleHitbox()` on a bridged rigid body filled a size of nothing.
+
+**`Flutter3dFlameWidget` is tested.** Its two tests were skipped as hanging
+under `flutter_test`; run directly, both finish in seconds.
+
 ## 0.8.2
 
 **`PhysicsStepComponent` steps the physics on Flame's clock.** A

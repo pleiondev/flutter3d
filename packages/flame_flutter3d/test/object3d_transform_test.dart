@@ -193,4 +193,52 @@ void main() {
       expect(craft.node.readRotation().z, isNot(closeTo(bank.z, 1e-6)));
     },
   );
+
+  testWithGame<FlameGame>(
+    'a hidden parent hides its child in the scene, as Flame draws it',
+    FlameGame.new,
+    (game) async {
+      // A frog on a log: the log blinks, and Flame stops drawing the frog
+      // with it. The frog's node is not under the log's, so the bridge has
+      // to ask the frog's ancestors, not only the frog.
+      //
+      // Mutation: write the child's own `isVisible` alone.
+      final scene = Scene();
+      final log = _bridged(scene);
+      final frog = _bridged(scene);
+      log.add(frog);
+      await game.add(log);
+      await game.ready();
+
+      log.isVisible = false;
+      game.update(1 / 60);
+      expect(frog.node.visible, isFalse);
+
+      log.isVisible = true;
+      game.update(1 / 60);
+      expect(frog.node.visible, isTrue);
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'a child under a scaled parent is scaled by both, as its place is',
+    FlameGame.new,
+    (game) async {
+      // Its position already carries the parent's scale; its size has to
+      // as well, or the model and the hitbox disagree about how big it is.
+      //
+      // Mutation: scale the node by the component's own `scale`.
+      final scene = Scene();
+      final parent = _bridged(scene)..scale = Vector2.all(2.0);
+      final child = _bridged(scene, position: Vector2(1.0, 0.0))
+        ..scale = Vector2.all(1.5);
+      parent.add(child);
+      await game.add(parent);
+      await game.ready();
+      game.update(1 / 60);
+
+      expect(child.node.readPosition().x, closeTo(2.0, 1e-6));
+      expect(child.node.readScale().x, closeTo(3.0, 1e-6));
+    },
+  );
 }

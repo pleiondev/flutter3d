@@ -95,4 +95,30 @@ void main() {
     // copy", the same as an actor that never had a body.
     expect(() => component.update(1 / 60), returnsNormally);
   });
+
+  test('turns the node the way the actor faces', () {
+    // An actor's yaw is radians about Y, nought looking down -Z; a quarter
+    // turn left looks down -X. Without it every bridged actor slid about
+    // facing the way it was built.
+    //
+    // Mutation: copy only the body's position.
+    final system = _system();
+    final actor = system.spawn(
+      body: CharacterController(world: system.world),
+      facing: Facing(yaw: 1.5707963267948966),
+    );
+    final component = ActorComponent(
+      actor: actor,
+      node: SceneNode(),
+      scene: Scene(),
+      plane: BridgePlane.ground(),
+    )..onMount();
+    component.update(1 / 60);
+
+    final forward = component.node.readRotation().asRotationMatrix().transform(
+      Vector3(0.0, 0.0, -1.0),
+    );
+    expect(forward.x, closeTo(-1.0, 1e-6));
+    expect(forward.z, closeTo(0.0, 1e-6));
+  });
 }

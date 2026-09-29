@@ -56,11 +56,13 @@ enum SyncDirection {
 /// once the whole subtree has moved.
 ///
 /// **The rest of Flame's transform crosses too.** [elevation] lifts the
-/// point off the plane along its normal. Flame's `scale` scales [node], the
-/// plane's two axes from `scale.x` and `scale.y` and the normal from their
-/// mean. Flame's visibility ([HasVisibility.isVisible]) is written into
-/// `node.visible` whenever it changes, and only then, so code that blinks a
-/// node by hand keeps working.
+/// point off the plane along its normal. Flame's absolute scale, its own
+/// times its ancestors', scales [node], the plane's two axes from its `x`
+/// and `y` and the normal from their mean. Flame's visibility is written
+/// into `node.visible` whenever it changes, and only then, so code that
+/// blinks a node by hand keeps working: shown when this component and every
+/// ancestor with [HasVisibility] is, as Flame draws it, since a hidden
+/// parent hides its children.
 ///
 /// **[visual] is the bridge's to create and the game's to turn.** The
 /// bridge writes [node]'s rotation every frame, so a model turned to face
@@ -161,9 +163,12 @@ class Object3dComponent extends PositionComponent with HasVisibility {
     if (direction == SyncDirection.flameToScene) _writeScene();
     if (isRemoving) {
       node.visible = false;
-    } else if (_visibleWritten != isVisible) {
-      node.visible = isVisible;
-      _visibleWritten = isVisible;
+    } else {
+      final shown = shownInFlame(this);
+      if (_visibleWritten != shown) {
+        node.visible = shown;
+        _visibleWritten = shown;
+      }
     }
   }
 
@@ -171,7 +176,7 @@ class Object3dComponent extends PositionComponent with HasVisibility {
     node
       ..setPositionFrom(scenePosition)
       ..setRotation(plane.rotationFor(absoluteAngle));
-    final s = scale;
+    final s = absoluteScale;
     final across = (s.x.abs() + s.y.abs()) / 2.0;
     switch (plane.axis) {
       case PlaneAxis.y:
@@ -195,4 +200,16 @@ class Object3dComponent extends PositionComponent with HasVisibility {
       angle = worldAngle;
     }
   }
+}
+
+/// Whether Flame draws [component]: it is visible, and so is every ancestor
+/// that can be hidden. A hidden parent does not render its children, and
+/// the scene node of a child is not under its parent's node, so the bridge
+/// has to ask the whole chain.
+bool shownInFlame(HasVisibility component) {
+  if (!component.isVisible) return false;
+  for (final ancestor in component.ancestors()) {
+    if (ancestor is HasVisibility && !ancestor.isVisible) return false;
+  }
+  return true;
 }

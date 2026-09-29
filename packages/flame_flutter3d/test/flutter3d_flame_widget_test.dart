@@ -1,19 +1,11 @@
 /// [Flutter3dFlameWidget] builds and ticks both layers without throwing.
 ///
-/// **Skipped, not deleted.** Mounting a real Flame `GameWidget` under
-/// `flutter_test` hangs indefinitely in this environment — confirmed with
-/// three independent attempts (a hand-written `pumpWidget`/`pump` sequence,
-/// the same sequence wrapped in `tester.runAsync`, and Flame's own official
-/// `flame_test` package's `FlameTester.testGameWidget` helper verbatim, the
-/// exact pattern Flame's own upstream test suite uses successfully in its
-/// own CI). The third attempt ran for the full 1800-second MCP tool timeout
-/// with zero output before being killed — not slow, genuinely stuck. Nothing
-/// in `Flutter3dFlameWidget` reproduces this on a bare `GameWidget` with no
-/// bridge code involved at all, so this is an environment limitation, not a
-/// bug this package owns. Verify this widget by running it for real instead
-/// — `flutter run -d macos` on a page that uses it — until upstream Flame or
-/// this sandbox's own Flutter build resolves whatever the incompatibility
-/// is.
+/// **These were skipped as hanging, and do not hang.** A Flame
+/// `GameWidget` under `flutter_test` was said to hang in this environment,
+/// and the evidence was a test runner that ran for its whole timeout with
+/// no output. Run with `flutter test` directly, both finish in seconds: the
+/// runner, not Flame, was what stood still. With the skip in place the
+/// package's own host widget had no test at all.
 library;
 
 import 'package:flame/game.dart';
@@ -24,65 +16,61 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets(
-    'an empty game and an empty scene compose and tick',
-    (tester) async {
-      final camera = CameraNode(name: 'eye');
-      var ticks = 0;
+  testWidgets('an empty game and an empty scene compose and tick', (
+    tester,
+  ) async {
+    final camera = CameraNode(name: 'eye');
+    var ticks = 0;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Flutter3dFlameWidget(
-            game: FlameGame(),
-            camera: camera,
-            buildScene: (device) => Scene(),
-            onTick: (double dt) => ticks++,
-            width: 32,
-            height: 24,
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Flutter3dFlameWidget(
+          game: FlameGame(),
+          camera: camera,
+          buildScene: (device) => Scene(),
+          onTick: (double dt) => ticks++,
+          width: 32,
+          height: 24,
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(find.byType(GameWidget<FlameGame>), findsOneWidget);
+    expect(find.byType(GameWidget<FlameGame>), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
 
-      expect(ticks, greaterThan(0));
-    },
-    skip: true, // see the library doc comment above
-  );
+    expect(ticks, greaterThan(0));
+  });
 
-  testWidgets(
-    'an existing device and renderer are reused, not reopened',
-    (tester) async {
-      final device = CpuDevice(
-        width: 32,
-        height: 24,
-        shaders: CpuShaderLibrary(builtinCpuShaders()),
-      );
-      final renderer = Renderer.create(device: device);
-      final camera = CameraNode(name: 'eye');
-      GraphicsDevice? seen;
+  testWidgets('an existing device and renderer are reused, not reopened', (
+    tester,
+  ) async {
+    final device = CpuDevice(
+      width: 32,
+      height: 24,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final camera = CameraNode(name: 'eye');
+    GraphicsDevice? seen;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Flutter3dFlameWidget(
-            game: FlameGame(),
-            camera: camera,
-            existing: (device: device, renderer: renderer),
-            buildScene: (d) {
-              seen = d;
-              return Scene();
-            },
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Flutter3dFlameWidget(
+          game: FlameGame(),
+          camera: camera,
+          existing: (device: device, renderer: renderer),
+          buildScene: (d) {
+            seen = d;
+            return Scene();
+          },
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(seen, same(device), reason: 'no second device should open');
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-    },
-    skip: true, // see the library doc comment above
-  );
+    expect(seen, same(device), reason: 'no second device should open');
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
 }

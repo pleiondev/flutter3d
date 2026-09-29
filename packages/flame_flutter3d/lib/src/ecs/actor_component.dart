@@ -52,7 +52,10 @@ final class ActorComponent extends Object3dComponent {
     required super.scene,
     required super.plane,
     super.direction = SyncDirection.sceneToFlame,
+    super.elevation,
     super.position,
+    super.size,
+    super.anchor,
     super.angle,
     super.scale,
     super.children,
@@ -63,12 +66,30 @@ final class ActorComponent extends Object3dComponent {
   /// The flutter3d_sim actor this component bridges to Flame.
   final Actor actor;
 
+  /// Copies the actor's body and facing onto [node], then lets
+  /// [Object3dComponent.update] read them onto the Flame side.
+  ///
+  /// **Only when the scene is authoritative.** Flowing Flame to the scene,
+  /// the node is written from Flame's position straight after, and copying
+  /// the body there first did nothing but cost a write.
+  ///
+  /// **The facing too, not only the place.** An actor turns by its yaw,
+  /// radians about Y with nought looking along −Z, which is the rotation a
+  /// node is drawn with; without it every bridged actor slid about facing
+  /// the one way it was built facing.
   @override
   void update(double dt) {
-    final body = actor.body;
-    // Null for an actor with no body (a turret, a director) and for one
-    // that has been despawned — both are "nothing to copy", not an error.
-    if (body != null) node.setPositionFrom(body.position);
+    if (direction == SyncDirection.sceneToFlame) {
+      final body = actor.body;
+      // Null for an actor with no body (a turret, a director) and for one
+      // that has been despawned — both are "nothing to copy", not an error.
+      if (body != null) node.setPositionFrom(body.position);
+      if (actor.facing != null) {
+        node.setRotation(Quaternion.axisAngle(_up, actor.yaw));
+      }
+    }
     super.update(dt);
   }
+
+  static Vector3 get _up => Vector3(0.0, 1.0, 0.0);
 }

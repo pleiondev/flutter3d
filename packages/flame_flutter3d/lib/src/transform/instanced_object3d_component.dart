@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import 'object3d_component.dart' show shownInFlame;
 import 'plane.dart';
 
 /// A Flame [PositionComponent] drawn as one instance of a shared
@@ -100,11 +101,11 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
   void _write() {
     final slot = _slot;
     if (slot == null) return;
-    if (!isVisible) {
+    if (!shownInFlame(this)) {
       slot.setTransform(_transform..setZero());
       return;
     }
-    final s = scale;
+    final s = absoluteScale;
     final across = (s.x.abs() + s.y.abs()) / 2.0;
     switch (plane.axis) {
       case PlaneAxis.y:
