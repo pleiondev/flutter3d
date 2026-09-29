@@ -9,6 +9,7 @@ import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Game extends FlameGame with HasCollisionDetection {}
@@ -134,6 +135,41 @@ void main() {
       expect(second.starts, 1);
     });
   }
+
+  testWithGame<_Game>(
+    'a body the physics moves is carried across the edge, still moving',
+    _Game.new,
+    (game) async {
+      // Its Flame position was wrapped and read straight back from the body
+      // on the far side, and it flew on out of the world.
+      //
+      // Mutation: wrap the Flame position alone.
+      final world = CollisionWorld();
+      final body = RigidBody(
+        world: world,
+        shape: CollisionBox(Vector3.all(0.4)),
+        position: Vector3(10.5, 0.0, -3.0),
+        mass: 1.0,
+      )..velocity.setValues(4.0, 0.0, 0.0);
+      final ship = RigidBodyComponent(
+        body: body,
+        node: SceneNode(),
+        scene: Scene(),
+        plane: BridgePlane.ground(),
+      );
+      final space = _space(ship.scene);
+      await space.add(ship);
+      await game.add(space);
+      await game.ready();
+      game
+        ..update(1 / 60)
+        ..update(1 / 60);
+
+      expect(body.position.x, closeTo(-9.5, 1e-6));
+      expect(ship.position.x, closeTo(-9.5, 1e-6));
+      expect(body.velocity.x, 4.0, reason: 'carried, not stopped');
+    },
+  );
 
   testWithGame<_Game>(
     'a passive rock\'s ghost is passive, and a polygon stays a polygon',

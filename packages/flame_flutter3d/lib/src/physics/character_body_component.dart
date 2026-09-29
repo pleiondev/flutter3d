@@ -40,6 +40,18 @@ class CharacterBodyComponent extends Object3dComponent
   final Vector3 _drawn = Vector3.zero();
   bool _stepped = false;
 
+  /// Carries the body across too, still moving; see
+  /// `RigidBodyComponent.shiftScene`.
+  @override
+  void shiftScene(Vector3 by) {
+    super.shiftScene(by);
+    body.position.add(by);
+    body.collider
+      ..position.setFrom(body.position)
+      ..refreshBounds();
+    _before.add(by);
+  }
+
   @override
   void fixedUpdate(double step) {
     _before.setFrom(body.position);

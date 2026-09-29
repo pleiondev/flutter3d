@@ -88,6 +88,20 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
     _remembered = true;
   }
 
+  /// Carries the actor's body across too, still moving; see
+  /// `RigidBodyComponent.shiftScene`.
+  @override
+  void shiftScene(Vector3 by) {
+    super.shiftScene(by);
+    final body = actor.body;
+    if (body == null) return;
+    body.position.add(by);
+    body.collider
+      ..position.setFrom(body.position)
+      ..refreshBounds();
+    _before.add(by);
+  }
+
   @override
   void onMount() {
     super.onMount();

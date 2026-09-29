@@ -367,6 +367,14 @@ class Object3dComponent extends PositionComponent
   final Quaternion _yawTurn = Quaternion.identity();
   static Vector3 get _up => Vector3(0.0, 1.0, 0.0);
 
+  /// Moves what this component's place is read from by [by], in the scene:
+  /// [node], and in a subclass the body under it, without stopping it. How
+  /// a `WrapSpace` carries a component placed from the scene side across
+  /// its seam; wrapping Flame's position alone was undone by the next read.
+  void shiftScene(Vector3 by) {
+    node.setPositionFrom(node.readPosition(_nodeAt)..add(by));
+  }
+
   /// Forgets what was last written, so the next write happens whether or
   /// not Flame's side moved: for a caller that moved [node] itself and
   /// wants Flame's place put back.

@@ -214,6 +214,37 @@ void main() {
       ..onTapCancel(TapCancelEvent(2));
     expect(crate.cancels, 1);
   });
+
+  test(
+    'a craft seen across the seam of a wrapped world is tapped there',
+    () async {
+      // The ghost was a drawing with no component, and a tap on it found
+      // nothing.
+      //
+      // Mutation: test only the craft's own box.
+      final (:game, :device) = await _open();
+      final space = WrapSpace(
+        min: Vector2(-6.0, -20.0),
+        max: Vector2(6.0, 0.0),
+        scene: game.scene,
+      );
+      final crate = _Crate(device, game.scene, Vector2(5.6, -10.0), name: 'a');
+      final taps = Taps3dComponent();
+      await space.add(crate);
+      await game.addAll(<Component>[space, taps]);
+      await game.ready();
+      game.update(0.0);
+
+      final ghost = space.ghostBoundsOf(crate).single;
+      final screen = game.projector.toScreen(ghost.center)!;
+      expect(
+        game.projector.boundsOf(crate.node.subtreeBounds!)!.left,
+        greaterThan(screen.x),
+        reason: 'the tap is on the ghost, not on the craft',
+      );
+      expect(taps.nearestAt(screen), same(crate));
+    },
+  );
 }
 
 final class _Slab extends Object3dComponent with Tap3dCallbacks {

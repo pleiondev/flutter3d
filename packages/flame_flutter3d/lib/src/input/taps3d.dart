@@ -5,6 +5,7 @@ import '../host/has_flutter3d.dart';
 import '../transform/bridged3d.dart';
 import '../transform/object3d_component.dart';
 import '../transform/projector.dart';
+import '../world/wrap_space.dart';
 
 /// A bridged component that hears a tap on what it draws in 3D.
 ///
@@ -40,19 +41,33 @@ mixin Tap3dCallbacks on PositionComponent, HasVisibility, Bridged3d {
   /// The finger that went down on this component stayed down, still.
   void onLongTap3d(Vector2 screen) {}
 
-  /// Whether [screen] falls on what this component draws, as [projector]
-  /// sees it: the screen rectangle round [drawnBounds3d]. Override for a
-  /// tighter shape.
-  bool hitAt3d(Vector2 screen, BridgeProjector projector) {
+  /// The boxes in the scene round everything that draws this component:
+  /// [drawnBounds3d], and in a `WrapSpace` its ghosts across the seam.
+  Iterable<Aabb3> drawnBoxes3d() sync* {
     final box = drawnBounds3d;
-    if (box == null) return false;
-    final bounds = projector.boundsOf(box);
-    return bounds != null &&
-        screen.x >= bounds.left &&
-        screen.x <= bounds.right &&
-        screen.y >= bounds.top &&
-        screen.y <= bounds.bottom;
+    if (box != null) yield box;
+    if ((parent, this) case (
+      final WrapSpace space,
+      final Object3dComponent me,
+    )) {
+      yield* space.ghostBoundsOf(me);
+    }
   }
+
+  /// Whether [screen] falls on what this component draws, as [projector]
+  /// sees it: the screen rectangle round one of [drawnBoxes3d]. Override
+  /// for a tighter shape.
+  bool hitAt3d(Vector2 screen, BridgeProjector projector) =>
+      drawnBoxes3d().any((box) => _covers(projector, box, screen));
+}
+
+bool _covers(BridgeProjector projector, Aabb3 box, Vector2 screen) {
+  final bounds = projector.boundsOf(box);
+  return bounds != null &&
+      screen.x >= bounds.left &&
+      screen.x <= bounds.right &&
+      screen.y >= bounds.top &&
+      screen.y <= bounds.bottom;
 }
 
 /// Covers the game's canvas and hands every tap to the nearest
@@ -129,13 +144,17 @@ class Taps3dComponent extends PositionComponent
     for (final candidate in game.descendants().whereType<Tap3dCallbacks>()) {
       if (!shownInFlame(candidate)) continue;
       if (!candidate.hitAt3d(screen, game.projector)) continue;
-      final box = candidate.drawnBounds3d!;
-      final distance = ray == null
-          ? eye.distanceTo(box.center)
-          : _entry(ray.$1, ray.$2, box) ?? eye.distanceTo(box.center);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearest = candidate;
+      // Of its boxes, the nearest the tap is on: a craft and its ghost are
+      // never both under one finger, but the one that is decides.
+      for (final box in candidate.drawnBoxes3d()) {
+        if (!_covers(game.projector, box, screen)) continue;
+        final distance = ray == null
+            ? eye.distanceTo(box.center)
+            : _entry(ray.$1, ray.$2, box) ?? eye.distanceTo(box.center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = candidate;
+        }
       }
     }
     return nearest;

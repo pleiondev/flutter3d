@@ -129,6 +129,15 @@ for each partner, as Flame's own detection does, rather than once a step;
 fires a ray across the plane through the collision world, exact per shape,
 with layers and triggers, and says which component it met and where.
 
+**A wrapped world carries bodies across, and its ghosts can be tapped.**
+A child of a `WrapSpace` placed from the scene side, a body the physics
+steps, is carried across the seam in the scene as well, still moving,
+through `Object3dComponent.shiftScene`, which a rigid body, an actor and a
+character body override to move their bodies; its Flame position was
+wrapped and read straight back from the body on the far side. A tap on a
+craft's ghost reaches the craft: `Tap3dCallbacks.drawnBoxes3d` includes
+`WrapSpace.ghostBoundsOf`.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

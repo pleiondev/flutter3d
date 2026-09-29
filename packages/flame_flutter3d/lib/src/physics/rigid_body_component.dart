@@ -109,6 +109,17 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
     placeNode(to);
   }
 
+  /// Carries the body across too, still moving, and where it was before the
+  /// step with it, so it is not drawn sliding back across the world.
+  @override
+  void shiftScene(Vector3 by) {
+    super.shiftScene(by);
+    body.collider
+      ..moveTo(body.position + by)
+      ..clearDelta();
+    _before.add(by);
+  }
+
   @override
   void onMount() {
     super.onMount();

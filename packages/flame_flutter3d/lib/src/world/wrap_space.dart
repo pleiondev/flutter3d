@@ -30,8 +30,11 @@ import '../transform/object3d_component.dart';
 /// **Drawn as it is now.** A ghost's meshes take their owner's tint and
 /// opacity every frame, so a hit flash or a fade shows on both sides.
 ///
-/// Children placed from the scene side, bodies stepped by physics, are not
-/// wrapped here: their place is the body's, and the game wraps the body.
+/// **Bodies wrap too.** A child placed from the scene side, a body the
+/// physics steps, had its Flame position wrapped and read straight back from
+/// the body on the far side of the edge; it is carried across in the scene
+/// as well, still moving. A ghost is tapped as its owner is: a tap on a
+/// craft seen across the seam reaches the craft.
 ///
 /// [min] and [max] are the world's corners in Flame's coordinates.
 class WrapSpace extends Component {
@@ -76,14 +79,34 @@ class WrapSpace extends Component {
     return Vector2(dx, dy);
   }
 
+  /// Brings every child that has left the world back in. One placed from
+  /// the scene side, a body the physics moves, is carried across in the
+  /// scene too ([Object3dComponent.shiftScene]), before it reads its place
+  /// back this frame.
   @override
   void update(double dt) {
     super.update(dt);
     for (final child in children.whereType<PositionComponent>()) {
       final p = child.position;
       if (p.x < min.x || p.x >= max.x || p.y < min.y || p.y >= max.y) {
-        child.position.setFrom(wrap(p));
+        final wrapped = wrap(p);
+        if (child is Object3dComponent &&
+            child.direction == SyncDirection.sceneToFlame) {
+          child.shiftScene(child.plane.to3d(wrapped - p, at: 0.0));
+        }
+        child.position.setFrom(wrapped);
       }
+    }
+  }
+
+  /// The boxes round [owner]'s ghosts, where they are drawn this frame: what
+  /// a tap on a craft seen across the seam is tested against.
+  Iterable<Aabb3> ghostBoundsOf(Object3dComponent owner) sync* {
+    final ghosts = _ghosts[owner];
+    if (ghosts == null) return;
+    for (final ghost in ghosts._byOffset.values) {
+      final box = ghost._drawing?.subtreeBounds;
+      if (box != null) yield box;
     }
   }
 
