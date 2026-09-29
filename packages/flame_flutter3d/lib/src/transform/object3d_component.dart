@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import '../host/has_flutter3d.dart';
 import 'plane.dart';
 
 /// Which side of an [Object3dComponent] writes a frame's transform into the
@@ -84,6 +85,7 @@ class Object3dComponent extends PositionComponent
     required this.plane,
     this.direction = SyncDirection.sceneToFlame,
     this.elevation = 0.0,
+    this.owns = const <DeviceMesh>[],
     super.position,
     super.size,
     super.anchor,
@@ -93,6 +95,19 @@ class Object3dComponent extends PositionComponent
     super.priority,
     super.key,
   });
+
+  /// Meshes this component made for itself and lets go of when it is
+  /// removed: a bridge's span, a wreck's hull built for the moment.
+  ///
+  /// **Let go after the frames in flight**, through the renderer of the
+  /// `HasFlutter3d` game it is in, since a frame already sent may still be
+  /// drawing them; at once when that game has no renderer, as in a test. A
+  /// game without `HasFlutter3d` has no device here to give them back to,
+  /// and keeps them. A component that is pooled and added again must not
+  /// own anything: removal is the end of what it owns.
+  final List<DeviceMesh> owns;
+
+  HasFlutter3d? _host;
 
   /// The flutter3d node this component is bridged to.
   final SceneNode node;
@@ -144,6 +159,8 @@ class Object3dComponent extends PositionComponent
   @override
   void onMount() {
     super.onMount();
+    final game = findGame();
+    if (game is HasFlutter3d) _host = game;
     if (node.parent == null) scene.add(node);
     _visibleWritten = null;
   }
@@ -151,7 +168,23 @@ class Object3dComponent extends PositionComponent
   @override
   void onRemove() {
     node.removeFromParent();
+    _letGo();
     super.onRemove();
+  }
+
+  void _letGo() {
+    final host = _host;
+    if (owns.isEmpty || host == null || !host.has3d) return;
+    final drawing = host.renderer;
+    for (final mesh in owns) {
+      if (drawing != null) {
+        drawing.releaseMeshAfterFrame(mesh);
+      } else {
+        host.device
+          ..releaseGeometry(mesh.vertices)
+          ..releaseGeometry(mesh.indices);
+      }
+    }
   }
 
   @override

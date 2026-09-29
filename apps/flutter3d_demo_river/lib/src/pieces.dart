@@ -291,6 +291,7 @@ final class BridgeComponent extends Object3dComponent
     required super.node,
     required super.scene,
     required super.position,
+    super.owns,
   }) : super(
          plane: RiverGame.river,
          direction: SyncDirection.flameToScene,

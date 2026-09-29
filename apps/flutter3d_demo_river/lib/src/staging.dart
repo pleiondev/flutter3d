@@ -162,6 +162,8 @@ extension RiverGameStaging on RiverGame {
           ..add(shield),
         scene: _scene,
         position: Vector2(row.center, -section.bridgeAt),
+        // The bridge's own span and shield go with it.
+        owns: <DeviceMesh>[bridgeGeometry, shieldGeometry],
       );
       add(bridge);
     }
@@ -173,7 +175,7 @@ extension RiverGameStaging on RiverGame {
     return _Stretch(
       valley: valley,
       water: water,
-      geometry: <DeviceMesh>[valleyGeometry, ?bridgeGeometry, ?shieldGeometry],
+      geometry: <DeviceMesh>[valleyGeometry],
       bridge: bridge,
       targets: targets,
     );
@@ -186,8 +188,9 @@ extension RiverGameStaging on RiverGame {
       if (component.parent != null) component.removeFromParent();
       if (component is TargetComponent) wardrobe.forget(component.visual);
     }
-    // Frames already sent may still be drawing the valley and the bridge;
-    // the renderer gives their buffers back once none can be.
+    // Frames already sent may still be drawing the valley; the renderer
+    // gives its buffers back once none can be. The bridge owns its own and
+    // lets them go the same way when it is removed.
     stretch.geometry.forEach(_release);
   }
 

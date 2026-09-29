@@ -81,6 +81,12 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A component lets go of the meshes it made.** `Object3dComponent(owns:)`
+names meshes built for one component, a bridge's span, and gives them back
+when the component is removed: through the renderer after the frames in
+flight in a `HasFlutter3d` game, at once when there is no renderer. River
+Sortie's bridges own their span and shield.
+
 **An actor hears its contacts, and an instance has a colour.**
 `CollisionBridge` relays to any component with Flame's collision callbacks,
 an `ActorComponent` among them, rather than only a `RigidBodyComponent`;

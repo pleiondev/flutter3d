@@ -63,5 +63,9 @@ dev_dependencies:
   # not do on their own.
   flame_test: ^2.3.1
 
+  # A device that records rather than draws, to see what a component gave
+  # back when it went.
+  flutter3d_hardware: ^0.8.0
+
 flutter:
   uses-material-design: true
