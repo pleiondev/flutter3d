@@ -81,6 +81,17 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**Physics and actors step in fixed steps.** `PhysicsStepComponent` and
+`ActorSystemComponent` passed Flame's `dt` straight to the solver, so the
+same jump reached a different height on a faster screen and a stalled frame
+let a fast body step through a wall. Both now spend the frame's time in
+steps of one size through `flutter3d_sim`'s `FixedStep` (a sixtieth of a
+second unless given `step:`), at most five of them after a stall, and
+dispatch contacts after each step. A `RigidBodyComponent` or an
+`ActorComponent` given the component as its `stepper` is drawn `alpha` of
+the way between its last two steps rather than jumping from one to the
+next.
+
 **`HasFlutter3d`: a Flame game owns its 3D world.** Mixed into a
 `FlameGame`, it gives the game its `scene`, `device`, `camera3d`,
 `renderer` and `projector`, a `clearColor` and `renderSettings()` the frame

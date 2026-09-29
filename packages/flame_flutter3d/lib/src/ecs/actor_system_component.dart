@@ -28,6 +28,12 @@ import 'actor_component.dart';
 /// or [ActorSystem.beginStep]; this is the only caller, and it calls the
 /// pair exactly once per [update].
 ///
+/// **In fixed steps, not in frames**, for the reason
+/// `PhysicsStepComponent` gives: the frame's time is spent in whole steps of
+/// [step]'s size, the `beginStep`/`step` pair once per step, and an
+/// [ActorComponent] handed this component draws its actor [alpha] of the
+/// way between its last two places.
+///
 /// **Why [focus] and [focusBody] are closures, not values captured once.**
 /// [ActorSystem.step] needs to know where the world's one focus point is
 /// *this frame* — a player's own position, typically — and a value taken
@@ -40,8 +46,9 @@ final class ActorSystemComponent extends Component {
     required this.system,
     required this.focus,
     this.focusBody,
+    FixedStep? step,
     super.priority,
-  });
+  }) : step = step ?? FixedStep();
 
   /// The actor system every [ActorComponent] in this game shares.
   final ActorSystem system;
@@ -53,10 +60,36 @@ final class ActorSystemComponent extends Component {
   /// its own — read fresh every [update], for the same reason as [focus].
   final Collider? Function()? focusBody;
 
+  /// How the frame's time is cut into steps: one sixtieth of a second each
+  /// unless given otherwise.
+  final FixedStep step;
+
+  /// How far this frame is past the last step, from 0 up to 1.
+  double get alpha => step.alpha;
+
+  final Set<ActorComponent> _followers = <ActorComponent>{};
+
+  /// [actor] is told where its body was before each step. [ActorComponent]
+  /// does this for itself when handed this component.
+  void follow(ActorComponent actor) => _followers.add(actor);
+
+  /// Stops telling [actor].
+  void unfollow(ActorComponent actor) => _followers.remove(actor);
+
   @override
   void update(double dt) {
     super.update(dt);
-    system.beginStep();
-    system.step(dt, focus: focus(), focusBody: focusBody?.call());
+    final steps = step.advance(dt);
+    for (var i = 0; i < steps; i++) {
+      for (final actor in _followers) {
+        actor.rememberPlace();
+      }
+      system.beginStep();
+      system.step(
+        step.stepSeconds,
+        focus: focus(),
+        focusBody: focusBody?.call(),
+      );
+    }
   }
 }

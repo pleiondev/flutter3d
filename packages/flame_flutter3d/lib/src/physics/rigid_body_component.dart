@@ -8,6 +8,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../transform/object3d_component.dart';
+import 'physics_step_component.dart';
 
 /// Bridges one [RigidBody] onto a flutter3d [SceneNode] and, through
 /// [Object3dComponent], onto a Flame [PositionComponent] — and, through the
@@ -41,6 +42,7 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
     required super.node,
     required super.scene,
     required super.plane,
+    this.stepper,
     super.direction,
     super.elevation,
     super.position,
@@ -60,6 +62,35 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
   /// [RigidBody.position] every frame.
   final RigidBody body;
 
+  /// What steps [body], when this should draw between its steps: the frame
+  /// usually falls between two, and a body drawn where the last step left
+  /// it moves in sixtieth-of-a-second jumps on a screen that shows more.
+  /// Null draws it where it is.
+  final PhysicsStepComponent? stepper;
+
+  final Vector3 _before = Vector3.zero();
+  final Vector3 _drawn = Vector3.zero();
+  bool _remembered = false;
+
+  /// Keeps where [body] is now as where it was before the next step. Called
+  /// by [stepper] before each step.
+  void rememberPlace() {
+    _before.setFrom(body.position);
+    _remembered = true;
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    stepper?.follow(this);
+  }
+
+  @override
+  void onRemove() {
+    stepper?.unfollow(this);
+    super.onRemove();
+  }
+
   /// Copies [body]'s current position onto [node], then defers to
   /// [Object3dComponent.update] to carry that onto the Flame side.
   ///
@@ -71,7 +102,13 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
   /// put it.
   @override
   void update(double dt) {
-    node.setPositionFrom(body.position);
+    final steps = stepper;
+    if (steps != null && _remembered) {
+      Vector3.mix(_before, body.position, steps.alpha, _drawn);
+      node.setPositionFrom(_drawn);
+    } else {
+      node.setPositionFrom(body.position);
+    }
     super.update(dt);
   }
 }

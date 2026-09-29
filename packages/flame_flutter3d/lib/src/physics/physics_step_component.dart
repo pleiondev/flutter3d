@@ -4,6 +4,7 @@ library;
 
 import 'package:flame/components.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
 
 import 'rigid_body_component.dart';
 
@@ -27,6 +28,17 @@ import 'rigid_body_component.dart';
 /// body, for instance, since two solids never overlap and only the sensor
 /// can report them touching.
 ///
+/// **In fixed steps, not in frames.** Flame's `dt` is whatever the frame
+/// took: a sixtieth, a hundred-and-twentieth, a quarter of a second when a
+/// laptop stalls. Integrated as it comes, the same jump reaches a different
+/// height on a faster screen and a hitch lets a fast body step through a
+/// wall. [step] spends the frame's time in whole steps of one size, at most
+/// its `maxStepsPerFrame` of them, and keeps the remainder for the next
+/// frame; contacts are dispatched after each step, so none is missed
+/// between two. [alpha] is how far the frame is past the last step, and a
+/// [RigidBodyComponent] handed this component draws its body that far
+/// between its last two places rather than jumping from one to the next.
+///
 /// **Order it before whatever reads the result.** Flame updates components
 /// by ascending priority; give this one a priority below the components that
 /// read positions or react to contacts, as [ActorSystemComponent] is given
@@ -36,8 +48,9 @@ final class PhysicsStepComponent extends Component {
     required this.dynamics,
     required this.world,
     this.afterStep,
+    FixedStep? step,
     super.priority,
-  });
+  }) : step = step ?? FixedStep();
 
   /// The bodies this steps.
   final Dynamics dynamics;
@@ -45,15 +58,38 @@ final class PhysicsStepComponent extends Component {
   /// The world whose contacts this dispatches after the step.
   final CollisionWorld world;
 
-  /// Runs between the solver and the dispatch, once a frame. Null for a game
-  /// with nothing to move there.
+  /// Runs between the solver and the dispatch, once a step. Null for a
+  /// game with nothing to move there.
   final void Function()? afterStep;
+
+  /// How the frame's time is cut into steps: one sixtieth of a second each
+  /// unless given otherwise.
+  final FixedStep step;
+
+  /// How far this frame is past the last step, from 0 up to 1.
+  double get alpha => step.alpha;
+
+  final Set<RigidBodyComponent> _followers = <RigidBodyComponent>{};
+
+  /// [body] is told where its body was before each step, so it can draw
+  /// between that and where the step put it. [RigidBodyComponent] does
+  /// this for itself when handed this component.
+  void follow(RigidBodyComponent body) => _followers.add(body);
+
+  /// Stops telling [body]; it is removed, or no longer interpolates.
+  void unfollow(RigidBodyComponent body) => _followers.remove(body);
 
   @override
   void update(double dt) {
     super.update(dt);
-    dynamics.step(dt);
-    afterStep?.call();
-    world.update();
+    final steps = step.advance(dt);
+    for (var i = 0; i < steps; i++) {
+      for (final body in _followers) {
+        body.rememberPlace();
+      }
+      dynamics.step(step.stepSeconds);
+      afterStep?.call();
+      world.update();
+    }
   }
 }

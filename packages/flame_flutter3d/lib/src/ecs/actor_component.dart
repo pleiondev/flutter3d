@@ -8,6 +8,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../transform/object3d_component.dart';
 import '../transform/plane.dart';
+import 'actor_system_component.dart';
 
 /// A Flame [PositionComponent] wrapping one flutter3d_sim [Actor] — the
 /// same [SceneNode]/[BridgePlane] bridge [Object3dComponent] gives every
@@ -51,6 +52,7 @@ final class ActorComponent extends Object3dComponent {
     required super.node,
     required super.scene,
     required super.plane,
+    this.stepper,
     super.direction = SyncDirection.sceneToFlame,
     super.elevation,
     super.position,
@@ -65,6 +67,35 @@ final class ActorComponent extends Object3dComponent {
 
   /// The flutter3d_sim actor this component bridges to Flame.
   final Actor actor;
+
+  /// What steps [actor], when this should draw between its steps; see
+  /// `RigidBodyComponent.stepper`. Null draws it where it is.
+  final ActorSystemComponent? stepper;
+
+  final Vector3 _before = Vector3.zero();
+  final Vector3 _drawn = Vector3.zero();
+  bool _remembered = false;
+
+  /// Keeps where the actor's body is now as where it was before the next
+  /// step. Called by [stepper] before each step.
+  void rememberPlace() {
+    final body = actor.body;
+    if (body == null) return;
+    _before.setFrom(body.position);
+    _remembered = true;
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    stepper?.follow(this);
+  }
+
+  @override
+  void onRemove() {
+    stepper?.unfollow(this);
+    super.onRemove();
+  }
 
   /// Copies the actor's body and facing onto [node], then lets
   /// [Object3dComponent.update] read them onto the Flame side.
@@ -83,7 +114,13 @@ final class ActorComponent extends Object3dComponent {
       final body = actor.body;
       // Null for an actor with no body (a turret, a director) and for one
       // that has been despawned — both are "nothing to copy", not an error.
-      if (body != null) node.setPositionFrom(body.position);
+      final steps = stepper;
+      if (body != null && steps != null && _remembered) {
+        Vector3.mix(_before, body.position, steps.alpha, _drawn);
+        node.setPositionFrom(_drawn);
+      } else if (body != null) {
+        node.setPositionFrom(body.position);
+      }
       if (actor.facing != null) {
         node.setRotation(Quaternion.axisAngle(_up, actor.yaw));
       }
