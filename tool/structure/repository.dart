@@ -37,6 +37,7 @@ const List<String> applications = <String>[
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
+  'flutter3d_demo_river',
   'flutter3d_demo_strategy',
   'flutter3d_editor',
   'flutter3d_modeler',

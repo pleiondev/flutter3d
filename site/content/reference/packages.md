@@ -293,6 +293,9 @@ A map, two sides and a match played to a finish: a camera over the ground, a box
 ### `apps/flutter3d_demo_arcade`
 *Meteor Yard*: a ship and a yard, with Flame and flutter3d each drawing their own layer and every bridge in `flame_flutter3d` doing real work at once. It is the fifth demo game and the one that exists to prove the bridge end to end.
 
+### `apps/flutter3d_demo_river`
+*River Sortie*: a jet up a river that never ends, after River Raid. A Flame game from end to end, with Flame's own hitboxes and collision callbacks deciding every hit and Flame painting the instrument panel, and flutter3d drawing the valley, the water and the craft underneath through `Object3dComponent`. Five levels with a task each, whose last bridge stays shielded until the task is done, and targets that go down the way their kind would: a tanker sinks, a helicopter spins into the river, a depot takes its neighbours with it.
+
 ### `apps/flutter3d_showcase`
 Every capability of the engine on a page of its own, with the version it appeared in, a step-by-step guide that builds it, and the source that runs. The site's [guides by capability](/showcase/learn/) are generated from the same files, and its web build is what [the live showcase](/showcase/) runs.
 

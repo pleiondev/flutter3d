@@ -225,6 +225,17 @@ const NAV = [
     ],
   },
   {
+    // The second Flame game: the other way round from Meteor Yard, with
+    // Flame's own hitboxes deciding every hit and only the transform bridge
+    // carrying anything into the scene. Levels, tasks and sound, one page.
+    section: 'River Sortie',
+    slug: 'river',
+    badge: 'genre',
+    pages: [
+      { file: 'river/demo.md', url: '/river/demo/', title: 'Playable demo', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Showcase',
     slug: 'showcase',
     badge: 'engine',

@@ -1,0 +1,59 @@
+name: flutter3d_demo_river
+description: "A jet up a river that never ends: a Flame game drawn in 3D by flutter3d."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Flame owns the game: the component tree, the hitboxes and their
+  # callbacks, the keyboard, the on-screen stick and the HUD.
+  flame: ^1.38.2
+
+  # The bridge: the 3D layer under Flame's, one clock, and a component whose
+  # Flame position is written into a scene node every frame.
+  flame_flutter3d: ^0.8.3
+
+  # The scene graph, the meshes and the renderer the 3D layer draws with.
+  flutter3d: ^0.8.3
+
+  # The sound: a scene of voices, a silent backend for the tests and until
+  # the player's first input, SoLoud behind it after that.
+  flutter3d_audio: ^0.8.0
+
+  # `Bindings`, the key table `FlameInputBridge` translates through.
+  flutter3d_game: ^0.8.0
+
+  # `InputState`, `GameAction`, and `GameRandom`, the seeded generator the
+  # river is laid out with, so every run flies the same river.
+  flutter3d_sim: ^0.8.0
+
+  vector_math: ^2.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A device with no GPU behind it, for the frame test.
+  flutter3d_cpu: ^0.8.0
+
+  # Flame's own harness, so a test can mount the game and step it.
+  flame_test: ^2.3.1
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  # The craft, and the one texture the Kenney ships share, beside them where
+  # their glTF looks for it. Who made each and under what licence is in
+  # `assets/models/LICENSES.md`.
+  assets:
+    - assets/models/
+    - assets/models/Textures/
+    # Written by tool/make_sounds.py; nothing sampled.
+    - assets/sounds/
