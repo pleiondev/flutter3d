@@ -4,6 +4,7 @@ library;
 
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flame/components.dart' show PositionComponent;
+import 'package:flame/experimental.dart' show Rectangle;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
@@ -60,7 +61,50 @@ void main() {
       expect(camera.readPosition().x, closeTo(player.position.x, 1e-6));
     },
   );
+
+  testWithGame<FlameGame>(
+    'Flame\'s follow at a top speed, and its bounds, move a perspective '
+    'camera',
+    FlameGame.new,
+    (game) async {
+      // Mutation: sync a perspective camera by position alone.
+      final camera = CameraNode(
+        projection: const PerspectiveProjection(fovYRadians: 0.9),
+      );
+      final player = _Jumper();
+      await game.world.add(player);
+      await game.add(
+        CameraSyncComponent(
+          controller: CameraSyncController(
+            camera: camera,
+            viewfinder: game.camera.viewfinder,
+            plane: BridgePlane.ground(),
+            direction: SyncDirection.flameToScene,
+            eyeOffset: Vector3(0.0, 10.0, 8.0),
+          ),
+        ),
+      );
+      game.camera.follow(player, maxSpeed: 60.0);
+      await game.ready();
+
+      player.position.x = 100.0;
+      game.update(1 / 60);
+      final eye = camera.readPosition();
+      expect(eye.x, closeTo(1.0, 1e-6), reason: 'a metre a frame at most');
+      expect(eye.y, closeTo(10.0, 1e-6), reason: 'up where it looks from');
+
+      game.camera.stop();
+      game.camera.setBounds(Rectangle.fromLTRB(-5.0, -5.0, 5.0, 5.0));
+      game.camera.moveTo(Vector2(40.0, 0.0));
+      for (var i = 0; i < 3; i++) {
+        game.update(1 / 60);
+      }
+      expect(camera.readPosition().x, closeTo(5.0, 1e-6));
+    },
+  );
 }
+
+final class _Jumper extends PositionComponent {}
 
 final class _Runner extends PositionComponent {
   @override

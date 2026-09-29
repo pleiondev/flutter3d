@@ -138,6 +138,22 @@ wrapped and read straight back from the body on the far side. A tap on a
 craft's ghost reaches the craft: `Tap3dCallbacks.drawnBoxes3d` includes
 `WrapSpace.ghostBoundsOf`.
 
+**Flame's camera drives a perspective one.** Given an `eyeOffset`, a
+`CameraSyncController` flowing Flame to the scene looks at the
+viewfinder's point from that offset, nearer as the viewfinder zooms and
+round as it turns: Flame's `follow` with its `maxSpeed`, `setBounds`,
+`moveTo` and effects on the viewfinder all move the 3D camera, as they
+would a flat Flame game. Before, a perspective camera was put on the plane
+at the viewfinder's point. `ProjectedViewfinder` works out Flame's
+`visibleWorldRect` from what the 3D camera shows, so `canSee` and bounds
+that mind the viewport are right under a perspective lens.
+
+**A split screen.** `HasFlutter3d.viewport3d` is the part of the canvas the
+game's camera draws into, and `moreViews3d` are further views drawn into
+the same frame: the second player's half, a mirror. `BridgeProjector` takes
+a `viewport`, so taps and labels work in each half. Needs
+`flutter3d_app` 0.8.1, whose `SceneSurface` draws more than one view.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

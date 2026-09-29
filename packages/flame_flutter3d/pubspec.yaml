@@ -24,7 +24,7 @@ dependencies:
 
   # The surface flutter3d itself draws through, and the clock every host in
   # this repo already ticks a scene with.
-  flutter3d_app: ^0.8.0
+  flutter3d_app: ^0.8.1
 
   # The scene graph a Flame component's transform is bridged onto.
   flutter3d: ^0.8.3

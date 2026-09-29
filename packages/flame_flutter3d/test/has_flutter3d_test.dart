@@ -194,6 +194,36 @@ void main() {
     game.close3d();
   });
 
+  testWidgets('a split screen draws its second view beside the first', (
+    tester,
+  ) async {
+    // The renderer drew several views and the surface was handed one.
+    //
+    // Mutation: hand the surface the game's camera alone.
+    final game = _World();
+    await tester.pumpWidget(_shown(game));
+    await tester.pump();
+    final second = CameraNode(name: 'player two');
+    game.scene.add(second);
+    game
+      ..viewport3d = const ViewportRect(0.0, 0.0, 0.5, 1.0)
+      ..moreViews3d.add(
+        RenderView(
+          camera: second,
+          viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
+        ),
+      );
+    game.update(1 / 60);
+    await tester.pump();
+    await tester.pump();
+
+    final surface = tester.widget<SceneSurface>(find.byType(SceneSurface));
+    expect(surface.moreViews.single.camera, same(second));
+    expect(surface.view.viewportFraction.width, 0.5);
+    expect(tester.takeException(), isNull);
+    game.close3d();
+  });
+
   testWidgets('paused, it is drawn again when asked', (tester) async {
     // A pause menu that changes the sky: nothing ticks, so nothing drew it.
     //

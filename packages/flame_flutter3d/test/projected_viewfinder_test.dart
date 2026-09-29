@@ -60,6 +60,53 @@ void main() {
   );
 
   testWithGame<FlameGame>(
+    'what the camera can see is what the 3D camera shows',
+    projected,
+    (game) async {
+      // Worked out from the viewfinder's own offset and zoom, the rectangle
+      // was one nobody was looking at under a perspective lens.
+      //
+      // Mutation: keep Flame's affine visible rectangle.
+      final ahead = _Crate(Vector2(2.0, -8.0));
+      final behind = _Crate(Vector2(0.0, 20.0));
+      await game.world.addAll(<Component>[ahead, behind]);
+      await game.ready();
+      game.update(0.0);
+
+      final seen = game.camera.visibleWorldRect;
+      expect(seen.contains(const Offset(2.0, -8.0)), isTrue);
+      expect(seen.bottom, lessThan(6.0), reason: 'nothing behind the eye');
+      expect(game.camera.canSee(ahead), isTrue);
+      expect(game.camera.canSee(behind), isFalse);
+    },
+  );
+
+  test('a projector for half the canvas draws into that half, and reads '
+      'taps from it', () {
+    // The other half of a split screen: the lens is the half's shape and
+    // the screen is still the canvas.
+    //
+    // Mutation: project over the whole canvas whatever the viewport.
+    final half = BridgeProjector(
+      camera: eye,
+      viewSize: () => Vector2(800.0, 300.0),
+      viewport: () => const ViewportRect(0.5, 0.0, 0.5, 1.0),
+    );
+    final alone = BridgeProjector(
+      camera: eye,
+      viewSize: () => Vector2(400.0, 300.0),
+    );
+    final point = plane.to3d(Vector2(1.0, -8.0));
+    final there = half.toScreen(point)!;
+    final solo = alone.toScreen(point)!;
+    expect(there.x, closeTo(solo.x + 400.0, 1e-3));
+    expect(there.y, closeTo(solo.y, 1e-3));
+    final back = half.onPlane(there, plane)!;
+    expect(back.x, closeTo(1.0, 1e-3));
+    expect(back.y, closeTo(-8.0, 1e-3));
+  });
+
+  testWithGame<FlameGame>(
     'through a fixed-resolution viewport, a tap still lands on the crate',
     () {
       late final FlameGame game;

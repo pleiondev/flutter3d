@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show Offset, Rect;
+
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart' show Vector2;
 
@@ -58,6 +61,46 @@ class ProjectedViewfinder extends Viewfinder {
       return result..setValues(double.nan, double.nan);
     }
     return result..setFrom(onPlane);
+  }
+
+  /// **What the 3D camera shows, not what the affine transform would.**
+  /// Flame's `visibleWorldRect`, which `canSee` and a `setBounds` that
+  /// minds the viewport read, came from the viewfinder's offset and zoom,
+  /// and under a perspective lens was a rectangle nobody was looking at.
+  /// Here it is the box round the plane points under the viewport's four
+  /// corners, the horizon standing in for the sky.
+  @override
+  Rect computeVisibleRect() {
+    final size = _viewport?.virtualSize ?? projector.viewSize();
+    final corners = <Vector2>[
+      for (final (x, y) in <(double, double)>[
+        (0.0, 0.0),
+        (size.x, 0.0),
+        (0.0, size.y),
+        (size.x, size.y),
+      ])
+        globalToLocal(Vector2(x, y)),
+    ].where((p) => p.x.isFinite && p.y.isFinite).toList();
+    if (corners.isEmpty) return Rect.zero;
+    return Rect.fromPoints(
+      Offset(
+        corners.map((p) => p.x).reduce(math.min),
+        corners.map((p) => p.y).reduce(math.min),
+      ),
+      Offset(
+        corners.map((p) => p.x).reduce(math.max),
+        corners.map((p) => p.y).reduce(math.max),
+      ),
+    );
+  }
+
+  /// Worked out afresh every frame: the 3D camera moves without Flame's
+  /// transform changing, and Flame keeps the rectangle until it does.
+  @override
+  void update(double dt) {
+    super.update(dt);
+    // ignore: invalid_use_of_internal_member, the cache Flame keeps for it.
+    visibleRect = null;
   }
 
   @override

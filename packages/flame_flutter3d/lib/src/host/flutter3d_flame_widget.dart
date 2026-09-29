@@ -430,8 +430,16 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
                   renderer: renderer,
                   scene: scene,
                   view: _view,
+                  moreViews: _owner?.moreViews3d ?? const <RenderView>[],
                   settings: _settings,
-                  onBeforeFrame: () {},
+                  // The game's part of the canvas, read each frame: a split
+                  // screen opened or closed mid-game.
+                  onBeforeFrame: () {
+                    final owner = _owner;
+                    if (owner != null) {
+                      _view.viewportFraction = owner.viewport3d;
+                    }
+                  },
                   presentFrame: presentFrame,
                 ),
           ),

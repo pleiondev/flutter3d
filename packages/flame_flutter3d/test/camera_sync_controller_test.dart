@@ -170,6 +170,45 @@ void main() {
     expect(reader.viewfinder.angle, closeTo(0.4, 1e-5));
   });
 
+  test('with an eye offset, a perspective camera looks at the viewfinder\'s '
+      'point from there, nearer as it zooms and round as it turns', () {
+    // Put at the viewfinder's point, on the plane, a perspective camera
+    // looked at nothing Flame's camera did.
+    //
+    // Mutation: ignore the offset.
+    final camera = CameraNode(
+      projection: const PerspectiveProjection(fovYRadians: 0.9),
+    );
+    final viewfinder = Viewfinder()
+      ..position = Vector2(3.0, -4.0)
+      ..zoom = 2.0;
+    final controller = CameraSyncController(
+      camera: camera,
+      viewfinder: viewfinder,
+      plane: BridgePlane.ground(),
+      direction: SyncDirection.flameToScene,
+      eyeOffset: Vector3(0.0, 12.0, 10.0),
+      syncAngle: true,
+    )..advance(0.0);
+
+    final eye = camera.readPosition();
+    expect(eye.x, closeTo(3.0, 1e-5));
+    expect(eye.y, closeTo(6.0, 1e-5));
+    expect(eye.z, closeTo(1.0, 1e-5));
+    final forward = camera.readRotation().asRotationMatrix().transform(
+      Vector3(0.0, 0.0, -1.0),
+    );
+    final toTarget = (Vector3(3.0, 0.0, -4.0) - eye)..normalize();
+    expect(forward.dot(toTarget), closeTo(1.0, 1e-5));
+
+    // A quarter turn of the viewfinder takes the eye round the point.
+    viewfinder.angle = 1.5707963267948966;
+    controller.advance(0.0);
+    final turned = camera.readPosition();
+    expect(turned.distanceTo(Vector3(3.0, 0.0, -4.0)), closeTo(7.8102, 1e-3));
+    expect((turned.x - 3.0).abs(), closeTo(5.0, 1e-4));
+  });
+
   test('a camera aimed after the controller was made rests where it was '
       'aimed, once told', () {
     // The rest was the rotation at construction, and a camera pointed with

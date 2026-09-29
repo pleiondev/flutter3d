@@ -55,11 +55,20 @@ class SceneSurface extends StatelessWidget {
     required this.settings,
     required this.onBeforeFrame,
     required this.presentFrame,
+    this.moreViews = const <RenderView>[],
   });
 
   final Renderer renderer;
   final Scene scene;
   final RenderView view;
+
+  /// Views drawn into the same frame after [view], each through its own
+  /// camera into its own `RenderView.viewportFraction`: the other half of a
+  /// split screen, a rear-view mirror.
+  ///
+  /// **The renderer drew several views, and this surface handed it one.** A
+  /// two-player game had to leave this widget and drive the renderer itself.
+  final List<RenderView> moreViews;
 
   /// What this frame should be drawn with.
   ///
@@ -92,7 +101,7 @@ class SceneSurface extends StatelessWidget {
           width: (constraints.maxWidth * dpr).clamp(1.0, 8192.0).round(),
           height: (constraints.maxHeight * dpr).clamp(1.0, 8192.0).round(),
           scene: scene,
-          views: <RenderView>[view],
+          views: <RenderView>[view, ...moreViews],
           settings: settings(),
         );
         // From the device rather than painted from an image: a backend whose

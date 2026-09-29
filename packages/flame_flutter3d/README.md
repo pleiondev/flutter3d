@@ -74,7 +74,10 @@ slot in a shared `InstancedMeshNode`, so a hundred shots are one draw.
 `ChaseCamera` follows a bridged component in perspective through
 `flutter3d_sim`'s `CameraRig`, which can also shake it.
 `CameraSyncController` keeps an orthographic camera and Flame's
-`Viewfinder` framed the same.
+`Viewfinder` framed the same; given an `eyeOffset`, it lets Flame's own
+camera drive a perspective one, so `follow`, `setBounds` and zoom work as
+in a flat game. A split screen is `viewport3d` and `moreViews3d` on the
+game, and a `BridgeProjector` for each half.
 
 `BridgeProjector` says where a scene point is drawn, for a score over a
 target, and which point of the plane is under a touch. Under a perspective

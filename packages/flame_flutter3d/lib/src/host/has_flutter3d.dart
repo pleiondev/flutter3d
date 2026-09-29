@@ -48,11 +48,24 @@ mixin HasFlutter3d on FlameGame {
   /// Makes [camera3d]. Override to choose the lens.
   CameraNode createCamera3d() => CameraNode(name: 'camera 3d');
 
-  /// Between [camera3d] and Flame's screen, over this game's own [size].
+  /// Between [camera3d] and Flame's screen, over this game's own [size] and
+  /// the part of it [viewport3d] gives the camera.
   late final BridgeProjector projector = BridgeProjector(
     camera: camera3d,
     viewSize: () => size,
+    viewport: () => viewport3d,
   );
+
+  /// The part of the canvas [camera3d] is drawn into: all of it unless a
+  /// split screen gives it a half. Read every frame.
+  ViewportRect viewport3d = const ViewportRect(0.0, 0.0, 1.0, 1.0);
+
+  /// Views drawn after [camera3d]'s, into the same frame: the second
+  /// player's half of a split screen, a rear-view mirror. Each has its own
+  /// camera, added to [scene] by the game, and its own
+  /// `RenderView.viewportFraction`; a `BridgeProjector` given that part is
+  /// its projector.
+  final List<RenderView> moreViews3d = <RenderView>[];
 
   /// Behind everything the 3D layer draws. The same vector every frame, so
   /// changing its components changes the sky on the next one.

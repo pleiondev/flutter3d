@@ -16,11 +16,39 @@ import 'plane.dart';
 ///
 /// [viewSize] is read on every call, so it follows a resize: pass the Flame
 /// game's own `size`, which is the canvas both layers share.
+///
+/// **One view of several.** [viewport] is the part of the canvas [camera]
+/// is drawn into, as a `RenderView.viewportFraction` says: the left half of
+/// a split screen. Screen points stay the canvas's, and the camera's lens
+/// is that part's shape. Null is the whole canvas.
 final class BridgeProjector {
-  BridgeProjector({required this.camera, required this.viewSize});
+  BridgeProjector({
+    required this.camera,
+    required this.viewSize,
+    this.viewport,
+  });
 
   final CameraNode camera;
   final Vector2 Function() viewSize;
+
+  /// The part of the canvas [camera] draws into, read on every call; null
+  /// for all of it.
+  final ViewportRect Function()? viewport;
+
+  /// Where [camera]'s picture is on the canvas, in logical pixels, or null
+  /// while the canvas has no size.
+  ({double x, double y, double width, double height})? _area() {
+    final size = viewSize();
+    if (size.x <= 0.0 || size.y <= 0.0) return null;
+    final part = viewport?.call();
+    if (part == null) return (x: 0.0, y: 0.0, width: size.x, height: size.y);
+    return (
+      x: part.x * size.x,
+      y: part.y * size.y,
+      width: part.width * size.x,
+      height: part.height * size.y,
+    );
+  }
 
   /// Where [point] is drawn, in logical pixels from the top left, or null
   /// when it is behind the camera.
@@ -30,32 +58,39 @@ final class BridgeProjector {
   /// one does not, and a point behind it came back drawn as if in front.
   /// It is asked of the camera's own space.
   Vector2? toScreen(Vector3 point) {
-    final size = viewSize();
-    if (size.x <= 0.0 || size.y <= 0.0) return null;
+    final area = _area();
+    if (area == null) return null;
     if (camera.projection is OrthographicProjection &&
         camera.viewMatrix.transformed3(point).z > 0.0) {
       return null;
     }
     final at = projectPoint(
-      camera.viewProjection(size.x / size.y),
+      camera.viewProjection(area.width / area.height),
       point,
-      width: size.x,
-      height: size.y,
+      width: area.width,
+      height: area.height,
     );
-    return at == null ? null : Vector2(at.x, at.y);
+    return at == null ? null : Vector2(at.x + area.x, at.y + area.y);
   }
 
   /// The rectangle on the screen [box] covers, in logical pixels, or null
   /// when all of it is behind the camera. A box partly behind it covers the
   /// whole view, as `screenBoundsOfBox` explains.
   ScreenBounds? boundsOf(Aabb3 box) {
-    final size = viewSize();
-    if (size.x <= 0.0 || size.y <= 0.0) return null;
-    return screenBoundsOfBox(
-      camera.viewProjection(size.x / size.y),
+    final area = _area();
+    if (area == null) return null;
+    final bounds = screenBoundsOfBox(
+      camera.viewProjection(area.width / area.height),
       box,
-      width: size.x,
-      height: size.y,
+      width: area.width,
+      height: area.height,
+    );
+    if (bounds == null) return null;
+    return (
+      left: bounds.left + area.x,
+      top: bounds.top + area.y,
+      right: bounds.right + area.x,
+      bottom: bounds.bottom + area.y,
     );
   }
 
@@ -91,12 +126,14 @@ final class BridgeProjector {
   /// The near and far ends of the ray from the camera through [screen]:
   /// where a tap enters the scene, and where it leaves the view.
   (Vector3, Vector3)? rayThrough(Vector2 screen) {
-    final size = viewSize();
-    if (size.x <= 0.0 || size.y <= 0.0) return null;
-    final inverse = Matrix4.copy(camera.viewProjection(size.x / size.y));
+    final area = _area();
+    if (area == null) return null;
+    final inverse = Matrix4.copy(
+      camera.viewProjection(area.width / area.height),
+    );
     if (inverse.invert() == 0.0) return null;
-    final ndcX = screen.x / size.x * 2.0 - 1.0;
-    final ndcY = 1.0 - screen.y / size.y * 2.0;
+    final ndcX = (screen.x - area.x) / area.width * 2.0 - 1.0;
+    final ndcY = 1.0 - (screen.y - area.y) / area.height * 2.0;
     // Clip-space depth runs 0 at the near plane to 1 at the far one in this
     // engine; see `projectPoint`.
     final near = _unproject(inverse, ndcX, ndcY, 0.0);
