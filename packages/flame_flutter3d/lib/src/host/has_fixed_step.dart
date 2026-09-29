@@ -29,9 +29,16 @@ mixin FixedStepUpdate on Component {
 /// camera, an animation, a sound. [alpha] is how far the frame is past the
 /// last step.
 ///
-/// **Input keeps a press until a step has read it.** A frame with no step
-/// in it would otherwise close the input step with a press nobody saw;
-/// `FlameInputBridge.stepEnd` closes it only after a frame with a step.
+/// **Input is closed after every step, not every frame.** A press is seen by
+/// exactly one step: `FlameInputBridge.stepEnd` closes the input step from
+/// [afterEachStep]. Closed once a frame, a frame of three steps showed a
+/// jump's press to all three, and a frame of none closed it unseen.
+///
+/// **One clock for everything that steps.** `PhysicsStepComponent` and
+/// `ActorSystemComponent` in a game with this step in its steps, in tree
+/// order, rather than counting their own: the runner and the crates it
+/// pushes move in turn, step by step, and [alpha] is the one fraction every
+/// drawing between two steps uses.
 ///
 /// Flame's collision detection still runs once a frame.
 mixin HasFixedStep on FlameGame {
@@ -49,16 +56,32 @@ mixin HasFixedStep on FlameGame {
   /// The game's own logic for one step of [step] seconds.
   void fixedUpdate(double step) {}
 
+  final List<void Function()> _stepEnds = <void Function()>[];
+
+  /// Calls [end] after every step, once everything in it has run: where the
+  /// input step is closed.
+  void afterEachStep(void Function() end) => _stepEnds.add(end);
+
+  /// Stops calling [end].
+  void removeAfterEachStep(void Function() end) => _stepEnds.remove(end);
+
+  /// The tree is walked once a frame, not once a step: a component added in
+  /// a step is mounted with the frame, and joins the steps after it.
   @override
   void update(double dt) {
     _steps = fixedStep.advance(dt);
-    for (var i = 0; i < _steps; i++) {
-      final step = fixedStep.stepSeconds;
-      fixedUpdate(step);
-      for (final component
-          in descendants().whereType<FixedStepUpdate>().toList()) {
-        if (component.isMounted && !component.isRemoving) {
-          component.fixedUpdate(step);
+    if (_steps > 0) {
+      final stepping = descendants().whereType<FixedStepUpdate>().toList();
+      for (var i = 0; i < _steps; i++) {
+        final step = fixedStep.stepSeconds;
+        fixedUpdate(step);
+        for (final component in stepping) {
+          if (component.isMounted && !component.isRemoving) {
+            component.fixedUpdate(step);
+          }
+        }
+        for (final end in List<void Function()>.of(_stepEnds)) {
+          end();
         }
       }
     }

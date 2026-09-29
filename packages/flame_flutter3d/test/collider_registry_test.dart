@@ -33,6 +33,94 @@ void main() {
   );
 
   testWithGame<FlameGame>(
+    'moved to another parent it is still found, and added again it is '
+    'found again',
+    FlameGame.new,
+    (game) async {
+      // Flame moves a component by removing and mounting it, and the
+      // removal dropped the entry for good; a pooled ship added back was
+      // never found either.
+      //
+      // Mutation: drop the entry on the first removal and never re-arm.
+      final registry = ColliderRegistry();
+      final collider = Collider(shape: CollisionBox(Vector3.all(0.5)));
+      final bot = PositionComponent();
+      final squad = PositionComponent();
+      await game.addAll(<Component>[bot, squad]);
+      await game.ready();
+      registry.register(collider, bot);
+
+      bot.parent = squad;
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(registry.componentFor(collider), same(bot), reason: 'moved');
+
+      bot.removeFromParent();
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(registry.componentFor(collider), isNull);
+
+      await game.add(bot);
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(registry.componentFor(collider), same(bot), reason: 'back');
+
+      registry.unregister(collider);
+      bot.removeFromParent();
+      await game.ready();
+      await game.add(bot);
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        registry.componentFor(collider),
+        isNull,
+        reason: 'unregistered stays unregistered',
+      );
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'a partner removed mid-contact ends the contact on this side',
+    FlameGame.new,
+    (game) async {
+      // Flame's hitboxes end both sides when one goes; the world said
+      // nothing, and the ship went on colliding with a bot long gone.
+      //
+      // Mutation: end a contact only when the world reports it.
+      final world = CollisionWorld();
+      final registry = ColliderRegistry();
+      final body = RigidBody(
+        world: world,
+        shape: CollisionBox(Vector3.all(0.5)),
+        position: Vector3.zero(),
+        mass: 1.0,
+      );
+      final ship = _Ship(body, (_) {});
+      final marker = world.add(
+        Collider(
+          shape: CollisionBox(Vector3.all(0.5)),
+          position: Vector3(0.2, 0.0, 0.0),
+        ),
+      );
+      final bot = PositionComponent();
+      await game.addAll(<Component>[ship, bot]);
+      await game.ready();
+      registry
+        ..register(marker, bot)
+        ..bridge(collider: body.collider, component: ship);
+
+      world.update();
+      expect(ship.activeCollisions, contains(bot));
+
+      bot.removeFromParent();
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(ship.activeCollisions, isNot(contains(bot)));
+      expect(ship.isColliding, isFalse);
+    },
+  );
+
+  testWithGame<FlameGame>(
     'a bridge made through it hands over the other side of a contact',
     FlameGame.new,
     (game) async {

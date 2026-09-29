@@ -27,6 +27,32 @@ matrices compose it, on the way out and on the way back, for both bridged
 components. A plain `Component` between a component and a positioned
 ancestor no longer hides the ancestor.
 
+**A press is seen by one step.** In a `HasFixedStep` game the input step
+is closed after each fixed step rather than each frame: a frame of three
+steps showed a jump's press to all three. `HasFixedStep.afterEachStep`
+is where it is closed. `PhysicsStepComponent` and `ActorSystemComponent`
+in such a game step in the game's steps, in tree order, and draw by its
+`alpha`, rather than counting steps of their own.
+
+**Contacts end when a partner goes.** A component removed mid-contact
+ends the contact on the other side, as Flame's own hitboxes do; the other
+side went on counting it among its `activeCollisions`. `ColliderRegistry`
+keeps a component moved to another parent, and finds a removed one again
+when it is added back.
+
+**Bodies can be moved and let go of.** `RigidBodyComponent.teleport` puts
+a body somewhere still and awake and draws it there at once; written into
+the collider, a respawn slid across the level. Handed `removeFrom`, a
+removed crate takes its body out of the world instead of leaving it solid
+and unseen. A component added back draws from where its body is.
+
+**Touch that moves keeps holding.** `PointerTrack` holds its action
+through a drag of the same finger, which Flutter reports as a cancelled
+tap; firing while dragging to aim stopped the moment the aim moved. It and
+`SwipeInput` pass drags on to what is under them, a stick say. A touch
+stick at rest writes its zero once, not every frame over a pad's stick,
+and takes a `deadZone`. A window that loses focus lets go of every key.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

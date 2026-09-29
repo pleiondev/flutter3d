@@ -68,4 +68,74 @@ void main() {
       expect(input.inputState.pressed(fire), isFalse, reason: 'read, closed');
     },
   );
+
+  testWithGame<_Stepped>(
+    'a press is seen by one step of a frame that has three',
+    _Stepped.new,
+    (game) async {
+      // Closed once a frame, all three steps saw the jump's press, and the
+      // runner jumped three times.
+      //
+      // Mutation: close the input step at the end of the frame.
+      final input = FlameInputBridge(
+        bindings: Bindings(<InputSource, GameAction>{}),
+        inputState: InputState(),
+      );
+      const jump = GameAction('jump');
+      final reader = _Reads(input.inputState, jump);
+      await game.addAll(<Component>[input.stepEnd(), reader]);
+      await game.ready();
+
+      input.inputState.press(jump);
+      game.update(3 / 60);
+      expect(game.stepsThisFrame, 3);
+      expect(reader.presses, 1);
+      expect(input.inputState.held(jump), isTrue);
+    },
+  );
+
+  testWithGame<_Stepped>(
+    'physics and actors step in the game\'s steps, and draw by its alpha',
+    _Stepped.new,
+    (game) async {
+      // Three clocks counted three sets of steps: the runner moved in the
+      // game's, the crates in their own, never in turn.
+      //
+      // Mutation: step PhysicsStepComponent from its own FixedStep.
+      final world = CollisionWorld();
+      final dynamics = Dynamics(world: world);
+      var physicsSteps = 0;
+      final physics = PhysicsStepComponent(
+        dynamics: dynamics,
+        world: world,
+        afterStep: () => physicsSteps++,
+        step: FixedStep(stepSeconds: 1 / 30),
+      );
+      final actors = ActorSystemComponent(
+        system: ActorSystem(world: world, random: GameRandom(1)),
+        focus: Vector3.zero,
+        step: FixedStep(stepSeconds: 1 / 30),
+      );
+      await game.addAll(<Component>[physics, actors]);
+      await game.ready();
+
+      game.update(3 / 60 + 1 / 120);
+      expect(physicsSteps, game.steps);
+      expect(physics.alpha, game.alpha);
+      expect(actors.alpha, game.alpha);
+    },
+  );
+}
+
+final class _Reads extends Component with FixedStepUpdate {
+  _Reads(this.input, this.action);
+
+  final InputState input;
+  final GameAction action;
+  int presses = 0;
+
+  @override
+  void fixedUpdate(double step) {
+    if (input.pressed(action)) presses++;
+  }
 }

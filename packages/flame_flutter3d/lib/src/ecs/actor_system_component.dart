@@ -6,6 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../host/bridge_priority.dart';
+import '../host/has_fixed_step.dart';
 import 'actor_component.dart';
 
 /// The one place a bridged game's frame steps a shared [ActorSystem].
@@ -42,7 +43,10 @@ import 'actor_component.dart';
 /// component was built. Reading a fresh `Vector3`/`Collider?` every
 /// [update] costs one call each and is the only way this component can
 /// hand [ActorSystem.step] a focus that has actually moved since.
-final class ActorSystemComponent extends Component {
+///
+/// **In a `HasFixedStep` game it steps with the game**, once in each of the
+/// game's steps, and [step] is not used: see [HasFixedStep].
+final class ActorSystemComponent extends Component with FixedStepUpdate {
   ActorSystemComponent({
     required this.system,
     required this.focus,
@@ -65,8 +69,20 @@ final class ActorSystemComponent extends Component {
   /// unless given otherwise.
   final FixedStep step;
 
-  /// How far this frame is past the last step, from 0 up to 1.
-  double get alpha => step.alpha;
+  /// How far this frame is past the last step, from 0 up to 1: the game's,
+  /// when the game steps it.
+  double get alpha => _game?.alpha ?? step.alpha;
+
+  HasFixedStep? _game;
+
+  @override
+  void onMount() {
+    super.onMount();
+    _game = switch (findGame()) {
+      final HasFixedStep game => game,
+      _ => null,
+    };
+  }
 
   final Set<ActorComponent> _followers = <ActorComponent>{};
 
@@ -80,17 +96,21 @@ final class ActorSystemComponent extends Component {
   @override
   void update(double dt) {
     super.update(dt);
+    if (_game != null) return;
     final steps = step.advance(dt);
     for (var i = 0; i < steps; i++) {
-      for (final actor in _followers) {
-        actor.rememberPlace();
-      }
-      system.beginStep();
-      system.step(
-        step.stepSeconds,
-        focus: focus(),
-        focusBody: focusBody?.call(),
-      );
+      fixedUpdate(step.stepSeconds);
     }
+  }
+
+  /// One step of the system, of [seconds].
+  @override
+  void fixedUpdate(double seconds) {
+    for (final actor in _followers) {
+      actor.rememberPlace();
+    }
+    system
+      ..beginStep()
+      ..step(seconds, focus: focus(), focusBody: focusBody?.call());
   }
 }

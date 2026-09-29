@@ -1,9 +1,16 @@
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flame/components.dart'
     show Component, JoystickComponent, PositionComponent, Vector2;
 import 'package:flame/events.dart';
 import 'package:flame/input.dart' show ButtonComponent;
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' show KeyEventResult;
+import 'package:flutter/widgets.dart'
+    show
+        AppLifecycleListener,
+        AppLifecycleState,
+        KeyEventResult,
+        WidgetsBinding;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -131,13 +138,23 @@ final class FlameInputBridge {
   /// screen as positive `y`; the move axis calls forward positive, as a key
   /// bound to [GameAction.moveForward] does. Every bridged game with a stick
   /// wrote the same negation by hand.
-  Component followJoystick(JoystickComponent stick) =>
-      _JoystickFeed(stick, inputState);
+  ///
+  /// **At rest it says nothing.** A deflection inside [deadZone], a
+  /// fraction of the knob's reach, counts as the stick at rest, and a stick
+  /// at rest writes its zero once, when it comes back, rather than every
+  /// frame: a pad's stick run beside it, as the class doc suggests, was
+  /// written over with zero every frame the touch stick was not held.
+  Component followJoystick(JoystickComponent stick, {double deadZone = 0.0}) =>
+      _JoystickFeed(stick, inputState, deadZone);
 
-  /// A component that closes [inputState]'s step at the end of every frame,
-  /// after everything that reads it: what a game called by hand as the last
-  /// line of its `update`, and a game that forgot to call saw a key it
-  /// pressed once reported as pressed on every frame after. Add it once.
+  /// A component that closes [inputState]'s step after everything that reads
+  /// it: what a game called by hand as the last line of its `update`, and a
+  /// game that forgot to call saw a key it pressed once reported as pressed
+  /// on every frame after. Add it once.
+  ///
+  /// In a `HasFixedStep` game the step it closes is the fixed step, after
+  /// each; otherwise the frame. A game without `HasFixedStep` whose
+  /// `ActorSystemComponent` counts its own steps reads input by the frame.
   Component stepEnd() => _InputStepEnd(inputState);
 
   /// A layer over the canvas that follows the pointer and turns a tap into
@@ -176,16 +193,24 @@ final class FlameInputBridge {
 /// viewport holds the stick: it reads the deflection the stick settled on
 /// last frame rather than racing the stick's own update to it.
 final class _JoystickFeed extends Component {
-  _JoystickFeed(this.stick, this.inputState)
+  _JoystickFeed(this.stick, this.inputState, this.deadZone)
     : super(priority: BridgePriority.input);
 
   final JoystickComponent stick;
   final InputState inputState;
+  final double deadZone;
+  bool _moved = false;
 
   @override
   void update(double dt) {
     final deflection = stick.relativeDelta;
-    inputState.setStickAxis(deflection.x, -deflection.y);
+    if (deflection.length > deadZone) {
+      _moved = true;
+      inputState.setStickAxis(deflection.x, -deflection.y);
+    } else if (_moved) {
+      _moved = false;
+      inputState.setStickAxis(0.0, 0.0);
+    }
   }
 }
 
@@ -193,15 +218,56 @@ final class _InputStepEnd extends Component {
   _InputStepEnd(this.inputState) : super(priority: BridgePriority.inputEnd);
 
   final InputState inputState;
+  HasFixedStep? _stepped;
+  AppLifecycleListener? _lifecycle;
+
+  /// In a game of fixed steps the input step is a fixed step: closed after
+  /// each, so a press is seen by one step, and left open through a frame
+  /// with none, so a press made in it is not lost.
+  ///
+  /// **A window that loses focus lets go of every key.** The key-up of a
+  /// key held while the player switched away never arrives, and the jet
+  /// flew on turning after an alt-tab.
+  @override
+  void onMount() {
+    super.onMount();
+    final game = findGame();
+    if (game is HasFixedStep) {
+      _stepped = game..afterEachStep(inputState.endStep);
+    }
+    _lifecycle = _listen();
+  }
+
+  /// Null where there is no app to lose focus: a game stepped in a plain
+  /// Dart test, with no widgets binding.
+  AppLifecycleListener? _listen() {
+    final WidgetsBinding binding;
+    try {
+      binding = WidgetsBinding.instance;
+    } on Object {
+      return null;
+    }
+    return AppLifecycleListener(
+      binding: binding,
+      onStateChange: (AppLifecycleState state) {
+        if (state != AppLifecycleState.resumed) inputState.clear();
+      },
+    );
+  }
+
+  @override
+  void onRemove() {
+    _stepped?.removeAfterEachStep(inputState.endStep);
+    _stepped = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
+    super.onRemove();
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
-    // In a game of fixed steps, a frame with none in it leaves the step
-    // open: a press made in it has not been read yet.
-    final game = findGame();
-    if (game is HasFixedStep && game.stepsThisFrame == 0) return;
-    inputState.endStep();
+    if (_stepped == null) inputState.endStep();
   }
 }
 
@@ -227,19 +293,40 @@ final class PointerTrack extends PositionComponent
     _aim = event.canvasPosition.clone();
   }
 
+  /// The pointers down on the game: [_press] is held while there is one.
+  final Set<int> _down = <int>{};
+  final Set<int> _dragging = <int>{};
+
   @override
   void onTapDown(TapDownEvent event) {
     _aim = event.canvasPosition.clone();
-    final action = _press;
-    if (action != null) _input.press(action);
+    _hold(event.pointerId);
     event.continuePropagation = true;
   }
 
   @override
-  void onTapUp(TapUpEvent event) => _lift();
+  void onTapUp(TapUpEvent event) => _lift(event.pointerId);
+
+  /// **A finger that moves is still down.** Flutter gives up on a tap once
+  /// the finger slides past a few pixels, and the press was let go with
+  /// it: firing while dragging to aim stopped the moment the aim moved.
+  /// A tap given up on for a drag of the same pointer is not let go of;
+  /// the drag's end is.
+  @override
+  void onTapCancel(TapCancelEvent event) {
+    final pointer = event.pointerId;
+    scheduleMicrotask(() {
+      if (!_dragging.contains(pointer)) _lift(pointer);
+    });
+  }
 
   @override
-  void onTapCancel(TapCancelEvent event) => _lift();
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _dragging.add(event.pointerId);
+    _hold(event.pointerId);
+    event.continuePropagation = true;
+  }
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
@@ -247,9 +334,32 @@ final class PointerTrack extends PositionComponent
     _aim = event.canvasEndPosition.clone();
   }
 
-  void _lift() {
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    _dragging.remove(event.pointerId);
+    _lift(event.pointerId);
+  }
+
+  @override
+  void onDragCancel(DragCancelEvent event) {
+    super.onDragCancel(event);
+    _dragging.remove(event.pointerId);
+    _lift(event.pointerId);
+  }
+
+  void _hold(int pointer) {
     final action = _press;
-    if (action != null) _input.release(action);
+    if (_down.add(pointer) && _down.length == 1 && action != null) {
+      _input.press(action);
+    }
+  }
+
+  void _lift(int pointer) {
+    final action = _press;
+    if (_down.remove(pointer) && _down.isEmpty && action != null) {
+      _input.release(action);
+    }
   }
 }
 
@@ -275,10 +385,13 @@ final class SwipeInput extends PositionComponent with DragCallbacks {
   @override
   bool containsLocalPoint(Vector2 point) => true;
 
+  /// The drag goes on to what is under it too, a stick say: a layer over
+  /// the whole canvas that kept it took every drag in the game.
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
     _travel.setZero();
+    event.continuePropagation = true;
   }
 
   @override

@@ -7,6 +7,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
 
 import '../host/bridge_priority.dart';
+import '../host/has_fixed_step.dart';
 import 'rigid_body_component.dart';
 
 /// The one place a bridged game's frame steps its [Dynamics] and dispatches
@@ -44,7 +45,10 @@ import 'rigid_body_component.dart';
 /// by ascending priority; give this one a priority below the components that
 /// read positions or react to contacts, as [ActorSystemComponent] is given
 /// one below the actors' readers.
-final class PhysicsStepComponent extends Component {
+///
+/// **In a `HasFixedStep` game it steps with the game**, once in each of the
+/// game's steps, and [step] is not used: see [HasFixedStep].
+final class PhysicsStepComponent extends Component with FixedStepUpdate {
   PhysicsStepComponent({
     required this.dynamics,
     required this.world,
@@ -67,8 +71,20 @@ final class PhysicsStepComponent extends Component {
   /// unless given otherwise.
   final FixedStep step;
 
-  /// How far this frame is past the last step, from 0 up to 1.
-  double get alpha => step.alpha;
+  /// How far this frame is past the last step, from 0 up to 1: the game's,
+  /// when the game steps it.
+  double get alpha => _game?.alpha ?? step.alpha;
+
+  HasFixedStep? _game;
+
+  @override
+  void onMount() {
+    super.onMount();
+    _game = switch (findGame()) {
+      final HasFixedStep game => game,
+      _ => null,
+    };
+  }
 
   final Set<RigidBodyComponent> _followers = <RigidBodyComponent>{};
 
@@ -83,14 +99,21 @@ final class PhysicsStepComponent extends Component {
   @override
   void update(double dt) {
     super.update(dt);
+    if (_game != null) return;
     final steps = step.advance(dt);
     for (var i = 0; i < steps; i++) {
-      for (final body in _followers) {
-        body.rememberPlace();
-      }
-      dynamics.step(step.stepSeconds);
-      afterStep?.call();
-      world.update();
+      fixedUpdate(step.stepSeconds);
     }
+  }
+
+  /// One step of the world, of [seconds], and its contacts.
+  @override
+  void fixedUpdate(double seconds) {
+    for (final body in _followers) {
+      body.rememberPlace();
+    }
+    dynamics.step(seconds);
+    afterStep?.call();
+    world.update();
   }
 }

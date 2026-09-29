@@ -2,6 +2,8 @@
 /// [SceneNode] and a Flame [PositionComponent].
 library;
 
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
@@ -43,6 +45,7 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
     required super.scene,
     required super.plane,
     this.stepper,
+    this.removeFrom,
     super.direction,
     super.elevation,
     super.position,
@@ -57,9 +60,9 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
 
   /// The physics body this component tracks.
   ///
-  /// Owned by whoever built it — this component neither constructs the body
-  /// nor removes it from its [CollisionWorld]; it only reads
-  /// [RigidBody.position] every frame.
+  /// Owned by whoever built it — this component never constructs the body,
+  /// and removes it from its [CollisionWorld] only when handed [removeFrom];
+  /// otherwise it reads [RigidBody.position] every frame and nothing else.
   final RigidBody body;
 
   /// What steps [body], when this should draw between its steps: the frame
@@ -67,6 +70,16 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
   /// it moves in sixtieth-of-a-second jumps on a screen that shows more.
   /// Null draws it where it is.
   final PhysicsStepComponent? stepper;
+
+  /// The dynamics [body] leaves, and its collision world with it, when this
+  /// component leaves the game; null leaves it to whoever built it.
+  ///
+  /// **A despawned crate was still solid.** With the body left behind, a
+  /// crate removed from Flame stayed in the world, unseen, for everything
+  /// to bump into. Taken out when the component is gone, not when Flame
+  /// moves it to a new parent, and never from inside a contact: Flame
+  /// removes components at the start of a frame, between steps.
+  final Dynamics? removeFrom;
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();
@@ -79,15 +92,43 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
     _remembered = true;
   }
 
+  /// Puts [body] at [to], still and awake, and draws it there at once.
+  ///
+  /// **Moved, not slid.** Written straight into the collider, a respawned
+  /// body was drawn sliding across the level from where it had been, since
+  /// the drawing runs between the last two steps, and a body asleep where
+  /// it was stayed asleep in the air where it went.
+  void teleport(Vector3 to) {
+    body.collider
+      ..moveTo(to)
+      ..clearDelta();
+    body
+      ..velocity.setZero()
+      ..wake();
+    _before.setFrom(to);
+    placeNode(to);
+  }
+
   @override
   void onMount() {
     super.onMount();
+    // Added again, it draws from where the body is, not from where it was
+    // when it went.
+    _remembered = false;
     stepper?.follow(this);
   }
 
   @override
   void onRemove() {
     stepper?.unfollow(this);
+    final dynamics = removeFrom;
+    if (dynamics != null) {
+      scheduleMicrotask(() {
+        if (!isMounted && parent == null && dynamics.bodies.contains(body)) {
+          dynamics.remove(body);
+        }
+      });
+    }
     super.onRemove();
   }
 

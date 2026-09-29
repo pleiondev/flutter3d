@@ -126,6 +126,7 @@ final class CollisionBridge with CollisionListener {
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
+    if (_touching.add(target)) _endWhenGone(target);
     component.onCollisionStart(_pointFor(self, other), target);
   }
 
@@ -141,8 +142,29 @@ final class CollisionBridge with CollisionListener {
   void onCollisionEnd(Collider self, Collider other) {
     if (component.isRemoved) return;
     final target = resolveOther(other);
-    if (target == null) return;
+    if (target == null || !_touching.remove(target)) return;
     component.onCollisionEnd(target);
+  }
+
+  /// What [component] is touching, as far as it has been told.
+  final Set<PositionComponent> _touching = <PositionComponent>{};
+
+  /// **A partner removed mid-contact ends the contact.** Flame's own
+  /// hitboxes end both sides of a contact when one of them goes; here the
+  /// world said nothing, the other side was never told, and it went on
+  /// counting the removed one among its `activeCollisions`. Checked a
+  /// moment after the removal, since Flame moves a component to a new
+  /// parent by removing and mounting it.
+  void _endWhenGone(PositionComponent target) {
+    target.removed.then((_) {
+      if (target.isMounted || target.parent != null) {
+        if (_touching.contains(target)) _endWhenGone(target);
+        return;
+      }
+      if (_touching.remove(target) && !component.isRemoved) {
+        component.onCollisionEnd(target);
+      }
+    });
   }
 
   /// The midpoint of [self] and [other]'s centres, on [component]'s plane,
