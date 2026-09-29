@@ -8,6 +8,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../transform/object3d_component.dart';
 import '../transform/plane.dart';
+import 'physics_step_component.dart';
 
 /// A plain Dart object, not a [Component] — it draws nothing and has no
 /// per-frame update of its own. All it does is sit as [collider]'s
@@ -66,6 +67,7 @@ final class CollisionBridge with CollisionListener {
     required this.collider,
     required this.component,
     required this.resolveOther,
+    this.stepper,
     BridgePlane? plane,
   }) : plane =
            plane ??
@@ -105,6 +107,19 @@ final class CollisionBridge with CollisionListener {
   /// it belongs to.
   final PositionComponent? Function(Collider other) resolveOther;
 
+  /// What steps the world, when [onCollision] should come once a frame, as
+  /// Flame's own collision detection calls it, rather than once a step.
+  ///
+  /// **A frame of three steps touched three times.** The world reports an
+  /// overlap after every step, and a damage-over-time written against
+  /// Flame's once-a-frame `onCollision` took three times the damage on a
+  /// slow frame and none on a frame with no step. Handed the stepper, this
+  /// relays it once for each partner in each frame the two touch. The start
+  /// and the end of a contact are events, and are told when they happen.
+  final PhysicsStepComponent? stepper;
+
+  final Map<PositionComponent, int> _toldInFrame = <PositionComponent, int>{};
+
   /// Stops relaying: clears [collider]'s listener, if it is still this
   /// bridge, and leaves it alone if something else has taken it since.
   ///
@@ -135,6 +150,11 @@ final class CollisionBridge with CollisionListener {
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null) return;
+    final steps = stepper;
+    if (steps != null) {
+      if (_toldInFrame[target] == steps.frame) return;
+      _toldInFrame[target] = steps.frame;
+    }
     component.onCollision(_pointFor(self, other), target);
   }
 
@@ -143,6 +163,7 @@ final class CollisionBridge with CollisionListener {
     if (component.isRemoved) return;
     final target = resolveOther(other);
     if (target == null || !_touching.remove(target)) return;
+    _toldInFrame.remove(target);
     component.onCollisionEnd(target);
   }
 

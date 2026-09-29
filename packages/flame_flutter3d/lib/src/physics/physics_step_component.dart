@@ -96,9 +96,16 @@ final class PhysicsStepComponent extends Component with FixedStepUpdate {
   /// Stops telling [body]; it is removed, or no longer interpolates.
   void unfollow(RigidBodyComponent body) => _followers.remove(body);
 
+  /// Counts the frames this has been updated in: the steps of one frame all
+  /// see the same number. What a `CollisionBridge` handed this tells one
+  /// frame's `onCollision` from the next by.
+  int get frame => _frame;
+  int _frame = 0;
+
   @override
   void update(double dt) {
     super.update(dt);
+    _frame++;
     if (_game != null) return;
     final steps = step.advance(dt);
     for (var i = 0; i < steps; i++) {

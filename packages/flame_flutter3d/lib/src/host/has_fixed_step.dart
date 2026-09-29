@@ -65,10 +65,26 @@ mixin HasFixedStep on FlameGame {
   /// Stops calling [end].
   void removeAfterEachStep(void Function() end) => _stepEnds.remove(end);
 
+  final List<void Function()> _frameStarts = <void Function()>[];
+
+  /// Calls [start] once a frame, before its steps: where what the steps
+  /// read is gathered, a touch stick's deflection say.
+  ///
+  /// **The steps run before any component updates.** A stick read in its
+  /// own component's update, the way a frame-by-frame game reads it, reached
+  /// the steps a frame after it was read, two after the finger moved.
+  void beforeSteps(void Function() start) => _frameStarts.add(start);
+
+  /// Stops calling [start].
+  void removeBeforeSteps(void Function() start) => _frameStarts.remove(start);
+
   /// The tree is walked once a frame, not once a step: a component added in
   /// a step is mounted with the frame, and joins the steps after it.
   @override
   void update(double dt) {
+    for (final start in List<void Function()>.of(_frameStarts)) {
+      start();
+    }
     _steps = fixedStep.advance(dt);
     if (_steps > 0) {
       final stepping = descendants().whereType<FixedStepUpdate>().toList();

@@ -200,9 +200,30 @@ final class _JoystickFeed extends Component {
   final InputState inputState;
   final double deadZone;
   bool _moved = false;
+  HasFixedStep? _stepped;
+
+  /// In a game of fixed steps the stick is read before the steps, not in
+  /// this component's update, which runs after them.
+  @override
+  void onMount() {
+    super.onMount();
+    final game = findGame();
+    if (game is HasFixedStep) _stepped = game..beforeSteps(_read);
+  }
+
+  @override
+  void onRemove() {
+    _stepped?.removeBeforeSteps(_read);
+    _stepped = null;
+    super.onRemove();
+  }
 
   @override
   void update(double dt) {
+    if (_stepped == null) _read();
+  }
+
+  void _read() {
     final deflection = stick.relativeDelta;
     if (deflection.length > deadZone) {
       _moved = true;

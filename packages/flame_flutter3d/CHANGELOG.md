@@ -117,6 +117,18 @@ body draws from where it is, not from where it was when it went.
 `BridgeProjector.toScreen` returns null for a point behind an orthographic
 camera, as it did for a perspective one.
 
+**A touch stick is read before the steps.** In a `HasFixedStep` game the
+steps run before any component updates, and a stick read in its own
+component reached them two frames after the finger moved.
+`HasFixedStep.beforeSteps` is where what the steps read is gathered.
+
+**`onCollision` once a frame, and a ray through the world.** A
+`CollisionBridge` handed its `stepper` relays `onCollision` once a frame
+for each partner, as Flame's own detection does, rather than once a step;
+`PhysicsStepComponent.frame` counts the frames. `ColliderRegistry.raycast`
+fires a ray across the plane through the collision world, exact per shape,
+with layers and triggers, and says which component it met and where.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

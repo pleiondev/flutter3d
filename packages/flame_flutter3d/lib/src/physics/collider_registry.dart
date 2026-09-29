@@ -2,7 +2,9 @@ import 'package:flame/collisions.dart' show CollisionCallbacks;
 import 'package:flame/components.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
+import '../transform/plane.dart';
 import 'collision_bridge.dart';
+import 'physics_step_component.dart';
 
 /// Which Flame component each collider belongs to, for a [CollisionBridge]
 /// to hand over as the other side of a contact.
@@ -61,12 +63,63 @@ final class ColliderRegistry {
   /// Relays [collider]'s contacts to [component], the other side of each
   /// looked up here. [collider] is usually [component]'s body's, and may be a
   /// sensor riding on it.
+  ///
+  /// Handed [stepper], its `onCollision` comes once a frame, as Flame's does;
+  /// see [CollisionBridge.stepper].
   CollisionBridge bridge({
     required Collider collider,
     required CollisionCallbacks component,
+    PhysicsStepComponent? stepper,
   }) => CollisionBridge(
     collider: collider,
     component: component,
     resolveOther: componentFor,
+    stepper: stepper,
   );
+
+  /// Fires a ray across [plane] from [from] to [to], in Flame's coordinates
+  /// [lift] off the plane, through [world], and says what it met first: the
+  /// component it belongs to, if one is registered, where on the plane, and
+  /// the collider.
+  ///
+  /// **What a Flame game could not ask the world.** A turret's line of
+  /// sight, a laser's reach, a grenade's arc checked against a wall: the
+  /// world answers them exactly, per shape, and a game reached for Flame's
+  /// own raycast, which knows only Flame's hitboxes and none of the level.
+  /// [mask] is the layers it can see, as a collider's is; triggers are
+  /// seen only when asked for.
+  ({PositionComponent? component, Vector2 point, Collider collider})? raycast(
+    CollisionWorld world,
+    BridgePlane plane,
+    Vector2 from,
+    Vector2 to, {
+    double lift = 0.0,
+    int mask = Layers.all,
+    Collider? ignore,
+    bool includeTriggers = false,
+  }) {
+    final start = plane.to3d(from, at: plane.constant + lift);
+    final along = plane.to3d(to, at: plane.constant + lift)..sub(start);
+    final length = along.length;
+    if (length == 0.0) return null;
+    along.scale(1.0 / length);
+    final hit = RayHit();
+    if (!world.raycast(
+      start,
+      along,
+      length,
+      hit,
+      mask: mask,
+      ignore: ignore,
+      includeTriggers: includeTriggers,
+    )) {
+      return null;
+    }
+    final met = hit.collider!;
+    return (
+      component: componentFor(met),
+      point: plane.to2d(hit.point),
+      collider: met,
+    );
+  }
 }

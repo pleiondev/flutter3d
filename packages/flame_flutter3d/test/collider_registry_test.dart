@@ -121,6 +121,99 @@ void main() {
   );
 
   testWithGame<FlameGame>(
+    'handed its stepper, a touch is told once a frame however many steps '
+    'the frame has',
+    FlameGame.new,
+    (game) async {
+      // Flame calls onCollision once a frame; the world reported it after
+      // every step, and a frame of three steps took three times the damage.
+      //
+      // Mutation: relay onCollision on every step.
+      final world = CollisionWorld();
+      final dynamics = Dynamics(world: world, gravity: Vector3.zero());
+      final registry = ColliderRegistry();
+      final body = dynamics.add(
+        RigidBody(
+          world: world,
+          shape: CollisionBox(Vector3.all(0.5)),
+          position: Vector3.zero(),
+          mass: 0.0,
+        ),
+      );
+      final ship = _Ship(body, (_) {});
+      final marker = world.add(
+        Collider(
+          shape: CollisionBox(Vector3.all(0.5)),
+          position: Vector3(0.2, 0.0, 0.0),
+        ),
+      );
+      final bot = PositionComponent();
+      final stepper = PhysicsStepComponent(dynamics: dynamics, world: world);
+      await game.addAll(<Component>[stepper, ship, bot]);
+      await game.ready();
+      registry
+        ..register(marker, bot)
+        ..bridge(collider: body.collider, component: ship, stepper: stepper);
+
+      game.update(3 / 60);
+      expect(ship.touches, 1);
+      game.update(1 / 60);
+      expect(ship.touches, 2);
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'a ray across the plane finds the component it met, and where',
+    FlameGame.new,
+    (game) async {
+      // Flame's own raycast knows Flame's hitboxes and none of the level.
+      final world = CollisionWorld();
+      final registry = ColliderRegistry();
+      final crate = world.add(
+        Collider(
+          shape: CollisionBox(Vector3.all(0.5)),
+          position: Vector3(5.0, 0.0, -2.0),
+        ),
+      );
+      final wall = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(0.5, 2.0, 5.0)),
+          position: Vector3(9.0, 0.0, -2.0),
+        ),
+      );
+      final bot = PositionComponent();
+      await game.add(bot);
+      await game.ready();
+      registry.register(crate, bot);
+
+      final plane = BridgePlane.ground();
+      final hit = registry.raycast(
+        world,
+        plane,
+        Vector2(0.0, -2.0),
+        Vector2(20.0, -2.0),
+      )!;
+      expect(hit.component, same(bot));
+      expect(hit.point.x, closeTo(4.5, 1e-6));
+      expect(hit.point.y, closeTo(-2.0, 1e-6));
+
+      final past = registry.raycast(
+        world,
+        plane,
+        Vector2(0.0, -2.0),
+        Vector2(20.0, -2.0),
+        ignore: crate,
+      )!;
+      expect(past.collider, same(wall));
+      expect(past.component, isNull, reason: 'the level is nobody');
+      expect(
+        registry.raycast(world, plane, Vector2(0.0, 5.0), Vector2(20.0, 5.0)),
+        isNull,
+      );
+    },
+  );
+
+  testWithGame<FlameGame>(
     'a bridge made through it hands over the other side of a contact',
     FlameGame.new,
     (game) async {
@@ -196,6 +289,13 @@ final class _Ship extends RigidBodyComponent {
       );
 
   final void Function(PositionComponent other) onTouch;
+  int touches = 0;
+
+  @override
+  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollision(intersectionPoints, other);
+    touches++;
+  }
 
   @override
   void onCollisionStart(

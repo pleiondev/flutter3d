@@ -2,7 +2,8 @@
 /// step to read it.
 library;
 
-import 'package:flame/components.dart' show Component;
+import 'package:flame/components.dart'
+    show CircleComponent, Component, JoystickComponent;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
@@ -95,6 +96,36 @@ void main() {
   );
 
   testWithGame<_Stepped>(
+    'the steps of a frame read the stick as it is that frame',
+    _Stepped.new,
+    (game) async {
+      // The steps run before any component updates, and the stick was read
+      // in its own component's update: a frame late.
+      //
+      // Mutation: read the stick in the feed's update.
+      final input = FlameInputBridge(
+        bindings: Bindings(<InputSource, GameAction>{}),
+        inputState: InputState(),
+      );
+      final stick = JoystickComponent(
+        knob: CircleComponent(radius: 10.0),
+        background: CircleComponent(radius: 40.0),
+      );
+      final steers = _Steers(input.inputState);
+      await game.addAll(<Component>[
+        stick,
+        input.followJoystick(stick),
+        steers,
+      ]);
+      await game.ready();
+
+      stick.delta.setValues(stick.knobRadius, 0.0);
+      game.update(1 / 60);
+      expect(steers.seen, closeTo(1.0, 1e-9));
+    },
+  );
+
+  testWithGame<_Stepped>(
     'physics and actors step in the game\'s steps, and draw by its alpha',
     _Stepped.new,
     (game) async {
@@ -125,6 +156,16 @@ void main() {
       expect(actors.alpha, game.alpha);
     },
   );
+}
+
+final class _Steers extends Component with FixedStepUpdate {
+  _Steers(this.input);
+
+  final InputState input;
+  double seen = 0.0;
+
+  @override
+  void fixedUpdate(double step) => seen = input.moveAxis.x;
 }
 
 final class _Reads extends Component with FixedStepUpdate {
