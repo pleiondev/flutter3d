@@ -11,6 +11,7 @@
 /// `apps/flutter3d_showcase`'s `flame` pages for one mechanism per page.
 library;
 
+export 'src/animation/model_animation_component.dart';
 export 'src/camera/camera_sync_component.dart';
 export 'src/camera/camera_sync_controller.dart';
 export 'src/camera/chase_camera.dart';

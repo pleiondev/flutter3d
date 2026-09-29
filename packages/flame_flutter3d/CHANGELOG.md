@@ -81,6 +81,13 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A model's animations play on Flame's clock.** `ModelAnimationComponent`
+advances a loaded model's `AnimationPlayer` in its own update, so it stops
+when the game is paused, and changes clip by name with a crossfade; asking
+for the clip already playing does nothing, so a game can ask every frame.
+`MeshFlipbookComponent` shows a handful of meshes in turn, an invader's two
+poses.
+
 **Flame's own events land where the player sees things.**
 `ProjectedViewfinder` maps the screen to the game's plane through the 3D
 camera: a component's `TapCallbacks`, Flame's hit test and
