@@ -37,8 +37,9 @@
        and the game plays silent - which is what every demo on the site did.
        The module also needs SharedArrayBuffer, so the pages are served with
        COOP/COEP headers; see the site's nginx vhost. -->
-  <script src="assets/packages/flutter_soloud/web/libflutter_soloud_plugin.js" defer></script>
-  <script src="assets/packages/flutter_soloud/web/init_module.dart.js" defer></script>
+  <!-- flutter_soloud 5 replaced the two scripts this comment was written
+       for with one loader; init_module.dart.js is a 404 against 5.x. -->
+  <script src="assets/packages/flutter_soloud/web/init_soloud.js" defer></script>
 </head>
 <body>
   <!--
