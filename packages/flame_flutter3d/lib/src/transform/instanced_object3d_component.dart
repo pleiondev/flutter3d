@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import 'flame_pose.dart';
 import 'object3d_component.dart' show shownInFlame;
 import 'plane.dart';
 
@@ -147,26 +148,18 @@ class InstancedObject3dComponent extends PositionComponent
       slot.setTransform(_transform..setZero());
       return;
     }
-    final holder = parent;
-    final nested = holder is PositionComponent;
-    final double x;
-    final double y;
-    if (nested) {
-      final at = absolutePosition;
-      x = at.x;
-      y = at.y;
-    } else {
-      x = position.x;
-      y = position.y;
-    }
-    final turn = nested ? absoluteAngle : angle;
-    final s = nested ? absoluteScale : scale;
+    final pose = _pose..readFrom(this);
+    final x = pose.x;
+    final y = pose.y;
+    final turn = pose.turn;
+    final sx = pose.scaleX;
+    final sy = pose.scaleY;
     if (!_writtenHidden &&
         x == _writtenX &&
         y == _writtenY &&
         turn == _writtenAngle &&
-        s.x == _writtenScaleX &&
-        s.y == _writtenScaleY &&
+        sx == _writtenScaleX &&
+        sy == _writtenScaleY &&
         elevation == _writtenElevation) {
       return;
     }
@@ -174,16 +167,16 @@ class InstancedObject3dComponent extends PositionComponent
     _writtenX = x;
     _writtenY = y;
     _writtenAngle = turn;
-    _writtenScaleX = s.x;
-    _writtenScaleY = s.y;
+    _writtenScaleX = sx;
+    _writtenScaleY = sy;
     _writtenElevation = elevation;
 
-    final across = (s.x.abs() + s.y.abs()) / 2.0;
+    final across = (sx.abs() + sy.abs()) / 2.0;
     switch (plane.axis) {
       case PlaneAxis.y:
-        _scale.setValues(s.x, across, s.y);
+        _scale.setValues(sx, across, sy);
       case PlaneAxis.z:
-        _scale.setValues(s.x, s.y, across);
+        _scale.setValues(sx, sy, across);
     }
     plane
       ..to3dInto(x, y, _place, at: plane.constant + elevation)
@@ -192,6 +185,7 @@ class InstancedObject3dComponent extends PositionComponent
     slot.setTransform(_transform);
   }
 
+  final FlamePose _pose = FlamePose();
   final Vector3 _place = Vector3.zero();
   final Quaternion _turn = Quaternion.identity();
   bool _writtenHidden = false;

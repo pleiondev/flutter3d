@@ -42,7 +42,13 @@ import 'transparent_flame_game.dart';
 /// [onTick] with that frame's own `dt`, then triggers a Flutter rebuild so
 /// [SceneSurface] renders the 3D frame in step. Nothing here starts a second
 /// ticker; see [BridgeClock] for why that matters.
-class Flutter3dFlameWidget extends StatefulWidget {
+///
+/// **A new game is a new host.** A rebuild that hands in a different [game]
+/// gets a fresh device, scene and clock for it, as if the widget had just
+/// appeared; the old game keeps its world, or lets its device go, as it
+/// would had the widget gone. Before, the new game was drawn over the old
+/// one's scene and never had its own opened.
+class Flutter3dFlameWidget extends StatelessWidget {
   const Flutter3dFlameWidget({
     super.key,
     required this.game,
@@ -140,52 +146,85 @@ class Flutter3dFlameWidget extends StatefulWidget {
   final int height;
 
   @override
-  State<Flutter3dFlameWidget> createState() => _Flutter3dFlameWidgetState();
+  Widget build(BuildContext context) =>
+      _Flutter3dFlameHost(key: ObjectKey(game), config: this);
 }
 
-class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
+class _Flutter3dFlameHost extends StatefulWidget {
+  const _Flutter3dFlameHost({super.key, required this.config});
+
+  final Flutter3dFlameWidget config;
+
+  @override
+  State<_Flutter3dFlameHost> createState() => _Flutter3dFlameHostState();
+}
+
+class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
+  Flutter3dFlameWidget get _config => widget.config;
+
   /// The game, when it owns its world.
-  HasFlutter3d? get _owner => switch (widget.game) {
+  HasFlutter3d? get _owner => switch (_config.game) {
     final HasFlutter3d owner => owner,
     _ => null,
   };
 
-  CameraNode get _camera => widget.camera ?? _owner!.camera3d;
+  CameraNode get _camera => _config.camera ?? _owner!.camera3d;
 
   late RenderView _view = _viewFor();
 
   RenderView _viewFor() => RenderView(
     camera: _camera,
     clearColor:
-        widget.clearColor ??
+        _config.clearColor ??
         _owner?.clearColor ??
         Vector4(0.05, 0.05, 0.07, 1.0),
   );
 
+  /// The camera this state put in the scene, to take out again when a
+  /// rebuild hands in another; a scene kept every camera it was ever given.
+  CameraNode? _addedCamera;
+
   /// **A new camera or a new clear colour is used.** Both went into the view
   /// once, when this state was made, and a rebuild that handed in a
   /// different camera, or a sky for the next level, changed nothing on
-  /// screen.
+  /// screen. New overlays or a new focus make a new `GameWidget`.
   @override
-  void didUpdateWidget(Flutter3dFlameWidget old) {
+  void didUpdateWidget(_Flutter3dFlameHost old) {
     super.didUpdateWidget(old);
-    if (!identical(old.camera, widget.camera) ||
-        old.clearColor != widget.clearColor ||
-        !identical(old.game, widget.game)) {
+    final was = old.config;
+    if (!identical(was.camera, _config.camera) ||
+        was.clearColor != _config.clearColor) {
       final scene = _ready?.scene;
       final camera = _camera;
-      if (scene != null && !scene.cameras.contains(camera)) scene.add(camera);
+      final added = _addedCamera;
+      if (added != null && !identical(added, camera)) {
+        added.removeFromParent();
+        _addedCamera = null;
+      }
+      if (scene != null && !scene.cameras.contains(camera)) {
+        scene.add(camera);
+        _addedCamera = camera;
+      }
       _view = _viewFor();
+    }
+    if (!identical(was.overlayBuilderMap, _config.overlayBuilderMap) ||
+        !identical(was.initialActiveOverlays, _config.initialActiveOverlays) ||
+        !identical(was.focusNode, _config.focusNode) ||
+        was.autofocus != _config.autofocus) {
+      _gameWidget = null;
     }
   }
 
   /// The scene on [device]: built by [Flutter3dFlameWidget.buildScene] when
   /// given, opened by the game when it owns its world.
   Scene _sceneOn(GraphicsDevice device) {
-    final build = widget.buildScene;
+    final build = _config.buildScene;
     if (build != null) {
       final scene = build(device);
-      if (scene.cameras.isEmpty) scene.add(_camera);
+      if (scene.cameras.isEmpty) {
+        scene.add(_camera);
+        _addedCamera = _camera;
+      }
       final owner = _owner;
       if (owner != null && !owner.has3d) owner.open3d(device, scene: scene);
       return scene;
@@ -197,24 +236,25 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
 
   void _rendererReady(Renderer renderer) {
     _owner?.attachRenderer(renderer);
-    widget.onRendererReady?.call(renderer);
+    _config.onRendererReady?.call(renderer);
   }
 
   RenderSettings Function() get _settings =>
-      widget.settings ?? _owner?.renderSettings ?? () => const RenderSettings();
+      _config.settings ??
+      _owner?.renderSettings ??
+      () => const RenderSettings();
 
   ({Renderer renderer, Scene scene})? _ready;
   Object? _error;
 
-  /// The clock added to [Flutter3dFlameWidget.game], and the game it was
-  /// added to, so a new game passed in by a rebuild gets its own and the
-  /// old one stops calling back here.
-  ({FlameGame game, BridgeClock clock})? _clocked;
+  /// The clock added to [Flutter3dFlameWidget.game], once.
+  BridgeClock? _clock;
 
-  /// Whether this state opened the device and renderer in [_ready] itself,
-  /// and so has to release them. Not when they came in through
-  /// [Flutter3dFlameWidget.existing]: those belong to the caller.
-  bool _ownsDevice = false;
+  /// Closes the device and renderer this state opened, when they are its to
+  /// close: not when they came in through [Flutter3dFlameWidget.existing],
+  /// which are the caller's, nor when the game took them with
+  /// [HasFlutter3d.closeWith] to keep its world on.
+  void Function()? _release;
 
   /// Bumped once a Flame update to redraw the 3D layer, and nothing else.
   ///
@@ -237,9 +277,9 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
       // Not an assert that throws: a game that means to cover the 3D layer
       // is allowed to, and one that does not is told why the screen is one
       // colour.
-      if (widget.game.backgroundColor().a > 0.0) {
+      if (_config.game.backgroundColor().a > 0.0) {
         debugPrint(
-          'Flutter3dFlameWidget: ${widget.game.runtimeType} paints an opaque '
+          'Flutter3dFlameWidget: ${_config.game.runtimeType} paints an opaque '
           'background over the 3D layer, which will not be seen. Mix in '
           'HasFlutter3d, extend TransparentFlameGame, or return a clear '
           'colour from backgroundColor().',
@@ -247,31 +287,68 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
       }
       return true;
     }());
-    final existing = widget.existing;
-    if (existing != null) {
+    final owner = _owner;
+    final kept = owner != null && owner.has3d ? owner.renderer : null;
+    final existing = _config.existing;
+    if (owner != null && kept != null) {
+      // Shown again: the world it kept is drawn as it is, on the device it
+      // was built on.
+      assert(
+        existing == null || identical(existing.device, owner.device),
+        'This game\'s world is open on another device; close3d() it first.',
+      );
+      _ready = (renderer: kept, scene: owner.scene);
+      _config.onRendererReady?.call(kept);
+    } else if (existing != null) {
       // Already open: build the scene synchronously rather than through the
       // async `openDevice` path nothing here needs a second time.
-      final scene = _sceneOn(existing.device);
-      _ready = (renderer: existing.renderer, scene: scene);
-      _rendererReady(existing.renderer);
+      try {
+        final scene = _sceneOn(existing.device);
+        _ready = (renderer: existing.renderer, scene: scene);
+        _rendererReady(existing.renderer);
+      } catch (error) {
+        _error = error;
+      }
     } else {
       _open();
     }
   }
 
+  /// **A failure lets go of the device.** A scene or a renderer that threw
+  /// left the device it had opened open, with nothing holding it.
   Future<void> _open() async {
+    GraphicsDevice? device;
+    Renderer? renderer;
     try {
-      final device = await openDevice(
-        width: widget.width,
-        height: widget.height,
+      final opened = device = await openDevice(
+        width: _config.width,
+        height: _config.height,
       );
-      if (!mounted) return device.dispose();
-      final scene = _sceneOn(device);
-      _ownsDevice = true;
-      final renderer = Renderer.create(device: device);
-      setState(() => _ready = (renderer: renderer, scene: scene));
-      _rendererReady(renderer);
+      if (!mounted) return opened.dispose();
+      final scene = _sceneOn(opened);
+      final made = renderer = Renderer.create(device: opened);
+      void release() {
+        made.dispose();
+        opened.dispose();
+      }
+
+      final owner = _owner;
+      if (owner != null) {
+        owner.closeWith(release);
+      } else {
+        _release = release;
+      }
+      setState(() => _ready = (renderer: made, scene: scene));
+      _rendererReady(made);
     } catch (error) {
+      if (_ready == null) {
+        final owner = _owner;
+        if (owner != null && owner.has3d && identical(owner.device, device)) {
+          owner.close3d();
+        }
+        renderer?.dispose();
+        device?.dispose();
+      }
       if (mounted) setState(() => _error = error);
     }
   }
@@ -289,42 +366,48 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
   /// runs. A game stepped by hand while paused (`stepEngine`) updates
   /// outside a frame, and there the 3D layer does follow a frame later.
   void _onFlameTick(double dt) {
-    widget.onTick?.call(dt);
+    _config.onTick?.call(dt);
+    _redraw();
+  }
+
+  /// Asks for the 3D layer to be drawn once this frame is done: from a tick,
+  /// or from [HasFlutter3d.redraw3d] while the game is paused and nothing
+  /// else asks for a frame.
+  void _redraw() {
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-      if (mounted) _frames.value++;
-    });
+    WidgetsBinding.instance
+      ..addPostFrameCallback((Duration _) {
+        if (mounted) _frames.value++;
+      })
+      ..scheduleFrame();
   }
 
   /// **Releases what it opened.** A device this state opened is closed with
-  /// it, renderer first; one passed in through
-  /// [Flutter3dFlameWidget.existing] is left to its owner. The clock is
-  /// taken off the game too, which may outlive this widget: a game kept
-  /// across a route change, say, would otherwise go on calling back into a
-  /// disposed state.
+  /// it, renderer first, unless the game took it to keep its world on; one
+  /// passed in through [Flutter3dFlameWidget.existing] is left to its owner.
+  /// The clock is taken off the game too, which may outlive this widget: a
+  /// game kept across a route change, say, would otherwise go on calling
+  /// back into a disposed state.
   @override
   void dispose() {
-    _clocked?.clock.removeFromParent();
-    _frames.dispose();
-    final ready = _ready;
-    if (_ownsDevice && ready != null) {
-      ready.renderer.dispose();
-      ready.renderer.device.dispose();
+    _clock?.removeFromParent();
+    final owner = _owner;
+    if (owner != null && identical(owner.redrawer3d, _redraw)) {
+      owner.redrawer3d = null;
     }
+    _frames.dispose();
+    _release?.call();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Added once per game, not once per build: `GameWidget` may rebuild
-    // this state without recreating `widget.game`, and a rebuild from above
-    // may hand in a different game, whose clock then replaces the old one's.
-    final clocked = _clocked;
-    if (clocked == null || !identical(clocked.game, widget.game)) {
-      clocked?.clock.removeFromParent();
-      final clock = BridgeClock(onTick: _onFlameTick);
-      widget.game.add(clock);
-      _clocked = (game: widget.game, clock: clock);
+    // Added once, not once per build: `GameWidget` may rebuild this state
+    // without the game changing.
+    if (_clock == null) {
+      final clock = _clock = BridgeClock(onTick: _onFlameTick);
+      _config.game.add(clock);
+      _owner?.redrawer3d = _redraw;
     }
 
     return switch ((_error, _ready)) {
@@ -352,21 +435,22 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
                   presentFrame: presentFrame,
                 ),
           ),
-          _gameWidgetFor(widget.game),
+          _gameWidget ??= GameWidget<FlameGame>(
+            game: _config.game,
+            overlayBuilderMap: _config.overlayBuilderMap,
+            initialActiveOverlays: _config.initialActiveOverlays,
+            focusNode: _config.focusNode,
+            autofocus: _config.autofocus,
+            // A world that threw while it was built says so where the game
+            // would be, as a device that would not open does.
+            errorBuilder: (BuildContext context, Object error) => DidNotStart(
+              error,
+              background: const Color(0xFF14161A),
+              foreground: const Color(0xFFFF8A80),
+            ),
+          ),
         ],
       ),
     };
-  }
-
-  GameWidget<FlameGame> _gameWidgetFor(FlameGame game) {
-    final GameWidget<FlameGame>? made = _gameWidget;
-    if (made != null && identical(made.game, game)) return made;
-    return _gameWidget = GameWidget<FlameGame>(
-      game: game,
-      overlayBuilderMap: widget.overlayBuilderMap,
-      initialActiveOverlays: widget.initialActiveOverlays,
-      focusNode: widget.focusNode,
-      autofocus: widget.autofocus,
-    );
   }
 }

@@ -91,6 +91,92 @@ void main() {
   );
 
   testWithGame<FlameGame>(
+    'a flipped, turned component under a flipped, turned parent is drawn '
+    'where Flame draws it',
+    FlameGame.new,
+    (game) async {
+      // Flame's absolute angle is reflected for a flipped component, and
+      // written beside the signed scale it mirrored twice.
+      //
+      // Mutation: write absoluteAngle with absoluteScale.
+      final scene = Scene();
+      final plane = BridgePlane.ground();
+      final parent = PositionComponent(
+        position: Vector2(3.0, 2.0),
+        angle: 0.4,
+        scale: Vector2(-1.0, 1.0),
+      );
+      final ship = _bridged(scene, position: Vector2(1.0, 1.0), plane: plane)
+        ..angle = 0.3
+        ..scale = Vector2(1.0, -1.0);
+      await game.add(parent);
+      await parent.add(ship);
+      await game.ready();
+      game.update(0.0);
+
+      for (final local in <Vector2>[Vector2(1.0, 0.0), Vector2(0.0, 1.0)]) {
+        final flame = ship.absolutePositionOf(local);
+        final drawn = plane.to2d(
+          ship.node.worldMatrix.transformed3(Vector3(local.x, 0.0, local.y)),
+        );
+        expect(drawn.x, closeTo(flame.x, 1e-5), reason: 'at $local');
+        expect(drawn.y, closeTo(flame.y, 1e-5), reason: 'at $local');
+      }
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'a plain component between a frog and its log does not hide the log',
+    FlameGame.new,
+    (game) async {
+      // Mutation: ask only the parent whether it is positioned.
+      final scene = Scene();
+      final log = PositionComponent(position: Vector2(10.0, 4.0));
+      final layer = Component();
+      final frog = _bridged(scene, position: Vector2(1.0, 0.0));
+      await game.add(log);
+      await log.add(layer);
+      await layer.add(frog);
+      await game.ready();
+
+      game.update(0.0);
+      expect(frog.node.readPosition(), Vector3(11.0, 0.0, 4.0));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'read back under a flipped parent, the turn comes back as it went out',
+    FlameGame.new,
+    (game) async {
+      // Mutation: subtract the parent's absoluteAngle and nothing else.
+      final scene = Scene();
+      final plane = BridgePlane.ground();
+      final parent = PositionComponent(
+        position: Vector2(3.0, 2.0),
+        angle: 0.4,
+        scale: Vector2(-1.0, 1.0),
+      );
+      final writer = _bridged(scene, position: Vector2(1.0, 1.0), plane: plane)
+        ..angle = 0.3;
+      final reader = Object3dComponent(
+        node: writer.node,
+        scene: scene,
+        plane: plane,
+      );
+      await game.add(parent);
+      await parent.addAll(<Component>[writer, reader]);
+      await game.ready();
+      game
+        ..update(0.0)
+        ..update(0.0);
+
+      expect(reader.position.x, closeTo(1.0, 1e-5));
+      expect(reader.position.y, closeTo(1.0, 1e-5));
+      expect(reader.angle, closeTo(0.3, 1e-5));
+    },
+  );
+
+  testWithGame<FlameGame>(
     'elevation lifts the node off the plane, and scenePosition says where',
     FlameGame.new,
     (game) async {

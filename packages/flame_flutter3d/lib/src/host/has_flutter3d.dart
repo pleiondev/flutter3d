@@ -29,6 +29,17 @@ import '../transform/projector.dart';
 /// itself, with a software device, before or after loading the game; either
 /// way [onOpen3d] runs once, when the game has loaded and the world exists
 /// to be built on.
+///
+/// ## When it goes
+///
+/// **The world lives as long as the game, not its widget.** Flame keeps a
+/// game's components when its `GameWidget` goes, so the same game can be
+/// shown again, on a tab that comes back or behind an `if`. The 3D world
+/// does the same: the device the widget opened for it is left open, and a
+/// widget showing the game again draws the world it already has. Before,
+/// the widget closed the device under a world still built on it, and the
+/// game came back with meshes on a closed device and no particles.
+/// [close3d] lets it go, and [dispose] calls it.
 mixin HasFlutter3d on FlameGame {
   /// The camera the 3D layer is drawn through. Made by [createCamera3d] the
   /// first time it is read.
@@ -56,6 +67,7 @@ mixin HasFlutter3d on FlameGame {
   bool _opened = false;
   bool _loaded = false;
   bool _rendererUsed = false;
+  void Function()? _release;
 
   /// Whether [open3d] has run: whether there is a [scene] to build on.
   bool get has3d => _scene != null;
@@ -93,6 +105,51 @@ mixin HasFlutter3d on FlameGame {
     _renderer = renderer;
     if (_debugHitboxes3d) _applyDebugHitboxes();
     _openWhenReady();
+  }
+
+  /// Draws the 3D layer once more without an update. A running game is
+  /// drawn every frame; a paused one is not, and a pause menu that changes
+  /// [clearColor] or [renderSettings], or turns [camera3d] round a showroom,
+  /// calls this to have it seen.
+  void redraw3d() => redrawer3d?.call();
+
+  /// What [redraw3d] calls: set by the widget showing the game.
+  void Function()? redrawer3d;
+
+  /// Makes [release] this game's to call when the 3D layer closes: how
+  /// `Flutter3dFlameWidget` hands over a device it opened for the game, so
+  /// the device outlives the widget and goes with the world built on it.
+  void closeWith(void Function() release) => _release = release;
+
+  /// Closes the 3D layer: [onClose3d], then the renderer and the device if
+  /// they were handed over with [closeWith]. A widget showing the game after
+  /// this opens it afresh, and [onOpen3d] and [onRenderer3d] run again.
+  void close3d() {
+    if (_scene == null) return;
+    onClose3d();
+    final release = _release;
+    camera3d.removeFromParent();
+    _release = null;
+    _device = null;
+    _scene = null;
+    _renderer = null;
+    _opened = false;
+    _rendererUsed = false;
+    release?.call();
+  }
+
+  /// Lets go of what [onOpen3d] built, before the device it is on closes.
+  /// A game that is shown again after [close3d] builds its world a second
+  /// time, and one that added components there removes them here.
+  void onClose3d() {}
+
+  /// Closes the 3D layer before Flame's own clean-up: the components going
+  /// then find no renderer to hand their meshes to, and let the device's
+  /// closing take them.
+  @override
+  void dispose() {
+    close3d();
+    super.dispose();
   }
 
   /// Draws every bridged hitbox in the scene, where its craft is: see

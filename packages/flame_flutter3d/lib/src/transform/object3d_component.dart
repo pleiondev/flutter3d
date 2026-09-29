@@ -1,9 +1,12 @@
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import '../host/has_flutter3d.dart';
 import 'bridge_space.dart';
+import 'flame_pose.dart';
 import 'plane.dart';
 
 /// Which side of an [Object3dComponent] writes a frame's transform into the
@@ -180,16 +183,25 @@ class Object3dComponent extends PositionComponent
     _visibleWritten = null;
   }
 
+  /// **Moved is not gone.** Flame moves a component to a new parent by
+  /// removing it and mounting it again at once, and [owns] let go of here
+  /// was a moved bridge drawing meshes already given back. So they are let
+  /// go of a moment later, and only if the component is by then in no tree
+  /// and on its way to none.
   @override
   void onRemove() {
     node.removeFromParent();
-    _letGo();
+    if (owns.isNotEmpty) {
+      scheduleMicrotask(() {
+        if (!isMounted && parent == null) _letGo();
+      });
+    }
     super.onRemove();
   }
 
   void _letGo() {
     final host = _host;
-    if (owns.isEmpty || host == null || !host.has3d) return;
+    if (host == null || !host.has3d) return;
     final drawing = host.renderer;
     for (final mesh in owns) {
       if (drawing != null) {
@@ -270,33 +282,25 @@ class Object3dComponent extends PositionComponent
   /// reads its own fields rather than Flame's absolute ones, which are made
   /// afresh on every read.
   void _writeScene() {
-    final holder = parent;
-    final nested = holder is PositionComponent;
-    final double x;
-    final double y;
-    if (nested) {
-      final at = absolutePosition;
-      x = at.x;
-      y = at.y;
-    } else {
-      x = position.x;
-      y = position.y;
-    }
-    final turn = nested ? absoluteAngle : angle;
-    final s = nested ? absoluteScale : scale;
+    final pose = _pose..readFrom(this);
+    final x = pose.x;
+    final y = pose.y;
+    final turn = pose.turn;
+    final sx = pose.scaleX;
+    final sy = pose.scaleY;
     if (x == _writtenX &&
         y == _writtenY &&
         turn == _writtenAngle &&
-        s.x == _writtenScaleX &&
-        s.y == _writtenScaleY &&
+        sx == _writtenScaleX &&
+        sy == _writtenScaleY &&
         elevation == _writtenElevation) {
       return;
     }
     _writtenX = x;
     _writtenY = y;
     _writtenAngle = turn;
-    _writtenScaleX = s.x;
-    _writtenScaleY = s.y;
+    _writtenScaleX = sx;
+    _writtenScaleY = sy;
     _writtenElevation = elevation;
 
     final bent = space;
@@ -311,15 +315,16 @@ class Object3dComponent extends PositionComponent
     node
       ..setPositionFrom(_place)
       ..setRotation(_turn);
-    final across = (s.x.abs() + s.y.abs()) / 2.0;
+    final across = (sx.abs() + sy.abs()) / 2.0;
     switch (plane.axis) {
       case PlaneAxis.y:
-        node.setScale(s.x, across, s.y);
+        node.setScale(sx, across, sy);
       case PlaneAxis.z:
-        node.setScale(s.x, s.y, across);
+        node.setScale(sx, sy, across);
     }
   }
 
+  final FlamePose _pose = FlamePose();
   final Vector3 _place = Vector3.zero();
   final Quaternion _turn = Quaternion.identity();
   double _writtenX = double.nan;
@@ -357,15 +362,18 @@ class Object3dComponent extends PositionComponent
   /// wants Flame's place put back.
   void rewriteScene() => _writtenX = double.nan;
 
-  /// The node's place, brought into this component's parent's own space
-  /// when the parent is itself positioned.
+  /// The node's place, brought into the space of the nearest positioned
+  /// component above this one, when there is one; under a mirrored one the
+  /// turn is reversed, as it is on the way out.
   void _readScene() {
     final world = plane.to2d(node.readPosition());
     final worldAngle = plane.angleFor(node.readRotation());
-    final holder = parent;
-    if (holder is PositionComponent) {
+    final holder = placedAncestor(this);
+    if (holder != null) {
+      final above = _pose..readTurnOf(holder);
+      final local = worldAngle - above.turn;
       position = holder.absoluteToLocal(world);
-      angle = worldAngle - holder.absoluteAngle;
+      angle = above.mirrored ? -local : local;
     } else {
       position = world;
       angle = worldAngle;

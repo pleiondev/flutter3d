@@ -78,6 +78,8 @@ class _RiverScreenState extends State<RiverScreen> {
   @override
   void dispose() {
     unawaited(_game.sound.close());
+    // The world lives with the game, not the widget: it goes here.
+    _game.close3d();
     super.dispose();
   }
 

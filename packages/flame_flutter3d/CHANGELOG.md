@@ -1,5 +1,36 @@
 ## 0.8.3
 
+**A game shown again draws the world it kept.** Flame keeps a game's
+components when its widget goes, and the same game can be shown again on a
+tab that comes back. `Flutter3dFlameWidget` closed the device it had opened
+under a world still built on it, and the game came back with meshes on a
+closed device and no particles. The device now goes with the game:
+`HasFlutter3d.close3d()` lets it go, `dispose()` calls it, and
+`onClose3d` is where a game that will be shown again takes down what it
+built.
+
+**Another game handed in gets a world of its own.** A rebuild with a
+different `game` drew the new game over the old one's scene; the widget
+now starts afresh for it. A scene or renderer that threw on the way up no
+longer leaves its device open, and a world that throws while it is built
+says why where the game would be. A camera a rebuild replaced is taken out
+of the scene, and new overlays or focus reach Flame's widget.
+
+**A paused game can be drawn.** `HasFlutter3d.redraw3d()` draws the 3D
+layer once without an update, for a pause menu that changes the sky.
+
+**A flipped component turns the way Flame draws it, nested or not.**
+Flame's `absoluteAngle` is reflected for a flipped component, and written
+beside the signed scale the mirror was applied twice: a flipped ship under
+anything turned the opposite way. The chain is now folded the way Flame's
+matrices compose it, on the way out and on the way back, for both bridged
+components. A plain `Component` between a component and a positioned
+ancestor no longer hides the ancestor.
+
+**Moved is not gone.** Flame moves a component to a new parent by removing
+and mounting it, and a component's `owns` meshes were let go of in the
+removal while it went on drawing them.
+
 **Flame's effects reach the scene in the frame they happen.** Flowing Flame
 to the scene, `Object3dComponent` writes the scene again in `updateTree`,
 after its children, and an effect is a child: written only in `update`,
