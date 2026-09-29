@@ -185,6 +185,14 @@ one cell to the next: a turn asked for is kept until a junction opens to
 it, a turn back is taken at once, a wall stops it, and with `wraps` a way
 off one edge comes in at the other.
 
+**A level drawn in Tiled.** `TiledWorld3d` stands a `TiledMap` up in 3D,
+the map `flame_tiled`'s `TiledComponent` reads or `TileMapParser` parses:
+each tile layer becomes a `CellGridComponent` with a block where a tile is,
+set up by its custom properties in Tiled (`solid` for Flame hitboxes,
+`depth`, `elevation`, `merged`) and painted its tint colour, and each object
+is handed to the game with its middle in metres. A maze, a castle's rooms
+or a mine's shafts are drawn in the editor instead of typed as masks.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.
