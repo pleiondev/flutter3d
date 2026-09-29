@@ -62,7 +62,7 @@ extension RiverGameStaging on RiverGame {
       lookAcross: 0.5,
     )..advance(0.0);
     // After everything that moves the jet, so it follows this frame's move.
-    add(ChaseCameraComponent(chase, priority: 1000));
+    add(ChaseCameraComponent(chase));
     built = true;
     _restart();
   }

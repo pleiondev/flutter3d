@@ -289,4 +289,32 @@ void main() {
       expect(hull.tint, Vector4.all(1.0), reason: 'back to plain');
     },
   );
+
+  testWithGame<FlameGame>(
+    'a bridged prop that does not move does not mark the scene changed',
+    FlameGame.new,
+    (game) async {
+      // The engine keeps its shadow cascades and its tree of bounds for as
+      // long as nothing changed, and a still tanker rewriting its place every
+      // frame had every shadow redrawn every frame.
+      //
+      // Mutation: write the transform whether or not it moved.
+      final scene = Scene();
+      final tanker = _bridged(scene, position: Vector2(3.0, -8.0));
+      await game.add(tanker);
+      await game.ready();
+      game.update(1 / 60);
+
+      final epoch = SceneNode.changeEpoch;
+      for (var i = 0; i < 10; i++) {
+        game.update(1 / 60);
+      }
+      expect(SceneNode.changeEpoch, epoch, reason: 'nothing moved');
+
+      tanker.position.x = 4.0;
+      game.update(1 / 60);
+      expect(SceneNode.changeEpoch, greaterThan(epoch));
+      expect(tanker.node.readPosition().x, closeTo(4.0, 1e-6));
+    },
+  );
 }

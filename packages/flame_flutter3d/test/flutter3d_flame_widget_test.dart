@@ -12,6 +12,7 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_app/flutter3d_app.dart' show SceneSurface;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -72,5 +73,39 @@ void main() {
 
     expect(seen, same(device), reason: 'no second device should open');
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('a rebuild with another camera draws through it', (tester) async {
+    // A cut to a second camera, or a new sky, handed in from above: both
+    // went into the view once and a rebuild changed nothing on screen.
+    //
+    // Mutation: build the view once, in initState.
+    final device = CpuDevice(
+      width: 32,
+      height: 24,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final first = CameraNode(name: 'first');
+    final second = CameraNode(name: 'second');
+    final game = FlameGame();
+    final scene = Scene();
+
+    Widget host(CameraNode camera) => MaterialApp(
+      home: Flutter3dFlameWidget(
+        game: game,
+        camera: camera,
+        existing: (device: device, renderer: renderer),
+        buildScene: (_) => scene,
+      ),
+    );
+
+    await tester.pumpWidget(host(first));
+    await tester.pumpWidget(host(second));
+    await tester.pump();
+
+    final surface = tester.widget<SceneSurface>(find.byType(SceneSurface));
+    expect(surface.view.camera, same(second));
+    expect(scene.cameras, contains(second));
   });
 }

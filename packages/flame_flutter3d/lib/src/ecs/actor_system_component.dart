@@ -5,6 +5,7 @@ library;
 import 'package:flame/components.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../host/bridge_priority.dart';
 import 'actor_component.dart';
 
 /// The one place a bridged game's frame steps a shared [ActorSystem].
@@ -47,7 +48,7 @@ final class ActorSystemComponent extends Component {
     required this.focus,
     this.focusBody,
     FixedStep? step,
-    super.priority,
+    super.priority = BridgePriority.actors,
   }) : step = step ?? FixedStep();
 
   /// The actor system every [ActorComponent] in this game shares.

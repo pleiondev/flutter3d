@@ -4,6 +4,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show CameraRig;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
+import '../host/bridge_priority.dart';
 import '../transform/object3d_component.dart';
 
 /// A camera that follows a bridged component from where [offset] puts it,
@@ -88,7 +89,7 @@ final class ChaseCamera {
 /// order it by priority than call it from a tick. Give it a priority above
 /// whatever moves the target, so it follows this frame's move.
 final class ChaseCameraComponent extends Component {
-  ChaseCameraComponent(this.chase, {super.priority});
+  ChaseCameraComponent(this.chase, {super.priority = BridgePriority.camera});
 
   final ChaseCamera chase;
 

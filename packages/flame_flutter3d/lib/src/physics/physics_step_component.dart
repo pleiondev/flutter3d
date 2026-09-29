@@ -6,6 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
 
+import '../host/bridge_priority.dart';
 import 'rigid_body_component.dart';
 
 /// The one place a bridged game's frame steps its [Dynamics] and dispatches
@@ -49,7 +50,7 @@ final class PhysicsStepComponent extends Component {
     required this.world,
     this.afterStep,
     FixedStep? step,
-    super.priority,
+    super.priority = BridgePriority.physics,
   }) : step = step ?? FixedStep();
 
   /// The bodies this steps.

@@ -129,13 +129,32 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
 
   CameraNode get _camera => widget.camera ?? _owner!.camera3d;
 
-  late final RenderView _view = RenderView(
+  late RenderView _view = _viewFor();
+
+  RenderView _viewFor() => RenderView(
     camera: _camera,
     clearColor:
         widget.clearColor ??
         _owner?.clearColor ??
         Vector4(0.05, 0.05, 0.07, 1.0),
   );
+
+  /// **A new camera or a new clear colour is used.** Both went into the view
+  /// once, when this state was made, and a rebuild that handed in a
+  /// different camera, or a sky for the next level, changed nothing on
+  /// screen.
+  @override
+  void didUpdateWidget(Flutter3dFlameWidget old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.camera, widget.camera) ||
+        old.clearColor != widget.clearColor ||
+        !identical(old.game, widget.game)) {
+      final scene = _ready?.scene;
+      final camera = _camera;
+      if (scene != null && !scene.cameras.contains(camera)) scene.add(camera);
+      _view = _viewFor();
+    }
+  }
 
   /// The scene on [device]: built by [Flutter3dFlameWidget.buildScene] when
   /// given, opened by the game when it owns its world.
@@ -191,6 +210,20 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
   @override
   void initState() {
     super.initState();
+    assert(() {
+      // Not an assert that throws: a game that means to cover the 3D layer
+      // is allowed to, and one that does not is told why the screen is one
+      // colour.
+      if (widget.game.backgroundColor().a > 0.0) {
+        debugPrint(
+          'Flutter3dFlameWidget: ${widget.game.runtimeType} paints an opaque '
+          'background over the 3D layer, which will not be seen. Mix in '
+          'HasFlutter3d, extend TransparentFlameGame, or return a clear '
+          'colour from backgroundColor().',
+        );
+      }
+      return true;
+    }());
     final existing = widget.existing;
     if (existing != null) {
       // Already open: build the scene synchronously rather than through the

@@ -204,7 +204,7 @@ extension ArcadeGameStaging on ArcadeGame {
     )..priority = -50;
     ship.visual.add(mesh);
     wardrobe.dress(ship.visual, CraftRole.ship);
-    _colliderComponents[_shipBody.collider] = ship;
+    _colliderComponents.register(_shipBody.collider, ship);
 
     // The bridge listens on the sensor, not the hull: see [shipSensor] for
     // why the hull never reports a bot. The sensor also overlaps the hull
@@ -217,11 +217,7 @@ extension ArcadeGameStaging on ArcadeGame {
         kind: ColliderKind.trigger,
       ),
     );
-    CollisionBridge(
-      collider: shipSensor,
-      component: ship,
-      resolveOther: (Collider other) => _colliderComponents[other],
-    );
+    _colliderComponents.bridge(collider: shipSensor, component: ship);
     ship.onCollisionStartCallback =
         (Set<Vector2> points, PositionComponent other) {
           if (other is ActorComponent) _onShipHitBot(other);
@@ -305,7 +301,7 @@ extension ArcadeGameStaging on ArcadeGame {
       )..priority = -50;
       bot.visual.add(mesh);
       wardrobe.dress(bot.visual, hunter ? CraftRole.hunter : CraftRole.patrol);
-      _colliderComponents[body.collider] = bot;
+      _colliderComponents.register(body.collider, bot);
       bots.add(bot);
       add(bot);
     }

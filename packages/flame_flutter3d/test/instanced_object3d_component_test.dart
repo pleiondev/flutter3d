@@ -98,4 +98,31 @@ void main() {
     game.update(1 / 60);
     expect(_placeOf(batch, blinking.slot!.index).x, closeTo(3.0, 1e-6));
   });
+
+  testWithGame<FlameGame>(
+    'a still instance leaves its batch unchanged, and a moved one does not',
+    FlameGame.new,
+    (game) async {
+      // Mutation: write the slot whether or not the component moved.
+      final batch = _batch();
+      final shot = InstancedObject3dComponent(
+        batch: batch,
+        plane: BridgePlane.ground(),
+        position: Vector2(1.0, 0.0),
+      );
+      await game.add(shot);
+      await game.ready();
+      game.update(1 / 60);
+
+      final version = batch.dataVersion;
+      game.update(1 / 60);
+      game.update(1 / 60);
+      expect(batch.dataVersion, version);
+
+      shot.position.y = -5.0;
+      game.update(1 / 60);
+      expect(batch.dataVersion, greaterThan(version));
+      expect(_placeOf(batch, shot.slot!.index).z, closeTo(-5.0, 1e-6));
+    },
+  );
 }

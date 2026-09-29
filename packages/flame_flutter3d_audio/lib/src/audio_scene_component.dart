@@ -29,7 +29,7 @@ class AudioSceneComponent extends Component {
     required this.bank,
     this.maxVoices = 16,
     this.opener,
-    int priority = 1 << 19,
+    int priority = BridgePriority.audio,
   }) : super(priority: priority);
 
   /// Every sound the game can make, loaded when the speakers open.

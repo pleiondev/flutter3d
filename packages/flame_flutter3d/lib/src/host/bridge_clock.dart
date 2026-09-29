@@ -1,6 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 
+import 'bridge_priority.dart';
+
 /// The one place a bridged game's frame steps flutter3d's own systems,
 /// riding Flame's own game loop rather than a second ticker.
 ///
@@ -26,12 +28,7 @@ import 'package:flame/game.dart';
 /// caller's own game would plausibly use instead, so the order holds
 /// regardless of which of the two ever gets added first.
 final class BridgeClock extends Component {
-  BridgeClock({required this.onTick}) : super(priority: _lastPriority);
-
-  /// Larger than any priority a bridged game has reason to set — components
-  /// like `ActorSystemComponent` and `RigidBodyComponent` are stepped early,
-  /// with priorities in the tens or low hundreds, never anywhere near this.
-  static const int _lastPriority = 1 << 20;
+  BridgeClock({required this.onTick}) : super(priority: BridgePriority.clock);
 
   /// Called every time Flame updates this component, with Flame's own `dt`
   /// in seconds, not a second measurement of it: once a frame from the game

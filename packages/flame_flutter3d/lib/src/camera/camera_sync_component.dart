@@ -4,6 +4,7 @@ library;
 
 import 'package:flame/components.dart';
 
+import '../host/bridge_priority.dart';
 import '../transform/object3d_component.dart' show SyncDirection;
 import 'camera_sync_controller.dart';
 
@@ -22,7 +23,10 @@ import 'camera_sync_controller.dart';
 /// this wants a priority above the player's; a flutter3d camera moved by a
 /// physics step wants one above the step's.
 final class CameraSyncComponent extends Component {
-  CameraSyncComponent({required this.controller, super.priority});
+  CameraSyncComponent({
+    required this.controller,
+    super.priority = BridgePriority.camera,
+  });
 
   /// The controller advanced every [update].
   final CameraSyncController controller;

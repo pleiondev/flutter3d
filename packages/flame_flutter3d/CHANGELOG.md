@@ -81,6 +81,32 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A still prop costs nothing, and no shadow is redrawn for it.** A node's
+setters mark it changed whatever they are given, and the engine keeps its
+shadow cascades and its bounds tree only while nothing changed. Every
+bridged component rewrote its place every frame, twice, so one still
+tanker had every shadow redrawn every frame. `Object3dComponent` and
+`InstancedObject3dComponent` now write only when Flame's transform moved,
+without making a vector or a quaternion to do it; `BridgePlane.to3dInto`
+and `rotationInto` are the allocation-free forms. `rewriteScene` forces
+the next write for a caller that moved the node itself.
+
+**`BridgePriority` names the order a bridged frame runs in**: input, the
+actors, the physics, the game's own components at Flame's default, the
+camera, the sound, the clock. The bridge's components take those numbers
+by default; each game had picked its own (the arcade -120 and -110).
+
+**`ColliderRegistry` is the collider-to-component map every game with
+contacts kept by hand.** An entry leaves when its component leaves the
+game, and `bridge` makes a `CollisionBridge` that looks the other side up
+there. The arcade's own map went.
+
+**`Flutter3dFlameWidget` follows a rebuild.** A new camera or clear colour
+handed in from above is drawn with, and a new camera is added to the
+scene; both went into the view once and a rebuild changed nothing on
+screen. In a debug build it says so when the game paints an opaque
+background over the 3D layer, rather than leaving a screen of one colour.
+
 **Flame's opacity and a tint reach the 3D layer.** `Object3dComponent`
 is an `OpacityProvider`, so Flame's `OpacityEffect` fades every mesh under
 its node, and its `tint` colours them, through `MeshNode.tint`; a model

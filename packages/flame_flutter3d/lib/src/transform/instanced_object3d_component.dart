@@ -71,6 +71,8 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
   void onMount() {
     super.onMount();
     _slot = batch.acquire(color: color);
+    _writtenX = double.nan;
+    _writtenHidden = false;
     _write();
   }
 
@@ -98,14 +100,51 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
     if (slot != null && slot.live) batch.release(slot);
   }
 
+  /// Writes Flame's transform into the slot, and only when it moved or was
+  /// hidden or shown: a write marks the whole batch changed, bounds and
+  /// shadows with it, as a node's does. See `Object3dComponent`.
   void _write() {
     final slot = _slot;
     if (slot == null) return;
-    if (!shownInFlame(this)) {
+    final shown = shownInFlame(this);
+    if (!shown) {
+      if (_writtenHidden) return;
+      _writtenHidden = true;
+      _writtenX = double.nan;
       slot.setTransform(_transform..setZero());
       return;
     }
-    final s = absoluteScale;
+    final holder = parent;
+    final nested = holder is PositionComponent;
+    final double x;
+    final double y;
+    if (nested) {
+      final at = absolutePosition;
+      x = at.x;
+      y = at.y;
+    } else {
+      x = position.x;
+      y = position.y;
+    }
+    final turn = nested ? absoluteAngle : angle;
+    final s = nested ? absoluteScale : scale;
+    if (!_writtenHidden &&
+        x == _writtenX &&
+        y == _writtenY &&
+        turn == _writtenAngle &&
+        s.x == _writtenScaleX &&
+        s.y == _writtenScaleY &&
+        elevation == _writtenElevation) {
+      return;
+    }
+    _writtenHidden = false;
+    _writtenX = x;
+    _writtenY = y;
+    _writtenAngle = turn;
+    _writtenScaleX = s.x;
+    _writtenScaleY = s.y;
+    _writtenElevation = elevation;
+
     final across = (s.x.abs() + s.y.abs()) / 2.0;
     switch (plane.axis) {
       case PlaneAxis.y:
@@ -113,11 +152,20 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
       case PlaneAxis.z:
         _scale.setValues(s.x, s.y, across);
     }
-    _transform.setFromTranslationRotationScale(
-      scenePosition,
-      plane.rotationFor(absoluteAngle),
-      _scale,
-    );
+    plane
+      ..to3dInto(x, y, _place, at: plane.constant + elevation)
+      ..rotationInto(turn, _turn);
+    _transform.setFromTranslationRotationScale(_place, _turn, _scale);
     slot.setTransform(_transform);
   }
+
+  final Vector3 _place = Vector3.zero();
+  final Quaternion _turn = Quaternion.identity();
+  bool _writtenHidden = false;
+  double _writtenX = double.nan;
+  double _writtenY = double.nan;
+  double _writtenAngle = double.nan;
+  double _writtenScaleX = double.nan;
+  double _writtenScaleY = double.nan;
+  double _writtenElevation = double.nan;
 }

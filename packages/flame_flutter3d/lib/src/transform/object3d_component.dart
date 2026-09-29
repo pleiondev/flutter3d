@@ -211,11 +211,51 @@ class Object3dComponent extends PositionComponent
     }
   }
 
+  /// Writes Flame's transform into [node], and only when it moved.
+  ///
+  /// **Unchanged is not written.** A node's setters mark it changed whatever
+  /// they are given, and the engine reads that mark to decide whether its
+  /// shadow cascades and its tree of bounds are still good. A bridged prop
+  /// that never moved rewrote its place every frame, and one still tanker on
+  /// the river had every shadow redrawn every frame. So the transform is
+  /// compared with the one last written, and a component nested in nothing
+  /// reads its own fields rather than Flame's absolute ones, which are made
+  /// afresh on every read.
   void _writeScene() {
+    final holder = parent;
+    final nested = holder is PositionComponent;
+    final double x;
+    final double y;
+    if (nested) {
+      final at = absolutePosition;
+      x = at.x;
+      y = at.y;
+    } else {
+      x = position.x;
+      y = position.y;
+    }
+    final turn = nested ? absoluteAngle : angle;
+    final s = nested ? absoluteScale : scale;
+    if (x == _writtenX &&
+        y == _writtenY &&
+        turn == _writtenAngle &&
+        s.x == _writtenScaleX &&
+        s.y == _writtenScaleY &&
+        elevation == _writtenElevation) {
+      return;
+    }
+    _writtenX = x;
+    _writtenY = y;
+    _writtenAngle = turn;
+    _writtenScaleX = s.x;
+    _writtenScaleY = s.y;
+    _writtenElevation = elevation;
+
+    plane.to3dInto(x, y, _place, at: plane.constant + elevation);
+    plane.rotationInto(turn, _turn);
     node
-      ..setPositionFrom(scenePosition)
-      ..setRotation(plane.rotationFor(absoluteAngle));
-    final s = absoluteScale;
+      ..setPositionFrom(_place)
+      ..setRotation(_turn);
     final across = (s.x.abs() + s.y.abs()) / 2.0;
     switch (plane.axis) {
       case PlaneAxis.y:
@@ -224,6 +264,20 @@ class Object3dComponent extends PositionComponent
         node.setScale(s.x, s.y, across);
     }
   }
+
+  final Vector3 _place = Vector3.zero();
+  final Quaternion _turn = Quaternion.identity();
+  double _writtenX = double.nan;
+  double _writtenY = double.nan;
+  double _writtenAngle = double.nan;
+  double _writtenScaleX = double.nan;
+  double _writtenScaleY = double.nan;
+  double _writtenElevation = double.nan;
+
+  /// Forgets what was last written, so the next write happens whether or
+  /// not Flame's side moved: for a caller that moved [node] itself and
+  /// wants Flame's place put back.
+  void rewriteScene() => _writtenX = double.nan;
 
   /// The node's place, brought into this component's parent's own space
   /// when the parent is itself positioned.

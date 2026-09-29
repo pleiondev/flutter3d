@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../host/bridge_priority.dart';
+
 /// Feeds Flame's own keyboard and drag callbacks into the same
 /// [Bindings]/[InputState] pair `flutter3d_game`'s [DesktopInput] and
 /// [PadInput] already write into.
@@ -146,7 +148,8 @@ final class FlameInputBridge {
 /// viewport holds the stick: it reads the deflection the stick settled on
 /// last frame rather than racing the stick's own update to it.
 final class _JoystickFeed extends Component {
-  _JoystickFeed(this.stick, this.inputState) : super(priority: -(1 << 30));
+  _JoystickFeed(this.stick, this.inputState)
+    : super(priority: BridgePriority.input);
 
   final JoystickComponent stick;
   final InputState inputState;

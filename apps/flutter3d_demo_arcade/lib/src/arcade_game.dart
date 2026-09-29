@@ -152,13 +152,11 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// it, and a bot within a few centimetres of the hull overlaps it.
   late final Collider shipSensor;
 
-  /// Every collider this game knows a Flame component for, so
-  /// [CollisionBridge.resolveOther] can answer "who is the other side" for a
-  /// contact — a wall has no entry and is silently not reported, exactly as
-  /// [CollisionBridge]'s own doc says a bridge with nothing to hand over
-  /// should behave.
-  final Map<Collider, PositionComponent> _colliderComponents =
-      <Collider, PositionComponent>{};
+  /// Every collider this game knows a Flame component for, so a contact's
+  /// other side can be handed over: a wall has no entry and is silently not
+  /// reported, exactly as [CollisionBridge]'s own doc says a bridge with
+  /// nothing to hand over should behave.
+  final ColliderRegistry _colliderComponents = ColliderRegistry();
 
   /// The bots still in play. Shrinks as the ship rams them.
   final List<ActorComponent> bots = <ActorComponent>[];
@@ -300,7 +298,9 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
 
   void _removeBot(ActorComponent bot) {
     final body = bot.actor.body;
-    if (body != null) _colliderComponents.remove(body.collider);
+    // At once rather than when the bot leaves the tree, which is a frame
+    // later: nothing should be told it touched a bot already gone.
+    if (body != null) _colliderComponents.unregister(body.collider);
     wardrobe.forget(bot.visual);
     actorSystem.remove(bot.actor);
     bot.removeFromParent();
