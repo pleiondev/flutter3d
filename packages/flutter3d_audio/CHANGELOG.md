@@ -1,3 +1,16 @@
+## 0.8.1
+
+**A sound recorded below 32 kHz plays.** Every source had a low-pass open
+at 16 kHz, so a wall could dull a voice by moving its cutoff. SoLoud runs a
+voice's filters at the voice's own rate, the file's sample rate times its
+speed, and 16 kHz is past the Nyquist frequency of a 22.05 kHz file: the
+biquad's poles left the unit circle and the filter fed itself until it
+overflowed. A 22.05 kHz engine loop came out as a scream and every one-shot
+as silence. The backend now reads each file's sample rate from its WAV header
+(taking 44.1 kHz for anything else) and holds each voice's cutoff below nine
+tenths of its Nyquist frequency for the speed it is played at. A file at
+44.1 kHz or above keeps its 16 kHz.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

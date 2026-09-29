@@ -24,7 +24,7 @@ dependencies:
 
   # The sound: a scene of voices, a silent backend for the tests and until
   # the player's first input, SoLoud behind it after that.
-  flutter3d_audio: ^0.8.0
+  flutter3d_audio: ^0.8.1
 
   # `Bindings`, the key table `FlameInputBridge` translates through.
   flutter3d_game: ^0.8.0
