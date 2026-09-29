@@ -21,6 +21,11 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **`Renderer.debugLines` draws an application's own lines** beside the
+  ones `RenderSettings.debug` asks for, every frame, in the same pass: a
+  game's hitboxes, a path an agent means to walk. The scene cannot say
+  where a shape that lives in a game's own tree is, and the only way to see
+  one was a mesh made for the purpose. Null costs nothing.
 - **A long scene's near shadows do not stripe.** A near cascade reaches back
   to the furthest caster towards the sun, and its depth bias, kept in
   metres, shrinks in stored depth by as much. The map stores depth as a half

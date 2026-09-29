@@ -81,6 +81,22 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A tap lands on what the player sees.** Flame's `TapCallbacks` asks a
+component whether a point is inside it on the plane the game plays on,
+which under a perspective 3D camera is not where the component is drawn.
+`Tap3dCallbacks` on a bridged component hears `onTap3d` when a tap falls on
+the screen rectangle its node covers, through the game's projector, and a
+`Taps3dComponent` in a `HasFlutter3d` game hands each tap to the nearest
+such component under it, or lets it through to the rest of Flame.
+`BridgeProjector.boundsOf` gives the screen rectangle of a box.
+
+**Hitboxes can be seen where they are.** Flame's `debugMode` draws a hitbox
+flat on its own canvas, nowhere near a craft drawn in perspective.
+`HasFlutter3d.debugHitboxes3d` draws every bridged hitbox in the scene,
+round its craft at its height, green, and red while it collides;
+`addHitboxes3d` is the same for any `DebugDraw`. River Sortie shows them
+with `--dart-define=RIVER_HITBOXES=true`.
+
 **Physics and actors step in fixed steps.** `PhysicsStepComponent` and
 `ActorSystemComponent` passed Flame's `dt` straight to the solver, so the
 same jump reached a different height on a faster screen and a stalled frame

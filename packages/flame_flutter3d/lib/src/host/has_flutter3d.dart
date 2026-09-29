@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import '../debug/hitboxes3d.dart';
 import '../transform/projector.dart';
 
 /// A [FlameGame] that owns its 3D world: the scene, the camera it is seen
@@ -90,7 +91,26 @@ mixin HasFlutter3d on FlameGame {
   /// own use of it goes in [onRenderer3d].
   void attachRenderer(Renderer renderer) {
     _renderer = renderer;
+    if (_debugHitboxes3d) _applyDebugHitboxes();
     _openWhenReady();
+  }
+
+  /// Draws every bridged hitbox in the scene, where its craft is: see
+  /// [addHitboxes3d]. For looking at why a hit missed; off by default.
+  bool get debugHitboxes3d => _debugHitboxes3d;
+  set debugHitboxes3d(bool on) {
+    _debugHitboxes3d = on;
+    _applyDebugHitboxes();
+  }
+
+  bool _debugHitboxes3d = false;
+
+  void _applyDebugHitboxes() {
+    final drawing = _renderer;
+    if (drawing == null) return;
+    drawing.debugLines = _debugHitboxes3d
+        ? (DebugDraw lines) => addHitboxes3d(lines, this)
+        : null;
   }
 
   /// Uses the renderer: adds a contributor, hands it to a particle pool.

@@ -1803,7 +1803,9 @@ extension _PostPasses on Renderer {
         ..setScissor(full);
     }
 
-    if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
+    if (!settings.debug.anyEnabled &&
+        settings.highlighted.isEmpty &&
+        debugLines == null) {
       pass.submit();
       return (lines: 0, draws: draws);
     }

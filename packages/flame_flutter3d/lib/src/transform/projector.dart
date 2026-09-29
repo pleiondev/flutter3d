@@ -36,6 +36,20 @@ final class BridgeProjector {
     return at == null ? null : Vector2(at.x, at.y);
   }
 
+  /// The rectangle on the screen [box] covers, in logical pixels, or null
+  /// when all of it is behind the camera. A box partly behind it covers the
+  /// whole view, as `screenBoundsOfBox` explains.
+  ScreenBounds? boundsOf(Aabb3 box) {
+    final size = viewSize();
+    if (size.x <= 0.0 || size.y <= 0.0) return null;
+    return screenBoundsOfBox(
+      camera.viewProjection(size.x / size.y),
+      box,
+      width: size.x,
+      height: size.y,
+    );
+  }
+
   /// The point of [plane] under [screen], in Flame's coordinates on that
   /// plane, or null when the ray from the camera through it never meets
   /// the plane in front of the camera: a touch on the sky.

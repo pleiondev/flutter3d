@@ -1155,6 +1155,11 @@ const Map<String, String> boundaryEnumPackageExempt = <String, String>{
 /// file that stops being one of those stops being exempt.
 const Map<String, Map<String, String>> portableStepExempt =
     <String, Map<String, String>>{
+      'flame_flutter3d': <String, String>{
+        'lib/src/debug/hitboxes3d.dart':
+            'rings drawn round hitboxes for a person to look at; nothing steps '
+            'on a debug line',
+      },
       'flutter3d_sim': <String, String>{
         'lib/src/camera/camera_rig.dart':
             'a camera is where the picture is taken from; no run depends on it',

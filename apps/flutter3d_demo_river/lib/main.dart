@@ -73,6 +73,9 @@ class _RiverScreenState extends State<RiverScreen> {
     super.initState();
     if (hasTouchControls(defaultTargetPlatform)) _game.addTouchControls();
     _game.onFirstFlight = () => unawaited(_openAudio());
+    // `--dart-define=RIVER_HITBOXES=true` draws every hitbox in the scene,
+    // round the craft it belongs to.
+    _game.debugHitboxes3d = const bool.fromEnvironment('RIVER_HITBOXES');
   }
 
   /// Opens the speakers, or leaves the game silent if they will not open.

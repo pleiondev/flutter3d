@@ -645,6 +645,17 @@ final class Renderer implements RenderServices {
   /// Reused across frames, so a steady overlay allocates nothing.
   final DebugDraw debugDraw = DebugDraw();
 
+  /// Lines of the application's own, added to [debugDraw] every frame after
+  /// the ones [RenderSettings.debug] asks for, and drawn with them: a game's
+  /// hitboxes, a path an agent means to walk, a ray a gun just cast.
+  ///
+  /// **For what the scene cannot say about itself.** The built-in overlay
+  /// draws what nodes, lights and cameras are; a collision shape that lives
+  /// in a game's own tree, or in another engine's, is not in the scene, and
+  /// the only way to see it where it is was a mesh made for the purpose.
+  /// Null draws nothing extra, and costs nothing.
+  void Function(DebugDraw lines)? debugLines;
+
   /// The scene's lights, repacked once per view.
   final LightBuffer lights = LightBuffer();
 
@@ -4907,7 +4918,10 @@ final class Renderer implements RenderServices {
     required double aspect,
     required RenderSettings settings,
   }) {
-    if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
+    final extra = debugLines;
+    if (!settings.debug.anyEnabled &&
+        settings.highlighted.isEmpty &&
+        extra == null) {
       return false;
     }
 
@@ -4919,6 +4933,7 @@ final class Renderer implements RenderServices {
       aspect: aspect,
       highlighted: settings.highlighted,
     );
+    extra?.call(debugDraw);
     // Trimmed to what the camera can see before it is uploaded — see
     // [DebugDraw.clipToNearPlane]. A line list goes straight to the hardware,
     // so the near plane is the engine's to respect.
