@@ -108,6 +108,15 @@ played once a game.
 into `HasFlutter3d.fog3d`, which the game's default settings draw with; a
 game had to know to read it across by hand.
 
+**An actor turns between its steps.** `ActorComponent` draws its facing
+the same fraction of the way between two steps as its place, the short way
+round; the place glided and the facing clicked. Added back, an actor or a
+body draws from where it is, not from where it was when it went.
+
+**Nothing behind an orthographic camera is on the screen.**
+`BridgeProjector.toScreen` returns null for a point behind an orthographic
+camera, as it did for a perspective one.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

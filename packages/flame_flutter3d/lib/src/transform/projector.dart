@@ -24,9 +24,18 @@ final class BridgeProjector {
 
   /// Where [point] is drawn, in logical pixels from the top left, or null
   /// when it is behind the camera.
+  ///
+  /// **Behind an orthographic camera too.** A perspective projection
+  /// divides by depth and sends a point behind the eye away; an orthographic
+  /// one does not, and a point behind it came back drawn as if in front.
+  /// It is asked of the camera's own space.
   Vector2? toScreen(Vector3 point) {
     final size = viewSize();
     if (size.x <= 0.0 || size.y <= 0.0) return null;
+    if (camera.projection is OrthographicProjection &&
+        camera.viewMatrix.transformed3(point).z > 0.0) {
+      return null;
+    }
     final at = projectPoint(
       camera.viewProjection(size.x / size.y),
       point,

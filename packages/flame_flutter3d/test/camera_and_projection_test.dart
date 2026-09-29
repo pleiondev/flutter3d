@@ -188,4 +188,20 @@ void main() {
       expect(input.inputState.held(fire), isFalse);
     });
   });
+
+  test('a point behind an orthographic camera is drawn nowhere', () {
+    // An orthographic projection does not divide by depth, and a point
+    // behind the camera came back drawn as if it were in front.
+    //
+    // Mutation: ask only the projection.
+    final eye = CameraNode(projection: const OrthographicProjection(height: 20))
+      ..setPosition(0.0, 10.0, 0.0)
+      ..lookAt(Vector3(0.0, 0.0, 0.0001));
+    final projector = BridgeProjector(
+      camera: eye,
+      viewSize: () => Vector2(200.0, 200.0),
+    );
+    expect(projector.toScreen(Vector3(1.0, 0.0, 1.0)), isNotNull);
+    expect(projector.toScreen(Vector3(1.0, 20.0, 1.0)), isNull);
+  });
 }

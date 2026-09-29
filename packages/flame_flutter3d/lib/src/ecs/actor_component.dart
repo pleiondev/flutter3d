@@ -75,20 +75,25 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();
+  double _yawBefore = 0.0;
   bool _remembered = false;
 
-  /// Keeps where the actor's body is now as where it was before the next
-  /// step. Called by [stepper] before each step.
+  /// Keeps where the actor's body is now, and which way it faces, as where
+  /// it was before the next step. Called by [stepper] before each step.
   void rememberPlace() {
     final body = actor.body;
     if (body == null) return;
     _before.setFrom(body.position);
+    _yawBefore = actor.yaw;
     _remembered = true;
   }
 
   @override
   void onMount() {
     super.onMount();
+    // Added again, it draws from where the body is, not from where it was
+    // when it went.
+    _remembered = false;
     stepper?.follow(this);
   }
 
@@ -122,10 +127,24 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
       } else if (body != null) {
         placeNode(body.position);
       }
+      // Turned between its steps as it is moved between them: a bot's place
+      // glided and its facing clicked round sixty times a second.
       if (actor.facing != null) {
-        turnNodeTo(actor.yaw);
+        turnNodeTo(
+          steps != null && _remembered
+              ? _between(_yawBefore, actor.yaw, steps.alpha)
+              : actor.yaw,
+        );
       }
     }
     super.update(dt);
+  }
+
+  /// [t] of the way from angle [a] to angle [b], the short way round.
+  static double _between(double a, double b, double t) {
+    const whole = 6.283185307179586;
+    var turn = (b - a) % whole;
+    if (turn > whole / 2.0) turn -= whole;
+    return a + turn * t;
   }
 }
