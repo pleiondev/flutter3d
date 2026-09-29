@@ -32,7 +32,8 @@
   first, being furthest, and left a wall of fog colour.
 - **`CellGrid` is a grid of cells there or gone**, from a picture of `#`s,
   worn away by `clear` and `clearAround` and drawn by `mesh` as one merged
-  mesh of blocks: a Space Invaders shield.
+  mesh of blocks: a Space Invaders shield. `set` grows one as well, for a
+  trail laid behind a cycle or a wall read from a level.
 - **`LineStripNode` is a line that grows a point at a time**, written in
   place in a mesh with room for all of it, letting go of its oldest point
   when full, and bounded by its points rather than by the empty line it

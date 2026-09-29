@@ -62,6 +62,23 @@ final class CellGrid {
     return true;
   }
 
+  /// Puts cell ([column], [row]) there, or takes it away when [alive] is
+  /// false. True when that changed it; a cell outside the grid is left.
+  ///
+  /// **Grown as well as worn.** A trail laid behind a cycle, a wall read
+  /// from a level: a grid that could only lose cells was built once from a
+  /// mask and never had one added.
+  bool set(int column, int row, {bool alive = true}) {
+    if (column < 0 || row < 0 || column >= columns || row >= rows) {
+      return false;
+    }
+    final at = row * columns + column;
+    final value = alive ? 1 : 0;
+    if (_alive[at] == value) return false;
+    _alive[at] = value;
+    return true;
+  }
+
   /// Takes away every cell whose middle is within [radius] metres of
   /// ([x], [y]), measured from the grid's corner. How many went.
   int clearAround(double x, double y, double radius) {

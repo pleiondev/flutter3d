@@ -630,6 +630,12 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flame_flutter3d/lib/src/world/grid_mover.dart': <String, String>{
+    'GridHeading':
+        'the four ways out of a square cell and standing still. A fifth '
+        'would not be a heading this grid is missing — a square cell has '
+        'no other side to leave by',
+  },
   'flutter3d_lti/lib/src/lti_launch_claims.dart': <String, String>{
     'LtiMessageType':
         "the IMS LTI 1.3 core spec's own closed set of message types "

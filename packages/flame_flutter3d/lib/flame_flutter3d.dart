@@ -43,5 +43,6 @@ export 'src/transform/projector.dart';
 export 'src/world/atmosphere_component.dart';
 export 'src/world/cell_grid_component.dart';
 export 'src/world/chunk_streamer.dart';
+export 'src/world/grid_mover.dart';
 export 'src/world/trail_component.dart';
 export 'src/world/wrap_space.dart';

@@ -173,6 +173,18 @@ again on every step after. Written into the collider by hand, the lift moved
 and its passenger stayed. `BridgePriority.kinematic` runs it before the
 actors and the physics.
 
+**A grid is a world to move and collide in.** `CellGridComponent` can draw
+its cells `instanced`, each a slot in one batch, so a cell taken or put back
+is one slot rather than the whole grid rebuilt: a field dug a cell at a time
+rebuilt thousands of blocks for each swing of the spade. With `hitboxes`,
+each cell has a solid, passive Flame hitbox of its own, taken with it, so
+Flame's own collision and raycast meet the walls. `setCell` grows a grid as
+well as wears it, and `cellAt` and `centreOf` turn points into cells and
+back. `GridMover` is a behaviour that walks its parent from the middle of
+one cell to the next: a turn asked for is kept until a junction opens to
+it, a turn back is taken at once, a wall stops it, and with `wraps` a way
+off one edge comes in at the other.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

@@ -38,4 +38,15 @@ void main() {
       ..clear(0, 1);
     expect(grid.mesh(place: (x, y) => Vector3(x, 0.0, y)), isNull);
   });
+
+  test('a cell can be put back, and outside the grid nothing changes', () {
+    // Mutation: let set only take cells away.
+    final grid = CellGrid(columns: 3, rows: 2);
+    expect(grid.set(1, 1), isTrue);
+    expect(grid.isAlive(1, 1), isTrue);
+    expect(grid.set(1, 1), isFalse, reason: 'already there');
+    expect(grid.set(1, 1, alive: false), isTrue);
+    expect(grid.count, 0);
+    expect(grid.set(5, 0), isFalse);
+  });
 }
