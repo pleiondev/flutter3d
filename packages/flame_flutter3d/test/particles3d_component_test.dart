@@ -97,6 +97,17 @@ void main() {
         renderer.contributors.all.whereType<MeshParticleContributor>(),
         isEmpty,
       );
+
+      // Added back, it is drawn again as it was.
+      //
+      // Mutation: forget the drawing when it is removed.
+      await game.add(particles);
+      await game.ready();
+      expect(renderer.contributors.all, hasLength(1));
+      expect(
+        (renderer.contributors.all.single as MeshParticleContributor).blend,
+        MeshParticleContributor.darkening,
+      );
     },
   );
 }

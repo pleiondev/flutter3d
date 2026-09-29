@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 
 /// What opening the speakers gives: the scene to play into, and how to
@@ -53,25 +54,108 @@ class AudioSceneComponent extends Component {
   Future<void> Function()? _close;
   Future<void>? _opening;
 
+  /// Bumped by [close], so an [open] still waiting on the device when the
+  /// game closed its sound knows it has been overtaken.
+  int _generation = 0;
+
   /// Whether the speakers are open.
   bool get isOpen => _close != null;
 
   /// Opens the speakers and plays through them from the next frame. Call it
   /// from the player's first key, touch or button. Twice is once; a device
   /// that will not open leaves the game silent, which is a way to play.
+  ///
+  /// **A refusal can be asked again.** A browser refuses a page sound before
+  /// the player has touched it, and an [open] refused once stayed refused
+  /// for the rest of the game: the next key asks again. A [close] made
+  /// while the device was still opening wins: the device is closed as soon
+  /// as it arrives.
   Future<void> open() => _opening ??= _open();
 
   Future<void> _open() async {
+    final asked = _generation;
     final opened = await (opener ?? _openSpeakers)();
-    if (opened == null) return;
-    if (isRemoved || isRemoving) {
-      // Gone while the device was opening: nothing will close it after this.
+    if (opened == null) {
+      if (asked == _generation) _opening = null;
+      return;
+    }
+    if (isRemoved || isRemoving || asked != _generation) {
+      // Gone, or closed, while the device was opening: nothing will close it
+      // after this.
       await opened.close();
       return;
     }
     _scene.stopAll();
     _scene = opened.scene;
     _close = opened.close;
+    if (_paused) _hush(_scene);
+  }
+
+  bool _paused = false;
+  double _volume = 1.0;
+
+  /// Whether [pause] has silenced the game.
+  bool get isPaused => _paused;
+
+  /// Silences every sound where it is, loops included, until [resume].
+  ///
+  /// **For a paused game.** Flame stops updating a paused game, this with
+  /// it, and whatever was sounding went on sounding at its last loudness:
+  /// an engine droning under the pause menu. A game that pauses its engine
+  /// calls this; a game sent to the background is paused here by itself.
+  void pause() {
+    if (_paused) return;
+    _paused = true;
+    _volume = _scene.mixer.volumeOf(AudioBus.master);
+    _hush(_scene);
+  }
+
+  /// Brings back what [pause] silenced, at the volume it had.
+  void resume() {
+    if (!_paused) return;
+    _paused = false;
+    _scene.mixer.setVolume(AudioBus.master, _volume);
+    _scene.update(listener);
+  }
+
+  /// Turns [scene] down to nothing and applies it at once: no update runs
+  /// while the game is paused to apply it later.
+  void _hush(AudioScene scene) {
+    scene.mixer.setVolume(AudioBus.master, 0.0);
+    scene.update(listener);
+  }
+
+  AppLifecycleListener? _lifecycle;
+  bool _pausedByLifecycle = false;
+
+  @override
+  void onMount() {
+    super.onMount();
+    _lifecycle = _listen();
+  }
+
+  /// Null where there is no app to leave: a game stepped in a plain Dart
+  /// test, with no widgets binding.
+  AppLifecycleListener? _listen() {
+    final WidgetsBinding binding;
+    try {
+      binding = WidgetsBinding.instance;
+    } on Object {
+      return null;
+    }
+    return AppLifecycleListener(
+      binding: binding,
+      onHide: () {
+        if (_paused) return;
+        _pausedByLifecycle = true;
+        pause();
+      },
+      onShow: () {
+        if (!_pausedByLifecycle) return;
+        _pausedByLifecycle = false;
+        resume();
+      },
+    );
   }
 
   Future<OpenedSpeakers?> _openSpeakers() async {
@@ -87,6 +171,7 @@ class AudioSceneComponent extends Component {
   /// Closes the speakers, if they are open. The game goes on, silent.
   Future<void> close() async {
     final closing = _close;
+    _generation++;
     _close = null;
     _opening = null;
     _scene.stopAll();
@@ -111,6 +196,8 @@ class AudioSceneComponent extends Component {
 
   @override
   void onRemove() {
+    _lifecycle?.dispose();
+    _lifecycle = null;
     close();
     super.onRemove();
   }

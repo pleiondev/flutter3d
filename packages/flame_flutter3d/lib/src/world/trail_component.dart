@@ -52,6 +52,14 @@ class TrailComponent extends Component {
     _line = line;
   }
 
+  /// How far the component may move in one frame before the trail breaks
+  /// rather than drawing a line across: a jump across a wrapped world's
+  /// seam, a respawn. Null never breaks.
+  double? breakAt;
+
+  /// Starts the trail afresh from where the component is.
+  void reset() => _line?.clear();
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -60,8 +68,28 @@ class TrailComponent extends Component {
     if (line == null || owner is! Object3dComponent) return;
     final at = owner.scenePosition;
     final points = line.points;
+    final jump = breakAt;
+    if (points.isNotEmpty &&
+        jump != null &&
+        points.last.distanceTo(at) > jump) {
+      line.clear();
+    }
     if (points.isEmpty || points.last.distanceTo(at) >= spacing) {
       line.append(at);
+    }
+  }
+
+  /// **The line is as wide after a resize as before.** A polyline widens
+  /// against the size it was told the screen is, and a trail made at one
+  /// window size went thin or fat at the next.
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    final viewport = _line?.material.polylineViewport;
+    if (viewport != null) {
+      viewport
+        ..[0] = size.x
+        ..[1] = size.y;
     }
   }
 

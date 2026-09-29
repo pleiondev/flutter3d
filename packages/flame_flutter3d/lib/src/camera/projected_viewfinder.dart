@@ -14,8 +14,18 @@ import '../transform/projector.dart';
 /// point metres away from it, and a component's `TapCallbacks`, a
 /// `camera.globalToLocal` in the game's own code, and Flame's hit test all
 /// missed. Here a screen point becomes the point of [plane] under it, found
-/// by [projector], and a plane point becomes where it is drawn. A point
-/// that meets no plane, the sky, comes back as NaN and hits nothing.
+/// by [projector], and a plane point becomes where it is drawn.
+///
+/// **The sky is the horizon.** A point that meets no plane came back as NaN,
+/// and Flame's `World` takes every point: its tap handlers were handed NaN,
+/// and a drag that strayed above the horizon moved its component to NaN for
+/// good. It now comes back as the plane point out at the horizon in that
+/// direction, which is far, finite, and where a drag would have been going.
+///
+/// **Any viewport.** Flame hands a viewfinder points in its viewport's own
+/// frame, and the projector works in the canvas both layers share; a
+/// `FixedResolutionViewport`, or one placed off the corner, put every tap
+/// somewhere else. Points are brought into the canvas first, and back.
 ///
 /// **Events and conversions, not drawing.** Flame still draws its world
 /// through the affine transform; a bridged game draws its world in 3D and
@@ -34,9 +44,15 @@ class ProjectedViewfinder extends Viewfinder {
   /// Between the 3D camera and the screen.
   final BridgeProjector projector;
 
+  Viewport? get _viewport => switch (parent) {
+    final CameraComponent camera => camera.viewport,
+    _ => null,
+  };
+
   @override
   Vector2 globalToLocal(Vector2 point, {Vector2? output}) {
-    final onPlane = projector.onPlane(point, plane);
+    final canvas = _viewport?.localToGlobal(point) ?? point;
+    final onPlane = projector.onPlaneOrHorizon(canvas, plane);
     final result = output ?? Vector2.zero();
     if (onPlane == null) {
       return result..setValues(double.nan, double.nan);
@@ -51,6 +67,6 @@ class ProjectedViewfinder extends Viewfinder {
     if (screen == null) {
       return result..setValues(double.nan, double.nan);
     }
-    return result..setFrom(screen);
+    return result..setFrom(_viewport?.globalToLocal(screen) ?? screen);
   }
 }

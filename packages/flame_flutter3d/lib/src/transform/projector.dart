@@ -54,6 +54,33 @@ final class BridgeProjector {
   /// plane, or null when the ray from the camera through it never meets
   /// the plane in front of the camera: a touch on the sky.
   Vector2? onPlane(Vector2 screen, BridgePlane plane) {
+    final ray = _ray(screen);
+    if (ray == null) return null;
+    final (near, far) = ray;
+    final normal = plane.normal;
+    final start = near.dot(normal);
+    final run = far.dot(normal) - start;
+    if (run.abs() < 1e-12) return null;
+    final t = (plane.constant - start) / run;
+    if (t < 0.0) return null;
+    // Parenthesised: a cascade binds to the whole sum, and `near + (far -
+    // near)..scale(t)` scaled the far point instead of the step towards it.
+    return plane.to2d(near + ((far - near)..scale(t)));
+  }
+
+  /// [onPlane], or for a touch on the sky the point of [plane] straight
+  /// under where the ray leaves the view: out at the horizon, in the
+  /// direction the finger points. Finite either way, for what cannot take a
+  /// NaN, a drag that strays above the horizon say.
+  Vector2? onPlaneOrHorizon(Vector2 screen, BridgePlane plane) {
+    final hit = onPlane(screen, plane);
+    if (hit != null) return hit;
+    final ray = _ray(screen);
+    return ray == null ? null : plane.to2d(ray.$2);
+  }
+
+  /// The near and far ends of the ray through [screen].
+  (Vector3, Vector3)? _ray(Vector2 screen) {
     final size = viewSize();
     if (size.x <= 0.0 || size.y <= 0.0) return null;
     final inverse = Matrix4.copy(camera.viewProjection(size.x / size.y));
@@ -65,16 +92,7 @@ final class BridgeProjector {
     final near = _unproject(inverse, ndcX, ndcY, 0.0);
     final far = _unproject(inverse, ndcX, ndcY, 1.0);
     if (near == null || far == null) return null;
-
-    final normal = plane.normal;
-    final start = near.dot(normal);
-    final run = far.dot(normal) - start;
-    if (run.abs() < 1e-12) return null;
-    final t = (plane.constant - start) / run;
-    if (t < 0.0) return null;
-    // Parenthesised: a cascade binds to the whole sum, and `near + (far -
-    // near)..scale(t)` scaled the far point instead of the step towards it.
-    return plane.to2d(near + ((far - near)..scale(t)));
+    return (near, far);
   }
 
   static Vector3? _unproject(Matrix4 inverse, double x, double y, double z) {

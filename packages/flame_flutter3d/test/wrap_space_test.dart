@@ -30,11 +30,13 @@ final class _Rock extends Object3dComponent with CollisionCallbacks {
       );
 
   PositionComponent? hitBy;
+  int starts = 0;
 
   @override
   void onCollisionStart(Set<Vector2> points, PositionComponent other) {
     super.onCollisionStart(points, other);
     hitBy = other;
+    starts++;
   }
 }
 
@@ -102,6 +104,70 @@ void main() {
         await game.ready();
       }
       expect(rock.hitBy, same(shot));
+    },
+  );
+
+  for (final (name, a, b) in <(String, Vector2, Vector2)>[
+    ('by the same edge', Vector2(9.6, 0.0), Vector2(9.9, 0.3)),
+    ('across the seam', Vector2(9.8, 0.0), Vector2(-9.9, 0.0)),
+    ('in opposite corners', Vector2(9.8, 9.8), Vector2(-9.9, -9.9)),
+  ]) {
+    testWithGame<_Game>('two rocks $name are told they met once', _Game.new, (
+      game,
+    ) async {
+      // Two by the same edge met really and through their ghosts, two across
+      // the seam through each one's ghost, and every hit counted twice.
+      //
+      // Mutation: let ghosts meet ghosts, and both mirrored ghosts meet.
+      final scene = Scene();
+      final space = _space(scene);
+      final first = _Rock(scene, a);
+      final second = _Rock(scene, b);
+      await space.addAll(<Component>[first, second]);
+      await game.add(space);
+      await game.ready();
+      for (var i = 0; i < 3; i++) {
+        game.update(1 / 60);
+        await game.ready();
+      }
+      expect(first.starts, 1);
+      expect(second.starts, 1);
+    });
+  }
+
+  testWithGame<_Game>(
+    'a passive rock\'s ghost is passive, and a polygon stays a polygon',
+    _Game.new,
+    (game) async {
+      final scene = Scene();
+      final space = _space(scene);
+      final rock = _Rock(scene, Vector2(9.7, 0.0));
+      rock.children.whereType<RectangleHitbox>().single.collisionType =
+          CollisionType.passive;
+      await rock.add(
+        PolygonHitbox(<Vector2>[
+          Vector2(0.0, 0.0),
+          Vector2(1.0, 0.0),
+          Vector2(0.5, 1.0),
+        ]),
+      );
+      space.add(rock);
+      await game.add(space);
+      await game.ready();
+      game.update(1 / 60);
+      await game.ready();
+
+      final hitboxes = rock.children.whereType<ShapeHitbox>().toList();
+      expect(hitboxes, hasLength(4), reason: 'two, and a ghost of each');
+      expect(
+        hitboxes.whereType<PolygonHitbox>(),
+        hasLength(2),
+        reason: 'the ghost of a triangle is a triangle',
+      );
+      expect(
+        hitboxes.whereType<RectangleHitbox>().map((h) => h.collisionType),
+        everyElement(CollisionType.passive),
+      );
     },
   );
 }

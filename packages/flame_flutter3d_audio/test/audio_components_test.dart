@@ -172,4 +172,136 @@ void main() {
       expect(speakers.backend.live, hasLength(1));
     },
   );
+
+  testWithGame<FlameGame>(
+    'speakers refused once are asked again on the next open',
+    FlameGame.new,
+    (game) async {
+      // A browser refuses sound before the first touch, and a refusal
+      // stayed for the rest of the game.
+      //
+      // Mutation: keep the finished open.
+      final speakers = _Speakers();
+      var refuse = true;
+      final audio = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_engine]),
+        opener: () async => refuse ? null : speakers.open(),
+      );
+      await game.add(audio);
+      await game.ready();
+
+      await audio.open();
+      expect(audio.isOpen, isFalse);
+      refuse = false;
+      await audio.open();
+      expect(audio.isOpen, isTrue);
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'closed while the device is opening, it stays closed',
+    FlameGame.new,
+    (game) async {
+      // Mutation: install whatever arrives.
+      final speakers = _Speakers();
+      final audio = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_engine]),
+        opener: () async {
+          await Future<void>.delayed(Duration.zero);
+          return speakers.open();
+        },
+      );
+      await game.add(audio);
+      await game.ready();
+
+      final opening = audio.open();
+      await audio.close();
+      await opening;
+      expect(audio.isOpen, isFalse);
+      expect(speakers.closed, isTrue, reason: 'the late device is let go');
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'paused, every loop falls silent at once, and comes back on resume',
+    FlameGame.new,
+    (game) async {
+      // A paused game is not updated, and the engine droned on under the
+      // pause menu at its last loudness.
+      //
+      // Mutation: turn the mix down and wait for an update to apply it.
+      final speakers = _Speakers();
+      final audio = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_engine]),
+        opener: speakers.open,
+      );
+      await game.addAll(<Component>[audio, SoundEmitterComponent(_engine)]);
+      await game.ready();
+      await audio.open();
+      game.update(1 / 60);
+      final voice = speakers.backend.live.single;
+      final loud = voice.gain;
+      expect(loud, greaterThan(0.0));
+
+      audio.pause();
+      expect(voice.gain, 0.0);
+      expect(voice.alive, isTrue, reason: 'held, not stopped');
+
+      audio.resume();
+      expect(voice.gain, closeTo(loud, 1e-9));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'a new sound for the game is found by the loops already playing',
+    FlameGame.new,
+    (game) async {
+      // A restarted level with a new AudioSceneComponent was silent: the
+      // loops played on into the old one.
+      //
+      // Mutation: keep the first sound found for good.
+      final first = _Speakers();
+      final second = _Speakers();
+      final old = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_engine]),
+        opener: first.open,
+      );
+      await game.addAll(<Component>[old, SoundEmitterComponent(_engine)]);
+      await game.ready();
+      await old.open();
+      game.update(1 / 60);
+
+      old.removeFromParent();
+      final fresh = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_engine]),
+        opener: second.open,
+      );
+      await game.add(fresh);
+      await game.ready();
+      await fresh.open();
+      for (var i = 0; i < 30; i++) {
+        game.update(1 / 60);
+      }
+      expect(second.backend.live, hasLength(1));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'a one-shot is not played again when the speakers open',
+    FlameGame.new,
+    (game) async {
+      // Mutation: start it again on every new scene.
+      final speakers = _Speakers();
+      final audio = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_boom]),
+        opener: speakers.open,
+      );
+      await game.addAll(<Component>[audio, SoundEmitterComponent(_boom)]);
+      await game.ready();
+      game.update(1 / 60);
+      await audio.open();
+      game.update(1 / 60);
+      expect(speakers.backend.started, isEmpty);
+    },
+  );
 }

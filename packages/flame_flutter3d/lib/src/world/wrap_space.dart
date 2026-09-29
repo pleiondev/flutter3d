@@ -20,6 +20,19 @@ import '../transform/object3d_component.dart';
 /// contact across the seam and reports it to the child itself, in its own
 /// `onCollision`. Children are the bridged components added to this one.
 ///
+/// **One contact is one callback.** Two craft by the same edge touch twice,
+/// really and through their ghosts, and two by opposite edges touch through
+/// each one's ghost; each pair reported its hit twice, and a rock took
+/// double damage. A ghost never meets another ghost, and of two ghosts
+/// that stand for the same meeting only one takes part. A ghost has its
+/// owner's hitbox's collision type, solidity and shape, polygons included.
+///
+/// **Drawn as it is now.** A ghost's meshes take their owner's tint and
+/// opacity every frame, so a hit flash or a fade shows on both sides.
+///
+/// Children placed from the scene side, bodies stepped by physics, are not
+/// wrapped here: their place is the body's, and the game wraps the body.
+///
 /// [min] and [max] are the world's corners in Flame's coordinates.
 class WrapSpace extends Component {
   WrapSpace({
@@ -81,7 +94,10 @@ class WrapSpace extends Component {
     for (final child in children.whereType<Object3dComponent>()) {
       if (child.isRemoving) continue;
       seen.add(child);
-      final ghosts = _ghosts.putIfAbsent(child, () => _Ghosts(child, scene));
+      final ghosts = _ghosts.putIfAbsent(
+        child,
+        () => _Ghosts(child, scene, this),
+      );
       ghosts.follow(_offsetsFor(child.position));
     }
     for (final gone in _ghosts.keys.where((c) => !seen.contains(c)).toList()) {
@@ -97,6 +113,11 @@ class WrapSpace extends Component {
     _ghosts.clear();
     super.onRemove();
   }
+
+  /// Whether [owner] has a ghost [dx], [dy] across: then a meeting of that
+  /// ghost with a real hitbox stands for the same one as the reverse.
+  bool _hasGhost(Object3dComponent owner, double dx, double dy) =>
+      _ghosts[owner]?._byOffset.containsKey((dx, dy)) ?? false;
 
   /// The world-sized steps across which [p] needs a ghost: none in the
   /// middle, one by an edge, three in a corner.
@@ -120,10 +141,11 @@ class WrapSpace extends Component {
 
 /// One child's ghosts: a copy of its drawing and of its hitboxes per offset.
 final class _Ghosts {
-  _Ghosts(this.owner, this.scene);
+  _Ghosts(this.owner, this.scene, this.space);
 
   final Object3dComponent owner;
   final Scene scene;
+  final WrapSpace space;
   final Map<(double, double), _Ghost> _byOffset = <(double, double), _Ghost>{};
 
   void follow(List<Vector2> offsets) {
@@ -136,7 +158,7 @@ final class _Ghosts {
       _byOffset.putIfAbsent((
         offset.x,
         offset.y,
-      ), () => _Ghost(owner, scene, offset)).follow();
+      ), () => _Ghost(owner, scene, space, offset)).follow();
     }
   }
 
@@ -150,12 +172,13 @@ final class _Ghosts {
 
 /// A copy of [owner]'s drawing and hitboxes, [offset] across the world.
 final class _Ghost {
-  _Ghost(this.owner, this.scene, Vector2 offset)
+  _Ghost(this.owner, this.scene, this.space, Vector2 offset)
     : offset = offset.clone(),
       _step = owner.plane.to3d(offset, at: 0.0);
 
   final Object3dComponent owner;
   final Scene scene;
+  final WrapSpace space;
   final Vector2 offset;
   final Vector3 _step;
 
@@ -186,12 +209,38 @@ final class _Ghost {
       ..visible = owner.node.visible;
     final s = owner.node.readScale();
     drawing.setScale(s.x, s.y, s.z);
+    _tint(owner.node, drawing);
+  }
+
+  /// Copies each mesh's tint onto its copy, the two trees being the same
+  /// shape: a hit flash or a fade out shows on the ghost too.
+  static void _tint(SceneNode from, SceneNode to) {
+    if (from is MeshNode && to is MeshNode && to.tint != from.tint) {
+      to.tint.setFrom(from.tint);
+    }
+    final a = from.childrenView;
+    final b = to.childrenView;
+    for (var i = 0; i < a.length && i < b.length; i++) {
+      _tint(a.elementAt(i), b.elementAt(i));
+    }
+  }
+
+  /// Whether a meeting of this ghost with [other] is told to [owner]. Never
+  /// one with another ghost: the real hitboxes, or a real one and a ghost,
+  /// meet as well and tell it. Nor one with a real hitbox of a child that
+  /// has the ghost opposite this one: that ghost meets [owner]'s real
+  /// hitbox, and [owner] hears it from there.
+  bool tells(ShapeHitbox other) {
+    if (other is _GhostHitbox) return false;
+    final them = other.hitboxParent;
+    if (them is! Object3dComponent) return true;
+    return !space._hasGhost(them, -offset.x, -offset.y);
   }
 
   void _followHitboxes() {
     final own = owner.children
         .whereType<ShapeHitbox>()
-        .where((h) => h is! _GhostRectangle && h is! _GhostCircle)
+        .where((h) => h is! _GhostHitbox)
         .toList();
     for (final gone in _hitboxes.keys.where((h) => !own.contains(h)).toList()) {
       _hitboxes.remove(gone)!.removeFromParent();
@@ -202,9 +251,12 @@ final class _Ghost {
         owner.absoluteToLocal(here + offset) - owner.absoluteToLocal(here);
     for (final hitbox in own) {
       final ghost = _hitboxes.putIfAbsent(hitbox, () {
-        final made = switch (hitbox) {
-          final CircleHitbox circle => _GhostCircle(circle.radius),
-          _ => _GhostRectangle(hitbox.size),
+        final ShapeHitbox made = switch (hitbox) {
+          final CircleHitbox circle => _GhostCircle(this, circle.radius),
+          final PolygonHitbox polygon => _GhostPolygon(this, <Vector2>[
+            for (final v in polygon.vertices) v.clone(),
+          ]),
+          _ => _GhostRectangle(this, hitbox.size),
         };
         owner.add(made);
         return made;
@@ -212,7 +264,9 @@ final class _Ghost {
       ghost
         ..position.setFrom(hitbox.position + local)
         ..anchor = hitbox.anchor
-        ..angle = hitbox.angle;
+        ..angle = hitbox.angle
+        ..collisionType = hitbox.collisionType
+        ..isSolid = hitbox.isSolid;
       if (ghost is _GhostRectangle) ghost.size.setFrom(hitbox.size);
     }
   }
@@ -252,10 +306,68 @@ final class _Ghost {
   }
 }
 
-final class _GhostRectangle extends RectangleHitbox {
-  _GhostRectangle(Vector2 size) : super(size: size.clone());
+/// A hitbox standing in for one of its owner's, a world across. It tells
+/// its owner of a meeting only when nothing else will: see [_Ghost.tells].
+mixin _GhostHitbox on ShapeHitbox {
+  _Ghost get ghost;
+
+  final Set<ShapeHitbox> _told = <ShapeHitbox>{};
+
+  CollisionCallbacks? get _owner => switch (hitboxParent) {
+    final CollisionCallbacks owner => owner,
+    _ => null,
+  };
+
+  /// Runs Flame's own handling without its telling the owner: a hitbox
+  /// tells its parent only while it and the other both let it, and the
+  /// other side has to keep hearing of this ghost.
+  void _quietly(void Function() handle) {
+    triggersParentCollision = false;
+    try {
+      handle();
+    } finally {
+      triggersParentCollision = true;
+    }
+  }
+
+  @override
+  void onCollisionStart(Set<Vector2> points, ShapeHitbox other) {
+    _quietly(() => super.onCollisionStart(points, other));
+    if (!ghost.tells(other)) return;
+    _told.add(other);
+    _owner?.onCollisionStart(points, other.hitboxParent);
+  }
+
+  @override
+  void onCollision(Set<Vector2> points, ShapeHitbox other) {
+    _quietly(() => super.onCollision(points, other));
+    if (_told.contains(other)) _owner?.onCollision(points, other.hitboxParent);
+  }
+
+  @override
+  void onCollisionEnd(ShapeHitbox other) {
+    _quietly(() => super.onCollisionEnd(other));
+    if (_told.remove(other)) _owner?.onCollisionEnd(other.hitboxParent);
+  }
 }
 
-final class _GhostCircle extends CircleHitbox {
-  _GhostCircle(double radius) : super(radius: radius);
+final class _GhostRectangle extends RectangleHitbox with _GhostHitbox {
+  _GhostRectangle(this.ghost, Vector2 size) : super(size: size.clone());
+
+  @override
+  final _Ghost ghost;
+}
+
+final class _GhostCircle extends CircleHitbox with _GhostHitbox {
+  _GhostCircle(this.ghost, double radius) : super(radius: radius);
+
+  @override
+  final _Ghost ghost;
+}
+
+final class _GhostPolygon extends PolygonHitbox with _GhostHitbox {
+  _GhostPolygon(this.ghost, super.vertices);
+
+  @override
+  final _Ghost ghost;
 }

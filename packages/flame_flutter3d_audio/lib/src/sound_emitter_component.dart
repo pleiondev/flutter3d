@@ -44,22 +44,48 @@ class SoundEmitterComponent extends Component {
   SoundEmitter? _emitter;
   AudioScene? _playingOn;
 
+  /// Whether a one-shot has played for this turn of [playing]: moved onto
+  /// the speakers when they open, it would otherwise play a second time.
+  bool _shot = false;
+
+  /// Seconds until the game is searched again for its sound.
+  double _lookAgainIn = 0.0;
+
   /// The voice this is holding, while it holds one.
   SoundEmitter? get emitter => _emitter;
+
+  /// **Found again when it goes.** A level restarted with a new
+  /// [AudioSceneComponent] left every emitter playing into the old one,
+  /// closed and no longer updated, and the new level was silent. And a game
+  /// with no sound is searched a few times a second, not every frame by
+  /// every emitter.
+  AudioSceneComponent? _find(double dt) {
+    final had = _audio;
+    if (had != null && had.isMounted) return had;
+    if (had != null) {
+      _stop();
+      _audio = null;
+    }
+    _lookAgainIn -= dt;
+    if (_lookAgainIn > 0.0) return null;
+    _lookAgainIn = 0.25;
+    // Looked for until found rather than once on mount: added in the same
+    // batch as the game's AudioSceneComponent, this can mount first and
+    // find nothing there yet.
+    return _audio = findGame()
+        ?.descendants()
+        .whereType<AudioSceneComponent>()
+        .firstOrNull;
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
-    // Looked for until found rather than once on mount: added in the same
-    // batch as the game's AudioSceneComponent, this can mount first and
-    // find nothing there yet.
-    final audio = _audio ??= findGame()
-        ?.descendants()
-        .whereType<AudioSceneComponent>()
-        .firstOrNull;
+    final audio = _find(dt);
     if (audio == null) return;
     if (!playing) {
       _stop();
+      _shot = false;
       return;
     }
     final scene = audio.scene;
@@ -69,8 +95,10 @@ class SoundEmitterComponent extends Component {
     };
     if (_emitter == null || !identical(_playingOn, scene)) {
       _stop();
+      if (!sound.loop && _shot) return;
       _emitter = scene.play(sound, at);
       _playingOn = scene;
+      _shot = true;
     }
     _emitter!
       ..position.setFrom(at)

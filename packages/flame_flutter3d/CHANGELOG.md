@@ -53,6 +53,27 @@ tap; firing while dragging to aim stopped the moment the aim moved. It and
 stick at rest writes its zero once, not every frame over a pad's stick,
 and takes a `deadZone`. A window that loses focus lets go of every key.
 
+**A wrapped world tells a contact once.** Two craft by the same edge met
+really and through their ghosts, two across the seam through each one's
+ghost, and every hit was reported twice. A ghost now tells its owner of a
+meeting only when nothing else will. A ghost has its owner's hitbox's
+collision type, solidity and shape, polygons included, and its meshes take
+the owner's tint and opacity every frame.
+
+**What a component makes, it gives back.** A `CellGridComponent` removed
+gives back the mesh it was standing in. A `Particles3dComponent` added back
+is drawn again as before. A `TrailComponent` widens its line against the
+new size after a resize, breaks rather than drawing across the world when
+its component jumps further than `breakAt`, and can `reset()`.
+
+**Flame's events land through any viewport, and the sky is the horizon.**
+`ProjectedViewfinder` brings Flame's viewport points into the canvas the
+projector works in, so a `FixedResolutionViewport` no longer puts every tap
+somewhere else. A point on the sky comes back as the plane point out at the
+horizon, through `BridgeProjector.onPlaneOrHorizon`, rather than NaN: Flame's
+`World` takes every point, and a drag that strayed above the horizon moved
+its component to NaN for good.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

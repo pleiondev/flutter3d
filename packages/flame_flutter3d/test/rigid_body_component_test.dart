@@ -9,7 +9,6 @@ import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Plane;
 
 void main() {
   test('defaults to sceneToFlame — the body is authoritative', () {

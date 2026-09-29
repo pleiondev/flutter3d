@@ -39,4 +39,30 @@ void main() {
     expect(shield.grid.isAlive(0, 0), isFalse);
     expect(device.releasedGeometry, isNotEmpty, reason: 'the old mesh went');
   });
+
+  test('a removed shield gives back the mesh it was standing in', () async {
+    // Mutation: let go of meshes only on a hit.
+    final device = FakeBackend();
+    final game = _World()..open3d(device);
+    await initializeGame(() => game);
+    final shield = CellGridComponent(
+      grid: CellGrid.fromMask(<String>['##']),
+      device: device,
+      scene: game.scene,
+      plane: BridgePlane.ground(),
+      material: engine.Material(),
+    );
+    await game.add(shield);
+    await game.ready();
+    final standing = shield.node.childrenView.whereType<MeshNode>().single;
+
+    shield.removeFromParent();
+    await game.ready();
+    await Future<void>.delayed(Duration.zero);
+    final mesh = standing.mesh as DeviceMesh;
+    expect(
+      device.releasedGeometry,
+      containsAll(<GeometryBuffer>[mesh.vertices, mesh.indices]),
+    );
+  });
 }

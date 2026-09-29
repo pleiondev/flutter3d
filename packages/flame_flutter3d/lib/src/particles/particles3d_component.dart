@@ -36,20 +36,38 @@ class Particles3dComponent extends Component {
 
   Renderer? _renderer;
   MeshParticleContributor? _contributor;
+  ({Renderer renderer, DrawableGeometry mesh, BlendState blend})? _drawing;
 
   /// Draws every particle as a copy of [mesh] through [renderer]'s scene
   /// pass, blended by [blend]. Calling it again, with a new renderer after
   /// the old one was replaced, moves the drawing there.
+  ///
+  /// **Remembered across a removal.** Taken out of the game, the pool stops
+  /// being drawn; added back, it is drawn again as it was, where it used to
+  /// be drawn by nothing until [drawWith] was called a second time.
   void drawWith(
     Renderer renderer,
     DrawableGeometry mesh, {
     BlendState blend = BlendState.additive,
   }) {
+    _drawing = (renderer: renderer, mesh: mesh, blend: blend);
+    _startDrawing();
+  }
+
+  void _startDrawing() {
+    final drawing = _drawing;
+    if (drawing == null) return;
     _stopDrawing();
-    _renderer = renderer;
-    _contributor = renderer.addContributor(
-      MeshParticleContributor(system, mesh: mesh, blend: blend),
+    _renderer = drawing.renderer;
+    _contributor = drawing.renderer.addContributor(
+      MeshParticleContributor(system, mesh: drawing.mesh, blend: drawing.blend),
     );
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    if (_contributor == null) _startDrawing();
   }
 
   /// Throws [effect] out of the Flame point [at] on [plane], lifted

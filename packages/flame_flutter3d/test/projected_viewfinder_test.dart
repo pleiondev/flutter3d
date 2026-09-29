@@ -60,7 +60,41 @@ void main() {
   );
 
   testWithGame<FlameGame>(
-    'the sky meets no plane and hits nothing',
+    'through a fixed-resolution viewport, a tap still lands on the crate',
+    () {
+      late final FlameGame game;
+      final world = World();
+      game = FlameGame(
+        world: world,
+        camera: CameraComponent.withFixedResolution(
+          width: 400.0,
+          height: 300.0,
+          world: world,
+          viewfinder: ProjectedViewfinder(
+            projector: BridgeProjector(camera: eye, viewSize: () => game.size),
+            plane: plane,
+          ),
+        ),
+      );
+      return game;
+    },
+    (game) async {
+      // Flame hands the viewfinder points in the viewport's frame, and the
+      // projector works in the canvas: every tap landed elsewhere.
+      //
+      // Mutation: project the viewport's point as it comes.
+      final crate = _Crate(Vector2(2.0, -8.0));
+      await game.world.add(crate);
+      await game.ready();
+
+      final projector = BridgeProjector(camera: eye, viewSize: () => game.size);
+      final screen = projector.toScreen(plane.to3d(crate.position))!;
+      expect(game.componentsAtPoint(screen), contains(crate));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'the sky is the far horizon, and hits nothing near',
     () {
       late final FlameGame game;
       final world = World();
@@ -86,8 +120,14 @@ void main() {
       final crate = _Crate(Vector2.zero());
       await game.world.add(crate);
       await game.ready();
+      // A NaN reached World's own tap handlers, and a drag that strayed
+      // above the horizon put its component at NaN for good.
+      //
+      // Mutation: hand back NaN for the sky.
       final sky = Vector2(game.size.x / 2, 2.0);
-      expect(game.camera.globalToLocal(sky).x.isNaN, isTrue);
+      final there = game.camera.globalToLocal(sky);
+      expect(there.x.isFinite && there.y.isFinite, isTrue);
+      expect(there.y, lessThan(-50.0), reason: 'out ahead, at the horizon');
       expect(game.componentsAtPoint(sky), isNot(contains(crate)));
     },
   );

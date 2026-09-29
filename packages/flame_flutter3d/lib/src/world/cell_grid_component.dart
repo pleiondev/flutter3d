@@ -1,3 +1,5 @@
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flame/components.dart' show Vector2;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
@@ -86,9 +88,30 @@ class CellGridComponent extends Object3dComponent {
     }
   }
 
-  void _letGo(DeviceMesh mesh) {
+  /// **The last mesh goes with the shield.** Each hit gave the mesh before
+  /// it back, and the one standing when the shield was removed stayed on the
+  /// device: a level of four shields leaked four. Let go a moment later, as
+  /// Object3dComponent lets go of what it owns, so a shield moved to another
+  /// parent keeps it.
+  @override
+  void onRemove() {
+    final blocks = _blocks;
     final game = findGame();
     final drawing = game is HasFlutter3d ? game.renderer : null;
+    if (blocks != null) {
+      scheduleMicrotask(() {
+        if (isMounted || parent != null || !identical(_blocks, blocks)) return;
+        _blocks = null;
+        blocks.removeFromParent();
+        _letGo(blocks.mesh as DeviceMesh, drawing);
+      });
+    }
+    super.onRemove();
+  }
+
+  void _letGo(DeviceMesh mesh, [Renderer? through]) {
+    final game = findGame();
+    final drawing = through ?? (game is HasFlutter3d ? game.renderer : null);
     if (drawing != null) {
       drawing.releaseMeshAfterFrame(mesh);
     } else {
