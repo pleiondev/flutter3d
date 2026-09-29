@@ -81,6 +81,14 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A road that bends under Flame's straight world.** `BridgeSpace` is where
+a Flame point is placed and turned in the scene; `BridgePlane` is the flat
+one, and `CurvilinearSpace` lays Flame's world along an `OpenPath`: `x` is
+metres right of the road's middle, `-y` metres along it, and an angle turns
+from the road's heading. `Object3dComponent(space:)` writes through it, so
+an Enduro car keeps Flame hitboxes that mean side by side on the road
+however the road winds.
+
 **A world whose edges meet.** `WrapSpace` wraps its children's positions
 round a rectangle, draws a ghost of each child within `margin` of an edge
 on the other side (three in a corner) so a ship half over an edge is seen

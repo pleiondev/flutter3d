@@ -21,6 +21,12 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **`OpenPath` measures a path in metres along it**: the point, the
+  heading and the right at any distance, the heading turning through a
+  corner rather than snapping, straight on past either end. `ribbon` lays
+  a flat strip of road on it between two distances, facing up, its `v` in
+  metres so a texture tiles the same on every piece, and pieces cut at the
+  same distances meet edge to edge.
 - **`buildPolyline(closed: true)` joins the last point to the first** with
   an elbow like every other: a ship's outline or a ring had a square notch
   where its open ends met.

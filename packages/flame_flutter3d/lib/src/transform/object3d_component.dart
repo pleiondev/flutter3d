@@ -3,6 +3,7 @@ import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import '../host/has_flutter3d.dart';
+import 'bridge_space.dart';
 import 'plane.dart';
 
 /// Which side of an [Object3dComponent] writes a frame's transform into the
@@ -86,6 +87,7 @@ class Object3dComponent extends PositionComponent
     this.direction = SyncDirection.sceneToFlame,
     this.elevation = 0.0,
     this.owns = const <DeviceMesh>[],
+    this.space,
     super.position,
     super.size,
     super.anchor,
@@ -95,6 +97,11 @@ class Object3dComponent extends PositionComponent
     super.priority,
     super.key,
   });
+
+  /// Where Flame's point is placed and turned in the scene, when not flat on
+  /// [plane]: a [CurvilinearSpace] bends it along a road. Null places it on
+  /// [plane]. Only the write from Flame to the scene goes through it.
+  final BridgeSpace? space;
 
   /// Meshes this component made for itself and lets go of when it is
   /// removed: a bridge's span, a wreck's hull built for the moment.
@@ -153,8 +160,16 @@ class Object3dComponent extends PositionComponent
   /// Where this component is in the scene: its absolute Flame position on
   /// [plane], lifted by [elevation]. For placing something at it, a blast
   /// where a target went down, say.
-  Vector3 get scenePosition =>
-      plane.to3d(absolutePosition, at: plane.constant + elevation);
+  Vector3 get scenePosition {
+    final bent = space;
+    if (bent == null) {
+      return plane.to3d(absolutePosition, at: plane.constant + elevation);
+    }
+    final at = absolutePosition;
+    final out = Vector3.zero();
+    bent.place(at.x, at.y, elevation, out);
+    return out;
+  }
 
   @override
   void onMount() {
@@ -284,8 +299,15 @@ class Object3dComponent extends PositionComponent
     _writtenScaleY = s.y;
     _writtenElevation = elevation;
 
-    plane.to3dInto(x, y, _place, at: plane.constant + elevation);
-    plane.rotationInto(turn, _turn);
+    final bent = space;
+    if (bent == null) {
+      plane.to3dInto(x, y, _place, at: plane.constant + elevation);
+      plane.rotationInto(turn, _turn);
+    } else {
+      bent
+        ..place(x, y, elevation, _place)
+        ..turn(x, y, turn, _turn);
+    }
     node
       ..setPositionFrom(_place)
       ..setRotation(_turn);

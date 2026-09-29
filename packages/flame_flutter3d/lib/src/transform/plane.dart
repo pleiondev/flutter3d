@@ -27,6 +27,8 @@ library;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
+import 'bridge_space.dart';
+
 /// Which flutter3d axis a [BridgePlane] holds constant.
 enum PlaneAxis {
   /// A ground plane: Y is constant, Flame's `y` becomes flutter3d's Z.
@@ -42,7 +44,7 @@ enum PlaneAxis {
 /// A plane is defined by which flutter3d axis stays fixed at [constant] —
 /// [PlaneAxis.y] for a ground plane's height, [PlaneAxis.z] for a backdrop's
 /// depth — and Flame's `x`/`y` become whichever two flutter3d axes are left.
-final class BridgePlane {
+final class BridgePlane implements BridgeSpace {
   const BridgePlane({
     required this.axis,
     required this.constant,
@@ -98,6 +100,17 @@ final class BridgePlane {
         out.setValues(x, down, held);
     }
   }
+
+  /// [to3dInto] for [BridgeSpace]: [lift] is along the normal from
+  /// [constant].
+  @override
+  void place(double x, double y, double lift, Vector3 out) =>
+      to3dInto(x, y, out, at: constant + lift);
+
+  /// [rotationInto] for [BridgeSpace]; the same turn anywhere on a plane.
+  @override
+  void turn(double x, double y, double angle, Quaternion out) =>
+      rotationInto(angle, out);
 
   /// [point]'s coordinates on this plane, dropping the constant axis.
   Vector2 to2d(Vector3 point) {

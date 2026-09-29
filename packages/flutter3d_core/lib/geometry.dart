@@ -22,6 +22,7 @@ export 'src/geometry/mesh_clusters.dart';
 export 'src/geometry/mesh_data.dart';
 export 'src/geometry/mesh_geometry.dart';
 export 'src/geometry/mesh_tangents.dart';
+export 'src/geometry/open_path.dart';
 export 'src/geometry/morph_blend.dart';
 export 'src/geometry/morph_texture.dart';
 export 'src/geometry/polyline_shape.dart';
