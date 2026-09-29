@@ -1,3 +1,4 @@
+import 'package:flame/components.dart' show World;
 import 'package:flame/game.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:flutter3d/flutter3d.dart' hide Material;
@@ -40,7 +41,12 @@ import '../transform/projector.dart';
 /// the widget closed the device under a world still built on it, and the
 /// game came back with meshes on a closed device and no particles.
 /// [close3d] lets it go, and [dispose] calls it.
-mixin HasFlutter3d on FlameGame {
+///
+/// **Any world.** Generic over the game's world, so a `Forge2DGame`, whose
+/// world is a `Forge2DWorld`, or any game with a world of its own type, can
+/// have it; on `FlameGame` alone it could be mixed into a game of the plain
+/// `World` and nothing else.
+mixin HasFlutter3d<W extends World> on FlameGame<W> {
   /// The camera the 3D layer is drawn through. Made by [createCamera3d] the
   /// first time it is read.
   late final CameraNode camera3d = createCamera3d();

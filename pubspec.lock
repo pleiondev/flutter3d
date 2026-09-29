@@ -273,6 +273,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.38.2"
+  flame_forge2d:
+    dependency: transitive
+    description:
+      name: flame_forge2d
+      sha256: "289b1d5450d7455b837e0ddb271017ecb191bd824940d1f800f12e9592c37746"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.19.3+7"
   flame_test:
     dependency: transitive
     description:
@@ -343,6 +351,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.2+hotfix.1"
+  forge2d:
+    dependency: transitive
+    description:
+      name: forge2d
+      sha256: "0f63d177f2e137a5007b879fda4076d0b81de065fcd72056c6fc896c82758bb7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.14.2+1"
   frontend_server_client:
     dependency: transitive
     description:

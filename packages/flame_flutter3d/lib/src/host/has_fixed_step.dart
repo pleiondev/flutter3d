@@ -41,7 +41,10 @@ mixin FixedStepUpdate on Component {
 /// drawing between two steps uses.
 ///
 /// Flame's collision detection still runs once a frame.
-mixin HasFixedStep on FlameGame {
+///
+/// Generic over the game's world, as `HasFlutter3d` is, so a game whose
+/// world has a type of its own can step too.
+mixin HasFixedStep<W extends World> on FlameGame<W> {
   /// How the frame's time is cut: a sixtieth of a second unless replaced.
   FixedStep fixedStep = FixedStep();
 

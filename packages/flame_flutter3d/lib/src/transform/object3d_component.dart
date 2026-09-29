@@ -1,7 +1,8 @@
 import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/components.dart';
-import 'package:flame/effects.dart' show OpacityProvider;
+import 'package:flame/effects.dart'
+    show OpacityProvider, ReadOnlyAngleProvider, ReadOnlyPositionProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import '../host/has_flutter3d.dart';
@@ -92,6 +93,7 @@ class Object3dComponent extends PositionComponent
     this.elevation = 0.0,
     this.owns = const <DeviceMesh>[],
     this.space,
+    this.follows,
     super.position,
     super.size,
     super.anchor,
@@ -108,6 +110,26 @@ class Object3dComponent extends PositionComponent
   /// component read back from the scene is read flat off [plane].
   @override
   final BridgeSpace? space;
+
+  /// Something of Flame's this stands where it stands, and turns as it
+  /// turns when it has an angle: a `flame_forge2d` `BodyComponent`, whose
+  /// place its body decides, is both. Flowing Flame to the scene, its
+  /// position and angle are taken every frame before they are written.
+  ///
+  /// **Flame's own physics, drawn in 3D.** A body of `flame_forge2d` is not
+  /// a `PositionComponent`, so nothing of this bridge could be hung under
+  /// it, and a pinball table whose flippers and ball its solver moves could
+  /// not be drawn here. Any of Flame's position providers will do.
+  final ReadOnlyPositionProvider? follows;
+
+  void _follow() {
+    final target = follows;
+    if (target == null) return;
+    position.setFrom(target.position);
+    if (target is ReadOnlyAngleProvider) {
+      angle = (target as ReadOnlyAngleProvider).angle;
+    }
+  }
 
   /// The box round [node] and everything under it.
   @override
@@ -242,6 +264,7 @@ class Object3dComponent extends PositionComponent
       case SyncDirection.sceneToFlame:
         _readScene();
       case SyncDirection.flameToScene:
+        _follow();
         _writeScene();
     }
   }
@@ -249,7 +272,10 @@ class Object3dComponent extends PositionComponent
   @override
   void updateTree(double dt) {
     super.updateTree(dt);
-    if (direction == SyncDirection.flameToScene) _writeScene();
+    if (direction == SyncDirection.flameToScene) {
+      _follow();
+      _writeScene();
+    }
     _writeTint();
     if (isRemoving) {
       node.visible = false;

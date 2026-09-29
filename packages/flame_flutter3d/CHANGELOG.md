@@ -193,6 +193,15 @@ set up by its custom properties in Tiled (`solid` for Flame hitboxes,
 is handed to the game with its middle in metres. A maze, a castle's rooms
 or a mine's shafts are drawn in the editor instead of typed as masks.
 
+**Flame's own physics, drawn in 3D, and a game of any world.**
+`Object3dComponent.follows` takes any of Flame's position providers, and an
+angle provider's angle too: a `flame_forge2d` `BodyComponent` is both, so a
+pinball's ball and flippers moved by forge2d's solver are drawn in 3D. A
+forge2d body is not a `PositionComponent`, and nothing of the bridge could
+be hung under it. `HasFlutter3d` and `HasFixedStep` are generic over the
+game's world: on `FlameGame` alone they could not be mixed into a
+`Forge2DGame`, or any game whose world has a type of its own.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.
