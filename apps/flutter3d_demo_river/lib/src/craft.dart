@@ -57,6 +57,7 @@ final class _Kit {
       depot = DeviceMesh.upload(device, depotMesh()),
       shot = DeviceMesh.upload(device, shotMesh()),
       shard = DeviceMesh.upload(device, shardMesh()),
+      puff = DeviceMesh.upload(device, puffMesh()),
       water = DeviceMesh.upload(device, waterMesh());
 
   final GraphicsDevice device;
@@ -68,6 +69,7 @@ final class _Kit {
   final DeviceMesh depot;
   final DeviceMesh shot;
   final DeviceMesh shard;
+  final DeviceMesh puff;
   final DeviceMesh water;
 
   /// White, so the vertex colours are the colours.

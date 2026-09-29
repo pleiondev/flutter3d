@@ -139,7 +139,7 @@ void main() {
     for (var i = 0; i < clear.rgba.length; i += 4) {
       final before = clear.rgba[i] + clear.rgba[i + 1] + clear.rgba[i + 2];
       final now = smoky.rgba[i] + smoky.rgba[i + 1] + smoky.rgba[i + 2];
-      if (now < before - 60) darker++;
+      if (now < before - 25) darker++;
       if (now > before + 30) brighter++;
     }
     expect(darker, greaterThan(20));

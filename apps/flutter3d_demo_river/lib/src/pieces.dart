@@ -259,7 +259,7 @@ final class TargetComponent extends Object3dComponent
               _roll(0.3),
         );
         if (_smokeIn <= 0.0) {
-          _smokeIn = 0.06;
+          _smokeIn = 0.1;
           game.smoke(scenePosition..y += 0.3);
         }
         if (elevation <= 0.0) {

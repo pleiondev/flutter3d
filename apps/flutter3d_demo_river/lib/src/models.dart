@@ -310,6 +310,11 @@ MeshData shotMesh() => CuboidShape(
 /// One shard of an explosion, white: its material gives it its colour.
 MeshData shardMesh() => CuboidShape(size: Vector3.all(0.32)).build();
 
+/// A puff of smoke: a coarse ball, so a darkening particle is darkest in
+/// the middle, where it faces the eye, and soft at its rim.
+MeshData puffMesh() =>
+    const SphereShape(radius: 0.3, segments: 10, rings: 6).build();
+
 // ------------------------------------------------- stand-ins for the models
 
 /// A jet, nose along -Z, about two metres long. The player's until its

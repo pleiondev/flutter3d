@@ -36,9 +36,10 @@ import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
 import 'package:flutter3d_particles/flutter3d_particles.dart'
     show
         ConeEmitter,
+        MeshParticleContributor,
         ParticleAffector,
         ParticleColorOverLife,
-        MeshParticleContributor,
+        ParticleDrag,
         ParticleEffect,
         ParticleFade,
         ParticleGravity,
@@ -206,11 +207,7 @@ final class RiverGame extends TransparentFlameGame
   void drawWith(Renderer drawing) {
     renderer = drawing;
     blasts.drawWith(drawing, _kit.shard);
-    soot.drawWith(
-      drawing,
-      _kit.shard,
-      blend: MeshParticleContributor.darkening,
-    );
+    soot.drawWith(drawing, _kit.puff, blend: MeshParticleContributor.darkening);
   }
 
   /// Fire, sparks and spray: everything on screen that glows or shines,
@@ -430,25 +427,36 @@ final class RiverGame extends TransparentFlameGame
   static Vector4 get _spark => Vector4(4.0, 3.4, 1.6, 1.0);
   static Vector4 get _spray => Vector4(0.7, 0.8, 0.9, 1.0);
 
-  /// How much of what is behind it a puff of smoke takes away.
-  static Vector4 get _soot => Vector4(0.75, 0.75, 0.72, 1.0);
+  /// How much of what is behind it a puff of smoke takes away, fresh and
+  /// as it thins out.
+  static Vector4 get _sootThick => Vector4(0.3, 0.32, 0.38, 1.0);
+  static Vector4 get _sootThin => Vector4(0.08, 0.08, 0.1, 1.0);
 
-  /// A puff of dark smoke, rising slowly, swelling and thinning: drawn by
+  /// A puff of smoke, rising slowly, swelling and thinning out: drawn by
   /// [soot], which takes its colour out of what is behind it.
+  ///
+  /// **Faint on its own.** A burning craft puts out a puff every fraction of
+  /// a second and the puffs overlap, and darkening multiplies: a puff that
+  /// took three quarters of the light made a column of black. One that
+  /// takes a third at its thickest builds to a dark grey where the column
+  /// is dense and stays thin at its edges. It takes a little more blue than
+  /// red, so the smoke over the water reads grey-brown, not navy.
   void smoke(Vector3 at) => soot.system.burst(
     ParticleEffect(
-      count: 3,
+      count: 2,
       emitter: const ConeEmitter(
-        speed: Range(0.6, 1.6),
-        halfAngleDegrees: 25.0,
+        speed: Range(0.5, 1.3),
+        halfAngleDegrees: 30.0,
       ),
-      lifetime: const Range(1.2, 1.5),
-      size: const Range(0.8, 1.0),
-      color: _soot,
-      affectors: const <ParticleAffector>[
-        ParticleGravity(0.5),
-        ParticleSizeOverLife(from: 0.6, to: 1.8),
-        ParticleFade(startsAt: 0.3),
+      lifetime: const Range(1.6, 2.2),
+      size: const Range(0.9, 1.2),
+      color: _sootThick,
+      affectors: <ParticleAffector>[
+        const ParticleGravity(0.6),
+        const ParticleDrag(1.5),
+        ParticleColorOverLife(_sootThick, _sootThin),
+        const ParticleSizeOverLife(from: 0.5, to: 2.4),
+        const ParticleFade(startsAt: 0.5),
       ],
     ),
     at,

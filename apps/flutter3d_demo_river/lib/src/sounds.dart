@@ -2,6 +2,10 @@ part of 'river_game.dart';
 
 /// Everything River Sortie can say, written by `tool/make_sounds.py`.
 ///
+/// **The engine sits under everything else.** It never stops, so it is the
+/// quietest thing in the mix: a drone as loud as a shot buries the shot, and
+/// the first version of this bank did exactly that.
+///
 /// **None of it fades with distance.** A cartridge had one speaker and no
 /// idea where anything was, and a river seen from behind the jet has nothing
 /// to gain from panning a tanker a few metres left; every sound is played at
@@ -11,7 +15,7 @@ abstract final class Sounds {
     name: 'engine',
     asset: 'assets/sounds/engine.wav',
     loop: true,
-    gain: 0.35,
+    gain: 0.16,
     attenuation: NoAttenuation(),
     priority: 3,
     maxInstances: 1,
@@ -21,7 +25,7 @@ abstract final class Sounds {
     name: 'refuel',
     asset: 'assets/sounds/refuel.wav',
     loop: true,
-    gain: 0.45,
+    gain: 0.5,
     attenuation: NoAttenuation(),
     priority: 2,
     maxInstances: 1,
@@ -40,7 +44,7 @@ abstract final class Sounds {
   static const SoundDef shot = SoundDef(
     name: 'shot',
     asset: 'assets/sounds/shot.wav',
-    gain: 0.4,
+    gain: 0.6,
     attenuation: NoAttenuation(),
     maxInstances: 3,
     rateVariance: 0.04,
@@ -49,7 +53,7 @@ abstract final class Sounds {
   static const SoundDef boom = SoundDef(
     name: 'boom',
     asset: 'assets/sounds/boom.wav',
-    gain: 0.7,
+    gain: 0.9,
     attenuation: NoAttenuation(),
     priority: 1,
     maxInstances: 3,
@@ -59,7 +63,7 @@ abstract final class Sounds {
   static const SoundDef bigBoom = SoundDef(
     name: 'big-boom',
     asset: 'assets/sounds/big_boom.wav',
-    gain: 0.85,
+    gain: 1.0,
     attenuation: NoAttenuation(),
     priority: 2,
     maxInstances: 2,
@@ -68,7 +72,7 @@ abstract final class Sounds {
   static const SoundDef crash = SoundDef(
     name: 'crash',
     asset: 'assets/sounds/crash.wav',
-    gain: 0.9,
+    gain: 1.0,
     attenuation: NoAttenuation(),
     priority: 5,
     maxInstances: 1,

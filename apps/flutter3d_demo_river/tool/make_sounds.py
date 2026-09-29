@@ -84,67 +84,143 @@ def lowpass(samples, amount):
     return out
 
 
+def normalise(samples, peak=0.9):
+    """Scaled so the loudest sample is [peak]: every sound in the bank starts
+    from the same ceiling, and the mix in `sounds.dart` decides which is
+    louder, not the arithmetic here."""
+    top = max(abs(s) for s in samples) or 1.0
+    return [s * peak / top for s in samples]
+
+
+def saturate(samples, drive):
+    """Soft clipping: loud parts held down, the body brought up under them.
+    An explosion whose peak is a crack a few milliseconds long, normalised as
+    it is, leaves its rumble too quiet to hear over the engine."""
+    return [math.tanh(drive * s) for s in samples]
+
+
+def seamless(samples, overlap):
+    """A loop with no seam: the last [overlap] samples are faded into the
+    first, and dropped. Noise has no whole number of cycles to end on, so
+    without this every pass of the engine clicked."""
+    body = samples[: len(samples) - overlap]
+    tail = samples[len(samples) - overlap :]
+    for i in range(overlap):
+        x = i / overlap
+        body[i] = body[i] * x + tail[i] * (1.0 - x)
+    return body
+
+
 def engine():
-    """The drone the throttle bends: rumbling noise over a low buzz. A loop,
-    played faster or slower with the jet's speed, so the noise clock and the
-    buzz are both whole numbers of cycles across it."""
-    seconds = 0.5
-    n = int(RATE * seconds)
+    """The drone the throttle bends: a low hum with a rumble of filtered noise
+    over it, trembling a little. It was a square wave, loud and bright, and it
+    buried every shot and every hit under it. The hum sits at 110 Hz rather
+    than lower, where a laptop's speakers would drop it.
+
+    A loop a second long: the hum's three partials and the tremble are whole
+    numbers of cycles across it, and the noise is made seamless."""
+    seconds = 1.0
+    overlap = int(RATE * 0.1)
+    n = int(RATE * seconds) + overlap
     poly = Poly(0x1ACE)
+    noise = lowpass([poly.sample(2600.0) for _ in range(n)], 0.1)
     out = []
     for i in range(n):
         t = i / RATE
-        buzz = square(t * 62.0)  # 31 cycles in half a second
-        out.append(0.55 * poly.sample(1300.0) + 0.3 * buzz)
-    return lowpass(out, 0.35)
+        hum = (
+            math.sin(2 * math.pi * 110.0 * t)
+            + 0.45 * math.sin(2 * math.pi * 220.0 * t)
+            + 0.2 * math.sin(2 * math.pi * 330.0 * t)
+        )
+        tremble = 1.0 + 0.12 * math.sin(2 * math.pi * 12.0 * t)
+        out.append((0.5 * hum + 1.6 * noise[i]) * tremble)
+    return normalise(seamless(out, overlap), 0.7)
 
 
 def shot():
-    """A falling whistle."""
-    seconds = 0.26
+    """A bright "pew": a sweep falling fast from high to low, with a click of
+    noise at its start so it cuts through the engine."""
+    seconds = 0.2
     n = int(RATE * seconds)
+    poly = Poly(0x7E7E)
     out, phase = [], 0.0
     for i in range(n):
         x = i / n
-        phase += (1500.0 - 1150.0 * x) / RATE
-        out.append(0.5 * square(phase) * (1.0 - x) ** 1.5)
-    return edges(out)
+        t = i / RATE
+        phase += (1900.0 * (320.0 / 1900.0) ** x) / RATE
+        tone = math.sin(2 * math.pi * phase) + 0.3 * square(phase)
+        click = poly.sample(12000.0) * math.exp(-t / 0.006)
+        out.append(tone * math.exp(-4.5 * x) + 0.6 * click)
+    return edges(normalise(saturate(normalise(out), 1.8)))
 
 
-def boom(seconds, start_clock, end_clock, weight=1.0, seed=0x2B2B):
-    """Noise whose clock falls as it dies: a crunch that drops in pitch."""
+def explosion(seconds, thump_from, thump_to, decay, crackle=0.0, seed=0x2B2B):
+    """What anything blowing up is made of: a crack, a thump that drops in
+    pitch, and a rumble of noise whose brightness dies away faster than its
+    loudness, so the tail is a low roll rather than hiss. [crackle] scatters
+    pops through the tail, for something big burning."""
     n = int(RATE * seconds)
     poly = Poly(seed)
-    out = []
+    pops = Poly(seed ^ 0x5555)
+    out, phase, last = [], 0.0, 0.0
     for i in range(n):
         x = i / n
-        clock = start_clock * (end_clock / start_clock) ** x
-        out.append(weight * poly.sample(clock) * math.exp(-4.0 * x))
-    return edges(lowpass(out, 0.5))
+        t = i / RATE
+        phase += (thump_from * (thump_to / thump_from) ** x) / RATE
+        thump = math.sin(2 * math.pi * phase) * math.exp(-7.0 * x)
+        brightness = 0.02 + 0.5 * math.exp(-6.0 * x)
+        last += (poly.sample(6000.0) - last) * brightness
+        rumble = last * math.exp(-decay * x)
+        crack = poly.sample(15000.0) * math.exp(-t / 0.012)
+        pop = 0.0
+        if crackle and pops.sample(40.0) > 0 and (i % 97) < 3:
+            pop = crackle * math.exp(-2.0 * x)
+        out.append(1.2 * thump + 2.2 * rumble + 0.5 * crack + pop)
+    return edges(normalise(saturate(normalise(out), 3.0)))
+
+
+def boom():
+    """A tanker, a helicopter or a jet going down."""
+    return explosion(0.9, 120.0, 45.0, 3.5)
+
+
+def big_boom():
+    """A depot or a bridge: deeper, longer, and burning as it goes."""
+    return explosion(1.6, 90.0, 30.0, 2.2, crackle=0.35, seed=0x6E6E)
 
 
 def crash():
-    """The jet going in: a long crunch with a low pulse under it."""
-    noise = boom(1.8, 2400.0, 180.0, seed=0x3C3C)
-    for i in range(len(noise)):
-        t = i / RATE
-        x = i / len(noise)
-        noise[i] += 0.3 * square(t * 48.0) * math.exp(-3.0 * x)
-    return edges(noise)
+    """The jet going in: a dive whining down, then the biggest blast in the
+    bank."""
+    dive_seconds = 0.35
+    d = int(RATE * dive_seconds)
+    dive, phase = [], 0.0
+    for i in range(d):
+        x = i / d
+        phase += (1100.0 * (180.0 / 1100.0) ** x) / RATE
+        dive.append(0.35 * (math.sin(2 * math.pi * phase) + 0.25 * square(phase)))
+    blast = explosion(2.0, 80.0, 28.0, 1.8, crackle=0.4, seed=0x3C3C)
+    return edges(normalise(dive + blast))
 
 
 def refuel():
-    """Rising chirps while a depot fills the tank. A loop: each pass is one
-    chirp, and the jump back to the bottom is the point of it."""
-    seconds = 0.32
+    """Rising tones while a depot fills the tank. A loop: each pass is one
+    tone climbing, soft at both ends so the jump back to the bottom is heard
+    as the next tone and not as a click."""
+    seconds = 0.36
     n = int(RATE * seconds)
     out, phase = [], 0.0
+    sounding = int(n * 0.75)
     for i in range(n):
-        x = i / n
-        phase += (380.0 + 620.0 * x) / RATE
-        gate = 1.0 if x < 0.8 else 0.0
-        out.append(0.35 * square(phase) * gate)
-    return out
+        if i >= sounding:
+            out.append(0.0)
+            continue
+        x = i / sounding
+        phase += (520.0 + 560.0 * x) / RATE
+        envelope = min(1.0, x / 0.08) * min(1.0, (1.0 - x) / 0.15)
+        tone = math.sin(2 * math.pi * phase) + 0.35 * math.sin(4 * math.pi * phase)
+        out.append(tone * envelope)
+    return normalise(out, 0.8)
 
 
 def low_fuel():
@@ -201,8 +277,8 @@ def jingle(notes, step=0.09, gap=0.02):
 def main():
     write("engine.wav", engine())
     write("shot.wav", shot())
-    write("boom.wav", boom(0.7, 3000.0, 400.0))
-    write("big_boom.wav", boom(1.3, 2200.0, 160.0, seed=0x6E6E))
+    write("boom.wav", boom())
+    write("big_boom.wav", big_boom())
     write("crash.wav", crash())
     write("refuel.wav", refuel())
     write("low_fuel.wav", low_fuel())
