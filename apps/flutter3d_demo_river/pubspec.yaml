@@ -29,6 +29,10 @@ dependencies:
   # `Bindings`, the key table `FlameInputBridge` translates through.
   flutter3d_game: ^0.8.0
 
+  # The effects a blast is thrown with: emitters, gravity, colour and size
+  # over a particle's life.
+  flutter3d_particles: ^0.8.0
+
   # `InputState`, `GameAction`, and `GameRandom`, the seeded generator the
   # river is laid out with, so every run flies the same river.
   flutter3d_sim: ^0.8.0

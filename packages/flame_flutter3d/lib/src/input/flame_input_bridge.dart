@@ -1,4 +1,6 @@
+import 'package:flame/components.dart' show Component, JoystickComponent;
 import 'package:flame/events.dart';
+import 'package:flame/input.dart' show ButtonComponent;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -113,5 +115,45 @@ final class FlameInputBridge {
   void onDragUpdate(DragUpdateEvent event) {
     final delta = event.deviceDelta;
     inputState.addLook(delta.x, delta.y);
+  }
+
+  /// A component that writes [stick]'s deflection into [inputState] every
+  /// frame, through [InputState.setStickAxis], the call a gamepad's stick
+  /// goes through: [InputState.moveAxis] then adds it to whatever keys are
+  /// held, and nothing reading the axis learns where it came from. Add it
+  /// to the game beside the stick.
+  ///
+  /// **Screen-down becomes backwards.** Flame's stick reports down the
+  /// screen as positive `y`; the move axis calls forward positive, as a key
+  /// bound to [GameAction.moveForward] does. Every bridged game with a stick
+  /// wrote the same negation by hand.
+  Component followJoystick(JoystickComponent stick) =>
+      _JoystickFeed(stick, inputState);
+
+  /// Holds [action] pressed while [button] is, released when it is let go
+  /// or the touch is cancelled: an on-screen button for what a key or a pad
+  /// button does. Replaces whatever the button's own callbacks were.
+  void bindButton(ButtonComponent button, GameAction action) {
+    // Three statements, not a cascade: `..onPressed = () => a()..onReleased`
+    // parses the second assignment into the first closure's body.
+    button.onPressed = () => inputState.press(action);
+    button.onReleased = () => inputState.release(action);
+    button.onCancelled = () => inputState.release(action);
+  }
+}
+
+/// Updated first among the game's children, before the camera whose
+/// viewport holds the stick: it reads the deflection the stick settled on
+/// last frame rather than racing the stick's own update to it.
+final class _JoystickFeed extends Component {
+  _JoystickFeed(this.stick, this.inputState) : super(priority: -(1 << 30));
+
+  final JoystickComponent stick;
+  final InputState inputState;
+
+  @override
+  void update(double dt) {
+    final deflection = stick.relativeDelta;
+    inputState.setStickAxis(deflection.x, -deflection.y);
   }
 }

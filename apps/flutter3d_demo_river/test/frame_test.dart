@@ -17,8 +17,11 @@ const int _width = 160;
 const int _height = 90;
 
 /// The game's world and a frame of it, from where `RiverScreen` puts its
-/// camera: behind the jet and above it, looking up the river.
-Future<({Uint8List rgba, int drawCalls})> _frame() async {
+/// camera: behind the jet and above it, looking up the river. [stage] runs
+/// once the game has its renderer, before the frame is drawn.
+Future<({Uint8List rgba, int drawCalls})> _frame({
+  void Function(RiverGame game)? stage,
+}) async {
   final it = cpuTestDevice(width: _width, height: _height);
   final game = await initializeGame(RiverGame.new);
   final scene = Scene();
@@ -36,23 +39,22 @@ Future<({Uint8List rgba, int drawCalls})> _frame() async {
         ..lookAt(Vector3(0.0, 0.0, -game.distance - 9.0));
   scene.add(camera);
 
-  final result =
-      Renderer.create(
-        device: it.device,
-        fallbackAlbedo: it.albedo,
-        fallbackNormal: it.normal,
-      ).render(
-        width: _width,
-        height: _height,
-        scene: scene,
-        views: <RenderView>[
-          RenderView(
-            camera: camera,
-            clearColor: Vector4(0.27, 0.48, 0.78, 1.0),
-          ),
-        ],
-        settings: const RenderSettings(),
-      );
+  final renderer = Renderer.create(
+    device: it.device,
+    fallbackAlbedo: it.albedo,
+    fallbackNormal: it.normal,
+  );
+  game.drawWith(renderer);
+  stage?.call(game);
+  final result = renderer.render(
+    width: _width,
+    height: _height,
+    scene: scene,
+    views: <RenderView>[
+      RenderView(camera: camera, clearColor: Vector4(0.27, 0.48, 0.78, 1.0)),
+    ],
+    settings: const RenderSettings(),
+  );
   final pixels = await it.device.readPixels(result.frame);
   return (rgba: pixels!.buffer.asUint8List(), drawCalls: result.drawCalls);
 }
@@ -75,5 +77,34 @@ void main() {
     final pixels = _width * _height;
     expect(grass, greaterThan(pixels ~/ 10), reason: 'too little land');
     expect(water, greaterThan(pixels ~/ 20), reason: 'too little river');
+  });
+
+  test('a fireball is drawn, through the particle pool', () async {
+    // The same few frames of flight either way, so the one difference
+    // between the two pictures is the blast, its shards out of one point.
+    Future<({Uint8List rgba, int drawCalls})> after({required bool blast}) =>
+        _frame(
+          stage: (game) {
+            if (blast) {
+              game.fireball(
+                Vector3(game.jet.position.x, 1.5, -game.distance - 6.0),
+                size: 1.6,
+              );
+            }
+            for (var i = 0; i < 6; i++) {
+              game.update(1 / 60);
+            }
+          },
+        );
+
+    final calm = await after(blast: false);
+    final blast = await after(blast: true);
+    expect(blast.drawCalls, calm.drawCalls + 1, reason: 'one draw for all');
+    // Additive: every pixel a shard covers is brighter than without it.
+    var lit = 0;
+    for (var i = 0; i < calm.rgba.length; i += 4) {
+      if (blast.rgba[i] > calm.rgba[i] + 40) lit++;
+    }
+    expect(lit, greaterThan(20));
   });
 }

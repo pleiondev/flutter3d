@@ -20,6 +20,7 @@ import 'dart:ui' show Canvas, Color, Paint, PaintingStyle, Path, Rect;
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/input.dart' show HudButtonComponent;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
@@ -32,6 +33,17 @@ import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_particles/flutter3d_particles.dart'
+    show
+        ConeEmitter,
+        ParticleAffector,
+        ParticleColorOverLife,
+        ParticleEffect,
+        ParticleGravity,
+        ParticleSizeOverLife,
+        ParticleSystem,
+        Range,
+        SphereEmitter;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show GameAction, InputState;
 
 import 'course.dart';
@@ -140,6 +152,9 @@ final class RiverGame extends TransparentFlameGame
   late final Scene _scene;
   late final _Kit _kit;
 
+  /// Every shot of the jet's in the air, drawn in one call.
+  late final InstancedMeshNode _shots;
+
   /// Whether [build] has run. Flame loads the game before the 3D device is
   /// open, and until then there is no jet to fly.
   bool built = false;
@@ -151,14 +166,17 @@ final class RiverGame extends TransparentFlameGame
   double get distance => -jet.position.y;
 
   /// The stretches of river built around the jet, by section index.
-  final Map<int, _Stretch> _stretches = <int, _Stretch>{};
+  late final ChunkStreamer<_Stretch> _stretches = ChunkStreamer<_Stretch>(
+    build: _buildStretch,
+    drop: _dropStretch,
+  );
 
   /// Every target in play, for the tests and the models that load late.
   Iterable<TargetComponent> get targets =>
-      _stretches.values.expand((stretch) => stretch.targets);
+      _stretches.chunks.expand((stretch) => stretch.targets);
 
   Iterable<BridgeComponent> get bridges =>
-      _stretches.values.map((stretch) => stretch.bridge).nonNulls;
+      _stretches.chunks.map((stretch) => stretch.bridge).nonNulls;
 
   /// The craft models, and every visual node waiting for or wearing one.
   late final ModelWardrobe<Craft> wardrobe;
@@ -181,6 +199,47 @@ final class RiverGame extends TransparentFlameGame
   /// drawing them when they do. Null in the tests, which render no frames.
   Renderer? renderer;
 
+  /// Hands the game the renderer `Flutter3dFlameWidget` opened: what meshes
+  /// go back through, and what the blasts are drawn with.
+  void drawWith(Renderer drawing) {
+    renderer = drawing;
+    blasts.drawWith(drawing, _kit.shard);
+  }
+
+  /// Fire and sparks: every blast on screen, one pool and one draw.
+  late final Particles3dComponent blasts;
+
+  /// Between the 3D camera and Flame's screen, once there is a camera:
+  /// where a "+30" goes over a target that went down. Null in the tests.
+  BridgeProjector? projector;
+
+  static final TextPaint _popPaint = TextPaint(
+    style: const TextStyle(
+      color: Color(0xFFF4D35E),
+      fontSize: 18.0,
+      fontWeight: FontWeight.w700,
+      shadows: <Shadow>[Shadow(blurRadius: 4.0, color: Color(0xAA000000))],
+    ),
+  );
+
+  /// The points [points] just scored, over [at] in the scene: drawn by
+  /// Flame in its viewport, rising and gone in under a second.
+  void _popScore(int points, Vector3 at) {
+    final screen = projector?.toScreen(at);
+    if (screen == null) return;
+    camera.viewport.add(
+      TextComponent(
+        text: '+$points',
+        textRenderer: _popPaint,
+        position: screen,
+        anchor: Anchor.center,
+      )..addAll(<Component>[
+        MoveByEffect(Vector2(0.0, -48.0), EffectController(duration: 0.8)),
+        RemoveEffect(delay: 0.8),
+      ]),
+    );
+  }
+
   /// Lets go of [mesh]: after the frames in flight when there is a renderer,
   /// at once when there is none and so nothing in flight.
   void _release(DeviceMesh mesh) {
@@ -194,6 +253,10 @@ final class RiverGame extends TransparentFlameGame
     }
   }
 
+  /// Shakes the camera [amount] metres wide, once the screen has one: a
+  /// crash, a depot going up. Null in the tests.
+  void Function(double amount)? shakeCamera;
+
   /// What brought the last jet down, for the tests and for anyone asking.
   Crash? lastCrash;
 
@@ -204,6 +267,7 @@ final class RiverGame extends TransparentFlameGame
     phase = Phase.crashed;
     _crashTimer = crashPause;
     _say(Sounds.crash);
+    shakeCamera?.call(0.5);
     jet.hide();
     final at = jet.scenePosition;
     fireball(at, size: 1.3);
@@ -230,6 +294,7 @@ final class RiverGame extends TransparentFlameGame
 
     _say(kind == TargetKind.depot ? Sounds.bigBoom : Sounds.boom);
     final at = target.scenePosition;
+    _popScore(kind.points, at);
     switch (kind) {
       case TargetKind.tanker:
         fireball(at..y = 0.9, size: 0.7);
@@ -240,6 +305,7 @@ final class RiverGame extends TransparentFlameGame
         fireball(at, size: 1.1);
       case TargetKind.depot:
         fireball(at..y = 1.2, size: 1.6);
+        shakeCamera?.call(0.25);
         _detonate(target);
     }
   }
@@ -294,6 +360,7 @@ final class RiverGame extends TransparentFlameGame
     run
       ..award(500)
       ..bridgeDown(bridge.section);
+    _popScore(500, bridge.scenePosition..y = deckHeight);
     for (final along in <double>[-0.3, 0.0, 0.3]) {
       final burst = bridge.scenePosition
         ..x += bridge.span * along
@@ -325,20 +392,30 @@ final class RiverGame extends TransparentFlameGame
     );
   }
 
-  /// Fire: glowing shards that fall, dimming.
-  void fireball(Vector3 at, {double size = 1.0}) => add(
-    BurstComponent(
-      scene: _scene,
-      shard: _kit.shard,
-      material: _kit.fire(),
-      at: at,
+  /// Fire: glowing shards thrown up and out, falling, shrinking, dimming
+  /// from orange to a dull red.
+  void fireball(Vector3 at, {double size = 1.0}) => blasts.system.burst(
+    ParticleEffect(
       count: (14 * size).round(),
-      reach: 5.0 * size,
-      lift: 4.0 * size,
-      size: size,
-      fades: true,
+      emitter: ConeEmitter(
+        speed: Range(2.5 * size, 6.5 * size),
+        halfAngleDegrees: 80.0,
+      ),
+      lifetime: const Range(0.6, 0.9),
+      size: Range(0.8 * size, 1.1 * size),
+      color: _flame,
+      affectors: <ParticleAffector>[
+        const ParticleGravity(-14.0),
+        ParticleColorOverLife(_flame, _ember),
+        const ParticleSizeOverLife(),
+      ],
     ),
+    at,
   );
+
+  static Vector4 get _flame => Vector4(4.0, 2.2, 0.6, 1.0);
+  static Vector4 get _ember => Vector4(1.2, 0.2, 0.05, 1.0);
+  static Vector4 get _spark => Vector4(4.0, 3.4, 1.6, 1.0);
 
   /// A puff of dark smoke, rising slowly and swelling.
   void smoke(Vector3 at) => add(
@@ -374,18 +451,19 @@ final class RiverGame extends TransparentFlameGame
   );
 
   /// A shot glancing off something it cannot break.
-  void sparks(Vector3 at) => add(
-    BurstComponent(
-      scene: _scene,
-      shard: _kit.shard,
-      material: _kit.glow,
-      at: at,
+  void sparks(Vector3 at) => blasts.system.burst(
+    ParticleEffect(
       count: 6,
-      reach: 3.0,
-      lift: 2.0,
-      lifetime: 0.35,
-      size: 0.35,
+      emitter: const SphereEmitter(speed: Range(2.0, 4.0)),
+      lifetime: const Range(0.25, 0.35),
+      size: const Range.exact(0.35),
+      color: _spark,
+      affectors: const <ParticleAffector>[
+        ParticleGravity(-14.0),
+        ParticleSizeOverLife(),
+      ],
     ),
+    at,
   );
 
   /// What the panel says across the middle, and for how long more.
@@ -428,8 +506,7 @@ final class RiverGame extends TransparentFlameGame
     _say(Sounds.shot);
     add(
       ShotComponent(
-        node: MeshNode(_kit.shot, _kit.glow, name: 'shot'),
-        scene: _scene,
+        batch: _shots,
         speed: shotSpeed + speed,
         position: jet.position + Vector2(0.0, -1.3),
       ),
@@ -485,10 +562,6 @@ final class RiverGame extends TransparentFlameGame
       super.update(dt);
       return;
     }
-    final stick = joystick;
-    if (stick != null) {
-      input.setStickAxis(stick.relativeDelta.x, -stick.relativeDelta.y);
-    }
     if (banner != null) {
       _bannerFor -= dt;
       if (_bannerFor <= 0.0) banner = null;
@@ -527,10 +600,10 @@ final class RiverGame extends TransparentFlameGame
 
   /// The stick bottom left and the trigger bottom right, above the panel.
   ///
-  /// **Flame's own components, feeding the same [InputState] the keys do.**
-  /// The stick's deflection goes in through [InputState.setStickAxis], the
-  /// call a gamepad's stick goes through; the trigger presses and releases
-  /// [fire]. The jet never learns which it was.
+  /// **Flame's own components, feeding the same [InputState] the keys do,**
+  /// through the input bridge: `followJoystick` writes the stick's
+  /// deflection where a gamepad's stick would go, and `bindButton` holds
+  /// [fire] while the trigger is down. The jet never learns which it was.
   void addTouchControls() {
     final stick = JoystickComponent(
       knob: CircleComponent(
@@ -549,12 +622,11 @@ final class RiverGame extends TransparentFlameGame
         paint: Paint()..color = const Color(0x88FF5A3C),
       ),
       margin: const EdgeInsets.only(right: 48.0, bottom: 120.0),
-      onPressed: () => input.press(fire),
-      onReleased: () => input.release(fire),
-      onCancelled: () => input.release(fire),
     );
+    inputBridge.bindButton(trigger, fire);
     joystick = stick;
     camera.viewport.addAll(<Component>[stick, trigger]);
+    add(inputBridge.followJoystick(stick));
   }
 
   @override

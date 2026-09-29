@@ -87,6 +87,7 @@ class _RiverScreenState extends State<RiverScreen> {
     super.initState();
     if (hasTouchControls(defaultTargetPlatform)) _game.addTouchControls();
     _game.onFirstFlight = () => unawaited(_openAudio());
+    _game.shakeCamera = (double amount) => _chase?.rig.shake(amount);
   }
 
   /// Opens the speakers, or leaves the game silent if they will not open.
@@ -120,14 +121,17 @@ class _RiverScreenState extends State<RiverScreen> {
   /// **Aimed so the jet sits in the lower third, above the panel.** Looking
   /// further up the river put the jet four fifths of the way down the
   /// frame, behind Flame's instrument panel, where nobody could see it bank.
-  void _frame() {
-    if (!_game.built) return;
-    final x = _game.jet.position.x;
-    final z = -_game.distance;
-    _camera
-      ..setPosition(x * 0.35, flightHeight + 11.0, z + 11.0)
-      ..lookAt(Vector3(x * 0.5, 0.0, z - 9.0));
-  }
+  ChaseCamera? _chase;
+
+  ChaseCamera _chaseTheJet() => ChaseCamera(
+    camera: _camera,
+    target: _game.jet,
+    offset: Vector3(0.0, 11.0, 11.0),
+    // The water level ahead of the jet, whatever height it flies at.
+    lookOffset: Vector3(0.0, -flightHeight, -9.0),
+    followAcross: 0.35,
+    lookAcross: 0.5,
+  );
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -140,15 +144,20 @@ class _RiverScreenState extends State<RiverScreen> {
           RenderSettings(fog: FogSettings(color: _haze, density: 0.004)),
       buildScene: (GraphicsDevice device) {
         final scene = Scene()..add(_camera);
-        _game.build(device, scene);
-        _frame();
+        _game
+          ..build(device, scene)
+          ..projector = BridgeProjector(
+            camera: _camera,
+            viewSize: () => _game.size,
+          );
+        _chase = _chaseTheJet()..advance(0.0);
         // The models arrive a moment later and take the place of the
         // primitives the river was built with; see `RiverGameCraft`.
         unawaited(_game.dressWithModels());
         return scene;
       },
-      onRendererReady: (Renderer renderer) => _game.renderer = renderer,
-      onTick: (double dt) => _frame(),
+      onRendererReady: _game.drawWith,
+      onTick: (double dt) => _chase?.advance(dt),
     ),
   );
 }

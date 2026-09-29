@@ -137,7 +137,13 @@ final class InstancedMeshNode extends MeshNode {
   /// The other half of [ensureCapacity]'s bargain: a batcher that refills the
   /// same node every frame needs to start from nothing, and freeing the buffer
   /// to do it would be the allocation the pool exists to avoid.
+  ///
+  /// Every handle [acquire] gave out stops being live.
   void clear() {
+    for (final holder in _holders) {
+      holder?._index = -1;
+    }
+    _holders.clear();
     if (_count == 0) return;
     _count = 0;
     _touched();
@@ -241,6 +247,80 @@ final class InstancedMeshNode extends MeshNode {
     setTransform(index, transform);
     if (color != null) setColor(index, color);
     return index;
+  }
+
+  // ------------------------------------------------------- slots, by handle
+
+  /// The handle holding each drawn slot, where one does.
+  final List<InstanceHandle?> _holders = <InstanceHandle?>[];
+
+  /// Takes a slot for something that comes and goes, and returns the handle
+  /// that keeps finding it: a shot, a spark, an invader.
+  ///
+  /// **For a batch whose members leave in any order.** Written by index, a
+  /// batch whose middle member left had a hole to fill, and filling it moved
+  /// another member to a slot its owner did not know about. [release] fills
+  /// the hole with the last slot and tells the last slot's handle where it
+  /// went, so an owner holding a handle is never pointed at someone else's.
+  ///
+  /// Grows the buffer when it is full, the way [ensureCapacity] does: a
+  /// batch of things that come and go has no size to name in advance.
+  InstanceHandle acquire({Matrix4? transform, Vector4? color}) {
+    ensureCapacity(_count + 1);
+    final index = _count;
+    final handle = InstanceHandle._(this, index);
+    while (_holders.length <= index) {
+      _holders.add(null);
+    }
+    _holders[index] = handle;
+    count = index + 1;
+    setTransform(index, transform ?? Matrix4.identity());
+    setColor(index, color ?? Vector4.all(1.0));
+    final weights = _weights;
+    if (weights != null) {
+      weights.fillRange(
+        index * maxMorphTargets,
+        (index + 1) * maxMorphTargets,
+        0.0,
+      );
+      _weightsVersion++;
+    }
+    return handle;
+  }
+
+  /// Gives [handle]'s slot back: the last drawn slot moves into it, colour
+  /// and morph weights with it, and [count] drops by one. Releasing a
+  /// handle twice, or one from another batch, is a mistake and throws.
+  void release(InstanceHandle handle) {
+    if (!identical(handle._batch, this) || !handle.live) {
+      throw StateError('That instance is not held in "$name".');
+    }
+    final hole = handle._index;
+    final last = _count - 1;
+    if (hole != last) {
+      _data.setRange(
+        hole * floatsPerInstance,
+        (hole + 1) * floatsPerInstance,
+        _data,
+        last * floatsPerInstance,
+      );
+      final weights = _weights;
+      if (weights != null) {
+        weights.setRange(
+          hole * maxMorphTargets,
+          (hole + 1) * maxMorphTargets,
+          weights,
+          last * maxMorphTargets,
+        );
+        _weightsVersion++;
+      }
+      final moved = last < _holders.length ? _holders[last] : null;
+      moved?._index = hole;
+      _holders[hole] = moved;
+    }
+    if (last < _holders.length) _holders[last] = null;
+    handle._index = -1;
+    count = last;
   }
 
   // ------------------------------------------------- morph weights, per copy
@@ -416,4 +496,31 @@ final class InstancedMeshNode extends MeshNode {
     _localBounds.max.setValues(maxX, maxY, maxZ);
     return _localBounds;
   }
+}
+
+/// One slot of an [InstancedMeshNode], taken with
+/// [InstancedMeshNode.acquire]: it follows its instance when a release
+/// elsewhere in the batch moves it.
+final class InstanceHandle {
+  InstanceHandle._(this._batch, this._index);
+
+  final InstancedMeshNode _batch;
+  int _index;
+
+  /// Whether the slot is still this handle's: false once released, or once
+  /// the batch was cleared.
+  bool get live => _index >= 0;
+
+  /// The slot's index in the batch right now; it changes when another
+  /// instance is released. Read it at the moment of a write, do not keep it.
+  int get index {
+    if (!live) throw StateError('A released instance has no slot.');
+    return _index;
+  }
+
+  /// Places the instance, in the batch node's space.
+  void setTransform(Matrix4 transform) => _batch.setTransform(index, transform);
+
+  /// Tints the instance.
+  void setColor(Vector4 color) => _batch.setColor(index, color);
 }

@@ -27,7 +27,7 @@ dependencies:
   flutter3d_app: ^0.8.0
 
   # The scene graph a Flame component's transform is bridged onto.
-  flutter3d: ^0.8.1
+  flutter3d: ^0.8.3
 
   # The actor/entity system the ECS bridge wraps, and the shared `InputState`
   # the input bridge writes into — the same object `flutter3d_game`'s own
@@ -42,6 +42,10 @@ dependencies:
   # `Bindings`, and the desktop/pad input translators the input bridge's own
   # guide points a reader back to rather than duplicating.
   flutter3d_game: ^0.8.0
+
+  # The pool and the instanced draw a Flame game's blasts go through. Plain
+  # Dart, no native code: a game that throws no particles pays nothing.
+  flutter3d_particles: ^0.8.0
 
   vector_math: ^2.4.3
 

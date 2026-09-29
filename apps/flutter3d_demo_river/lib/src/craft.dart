@@ -121,14 +121,6 @@ final class _Kit {
     roughness: 0.3,
   );
 
-  /// A shard of an explosion. Its own, because a blast fades it.
-  engine.Material fire() => engine.Material(
-    name: 'fire',
-    baseColor: Vector4(1.0, 0.55, 0.15, 1.0),
-    emissive: Vector3(1.0, 0.45, 0.1),
-    emissiveStrength: 5.0,
-  );
-
   static DeviceMesh _upload(GraphicsDevice device, MeshData mesh, double yaw) =>
       DeviceMesh.upload(device, mesh.transformed(Matrix4.rotationY(yaw)));
 }

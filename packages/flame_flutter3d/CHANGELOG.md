@@ -42,6 +42,45 @@ or the top-left corner. They were Flame's and set in every subclass's
 constructor body, five times in River Sortie alone; they pass through the
 constructor now.
 
+**A phone's stick and button go through the input bridge.**
+`FlameInputBridge.followJoystick(stick)` returns a component that writes a
+Flame `JoystickComponent`'s deflection into the move axis every frame,
+screen-up as forward, the way a gamepad's stick goes in; `bindButton(button,
+action)` holds an action while an on-screen button is down. River Sortie
+polled its stick in `update` and wired the button's three callbacks itself.
+
+**`ChaseCamera` follows a bridged component in perspective.** From an
+offset behind it, looking at a point ahead, following part way across if
+asked, stiff or springy. It eases through `flutter3d_sim`'s `CameraRig`,
+so `chase.rig.shake(0.5)` shakes it and a `CollisionWorld` with walls in it
+keeps it out of them. `ChaseCameraComponent` runs one as a component.
+River Sortie's hand-written camera went, and its camera shakes when the jet
+goes down.
+
+**`BridgeProjector` goes between the 3D camera and Flame's screen.**
+`toScreen` says where a point of the scene is drawn, for a label or a
+"+30" in Flame's viewport over a craft; `onPlane` says which point of a
+plane is under a touch.
+
+**`ChunkStreamer` builds an endless world piece by piece.** Given how a
+piece is built and let go, `cover(from, to)` builds what came into view,
+in order, and drops what left it; `clear` drops everything for a restart.
+River Sortie's stretches of river are one.
+
+**`InstancedObject3dComponent` draws many small things as one.** A Flame
+component that takes a slot in a shared `InstancedMeshNode` while mounted,
+writes its transform into it the way `Object3dComponent` writes a node's,
+and gives it back when removed, at once. River Sortie's shots are one draw
+however many are in the air.
+
+**`Particles3dComponent` runs a `flutter3d_particles` system on Flame's
+clock**, bursting from a Flame point with `burstAt`, and draws it through a
+`MeshParticleContributor` once `drawWith` has the renderer. River Sortie's
+fire and sparks moved to it from a scene node per shard; its smoke and
+spray stayed, because the particles draw additively and dark smoke only
+darkens. The package now depends on `flutter3d_particles`, which is plain
+Dart.
+
 ## 0.8.2
 
 **`PhysicsStepComponent` steps the physics on Flame's clock.** A

@@ -15,6 +15,18 @@ extension RiverGameStaging on RiverGame {
     _device = device;
     _scene = scene;
     _kit = _Kit(device);
+    _shots = InstancedMeshNode(
+      _kit.shot,
+      _kit.glow,
+      capacity: 8,
+      name: 'shots',
+    );
+    scene.add(_shots);
+    blasts = Particles3dComponent(
+      system: ParticleSystem(capacity: 512),
+      plane: RiverGame.river,
+    );
+    add(blasts);
     wardrobe = ModelWardrobe<Craft>(
       device: device,
       scene: scene,
@@ -43,9 +55,8 @@ extension RiverGameStaging on RiverGame {
   /// Puts the jet at the start of the checkpoint's stretch, with the river
   /// around it built fresh: what was shot there is back, as it was.
   void _restart() {
-    for (final index in _stretches.keys.toList()) {
-      _dropStretch(index);
-    }
+    _stretches.clear();
+    blasts.system.clear();
     for (final leftover in children.where(
       (child) =>
           child is ShotComponent ||
@@ -81,16 +92,10 @@ extension RiverGameStaging on RiverGame {
 
   /// Builds the stretches from a little behind the jet to as far ahead as
   /// the camera sees, and lets go of the ones it has left behind.
-  void _ensureStretches() {
-    final from = course.sectionIndexAt(distance - 25.0);
-    final to = course.sectionIndexAt(distance + 160.0);
-    for (final index in _stretches.keys.toList()) {
-      if (index < from || index > to) _dropStretch(index);
-    }
-    for (var index = from; index <= to; index++) {
-      _stretches.putIfAbsent(index, () => _buildStretch(index));
-    }
-  }
+  void _ensureStretches() => _stretches.cover(
+    course.sectionIndexAt(distance - 25.0),
+    course.sectionIndexAt(distance + 160.0),
+  );
 
   _Stretch _buildStretch(int index) {
     final section = course.section(index);
@@ -161,9 +166,7 @@ extension RiverGameStaging on RiverGame {
     );
   }
 
-  void _dropStretch(int index) {
-    final stretch = _stretches.remove(index);
-    if (stretch == null) return;
+  void _dropStretch(int index, _Stretch stretch) {
     stretch.valley.removeFromParent();
     stretch.water.removeFromParent();
     for (final component in <Component>[...stretch.targets, ?stretch.bridge]) {

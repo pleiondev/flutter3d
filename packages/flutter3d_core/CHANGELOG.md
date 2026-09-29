@@ -21,6 +21,12 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **An instance batch hands out slots that stay found.**
+  `InstancedMeshNode.acquire` takes a slot and returns an `InstanceHandle`;
+  `release` fills the hole with the last slot, colour and morph weights
+  with it, and moves that slot's handle along, so a batch of shots or
+  sparks that leave in any order never points an owner at someone else's
+  instance. A full batch grows. `clear` retires every handle.
 
 ## 0.8.2
 

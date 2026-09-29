@@ -350,17 +350,19 @@ final class BridgeComponent extends Object3dComponent
 }
 
 /// One shot, straight up the river until it hits something or runs out.
-final class ShotComponent extends Object3dComponent
+///
+/// An instance of the game's one batch of shots rather than a node of its
+/// own: at five shots a second with a second of life, there are always a
+/// handful in the air, and they are one draw.
+final class ShotComponent extends InstancedObject3dComponent
     with CollisionCallbacks, HasGameReference<RiverGame> {
   ShotComponent({
-    required super.node,
-    required super.scene,
+    required super.batch,
     required super.position,
     required this.speed,
   }) : super(
          plane: RiverGame.river,
          elevation: flightHeight,
-         direction: SyncDirection.flameToScene,
          // Longer than the rod drawn: at thirty frames a second a shot moves
          // two and a half metres a frame, and a shorter box could step over
          // a tanker without ever overlapping it.
@@ -457,11 +459,14 @@ final class EnemyShotComponent extends Object3dComponent
   }
 }
 
-/// Shards thrown out of a point, falling or rising, shrinking, gone: fire,
-/// smoke, spray or sparks, by what it is given.
+/// Shards thrown out of a point, falling or rising, shrinking, gone: smoke
+/// or spray, by what it is given.
 ///
 /// A plain Flame [Component] that owns scene nodes and never a Flame
-/// position: nothing about a shard is game state.
+/// position: nothing about a shard is game state. Fire and sparks go
+/// through the game's particle pool instead (`RiverGame.blasts`); the pool
+/// draws additively, which is right for anything that glows and wrong for
+/// dark smoke and white water, so these two keep their lit shards.
 final class BurstComponent extends Component {
   BurstComponent({
     required Scene scene,
@@ -475,7 +480,6 @@ final class BurstComponent extends Component {
     this.lifetime = 0.9,
     this.size = 1.0,
     this.grows = false,
-    this.fades = false,
   }) {
     final random = math.Random();
     for (var i = 0; i < count; i++) {
@@ -497,7 +501,6 @@ final class BurstComponent extends Component {
     }
   }
 
-  /// This burst's own when [fades]: its glow dims as the shards die.
   final engine.Material material;
   final double lift;
   final double gravity;
@@ -506,9 +509,6 @@ final class BurstComponent extends Component {
 
   /// Swells as it goes, the way smoke does, rather than only shrinking.
   final bool grows;
-
-  /// Dims [material]'s glow over [lifetime].
-  final bool fades;
 
   final List<({MeshNode node, Vector3 velocity, Vector3 spin})> _shards = [];
   double _age = 0.0;
@@ -534,7 +534,6 @@ final class BurstComponent extends Component {
           shard.spin.z * _age * 20.0,
         );
     }
-    if (fades) material.emissiveStrength = 5.0 * left;
   }
 
   @override

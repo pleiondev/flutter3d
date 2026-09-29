@@ -5,7 +5,8 @@
 library;
 
 import 'package:flame/collisions.dart' show ShapeHitbox;
-import 'package:flame/components.dart' show Vector2;
+import 'package:flame/components.dart' show TextComponent, Vector2;
+import 'package:flame_flutter3d/flame_flutter3d.dart' show BridgeProjector;
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
@@ -128,6 +129,35 @@ void main() {
     // At least: shots still in the air when it went down may find more.
     expect(game.run.score, greaterThanOrEqualTo(target.plan.kind.points));
     expect(game.run.tally[target.plan.kind], greaterThanOrEqualTo(1));
+  });
+
+  test('a target going down puts its points over it on the screen, '
+      'and they rise and go', () async {
+    final game = await _newGame();
+    final target = game.targets.firstWhere(
+      (t) => t.plan.kind != TargetKind.depot,
+    );
+    final at = target.scenePosition;
+    final camera = CameraNode()
+      ..setPosition(at.x, at.y + 10.0, at.z + 10.0)
+      ..lookAt(at);
+    game
+      ..projector = BridgeProjector(camera: camera, viewSize: () => game.size)
+      ..hitTarget(target);
+    await game.ready();
+
+    Iterable<TextComponent> popups() => game.camera.viewport.children
+        .whereType<TextComponent>()
+        .where((text) => text.text == '+${target.plan.kind.points}');
+    final popup = popups().single;
+    // Looked at from straight behind and above: the middle of the screen.
+    expect(popup.position.x, closeTo(game.size.x / 2, 1.0));
+    expect(popup.position.y, closeTo(game.size.y / 2, 1.0));
+
+    await _run(game, 30);
+    expect(popup.position.y, lessThan(game.size.y / 2 - 10.0));
+    await _run(game, 40);
+    expect(popups(), isEmpty);
   });
 
   test('a tanker hit lists and sinks, and is no longer solid', () async {
