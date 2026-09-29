@@ -9,7 +9,7 @@ not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: thirty-eight packages, published by
+On pub.dev: thirty-nine packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages). Start with
 [`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. Thirty-six of
 them are the 0.8.0 set, one number for all, so any `^0.8.0` resolves against
@@ -158,7 +158,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 10663 tests across thirty-eight packages and nine applications. The
+There are 10663 tests across thirty-nine packages and nine applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 78 scenes
 checkable in a headless run.

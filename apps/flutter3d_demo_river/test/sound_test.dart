@@ -10,11 +10,18 @@ import 'package:flutter3d_demo_river/src/river_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show GameAction;
 import 'package:flutter_test/flutter_test.dart';
 
+/// A game whose speakers are a silent backend that records every voice,
+/// opened as the first take-off would open them.
 Future<(RiverGame, SilentBackend)> _newGame() async {
-  final game = await initializeGame(RiverGame.new);
-  game.open3d(cpuTestDevice(width: 32, height: 24).device);
   final ears = SilentBackend();
-  game.hearWith(AudioScene(backend: ears));
+  final game = await initializeGame(
+    () => RiverGame(
+      speakers: () async =>
+          (scene: AudioScene(backend: ears), close: () async {}),
+    ),
+  );
+  game.open3d(cpuTestDevice(width: 32, height: 24).device);
+  await game.sound.open();
   await game.ready();
   return (game, ears);
 }

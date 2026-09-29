@@ -2688,7 +2688,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **10663 tests** across 38 packages and 9 applications |
+| Unit tests | **10663 tests** across 39 packages and 9 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3716,7 +3716,7 @@ what went out at 0.4.2.
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_strategy`, `flame_flutter3d`
-9. `flutter3d_sim_mcp`
+9. `flutter3d_sim_mcp`, `flame_flutter3d_audio`
 
 Several positions are not obvious and so are written down rather than
 re-derived: `flutter3d_core` is in the second tier and ahead of `flutter3d`,

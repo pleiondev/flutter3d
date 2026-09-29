@@ -22,6 +22,10 @@ dependencies:
   # The scene graph, the meshes and the renderer the 3D layer draws with.
   flutter3d: ^0.8.3
 
+  # The game's sound as Flame components: silent until the first take-off,
+  # loops held open by the state they stand for.
+  flame_flutter3d_audio: ^0.8.3
+
   # The sound: a scene of voices, a silent backend for the tests and until
   # the player's first input, SoLoud behind it after that.
   flutter3d_audio: ^0.8.1

@@ -25,6 +25,7 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart' show FlameGame;
 import 'package:flame/input.dart' show HudButtonComponent;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flame_flutter3d_audio/flame_flutter3d_audio.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart'
     show EdgeInsets, FontWeight, Shadow, TextStyle;
@@ -81,7 +82,7 @@ final class RiverGame extends FlameGame
     with HasFlutter3d, KeyboardEvents, HasCollisionDetection {
   /// [models] loads the craft models over the primitives once the river is
   /// open; the tests leave it off, having no app bundle to load them from.
-  RiverGame({int seed = defaultSeed, this.models = false})
+  RiverGame({int seed = defaultSeed, this.models = false, this.speakers})
     : course = Course(seed: seed) {
     clearColor.setValues(_haze.x, _haze.y, _haze.z, 1.0);
   }
@@ -228,6 +229,7 @@ final class RiverGame extends FlameGame
   Future<void> onLoad() async {
     await super.onLoad();
     camera.viewport.add(RiverHud());
+    await addAll(<Component>[sound, _engineLoop, _refuelLoop, _alarmLoop]);
   }
 
   /// The renderer the 3D layer is drawn with: what a stretch's meshes go
@@ -551,13 +553,29 @@ final class RiverGame extends FlameGame
   /// Whether a depot is filling the tank this step.
   bool refuelling = false;
 
-  /// What the game says into: a silent scene until [RiverGameSound.hearWith]
-  /// hands it the speakers, and in every test.
-  AudioScene audio = AudioScene(backend: SilentBackend());
-  final AudioListener _ears = AudioListener();
-  SoundEmitter? _engineLoop;
-  SoundEmitter? _refuelLoop;
-  SoundEmitter? _alarmLoop;
+  /// The game's sound: silent until [AudioSceneComponent.open], which the
+  /// first take-off asks for through [onFirstFlight].
+  late final AudioSceneComponent sound = AudioSceneComponent(
+    bank: Sounds.all,
+    opener: speakers,
+  );
+
+  /// How the speakers open: SoLoud unless given otherwise, as the tests give
+  /// a silent pair they can listen to.
+  final Future<OpenedSpeakers?> Function()? speakers;
+
+  final SoundEmitterComponent _engineLoop = SoundEmitterComponent(
+    Sounds.engine,
+    playing: false,
+  );
+  final SoundEmitterComponent _refuelLoop = SoundEmitterComponent(
+    Sounds.refuel,
+    playing: false,
+  );
+  final SoundEmitterComponent _alarmLoop = SoundEmitterComponent(
+    Sounds.lowFuel,
+    playing: false,
+  );
   int _reserveHeard = RunState.startingReserve;
 
   /// Called once, the first time the jet takes off.
@@ -659,8 +677,11 @@ final class RiverGame extends FlameGame
           _restart();
         }
     }
-    super.update(dt);
+    // Before the children, not after: the game's sound is one of them and
+    // mixes when it updates, and a loop turned on after the mix is heard a
+    // frame late.
     _listen();
+    super.update(dt);
     input.endStep();
   }
 

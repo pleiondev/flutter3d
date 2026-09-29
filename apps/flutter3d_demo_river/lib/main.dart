@@ -18,7 +18,7 @@
 /// is an `Object3dComponent` from `flame_flutter3d`, which writes its Flame
 /// position into a scene node each frame; `Flutter3dFlameWidget` puts the 3D
 /// layer under Flame's and runs both from Flame's clock. This file hands it
-/// the game and opens the speakers.
+/// the game.
 library;
 
 import 'dart:async';
@@ -26,8 +26,6 @@ import 'dart:async';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d_audio/flutter3d_audio.dart'
-    show SoLoudBackend, openSpeakers;
 
 import 'src/river_game.dart';
 
@@ -64,37 +62,22 @@ class _RiverScreenState extends State<RiverScreen> {
       const int.fromEnvironment('RIVER_LEVEL', defaultValue: 1) - 1,
     );
 
-  /// The sound device, once the first take-off has opened it.
-  SoLoudBackend? _speakers;
-
   /// A phone or a tablet has no keys, so it gets Flame's stick and trigger.
   @override
   void initState() {
     super.initState();
     if (hasTouchControls(defaultTargetPlatform)) _game.addTouchControls();
-    _game.onFirstFlight = () => unawaited(_openAudio());
+    // Taking off is the player's first key, touch or button, and a browser
+    // lets a page make a sound only after one.
+    _game.onFirstFlight = () => unawaited(_game.sound.open());
     // `--dart-define=RIVER_HITBOXES=true` draws every hitbox in the scene,
     // round the craft it belongs to.
     _game.debugHitboxes3d = const bool.fromEnvironment('RIVER_HITBOXES');
   }
 
-  /// Opens the speakers, or leaves the game silent if they will not open.
-  Future<void> _openAudio() async {
-    final speakers = await openSpeakers(bank: Sounds.all, maxVoices: 16);
-    if (speakers == null) return;
-    if (!mounted) {
-      // Gone while the device was opening: close it here, since dispose has
-      // already run past it, and a SoLoud left open blocks the next open.
-      unawaited(speakers.backend.dispose());
-      return;
-    }
-    _speakers = speakers.backend;
-    _game.hearWith(speakers.scene);
-  }
-
   @override
   void dispose() {
-    unawaited(_speakers?.dispose());
+    unawaited(_game.sound.close());
     super.dispose();
   }
 

@@ -128,52 +128,28 @@ abstract final class Sounds {
 }
 
 /// The game's voice: the three loops its state holds open, and a one-shot
-/// for each event.
+/// for each event, through `flame_flutter3d_audio`.
 ///
-/// Until [RiverGame.hearWith] hands it a real scene it speaks into a
-/// [SilentBackend], which is also how the tests hear it.
+/// The loops are [SoundEmitterComponent]s in the game and the one-shots go
+/// into [RiverGame.sound]; until the speakers open, both play into a silent
+/// scene, and the loops move onto the speakers when they do.
 extension RiverGameSound on RiverGame {
-  /// Swaps the silent scene for [scene], once the speakers are open. The
-  /// loops playing on the old one stop and start again on the new.
-  void hearWith(AudioScene scene) {
-    for (final loop in <SoundEmitter?>[_engineLoop, _refuelLoop, _alarmLoop]) {
-      loop?.stop();
-    }
-    _engineLoop = _refuelLoop = _alarmLoop = null;
-    audio = scene;
-  }
+  void _say(SoundDef def) => sound.play(def);
 
-  void _say(SoundDef sound) => audio.play(sound, _ears.position);
-
-  /// Opens or closes each loop by the state it stands for, bends the engine
-  /// with the throttle, and hands the scene its frame.
+  /// Holds each loop open by the state it stands for, bends the engine with
+  /// the throttle, and hails an extra jet.
   void _listen() {
     final flying = phase == Phase.flying;
-    _engineLoop = _hold(_engineLoop, Sounds.engine, open: flying);
-    _refuelLoop = _hold(_refuelLoop, Sounds.refuel, open: flying && refuelling);
-    _alarmLoop = _hold(
-      _alarmLoop,
-      Sounds.lowFuel,
-      open: flying && run.fuelLow && !refuelling,
-    );
+    _engineLoop.playing = flying;
+    _refuelLoop.playing = flying && refuelling;
+    _alarmLoop.playing = flying && run.fuelLow && !refuelling;
     final throttle =
         ((speed - RiverGame.slowSpeed) /
                 (RiverGame.fastSpeed - RiverGame.slowSpeed))
             .clamp(0.0, 1.0);
-    _engineLoop?.rate = 0.75 + 0.6 * throttle;
+    _engineLoop.rate = 0.75 + 0.6 * throttle;
 
     if (run.reserve > _reserveHeard) _say(Sounds.extraJet);
     _reserveHeard = run.reserve;
-    audio.update(_ears);
-  }
-
-  SoundEmitter? _hold(
-    SoundEmitter? loop,
-    SoundDef sound, {
-    required bool open,
-  }) {
-    if (open) return loop ?? audio.play(sound, _ears.position);
-    loop?.stop();
-    return null;
   }
 }
