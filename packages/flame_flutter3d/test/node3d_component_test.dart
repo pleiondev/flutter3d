@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 final class _Space extends FlameGame with HasFlutter3d {}
 
 final class _Fighter extends Node3dComponent with Tap3dCallbacks {
-  _Fighter(GraphicsDevice device, Scene scene, {Vector3? position})
+  _Fighter(GraphicsDevice device, Scene scene, {super.position})
     : super(
         node: MeshNode(
           DeviceMesh.upload(
@@ -24,7 +24,6 @@ final class _Fighter extends Node3dComponent with Tap3dCallbacks {
           Material(),
         ),
         scene: scene,
-        position: position,
       );
 
   int taps = 0;
@@ -48,22 +47,19 @@ void main() {
   test('moved, turned and scaled by Flame\'s effect controllers', () async {
     // Mutation: apply the whole move at each step rather than its share.
     final (:game, :device) = await _open();
-    final fighter = _Fighter(device, game.scene)
-      ..addAll(<Component>[
-        Move3dEffect.by(
-          Vector3(0.0, 4.0, -10.0),
-          EffectController(duration: 1.0),
-        ),
-        Rotate3dEffect.by(
-          Vector3(0.0, 1.0, 0.0),
-          1.5707963267948966,
-          EffectController(duration: 1.0),
-        ),
-        Scale3dEffect.to(
-          Vector3(2.0, 1.0, 3.0),
-          EffectController(duration: 1.0),
-        ),
-      ]);
+    final fighter = _Fighter(device, game.scene);
+    await fighter.addAll(<Component>[
+      Move3dEffect.by(
+        Vector3(0.0, 4.0, -10.0),
+        EffectController(duration: 1.0),
+      ),
+      Rotate3dEffect.by(
+        Vector3(0.0, 1.0, 0.0),
+        1.5707963267948966,
+        EffectController(duration: 1.0),
+      ),
+      Scale3dEffect.to(Vector3(2.0, 1.0, 3.0), EffectController(duration: 1.0)),
+    ]);
     await game.add(fighter);
     await game.ready();
 
