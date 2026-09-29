@@ -71,6 +71,15 @@ extension ArcadeGameStaging on ArcadeGame {
           ..setLocalForward(Vector3(-0.2, -1.0, -0.12)),
       );
 
+    wardrobe = ModelWardrobe<CraftRole>(
+      device: device,
+      scene: scene,
+      looks: <CraftRole, ModelLook>{
+        for (final MapEntry(key: role, value: look) in _looks.entries)
+          role: ModelLook(look.file, length: look.length),
+      },
+      onDressed: _paintAccent,
+    );
     _buildWalls();
     _spawnShip(device, scene);
     _spawnBots(device, scene);
@@ -185,16 +194,16 @@ extension ArcadeGameStaging on ArcadeGame {
       ),
       name: 'ship primitive',
     );
-    // Bridged through a holder, drawn by its child: see [ArcadeGameCrafts]
-    // for why a model arriving later swaps the child and not the holder.
-    final holder = SceneNode(name: 'ship')..add(mesh);
-
+    // Drawn by its visual node: see [ArcadeGameCrafts] for why a model
+    // arriving later swaps what that node holds and not the bridged node.
     ship = ShipComponent(
       body: _shipBody,
-      node: holder,
+      node: SceneNode(name: 'ship'),
       scene: scene,
       plane: ArcadeGame.groundPlane,
     )..priority = -50;
+    ship.visual.add(mesh);
+    wardrobe.dress(ship.visual, CraftRole.ship);
     _colliderComponents[_shipBody.collider] = ship;
 
     // The bridge listens on the sensor, not the hull: see [shipSensor] for
@@ -288,17 +297,14 @@ extension ArcadeGameStaging on ArcadeGame {
         ),
         name: 'bot $i primitive',
       );
-      final holder = SceneNode(name: 'bot $i')..add(mesh);
-      final role = hunter ? CraftRole.hunter : CraftRole.patrol;
-      _holderRoles[holder] = role;
-      _dress(holder, role);
-
       final bot = ActorComponent(
         actor: actor,
-        node: holder,
+        node: SceneNode(name: 'bot $i'),
         scene: scene,
         plane: ArcadeGame.groundPlane,
       )..priority = -50;
+      bot.visual.add(mesh);
+      wardrobe.dress(bot.visual, hunter ? CraftRole.hunter : CraftRole.patrol);
       _colliderComponents[body.collider] = bot;
       bots.add(bot);
       add(bot);

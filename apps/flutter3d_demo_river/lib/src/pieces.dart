@@ -11,19 +11,18 @@ Quaternion _roll(double angle) =>
 ///
 /// **Flame moves it; the bridge draws it.** [RiverGame] writes the jet's
 /// Flame position every step, and `Object3dComponent`, flowing Flame to the
-/// scene, writes that into the holder node. The pivot below the holder
-/// turns it up the river and banks it into a turn.
+/// scene, writes that into its node, [flightHeight] over the river. The
+/// bridge's [visual] node turns it up the river and banks it into a turn.
 final class JetComponent extends Object3dComponent
     with CollisionCallbacks, HasGameReference<RiverGame> {
-  JetComponent({required super.node, required super.scene, required this.pivot})
+  JetComponent({required super.node, required super.scene})
     : super(
-        plane: RiverGame.air,
+        plane: RiverGame.river,
         direction: SyncDirection.flameToScene,
+        elevation: flightHeight,
         size: Vector2(1.5, 1.8),
         anchor: Anchor.center,
       );
-
-  final SceneNode pivot;
 
   /// Radians rolled about the nose, eased towards what the stick asks for.
   double bank = 0.0;
@@ -54,16 +53,16 @@ final class JetComponent extends Object3dComponent
   /// degrees into the turn.
   void bankTowards(double stick, double dt) {
     bank += (stick * 0.55 - bank) * math.min(1.0, dt * 6.0);
-    pivot.setRotation(_upRiver * _roll(bank));
+    visual.setRotation(_upRiver * _roll(bank));
   }
 
   void show() {
-    node.visible = true;
+    isVisible = true;
     bank = 0.0;
-    pivot.setRotation(_upRiver);
+    visual.setRotation(_upRiver);
   }
 
-  void hide() => node.visible = false;
+  void hide() => isVisible = false;
 
   /// Anything but a depot is a crash: a bridge still standing, a craft, a
   /// helicopter's bullet.
@@ -102,18 +101,18 @@ final class TargetComponent extends Object3dComponent
     required this.plan,
     required super.node,
     required super.scene,
-    required this.pivot,
     required (double, double) channel,
-    this.rotor,
   }) : heading = plan.heading,
        _limits = (
          math.min(channel.$1 + plan.kind.halfLength, plan.x),
          math.max(channel.$2 - plan.kind.halfLength, plan.x),
        ),
        super(
-         plane: switch (plan.kind) {
-           TargetKind.helicopter || TargetKind.jet => RiverGame.air,
-           TargetKind.tanker || TargetKind.depot => RiverGame.water,
+         plane: RiverGame.river,
+         // What flies flies at the jet's height; what floats floats.
+         elevation: switch (plan.kind) {
+           TargetKind.helicopter || TargetKind.jet => flightHeight,
+           TargetKind.tanker || TargetKind.depot => 0.0,
          },
          direction: SyncDirection.flameToScene,
          position: Vector2(plan.x, -plan.distance),
@@ -135,11 +134,10 @@ final class TargetComponent extends Object3dComponent
   static const (double, double) fireRange = (7.0, 36.0);
 
   final TargetPlan plan;
-  final SceneNode pivot;
 
   /// The stand-in helicopter's blades, spun while it flies. Null for every
   /// other target, and left alone once a model has replaced them.
-  final SceneNode? rotor;
+  SceneNode? rotor;
 
   int heading;
   bool awake = false;
@@ -172,8 +170,8 @@ final class TargetComponent extends Object3dComponent
     if (!down) add(_hitbox);
   }
 
-  /// Turns the pivot to face [heading] across the river.
-  void face() => pivot.setRotation(_facing(heading.toDouble(), 0.0));
+  /// Turns what is drawn to face [heading] across the river.
+  void face() => visual.setRotation(_facing(heading.toDouble(), 0.0));
 
   /// Takes the hit. False when it was already down, so a shot and a blast
   /// arriving together count once.
@@ -245,30 +243,27 @@ final class TargetComponent extends Object3dComponent
     switch (plan.kind) {
       case TargetKind.tanker:
         // Lists to one side and goes under, smoking as it does.
-        pivot
-          ..setRotation(yaw * _roll(math.min(0.55, _dying * 0.45)))
-          ..setPosition(0.0, -0.45 * _dying * _dying, 0.0);
+        visual.setRotation(yaw * _roll(math.min(0.55, _dying * 0.45)));
+        elevation = -0.45 * _dying * _dying;
         if (_smokeIn <= 0.0) {
           _smokeIn = 0.22;
-          game.smoke(plane.to3d(position)..y = 0.8);
+          game.smoke(scenePosition..y = 0.8);
         }
         if (_dying > 2.4) removeFromParent();
       case TargetKind.helicopter:
         // Spins about its mast and falls, smoke pouring out, until the
         // river takes it.
-        final drop = 0.5 * 9.0 * _dying * _dying;
-        pivot
-          ..setRotation(
-            Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _dying * 11.0) *
-                _roll(0.3),
-          )
-          ..setPosition(0.0, -drop, 0.0);
+        elevation = flightHeight - 0.5 * 9.0 * _dying * _dying;
+        visual.setRotation(
+          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _dying * 11.0) *
+              _roll(0.3),
+        );
         if (_smokeIn <= 0.0) {
           _smokeIn = 0.06;
-          game.smoke(plane.to3d(position)..y = flightHeight - drop + 0.3);
+          game.smoke(scenePosition..y += 0.3);
         }
-        if (drop >= flightHeight) {
-          game.splash(plane.to3d(position)..y = 0.1);
+        if (elevation <= 0.0) {
+          game.splash(scenePosition..y = 0.1);
           removeFromParent();
         }
       case TargetKind.jet:
@@ -295,7 +290,7 @@ final class BridgeComponent extends Object3dComponent
     required super.scene,
     required super.position,
   }) : super(
-         plane: RiverGame.water,
+         plane: RiverGame.river,
          direction: SyncDirection.flameToScene,
          size: Vector2(span, 2.4),
          anchor: Anchor.center,
@@ -348,7 +343,7 @@ final class BridgeComponent extends Object3dComponent
       right
         ..setRotation(_roll(swing))
         ..setPosition(span / 2.0, deckHeight - sink, 0.0);
-      if (_falling > 3.5) node.visible = false;
+      if (_falling > 3.5) isVisible = false;
     }
     super.update(dt);
   }
@@ -363,7 +358,8 @@ final class ShotComponent extends Object3dComponent
     required super.position,
     required this.speed,
   }) : super(
-         plane: RiverGame.air,
+         plane: RiverGame.river,
+         elevation: flightHeight,
          direction: SyncDirection.flameToScene,
          // Longer than the rod drawn: at thirty frames a second a shot moves
          // two and a half metres a frame, and a shorter box could step over
@@ -425,7 +421,8 @@ final class EnemyShotComponent extends Object3dComponent
     required super.position,
     required this.velocity,
   }) : super(
-         plane: RiverGame.air,
+         plane: RiverGame.river,
+         elevation: flightHeight,
          direction: SyncDirection.flameToScene,
          size: Vector2.all(0.5),
          anchor: Anchor.center,

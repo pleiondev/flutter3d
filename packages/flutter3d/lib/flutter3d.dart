@@ -58,6 +58,7 @@ export 'src/engine/assets/gltf_resolvers.dart';
 export 'src/engine/assets/load_model_asset.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
+export 'src/engine/assets/model_wardrobe.dart';
 
 // Particles are `package:flutter3d_particles` and are named nowhere here.
 // The engine defines what a contributor is; what draws through one is not its

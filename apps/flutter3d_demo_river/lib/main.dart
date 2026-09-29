@@ -147,6 +147,7 @@ class _RiverScreenState extends State<RiverScreen> {
         unawaited(_game.dressWithModels());
         return scene;
       },
+      onRendererReady: (Renderer renderer) => _game.renderer = renderer,
       onTick: (double dt) => _frame(),
     ),
   );

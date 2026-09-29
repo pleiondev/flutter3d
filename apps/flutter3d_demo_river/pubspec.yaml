@@ -42,6 +42,10 @@ dev_dependencies:
   # A device with no GPU behind it, for the frame test.
   flutter3d_cpu: ^0.8.0
 
+  # A fake device that records what is handed back to it, for the release
+  # test.
+  flutter3d_hardware: ^0.8.0
+
   # Flame's own harness, so a test can mount the game and step it.
   flame_test: ^2.3.1
 

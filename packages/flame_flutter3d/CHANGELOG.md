@@ -1,5 +1,40 @@
 ## 0.8.3
 
+**Flame's effects reach the scene in the frame they happen.** Flowing Flame
+to the scene, `Object3dComponent` writes the scene again in `updateTree`,
+after its children, and an effect is a child: written only in `update`,
+before them, every `MoveEffect` and `RotateEffect` drew a frame late. It
+still writes in `update` as well, so code that drives a component by
+calling `update` itself, as the showcase's transform page does, keeps
+working. Flowing the other way it reads the scene in `update`, so its
+children see this frame's body.
+
+**A nested component lands where Flame draws it.** The transform written
+into the scene is the absolute one, so a component under another, a frog
+on a log, is placed at the log plus the frog. It wrote its local position
+as a world one. Read back from the scene, a nested component's position is
+brought into its parent's space.
+
+**A component let go stops being drawn at once.** `removeFromParent` hides
+its node straight away; Flame takes the component out on its next
+lifecycle pass, and until then the node was drawn a frame too long.
+
+**The rest of Flame's transform crosses.** `elevation` lifts a component off
+its plane along the normal, so one plane serves what floats and what flies
+over it; `scenePosition` says where it is in the scene. Flame's `scale`
+scales the node. Flame's visibility (`HasVisibility.isVisible`) hides and
+shows it, written only when it changes, so a node blinked by hand still
+blinks. And `visual`, a node under the bridged one made on first use, is
+the game's to turn, bank or tilt: the bridge writes the bridged node's
+rotation every frame and never touches `visual`'s. River Sortie dropped its
+second plane, its hand-made pivot nodes and its node-level show and hide;
+Meteor Yard its pivot map.
+
+**`Flutter3dFlameWidget.onRendererReady`** hands a game the `Renderer` the
+3D layer draws with, once it exists, for what only the renderer can do:
+letting go of a streamed mesh after the frames in flight
+(`Renderer.releaseMeshAfterFrame`), adding a contributor.
+
 **`Object3dComponent` takes a `size` and an `anchor`.** A bridged component
 that collides needs both: a `RectangleHitbox()` fills its parent's size, and
 the anchor decides whether the point written into the scene is the centre

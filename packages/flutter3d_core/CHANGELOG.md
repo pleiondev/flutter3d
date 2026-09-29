@@ -1,5 +1,13 @@
 ## 0.8.3
 
+- **`Renderer.releaseMeshAfterFrame` lets go of a mesh safely.** A mesh an
+  application built and is done with, a stretch of terrain behind the
+  camera, goes back to the device once no frame in flight can still draw
+  it, through the same ring the renderer's own textures use, and on
+  `dispose` if no frame comes. Released straight away, its buffers could
+  still be read by a frame the GPU had not finished; River Sortie released
+  on its next update, which was one frame clear where three are in flight.
+
 - **A vertex colour says it is linear, and a picked colour gets there.**
   `VertexLayout.color` and `MeshBuilder.addVertex` now say what the shader
   always did: a vertex colour is linear, as glTF's `COLOR_0` is, while a

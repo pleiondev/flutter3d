@@ -95,10 +95,9 @@ final class RiverGame extends TransparentFlameGame
   static const double wingReach = 0.75;
   static const double noseReach = 0.9;
 
-  /// Everything that flies, the jet included, on one plane; everything that
-  /// floats on the water's.
-  static final BridgePlane air = BridgePlane.ground(height: flightHeight);
-  static final BridgePlane water = BridgePlane.ground();
+  /// The water, which everything is placed on: what floats at its own level,
+  /// what flies at an `elevation` of [flightHeight] above it.
+  static final BridgePlane river = BridgePlane.ground();
 
   final Course course;
   RunState run = RunState();
@@ -161,8 +160,8 @@ final class RiverGame extends TransparentFlameGame
   Iterable<BridgeComponent> get bridges =>
       _stretches.values.map((stretch) => stretch.bridge).nonNulls;
 
-  /// Every pivot waiting for, or wearing, a model, and which one.
-  final Map<SceneNode, Craft> _dressed = <SceneNode, Craft>{};
+  /// The craft models, and every visual node waiting for or wearing one.
+  late final ModelWardrobe<Craft> wardrobe;
 
   double _crashTimer = 0.0;
   double _shotCooldown = 0.0;
@@ -177,7 +176,23 @@ final class RiverGame extends TransparentFlameGame
     camera.viewport.add(RiverHud());
   }
 
-  final List<DeviceMesh> _releaseLater = <DeviceMesh>[];
+  /// The renderer drawing the 3D layer, once `Flutter3dFlameWidget` has one:
+  /// what a stretch's meshes go back through, so no frame still in flight is
+  /// drawing them when they do. Null in the tests, which render no frames.
+  Renderer? renderer;
+
+  /// Lets go of [mesh]: after the frames in flight when there is a renderer,
+  /// at once when there is none and so nothing in flight.
+  void _release(DeviceMesh mesh) {
+    final drawing = renderer;
+    if (drawing != null) {
+      drawing.releaseMeshAfterFrame(mesh);
+    } else {
+      _device
+        ..releaseGeometry(mesh.vertices)
+        ..releaseGeometry(mesh.indices);
+    }
+  }
 
   /// What brought the last jet down, for the tests and for anyone asking.
   Crash? lastCrash;
@@ -190,7 +205,7 @@ final class RiverGame extends TransparentFlameGame
     _crashTimer = crashPause;
     _say(Sounds.crash);
     jet.hide();
-    final at = air.to3d(jet.position);
+    final at = jet.scenePosition;
     fireball(at, size: 1.3);
     if (cause == Crash.bank) smoke(at);
   }
@@ -214,7 +229,7 @@ final class RiverGame extends TransparentFlameGame
     }
 
     _say(kind == TargetKind.depot ? Sounds.bigBoom : Sounds.boom);
-    final at = target.plane.to3d(target.position);
+    final at = target.scenePosition;
     switch (kind) {
       case TargetKind.tanker:
         fireball(at..y = 0.9, size: 0.7);
@@ -269,7 +284,7 @@ final class RiverGame extends TransparentFlameGame
   /// The last of a level finishes the level.
   void hitBridge(BridgeComponent bridge, {required Vector2 at}) {
     if (shielded(bridge)) {
-      sparks(air.to3d(at));
+      sparks(river.to3d(at, at: flightHeight));
       _say(Sounds.spark);
       say('SHIELDED  ·  ${stillWanted(stageOf(bridge.section).level)} TO GO');
       return;
@@ -280,12 +295,12 @@ final class RiverGame extends TransparentFlameGame
       ..award(500)
       ..bridgeDown(bridge.section);
     for (final along in <double>[-0.3, 0.0, 0.3]) {
-      final burst = water.to3d(bridge.position)
+      final burst = bridge.scenePosition
         ..x += bridge.span * along
         ..y = deckHeight;
       fireball(burst, size: 0.8);
     }
-    splash(water.to3d(bridge.position)..y = 0.1, size: 1.4);
+    splash(bridge.scenePosition..y = 0.1, size: 1.4);
 
     final stage = stageOf(bridge.section);
     if (bridge.section == stage.last) {
@@ -466,12 +481,6 @@ final class RiverGame extends TransparentFlameGame
 
   @override
   void update(double dt) {
-    for (final geometry in _releaseLater) {
-      _device
-        ..releaseGeometry(geometry.vertices)
-        ..releaseGeometry(geometry.indices);
-    }
-    _releaseLater.clear();
     if (!built) {
       super.update(dt);
       return;

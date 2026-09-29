@@ -1,5 +1,16 @@
 ## 0.8.3
 
+* **`ModelWardrobe` puts models on nodes made before they arrived.** A game
+  builds its craft from primitives to play at once and loads model files
+  behind them; the wardrobe loads a `ModelLook` per key (file, length,
+  standing or centred, an offset), dresses every node recorded with
+  `dress` as its model arrives, fitted through `instantiateFitted`, and
+  drops a node with `forget`. `onDressed` sees each instance, for a game
+  that recolours part of it. A file that fails leaves its primitives. River
+  Sortie and Meteor Yard each had this written out by hand, three maps and
+  a load loop apiece.
+* **`Renderer.releaseMeshAfterFrame`**, through `flutter3d_core`.
+
 * **`ModelAsset.instantiateFitted` places a model at a length, not a
   scale.** Free models arrive in whatever unit their author used: of the
   two jets one River Sortie loads, one is about a metre long and the other

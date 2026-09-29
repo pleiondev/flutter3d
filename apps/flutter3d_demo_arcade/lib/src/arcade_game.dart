@@ -210,16 +210,9 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   late final GraphicsDevice _device;
   late final Scene _scene;
 
-  /// The craft models by role, once [ArcadeGameCrafts.dressWithCrafts] has
-  /// loaded them; a role missing here draws its primitive.
-  final Map<CraftRole, ModelAsset> _crafts = <CraftRole, ModelAsset>{};
-
-  /// Each bot's holder node and the part it plays, so a model that loads
-  /// after the bot was made can still find it.
-  final Map<SceneNode, CraftRole> _holderRoles = <SceneNode, CraftRole>{};
-
-  /// Each dressed holder's pivot, the node turned to face the course.
-  final Map<SceneNode, SceneNode> _pivots = <SceneNode, SceneNode>{};
+  /// The craft models by role, and every visual node waiting for or wearing
+  /// one, so a bot made before its model loaded is dressed when it does.
+  late final ModelWardrobe<CraftRole> wardrobe;
 
   /// Bots the ship has rammed this step, waiting for [_drainHits] to
   /// remove them — see that method's own doc comment for why this cannot
@@ -308,8 +301,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   void _removeBot(ActorComponent bot) {
     final body = bot.actor.body;
     if (body != null) _colliderComponents.remove(body.collider);
-    _holderRoles.remove(bot.node);
-    _pivots.remove(bot.node);
+    wardrobe.forget(bot.visual);
     actorSystem.remove(bot.actor);
     bot.removeFromParent();
   }

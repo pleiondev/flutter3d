@@ -11,6 +11,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart';
 import 'package:flutter3d_demo_river/src/levels.dart';
+import 'package:flutter3d_demo_river/src/models.dart' show flightHeight;
 import 'package:flutter3d_demo_river/src/river_game.dart';
 import 'package:flutter3d_demo_river/src/rules.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show GameAction;
@@ -74,7 +75,7 @@ void main() {
       final node = game.jet.node.readPosition();
       expect(node.z, closeTo(-game.distance, 1e-6));
       expect(node.x, closeTo(game.jet.position.x, 1e-6));
-      expect(node.y, closeTo(RiverGame.air.to3d(game.jet.position).y, 1e-6));
+      expect(node.y, closeTo(flightHeight, 1e-6));
     },
   );
 
@@ -140,7 +141,7 @@ void main() {
 
     await _run(game, 60);
     expect(tanker.isMounted, isTrue, reason: 'still going under');
-    expect(tanker.pivot.readPosition().y, lessThan(-0.3));
+    expect(tanker.elevation, lessThan(-0.3));
     await _run(game, 120);
     expect(tanker.isMounted, isFalse);
   });
@@ -152,7 +153,7 @@ void main() {
     );
     game.hitTarget(helicopter);
     await _run(game, 20);
-    expect(helicopter.pivot.readPosition().y, lessThan(-0.2));
+    expect(helicopter.elevation, lessThan(flightHeight - 0.2));
     await _run(game, 40);
     expect(helicopter.isMounted, isFalse);
   });
@@ -344,13 +345,13 @@ void main() {
     // The files on disk: an isolate in a test has no app bundle to read.
     await game.dressWithModels(source: FileAssetSource.new);
 
-    bool wearsModel(SceneNode pivot) =>
-        pivot.children.length == 1 &&
-        (pivot.children.single.name ?? '').endsWith('model');
-    expect(wearsModel(game.jet.pivot), isTrue);
+    bool wearsModel(SceneNode visual) =>
+        visual.children.length == 1 &&
+        (visual.children.single.name ?? '').endsWith('model');
+    expect(wearsModel(game.jet.visual), isTrue);
     for (final target in game.targets) {
       expect(
-        wearsModel(target.pivot),
+        wearsModel(target.visual),
         target.plan.kind != TargetKind.depot,
         reason: '${target.plan.kind} at ${target.plan.distance}',
       );

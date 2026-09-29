@@ -39,13 +39,41 @@ enum SyncDirection {
 /// calls `node.removeFromParent()`. A [SceneNode] never outlives the
 /// component that owns it, and never needs a caller to remember to detach
 /// it by hand — the same guarantee `CameraNode.onAttachedToScene` already
-/// gives a [Scene]'s own registries.
-class Object3dComponent extends PositionComponent {
+/// gives a [Scene]'s own registries. [removeFromParent] hides [node] at
+/// once: Flame takes the component out of its tree on the next lifecycle
+/// pass, and a node that stayed visible until then was drawn one frame
+/// after the game had let it go.
+///
+/// **Where it is, not where it is relative to its parent.** The transform
+/// written into the scene is Flame's absolute one, so a component nested
+/// under another (a frog riding a log) lands where Flame draws it. [node]
+/// itself stays wherever it was added, normally the scene's root.
+///
+/// **Flowing Flame to the scene, it syncs after its children.** A Flame
+/// effect is a child of the component it moves, and effects update after
+/// their parent's own [update]; syncing in [update] put the 3D side a frame
+/// behind every `MoveEffect` and `RotateEffect`. [updateTree] runs the sync
+/// once the whole subtree has moved.
+///
+/// **The rest of Flame's transform crosses too.** [elevation] lifts the
+/// point off the plane along its normal. Flame's `scale` scales [node], the
+/// plane's two axes from `scale.x` and `scale.y` and the normal from their
+/// mean. Flame's visibility ([HasVisibility.isVisible]) is written into
+/// `node.visible` whenever it changes, and only then, so code that blinks a
+/// node by hand keeps working.
+///
+/// **[visual] is the bridge's to create and the game's to turn.** The
+/// bridge writes [node]'s rotation every frame, so a model turned to face
+/// its way, banked into a turn or tilted as it sinks has to hang from a
+/// node below it. [visual] is that node, made the first time it is asked
+/// for; nothing here writes its transform.
+class Object3dComponent extends PositionComponent with HasVisibility {
   Object3dComponent({
     required this.node,
     required this.scene,
     required this.plane,
     this.direction = SyncDirection.sceneToFlame,
+    this.elevation = 0.0,
     super.position,
     super.size,
     super.anchor,
@@ -68,10 +96,35 @@ class Object3dComponent extends PositionComponent {
   /// Which side is authoritative each frame. See [SyncDirection].
   final SyncDirection direction;
 
+  /// Metres off [plane] along its normal: a flying craft's height over a
+  /// ground plane, a jump's arc, a tanker settling under the water. Read
+  /// every frame, so an effect or the game can move it.
+  double elevation;
+
+  SceneNode? _visual;
+  bool? _visibleWritten;
+
+  /// A node under [node] for what is drawn, which the bridge never turns.
+  /// Made, and added to [node], the first time it is read.
+  SceneNode get visual {
+    final made = _visual;
+    if (made != null) return made;
+    final visual = SceneNode(name: '${node.name ?? 'object'} visual');
+    node.add(visual);
+    return _visual = visual;
+  }
+
+  /// Where this component is in the scene: its absolute Flame position on
+  /// [plane], lifted by [elevation]. For placing something at it, a blast
+  /// where a target went down, say.
+  Vector3 get scenePosition =>
+      plane.to3d(absolutePosition, at: plane.constant + elevation);
+
   @override
   void onMount() {
     super.onMount();
     if (node.parent == null) scene.add(node);
+    _visibleWritten = null;
   }
 
   @override
@@ -81,15 +134,65 @@ class Object3dComponent extends PositionComponent {
   }
 
   @override
+  void removeFromParent() {
+    node.visible = false;
+    _visibleWritten = false;
+    super.removeFromParent();
+  }
+
+  /// Reads the scene side first, so this component's children see where the
+  /// body is this frame. Flowing the other way it writes the scene here too,
+  /// for a caller that drives a component by calling [update] itself, and
+  /// again in [updateTree] once the effects under it have moved it.
+  @override
   void update(double dt) {
     super.update(dt);
     switch (direction) {
       case SyncDirection.sceneToFlame:
-        position = plane.to2d(node.readPosition());
-        angle = plane.angleFor(node.readRotation());
+        _readScene();
       case SyncDirection.flameToScene:
-        node.setPositionFrom(plane.to3d(position));
-        node.setRotation(plane.rotationFor(angle));
+        _writeScene();
+    }
+  }
+
+  @override
+  void updateTree(double dt) {
+    super.updateTree(dt);
+    if (direction == SyncDirection.flameToScene) _writeScene();
+    if (isRemoving) {
+      node.visible = false;
+    } else if (_visibleWritten != isVisible) {
+      node.visible = isVisible;
+      _visibleWritten = isVisible;
+    }
+  }
+
+  void _writeScene() {
+    node
+      ..setPositionFrom(scenePosition)
+      ..setRotation(plane.rotationFor(absoluteAngle));
+    final s = scale;
+    final across = (s.x.abs() + s.y.abs()) / 2.0;
+    switch (plane.axis) {
+      case PlaneAxis.y:
+        node.setScale(s.x, across, s.y);
+      case PlaneAxis.z:
+        node.setScale(s.x, s.y, across);
+    }
+  }
+
+  /// The node's place, brought into this component's parent's own space
+  /// when the parent is itself positioned.
+  void _readScene() {
+    final world = plane.to2d(node.readPosition());
+    final worldAngle = plane.angleFor(node.readRotation());
+    final holder = parent;
+    if (holder is PositionComponent) {
+      position = holder.absoluteToLocal(world);
+      angle = worldAngle - holder.absoluteAngle;
+    } else {
+      position = world;
+      angle = worldAngle;
     }
   }
 }

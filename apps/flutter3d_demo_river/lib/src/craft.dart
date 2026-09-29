@@ -18,6 +18,19 @@ enum Craft {
 
   /// Sits on the water rather than centred on its flying height.
   final bool floats;
+
+  /// How it is worn: a ship stands on the water with its keel 15 cm under
+  /// it, a flying craft is centred on its height.
+  ModelLook get look => ModelLook(
+    file,
+    length: length,
+    onGround: floats,
+    offset: floats ? Vector3(0.0, -0.15, 0.0) : null,
+  );
+
+  static Map<Craft, ModelLook> get looks => <Craft, ModelLook>{
+    for (final craft in values) craft: craft.look,
+  };
 }
 
 /// The meshes and materials shared by everything of a kind, uploaded once.
@@ -116,25 +129,19 @@ final class _Kit {
     emissiveStrength: 5.0,
   );
 
-  /// The models by the part they play, once [RiverGame.dressWithModels]
-  /// has loaded them. A part missing here draws its primitive.
-  final Map<Craft, ModelAsset> models = <Craft, ModelAsset>{};
-
   static DeviceMesh _upload(GraphicsDevice device, MeshData mesh, double yaw) =>
       DeviceMesh.upload(device, mesh.transformed(Matrix4.rotationY(yaw)));
 }
 
 /// The models, put on the bodies the game already moves.
 ///
-/// **A component is bridged through a holder, never through its model.**
-/// Every bridged node is an empty [SceneNode] holding a pivot, and the
-/// pivot holds what is drawn. Until [dressWithModels] has loaded the files,
-/// and always in the tests, which never load them, that is the primitive
-/// from `models.dart`; when a model arrives it replaces the pivot's
-/// children, and nothing that moves the holder notices. The pivot is what
-/// turns a craft to face its way and banks the jet: the bridge writes the
-/// holder's rotation from the Flame angle every frame, so anything turned
-/// there would be turned straight back.
+/// **What is drawn hangs from the component's `visual` node.** Until
+/// [dressWithModels] has loaded the files, and always in the tests, which
+/// never load them, that is the primitive from `models.dart`; the game's
+/// `ModelWardrobe` puts each model on every visual node that plays its part
+/// as it arrives, including those made while it was loading. The visual
+/// node is also what turns a craft to face its way and banks the jet,
+/// because the bridge leaves its rotation alone.
 extension RiverGameCraft on RiverGame {
   /// Loads every model and dresses whatever is already in play. A target
   /// made later is dressed as it is made. A model that fails to load
@@ -144,43 +151,9 @@ extension RiverGameCraft on RiverGame {
   /// isolate can read, hands in the files on disk.
   Future<void> dressWithModels({
     AssetSource Function(String path) source = BundleAssetSource.new,
-  }) async {
-    for (final craft in Craft.values) {
-      try {
-        final document = await decodeModelInIsolate(
-          ModelLoadRequest(source: source(craft.file)),
-        );
-        _kit.models[craft] = await ModelAsset.fromDocument(
-          document,
-          device: _device,
-          name: craft.file,
-        );
-      } catch (error) {
-        debugPrint('river: ${craft.file} did not load ($error)');
-      }
-    }
-    for (final MapEntry(key: pivot, value: craft) in _dressed.entries) {
-      _dress(pivot, craft);
-    }
-  }
-
-  /// Puts [craft]'s model under [pivot] in place of whatever it held, fitted
-  /// to [Craft.length] and centred on it. Nothing happens while that model
-  /// has not loaded.
-  void _dress(SceneNode pivot, Craft craft) {
-    final asset = _kit.models[craft];
-    if (asset == null) return;
-    for (final child in pivot.children.toList()) {
-      child.removeFromParent();
-    }
-    final instance = asset.instantiateFitted(
-      _scene,
-      length: craft.length,
-      onGround: craft.floats,
-      parent: pivot,
-      name: '${pivot.name} model',
-    );
-    // A ship sits a little into the water, its keel under the surface.
-    if (craft.floats) instance.root.translate(0.0, -0.15, 0.0);
-  }
+  }) => wardrobe.load(
+    source: source,
+    onError: (craft, error) =>
+        debugPrint('river: ${craft.file} did not load ($error)'),
+  );
 }

@@ -39,6 +39,7 @@ class Flutter3dFlameWidget extends StatefulWidget {
     required this.camera,
     required this.buildScene,
     this.existing,
+    this.onRendererReady,
     this.onTick,
     this.clearColor,
     this.settings,
@@ -65,6 +66,17 @@ class Flutter3dFlameWidget extends StatefulWidget {
   /// two GPU contexts open for one picture. `openDevice` runs only when this
   /// is null.
   final ({GraphicsDevice device, Renderer renderer})? existing;
+
+  /// Called once with the [Renderer] the 3D layer draws with, as soon as
+  /// there is one: after [buildScene], whether this widget opened the device
+  /// or was handed [existing].
+  ///
+  /// **For what a game has to ask the renderer itself**: letting go of a
+  /// mesh it streamed in (`Renderer.releaseMeshAfterFrame`), adding a
+  /// contributor that draws particles. Without it a bridged game saw the
+  /// device in [buildScene] and never the renderer, which this widget made
+  /// and kept.
+  final void Function(Renderer renderer)? onRendererReady;
 
   /// Called every time Flame updates [game], after its own components have,
   /// with that update's `dt`: the seam a physics step, an actor system step,
@@ -137,6 +149,7 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
       final scene = widget.buildScene(existing.device);
       if (scene.cameras.isEmpty) scene.add(widget.camera);
       _ready = (renderer: existing.renderer, scene: scene);
+      widget.onRendererReady?.call(existing.renderer);
     } else {
       _open();
     }
@@ -152,10 +165,9 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
       final scene = widget.buildScene(device);
       if (scene.cameras.isEmpty) scene.add(widget.camera);
       _ownsDevice = true;
-      setState(
-        () =>
-            _ready = (renderer: Renderer.create(device: device), scene: scene),
-      );
+      final renderer = Renderer.create(device: device);
+      setState(() => _ready = (renderer: renderer, scene: scene));
+      widget.onRendererReady?.call(renderer);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }

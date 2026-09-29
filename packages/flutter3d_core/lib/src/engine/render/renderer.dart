@@ -496,6 +496,7 @@ final class Renderer implements RenderServices {
       }
       slot.clear();
     }
+    _pendingMeshes.forEach(_releaseMeshes);
     targetPool.trim();
 
     // The window-sized targets `_ensureTargets` owns. On a resize they go
@@ -3815,6 +3816,9 @@ final class Renderer implements RenderServices {
     }
     finished.clear();
 
+    // And the meshes an application let go of. See [releaseMeshAfterFrame].
+    _releaseMeshes(_pendingMeshes[_frameIndex % _kFramesInFlight]);
+
     // `C9`: the split meshes' index buffers no view drew with for longer than
     // the frames in flight go back to the device. And no view is being drawn
     // yet: a frame that threw inside the scene pass left its last view here,
@@ -4840,6 +4844,46 @@ final class Renderer implements RenderServices {
   void _destroyAfterFrame(TextureHandle? texture) {
     if (texture == null) return;
     _pendingDestroy[_frameIndex % _kFramesInFlight].add(texture);
+  }
+
+  /// Gives [mesh]'s vertex and index buffers back to the device once no
+  /// frame in flight can still be drawing with them.
+  ///
+  /// **For a mesh an application built and is done with**: a stretch of
+  /// streamed terrain behind the camera, a bridge that has fallen. Released
+  /// at once, the buffers could still be read by a frame the GPU has not
+  /// finished, and a game releasing on its next update was one frame clear
+  /// of that where the renderer keeps [_kFramesInFlight]. Through the same
+  /// ring as the textures, retired at the top of the frame that many frames
+  /// on, and on [dispose] if no frame comes.
+  ///
+  /// A mesh shared with anything still drawn must not be handed here; the
+  /// renderer does not count references.
+  ///
+  /// **Into the last frame's slot, not the coming one's.** An application
+  /// calls this between frames, when the counter already names the frame
+  /// about to start, and that frame's slot is retired at its own top: a
+  /// mesh put there went back to the device one frame later, with the two
+  /// frames before still possibly reading it. Filed under the last frame
+  /// submitted, it is retired that many frames after it.
+  void releaseMeshAfterFrame(DeviceMesh mesh) {
+    final lastSubmitted =
+        (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
+    _pendingMeshes[lastSubmitted].add(mesh);
+  }
+
+  final List<List<DeviceMesh>> _pendingMeshes = List<List<DeviceMesh>>.generate(
+    _kFramesInFlight,
+    (_) => <DeviceMesh>[],
+  );
+
+  void _releaseMeshes(List<DeviceMesh> meshes) {
+    for (final mesh in meshes) {
+      device
+        ..releaseGeometry(mesh.vertices)
+        ..releaseGeometry(mesh.indices);
+    }
+    meshes.clear();
   }
 
   final List<List<TextureHandle>> _pendingDestroy =

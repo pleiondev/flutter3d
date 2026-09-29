@@ -15,6 +15,11 @@ extension RiverGameStaging on RiverGame {
     _device = device;
     _scene = scene;
     _kit = _Kit(device);
+    wardrobe = ModelWardrobe<Craft>(
+      device: device,
+      scene: scene,
+      looks: Craft.looks,
+    );
     scene
       ..ambientIntensity = 0.7
       ..add(
@@ -22,15 +27,14 @@ extension RiverGameStaging on RiverGame {
           ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
       );
 
-    final pivot = SceneNode(name: 'jet pivot')
-      ..add(MeshNode(_kit.playerJet, _kit.painted, name: 'jet primitive'));
     jet = JetComponent(
-      node: SceneNode(name: 'jet')..add(pivot),
-      pivot: pivot,
+      node: SceneNode(name: 'jet'),
       scene: scene,
     );
-    _dressed[pivot] = Craft.player;
-    _dress(pivot, Craft.player);
+    jet.visual.add(
+      MeshNode(_kit.playerJet, _kit.painted, name: 'jet primitive'),
+    );
+    wardrobe.dress(jet.visual, Craft.player);
     add(jet);
     built = true;
     _restart();
@@ -164,13 +168,11 @@ extension RiverGameStaging on RiverGame {
     stretch.water.removeFromParent();
     for (final component in <Component>[...stretch.targets, ?stretch.bridge]) {
       if (component.parent != null) component.removeFromParent();
-      if (component is TargetComponent) _dressed.remove(component.pivot);
+      if (component is TargetComponent) wardrobe.forget(component.visual);
     }
-    // The bridge's node may still be drawn this frame by a component whose
-    // removal Flame has not processed yet; release its buffers once it has.
-    for (final geometry in stretch.geometry) {
-      _releaseLater.add(geometry);
-    }
+    // Frames already sent may still be drawing the valley and the bridge;
+    // the renderer gives their buffers back once none can be.
+    stretch.geometry.forEach(_release);
   }
 
   TargetComponent _targetFor(TargetPlan plan) {
@@ -181,33 +183,32 @@ extension RiverGameStaging on RiverGame {
       TargetKind.jet => Craft.enemyJet,
       TargetKind.depot => null,
     };
-    final pivot = SceneNode(name: '${plan.kind.name} pivot');
-    SceneNode? rotor;
+    final target = TargetComponent(
+      plan: plan,
+      node: SceneNode(name: plan.kind.name),
+      channel:
+          course.rowAt(plan.distance).channelAt(plan.x) ?? (plan.x, plan.x),
+      scene: _scene,
+    );
+    final visual = target.visual;
     switch (plan.kind) {
       case TargetKind.tanker:
-        pivot.add(MeshNode(_kit.tanker, _kit.painted));
+        visual.add(MeshNode(_kit.tanker, _kit.painted));
       case TargetKind.helicopter:
-        rotor = MeshNode(_kit.rotor, _kit.painted)..setPosition(0.0, 0.53, 0.2);
-        pivot
+        final rotor = MeshNode(_kit.rotor, _kit.painted)
+          ..setPosition(0.0, 0.53, 0.2);
+        target.rotor = rotor;
+        visual
           ..add(MeshNode(_kit.helicopter, _kit.painted))
           ..add(rotor);
       case TargetKind.jet:
-        pivot.add(MeshNode(_kit.enemyJet, _kit.painted));
+        visual.add(MeshNode(_kit.enemyJet, _kit.painted));
       case TargetKind.depot:
-        pivot.add(MeshNode(_kit.depot, _kit.painted));
+        visual.add(MeshNode(_kit.depot, _kit.painted));
     }
     if (craft != null) {
-      _dressed[pivot] = craft;
-      _dress(pivot, craft);
+      wardrobe.dress(visual, craft);
     }
-    return TargetComponent(
-      plan: plan,
-      node: SceneNode(name: plan.kind.name)..add(pivot),
-      pivot: pivot,
-      channel:
-          course.rowAt(plan.distance).channelAt(plan.x) ?? (plan.x, plan.x),
-      rotor: rotor,
-      scene: _scene,
-    );
+    return target;
   }
 }

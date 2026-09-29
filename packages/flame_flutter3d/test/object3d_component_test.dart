@@ -62,7 +62,9 @@ void main() {
     )..onMount();
 
     component.position = Vector2(5.0, 6.0);
-    component.update(1 / 60);
+    // `updateTree`, which is what Flame calls: flowing Flame to the scene,
+    // the sync runs after the subtree, so an effect has moved it first.
+    component.updateTree(1 / 60);
 
     final read = node.readPosition();
     expect(read.x, 5.0);
@@ -84,7 +86,7 @@ void main() {
       anchor: Anchor.center,
     )..onMount();
 
-    component.update(1 / 60);
+    component.updateTree(1 / 60);
 
     expect(component.size, Vector2(2.0, 1.0));
     // The centre, not the top-left corner, is what lands in the scene.
