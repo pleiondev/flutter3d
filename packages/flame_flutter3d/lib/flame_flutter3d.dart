@@ -20,6 +20,7 @@ export 'src/ecs/actor_system_component.dart';
 export 'src/host/bridge_clock.dart';
 export 'src/host/bridge_priority.dart';
 export 'src/host/flutter3d_flame_widget.dart';
+export 'src/host/has_fixed_step.dart';
 export 'src/host/has_flutter3d.dart';
 export 'src/host/transparent_flame_game.dart';
 export 'src/input/flame_input_bridge.dart';

@@ -81,6 +81,16 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A game's own logic can run in fixed steps.** `HasFixedStep` on a
+`FlameGame` spends each frame's time in steps of one size and calls
+`fixedUpdate` on the game and on every `FixedStepUpdate` component in each
+step, before Flame's once-a-frame `update`. The physics and the actors
+already stepped so; a jet flown by `speed * dt` did not, and the same
+second of play flew a different distance at 30 and at 120 frames a second.
+`stepEnd` leaves the input step open after a frame with no step in it, so
+a press is not closed before anything has read it. River Sortie's run, its
+targets, bridges and shots are in fixed steps now.
+
 **A body at rest costs nothing either.** `RigidBodyComponent` and
 `ActorComponent` wrote their body's place onto the node every frame, and a
 sleeping crate redrew every shadow as a still prop had. They write through

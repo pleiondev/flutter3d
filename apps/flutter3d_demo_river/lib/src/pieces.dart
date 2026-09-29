@@ -96,7 +96,7 @@ final class JetComponent extends Object3dComponent
 /// From the moment it is hit its hitbox is gone: a sinking tanker is
 /// scenery, not something to crash into.
 final class TargetComponent extends Object3dComponent
-    with HasGameReference<RiverGame> {
+    with HasGameReference<RiverGame>, FixedStepUpdate {
   TargetComponent({
     required this.plan,
     required super.node,
@@ -186,7 +186,7 @@ final class TargetComponent extends Object3dComponent
   }
 
   @override
-  void update(double dt) {
+  void fixedUpdate(double dt) {
     if (down) {
       _goDown(dt);
     } else {
@@ -203,7 +203,6 @@ final class TargetComponent extends Object3dComponent
         blades.setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _spin));
       }
     }
-    super.update(dt);
   }
 
   void _move(double dt) {
@@ -282,7 +281,7 @@ final class TargetComponent extends Object3dComponent
 /// **Shot, it breaks in the middle.** It is drawn as two halves, each on a
 /// pivot at its own bank end; they swing down into the river, and sink.
 final class BridgeComponent extends Object3dComponent
-    with HasGameReference<RiverGame> {
+    with HasGameReference<RiverGame>, FixedStepUpdate {
   BridgeComponent({
     required this.section,
     required this.span,
@@ -334,7 +333,7 @@ final class BridgeComponent extends Object3dComponent
   }
 
   @override
-  void update(double dt) {
+  void fixedUpdate(double dt) {
     shield.visible = !down && game.shielded(this);
     if (down) {
       _falling += dt;
@@ -350,7 +349,6 @@ final class BridgeComponent extends Object3dComponent
       opacity = (3.5 - _falling).clamp(0.0, 1.0);
       if (_falling > 3.5) isVisible = false;
     }
-    super.update(dt);
   }
 }
 
@@ -360,7 +358,7 @@ final class BridgeComponent extends Object3dComponent
 /// own: at five shots a second with a second of life, there are always a
 /// handful in the air, and they are one draw.
 final class ShotComponent extends InstancedObject3dComponent
-    with CollisionCallbacks, HasGameReference<RiverGame> {
+    with CollisionCallbacks, HasGameReference<RiverGame>, FixedStepUpdate {
   ShotComponent({
     required super.batch,
     required super.position,
@@ -386,11 +384,10 @@ final class ShotComponent extends InstancedObject3dComponent
   }
 
   @override
-  void update(double dt) {
+  void fixedUpdate(double dt) {
     position.y -= speed * dt;
     _life -= dt;
     if (_life <= 0.0) _spend();
-    super.update(dt);
   }
 
   void _spend() {
@@ -421,7 +418,7 @@ final class ShotComponent extends InstancedObject3dComponent
 /// A helicopter's bullet: slow enough to see and to dodge, flying at where
 /// the jet was when it was fired.
 final class EnemyShotComponent extends Object3dComponent
-    with CollisionCallbacks {
+    with CollisionCallbacks, FixedStepUpdate {
   EnemyShotComponent({
     required super.node,
     required super.scene,
@@ -447,11 +444,10 @@ final class EnemyShotComponent extends Object3dComponent
   }
 
   @override
-  void update(double dt) {
+  void fixedUpdate(double dt) {
     position.addScaled(velocity, dt);
     _life -= dt;
     if (_life <= 0.0 && !isRemoving) removeFromParent();
-    super.update(dt);
   }
 
   @override

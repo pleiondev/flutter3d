@@ -8,6 +8,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../host/bridge_priority.dart';
+import '../host/has_fixed_step.dart';
 
 /// Feeds Flame's own keyboard and drag callbacks into the same
 /// [Bindings]/[InputState] pair `flutter3d_game`'s [DesktopInput] and
@@ -196,6 +197,10 @@ final class _InputStepEnd extends Component {
   @override
   void update(double dt) {
     super.update(dt);
+    // In a game of fixed steps, a frame with none in it leaves the step
+    // open: a press made in it has not been read yet.
+    final game = findGame();
+    if (game is HasFixedStep && game.stepsThisFrame == 0) return;
     inputState.endStep();
   }
 }

@@ -79,7 +79,7 @@ enum Phase {
 enum Crash { bank, collision, fuel }
 
 final class RiverGame extends FlameGame
-    with HasFlutter3d, KeyboardEvents, HasCollisionDetection {
+    with HasFlutter3d, HasFixedStep, KeyboardEvents, HasCollisionDetection {
   /// [models] loads the craft models over the primitives once the river is
   /// open; the tests leave it off, having no app bundle to load them from.
   RiverGame({int seed = defaultSeed, this.models = false, this.speakers})
@@ -657,6 +657,22 @@ final class RiverGame extends FlameGame
       _bannerFor -= dt;
       if (_bannerFor <= 0.0) banner = null;
     }
+    super.update(dt);
+  }
+
+  /// The run, in fixed steps: the same flight at any frame rate. See
+  /// [HasFixedStep].
+  @override
+  void fixedUpdate(double dt) {
+    if (!built) return;
+    _step(dt);
+    // After the step and before the children update: the game's sound is
+    // one of them and mixes when it does, and a loop turned on after the
+    // mix is heard a frame late.
+    _listen();
+  }
+
+  void _step(double dt) {
     switch (phase) {
       case Phase.ready:
         if (input.pressed(fire) || input.moveAxis.length2 > 0.04) {
@@ -684,11 +700,6 @@ final class RiverGame extends FlameGame
           _restart();
         }
     }
-    // Before the children, not after: the game's sound is one of them and
-    // mixes when it updates, and a loop turned on after the mix is heard a
-    // frame late.
-    _listen();
-    super.update(dt);
   }
 
   /// The stick bottom left and the trigger bottom right, above the panel.

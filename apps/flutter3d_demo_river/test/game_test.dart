@@ -406,4 +406,25 @@ void main() {
       expect(game.run.score, 0);
     },
   );
+
+  test('a second of flight covers the same river at any frame rate', () async {
+    // Flown in frames, the jet's distance and its throttle depended on how
+    // long each frame was. In fixed steps they cannot.
+    //
+    // Mutation: fly in Flame's frames rather than in the game's steps.
+    Future<double> flown(double frame) async {
+      final game = await _newGame();
+      game.input.press(GameAction.moveForward);
+      final frames = (1.0 / frame).round();
+      for (var i = 0; i < frames; i++) {
+        game.update(frame);
+        await game.ready();
+      }
+      return game.distance;
+    }
+
+    final slow = await flown(1 / 30);
+    expect(slow, greaterThan(0.0));
+    expect(await flown(1 / 120), closeTo(slow, 1e-6));
+  });
 }
