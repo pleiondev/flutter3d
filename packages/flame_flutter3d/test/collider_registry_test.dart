@@ -8,6 +8,7 @@ import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show ActorSystem, GameRandom;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -60,6 +61,39 @@ void main() {
 
       world.update();
       expect(touched, same(bot));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'an actor is told what its body touched, as a crate is',
+    FlameGame.new,
+    (game) async {
+      // Mutation: accept only a RigidBodyComponent as the bridged side.
+      final world = CollisionWorld();
+      final system = ActorSystem(world: world, random: GameRandom(1));
+      final body = CharacterController(world: world, position: Vector3.zero());
+      PositionComponent? touched;
+      final bot = ActorComponent(
+        actor: system.spawn(body: body),
+        node: SceneNode(),
+        scene: Scene(),
+        plane: BridgePlane.ground(),
+      )..onCollisionStartCallback = (_, other) => touched = other;
+      final ship = PositionComponent();
+      final hull = world.add(
+        Collider(
+          shape: CollisionBox(Vector3.all(0.5)),
+          position: Vector3(0.2, 0.0, 0.0),
+        ),
+      );
+      await game.addAll(<Component>[bot, ship]);
+      await game.ready();
+      ColliderRegistry()
+        ..register(hull, ship)
+        ..bridge(collider: body.collider, component: bot);
+
+      world.update();
+      expect(touched, same(ship));
     },
   );
 }

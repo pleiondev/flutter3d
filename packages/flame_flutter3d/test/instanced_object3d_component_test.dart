@@ -3,6 +3,8 @@
 /// when the component goes.
 library;
 
+import 'package:flame/components.dart' show Component;
+import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
@@ -123,6 +125,42 @@ void main() {
       game.update(1 / 60);
       expect(batch.dataVersion, greaterThan(version));
       expect(_placeOf(batch, shot.slot!.index).z, closeTo(-5.0, 1e-6));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'an instance has a tint and an opacity of its own',
+    FlameGame.new,
+    (game) async {
+      // A hit flash on one of many: the others keep their colour.
+      //
+      // Mutation: never write the slot's colour after it is taken.
+      final batch = _batch();
+      final a = InstancedObject3dComponent(
+        batch: batch,
+        plane: BridgePlane.ground(),
+      );
+      final b = InstancedObject3dComponent(
+        batch: batch,
+        plane: BridgePlane.ground(),
+        position: Vector2(2.0, 0.0),
+      );
+      await game.addAll(<Component>[a, b]);
+      await game.ready();
+
+      a.tint.setValues(1.0, 0.2, 0.2, 1.0);
+      b.add(OpacityEffect.to(0.5, EffectController(duration: 0.1)));
+      game.update(0.2);
+
+      Vector4 colourOf(InstancedObject3dComponent c) {
+        final at = c.slot!.index * InstancedMeshNode.floatsPerInstance + 12;
+        final d = batch.instanceData;
+        return Vector4(d[at], d[at + 1], d[at + 2], d[at + 3]);
+      }
+
+      expect(colourOf(a), Vector4(1.0, 0.2, 0.2, 1.0));
+      expect(colourOf(b).w, closeTo(0.5, 1e-6));
+      expect(colourOf(b).x, 1.0, reason: 'only faded, not tinted');
     },
   );
 }

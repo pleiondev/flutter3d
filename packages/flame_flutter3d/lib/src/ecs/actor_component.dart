@@ -3,6 +3,7 @@
 /// as.
 library;
 
+import 'package:flame/collisions.dart' show CollisionCallbacks;
 import 'package:flame/components.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -46,7 +47,7 @@ import 'actor_system_component.dart';
 /// entity (`EcsWorld.get` does, by construction, once the entity's
 /// generation has moved on), so the null check already in [update] is the
 /// only guard a despawned actor ever required.
-final class ActorComponent extends Object3dComponent {
+final class ActorComponent extends Object3dComponent with CollisionCallbacks {
   ActorComponent({
     required this.actor,
     required super.node,

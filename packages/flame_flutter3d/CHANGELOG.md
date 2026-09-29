@@ -81,6 +81,13 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**An actor hears its contacts, and an instance has a colour.**
+`CollisionBridge` relays to any component with Flame's collision callbacks,
+an `ActorComponent` among them, rather than only a `RigidBodyComponent`;
+a component that is not bridged is given a plane. `InstancedObject3dComponent`
+has a `tint` and is an `OpacityProvider`, written into its slot's colour:
+a hit flash on one invader of many.
+
 **A game's own logic can run in fixed steps.** `HasFixedStep` on a
 `FlameGame` spends each frame's time in steps of one size and calls
 `fixedUpdate` on the game and on every `FixedStepUpdate` component in each

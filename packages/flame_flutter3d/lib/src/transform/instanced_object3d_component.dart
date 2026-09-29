@@ -1,4 +1,5 @@
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import 'object3d_component.dart' show shownInFlame;
@@ -26,7 +27,15 @@ import 'plane.dart';
 /// zeros into its slot, which draws nothing. Removed, it gives the slot up
 /// at once rather than on Flame's next lifecycle pass, so it is not drawn
 /// a frame after the game let it go.
-class InstancedObject3dComponent extends PositionComponent with HasVisibility {
+///
+/// **A tint and an opacity of its own**, written into the slot's colour: a
+/// hit flash on one invader of fifty-five. The colour multiplies the mesh's
+/// vertex colour. The batch is one draw with one material, so [opacity]
+/// fades an instance only when that material blends; over an opaque one it
+/// changes nothing.
+class InstancedObject3dComponent extends PositionComponent
+    with HasVisibility
+    implements OpacityProvider {
   InstancedObject3dComponent({
     required this.batch,
     required this.plane,
@@ -51,8 +60,29 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
   /// Metres off [plane] along its normal, as [Object3dComponent.elevation].
   double elevation;
 
-  /// The instance's tint, white when null. Read when the slot is taken.
+  /// The instance's colour when it is made, white when null; [tint] starts
+  /// from it.
   final Vector4? color;
+
+  /// The linear colour the instance is multiplied by, read every frame.
+  late final Vector4 tint = color?.clone() ?? Vector4.all(1.0);
+
+  /// How opaque the instance is: what Flame's `OpacityEffect` moves. See the
+  /// class doc for when it shows.
+  @override
+  double opacity = 1.0;
+
+  final Vector4 _written = Vector4.all(double.nan);
+  final Vector4 _colour = Vector4.zero();
+
+  void _writeColour() {
+    final slot = _slot;
+    if (slot == null) return;
+    _colour.setValues(tint.x, tint.y, tint.z, tint.w * opacity);
+    if (_colour == _written) return;
+    _written.setFrom(_colour);
+    slot.setColor(_colour);
+  }
 
   InstanceHandle? _slot;
 
@@ -73,7 +103,9 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
     _slot = batch.acquire(color: color);
     _writtenX = double.nan;
     _writtenHidden = false;
+    _written.setValues(double.nan, double.nan, double.nan, double.nan);
     _write();
+    _writeColour();
   }
 
   @override
@@ -92,6 +124,7 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility {
   void updateTree(double dt) {
     super.updateTree(dt);
     _write();
+    _writeColour();
   }
 
   void _giveBack() {

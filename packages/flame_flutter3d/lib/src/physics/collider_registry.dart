@@ -1,8 +1,8 @@
+import 'package:flame/collisions.dart' show CollisionCallbacks;
 import 'package:flame/components.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import 'collision_bridge.dart';
-import 'rigid_body_component.dart';
 
 /// Which Flame component each collider belongs to, for a [CollisionBridge]
 /// to hand over as the other side of a contact.
@@ -40,7 +40,7 @@ final class ColliderRegistry {
   /// sensor riding on it.
   CollisionBridge bridge({
     required Collider collider,
-    required RigidBodyComponent component,
+    required CollisionCallbacks component,
   }) => CollisionBridge(
     collider: collider,
     component: component,

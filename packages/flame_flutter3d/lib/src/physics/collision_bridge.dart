@@ -6,7 +6,8 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
-import 'rigid_body_component.dart';
+import '../transform/object3d_component.dart';
+import '../transform/plane.dart';
 
 /// A plain Dart object, not a [Component] — it draws nothing and has no
 /// per-frame update of its own. All it does is sit as [collider]'s
@@ -65,7 +66,16 @@ final class CollisionBridge with CollisionListener {
     required this.collider,
     required this.component,
     required this.resolveOther,
-  }) {
+    BridgePlane? plane,
+  }) : plane =
+           plane ??
+           (component is Object3dComponent
+               ? (component as Object3dComponent).plane
+               : throw ArgumentError.value(
+                   component,
+                   'component',
+                   'is not bridged, so a plane has to be given',
+                 )) {
     collider.listener = this;
   }
 
@@ -74,8 +84,17 @@ final class CollisionBridge with CollisionListener {
   final Collider collider;
 
   /// The Flame-side component [collider] belongs to — the target every
-  /// relayed callback lands on.
-  final RigidBodyComponent component;
+  /// relayed callback lands on. A `RigidBodyComponent`, an `ActorComponent`,
+  /// or any component with Flame's collision callbacks.
+  ///
+  /// **Any of them, not only a rigid body's.** An actor's body has a
+  /// collider as a crate's does, and a bot touching the ship could not be
+  /// told so through this bridge.
+  final CollisionCallbacks component;
+
+  /// Where a contact's midpoint is put on Flame's side: [component]'s own
+  /// plane when it is bridged.
+  final BridgePlane plane;
 
   /// Finds the [PositionComponent] bridged to the *other* collider in a
   /// contact, or null when nothing on the Flame side represents it.
@@ -131,6 +150,6 @@ final class CollisionBridge with CollisionListener {
   /// this class's own doc comment for why a midpoint and not a real contact
   /// point.
   Set<Vector2> _pointFor(Collider self, Collider other) => {
-    component.plane.to2d((self.position + other.position) * 0.5),
+    plane.to2d((self.position + other.position) * 0.5),
   };
 }
