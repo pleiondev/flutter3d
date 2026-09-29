@@ -10,6 +10,7 @@ import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -239,6 +240,53 @@ void main() {
 
       expect(child.node.readPosition().x, closeTo(2.0, 1e-6));
       expect(child.node.readScale().x, closeTo(3.0, 1e-6));
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'Flame\'s opacity and a tint reach every mesh under the node',
+    FlameGame.new,
+    (game) async {
+      // A wreck fading out with an OpacityEffect, over a material other
+      // craft share; and a model dressed onto it later fades with it.
+      //
+      // Mutation: write the tint only when it changes, not while it holds.
+      final scene = Scene();
+      final wreck = _bridged(scene);
+      final hull = MeshNode(
+        CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
+        engine.Material(),
+      );
+      wreck.visual.add(hull);
+      wreck.add(OpacityEffect.to(0.0, EffectController(duration: 1.0)));
+      await game.add(wreck);
+      await game.ready();
+
+      game.update(0.5);
+      expect(hull.tint.w, closeTo(0.5, 1e-6));
+
+      final model = MeshNode(
+        CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
+        engine.Material(),
+      );
+      wreck.visual.add(model);
+      game.update(0.25);
+      expect(model.tint.w, closeTo(0.25, 1e-6), reason: 'dressed late');
+
+      wreck
+        ..opacity = 1.0
+        ..tint.setValues(1.0, 0.2, 0.2, 1.0);
+      game.update(0.0);
+      expect(hull.tint, Vector4(1.0, 0.2, 0.2, 1.0));
+
+      wreck.tint.setValues(1.0, 1.0, 1.0, 1.0);
+      wreck.children.whereType<OpacityEffect>().toList().forEach(
+        (e) => e.removeFromParent(),
+      );
+      await game.ready();
+      wreck.opacity = 1.0;
+      game.update(0.0);
+      expect(hull.tint, Vector4.all(1.0), reason: 'back to plain');
     },
   );
 }

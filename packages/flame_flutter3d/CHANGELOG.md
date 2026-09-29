@@ -81,6 +81,12 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**Flame's opacity and a tint reach the 3D layer.** `Object3dComponent`
+is an `OpacityProvider`, so Flame's `OpacityEffect` fades every mesh under
+its node, and its `tint` colours them, through `MeshNode.tint`; a model
+dressed onto the node later takes them too. River Sortie's wrecks go down
+charred and a fallen bridge fades under the water rather than blinking out.
+
 **A tap lands on what the player sees.** Flame's `TapCallbacks` asks a
 component whether a point is inside it on the plane the game plays on,
 which under a perspective 3D camera is not where the component is drawn.

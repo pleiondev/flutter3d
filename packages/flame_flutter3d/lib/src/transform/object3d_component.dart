@@ -1,4 +1,5 @@
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import 'plane.dart';
@@ -69,7 +70,14 @@ enum SyncDirection {
 /// its way, banked into a turn or tilted as it sinks has to hang from a
 /// node below it. [visual] is that node, made the first time it is asked
 /// for; nothing here writes its transform.
-class Object3dComponent extends PositionComponent with HasVisibility {
+///
+/// **Opacity and a tint cross as well.** [opacity], which Flame's
+/// `OpacityEffect` drives, fades every mesh under [node], and [tint]
+/// colours them, through each mesh's own `MeshNode.tint`: a hit flash or a
+/// wreck fading out, over a material a hundred craft share.
+class Object3dComponent extends PositionComponent
+    with HasVisibility
+    implements OpacityProvider {
   Object3dComponent({
     required this.node,
     required this.scene,
@@ -105,6 +113,17 @@ class Object3dComponent extends PositionComponent with HasVisibility {
 
   SceneNode? _visual;
   bool? _visibleWritten;
+
+  /// How opaque every mesh under [node] is drawn, from 0 to 1. What Flame's
+  /// `OpacityEffect` moves.
+  @override
+  double opacity = 1.0;
+
+  /// A linear colour every mesh under [node] is multiplied by; its alpha
+  /// multiplies [opacity]. White leaves them as their materials say.
+  final Vector4 tint = Vector4.all(1.0);
+
+  bool _tintWritten = false;
 
   /// A node under [node] for what is drawn, which the bridge never turns.
   /// Made, and added to [node], the first time it is read.
@@ -161,6 +180,7 @@ class Object3dComponent extends PositionComponent with HasVisibility {
   void updateTree(double dt) {
     super.updateTree(dt);
     if (direction == SyncDirection.flameToScene) _writeScene();
+    _writeTint();
     if (isRemoving) {
       node.visible = false;
     } else {
@@ -169,6 +189,25 @@ class Object3dComponent extends PositionComponent with HasVisibility {
         node.visible = shown;
         _visibleWritten = shown;
       }
+    }
+  }
+
+  /// Writes [tint] and [opacity] into every mesh under [node] while either
+  /// is not plain, so a model dressed onto the node later takes it too, and
+  /// once more when they come back to plain.
+  void _writeTint() {
+    final alpha = tint.w * opacity;
+    final plain =
+        tint.x == 1.0 && tint.y == 1.0 && tint.z == 1.0 && alpha == 1.0;
+    if (plain && !_tintWritten) return;
+    _tintWritten = !plain;
+    _paint(node, alpha);
+  }
+
+  void _paint(SceneNode at, double alpha) {
+    if (at is MeshNode) at.tint.setValues(tint.x, tint.y, tint.z, alpha);
+    for (final child in at.children) {
+      _paint(child, alpha);
     }
   }
 

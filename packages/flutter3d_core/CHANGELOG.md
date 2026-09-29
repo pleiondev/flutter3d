@@ -21,6 +21,15 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **A node can be tinted and faded on its own.** `MeshNode.tint` multiplies
+  its material's colour for that node's draw alone, in linear light as a
+  vertex colour is, and its alpha fades it: below one the node is drawn
+  blended in the transparent pass whatever its material says. A hundred
+  craft sharing a material could not flash the one that was hit or fade
+  the one sinking without a material made for the moment. No shader
+  changed: the tint goes into the base colour the draw already sends. A
+  tinted node is left out of automatic batches; an untinted one draws
+  exactly as before.
 - **`Renderer.debugLines` draws an application's own lines** beside the
   ones `RenderSettings.debug` asks for, every frame, in the same pass: a
   game's hitboxes, a path an agent means to walk. The scene cannot say

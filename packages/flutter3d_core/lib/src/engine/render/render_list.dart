@@ -237,7 +237,7 @@ final class RenderList {
       // can submit, so an assert is the right level of defence.
       assert(index <= kMaxPayload, 'Too many draws to pack into a sort key.');
 
-      if (node.material.isTransparent) {
+      if (node.drawsTransparent) {
         transparent.add(index);
       } else {
         opaque.add(index);

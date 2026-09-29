@@ -179,6 +179,9 @@ final class TargetComponent extends Object3dComponent
     if (down) return false;
     down = true;
     _hitbox.removeFromParent();
+    // Burnt: the wreck goes down charred, over the material every craft of
+    // its kind shares.
+    tint.setValues(0.35, 0.3, 0.28, 1.0);
     return true;
   }
 
@@ -343,6 +346,8 @@ final class BridgeComponent extends Object3dComponent
       right
         ..setRotation(_roll(swing))
         ..setPosition(span / 2.0, deckHeight - sink, 0.0);
+      // The last second under the water it fades rather than blinks out.
+      opacity = (3.5 - _falling).clamp(0.0, 1.0);
       if (_falling > 3.5) isVisible = false;
     }
     super.update(dt);
