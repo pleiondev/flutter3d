@@ -104,6 +104,18 @@ go of those that leave it. `Particles3dComponent` runs a
 `flutter3d_particles` pool on Flame's clock, additive for fire and
 darkening for smoke.
 
+Beyond the plane, `Node3dComponent` is a Flame component in full 3D, moved
+by `Move3dEffect`, `Rotate3dEffect` and `Scale3dEffect` on Flame's own
+effect controllers; `SpriteBillboardComponent` stands a Flame `Sprite` or
+`SpriteAnimation` in the scene facing the camera; and an `Object3dComponent`
+that `follows` a `flame_forge2d` body draws Flame's own physics in 3D.
+
+A level drawn in Tiled is stood up by `TiledWorld3d`, each tile layer a
+`CellGridComponent`, drawn as instances and given Flame hitboxes as its
+properties say; `GridMover` walks a maze a cell at a time.
+`KinematicBodyComponent` is a lift Flame's effects move, carrying whoever
+stands on it, and `PlayerInputs` shares one keyboard between players.
+
 For whole genres there is more. `HasFixedStep` runs a game's own logic in
 fixed steps, so a second of play comes out the same at any frame rate.
 `ProjectedViewfinder` makes Flame's own events and conversions land on the

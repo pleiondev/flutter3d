@@ -27,7 +27,7 @@ import '../world/wrap_space.dart';
 ///
 /// Any bridged component: an `Object3dComponent`, or one instance of a
 /// batch drawn as an `InstancedObject3dComponent`.
-mixin Tap3dCallbacks on PositionComponent, HasVisibility, Bridged3d {
+mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
   /// The tap at [screen], in logical pixels from the top left, fell on
   /// this component and on nothing nearer.
   void onTap3d(Vector2 screen) {}

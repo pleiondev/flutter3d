@@ -210,6 +210,16 @@ explosion. The image goes to the device once, each frame is a card of its
 own corners, and it is drawn unlit, cut out where the sprite is clear and
 sampled nearest, as pixel art wants.
 
+**A Flame component in full 3D.** `Node3dComponent` is a Flame component
+with a place, a quaternion turn and a scale on each axis in the scene, no
+plane under it: a starfighter, a tank on an open plain. Under another it
+hangs from its parent's node, so a turret turns with its tank, and a camera
+added to a ship's node is a cockpit. `Move3dEffect`, `Rotate3dEffect` and
+`Scale3dEffect` move it on any of Flame's `EffectController`s, `TintEffect`
+and `OpacityEffect` colour and fade it, and `Tap3dCallbacks` hears a tap on
+it: taps now ask for `Drawn3d`, what is drawn and where, which every bridged
+component is too.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

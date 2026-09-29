@@ -12,7 +12,7 @@ import 'plane.dart';
 /// **An instance is a bridged component too.** Taps and hitbox outlines
 /// asked for an `Object3dComponent`, and an invader drawn as one instance of
 /// fifty-five could neither be tapped nor have its hitbox seen.
-abstract interface class Bridged3d {
+abstract interface class Bridged3d implements Drawn3d {
   /// The plane its Flame point is on.
   BridgePlane get plane;
 
@@ -22,12 +22,21 @@ abstract interface class Bridged3d {
   /// Where its Flame point is placed instead of flat on [plane], if bent.
   BridgeSpace? get space;
 
+  /// The linear colour what it draws is multiplied by: what a
+  /// [TintEffect] moves.
+  @override
+  Vector4 get tint;
+}
+
+/// What a tap asks of anything drawn in the scene: where it is drawn, and
+/// its colour. Every [Bridged3d] is one, and so is a `Node3dComponent`,
+/// which stands in full 3D rather than on a plane.
+abstract interface class Drawn3d {
   /// The box in the scene round what it draws, or null when it draws
   /// nothing: what a tap is tested against.
   Aabb3? get drawnBounds3d;
 
-  /// The linear colour what it draws is multiplied by: what a
-  /// [TintEffect] moves.
+  /// The linear colour what it draws is multiplied by.
   Vector4 get tint;
 }
 
@@ -47,7 +56,7 @@ class TintEffect extends ComponentEffect<Component> {
   final Vector4 _from = Vector4.zero();
 
   Vector4 get _tint => switch (target) {
-    final Bridged3d bridged => bridged.tint,
+    final Drawn3d drawn => drawn.tint,
     _ => throw UnsupportedError('A TintEffect is for a bridged component.'),
   };
 

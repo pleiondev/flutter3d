@@ -37,6 +37,7 @@ export 'src/physics/rigid_body_component.dart';
 export 'src/transform/bridge_space.dart';
 export 'src/transform/bridged3d.dart';
 export 'src/transform/instanced_object3d_component.dart';
+export 'src/transform/node3d_component.dart';
 export 'src/transform/object3d_component.dart';
 export 'src/transform/plane.dart';
 export 'src/transform/projector.dart';
