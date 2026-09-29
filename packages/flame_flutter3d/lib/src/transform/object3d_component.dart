@@ -274,6 +274,29 @@ class Object3dComponent extends PositionComponent
   double _writtenScaleY = double.nan;
   double _writtenElevation = double.nan;
 
+  /// Moves [node] to [at], and only if it is not there already: for a
+  /// subclass that carries a body's place onto the node every frame. A
+  /// body at rest was written every frame all the same, and a written node
+  /// is a changed node, whose shadow cascades are drawn again.
+  void placeNode(Vector3 at) {
+    final now = node.readPosition(_nodeAt);
+    if (now.x == at.x && now.y == at.y && now.z == at.z) return;
+    node.setPositionFrom(at);
+  }
+
+  /// Turns [node] to [yaw] radians about the world's up, and only if it is
+  /// not turned so already; see [placeNode].
+  void turnNodeTo(double yaw) {
+    if (yaw == _placedYaw) return;
+    _placedYaw = yaw;
+    node.setRotation(_yawTurn..setAxisAngle(_up, yaw));
+  }
+
+  final Vector3 _nodeAt = Vector3.zero();
+  double _placedYaw = double.nan;
+  final Quaternion _yawTurn = Quaternion.identity();
+  static Vector3 get _up => Vector3(0.0, 1.0, 0.0);
+
   /// Forgets what was last written, so the next write happens whether or
   /// not Flame's side moved: for a caller that moved [node] itself and
   /// wants Flame's place put back.

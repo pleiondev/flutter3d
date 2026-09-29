@@ -229,7 +229,14 @@ final class RiverGame extends FlameGame
   Future<void> onLoad() async {
     await super.onLoad();
     camera.viewport.add(RiverHud());
-    await addAll(<Component>[sound, _engineLoop, _refuelLoop, _alarmLoop]);
+    await addAll(<Component>[
+      sound,
+      _engineLoop,
+      _refuelLoop,
+      _alarmLoop,
+      // Closes the input step once everything this frame has read it.
+      inputBridge.stepEnd(),
+    ]);
   }
 
   /// The renderer the 3D layer is drawn with: what a stretch's meshes go
@@ -682,7 +689,6 @@ final class RiverGame extends FlameGame
     // frame late.
     _listen();
     super.update(dt);
-    input.endStep();
   }
 
   /// The stick bottom left and the trigger bottom right, above the panel.

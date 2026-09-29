@@ -105,9 +105,9 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
     final steps = stepper;
     if (steps != null && _remembered) {
       Vector3.mix(_before, body.position, steps.alpha, _drawn);
-      node.setPositionFrom(_drawn);
+      placeNode(_drawn);
     } else {
-      node.setPositionFrom(body.position);
+      placeNode(body.position);
     }
     super.update(dt);
   }

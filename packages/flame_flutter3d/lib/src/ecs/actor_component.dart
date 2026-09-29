@@ -117,16 +117,14 @@ final class ActorComponent extends Object3dComponent {
       final steps = stepper;
       if (body != null && steps != null && _remembered) {
         Vector3.mix(_before, body.position, steps.alpha, _drawn);
-        node.setPositionFrom(_drawn);
+        placeNode(_drawn);
       } else if (body != null) {
-        node.setPositionFrom(body.position);
+        placeNode(body.position);
       }
       if (actor.facing != null) {
-        node.setRotation(Quaternion.axisAngle(_up, actor.yaw));
+        turnNodeTo(actor.yaw);
       }
     }
     super.update(dt);
   }
-
-  static Vector3 get _up => Vector3(0.0, 1.0, 0.0);
 }

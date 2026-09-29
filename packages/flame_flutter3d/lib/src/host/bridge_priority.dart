@@ -30,6 +30,10 @@ abstract final class BridgePriority {
   /// A game's sound mixing, after everything that makes one has spoken.
   static const int audio = 1 << 19;
 
+  /// `FlameInputBridge.stepEnd`: the input step closed once everything that
+  /// reads it this frame has, just before the frame is drawn.
+  static const int inputEnd = (1 << 20) - 1;
+
   /// `BridgeClock`, which draws the 3D frame: last of all.
   static const int clock = 1 << 20;
 }

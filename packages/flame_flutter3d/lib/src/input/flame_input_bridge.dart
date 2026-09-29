@@ -1,4 +1,5 @@
-import 'package:flame/components.dart' show Component, JoystickComponent;
+import 'package:flame/components.dart'
+    show Component, JoystickComponent, PositionComponent, Vector2;
 import 'package:flame/events.dart';
 import 'package:flame/input.dart' show ButtonComponent;
 import 'package:flutter/services.dart';
@@ -132,6 +133,32 @@ final class FlameInputBridge {
   Component followJoystick(JoystickComponent stick) =>
       _JoystickFeed(stick, inputState);
 
+  /// A component that closes [inputState]'s step at the end of every frame,
+  /// after everything that reads it: what a game called by hand as the last
+  /// line of its `update`, and a game that forgot to call saw a key it
+  /// pressed once reported as pressed on every frame after. Add it once.
+  Component stepEnd() => _InputStepEnd(inputState);
+
+  /// A layer over the canvas that follows the pointer and turns a tap into
+  /// [press]: [PointerTrack.aim] is where the pointer is, in logical pixels,
+  /// while it is over the game, and a tap holds [press] down for as long as
+  /// the finger or the button is. Taps go on to whatever else in Flame is
+  /// under them. For aiming a turret or a crosshair; put the aim through a
+  /// `BridgeProjector` to find it on the plane.
+  PointerTrack pointer({GameAction? press}) =>
+      PointerTrack._(inputState, press);
+
+  /// A layer over the canvas that turns a swipe into a single press of the
+  /// action for its direction: longer across than [minDistance] logical
+  /// pixels, and mostly one way. For a frog that hops.
+  SwipeInput swipes({
+    GameAction? up,
+    GameAction? down,
+    GameAction? left,
+    GameAction? right,
+    double minDistance = 40.0,
+  }) => SwipeInput._(inputState, up, down, left, right, minDistance);
+
   /// Holds [action] pressed while [button] is, released when it is let go
   /// or the touch is cancelled: an on-screen button for what a key or a pad
   /// button does. Replaces whatever the button's own callbacks were.
@@ -158,5 +185,113 @@ final class _JoystickFeed extends Component {
   void update(double dt) {
     final deflection = stick.relativeDelta;
     inputState.setStickAxis(deflection.x, -deflection.y);
+  }
+}
+
+final class _InputStepEnd extends Component {
+  _InputStepEnd(this.inputState) : super(priority: BridgePriority.inputEnd);
+
+  final InputState inputState;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    inputState.endStep();
+  }
+}
+
+/// Where the pointer is over a Flame game, and a tap as an action; made by
+/// [FlameInputBridge.pointer].
+final class PointerTrack extends PositionComponent
+    with PointerMoveCallbacks, TapCallbacks, DragCallbacks {
+  PointerTrack._(this._input, this._press);
+
+  final InputState _input;
+  final GameAction? _press;
+
+  /// Where the pointer last was over the game, in logical pixels from the
+  /// canvas's top left; null before it has been over it.
+  Vector2? get aim => _aim;
+  Vector2? _aim;
+
+  @override
+  bool containsLocalPoint(Vector2 point) => true;
+
+  @override
+  void onPointerMove(PointerMoveEvent event) {
+    _aim = event.canvasPosition.clone();
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    _aim = event.canvasPosition.clone();
+    final action = _press;
+    if (action != null) _input.press(action);
+    event.continuePropagation = true;
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) => _lift();
+
+  @override
+  void onTapCancel(TapCancelEvent event) => _lift();
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
+    _aim = event.canvasEndPosition.clone();
+  }
+
+  void _lift() {
+    final action = _press;
+    if (action != null) _input.release(action);
+  }
+}
+
+/// Swipes over a Flame game as presses; made by [FlameInputBridge.swipes].
+final class SwipeInput extends PositionComponent with DragCallbacks {
+  SwipeInput._(
+    this._input,
+    this._up,
+    this._down,
+    this._left,
+    this._right,
+    this._minDistance,
+  );
+
+  final InputState _input;
+  final GameAction? _up;
+  final GameAction? _down;
+  final GameAction? _left;
+  final GameAction? _right;
+  final double _minDistance;
+  final Vector2 _travel = Vector2.zero();
+
+  @override
+  bool containsLocalPoint(Vector2 point) => true;
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _travel.setZero();
+  }
+
+  @override
+  void onDragUpdate(DragUpdateEvent event) => _travel.add(event.canvasDelta);
+
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    if (_travel.length < _minDistance) return;
+    final across = _travel.x.abs() > _travel.y.abs();
+    final action = across
+        ? (_travel.x > 0.0 ? _right : _left)
+        : (_travel.y > 0.0 ? _down : _up);
+    if (action == null) return;
+    // Pressed and let go in one step: the state reports it pressed this
+    // step, and held never.
+    _input
+      ..press(action)
+      ..release(action);
   }
 }

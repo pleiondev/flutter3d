@@ -81,6 +81,18 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A body at rest costs nothing either.** `RigidBodyComponent` and
+`ActorComponent` wrote their body's place onto the node every frame, and a
+sleeping crate redrew every shadow as a still prop had. They write through
+`placeNode` and `turnNodeTo`, which leave a node alone where it already is.
+
+**The input step closes itself, and the pointer and swipes are input.**
+`FlameInputBridge.stepEnd()` is a component that calls `endStep` once
+everything has read the frame's input, which each game did by hand as the
+last line of its `update`. `pointer(press:)` follows the pointer as an
+`aim` and holds an action while a tap is down; `swipes(...)` turns a swipe
+into one press of its direction's action.
+
 **A still prop costs nothing, and no shadow is redrawn for it.** A node's
 setters mark it changed whatever they are given, and the engine keeps its
 shadow cascades and its bounds tree only while nothing changed. Every

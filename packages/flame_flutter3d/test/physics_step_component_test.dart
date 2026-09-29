@@ -158,4 +158,38 @@ void main() {
     expect(stepper.alpha, closeTo(0.5, 1e-9));
     expect(crate.node.readPosition().y, closeTo((before + after) / 2.0, 1e-5));
   });
+
+  test('a body at rest does not mark the scene changed', () {
+    // The same fault a still bridged prop had: the body's place was written
+    // onto the node every frame, and a written node redraws every shadow.
+    //
+    // Mutation: write the body's place whether or not it moved.
+    final world = CollisionWorld();
+    final dynamics = Dynamics(world: world, gravity: Vector3.zero());
+    final body = dynamics.add(
+      RigidBody(
+        world: world,
+        shape: CollisionBox(Vector3.all(0.5)),
+        position: Vector3(1.0, 2.0, 3.0),
+        mass: 1.0,
+      ),
+    );
+    final stepper = PhysicsStepComponent(dynamics: dynamics, world: world);
+    final crate = RigidBodyComponent(
+      body: body,
+      node: SceneNode(),
+      scene: Scene(),
+      plane: BridgePlane.ground(),
+    )..onMount();
+    stepper.update(1 / 60);
+    crate.update(1 / 60);
+
+    final epoch = SceneNode.changeEpoch;
+    for (var i = 0; i < 5; i++) {
+      stepper.update(1 / 60);
+      crate.update(1 / 60);
+    }
+    expect(SceneNode.changeEpoch, epoch);
+    expect(crate.node.readPosition(), Vector3(1.0, 2.0, 3.0));
+  });
 }
