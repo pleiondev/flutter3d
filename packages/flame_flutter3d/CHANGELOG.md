@@ -81,6 +81,14 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**Flame's own events land where the player sees things.**
+`ProjectedViewfinder` maps the screen to the game's plane through the 3D
+camera: a component's `TapCallbacks`, Flame's hit test and
+`camera.globalToLocal` in a game's code find the plane point under the
+finger, where the viewfinder's affine transform put it metres away under a
+perspective camera. The sky meets no plane and hits nothing. It changes
+events and conversions; Flame still draws its world flat.
+
 **A component lets go of the meshes it made.** `Object3dComponent(owns:)`
 names meshes built for one component, a bridge's span, and gives them back
 when the component is removed: through the renderer after the frames in

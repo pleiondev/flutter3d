@@ -14,6 +14,7 @@ library;
 export 'src/camera/camera_sync_component.dart';
 export 'src/camera/camera_sync_controller.dart';
 export 'src/camera/chase_camera.dart';
+export 'src/camera/projected_viewfinder.dart';
 export 'src/debug/hitboxes3d.dart';
 export 'src/ecs/actor_component.dart';
 export 'src/ecs/actor_system_component.dart';
