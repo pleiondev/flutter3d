@@ -66,6 +66,7 @@ final class Material {
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
+    this.fogged = true,
     this.extensions,
     this.coatMap,
     this.coatMapSampler,
@@ -257,6 +258,16 @@ final class Material {
   double alphaCutoff;
   bool doubleSided;
 
+  /// Whether the frame's fog reaches this material. True for almost
+  /// everything; false for what is meant to stand beyond the fog: a far
+  /// horizon of hills, a moon, a skyline painted on a backdrop.
+  ///
+  /// **For the layer behind the weather.** Enduro's mountains stay on the
+  /// horizon through fog and dusk while the road and the cars fade into it;
+  /// with fog on every material they faded first, being furthest away, and
+  /// the horizon became a flat wall of fog colour.
+  bool fogged;
+
   /// The layers beyond metal-rough — clear coat, specular, index of
   /// refraction, sheen, anisotropy, transmission and the rest — `M1`–`M3`.
   /// Read only by [LightingModel.pbrLayered]: a material that has them and
@@ -385,6 +396,7 @@ final class Material {
           alphaMode: alphaMode,
           alphaCutoff: alphaCutoff,
           doubleSided: doubleSided,
+          fogged: fogged,
           extensions: extensions,
           coatMap: coatMap,
           coatMapSampler: coatMapSampler,

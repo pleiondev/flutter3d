@@ -15,6 +15,7 @@
 library;
 
 export 'src/geometry/box_shapes.dart';
+export 'src/geometry/cell_grid.dart';
 export 'src/geometry/intersections.dart';
 export 'src/geometry/lathe_shape.dart';
 export 'src/geometry/mesh_builder.dart';
@@ -22,9 +23,9 @@ export 'src/geometry/mesh_clusters.dart';
 export 'src/geometry/mesh_data.dart';
 export 'src/geometry/mesh_geometry.dart';
 export 'src/geometry/mesh_tangents.dart';
-export 'src/geometry/open_path.dart';
 export 'src/geometry/morph_blend.dart';
 export 'src/geometry/morph_texture.dart';
+export 'src/geometry/open_path.dart';
 export 'src/geometry/polyline_shape.dart';
 export 'src/geometry/revolved_shapes.dart';
 export 'src/geometry/shape.dart';

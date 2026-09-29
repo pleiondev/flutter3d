@@ -21,6 +21,22 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **`Atmosphere` is the air at one moment**: the sky, the fog, the sun
+  and the ambient light as one value, `lerp` blending them all by one
+  amount and `applyTo` putting them on a scene, its sun and a clear colour.
+  `AtmosphereCycle` is a day of them, keyed by time and going round.
+  `LightGroup` dims lights together by a `level`, each keeping its own
+  full brightness.
+- **`Material.fogged: false` keeps a material out of the fog**: a horizon
+  of hills or a moon that should stand beyond the weather, which faded
+  first, being furthest, and left a wall of fog colour.
+- **`CellGrid` is a grid of cells there or gone**, from a picture of `#`s,
+  worn away by `clear` and `clearAround` and drawn by `mesh` as one merged
+  mesh of blocks: a Space Invaders shield.
+- **`LineStripNode` is a line that grows a point at a time**, written in
+  place in a mesh with room for all of it, letting go of its oldest point
+  when full, and bounded by its points rather than by the empty line it
+  was uploaded as.
 - **`OpenPath` measures a path in metres along it**: the point, the
   heading and the right at any distance, the heading turning through a
   corner rather than snapping, straight on past either end. `ribbon` lays

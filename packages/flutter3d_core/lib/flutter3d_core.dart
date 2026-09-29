@@ -108,6 +108,7 @@ export 'src/engine/render/splat_lod.dart';
 export 'src/engine/render/splat_sort.dart';
 export 'src/engine/render/view_model_node.dart';
 // The scene graph and everything that walks it.
+export 'src/engine/scene/atmosphere.dart';
 export 'src/engine/scene/bvh.dart';
 export 'src/engine/scene/camera_node.dart';
 export 'src/engine/scene/free_look.dart';
@@ -117,6 +118,7 @@ export 'src/engine/scene/irradiance_field.dart';
 export 'src/engine/scene/irradiance_gather.dart';
 export 'src/engine/scene/light_buffer.dart';
 export 'src/engine/scene/light_node.dart';
+export 'src/engine/scene/line_strip_node.dart';
 export 'src/engine/scene/lod_group.dart';
 export 'src/engine/scene/mesh_node.dart';
 export 'src/engine/scene/morph_state.dart';

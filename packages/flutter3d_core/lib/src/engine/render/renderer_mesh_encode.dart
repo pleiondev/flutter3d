@@ -661,7 +661,9 @@ extension _MeshEncode on Renderer {
       _fogInfo.name,
       declared: material.lighting.usesFogInfo,
     )) {
-      final fog = override == null ? settings.fog : const FogSettings();
+      final fog = override == null && material.fogged
+          ? settings.fog
+          : const FogSettings();
       _fogData[0] = fog.resolvedColor.x;
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;

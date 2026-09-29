@@ -81,6 +81,14 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**A day, a worn shield and a missile's trail.** `AtmosphereComponent` runs
+an `AtmosphereCycle` on Flame's clock and puts the air on the game's scene,
+its sun and its sky, with the fog for its `renderSettings`.
+`CellGridComponent` is a `CellGrid` drawn as blocks, whose `hitAt` wears
+away the cells round a point and says whether the shot met one, drawing
+what is left and letting the old mesh go. `TrailComponent` lays a
+`LineStripNode` behind the bridged component it is added to.
+
 **A road that bends under Flame's straight world.** `BridgeSpace` is where
 a Flame point is placed and turned in the scene; `BridgePlane` is the flat
 one, and `CurvilinearSpace` lays Flame's world along an `OpenPath`: `x` is
