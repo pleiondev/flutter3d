@@ -24,6 +24,10 @@ abstract final class BridgePriority {
   /// that reads input.
   static const int input = -(1 << 30);
 
+  /// `KinematicBodyComponent`: a lift moves before whoever stands on it
+  /// steps.
+  static const int kinematic = -1200;
+
   /// `ActorSystemComponent`: the actors step before the bodies they push.
   static const int actors = -1100;
 

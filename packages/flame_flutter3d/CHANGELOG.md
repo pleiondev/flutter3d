@@ -165,6 +165,14 @@ pad needs it to tell devices apart.
 **An isometric board.** Under an orthographic lens `eyeOffset` is the angle
 of view: the camera looks along it, and the zoom stays the lens's height.
 
+**A lift Flame moves.** `KinematicBodyComponent` moves a kinematic collider
+to where Flame puts it, with Flame's own effects, through `Collider.moveTo`,
+so a character standing on it is carried; a step in which it did not move
+clears the motion, so the passenger is carried once for each move and not
+again on every step after. Written into the collider by hand, the lift moved
+and its passenger stayed. `BridgePriority.kinematic` runs it before the
+actors and the physics.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

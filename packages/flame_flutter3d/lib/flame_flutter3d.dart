@@ -31,6 +31,7 @@ export 'src/particles/particles3d_component.dart';
 export 'src/physics/character_body_component.dart';
 export 'src/physics/collider_registry.dart';
 export 'src/physics/collision_bridge.dart';
+export 'src/physics/kinematic_body_component.dart';
 export 'src/physics/physics_step_component.dart';
 export 'src/physics/rigid_body_component.dart';
 export 'src/transform/bridge_space.dart';
