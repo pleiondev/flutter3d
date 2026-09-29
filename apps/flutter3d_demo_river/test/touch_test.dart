@@ -6,7 +6,6 @@ import 'package:flame/components.dart' show JoystickComponent;
 import 'package:flame/input.dart' show HudButtonComponent;
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/foundation.dart' show TargetPlatform;
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/main.dart' show hasTouchControls;
 import 'package:flutter3d_demo_river/src/river_game.dart';
@@ -15,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 Future<RiverGame> _touchGame() async {
   final game = await initializeGame(RiverGame.new);
   game
-    ..build(cpuTestDevice(width: 32, height: 24).device, Scene())
+    ..open3d(cpuTestDevice(width: 32, height: 24).device)
     ..addTouchControls();
   await game.ready();
   return game;

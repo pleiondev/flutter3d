@@ -5,6 +5,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'bridge_clock.dart';
+import 'has_flutter3d.dart';
 import 'transparent_flame_game.dart';
 
 /// A 3D flutter3d layer and a 2D Flame layer, composited in one `Stack`, one
@@ -27,6 +28,14 @@ import 'transparent_flame_game.dart';
 /// [TransparentFlameGame] instead of [FlameGame], or override
 /// `backgroundColor()` the same way it does.
 ///
+/// **A game that owns its world needs nothing else.** Give [game] the
+/// [HasFlutter3d] mixin and pass it alone: its [HasFlutter3d.camera3d] is
+/// the camera, [HasFlutter3d.open3d] opens its scene on this widget's
+/// device, its renderer is handed to [HasFlutter3d.attachRenderer], and its
+/// [HasFlutter3d.renderSettings] and [HasFlutter3d.clearColor] draw the
+/// frame. [camera], [buildScene], [settings], [clearColor] and
+/// [onRendererReady] are for a game without it, and override it where given.
+///
 /// **One clock.** A [BridgeClock] is added to [game] once it loads, and every
 /// Flame frame — after every other component in [game] has updated — calls
 /// [onTick] with that frame's own `dt`, then triggers a Flutter rebuild so
@@ -36,8 +45,8 @@ class Flutter3dFlameWidget extends StatefulWidget {
   const Flutter3dFlameWidget({
     super.key,
     required this.game,
-    required this.camera,
-    required this.buildScene,
+    this.camera,
+    this.buildScene,
     this.existing,
     this.onRendererReady,
     this.onTick,
@@ -45,19 +54,24 @@ class Flutter3dFlameWidget extends StatefulWidget {
     this.settings,
     this.width = 1280,
     this.height = 720,
-  });
+  }) : assert(
+         game is HasFlutter3d || (camera != null && buildScene != null),
+         'A game without HasFlutter3d needs a camera and a buildScene.',
+       );
 
   /// The Flame game whose [GameWidget] draws the 2D layer. Constructed by
   /// the caller — this widget only adds one [BridgeClock] to it, once.
   final FlameGame game;
 
   /// The camera the 3D layer renders through. Added to the built [Scene]
-  /// automatically if [buildScene] did not already add it.
-  final CameraNode camera;
+  /// automatically if [buildScene] did not already add it. Null for a
+  /// [HasFlutter3d] game, whose [HasFlutter3d.camera3d] it is.
+  final CameraNode? camera;
 
   /// Builds the 3D scene once a [GraphicsDevice] is open. Called exactly
-  /// once, the same contract `flutter3d_app`'s own examples use.
-  final Scene Function(GraphicsDevice device) buildScene;
+  /// once, the same contract `flutter3d_app`'s own examples use. Null for a
+  /// [HasFlutter3d] game, which builds its own in [HasFlutter3d.onOpen3d].
+  final Scene Function(GraphicsDevice device)? buildScene;
 
   /// A device and renderer opened by the caller, reused instead of this
   /// widget opening its own. A host that already has one — a page inside a
@@ -107,10 +121,45 @@ class Flutter3dFlameWidget extends StatefulWidget {
 }
 
 class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
+  /// The game, when it owns its world.
+  HasFlutter3d? get _owner => switch (widget.game) {
+    final HasFlutter3d owner => owner,
+    _ => null,
+  };
+
+  CameraNode get _camera => widget.camera ?? _owner!.camera3d;
+
   late final RenderView _view = RenderView(
-    camera: widget.camera,
-    clearColor: widget.clearColor ?? Vector4(0.05, 0.05, 0.07, 1.0),
+    camera: _camera,
+    clearColor:
+        widget.clearColor ??
+        _owner?.clearColor ??
+        Vector4(0.05, 0.05, 0.07, 1.0),
   );
+
+  /// The scene on [device]: built by [Flutter3dFlameWidget.buildScene] when
+  /// given, opened by the game when it owns its world.
+  Scene _sceneOn(GraphicsDevice device) {
+    final build = widget.buildScene;
+    if (build != null) {
+      final scene = build(device);
+      if (scene.cameras.isEmpty) scene.add(_camera);
+      final owner = _owner;
+      if (owner != null && !owner.has3d) owner.open3d(device, scene: scene);
+      return scene;
+    }
+    final owner = _owner!;
+    if (!owner.has3d) owner.open3d(device);
+    return owner.scene;
+  }
+
+  void _rendererReady(Renderer renderer) {
+    _owner?.attachRenderer(renderer);
+    widget.onRendererReady?.call(renderer);
+  }
+
+  RenderSettings Function() get _settings =>
+      widget.settings ?? _owner?.renderSettings ?? () => const RenderSettings();
 
   ({Renderer renderer, Scene scene})? _ready;
   Object? _error;
@@ -146,10 +195,9 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
     if (existing != null) {
       // Already open: build the scene synchronously rather than through the
       // async `openDevice` path nothing here needs a second time.
-      final scene = widget.buildScene(existing.device);
-      if (scene.cameras.isEmpty) scene.add(widget.camera);
+      final scene = _sceneOn(existing.device);
       _ready = (renderer: existing.renderer, scene: scene);
-      widget.onRendererReady?.call(existing.renderer);
+      _rendererReady(existing.renderer);
     } else {
       _open();
     }
@@ -162,12 +210,11 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
         height: widget.height,
       );
       if (!mounted) return device.dispose();
-      final scene = widget.buildScene(device);
-      if (scene.cameras.isEmpty) scene.add(widget.camera);
+      final scene = _sceneOn(device);
       _ownsDevice = true;
       final renderer = Renderer.create(device: device);
       setState(() => _ready = (renderer: renderer, scene: scene));
-      widget.onRendererReady?.call(renderer);
+      _rendererReady(renderer);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
@@ -244,7 +291,7 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
                   renderer: renderer,
                   scene: scene,
                   view: _view,
-                  settings: widget.settings ?? () => const RenderSettings(),
+                  settings: _settings,
                   onBeforeFrame: () {},
                   presentFrame: presentFrame,
                 ),

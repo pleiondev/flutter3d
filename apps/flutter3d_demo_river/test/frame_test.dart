@@ -25,7 +25,7 @@ Future<({Uint8List rgba, int drawCalls})> _frame({
   final it = cpuTestDevice(width: _width, height: _height);
   final game = await initializeGame(RiverGame.new);
   final scene = Scene();
-  game.build(it.device, scene);
+  game.open3d(it.device, scene: scene);
   await game.ready();
 
   final camera =
@@ -44,7 +44,7 @@ Future<({Uint8List rgba, int drawCalls})> _frame({
     fallbackAlbedo: it.albedo,
     fallbackNormal: it.normal,
   );
-  game.drawWith(renderer);
+  game.attachRenderer(renderer);
   stage?.call(game);
   final result = renderer.render(
     width: _width,

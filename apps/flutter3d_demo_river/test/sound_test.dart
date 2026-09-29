@@ -3,7 +3,6 @@
 library;
 
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart';
@@ -13,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 Future<(RiverGame, SilentBackend)> _newGame() async {
   final game = await initializeGame(RiverGame.new);
-  game.build(cpuTestDevice(width: 32, height: 24).device, Scene());
+  game.open3d(cpuTestDevice(width: 32, height: 24).device);
   final ears = SilentBackend();
   game.hearWith(AudioScene(backend: ears));
   await game.ready();

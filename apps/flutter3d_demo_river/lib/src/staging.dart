@@ -52,6 +52,17 @@ extension RiverGameStaging on RiverGame {
     );
     wardrobe.dress(jet.visual, Craft.player);
     add(jet);
+    chase = ChaseCamera(
+      camera: camera3d,
+      target: jet,
+      offset: Vector3(0.0, 11.0, 11.0),
+      // The water level ahead of the jet, whatever height it flies at.
+      lookOffset: Vector3(0.0, -flightHeight, -9.0),
+      followAcross: 0.35,
+      lookAcross: 0.5,
+    )..advance(0.0);
+    // After everything that moves the jet, so it follows this frame's move.
+    add(ChaseCameraComponent(chase, priority: 1000));
     built = true;
     _restart();
   }

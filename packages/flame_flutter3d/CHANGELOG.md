@@ -81,6 +81,17 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**`HasFlutter3d`: a Flame game owns its 3D world.** Mixed into a
+`FlameGame`, it gives the game its `scene`, `device`, `camera3d`,
+`renderer` and `projector`, a `clearColor` and `renderSettings()` the frame
+is drawn with, and a transparent background. The game builds its world in
+`onOpen3d` and uses the renderer in `onRenderer3d`, each run once, after
+the game has loaded, whichever order the widget or a test opens things in.
+`Flutter3dFlameWidget(game: game)` then needs nothing else: `camera` and
+`buildScene` are optional for such a game, and still work for any other.
+River Sortie's `main.dart` went from the scene, the camera, the lens, the
+haze, the projector, the renderer and the chase camera to the game alone.
+
 **A hidden parent hides its bridged children.** Flame does not draw the
 children of a component it hides, and a child's scene node is not under its
 parent's, so the child went on being drawn in 3D while the log it rode on

@@ -21,8 +21,8 @@ void main() {
       final renderer = Renderer.create(device: device);
       final game = await initializeGame(RiverGame.new);
       game
-        ..build(device, scene)
-        ..renderer = renderer;
+        ..open3d(device, scene: scene)
+        ..attachRenderer(renderer);
       await game.ready();
 
       void frame() => renderer.render(

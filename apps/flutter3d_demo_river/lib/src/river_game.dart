@@ -22,6 +22,7 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
+import 'package:flame/game.dart' show FlameGame;
 import 'package:flame/input.dart' show HudButtonComponent;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -76,9 +77,41 @@ enum Phase {
 /// What brought the last jet down.
 enum Crash { bank, collision, fuel }
 
-final class RiverGame extends TransparentFlameGame
-    with KeyboardEvents, HasCollisionDetection {
-  RiverGame({int seed = defaultSeed}) : course = Course(seed: seed);
+final class RiverGame extends FlameGame
+    with HasFlutter3d, KeyboardEvents, HasCollisionDetection {
+  /// [models] loads the craft models over the primitives once the river is
+  /// open; the tests leave it off, having no app bundle to load them from.
+  RiverGame({int seed = defaultSeed, this.models = false})
+    : course = Course(seed: seed) {
+    clearColor.setValues(_haze.x, _haze.y, _haze.z, 1.0);
+  }
+
+  final bool models;
+
+  /// The sky, and the haze the far end of the river fades into: one colour,
+  /// so the valley has no edge where the land stops being drawn.
+  static Vector3 get _haze => Vector3(0.27, 0.48, 0.78);
+
+  @override
+  CameraNode createCamera3d() => CameraNode(
+    name: 'eye',
+    projection: const PerspectiveProjection(
+      fovYRadians: 0.85,
+      near: 0.5,
+      far: 400.0,
+    ),
+  );
+
+  @override
+  RenderSettings renderSettings() =>
+      RenderSettings(fog: FogSettings(color: _haze, density: 0.004));
+
+  /// Opens the river, and dresses its craft when there are models to load.
+  @override
+  void onOpen3d() {
+    build(device, scene);
+    if (models) unawaited(dressWithModels());
+  }
 
   /// The trigger. `flutter3d_sim` names movement and a few common verbs; a
   /// game adds its own the same way.
@@ -197,15 +230,11 @@ final class RiverGame extends TransparentFlameGame
     camera.viewport.add(RiverHud());
   }
 
-  /// The renderer drawing the 3D layer, once `Flutter3dFlameWidget` has one:
-  /// what a stretch's meshes go back through, so no frame still in flight is
-  /// drawing them when they do. Null in the tests, which render no frames.
-  Renderer? renderer;
-
-  /// Hands the game the renderer `Flutter3dFlameWidget` opened: what meshes
-  /// go back through, and what the blasts are drawn with.
-  void drawWith(Renderer drawing) {
-    renderer = drawing;
+  /// The renderer the 3D layer is drawn with: what a stretch's meshes go
+  /// back through, so no frame still in flight is drawing them when they
+  /// do, and what the blasts are drawn with.
+  @override
+  void onRenderer3d(Renderer drawing) {
     blasts.drawWith(drawing, _kit.shard);
     soot.drawWith(drawing, _kit.puff, blend: MeshParticleContributor.darkening);
   }
@@ -217,10 +246,6 @@ final class RiverGame extends TransparentFlameGame
   /// Smoke: everything that darkens what is behind it, another pool and
   /// another draw.
   late final Particles3dComponent soot;
-
-  /// Between the 3D camera and Flame's screen, once there is a camera:
-  /// where a "+30" goes over a target that went down. Null in the tests.
-  BridgeProjector? projector;
 
   static final TextPaint _popPaint = TextPaint(
     style: const TextStyle(
@@ -234,7 +259,7 @@ final class RiverGame extends TransparentFlameGame
   /// The points [points] just scored, over [at] in the scene: drawn by
   /// Flame in its viewport, rising and gone in under a second.
   void _popScore(int points, Vector3 at) {
-    final screen = projector?.toScreen(at);
+    final screen = projector.toScreen(at);
     if (screen == null) return;
     camera.viewport.add(
       TextComponent(
@@ -262,9 +287,19 @@ final class RiverGame extends TransparentFlameGame
     }
   }
 
-  /// Shakes the camera [amount] metres wide, once the screen has one: a
-  /// crash, a depot going up. Null in the tests.
-  void Function(double amount)? shakeCamera;
+  /// Behind the jet and above it, looking up the river; made with the
+  /// river, in `build`. Shaken when the jet goes down or a depot goes up.
+  ///
+  /// **Follows the jet up the river, and only part way across.** A camera
+  /// locked to the jet's `x` turned the whole valley with every dodge; one
+  /// that did not follow at all lost the jet off a narrow screen. A third
+  /// of the way is enough to keep both banks in view and still feel the
+  /// jet slide across.
+  ///
+  /// **Aimed so the jet sits in the lower third, above the panel.** Looking
+  /// further up the river put the jet four fifths of the way down the
+  /// frame, behind Flame's instrument panel, where nobody could see it bank.
+  late final ChaseCamera chase;
 
   /// What brought the last jet down, for the tests and for anyone asking.
   Crash? lastCrash;
@@ -276,7 +311,7 @@ final class RiverGame extends TransparentFlameGame
     phase = Phase.crashed;
     _crashTimer = crashPause;
     _say(Sounds.crash);
-    shakeCamera?.call(0.5);
+    chase.rig.shake(0.5);
     jet.hide();
     final at = jet.scenePosition;
     fireball(at, size: 1.3);
@@ -314,7 +349,7 @@ final class RiverGame extends TransparentFlameGame
         fireball(at, size: 1.1);
       case TargetKind.depot:
         fireball(at..y = 1.2, size: 1.6);
-        shakeCamera?.call(0.25);
+        chase.rig.shake(0.25);
         _detonate(target);
     }
   }

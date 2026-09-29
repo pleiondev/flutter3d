@@ -6,7 +6,6 @@ library;
 
 import 'package:flame/collisions.dart' show ShapeHitbox;
 import 'package:flame/components.dart' show TextComponent, Vector2;
-import 'package:flame_flutter3d/flame_flutter3d.dart' show BridgeProjector;
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
@@ -20,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 Future<RiverGame> _newGame() async {
   final game = await initializeGame(RiverGame.new);
-  game.build(cpuTestDevice(width: 32, height: 24).device, Scene());
+  game.open3d(cpuTestDevice(width: 32, height: 24).device);
   await game.ready();
   return game;
 }
@@ -138,12 +137,11 @@ void main() {
       (t) => t.plan.kind != TargetKind.depot,
     );
     final at = target.scenePosition;
-    final camera = CameraNode()
+    // The game's own camera, put straight behind and above the target.
+    game.camera3d
       ..setPosition(at.x, at.y + 10.0, at.z + 10.0)
       ..lookAt(at);
-    game
-      ..projector = BridgeProjector(camera: camera, viewSize: () => game.size)
-      ..hitTarget(target);
+    game.hitTarget(target);
     await game.ready();
 
     Iterable<TextComponent> popups() => game.camera.viewport.children
