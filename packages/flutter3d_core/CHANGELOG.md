@@ -21,6 +21,15 @@
   mesh drawn with one white material: a tree is one draw, not a node and a
   material per part. A layout with no colour attribute gets an unchanged
   copy.
+- **A long scene's near shadows do not stripe.** A near cascade reaches back
+  to the furthest caster towards the sun, and its depth bias, kept in
+  metres, shrinks in stored depth by as much. The map stores depth as a half
+  float, 1/2048 apart near the far end, and in a river valley two hundred
+  metres long the bias came to a seventh of that: a lit floor compared
+  against its own rounded depth shadowed itself in diagonal bands, on Metal
+  and not on the software backend, which keeps full floats. The bias of each
+  cascade no longer goes below the step the map is stored with, unless the
+  settings ask for less than that.
 - **An instance batch hands out slots that stay found.**
   `InstancedMeshNode.acquire` takes a slot and returns an `InstanceHandle`;
   `release` fills the hole with the last slot, colour and morph weights
