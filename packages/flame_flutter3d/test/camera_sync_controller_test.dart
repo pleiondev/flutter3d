@@ -116,4 +116,57 @@ void main() {
 
     expect(camera.projection, same(projection));
   });
+
+  test('with the viewport\'s height, the two lenses agree to the pixel', () {
+    // A 256-unit-tall field in a 512-pixel viewport is two pixels a unit in
+    // both engines, and a Flame zoom of 4 is a 128-unit-tall view.
+    //
+    // Mutation: keep the reciprocal convention when a height is given.
+    final camera = CameraNode(
+      projection: const OrthographicProjection(height: 256.0),
+    );
+    final viewfinder = Viewfinder();
+    CameraSyncController(
+      camera: camera,
+      viewfinder: viewfinder,
+      plane: BridgePlane.ground(),
+      viewportHeight: () => 512.0,
+    ).advance(0.0);
+    expect(viewfinder.zoom, closeTo(2.0, 1e-9));
+
+    viewfinder.zoom = 4.0;
+    CameraSyncController(
+      camera: camera,
+      viewfinder: viewfinder,
+      plane: BridgePlane.ground(),
+      direction: SyncDirection.flameToScene,
+      viewportHeight: () => 512.0,
+    ).advance(0.0);
+    expect(
+      (camera.projection as OrthographicProjection).height,
+      closeTo(128.0, 1e-9),
+    );
+  });
+
+  test('a rolling screen rolls the camera about the plane\'s normal, and '
+      'reads back', () {
+    // Mutation: leave the camera's rotation alone when the angle moves.
+    final camera = CameraNode()..lookAt(Vector3(0.0, -1.0, -0.001));
+    final reader = CameraSyncController(
+      camera: camera,
+      viewfinder: Viewfinder(),
+      plane: BridgePlane.ground(),
+      syncAngle: true,
+    );
+    CameraSyncController(
+      camera: camera,
+      viewfinder: Viewfinder()..angle = 0.4,
+      plane: BridgePlane.ground(),
+      direction: SyncDirection.flameToScene,
+      syncAngle: true,
+    ).advance(0.0);
+
+    reader.advance(0.0);
+    expect(reader.viewfinder.angle, closeTo(0.4, 1e-5));
+  });
 }

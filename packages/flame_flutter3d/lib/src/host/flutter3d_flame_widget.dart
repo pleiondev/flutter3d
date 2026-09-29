@@ -1,4 +1,5 @@
-import 'package:flame/game.dart' show FlameGame, GameWidget;
+import 'package:flame/game.dart'
+    show FlameGame, GameWidget, OverlayWidgetBuilder;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -54,6 +55,10 @@ class Flutter3dFlameWidget extends StatefulWidget {
     this.settings,
     this.width = 1280,
     this.height = 720,
+    this.overlayBuilderMap,
+    this.initialActiveOverlays,
+    this.focusNode,
+    this.autofocus = true,
   }) : assert(
          game is HasFlutter3d || (camera != null && buildScene != null),
          'A game without HasFlutter3d needs a camera and a buildScene.',
@@ -109,6 +114,24 @@ class Flutter3dFlameWidget extends StatefulWidget {
   /// What the 3D layer's frame is drawn with. Re-read every frame, after
   /// [onTick] — the same contract `SceneSurface.settings` already has.
   final RenderSettings Function()? settings;
+
+  /// Flame's overlays: Flutter widgets over the game, shown and hidden by
+  /// name through `game.overlays`. Handed to the `GameWidget` as they are.
+  ///
+  /// **What a bridged game had to build a second `Stack` for.** A pause
+  /// menu or a name entry over the 3D layer is what `GameWidget` already
+  /// does with these; the host did not pass them on.
+  final Map<String, OverlayWidgetBuilder<FlameGame>>? overlayBuilderMap;
+
+  /// The overlays shown from the start.
+  final List<String>? initialActiveOverlays;
+
+  /// The focus the game's keyboard listens through, for a host that moves
+  /// focus between the game and its own widgets.
+  final FocusNode? focusNode;
+
+  /// Whether the game takes the keyboard focus when it appears.
+  final bool autofocus;
 
   /// The [GraphicsDevice]'s own backing size — not this widget's size on
   /// screen, which `SceneSurface` already resizes the render target to
@@ -338,6 +361,12 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
   GameWidget<FlameGame> _gameWidgetFor(FlameGame game) {
     final GameWidget<FlameGame>? made = _gameWidget;
     if (made != null && identical(made.game, game)) return made;
-    return _gameWidget = GameWidget<FlameGame>(game: game);
+    return _gameWidget = GameWidget<FlameGame>(
+      game: game,
+      overlayBuilderMap: widget.overlayBuilderMap,
+      initialActiveOverlays: widget.initialActiveOverlays,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+    );
   }
 }

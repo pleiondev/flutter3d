@@ -108,4 +108,34 @@ void main() {
     expect(surface.view.camera, same(second));
     expect(scene.cameras, contains(second));
   });
+
+  testWidgets('Flame\'s overlays are shown over both layers', (tester) async {
+    // A pause menu over the 3D layer needed a second Stack of the host's
+    // own; the GameWidget already draws overlays, and was never given them.
+    //
+    // Mutation: build the GameWidget without the overlay map.
+    final device = CpuDevice(
+      width: 32,
+      height: 24,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final camera = CameraNode();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Flutter3dFlameWidget(
+          game: FlameGame(),
+          camera: camera,
+          existing: (device: device, renderer: renderer),
+          buildScene: (_) => Scene(),
+          overlayBuilderMap: <String, OverlayWidgetBuilder<FlameGame>>{
+            'pause': (context, game) => const Text('PAUSED'),
+          },
+          initialActiveOverlays: const <String>['pause'],
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('PAUSED'), findsOneWidget);
+  });
 }

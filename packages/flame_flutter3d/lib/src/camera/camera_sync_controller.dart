@@ -13,6 +13,7 @@ library;
 
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:vector_math/vector_math.dart' show Quaternion;
 
 import '../transform/object3d_component.dart' show SyncDirection;
 import '../transform/plane.dart';
@@ -82,7 +83,29 @@ final class CameraSyncController {
     required this.viewfinder,
     required this.plane,
     this.direction = SyncDirection.sceneToFlame,
-  });
+    this.viewportHeight,
+    this.syncAngle = false,
+  }) : _base = camera.readRotation();
+
+  /// The Flame viewport's height in logical pixels, read every frame; when
+  /// given, the two lenses agree to the pixel.
+  ///
+  /// **Pixel-exact, not a convention.** Without it the zoom is the
+  /// reciprocal of the height, which moves the right way and agrees with
+  /// nothing on screen. With it, [Viewfinder.zoom] is pixels per world unit,
+  /// the viewport's height over [OrthographicProjection.height], so a
+  /// 224-by-256 field fills the same pixels in both layers at any window
+  /// size: what a Space Invaders cabinet drawn in both engines needs.
+  final double Function()? viewportHeight;
+
+  /// Whether Flame's [Viewfinder.angle] and the camera's turn about the
+  /// plane's normal are kept the same: a screen that rolls.
+  ///
+  /// The camera's rotation when this controller was made is its rest, and
+  /// the angle is a turn about the plane's normal on top of it.
+  final bool syncAngle;
+
+  final Quaternion _base;
 
   /// The flutter3d camera this controller reconciles.
   final CameraNode camera;
@@ -116,11 +139,27 @@ final class CameraSyncController {
     }
   }
 
+  /// Pixels per world unit for a view [height] units tall.
+  double _zoomFor(double height) {
+    final pixels = viewportHeight?.call();
+    return pixels == null ? 1.0 / height : pixels / height;
+  }
+
+  /// The view height in world units that [zoom] shows.
+  double _heightFor(double zoom) {
+    final pixels = viewportHeight?.call();
+    return pixels == null ? 1.0 / zoom : pixels / zoom;
+  }
+
   void _sceneToFlame() {
     viewfinder.position = plane.to2d(camera.readPosition());
     final projection = camera.projection;
     if (projection is OrthographicProjection) {
-      viewfinder.zoom = 1.0 / projection.height;
+      viewfinder.zoom = _zoomFor(projection.height);
+    }
+    if (syncAngle) {
+      final rest = Quaternion.copy(_base)..inverse();
+      viewfinder.angle = plane.angleFor(camera.readRotation() * rest);
     }
   }
 
@@ -128,7 +167,12 @@ final class CameraSyncController {
     camera.setPositionFrom(plane.to3d(viewfinder.position));
     final projection = camera.projection;
     if (projection is OrthographicProjection) {
-      camera.projection = projection.copyWith(height: 1.0 / viewfinder.zoom);
+      camera.projection = projection.copyWith(
+        height: _heightFor(viewfinder.zoom),
+      );
+    }
+    if (syncAngle) {
+      camera.setRotation(plane.rotationFor(viewfinder.angle) * _base);
     }
   }
 }

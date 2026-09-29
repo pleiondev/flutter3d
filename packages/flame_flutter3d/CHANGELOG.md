@@ -81,6 +81,18 @@ Sortie's fire, sparks and spray went into one pool and its smoke into
 another, and `BurstComponent`, a scene node per shard, is gone. The package
 now depends on `flutter3d_particles` 0.8.1, which is plain Dart.
 
+**An orthographic camera agrees with Flame to the pixel, and rolls.**
+`CameraSyncController` takes a `viewportHeight`: with it, Flame's zoom is
+pixels per world unit, the viewport's height over the camera's, rather
+than the reciprocal convention that moved the right way and matched
+nothing on screen. `syncAngle` keeps Flame's viewfinder angle and the
+camera's turn about the plane's normal the same.
+
+**`Flutter3dFlameWidget` passes Flame's overlays and focus on**:
+`overlayBuilderMap`, `initialActiveOverlays`, `focusNode` and `autofocus`
+reach the `GameWidget`, so a pause menu over the 3D layer is Flame's own
+overlay rather than a second `Stack`.
+
 **A model's animations play on Flame's clock.** `ModelAnimationComponent`
 advances a loaded model's `AnimationPlayer` in its own update, so it stops
 when the game is paused, and changes clip by name with a crossfade; asking
