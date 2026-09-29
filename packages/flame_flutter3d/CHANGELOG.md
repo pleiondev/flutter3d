@@ -202,6 +202,14 @@ be hung under it. `HasFlutter3d` and `HasFixedStep` are generic over the
 game's world: on `FlameGame` alone they could not be mixed into a
 `Forge2DGame`, or any game whose world has a type of its own.
 
+**Flame's sprites stand in the scene.** `SpriteBillboardComponent` draws a
+Flame `Sprite`, or a `SpriteAnimation` played by Flame's own ticker, on a
+card that turns to face the camera, upright about the plane's normal or
+squarely, its foot on the plane: a car on a road, a tree beside it, an
+explosion. The image goes to the device once, each frame is a card of its
+own corners, and it is drawn unlit, cut out where the sprite is clear and
+sampled nearest, as pixel art wants.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

@@ -40,6 +40,7 @@ export 'src/transform/instanced_object3d_component.dart';
 export 'src/transform/object3d_component.dart';
 export 'src/transform/plane.dart';
 export 'src/transform/projector.dart';
+export 'src/transform/sprite_billboard_component.dart';
 export 'src/world/atmosphere_component.dart';
 export 'src/world/cell_grid_component.dart';
 export 'src/world/chunk_streamer.dart';
