@@ -147,4 +147,33 @@ void main() {
     expect(_playing(ears, Sounds.refuel), hasLength(1));
     expect(_playing(ears, Sounds.lowFuel), isEmpty);
   });
+
+  test(
+    'a blast up the river is quieter than one near, and on its own side',
+    () async {
+      // Mutation: play the river's sounds at the listener, flat.
+      final (game, ears) = await _newGame();
+      await _run(game, 2);
+      final byDistance = game.targets.toList()
+        ..sort((a, b) => a.plan.distance.compareTo(b.plan.distance));
+      final near = byDistance.first;
+      final far = byDistance.last;
+      expect(far.plan.distance - near.plan.distance, greaterThan(60.0));
+
+      game.hitTarget(near);
+      await _run(game, 1);
+      final nearVoice = ears.started.lastWhere(
+        (v) => v.asset == Sounds.boom.asset || v.asset == Sounds.bigBoom.asset,
+      );
+      game.hitTarget(far);
+      await _run(game, 1);
+      final farVoice = ears.started.lastWhere(
+        (v) => v.asset == Sounds.boom.asset || v.asset == Sounds.bigBoom.asset,
+      );
+      expect(farVoice, isNot(same(nearVoice)));
+      expect(farVoice.gain, lessThan(nearVoice.gain));
+      final side = near.plan.x - game.jet.position.x;
+      if (side.abs() > 2.0) expect(nearVoice.pan.sign, side.sign);
+    },
+  );
 }

@@ -6,11 +6,21 @@ part of 'river_game.dart';
 /// quietest thing in the mix: a drone as loud as a shot buries the shot, and
 /// the first version of this bank did exactly that.
 ///
-/// **None of it fades with distance.** A cartridge had one speaker and no
-/// idea where anything was, and a river seen from behind the jet has nothing
-/// to gain from panning a tanker a few metres left; every sound is played at
-/// the listener with [NoAttenuation].
+/// **The jet's sounds are flat, the river's are placed.** The engine, a
+/// shot, the refuelling tone, the alarm and the crash are the player's own
+/// and are heard the same wherever the camera is, as on a cartridge with one
+/// speaker. A tanker going up, a bridge falling, sparks off a shield and a
+/// helicopter's burst happen somewhere on the river, and are heard from
+/// there: quieter far up it, and from the side of the screen they are on.
 abstract final class Sounds {
+  /// How a sound out on the river carries: full within twenty metres of the
+  /// camera, halving with each doubling of distance past that, and gone
+  /// past the far end of what the river builds ahead.
+  static const Attenuation _outThere = InverseRolloff(
+    reference: 20.0,
+    maximum: 220.0,
+  );
+
   static const SoundDef engine = SoundDef(
     name: 'engine',
     asset: 'assets/sounds/engine.wav',
@@ -54,7 +64,7 @@ abstract final class Sounds {
     name: 'boom',
     asset: 'assets/sounds/boom.wav',
     gain: 0.9,
-    attenuation: NoAttenuation(),
+    attenuation: _outThere,
     priority: 1,
     maxInstances: 3,
     rateVariance: 0.08,
@@ -64,7 +74,7 @@ abstract final class Sounds {
     name: 'big-boom',
     asset: 'assets/sounds/big_boom.wav',
     gain: 1.0,
-    attenuation: NoAttenuation(),
+    attenuation: _outThere,
     priority: 2,
     maxInstances: 2,
   );
@@ -82,7 +92,7 @@ abstract final class Sounds {
     name: 'spark',
     asset: 'assets/sounds/spark.wav',
     gain: 0.45,
-    attenuation: NoAttenuation(),
+    attenuation: _outThere,
     maxInstances: 2,
   );
 
@@ -90,7 +100,7 @@ abstract final class Sounds {
     name: 'tracer',
     asset: 'assets/sounds/tracer.wav',
     gain: 0.35,
-    attenuation: NoAttenuation(),
+    attenuation: _outThere,
     maxInstances: 3,
   );
 
@@ -134,7 +144,13 @@ abstract final class Sounds {
 /// into [RiverGame.sound]; until the speakers open, both play into a silent
 /// scene, and the loops move onto the speakers when they do.
 extension RiverGameSound on RiverGame {
+  /// A sound of the jet's own, or of the game: heard the same wherever the
+  /// camera is.
   void _say(SoundDef def) => sound.play(def);
+
+  /// A sound out on the river: quieter the further from the camera, and on
+  /// the side of the screen it happened on.
+  void _sayAt(SoundDef def, Vector3 at) => sound.play(def, at: at);
 
   /// Holds each loop open by the state it stands for, bends the engine with
   /// the throttle, and hails an extra jet.

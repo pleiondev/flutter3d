@@ -345,8 +345,8 @@ final class RiverGame extends FlameGame
       say('TASK DONE  ·  THE LAST BRIDGE IS OPEN');
     }
 
-    _say(kind == TargetKind.depot ? Sounds.bigBoom : Sounds.boom);
     final at = target.scenePosition;
+    _sayAt(kind == TargetKind.depot ? Sounds.bigBoom : Sounds.boom, at);
     _popScore(kind.points, at);
     switch (kind) {
       case TargetKind.tanker:
@@ -403,13 +403,14 @@ final class RiverGame extends FlameGame
   /// The last of a level finishes the level.
   void hitBridge(BridgeComponent bridge, {required Vector2 at}) {
     if (shielded(bridge)) {
-      sparks(river.to3d(at, at: flightHeight));
-      _say(Sounds.spark);
+      final struck = river.to3d(at, at: flightHeight);
+      sparks(struck);
+      _sayAt(Sounds.spark, struck);
       say('SHIELDED  ·  ${stillWanted(stageOf(bridge.section).level)} TO GO');
       return;
     }
     if (!bridge.collapse()) return;
-    _say(Sounds.bigBoom);
+    _sayAt(Sounds.bigBoom, bridge.scenePosition);
     run
       ..award(500)
       ..bridgeDown(bridge.section);
@@ -433,7 +434,7 @@ final class RiverGame extends FlameGame
   /// A helicopter at [from] fires at where the jet is now.
   void enemyFire({required Vector2 from}) {
     final aim = (jet.position - from)..normalize();
-    _say(Sounds.tracer);
+    _sayAt(Sounds.tracer, river.to3d(from, at: flightHeight));
     add(
       EnemyShotComponent(
         node: MeshNode(_kit.shard, _kit.tracer, name: 'tracer')
