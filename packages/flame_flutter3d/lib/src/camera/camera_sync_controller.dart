@@ -100,8 +100,12 @@ final class CameraSyncController {
   /// put at the viewfinder's point, on the plane, and nothing Flame's camera
   /// does reached a perspective lens: `follow` with its `maxSpeed`,
   /// `setBounds`, a `MoveEffect` or a `ScaleEffect` on the viewfinder. With
-  /// it they all do, as they would a flat Flame game. Ignored under an
-  /// orthographic lens, which has the height for a zoom.
+  /// it they all do, as they would a flat Flame game.
+  ///
+  /// **Under an orthographic lens it is the angle of view**: the camera
+  /// looks along it from as far as it says, and the zoom stays the lens's
+  /// height. An isometric board, a pyramid of cubes seen from a corner, is
+  /// an offset of equal parts on all three axes.
   final Vector3? eyeOffset;
 
   final Vector3 _looked = Vector3.all(double.nan);
@@ -191,9 +195,12 @@ final class CameraSyncController {
 
   /// Written only when the viewfinder moved: a camera written is a changed
   /// node, and a still one had its shadows drawn again every frame.
-  void _lookFrom(Vector3 offset) {
+  ///
+  /// An orthographic lens looks along the offset from as far as it is
+  /// given, and its zoom is its height instead: nearer would not show less.
+  void _lookFrom(Vector3 offset, {required bool byZoom}) {
     final at = viewfinder.position;
-    final zoom = viewfinder.zoom;
+    final zoom = byZoom ? viewfinder.zoom : 1.0;
     final angle = syncAngle ? viewfinder.angle : 0.0;
     if (_looked.x == at.x &&
         _looked.y == at.y &&
@@ -213,12 +220,12 @@ final class CameraSyncController {
 
   void _flameToScene() {
     final offset = eyeOffset;
-    if (offset != null && camera.projection is! OrthographicProjection) {
-      _lookFrom(offset);
-      return;
-    }
-    camera.setPositionFrom(plane.to3d(viewfinder.position));
     final projection = camera.projection;
+    if (offset != null) {
+      _lookFrom(offset, byZoom: projection is! OrthographicProjection);
+    } else {
+      camera.setPositionFrom(plane.to3d(viewfinder.position));
+    }
     if (projection is OrthographicProjection) {
       final height = _heightFor(viewfinder.zoom);
       // A lens made only when the zoom moved, not every frame.
@@ -226,7 +233,7 @@ final class CameraSyncController {
         camera.projection = projection.copyWith(height: height);
       }
     }
-    if (syncAngle) {
+    if (syncAngle && offset == null) {
       camera.setRotation(plane.rotationFor(viewfinder.angle) * _base);
     }
   }

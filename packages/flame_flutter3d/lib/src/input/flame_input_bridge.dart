@@ -147,6 +147,16 @@ final class FlameInputBridge {
   Component followJoystick(JoystickComponent stick, {double deadZone = 0.0}) =>
       _JoystickFeed(stick, inputState, deadZone);
 
+  /// A component that reads [pad] into its own state on Flame's clock: in
+  /// each frame, before the steps of a `HasFixedStep` game, as the touch
+  /// stick is.
+  ///
+  /// **A pad beside the keys had no clock in a Flame game.** `PadInput`
+  /// reads the controller when it is ticked, and a native game ticks it
+  /// from its loop; a Flame game had nothing that did, and the pad the
+  /// class doc suggests running beside this bridge never moved anything.
+  Component followPad(PadInput pad) => _PadFeed(pad);
+
   /// A component that closes [inputState]'s step after everything that reads
   /// it: what a game called by hand as the last line of its `update`, and a
   /// game that forgot to call saw a key it pressed once reported as pressed
@@ -232,6 +242,78 @@ final class _JoystickFeed extends Component {
       _moved = false;
       inputState.setStickAxis(0.0, 0.0);
     }
+  }
+}
+
+/// Ticks a pad on Flame's clock; made by [FlameInputBridge.followPad].
+final class _PadFeed extends Component {
+  _PadFeed(this.pad) : super(priority: BridgePriority.input);
+
+  final PadInput pad;
+  HasFixedStep? _stepped;
+  double _dt = 0.0;
+
+  @override
+  void onMount() {
+    super.onMount();
+    final game = findGame();
+    if (game is HasFixedStep) _stepped = game..beforeSteps(_read);
+  }
+
+  @override
+  void onRemove() {
+    _stepped?.removeBeforeSteps(_read);
+    _stepped = null;
+    super.onRemove();
+  }
+
+  /// A game of fixed steps reads the pad before this updates, with the
+  /// frame's time taken from the frame before: a stick's look rate needs a
+  /// time, and the steps cannot wait for this frame's.
+  @override
+  void update(double dt) {
+    _dt = dt;
+    if (_stepped == null) _read();
+  }
+
+  void _read() => pad.tick(_dt);
+}
+
+/// Several players at one machine, each with their own keys and state.
+///
+/// **One keyboard, several bridges.** Two players on one keyboard are two
+/// [Bindings] tables and two [InputState]s, and a Flame game has one key
+/// handler: each key has to reach the player it is bound for, and a game
+/// that forwarded it to the first bridge moved player one with player
+/// two's arrows. [onGameKeyEvent] hands it to every player, and a key is
+/// handled when any of them has it bound.
+///
+/// Each player's pad goes through [FlameInputBridge.followPad]. `PadInput`
+/// reads the one controller `pad_input` reports today; a second controller
+/// for a second player needs `pad_input` to tell its devices apart.
+final class PlayerInputs {
+  PlayerInputs(this.players) : assert(players.isNotEmpty, 'nobody playing');
+
+  /// Player one first.
+  final List<FlameInputBridge> players;
+
+  /// Every player's step closed, as [FlameInputBridge.stepEnd] closes one.
+  List<Component> stepEnds() => <Component>[
+    for (final player in players) player.stepEnd(),
+  ];
+
+  /// A game's key event, handed to every player.
+  KeyEventResult onGameKeyEvent(
+    KeyEvent event,
+    Set<LogicalKeyboardKey> keysPressed,
+  ) {
+    var handled = false;
+    for (final player in players) {
+      if (player.onGameKeyEvent(event, keysPressed) == KeyEventResult.handled) {
+        handled = true;
+      }
+    }
+    return handled ? KeyEventResult.handled : KeyEventResult.ignored;
   }
 }
 

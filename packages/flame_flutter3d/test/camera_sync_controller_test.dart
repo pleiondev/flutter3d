@@ -209,6 +209,40 @@ void main() {
     expect((turned.x - 3.0).abs(), closeTo(5.0, 1e-4));
   });
 
+  test('an orthographic camera given an offset looks along it, and zooms by '
+      'its height', () {
+    // An isometric board: the camera from a corner, the zoom the lens.
+    //
+    // Mutation: ignore the offset under an orthographic lens.
+    final camera = CameraNode(
+      projection: const OrthographicProjection(height: 10.0),
+    );
+    final viewfinder = Viewfinder()
+      ..position = Vector2(2.0, -2.0)
+      ..zoom = 0.5;
+    CameraSyncController(
+      camera: camera,
+      viewfinder: viewfinder,
+      plane: BridgePlane.ground(),
+      direction: SyncDirection.flameToScene,
+      eyeOffset: Vector3(10.0, 10.0, 10.0),
+    ).advance(0.0);
+
+    final eye = camera.readPosition();
+    expect(eye.x, closeTo(12.0, 1e-5), reason: 'not nearer for the zoom');
+    expect(eye.y, closeTo(10.0, 1e-5));
+    expect(eye.z, closeTo(8.0, 1e-5));
+    final forward = camera.readRotation().asRotationMatrix().transform(
+      Vector3(0.0, 0.0, -1.0),
+    );
+    expect(forward.x, closeTo(forward.y, 1e-5), reason: 'down the diagonal');
+    expect(forward.y, closeTo(forward.z, 1e-5));
+    expect(
+      (camera.projection as OrthographicProjection).height,
+      closeTo(2.0, 1e-9),
+    );
+  });
+
   test('a camera aimed after the controller was made rests where it was '
       'aimed, once told', () {
     // The rest was the rotation at construction, and a camera pointed with

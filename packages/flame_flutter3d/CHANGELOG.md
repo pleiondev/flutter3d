@@ -154,6 +154,17 @@ the same frame: the second player's half, a mirror. `BridgeProjector` takes
 a `viewport`, so taps and labels work in each half. Needs
 `flutter3d_app` 0.8.1, whose `SceneSurface` draws more than one view.
 
+**Players at one machine, and a pad on Flame's clock.** `PlayerInputs`
+hands each key to every player's `FlameInputBridge`, so two on one
+keyboard each move their own; forwarded to one bridge, player two's arrows
+moved player one. `FlameInputBridge.followPad` ticks a `PadInput` in each
+frame, before the steps of a `HasFixedStep` game: nothing ticked one in a
+Flame game. `pad_input` reads one controller today, and a second player's
+pad needs it to tell devices apart.
+
+**An isometric board.** Under an orthographic lens `eyeOffset` is the angle
+of view: the camera looks along it, and the zoom stays the lens's height.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

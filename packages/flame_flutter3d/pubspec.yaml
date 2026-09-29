@@ -70,5 +70,8 @@ dev_dependencies:
   # A runner that climbs, for the character body's own test.
   flutter3d_game_platformer: ^0.8.0
 
+  # A controller that is not there, for the pad feed's own test.
+  pad_input: ^0.4.0
+
 flutter:
   uses-material-design: true
