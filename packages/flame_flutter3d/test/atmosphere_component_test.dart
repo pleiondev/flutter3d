@@ -40,5 +40,10 @@ void main() {
     expect(game.clearColor.z, closeTo(0.1, 1e-6));
     expect(sun.intensity, closeTo(0.1, 1e-6));
     expect(day.fog.density, closeTo(0.02, 1e-6));
+    // The frame is drawn through the day's fog without the game reading it
+    // across by hand.
+    //
+    // Mutation: leave the fog to the game's own settings.
+    expect(game.renderSettings().fog.density, closeTo(0.02, 1e-6));
   });
 }

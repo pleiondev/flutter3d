@@ -12,6 +12,13 @@
 ///
 /// A game's own components sit at Flame's default of 0, between the
 /// simulation and the camera, which is where a player's craft wants to be.
+///
+/// **After Flame's own camera, what reads it.** Flame gives its
+/// `CameraComponent` the highest 32-bit priority, so that it follows its
+/// target after everything has moved. The clock, the sound and the input's
+/// end were placed at 2^20 and so ran before it, and a 3D camera synced
+/// from a viewfinder that `camera.follow()` moves trailed it by a frame.
+/// They are past it now; Dart's integers, and the web's, go far enough.
 abstract final class BridgePriority {
   /// A touch stick's deflection read into the input state: before anything
   /// that reads input.
@@ -23,17 +30,27 @@ abstract final class BridgePriority {
   /// `PhysicsStepComponent`: the solver, before anything reads a body.
   static const int physics = -1000;
 
-  /// `ChaseCameraComponent` and `CameraSyncComponent`: after the craft they
-  /// follow have moved this frame.
+  /// `ChaseCameraComponent`, and a `CameraSyncComponent` that writes Flame's
+  /// viewfinder from the 3D camera: after the craft they follow have moved
+  /// this frame, before Flame's camera reads its viewfinder.
   static const int camera = 1000;
 
-  /// A game's sound mixing, after everything that makes one has spoken.
-  static const int audio = 1 << 19;
+  /// Flame's own `CameraComponent`, which follows its target once the
+  /// world has moved. Not the bridge's to set; named to order against.
+  static const int flameCamera = 0x7fffffff;
+
+  /// A `CameraSyncComponent` that writes the 3D camera from Flame's
+  /// viewfinder: after Flame's camera has moved it this frame.
+  static const int afterFlameCamera = flameCamera + 1;
+
+  /// A game's sound mixing, after everything that makes one has spoken and
+  /// every camera its ears ride on has moved.
+  static const int audio = (1 << 32) - 2;
 
   /// `FlameInputBridge.stepEnd`: the input step closed once everything that
   /// reads it this frame has, just before the frame is drawn.
-  static const int inputEnd = (1 << 20) - 1;
+  static const int inputEnd = (1 << 32) - 1;
 
   /// `BridgeClock`, which draws the 3D frame: last of all.
-  static const int clock = 1 << 20;
+  static const int clock = 1 << 32;
 }

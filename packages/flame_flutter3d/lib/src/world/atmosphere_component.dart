@@ -7,8 +7,17 @@ import '../host/has_flutter3d.dart';
 /// `HasFlutter3d` game it is in: the sky, the ambient light and [sun].
 ///
 /// [time] advances by [rate] a second (a game whose day lasts a race sets
-/// it so), and [current] is the air right now. The fog is the one part a
-/// scene does not hold: a game's `renderSettings` reads [fog].
+/// it so), and [current] is the air right now.
+///
+/// **The fog reaches the frame by itself.** It is the one part a scene does
+/// not hold, and a game had to know to read [fog] into its own
+/// `renderSettings`; one that did not saw a sky turn to dusk over a road
+/// still in noon's haze. It is written into `HasFlutter3d.fog3d`, which
+/// the game's settings draw with unless it chose its own.
+///
+/// The sky is written into the game's `clearColor`. A
+/// `Flutter3dFlameWidget` handed a `clearColor` of its own draws that
+/// instead, as it says: leave it out for the day to show.
 class AtmosphereComponent extends Component {
   AtmosphereComponent({
     required this.cycle,
@@ -42,6 +51,7 @@ class AtmosphereComponent extends Component {
     final game = findGame();
     if (game is HasFlutter3d && game.has3d) {
       current.applyTo(game.scene, sun: sun, clearColor: game.clearColor);
+      game.fog3d = current.fog;
     }
   }
 }

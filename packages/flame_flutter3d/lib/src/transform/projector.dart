@@ -54,7 +54,7 @@ final class BridgeProjector {
   /// plane, or null when the ray from the camera through it never meets
   /// the plane in front of the camera: a touch on the sky.
   Vector2? onPlane(Vector2 screen, BridgePlane plane) {
-    final ray = _ray(screen);
+    final ray = rayThrough(screen);
     if (ray == null) return null;
     final (near, far) = ray;
     final normal = plane.normal;
@@ -75,12 +75,13 @@ final class BridgeProjector {
   Vector2? onPlaneOrHorizon(Vector2 screen, BridgePlane plane) {
     final hit = onPlane(screen, plane);
     if (hit != null) return hit;
-    final ray = _ray(screen);
+    final ray = rayThrough(screen);
     return ray == null ? null : plane.to2d(ray.$2);
   }
 
-  /// The near and far ends of the ray through [screen].
-  (Vector3, Vector3)? _ray(Vector2 screen) {
+  /// The near and far ends of the ray from the camera through [screen]:
+  /// where a tap enters the scene, and where it leaves the view.
+  (Vector3, Vector3)? rayThrough(Vector2 screen) {
     final size = viewSize();
     if (size.x <= 0.0 || size.y <= 0.0) return null;
     final inverse = Matrix4.copy(camera.viewProjection(size.x / size.y));

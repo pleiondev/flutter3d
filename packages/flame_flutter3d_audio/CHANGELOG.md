@@ -33,3 +33,7 @@ closes it as soon as it arrives instead of being overtaken by it.
 the new one. A one-shot emitter is not played a second time when the
 speakers open, and a game with no sound is searched a few times a second
 rather than every frame by every emitter.
+
+**Heard the way the camera looks in the world.** The listener takes the 3D
+camera's world turn rather than its turn against its parent: a camera
+riding a craft was heard looking only its own way.

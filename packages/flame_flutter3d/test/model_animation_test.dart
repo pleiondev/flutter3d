@@ -74,4 +74,28 @@ void main() {
       expect(node.mesh, same(a));
     },
   );
+
+  testWithGame<FlameGame>(
+    'a clip asked for again from its start plays again',
+    FlameGame.new,
+    (game) async {
+      // Asking for the clip playing did nothing, so a jump played once.
+      //
+      // Mutation: ignore restart.
+      final body = SceneNode();
+      final player = AnimationPlayer(
+        clips: <AnimationClip>[_slide('jump', 2.0)],
+        targets: <AnimationTarget?>[body],
+      );
+      final animation = ModelAnimationComponent(player, start: 'jump');
+      await game.add(animation);
+      await game.ready();
+      game.update(0.5);
+      expect(body.readPosition().x, closeTo(1.0, 1e-3));
+
+      expect(animation.play('jump', restart: true), isTrue);
+      game.update(0.25);
+      expect(body.readPosition().x, closeTo(0.5, 1e-3));
+    },
+  );
 }

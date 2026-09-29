@@ -4,7 +4,8 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
-import '../transform/object3d_component.dart';
+import '../transform/bridged3d.dart';
+import '../transform/object3d_component.dart' show shownInFlame;
 
 /// Draws every hitbox under [root] that belongs to a bridged component into
 /// [lines], on its component's plane at its component's elevation: green,
@@ -17,14 +18,26 @@ import '../transform/object3d_component.dart';
 ///
 /// A rectangle or a polygon is drawn through its corners, a circle as a
 /// ring of [circleSegments] sides. A hitbox with no bridged ancestor has no
-/// plane to be drawn on and is left out.
+/// plane to be drawn on and is left out. One under an instance is drawn as
+/// one under a node is, and one under a component in a bent space is bent
+/// with it, point by point, as the component is placed.
 void addHitboxes3d(DebugDraw lines, Component root, {int circleSegments = 24}) {
+  final from = Vector3.zero();
+  final to = Vector3.zero();
   for (final hitbox in root.descendants().whereType<ShapeHitbox>()) {
-    final owner = hitbox.ancestors().whereType<Object3dComponent>().firstOrNull;
-    if (owner == null || !shownInFlame(owner)) continue;
+    final owner = hitbox.ancestors().whereType<Bridged3d>().firstOrNull;
+    if (owner == null) continue;
+    if (owner is HasVisibility && !shownInFlame(owner as HasVisibility)) {
+      continue;
+    }
     final plane = owner.plane;
-    final at = plane.constant + owner.elevation;
+    final space = owner.space;
+    final lift = owner.elevation;
+    final at = plane.constant + lift;
     final colour = hitbox.isColliding ? _colliding : _clear;
+    void place(Vector2 p, Vector3 out) => space == null
+        ? plane.to3dInto(p.x, p.y, out, at: at)
+        : space.place(p.x, p.y, lift, out);
 
     final List<Vector2> outline = switch (hitbox) {
       final PolygonComponent polygon => polygon.globalVertices(),
@@ -40,11 +53,9 @@ void addHitboxes3d(DebugDraw lines, Component root, {int circleSegments = 24}) {
       _ => const <Vector2>[],
     };
     for (var i = 0; i < outline.length; i++) {
-      lines.addLine(
-        plane.to3d(outline[i], at: at),
-        plane.to3d(outline[(i + 1) % outline.length], at: at),
-        colour,
-      );
+      place(outline[i], from);
+      place(outline[(i + 1) % outline.length], to);
+      lines.addLine(from.clone(), to.clone(), colour);
     }
   }
 }

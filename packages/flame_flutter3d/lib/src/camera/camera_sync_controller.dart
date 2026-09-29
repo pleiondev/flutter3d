@@ -107,6 +107,11 @@ final class CameraSyncController {
 
   final Quaternion _base;
 
+  /// Takes the camera's rotation now as its rest: for a camera turned with
+  /// `lookAt` after this controller was made, whose rest was otherwise the
+  /// turn it had before.
+  void takeRest() => _base.setFrom(camera.readRotation());
+
   /// The flutter3d camera this controller reconciles.
   final CameraNode camera;
 
@@ -167,9 +172,11 @@ final class CameraSyncController {
     camera.setPositionFrom(plane.to3d(viewfinder.position));
     final projection = camera.projection;
     if (projection is OrthographicProjection) {
-      camera.projection = projection.copyWith(
-        height: _heightFor(viewfinder.zoom),
-      );
+      final height = _heightFor(viewfinder.zoom);
+      // A lens made only when the zoom moved, not every frame.
+      if (height != projection.height) {
+        camera.projection = projection.copyWith(height: height);
+      }
     }
     if (syncAngle) {
       camera.setRotation(plane.rotationFor(viewfinder.angle) * _base);

@@ -169,4 +169,24 @@ void main() {
     reader.advance(0.0);
     expect(reader.viewfinder.angle, closeTo(0.4, 1e-5));
   });
+
+  test('a camera aimed after the controller was made rests where it was '
+      'aimed, once told', () {
+    // The rest was the rotation at construction, and a camera pointed with
+    // lookAt afterwards read as rolled by the difference.
+    //
+    // Mutation: make takeRest do nothing.
+    final camera = CameraNode()..setPosition(0.0, 10.0, 0.0);
+    final controller = CameraSyncController(
+      camera: camera,
+      viewfinder: Viewfinder(),
+      plane: BridgePlane.ground(),
+      syncAngle: true,
+    );
+    camera.lookAt(Vector3(-5.0, 10.0, -5.0));
+    controller
+      ..takeRest()
+      ..advance(0.0);
+    expect(controller.viewfinder.angle, closeTo(0.0, 1e-5));
+  });
 }

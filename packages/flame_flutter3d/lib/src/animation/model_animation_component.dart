@@ -35,8 +35,20 @@ class ModelAnimationComponent extends Component {
 
   /// Plays the clip called [name], blending from the one playing over
   /// [fade] seconds, or [crossFade]. False when there is no such clip.
-  bool play(String name, {double? fade}) {
-    if (name == _current) return true;
+  ///
+  /// [restart] plays it from its start even when it is the clip playing: a
+  /// second jump, a second hit. Asking for the clip playing did nothing, so
+  /// a clip that plays once could be played once a game.
+  bool play(String name, {double? fade, bool restart = false}) {
+    if (name == _current) {
+      if (restart) {
+        // The player rewinds only on a change of clip: seek it back.
+        player
+          ..seek(0.0)
+          ..play();
+      }
+      return true;
+    }
     final found = _current == null
         ? player.playNamed(name)
         : player.crossFadeToNamed(name, duration: fade ?? crossFade);

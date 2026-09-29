@@ -74,6 +74,40 @@ horizon, through `BridgeProjector.onPlaneOrHorizon`, rather than NaN: Flame's
 `World` takes every point, and a drag that strayed above the horizon moved
 its component to NaN for good.
 
+**What reads Flame's camera runs after it.** Flame gives its
+`CameraComponent` the highest 32-bit priority, and the clock, the sound and
+the input's end sat below it, so a 3D camera synced from a viewfinder that
+`camera.follow()` moves trailed it by a frame. `BridgePriority` now has
+`flameCamera` and `afterFlameCamera`, the three run past it, and a
+`CameraSyncComponent` flowing Flame to the scene runs after Flame's camera
+by default. `CameraSyncController.takeRest` takes a camera's rotation as its
+rest after a `lookAt`, and the lens is made only when the zoom moves.
+
+**An instance is a bridged component too.** `Bridged3d` is what taps and
+hitbox outlines ask of a component, and `InstancedObject3dComponent` is
+one: an invader drawn as one instance of fifty-five can be tapped and have
+its hitbox drawn, and takes a `space` as a node does. Hitbox outlines bend
+with a component's space.
+
+**Taps are nearest where they meet, and have an end.** `Taps3dComponent`
+ranks what is under a tap by where the ray enters each box, not by each
+box's middle, so a crate standing on a wide field hears the tap rather
+than the field. `Tap3dCallbacks` hears the finger lift (`onTapUp3d`), the
+tap given up on (`onTapCancel3d`) and a finger held still (`onLongTap3d`).
+`BridgeProjector.rayThrough` is the ray through a screen point.
+
+**A tint moves as a colour effect would.** `TintEffect` moves a bridged
+component's tint on any `EffectController`, since Flame's own `ColorEffect`
+wants a paint a 3D component does not have.
+
+**A clip can be played again.** `ModelAnimationComponent.play` takes
+`restart`: asking for the clip already playing did nothing, so a jump
+played once a game.
+
+**The day's fog reaches the frame.** `AtmosphereComponent` writes its fog
+into `HasFlutter3d.fog3d`, which the game's default settings draw with; a
+game had to know to read it across by hand.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

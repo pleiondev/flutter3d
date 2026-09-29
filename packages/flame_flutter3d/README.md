@@ -43,6 +43,11 @@ builds the world in `onOpen3d` and uses the renderer in `onRenderer3d`, each
 once, after the game has loaded. The widget then needs only the game. A game
 without the mixin passes a `camera` and a `buildScene` instead, as before.
 
+The world lives as long as the game, as Flame's components do: a game shown
+again on a tab that comes back draws what it kept. `close3d()` lets the
+device go, and `dispose()` calls it. A paused game is not drawn by itself,
+and `redraw3d()` draws it once, for a pause menu that changes the sky.
+
 ## One plane, everywhere a point crosses
 
 `BridgePlane` is the one place a Flame `Vector2` and a flutter3d `Vector3`
@@ -57,7 +62,9 @@ one place, in the direction a `SyncDirection` names. Flame's effects reach
 the scene in the frame they happen, and a component nested under another
 lands where Flame draws it. `elevation` lifts it off the plane; scale,
 visibility, `opacity` and a `tint` cross as well, and a component under a
-hidden parent is hidden in 3D too. A component that did not move writes
+hidden parent is hidden in 3D too. A flipped component turns the way Flame
+draws it, nested or not, and `TintEffect` moves the tint as Flame's
+`ColorEffect` would a sprite's paint. A component that did not move writes
 nothing, so it causes no shadow redraw. `visual` is a node under it that
 the game turns and the bridge leaves alone.
 
@@ -72,8 +79,9 @@ slot in a shared `InstancedMeshNode`, so a hundred shots are one draw.
 `BridgeProjector` says where a scene point is drawn, for a score over a
 target, and which point of the plane is under a touch. Under a perspective
 camera Flame's own tap test misses what the player sees, so a component
-with `Tap3dCallbacks` hears a tap on its drawing and `Taps3dComponent`
-hands each tap to the nearest one. `debugHitboxes3d` draws every hitbox in
+with `Tap3dCallbacks` hears a tap on its drawing, and the finger lifting or
+held still, and `Taps3dComponent` hands each tap to the one the ray meets
+first. An instance of a batch is tapped the same way. `debugHitboxes3d` draws every hitbox in
 the scene, round its craft.
 
 `FlameInputBridge` translates Flame's keys, drags, touch stick
@@ -82,8 +90,9 @@ the scene, round its craft.
 
 `RigidBodyComponent` and `ActorComponent` carry a body across.
 `PhysicsStepComponent` and `ActorSystemComponent` step the shared world
-once, in fixed steps, and a component handed its stepper is drawn between
-two steps. `CollisionBridge` re-fires contacts as Flame's
+once, in fixed steps, the game's own when it has `HasFixedStep`, and a
+component handed its stepper is drawn between two steps. A body can be
+`teleport`ed, and taken out of the world with its component. `CollisionBridge` re-fires contacts as Flame's
 `CollisionCallbacks`, and `ColliderRegistry` says which component a
 collider belongs to.
 

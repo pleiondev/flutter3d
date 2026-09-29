@@ -58,8 +58,15 @@ mixin HasFlutter3d on FlameGame {
   /// changing its components changes the sky on the next one.
   final Vector4 clearColor = Vector4(0.05, 0.05, 0.07, 1.0);
 
-  /// What each 3D frame is drawn with, read before every frame.
-  RenderSettings renderSettings() => const RenderSettings();
+  /// The fog the 3D layer is drawn through: what an `AtmosphereComponent`
+  /// in the game writes as its day turns. The rest of the air, the sky and
+  /// the light, lives in the scene; the fog is a setting of the frame.
+  FogSettings fog3d = const FogSettings();
+
+  /// What each 3D frame is drawn with, read before every frame: [fog3d],
+  /// unless overridden. An override that wants the day's fog passes
+  /// `fog: fog3d`.
+  RenderSettings renderSettings() => RenderSettings(fog: fog3d);
 
   GraphicsDevice? _device;
   Scene? _scene;

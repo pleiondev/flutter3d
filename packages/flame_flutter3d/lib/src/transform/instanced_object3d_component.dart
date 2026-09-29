@@ -2,6 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart' show OpacityProvider;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import 'bridge_space.dart';
+import 'bridged3d.dart';
 import 'flame_pose.dart';
 import 'object3d_component.dart' show shownInFlame;
 import 'plane.dart';
@@ -36,12 +38,13 @@ import 'plane.dart';
 /// changes nothing.
 class InstancedObject3dComponent extends PositionComponent
     with HasVisibility
-    implements OpacityProvider {
+    implements OpacityProvider, Bridged3d {
   InstancedObject3dComponent({
     required this.batch,
     required this.plane,
     this.elevation = 0.0,
     this.color,
+    this.space,
     super.position,
     super.size,
     super.anchor,
@@ -56,16 +59,37 @@ class InstancedObject3dComponent extends PositionComponent
   final InstancedMeshNode batch;
 
   /// The 2D↔3D axis mapping the transform is written through.
+  @override
   final BridgePlane plane;
 
   /// Metres off [plane] along its normal, as [Object3dComponent.elevation].
+  @override
   double elevation;
+
+  /// Where Flame's point is placed and turned instead of flat on [plane],
+  /// as [Object3dComponent.space]: cars of one shape down a bending road.
+  @override
+  final BridgeSpace? space;
+
+  /// The box in the scene round this instance: the batch's mesh where the
+  /// slot puts it. Null while it holds no slot or is hidden.
+  @override
+  Aabb3? get drawnBounds3d {
+    if (_slot == null || _writtenHidden) return null;
+    return batch.mesh.bounds.transformed(
+      batch.worldMatrix * _transform,
+      _bounds,
+    );
+  }
+
+  final Aabb3 _bounds = Aabb3();
 
   /// The instance's colour when it is made, white when null; [tint] starts
   /// from it.
   final Vector4? color;
 
   /// The linear colour the instance is multiplied by, read every frame.
+  @override
   late final Vector4 tint = color?.clone() ?? Vector4.all(1.0);
 
   /// How opaque the instance is: what Flame's `OpacityEffect` moves. See the
@@ -95,8 +119,14 @@ class InstancedObject3dComponent extends PositionComponent
 
   /// Where this component is in the scene: its absolute Flame position on
   /// [plane], lifted by [elevation].
-  Vector3 get scenePosition =>
-      plane.to3d(absolutePosition, at: plane.constant + elevation);
+  Vector3 get scenePosition {
+    final at = absolutePosition;
+    final bent = space;
+    if (bent == null) return plane.to3d(at, at: plane.constant + elevation);
+    final out = Vector3.zero();
+    bent.place(at.x, at.y, elevation, out);
+    return out;
+  }
 
   @override
   void onMount() {
@@ -178,9 +208,16 @@ class InstancedObject3dComponent extends PositionComponent
       case PlaneAxis.z:
         _scale.setValues(sx, sy, across);
     }
-    plane
-      ..to3dInto(x, y, _place, at: plane.constant + elevation)
-      ..rotationInto(turn, _turn);
+    final bent = space;
+    if (bent == null) {
+      plane
+        ..to3dInto(x, y, _place, at: plane.constant + elevation)
+        ..rotationInto(turn, _turn);
+    } else {
+      bent
+        ..place(x, y, elevation, _place)
+        ..turn(x, y, turn, _turn);
+    }
     _transform.setFromTranslationRotationScale(_place, _turn, _scale);
     slot.setTransform(_transform);
   }

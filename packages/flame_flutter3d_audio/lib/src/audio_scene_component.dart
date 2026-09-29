@@ -185,10 +185,13 @@ class AudioSceneComponent extends Component {
     final game = findGame();
     if (game is HasFlutter3d && game.has3d) {
       final camera = game.camera3d;
-      listener.position.setFrom(camera.readWorldPosition());
-      final forward = camera.readRotation().asRotationMatrix().transform(
-        Vector3(0.0, 0.0, -1.0),
-      );
+      // The camera's turn in the world, not against its parent: a camera
+      // riding a craft looked the craft's way plus its own, and was heard
+      // looking only its own.
+      final world = camera.worldMatrix;
+      listener.position.setFrom(world.getTranslation());
+      final forward = world.transformed3(Vector3(0.0, 0.0, -1.0))
+        ..sub(listener.position);
       listener.aimAlong(listener.position, forward);
     }
     _scene.update(listener);

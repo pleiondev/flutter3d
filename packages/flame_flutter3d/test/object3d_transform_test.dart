@@ -403,4 +403,41 @@ void main() {
       expect(tanker.node.readPosition().x, closeTo(4.0, 1e-6));
     },
   );
+
+  testWithGame<FlameGame>(
+    'a tint effect colours what the component draws, as a colour effect '
+    'would a sprite',
+    FlameGame.new,
+    (game) async {
+      // Flame's ColorEffect wants a paint, and a bridged component has none.
+      //
+      // Mutation: leave the tint where it was.
+      final scene = Scene();
+      final hull = MeshNode(
+        CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
+        engine.Material(),
+      );
+      final ship =
+          Object3dComponent(
+            node: hull,
+            scene: scene,
+            plane: BridgePlane.ground(),
+            direction: SyncDirection.flameToScene,
+          )..add(
+            TintEffect(
+              Vector4(1.0, 0.0, 0.0, 1.0),
+              EffectController(duration: 1.0),
+            ),
+          );
+      await game.add(ship);
+      await game.ready();
+
+      game.update(0.5);
+      expect(ship.tint.y, closeTo(0.5, 1e-6));
+      expect(hull.tint.y, closeTo(0.5, 1e-6), reason: 'on the mesh drawn');
+      game.update(0.5);
+      expect(hull.tint.x, closeTo(1.0, 1e-6));
+      expect(hull.tint.y, closeTo(0.0, 1e-6));
+    },
+  );
 }

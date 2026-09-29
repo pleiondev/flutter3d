@@ -6,6 +6,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 
 import '../host/has_flutter3d.dart';
 import 'bridge_space.dart';
+import 'bridged3d.dart';
 import 'flame_pose.dart';
 import 'plane.dart';
 
@@ -82,7 +83,7 @@ enum SyncDirection {
 /// wreck fading out, over a material a hundred craft share.
 class Object3dComponent extends PositionComponent
     with HasVisibility
-    implements OpacityProvider {
+    implements OpacityProvider, Bridged3d {
   Object3dComponent({
     required this.node,
     required this.scene,
@@ -103,8 +104,14 @@ class Object3dComponent extends PositionComponent
 
   /// Where Flame's point is placed and turned in the scene, when not flat on
   /// [plane]: a [CurvilinearSpace] bends it along a road. Null places it on
-  /// [plane]. Only the write from Flame to the scene goes through it.
+  /// [plane]. Only the write from Flame to the scene goes through it: a
+  /// component read back from the scene is read flat off [plane].
+  @override
   final BridgeSpace? space;
+
+  /// The box round [node] and everything under it.
+  @override
+  Aabb3? get drawnBounds3d => node.subtreeBounds;
 
   /// Meshes this component made for itself and lets go of when it is
   /// removed: a bridge's span, a wreck's hull built for the moment.
@@ -126,6 +133,7 @@ class Object3dComponent extends PositionComponent
   final Scene scene;
 
   /// The 2D↔3D axis mapping this component reads and writes through.
+  @override
   final BridgePlane plane;
 
   /// Which side is authoritative each frame. See [SyncDirection].
@@ -134,6 +142,7 @@ class Object3dComponent extends PositionComponent
   /// Metres off [plane] along its normal: a flying craft's height over a
   /// ground plane, a jump's arc, a tanker settling under the water. Read
   /// every frame, so an effect or the game can move it.
+  @override
   double elevation;
 
   SceneNode? _visual;
@@ -146,6 +155,7 @@ class Object3dComponent extends PositionComponent
 
   /// A linear colour every mesh under [node] is multiplied by; its alpha
   /// multiplies [opacity]. White leaves them as their materials say.
+  @override
   final Vector4 tint = Vector4.all(1.0);
 
   bool _tintWritten = false;
