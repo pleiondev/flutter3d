@@ -8,13 +8,11 @@ In my [previous article](https://medium.com/@dzolotov/i-wrote-a-3d-game-engine-f
 
 The screenshot above is River Sortie, a River Raid-style shooter you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
 
-I built it to find out whether that works in a real game. Flame is the 2D game engine most Flutter developers reach for, and a lot of people know how to write games with it. flutter3d is a 3D engine for Flutter that I've been working on. For a while the two lived side by side and never talked, and if you had a Flame game and wanted light, shadows and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. This article explains how it works and then walks through a small game built on it, from an empty project to a boat collecting buoys on a lake.
+I built it to see whether that holds up in a real game. Flame is the 2D engine a lot of Flutter developers already write games with, and for a while it and flutter3d lived side by side without talking to each other. If you had a Flame game and wanted light, shadows and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. Below is how it works, and then a small game built on it, from an empty project to a boat collecting buoys on a lake.
 
 ## The idea: each engine keeps its job
 
-The bridge does not reimplement either renderer, and it does not ask you to move your game into a new framework. Flame keeps running the game: components, collisions, input, effects, the clock. flutter3d draws a 3D world under it. The bridge's job is to keep the two in agreement about where things are, when a frame happens, and what the player pressed.
-
-Four decisions hold the whole thing together.
+Both renderers stay as they are, and your game stays in Flame. Flame keeps running it: components, collisions, input, effects, the clock. flutter3d draws a 3D world under it. The bridge keeps the two in agreement about where things are, when a frame happens and what the player pressed, and it rests on four decisions.
 
 ### 1. Two layers in one Stack
 
@@ -63,7 +61,7 @@ On a phone this pays off. The on-screen stick is a plain Flame `JoystickComponen
 
 With those four pieces in place, most of the package is components that carry one kind of thing across.
 
-`Object3dComponent` is the workhorse: a Flame `PositionComponent` that owns a scene node. Position, angle, scale, visibility, opacity and tint cross. Flame's effects reach the scene in the frame they happen, a nested component lands where Flame draws it, and `elevation` lifts a component off its plane. It also exposes `visual`, a node under it that the game can turn freely and the bridge leaves alone, which is how the jet in River Sortie banks without Flame knowing.
+Most of the work is done by `Object3dComponent`, a Flame `PositionComponent` that owns a scene node. Position, angle, scale, visibility, opacity and tint cross. Flame's effects reach the scene in the frame they happen, a nested component lands where Flame draws it, and `elevation` lifts a component off its plane. It also exposes `visual`, a node under it that the game can turn freely and the bridge leaves alone, which is how the jet in River Sortie banks without Flame knowing.
 
 For physics there are two directions, and River Sortie and the arcade demo use one each. In River Sortie everything is decided by Flame: hitboxes are Flame hitboxes and `onCollisionStart` says who hit whom, while the 3D layer only draws. In the arcade demo collisions are computed by flutter3d's 3D physics, and `CollisionBridge` relays them to Flame's `CollisionCallbacks`, so a ram computed in 3D arrives in Flame as a normal `onCollisionStart`.
 
@@ -85,7 +83,7 @@ The game also showed me what the bridge was missing, and most of what's listed a
 
 ## Tutorial: a boat, a lake and some buoys
 
-Now the practical part. We'll build a small game where you steer a boat across a lake and collect buoys. It's about 170 lines, and it touches every piece described above: a game that owns a 3D world, components with bodies in the scene, Flame collisions, the input bridge, a chase camera and a fixed step.
+We'll build a small game where you steer a boat across a lake and collect buoys. It's about 170 lines and uses every piece described above: a game that owns a 3D world, components with bodies in the scene, Flame collisions, the input bridge, a chase camera and a fixed step.
 
 ![The finished tutorial: a boat about to collect a buoy, with Flame's score text over the 3D scene](https://flutter3d.pleion.dev/assets/articles/medium-flame/07_buoy_run.png)
 
