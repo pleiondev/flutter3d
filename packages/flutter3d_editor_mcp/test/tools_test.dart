@@ -41,6 +41,11 @@ void main() {
       'screenshot',
       'report',
       'optimizeLights',
+      'play',
+      'play_status',
+      'play_swap',
+      'play_stop',
+      'play_devices',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),

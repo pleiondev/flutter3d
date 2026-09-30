@@ -47,6 +47,7 @@ one name in the undo stack, and come back out under the same key. What an edit
 | `save` | Write it out, or say why it will not |
 | `screenshot` | A flat picture of the level from a camera you may name |
 | `report` | What that camera sees of every brush, light and entity, and what is in the way |
+| `play`, `play_status`, `play_swap`, `play_stop`, `play_devices` | Run the game the level belongs to, see its console, swap its code, stop it, and choose the device — the editor's Play button, from [`flutter3d_editor_play`](../flutter3d_editor_play). While it runs, `save` sends the level to it |
 
 Ten of those are the document commands. The two that are not, `list` and
 `validate`, were missing from every sketch of this, and missing in the same

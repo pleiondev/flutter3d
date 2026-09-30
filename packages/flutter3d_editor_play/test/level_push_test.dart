@@ -1,14 +1,14 @@
 /// `HR3`'s editor half: what a saved level is sent as, and how the game's
 /// answer reads in the status strip.
 ///
-///     flutter test test/level_push_test.dart
+///     dart test test/level_push_test.dart
 library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_editor/src/play/level_push.dart';
+import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 const String _document = '{"version": 1, "name": "yard", "fogDensity": 0.02}';
 

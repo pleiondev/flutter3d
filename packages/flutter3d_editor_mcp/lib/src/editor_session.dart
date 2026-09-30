@@ -7,6 +7,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'level_view.dart';
+import 'play_session.dart';
 
 // What a tool call did, and the sentence to say about it — the one `Answer`
 // every server here shares, and the `PictureAnswer` that carries a PNG
@@ -30,7 +31,8 @@ export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
 /// sixty-four snapshots behind it would quietly become sixty-four snapshots of
 /// somebody else's work.
 final class EditorSession {
-  EditorSession(this.editing);
+  EditorSession(this.editing, {PlaySession? play})
+    : play = play ?? PlaySession(levelPath: editing.path);
 
   /// Reads the document at [path].
   ///
@@ -43,6 +45,9 @@ final class EditorSession {
       EditorSession(Editing.parse(File(path).readAsStringSync(), path: path));
 
   final Editing editing;
+
+  /// The game this level belongs to, run from here.
+  final PlaySession play;
 
   /// What this editor writes into `generatedBy` when it takes ownership of a
   /// copy. The application writes `apps/flutter3d_editor` for the same reason:
@@ -275,7 +280,10 @@ final class EditorSession {
   /// opened, changed and saved *somewhere else*, and the copy claims itself —
   /// a file saved beside the original still naming the generator is a file that
   /// invites somebody to regenerate it.
-  Answer save(String? path) {
+  ///
+  /// Written over the level the game is playing, it goes to the game too
+  /// when one is running, as the editor application's save does.
+  Future<Answer> save(String? path) async {
     final elsewhere = path != null && path != editing.path;
     if (!elsewhere && !editing.mayOverwrite) {
       return (
@@ -287,10 +295,14 @@ final class EditorSession {
       );
     }
     final to = path ?? editing.path;
-    File(
-      to,
-    ).writeAsStringSync(editing.write(claiming: elsewhere ? author : null));
+    final document = editing.write(claiming: elsewhere ? author : null);
+    File(to).writeAsStringSync(document);
     editing.saved();
-    return (did: true, says: 'written to $to');
+    // Not a copy: the running game plays the original, not the file beside it.
+    final game = elsewhere ? null : await play.sendSaved(document);
+    return (
+      did: true,
+      says: game == null ? 'written to $to' : 'written to $to; $game',
+    );
   }
 }

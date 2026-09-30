@@ -61,4 +61,8 @@ worth calling before `save`. `undo` goes back sixty-four steps.
 `screenshot` draws the level in software, untextured, from a camera you may
 name; `report` says for every brush, light and entity how much of it that
 camera sees and what is in the way. Look before and after you change things.
+
+`play` runs the game this level belongs to. While it runs, every `save` goes
+to it and the game takes the level without starting over; `play_status`
+shows its console, `play_swap` puts changed code into it.
 ''';

@@ -32,6 +32,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_app/native.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -50,8 +51,6 @@ import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
-import 'src/play/flutter_run.dart';
-import 'src/play/level_push.dart';
 import 'src/play/live_material.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
@@ -1643,11 +1642,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// Opens the play panel on the project [state]'s level belongs to,
   /// starting a run of it when none is going.
   Future<void> _play(EditorReady state) async {
-    final root = projectRootFor(
-      state.editing.path,
-      hasPubspec: (String directory) =>
-          File('$directory${Platform.pathSeparator}pubspec.yaml').existsSync(),
-    );
+    final root = projectRootOnDisk(state.editing.path);
     if (root == null) {
       _changed(
         'this level is not inside a Flutter project, so there is '
