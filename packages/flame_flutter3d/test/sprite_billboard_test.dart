@@ -9,6 +9,7 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
+import 'package:flutter/painting.dart' show TextStyle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -170,5 +171,60 @@ void main() {
     await tester.runAsync(game.ready);
     expect(flash.isMounted, isFalse, reason: 'played, and gone');
     expect(reed.isMounted, isTrue);
+  });
+
+  testWidgets('a sign says what Flame\'s text paint wrote, smoothly, and '
+      'says something else when handed another sprite', (tester) async {
+    // Mutation: sample lettering nearest, size the picture without its
+    // margin, or keep the first sprite's material after the swap.
+    final cpu = cpuTestDevice(width: _size, height: _size);
+    final game = _Road()..open3d(cpu.device);
+    final paint = TextPaint(
+      style: const TextStyle(fontSize: 32.0, color: ui.Color(0xFFFFFFFF)),
+    );
+    late final Sprite fuel;
+    late final Sprite empty;
+    late final SpriteBillboardComponent sign;
+    await tester.runAsync(() async {
+      await initializeGame(() => game);
+      fuel = await BillboardAtlas.spriteOfText('FUEL', paint);
+      empty = await BillboardAtlas.spriteOfText('EMPTY', paint, margin: 0.0);
+      sign = SpriteBillboardComponent(
+        sprite: fuel,
+        smooth: true,
+        device: cpu.device,
+        scene: game.scene,
+        plane: BridgePlane.ground(),
+      );
+      await game.add(sign);
+      await game.ready();
+    });
+
+    final painter = paint.toTextPainter('FUEL');
+    expect(fuel.srcSize.x, (painter.width + 8.0).ceilToDouble());
+    expect(fuel.srcSize.y, (painter.height + 8.0).ceilToDouble());
+    final pixels = (await tester.runAsync(
+      () => fuel.image.toByteData(format: ui.ImageByteFormat.rawStraightRgba),
+    ))!;
+    expect(
+      pixels.buffer.asUint8List().where((byte) => byte == 0xFF),
+      isNotEmpty,
+      reason: 'the letters are drawn',
+    );
+
+    MeshNode card() => sign.visual.childrenView.whereType<MeshNode>().single;
+    final said = card().material;
+    expect(said.albedoSampler, SamplerOptions.linearClamp);
+    final wide = card().readScale().x;
+
+    sign.sprite = empty;
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    game.update(0.0);
+    expect(card().material, isNot(same(said)));
+    expect(card().material.albedoSampler, SamplerOptions.linearClamp);
+    expect(card().readScale().x, isNot(closeTo(wide, 1e-6)));
+    expect(sign.currentSprite, same(empty));
   });
 }

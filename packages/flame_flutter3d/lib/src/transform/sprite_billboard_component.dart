@@ -35,7 +35,8 @@ import 'object3d_component.dart';
 /// given.
 ///
 /// Drawn unlit, cut out where the sprite is clear, and sampled nearest, as
-/// pixel art wants; `tint` and `opacity` colour and fade it.
+/// pixel art wants, or [smooth] for lettering; `tint` and `opacity` colour
+/// and fade it.
 class SpriteBillboardComponent extends Object3dComponent {
   SpriteBillboardComponent({
     Sprite? sprite,
@@ -48,6 +49,7 @@ class SpriteBillboardComponent extends Object3dComponent {
     this.upright = true,
     this.faces,
     this.removeOnFinish = false,
+    this.smooth = false,
     super.position,
     super.elevation,
     super.priority,
@@ -78,7 +80,32 @@ class SpriteBillboardComponent extends Object3dComponent {
   /// Whether a one-shot animation takes the component away once played.
   final bool removeOnFinish;
 
-  final Sprite? _sprite;
+  /// Whether the picture is sampled linearly rather than nearest: for
+  /// lettering, from `BillboardAtlas.spriteOfText`, and anything not pixel
+  /// art.
+  final bool smooth;
+
+  Sprite? _sprite;
+
+  /// The sprite whose picture the card is drawn with now.
+  Sprite? _showing;
+
+  /// Shows [next] instead of the sprite it had: a sign that says something
+  /// else, a score that went up. One of another image is uploaded first and
+  /// shown when it is; an animation's billboard keeps playing its frames.
+  set sprite(Sprite next) {
+    if (ticker != null) return;
+    _sprite = next;
+    final card = _card;
+    if (card == null) return;
+    _atlas.materialOf(next.image, smooth: smooth).then((material) {
+      if (material == null || !identical(_sprite, next)) return;
+      card.material = material;
+      _showing = next;
+      _showFrame();
+    });
+  }
+
   final BillboardAtlas _atlas;
   final bool _ownsAtlas;
 
@@ -94,8 +121,12 @@ class SpriteBillboardComponent extends Object3dComponent {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    final material = await _atlas.materialOf(currentSprite.image);
+    final material = await _atlas.materialOf(
+      currentSprite.image,
+      smooth: smooth,
+    );
     if (material == null) return;
+    _showing = currentSprite;
     final card = _card = MeshNode(_atlas.cardOf(currentSprite), material);
     visual.add(card);
     _showFrame();
@@ -122,7 +153,9 @@ class SpriteBillboardComponent extends Object3dComponent {
   void _showFrame() {
     final card = _card;
     if (card == null) return;
-    final sprite = currentSprite;
+    // A sprite of a picture still going up keeps the last one's card until
+    // its material is there to draw it.
+    final sprite = ticker?.getSprite() ?? _showing ?? currentSprite;
     final showing = _atlas.cardOf(sprite);
     if (!identical(card.mesh, showing)) card.mesh = showing;
     final wide = cardHeight * sprite.srcSize.x / sprite.srcSize.y;

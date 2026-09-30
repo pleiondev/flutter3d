@@ -14,6 +14,7 @@ import 'package:flutter3d/flutter3d.dart'
         RenderView,
         Renderer;
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_river/src/course.dart' show TargetKind;
 import 'package:flutter3d_demo_river/src/river_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
@@ -50,6 +51,7 @@ void main() {
     final first = <(double, double)>{
       for (final reed in reeds) (reed.position.x, reed.position.y),
     };
+    expect(first, hasLength(reeds.length), reason: 'each stood once');
     await tester.runAsync(() async {
       game.startOnLevel(0);
       await game.ready();
@@ -58,6 +60,64 @@ void main() {
       for (final reed in _billboards(game)) (reed.position.x, reed.position.y),
     };
     expect(again, first);
+  });
+
+  testWidgets('every depot says FUEL, on a sign that goes up with it', (
+    tester,
+  ) async {
+    // Mutation: sign only the depots built after the sprites were drawn, or
+    // only those standing when they were; stand the sign away from its
+    // depot; draw its lettering in squares.
+    late final RiverGame game;
+    await tester.runAsync(() async {
+      game = await initializeGame(() => RiverGame(billboards: true));
+      game.open3d(cpuTestDevice(width: 32, height: 24).device);
+      await game.ready();
+      await game.drawSprites();
+      await game.ready();
+    });
+
+    void expectSigned() {
+      final depots = game.targets
+          .where((target) => target.plan.kind == TargetKind.depot)
+          .toList();
+      expect(depots, isNotEmpty);
+      for (final depot in depots) {
+        final sign = depot.children
+            .whereType<SpriteBillboardComponent>()
+            .single;
+        expect(sign.currentSprite, same(game.sprites!.fuel));
+        expect(sign.smooth, isTrue);
+        expect(sign.absolutePosition.x, closeTo(depot.position.x, 1e-6));
+        expect(
+          sign.absolutePosition.y - depot.position.y,
+          inInclusiveRange(depot.size.y / 2.0, depot.size.y),
+          reason: 'on its near side',
+        );
+      }
+    }
+
+    // Dressed: the depots standing when the sprites were drawn.
+    expectSigned();
+    // Built with it: the depots of a stretch built after.
+    await tester.runAsync(() async {
+      game.startOnLevel(0);
+      await game.ready();
+    });
+    expectSigned();
+
+    final depot = game.targets.firstWhere(
+      (target) => target.plan.kind == TargetKind.depot,
+    );
+    final sign = depot.children.whereType<SpriteBillboardComponent>().single;
+    await tester.runAsync(() async {
+      game.hitTarget(depot);
+      for (var i = 0; i < 3; i++) {
+        game.update(1 / 60);
+        await game.ready();
+      }
+    });
+    expect(sign.isMounted, isFalse, reason: 'gone up with its depot');
   });
 
   testWidgets('a blast\'s flash is drawn: orange where there was none', (

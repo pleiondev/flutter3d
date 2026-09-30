@@ -283,10 +283,33 @@ extension RiverGameStaging on RiverGame {
         visual.add(MeshNode(_kit.enemyJet, _kit.painted));
       case TargetKind.depot:
         visual.add(MeshNode(_kit.depot, _kit.painted));
+        signDepot(target);
     }
     if (craft != null) {
       wardrobe.dress(visual, craft);
     }
     return target;
+  }
+
+  /// Stands a FUEL sign on the near side of [depot], once the sprites are
+  /// drawn: a child of the depot's, so it goes up with it.
+  void signDepot(TargetComponent depot) {
+    final fuel = sprites?.fuel;
+    if (fuel == null || depot.down) return;
+    depot.add(
+      SpriteBillboardComponent(
+        sprite: fuel,
+        smooth: true,
+        atlas: atlas,
+        device: _device,
+        scene: _scene,
+        plane: RiverGame.river,
+        cardHeight: 0.6,
+        // Flame's children stand in their parent's box, from its corner: the
+        // middle of the depot across, and just past its near end.
+        position: Vector2(depot.size.x / 2.0, depot.size.y + 0.1),
+        elevation: 0.35,
+      ),
+    );
   }
 }

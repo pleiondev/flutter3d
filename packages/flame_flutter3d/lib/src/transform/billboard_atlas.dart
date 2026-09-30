@@ -1,7 +1,7 @@
 import 'dart:typed_data' show Float32List;
-import 'dart:ui' as ui show Image, ImageByteFormat;
+import 'dart:ui' as ui;
 
-import 'package:flame/components.dart' show Sprite;
+import 'package:flame/components.dart' show Sprite, TextPaint;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:vector_math/vector_math.dart' show Matrix4;
@@ -35,9 +35,11 @@ final class BillboardAtlas {
   );
 
   /// The material [image] is drawn with: unlit, cut out where it is clear,
-  /// sampled nearest, both sides. Uploaded the first time it is asked for;
-  /// null if the image cannot be read.
-  Future<engine.Material?> materialOf(ui.Image image) =>
+  /// both sides, sampled nearest for pixel art or, [smooth], linearly for
+  /// lettering and anything drawn at a finer grain. Uploaded the first time
+  /// it is asked for, which decides how it is sampled; null if the image
+  /// cannot be read.
+  Future<engine.Material?> materialOf(ui.Image image, {bool smooth = false}) =>
       _materials.putIfAbsent(image, () async {
         final pixels = await image.toByteData(
           format: ui.ImageByteFormat.rawStraightRgba,
@@ -55,7 +57,9 @@ final class BillboardAtlas {
           name: 'sprite',
           lighting: LightingModel.unlit,
           albedo: texture,
-          albedoSampler: SamplerOptions.nearestClamp,
+          albedoSampler: smooth
+              ? SamplerOptions.linearClamp
+              : SamplerOptions.nearestClamp,
           alphaMode: MaterialAlphaMode.mask,
           doubleSided: true,
         );
@@ -85,6 +89,27 @@ final class BillboardAtlas {
         ),
       );
     });
+  }
+
+  /// Writes [text] with Flame's [paint] into a picture of its own, [margin]
+  /// pixels clear round it, for a billboard to stand in the scene: a sign
+  /// by the road, a name over a craft, a score where a target went down.
+  ///
+  /// **Flame's text, not a font of the bridge's.** Whatever a `TextPaint`
+  /// draws on Flame's canvas, its font, weight, colour and shadows, is what
+  /// the sign says; write it large, as the card is sampled from it, and
+  /// draw it [smooth] in its billboard.
+  static Future<Sprite> spriteOfText(
+    String text,
+    TextPaint paint, {
+    double margin = 4.0,
+  }) {
+    final painter = paint.toTextPainter(text);
+    final width = (painter.width + margin * 2.0).ceil();
+    final height = (painter.height + margin * 2.0).ceil();
+    final recorder = ui.PictureRecorder();
+    painter.paint(ui.Canvas(recorder), ui.Offset(margin, margin));
+    return recorder.endRecording().toImage(width, height).then(Sprite.new);
   }
 
   /// Gives back every texture and card, after the frames [drawing] may still

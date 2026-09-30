@@ -107,7 +107,9 @@ darkening for smoke.
 Beyond the plane, `Node3dComponent` is a Flame component in full 3D, moved
 by `Move3dEffect`, `Rotate3dEffect` and `Scale3dEffect` on Flame's own
 effect controllers; `SpriteBillboardComponent` stands a Flame `Sprite` or
-`SpriteAnimation` in the scene facing the camera; and an `Object3dComponent`
+`SpriteAnimation` in the scene facing the camera, or a line of Flame's
+`TextPaint` written into a sprite by `BillboardAtlas.spriteOfText`; and an
+`Object3dComponent`
 that `follows` a `flame_forge2d` body draws Flame's own physics in 3D.
 
 A level drawn in Tiled is stood up by `TiledWorld3d`, each tile layer a

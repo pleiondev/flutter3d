@@ -1,10 +1,12 @@
 /// The river's flat pictures, drawn here in code as its sounds are made by a
-/// script: reeds on the banks, and the flash of a blast.
+/// script: reeds on the banks, the flash of a blast, the word on a depot.
 library;
 
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
+import 'package:flame_flutter3d/flame_flutter3d.dart' show BillboardAtlas;
+import 'package:flutter/painting.dart' show FontWeight, TextStyle;
 
 /// Reeds and bushes to stand along the banks, and a blast's flash: Flame
 /// sprites, drawn as pixel art at start-up rather than read from files.
@@ -14,24 +16,56 @@ import 'package:flame/components.dart';
 /// its squares however near the camera comes. No image files: the pictures
 /// are the code below, and changing one is changing a colour here.
 final class RiverSprites {
-  RiverSprites._(this.banks, this._flashSheet);
+  RiverSprites._(this.banks, this._flashSheet, this.fuel);
 
   /// Draws every picture. Asynchronous only because an image is.
   static Future<RiverSprites> draw() async {
     final banks = await _drawBanks();
     final flash = await _drawFlash();
-    return RiverSprites._(<Sprite>[
-      for (var i = 0; i < _bankKinds; i++)
-        Sprite(
-          banks,
-          srcPosition: Vector2(i * _bankWidth.toDouble(), 0.0),
-          srcSize: Vector2(_bankWidth.toDouble(), _bankHeight.toDouble()),
-        ),
-    ], flash);
+    final fuel = await BillboardAtlas.spriteOfText('FUEL', _lettering);
+    return RiverSprites._(
+      <Sprite>[
+        for (var i = 0; i < _bankKinds; i++)
+          Sprite(
+            banks,
+            srcPosition: Vector2(i * _bankWidth.toDouble(), 0.0),
+            srcSize: Vector2(_bankWidth.toDouble(), _bankHeight.toDouble()),
+          ),
+      ],
+      flash,
+      fuel,
+    );
   }
 
   /// What grows on a bank: tall reeds, reeds with a bulrush, a round bush.
   final List<Sprite> banks;
+
+  /// The word a depot has always said, written by Flame's text paint: to
+  /// be drawn smooth, as lettering is, not in squares.
+  final Sprite fuel;
+
+  /// Yellow, heavy, outlined in black so it reads over the depot's red and
+  /// white stripes and over the water alike.
+  static final TextPaint _lettering = TextPaint(
+    style: TextStyle(
+      fontSize: 48.0,
+      fontWeight: FontWeight.w900,
+      color: const ui.Color(0xFFFFD83A),
+      letterSpacing: 4.0,
+      shadows: <ui.Shadow>[
+        for (final (dx, dy) in <(double, double)>[
+          (-2.5, -2.5),
+          (2.5, -2.5),
+          (-2.5, 2.5),
+          (2.5, 2.5),
+        ])
+          ui.Shadow(
+            color: const ui.Color(0xFF101010),
+            offset: ui.Offset(dx, dy),
+          ),
+      ],
+    ),
+  );
 
   final ui.Image _flashSheet;
 

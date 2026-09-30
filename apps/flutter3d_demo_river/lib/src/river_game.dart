@@ -107,13 +107,21 @@ final class RiverGame extends FlameGame
   late final BillboardAtlas atlas = BillboardAtlas(device);
 
   /// Draws the pictures, then dresses the banks of every stretch already
-  /// standing, as the models dress the craft already flying.
-  Future<void> drawSprites() async {
+  /// standing, as the models dress the craft already flying. Once, however
+  /// often it is asked: a second dressing would stand every reed twice.
+  Future<void> drawSprites() => _drawingSprites;
+
+  late final Future<void> _drawingSprites = _drawSprites();
+
+  Future<void> _drawSprites() async {
     final drawn = await RiverSprites.draw();
     if (!has3d) return;
     sprites = drawn;
     for (final stretch in _stretches.chunks) {
       stretch.reeds.addAll(_reedsAlong(stretch.index));
+      stretch.targets
+          .where((target) => target.plan.kind == TargetKind.depot)
+          .forEach(signDepot);
     }
   }
 

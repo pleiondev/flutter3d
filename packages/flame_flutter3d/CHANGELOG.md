@@ -228,6 +228,14 @@ it once and draws as one; a billboard handed none makes its own.
 when it has played, as `SpriteAnimationComponent`'s does. River Sortie
 stands reeds and bushes along its banks and a flash in each blast.
 
+**A billboard can say something.** `BillboardAtlas.spriteOfText` writes a
+string with Flame's `TextPaint` into a sprite of its own, in whatever font,
+weight, colour and shadows the paint has, for a sign by the road or a name
+over a craft. `SpriteBillboardComponent.smooth` samples it linearly, as
+lettering wants, and a billboard's `sprite` can be changed while it stands:
+a new picture is uploaded first and the card keeps the old one until it is
+there. River Sortie's fuel depots say FUEL, as they always have.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.
