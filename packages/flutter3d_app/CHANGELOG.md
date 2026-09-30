@@ -13,6 +13,13 @@ needs nothing more; a tool reaches the same reload as
 `ext.flutter3d.hotSwap`. Debug builds only: in profile and release it holds
 nothing.
 
+**A model edited while the game runs is drawn in the nodes the game
+holds.** `HotSwap.loadModel` hands back a `SwappableModel`; instances made
+through it adopt the new file on the next hot reload, keeping their nodes,
+transforms and animation. `ext.flutter3d.assets.put` sends a model's bytes
+over the VM service instead, for a device whose disk the editor cannot write.
+A model that does not build keeps the version that did.
+
 `SceneSurface` is a `StatefulWidget` now, for `reassemble`. Its constructor
 and parameters are unchanged.
 

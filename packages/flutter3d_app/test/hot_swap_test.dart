@@ -14,7 +14,7 @@ import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
+import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 /// A renderer in software with one cube in front of it, so a frame links a
 /// material pipeline a reload has to drop.
@@ -85,13 +85,38 @@ final class _Library implements LoadedShaderLibrary {
 ByteData _bytes(List<int> values) =>
     ByteData.sublistView(Uint8List.fromList(values));
 
+/// A one-quad model whose colour is its file's first byte: 1 red, 2 green,
+/// 3 blue; 0 does not build.
+Future<ModelAsset> _model(GraphicsDevice device, Uint8List bytes) {
+  if (bytes.first == 0) throw const FormatException('not a model');
+  final colour = Vector4.zero()
+    ..[bytes.first - 1] = 1.0
+    ..w = 1.0;
+  return ModelAsset.fromDocument(
+    PlainModelDocument(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          mesh: CuboidShape(size: Vector3.all(1.0)).build(),
+          materialIndex: 0,
+        ),
+      ],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(baseColor: colour, unlit: true),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(name: 'hull', surfaces: <int>[0]),
+      ],
+    ),
+    device: device,
+  );
+}
+
 void main() {
   test('a reload drops every pipeline the renderer and its contributors '
       'linked', () async {
     final it = _stage();
     final contributor = it.renderer.addContributor(_Contributor());
-    final swap = HotSwap(enabled: true)
-      ..registerRenderer(it.renderer);
+    final swap = HotSwap(enabled: true)..registerRenderer(it.renderer);
     _draw(it);
     expect(it.renderer.pipelineCount, greaterThan(0));
 
@@ -159,8 +184,7 @@ void main() {
   test('outside a debug build nothing is held and nothing reloads', () async {
     final it = _stage();
     final contributor = it.renderer.addContributor(_Contributor());
-    final swap = HotSwap(enabled: false)
-      ..registerRenderer(it.renderer);
+    final swap = HotSwap(enabled: false)..registerRenderer(it.renderer);
 
     final report = await swap.swap();
 
@@ -200,5 +224,84 @@ void main() {
 
     expect(contributor.relinks, 1);
     expect(HotSwap.instance.swaps.value, before + 1);
+  });
+
+  group('a model', () {
+    late CpuDevice device;
+    late Uint8List file;
+    late HotSwap swap;
+    late SwappableModel model;
+
+    setUp(() async {
+      device = CpuDevice(
+        width: 16,
+        height: 9,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      file = Uint8List.fromList(<int>[1]);
+      swap = HotSwap(enabled: true);
+      model = swap.registerModel(
+        'assets_src/ship.glb',
+        await _model(device, file),
+        read: () async => file,
+        build: (Uint8List bytes) => _model(device, bytes),
+        device: device,
+        loadedFrom: file,
+      );
+    });
+
+    double blue(ModelInstance ship) => ship.meshes.single.material.baseColor.z;
+
+    test('is drawn anew in every instance when its file changes, and '
+        'only then', () async {
+      final scene = Scene();
+      final a = model.instantiate(scene);
+      final b = model.instantiate(scene);
+
+      expect((await swap.swap()).models, isEmpty);
+
+      file = Uint8List.fromList(<int>[3]);
+      final report = await swap.swap();
+
+      expect(report.models.single.instances, 2);
+      expect(blue(a), 1.0);
+      expect(blue(b), 1.0);
+      expect(model.instantiate(scene).meshes.single.material.baseColor.z, 1.0);
+      expect((await swap.swap()).models, isEmpty);
+    });
+
+    test(
+      'put draws bytes the file never had, until the file changes',
+      () async {
+        final ship = model.instantiate(Scene());
+
+        final put = await swap.put(
+          'assets_src/ship.glb',
+          Uint8List.fromList(<int>[3]),
+        );
+        expect(put!.instances, 1);
+        expect(blue(ship), 1.0);
+
+        expect((await swap.swap()).models, isEmpty, reason: 'file unchanged');
+        expect(blue(ship), 1.0);
+
+        file = Uint8List.fromList(<int>[2]);
+        await swap.swap();
+        expect(ship.meshes.single.material.baseColor.y, 1.0);
+        expect(await swap.put('assets_src/boat.glb', file), isNull);
+      },
+    );
+
+    test('that does not build keeps the version that did', () async {
+      final ship = model.instantiate(Scene());
+      final before = model.asset;
+
+      file = Uint8List.fromList(<int>[0]);
+      final report = await swap.swap();
+
+      expect(report.refused.single, contains('not a model'));
+      expect(model.asset, same(before));
+      expect(ship.meshes.single.material.baseColor.x, 1.0);
+    });
   });
 }

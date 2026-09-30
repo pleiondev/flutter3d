@@ -1,3 +1,12 @@
+## Unreleased
+
+- **`ModelInstance.adopt` draws a new version of a model in the nodes an
+  instance already has.** Surfaces are matched by the name of the node that
+  draws them and their place there; each matched `MeshNode` takes the new
+  mesh and material and the nodes stay, with their transforms, animation and
+  children. `ModelSwap` reports what matched, what the new version dropped
+  (left drawn as it was) and what it added (needs instantiating again).
+
 ## 0.8.3
 
 * **`ModelWardrobe` puts models on nodes made before they arrived.** A game
