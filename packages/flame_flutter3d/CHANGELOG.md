@@ -42,6 +42,20 @@ fixtures once a frame and lets them go with the level. `ViewCamera` eases a
 camera towards wherever a function says, for a view no single component
 decides — a whole party's.
 
+**The steps no longer walk the whole game every frame.** `HasFixedStep`
+keeps its list of `FixedStepUpdate` components and walks the tree again only
+when one comes, goes or changes priority: a game with a horde walked hundreds
+of components sixty times a second to find the few that step.
+
+**A pad is read against the frame it is read in.** `HasFixedStep.frameSeconds`
+is this frame's time, set before `beforeSteps`; the pad feed used the frame
+before's, nought on the first frame and the stall's after one.
+
+**An upright billboard turns about its own plane's normal**, and writes its
+rotation only when it changed. It turned about world Y whatever the plane, so
+on a backdrop the card swung about an axis lying in it, and a still card under
+a still camera marked its node moved every frame.
+
 ## 0.8.3
 
 **A host that goes lets go of the game.** `Flutter3dFlameWidget` cleared

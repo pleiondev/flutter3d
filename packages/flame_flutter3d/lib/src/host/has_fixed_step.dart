@@ -9,6 +9,31 @@ import 'step_clock.dart';
 mixin FixedStepUpdate on Component {
   /// Moves this component on by one step of [step] seconds.
   void fixedUpdate(double step);
+
+  /// Coming, going and being reordered are what change the game's list of
+  /// who steps, and each says so: the game walks its tree only then.
+  @override
+  void onMount() {
+    super.onMount();
+    _changedStepping(this);
+  }
+
+  @override
+  void onRemove() {
+    _changedStepping(this);
+    super.onRemove();
+  }
+
+  @override
+  set priority(int value) {
+    super.priority = value;
+    _changedStepping(this);
+  }
+}
+
+void _changedStepping(Component component) {
+  final game = component.findGame();
+  if (game is HasFixedStep) game._stepping = null;
 }
 
 /// A Flame game whose logic runs in fixed steps: the same second of play
@@ -113,16 +138,34 @@ mixin HasFixedStep<W extends World> on FlameGame<W> implements StepClock {
   /// Stops calling [start].
   void removeBeforeSteps(void Function() start) => _frameStarts.remove(start);
 
-  /// The tree is walked once a frame, not once a step: a component added in
-  /// a step is mounted with the frame, and joins the steps after it.
+  /// The components that step, in tree order: walked out of the tree only
+  /// when one of them came, went or moved, and kept until then.
+  ///
+  /// **Not once a frame.** Every frame walked every component in the game to
+  /// find the handful that step, which in a game with a horde is hundreds of
+  /// components and a list, sixty times a second, for an answer that had not
+  /// changed.
+  List<FixedStepUpdate>? _stepping;
+
+  /// How long the frame being stepped is, in seconds: set before [beforeSteps]
+  /// runs, so what is read there — a stick's turn rate — is read against this
+  /// frame's time rather than the last one's.
+  double get frameSeconds => _frameSeconds;
+  double _frameSeconds = 0.0;
+
+  /// A component added in a step is mounted with the frame, and joins the
+  /// steps after it.
   @override
   void update(double dt) {
+    _frameSeconds = dt;
     for (final start in List<void Function()>.of(_frameStarts)) {
       start();
     }
     _steps = fixedStep.advance(dt);
     if (_steps > 0) {
-      final stepping = descendants().whereType<FixedStepUpdate>().toList();
+      final stepping = _stepping ??= descendants()
+          .whereType<FixedStepUpdate>()
+          .toList(growable: false);
       for (var i = 0; i < _steps; i++) {
         final step = fixedStep.stepSeconds;
         for (final follower in List<StepFollower>.of(_followers)) {

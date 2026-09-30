@@ -166,9 +166,14 @@ class SpriteBillboardComponent extends Object3dComponent {
   }
 
   final Quaternion _toward = Quaternion.identity();
+  final Quaternion _written = Quaternion(double.nan, 0.0, 0.0, 0.0);
 
   /// Turns [visual] so the card faces the camera, whatever [node] is turned
   /// by.
+  ///
+  /// **Written only when it changed.** A setter marks the node moved whatever
+  /// it is handed, so a still card under a still camera invalidated its
+  /// shadow and its bounds every frame.
   void _face() {
     final eye = faces ?? _gameCamera();
     if (eye == null) return;
@@ -178,15 +183,37 @@ class SpriteBillboardComponent extends Object3dComponent {
       final up = plane.normal;
       to.sub(up * to.dot(up));
       if (to.length2 == 0.0) return;
-      // About the normal, from the card's +Z to the camera.
-      final yaw = Portable.atan2(to.x, to.z);
-      _toward.setAxisAngle(Vector3(0.0, 1.0, 0.0), yaw);
+      // About the plane's normal, from the card's +Z as it lies in the plane
+      // to the camera. It turned about world Y whatever the plane, which is
+      // the normal only of a floor: on a backdrop the card swung about an
+      // axis lying in its own plane.
+      final forward = Vector3(0.0, 0.0, 1.0)..sub(up * up.z);
+      if (forward.length2 < 1e-12) {
+        // The card faces along the normal already; turning it about the
+        // normal only spins it on the spot.
+        _toward.setValues(0.0, 0.0, 0.0, 1.0);
+      } else {
+        forward.normalize();
+        to.normalize();
+        final angle = Portable.atan2(
+          up.dot(forward.cross(to)),
+          forward.dot(to),
+        );
+        _toward.setAxisAngle(up, angle);
+      }
     } else {
       if (to.length2 == 0.0) return;
       _toward.setFromTwoVectors(Vector3(0.0, 0.0, 1.0), to.normalized());
     }
-    final undo = node.readRotation()..inverse();
-    visual.setRotation(undo * _toward);
+    final turn = (node.readRotation()..inverse()) * _toward;
+    if (turn.x == _written.x &&
+        turn.y == _written.y &&
+        turn.z == _written.z &&
+        turn.w == _written.w) {
+      return;
+    }
+    _written.setFrom(turn);
+    visual.setRotation(turn);
   }
 
   CameraNode? _gameCamera() => switch (findGame()) {

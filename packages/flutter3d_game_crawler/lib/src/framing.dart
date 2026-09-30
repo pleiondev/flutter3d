@@ -35,8 +35,8 @@ final class FramingTuning {
     this.pitch = 1.1,
     this.fieldOfView = 0.9,
     this.aspect = 16.0 / 9.0,
-    this.minHeight = 10.0,
-    this.maxHeight = 22.0,
+    this.minHeight = 15.0,
+    this.maxHeight = 26.0,
     this.margin = 2.0,
   }) : assert(
          pitch + fieldOfView / 2.0 < 1.5707963267948966,
@@ -56,6 +56,10 @@ final class FramingTuning {
   final double aspect;
 
   /// The closest the eye comes, however close together the heroes are.
+  ///
+  /// Fifteen metres: at ten a party standing together saw one room of a
+  /// twelve-metre grid, and the monsters coming for it arrived from off the
+  /// screen.
   final double minHeight;
 
   /// The furthest it goes. The heroes can spread no further than this shows.

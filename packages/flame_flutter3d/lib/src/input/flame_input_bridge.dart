@@ -287,16 +287,17 @@ final class _PadFeed extends Component {
     super.onRemove();
   }
 
-  /// A game of fixed steps reads the pad before this updates, with the
-  /// frame's time taken from the frame before: a stick's look rate needs a
-  /// time, and the steps cannot wait for this frame's.
+  /// A game of fixed steps reads the pad before the steps, with this frame's
+  /// time from `HasFixedStep.frameSeconds`. It used the time of the frame
+  /// before, which on the first frame was nought and after a stall scaled a
+  /// stick's turn by the wrong frame.
   @override
   void update(double dt) {
     _dt = dt;
     if (_stepped == null) _read();
   }
 
-  void _read() => pad.tick(_dt);
+  void _read() => pad.tick(_stepped?.frameSeconds ?? _dt);
 }
 
 /// Several players at one machine, each with their own keys and state.
