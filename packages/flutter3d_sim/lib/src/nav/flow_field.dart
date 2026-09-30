@@ -15,6 +15,21 @@
 /// gradient-sampled afterwards, and a cell that was never reached keeps a zero
 /// direction, which is how "there is no way there from here" is reported.
 ///
+/// ## Several goals, still one sweep
+///
+/// A game with four players has four things to chase, and four fields would be
+/// four sweeps that each answer "how far to *this* one" when the question a
+/// monster asks is "how far to the nearest". A Dijkstra seeded with every goal
+/// at cost zero answers that one directly: the frontiers grow from all of them
+/// at once and meet halfway, and each cell is claimed by whichever goal
+/// reaches it first. Which goal that was is recorded while relaxing, beside
+/// the direction, so [sourceAt] tells an agent both which way to walk and who
+/// it is walking to from the same lookup. Following the descent never changes
+/// the answer — a cell's parent was claimed by the same goal — so a monster
+/// does not switch targets half way down a corridor.
+///
+/// One goal is the same sweep with one seed, which is what [update] is.
+///
 /// ## One field per class of body
 ///
 /// A field refuses cells its agent does not fit in, both across
@@ -44,12 +59,17 @@ final class FlowField {
   }) : _cost = Int32List(grid.cellCount),
        _dx = Int8List(grid.cellCount),
        _dz = Int8List(grid.cellCount),
-       _link = Int32List(grid.cellCount) {
+       _link = Int32List(grid.cellCount),
+       _source = Int8List(grid.cellCount) {
     // A fresh `Int32List` is zeros, and zero is a real cost meaning "you are
     // standing on the goal". Before the first sweep nothing is reachable.
     _cost.fillRange(0, _cost.length, unreachable);
     _link.fillRange(0, _link.length, -1);
+    _source.fillRange(0, _source.length, -1);
   }
+
+  /// The most goals one sweep takes: [_source] is a byte per cell.
+  static const int maxGoals = 127;
 
   final NavGrid grid;
 
@@ -91,6 +111,10 @@ final class FlowField {
   /// or `-1` when the step is a walk and [_dx]/[_dz] say where.
   final Int32List _link;
 
+  /// Which goal, by its index in the list the sweep was given, a cell's
+  /// cheapest route ends at, or `-1` for a cell no route reaches.
+  final Int8List _source;
+
   /// Integer costs, because a Dijkstra over floats accumulates a different
   /// total along paths of equal length and then picks between them by rounding
   /// error. 10 and 14 are the usual pair: 14/10 is within half a percent of √2.
@@ -106,8 +130,23 @@ final class FlowField {
 
   /// The cell the field currently flows towards, or `-1` when the last goal
   /// was somewhere no body of this class can be.
-  int get goalCell => _goalCell;
-  int _goalCell = -1;
+  ///
+  /// With several goals, the first one's; [goalCells] has all of them.
+  int get goalCell => _goalCells.isEmpty ? -1 : _goalCells.first;
+
+  /// Every goal's cell, in the order the goals were given, `-1` for one no
+  /// body of this class can reach the neighbourhood of.
+  List<int> get goalCells => List<int>.unmodifiable(_goalCells);
+  final List<int> _goalCells = <int>[];
+
+  /// Whether any goal resolved to a cell, which is whether the sweep ran.
+  bool _swept = false;
+
+  /// Where [update] resolves its goals before comparing them with the last
+  /// sweep's, kept so that a step in which nobody crossed a cell allocates
+  /// nothing.
+  final List<int> _resolved = <int>[];
+  final List<Vector3> _single = <Vector3>[Vector3.zero()];
 
   final Vector3 _centre = Vector3.zero();
   final CellHeap _heap = CellHeap();
@@ -151,22 +190,49 @@ final class FlowField {
     return cost * grid.cellSize / _straight;
   }
 
+  /// Which goal the cheapest route from [from] ends at, as an index into the
+  /// list the last sweep was given, or `-1` when no route does — off the grid,
+  /// walled off, or before any sweep.
+  ///
+  /// With one goal this is `0` or `-1`, and says no more than [descend] does.
+  int sourceAt(Vector3 from) {
+    final cell = grid.cellAt(from);
+    return cell < 0 ? -1 : _source[cell];
+  }
+
   /// Re-sweeps towards [goal]. Cheap to call every step: it returns without
   /// doing anything while the goal stays in the same cell.
-  void update(Vector3 goal) {
-    final cell = _resolveGoal(goal);
-    if (cell == _goalCell) return;
-    rebuild(goal);
+  void update(Vector3 goal) => updateAll(_one(goal));
+
+  /// Re-sweeps towards the nearest of [goals]. Cheap to call every step: it
+  /// returns without doing anything while every goal stays in its cell.
+  void updateAll(List<Vector3> goals) {
+    _checkCount(goals);
+    _resolved.clear();
+    for (final goal in goals) {
+      _resolved.add(_resolveGoal(goal));
+    }
+    if (_sameCells(_resolved, _goalCells)) return;
+    rebuildAll(goals);
   }
 
   /// Re-sweeps unconditionally. Call this when the level itself changed.
-  void rebuild(Vector3 goal) {
+  void rebuild(Vector3 goal) => rebuildAll(_one(goal));
+
+  /// Re-sweeps towards the nearest of [goals] unconditionally.
+  void rebuildAll(List<Vector3> goals) {
+    _checkCount(goals);
     _cost.fillRange(0, _cost.length, unreachable);
     _dx.fillRange(0, _dx.length, 0);
     _dz.fillRange(0, _dz.length, 0);
     _link.fillRange(0, _link.length, -1);
-    _goalCell = _resolveGoal(goal);
-    if (_goalCell < 0) return;
+    _source.fillRange(0, _source.length, -1);
+    _goalCells.clear();
+    for (final goal in goals) {
+      _goalCells.add(_resolveGoal(goal));
+    }
+    _swept = _goalCells.any((int cell) => cell >= 0);
+    if (!_swept) return;
 
     final columns = grid.columns;
     final rows = grid.rows;
@@ -180,10 +246,16 @@ final class FlowField {
           ..add(link.to);
       }
     }
-    _cost[_goalCell] = 0;
-    _heap
-      ..clear()
-      ..push(_goalCell, 0);
+    _heap.clear();
+    for (var index = 0; index < _goalCells.length; index++) {
+      final cell = _goalCells[index];
+      // Two goals in one cell: the first keeps it, which is what a tie
+      // anywhere else in the sweep does too.
+      if (cell < 0 || _cost[cell] == 0) continue;
+      _cost[cell] = 0;
+      _source[cell] = index;
+      _heap.push(cell, 0);
+    }
 
     while (!_heap.isEmpty) {
       final cell = _heap.pop();
@@ -211,6 +283,7 @@ final class FlowField {
           _dx[from] = 0;
           _dz[from] = 0;
           _link[from] = index;
+          _source[from] = _source[cell];
           _heap.push(from, cost2);
         }
       }
@@ -251,6 +324,7 @@ final class FlowField {
           _dx[next] = -dx;
           _dz[next] = -dz;
           _link[next] = -1;
+          _source[next] = _source[cell];
           _heap.push(next, cost2);
         }
       }
@@ -266,10 +340,11 @@ final class FlowField {
   /// steering by the field there would have an agent circling a cell centre
   /// half a metre from the player.
   bool descend(Vector3 from, Vector3 out) {
-    if (_goalCell < 0) return false;
+    if (!_swept) return false;
     final cell = grid.cellAt(from);
     if (cell < 0) return false;
-    if (cell == _goalCell) return false;
+    // A goal's own cell, whichever goal: nothing else costs nothing.
+    if (_cost[cell] == 0) return false;
     if (_cost[cell] >= unreachable) return false;
 
     final linked = _link[cell];
@@ -311,11 +386,34 @@ final class FlowField {
   /// A brain that steers by [descend] asks this beside it: the direction says
   /// where, and this says that the body has to leave the ground to get there.
   JumpLink? jumpAt(Vector3 from) {
-    if (_goalCell < 0) return null;
+    if (!_swept) return null;
     final cell = grid.cellAt(from);
-    if (cell < 0 || cell == _goalCell) return null;
+    if (cell < 0 || _cost[cell] == 0) return null;
     final linked = _link[cell];
     return linked < 0 ? null : grid.jumpLinks[linked];
+  }
+
+  List<Vector3> _one(Vector3 goal) {
+    _single.first.setFrom(goal);
+    return _single;
+  }
+
+  void _checkCount(List<Vector3> goals) {
+    if (goals.length > maxGoals) {
+      throw ArgumentError.value(
+        goals.length,
+        'goals',
+        'a sweep takes at most $maxGoals goals',
+      );
+    }
+  }
+
+  static bool _sameCells(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// The goal's own cell, or the nearest one a body of this class fits in.

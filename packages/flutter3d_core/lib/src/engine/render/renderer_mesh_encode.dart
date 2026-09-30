@@ -258,7 +258,8 @@ extension _MeshEncode on Renderer {
         !material.doubleSided;
     encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
 
-    final blend = material.alphaMode == MaterialAlphaMode.blend;
+    final blend =
+        material.alphaMode == MaterialAlphaMode.blend || node.tint.w < 1.0;
     if (orderIndependent == null) {
       encoder.setBlend(
         override != null
@@ -449,10 +450,22 @@ extension _MeshEncode on Renderer {
       _kFragInfoBlock,
       declared: material.lighting.usesFragInfo,
     )) {
-      _baseColorData[0] = material.baseColor.x;
-      _baseColorData[1] = material.baseColor.y;
-      _baseColorData[2] = material.baseColor.z;
-      _baseColorData[3] = material.baseColor.w;
+      final base = material.baseColor;
+      if (node.isTinted) {
+        // The base colour is sRGB and the tint linear, as a vertex colour
+        // is: multiplied where light adds up, and handed back as sRGB for
+        // the shader to decode as it always does.
+        final tint = node.tint;
+        _baseColorData[0] = linearToSrgb(srgbToLinear(base.x) * tint.x);
+        _baseColorData[1] = linearToSrgb(srgbToLinear(base.y) * tint.y);
+        _baseColorData[2] = linearToSrgb(srgbToLinear(base.z) * tint.z);
+        _baseColorData[3] = base.w * tint.w;
+      } else {
+        _baseColorData[0] = base.x;
+        _baseColorData[1] = base.y;
+        _baseColorData[2] = base.z;
+        _baseColorData[3] = base.w;
+      }
 
       _emissiveData[0] = material.emissive.x;
       _emissiveData[1] = material.emissive.y;
@@ -490,6 +503,9 @@ extension _MeshEncode on Renderer {
         // blend is over on straight colour. Opaque keeps -1 and its colour
         // whole. See `g_premultiply` in `color.glsl`.
         MaterialAlphaMode.blend => -0.5,
+        // Faded by its node's tint, an opaque material blends as a blended
+        // one does.
+        _ when node.tint.w < 1.0 => -0.5,
         _ => -1.0,
       };
       // Zero without a normal map of its own. The fallback's 0.5 lands on
@@ -645,7 +661,9 @@ extension _MeshEncode on Renderer {
       _fogInfo.name,
       declared: material.lighting.usesFogInfo,
     )) {
-      final fog = override == null ? settings.fog : const FogSettings();
+      final fog = override == null && material.fogged
+          ? settings.fog
+          : const FogSettings();
       _fogData[0] = fog.resolvedColor.x;
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;

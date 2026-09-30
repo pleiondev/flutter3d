@@ -300,7 +300,7 @@ extension _ReadyParts on _ModelerScreenState {
                         uvReading.islands.length,
                       )
                     : null,
-                micros: _lastRenderMicros,
+                micros: _frameCost,
                 onExport: _showExportDialog,
                 // `ux-01`: offered only while autosave is actually failing,
                 // and only where the platform has a folder to open at all —
@@ -500,15 +500,20 @@ extension _ReadyParts on _ModelerScreenState {
                   ? forStatus
                   : null;
               final Widget? proPanel = lodObject != null
-                  ? LodPanel(
-                      objectName: lodObject.name,
-                      levels: _lodRowsOf(lodObject),
-                      onRatio: _setLodRatio,
-                      onAddLevel: _addLod,
-                      onRegenerate: _regenerateLods,
-                      onClose: _closeLods,
-                      now: _lodNowOf(state, lodObject),
-                      refusal: _lodRefusal(lodObject),
+                  // `now` measures the camera's distance, so it is read
+                  // per frame: orbiting out is how the panel is previewed.
+                  ? ListenableBuilder(
+                      listenable: _viewportFrames,
+                      builder: (BuildContext context, Widget? _) => LodPanel(
+                        objectName: lodObject.name,
+                        levels: _lodRowsOf(lodObject),
+                        onRatio: _setLodRatio,
+                        onAddLevel: _addLod,
+                        onRegenerate: _regenerateLods,
+                        onClose: _closeLods,
+                        now: _lodNowOf(state, lodObject),
+                        refusal: _lodRefusal(lodObject),
+                      ),
                     )
                   : switch (state.mode) {
                       ModelerMode.retopo => BakePanel(
@@ -682,226 +687,244 @@ extension _ReadyParts on _ModelerScreenState {
                   : Stack(
                       children: <Widget>[
                         Positioned.fill(
-                          child: ModelerViewport(
-                            renderer: renderer,
-                            stage: stage,
-                            // `gfx-79n`: what the platform's accessibility
-                            // layer is told is in this viewport. One entry, the
-                            // thing being edited, named after the document —
-                            // which is what a person arriving here with a
-                            // screen reader wants to hear first, and is the
-                            // whole of what this viewport shows.
-                            announcements: <SceneAnnouncement>[
-                              SceneAnnouncement(
-                                id: 'subject',
-                                label: state.documentName,
-                                node: stage.subject,
-                              ),
-                            ],
-                            onFrame: () {},
-                            onRendered: (FrameResult result) =>
-                                _lastRenderMicros = result.cpuMicros,
-                            onViewportMetrics:
-                                (int width, int height, double dpr) {
-                                  // `ux-29`: a value drag started from the
-                                  // keyboard needs the same pixel size a
-                                  // pointer drag measures with, and this is
-                                  // the one place the screen is told it.
-                                  _viewportHeight = height / dpr;
-                                  unawaited(
-                                    _reopenDeviceIfStale(width, height, dpr),
-                                  );
-                                },
-                            // One or the other, never both: a click in the mesh mode is a
-                            // question about this mesh's elements and is answered on the
-                            // CPU, and asking the renderer for a node as well would cost a
-                            // whole frame to answer a question nobody asked.
-                            onPick: elementsView || retopoDrawing
-                                ? null
-                                : _picked,
-                            // `pro-rt-03` rides the same callback: it hands
-                            // over a camera and a point, which is what a
-                            // corner of a quad is made from.
-                            onElementPick: retopoDrawing
-                                ? _retopoClicked
-                                : elementsView && _editMesh != null
-                                ? _pickedElement
-                                : null,
-                            // `ux-28`: the same question a click asks, asked
-                            // while nothing is pressed, so the answer can be
-                            // shown before the click rather than after it.
-                            onElementHover: elementsView && _editMesh != null
-                                ? _hoveredElement
-                                : null,
-                            hovered: elementsView ? _hoveredElements : null,
-                            // `ux-26`: while the right button is held the
-                            // strip says the buttons mean something else.
-                            onLookingChanged: (bool looking) =>
-                                setState(() => _lookingAround = looking),
-                            // One or the other: with a transform tool armed a left drag is
-                            // the transform, and with none it is a rectangle. A viewport
-                            // that offered both would have to guess, and the guess would be
-                            // wrong on the frame a person changed their mind.
-                            // `ux-29`: an extrusion or a bevel takes the drag
-                            // ahead of a transform, because while one is open
-                            // it is the thing the pointer is driving — and it
-                            // wants only the delta, not the view a transform
-                            // needs to cast a ray through.
-                            onDragTool: _transformSession.valueDrag != null
-                                ? (
-                                    Offset delta,
-                                    double _,
-                                    PickingView _,
-                                    Offset _,
-                                  ) => setState(
-                                    () => _transformSession.valueDragged(delta),
-                                  )
-                                : kDragTools.contains(_tool)
-                                ? _transformSession.dragged
-                                : null,
-                            onDragDone: _transformSession.endDrag,
-                            // `ux-11`: under the modal preset the transform is
-                            // already running by the time the pointer moves,
-                            // so the hover drives it and the buttons answer
-                            // it. The readout goes beside the pointer either
-                            // way — a drag started from a button wants it as
-                            // much as one started from a key.
-                            // `ux-29`: a value drag is always pointer-driven —
-                            // it opens on a key press with nothing held, the
-                            // same shape `ux-11`'s modal preset gives a
-                            // transform, so the hover drives it and the
-                            // buttons answer it.
-                            toolFollowsPointer:
-                                _transformSession.valueDrag != null ||
-                                _transformSession.followsPointer,
-                            onToolConfirm: () => setState(() {
-                              _transformSession
-                                ..commitValueDrag()
-                                ..commit();
-                            }),
-                            onToolCancel: () => setState(() {
-                              _transformSession
-                                ..cancelValueDrag()
-                                ..cancel();
-                            }),
-                            transformReadout:
-                                _transformSession.valueDrag?.readout ??
-                                _transformSession.modal?.readout,
-                            transformHints:
-                                _transformSession.valueDrag?.hints ??
-                                _transformSession.modal?.hints,
-                            transformAxis: _transformSession.modal?.axis,
-                            // `ux-25`: the same tools, where the pointer is.
-                            onContextMenu: (Offset at) =>
-                                unawaited(_showViewportMenu(at)),
-                            onBox: _boxed,
-                            // `ux-28`: the same drag, catching what a loop
-                            // encloses rather than what a rectangle does.
-                            lassoSelect: _tool == 'mesh.lasso',
-                            // Earlier and more specific than the box/drag branch
-                            // above: only set while `weights.paint`/`weights.assign`
-                            // is actually armed, so `InputPolicy` never even asks
-                            // about a pointer anywhere else — including the
-                            // weights sub-mode's own one-shot mirror/normalize
-                            // tools, which take no drag at all.
-                            // `ux-24`: how far the brush reaches, drawn where
-                            // the pointer is. Only while one is actually
-                            // armed — a circle following the pointer in
-                            // object mode would be a control for nothing.
-                            // `view-21`: the circle the brush reaches
-                            // to, drawn where the pointer is, in whichever
-                            // of the two modes has one armed.
-                            brushRadius: weightsBrushArmed
-                                ? _weightBrushRadius
-                                : sculptBrushArmed
-                                ? _sculpt.radius
-                                : paintBrushArmed
-                                ? _paint.radius
-                                : null,
-                            brushInverting:
-                                HardwareKeyboard.instance.isControlPressed,
-                            strokeTool: weightsBrushArmed
-                                ? ToolCategory.weightPainting
-                                : sculptBrushArmed || paintBrushArmed
-                                ? ToolCategory.sculpting
-                                : null,
-                            onStroke: weightsBrushArmed
-                                ? _onWeightStroke
-                                : sculptBrushArmed
-                                ? _onSculptStroke
-                                : paintBrushArmed
-                                ? _onPaintStroke
-                                : null,
-                            // The gizmo stands on the selection and offers the transform
-                            // the armed tool asks for. On a tablet it is the only way in:
-                            // there is no `G` key on an iPad, so this is not a second path
-                            // to the same place — on three of the five platforms phase 1
-                            // ships to it is the path.
-                            // `pro-rt-03`: none while a quad is being drawn. A handle
-                            // stood on the pivot takes a press ahead of the
-                            // element pick, and a press that begins a gizmo
-                            // drag opens a history transaction the corner's
-                            // `DrawQuad` is then folded into — `retopo_mode_test`
-                            // found the quad landing with no step of its own.
-                            gizmoPivot: retopoDrawing
-                                ? null
-                                : _transformSession.gizmoPivot,
-                            gizmoKind: _transformSession.gizmoKind,
-                            // `ux-04`: whichever scheme Settings holds.
-                            navigation: _settings.navigation,
-                            onGizmoDrag: _transformSession.grabbedGizmo,
-                            snapHighlight:
-                                _transformSession.snapTarget?.position,
-                            // `ux-31`: and in Wire, whatever the mode. The
-                            // overlay draws each of the mesh's own edges
-                            // once; the renderer's own wireframe draws the
-                            // triangles it was handed, which is a different
-                            // shape and not the one being edited.
-                            editMesh:
-                                elementsView ||
-                                    _shading == ShadingMode.wireframe
-                                ? _editMesh
-                                : null,
-                            // `pro-uv-07`: screen 06's own seams, in the
-                            // hand-over's second colour and three and a
-                            // half pixels wide, over the wireframe the line
-                            // above turns on. Null outside the mode.
-                            uvSeams: uvView ? uvReading.seams : null,
-                            uvSeamColour: uvView
-                                ? colourAsVector4(kModelerScheme.secondary)
-                                : null,
-                            elements: _history.selection.asMeshSelection,
-                            meshVersion:
-                                _history
-                                    .project[_history.selection.activeObject ??
-                                        -1]
-                                    ?.version ??
-                                0,
-                            elementsVersion: _history.selection.elements.length,
-                            shapeMarkers: shapeMarkers,
-                            shapeMarkerColour: shapeMarkers.isEmpty
-                                ? null
-                                : colourAsVector4(kModelerScheme.primary),
-                            shapeMarkerActiveColour: shapeMarkers.isEmpty
-                                ? null
-                                : colourAsVector4(kModelerScheme.secondary),
-                            // `ux-31`: `edgesDrawn` where the overlay has an
-                            // `EditMesh` to walk, so the renderer's own
-                            // triangle wireframe is not drawn over the top
-                            // of the real edges.
-                            settings: weightsView
-                                ? weightGradientSettings(
-                                    settingsFor(
+                          // **Configured per frame, not per screen build.**
+                          // Half of what this viewport is handed follows the
+                          // camera or the pointer — the transform readout,
+                          // the brush's inversion, which tool follows the
+                          // pointer — and was kept current by a `setState`
+                          // on the whole screen every tick. Rebuilding just
+                          // this subtree on [_viewportFrames] keeps it
+                          // current without the panels paying for it.
+                          child: ListenableBuilder(
+                            listenable: _viewportFrames,
+                            builder: (BuildContext context, Widget? _) => ModelerViewport(
+                              renderer: renderer,
+                              stage: stage,
+                              // `gfx-79n`: what the platform's accessibility
+                              // layer is told is in this viewport. One entry, the
+                              // thing being edited, named after the document —
+                              // which is what a person arriving here with a
+                              // screen reader wants to hear first, and is the
+                              // whole of what this viewport shows.
+                              announcements: <SceneAnnouncement>[
+                                SceneAnnouncement(
+                                  id: 'subject',
+                                  label: state.documentName,
+                                  node: stage.subject,
+                                ),
+                              ],
+                              onFrame: () {},
+                              // A plain field: this runs during layout, where
+                              // notifying the status line would be a rebuild
+                              // requested mid-build. `_onTick` publishes it.
+                              onRendered: (FrameResult result) =>
+                                  _lastRenderMicros = result.cpuMicros,
+                              onViewportMetrics:
+                                  (int width, int height, double dpr) {
+                                    // `ux-29`: a value drag started from the
+                                    // keyboard needs the same pixel size a
+                                    // pointer drag measures with, and this is
+                                    // the one place the screen is told it.
+                                    _viewportHeight = height / dpr;
+                                    unawaited(
+                                      _reopenDeviceIfStale(width, height, dpr),
+                                    );
+                                  },
+                              // One or the other, never both: a click in the mesh mode is a
+                              // question about this mesh's elements and is answered on the
+                              // CPU, and asking the renderer for a node as well would cost a
+                              // whole frame to answer a question nobody asked.
+                              onPick: elementsView || retopoDrawing
+                                  ? null
+                                  : _picked,
+                              // `pro-rt-03` rides the same callback: it hands
+                              // over a camera and a point, which is what a
+                              // corner of a quad is made from.
+                              onElementPick: retopoDrawing
+                                  ? _retopoClicked
+                                  : elementsView && _editMesh != null
+                                  ? _pickedElement
+                                  : null,
+                              // `ux-28`: the same question a click asks, asked
+                              // while nothing is pressed, so the answer can be
+                              // shown before the click rather than after it.
+                              onElementHover: elementsView && _editMesh != null
+                                  ? _hoveredElement
+                                  : null,
+                              hovered: elementsView ? _hoveredElements : null,
+                              // `ux-26`: while the right button is held the
+                              // strip says the buttons mean something else.
+                              onLookingChanged: (bool looking) =>
+                                  setState(() => _lookingAround = looking),
+                              // One or the other: with a transform tool armed a left drag is
+                              // the transform, and with none it is a rectangle. A viewport
+                              // that offered both would have to guess, and the guess would be
+                              // wrong on the frame a person changed their mind.
+                              // `ux-29`: an extrusion or a bevel takes the drag
+                              // ahead of a transform, because while one is open
+                              // it is the thing the pointer is driving — and it
+                              // wants only the delta, not the view a transform
+                              // needs to cast a ray through.
+                              onDragTool: _transformSession.valueDrag != null
+                                  ? (
+                                      Offset delta,
+                                      double _,
+                                      PickingView _,
+                                      Offset _,
+                                    ) => setState(
+                                      () =>
+                                          _transformSession.valueDragged(delta),
+                                    )
+                                  : kDragTools.contains(_tool)
+                                  ? _transformSession.dragged
+                                  : null,
+                              onDragDone: _transformSession.endDrag,
+                              // `ux-11`: under the modal preset the transform is
+                              // already running by the time the pointer moves,
+                              // so the hover drives it and the buttons answer
+                              // it. The readout goes beside the pointer either
+                              // way — a drag started from a button wants it as
+                              // much as one started from a key.
+                              // `ux-29`: a value drag is always pointer-driven —
+                              // it opens on a key press with nothing held, the
+                              // same shape `ux-11`'s modal preset gives a
+                              // transform, so the hover drives it and the
+                              // buttons answer it.
+                              toolFollowsPointer:
+                                  _transformSession.valueDrag != null ||
+                                  _transformSession.followsPointer,
+                              onToolConfirm: () => setState(() {
+                                _transformSession
+                                  ..commitValueDrag()
+                                  ..commit();
+                              }),
+                              onToolCancel: () => setState(() {
+                                _transformSession
+                                  ..cancelValueDrag()
+                                  ..cancel();
+                              }),
+                              transformReadout:
+                                  _transformSession.valueDrag?.readout ??
+                                  _transformSession.modal?.readout,
+                              transformHints:
+                                  _transformSession.valueDrag?.hints ??
+                                  _transformSession.modal?.hints,
+                              transformAxis: _transformSession.modal?.axis,
+                              // `ux-25`: the same tools, where the pointer is.
+                              onContextMenu: (Offset at) =>
+                                  unawaited(_showViewportMenu(at)),
+                              onBox: _boxed,
+                              // `ux-28`: the same drag, catching what a loop
+                              // encloses rather than what a rectangle does.
+                              lassoSelect: _tool == 'mesh.lasso',
+                              // Earlier and more specific than the box/drag branch
+                              // above: only set while `weights.paint`/`weights.assign`
+                              // is actually armed, so `InputPolicy` never even asks
+                              // about a pointer anywhere else — including the
+                              // weights sub-mode's own one-shot mirror/normalize
+                              // tools, which take no drag at all.
+                              // `ux-24`: how far the brush reaches, drawn where
+                              // the pointer is. Only while one is actually
+                              // armed — a circle following the pointer in
+                              // object mode would be a control for nothing.
+                              // `view-21`: the circle the brush reaches
+                              // to, drawn where the pointer is, in whichever
+                              // of the two modes has one armed.
+                              brushRadius: weightsBrushArmed
+                                  ? _weightBrushRadius
+                                  : sculptBrushArmed
+                                  ? _sculpt.radius
+                                  : paintBrushArmed
+                                  ? _paint.radius
+                                  : null,
+                              brushInverting:
+                                  HardwareKeyboard.instance.isControlPressed,
+                              strokeTool: weightsBrushArmed
+                                  ? ToolCategory.weightPainting
+                                  : sculptBrushArmed || paintBrushArmed
+                                  ? ToolCategory.sculpting
+                                  : null,
+                              onStroke: weightsBrushArmed
+                                  ? _onWeightStroke
+                                  : sculptBrushArmed
+                                  ? _onSculptStroke
+                                  : paintBrushArmed
+                                  ? _onPaintStroke
+                                  : null,
+                              // The gizmo stands on the selection and offers the transform
+                              // the armed tool asks for. On a tablet it is the only way in:
+                              // there is no `G` key on an iPad, so this is not a second path
+                              // to the same place — on three of the five platforms phase 1
+                              // ships to it is the path.
+                              // `pro-rt-03`: none while a quad is being drawn. A handle
+                              // stood on the pivot takes a press ahead of the
+                              // element pick, and a press that begins a gizmo
+                              // drag opens a history transaction the corner's
+                              // `DrawQuad` is then folded into — `retopo_mode_test`
+                              // found the quad landing with no step of its own.
+                              gizmoPivot: retopoDrawing
+                                  ? null
+                                  : _transformSession.gizmoPivot,
+                              gizmoKind: _transformSession.gizmoKind,
+                              // `ux-04`: whichever scheme Settings holds.
+                              navigation: _settings.navigation,
+                              onGizmoDrag: _transformSession.grabbedGizmo,
+                              snapHighlight:
+                                  _transformSession.snapTarget?.position,
+                              // `ux-31`: and in Wire, whatever the mode. The
+                              // overlay draws each of the mesh's own edges
+                              // once; the renderer's own wireframe draws the
+                              // triangles it was handed, which is a different
+                              // shape and not the one being edited.
+                              editMesh:
+                                  elementsView ||
+                                      _shading == ShadingMode.wireframe
+                                  ? _editMesh
+                                  : null,
+                              // `pro-uv-07`: screen 06's own seams, in the
+                              // hand-over's second colour and three and a
+                              // half pixels wide, over the wireframe the line
+                              // above turns on. Null outside the mode.
+                              uvSeams: uvView ? uvReading.seams : null,
+                              uvSeamColour: uvView
+                                  ? colourAsVector4(kModelerScheme.secondary)
+                                  : null,
+                              elements: _history.selection.asMeshSelection,
+                              meshVersion:
+                                  _history
+                                      .project[_history
+                                              .selection
+                                              .activeObject ??
+                                          -1]
+                                      ?.version ??
+                                  0,
+                              elementsVersion:
+                                  _history.selection.elements.length,
+                              shapeMarkers: shapeMarkers,
+                              shapeMarkerColour: shapeMarkers.isEmpty
+                                  ? null
+                                  : colourAsVector4(kModelerScheme.primary),
+                              shapeMarkerActiveColour: shapeMarkers.isEmpty
+                                  ? null
+                                  : colourAsVector4(kModelerScheme.secondary),
+                              // `ux-31`: `edgesDrawn` where the overlay has an
+                              // `EditMesh` to walk, so the renderer's own
+                              // triangle wireframe is not drawn over the top
+                              // of the real edges.
+                              settings: weightsView
+                                  ? weightGradientSettings(
+                                      settingsFor(
+                                        _shading,
+                                        viewportRenderSettings,
+                                        edgesDrawn: _editMesh != null,
+                                      ),
+                                    )
+                                  : settingsFor(
                                       _shading,
                                       viewportRenderSettings,
                                       edgesDrawn: _editMesh != null,
                                     ),
-                                  )
-                                : settingsFor(
-                                    _shading,
-                                    viewportRenderSettings,
-                                    edgesDrawn: _editMesh != null,
-                                  ),
+                            ),
                           ),
                         ),
                         // `ux-16`: mesh mode on something that has no mesh.
@@ -940,12 +963,19 @@ extension _ReadyParts on _ModelerScreenState {
                                     (
                                       BuildContext context,
                                       BoxConstraints box,
-                                    ) => CustomPaint(
-                                      painter: _retopoOverlayOf(
-                                        state,
-                                        retopoPair,
-                                        box.biggest,
-                                      ),
+                                    ) => ListenableBuilder(
+                                      // Projected through the camera, so it
+                                      // moves when the camera does.
+                                      listenable: _viewportFrames,
+                                      builder:
+                                          (BuildContext context, Widget? _) =>
+                                              CustomPaint(
+                                                painter: _retopoOverlayOf(
+                                                  state,
+                                                  retopoPair,
+                                                  box.biggest,
+                                                ),
+                                              ),
                                     ),
                               ),
                             ),
@@ -994,22 +1024,29 @@ extension _ReadyParts on _ModelerScreenState {
                         Positioned(
                           right: 12,
                           bottom: 12,
-                          child: OrientationDial(
-                            yaw: stage.orbit.yaw,
-                            pitch: stage.orbit.pitch,
-                            onPressed: (ViewAxis axis) {
-                              // The dial says where; the controller does the turning, and
-                              // takes the short way round because `viewAlong` already chose
-                              // the turn nearest the yaw the camera is at.
-                              final view = const OrientationGizmo().viewAlong(
-                                axis,
-                                fromYaw: stage.orbit.yaw,
-                              );
-                              stage.orbit.animateTo(
-                                yaw: view.yaw,
-                                pitch: view.pitch,
-                              );
-                            },
+                          // Follows the camera per frame, not per build: the
+                          // orbit turns without the screen rebuilding.
+                          child: ListenableBuilder(
+                            listenable: _viewportFrames,
+                            builder: (BuildContext context, Widget? _) =>
+                                OrientationDial(
+                                  yaw: stage.orbit.yaw,
+                                  pitch: stage.orbit.pitch,
+                                  onPressed: (ViewAxis axis) {
+                                    // The dial says where; the controller does the turning, and
+                                    // takes the short way round because `viewAlong` already chose
+                                    // the turn nearest the yaw the camera is at.
+                                    final view = const OrientationGizmo()
+                                        .viewAlong(
+                                          axis,
+                                          fromYaw: stage.orbit.yaw,
+                                        );
+                                    stage.orbit.animateTo(
+                                      yaw: view.yaw,
+                                      pitch: view.pitch,
+                                    );
+                                  },
+                                ),
                           ),
                         ),
                         if (weightsView) const WeightLegend(),
@@ -1029,6 +1066,7 @@ extension _ReadyParts on _ModelerScreenState {
                       stage: stage,
                       primary: viewport,
                       split: layout.viewportSplit,
+                      frames: _viewportFrames,
                       onSplit: (double to) =>
                           _saveLayout(state.workspace, viewportSplit: to),
                     )
@@ -1070,6 +1108,7 @@ extension _ReadyParts on _ModelerScreenState {
                             lodIndex: lodIndex,
                             mesh: mesh,
                             leader: stage.orbit,
+                            frames: _viewportFrames,
                           ),
                       onThresholdChanged: _moveLodThreshold,
                     )

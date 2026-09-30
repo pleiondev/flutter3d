@@ -78,6 +78,9 @@ export 'src/formats/model_writer.dart';
 export 'src/formats/obj/obj.dart';
 export 'src/formats/plain_model_document.dart';
 export 'src/formats/splat/splat.dart';
+// The transfer curve, for anybody on the far side of it from the engine: a
+// format reader, and a game painting vertex colours it picked on screen.
+export 'src/formats/srgb.dart';
 export 'src/formats/stl/stl.dart';
 export 'src/formats/surface_material.dart';
 export 'src/formats/texture_transform_bake.dart';

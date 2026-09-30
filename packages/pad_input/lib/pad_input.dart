@@ -27,9 +27,15 @@
 /// equivalent, for the same reason `pointer_lock` reports deltas and lets
 /// `DesktopInput` decide what they mean.
 ///
-/// Deliberately absent: more than one pad at a time, rumble, motion sensors and
-/// battery level. Each would widen every signature here for a caller that does
-/// not exist.
+/// ## One pad a player
+///
+/// A second player holds a second controller: `Gamepad(index: 1)` reads the
+/// controller in the second slot, the next one to connect after the first,
+/// and so on up to [GamepadPlatform.maxPads]. Every [Gamepad] of a process
+/// reads through one platform, which tells the controllers apart.
+///
+/// Deliberately absent: rumble, motion sensors and battery level. Each would
+/// widen every signature here for a caller that does not exist.
 library;
 
 import 'src/deadzone.dart';
@@ -45,10 +51,21 @@ export 'src/pad_snapshot.dart';
 
 /// The gamepad a player is holding.
 final class Gamepad {
-  Gamepad({GamepadPlatform? platform, Deadzone deadzone = const Deadzone()})
-    : _platform = platform ?? GamepadPlatform.instance,
-      // ignore: prefer_initializing_formals
-      deadzone = deadzone;
+  Gamepad({
+    GamepadPlatform? platform,
+    Deadzone deadzone = const Deadzone(),
+    this.index = 0,
+  }) : _platform = platform ?? GamepadPlatform.instance,
+       // ignore: prefer_initializing_formals
+       deadzone = deadzone,
+       assert(
+         index >= 0 && index < GamepadPlatform.maxPads,
+         'a slot a controller can be in',
+       );
+
+  /// Which player's controller this reads: nought for the first to
+  /// connect, one for the second. See [GamepadPlatform.readPad].
+  final int index;
 
   /// The one a game uses when it has not made its own.
   ///
@@ -92,7 +109,7 @@ final class Gamepad {
 
   /// Fills [out] with what the pad is doing, dead zone already applied.
   void read(PadSnapshot out) {
-    _platform.read(out);
+    _platform.readPad(index, out);
     if (!out.connected) return;
 
     _stick[0] = out.axis(PadAxis.leftStickX);
@@ -126,5 +143,8 @@ final class Gamepad {
     }
   }
 
+  /// Releases the platform's listeners. The platform is every [Gamepad]'s
+  /// in the process, so a second player's pad is let go of with the game,
+  /// not with its player: this is for the one that owns the platform.
   Future<void> dispose() => _platform.dispose();
 }

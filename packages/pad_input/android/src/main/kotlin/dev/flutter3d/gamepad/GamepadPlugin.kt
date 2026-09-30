@@ -5,8 +5,10 @@ import android.app.Application
 import android.hardware.input.InputManager
 import android.os.Bundle
 import android.view.InputDevice
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.Window
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -30,11 +32,15 @@ import io.flutter.plugin.common.EventChannel
  * test shows — and the way to survive that rule is to leave native code with
  * nothing in it that a test would have caught.
  *
- * **No buttons either.** Android delivers a gamepad's buttons as `KeyEvent`s, and
- * Flutter's own embedding already maps their key codes to `gameButtonA` and its
- * neighbours and hands them to the framework. Catching them again here would be a
- * second source of truth for one event, and the two would disagree the first time
- * either was wrong.
+ * ## Every controller, and its buttons by device
+ *
+ * Every attached controller is reported, each by its device id, and Dart gives
+ * each a player's slot. A pad's buttons are key events, and Flutter's keyboard
+ * hands them on without the device they came from: two players pressing A were
+ * one A. So they are forwarded here as well, with their device, from a
+ * `Window.Callback` that passes every event on unchanged, and Dart leaves the
+ * keyboard's copies alone once these arrive. The key codes go as they are;
+ * which button a code is stays in Dart.
  *
  * ## Why a listener on the decor view
  *
@@ -80,11 +86,11 @@ class GamepadPlugin :
   private var activity: Activity? = null
   private var inputManager: InputManager? = null
 
-  /** The pad being reported, or null. One at a time, as the package promises. */
-  private var deviceId: Int? = null
+  /** The pads being reported, each with the axes it said it has. */
+  private val devices = LinkedHashMap<Int, IntArray>()
 
-  /** The axes [deviceId] said it has, so a sample carries only those. */
-  private var deviceAxes: IntArray = IntArray(0)
+  /** The window's own callback, while this one stands in front of it. */
+  private var windowCallback: Window.Callback? = null
 
   private val sample = DoubleArray(1 + AXES.size * 2)
 
@@ -105,6 +111,7 @@ class GamepadPlugin :
     // onCancel already ran.
     inputManager?.unregisterInputDeviceListener(this)
     detachMotionListener()
+    detachKeyForwarding()
     sink = null
     eventChannel?.setStreamHandler(null)
     eventChannel = null
@@ -117,15 +124,20 @@ class GamepadPlugin :
     sink = events
     inputManager?.registerInputDeviceListener(this, null)
     attachMotionListener()
+    attachKeyForwarding()
     // Whatever is already plugged in, because a controller connected before the
     // game started produces no event and would otherwise be invisible until the
     // player unplugged and replugged it.
-    adopt(findGamepad())
+    for (id in InputDevice.getDeviceIds()) {
+      if (isGamepad(InputDevice.getDevice(id))) adopt(id)
+    }
   }
 
   override fun onCancel(arguments: Any?) {
     inputManager?.unregisterInputDeviceListener(this)
     detachMotionListener()
+    detachKeyForwarding()
+    devices.clear()
     sink = null
   }
 
@@ -136,24 +148,18 @@ class GamepadPlugin :
   }
 
   override fun onInputDeviceRemoved(id: Int) {
-    if (id != deviceId) return
-    deviceId = null
-    deviceAxes = IntArray(0)
+    if (devices.remove(id) == null) return
     // Told after the fact, and the Dart side zeroes before it passes the news on:
     // a pad whose battery dies mid-corner must not leave the throttle where it
     // was.
-    sink?.success(mapOf("event" to "disconnected"))
+    sink?.success(mapOf("event" to "disconnected", "device" to id))
   }
 
   override fun onInputDeviceChanged(id: Int) {
     // A device that gained or lost axes is a different device as far as the
     // mapping is concerned — a keyboard with a joystick dock, in practice.
-    if (id == deviceId) adopt(id)
+    if (devices.containsKey(id)) adopt(id)
   }
-
-  /** The first attached controller, or null. */
-  private fun findGamepad(): Int? =
-    InputDevice.getDeviceIds().firstOrNull { isGamepad(InputDevice.getDevice(it)) }
 
   /**
    * Whether this is something a player holds.
@@ -176,15 +182,60 @@ class GamepadPlugin :
     // What it actually has, asked rather than assumed. This is the answer Dart
     // needs to know whether a trigger is on `AXIS_LTRIGGER` or on `AXIS_BRAKE`,
     // and the two are the same physical control under different drivers.
-    deviceAxes = AXES.filter { device.getMotionRange(it, device.sources) != null }
+    val axes = AXES.filter { device.getMotionRange(it, device.sources) != null }
       .toIntArray()
-    deviceId = id
+    devices[id] = axes
     sink?.success(
       mapOf(
         "event" to "connected",
         "device" to id,
         "name" to (device.name ?: ""),
-        "axes" to deviceAxes.toList(),
+        "axes" to axes.toList(),
+      )
+    )
+  }
+
+  // MARK: - Buttons
+
+  /**
+   * Stands in front of the window's own callback, forwards a controller's key
+   * events with their device, and passes every event on as it came.
+   */
+  private fun attachKeyForwarding() {
+    val window = activity?.window ?: return
+    if (windowCallback != null) return
+    val original = window.callback ?: return
+    windowCallback = original
+    window.callback = object : Window.Callback by original {
+      override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        forwardKey(event)
+        return original.dispatchKeyEvent(event)
+      }
+    }
+  }
+
+  private fun detachKeyForwarding() {
+    val original = windowCallback ?: return
+    activity?.window?.callback = original
+    windowCallback = null
+  }
+
+  private fun forwardKey(event: KeyEvent) {
+    val sink = this.sink ?: return
+    if (!devices.containsKey(event.deviceId)) return
+    // A repeat is neither down nor up: the button is already held.
+    if (event.repeatCount > 0) return
+    val down = when (event.action) {
+      KeyEvent.ACTION_DOWN -> true
+      KeyEvent.ACTION_UP -> false
+      else -> return
+    }
+    sink.success(
+      mapOf(
+        "event" to "key",
+        "device" to event.deviceId,
+        "code" to event.keyCode,
+        "down" to down,
       )
     )
   }
@@ -209,12 +260,12 @@ class GamepadPlugin :
 
   private fun forward(event: MotionEvent) {
     val sink = this.sink ?: return
-    if (event.deviceId != deviceId) return
+    val axes = devices[event.deviceId] ?: return
     if (event.source and InputDevice.SOURCE_CLASS_JOYSTICK == 0) return
 
     sample[0] = event.deviceId.toDouble()
     var at = 1
-    for (axis in deviceAxes) {
+    for (axis in axes) {
       sample[at++] = axis.toDouble()
       sample[at++] = event.getAxisValue(axis).toDouble()
     }
@@ -229,13 +280,17 @@ class GamepadPlugin :
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     activity = binding.activity
-    if (sink != null) attachMotionListener()
+    if (sink != null) {
+      attachMotionListener()
+      attachKeyForwarding()
+    }
     binding.activity.application
       .registerActivityLifecycleCallbacks(lifecycle)
   }
 
   override fun onDetachedFromActivity() {
     detachMotionListener()
+    detachKeyForwarding()
     activity?.application?.unregisterActivityLifecycleCallbacks(lifecycle)
     activity = null
   }

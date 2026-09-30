@@ -1,3 +1,92 @@
+## 0.8.3
+
+- **`Renderer.renderPost` gives its bloom chain back.** Its pooled targets
+  were queued for release, but only `render` drained the ring and moved the
+  frame counter, so a host that only post-processed allocated a fresh chain
+  on every call and the pool grew without bound. `renderPost` now retires a
+  slot of the ring and advances the counter itself.
+
+- **`Renderer.releaseTextureAfterFrame`**, `releaseMeshAfterFrame`'s
+  counterpart for a texture an application uploaded and is done with: given
+  back to the device once no frame in flight can still sample it.
+
+- **`Renderer.releaseMeshAfterFrame` lets go of a mesh safely.** A mesh an
+  application built and is done with, a stretch of terrain behind the
+  camera, goes back to the device once no frame in flight can still draw
+  it, through the same ring the renderer's own textures use, and on
+  `dispose` if no frame comes. Released straight away, its buffers could
+  still be read by a frame the GPU had not finished; River Sortie released
+  on its next update, which was one frame clear where three are in flight.
+
+- **A vertex colour says it is linear, and a picked colour gets there.**
+  `VertexLayout.color` and `MeshBuilder.addVertex` now say what the shader
+  always did: a vertex colour is linear, as glTF's `COLOR_0` is, while a
+  material's `baseColor` is sRGB. A game painting scenery with colours
+  picked on screen wrote them straight into vertices and got pastel.
+  `linearFromSrgb(r, g, b)` makes the conversion, and `srgbToLinear` and
+  `linearToSrgb`, which the format readers had to themselves, are exported
+  with it from `formats.dart`.
+- **`MeshData.withColor` paints a whole mesh one colour.** With
+  `transformed` and `merge`, several shapes in several colours become one
+  mesh drawn with one white material: a tree is one draw, not a node and a
+  material per part. A layout with no colour attribute gets an unchanged
+  copy.
+- **`Atmosphere` is the air at one moment**: the sky, the fog, the sun
+  and the ambient light as one value, `lerp` blending them all by one
+  amount and `applyTo` putting them on a scene, its sun and a clear colour.
+  `AtmosphereCycle` is a day of them, keyed by time and going round.
+  `LightGroup` dims lights together by a `level`, each keeping its own
+  full brightness.
+- **`Material.fogged: false` keeps a material out of the fog**: a horizon
+  of hills or a moon that should stand beyond the weather, which faded
+  first, being furthest, and left a wall of fog colour.
+- **`CellGrid` is a grid of cells there or gone**, from a picture of `#`s,
+  worn away by `clear` and `clearAround` and drawn by `mesh` as one merged
+  mesh of blocks: a Space Invaders shield. `set` grows one as well, for a
+  trail laid behind a cycle or a wall read from a level.
+- **`LineStripNode` is a line that grows a point at a time**, written in
+  place in a mesh with room for all of it, letting go of its oldest point
+  when full, and bounded by its points rather than by the empty line it
+  was uploaded as.
+- **`OpenPath` measures a path in metres along it**: the point, the
+  heading and the right at any distance, the heading turning through a
+  corner rather than snapping, straight on past either end. `ribbon` lays
+  a flat strip of road on it between two distances, facing up, its `v` in
+  metres so a texture tiles the same on every piece, and pieces cut at the
+  same distances meet edge to edge.
+- **`buildPolyline(closed: true)` joins the last point to the first** with
+  an elbow like every other: a ship's outline or a ring had a square notch
+  where its open ends met.
+- **A node can be tinted and faded on its own.** `MeshNode.tint` multiplies
+  its material's colour for that node's draw alone, in linear light as a
+  vertex colour is, and its alpha fades it: below one the node is drawn
+  blended in the transparent pass whatever its material says. A hundred
+  craft sharing a material could not flash the one that was hit or fade
+  the one sinking without a material made for the moment. No shader
+  changed: the tint goes into the base colour the draw already sends. A
+  tinted node is left out of automatic batches; an untinted one draws
+  exactly as before.
+- **`Renderer.debugLines` draws an application's own lines** beside the
+  ones `RenderSettings.debug` asks for, every frame, in the same pass: a
+  game's hitboxes, a path an agent means to walk. The scene cannot say
+  where a shape that lives in a game's own tree is, and the only way to see
+  one was a mesh made for the purpose. Null costs nothing.
+- **A long scene's near shadows do not stripe.** A near cascade reaches back
+  to the furthest caster towards the sun, and its depth bias, kept in
+  metres, shrinks in stored depth by as much. The map stores depth as a half
+  float, 1/2048 apart near the far end, and in a river valley two hundred
+  metres long the bias came to a seventh of that: a lit floor compared
+  against its own rounded depth shadowed itself in diagonal bands, on Metal
+  and not on the software backend, which keeps full floats. The bias of each
+  cascade no longer goes below the step the map is stored with, unless the
+  settings ask for less than that.
+- **An instance batch hands out slots that stay found.**
+  `InstancedMeshNode.acquire` takes a slot and returns an `InstanceHandle`;
+  `release` fills the hole with the last slot, colour and morph weights
+  with it, and moves that slot's handle along, so a batch of shots or
+  sparks that leave in any order never points an owner at someone else's
+  instance. A full batch grows. `clear` retires every handle.
+
 ## 0.8.2
 
 - **A sunlit room's inside corners no longer leak light.** The sun recorded

@@ -131,6 +131,13 @@ abstract base class Takeable extends Mechanism with CollisionListener {
     _taken = from['taken'] == true;
     justTaken = false;
     sinceTaken = double.infinity;
-    if (_taken) world.collisions.removeLater(collider);
+    // Both ways. A load after the taking removes the trigger; a rollback to
+    // before it has to put back the trigger the taking removed, or the thing
+    // lies there, drawn and untaken, and nobody can ever take it again.
+    if (_taken) {
+      world.collisions.removeLater(collider);
+    } else if (collider.world == null) {
+      world.collisions.add(collider);
+    }
   }
 }

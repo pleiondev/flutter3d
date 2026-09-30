@@ -1,3 +1,14 @@
+## 0.8.1
+
+* **A mesh particle can take light away.** `MeshParticleContributor` takes a
+  `blend`, additive by default as before, and `MeshParticleContributor.darkening`
+  is the other one worth having: the background times one minus the
+  particle's colour, so dark smoke and soot are particles too. Adding can
+  only brighten, and a game that wanted a black puff drew it a scene node
+  per shard. Multiplication is commutative, as addition is, so the pool is
+  still one unsorted draw. The fragment stage is unchanged: it was already
+  handing back colour times alpha, and the blend decides what that means.
+
 ## 0.8.0
 
 * **Smoke can be lit by the lights around it.** `ParticleContributor` takes

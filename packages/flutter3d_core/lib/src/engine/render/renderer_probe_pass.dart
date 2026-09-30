@@ -327,7 +327,7 @@ extension _ProbePasses on Renderer {
         if (!node.visibleInHierarchy || !node.shadowCasting.drawsColour) {
           continue;
         }
-        if (node.material.isTransparent != blended) continue;
+        if (node.drawsTransparent != blended) continue;
         if (excluded.contains(node)) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;

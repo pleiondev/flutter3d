@@ -1,3 +1,12 @@
+## 0.8.1
+
+**A claw that catches the player beside the one it swung at has caught
+them.** `ChaseBrain` credits a melee hit to whichever focus owns the body it
+reached, through `flutter3d_sim`'s `hurtFocus`, rather than only to the one
+it was aimed at. With one player nothing changes.
+
+Its `flutter3d_sim` dependency asks for `^0.8.1`.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

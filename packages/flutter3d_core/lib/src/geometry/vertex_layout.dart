@@ -30,6 +30,10 @@ final class VertexLayout {
 
   /// xyz is the direction, w is the bitangent sign (glTF convention).
   static const VertexAttribute tangent = VertexAttribute('tangent', 4);
+
+  /// RGBA, **linear**, as glTF's `COLOR_0` is, multiplied into the surface
+  /// after the material's sRGB tint has been converted. A colour picked on
+  /// screen goes in through `linearFromSrgb`.
   static const VertexAttribute color = VertexAttribute('color', 4);
 
   /// Up to four joint indices, held as floats.

@@ -67,8 +67,13 @@ final class WebGamepad extends GamepadPlatform {
   Stream<PadConnection> get connectionChanges => _connections.stream;
 
   @override
-  void read(PadSnapshot out) {
-    final pad = _current();
+  void read(PadSnapshot out) => readPad(0, out);
+
+  /// The [index]th controller the browser vouches for, in the order it
+  /// lists them: a second player's is the second standard pad.
+  @override
+  void readPad(int index, PadSnapshot out) {
+    final pad = _current(index);
     if (pad == null) {
       out.disconnect();
       return;
@@ -114,7 +119,7 @@ final class WebGamepad extends GamepadPlatform {
     await _connections.close();
   }
 
-  /// The first pad the browser will vouch for.
+  /// The [index]th pad the browser will vouch for.
   ///
   /// **Standard mapping only**, and a non-standard pad is treated as no pad.
   /// That looks harsh and is the careful answer: without the mapping the indices
@@ -123,13 +128,14 @@ final class WebGamepad extends GamepadPlatform {
   /// something that is not a face button. This package deliberately has no
   /// mapping database to resolve that with, and a permanent identifier that
   /// means the wrong thing is worse than a pad that does not answer.
-  web.Gamepad? _current() {
+  web.Gamepad? _current(int index) {
     final pads = web.window.navigator.getGamepads().toDart;
+    var seen = 0;
     for (final pad in pads) {
       if (pad == null) continue;
       if (!pad.connected) continue;
       if (pad.mapping != 'standard') continue;
-      return pad;
+      if (seen++ == index) return pad;
     }
     return null;
   }

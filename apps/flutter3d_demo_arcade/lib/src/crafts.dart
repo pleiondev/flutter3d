@@ -39,81 +39,36 @@ const Map<CraftRole, _CraftLook> _looks = <CraftRole, _CraftLook>{
 
 /// The craft models, dressed onto the bodies the bridges already move.
 ///
-/// **A body is bridged through a holder, never through its model.** The
-/// ship's and every bot's bridged node is an empty [SceneNode]; what it
-/// draws is a child. Until [dressWithCrafts] has loaded the models, and
-/// always in the tests, which never load them, that child is the primitive
-/// the game was first written with. When a model arrives it replaces the
-/// child, and the bridges, which only ever touched the holder, carry on
-/// unchanged. A model that fails to load leaves the primitive, so the game
-/// still plays.
+/// **What a craft draws hangs from its component's `visual` node.** Until
+/// [dressWithCrafts] has loaded the models, and always in the tests, which
+/// never load them, that is the primitive the game was first written with;
+/// the game's `ModelWardrobe` replaces it as each model arrives, including
+/// on bots made while it was loading. A model that fails to load leaves the
+/// primitive, so the game still plays.
 ///
-/// Between holder and model sits a pivot that [_turnCrafts] turns to face
-/// the way the craft is flying. The holder is left unturned: a bridge leads
-/// it and reads its rotation back into the Flame component's `angle` every
-/// frame, and a body has no rotation of its own to give it. The pivot is
-/// below anything a bridge looks at, so it can turn freely.
+/// [_turnCrafts] turns the visual node to face the way the craft is flying.
+/// The bridged node is left unturned: a bridge leads it and reads its
+/// rotation back into the Flame component's `angle` every frame, and a body
+/// has no rotation of its own to give it. The visual node is below anything
+/// a bridge looks at, so it can turn freely.
 extension ArcadeGameCrafts on ArcadeGame {
   /// Loads the three craft and dresses the ship and every bot in play.
   /// Bots spawned later are dressed as they are made.
-  Future<void> dressWithCrafts() async {
-    for (final role in CraftRole.values) {
-      final look = _looks[role]!;
-      try {
-        final document = await decodeModelInIsolate(
-          ModelLoadRequest(source: BundleAssetSource(look.file)),
-        );
-        _crafts[role] = await ModelAsset.fromDocument(
-          document,
-          device: _device,
-          name: look.file,
-        );
-      } catch (error) {
-        debugPrint('arcade: ${look.file} did not load ($error)');
-      }
-    }
-    _dress(ship.node, CraftRole.ship);
-    for (final bot in bots) {
-      final role = _holderRoles[bot.node];
-      if (role != null) _dress(bot.node, role);
-    }
-  }
+  Future<void> dressWithCrafts() => wardrobe.load(
+    onError: (role, error) =>
+        debugPrint('arcade: ${_looks[role]!.file} did not load ($error)'),
+  );
 
-  /// Puts [role]'s model in [holder] in place of whatever it drew before.
-  /// Nothing happens while that model has not loaded.
-  void _dress(SceneNode holder, CraftRole role) {
-    final asset = _crafts[role];
-    if (asset == null) return;
-    final look = _looks[role]!;
-
-    for (final child in holder.children) {
-      child.removeFromParent();
-    }
-    final pivot = SceneNode(name: '${holder.name} pivot');
-    holder.add(pivot);
-    final instance = asset.instantiate(
-      _scene,
-      parent: pivot,
-      name: '${holder.name} model',
-    );
-
-    // Centred on the holder and scaled to [_CraftLook.length]: the kit's
-    // craft sit on the ground at an origin of their own, nose along -Z.
-    final bounds = asset.localBounds;
-    final length = bounds.max.z - bounds.min.z;
-    final scale = length > 1e-6 ? look.length / length : 1.0;
-    final centre = (bounds.min + bounds.max)..scale(0.5 * scale);
-    instance.root
-      ..setUniformScale(scale)
-      ..setPosition(-centre.x, -centre.y, -centre.z);
-
-    final (r, g, b) = look.accent;
-    pivot.traverse((SceneNode node) {
+  /// Gives a craft that has just been dressed its role's accent colour: the
+  /// kit draws every craft in one palette, and its orange accent material
+  /// (`metalRed`) is what tells the three roles apart.
+  void _paintAccent(ModelInstance instance, CraftRole role) {
+    final (r, g, b) = _looks[role]!.accent;
+    instance.root.traverse((SceneNode node) {
       if (node is MeshNode && node.material.name == 'metalRed') {
         node.material.baseColor.setValues(r, g, b, 1.0);
       }
     });
-    _pivots[holder] = pivot;
   }
 
   /// Turns every dressed craft to face the way it is flying: the ship by
@@ -121,19 +76,17 @@ extension ArcadeGameCrafts on ArcadeGame {
   /// barely moving keeps the way it last faced rather than spinning to
   /// whatever the noise in its velocity says.
   void _turnCrafts() {
-    _turnTowards(ship.node, shipHeading);
+    _turnTowards(ship, shipHeading);
     for (final bot in bots) {
       final body = bot.actor.body;
-      if (body != null) _turnTowards(bot.node, body.velocity);
+      if (body != null) _turnTowards(bot, body.velocity);
     }
   }
 
-  void _turnTowards(SceneNode holder, Vector3 course) {
-    final pivot = _pivots[holder];
-    if (pivot == null) return;
+  void _turnTowards(Object3dComponent craft, Vector3 course) {
     if (course.x * course.x + course.z * course.z < 0.04) return;
     // The model's nose is along -Z; this turns -Z onto the course.
     final yaw = math.atan2(-course.x, -course.z);
-    pivot.setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), yaw));
+    craft.visual.setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), yaw));
   }
 }

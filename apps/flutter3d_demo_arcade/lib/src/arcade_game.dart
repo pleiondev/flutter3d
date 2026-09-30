@@ -152,13 +152,11 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// it, and a bot within a few centimetres of the hull overlaps it.
   late final Collider shipSensor;
 
-  /// Every collider this game knows a Flame component for, so
-  /// [CollisionBridge.resolveOther] can answer "who is the other side" for a
-  /// contact — a wall has no entry and is silently not reported, exactly as
-  /// [CollisionBridge]'s own doc says a bridge with nothing to hand over
-  /// should behave.
-  final Map<Collider, PositionComponent> _colliderComponents =
-      <Collider, PositionComponent>{};
+  /// Every collider this game knows a Flame component for, so a contact's
+  /// other side can be handed over: a wall has no entry and is silently not
+  /// reported, exactly as [CollisionBridge]'s own doc says a bridge with
+  /// nothing to hand over should behave.
+  final ColliderRegistry _colliderComponents = ColliderRegistry();
 
   /// The bots still in play. Shrinks as the ship rams them.
   final List<ActorComponent> bots = <ActorComponent>[];
@@ -210,16 +208,9 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   late final GraphicsDevice _device;
   late final Scene _scene;
 
-  /// The craft models by role, once [ArcadeGameCrafts.dressWithCrafts] has
-  /// loaded them; a role missing here draws its primitive.
-  final Map<CraftRole, ModelAsset> _crafts = <CraftRole, ModelAsset>{};
-
-  /// Each bot's holder node and the part it plays, so a model that loads
-  /// after the bot was made can still find it.
-  final Map<SceneNode, CraftRole> _holderRoles = <SceneNode, CraftRole>{};
-
-  /// Each dressed holder's pivot, the node turned to face the course.
-  final Map<SceneNode, SceneNode> _pivots = <SceneNode, SceneNode>{};
+  /// The craft models by role, and every visual node waiting for or wearing
+  /// one, so a bot made before its model loaded is dressed when it does.
+  late final ModelWardrobe<CraftRole> wardrobe;
 
   /// Bots the ship has rammed this step, waiting for [_drainHits] to
   /// remove them — see that method's own doc comment for why this cannot
@@ -307,9 +298,10 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
 
   void _removeBot(ActorComponent bot) {
     final body = bot.actor.body;
-    if (body != null) _colliderComponents.remove(body.collider);
-    _holderRoles.remove(bot.node);
-    _pivots.remove(bot.node);
+    // At once rather than when the bot leaves the tree, which is a frame
+    // later: nothing should be told it touched a bot already gone.
+    if (body != null) _colliderComponents.unregister(body.collider);
+    wardrobe.forget(bot.visual);
     actorSystem.remove(bot.actor);
     bot.removeFromParent();
   }

@@ -71,6 +71,30 @@ base class MeshNode extends SceneNode {
   MeshGeometry mesh;
   Material material;
 
+  /// Multiplies this node's colour and opacity, over whatever its material
+  /// says: white is the material as it is, `(1, 0.3, 0.3, 1)` a red flash,
+  /// `(1, 1, 1, 0.5)` half faded out.
+  ///
+  /// **Per node, over a shared material.** A hundred tankers share one
+  /// material; flashing the one that was hit, or fading the one sinking,
+  /// meant a material of its own made for the moment. The colour is linear,
+  /// as a vertex colour and an instance colour are, and is applied on the
+  /// material's base colour for this node's draw alone.
+  ///
+  /// **Below one alpha, the node is drawn blended**, in the transparent pass
+  /// and sorted with it, whatever its material's own alpha mode. A node at
+  /// any other tint than white is drawn on its own, never folded into an
+  /// automatic batch.
+  final Vector4 tint = Vector4.all(1.0);
+
+  /// Whether [tint] changes anything.
+  bool get isTinted =>
+      tint.x != 1.0 || tint.y != 1.0 || tint.z != 1.0 || tint.w != 1.0;
+
+  /// Whether this draws in the transparent pass: its material blends, or
+  /// [tint] fades it.
+  bool get drawsTransparent => material.isTransparent || tint.w < 1.0;
+
   /// The skeleton deforming this mesh, when it is skinned.
   ///
   /// Null for the overwhelming majority of meshes, and the renderer branches on

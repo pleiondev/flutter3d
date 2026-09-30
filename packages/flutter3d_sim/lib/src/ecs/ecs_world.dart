@@ -143,6 +143,34 @@ final class EcsWorld {
     return Entity.of(_generations.length - 1, 0);
   }
 
+  /// Whether [entity] is alive by the allocation and carries nothing restored
+  /// in place — a slot a [restore] put back that nobody has built yet.
+  ///
+  /// Components with a decoder do not count: [restore] has already made those
+  /// from the file, and building the entity again replaces them until the
+  /// second [restore] makes them again.
+  ///
+  /// **For what arrives during play.** A snapshot restores into a world that
+  /// already exists, and a component registered in place — a body in a
+  /// collision world, a brain — is filled in rather than rebuilt, so an entity
+  /// spawned after the level loaded has nothing to fill when the save is
+  /// loaded afresh, or after a rollback past its birth. A game that spawns
+  /// things builds them again: [restore] puts the allocation back, the game
+  /// builds each entity the save recorded *under that entity* (see
+  /// `ActorSystem.spawn`'s `entity`, which asks this first), and a second
+  /// [restore] pours the numbers into what was just built. Same index, same
+  /// generation, so everything that reads [Entity.index] — the order things
+  /// think in — agrees with the run that was saved.
+  bool vacant(Entity entity) {
+    if (!alive(entity)) return false;
+    final index = entity.index;
+    for (final store in _stores.values) {
+      if (store.restoreInPlace == null) continue;
+      if (store.values.containsKey(index)) return false;
+    }
+    return true;
+  }
+
   /// Removes an entity and everything on it.
   ///
   /// The generation moves on, which is what makes every handle anybody still

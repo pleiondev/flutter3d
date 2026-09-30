@@ -1,6 +1,6 @@
 name: flutter3d_app
 description: "What any Flutter application on flutter3d is assembled from: which backend to open and the runtime fallback, the surface a frame reaches Flutter through, widgets drawn in the scene, a level loaded into a scene, and storage."
-version: 0.8.0
+version: 0.8.1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

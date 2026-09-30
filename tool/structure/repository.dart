@@ -37,6 +37,7 @@ const List<String> applications = <String>[
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
+  'flutter3d_demo_river',
   'flutter3d_demo_strategy',
   'flutter3d_editor',
   'flutter3d_modeler',
@@ -629,6 +630,12 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flame_flutter3d/lib/src/world/grid_mover.dart': <String, String>{
+    'GridHeading':
+        'the four ways out of a square cell and standing still. A fifth '
+        'would not be a heading this grid is missing — a square cell has '
+        'no other side to leave by',
+  },
   'flutter3d_lti/lib/src/lti_launch_claims.dart': <String, String>{
     'LtiMessageType':
         "the IMS LTI 1.3 core spec's own closed set of message types "
@@ -1154,6 +1161,11 @@ const Map<String, String> boundaryEnumPackageExempt = <String, String>{
 /// file that stops being one of those stops being exempt.
 const Map<String, Map<String, String>> portableStepExempt =
     <String, Map<String, String>>{
+      'flame_flutter3d': <String, String>{
+        'lib/src/debug/hitboxes3d.dart':
+            'rings drawn round hitboxes for a person to look at; nothing steps '
+            'on a debug line',
+      },
       'flutter3d_sim': <String, String>{
         'lib/src/camera/camera_rig.dart':
             'a camera is where the picture is taken from; no run depends on it',

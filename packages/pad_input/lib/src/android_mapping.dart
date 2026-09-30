@@ -72,6 +72,42 @@ final class AndroidPadState implements PadMirror {
     LogicalKeyboardKey.gameButtonMode.keyId: PadButton.guide,
   };
 
+  /// The same controls by Android's own key codes, as the plugin forwards
+  /// them with the device they came from: `KEYCODE_BUTTON_A` is 96 and its
+  /// neighbours follow, and the d-pad's keys are 19 to 22.
+  ///
+  /// **The d-pad is a d-pad here.** Through Flutter's keyboard a d-pad
+  /// that sends keys is indistinguishable from a keyboard's arrows; from
+  /// the plugin it comes with its device, and it is the pad's.
+  static const Map<int, PadButton> buttonsByCode = <int, PadButton>{
+    19: PadButton.dpadUp,
+    20: PadButton.dpadDown,
+    21: PadButton.dpadLeft,
+    22: PadButton.dpadRight,
+    96: PadButton.faceSouth,
+    97: PadButton.faceEast,
+    99: PadButton.faceWest,
+    100: PadButton.faceNorth,
+    102: PadButton.shoulderLeft,
+    103: PadButton.shoulderRight,
+    104: PadButton.triggerLeft,
+    105: PadButton.triggerRight,
+    106: PadButton.stickLeftClick,
+    107: PadButton.stickRightClick,
+    108: PadButton.start,
+    109: PadButton.back,
+    110: PadButton.guide,
+  };
+
+  /// A button of this pad down or up, as the plugin forwards it by device.
+  void noteButton(PadButton button, {required bool down}) {
+    if (down) {
+      _keysDown.add(button.id);
+    } else {
+      _keysDown.remove(button.id);
+    }
+  }
+
   int? _deviceId;
   int? _leftTriggerAxis;
   int? _rightTriggerAxis;

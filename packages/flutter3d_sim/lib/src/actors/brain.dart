@@ -100,16 +100,26 @@ final class Mind {
   /// Seconds this step.
   late double dt;
 
-  /// What every actor in the world is currently paying attention to.
+  /// What this actor is paying attention to.
   ///
   /// The player, in every game so far, and named for what it is rather than
   /// for who it usually is: a game where the monsters chase a runaway cart
-  /// points this at the cart and nothing here changes.
+  /// points this at the cart and nothing here changes. With several players,
+  /// the one nearest this actor by walking — see [ActorSystem.step].
   Vector3 get focus => system.focus;
 
   /// The body at [focus], when there is one. For ignoring it in a raycast, and
   /// for telling whether a shot hit it.
   Collider? get focusBody => system.focusBody;
+
+  /// Which of the foci [focus] is, by its index in the list the game gave
+  /// [ActorSystem.step]. Zero with one.
+  int get focusIndex => system.focusIndex;
+
+  /// Counts an attack that landed on [body] against the focus it belongs to,
+  /// and says whether it belonged to one. See [ActorSystem.hurtFocus].
+  bool hurtFocus(Collider? body, double amount) =>
+      system.hurtFocus(body, amount);
 
   /// From the actor to the focus. Live, and not to be kept.
   Vector3 get toFocus => system.toFocus;

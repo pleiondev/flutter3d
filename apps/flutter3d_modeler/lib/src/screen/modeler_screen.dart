@@ -240,8 +240,25 @@ class _ModelerScreenState extends State<ModelerScreen>
   );
 
   /// What the last frame's `render` cost, which the run records against the
-  /// wall clock the ticker reports.
+  /// wall clock the ticker reports. Written during layout, so a plain field.
   int? _lastRenderMicros;
+
+  /// [_lastRenderMicros] as the status line shows it, published once a tick
+  /// rather than from inside the frame that measured it.
+  final ValueNotifier<int?> _frameCost = ValueNotifier<int?>(null);
+
+  /// Undo and redo as the top bar last drew them. A stroke or a transform
+  /// that ends on pointer-up closes its history transaction without a cubit
+  /// emit, and the screen no longer rebuilds every tick to notice.
+  (bool, bool, String?, String?)? _undoShown;
+
+  /// The playhead as the screen last built with it.
+  int? _frameShown;
+
+  /// Fires once per tick. Every viewport on this screen, and the few widgets
+  /// that follow the camera, listen to it; the rest of the screen rebuilds
+  /// only when something actually changes. See [ModelerViewport.frames].
+  final ValueNotifier<int> _viewportFrames = ValueNotifier<int>(0);
 
   /// The device, kept so a model opened later can be uploaded through it.
   GraphicsDevice? _device;
@@ -786,8 +803,25 @@ class _ModelerScreenState extends State<ModelerScreen>
       elapsed.inMicroseconds,
       _lastRenderMicros,
     );
-    if (said != null) _showReport(said);
-    setState(() {});
+    if (said != null) setState(() => _showReport(said));
+    _frameCost.value = _lastRenderMicros;
+    final undo = (
+      _history.canUndo,
+      _history.canRedo,
+      _history.undoSays,
+      _history.redoSays,
+    );
+    if (undo != _undoShown) setState(() => _undoShown = undo);
+    // `MorphsPanel`'s key indicator reads the playhead during build, so a
+    // playing clip rebuilds the screen once per animation frame — only then.
+    if (_state case ModelerReady(
+      mode: ModelerMode.animation,
+    ) when _frame.value != _frameShown) {
+      setState(() => _frameShown = _frame.value);
+    }
+    // The viewports, not the screen: panels, outliner and fields change on
+    // commands, which arrive through the cubit or their own `setState`.
+    _viewportFrames.value++;
   }
 
   @override
@@ -800,6 +834,8 @@ class _ModelerScreenState extends State<ModelerScreen>
     _autosave?.dispose();
     _lifecycle.dispose();
     _frame.dispose();
+    _viewportFrames.dispose();
+    _frameCost.dispose();
     if ((widget.mcpPort ?? kMcpPort) >= 0) unawaited(stopMcpServer());
     _cubit.close();
     super.dispose();

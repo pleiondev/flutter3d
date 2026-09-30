@@ -13,6 +13,7 @@ library;
 
 import 'package:flame/camera.dart' show Viewfinder;
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
 
 import '../transform/object3d_component.dart' show SyncDirection;
 import '../transform/plane.dart';
@@ -82,7 +83,59 @@ final class CameraSyncController {
     required this.viewfinder,
     required this.plane,
     this.direction = SyncDirection.sceneToFlame,
-  });
+    this.viewportHeight,
+    this.syncAngle = false,
+    Vector3? eyeOffset,
+  }) : _base = camera.readRotation(),
+       eyeOffset = eyeOffset?.clone();
+
+  /// Where a perspective camera stands from the point it looks at, in the
+  /// scene, at a zoom of one: `(0, 12, 10)` is above and behind a ground
+  /// plane's point. Flowing Flame to the scene with this given, the camera
+  /// looks at [Viewfinder.position] on [plane] from there, the offset divided
+  /// by [Viewfinder.zoom] and, with [syncAngle], turned by
+  /// [Viewfinder.angle] about the plane's normal.
+  ///
+  /// **Flame's camera, driving a perspective one.** Without it the camera was
+  /// put at the viewfinder's point, on the plane, and nothing Flame's camera
+  /// does reached a perspective lens: `follow` with its `maxSpeed`,
+  /// `setBounds`, a `MoveEffect` or a `ScaleEffect` on the viewfinder. With
+  /// it they all do, as they would a flat Flame game.
+  ///
+  /// **Under an orthographic lens it is the angle of view**: the camera
+  /// looks along it from as far as it says, and the zoom stays the lens's
+  /// height. An isometric board, a pyramid of cubes seen from a corner, is
+  /// an offset of equal parts on all three axes.
+  final Vector3? eyeOffset;
+
+  final Vector3 _looked = Vector3.all(double.nan);
+  double _lookedZoom = double.nan;
+  double _lookedAngle = double.nan;
+
+  /// The Flame viewport's height in logical pixels, read every frame; when
+  /// given, the two lenses agree to the pixel.
+  ///
+  /// **Pixel-exact, not a convention.** Without it the zoom is the
+  /// reciprocal of the height, which moves the right way and agrees with
+  /// nothing on screen. With it, [Viewfinder.zoom] is pixels per world unit,
+  /// the viewport's height over [OrthographicProjection.height], so a
+  /// 224-by-256 field fills the same pixels in both layers at any window
+  /// size: what a Space Invaders cabinet drawn in both engines needs.
+  final double Function()? viewportHeight;
+
+  /// Whether Flame's [Viewfinder.angle] and the camera's turn about the
+  /// plane's normal are kept the same: a screen that rolls.
+  ///
+  /// The camera's rotation when this controller was made is its rest, and
+  /// the angle is a turn about the plane's normal on top of it.
+  final bool syncAngle;
+
+  final Quaternion _base;
+
+  /// Takes the camera's rotation now as its rest: for a camera turned with
+  /// `lookAt` after this controller was made, whose rest was otherwise the
+  /// turn it had before.
+  void takeRest() => _base.setFrom(camera.readRotation());
 
   /// The flutter3d camera this controller reconciles.
   final CameraNode camera;
@@ -116,19 +169,72 @@ final class CameraSyncController {
     }
   }
 
+  /// Pixels per world unit for a view [height] units tall.
+  double _zoomFor(double height) {
+    final pixels = viewportHeight?.call();
+    return pixels == null ? 1.0 / height : pixels / height;
+  }
+
+  /// The view height in world units that [zoom] shows.
+  double _heightFor(double zoom) {
+    final pixels = viewportHeight?.call();
+    return pixels == null ? 1.0 / zoom : pixels / zoom;
+  }
+
   void _sceneToFlame() {
     viewfinder.position = plane.to2d(camera.readPosition());
     final projection = camera.projection;
     if (projection is OrthographicProjection) {
-      viewfinder.zoom = 1.0 / projection.height;
+      viewfinder.zoom = _zoomFor(projection.height);
+    }
+    if (syncAngle) {
+      final rest = Quaternion.copy(_base)..inverse();
+      viewfinder.angle = plane.angleFor(camera.readRotation() * rest);
     }
   }
 
+  /// Written only when the viewfinder moved: a camera written is a changed
+  /// node, and a still one had its shadows drawn again every frame.
+  ///
+  /// An orthographic lens looks along the offset from as far as it is
+  /// given, and its zoom is its height instead: nearer would not show less.
+  void _lookFrom(Vector3 offset, {required bool byZoom}) {
+    final at = viewfinder.position;
+    final zoom = byZoom ? viewfinder.zoom : 1.0;
+    final angle = syncAngle ? viewfinder.angle : 0.0;
+    if (_looked.x == at.x &&
+        _looked.y == at.y &&
+        _lookedZoom == zoom &&
+        _lookedAngle == angle) {
+      return;
+    }
+    _looked.setValues(at.x, at.y, 0.0);
+    _lookedZoom = zoom;
+    _lookedAngle = angle;
+    final target = plane.to3d(at);
+    final eye = plane.rotationFor(angle).rotated(offset / zoom)..add(target);
+    camera
+      ..setPositionFrom(eye)
+      ..lookAt(target);
+  }
+
   void _flameToScene() {
-    camera.setPositionFrom(plane.to3d(viewfinder.position));
+    final offset = eyeOffset;
     final projection = camera.projection;
+    if (offset != null) {
+      _lookFrom(offset, byZoom: projection is! OrthographicProjection);
+    } else {
+      camera.setPositionFrom(plane.to3d(viewfinder.position));
+    }
     if (projection is OrthographicProjection) {
-      camera.projection = projection.copyWith(height: 1.0 / viewfinder.zoom);
+      final height = _heightFor(viewfinder.zoom);
+      // A lens made only when the zoom moved, not every frame.
+      if (height != projection.height) {
+        camera.projection = projection.copyWith(height: height);
+      }
+    }
+    if (syncAngle && offset == null) {
+      camera.setRotation(plane.rotationFor(viewfinder.angle) * _base);
     }
   }
 }

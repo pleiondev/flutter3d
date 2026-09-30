@@ -1,6 +1,5 @@
 import 'package:flutter3d_core/formats.dart';
 
-import '../../formats/srgb.dart';
 import '../render/material.dart';
 import '../scene/light_node.dart';
 

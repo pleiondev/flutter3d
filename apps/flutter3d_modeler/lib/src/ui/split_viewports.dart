@@ -36,9 +36,14 @@ class SplitViewports extends StatefulWidget {
     required this.primary,
     required this.split,
     required this.onSplit,
+    this.frames,
   });
 
   final Renderer renderer;
+
+  /// Handed to the second view — see [ModelerViewport.frames]. The first
+  /// view is [primary], which carries its own.
+  final Listenable? frames;
 
   /// The stage the first view already draws — the second is built from it.
   final ModelerStage stage;
@@ -85,6 +90,7 @@ class _SplitViewportsState extends State<SplitViewports> {
     renderer: widget.renderer,
     stage: _other,
     onFrame: () {},
+    frames: widget.frames,
     grid: null,
     overlay: false,
   );

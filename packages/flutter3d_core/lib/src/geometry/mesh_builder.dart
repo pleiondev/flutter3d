@@ -56,6 +56,9 @@ final class MeshBuilder {
   /// and a zero tangent yields a degenerate TBN full of NaN. Getting a
   /// featureless black model out of a generator that simply did not mention
   /// colour is a bad trade for the sake of a memset.
+  ///
+  /// [color] is linear, unlike a material's `baseColor`: see
+  /// [VertexLayout.color].
   int addVertex({
     Vector3? position,
     Vector3? normal,

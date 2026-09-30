@@ -161,6 +161,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.8.2"
+  dashwire:
+    dependency: transitive
+    description:
+      name: dashwire
+      sha256: "01968fb5c899be87b07d49d7bccc855061dafca0f2662fe8f4e7becb286b0545"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
   dbus:
     dependency: transitive
     description:
@@ -273,6 +281,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.38.2"
+  flame_forge2d:
+    dependency: transitive
+    description:
+      name: flame_forge2d
+      sha256: "289b1d5450d7455b837e0ddb271017ecb191bd824940d1f800f12e9592c37746"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.19.3+7"
   flame_test:
     dependency: transitive
     description:
@@ -343,6 +359,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.2+hotfix.1"
+  forge2d:
+    dependency: transitive
+    description:
+      name: forge2d
+      sha256: "0f63d177f2e137a5007b879fda4076d0b81de065fcd72056c6fc896c82758bb7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.14.2+1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -870,6 +894,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.18"
+  tiled:
+    dependency: transitive
+    description:
+      name: tiled
+      sha256: f321ce0f27d103527b0d66878c60d9b000ce16c4ef4ae3ce77ce6f5ba4cf5db0
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.11.1"
   typed_data:
     dependency: transitive
     description:
@@ -1034,10 +1066,10 @@ packages:
     dependency: transitive
     description:
       name: xml
-      sha256: "67f0aff7be013d107995e9b75bf4e7f2c3ef2dfdb2c8e68024bba0a7fd5756a4"
+      sha256: "971043b3a0d3da28727e40ed3e0b5d18b742fa5a68665cca88e74b7876d5e025"
       url: "https://pub.dev"
     source: hosted
-    version: "7.0.1"
+    version: "6.6.1"
   yaml:
     dependency: transitive
     description:

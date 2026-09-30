@@ -1,3 +1,29 @@
+## 0.8.3
+
+* **`ModelWardrobe` puts models on nodes made before they arrived.** A game
+  builds its craft from primitives to play at once and loads model files
+  behind them; the wardrobe loads a `ModelLook` per key (file, length,
+  standing or centred, an offset), dresses every node recorded with
+  `dress` as its model arrives, fitted through `instantiateFitted`, and
+  drops a node with `forget`. `onDressed` sees each instance, for a game
+  that recolours part of it. A file that fails leaves its primitives. River
+  Sortie and Meteor Yard each had this written out by hand, three maps and
+  a load loop apiece.
+* **`Renderer.releaseMeshAfterFrame`**, through `flutter3d_core`.
+
+* **`ModelAsset.instantiateFitted` places a model at a length, not a
+  scale.** Free models arrive in whatever unit their author used: of the
+  two jets one River Sortie loads, one is about a metre long and the other
+  nine hundred units. The method scales a model uniformly so one axis of
+  its bounds, z by default, is the length asked for, and centres it on the
+  parent, or stands it on the parent with `onGround`. Two demos did this
+  by hand, line for line the same.
+* **Vertex colours are linear, and `linearFromSrgb` gets a picked colour
+  there**, with `MeshData.withColor` to paint a whole mesh, through
+  `flutter3d_core`, which this library re-exports.
+* **`Renderer.releaseTextureAfterFrame`, and a `renderPost` that gives its
+  bloom chain back**, through `flutter3d_core`.
+
 ## 0.8.2
 
 * **A sunlit room's inside corners stop leaking light, and a slope under a

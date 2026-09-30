@@ -51,7 +51,8 @@ final class ModelSession {
   /// whichever journal is attached regardless of caller, every command a
   /// person runs directly against the same shared [history] too — land on
   /// one recovery journal rather than each caller needing one of its own.
-  ModelSession(this.history, {this.path, this.client}) {
+  ModelSession(ModelHistory history, {this.path, this.client})
+    : _history = history {
     history.recoveryJournal ??= CommandJournal();
   }
 
@@ -87,7 +88,25 @@ final class ModelSession {
     };
   }
 
-  final ModelHistory history;
+  ModelHistory get history => _history;
+  ModelHistory _history;
+
+  /// Points this session at the document a host has just put on screen in
+  /// place of the old one.
+  ///
+  /// **The host's swap, not the agent's.** The rule above stands: nothing an
+  /// agent calls can change the document under itself. But a GUI that opens a
+  /// file installs a new [ModelHistory], and a session left on the old one
+  /// edits a document nobody can see or save — every tool call lands, reports
+  /// success, and vanishes.
+  void rebind(ModelHistory next) {
+    if (identical(next, _history)) return;
+    next.recoveryJournal ??= CommandJournal();
+    _history = next;
+    // Ids start again in the new project; a cached mesh for "object 3" is a
+    // mesh from the old one.
+    _document = ProjectModelDocument();
+  }
 
   /// Where this was opened from, or last saved to. Null only for a session
   /// built directly in a test.
@@ -97,7 +116,7 @@ final class ModelSession {
   /// object nobody has touched since the last export keeps the same
   /// [MeshData] — see `ProjectModelDocument`'s own doc comment for why that
   /// is worth doing at all.
-  final ProjectModelDocument _document = ProjectModelDocument();
+  ProjectModelDocument _document = ProjectModelDocument();
 
   ModelProject get project => history.project;
 

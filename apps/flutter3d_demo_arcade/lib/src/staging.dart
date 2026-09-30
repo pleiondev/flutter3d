@@ -71,6 +71,15 @@ extension ArcadeGameStaging on ArcadeGame {
           ..setLocalForward(Vector3(-0.2, -1.0, -0.12)),
       );
 
+    wardrobe = ModelWardrobe<CraftRole>(
+      device: device,
+      scene: scene,
+      looks: <CraftRole, ModelLook>{
+        for (final MapEntry(key: role, value: look) in _looks.entries)
+          role: ModelLook(look.file, length: look.length),
+      },
+      onDressed: _paintAccent,
+    );
     _buildWalls();
     _spawnShip(device, scene);
     _spawnBots(device, scene);
@@ -185,17 +194,17 @@ extension ArcadeGameStaging on ArcadeGame {
       ),
       name: 'ship primitive',
     );
-    // Bridged through a holder, drawn by its child: see [ArcadeGameCrafts]
-    // for why a model arriving later swaps the child and not the holder.
-    final holder = SceneNode(name: 'ship')..add(mesh);
-
+    // Drawn by its visual node: see [ArcadeGameCrafts] for why a model
+    // arriving later swaps what that node holds and not the bridged node.
     ship = ShipComponent(
       body: _shipBody,
-      node: holder,
+      node: SceneNode(name: 'ship'),
       scene: scene,
       plane: ArcadeGame.groundPlane,
     )..priority = -50;
-    _colliderComponents[_shipBody.collider] = ship;
+    ship.visual.add(mesh);
+    wardrobe.dress(ship.visual, CraftRole.ship);
+    _colliderComponents.register(_shipBody.collider, ship);
 
     // The bridge listens on the sensor, not the hull: see [shipSensor] for
     // why the hull never reports a bot. The sensor also overlaps the hull
@@ -208,11 +217,7 @@ extension ArcadeGameStaging on ArcadeGame {
         kind: ColliderKind.trigger,
       ),
     );
-    CollisionBridge(
-      collider: shipSensor,
-      component: ship,
-      resolveOther: (Collider other) => _colliderComponents[other],
-    );
+    _colliderComponents.bridge(collider: shipSensor, component: ship);
     ship.onCollisionStartCallback =
         (Set<Vector2> points, PositionComponent other) {
           if (other is ActorComponent) _onShipHitBot(other);
@@ -288,18 +293,15 @@ extension ArcadeGameStaging on ArcadeGame {
         ),
         name: 'bot $i primitive',
       );
-      final holder = SceneNode(name: 'bot $i')..add(mesh);
-      final role = hunter ? CraftRole.hunter : CraftRole.patrol;
-      _holderRoles[holder] = role;
-      _dress(holder, role);
-
       final bot = ActorComponent(
         actor: actor,
-        node: holder,
+        node: SceneNode(name: 'bot $i'),
         scene: scene,
         plane: ArcadeGame.groundPlane,
       )..priority = -50;
-      _colliderComponents[body.collider] = bot;
+      bot.visual.add(mesh);
+      wardrobe.dress(bot.visual, hunter ? CraftRole.hunter : CraftRole.patrol);
+      _colliderComponents.register(body.collider, bot);
       bots.add(bot);
       add(bot);
     }
