@@ -420,6 +420,34 @@ void main() {
       ], reason: 'the level left behind, then the one the race lost');
     });
   });
+
+  group('an edited level', () {
+    test('takes the run over from the build it replaces', () async {
+      final game = _game();
+      await game.begin();
+      final old = (game.status as RunPlaying<_Level>).level;
+      final edited = _Level('one')..outcome = RunOutcome.won;
+
+      expect(game.replaceLevel(edited), isTrue);
+
+      final now = game.status as RunPlaying<_Level>;
+      expect(now.level, same(edited));
+      expect(now.asset, 'one', reason: 'the same level, changed');
+      expect(now.outcome, RunOutcome.won, reason: 'read off the new build');
+      expect(edited.restored, <String, Object?>{'where': 'one'});
+      expect(game.closed, <_Level>[old]);
+      expect(game.opened, <String>['one'], reason: 'nothing was loaded again');
+    });
+
+    test('is let go when no level is being played', () async {
+      final game = _game();
+      final edited = _Level('one');
+
+      expect(game.replaceLevel(edited), isFalse);
+      expect(game.closed, <_Level>[edited]);
+      expect(game.level, isNull);
+    });
+  });
 }
 
 const Snapshot snapshotOfNothing = Snapshot(<String, Object?>{});

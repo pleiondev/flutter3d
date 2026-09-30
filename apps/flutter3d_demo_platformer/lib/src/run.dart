@@ -48,15 +48,29 @@ typedef Carried = ({int lives, int deaths, double elapsed, int coins});
 ///
 /// Deliberately *not* in `staging.dart`: everything here needs a
 /// [GraphicsDevice], and that file exists to be callable without one.
+///
+/// [document] builds that level instead of reading [asset]: a level edited
+/// in the editor, which exists as a document and not yet as an asset.
 Future<({EntityRegistry kinds, LoadedLevel loaded, FixtureVisuals fixtures})>
-openLevel(String asset, {required GraphicsDevice device}) async {
+openLevel(
+  String asset, {
+  required GraphicsDevice device,
+  Level? document,
+}) async {
   final kinds = platformerRegistry();
-  final loaded = await LevelLoader().load(
-    asset,
-    device: device,
-    registry: kinds,
-    rules: platformerRules(),
-  );
+  final loaded = document == null
+      ? await const LevelLoader().load(
+          asset,
+          device: device,
+          registry: kinds,
+          rules: platformerRules(),
+        )
+      : await const LevelLoader().build(
+          document,
+          device: device,
+          registry: kinds,
+          rules: platformerRules(),
+        );
   final fixtures = FixtureVisuals(
     loaded.scene,
     loaded,
@@ -118,7 +132,21 @@ final class PlatformerRun extends RunSession<LevelReady> {
   Future<LevelReady> open(String asset) async {
     final device = await openDevice();
     _device = device;
-    final (:kinds, :loaded, :fixtures) = await openLevel(asset, device: device);
+    final level = await _build(asset, device);
+    onLevelBuilt(asset, level, device);
+    return level;
+  }
+
+  Future<LevelReady> _build(
+    String asset,
+    GraphicsDevice device, {
+    Level? document,
+  }) async {
+    final (:kinds, :loaded, :fixtures) = await openLevel(
+      asset,
+      device: device,
+      document: document,
+    );
 
     final staged = stage(
       loaded.level,
@@ -132,13 +160,65 @@ final class PlatformerRun extends RunSession<LevelReady> {
       elapsed: _carried?.elapsed ?? 0.0,
     );
 
-    final level = LevelReady(
-      loaded: loaded,
-      staged: staged,
-      fixtures: fixtures,
-    );
-    onLevelBuilt(asset, level, device);
-    return level;
+    return LevelReady(loaded: loaded, staged: staged, fixtures: fixtures);
+  }
+
+  /// An edit of the level being played, built and waiting for
+  /// [installEdit], with the build it was made to replace.
+  ({LevelReady edited, LevelReady replaces})? _edit;
+
+  /// Whether an edit went in and the widget has not been told yet.
+  bool _editUntold = false;
+
+  /// Builds [next], an edit of the level being played, without touching the
+  /// run: textures, meshes, colliders and a simulation of its own, so the
+  /// swap itself can be synchronous. Throws, and changes nothing, when
+  /// nothing is being played, when [next] is another level, or when it does
+  /// not build.
+  Future<void> prepareEdit(Level next) async {
+    final playing = status;
+    if (playing is! RunPlaying<LevelReady>) {
+      throw StateError('no level is being played');
+    }
+    final name = playing.level.loaded.level.name;
+    if (next.name != name) {
+      throw StateError('the game is playing $name, not ${next.name}');
+    }
+    final device = await openDevice();
+    final edited = await _build(playing.asset, device, document: next);
+    final waiting = _edit;
+    if (waiting != null) close(waiting.edited);
+    _edit = (edited: edited, replaces: playing.level);
+  }
+
+  /// Swaps in what [prepareEdit] built, the run carried over. Called inside
+  /// the timeline's replay, so nothing here may tell the widget: that is
+  /// [announceEdit]'s, once the run has been brought back to now.
+  ///
+  /// A build made for a level that has since been left is let go.
+  void installEdit() {
+    final edit = _edit;
+    if (edit == null) return;
+    _edit = null;
+    if (!identical(level, edit.replaces)) {
+      close(edit.edited);
+      return;
+    }
+    _editUntold = replaceLevel(edit.edited);
+  }
+
+  /// Installs the edit if [installEdit] has not, then hands the new build to
+  /// [onLevelBuilt] as a load would: the runner's node, the camera, a new
+  /// demo from here.
+  void announceEdit() {
+    installEdit();
+    final playing = status;
+    final device = _device;
+    if (!_editUntold || playing is! RunPlaying<LevelReady> || device == null) {
+      return;
+    }
+    _editUntold = false;
+    onLevelBuilt(playing.asset, playing.level, device);
   }
 
   @override

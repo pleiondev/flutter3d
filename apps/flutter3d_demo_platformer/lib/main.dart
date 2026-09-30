@@ -408,8 +408,37 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  /// Where the run was standing when it was last written to disk.
+  /// `HR3`: the level on screen, as the editor sees it.
+  LiveLevel? _live;
+
+  /// Lets a level saved in the editor into this run, or tells the door
+  /// which level is up now.
   ///
+  /// **Registered with the first level rather than in [initState]**, because
+  /// a `LiveLevel` compares every edit with the level it holds and there is
+  /// none before one loads; a VM service extension cannot be registered
+  /// twice, so later levels move the one door along. Everything the edit
+  /// takes is the run's: it builds the edited level ahead, swaps it in inside
+  /// [_timeline]'s replay when the simulation has to be lived again, and only
+  /// then tells this widget, through [PlatformerRun.onLevelBuilt] like any
+  /// load.
+  void _takeEdits(LevelReady level) {
+    final live = _live;
+    if (live != null) {
+      live.level = level.loaded.level;
+      return;
+    }
+    final run = _run.run;
+    registerLevelExtension(
+      _live = LiveLevel(
+        level: level.loaded.level,
+        timeline: _timeline,
+        prepare: run.prepareEdit,
+        rebuild: (Level next) => run.installEdit(),
+        present: (Level next, LevelDiff diff) => run.announceEdit(),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -571,6 +600,7 @@ class _GameScreenState extends State<GameScreen>
         onLevelBuilt: (String asset, LevelReady level, GraphicsDevice device) {
           setState(() => _levelArrived(level, device));
           _beginDemo(asset, level);
+          _takeEdits(level);
         },
       ),
     );

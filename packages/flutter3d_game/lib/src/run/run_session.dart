@@ -311,6 +311,26 @@ abstract base class RunSession<L> {
     saves.write(playing.asset, snapshotOf(playing.level));
   }
 
+  /// Puts [next], another build of the level being played, in its place, and
+  /// carries the run over: [snapshotOf] the old one, [restoreInto] the new,
+  /// then the old one is [close]d.
+  ///
+  /// **For a level edited under a running game**, which has to be built
+  /// before it can be swapped in and must not start the level again when it
+  /// is. The asset stays the same: it is the same level, changed. False, and
+  /// [next] closed, when no level is being played — a load under way wins.
+  bool replaceLevel(L next) {
+    final playing = _status;
+    if (playing is! RunPlaying<L>) {
+      close(next);
+      return false;
+    }
+    restoreInto(next, snapshotOf(playing.level));
+    _emit(RunPlaying<L>(playing.asset, next, outcome: outcomeOf(next)));
+    close(playing.level);
+    return true;
+  }
+
   void _emit(RunStatus<L> next) {
     _status = next;
     onChanged?.call(next);

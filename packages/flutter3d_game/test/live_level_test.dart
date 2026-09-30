@@ -32,7 +32,11 @@ Level _level({double wallAt = 5.0, double fog = 0.0}) =>
     Level.fromJson(_document(wallAt: wallAt, fog: fog));
 
 /// What a game did with each call, in order.
-({LiveLevel live, List<String> calls}) _game({RunTimeline? timeline}) {
+({LiveLevel live, List<String> calls}) _game({
+  RunTimeline? timeline,
+  bool prepares = false,
+  String? prepareFails,
+}) {
   final calls = <String>[];
   return (
     live: LiveLevel(
@@ -40,6 +44,13 @@ Level _level({double wallAt = 5.0, double fog = 0.0}) =>
       present: (next, diff) => calls.add('present fog=${diff.fog}'),
       rebuild: (next) => calls.add('rebuild ${next.brushes.single.centre.x}'),
       timeline: timeline,
+      prepare: prepares || prepareFails != null
+          ? (next) async {
+              await Future<void>.delayed(Duration.zero);
+              if (prepareFails != null) throw StateError(prepareFails);
+              calls.add('prepare');
+            }
+          : null,
     ),
     calls: calls,
   );
@@ -103,9 +114,9 @@ void main() {
   });
 
   group('ext.flutter3d.level.apply', () {
-    test('applies a document whose hash matches, and reports how', () {
+    test('applies a document whose hash matches, and reports how', () async {
       final game = _game();
-      final (:result, :error) = answerLevelApply(
+      final (:result, :error) = await answerLevelApply(
         game.live,
         _send(_level(fog: 0.04)),
       );
@@ -115,29 +126,65 @@ void main() {
       expect(result['rebuiltInPlace'], isFalse);
     });
 
-    test('refuses a document that changed on the way', () {
+    test('refuses a document that changed on the way', () async {
       final game = _game();
       final parameters = _send(_level(fog: 0.04))
         ..['hash'] = _level().digestHex;
 
-      final (:result, :error) = answerLevelApply(game.live, parameters);
+      final (:result, :error) = await answerLevelApply(game.live, parameters);
 
       expect(result, isNull);
       expect(error, contains('changed on the way'));
       expect(game.calls, isEmpty);
     });
 
-    test('refuses what is not a level, and what is missing', () {
+    test('builds the level ahead, then swaps it in', () async {
+      final game = _game(prepares: true);
+      final (:result, :error) = await answerLevelApply(
+        game.live,
+        _send(_level(wallAt: 8.0)),
+      );
+
+      expect(error, isNull);
+      expect(game.calls, <String>[
+        'prepare',
+        'rebuild 8.0',
+        'present fog=false',
+      ]);
+      expect(game.live.level.brushes.single.centre.x, 8.0);
+    });
+
+    test('keeps the level it had when the new one does not build', () async {
+      final game = _game(prepareFails: 'no texture stone.png');
+      final (:result, :error) = await answerLevelApply(
+        game.live,
+        _send(_level(wallAt: 8.0)),
+      );
+
+      expect(result, isNull);
+      expect(error, contains('did not build'));
+      expect(error, contains('no texture stone.png'));
+      expect(game.calls, isEmpty);
+      expect(game.live.level.brushes.single.centre.x, 5.0);
+    });
+
+    test('the same level again prepares nothing', () async {
+      final game = _game(prepares: true);
+      await answerLevelApply(game.live, _send(_level()));
+      expect(game.calls, isEmpty);
+    });
+
+    test('refuses what is not a level, and what is missing', () async {
       final game = _game();
       expect(
-        answerLevelApply(game.live, <String, String>{
+        (await answerLevelApply(game.live, <String, String>{
           'document': '[1, 2]',
           'hash': 'x',
-        }).error,
+        })).error,
         contains('not a level'),
       );
       expect(
-        answerLevelApply(game.live, <String, String>{}).error,
+        (await answerLevelApply(game.live, <String, String>{})).error,
         contains('takes a document'),
       );
     });

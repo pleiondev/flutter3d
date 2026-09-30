@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A level that has to be built before it can be swapped in.**
+  `LiveLevel(prepare:)` is awaited by `applyWhenReady`, which the extension
+  now calls, before anything changes; a level whose `prepare` throws is
+  refused with what it threw and the game keeps the one it had.
+  `answerLevelApply` returns a `Future`. `LiveLevel.level` is settable, for a
+  game that moved to another level by its own means.
+- **`RunSession.replaceLevel` puts a new build of the level being played in
+  its place** and carries the run over through the game's own `snapshotOf`
+  and `restoreInto`, without loading anything or starting the level again.
+
 - **`RunTimeline.replayUnderNewCode` shows what a code reload changed.** It
   lives the last seconds again under the new code from the nearest keyframe,
   compares the state at each keyframe the old run left and at the present,
