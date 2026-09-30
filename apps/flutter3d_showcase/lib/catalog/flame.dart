@@ -107,4 +107,40 @@ const List<Feature> flameFeatures = <Feature>[
     evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
     packages: <String>['flame_flutter3d', 'flutter3d_particles'],
   ),
+  Feature(
+    id: 'flame-seats',
+    title: 'Two layouts, and whoever presses first is player one',
+    category: Category.flame,
+    summary:
+        'PlayerSeats over two keyboard layouts read from the keyboard '
+        'itself: a layout joins on its own key, in the order people press.',
+    since: '0.8.4',
+    evidence: 'lets players claim one by pressing, in the order they join',
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d', 'flutter3d_game', 'flutter3d_sim'],
+  ),
+  Feature(
+    id: 'flame-horde',
+    title: 'Ninety-six monsters in one draw, chasing two players',
+    category: Category.flame,
+    summary:
+        'Simulated actors drawn as slots of one instanced batch, stepped '
+        'towards two players at once, each going for the one it can reach.',
+    since: '0.8.4',
+    evidence: 'draws a simulated actor as a slot of a shared',
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d', 'flutter3d_sim'],
+  ),
+  Feature(
+    id: 'flame-level-scene',
+    title: 'A level is a scene, and the camera frames the whole party',
+    category: Category.flame,
+    summary:
+        'A Flame game moving from one level\'s scene to the next, and a '
+        'camera eased towards a view worked out from four walkers at once.',
+    since: '0.8.4',
+    evidence: 'moves the game to the next level\'s scene with the camera',
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d'],
+  ),
 ];
