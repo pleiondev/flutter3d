@@ -29,6 +29,29 @@ final class TimelineBranched extends TimelineCommand {
   final int step;
 }
 
+/// The level under the run was replaced, taking effect before [step]: the
+/// run was replayed from there under the level whose document digests to
+/// [levelDigest] (`Level.digestHex`).
+///
+/// **What makes a run with an edit in it reproducible.** A tape replayed
+/// against the old level from the start would part from this run at [step];
+/// with this command in hand, a replay swaps the level at the same step and
+/// arrives where the run did.
+final class TimelineLevelSwapped extends TimelineCommand {
+  const TimelineLevelSwapped(this.step, this.levelDigest);
+  final int step;
+  final String levelDigest;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TimelineLevelSwapped &&
+      other.step == step &&
+      other.levelDigest == levelDigest;
+
+  @override
+  int get hashCode => Object.hash(step, levelDigest);
+}
+
 /// Pause, step, rewind and branch, built on a live [RewindBuffer].
 ///
 /// **What `rp-02`'s editor panel is a face for, not the panel itself.** The
@@ -153,6 +176,54 @@ final class RunTimeline {
     rewind.cut(point);
     _paused = false;
     _history.add(TimelineBranched(point.step));
+  }
+
+  /// Replaces the level under the run without the run jumping: [swap] puts
+  /// the new level in place, and the steps since the last keyframe are lived
+  /// again under it, so the present is one the new level could have led to.
+  ///
+  /// **For the half of an edit the simulation reads** — brushes, entities,
+  /// the ground (`LevelDiff.simulation`). Swapped in place, a crate moved in
+  /// the editor would teleport mid-run, and nothing replaying the tape could
+  /// reach that state. Swapped here, the keyframe is restored, [swap] runs,
+  /// and the recorded input plays forward with the live devices muted, as
+  /// [releaseAt] plays it; at most one keyframe interval is replayed. The
+  /// buffer is then rebased on that keyframe (`RewindBuffer.rebaseAt`),
+  /// since nothing held on either side of it belongs to the new level.
+  ///
+  /// [swap] must replace only what the snapshots do not carry — the level,
+  /// its colliders, what it spawned at load — and leave what they do carry to
+  /// the restore. With no keyframe yet held, [swap] runs at once, as at the
+  /// first step of a run.
+  ///
+  /// Returns the step the new level took effect before, which is what
+  /// [TimelineLevelSwapped] records.
+  int swapLevel(void Function() swap, {required String levelDigest}) {
+    final point = rewind.rewindTo(rewind.step);
+    if (point == null) {
+      swap();
+      _history.add(TimelineLevelSwapped(rewind.step, levelDigest));
+      return rewind.step;
+    }
+    restore(point.snapshot);
+    swap();
+    final replay = InputTapePlayback(point.tapeToPoint);
+    final wasMuted = input.muted;
+    input.muted = true;
+    try {
+      while (!replay.isFinished) {
+        replay.applyTo(input);
+        input.beginStep();
+        stepSim(stepSeconds);
+        input.endStep();
+      }
+    } finally {
+      input.muted = wasMuted;
+    }
+    rewind.rebaseAt(point);
+    final at = point.step - point.replayed;
+    _history.add(TimelineLevelSwapped(at, levelDigest));
+    return at;
   }
 
   /// [releaseAt], given the step directly rather than a [RewindPoint] —

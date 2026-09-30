@@ -191,4 +191,6 @@ String _describe(TimelineCommand command) => switch (command) {
   TimelineResumed() => 'resumed',
   TimelineStepped() => 'stepped',
   TimelineBranched(:final step) => 'branched:$step',
+  TimelineLevelSwapped(:final step, :final levelDigest) =>
+    'level:$step:$levelDigest',
 };

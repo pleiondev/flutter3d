@@ -1,3 +1,12 @@
+## Unreleased
+
+- **`RunTimeline.swapLevel` replaces the level under a running game without
+  the run jumping.** It restores the last keyframe, lets the caller swap the
+  level, replays the recorded input to the present with the devices muted,
+  and rebases the buffer there. `TimelineLevelSwapped` records the step and
+  the level's digest, so a replay that swaps at the same step arrives where
+  the run did.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

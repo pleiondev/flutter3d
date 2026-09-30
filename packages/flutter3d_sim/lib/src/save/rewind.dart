@@ -180,6 +180,25 @@ final class RewindBuffer {
     _keyframes.removeWhere((k) => k.step > point.step);
   }
 
+  /// Makes [point]'s keyframe the oldest thing held: the keyframes on either
+  /// side of it and the entries before it are forgotten, the entries after it
+  /// kept.
+  ///
+  /// For a change to the world the snapshots do not carry — a level edited
+  /// while the run goes on. The run is replayed from [point]'s keyframe under
+  /// the new world; the keyframes before it describe states the old world
+  /// led to, and the ones after it states the replay has just replaced, so a
+  /// rewind through either would put one world's state under the other.
+  void rebaseAt(RewindPoint point) {
+    final base = point.step - point.replayed;
+    _keyframes.removeWhere((k) => k.step != base);
+    final drop = base - _dropped;
+    if (drop > 0) {
+      recorder.tape.frames.removeRange(0, drop);
+      _dropped = base;
+    }
+  }
+
   /// Forgets everything, for a new level.
   void reset() {
     recorder.tape.frames.clear();
