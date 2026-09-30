@@ -82,7 +82,7 @@ export function compareVersions(a, b) {
  * a page for news the record does not have, and a new page cannot be missing
  * from it.
  */
-export function changelogMarkdown(bundle) {
+export function changelogMarkdown(bundle, packages = []) {
   if (!bundle) return indexMarkdown(null);
   const releases = new Map();
   const release = (version) => {
@@ -92,6 +92,10 @@ export function changelogMarkdown(bundle) {
   for (const f of bundle.manifest.features) {
     release(f.since).added.push(f);
     for (const c of f.changes ?? []) release(c.version).changed.push({ f, c });
+  }
+  // A package with no showcase pages still has releases worth listing.
+  for (const p of packages) {
+    for (const version of p.leads.keys()) release(version);
   }
   const demo = (f) => `[live demo](/showcase/#/p/${f.id})`;
   const lines = [];
@@ -114,8 +118,62 @@ export function changelogMarkdown(bundle) {
       }
       lines.push('');
     }
+    for (const p of packages) {
+      const leads = p.leads.get(version);
+      if (!leads?.length) continue;
+      // pub.dev anchors a CHANGELOG heading by its digits: `## 0.8.3` is #083.
+      const record = `https://pub.dev/packages/${p.name}/changelog#${version.replace(/\D/g, '')}`;
+      lines.push(`**${p.title}** ([${p.name} ${version}](${record}))`, '');
+      const items = leads.map((lead) => `- ${lead}`);
+      // A long release folds, so the page's releases stay a list you can scan.
+      if (items.length > kFoldAfter) {
+        lines.push(`<details><summary>${items.length} changes</summary>`, '', ...items, '', '</details>', '');
+      } else {
+        lines.push(...items, '');
+      }
+    }
   }
   return lines.join('\n');
+}
+
+/** How many entries a package's release lists before it folds. */
+const kFoldAfter = 8;
+
+/**
+ * A package CHANGELOG as `version → the lead of each entry`, newest first.
+ *
+ * **The lead is the entry's own bold claim**, the sentence every entry in this
+ * repository opens with ("**A host that goes lets go of the game.**"), so the
+ * page quotes the record rather than summarising it. Entries are paragraphs or
+ * `-`/`*` list items; one that opens without a bold claim is skipped rather
+ * than guessed at.
+ */
+export function changelogLeads(text) {
+  const leads = new Map();
+  let version = null;
+  let block = [];
+  const flush = () => {
+    const entry = block.join(' ').replace(/\s+/g, ' ').trim();
+    block = [];
+    if (!version) return;
+    const lead = entry.match(/^(?:[-*]\s+)?\*\*(.+?)\*\*/)?.[1];
+    if (lead) leads.get(version).push(lead.trim().replace(/[.:]$/, ''));
+  };
+  for (const line of text.split('\n')) {
+    const heading = line.match(/^##\s+(\d+\.\d+\.\d+\S*)/);
+    if (heading) {
+      flush();
+      version = heading[1];
+      leads.set(version, []);
+    } else if (line.trim() === '') {
+      flush();
+    } else {
+      if (/^[-*]\s/.test(line)) flush();
+      block.push(line.trim());
+    }
+  }
+  flush();
+  return leads;
 }
 
 /**
