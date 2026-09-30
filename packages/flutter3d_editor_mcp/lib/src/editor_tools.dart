@@ -111,6 +111,102 @@ Answer Function(EditorSession, Map<String, Object?>) _command(String name) =>
       return session.run(command);
     };
 
+/// `HR5`: the game the level belongs to, run and driven — the editor
+/// application's Play toolbar, as tools.
+List<EditorTool> get _playTools => <EditorTool>[
+  _told(
+    Tool(
+      name: 'play',
+      description:
+          'Run the game this level belongs to (the Flutter project above the '
+          'level file) with flutter run, and wait until it is up or has '
+          'failed; answers with where it runs and the last lines it printed. '
+          'Once it runs, every save of this level is sent to it and the game '
+          'takes it without starting over. Does nothing if it is already '
+          'running on that device.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'device': StringSchema(
+            description:
+                'an id play_devices lists; leave out for the tool\'s own choice',
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) {
+      final device = arguments['device'];
+      return session.play.start(device: device is String ? device : null);
+    },
+  ),
+  _told(
+    Tool(
+      name: 'play_status',
+      description:
+          'Where the game started by play is — starting, running, stopped — '
+          'and the last lines of its console: what the game printed, build '
+          'errors, what the last play_swap said.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'lines': IntegerSchema(
+            description: 'how many console lines; default 40',
+            minimum: 0,
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) {
+      final lines = arguments['lines'];
+      return (
+        did: true,
+        says: session.play.status(lines: lines is int ? lines : 40),
+      );
+    },
+  ),
+  _told(
+    Tool(
+      // `play_swap` and not the word flutter itself uses for it: CONTRIBUTING
+      // keeps that word out of the packages for a weapon's, and `HotSwap` is
+      // what the engine calls the same thing on the game's side.
+      name: 'play_swap',
+      description:
+          'Swap the running game\'s code after it changed, the way flutter '
+          'run does on r: the game keeps its state and picks up the new code, '
+          'shaders and models. With restart, a hot restart from main instead. '
+          'Answers with what the tool said, including why it refused.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'restart': BooleanSchema(
+            description: 'true for a hot restart; default false',
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.play.swap(restart: arguments['restart'] == true),
+  ),
+  _told(
+    Tool(
+      name: 'play_stop',
+      description:
+          'Stop the game started by play, and the flutter run with it.',
+      inputSchema: ObjectSchema(),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.play.stop(),
+  ),
+  _told(
+    Tool(
+      name: 'play_devices',
+      description:
+          'The devices play can run the game on — this computer, a browser, '
+          'a phone on the cable — one per line with the id play takes.',
+      inputSchema: ObjectSchema(),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.play.listDevices(),
+  ),
+];
+
 /// The ten document commands, one tool each, under the names they already have.
 ///
 /// **Named from [editorCommandNames] and nowhere else.** That list lives beside
@@ -493,6 +589,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       return session.save(path is String ? path : null);
     },
   ),
+  ..._playTools,
   EditorTool(
     Tool(
       name: 'screenshot',

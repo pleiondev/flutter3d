@@ -46,6 +46,12 @@ dependencies:
   flutter3d_editor_widgets:
     path: ../../packages/flutter3d_editor_widgets
 
+  # Play: the project run with `flutter run --machine`, its devices, and a
+  # saved level sent to it. Shared with `flutter3d_editor_mcp`, so an agent's
+  # Play is this toolbar's.
+  flutter3d_editor_play:
+    path: ../../packages/flutter3d_editor_play
+
   # Level geometry to mesh nodes. `LevelLoader.build` is what an editor needs
   # and what a game never did: a level drawn from a document in memory rather
   # than from an asset. And `writeFileAtomically` through `native.dart`: this

@@ -21,6 +21,10 @@ dependencies:
   # `EditorCommand.fromJson` rather than a switch written a second time here.
   flutter3d_editor_core: ^0.8.0
 
+  # Play: the game the level belongs to, run with `flutter run --machine`
+  # and sent the level when it is saved — the editor application's own.
+  flutter3d_editor_play: ^0.8.0
+
   # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
   flutter3d_sim: ^0.8.0
 

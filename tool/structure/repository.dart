@@ -117,6 +117,10 @@ const Map<String, String> flatDartPackages = <String, String>{
       'which cannot resolve a package that depends on the Flutter SDK — so a '
       'single Flutter import here is not a heavier process, it is a server '
       'that will not start on any machine that has not got the Flutter tool',
+  'flutter3d_editor_play':
+      'the editor\'s MCP server runs Play through it, and that server is '
+      'started with `dart run`: a Flutter import here is `play` taking the '
+      'whole server down with it',
   'flutter3d_hardware':
       'the vocabulary a backend implements named no graphics API already; '
       '`GraphicsDevice.present` was its one Flutter import, returning the '

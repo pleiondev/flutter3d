@@ -1,0 +1,36 @@
+name: flutter3d_editor_play
+description: "Play from a level editor: the game a level belongs to run with `flutter run --machine`, reloaded, stopped, and handed a saved level while it runs."
+version: 0.8.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - level-editor
+  - hot-reload
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # `Level.digestHex`, which the game checks a level it is sent against.
+  flutter3d_sim: ^0.8.0
+
+  # The running game's VM service, where `ext.flutter3d.level.apply` is.
+  vm_service: ^15.3.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **Plain Dart with `dart:io` in it, and a package of its own for that.**
+#
+# Play starts a process and talks to it, which is exactly what
+# `flutter3d_editor_core` is written never to do: that package opens a level
+# with no disk and no process, so a validator or a web build can use it. The
+# editor application had this code under `lib/src/play`, where the editor's
+# MCP server, which wants the same Play for an agent, could not reach it
+# without depending on an application. Here both depend on it, and neither
+# depends on the other.

@@ -38,3 +38,4 @@ export 'src/editor_server.dart';
 export 'src/editor_session.dart';
 export 'src/editor_tools.dart';
 export 'src/level_view.dart';
+export 'src/play_session.dart';

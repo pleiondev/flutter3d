@@ -238,6 +238,7 @@ point of §3.3.
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; `LevelScene`, which turns a level into brush meshes, materials, lights and probes with no Flutter; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
 | `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow`, `FieldRow` and `EditorWidgetsTheme` so far |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
+| `flutter3d_editor_play` | Play from a level editor: the game a level belongs to run with `flutter run --machine`, swapped, restarted and stopped, its devices listed, and a saved level sent to it. What the editor's Play button and `flutter3d_editor_mcp`'s `play` tools both run. Plain Dart with `dart:io`, which is why it is not in `flutter3d_editor_core` |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
 | `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build, and the bakes that need a renderer or a mesh editor ahead of time: levels of detail, impostors, cluster tables, a file per device class, paged splat captures, six-way smoke sheets, and the light optimizer's command. That is why it depends on `flutter3d_cpu`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_editor_core` and `flutter3d_sim`. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
@@ -2688,7 +2689,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **10860 tests** across 41 packages and 10 applications |
+| Unit tests | **10875 tests** across 42 packages and 10 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3711,7 +3712,8 @@ what went out at 0.4.2.
 4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_sim`
-6. `flutter3d_app`, `flutter3d_editor_core`, `flutter3d_net`, `flutter3d_lab`
+6. `flutter3d_app`, `flutter3d_editor_core`, `flutter3d_editor_play`,
+   `flutter3d_net`, `flutter3d_lab`
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,

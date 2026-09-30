@@ -1,3 +1,13 @@
+## Unreleased
+
+- **An agent can play the level it is editing.** `play` runs the game the
+  level belongs to through `flutter3d_editor_play`, the editor's own Play,
+  and waits until it is up or has failed; `play_status`, `play_swap`,
+  `play_stop` and `play_devices` follow it. While it runs, `save` sends the
+  level to the game, which takes it without starting over.
+- **`EditorSession.save` returns a `Future`**, for that send.
+  `EditorSession(play:)` takes a `PlaySession` of the caller's making.
+
 ## 0.8.0
 
 Twenty-one tools, where 0.7 had seventeen, and the server can see the level.
