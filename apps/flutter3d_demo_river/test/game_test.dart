@@ -4,6 +4,8 @@
 /// Flame's collision detection finding two hitboxes overlapping.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flame/collisions.dart' show ShapeHitbox;
 import 'package:flame/components.dart' show TextComponent, Vector2;
 import 'package:flame_test/flame_test.dart';
@@ -363,9 +365,15 @@ void main() {
     // Still on the water, only nearer: it is distance that wakes a target,
     // not the jet being in the air.
     game.jet.position.y = -(mover.plan.distance - RiverGame.wakeRange + 5.0);
-    await _run(game, 60);
+    // The furthest it got rather than where it ended: a mover that meets a
+    // bank turns back, and a second later can be where it started.
+    var furthest = 0.0;
+    for (var i = 0; i < 60; i++) {
+      await _run(game, 1);
+      furthest = math.max(furthest, (mover.position.x - mover.plan.x).abs());
+    }
     expect(mover.awake, isTrue);
-    expect((mover.position.x - mover.plan.x).abs(), greaterThan(0.5));
+    expect(furthest, greaterThan(0.5));
   });
 
   test('every model loads and takes its primitive\'s place', () async {
