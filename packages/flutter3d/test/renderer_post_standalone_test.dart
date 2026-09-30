@@ -341,6 +341,32 @@ void main() {
       expect(blocks[0].members['params'], equals(blocks[1].members['params']));
     });
 
+    test('a host that only ever calls renderPost gets its bloom chain back '
+        'from the pool', () {
+      // Mutation: drop `_retireFrameSlot` or the counter increment from
+      // `renderPost` — the chain's releases then sit in a slot nothing
+      // drains, and every call allocates a fresh one.
+      final it = _engine();
+      final hdr = _hdr(it.device);
+      final target = it.device.createTexture(
+        RenderTargetSpec(
+          width: hdr.width,
+          height: hdr.height,
+          format: it.device.defaultColorFormat,
+        ),
+      );
+
+      for (var i = 0; i < 4; i++) {
+        it.renderer.renderPost(hdr: hdr, target: target);
+      }
+      final afterWarmUp = it.renderer.targetPool.createdCount;
+      for (var i = 0; i < 20; i++) {
+        it.renderer.renderPost(hdr: hdr, target: target);
+      }
+
+      expect(it.renderer.targetPool.createdCount, afterWarmUp);
+    });
+
     test('renderPost does not touch the scene the renderer also draws with '
         'render', () {
       // Mutation: have `renderPost` reach for `_renderer._hdrColor`/

@@ -3812,23 +3812,7 @@ final class Renderer implements RenderServices {
     // The counter now advances at the *end* of the frame, so everything
     // released during frame N goes into slot `N % 3` and is retired at the top
     // of frame N + 3.
-    final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
-    for (final texture in expired) {
-      targetPool.release(texture);
-    }
-    expired.clear();
-
-    // The same slot, for the targets this renderer owns rather than borrows:
-    // reallocated by a resize or a settings change, and given back to the
-    // device instead of to the pool. See [_destroyAfterFrame].
-    final finished = _pendingDestroy[_frameIndex % _kFramesInFlight];
-    for (final texture in finished) {
-      device.releaseTexture(texture);
-    }
-    finished.clear();
-
-    // And the meshes an application let go of. See [releaseMeshAfterFrame].
-    _releaseMeshes(_pendingMeshes[_frameIndex % _kFramesInFlight]);
+    _retireFrameSlot();
 
     // `C9`: the split meshes' index buffers no view drew with for longer than
     // the frames in flight go back to the device. And no view is being drawn
@@ -4545,6 +4529,34 @@ final class Renderer implements RenderServices {
     developer.Timeline.finishSync();
   }
 
+  /// Hands back everything queued in the current slot of the ring a full
+  /// ring ago: pooled targets to the pool, owned targets to the device, and
+  /// the meshes an application let go of.
+  ///
+  /// Called at the top of every call that submits GPU work and moves
+  /// [_frameIndex] — [render] and [renderPost] both. A path that queues
+  /// releases without ever draining a slot is a path whose pool only grows.
+  void _retireFrameSlot() {
+    final slot = _frameIndex % _kFramesInFlight;
+    final expired = _pendingRelease[slot];
+    for (final texture in expired) {
+      targetPool.release(texture);
+    }
+    expired.clear();
+
+    // The same slot, for the targets this renderer owns rather than borrows:
+    // reallocated by a resize or a settings change, and given back to the
+    // device instead of to the pool. See [_destroyAfterFrame].
+    final finished = _pendingDestroy[slot];
+    for (final texture in finished) {
+      device.releaseTexture(texture);
+    }
+    finished.clear();
+
+    // See [releaseMeshAfterFrame].
+    _releaseMeshes(_pendingMeshes[slot]);
+  }
+
   /// Bloom and the composite — tone map, look, debug overlay — over an
   /// already-rendered HDR colour buffer, standalone.
   ///
@@ -4589,7 +4601,27 @@ final class Renderer implements RenderServices {
   }) {
     developer.Timeline.startSync('Renderer.renderPost');
     final clock = Stopwatch()..start();
+    // **This call is a frame of the ring too.** Bloom's chain goes back
+    // through `_releaseAfterFrame`, and only a call that drains a slot and
+    // moves the counter ever returns it to the pool: a host that calls
+    // nothing but `renderPost` would otherwise allocate a fresh chain every
+    // time it is called.
+    _retireFrameSlot();
+    try {
+      return _renderPost(hdr, settings, keepHdr, target, clock);
+    } finally {
+      _frameIndex++;
+      developer.Timeline.finishSync();
+    }
+  }
 
+  PostFrameResult _renderPost(
+    TextureHandle hdr,
+    RenderSettings settings,
+    bool keepHdr,
+    TextureHandle? target,
+    Stopwatch clock,
+  ) {
     final bloomNode = _BloomNode(this, settings.bloom);
     final graph = FrameGraph()
       ..addExternal(FrameResourceIds.hdrColour)
@@ -4690,7 +4722,6 @@ final class Renderer implements RenderServices {
     );
 
     clock.stop();
-    developer.Timeline.finishSync();
 
     return PostFrameResult(
       frame: output,
