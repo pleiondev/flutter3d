@@ -22,6 +22,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -238,4 +239,60 @@ void main() {
     expect(bugReportJson.containsKey('x'), isTrue);
     expect(bugReportJson.containsKey('step'), isTrue);
   }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test('a level sent from outside the process branches the run when it '
+      'moves a brush, and is refused when it changed on the way', () async {
+    final target = await _startAndConnect();
+    addTearDown(() {
+      target.service.dispose();
+      target.process.kill();
+    });
+    // A keyframe or two to branch from.
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    final moved = <String, Object?>{
+      'version': 1,
+      'brushes': <Object?>[
+        <String, Object?>{
+          'at': <double>[3, 0, 0],
+          'size': <double>[1, 1, 1],
+          'material': 'stone',
+        },
+      ],
+    };
+    final document = jsonEncode(moved);
+    final hash = Level.fromJson(moved).digestHex;
+
+    final applied = _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.level.apply',
+        isolateId: target.isolateId,
+        args: <String, String>{'document': document, 'hash': hash},
+      ),
+    );
+    expect(applied['swappedAt'], isA<int>());
+    expect((applied['diff']! as Map<String, Object?>)['simulation'], <Object?>[
+      'brushes',
+    ]);
+
+    final history = _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.timeline.history',
+        isolateId: target.isolateId,
+      ),
+    );
+    expect(
+      (history['commands']! as List<Object?>).last,
+      'level:${applied['swappedAt']}:$hash',
+    );
+
+    await expectLater(
+      target.service.callServiceExtension(
+        'ext.flutter3d.level.apply',
+        isolateId: target.isolateId,
+        args: <String, String>{'document': document, 'hash': 'deadbeef'},
+      ),
+      throwsA(isA<RPCError>()),
+    );
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }

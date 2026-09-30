@@ -47,6 +47,26 @@ void main() {
     );
     final frameTimes = StepTimeTrace();
     var stepNumber = 0;
+    // `HR3`: a level the toy plays on, taken from outside as the editor
+    // sends it. The toy reads nothing from it; what is checked from outside is
+    // that a brush change branches the timeline and a look change does not.
+    registerLevelExtension(
+      LiveLevel(
+        level: Level.fromJson(const <String, Object?>{
+          'version': 1,
+          'brushes': <Object?>[
+            <String, Object?>{
+              'at': <double>[0, 0, 0],
+              'size': <double>[1, 1, 1],
+              'material': 'stone',
+            },
+          ],
+        }),
+        present: (next, diff) {},
+        rebuild: (next) {},
+        timeline: timeline,
+      ),
+    );
     registerTimelineExtensions(
       timeline,
       frameTimes: frameTimes,
