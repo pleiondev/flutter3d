@@ -360,4 +360,4 @@ Flame is always on top. The layers don't interleave by depth, so HUDs, maps, and
 - The source, including River Sortie and the package's minimal example: https://github.com/pleiondev/flutter3d
 - A longer write-up with the arcade demo and more pitfalls, in Russian: https://habr.com/ru/articles/1087246/
 
-If you try it with your own Flame game and something doesn't work, I'd rather hear about it than guess. Issues are open on GitHub.
+If you put it under your own Flame game, tell me how it went, and especially where it broke. Bug reports and questions are welcome on [GitHub](https://github.com/pleiondev/flutter3d/issues), and there's also [r/flutter3d](https://www.reddit.com/r/flutter3d/) for sharing what you built.
