@@ -49,12 +49,14 @@ import 'package:flutter3d_particles/flutter3d_particles.dart'
         ParticleSystem,
         Range,
         SphereEmitter;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show GameAction, InputState;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show GameAction, GameRandom, InputState;
 
 import 'course.dart';
 import 'levels.dart';
 import 'models.dart';
 import 'rules.dart';
+import 'sprites.dart';
 
 part 'craft.dart';
 part 'hud.dart';
@@ -82,12 +84,44 @@ final class RiverGame extends FlameGame
     with HasFlutter3d, HasFixedStep, KeyboardEvents, HasCollisionDetection {
   /// [models] loads the craft models over the primitives once the river is
   /// open; the tests leave it off, having no app bundle to load them from.
-  RiverGame({int seed = defaultSeed, this.models = false, this.speakers})
-    : course = Course(seed: seed) {
+  /// [billboards] draws the reeds on the banks and the flash of a blast,
+  /// Flame sprites standing in the scene, once they have been drawn.
+  RiverGame({
+    int seed = defaultSeed,
+    this.models = false,
+    this.billboards = false,
+    this.speakers,
+  }) : course = Course(seed: seed) {
     clearColor.setValues(_haze.x, _haze.y, _haze.z, 1.0);
   }
 
   final bool models;
+  final bool billboards;
+
+  /// The reeds and the flash, once drawn; null until then, and in a game
+  /// without [billboards].
+  RiverSprites? sprites;
+
+  /// The one texture and material each picture is drawn with, and the
+  /// cards of its frames, shared by every billboard.
+  late final BillboardAtlas atlas = BillboardAtlas(device);
+
+  /// Draws the pictures, then dresses the banks of every stretch already
+  /// standing, as the models dress the craft already flying.
+  Future<void> drawSprites() async {
+    final drawn = await RiverSprites.draw();
+    if (!has3d) return;
+    sprites = drawn;
+    for (final stretch in _stretches.chunks) {
+      stretch.reeds.addAll(_reedsAlong(stretch.index));
+    }
+  }
+
+  @override
+  void onClose3d() {
+    atlas.dispose(drawing: renderer);
+    super.onClose3d();
+  }
 
   /// The sky, and the haze the far end of the river fades into: one colour,
   /// so the valley has no edge where the land stops being drawn.
@@ -112,6 +146,7 @@ final class RiverGame extends FlameGame
   void onOpen3d() {
     build(device, scene);
     if (models) unawaited(dressWithModels());
+    if (billboards) unawaited(drawSprites());
   }
 
   /// The trigger. `flutter3d_sim` names movement and a few common verbs; a
@@ -447,8 +482,35 @@ final class RiverGame extends FlameGame
   }
 
   /// Fire: glowing shards thrown up and out, falling, shrinking, dimming
-  /// from orange to a dull red.
-  void fireball(Vector3 at, {double size = 1.0}) => blasts.system.burst(
+  /// from orange to a dull red, round the flash of the blast itself.
+  void fireball(Vector3 at, {double size = 1.0}) {
+    _flash(at, size);
+    _shards(at, size);
+  }
+
+  /// The blast's own flash, a Flame sprite animation played once where it
+  /// happened, facing the camera, gone when it has played.
+  void _flash(Vector3 at, double size) {
+    final drawn = sprites;
+    if (drawn == null) return;
+    final tall = 3.2 * size;
+    add(
+      SpriteBillboardComponent(
+        animation: drawn.flash(),
+        atlas: atlas,
+        device: _device,
+        scene: _scene,
+        plane: river,
+        cardHeight: tall,
+        upright: false,
+        removeOnFinish: true,
+        position: river.to2d(at),
+        elevation: at.y - tall / 2.0,
+      ),
+    );
+  }
+
+  void _shards(Vector3 at, double size) => blasts.system.burst(
     ParticleEffect(
       count: (14 * size).round(),
       emitter: ConeEmitter(
@@ -745,16 +807,22 @@ final class RiverGame extends FlameGame
 /// buffers to release with it, and the components living on it.
 final class _Stretch {
   _Stretch({
+    required this.index,
     required this.valley,
     required this.water,
     required this.geometry,
     required this.bridge,
     required this.targets,
+    required this.reeds,
   });
 
+  final int index;
   final MeshNode valley;
   final MeshNode water;
   final List<DeviceMesh> geometry;
   final BridgeComponent? bridge;
   final List<TargetComponent> targets;
+
+  /// The reeds and bushes on its banks, when there are sprites to draw.
+  final List<SpriteBillboardComponent> reeds;
 }

@@ -173,18 +173,77 @@ extension RiverGameStaging on RiverGame {
     ];
     addAll(targets);
     return _Stretch(
+      index: index,
       valley: valley,
       water: water,
       geometry: <DeviceMesh>[valleyGeometry],
       bridge: bridge,
       targets: targets,
+      reeds: _reedsAlong(index),
+    );
+  }
+
+  /// Reeds and bushes along both banks of stretch [index], added to the game;
+  /// none until the sprites are drawn.
+  ///
+  /// **The same every time it is flown into**: placed by a random of the
+  /// stretch's own, so a stretch dropped behind the jet and built again on
+  /// a restart has its reeds where they were. Every one shares the atlas's
+  /// texture, material and cards, and the renderer draws the ones of a kind
+  /// as one.
+  List<SpriteBillboardComponent> _reedsAlong(int index) {
+    if (sprites == null) return <SpriteBillboardComponent>[];
+    final section = course.section(index);
+    final random = GameRandom(index * 7919 + 17);
+    final reeds = <SpriteBillboardComponent>[
+      for (var at = 3.0; at < sectionLength; at += 6.0)
+        for (final side in const <double>[-1.0, 1.0])
+          if (random.nextDouble() < 0.6)
+            ?_reedAt(
+              section,
+              section.start + at + random.nextDouble() * 3.0,
+              side,
+              random,
+            ),
+    ];
+    addAll(reeds);
+    return reeds;
+  }
+
+  SpriteBillboardComponent? _reedAt(
+    Section section,
+    double distance,
+    double side,
+    GameRandom random,
+  ) {
+    final drawn = sprites!;
+    // Nothing on the road to the bridge.
+    if ((distance - section.bridgeAt).abs() < 4.0) return null;
+    final row = course.rowAt(distance);
+    final x =
+        (side < 0.0 ? row.left : row.right) +
+        side * (0.4 + random.nextDouble() * 0.8);
+    if (!row.isLand(x)) return null;
+    return SpriteBillboardComponent(
+      sprite: drawn.banks[random.nextInt(drawn.banks.length)],
+      atlas: atlas,
+      device: _device,
+      scene: _scene,
+      plane: RiverGame.river,
+      cardHeight: 1.1 + random.nextDouble() * 0.6,
+      position: Vector2(x, -distance),
+      elevation: landHeight - 0.05,
     );
   }
 
   void _dropStretch(int index, _Stretch stretch) {
     stretch.valley.removeFromParent();
     stretch.water.removeFromParent();
-    for (final component in <Component>[...stretch.targets, ?stretch.bridge]) {
+    for (final component in <Component>[
+      ...stretch.targets,
+      ...stretch.reeds,
+      ?stretch.bridge,
+    ]) {
       if (component.parent != null) component.removeFromParent();
       if (component is TargetComponent) wardrobe.forget(component.visual);
     }

@@ -220,6 +220,14 @@ and `OpacityEffect` colour and fade it, and `Tap3dCallbacks` hears a tap on
 it: taps now ask for `Drawn3d`, what is drawn and where, which every bridged
 component is too.
 
+**Billboards share their pictures, and a one-shot goes.** `BillboardAtlas`
+holds one texture and one material for each image and one card for each
+part of it a frame shows, so a bank of reeds drawn from one sheet uploads
+it once and draws as one; a billboard handed none makes its own.
+`SpriteBillboardComponent.removeOnFinish` takes a one-shot animation away
+when it has played, as `SpriteAnimationComponent`'s does. River Sortie
+stands reeds and bushes along its banks and a flash in each blast.
+
 **Moved is not gone.** Flame moves a component to a new parent by removing
 and mounting it, and a component's `owns` meshes were let go of in the
 removal while it went on drawing them.

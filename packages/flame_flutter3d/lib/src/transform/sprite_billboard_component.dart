@@ -1,14 +1,12 @@
 import 'dart:async' show scheduleMicrotask;
-import 'dart:typed_data' show Float32List;
-import 'dart:ui' as ui show ImageByteFormat;
 
 import 'package:flame/components.dart';
 import 'package:flame/sprite.dart' show SpriteAnimationTicker;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
 
 import '../host/has_flutter3d.dart';
+import 'billboard_atlas.dart';
 import 'object3d_component.dart';
 
 /// A Flame [Sprite], or a [SpriteAnimation], drawn in the scene on a card
@@ -19,19 +17,25 @@ import 'object3d_component.dart';
 /// **Flame's sprites, not a second kind.** The picture is the sprite's own
 /// image, cut where the sprite says; an animation is Flame's, played by
 /// its `SpriteAnimationTicker` on Flame's clock, so its frames, its timing,
-/// its looping and its `onComplete` are what a flat Flame game has. The
-/// image goes to the device once; each part of it a frame shows is a card
-/// of its own corners, made the first time it is shown.
+/// its looping and its `onComplete` are what a flat Flame game has, and
+/// [removeOnFinish] takes a one-shot away when it has played, as it does a
+/// `SpriteAnimationComponent`. The image goes to the device once; each part
+/// of it a frame shows is a card of its own corners.
 ///
-/// **Standing on the plane.** The card is [cardHeight] metres tall and as wide
-/// as the sprite's shape makes it, its foot at the component's place: a car
-/// on the road, not sunk into it. [upright] turns it about the plane's
+/// **Share an [atlas].** Many billboards of one sprite sheet, a bank of
+/// reeds, should be handed the game's [BillboardAtlas], and draw with one
+/// texture and one material; one without makes its own, and lets it go
+/// when it goes.
+///
+/// **Standing on the plane.** The card is [cardHeight] metres tall and as
+/// wide as the sprite's shape makes it, its foot at the component's place:
+/// a car on the road, not sunk into it. [upright] turns it about the plane's
 /// normal only, as a tree should; otherwise it faces the camera squarely,
 /// as a spark may. The camera is the game's `camera3d` unless [faces] is
 /// given.
 ///
-/// Drawn unlit, cut out where the sprite is transparent, and sampled
-/// nearest, as pixel art wants.
+/// Drawn unlit, cut out where the sprite is clear, and sampled nearest, as
+/// pixel art wants; `tint` and `opacity` colour and fade it.
 class SpriteBillboardComponent extends Object3dComponent {
   SpriteBillboardComponent({
     Sprite? sprite,
@@ -39,9 +43,11 @@ class SpriteBillboardComponent extends Object3dComponent {
     required this.device,
     required super.scene,
     required super.plane,
+    BillboardAtlas? atlas,
     this.cardHeight = 1.0,
     this.upright = true,
     this.faces,
+    this.removeOnFinish = false,
     super.position,
     super.elevation,
     super.priority,
@@ -50,6 +56,8 @@ class SpriteBillboardComponent extends Object3dComponent {
          'a sprite or an animation, and one of them',
        ),
        _sprite = sprite,
+       _atlas = atlas ?? BillboardAtlas(device),
+       _ownsAtlas = atlas == null,
        ticker = animation?.createTicker(),
        super(
          node: SceneNode(name: 'sprite billboard'),
@@ -67,7 +75,12 @@ class SpriteBillboardComponent extends Object3dComponent {
   /// The camera it faces; the game's `camera3d` when null.
   final CameraNode? faces;
 
+  /// Whether a one-shot animation takes the component away once played.
+  final bool removeOnFinish;
+
   final Sprite? _sprite;
+  final BillboardAtlas _atlas;
+  final bool _ownsAtlas;
 
   /// The animation's ticker, when it is an animation: Flame's own, to pause,
   /// reset or listen to.
@@ -76,81 +89,25 @@ class SpriteBillboardComponent extends Object3dComponent {
   /// The sprite drawn now.
   Sprite get currentSprite => _sprite ?? ticker!.getSprite();
 
-  TextureHandle? _texture;
-  MeshNode? _cardNode;
-  final Vector2 _imageSize = Vector2.zero();
-  MeshData? _quad;
-
-  /// A card per part of the image a frame shows, made the first time it
-  /// is shown. Its own corners rather than a texture transform: every
-  /// lighting model reads a mesh's corners, and not every one reads a
-  /// material's transform.
-  final Map<(double, double, double, double), DeviceMesh> _cards =
-      <(double, double, double, double), DeviceMesh>{};
+  MeshNode? _card;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    final image = currentSprite.image;
-    final pixels = await image.toByteData(
-      format: ui.ImageByteFormat.rawStraightRgba,
-    );
-    if (pixels == null) return;
-    _imageSize.setValues(image.width.toDouble(), image.height.toDouble());
-    final texture = _texture = device.createTextureFromPixels(
-      width: image.width,
-      height: image.height,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      pixels: pixels,
-    );
-    // A quad in the XY plane facing +Z, its foot at the origin: the plane
-    // shape stood up, image top upwards.
-    _quad = const PlaneShape().build().transformed(
-      Matrix4.translationValues(0.0, 0.5, 0.0)
-        ..multiply(Matrix4.rotationX(1.5707963267948966)),
-    );
-    final node = _cardNode = MeshNode(
-      _cardOf(currentSprite),
-      engine.Material(
-        name: 'sprite',
-        lighting: LightingModel.unlit,
-        albedo: texture,
-        albedoSampler: SamplerOptions.nearestClamp,
-        alphaMode: MaterialAlphaMode.mask,
-        doubleSided: true,
-      ),
-    );
-    visual.add(node);
+    final material = await _atlas.materialOf(currentSprite.image);
+    if (material == null) return;
+    final card = _card = MeshNode(_atlas.cardOf(currentSprite), material);
+    visual.add(card);
     _showFrame();
-  }
-
-  /// The card showing the part of the image [sprite] is cut from.
-  DeviceMesh _cardOf(Sprite sprite) {
-    final at = sprite.srcPosition;
-    final size = sprite.srcSize;
-    return _cards.putIfAbsent((at.x, at.y, size.x, size.y), () {
-      final quad = _quad!;
-      final uv = quad.layout.floatOffsetOf(VertexLayout.texcoord.name);
-      final stride = quad.layout.floatsPerVertex;
-      final vertices = Float32List.fromList(quad.vertices);
-      for (var i = uv; i >= 0 && i < vertices.length; i += stride) {
-        vertices[i] = (at.x + vertices[i] * size.x) / _imageSize.x;
-        vertices[i + 1] = (at.y + vertices[i + 1] * size.y) / _imageSize.y;
-      }
-      return DeviceMesh.upload(
-        device,
-        MeshData(
-          layout: quad.layout,
-          vertices: vertices,
-          indices: quad.indices,
-        ),
-      );
-    });
   }
 
   @override
   void update(double dt) {
-    ticker?.update(dt);
+    final playing = ticker;
+    if (playing != null) {
+      playing.update(dt);
+      if (removeOnFinish && playing.done()) removeFromParent();
+    }
     super.update(dt);
   }
 
@@ -163,10 +120,10 @@ class SpriteBillboardComponent extends Object3dComponent {
 
   /// Shows the sprite now on the card, and sizes the card to its shape.
   void _showFrame() {
-    final card = _cardNode;
+    final card = _card;
     if (card == null) return;
     final sprite = currentSprite;
-    final showing = _cardOf(sprite);
+    final showing = _atlas.cardOf(sprite);
     if (!identical(card.mesh, showing)) card.mesh = showing;
     final wide = cardHeight * sprite.srcSize.x / sprite.srcSize.y;
     final scale = card.readScale();
@@ -204,29 +161,18 @@ class SpriteBillboardComponent extends Object3dComponent {
     _ => null,
   };
 
-  /// The picture and the cards go with the component, after the frames in
-  /// flight, and not when Flame only moves it.
+  /// Its own atlas goes with it, after the frames in flight, and not when
+  /// Flame only moves it; a shared one is the game's.
   @override
   void onRemove() {
-    final texture = _texture;
-    final cards = List<DeviceMesh>.of(_cards.values);
-    final game = findGame();
-    final drawing = game is HasFlutter3d ? game.renderer : null;
-    scheduleMicrotask(() {
-      if (isMounted || parent != null) return;
-      for (final card in cards) {
-        if (drawing != null) {
-          drawing.releaseMeshAfterFrame(card);
-        } else {
-          device
-            ..releaseGeometry(card.vertices)
-            ..releaseGeometry(card.indices);
-        }
-      }
-      _cards.clear();
-      if (texture != null) device.releaseTexture(texture);
-      _texture = null;
-    });
+    if (_ownsAtlas) {
+      final game = findGame();
+      final drawing = game is HasFlutter3d ? game.renderer : null;
+      scheduleMicrotask(() {
+        if (isMounted || parent != null) return;
+        _atlas.dispose(drawing: drawing);
+      });
+    }
     super.onRemove();
   }
 }

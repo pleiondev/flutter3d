@@ -57,7 +57,7 @@ class RiverScreen extends StatefulWidget {
 class _RiverScreenState extends State<RiverScreen> {
   /// Starts on the level `--dart-define=RIVER_LEVEL=n` names, counting from
   /// one, so a later level can be looked at without flying up to it.
-  final RiverGame _game = RiverGame(models: true)
+  final RiverGame _game = RiverGame(models: true, billboards: true)
     ..startOnLevel(
       const int.fromEnvironment('RIVER_LEVEL', defaultValue: 1) - 1,
     );

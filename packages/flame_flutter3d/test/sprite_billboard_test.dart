@@ -107,4 +107,68 @@ void main() {
     expect(second.b, greaterThan(150), reason: 'the second is blue');
     expect(second.r, lessThan(60));
   });
+
+  testWidgets('billboards handed one atlas share its material and its cards, '
+      'and a one-shot goes when it has played', (tester) async {
+    // A bank of reeds uploaded its sheet once for each reed.
+    //
+    // Mutation: give every billboard its own atlas.
+    final cpu = cpuTestDevice(width: _size, height: _size);
+    final game = _Road()..open3d(cpu.device);
+    final atlas = BillboardAtlas(cpu.device);
+    late final SpriteBillboardComponent reed;
+    late final SpriteBillboardComponent other;
+    late final SpriteBillboardComponent flash;
+    await tester.runAsync(() async {
+      await initializeGame(() => game);
+      final image = await _twoFrames();
+      final sprite = Sprite(image, srcSize: Vector2(2.0, 2.0));
+      reed = SpriteBillboardComponent(
+        sprite: sprite,
+        atlas: atlas,
+        device: cpu.device,
+        scene: game.scene,
+        plane: BridgePlane.ground(),
+      );
+      other = SpriteBillboardComponent(
+        sprite: sprite,
+        atlas: atlas,
+        device: cpu.device,
+        scene: game.scene,
+        plane: BridgePlane.ground(),
+        position: Vector2(3.0, 0.0),
+      );
+      flash = SpriteBillboardComponent(
+        animation: SpriteAnimation.fromFrameData(
+          image,
+          SpriteAnimationData.sequenced(
+            amount: 2,
+            stepTime: 0.1,
+            textureSize: Vector2(2.0, 2.0),
+            loop: false,
+          ),
+        ),
+        atlas: atlas,
+        device: cpu.device,
+        scene: game.scene,
+        plane: BridgePlane.ground(),
+        removeOnFinish: true,
+      );
+      await game.addAll(<Component>[reed, other, flash]);
+      await game.ready();
+    });
+
+    MeshNode cardOf(SpriteBillboardComponent billboard) =>
+        billboard.visual.childrenView.whereType<MeshNode>().single;
+    expect(cardOf(reed).material, same(cardOf(other).material));
+    expect(cardOf(reed).mesh, same(cardOf(other).mesh));
+    expect(cardOf(flash).material, same(cardOf(reed).material));
+
+    for (var i = 0; i < 4; i++) {
+      game.update(0.1);
+    }
+    await tester.runAsync(game.ready);
+    expect(flash.isMounted, isFalse, reason: 'played, and gone');
+    expect(reed.isMounted, isTrue);
+  });
 }
