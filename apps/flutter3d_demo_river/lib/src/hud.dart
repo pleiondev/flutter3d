@@ -169,23 +169,11 @@ final class RiverHud extends PositionComponent
     );
 
     _renderOrders(canvas, stage);
-    _renderVersus(canvas, width);
 
     final trigger = game.touch ? 'FIRE' : 'SPACE';
-    final t = game.turns;
-    final pilot = t == null ? '' : 'PLAYER ${t.player + 1}  ·  ';
     final (String, String?)? message = switch (game.phase) {
-      _ when game.waiting => (
-        'ROOM ${game.room}',
-        game.banner ?? 'Waiting for the other pilot',
-      ),
-      Phase.ready when game.watching => (
-        '${pilot}LEVEL ${stage.index + 1}',
-        'The other pilot takes off',
-      ),
       Phase.ready => (
-        '${pilot}LEVEL ${stage.index + 1}  ·  '
-            '${stage.level.name.toUpperCase()}',
+        'LEVEL ${stage.index + 1}  ·  ${stage.level.name.toUpperCase()}',
         '${stage.level.briefing}\n'
             '${game.touch ? 'Press fire to fly' : 'Space to fly and fire, arrows or WASD to steer'}',
       ),
@@ -211,40 +199,6 @@ final class RiverHud extends PositionComponent
         );
       }
     }
-  }
-
-  /// Both players' scores and jets when they take turns, the one flying
-  /// marked; the rival's score and lead in a race. Top right.
-  void _renderVersus(Canvas canvas, double width) {
-    final lines = <String>[
-      if (game.turns case final t?)
-        for (var p = 0; p < 2; p++) _playerLine(t, p),
-      if (game.rival case final rival?) ...<String>[
-        'RIVAL  ${rival.score}',
-        switch (rival.distance - game.distance) {
-          final ahead when ahead > 1.0 => '${ahead.round()} M AHEAD',
-          final behind when behind < -1.0 => '${(-behind).round()} M BEHIND',
-          _ => 'LEVEL',
-        },
-      ],
-      if (game.watching) 'WATCHING',
-    ];
-    var y = 16.0;
-    for (final line in lines) {
-      _label.render(
-        canvas,
-        line,
-        Vector2(width - 16.0, y),
-        anchor: Anchor.topRight,
-      );
-      y += 18.0;
-    }
-  }
-
-  static String _playerLine(Turns t, int p) {
-    final run = t.runs[p];
-    final mark = t.player == p ? '▶ ' : '';
-    return '${mark}P${p + 1}  ${run.score}  ·  ${run.reserve} JETS';
   }
 
   /// The level and what is left of its task, top left.

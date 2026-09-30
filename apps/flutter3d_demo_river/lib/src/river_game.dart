@@ -26,7 +26,6 @@ import 'package:flame/game.dart' show FlameGame;
 import 'package:flame/input.dart' show HudButtonComponent;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_flutter3d_audio/flame_flutter3d_audio.dart';
-import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart'
     show EdgeInsets, FontWeight, Shadow, TextStyle;
@@ -64,7 +63,6 @@ part 'hud.dart';
 part 'pieces.dart';
 part 'sounds.dart';
 part 'staging.dart';
-part 'versus.dart';
 
 /// Where a run is.
 enum Phase {
@@ -88,46 +86,17 @@ final class RiverGame extends FlameGame
   /// open; the tests leave it off, having no app bundle to load them from.
   /// [billboards] draws the reeds on the banks and the flash of a blast,
   /// Flame sprites standing in the scene, once they have been drawn.
-  ///
-  /// [versus] is two players rather than one — see [RiverGameVersus]. With
-  /// a [room] they are on two machines, and [slot] is which of the two this
-  /// one is: nought for whoever made the room, who flies first.
   RiverGame({
     int seed = defaultSeed,
     this.models = false,
     this.billboards = false,
     this.speakers,
-    this.versus,
-    this.room,
-    this.slot = 0,
-  }) : course = Course(seed: seed),
-       turns = versus == Versus.turns ? Turns() : null {
+  }) : course = Course(seed: seed) {
     clearColor.setValues(_haze.x, _haze.y, _haze.z, 1.0);
   }
 
   final bool models;
   final bool billboards;
-
-  /// Two players, and how; null for one.
-  final Versus? versus;
-
-  /// The room two machines meet in; null on one machine.
-  final String? room;
-
-  /// Which of the two machines this is, in a [room].
-  final int slot;
-
-  /// Both players' runs and whose turn it is, when they take turns.
-  final Turns? turns;
-
-  PeerRoom? _room;
-  BatonStream? _baton;
-  PeerFeed? _feed;
-  bool _begun = false;
-  bool _isReplaying = false;
-  bool _shotThisStep = false;
-  GhostComponent? _ghost;
-  Rival? _rival;
 
   /// The reeds and the flash, once drawn; null until then, and in a game
   /// without [billboards].
@@ -184,8 +153,6 @@ final class RiverGame extends FlameGame
   @override
   void onOpen3d() {
     build(device, scene);
-    _addGhost();
-    _beginAlone();
     if (models) unawaited(dressWithModels());
     if (billboards) unawaited(drawSprites());
   }
@@ -392,9 +359,6 @@ final class RiverGame extends FlameGame
   /// The jet is down: over the land, into something, or dry.
   void crash(Crash cause) {
     if (phase != Phase.flying) return;
-    // Watching, only the machine that flies says when its jet is down.
-    if (watching && !_isReplaying) return;
-    _tellCrash(cause);
     lastCrash = cause;
     phase = Phase.crashed;
     _crashTimer = crashPause;
@@ -413,9 +377,7 @@ final class RiverGame extends FlameGame
   /// A shot, or a depot going up, reached [target]: it scores, it counts
   /// towards the level's task, and it goes down the way its kind does.
   void hitTarget(TargetComponent target) {
-    if (watching && !_isReplaying) return;
     if (!target.hit()) return;
-    _tellHit(target);
     final kind = target.plan.kind;
     final stage = stageOf(course.sectionIndexAt(target.plan.distance));
     final wasDone = run.taskDone(stage.level);
@@ -482,14 +444,8 @@ final class RiverGame extends FlameGame
   /// A shot reached [bridge] at [at]. A shielded one throws sparks and
   /// stands; any other breaks and falls, and the next jet starts past it.
   /// The last of a level finishes the level.
-  ///
-  /// [fell] is the flying machine's word for it, replayed on the watching
-  /// one: whether it broke there, whatever the shield looks like here.
-  void hitBridge(BridgeComponent bridge, {required Vector2 at, bool? fell}) {
-    if (watching && !_isReplaying) return;
-    final stands = fell == null ? shielded(bridge) : !fell;
-    _tellBridge(bridge, at, fell: !stands);
-    if (stands) {
+  void hitBridge(BridgeComponent bridge, {required Vector2 at}) {
+    if (shielded(bridge)) {
       final struck = river.to3d(at, at: flightHeight);
       sparks(struck);
       _sayAt(Sounds.spark, struck);
@@ -709,7 +665,6 @@ final class RiverGame extends FlameGame
   bool _flown = false;
 
   void _fire() {
-    _shotThisStep = true;
     _say(Sounds.shot);
     add(
       ShotComponent(
@@ -781,9 +736,7 @@ final class RiverGame extends FlameGame
   @override
   void fixedUpdate(double dt) {
     if (!built) return;
-    _hear(dt);
-    if (!watching) _step(dt);
-    _tell();
+    _step(dt);
     // After the step and before the children update: the game's sound is
     // one of them and mixes when it does, and a loop turned on after the
     // mix is heard a frame late.
@@ -793,7 +746,6 @@ final class RiverGame extends FlameGame
   void _step(double dt) {
     switch (phase) {
       case Phase.ready:
-        if (waiting) return;
         if (input.pressed(fire) || input.moveAxis.length2 > 0.04) {
           phase = Phase.flying;
           _shotCooldown = shotInterval;
@@ -807,16 +759,17 @@ final class RiverGame extends FlameGame
       case Phase.crashed:
         _crashTimer -= dt;
         if (_crashTimer <= 0.0) {
-          if (turns != null) {
-            _passTurn();
-          } else if (run.nextJet()) {
+          if (run.nextJet()) {
             _restart();
           } else {
             phase = Phase.over;
           }
         }
       case Phase.over:
-        if (input.pressed(fire)) _again();
+        if (input.pressed(fire)) {
+          run = RunState();
+          _restart();
+        }
     }
   }
 
