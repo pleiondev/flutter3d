@@ -44,6 +44,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
+import '../ecs/entity.dart';
 import '../loop/game_event.dart';
 import '../math/motion.dart';
 import '../math/portable_math.dart';
@@ -223,23 +224,32 @@ final class ActorSystem {
   /// This used to require the first three. A game with a destructible crate had
   /// to give it a walking capsule and a brain that did nothing, which is the
   /// arrangement an entity-component design exists to remove.
+  ///
+  /// [entity] builds the actor under an entity a restore put back rather than
+  /// a new one — see [EcsWorld.vacant] for the game that needs this, one whose
+  /// actors arrive during play. It must be vacant, or this throws: building
+  /// over something that is there is two actors answering to one entity.
   Actor spawn({
     CharacterController? body,
     Health? health,
     Brain? brain,
     Facing? facing,
     String? name,
+    Entity? entity,
   }) {
-    final entity = entities.spawn();
-    if (body != null) entities.set(entity, Body(body));
-    if (health != null) entities.set(entity, Vitality(health));
-    if (facing != null) entities.set(entity, facing);
-    if (brain != null) entities.set(entity, Thinking(brain));
+    if (entity != null && !entities.vacant(entity)) {
+      throw ArgumentError.value(entity, 'entity', 'is not a vacant slot');
+    }
+    final made = entity ?? entities.spawn();
+    if (body != null) entities.set(made, Body(body));
+    if (health != null) entities.set(made, Vitality(health));
+    if (facing != null) entities.set(made, facing);
+    if (brain != null) entities.set(made, Thinking(brain));
 
-    final actor = Actor(entities, entity, name: name)
+    final actor = Actor(entities, made, name: name)
       ..onDamage = (double amount, Object? from) =>
-          hurt(_handles[entity.index]!, amount, from: from);
-    _handles[entity.index] = actor;
+          hurt(_handles[made.index]!, amount, from: from);
+    _handles[made.index] = actor;
     body?.collider.userData = actor;
     return actor;
   }

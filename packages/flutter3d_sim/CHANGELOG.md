@@ -20,6 +20,19 @@ remains their sum. `focusBody` is now read-only: it was only ever set by
 **A save carries every focus.** One focus is written as `lastFocus`, as
 before; several as `lastFoci`.
 
+**An actor born during play can be built again from a save.** A snapshot
+fills in a world that already exists, so an actor spawned after the level
+loaded had nothing to be filled in when the save was loaded afresh.
+`ActorSystem.spawn(entity:)` builds an actor under an entity a restore put
+back, and `EcsWorld.vacant` says whether a slot is one: restore the
+allocation, build each recorded actor under its own entity, restore again for
+the numbers. Same index, same order, so a restored run thinks on the same beat
+as the one that was saved.
+
+**A rollback to before something was taken puts it back.** `Takeable.restore`
+removed the trigger of a thing that had been taken and never re-added it, so a
+rollback past a pickup left it drawn and untakeable for the rest of the run.
+
 ## 0.8.0
 
 **A level can carry the recipe for a room in place of its brushes.** A
