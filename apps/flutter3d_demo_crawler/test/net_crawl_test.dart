@@ -3,8 +3,8 @@
 ///     flutter test test/net_crawl_test.dart
 ///
 /// Two crawls staged from the same document, each driving its own hero
-/// through a `NetSession` over a `LoopbackTransport` a tenth of a second
-/// long that drops one message in ten. Generators pour, monsters die, shots
+/// through `flame_multiplayer`'s `RollbackPlay` over a `LoopbackWire` a
+/// tenth of a second long that drops one frame message in ten. Generators pour, monsters die, shots
 /// fly and potions are drunk while the sessions guess each other's hands and
 /// roll back when a guess was wrong. Every step both sides settle has to be
 /// the same crawl on both — the whole claim of a rollback session, on the
@@ -15,11 +15,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flutter3d_demo_crawler/src/level_open.dart';
 import 'package:flutter3d_demo_crawler/src/net_crawl.dart';
 import 'package:flutter3d_demo_crawler/src/staging.dart';
 import 'package:flutter3d_game_crawler/flutter3d_game_crawler.dart';
-import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,9 +53,8 @@ Map<String, Object?> _hands(int slot, int i) {
 
 void main() {
   test('two machines settle every step on the same crawl', () {
-    final (wireA, wireB) = LoopbackTransport.pair(
-      stepsPerSecond: 60,
-      delaySeconds: 0.1,
+    final (wireA, wireB) = LoopbackWire.pair(
+      delaySteps: 6,
       lossRate: 0.1,
       seed: 5,
     );
@@ -70,22 +69,29 @@ void main() {
     final settledB = <int, String>{};
     var stepA = 0;
     var stepB = 0;
-    final hostSide = NetCrawl(
-      sim: a.sim,
-      localSlot: 0,
-      capture: () => _hands(0, stepA),
-      transport: wireA,
+    RollbackPlay<Snapshot> play(
+      StagedCrawl crawl,
+      int slot,
+      PeerWire wire,
+      Map<int, String> settled,
+      int Function() step,
+    ) => RollbackPlay<Snapshot>(
+      wire: wire,
+      localSlot: slot,
+      capture: () => _hands(slot, step()),
+      applyAndStep: (List<Map<String, Object?>> hands) {
+        for (var i = 0; i < 2; i++) {
+          applyHeroFrame(hands[i], crawl.sim.heroes[i]);
+        }
+        crawl.sim.step(1.0 / 60.0);
+      },
+      save: crawl.sim.save,
+      restore: crawl.sim.restore,
       onSettled: (int step, Snapshot after) =>
-          settledA[step] = jsonEncode(after.data),
+          settled[step] = jsonEncode(after.data),
     );
-    final guestSide = NetCrawl(
-      sim: b.sim,
-      localSlot: 1,
-      capture: () => _hands(1, stepB),
-      transport: wireB,
-      onSettled: (int step, Snapshot after) =>
-          settledB[step] = jsonEncode(after.data),
-    );
+    final hostSide = play(a, 0, wireA, settledA, () => stepA);
+    final guestSide = play(b, 1, wireB, settledB, () => stepB);
 
     for (var i = 0; i < 600; i++) {
       hostSide.advance();

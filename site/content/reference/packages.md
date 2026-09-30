@@ -221,6 +221,14 @@ Sound for a bridged game. `AudioSceneComponent` is the game's audio scene: silen
 
 A package of its own because sound brings SoLoud's native library, and on the web its script, into every application that depends on it; a bridged game with no sound carries neither.
 
+### `flame_multiplayer`
+Two players on two machines, for any game that steps in fixed steps, and with no dependencies at all. `PeerRoom` is the room: slot nought for whoever made it, a hello repeated until the other machine answers with what it plays, and channels on one wire that do not hear each other. `RollbackPlay` runs one simulation on both machines in step, each driving its own player, over `RollbackSession` (input delay, the guess of the far side's hands, the rollback when it was wrong), and keeps the first settled ending so both go on from the same state. `BatonStream` is turns: the machine playing tells frames and events, the other replays them at the pace they were played, and the turn goes across with its state. `PeerFeed` is two games side by side, each telling the other where it is.
+
+`PeerWire` is the one door to a network, JSON-shaped messages sent reliably or not, and `LoopbackWire` two ends of it in one process for tests. `flutter3d_net`'s `NetTransportWire` carries it over that package's relay and WebRTC; `apps/flutter3d_demo_crawler` plays its co-op crawl through `RollbackPlay`, and `apps/flutter3d_demo_river` its turns and its race through `BatonStream` and `PeerFeed`.
+
+### `flame_multiplayer_dashwire`
+`DashwireWire`: a [dashwire](https://pub.dev/packages/dashwire) `WireConnection` as a `PeerWire`, reliable and unreliable messages on dashwire's two channels. dashwire's binary WebSocket passes through `flutter3d_net`'s relay unchanged, so games on either adapter meet in the same rooms. A package of its own so the core keeps no dependencies.
+
 ### `flutter3d_lti`
 LTI 1.3 launch and xAPI reporting, so a lesson can be launched from a learning management system and report back to it. `LtiPlatformConfig` is one LMS registration, read from environment variables. `OidcLoginInitiation` builds the redirect for LTI's third-party login with a fresh `state` and `nonce`. `LtiLaunchValidator` checks an incoming `id_token` against the platform's JWKS (cached by `kid`), its issuer, audience and expiry, and the `state` and `nonce` of the login that started it. `AgsClient` posts a score to a line item through Assignment and Grade Services, signing its own client-credentials grant, and `XapiClient` PUTs a statement to a Learning Record Store under the statement's own UUID, so a retried submission cannot count twice.
 

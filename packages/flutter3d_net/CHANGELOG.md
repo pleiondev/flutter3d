@@ -1,3 +1,12 @@
+## Unreleased
+
+**Any transport here carries `flame_multiplayer`.** `NetTransportWire` makes
+a `NetTransport` — the relay's `WebSocketTransport`, a WebRTC channel, the
+test loopback — into that package's `PeerWire`, so its room, rollback play,
+turns and ghost run over the relay this package ships. The dependency goes
+this way round: `flame_multiplayer` depends on nothing, and the adapter
+lives with the transports it adapts.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

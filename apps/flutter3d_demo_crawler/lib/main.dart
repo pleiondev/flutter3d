@@ -32,7 +32,8 @@ import 'dart:async';
 import 'package:flame/game.dart' show FlameGame;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/material.dart' hide Hero, Material;
-import 'package:flutter3d_net/flutter3d_net.dart' show WebSocketTransport;
+import 'package:flutter3d_net/flutter3d_net.dart'
+    show NetTransportWire, WebSocketTransport;
 
 import 'src/crawler_game.dart';
 import 'src/screens.dart';
@@ -96,7 +97,9 @@ class _CrawlScreenState extends State<_CrawlScreen> {
   Future<void> _connect() async {
     try {
       _game.goOnline(
-        await WebSocketTransport.connect(_relay.resolve('room/$_room')),
+        NetTransportWire(
+          await WebSocketTransport.connect(_relay.resolve('room/$_room')),
+        ),
       );
     } on Object catch (error) {
       _game.message = 'No relay at $_relay: $error';

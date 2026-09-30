@@ -15,6 +15,11 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  # `PeerWire`, which `NetTransportWire` makes any transport here into: the
+  # room, the turns and the ghost of `flame_multiplayer` over the relay and
+  # WebRTC. That package depends on nothing; this is the adapter's side.
+  flame_multiplayer: ^0.1.0
+
   # `Snapshot`, `GameRandom` for the test transport's loss, nothing that
   # draws or reads a device — the same reason `net-01`'s own row gives for
   # sitting on this package and not on `flutter3d_game`.

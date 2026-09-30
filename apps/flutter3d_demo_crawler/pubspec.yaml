@@ -22,7 +22,9 @@ dependencies:
   flame: ^1.38.2
   flame_flutter3d: ^0.8.3
 
-  # Two machines, one crawl: the rollback session.
+  # Two machines, one crawl: the room, and the rollback play in step.
+  flame_multiplayer: ^0.1.0
+  # The relay's WebSocket the room is opened over.
   flutter3d_net: ^0.8.0
 
   # A controller per player: `Gamepad(index: n)` reads the one in slot n.

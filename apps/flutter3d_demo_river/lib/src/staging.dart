@@ -100,6 +100,11 @@ extension RiverGameStaging on RiverGame {
   /// without playing up to it.
   void startOnLevel(int index) {
     run = RunState()..checkpoint = firstSectionOf(index);
+    final t = turns;
+    if (t != null) {
+      t.reset(checkpoint: run.checkpoint);
+      run = t.current;
+    }
     if (built) _restart();
   }
 

@@ -37,6 +37,8 @@ workspace:
   - packages/flame_flutter3d
   - packages/flame_flutter3d/example
   - packages/flame_flutter3d_audio
+  - packages/flame_multiplayer
+  - packages/flame_multiplayer_dashwire
   - packages/flutter3d_sim
   - packages/flutter3d_lab
   - packages/flutter3d_lti

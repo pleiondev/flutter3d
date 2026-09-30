@@ -404,6 +404,12 @@ final class ShotComponent extends InstancedObject3dComponent
   ) {
     super.onCollisionStart(intersectionPoints, other);
     if (_spent) return;
+    // A replayed shot is only to be seen: what it hit is the flying
+    // machine's to say. It still stops where it struck.
+    if (game.watching) {
+      if (other is TargetComponent || other is BridgeComponent) _spend();
+      return;
+    }
     switch (other) {
       case TargetComponent(down: false):
         game.hitTarget(other);

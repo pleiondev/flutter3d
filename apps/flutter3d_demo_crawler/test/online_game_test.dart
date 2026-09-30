@@ -13,12 +13,12 @@ library;
 
 import 'dart:convert';
 
+import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_crawler/src/crawler_game.dart';
 import 'package:flutter3d_game_crawler/flutter3d_game_crawler.dart';
-import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Snapshot;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,9 +46,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('two games shake hands, go in together and agree', () async {
-    final (wireA, wireB) = LoopbackTransport.pair(
-      stepsPerSecond: 60,
-      delaySeconds: 0.05,
+    final (wireA, wireB) = LoopbackWire.pair(
+      delaySteps: 3,
       lossRate: 0.1,
       seed: 3,
     );

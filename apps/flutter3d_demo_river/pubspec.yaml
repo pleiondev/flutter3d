@@ -41,6 +41,13 @@ dependencies:
   # river is laid out with, so every run flies the same river.
   flutter3d_sim: ^0.8.0
 
+  # Two players on one river: the room, the turns across two machines and
+  # the ghost of a race.
+  flame_multiplayer: ^0.1.0
+
+  # The relay's WebSocket the room is opened over.
+  flutter3d_net: ^0.8.0
+
   vector_math: ^2.4.3
 
 dev_dependencies:

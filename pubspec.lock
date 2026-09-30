@@ -161,6 +161,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.8.2"
+  dashwire:
+    dependency: transitive
+    description:
+      name: dashwire
+      sha256: "01968fb5c899be87b07d49d7bccc855061dafca0f2662fe8f4e7becb286b0545"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
   dbus:
     dependency: transitive
     description:
