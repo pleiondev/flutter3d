@@ -43,6 +43,7 @@ export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
     show kFixedResolution, openDevice, presentFrame;
 export 'src/diagnostics/issues.dart';
+export 'src/hot_swap/hot_swap.dart';
 export 'src/level/level_loader.dart';
 export 'src/level/model_visuals.dart';
 export 'src/level/prop_visuals.dart';

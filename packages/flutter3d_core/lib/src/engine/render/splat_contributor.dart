@@ -496,6 +496,13 @@ final class SplatContributor extends PassContributor {
   PipelineHandle? _pipeline;
   PipelineHandle? _hashedPipeline;
 
+  @override
+  void relinkShaders() {
+    _pipeline = null;
+    _hashedPipeline = null;
+    _reactivePipeline = null;
+  }
+
   /// The index sequence 0, 1, 2, … every draw in this engine needs — see
   /// `MeshOverlay._identityIndices`, which keeps the same sequence for the
   /// same reason: `CommandEncoder.draw` has no unindexed path, and a draw

@@ -873,9 +873,12 @@ final class Renderer implements RenderServices {
   /// renderer to reload.
   ///
   /// Contributors keep their own pipelines — `ParticleContributor` links once
-  /// and holds — and are not reached from here; a contributor that wants to
-  /// follow a reload exposes its own way to drop what it linked.
+  /// and holds — so each is asked to drop what it linked, through
+  /// [PassContributor.relinkShaders].
   void relinkShaders() {
+    for (final contributor in contributors.all) {
+      contributor.relinkShaders();
+    }
     _pipelineCache.clear();
     _fragmentShaders.clear();
     _fullscreenPipelines.clear();

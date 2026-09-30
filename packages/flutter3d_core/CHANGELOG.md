@@ -1,3 +1,13 @@
+## Unreleased
+
+- **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
+  every `PassContributor` to drop what it linked, through the new
+  `PassContributor.relinkShaders`, which does nothing by default.
+  `SplatContributor` and `MeshOverlay` drop their pipelines; particles, whose
+  contributors live in `flutter3d_particles`, do the same there. Before this a
+  reloaded shader reached the scene's own pipelines and not the splats, the
+  debug lines or the particles.
+
 ## 0.8.3
 
 - **`Renderer.renderPost` gives its bloom chain back.** Its pooled targets

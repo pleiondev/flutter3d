@@ -464,6 +464,16 @@ final class ParticleContributor extends PassContributor {
   int? _reactiveDevice;
   PipelineHandle? _reactivePipeline;
 
+  /// Forgets the device the pipelines were keyed on, which drops them all:
+  /// the next frame links them again from the reloaded stages.
+  @override
+  void relinkShaders() {
+    _pipelines.clear();
+    _pipelineDevice = null;
+    _reactivePipeline = null;
+    _reactiveDevice = null;
+  }
+
   final Set<String> _missing = <String>{};
 
   final Float32List _fog = Float32List(4);

@@ -1,3 +1,21 @@
+## Unreleased
+
+**A hot reload shows the shaders it reloaded.** Flutter 3.47 reinitializes an
+asset-loaded shader bundle on hot reload, which the engine's own bundle is,
+but a pipeline linked from the old code went on drawing it: the library
+changed and the picture did not. `HotSwap` relinks every renderer
+it knows of on a reload, and refreshes the bundles an application loaded
+from bytes and registered with `registerLibrary`, which Flutter's reload
+never reaches. A bundle that does not load keeps the last one that did and
+is named in the report. `SceneSurface` registers its renderer and reloads
+from `reassemble`, so a game drawn through it, the Flame bridge's included,
+needs nothing more; a tool reaches the same reload as
+`ext.flutter3d.hotSwap`. Debug builds only: in profile and release it holds
+nothing.
+
+`SceneSurface` is a `StatefulWidget` now, for `reassemble`. Its constructor
+and parameters are unchanged.
+
 ## 0.8.1
 
 **`SceneSurface` draws more than one view.** `moreViews` are drawn into the

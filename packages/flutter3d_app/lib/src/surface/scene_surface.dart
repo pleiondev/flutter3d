@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
+
+import '../hot_swap/hot_swap.dart';
 
 /// The shape of `presentFrame`, and of every presenter a backend registers.
 ///
@@ -46,7 +50,12 @@ typedef FramePresenter =
 ///
 /// So the two games do the same thing in two different places, and only one of
 /// the two places works for both. A function called here is that place.
-class SceneSurface extends StatelessWidget {
+///
+/// **A hot reload relinks the renderer.** In a debug build the surface
+/// registers its [renderer] with [HotSwap] and runs a reload from
+/// `reassemble`, so an edited shader is drawn on the next frame with the world
+/// as it was — see [HotSwap] for what that does and why.
+class SceneSurface extends StatefulWidget {
   const SceneSurface({
     super.key,
     required this.renderer,
@@ -86,7 +95,41 @@ class SceneSurface extends StatelessWidget {
   final FramePresenter presentFrame;
 
   @override
+  State<SceneSurface> createState() => _SceneSurfaceState();
+}
+
+class _SceneSurfaceState extends State<SceneSurface> {
+  @override
+  void initState() {
+    super.initState();
+    HotSwap.instance.registerRenderer(widget.renderer);
+  }
+
+  @override
+  void didUpdateWidget(SceneSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.renderer, widget.renderer)) {
+      HotSwap.instance.registerRenderer(widget.renderer);
+    }
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    unawaited(HotSwap.instance.swap());
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final SceneSurface(
+      :renderer,
+      :scene,
+      :view,
+      :settings,
+      :onBeforeFrame,
+      :presentFrame,
+      :moreViews,
+    ) = widget;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
