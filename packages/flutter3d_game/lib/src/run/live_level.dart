@@ -21,11 +21,18 @@ import 'run_timeline.dart';
 /// replay can reach. The report says which happened.
 final class LiveLevel {
   LiveLevel({
-    required this._level,
+    required this.level,
     required this.present,
     required this.rebuild,
     this.timeline,
+    this.prepare,
   });
+
+  /// Builds ahead what [rebuild] and [present] will swap in, for a game
+  /// whose level cannot be made synchronously: textures to upload, meshes,
+  /// a scene. Awaited by [applyWhenReady] before anything changes, so a
+  /// level that will not build leaves the one being played untouched.
+  final Future<void> Function(Level next)? prepare;
 
   /// Patches the running scene to [next]'s look. [diff] names what changed,
   /// so a presenter can touch one lamp rather than rebuild them all.
@@ -41,15 +48,24 @@ final class LiveLevel {
   final RunTimeline? timeline;
 
   /// The level being played now.
-  Level get level => _level;
-  Level _level;
+  ///
+  /// Set by a game that moved on by its own means — the next level, a
+  /// restart — so the next edit is compared with what is on screen.
+  Level level;
+
+  /// [prepare], then [apply]: what the extension does with a level that
+  /// arrived. An edit that changes nothing prepares nothing.
+  Future<LevelApplied> applyWhenReady(Level next) async {
+    if (!diffLevel(level, next).isEmpty) await prepare?.call(next);
+    return apply(next);
+  }
 
   /// Makes [next] the level being played, as little disturbed as the change
   /// allows.
   LevelApplied apply(Level next) {
-    final diff = diffLevel(_level, next);
+    final diff = diffLevel(level, next);
     if (diff.isEmpty) {
-      _level = next;
+      level = next;
       return LevelApplied(diff: diff);
     }
     final int? swappedAt;
@@ -65,7 +81,7 @@ final class LiveLevel {
       swappedAt = null;
     }
     present(next, diff);
-    _level = next;
+    level = next;
     return LevelApplied(
       diff: diff,
       swappedAt: swappedAt,
@@ -108,12 +124,15 @@ final class LevelApplied {
 /// and applying the document would put a level under the run that the editor
 /// never showed anybody. So a mismatch is refused, naming both.
 ///
+/// A level whose [LiveLevel.prepare] throws is refused the same way, with
+/// what it threw: the game keeps the level it had.
+///
 /// A plain function over the parameters, and [registerLevelExtension] a thin
 /// door onto it, so the answers are tested without a VM service.
-({Map<String, Object?>? result, String? error}) answerLevelApply(
+Future<({Map<String, Object?>? result, String? error})> answerLevelApply(
   LiveLevel live,
   Map<String, String> parameters,
-) {
+) async {
   final document = parameters['document'];
   final hash = parameters['hash'];
   if (document == null || hash == null) {
@@ -133,7 +152,11 @@ final class LevelApplied {
           'it changed on the way',
     );
   }
-  return (result: live.apply(next).toJson(), error: null);
+  try {
+    return (result: (await live.applyWhenReady(next)).toJson(), error: null);
+  } on Object catch (error) {
+    return (result: null, error: 'the level did not build: $error');
+  }
 }
 
 /// Puts [live] on the VM service as `ext.flutter3d.level.apply`, beside the
@@ -144,7 +167,7 @@ void registerLevelExtension(LiveLevel live) {
     method,
     parameters,
   ) async {
-    final (:result, :error) = answerLevelApply(live, parameters);
+    final (:result, :error) = await answerLevelApply(live, parameters);
     if (error != null) {
       return developer.ServiceExtensionResponse.error(
         developer.ServiceExtensionResponse.invalidParams,

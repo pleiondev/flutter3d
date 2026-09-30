@@ -47,6 +47,7 @@ final class _Storage implements Storage {
 /// exists so the loader has somewhere to upload the level's textures.
 ({PlatformerRun run, _Storage storage}) _game({
   void Function(String asset)? onLevelBuilt,
+  InputState? input,
 }) {
   final device = CpuDevice(
     width: 16,
@@ -59,7 +60,7 @@ final class _Storage implements Storage {
     run: PlatformerRun(
       firstLevel: _first,
       saves: SaveFile(appName: 'platformer', storage: storage),
-      input: InputState(),
+      input: input ?? InputState(),
       openDevice: () async => device,
       // The widget's half, which this test does not have: a camera, a box for
       // the runner, the interpolators — `onLevelBuilt` itself, `rp-01`'s own
@@ -244,6 +245,132 @@ void main() {
 
     expect(await again.run.begin(), isTrue, reason: 'did not resume');
     expect((again.run.status as RunPlaying<LevelReady>).asset, _first);
+  });
+
+  group('a level edited in the editor', () {
+    test('goes in under the run, which carries on where it stood', () async {
+      final input = InputState();
+      final built = <String>[];
+      final it = _game(input: input, onLevelBuilt: built.add);
+      await it.run.begin();
+      final before = it.run.level!;
+      final timeline = _played(it.run, input, steps: 90);
+      final elapsed = before.sim.elapsed;
+      final standing = before.runner.body.position.clone();
+      final lastBrush = before.loaded.level.brushes.last.centre.y;
+      built.clear();
+
+      final applied = await _live(
+        it.run,
+        timeline,
+      ).applyWhenReady(_raised(before.loaded.level));
+
+      final after = it.run.level!;
+      expect(applied.swappedAt, isNotNull, reason: 'a brush is the sim’s');
+      expect(after, isNot(same(before)));
+      expect(after.loaded.level.brushes.last.centre.y, lastBrush + 40.0);
+      expect(
+        after.sim.elapsed,
+        closeTo(elapsed, 1e-9),
+        reason: 'the run was lived again up to now',
+      );
+      expect(after.runner.body.position.distanceTo(standing), lessThan(1e-6));
+      expect(built, <String>[
+        _first,
+      ], reason: 'the widget hears of it once, after the replay');
+      expect((it.run.status as RunPlaying<LevelReady>).asset, _first);
+    });
+
+    test('a look-only edit swaps the build and replays nothing', () async {
+      final input = InputState();
+      final it = _game(input: input);
+      await it.run.begin();
+      final before = it.run.level!;
+      final timeline = _played(it.run, input, steps: 30);
+      final document = before.loaded.level.toJson()..['fogDensity'] = 0.03;
+
+      final applied = await _live(
+        it.run,
+        timeline,
+      ).applyWhenReady(Level.fromJson(document));
+
+      expect(applied.swappedAt, isNull);
+      expect(it.run.level, isNot(same(before)));
+      expect(it.run.level!.loaded.level.fogDensity, 0.03);
+      expect(
+        timeline.history,
+        isEmpty,
+        reason: 'the timeline was not branched',
+      );
+    });
+
+    test('another level is refused, and the one up is kept', () async {
+      final input = InputState();
+      final it = _game(input: input);
+      await it.run.begin();
+      final before = it.run.level!;
+      // Another level differs in more than its name: a name alone is not
+      // something `diffLevel` compares, and an edit that changes nothing
+      // else is taken as the same level.
+      final document = _raised(before.loaded.level).toJson()
+        ..['name'] = 'elsewhere';
+
+      await expectLater(
+        _live(
+          it.run,
+          _played(it.run, input, steps: 1),
+        ).applyWhenReady(Level.fromJson(document)),
+        throwsA(isA<StateError>()),
+      );
+      expect(it.run.level, same(before));
+    });
+  });
+}
+
+/// The door the game opens for the editor, as `main.dart` builds it.
+LiveLevel _live(PlatformerRun run, RunTimeline timeline) => LiveLevel(
+  level: run.level!.loaded.level,
+  timeline: timeline,
+  prepare: run.prepareEdit,
+  rebuild: (Level next) => run.installEdit(),
+  present: (Level next, LevelDiff diff) => run.announceEdit(),
+);
+
+/// Plays [steps] steps of the level that is up the way `GameLoop` does,
+/// keyframes and all, and hands back the timeline over them.
+RunTimeline _played(PlatformerRun run, InputState input, {required int steps}) {
+  final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+  for (var i = 0; i < steps; i++) {
+    rewind.recorder.record(input);
+    input.beginStep();
+    if (rewind.keyframeDue) rewind.keyframe(run.level!.sim.save());
+    run.level!.sim.step(1.0 / 60.0);
+    input.endStep();
+  }
+  return RunTimeline(
+    rewind: rewind,
+    input: input,
+    stepSim: (double dt) => run.level!.sim.step(dt),
+    restore: (Snapshot snapshot) => run.level!.sim.restore(snapshot),
+  );
+}
+
+/// [level] with its last brush forty metres up, out of the runner's way.
+Level _raised(Level level) {
+  final document = level.toJson();
+  final brushes = <Object?>[...document['brushes']! as List<Object?>];
+  final last = Map<String, Object?>.of(
+    brushes.removeLast()! as Map<String, Object?>,
+  );
+  final at = (last['at']! as List<Object?>).cast<num>();
+  last['at'] = <double>[
+    at[0].toDouble(),
+    at[1].toDouble() + 40.0,
+    at[2].toDouble(),
+  ];
+  return Level.fromJson(<String, Object?>{
+    ...document,
+    'brushes': <Object?>[...brushes, last],
   });
 }
 
