@@ -27,6 +27,12 @@ class CrawlScreens extends StatelessWidget {
       CrawlPhase.loading => const Center(
         child: Text('…', style: TextStyle(color: Color(0xFFE8E2D6))),
       ),
+      CrawlPhase.connecting => Center(
+        child: Text(
+          game.message ?? 'Room ${game.room}: waiting for the other player…',
+          style: const TextStyle(color: Color(0xFFE8E2D6), fontSize: 20),
+        ),
+      ),
       _ => CrawlHud(
         heroes: game.staged?.sim.heroes ?? const <Hero>[],
         lines: <String>[

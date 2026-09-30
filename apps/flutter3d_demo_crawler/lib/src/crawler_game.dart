@@ -29,17 +29,19 @@ import 'package:flutter3d_app/flutter3d_app.dart' show LoadedLevel;
 import 'package:flutter3d_game/flutter3d_game.dart'
     show Bindings, InputSource, PadInput;
 import 'package:flutter3d_game_crawler/flutter3d_game_crawler.dart';
+import 'package:flutter3d_net/flutter3d_net.dart' show NetTransport;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show Actor, GameAction, InputState, RunOutcome;
+    show Actor, GameAction, InputState, RunOutcome, Snapshot;
 import 'package:pad_input/pad_input.dart';
 
 import 'crawl_visuals.dart';
 import 'hud.dart';
 import 'level_open.dart';
+import 'net_crawl.dart';
 import 'staging.dart';
 
 /// Where the game is between its screens.
-enum CrawlPhase { choosing, loading, playing, between, over }
+enum CrawlPhase { choosing, connecting, loading, playing, between, over }
 
 /// One way of holding the game: a name for the select screen, and its input.
 final class Device {
@@ -52,9 +54,28 @@ final class Device {
 final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
   /// [party] are class names to go straight in with, the first on WASD and
   /// the second on the arrows: a demo with nobody at the keys.
-  CrawlerGame({this.party = const <String>[]});
+  ///
+  /// With a [room], the crawl is one of two machines' and waits for
+  /// [goOnline]: [slot] is which hero this one drives — nought for whoever
+  /// made the room — and its class is [party]'s first.
+  CrawlerGame({
+    this.party = const <String>[],
+    this.room,
+    this.slot = 0,
+    this.onSettled,
+  }) : phase = room == null ? CrawlPhase.choosing : CrawlPhase.connecting;
 
   final List<String> party;
+
+  /// The room this game plays in online, or null for one screen.
+  final String? room;
+
+  /// Which of the two heroes this machine drives, online.
+  final int slot;
+
+  /// Told of every step both machines have agreed on, with the level it was
+  /// in: what a test compares the two machines by.
+  final void Function(String level, int step, Snapshot after)? onSettled;
 
   static const GameAction fire = GameAction('fire');
   static const GameAction potion = GameAction('potion');
@@ -85,7 +106,7 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
 
   final Announcer announcer = Announcer();
 
-  CrawlPhase phase = CrawlPhase.choosing;
+  CrawlPhase phase;
 
   /// What the level on screen is, once there is one.
   StagedCrawl? staged;
@@ -144,8 +165,70 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
           orElse: () => HeroClass.all[i],
         );
       }
-      unawaited(enter(firstLevel));
+      // Online, the crawl waits for the other machine instead.
+      if (!online) unawaited(enter(firstLevel));
     }
+  }
+
+  // MARK: - Two machines
+
+  Channels? _channels;
+  NetCrawl? _net;
+  HeroClass? _peerClass;
+  double _hello = 0.0;
+
+  /// What the last step both machines have agreed on came to, and the state
+  /// it left: a level is over only when it is over there, since a step still
+  /// resting on a guess can be taken back.
+  RunOutcome _settledOutcome = RunOutcome.playing;
+  Snapshot? _settledAfter;
+
+  /// Whether this game is one of two machines playing one crawl.
+  bool get online => room != null;
+
+  /// Starts talking to the other machine over [wire], the room's; the crawl
+  /// goes in once it has said which class it is.
+  void goOnline(NetTransport wire) {
+    final channels = _channels = Channels(wire);
+    channels.channel('hello').listen((Map<String, Object?> message) {
+      final name = message['class'];
+      _peerClass = HeroClass.all.firstWhere(
+        (HeroClass k) => k.name == name,
+        orElse: () => HeroClass.warrior,
+      );
+    });
+  }
+
+  HeroClass get _localClass {
+    final seated = seats.seated;
+    return seated.isEmpty ? HeroClass.warrior : classes[seated.first]!;
+  }
+
+  /// This machine's hands for the step about to be captured.
+  Map<String, Object?> _captureLocal() {
+    final seated = seats.seated;
+    if (seated.isEmpty) return heroFrame(0.0, 0.0, fire: false, drink: false);
+    final state = seated.first.inputState;
+    final axis = state.moveAxis;
+    return heroFrame(
+      axis.x,
+      -axis.y,
+      fire: state.held(fire),
+      drink: state.pressed(potion),
+    );
+  }
+
+  void _settled(int step, Snapshot after) {
+    onSettled?.call(title ?? '', step, after);
+    // The first agreed ending is the one both machines keep.
+    if (_settledAfter != null) return;
+    final outcome = after.data['outcome'];
+    if (outcome == RunOutcome.playing.name) return;
+    _settledOutcome = RunOutcome.values.firstWhere(
+      (RunOutcome o) => o.name == outcome,
+      orElse: () => RunOutcome.playing,
+    );
+    _settledAfter = after;
   }
 
   /// Goes into the level named [name], carrying [carried] from the last.
@@ -159,7 +242,14 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
     final crawl = stage(
       loaded.level,
       loaded.collision,
-      party: <HeroClass>[for (final seat in seats.seated) classes[seat]!],
+      // Online, the party is the room's — hero nought is whoever made it —
+      // and the same on both machines.
+      party: online
+          ? <HeroClass>[
+              if (slot == 0) ...<HeroClass>[_localClass, _peerClass!],
+              if (slot == 1) ...<HeroClass>[_peerClass!, _localClass],
+            ]
+          : <HeroClass>[for (final seat in seats.seated) classes[seat]!],
       carried: carried,
       registry: kinds,
       onFixture: fixtures.add,
@@ -183,6 +273,19 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
     }
     await level.add(_Mirror(crawl, loaded.scene, device, this, level));
 
+    final channels = _channels;
+    if (channels != null) {
+      _settledOutcome = RunOutcome.playing;
+      _settledAfter = null;
+      _net = NetCrawl(
+        sim: crawl.sim,
+        localSlot: slot,
+        capture: _captureLocal,
+        transport: channels.channel('level:$name'),
+        stepSeconds: fixedStep.stepSeconds,
+        onSettled: _settled,
+      );
+    }
     _loaded = loaded;
     _level = level;
     staged = crawl;
@@ -200,18 +303,53 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
       case CrawlPhase.playing:
         final crawl = staged;
         if (crawl == null) return;
-        _drive(crawl.sim.heroes);
-        crawl.sim.step(step);
+        final net = _net;
+        if (net != null) {
+          net.advance();
+        } else {
+          _drive(crawl.sim.heroes);
+          crawl.sim.step(step);
+        }
+        // Online, a step taken back and run again says its news twice; the
+        // announcer repeating a line is the price, not a desync.
         announcer.hear(crawl.sim.events.drain());
         _judge(crawl.sim);
+      case CrawlPhase.between || CrawlPhase.over when _net != null:
+        // Still talking after the end, so the other machine hears the frames
+        // it needs to agree on the same ending; what these steps do to this
+        // crawl is thrown away.
+        _net!.advance();
       case CrawlPhase.over:
         if (seats.seated.any(
           (FlameInputBridge s) => s.inputState.pressed(potion),
         )) {
           _backToChoosing();
         }
+      case CrawlPhase.connecting:
+        _handshake(step);
       case CrawlPhase.loading || CrawlPhase.between:
         break;
+    }
+  }
+
+  /// Says which class this machine is, twice a second until the other one
+  /// has said which it is, then goes in.
+  void _handshake(double step) {
+    final channels = _channels;
+    if (channels == null) return;
+    _hello -= step;
+    if (_hello <= 0.0) {
+      _hello = 0.5;
+      channels.channel('hello').send(<String, Object?>{
+        'class': _localClass.name,
+      });
+    }
+    if (_peerClass != null) {
+      // Once more, so a machine that heard nothing yet hears this one.
+      channels.channel('hello').send(<String, Object?>{
+        'class': _localClass.name,
+      });
+      unawaited(enter(firstLevel));
     }
   }
 
@@ -231,6 +369,10 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
       final crawl = staged;
       final next = crawl?.sim.nextLevel;
       if (_waited >= _pause && crawl != null && next != null) {
+        // Carried on from the agreed step, not from the steps this machine
+        // has run past it on a guess: the next level starts from the same
+        // heroes on both.
+        if (_settledAfter case final agreed?) crawl.sim.restore(agreed);
         unawaited(enter(next, carried: crawl.sim.heroes));
       }
     }
@@ -287,7 +429,7 @@ final class CrawlerGame extends FlameGame with HasFlutter3d, HasFixedStep {
   }
 
   void _judge(CrawlerSimulation sim) {
-    switch (sim.outcome) {
+    switch (online ? _settledOutcome : sim.outcome) {
       case RunOutcome.won when sim.nextLevel != null:
         _waited = 0.0;
         phase = CrawlPhase.between;

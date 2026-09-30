@@ -22,6 +22,9 @@ dependencies:
   flame: ^1.38.2
   flame_flutter3d: ^0.8.3
 
+  # Two machines, one crawl: the rollback session.
+  flutter3d_net: ^0.8.0
+
   # A controller per player: `Gamepad(index: n)` reads the one in slot n.
   pad_input: ^0.4.3
 
