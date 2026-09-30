@@ -114,6 +114,38 @@ void main() {
     expect(loaded.materialTextures['assets/textures/wall.png'], isNotNull);
   });
 
+  test('a wall repainted at another size is drawn at it after a hot swap, '
+      'and is not watched once the level is gone', () async {
+    // `HR2`. Mutation: leave out the listener that keeps `materialTextures`
+    // in step, and the level's map names a texture already given back — the
+    // one `rebuildBrushes` would bind and `dispose` would release again.
+    var file = encodePng(Uint8List(4), 1, 1);
+    final loaded = await const LevelLoader().build(
+      _level(albedo: 'assets/textures/wall.png'),
+      device: device,
+      registry: registry,
+      readAsset: (AssetRequest request) async => ByteData.sublistView(file),
+    );
+    HotSwap.instance.registerScene(loaded.scene);
+    final before = loaded.materialTextures['assets/textures/wall.png']!;
+    expect(before.width, 1);
+
+    file = encodePng(Uint8List(4 * 4 * 4), 4, 4);
+    final report = await HotSwap.instance.swap();
+
+    expect(report.textures, contains('assets/textures/wall.png'));
+    final now = loaded.materialTextures['assets/textures/wall.png']!;
+    expect(now.width, 4);
+    final walls = <TextureHandle?>[];
+    loaded.scene.root.traverse((SceneNode node) {
+      if (node is MeshNode) walls.add(node.material.albedo);
+    });
+    expect(walls, everyElement(same(now)));
+
+    loaded.dispose(device);
+    expect(HotSwap.instance.hasTexture('assets/textures/wall.png'), isFalse);
+  });
+
   test(
     'load reads its document through readDocument, not just its textures',
     () async {

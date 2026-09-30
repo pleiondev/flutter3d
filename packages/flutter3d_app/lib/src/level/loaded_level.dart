@@ -4,6 +4,7 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../hot_swap/hot_swap.dart';
 import 'visibility_culler.dart';
 
 /// A loaded level, in the two forms the game needs it.
@@ -111,6 +112,11 @@ final class LoadedLevel {
   /// all because [dispose] is the only place they can be given back.
   final List<TextureHandle> boundTextures = <TextureHandle>[];
 
+  /// [materialTextures] as `HotSwap` watches them, so an image repainted
+  /// under a running game is swapped in. Forgotten by [dispose]: a swap after
+  /// the level is gone would release what [dispose] already released.
+  final List<SwappableTexture> watchedTextures = <SwappableTexture>[];
+
   /// The baked lightmap the brush batches sample, when the level came with
   /// one that matched it. Uploaded by the loader, released by [dispose].
   TextureHandle? lightmap;
@@ -133,6 +139,7 @@ final class LoadedLevel {
   /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
   /// `gl.delete*` per resource on WebGL2.
   void dispose(GraphicsDevice device) {
+    watchedTextures.forEach(HotSwap.instance.forgetTexture);
     for (final mesh in brushMeshes) {
       device.releaseGeometry(mesh.vertices);
       device.releaseGeometry(mesh.indices);

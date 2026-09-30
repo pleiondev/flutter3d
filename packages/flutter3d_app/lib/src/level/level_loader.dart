@@ -7,6 +7,7 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
     show LevelBatching, LevelScene;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../hot_swap/hot_swap.dart';
 import 'loaded_level.dart';
 import 'visibility_culler.dart';
 
@@ -395,6 +396,12 @@ final class LevelLoader {
     // and this is the same kind of fact: the level plays, a wall is flat, and
     // the person who renamed the file is the one who wants to hear about it.
     final loadIssues = <LevelIssue>[...issues];
+    // `HR2`: each map watched, so a picture repainted under a running game is
+    // drawn at whatever size it now is. The level's own map follows the swap,
+    // so what `rebuildBrushes` binds and what `dispose` releases is the
+    // texture on screen and never the one already given back.
+    final watched = <SwappableTexture>[];
+    final read = readAsset ?? _bundleAsset;
     for (final source in level.materials.values) {
       // A material that defers to a `.fmat` names its maps in that file, and
       // `bindMaterial` uploads them below. Uploading these three as well would
@@ -402,12 +409,23 @@ final class LevelLoader {
       if (source.fmat != null) continue;
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
-        textures[path] = await _upload(
-          device,
+        final (texture, bytes) = await _upload(device, path, read, loadIssues);
+        textures[path] = texture;
+        if (texture == null || bytes == null) continue;
+        final swappable = HotSwap.instance.registerTexture(
           path,
-          readAsset ?? _bundleAsset,
-          loadIssues,
+          texture,
+          read: () async =>
+              _LevelMaterialSource._bytes(await read(AssetRequest(path))),
+          build: (Uint8List next) => uploadEncodedImage(
+            device,
+            next,
+            decodeImage: defaultImageDecoder,
+          ),
+          loadedFrom: bytes,
         );
+        swappable.changes.addListener(() => textures[path] = swappable.texture);
+        watched.add(swappable);
       }
     }
 
@@ -557,6 +575,7 @@ final class LevelLoader {
       ..brushNodes.addAll(<MeshNode>[
         for (final batch in parts.batches) batch.node,
       ])
+      ..watchedTextures.addAll(watched)
       // A `.fmat`'s maps are uploaded by `bindMaterial` and named nowhere but
       // on the material, so they are collected here or never released.
       ..boundTextures.addAll(<TextureHandle>{
@@ -646,22 +665,24 @@ final class LevelLoader {
     return material;
   }
 
-  static Future<TextureHandle?> _upload(
+  /// The texture [path] names, and the bytes it was made from for a swap to
+  /// compare against; both null when it could not be made.
+  static Future<(TextureHandle?, Uint8List?)> _upload(
     GraphicsDevice device,
     String path,
     AssetBytes read,
     List<LevelIssue> issues,
   ) async {
     try {
-      final bytes = await read(AssetRequest(path));
+      // The view, not the whole buffer: a reader may hand back a window
+      // onto a larger one, and the bytes outside it are not this file.
+      final bytes = _LevelMaterialSource._bytes(await read(AssetRequest(path)));
       // Mipmapped: a level's walls and floors are the surfaces most often seen
       // small and at a glancing angle, which is exactly where a single level
       // crawls as the camera moves.
-      return await uploadEncodedImage(
+      final texture = await uploadEncodedImage(
         device,
-        // The view, not the whole buffer: a reader may hand back a window
-        // onto a larger one, and the bytes outside it are not this file.
-        _LevelMaterialSource._bytes(bytes),
+        bytes,
         decodeImage: defaultImageDecoder,
         sampling: const TextureSampling(),
         // A KTX2 the device does not sample, or a feature of one the reader
@@ -671,6 +692,7 @@ final class LevelLoader {
           LevelIssue(LevelIssueSeverity.warning, message, where: path),
         ),
       );
+      return (texture, bytes);
     } catch (error) {
       // A missing texture leaves the material flat rather than stopping the
       // level. Losing a wall texture should not cost the play-test — but it is
@@ -683,7 +705,7 @@ final class LevelLoader {
           where: 'texture "$path"',
         ),
       );
-      return null;
+      return (null, null);
     }
   }
 }
