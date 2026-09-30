@@ -1,48 +1,19 @@
+import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'net_transport.dart';
-
-/// One step's worth of a frame this session already ran, kept so a later,
-/// truer version of the remote half can be substituted and the step redone.
-final class _HistoryEntry {
-  const _HistoryEntry({
-    required this.snapshotBefore,
-    required this.local,
-    required this.remote,
-    required this.predicted,
-  });
-
-  /// The state the moment before this step ran — restoring it and replaying
-  /// forward from here is what a correction does.
-  final Snapshot snapshotBefore;
-
-  /// This side's own input that step. Never revised: it is ours, and a
-  /// correction is always about what the *other* side did.
-  final Map<String, Object?> local;
-
-  /// What was used for the remote side that step — either the frame that had
-  /// actually arrived by then, or [predicted]'s repeat of the last one that
-  /// had.
-  final Map<String, Object?> remote;
-
-  final bool predicted;
-
-  _HistoryEntry copyWith({
-    Snapshot? snapshotBefore,
-    Map<String, Object?>? remote,
-    bool? predicted,
-  }) => _HistoryEntry(
-    snapshotBefore: snapshotBefore ?? this.snapshotBefore,
-    local: local,
-    remote: remote ?? this.remote,
-    predicted: predicted ?? this.predicted,
-  );
-}
+import 'net_transport_wire.dart';
 
 /// Two players' worth of a fixed-step simulation, kept in step across an
 /// unreliable [NetTransport] — input frames, delay, prediction, and rollback
 /// on a confirmation that disagreed, in the order `doc/tooling-plan.md`'s
 /// `net-01` names them.
+///
+/// **`flame_multiplayer`'s [RollbackSession], over a [NetTransport].** The
+/// rollback itself lives there, in a package with no dependencies, and runs
+/// here on a [Snapshot] through [NetTransportWire]; this class keeps the
+/// constructor and the messages on the wire every game and relay already
+/// used, so a peer on either side of the move still plays with the other.
 ///
 /// **What this does not know.** Which genre is playing, how many actions a
 /// controller has, or what a frame's fields mean — [captureLocalFrame] reads
@@ -114,7 +85,17 @@ final class NetSession {
          'a window of zero could never correct anything',
        ),
        assert(redundancy >= 0, 'negative redundancy resends nothing extra') {
-    transport.listen(receive);
+    _session = RollbackSession<Snapshot>(
+      wire: NetTransportWire(transport),
+      captureLocalFrame: captureLocalFrame,
+      applyAndStep: applyAndStep,
+      save: save,
+      restore: restore,
+      inputDelay: inputDelay,
+      maxRollbackFrames: maxRollbackFrames,
+      redundancy: redundancy,
+      onSettled: onSettled,
+    );
   }
 
   final NetTransport transport;
@@ -160,146 +141,22 @@ final class NetSession {
   /// happen to still be guessing differently this instant".
   final void Function(int step, Snapshot after)? onSettled;
 
-  int _step = 0;
+  late final RollbackSession<Snapshot> _session;
 
   /// The step about to run.
-  int get step => _step;
+  int get step => _session.step;
 
   /// A confirmation arrived for a step no longer in the window — see the
   /// class doc. Zero on a connection [inputDelay] and [maxRollbackFrames]
   /// are actually sized for.
-  int droppedCorrections = 0;
-
-  final Map<int, Map<String, Object?>> _pendingLocal =
-      <int, Map<String, Object?>>{};
-  final Map<int, Map<String, Object?>> _recentSent =
-      <int, Map<String, Object?>>{};
-  final Map<int, Map<String, Object?>> _earlyRemote =
-      <int, Map<String, Object?>>{};
-  final Map<int, _HistoryEntry> _history = <int, _HistoryEntry>{};
-
-  Map<String, Object?> _lastConfirmedRemote = const <String, Object?>{};
+  int get droppedCorrections => _session.droppedCorrections;
 
   /// Captures this side's input, sends it, and runs one fixed step —
   /// call once per fixed step, the same one [applyAndStep] steps by.
-  void advance() {
-    final captured = captureLocalFrame();
-    final appliesAt = _step + inputDelay;
-    _pendingLocal[appliesAt] = captured;
+  void advance() => _session.advance();
 
-    _recentSent[appliesAt] = captured;
-    _recentSent.removeWhere((s, _) => s < appliesAt - redundancy);
-    transport.send(<String, Object?>{
-      'frames': <String, Object?>{
-        for (final entry in _recentSent.entries) '${entry.key}': entry.value,
-      },
-    });
-
-    final local = _pendingLocal.remove(_step) ?? const <String, Object?>{};
-    final early = _earlyRemote.remove(_step);
-    final remote = early ?? _lastConfirmedRemote;
-    if (early != null) _lastConfirmedRemote = early;
-
-    _history[_step] = _HistoryEntry(
-      snapshotBefore: save(),
-      local: local,
-      remote: remote,
-      predicted: early == null,
-    );
-    _forgetOutsideWindow();
-
-    applyAndStep(local, remote);
-    _step++;
-  }
-
-  /// What [NetTransport.listen] was handed at construction — a batch of
-  /// frames the transport delivered, each named by the step it describes.
-  /// One message can (and, once [redundancy] is doing its job, usually
-  /// does) repeat a step an earlier, since-lost message already tried to
-  /// deliver — [_receiveOne] treats each one exactly the same regardless of
-  /// whether it turns out to be new information or a confirmation this
-  /// session already had.
-  void receive(Map<String, Object?> message) {
-    final frames = (message['frames']! as Map<Object?, Object?>)
-        .cast<String, Object?>();
-    for (final entry in frames.entries) {
-      _receiveOne(
-        int.parse(entry.key),
-        (entry.value! as Map<Object?, Object?>).cast<String, Object?>(),
-      );
-    }
-  }
-
-  void _receiveOne(int atStep, Map<String, Object?> frame) {
-    if (atStep >= _step) {
-      // This step has not run yet — [advance] will find it waiting.
-      _earlyRemote[atStep] = frame;
-      return;
-    }
-
-    final entry = _history[atStep];
-    if (entry == null) {
-      droppedCorrections++;
-      return;
-    }
-    _lastConfirmedRemote = frame;
-    if (!entry.predicted || _sameFrame(entry.remote, frame)) {
-      // Either already settled, or the guess happened to be right — either
-      // way there is nothing downstream to redo, only the record to mark.
-      _history[atStep] = entry.copyWith(remote: frame, predicted: false);
-      return;
-    }
-
-    // The guess was wrong: restore the moment before `atStep`, then redo
-    // every step from there to the present. Each step keeps its own
-    // already-known local frame — it is this side's own and never in
-    // doubt — and, for every step but `atStep` itself, whatever remote
-    // frame that step already had on record; only `atStep` is replaced with
-    // the frame that just arrived. A step still under its own prediction
-    // stays a prediction here and will correct itself independently, on its
-    // own confirmation, exactly the way `atStep` just did.
-    restore(entry.snapshotBefore);
-    for (var s = atStep; s < _step; s++) {
-      final h = _history[s]!;
-      final remoteForStep = s == atStep ? frame : h.remote;
-      final before = save();
-      applyAndStep(h.local, remoteForStep);
-      _history[s] = h.copyWith(
-        snapshotBefore: before,
-        remote: remoteForStep,
-        predicted: s == atStep ? false : h.predicted,
-      );
-    }
-  }
-
-  void _forgetOutsideWindow() {
-    final horizon = _step - maxRollbackFrames;
-    final settled = onSettled;
-    if (settled != null) {
-      // The state a leaving step ended in is the state the step right after
-      // it began in — its own `snapshotBefore` describes only the moment
-      // before it ran. Only fired when that next entry is still on hand,
-      // which it always is: exactly one step crosses the horizon per call.
-      for (final s
-          in _history.keys.where((s) => s < horizon).toList()..sort()) {
-        final after = _history[s + 1];
-        if (after != null) settled(s, after.snapshotBefore);
-      }
-    }
-    _history.removeWhere((s, _) => s < horizon);
-  }
-
-  static bool _sameFrame(Map<String, Object?> a, Map<String, Object?> b) {
-    if (a.length != b.length) return false;
-    for (final entry in a.entries) {
-      if (!b.containsKey(entry.key)) return false;
-      final other = b[entry.key];
-      if (entry.value is num && other is num) {
-        if (entry.value != other) return false;
-      } else if (entry.value != other) {
-        return false;
-      }
-    }
-    return true;
-  }
+  /// A batch of frames the transport delivered, each named by the step it
+  /// describes — what the session listens with, open for a test or a
+  /// transport that hands messages in some other way.
+  void receive(Map<String, Object?> message) => _session.receive(message);
 }

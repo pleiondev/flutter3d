@@ -194,7 +194,7 @@ void main() {
         expect(source, contains('this.maxRollbackFrames = 8,'));
         expect(source, contains('this.redundancy = 8,'));
         expect(source, contains('this.onSettled,'));
-        expect(source, contains('int droppedCorrections = 0;'));
+        expect(source, contains('int get droppedCorrections'));
       },
     );
   });
