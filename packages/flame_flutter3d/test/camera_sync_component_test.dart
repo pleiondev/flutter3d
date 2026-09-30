@@ -63,6 +63,39 @@ void main() {
   );
 
   testWithGame<FlameGame>(
+    'added to the world, where a game adds its components, it is still '
+    'where the player is this frame',
+    FlameGame.new,
+    (game) async {
+      // A priority orders siblings only. Inside the world it ran before
+      // Flame's camera, which is the world's sibling, whatever its number,
+      // and the 3D camera trailed `camera.follow()` by a frame again.
+      //
+      // Mutation: advance the controller from this component's own update.
+      final camera = CameraNode();
+      final player = _Runner();
+      await game.world.add(player);
+      await game.world.add(
+        CameraSyncComponent(
+          controller: CameraSyncController(
+            camera: camera,
+            viewfinder: game.camera.viewfinder,
+            plane: BridgePlane.ground(),
+            direction: SyncDirection.flameToScene,
+          ),
+        ),
+      );
+      game.camera.follow(player);
+      await game.ready();
+
+      for (var i = 0; i < 3; i++) {
+        game.update(1 / 60);
+      }
+      expect(camera.readPosition().x, closeTo(player.position.x, 1e-6));
+    },
+  );
+
+  testWithGame<FlameGame>(
     'Flame\'s follow at a top speed, and its bounds, move a perspective '
     'camera',
     FlameGame.new,

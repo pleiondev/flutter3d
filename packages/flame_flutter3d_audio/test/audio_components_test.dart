@@ -41,6 +41,20 @@ final class _Speakers {
 
 final class _World extends FlameGame with HasFlutter3d {}
 
+/// Moves the 3D camera a metre a frame, from the game's root after Flame's
+/// camera, where a synced camera is moved.
+final class _CameraMover extends Component {
+  _CameraMover(this.camera) : super(priority: BridgePriority.afterFlameCamera);
+
+  final CameraNode camera;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    camera.translate(1.0, 0.0, 0.0);
+  }
+}
+
 void main() {
   testWithGame<FlameGame>(
     'a loop waits in silence, and moves onto the speakers when they open',
@@ -117,6 +131,29 @@ void main() {
       await audio.close();
       expect(speakers.closed, isTrue);
       expect(audio.isOpen, isFalse);
+    },
+  );
+
+  testWithGame<_World>(
+    'added to the world, the ears are where the camera is this frame',
+    _World.new,
+    (game) async {
+      // A priority orders siblings only: inside the world the mix ran before
+      // anything at the game's root after Flame's camera, and heard from
+      // where the camera had been.
+      //
+      // Mutation: work the mix out in the component's own update.
+      game.open3d(FakeBackend());
+      final audio = AudioSceneComponent(
+        bank: SoundBank(const <SoundDef>[_engine]),
+      );
+      await game.world.add(audio);
+      await game.add(_CameraMover(game.camera3d));
+      await game.ready();
+
+      game.update(1 / 60);
+
+      expect(audio.listener.position.x, 1.0);
     },
   );
 

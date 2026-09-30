@@ -28,6 +28,7 @@ export 'src/host/has_fixed_step.dart';
 export 'src/host/has_flutter3d.dart';
 export 'src/host/step_clock.dart';
 export 'src/host/transparent_flame_game.dart';
+export 'src/host/updates_at_root.dart';
 export 'src/input/flame_input_bridge.dart';
 export 'src/input/taps3d.dart';
 export 'src/particles/particles3d_component.dart';

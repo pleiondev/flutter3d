@@ -12,6 +12,8 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show GameAction, InputState;
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Stepped extends FlameGame with HasFixedStep {}
@@ -24,6 +26,21 @@ final class _Ticker extends Component with FixedStepUpdate {
 }
 
 final class _Card extends FlameGame with HasFlutter3d {}
+
+/// A button on the screen: reads whether [action] was pressed this frame.
+final class _Reader extends Component {
+  _Reader(this.state, this.action);
+
+  final InputState state;
+  final GameAction action;
+  bool saw = false;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (state.pressed(action)) saw = true;
+  }
+}
 
 Future<ui.Image> _pixel() {
   final recorder = ui.PictureRecorder();
@@ -76,6 +93,34 @@ void main() {
         ..update(1 / 20);
 
       expect(seen, <double>[1 / 60, 1 / 20]);
+    },
+  );
+
+  testWithGame<FlameGame>(
+    'an input step closed from the world is closed after the viewport has '
+    'read it',
+    FlameGame.new,
+    (game) async {
+      // The viewport is the camera's, and the camera is updated after the
+      // world: closed inside the world, a press was gone before a button on
+      // the screen could see it.
+      //
+      // Mutation: close the step in the component's own update.
+      const fire = GameAction('fire');
+      final input = FlameInputBridge(
+        bindings: Bindings(<InputSource, GameAction>{}),
+        inputState: InputState(),
+      );
+      final reader = _Reader(input.inputState, fire);
+      await game.world.add(input.stepEnd());
+      await game.camera.viewport.add(reader);
+      await game.ready();
+
+      input.inputState.press(fire);
+      game.update(1 / 60);
+
+      expect(reader.saw, isTrue);
+      expect(input.inputState.pressed(fire), isFalse, reason: 'then closed');
     },
   );
 

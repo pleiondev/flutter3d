@@ -51,6 +51,18 @@ of components sixty times a second to find the few that step.
 is this frame's time, set before `beforeSteps`; the pad feed used the frame
 before's, nought on the first frame and the stall's after one.
 
+**The camera sync follows Flame's camera wherever it is added — again.**
+0.8.3 ordered a `CameraSyncComponent` flowing Flame to the scene after
+Flame's `CameraComponent` by its priority, and a priority orders siblings
+only: added to the world, where a game adds its components, it ran inside
+the world, before the camera, and the 3D camera trailed `camera.follow()`
+by a frame once more. `UpdatesAtRoot` is what fixes it and the two others
+with the same assumption: a component with it, mounted anywhere but the
+game's root, does its frame's work from a driver at the root at its own
+priority. The input step's end has it, so a press closed from the world is
+still seen by a button in the viewport, and so has
+`flame_flutter3d_audio`'s `AudioSceneComponent`.
+
 **An upright billboard turns about its own plane's normal**, and writes its
 rotation only when it changed. It turned about world Y whatever the plane, so
 on a backdrop the card swung about an axis lying in it, and a still card under

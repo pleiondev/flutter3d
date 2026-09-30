@@ -25,7 +25,7 @@ typedef OpenedSpeakers = ({AudioScene scene, Future<void> Function() close});
 ///
 /// **Updated last.** Its priority is high, so the mix is worked out after
 /// every emitter and every craft has moved this frame.
-class AudioSceneComponent extends Component {
+class AudioSceneComponent extends Component with UpdatesAtRoot {
   AudioSceneComponent({
     required this.bank,
     this.maxVoices = 16,
@@ -179,9 +179,11 @@ class AudioSceneComponent extends Component {
     await closing?.call();
   }
 
+  /// The listener onto the camera and the mix worked out, from the game's
+  /// root wherever this was added: inside the world it ran before Flame's
+  /// camera, and was heard from where the camera had been a frame before.
   @override
-  void update(double dt) {
-    super.update(dt);
+  void rootUpdate(double dt) {
     final game = findGame();
     if (game is HasFlutter3d && game.has3d) {
       final camera = game.camera3d;

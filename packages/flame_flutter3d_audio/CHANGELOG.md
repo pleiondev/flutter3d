@@ -1,3 +1,11 @@
+## Unreleased
+
+**Heard from where the camera is this frame, wherever it was added.**
+`AudioSceneComponent` works its mix out from the game's root through the
+bridge's `UpdatesAtRoot`: added to the world it ran before Flame's camera,
+whatever its priority, and the listener stood where the camera had been a
+frame before. Needs the `flame_flutter3d` release that has `UpdatesAtRoot`.
+
 ## 0.8.3
 
 **Sound for a bridged Flame game, in a package of its own.**

@@ -16,6 +16,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../host/bridge_priority.dart';
 import '../host/has_fixed_step.dart';
+import '../host/updates_at_root.dart';
 
 /// Feeds Flame's own keyboard and drag callbacks into the same
 /// [Bindings]/[InputState] pair `flutter3d_game`'s [DesktopInput] and
@@ -427,8 +428,19 @@ final class _KeyboardFeed extends Component {
   }
 }
 
-final class _InputStepEnd extends Component {
+/// Closes the step last of all, from the game's root wherever it was added:
+/// inside the world it closed before the viewport's buttons had been read.
+final class _InputStepEnd extends Component with UpdatesAtRoot {
   _InputStepEnd(this.inputState) : super(priority: BridgePriority.inputEnd);
+
+  /// A game of fixed steps closes the input after each step, not here.
+  @override
+  bool get needsRoot => findGame() is! HasFixedStep;
+
+  @override
+  void rootUpdate(double dt) {
+    if (_stepped == null) inputState.endStep();
+  }
 
   final InputState inputState;
   HasFixedStep? _stepped;
@@ -475,12 +487,6 @@ final class _InputStepEnd extends Component {
     _lifecycle?.dispose();
     _lifecycle = null;
     super.onRemove();
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    if (_stepped == null) inputState.endStep();
   }
 }
 
