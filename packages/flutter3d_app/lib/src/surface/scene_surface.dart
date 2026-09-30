@@ -102,7 +102,9 @@ class _SceneSurfaceState extends State<SceneSurface> {
   @override
   void initState() {
     super.initState();
-    HotSwap.instance.registerRenderer(widget.renderer);
+    HotSwap.instance
+      ..registerRenderer(widget.renderer)
+      ..registerScene(widget.scene);
   }
 
   @override
@@ -110,6 +112,9 @@ class _SceneSurfaceState extends State<SceneSurface> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.renderer, widget.renderer)) {
       HotSwap.instance.registerRenderer(widget.renderer);
+    }
+    if (!identical(oldWidget.scene, widget.scene)) {
+      HotSwap.instance.registerScene(widget.scene);
     }
   }
 

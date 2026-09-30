@@ -20,6 +20,13 @@ transforms and animation. `ext.flutter3d.assets.put` sends a model's bytes
 over the VM service instead, for a device whose disk the editor cannot write.
 A model that does not build keeps the version that did.
 
+**A material dragged in an inspector changes the next frame.**
+`HotSwap.setMaterial` (`ext.flutter3d.material.set` over the VM service)
+sets base colour, emissive, roughness, metallic, normal scale or alpha cutoff
+on every material of that name in the scenes registered — `SceneSurface`
+registers its own — and keeps them as overrides that a model swap does not
+undo. `clearMaterial` lets them go.
+
 `SceneSurface` is a `StatefulWidget` now, for `reassemble`. Its constructor
 and parameters are unchanged.
 

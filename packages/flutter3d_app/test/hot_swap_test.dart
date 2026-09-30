@@ -101,7 +101,7 @@ Future<ModelAsset> _model(GraphicsDevice device, Uint8List bytes) {
         ),
       ],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(baseColor: colour, unlit: true),
+        SurfaceMaterial(baseColor: colour, unlit: true, name: 'paint'),
       ],
       nodes: <ModelNode>[
         ModelNode(name: 'hull', surfaces: <int>[0]),
@@ -302,6 +302,81 @@ void main() {
       expect(report.refused.single, contains('not a model'));
       expect(model.asset, same(before));
       expect(ship.meshes.single.material.baseColor.x, 1.0);
+    });
+  });
+
+  group('a material', () {
+    late CpuDevice device;
+    late HotSwap swap;
+
+    setUp(() {
+      device = CpuDevice(
+        width: 16,
+        height: 9,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      swap = HotSwap(enabled: true);
+    });
+
+    test('is set in every scene registered, once however many nodes wear '
+        'it', () async {
+      final asset = await _model(device, Uint8List.fromList(<int>[1]));
+      final scene = Scene();
+      final a = asset.instantiate(scene);
+      asset.instantiate(scene);
+      swap.registerScene(scene);
+
+      final touched = swap.setMaterial('paint', <String, Object?>{
+        'baseColor': <double>[0.0, 0.5, 1.0, 1.0],
+        'roughness': 0.25,
+      });
+
+      expect(touched, 1, reason: 'the two instances share it');
+      final material = a.meshes.single.material;
+      expect(material.baseColor.z, 1.0);
+      expect(material.roughness, 0.25);
+      expect(swap.setMaterial('chrome', <String, Object?>{'metallic': 1}), 0);
+    });
+
+    test('refuses a field it does not know or a value of the wrong size', () {
+      expect(
+        () => swap.setMaterial('paint', <String, Object?>{'shine': 1}),
+        throwsArgumentError,
+      );
+      expect(
+        () => swap.setMaterial('paint', <String, Object?>{
+          'baseColor': <double>[1, 0, 0],
+        }),
+        throwsArgumentError,
+      );
+    });
+
+    test('keeps what was dragged when the model is swapped under it', () async {
+      var file = Uint8List.fromList(<int>[1]);
+      final model = swap.registerModel(
+        'assets_src/ship.glb',
+        await _model(device, file),
+        read: () async => file,
+        build: (Uint8List bytes) => _model(device, bytes),
+        loadedFrom: file,
+      );
+      final scene = Scene();
+      final ship = model.instantiate(scene);
+      swap
+        ..registerScene(scene)
+        ..setMaterial('paint', <String, Object?>{'roughness': 0.1});
+
+      file = Uint8List.fromList(<int>[3]);
+      await swap.swap();
+
+      final material = ship.meshes.single.material;
+      expect(material.baseColor.z, 1.0, reason: 'the file\'s new colour');
+      expect(material.roughness, 0.1, reason: 'and the drag, kept');
+
+      swap.clearMaterial('paint');
+      file = Uint8List.fromList(<int>[2]);
+      await swap.swap();
+      expect(ship.meshes.single.material.roughness, isNot(0.1));
     });
   });
 }

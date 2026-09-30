@@ -67,6 +67,9 @@ final class HotSwap {
   final List<WeakReference<Renderer>> _renderers = <WeakReference<Renderer>>[];
   final List<_Library> _libraries = <_Library>[];
   final List<SwappableModel> _models = <SwappableModel>[];
+  final List<WeakReference<Scene>> _scenes = <WeakReference<Scene>>[];
+  final Map<String, Map<String, Object?>> _overrides =
+      <String, Map<String, Object?>>{};
 
   /// Counts the reloads that finished, for a host that draws only on demand
   /// and has to draw once more to show the new shaders.
@@ -215,9 +218,138 @@ final class HotSwap {
   Future<ModelSwapReport?> put(String path, Uint8List bytes) async {
     if (!enabled) return null;
     for (final model in _models) {
-      if (model.path == path) return model._adopt(bytes);
+      if (model.path == path) {
+        final report = await model._adopt(bytes);
+        _applyOverrides();
+        return report;
+      }
     }
     return null;
+  }
+
+  /// Remembers [scene] until it is garbage, for [setMaterial] to find
+  /// materials in. `SceneSurface` registers the scene it draws.
+  void registerScene(Scene scene) {
+    if (!enabled) return;
+    _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
+    if (_scenes.any((WeakReference<Scene> s) => identical(s.target, scene))) {
+      return;
+    }
+    _scenes.add(WeakReference<Scene>(scene));
+    _registerExtension();
+  }
+
+  /// The fields [setMaterial] understands, and how many numbers each takes.
+  static const Map<String, int> materialFields = <String, int>{
+    'baseColor': 4,
+    'emissive': 3,
+    'emissiveStrength': 1,
+    'roughness': 1,
+    'metallic': 1,
+    'normalScale': 1,
+    'alphaCutoff': 1,
+  };
+
+  /// Sets [fields] on every material called [name] in the registered
+  /// scenes, from the next frame on, and keeps them as overrides.
+  ///
+  /// **For an inspector dragging a slider.** Nothing is saved and nothing is
+  /// reloaded; the material the frame is drawn with changes. What the
+  /// simulation reads is not a material's business, so nothing here goes
+  /// near the tape — a tunable is the door for that.
+  ///
+  /// **The overrides outlive the file.** A model swapped after the drag
+  /// brings its materials as the file has them, which is the value before
+  /// the drag; every swap puts the overrides back on, so the colour somebody
+  /// is still dragging does not snap back each time the model is saved.
+  /// [clearMaterial] drops them.
+  ///
+  /// [fields] maps a name from [materialFields] to a number or a list of
+  /// that many numbers. Throws [ArgumentError] naming the field otherwise.
+  /// Returns how many materials took the change.
+  int setMaterial(String name, Map<String, Object?> fields) {
+    if (!enabled) return 0;
+    for (final MapEntry(key: field, :value) in fields.entries) {
+      _numbers(field, value);
+    }
+    (_overrides[name] ??= <String, Object?>{}).addAll(fields);
+    return _applyOverrides(only: name);
+  }
+
+  /// Forgets the overrides for [name], or for every material when null. The
+  /// materials keep what they were set to until their file is loaded again.
+  void clearMaterial([String? name]) {
+    if (name == null) {
+      _overrides.clear();
+    } else {
+      _overrides.remove(name);
+    }
+  }
+
+  int _applyOverrides({String? only}) {
+    _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
+    final seen = Set<Material>.identity();
+    for (final scene in _scenes) {
+      scene.target?.root.traverse((SceneNode node) {
+        if (node is! MeshNode) return;
+        final material = node.material;
+        final name = material.name;
+        if (name == null || (only != null && name != only)) return;
+        final fields = _overrides[name];
+        if (fields == null || !seen.add(material)) return;
+        for (final MapEntry(key: field, :value) in fields.entries) {
+          _write(material, field, _numbers(field, value));
+        }
+      });
+    }
+    return seen.length;
+  }
+
+  static List<double> _numbers(String field, Object? value) {
+    final count = materialFields[field];
+    if (count == null) {
+      throw ArgumentError.value(
+        field,
+        'field',
+        'not a material field; there are ${materialFields.keys.join(', ')}',
+      );
+    }
+    final numbers = switch (value) {
+      final num one => <double>[one.toDouble()],
+      final List<Object?> many => <double>[
+        for (final item in many)
+          if (item is num) item.toDouble(),
+      ],
+      _ => const <double>[],
+    };
+    if (numbers.length != count ||
+        (value is List<Object?> && value.length != count)) {
+      throw ArgumentError.value(
+        value,
+        field,
+        'takes $count number${count == 1 ? '' : 's'}',
+      );
+    }
+    return numbers;
+  }
+
+  static void _write(Material material, String field, List<double> v) {
+    switch (field) {
+      case 'baseColor':
+        material.baseColor.setValues(v[0], v[1], v[2], v[3]);
+      case 'emissive':
+        material.emissive.setValues(v[0], v[1], v[2]);
+      case 'emissiveStrength':
+        material.emissiveStrength = v[0];
+      case 'roughness':
+        material.roughness = v[0];
+      case 'metallic':
+        material.metallic = v[0];
+      case 'normalScale':
+        material.normalScale = v[0];
+      case 'alphaCutoff':
+        material.alphaCutoff = v[0];
+    }
   }
 
   /// Refreshes the registered bundles whose bytes changed, then relinks every
@@ -280,6 +412,7 @@ final class HotSwap {
         models.add(report);
       }
     }
+    if (models.isNotEmpty) _applyOverrides();
     _renderers.removeWhere((WeakReference<Renderer> r) => r.target == null);
     for (final renderer in _renderers) {
       renderer.target?.relinkShaders();
@@ -308,6 +441,33 @@ final class HotSwap {
       return developer.ServiceExtensionResponse.result(
         jsonEncode(report.toJson()),
       );
+    });
+    developer.registerExtension('ext.flutter3d.material.set', (
+      String method,
+      Map<String, String> parameters,
+    ) async {
+      final name = parameters['name'];
+      final fields = parameters['fields'];
+      if (name == null || fields == null) {
+        return developer.ServiceExtensionResponse.error(
+          developer.ServiceExtensionResponse.invalidParams,
+          'material.set takes a name and its fields as JSON',
+        );
+      }
+      try {
+        final touched = instance.setMaterial(
+          name,
+          jsonDecode(fields) as Map<String, Object?>,
+        );
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object?>{'materials': touched}),
+        );
+      } on Object catch (error) {
+        return developer.ServiceExtensionResponse.error(
+          developer.ServiceExtensionResponse.invalidParams,
+          '$error',
+        );
+      }
     });
     developer.registerExtension('ext.flutter3d.assets.put', (
       String method,
