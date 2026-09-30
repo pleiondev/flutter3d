@@ -8,7 +8,7 @@ In my [previous article](https://medium.com/@dzolotov/i-wrote-a-3d-game-engine-f
 
 The screenshot above is River Sortie, a River Raid-style shooter you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
 
-The original River Raid was designed and programmed by Carol Shaw and published by Activision for the Atari 2600 in 1982. Shaw was one of the first women to design video games professionally, and her river was generated from a pseudo-random sequence rather than stored, so the whole course came out the same on every play without the cartridge having to store it.
+The original River Raid was designed and programmed by Carol Shaw and published by Activision for the Atari 2600 in 1982. Shaw was one of the first women to design video games professionally, and her river was generated from a pseudo-random sequence, so the whole course came out the same on every play without the cartridge storing it.
 
 I built it to see whether that holds up in a real game. Flame is the 2D engine a lot of Flutter developers already write games with, and for a while it and flutter3d lived side by side without talking to each other. If you had a Flame game and wanted light, shadows, and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. Below is how it works, and then a small game built on it, from an empty project to a boat collecting buoys on a lake.
 
