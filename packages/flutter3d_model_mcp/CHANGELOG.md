@@ -1,3 +1,12 @@
+## 0.8.1
+
+**`ModelSession.rebind` points a session at the document now on screen.** A
+host that opens a file or starts a new project installs a new
+`ModelHistory`; a session left on the old one edited a document nobody could
+see or save, and every call reported success. `rebind` attaches the recovery
+journal to the new history and forgets the export cache, since ids start
+again. Nothing an agent calls can swap the document: the host does.
+
 ## 0.8.0
 
 **`audit` checks an asset that came from somewhere else.** It answers with

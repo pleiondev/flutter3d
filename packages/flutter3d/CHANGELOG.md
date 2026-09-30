@@ -21,6 +21,8 @@
 * **Vertex colours are linear, and `linearFromSrgb` gets a picked colour
   there**, with `MeshData.withColor` to paint a whole mesh, through
   `flutter3d_core`, which this library re-exports.
+* **`Renderer.releaseTextureAfterFrame`, and a `renderPost` that gives its
+  bloom chain back**, through `flutter3d_core`.
 
 ## 0.8.2
 

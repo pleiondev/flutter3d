@@ -1,5 +1,15 @@
 ## 0.8.3
 
+- **`Renderer.renderPost` gives its bloom chain back.** Its pooled targets
+  were queued for release, but only `render` drained the ring and moved the
+  frame counter, so a host that only post-processed allocated a fresh chain
+  on every call and the pool grew without bound. `renderPost` now retires a
+  slot of the ring and advances the counter itself.
+
+- **`Renderer.releaseTextureAfterFrame`**, `releaseMeshAfterFrame`'s
+  counterpart for a texture an application uploaded and is done with: given
+  back to the device once no frame in flight can still sample it.
+
 - **`Renderer.releaseMeshAfterFrame` lets go of a mesh safely.** A mesh an
   application built and is done with, a stretch of terrain behind the
   camera, goes back to the device once no frame in flight can still draw

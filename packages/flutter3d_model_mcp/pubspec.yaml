@@ -1,6 +1,6 @@
 name: flutter3d_model_mcp
 description: "A model editor an agent can drive: an MCP server over stdio whose tools are the editor's own commands, one project per process."
-version: 0.8.0
+version: 0.8.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

@@ -1,5 +1,28 @@
 ## 0.8.3
 
+**A host that goes lets go of the game.** `Flutter3dFlameWidget` cleared
+the game's `redrawer3d` by comparing it with a fresh tear-off of its own
+method, which is never identical, so a game that outlived its widget kept
+the disposed host and everything it held.
+
+**Only a host showing the game ticks it.** A host added its clock on its
+first build; one still opening its device, or one that failed to start,
+ticked a game another host was showing, and `onTick` ran twice an update.
+
+**New overlay builders reach the screen without a new `GameWidget`.** A map
+written inline in a parent's `build` is new on every rebuild, and each one
+replaced the `GameWidget`, which updated the game again from its layout.
+Builders under the same names are now read through the current config.
+
+**`BillboardAtlas` keeps what it uploads straight.** A material is kept per
+image and sampling, so a smooth caller no longer gets a sharp one's; an
+upload that finishes after `dispose` makes no texture; and textures go back
+after the frames in flight, as the cards do.
+
+**A character or a lift leaves the world with its component.**
+`CharacterBodyComponent` and `KinematicBodyComponent` take `removeFrom`, as
+`RigidBodyComponent` does; a despawned one no longer stays solid and unseen.
+
 **A game shown again draws the world it kept.** Flame keeps a game's
 components when its widget goes, and the same game can be shown again on a
 tab that comes back. `Flutter3dFlameWidget` closed the device it had opened
