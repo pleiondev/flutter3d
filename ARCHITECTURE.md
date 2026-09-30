@@ -233,6 +233,7 @@ point of §3.3.
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
+| `flutter3d_game_crawler` | Co-op crawl rules: up to four heroes in one world, health that drains, loot, keyed doors, a shared view none of them can leave |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
 | `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; `LevelScene`, which turns a level into brush meshes, materials, lights and probes with no Flutter; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
@@ -2688,7 +2689,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **10761 tests** across 39 packages and 9 applications |
+| Unit tests | **10778 tests** across 40 packages and 9 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3715,7 +3716,7 @@ what went out at 0.4.2.
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-   `flutter3d_game_strategy`, `flame_flutter3d`
+   `flutter3d_game_strategy`, `flutter3d_game_crawler`, `flame_flutter3d`
 9. `flutter3d_sim_mcp`, `flame_flutter3d_audio`
 
 Several positions are not obvious and so are written down rather than

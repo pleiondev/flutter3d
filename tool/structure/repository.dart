@@ -23,6 +23,7 @@ const List<String> genrePackages = <String>[
   'flutter3d_game_platformer',
   'flutter3d_game_racing',
   'flutter3d_game_strategy',
+  'flutter3d_game_crawler',
 ];
 
 /// Every application in this repository, which is also its directory name.
@@ -149,6 +150,7 @@ const Map<String, String> genreRuleExempt = <String, String>{
   'flutter3d_game_platformer': 'it is a genre',
   'flutter3d_game_racing': 'it is a genre',
   'flutter3d_game_strategy': 'it is a genre',
+  'flutter3d_game_crawler': 'it is a genre',
   // `flutter3d_sim_mcp` used to be here — "it deliberately plays one genre,
   // the shooter". It plays whatever `HeadlessGame` a host hands it now, and
   // the shooter's side of that lives in the shooter, so the rule holds it like
@@ -166,6 +168,7 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_racing': <String>{'lib/bridge.dart'},
   'flutter3d_game_platformer': <String>{},
   'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
+  'flutter3d_game_crawler': <String>{},
 };
 
 /// Which files of a genre package belong to its visible half, and so may name
@@ -190,6 +193,7 @@ const Map<String, Set<String>> genreBridgeHalf = <String, Set<String>>{
   'flutter3d_game_racing': <String>{'lib/bridge.dart', 'lib/src/hud.dart'},
   'flutter3d_game_platformer': <String>{'lib/bridge.dart', 'lib/src/hud.dart'},
   'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
+  'flutter3d_game_crawler': <String>{},
 };
 
 /// Genre cameras that do not turn [CameraRig], and why.

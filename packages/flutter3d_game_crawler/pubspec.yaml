@@ -1,0 +1,35 @@
+name: flutter3d_game_crawler
+description: "A top-down dungeon crawl for one to four players on one screen: heroes whose health drains, food, keys that open one door each, and a camera that keeps everybody in frame."
+version: 0.8.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - multiplayer
+  - gameplay
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The engine half. `ActorSystem.step(foci:)`, which lets every monster go for
+  # the player it can reach first, arrived in 0.8.1.
+  flutter3d_sim: ^0.8.1
+
+  vector_math: ^2.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# No dependency on flutter3d and none on another genre: the simulation is
+# reachable from a test with no device, like the platformer's, and what it
+# shares with the shooter lives in flutter3d_sim rather than being imported
+# sideways.

@@ -1,3 +1,25 @@
+## 0.8.1
+
+**Several things to chase, and one sweep to chase them by.**
+`ActorSystem.step` takes `foci:`, a list of `FocusPoint`s, beside the single
+`focus:` it always took. `FlowField.updateAll` and `Navigation.updateAll`
+sweep from every goal at once and record which one each cell's route ends at
+(`FlowField.sourceAt`, `Navigation.targetOf`), so each actor attends to the
+focus nearest by walking at the cost of one sweep per class of body; without
+navigation it is the nearest in a straight line. `Mind.focus`,
+`focusBody` and `focusVelocity` are the attended one's, `Mind.focusIndex`
+says which, and `ActorSystem.focusVelocityOf` reads any of them. A single
+focus behaves exactly as before.
+
+**Damage to a focus is counted per focus.** `ActorSystem.hurtFocus(body,
+amount)` credits whichever focus owns the body that was hit and says whether
+one did; `damageToFoci` has the totals by index and `damageToFocusThisStep`
+remains their sum. `focusBody` is now read-only: it was only ever set by
+`step`.
+
+**A save carries every focus.** One focus is written as `lastFocus`, as
+before; several as `lastFoci`.
+
 ## 0.8.0
 
 **A level can carry the recipe for a room in place of its brushes.** A
