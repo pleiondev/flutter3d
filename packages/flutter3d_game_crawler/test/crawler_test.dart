@@ -25,14 +25,18 @@ CrawlerSimulation _crawl(
   CollisionWorld world,
   List<Hero> heroes, {
   MechanismWorld? mechanisms,
-  ActorSystem? actors,
-  GameRandom? random,
+  Horde? horde,
 }) => CrawlerSimulation(
   heroes: heroes,
   collision: world,
-  random: random ?? actors?.random ?? GameRandom(1),
+  random: horde?.actors.random ?? GameRandom(1),
   mechanisms: mechanisms,
-  actors: actors,
+  horde: horde,
+);
+
+Horde _horde(CollisionWorld world, {int seed = 5}) => Horde(
+  ActorSystem(world: world, random: GameRandom(seed)),
+  kinds: const <MonsterKind>[_biter],
 );
 
 void _run(CrawlerSimulation sim, double seconds) {
@@ -50,14 +54,13 @@ Collider _trigger(CollisionWorld world, double x, double z) => world.add(
   ),
 );
 
-/// Walks into the focus it was given and strikes it, every step it is close.
-final class _Biter extends Brain {
-  @override
-  void act(Mind it) {
-    it.steerTowardsFocus();
-    if (it.distance < 1.2) it.hurtFocus(it.focusBody, 1.0);
-  }
-}
+/// Quick and tough enough to keep biting for the length of a test.
+const MonsterKind _biter = MonsterKind(
+  name: 'biter',
+  health: 5000.0,
+  speed: 6.0,
+  bite: 60.0,
+);
 
 void main() {
   group('health', () {
@@ -330,23 +333,14 @@ void main() {
       HeroClass near,
     ) {
       final world = _floor();
-      final random = GameRandom(5);
-      final actors = ActorSystem(world: world, random: random);
+      final horde = _horde(world);
       final heroes = <Hero>[
         _hero(world, near, 0, 0.0),
         _hero(world, HeroClass.wizard, 1, 20.0),
       ];
-      final monster = actors.spawn(
-        body: CharacterController(
-          world: world,
-          position: Vector3(3.0, 0.9, 0.0),
-          layer: CollisionLayers.actor,
-        ),
-        health: Health(50.0),
-        brain: _Biter(),
-      );
+      final monster = horde.spawn(_biter, Vector3(3.0, 0.8, 0.0));
       return (
-        sim: _crawl(world, heroes, actors: actors),
+        sim: _crawl(world, heroes, horde: horde),
         heroes: heroes,
         monster: monster,
       );
@@ -410,24 +404,14 @@ void main() {
       final mechanisms = MechanismWorld(world)
         ..add(Food(name: 'food', collider: _trigger(world, 2.0, 0.0)))
         ..add(DoorKey(name: 'key', collider: _trigger(world, -2.0, 1.0)));
-      final random = GameRandom(9);
-      final actors = ActorSystem(world: world, random: random);
+      final horde = _horde(world, seed: 9);
       final heroes = <Hero>[
         _hero(world, HeroClass.valkyrie, 0, 0.0),
         _hero(world, HeroClass.elf, 1, -3.0),
       ];
-      actors.spawn(
-        name: 'grunt',
-        body: CharacterController(
-          world: world,
-          position: Vector3(6.0, 0.9, 4.0),
-          layer: CollisionLayers.actor,
-        ),
-        health: Health(50.0),
-        brain: _Biter(),
-      );
+      horde.spawn(_biter, Vector3(6.0, 0.8, 4.0));
       return (
-        sim: _crawl(world, heroes, mechanisms: mechanisms, actors: actors),
+        sim: _crawl(world, heroes, mechanisms: mechanisms, horde: horde),
         heroes: heroes,
       );
     }

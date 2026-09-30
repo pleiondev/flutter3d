@@ -62,6 +62,22 @@ final class Hero {
   /// before each step. A length under one is a request to walk slower.
   final Vector3 wish = Vector3.zero();
 
+  /// Whether fire is held, written by the game before each step. Held fire
+  /// shoots every [HeroClass.shotInterval].
+  bool fire = false;
+
+  /// Set by the game on the step the magic button goes down; the step drinks
+  /// a potion, if there is one, and puts this back to false. A press, not a
+  /// hold: one potion per press.
+  bool drink = false;
+
+  /// Which way the hero faces, on the ground: the last way they walked, and
+  /// the way they shoot.
+  final Vector3 facing = Vector3(0.0, 0.0, -1.0);
+
+  /// Seconds until the next shot may leave.
+  double reload = 0.0;
+
   /// Whether [hungryBelow] has been announced since the hero was last above it.
   bool _warned = false;
 
@@ -96,6 +112,8 @@ final class Hero {
     'potions': potions,
     'score': score,
     'warned': _warned,
+    'facing': <double>[facing.x, facing.y, facing.z],
+    'reload': reload,
   };
 
   void restore(Map<String, Object?> from) {
@@ -107,5 +125,7 @@ final class Hero {
     potions = (from['potions'] as num?)?.toInt() ?? 0;
     score = (from['score'] as num?)?.toInt() ?? 0;
     _warned = from['warned'] == true;
+    from.vectorInto('facing', facing);
+    reload = (from['reload'] as num?)?.toDouble() ?? 0.0;
   }
 }

@@ -5,9 +5,12 @@
 library;
 
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:vector_math/vector_math.dart';
 
+import 'generator.dart';
 import 'hero.dart';
 import 'loot.dart';
+import 'monster_kind.dart';
 
 /// A hero walked into something and took it.
 final class LootTaken extends GameEvent {
@@ -39,6 +42,43 @@ final class HeroHungry extends GameEvent {
 
   @override
   String get name => '${hero.kind.name} needs food';
+}
+
+/// A hero killed a monster, by shot, by hand or by potion.
+final class MonsterSlain extends GameEvent {
+  const MonsterSlain(this.hero, this.kind, this.at);
+
+  final Hero hero;
+  final MonsterKind kind;
+
+  /// Where it fell, copied: the body is gone by the time anybody reads this.
+  final Vector3 at;
+
+  @override
+  String get name => '${hero.kind.name} slew a ${kind.name}';
+}
+
+/// A hero broke a generator.
+final class GeneratorDestroyed extends GameEvent {
+  const GeneratorDestroyed(this.hero, this.generator);
+
+  final Hero hero;
+  final Generator generator;
+
+  @override
+  String get name =>
+      '${hero.kind.name} broke ${generator.name ?? 'a generator'}';
+}
+
+/// A hero drank a potion, and this is how many things it reached.
+final class PotionDrunk extends GameEvent {
+  const PotionDrunk(this.hero, this.struck);
+
+  final Hero hero;
+  final int struck;
+
+  @override
+  String get name => '${hero.kind.name} drank a potion';
 }
 
 /// A hero's health ran out.

@@ -36,6 +36,14 @@ off the window's size. Keep it that way: a rule that read the camera would
 stop agreeing with itself after a load, and one that read the window would
 disagree between two players online.
 
+## Every monster goes through the `Horde`
+
+Spawn with `horde.spawn(kind, at)`, never `ActorSystem.spawn` directly. The
+horde is what writes a monster down so that a save can build it again; an
+actor it does not know is one a load quietly loses. A new kind of monster is
+a `MonsterKind` added to the list the horde is given — the list is how a save
+names it.
+
 ## A locked door is the engine's `Door`
 
 Give it a `key` and `wait: 0`. The simulation spends one of the touching

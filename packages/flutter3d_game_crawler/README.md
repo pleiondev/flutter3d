@@ -19,11 +19,22 @@ package is what a hero is on top of that.
 | `CrawlerSimulation` | The step order: the maze's machinery, the monsters with every living hero as a focus, the heroes inside the shared view, doors, loot, hunger, exits. |
 | `Hero`, `HeroClass` | A body, a class (warrior, valkyrie, wizard, elf), health that drains a point a second, keys, potions and score. |
 | `Food`, `DoorKey`, `Potion`, `Treasure` | Loot a living hero takes by walking into it. |
+| `Generator`, `MonsterKind`, `Horde`, `Chaser` | Where monsters come from until it is broken, what they are, the list that keeps them and rebuilds them from a save, and the mind that walks them at a hero. |
+| `Volley`, `Bolt` | The heroes' shots in flight: through each other, into the first wall or monster. |
 | `CrawlFraming`, `FramingTuning` | Where the shared view has to be for every hero to be in it, and the edge none of them may walk past. |
 | `CrawlCamera` | Eases towards that framing through `CameraRig`. |
 
 A locked door is the engine's `Door` with a key and no wait: a hero carrying a
 key who walks into it spends the key and the door stays open.
+
+## A horde born during play still loads
+
+A snapshot fills in a world that already exists, and nearly every monster in a
+crawl was born after the level loaded. The `Horde` records each monster's kind,
+generator and entity, and on restore builds them again under the same entities
+before the entity save pours their numbers in, so a save loaded afresh or
+rolled back past a birth continues as the run did. The tests check both
+against a run that was never interrupted.
 
 ## The edge of the view is a rule, not a camera
 
