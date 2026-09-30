@@ -15,6 +15,8 @@
 /// against a mock that cannot lie about timing.
 library;
 
+export 'package:flutter3d_sim/flutter3d_sim.dart' show firstDifferingPath;
+
 export 'src/loopback_transport.dart';
 export 'src/net_session.dart';
 export 'src/net_transport.dart';

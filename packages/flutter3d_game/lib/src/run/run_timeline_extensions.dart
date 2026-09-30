@@ -57,6 +57,12 @@ import 'run_timeline.dart';
 ///   button the game itself draws. What the callback returns is the
 ///   caller's business; a `Demo.toJson()` is the obvious shape, and this
 ///   does not require it.
+/// * `replayUnderNewCode` — registered only when [capture] is given;
+///   `seconds`, a number as a string (three when absent); returns
+///   [CodeReplay.toJson], or `{"reached": false}` when the buffer does not
+///   reach that far. `HR4`: called after a hot reload, it lives the last
+///   seconds again under the new code and names where that run parts from
+///   the old one.
 ///
 /// Registered once per [RunTimeline]; registering the same [timeline] twice
 /// throws, the same way [developer.registerExtension] itself refuses a
@@ -65,6 +71,7 @@ void registerTimelineExtensions(
   RunTimeline timeline, {
   StepTimeTrace? frameTimes,
   Map<String, Object?> Function()? bugReport,
+  Snapshot Function()? capture,
 }) {
   developer.registerExtension('ext.flutter3d.timeline.pause', (
     method,
@@ -167,6 +174,24 @@ void registerTimelineExtensions(
     });
   }
 
+  if (capture != null) {
+    developer.registerExtension('ext.flutter3d.timeline.replayUnderNewCode', (
+      method,
+      parameters,
+    ) async {
+      final seconds = double.tryParse(parameters['seconds'] ?? '') ?? 3.0;
+      final replay = timeline.replayUnderNewCode(
+        seconds: seconds,
+        capture: capture,
+      );
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(
+          replay?.toJson() ?? const <String, Object?>{'reached': false},
+        ),
+      );
+    });
+  }
+
   if (bugReport != null) {
     developer.registerExtension('ext.flutter3d.timeline.bugReport', (
       method,
@@ -193,4 +218,51 @@ String _describe(TimelineCommand command) => switch (command) {
   TimelineBranched(:final step) => 'branched:$step',
   TimelineLevelSwapped(:final step, :final levelDigest) =>
     'level:$step:$levelDigest',
+  TimelineReplayed(:final fromStep) => 'replayed:$fromStep',
 };
+
+/// Puts [tunables] on the VM service, so an inspector can change them while
+/// the game runs: `ext.flutter3d.cvar.set {name, value}` tunes one through
+/// [input] — so the change is on the tape with the step that takes it — and
+/// `ext.flutter3d.cvar.list` answers every tunable, its value and its default.
+///
+/// A name the table does not declare, or a value that is not a number, is
+/// refused rather than dropped, so the inspector that sent it hears why.
+void registerTuningExtensions(InputState input, Tunables tunables) {
+  developer.registerExtension('ext.flutter3d.cvar.set', (
+    method,
+    parameters,
+  ) async {
+    final name = parameters['name'];
+    final value = double.tryParse(parameters['value'] ?? '');
+    if (name == null || value == null) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.invalidParams,
+        'cvar.set takes a name and a numeric value',
+      );
+    }
+    if (!tunables.defaults.containsKey(name)) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.invalidParams,
+        'no tunable is called $name; there are '
+        '${tunables.defaults.keys.join(', ')}',
+      );
+    }
+    input.tune(name, value);
+    return developer.ServiceExtensionResponse.result('{}');
+  });
+  developer.registerExtension('ext.flutter3d.cvar.list', (
+    method,
+    parameters,
+  ) async {
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(<String, Object?>{
+        for (final MapEntry(key: name, :value) in tunables.values.entries)
+          name: <String, Object?>{
+            'value': value,
+            'default': tunables.defaults[name],
+          },
+      }),
+    );
+  });
+}

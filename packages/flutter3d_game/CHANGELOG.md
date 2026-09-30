@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **`RunTimeline.replayUnderNewCode` shows what a code reload changed.** It
+  lives the last seconds again under the new code from the nearest keyframe,
+  compares the state at each keyframe the old run left and at the present,
+  and names the first field that parted and the two steps it parted between.
+  The replay is kept and the buffer rebased there.
+- **`registerTuningExtensions`** puts `ext.flutter3d.cvar.set` and
+  `cvar.list` on the VM service; a set goes through `InputState.tune`, so it
+  lands on the tape. `registerTimelineExtensions(capture:)` adds
+  `ext.flutter3d.timeline.replayUnderNewCode`.
+
 - **`LiveLevel` takes a level edited under a running game.** The game hands
   it `present` and `rebuild`; `apply` patches the look in place and sends the
   simulation's half through `swapLevel`. `registerLevelExtension` puts it on

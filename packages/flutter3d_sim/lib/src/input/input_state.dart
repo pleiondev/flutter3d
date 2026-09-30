@@ -54,6 +54,7 @@ final class InputState {
   final Vector2 _lookDelta = Vector2.zero();
 
   int? _slotRequest;
+  final Map<String, double> _tunes = <String, double>{};
 
   // MARK: - Reading, from inside a step
 
@@ -136,6 +137,10 @@ final class InputState {
   /// Last request wins. Two slots chosen inside a single frame is a fumble, and
   /// arriving at the one the player pressed most recently is what they meant.
   int? get slotRequest => _slotRequest;
+
+  /// The tunables set for this step, by name — see [tune].
+  Map<String, double> get tunesThisStep =>
+      Map<String, double>.unmodifiable(_tunes);
 
   // MARK: - Writing, from a device
 
@@ -309,6 +314,22 @@ final class InputState {
     _slotRequest = slot;
   }
 
+  /// Sets the tunable called [name] to [value] from the next step on.
+  ///
+  /// **Through the input, because the tape is where a run is reproduced
+  /// from.** A jump height dragged in an inspector while the game runs
+  /// changes what the simulation does; set on the simulation directly, it
+  /// would change the run and leave the tape describing a run with the old
+  /// height, and every replay of it would disagree with what was played. As
+  /// an input it is recorded with the step that took it, replayed with that
+  /// step, and muted with the devices during a replay — so a drag arriving
+  /// while the timeline replays does not land in the past. `Tunables.take`
+  /// is the step's side of it.
+  void tune(String name, double value) {
+    if (muted) return;
+    _tunes[name] = value;
+  }
+
   /// Drops everything, held state included.
   ///
   /// For losing focus. A key that was down when the window went away never
@@ -324,6 +345,7 @@ final class InputState {
     _moveAxis.setZero();
     _values.clear();
     _slotRequest = null;
+    _tunes.clear();
   }
 
   // MARK: - Step boundaries
@@ -341,6 +363,7 @@ final class InputState {
     _releasedLatch.clear();
     _lookDelta.setZero();
     _slotRequest = null;
+    _tunes.clear();
   }
 
   void _recomputeMoveAxis() {
