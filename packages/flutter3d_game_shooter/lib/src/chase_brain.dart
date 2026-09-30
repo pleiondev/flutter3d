@@ -290,12 +290,11 @@ base class ChaseBrain extends Brain {
     // A melee swing lands immediately and reports what it reached; a projectile
     // reports nothing and arrives later, through the projectile system.
     for (final hit in shot.hits) {
-      if (hit.collider == it.focusBody) {
-        // The focus is hurt by the game rather than here — it is the game that
-        // knows what a player is and what armour does about it.
-        it.system.damageToFocusThisStep += hit.damage;
-        continue;
-      }
+      // A focus is hurt by the game rather than here — it is the game that
+      // knows what a player is and what armour does about it. Any focus, not
+      // only the one aimed at: a claw swung at one player that catches the
+      // one beside them has caught them.
+      if (it.hurtFocus(hit.collider, hit.damage)) continue;
       // **Everything else it hit, which used to be nobody.** This loop counted
       // the focus and dropped the rest on the floor, so a monster's shot passed
       // straight through anything standing in the way. `from` is what lets the

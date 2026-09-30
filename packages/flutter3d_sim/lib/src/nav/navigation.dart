@@ -52,8 +52,10 @@ final class Navigation {
 
   final Map<(int, JumpReach?, int), FlowField> _fields =
       <(int, JumpReach?, int), FlowField>{};
-  final Vector3 _goal = Vector3.zero();
-  bool _hasGoal = false;
+
+  /// The goals the fields flow to, copied so that a caller may reuse its own
+  /// vectors, and kept so that a field built later catches up.
+  final List<Vector3> _goals = <Vector3>[];
 
   /// Every field built so far, one per class of body.
   Iterable<FlowField> get fields => _fields.values;
@@ -67,13 +69,36 @@ final class Navigation {
   /// an agent that appears to be stuck rather than an error. Give each
   /// destination its own instance; the grid is the expensive part and it is
   /// what [Navigation.new] takes, so sharing that costs nothing.
-  void update(Vector3 goal) {
-    _goal.setFrom(goal);
-    _hasGoal = true;
+  void update(Vector3 goal) => updateAll(<Vector3>[goal]);
+
+  /// Where everything is walking towards: the nearest of [goals] by walking,
+  /// for each agent. Still one sweep per class of body — see [FlowField] for
+  /// why several goals do not cost several sweeps — and [targetOf] says which
+  /// goal a given agent's route ends at.
+  void updateAll(List<Vector3> goals) {
+    while (_goals.length > goals.length) {
+      _goals.removeLast();
+    }
+    for (var i = 0; i < goals.length; i++) {
+      if (i < _goals.length) {
+        _goals[i].setFrom(goals[i]);
+      } else {
+        _goals.add(goals[i].clone());
+      }
+    }
     for (final field in _fields.values) {
-      field.update(goal);
+      field.updateAll(_goals);
     }
   }
+
+  /// Which of the goals [updateAll] was given a body of this size standing at
+  /// [from] is routed to, or `-1` when none is reachable from there.
+  int targetOf(
+    Vector3 from, {
+    required double radius,
+    double height = 0.0,
+    JumpReach? jump,
+  }) => fieldFor(radius: radius, height: height, jump: jump).sourceAt(from);
 
   /// The field for a body of this size, built on first use.
   ///
@@ -110,7 +135,7 @@ final class Navigation {
       );
       // A field built after the goal was set has to catch up, or the agent
       // that asked for it walks nowhere until the player crosses a cell.
-      if (_hasGoal) field.rebuild(_goal);
+      if (_goals.isNotEmpty) field.rebuildAll(_goals);
       return field;
     });
   }
