@@ -49,6 +49,8 @@ import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/open_run_channel.dart';
+import 'src/play/flutter_run.dart';
+import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
 import 'src/recent_projects.dart';
 import 'src/run_info.dart';
@@ -143,6 +145,11 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// The documents this editor has had open, kept between launches.
   final RecentProjects _projects = RecentProjects();
+
+  /// `HR5`: the project this level belongs to, run with `flutter run`. Kept
+  /// here rather than by [PlayScreen] so closing the panel leaves the game
+  /// running; replaced when a level from another project is played.
+  FlutterRun? _run;
 
   /// What [_projects] said when the chooser last needed it.
   ///
@@ -1142,6 +1149,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    unawaited(_run?.dispose());
     _openRunChannel?.dispose();
     _shaders?.dispose();
     _ticker?.dispose();
@@ -1433,6 +1441,19 @@ class _EditorScreenState extends State<EditorScreen>
                   bottom: 0,
                   child: EditorLegend(state: state),
                 ),
+                // `HR5`: runs the project this level belongs to.
+                Positioned(
+                  top: 4,
+                  right: 92,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.play_circle_outline,
+                      color: Color(0xFFE6EAF0),
+                    ),
+                    tooltip: 'Play the project',
+                    onPressed: () => _play(state),
+                  ),
+                ),
                 // `rp-02`: attaches to a game already running elsewhere,
                 // over the same VM service channel DevTools uses — this
                 // editor still edits no simulation of its own.
@@ -1542,6 +1563,59 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Asks for a running game's VM service address, connects, and opens the
   /// timeline panel on it — `rp-02`'s door, from the editor's side.
+  /// Opens the play panel on the project [state]'s level belongs to,
+  /// starting a run of it when none is going.
+  Future<void> _play(EditorReady state) async {
+    final root = projectRootFor(
+      state.editing.path,
+      hasPubspec: (String directory) =>
+          File('$directory${Platform.pathSeparator}pubspec.yaml').existsSync(),
+    );
+    if (root == null) {
+      _changed(
+        'this level is not inside a Flutter project, so there is '
+        'nothing to run',
+      );
+      return;
+    }
+    final run = switch (_run) {
+      final FlutterRun same? when same.projectRoot == root => same,
+      final other => () {
+        unawaited(other?.dispose());
+        return _run = FlutterRun(projectRoot: root);
+      }(),
+    };
+    if (run.state.value case PlayIdle() || PlayStopped()) {
+      unawaited(run.start());
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayScreen(run: run, onTimeline: _openTimeline),
+      ),
+    );
+  }
+
+  Future<void> _openTimeline(String uri) async {
+    final TimelineClient client;
+    try {
+      client = await VmServiceTimelineClient.connect(uri);
+    } catch (error) {
+      if (!mounted) return;
+      _changed('could not attach: $error');
+      return;
+    }
+    if (!mounted) {
+      await client.dispose();
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TimelineAttachScreen(client: client),
+      ),
+    );
+    await client.dispose();
+  }
+
   Future<void> _attachToRunningGame() async {
     final controller = TextEditingController(text: 'http://127.0.0.1:8181/');
     final uri = await showDialog<String>(
@@ -1571,25 +1645,7 @@ class _EditorScreenState extends State<EditorScreen>
     );
     controller.dispose();
     if (uri == null || uri.isEmpty || !mounted) return;
-
-    final TimelineClient client;
-    try {
-      client = await VmServiceTimelineClient.connect(uri);
-    } catch (error) {
-      if (!mounted) return;
-      _changed('could not attach: $error');
-      return;
-    }
-    if (!mounted) {
-      await client.dispose();
-      return;
-    }
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => TimelineAttachScreen(client: client),
-      ),
-    );
-    await client.dispose();
+    await _openTimeline(uri);
   }
 }
 
