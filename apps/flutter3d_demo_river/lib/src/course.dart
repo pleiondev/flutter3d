@@ -307,15 +307,24 @@ final class Section {
     while (distance < section.end - 32.0) {
       final kind = mix.kindFor(random.nextDouble());
       final heading = random.nextBool() ? 1 : -1;
-      final moves = random.nextDouble() < mix.moving;
+      final rolledMoving = random.nextDouble() < mix.moving;
       final gunner =
           kind == TargetKind.helicopter && random.nextDouble() < mix.gunners;
+      final row = section.rowAt(distance);
       final double? x = switch (kind) {
         // A jet comes in from off the side and crosses the whole valley.
         TargetKind.jet => -heading * (riverReach + 6.0),
-        _ => _placeOnWater(section.rowAt(distance), kind.halfLength, random),
+        _ => _placeOnWater(row, kind.halfLength, random),
       };
       if (x != null) {
+        // **A mover needs water to move across.** One put on a channel
+        // barely longer than itself turned at each bank several times a
+        // second and read as a craft shaking in place, not moving.
+        final room = switch (row.channelAt(x)) {
+          (final from, final to) => to - from - 2.0 * kind.halfLength,
+          null => 0.0,
+        };
+        final moves = rolledMoving && room >= _roomToMove;
         targets.add(
           TargetPlan(
             kind: kind,
@@ -338,6 +347,10 @@ final class Section {
     }
     return targets;
   }
+
+  /// How far a tanker or a helicopter must be able to travel across its
+  /// channel to be given a speed at all.
+  static const double _roomToMove = 3.0;
 
   /// Somewhere on one of the row's channels, clear of both banks, or null
   /// when the channel picked is too narrow for it.
