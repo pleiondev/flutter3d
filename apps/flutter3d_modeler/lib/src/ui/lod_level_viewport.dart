@@ -34,7 +34,11 @@ class LodLevelViewport extends StatefulWidget {
     required this.lodIndex,
     required this.mesh,
     required this.leader,
+    this.frames,
   });
+
+  /// See [ModelerViewport.frames].
+  final Listenable? frames;
 
   /// The one device every viewport in this application draws through.
   final Renderer renderer;
@@ -138,11 +142,13 @@ class _LodLevelViewportState extends State<LodLevelViewport> {
         ),
       );
     }
-    _followOrLead(stage.orbit);
     return ModelerViewport(
       renderer: widget.renderer,
       stage: stage,
-      onFrame: () {},
+      // Per frame rather than per build: the viewport now draws on
+      // [LodLevelViewport.frames] without this widget rebuilding.
+      onFrame: () => _followOrLead(stage.orbit),
+      frames: widget.frames,
       grid: null,
       // No gizmo, no wireframe, no floor: there is nothing in a third to
       // pick or to edit, and four idle overlays apiece would be twelve.

@@ -16,6 +16,7 @@
 /// refusal is the error colour — three levels, each meaning one thing.
 library;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
@@ -143,8 +144,12 @@ class StatusLine extends StatelessWidget {
   /// mode's own pose sub-mode.
   final String? modeSummary;
 
-  /// What the last frame cost. Null before one has been drawn.
-  final int? micros;
+  /// What the last frame cost, holding null before one has been drawn.
+  ///
+  /// A listenable rather than a number: it changes every frame, and the rest
+  /// of this line changes only when a command lands. Only the one segment
+  /// rebuilds when it moves.
+  final ValueListenable<int?>? micros;
 
   /// Called when the readiness sentence is tapped — `ui-10`'s own "клик →
   /// диалог экспорта". Null makes the sentence plain text again, for a test
@@ -311,10 +316,16 @@ class StatusLine extends StatelessWidget {
               style: figureStyle,
             ),
           ),
-        if (micros case final int spent)
-          Text(
-            l.statusFrameTime((spent / 1000).toStringAsFixed(1)),
-            style: figureStyle,
+        if (micros case final ValueListenable<int?> frameCost)
+          ValueListenableBuilder<int?>(
+            valueListenable: frameCost,
+            builder: (BuildContext context, int? spent, Widget? _) =>
+                spent == null
+                ? const SizedBox.shrink()
+                : Text(
+                    l.statusFrameTime((spent / 1000).toStringAsFixed(1)),
+                    style: figureStyle,
+                  ),
           ),
       ],
     );

@@ -125,6 +125,7 @@ class ModelerViewport extends StatefulWidget {
     required this.renderer,
     required this.stage,
     required this.onFrame,
+    this.frames,
     this.onRendered,
     this.onViewportMetrics,
     this.onPick,
@@ -281,6 +282,16 @@ class ModelerViewport extends StatefulWidget {
   /// Called immediately before each frame, after the camera has been placed —
   /// where a caller advances anything drawn but not simulated.
   final VoidCallback onFrame;
+
+  /// Fires once per display frame; this viewport draws again on each without
+  /// its parent rebuilding.
+  ///
+  /// **So a screen can tick the picture without rebuilding itself.** The
+  /// editor's panels, outliner and fields change on commands, not on frames;
+  /// a `setState` per tick at the top rebuilt all of them sixty times a
+  /// second to move a camera. Null for a caller that drives frames by
+  /// rebuilding this widget, which every dialog preview still does.
+  final Listenable? frames;
 
   /// The frame just drawn — `S9`'s own row, widened from the `cpuMicros`
   /// alone this used to report: screen 19's metrics card wants
@@ -659,7 +670,25 @@ class _ModelerViewportState extends State<ModelerViewport> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    widget.frames?.addListener(_nextFrame);
+  }
+
+  @override
+  void didUpdateWidget(ModelerViewport old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.frames, widget.frames)) {
+      old.frames?.removeListener(_nextFrame);
+      widget.frames?.addListener(_nextFrame);
+    }
+  }
+
+  void _nextFrame() => setState(() {});
+
+  @override
   void dispose() {
+    widget.frames?.removeListener(_nextFrame);
     for (final MeshOverlay? overlay in <MeshOverlay?>[
       _ground,
       _mesh,
