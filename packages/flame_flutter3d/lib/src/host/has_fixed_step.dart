@@ -2,6 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
 
+import 'step_clock.dart';
+
 /// A component whose game logic runs in the game's fixed steps rather than
 /// in its frames. See [HasFixedStep].
 mixin FixedStepUpdate on Component {
@@ -44,7 +46,13 @@ mixin FixedStepUpdate on Component {
 ///
 /// Generic over the game's world, as `HasFlutter3d` is, so a game whose
 /// world has a type of its own can step too.
-mixin HasFixedStep<W extends World> on FlameGame<W> {
+///
+/// **A [StepClock].** A game that steps its own simulation in [fixedUpdate] —
+/// a genre's `step`, moving its bodies and actors itself — hands itself to
+/// the components that draw them, and they are told to keep their places
+/// before each step, ahead of the game's own logic, then drawn [alpha] of the
+/// way on.
+mixin HasFixedStep<W extends World> on FlameGame<W> implements StepClock {
   /// How the frame's time is cut: a sixtieth of a second unless replaced.
   FixedStep fixedStep = FixedStep();
 
@@ -54,7 +62,31 @@ mixin HasFixedStep<W extends World> on FlameGame<W> {
   int get stepsThisFrame => _steps;
 
   /// How far this frame is past the last step, from 0 up to 1.
+  @override
   double get alpha => fixedStep.alpha;
+
+  final Set<StepFollower> _followers = <StepFollower>{};
+
+  @override
+  void follow(StepFollower follower) => _followers.add(follower);
+
+  @override
+  void unfollow(StepFollower follower) => _followers.remove(follower);
+
+  final List<void Function()> _stepStarts = <void Function()>[];
+
+  /// Calls [start] at the start of every step, before the game's own
+  /// [fixedUpdate]: where a step's reports are forgotten, so that what the
+  /// game does in its logic is still there to be read after the step.
+  ///
+  /// `ActorSystemComponent` opens its system's step here. It used to open it
+  /// just before stepping the actors, after the game's own logic had run: a
+  /// shot fired there killed a monster, and the death was wiped before
+  /// anything could read it.
+  void beforeEachStep(void Function() start) => _stepStarts.add(start);
+
+  /// Stops calling [start].
+  void removeBeforeEachStep(void Function() start) => _stepStarts.remove(start);
 
   /// The game's own logic for one step of [step] seconds.
   void fixedUpdate(double step) {}
@@ -93,6 +125,12 @@ mixin HasFixedStep<W extends World> on FlameGame<W> {
       final stepping = descendants().whereType<FixedStepUpdate>().toList();
       for (var i = 0; i < _steps; i++) {
         final step = fixedStep.stepSeconds;
+        for (final follower in List<StepFollower>.of(_followers)) {
+          follower.rememberPlace();
+        }
+        for (final start in List<void Function()>.of(_stepStarts)) {
+          start();
+        }
         fixedUpdate(step);
         for (final component in stepping) {
           if (component.isMounted && !component.isRemoving) {

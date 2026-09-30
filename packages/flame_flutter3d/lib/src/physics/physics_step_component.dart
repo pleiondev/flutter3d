@@ -8,6 +8,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
 
 import '../host/bridge_priority.dart';
 import '../host/has_fixed_step.dart';
+import '../host/step_clock.dart';
 import 'rigid_body_component.dart';
 
 /// The one place a bridged game's frame steps its [Dynamics] and dispatches
@@ -48,7 +49,9 @@ import 'rigid_body_component.dart';
 ///
 /// **In a `HasFixedStep` game it steps with the game**, once in each of the
 /// game's steps, and [step] is not used: see [HasFixedStep].
-final class PhysicsStepComponent extends Component with FixedStepUpdate {
+final class PhysicsStepComponent extends Component
+    with FixedStepUpdate
+    implements StepClock {
   PhysicsStepComponent({
     required this.dynamics,
     required this.world,
@@ -73,6 +76,7 @@ final class PhysicsStepComponent extends Component with FixedStepUpdate {
 
   /// How far this frame is past the last step, from 0 up to 1: the game's,
   /// when the game steps it.
+  @override
   double get alpha => _game?.alpha ?? step.alpha;
 
   HasFixedStep? _game;
@@ -86,15 +90,17 @@ final class PhysicsStepComponent extends Component with FixedStepUpdate {
     };
   }
 
-  final Set<RigidBodyComponent> _followers = <RigidBodyComponent>{};
+  final Set<StepFollower> _followers = <StepFollower>{};
 
   /// [body] is told where its body was before each step, so it can draw
   /// between that and where the step put it. [RigidBodyComponent] does
   /// this for itself when handed this component.
-  void follow(RigidBodyComponent body) => _followers.add(body);
+  @override
+  void follow(StepFollower body) => _followers.add(body);
 
   /// Stops telling [body]; it is removed, or no longer interpolates.
-  void unfollow(RigidBodyComponent body) => _followers.remove(body);
+  @override
+  void unfollow(StepFollower body) => _followers.remove(body);
 
   /// Counts the frames this has been updated in: the steps of one frame all
   /// see the same number. What a `CollisionBridge` handed this tells one

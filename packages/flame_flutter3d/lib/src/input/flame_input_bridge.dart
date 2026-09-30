@@ -157,14 +157,34 @@ final class FlameInputBridge {
   /// class doc suggests running beside this bridge never moved anything.
   Component followPad(PadInput pad) => _PadFeed(pad);
 
+  /// A component that feeds this bridge every key the application sees,
+  /// from the keyboard itself rather than from the game widget's focus.
+  ///
+  /// **Keys through `KeyboardEvents` arrive only while the game has the
+  /// focus.** A button in an overlay, a text field or a menu that takes it
+  /// takes every key after it — including the key-up of a key the player is
+  /// still holding, which then stays held for good, since the state counts
+  /// holds. Read from `HardwareKeyboard`, a key reaches this bridge wherever
+  /// the focus is, and its release always does.
+  ///
+  /// Use this or forward `KeyboardEvents.onKeyEvent` to [onGameKeyEvent], not
+  /// both: each key would then arrive twice.
+  Component listenToKeyboard() => _KeyboardFeed(<FlameInputBridge>[this]);
+
   /// A component that closes [inputState]'s step after everything that reads
   /// it: what a game called by hand as the last line of its `update`, and a
   /// game that forgot to call saw a key it pressed once reported as pressed
   /// on every frame after. Add it once.
   ///
   /// In a `HasFixedStep` game the step it closes is the fixed step, after
-  /// each; otherwise the frame. A game without `HasFixedStep` whose
-  /// `ActorSystemComponent` counts its own steps reads input by the frame.
+  /// each; otherwise the frame.
+  ///
+  /// **A game that reads presses in fixed steps must be a `HasFixedStep`
+  /// game.** Without it, an `ActorSystemComponent` or `PhysicsStepComponent`
+  /// counts steps on a clock of its own while this closes the input once a
+  /// frame: a press made on a frame with no step is closed unseen — every
+  /// other frame at 120 Hz — and one made on a frame of two steps is seen by
+  /// both. Only one clock can fix that, and `HasFixedStep` is it.
   Component stepEnd() => _InputStepEnd(inputState);
 
   /// A layer over the canvas that follows the pointer and turns a tap into
@@ -302,6 +322,10 @@ final class PlayerInputs {
     for (final player in players) player.stepEnd(),
   ];
 
+  /// Every player fed from the keyboard itself; see
+  /// [FlameInputBridge.listenToKeyboard].
+  Component listenToKeyboard() => _KeyboardFeed(players);
+
   /// A game's key event, handed to every player.
   KeyEventResult onGameKeyEvent(
     KeyEvent event,
@@ -314,6 +338,91 @@ final class PlayerInputs {
       }
     }
     return handled ? KeyEventResult.handled : KeyEventResult.ignored;
+  }
+}
+
+/// The ways of holding a game at one machine, and which of them are players.
+///
+/// **An arcade cabinet's join.** Four heroes, two keyboard layouts and up to
+/// four controllers: nobody is a player until they press something, and the
+/// first to press is player one whatever they are holding. [PlayerInputs]
+/// takes its players when it is built; this takes every way of holding the
+/// game — each a [FlameInputBridge] with its own bindings and state, and a
+/// pad through [FlameInputBridge.followPad] — feeds them all, and lets the
+/// game [claim] one as the next player when it sees it pressed.
+///
+/// What counts as asking to join, and what a claimed seat chooses — a class,
+/// a colour — are the game's; this only keeps who is holding what.
+final class PlayerSeats {
+  PlayerSeats(this.candidates)
+    : assert(candidates.isNotEmpty, 'nothing to hold');
+
+  /// Every way of holding the game, whether anybody is yet.
+  final List<FlameInputBridge> candidates;
+
+  final List<FlameInputBridge> _seated = <FlameInputBridge>[];
+
+  /// The players, in the order they joined: player one first.
+  List<FlameInputBridge> get seated =>
+      List<FlameInputBridge>.unmodifiable(_seated);
+
+  /// The ways of holding the game nobody has claimed.
+  Iterable<FlameInputBridge> get free =>
+      candidates.where((FlameInputBridge c) => !_seated.contains(c));
+
+  /// Makes [candidate] the next player. False when it already is one, is not
+  /// one of [candidates], or every seat in [limit] is taken.
+  bool claim(FlameInputBridge candidate, {int limit = 4}) {
+    if (!candidates.contains(candidate)) return false;
+    if (_seated.contains(candidate) || _seated.length >= limit) return false;
+    _seated.add(candidate);
+    return true;
+  }
+
+  /// Gives [candidate]'s seat up; the players after it move up one.
+  void release(FlameInputBridge candidate) => _seated.remove(candidate);
+
+  /// Everybody up: back to a screen where nobody has joined.
+  void releaseAll() => _seated.clear();
+
+  /// Every candidate's step closed — the unclaimed too, so that a press made
+  /// to join is seen once and not again.
+  List<Component> stepEnds() => <Component>[
+    for (final candidate in candidates) candidate.stepEnd(),
+  ];
+
+  /// Every candidate fed from the keyboard itself; see
+  /// [FlameInputBridge.listenToKeyboard].
+  Component listenToKeyboard() => _KeyboardFeed(candidates);
+}
+
+/// Feeds bridges from `HardwareKeyboard`; made by
+/// [FlameInputBridge.listenToKeyboard] and its several-player siblings.
+final class _KeyboardFeed extends Component {
+  _KeyboardFeed(this.bridges) : super(priority: BridgePriority.input);
+
+  final List<FlameInputBridge> bridges;
+
+  @override
+  void onMount() {
+    super.onMount();
+    HardwareKeyboard.instance.addHandler(_key);
+  }
+
+  @override
+  void onRemove() {
+    HardwareKeyboard.instance.removeHandler(_key);
+    super.onRemove();
+  }
+
+  /// False, always: the key goes on to the focus as well, so a text field in
+  /// an overlay still gets its letters.
+  bool _key(KeyEvent event) {
+    final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+    for (final bridge in bridges) {
+      bridge.onKeyEvent(event, pressed);
+    }
+    return false;
   }
 }
 

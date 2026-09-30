@@ -124,6 +124,27 @@ mixin HasFlutter3d<W extends World> on FlameGame<W> {
     _openWhenReady();
   }
 
+  /// Draws [next] from now on in place of [scene], on the same device and
+  /// through the same renderer, with [camera3d] moved across to it.
+  ///
+  /// **A level is a scene.** The engine's level loader builds one per level
+  /// — the brushes batched, the lights bound, the lightmap baked into it —
+  /// and a game with levels moves from one to the next. [open3d] opens the
+  /// layer once and refuses a second call, and [close3d] closes the device
+  /// the widget handed over with it; neither is a change of level. This is.
+  ///
+  /// What was in the old scene stays there: the game lets go of it — the
+  /// level's own `dispose` — once it is no longer drawn. [moreViews3d] are the
+  /// game's to move, since their cameras are its own.
+  void replaceScene3d(Scene next) {
+    final was = _scene;
+    if (was == null) throw StateError('The 3D layer is not open yet.');
+    if (identical(was, next)) return;
+    camera3d.removeFromParent();
+    if (!next.cameras.contains(camera3d)) next.add(camera3d);
+    _scene = next;
+  }
+
   /// Hands over the renderer the 3D layer draws with. Called by
   /// `Flutter3dFlameWidget`, and by a test that renders frames; the game's
   /// own use of it goes in [onRenderer3d].

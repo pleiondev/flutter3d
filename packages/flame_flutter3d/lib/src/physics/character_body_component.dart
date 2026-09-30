@@ -6,6 +6,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 import '../host/has_fixed_step.dart';
+import '../host/step_clock.dart';
 import '../transform/object3d_component.dart';
 
 /// A `CharacterController` with no actor round it, carried across the
@@ -19,14 +20,23 @@ import '../transform/object3d_component.dart';
 /// steps when the game has `HasFixedStep`, once a frame otherwise. The body's
 /// place is written onto the node and read back to Flame, drawn between its
 /// last two steps when the steps are fixed.
+///
+/// **A body the game moves itself** — a genre whose own `step` moves its
+/// heroes, called from the game's `fixedUpdate` — has no [drive] and is
+/// handed the game as its [stepper]. It is then told to keep its place at
+/// the start of each step, before the game moves it. Keeping it in its own
+/// `fixedUpdate`, which runs after the game's, kept the place the game had
+/// already moved it to, and the body was drawn with no smoothing at all.
 class CharacterBodyComponent extends Object3dComponent
-    with CollisionCallbacks, FixedStepUpdate {
+    with CollisionCallbacks, FixedStepUpdate
+    implements StepFollower {
   CharacterBodyComponent({
     required this.body,
     required super.node,
     required super.scene,
     required super.plane,
     this.drive,
+    this.stepper,
     this.removeFrom,
     super.size,
     super.anchor,
@@ -39,6 +49,24 @@ class CharacterBodyComponent extends Object3dComponent
   /// What moves [body] by one step of the given seconds.
   final void Function(double dt)? drive;
 
+  /// What steps [body] when [drive] does not, and tells this component to
+  /// keep its place before each step: the game, for a body the game's own
+  /// simulation moves. Null keeps the place in this component's own step.
+  final StepClock? stepper;
+
+  @override
+  void onMount() {
+    super.onMount();
+    _stepped = false;
+    stepper?.follow(this);
+  }
+
+  @override
+  void rememberPlace() {
+    _before.setFrom(body.position);
+    _stepped = true;
+  }
+
   /// The world [body]'s collider leaves when this component leaves the game;
   /// null leaves it to whoever built it. A despawned character otherwise
   /// stayed in the world, unseen and solid — `RigidBodyComponent.removeFrom`
@@ -47,6 +75,7 @@ class CharacterBodyComponent extends Object3dComponent
 
   @override
   void onRemove() {
+    stepper?.unfollow(this);
     final world = removeFrom;
     if (world != null) {
       final collider = body.collider;
@@ -77,8 +106,7 @@ class CharacterBodyComponent extends Object3dComponent
 
   @override
   void fixedUpdate(double step) {
-    _before.setFrom(body.position);
-    _stepped = true;
+    if (stepper == null) rememberPlace();
     drive?.call(step);
   }
 
@@ -86,8 +114,9 @@ class CharacterBodyComponent extends Object3dComponent
   void update(double dt) {
     final game = findGame();
     if (game is! HasFixedStep) drive?.call(dt);
-    if (game is HasFixedStep && _stepped) {
-      Vector3.mix(_before, body.position, game.alpha, _drawn);
+    final clock = stepper ?? (game is HasFixedStep ? game : null);
+    if (clock != null && _stepped) {
+      Vector3.mix(_before, body.position, clock.alpha, _drawn);
       placeNode(_drawn);
     } else {
       placeNode(body.position);

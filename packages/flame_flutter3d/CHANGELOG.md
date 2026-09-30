@@ -1,3 +1,47 @@
+## Unreleased
+
+**An actor system with several foci.** `ActorSystemComponent(foci:)` steps
+the system towards every player of a co-op game, so each actor goes for the
+one it can reach first; it could only name one focus, and every monster went
+for player one. Its `flutter3d_sim` dependency asks for `^0.8.1`.
+
+**A step's reports survive the game's own logic.** In a `HasFixedStep` game
+the actor system's step is opened at the start of each step, through the new
+`HasFixedStep.beforeEachStep`, rather than just before the actors: a monster
+killed by a shot fired in the game's `fixedUpdate` was wiped from `died`
+before anything read it.
+
+**A body the game moves is drawn between its steps.** `StepClock` and
+`StepFollower` are what draws between steps asks of what steps; the game is
+one (`HasFixedStep`), as are `ActorSystemComponent` and
+`PhysicsStepComponent`. `ActorComponent.stepper` takes any of them and
+`CharacterBodyComponent` takes one: a body the game's own simulation moved
+kept its place after the move and was drawn with no smoothing.
+
+**An actor and its component live and die together.** An `ActorComponent`
+whose actor the simulation removed takes itself out; one handed
+`removesFrom` takes the actor out of the system when it goes. The actor used
+to go on thinking unseen, or the node to stand where the actor had been.
+
+**A horde in one draw.** `InstancedActorComponent` draws a simulated actor
+as a slot of a shared `InstancedMeshNode`, between its steps, and
+`InstancedPoseComponent` does the same for anything the simulation keeps
+that is not an actor, a shot say. Two hundred monsters were two hundred
+nodes.
+
+**Keys from the keyboard, not the focus.** `listenToKeyboard()` on a
+`FlameInputBridge`, `PlayerInputs` and the new `PlayerSeats` reads keys
+from `HardwareKeyboard`: through the game's focus, a key held while an
+overlay took it was held for good. `PlayerSeats` keeps every way of holding
+the game and lets players claim one by pressing, in the order they join.
+
+**A level is a scene.** `HasFlutter3d.replaceScene3d` moves the game to the
+next level's scene with the camera, and `Flutter3dFlameWidget` draws the
+game's scene as it is now. `FixtureVisualsComponent` syncs a level's
+fixtures once a frame and lets them go with the level. `ViewCamera` eases a
+camera towards wherever a function says, for a view no single component
+decides — a whole party's.
+
 ## 0.8.3
 
 **A host that goes lets go of the game.** `Flutter3dFlameWidget` cleared

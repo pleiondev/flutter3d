@@ -7,6 +7,7 @@ import 'package:flame/collisions.dart' show CollisionCallbacks;
 import 'package:flame/components.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../host/step_clock.dart';
 import '../transform/object3d_component.dart';
 import '../transform/plane.dart';
 import 'actor_system_component.dart';
@@ -38,22 +39,25 @@ import 'actor_system_component.dart';
 /// .position)`), done here once so every actor in a bridged game gets it
 /// for free instead of every game re-deriving it.
 ///
-/// **Why a despawned actor needs no special case in [onRemove].** This
-/// class does not override it: [Object3dComponent.onRemove] detaches
-/// [node] unconditionally, and [node] has its own lifetime independent of
-/// [actor] — an actor going away does not reach back and clear its scene
-/// node's parent pointer. Nothing here reads [Actor.exists] because nothing
-/// here needs to: [Actor.body] already answers `null` for a despawned
-/// entity (`EcsWorld.get` does, by construction, once the entity's
-/// generation has moved on), so the null check already in [update] is the
-/// only guard a despawned actor ever required.
-final class ActorComponent extends Object3dComponent with CollisionCallbacks {
+/// **The component and the actor live and die together, both ways.** An
+/// actor the simulation takes out — `ActorSystem.remove`, a horde burying its
+/// dead — takes this component with it on the next [update]: it used to stay,
+/// its node frozen where the body last stood, a monster drawn after it was
+/// gone. The other way is [removesFrom]: handed the system, taking this
+/// component out of the game takes the actor out of the system, where it used
+/// to go on thinking, biting and blocking a corridor unseen. Left null, the
+/// actor is whoever built it's to remove, which is right when the simulation
+/// owns its actors and the component only draws one.
+final class ActorComponent extends Object3dComponent
+    with CollisionCallbacks
+    implements StepFollower {
   ActorComponent({
     required this.actor,
     required super.node,
     required super.scene,
     required super.plane,
     this.stepper,
+    this.removesFrom,
     super.direction = SyncDirection.sceneToFlame,
     super.elevation,
     super.position,
@@ -71,7 +75,14 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
 
   /// What steps [actor], when this should draw between its steps; see
   /// `RigidBodyComponent.stepper`. Null draws it where it is.
-  final ActorSystemComponent? stepper;
+  ///
+  /// An [ActorSystemComponent], or the game itself when the game steps its
+  /// own simulation in `HasFixedStep.fixedUpdate` — any [StepClock].
+  final StepClock? stepper;
+
+  /// The system [actor] leaves when this component leaves the game, or null
+  /// for an actor this component only draws.
+  final ActorSystem? removesFrom;
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();
@@ -80,6 +91,7 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
 
   /// Keeps where the actor's body is now, and which way it faces, as where
   /// it was before the next step. Called by [stepper] before each step.
+  @override
   void rememberPlace() {
     final body = actor.body;
     if (body == null) return;
@@ -114,6 +126,8 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
   @override
   void onRemove() {
     stepper?.unfollow(this);
+    final system = removesFrom;
+    if (system != null && actor.exists) system.remove(actor);
     super.onRemove();
   }
 
@@ -130,6 +144,11 @@ final class ActorComponent extends Object3dComponent with CollisionCallbacks {
   /// the one way it was built facing.
   @override
   void update(double dt) {
+    if (!actor.exists) {
+      // Gone from the simulation: gone from the game.
+      if (!isRemoving) removeFromParent();
+      return;
+    }
     if (direction == SyncDirection.sceneToFlame) {
       final body = actor.body;
       // Null for an actor with no body (a turret, a director) and for one

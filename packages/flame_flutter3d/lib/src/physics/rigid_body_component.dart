@@ -9,6 +9,7 @@ import 'package:flame/components.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
+import '../host/step_clock.dart';
 import '../transform/object3d_component.dart';
 import 'physics_step_component.dart';
 
@@ -38,7 +39,9 @@ import 'physics_step_component.dart';
 /// nothing here supports writing a Flame position back onto a [RigidBody]'s
 /// [Collider], because [Collider.moveTo] is [Dynamics]'s to call, not a
 /// transform bridge's.
-class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
+class RigidBodyComponent extends Object3dComponent
+    with CollisionCallbacks
+    implements StepFollower {
   RigidBodyComponent({
     required this.body,
     required super.node,
@@ -87,6 +90,7 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks {
 
   /// Keeps where [body] is now as where it was before the next step. Called
   /// by [stepper] before each step.
+  @override
   void rememberPlace() {
     _before.setFrom(body.position);
     _remembered = true;

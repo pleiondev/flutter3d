@@ -477,7 +477,10 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
             builder: (BuildContext context, int frame, Widget? child) =>
                 SceneSurface(
                   renderer: renderer,
-                  scene: scene,
+                  // The game's scene as it is now, not the one it opened
+                  // with: a game that moved to its next level with
+                  // `replaceScene3d` is drawn there.
+                  scene: _owner?.has3d ?? false ? _owner!.scene : scene,
                   view: _view,
                   moreViews: _owner?.moreViews3d ?? const <RenderView>[],
                   settings: _settings,

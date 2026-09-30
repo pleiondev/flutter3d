@@ -7,6 +7,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../host/bridge_priority.dart';
 import '../host/has_fixed_step.dart';
+import '../host/step_clock.dart';
 import 'actor_component.dart';
 
 /// The one place a bridged game's frame steps a shared [ActorSystem].
@@ -45,25 +46,46 @@ import 'actor_component.dart';
 /// hand [ActorSystem.step] a focus that has actually moved since.
 ///
 /// **In a `HasFixedStep` game it steps with the game**, once in each of the
-/// game's steps, and [step] is not used: see [HasFixedStep].
-final class ActorSystemComponent extends Component with FixedStepUpdate {
+/// game's steps, and [step] is not used: see [HasFixedStep]. The system's
+/// step is opened — [ActorSystem.beginStep] — at the *start* of the game's
+/// step, before the game's own logic, and the actors are stepped later in it.
+/// Opened just before the actors, it wiped whatever the game's logic had
+/// already reported that step: a player's shot killed a monster and the death
+/// was gone before anybody read it.
+///
+/// **One focus or several.** [focus] and [focusBody] name the one thing
+/// everything chases; [foci] names several — the players of a co-op game —
+/// and each actor then goes for the one it can reach first, as
+/// [ActorSystem.step] explains. Exactly one of the two.
+final class ActorSystemComponent extends Component
+    with FixedStepUpdate
+    implements StepClock {
   ActorSystemComponent({
     required this.system,
-    required this.focus,
+    this.focus,
     this.focusBody,
+    this.foci,
     FixedStep? step,
     super.priority = BridgePriority.actors,
-  }) : step = step ?? FixedStep();
+  }) : assert(
+         (focus == null) != (foci == null),
+         'an actor system is stepped towards one focus or several foci',
+       ),
+       step = step ?? FixedStep();
 
   /// The actor system every [ActorComponent] in this game shares.
   final ActorSystem system;
 
-  /// Where the system's one focus point is, read fresh every [update].
-  final Vector3 Function() focus;
+  /// Where the system's one focus point is, read fresh every step.
+  final Vector3 Function()? focus;
 
   /// What the focus point belongs to, or null for a focus with no body of
-  /// its own — read fresh every [update], for the same reason as [focus].
+  /// its own — read fresh every step, for the same reason as [focus].
   final Collider? Function()? focusBody;
+
+  /// Every focus, read fresh every step: the living players, in an order that
+  /// stays put, since [ActorSystem.damageToFoci] is read by it.
+  final List<FocusPoint> Function()? foci;
 
   /// How the frame's time is cut into steps: one sixtieth of a second each
   /// unless given otherwise.
@@ -71,6 +93,7 @@ final class ActorSystemComponent extends Component with FixedStepUpdate {
 
   /// How far this frame is past the last step, from 0 up to 1: the game's,
   /// when the game steps it.
+  @override
   double get alpha => _game?.alpha ?? step.alpha;
 
   HasFixedStep? _game;
@@ -82,16 +105,33 @@ final class ActorSystemComponent extends Component with FixedStepUpdate {
       final HasFixedStep game => game,
       _ => null,
     };
+    _game?.beforeEachStep(_open);
   }
 
-  final Set<ActorComponent> _followers = <ActorComponent>{};
+  @override
+  void onRemove() {
+    _game?.removeBeforeEachStep(_open);
+    _game = null;
+    super.onRemove();
+  }
 
-  /// [actor] is told where its body was before each step. [ActorComponent]
+  final Set<StepFollower> _followers = <StepFollower>{};
+
+  /// [follower] is told where its body was before each step. [ActorComponent]
   /// does this for itself when handed this component.
-  void follow(ActorComponent actor) => _followers.add(actor);
+  @override
+  void follow(StepFollower follower) => _followers.add(follower);
 
-  /// Stops telling [actor].
-  void unfollow(ActorComponent actor) => _followers.remove(actor);
+  /// Stops telling [follower].
+  @override
+  void unfollow(StepFollower follower) => _followers.remove(follower);
+
+  bool _opened = false;
+
+  void _open() {
+    system.beginStep();
+    _opened = true;
+  }
 
   @override
   void update(double dt) {
@@ -99,6 +139,7 @@ final class ActorSystemComponent extends Component with FixedStepUpdate {
     if (_game != null) return;
     final steps = step.advance(dt);
     for (var i = 0; i < steps; i++) {
+      _open();
       fixedUpdate(step.stepSeconds);
     }
   }
@@ -106,11 +147,20 @@ final class ActorSystemComponent extends Component with FixedStepUpdate {
   /// One step of the system, of [seconds].
   @override
   void fixedUpdate(double seconds) {
-    for (final actor in _followers) {
-      actor.rememberPlace();
+    for (final follower in _followers) {
+      follower.rememberPlace();
     }
-    system
-      ..beginStep()
-      ..step(seconds, focus: focus(), focusBody: focusBody?.call());
+    // Mounted in the middle of a game's step: the step was opened without us.
+    if (!_opened) system.beginStep();
+    _opened = false;
+    final several = foci;
+    if (several != null) {
+      final points = several();
+      // Nobody left to chase: the step is the game's to end, not ours.
+      if (points.isEmpty) return;
+      system.step(seconds, foci: points);
+    } else {
+      system.step(seconds, focus: focus!(), focusBody: focusBody?.call());
+    }
   }
 }

@@ -33,7 +33,7 @@ dependencies:
   # the input bridge writes into — the same object `flutter3d_game`'s own
   # `DesktopInput`/`PadInput` write into, so a bridged game and a native one
   # read one input model.
-  flutter3d_sim: ^0.8.0
+  flutter3d_sim: ^0.8.1
 
   # Rigid bodies and the collision world the physics bridge steps and
   # listens to.
