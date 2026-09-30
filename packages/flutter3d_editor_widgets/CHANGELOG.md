@@ -1,3 +1,10 @@
+## Unreleased
+
+- **A slider can show its value live while it is dragged.**
+  `RangeSliderField.onPreview` and `FieldRow.onPreview` are called with every
+  stepped value the thumb passes; `onChanged`/`onWrite` still come once, where
+  the drag ends. The editor uses it to show a material in a running game.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

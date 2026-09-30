@@ -54,6 +54,7 @@ Widget _panel(
   Map<String, MaterialDocument> documents = const <String, MaterialDocument>{},
   void Function(String)? onChanged,
   void Function(String, MaterialDocument)? onMaterialWritten,
+  void Function(String, Map<String, Object?>)? onLive,
 }) => MaterialApp(
   home: Scaffold(
     body: MaterialPanel(
@@ -61,6 +62,7 @@ Widget _panel(
       documents: documents,
       onChanged: onChanged ?? (String _) {},
       onMaterialWritten: onMaterialWritten,
+      onLive: onLive,
     ),
   ),
 );
@@ -88,6 +90,65 @@ void main() {
       find.text('Base colour'),
       findsOneWidget,
       reason: 'the hint names it',
+    );
+  });
+
+  testWidgets('a drag reaches a running game before the level is written', (
+    WidgetTester tester,
+  ) async {
+    // `HR4`: every value the thumb passes goes out live in the engine's
+    // words, and the one the drag ends on is written to the level as well.
+    final editing = openTestDocument();
+    setLevelMaterialField(editing, 'stone', 'roughness', 0.4);
+    final live = <(String, Map<String, Object?>)>[];
+
+    await tester.pumpWidget(
+      _panel(
+        editing,
+        onLive: (String m, Map<String, Object?> f) {
+          live.add((m, f));
+        },
+      ),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(_in('field:roughness', Slider)),
+    );
+    await gesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    expect(live, isNotEmpty, reason: 'sent while the thumb was still down');
+    expect(editing.level.materials['stone']!.roughness, 0.4);
+
+    await gesture.moveBy(const Offset(20, 0));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(live.every((it) => it.$1 == 'stone'), isTrue);
+    expect(live.last.$2.keys, <String>['roughness']);
+    expect(
+      live.last.$2['roughness'],
+      editing.level.materials['stone']!.roughness,
+      reason: 'the last value sent is the one written',
+    );
+  });
+
+  test('a level material field in the engine’s words', () {
+    expect(liveMaterialFields('roughness', 0.3), <String, Object?>{
+      'roughness': 0.3,
+    });
+    expect(liveMaterialFields('emissive', 2.0), <String, Object?>{
+      'emissiveStrength': 2.0,
+    });
+    expect(
+      liveMaterialFields('baseColor', <num>[0.1, 0.2, 0.3]),
+      <String, Object?>{
+        'baseColor': <num>[0.1, 0.2, 0.3, 1.0],
+        'emissive': <num>[0.1, 0.2, 0.3],
+      },
+    );
+    expect(
+      liveMaterialFields('albedo', 'stone.png'),
+      isNull,
+      reason: 'a texture needs a reload, not a frame',
     );
   });
 

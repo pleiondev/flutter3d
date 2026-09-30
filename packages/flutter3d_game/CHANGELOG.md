@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`replayAfterHotSwap` asks the question a hot reload leaves open on its
+  own.** After every `HotSwap` it lives the last seconds again under the new
+  code and says whether they came out the same or where they parted, in the
+  console and as a `flutter3d.timeline.replayedUnderNewCode` VM service
+  event. Returns the call that stops it.
 - **A level that has to be built before it can be swapped in.**
   `LiveLevel(prepare:)` is awaited by `applyWhenReady`, which the extension
   now calls, before anything changes; a level whose `prepare` throws is

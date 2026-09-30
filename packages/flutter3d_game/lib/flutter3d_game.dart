@@ -45,6 +45,7 @@ export 'src/input/touch_controls.dart';
 export 'src/run/bug_report.dart';
 export 'src/run/demo_timeline.dart';
 export 'src/run/live_level.dart';
+export 'src/run/replay_after_swap.dart';
 export 'src/run/run_session.dart';
 export 'src/run/run_timeline.dart';
 export 'src/run/run_timeline_extensions.dart';
