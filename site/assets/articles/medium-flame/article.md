@@ -1,8 +1,10 @@
-# Adding 3D to a Flame game without rewriting it
+# Keep your Flame game, get a 3D world: how I bridged Flame and flutter3d
 
 *How flame_flutter3d puts a real 3D renderer under a Flame game, what crosses between the two engines, and a step-by-step tutorial for your own project.*
 
 ![River Sortie: a jet over a river, "+30" and "+60" over targets it hit, a helicopter going down in smoke. Jet model: Poly by Google, CC BY 3.0](https://flutter3d.pleion.dev/assets/articles/medium-flame/01_river_sortie.png)
+
+In my [previous article](https://medium.com/@dzolotov/i-wrote-a-3d-game-engine-for-flutter-from-scratch-and-you-can-ship-a-game-with-it-today-e635f1c1b8ed) I introduced flutter3d, a 3D engine for Flutter. This one is about making it work together with Flame.
 
 The screenshot above is River Sortie, a River Raid-style shooter you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
 
