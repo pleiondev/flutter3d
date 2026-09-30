@@ -4,7 +4,7 @@
 
 ![River Sortie: a jet over a river, "+30" and "+60" over targets it hit, a helicopter going down in smoke. Jet model: Poly by Google, CC BY 3.0](https://flutter3d.pleion.dev/assets/articles/medium-flame/01_river_sortie.png)
 
-The screenshot above is River Sortie, a remake of River Raid that you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
+The screenshot above is River Sortie, a river shooter along the lines of River Raid, which you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
 
 I built it to find out whether that works in a real game. Flame is the 2D game engine most Flutter developers reach for, and a lot of people know how to write games with it. flutter3d is a 3D engine for Flutter that I've been working on. For a while the two lived side by side and never talked, and if you had a Flame game and wanted light, shadows and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. This article explains how it works and then walks through a small game built on it, from an empty project to a boat collecting buoys on a lake.
 
@@ -73,7 +73,7 @@ For cameras, `ChaseCamera` follows a bridged component in perspective and can sh
 
 ## How River Sortie uses it
 
-River Sortie is the biggest user of the bridge, and it shaped a lot of it. The game mixes in `HasFlutter3d`, so it owns its 3D world: scene, device, camera and renderer are fields of the game, and it builds the river once in `onOpen3d`. It also mixes in `HasFixedStep`, so its logic runs in fixed steps and a second of play comes out the same at any frame rate. Together with a seeded river generator, the river is the same on every run, the way it was on the cartridge.
+River Sortie is the biggest user of the bridge, and it shaped a lot of it. The game mixes in `HasFlutter3d`, so it owns its 3D world: scene, device, camera and renderer are fields of the game, and it builds the river once in `onOpen3d`. It also mixes in `HasFixedStep`, so its logic runs in fixed steps and a second of play comes out the same at any frame rate. Together with a seeded river generator, the river is the same on every run.
 
 Every tanker, helicopter and fuel depot is an `Object3dComponent` on one `BridgePlane.ground()` laid over the water. Its Flame position is `x` across the river and `y` along it, and helicopters get an elevation that lifts them to flight height. The banks aren't hitboxes at all: the river generator answers whether any point is water or land, and the jet asks it every step. Stretches of river are built ahead of the jet and released behind it by `ChunkStreamer`. Shots are drawn as instances of one mesh, fire and smoke are 3D particles, reeds on the banks and the flash of an explosion are Flame sprites standing in the scene, and explosions are heard from where they happen.
 
