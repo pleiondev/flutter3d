@@ -33,6 +33,7 @@ final class RangeSliderField extends StatefulWidget {
     required this.max,
     this.step,
     required this.onChanged,
+    this.onPreview,
     this.enabled = true,
     this.editable = false,
   });
@@ -60,6 +61,12 @@ final class RangeSliderField extends StatefulWidget {
   /// while a finger is still on the thumb, the same bargain every history
   /// this engine keeps strikes for a drag.
   final ValueChanged<double> onChanged;
+
+  /// Called with every value the thumb passes through while it is dragged,
+  /// stepped as [onChanged]'s would be: for something that shows the value
+  /// live, a running game, without writing it anywhere. [onChanged] still
+  /// comes once at the end.
+  final ValueChanged<double>? onPreview;
 
   final bool enabled;
 
@@ -89,14 +96,13 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
     if (widget.value != old.value) _dragging = null;
   }
 
-  void _commit(double raw) {
+  void _commit(double raw) => widget.onChanged(_stepped(raw));
+
+  double _stepped(double raw) {
     final double? step = widget.step;
-    if (step == null || step <= 0.0) {
-      widget.onChanged(raw);
-      return;
-    }
+    if (step == null || step <= 0.0) return raw;
     final double stepped = (raw / step).roundToDouble() * step;
-    widget.onChanged(double.parse(stepped.toStringAsFixed(4)));
+    return double.parse(stepped.toStringAsFixed(4));
   }
 
   @override
@@ -186,7 +192,10 @@ class _RangeSliderFieldState extends State<RangeSliderField> {
                 max: widget.max,
                 divisions: divisions,
                 onChanged: widget.enabled
-                    ? (double v) => setState(() => _dragging = v)
+                    ? (double v) {
+                        setState(() => _dragging = v);
+                        widget.onPreview?.call(_stepped(v));
+                      }
                     : null,
                 onChangeEnd: widget.enabled
                     ? (double v) {

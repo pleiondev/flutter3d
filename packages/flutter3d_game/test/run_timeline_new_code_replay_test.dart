@@ -12,6 +12,7 @@
 /// state after the replay is not the fresh run's.
 library;
 
+import 'package:flutter3d_app/flutter3d_app.dart' show HotSwap;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -137,5 +138,49 @@ void main() {
       live.timeline.replayUnderNewCode(seconds: 3.0, capture: live.walker.save),
       isNull,
     );
+  });
+
+  group('after a hot reload, on its own', () {
+    test('the swap replays the last seconds and names the parting', () async {
+      // Mutation: drop the listener in `replayAfterHotSwap` and nothing is
+      // replayed when the swap finishes.
+      final live = _run();
+      _steps(live, 0, 300);
+      final hotSwap = HotSwap(enabled: true);
+      final replays = <CodeReplay>[];
+      replayAfterHotSwap(
+        live.timeline,
+        capture: live.walker.save,
+        hotSwap: hotSwap,
+        onReplayed: replays.add,
+      );
+
+      live.walker.rule = _new;
+      await hotSwap.swap();
+
+      expect(replays, hasLength(1));
+      expect(replays.single.toStep, 300);
+      expect(replays.single.divergence?.path, contains('x'));
+    });
+
+    test('stopped, a swap replays nothing', () async {
+      final live = _run();
+      _steps(live, 0, 300);
+      final hotSwap = HotSwap(enabled: true);
+      final replays = <CodeReplay>[];
+      final stop = replayAfterHotSwap(
+        live.timeline,
+        capture: live.walker.save,
+        hotSwap: hotSwap,
+        onReplayed: replays.add,
+      );
+
+      await hotSwap.swap();
+      expect(replays.single.divergence, isNull, reason: 'the same code');
+
+      stop();
+      await hotSwap.swap();
+      expect(replays, hasLength(1));
+    });
   });
 }

@@ -153,6 +153,31 @@ bool setLevelMaterialField(
   return true;
 }
 
+/// What a running game's `ext.flutter3d.material.set` takes for [key] of a
+/// level material set to [value], or null for a key a frame cannot show
+/// without a reload: a texture path, the tiling, a material file.
+///
+/// **The level's words turned into the engine's**, the way the loader turns
+/// them (`LevelScene.materialFrom`): a level's `emissive` is a strength over
+/// the base colour, so it is `emissiveStrength`, and a new base colour is
+/// the glow's colour too.
+Map<String, Object?>? liveMaterialFields(String key, Object? value) =>
+    switch ((key, value)) {
+      ('baseColor', final List<Object?> colour)
+          when colour.length >= 3 && colour.every((it) => it is num) =>
+        <String, Object?>{
+          'baseColor': <num>[
+            ...colour.take(3).cast<num>(),
+            colour.length > 3 ? colour[3]! as num : 1.0,
+          ],
+          'emissive': colour.take(3).cast<num>().toList(),
+        },
+      ('roughness', final num at) => <String, Object?>{'roughness': at},
+      ('metallic', final num at) => <String, Object?>{'metallic': at},
+      ('emissive', final num at) => <String, Object?>{'emissiveStrength': at},
+      _ => null,
+    };
+
 /// The materials of a level, and the fields of the one that is open.
 final class MaterialPanel extends StatefulWidget {
   const MaterialPanel({
@@ -161,10 +186,16 @@ final class MaterialPanel extends StatefulWidget {
     required this.onChanged,
     this.documents = const <String, MaterialDocument>{},
     this.onMaterialWritten,
+    this.onLive,
     this.offers = nothingToOffer,
   });
 
   final Editing editing;
+
+  /// Called with a material's name and [liveMaterialFields] for every value
+  /// a slider passes through and every value written, for a running game to
+  /// show before anything is saved. Keys a frame cannot show are not sent.
+  final void Function(String material, Map<String, Object?> fields)? onLive;
 
   /// Called after a field was actually written, naming it, so the screen can
   /// rebuild and the scene can be rebuilt from the document. The inspector's
@@ -264,6 +295,7 @@ class _MaterialPanelState extends State<MaterialPanel> {
                       value: row[key],
                       hint: levelMaterialHints[key],
                       offers: widget.offers,
+                      onPreview: (Object? value) => _live(name, key, value),
                       onWrite: (Object? value) {
                         if (setLevelMaterialField(
                           widget.editing,
@@ -271,6 +303,7 @@ class _MaterialPanelState extends State<MaterialPanel> {
                           key,
                           value,
                         )) {
+                          _live(name, key, value);
                           widget.onChanged('$name.$key');
                         }
                       },
@@ -332,6 +365,12 @@ class _MaterialPanelState extends State<MaterialPanel> {
           ),
       ],
     ];
+  }
+
+  void _live(String material, String key, Object? value) {
+    final send = widget.onLive;
+    final fields = liveMaterialFields(key, value);
+    if (send != null && fields != null) send(material, fields);
   }
 
   void _writeFile(

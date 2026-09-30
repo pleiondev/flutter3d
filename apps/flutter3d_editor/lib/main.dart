@@ -48,9 +48,11 @@ import 'src/editor_palette.dart';
 import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
+import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
 import 'src/play/flutter_run.dart';
 import 'src/play/level_push.dart';
+import 'src/play/live_material.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
 import 'src/recent_projects.dart';
@@ -197,6 +199,18 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// `edu-01`: whether the step panel is open.
   bool _showSteps = false;
+
+  /// `HR4`: whether the material panel is open.
+  bool _showMaterials = false;
+
+  /// `HR4`: what the material panel drags, on its way to the game [_run]
+  /// has running, thirty times a second at most.
+  late final ThrottledMaterials _liveMaterials = ThrottledMaterials(
+    send: _sendMaterial,
+  );
+
+  /// The connection [_liveMaterials] sends through, to the game running now.
+  GameMaterials? _gameMaterials;
 
   /// `rp-04`: the macOS side of file association calls back through this —
   /// a double-click on a `.f3drun` in Finder, or a drop on the dock icon.
@@ -1141,6 +1155,30 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  /// Sets [fields] on [material] in the game [_run] has running, when one
+  /// is. Nothing is sent, and nothing said, when no game is running: the
+  /// panel edits the level either way.
+  Future<void> _sendMaterial(
+    String material,
+    Map<String, Object?> fields,
+  ) async {
+    if (_run?.state.value case PlayRunning(:final vmService)) {
+      final link = _gameMaterials;
+      final GameMaterials game;
+      if (link != null && link.vmService == vmService) {
+        game = link;
+      } else {
+        unawaited(link?.dispose());
+        game = _gameMaterials = GameMaterials(
+          vmService,
+          onError: (Object error) =>
+              _cubit.say('the running game did not take the material: $error'),
+        );
+      }
+      await game.set(material, fields);
+    }
+  }
+
   /// A name beside [path] that nothing is using yet.
   ///
   /// **It used to be one name.** Shift-save always wrote `foo.edited.json`, so
@@ -1164,6 +1202,8 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    _liveMaterials.dispose();
+    unawaited(_gameMaterials?.dispose());
     unawaited(_run?.dispose());
     _openRunChannel?.dispose();
     _shaders?.dispose();
@@ -1441,6 +1481,15 @@ class _EditorScreenState extends State<EditorScreen>
                                   _changed('$what — ${state.editing.says}'),
                             ),
                           ),
+                        // `HR4`: a value dragged here reaches a running game
+                        // at once; a value written is the level's, as any.
+                        if (_showMaterials)
+                          MaterialPanel(
+                            editing: state.editing,
+                            onChanged: (String what) =>
+                                _changed('$what — ${state.editing.says}'),
+                            onLive: _liveMaterials.push,
+                          ),
                         EditorInspector(
                           state: state,
                           onChanged: (String what) =>
@@ -1506,6 +1555,19 @@ class _EditorScreenState extends State<EditorScreen>
                     ),
                     tooltip: 'Open the lesson step panel',
                     onPressed: () => setState(() => _showSteps = !_showSteps),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 172,
+                  child: IconButton(
+                    icon: Icon(
+                      _showMaterials ? Icons.palette : Icons.palette_outlined,
+                      color: const Color(0xFFE6EAF0),
+                    ),
+                    tooltip: 'Open the material panel',
+                    onPressed: () =>
+                        setState(() => _showMaterials = !_showMaterials),
                   ),
                 ),
                 // `rp-04`: the same screen file association and the open
