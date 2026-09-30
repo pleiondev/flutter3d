@@ -52,6 +52,86 @@ final class TimelineLevelSwapped extends TimelineCommand {
   int get hashCode => Object.hash(step, levelDigest);
 }
 
+/// The last seconds were lived again under new code, from [fromStep] to the
+/// present — `RunTimeline.replayUnderNewCode`.
+final class TimelineReplayed extends TimelineCommand {
+  const TimelineReplayed(this.fromStep);
+  final int fromStep;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TimelineReplayed && other.fromStep == fromStep;
+
+  @override
+  int get hashCode => fromStep.hashCode;
+}
+
+/// Where the run new code makes first parts from the one old code made.
+///
+/// **Between two keyframes, not at one step.** The old run is held as a
+/// snapshot a keyframe interval apart and the tape between; what it was at
+/// the steps between keyframes is gone. So this names the last step the two
+/// runs were seen to agree ([agreedAt]) and the first they were seen to differ
+/// ([step]), and the first field that differed there. Closer keyframes narrow
+/// it; `RewindBuffer.keyframeEvery` is the dial.
+final class ReplayDivergence {
+  const ReplayDivergence({
+    required this.agreedAt,
+    required this.step,
+    required this.path,
+    required this.before,
+    required this.after,
+  });
+
+  /// The last step both runs were compared at and agreed.
+  final int agreedAt;
+
+  /// The first step they were compared at and differed.
+  final int step;
+
+  /// Where in the snapshot, as `firstDifferingPath` spells it.
+  final String path;
+
+  /// The value under the old code.
+  final Object? before;
+
+  /// The value under the new code.
+  final Object? after;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'agreedAt': agreedAt,
+    'step': step,
+    'path': path,
+    'before': before,
+    'after': after,
+  };
+
+  @override
+  String toString() =>
+      'between step $agreedAt and $step, `$path` went from $before to $after';
+}
+
+/// What `RunTimeline.replayUnderNewCode` did.
+final class CodeReplay {
+  const CodeReplay({
+    required this.fromStep,
+    required this.toStep,
+    this.divergence,
+  });
+
+  final int fromStep;
+  final int toStep;
+
+  /// Null when the new code made the same run as the old.
+  final ReplayDivergence? divergence;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'fromStep': fromStep,
+    'toStep': toStep,
+    'divergence': divergence?.toJson(),
+  };
+}
+
 /// Pause, step, rewind and branch, built on a live [RewindBuffer].
 ///
 /// **What `rp-02`'s editor panel is a face for, not the panel itself.** The
@@ -224,6 +304,78 @@ final class RunTimeline {
     final at = point.step - point.replayed;
     _history.add(TimelineLevelSwapped(at, levelDigest));
     return at;
+  }
+
+  /// Lives the last [seconds] again under the code running now, and says
+  /// where that run parts from the one the old code made.
+  ///
+  /// **What a code reload is worth to a simulation.** A hot reload swaps the
+  /// step function and keeps the state, so the run carries on under new code
+  /// from a present the old code made. That is enough to see the new code
+  /// running and not enough to see what it changes. This goes back to the
+  /// keyframe at or before [seconds] ago, replays the recorded input to the
+  /// present under the new code with the devices muted, and compares the
+  /// state at each keyframe the old run left — and at the present, which
+  /// [capture] reads before anything moves — against what the replay reaches
+  /// there. The first that differs is the [ReplayDivergence]; none differing
+  /// means the change did not touch these seconds.
+  ///
+  /// The replay is kept: the present is the new code's afterwards, and the
+  /// buffer is rebased on the keyframe it started from, since the keyframes
+  /// after it are the old code's. Null when the buffer does not reach back.
+  CodeReplay? replayUnderNewCode({
+    required double seconds,
+    required Snapshot Function() capture,
+  }) {
+    final now = rewind.step;
+    final point = rewind.rewindBy(seconds);
+    if (point == null) return null;
+    final from = point.step - point.replayed;
+    final before = <int, Snapshot>{
+      ...rewind.keyframesAfter(from),
+      now: capture(),
+    };
+
+    restore(point.snapshot);
+    final replay = InputTapePlayback(
+      InputTape(seed: point.seed, frames: point.frames),
+    );
+    var agreed = from;
+    ReplayDivergence? divergence;
+    void compare(int step) {
+      final old = before[step];
+      if (old == null || divergence != null) return;
+      final differs = firstDifferingPath(old.data, capture().data);
+      if (differs == null) {
+        agreed = step;
+      } else {
+        divergence = ReplayDivergence(
+          agreedAt: agreed,
+          step: step,
+          path: differs.path,
+          before: differs.a,
+          after: differs.b,
+        );
+      }
+    }
+
+    final wasMuted = input.muted;
+    input.muted = true;
+    try {
+      for (var step = from; !replay.isFinished; step++) {
+        if (step != from) compare(step);
+        replay.applyTo(input);
+        input.beginStep();
+        stepSim(stepSeconds);
+        input.endStep();
+      }
+    } finally {
+      input.muted = wasMuted;
+    }
+    compare(now);
+    rewind.rebaseAt(point);
+    _history.add(TimelineReplayed(from));
+    return CodeReplay(fromStep: from, toStep: now, divergence: divergence);
   }
 
   /// [releaseAt], given the step directly rather than a [RewindPoint] —

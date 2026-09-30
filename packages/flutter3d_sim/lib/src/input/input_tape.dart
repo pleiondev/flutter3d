@@ -23,6 +23,7 @@ final class InputFrame {
     this.lookY = 0.0,
     this.values = const <String, double>{},
     this.slot,
+    this.tunes = const <String, double>{},
   });
 
   factory InputFrame.fromJson(Map<String, Object?> json) => InputFrame(
@@ -47,6 +48,13 @@ final class InputFrame {
         entry.key! as String: (entry.value! as num).toDouble(),
     },
     slot: (json['slot'] as num?)?.toInt(),
+    tunes: <String, double>{
+      for (final entry
+          in (json['tunes'] as Map<Object?, Object?>? ??
+                  const <Object?, Object?>{})
+              .entries)
+        entry.key! as String: (entry.value! as num).toDouble(),
+    },
   );
 
   /// Action names rather than the actions themselves.
@@ -73,12 +81,16 @@ final class InputFrame {
   /// release, so a tape of transitions had nowhere to put it.
   final int? slot;
 
+  /// Tunables set by this step, by name — `InputState.tune`.
+  final Map<String, double> tunes;
+
   /// Whether this step is worth writing down at all.
   bool get isIdle =>
       pressed.isEmpty &&
       released.isEmpty &&
       values.isEmpty &&
       slot == null &&
+      tunes.isEmpty &&
       stickX == 0.0 &&
       stickY == 0.0 &&
       lookX == 0.0 &&
@@ -93,6 +105,7 @@ final class InputFrame {
     if (lookY != 0.0) 'ly': lookY,
     if (values.isNotEmpty) 'values': values,
     if (slot != null) 'slot': slot,
+    if (tunes.isNotEmpty) 'tunes': tunes,
   };
 }
 
@@ -187,6 +200,7 @@ final class InputTapeRecorder {
             entry.key.name: entry.value,
         },
         slot: input.slotRequest,
+        tunes: input.tunesThisStep,
       ),
     );
   }
@@ -242,5 +256,8 @@ final class InputTapePlayback {
     }
     final slot = frame.slot;
     if (slot != null) input.requestSlot(slot);
+    for (final MapEntry(key: name, :value) in frame.tunes.entries) {
+      input.tune(name, value);
+    }
   }
 }

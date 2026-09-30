@@ -1,3 +1,9 @@
+## Unreleased
+
+- `firstDifferingPath` lives in `flutter3d_sim` now; this package exports
+  it from there, so imports of it keep working.
+
+
 ## 0.8.1
 
 **Any transport here carries `flame_multiplayer`.** `NetTransportWire` makes

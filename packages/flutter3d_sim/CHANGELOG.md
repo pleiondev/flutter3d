@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A number tuned while the game runs is on the tape.** `InputState.tune`
+  sets a tunable for one step, `InputFrame.tunes` records it, playback
+  applies it, and `Tunables` is the step's side: named values with defaults,
+  taken from the input before the step reads them, saved into a snapshot so
+  a rewind comes back with the old value. A run tuned as it was played
+  replays like any other.
+- **`firstDifferingPath` moved here from `flutter3d_net`**, which still
+  exports it. **`RewindBuffer.keyframesAfter`** reads the snapshots held.
+
 - **`diffLevel` says who has to act on an edit.** It compares two versions
   of a level part by part and splits the change: lights, materials, fog and
   music can be patched into a running scene; brushes, entities, the ground,

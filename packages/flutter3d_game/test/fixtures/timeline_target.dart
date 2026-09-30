@@ -22,15 +22,24 @@ import 'package:flutter_test/flutter_test.dart';
 final class _Toy {
   _Toy(int seed) : dice = GameRandom(seed);
   final GameRandom dice;
+  final Tunables tunables = Tunables(const <String, double>{'speed': 1.0});
   double x = 0.0;
 
-  void step(InputState input) => x += 1.0;
+  void step(InputState input) {
+    tunables.take(input);
+    x += tunables['speed'];
+  }
 
-  Snapshot save() => Snapshot(<String, Object?>{'x': x, 'random': dice.state});
+  Snapshot save() => Snapshot(<String, Object?>{
+    'x': x,
+    'random': dice.state,
+    'tunables': tunables.toJson(),
+  });
 
   void restore(Snapshot snapshot) {
     x = snapshot.data.number('x');
     dice.state = snapshot.data.integer('random');
+    tunables.restore(snapshot.data['tunables']! as Map<String, Object?>);
   }
 }
 
@@ -67,8 +76,10 @@ void main() {
         timeline: timeline,
       ),
     );
+    registerTuningExtensions(input, toy.tunables);
     registerTimelineExtensions(
       timeline,
+      capture: toy.save,
       frameTimes: frameTimes,
       bugReport: () => <String, Object?>{'x': toy.x, 'step': stepNumber},
     );

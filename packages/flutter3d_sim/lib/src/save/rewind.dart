@@ -180,6 +180,16 @@ final class RewindBuffer {
     _keyframes.removeWhere((k) => k.step > point.step);
   }
 
+  /// The snapshots held after [step], by the step each was taken before.
+  ///
+  /// What the run looked like at those moments — for comparing a replay of
+  /// the same tape against, after something that should not have changed
+  /// the outcome (or should have) has changed the code.
+  Map<int, Snapshot> keyframesAfter(int step) => <int, Snapshot>{
+    for (final keyframe in _keyframes)
+      if (keyframe.step > step) keyframe.step: keyframe.snapshot,
+  };
+
   /// Makes [point]'s keyframe the oldest thing held: the keyframes on either
   /// side of it and the entries before it are forgotten, the entries after it
   /// kept.

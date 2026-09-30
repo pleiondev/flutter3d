@@ -295,4 +295,61 @@ void main() {
       throwsA(isA<RPCError>()),
     );
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test(
+    'a tunable set and a replay after reload, from outside the process',
+    () async {
+      final target = await _startAndConnect();
+      addTearDown(() {
+        target.service.dispose();
+        target.process.kill();
+      });
+      await Future<void>.delayed(const Duration(seconds: 2));
+
+      Future<Map<String, Object?>> call(
+        String method, [
+        Map<String, String>? args,
+      ]) async => _decode(
+        await target.service.callServiceExtension(
+          method,
+          isolateId: target.isolateId,
+          args: args,
+        ),
+      );
+
+      expect(await call('ext.flutter3d.cvar.list'), <String, Object?>{
+        'speed': <String, Object?>{'value': 1.0, 'default': 1.0},
+      });
+      expect(
+        await call('ext.flutter3d.cvar.set', <String, String>{
+          'name': 'speed',
+          'value': '2.5',
+        }),
+        <String, Object?>{},
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(
+        ((await call('ext.flutter3d.cvar.list'))['speed']!
+            as Map<String, Object?>)['value'],
+        2.5,
+      );
+      await expectLater(
+        call('ext.flutter3d.cvar.set', <String, String>{
+          'name': 'gravity',
+          'value': '1',
+        }),
+        throwsA(isA<RPCError>()),
+      );
+
+      // Nothing reloaded, so the replay makes the same run: the tune is on the
+      // tape and the tunables are in the snapshot.
+      final replay = await call(
+        'ext.flutter3d.timeline.replayUnderNewCode',
+        <String, String>{'seconds': '1'},
+      );
+      expect(replay['fromStep'], isA<int>());
+      expect(replay['divergence'], isNull);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 }
