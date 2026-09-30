@@ -4,7 +4,7 @@
 
 ![River Sortie: a jet over a river, "+30" and "+60" over targets it hit, a helicopter going down in smoke. Jet model: Poly by Google, CC BY 3.0](https://flutter3d.pleion.dev/assets/articles/medium-flame/01_river_sortie.png)
 
-The screenshot above is River Sortie, a river shooter along the lines of River Raid, which you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
+The screenshot above is River Sortie, a River Raid-style shooter you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
 
 I built it to find out whether that works in a real game. Flame is the 2D game engine most Flutter developers reach for, and a lot of people know how to write games with it. flutter3d is a 3D engine for Flutter that I've been working on. For a while the two lived side by side and never talked, and if you had a Flame game and wanted light, shadows and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. This article explains how it works and then walks through a small game built on it, from an empty project to a boat collecting buoys on a lake.
 
