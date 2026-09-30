@@ -14,6 +14,7 @@ import 'dart:io';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
+import 'crawler.dart' as crawler;
 import 'dungeon.dart' as dungeon;
 
 import 'platformer.dart' as platformer;
@@ -39,6 +40,7 @@ final Map<String, LevelGenerator> shippedGenerators = <String, LevelGenerator>{
   'apps/flutter3d_demo_platformer/tool/make_spire.py': platformer.spire,
   'apps/flutter3d_demo_racing/tool/make_track.py': racing.tracks,
   'apps/flutter3d_demo_strategy/tool/make_map.py': strategy.map,
+  'packages/flutter3d_editor_core/tool/levels/crawler.dart': crawler.levels,
   'tool/make_templates.py': templates.templates,
 };
 

@@ -1,0 +1,38 @@
+name: flutter3d_demo_crawler
+description: "Up to four heroes, one screen, and a maze that keeps making monsters: the fifth genre, drawn."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter3d: ^0.8.0
+  flutter3d_app: ^0.8.0
+  flutter3d_game: ^0.8.0
+  flutter3d_sim: ^0.8.1
+  flutter3d_game_crawler: ^0.8.0
+
+  # A controller per player: `Gamepad(index: n)` reads the one in slot n.
+  pad_input: ^0.4.3
+
+  vector_math: ^2.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A device with no GPU behind it, for the frame test.
+  flutter3d_cpu: ^0.8.0
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # The levels, written by `flutter3d_editor_core/tool/levels/crawler.dart`.
+  assets:
+    - assets/levels/

@@ -48,3 +48,7 @@ playfield's aspect ratio is the game's, not the window's.
 
 Nothing here imports the renderer or another genre, so every test runs with no
 device.
+
+A Flutter file that imports `package:flutter/material.dart` beside this
+package has two `Hero`s — Flutter's is a page transition — and wants
+`import 'package:flutter/material.dart' hide Hero;`.
