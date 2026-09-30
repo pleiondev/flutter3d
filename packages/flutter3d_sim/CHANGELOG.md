@@ -1,3 +1,14 @@
+## Unreleased
+
+- **`diffLevel` says who has to act on an edit.** It compares two versions
+  of a level part by part and splits the change: lights, materials, fog and
+  music can be patched into a running scene; brushes, entities, the ground,
+  recipes and the next level are the simulation's, and go through a timeline
+  branch. Conservative on purpose: a brush that only changed material is
+  still the simulation's, since its surface falls back to its material.
+- **`RewindBuffer.rebaseAt`** makes one keyframe the oldest thing held, for a
+  change to the world the snapshots do not carry.
+
 ## 0.8.1
 
 **Several things to chase, and one sweep to chase them by.**
