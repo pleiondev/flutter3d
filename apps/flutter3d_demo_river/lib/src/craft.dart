@@ -56,6 +56,7 @@ final class _Kit {
       rotor = DeviceMesh.upload(device, rotorMesh()),
       depot = DeviceMesh.upload(device, depotMesh()),
       shot = DeviceMesh.upload(device, shotMesh()),
+      bullet = DeviceMesh.upload(device, bulletMesh()),
       shard = DeviceMesh.upload(device, shardMesh()),
       puff = DeviceMesh.upload(device, puffMesh()),
       water = DeviceMesh.upload(device, waterMesh());
@@ -68,6 +69,7 @@ final class _Kit {
   final DeviceMesh rotor;
   final DeviceMesh depot;
   final DeviceMesh shot;
+  final DeviceMesh bullet;
   final DeviceMesh shard;
   final DeviceMesh puff;
   final DeviceMesh water;

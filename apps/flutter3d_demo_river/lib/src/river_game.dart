@@ -474,20 +474,40 @@ final class RiverGame extends FlameGame
     }
   }
 
-  /// A helicopter at [from] fires at where the jet is now.
+  /// A helicopter at [from] fires at where the jet is now: a red flash at
+  /// its nose, and a streak laid along the way it flies.
   void enemyFire({required Vector2 from}) {
     final aim = (jet.position - from)..normalize();
+    final muzzle = from + aim * 1.4;
     _sayAt(Sounds.tracer, river.to3d(from, at: flightHeight));
+    _muzzleFlash(river.to3d(muzzle, at: flightHeight));
     add(
       EnemyShotComponent(
-        node: MeshNode(_kit.shard, _kit.tracer, name: 'tracer')
-          ..setUniformScale(0.7),
+        // The rod turned inside a node of its own: the component writes
+        // the outer node's place, and the streak keeps its heading.
+        node: SceneNode(name: 'tracer')
+          ..add(
+            MeshNode(_kit.bullet, _kit.tracer)
+              ..setRotation(_facing(aim.x, aim.y)),
+          ),
         scene: _scene,
-        position: from + aim * 1.4,
+        position: muzzle,
         velocity: aim * EnemyShotComponent.speed,
       ),
     );
   }
+
+  void _muzzleFlash(Vector3 at) => blasts.system.burst(
+    ParticleEffect(
+      count: 10,
+      emitter: const SphereEmitter(speed: Range(1.5, 3.5)),
+      lifetime: const Range(0.2, 0.3),
+      size: const Range(0.5, 0.8),
+      color: _muzzle,
+      affectors: const <ParticleAffector>[ParticleSizeOverLife()],
+    ),
+    at,
+  );
 
   /// Fire: glowing shards thrown up and out, falling, shrinking, dimming
   /// from orange to a dull red, round the flash of the blast itself.
@@ -540,6 +560,7 @@ final class RiverGame extends FlameGame
   static Vector4 get _flame => Vector4(4.0, 2.2, 0.6, 1.0);
   static Vector4 get _ember => Vector4(1.2, 0.2, 0.05, 1.0);
   static Vector4 get _spark => Vector4(4.0, 3.4, 1.6, 1.0);
+  static Vector4 get _muzzle => Vector4(4.0, 0.9, 0.4, 1.0);
   static Vector4 get _spray => Vector4(0.7, 0.8, 0.9, 1.0);
 
   /// How much of what is behind it a puff of smoke takes away, fresh and

@@ -128,10 +128,19 @@ final class TargetComponent extends Object3dComponent
   }
 
   /// Seconds between a gunner's shots.
-  static const double fireInterval = 1.8;
+  static const double fireInterval = 1.1;
 
   /// A gunner fires only at a jet this far ahead of it, and no nearer.
-  static const (double, double) fireRange = (7.0, 36.0);
+  ///
+  /// **From almost as far as it wakes.** Starting at 36 with a shot every
+  /// 1.8 seconds, a jet at cruise went through the whole window in about
+  /// one interval and drew a single shot, and on the throttle often none.
+  /// With the first shot soon after waking, it now draws three at cruise
+  /// and two on the throttle.
+  static const (double, double) fireRange = (7.0, 46.0);
+
+  /// Seconds from waking to a gunner's first shot.
+  static const double firstShot = 0.2;
 
   final TargetPlan plan;
 
@@ -148,7 +157,7 @@ final class TargetComponent extends Object3dComponent
   double _spin = 0.0;
   double _dying = 0.0;
   double _smokeIn = 0.0;
-  double _fireIn = fireInterval / 2.0;
+  double _fireIn = firstShot;
 
   /// Made with the component rather than on load, so a target hit before
   /// Flame has loaded it has a hitbox to take away.
