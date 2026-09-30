@@ -39,6 +39,7 @@ extension _FileHandling on _ModelerScreenState {
     // is the weight gradient, which still tints materials and still has to
     // put them back.
     if (forgetSurfaces) _weightGradientShading.forget();
+    rebindMcpHistory(history);
     _cubit.opened(
       history,
       renderer: (_state as ModelerReady).renderer,
