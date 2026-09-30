@@ -14,8 +14,9 @@ focus behaves exactly as before.
 **Damage to a focus is counted per focus.** `ActorSystem.hurtFocus(body,
 amount)` credits whichever focus owns the body that was hit and says whether
 one did; `damageToFoci` has the totals by index and `damageToFocusThisStep`
-remains their sum. `focusBody` is now read-only: it was only ever set by
-`step`.
+remains their sum. `focusBody` is set by `step`, as it always was; setting
+it by hand still compiles and is deprecated, since the next `step`
+overwrites it.
 
 **A save carries every focus.** One focus is written as `lastFocus`, as
 before; several as `lastFoci`.

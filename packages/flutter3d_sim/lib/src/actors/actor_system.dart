@@ -152,6 +152,12 @@ final class ActorSystem {
   Vector3 get focus => _foci[_focusIndex];
   Collider? get focusBody => _fociBodies[_focusIndex];
 
+  /// For code written against 0.8.0, where this was a field: [step] names
+  /// the body, as `focusBody:` or in `foci:`, and overwrites whatever was
+  /// set here on its next call, as it always did.
+  @Deprecated('Name the body in step(focusBody:) or step(foci:).')
+  set focusBody(Collider? body) => _fociBodies[_focusIndex] = body;
+
   /// Which focus the actor being thought about attends to, by its index in
   /// the list [step] was given. Zero with one focus, and outside [step].
   int get focusIndex => _focusIndex;

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.8.4
 
 **An actor system with several foci.** `ActorSystemComponent(foci:)` steps
 the system towards every player of a co-op game, so each actor goes for the

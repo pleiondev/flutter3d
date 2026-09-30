@@ -1,4 +1,4 @@
-## Unreleased
+## 0.8.1
 
 **Any transport here carries `flame_multiplayer`.** `NetTransportWire` makes
 a `NetTransport` — the relay's `WebSocketTransport`, a WebRTC channel, the
@@ -11,8 +11,8 @@ lives with the transports it adapts.
 `flame_multiplayer`'s `RollbackSession` now, with a `Snapshot` for its state.
 Its constructor, its defaults and the messages on the wire are what they
 were, so a peer on an older build still plays against a newer one.
-`droppedCorrections` is a getter rather than a field: nothing outside the
-session had any business writing it.
+`droppedCorrections` reads and writes through to the shared session, as it
+did as a field.
 
 ## 0.8.0
 

@@ -1,6 +1,6 @@
 name: flame_flutter3d_audio
 description: "Sound for a Flame game bridged to flutter3d: the game's audio scene as a component, silent until the player's first input, and loops that play for as long as their component lives."
-version: 0.8.3
+version: 0.8.4
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,7 +21,7 @@ dependencies:
 
   # The bridge, for the game's 3D camera the ears ride on and the scene
   # position a bridged component makes its sound at.
-  flame_flutter3d: ^0.8.3
+  flame_flutter3d: ^0.8.4
 
   # The sound itself. **Its own package, not part of the bridge**, because
   # this brings SoLoud's native library, and on the web its script, into

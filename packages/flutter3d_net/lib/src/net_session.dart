@@ -151,6 +151,9 @@ final class NetSession {
   /// are actually sized for.
   int get droppedCorrections => _session.droppedCorrections;
 
+  /// It was a field before 0.8.1, so a test could reset it between phases.
+  set droppedCorrections(int count) => _session.droppedCorrections = count;
+
   /// Captures this side's input, sends it, and runs one fixed step —
   /// call once per fixed step, the same one [applyAndStep] steps by.
   void advance() => _session.advance();
