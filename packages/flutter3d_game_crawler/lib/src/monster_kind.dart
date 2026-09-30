@@ -4,6 +4,11 @@
 /// and hands the list to its `Horde`, which is what a save names them by.
 library;
 
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+
+import 'horde.dart';
+import 'thief.dart';
+
 final class MonsterKind {
   const MonsterKind({
     required this.name,
@@ -13,11 +18,14 @@ final class MonsterKind {
     this.height = 1.6,
     this.bite = 0.0,
     this.touch = 0.0,
+    this.appetite = double.infinity,
+    this.shotproof = false,
     this.score = 10,
+    this.mind = Chaser.new,
   }) : assert(
-         (bite > 0.0) != (touch > 0.0),
+         bite <= 0.0 || touch <= 0.0,
          'a monster either bites while it is close or strikes once and is '
-         'gone, not both and not neither',
+         'gone, not both',
        );
 
   /// What a save calls it. Unique within a horde's list.
@@ -40,8 +48,19 @@ final class MonsterKind {
   /// to fight.
   final double touch;
 
+  /// How much it deals, in all, before it has had enough and is gone. Endless
+  /// for most; Death leaves once it has drained its fill.
+  final double appetite;
+
+  /// Whether shots and blows pass through it harmlessly, so that only a potion
+  /// reaches it.
+  final bool shotproof;
+
   /// What killing one is worth.
   final int score;
+
+  /// The mind a monster of this kind is born with.
+  final Brain Function(MonsterKind kind) mind;
 
   /// Walks up and keeps biting.
   static const MonsterKind grunt = MonsterKind(
@@ -60,6 +79,35 @@ final class MonsterKind {
     touch: 25.0,
   );
 
+  /// Drains health fast, cannot be shot or fought, and leaves once it has
+  /// taken two hundred. A potion is the only answer, and a weak one may not be
+  /// enough.
+  static const MonsterKind death = MonsterKind(
+    name: 'death',
+    health: 40.0,
+    speed: 3.6,
+    bite: 100.0,
+    appetite: 200.0,
+    shotproof: true,
+    score: 100,
+  );
+
+  /// Harms nobody. Takes a potion or a key from the hero it reaches and runs;
+  /// killed before it gets away, it gives the thing back.
+  static const MonsterKind thief = MonsterKind(
+    name: 'thief',
+    health: 20.0,
+    speed: 5.0,
+    radius: 0.3,
+    score: 50,
+    mind: Thief.new,
+  );
+
   /// The kinds this package ships, and the list a `Horde` reads by default.
-  static const List<MonsterKind> all = <MonsterKind>[grunt, ghost];
+  static const List<MonsterKind> all = <MonsterKind>[
+    grunt,
+    ghost,
+    death,
+    thief,
+  ];
 }

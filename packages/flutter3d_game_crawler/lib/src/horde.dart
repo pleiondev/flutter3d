@@ -27,12 +27,16 @@ import 'monster_kind.dart';
 
 /// Walks at the hero the flow field gives it and bites, or strikes once.
 ///
-/// Stateless, which is why its save is empty: which hero to chase is the
-/// engine's answer each step, and what kind of monster it is is the horde's.
+/// Which hero to chase is the engine's answer each step and what kind of
+/// monster it is is the horde's, so all it remembers is how much it has dealt
+/// — which matters only to a kind with an [MonsterKind.appetite].
 final class Chaser extends Brain {
   Chaser(this.kind);
 
   final MonsterKind kind;
+
+  /// Damage dealt so far, before armour.
+  double dealt = 0.0;
 
   /// How far past touching a blow still lands: a body stops a millimetre
   /// short of another, and a monster pressed against a hero must reach.
@@ -53,8 +57,20 @@ final class Chaser extends Brain {
       }
       return;
     }
-    it.hurtFocus(it.focusBody, kind.bite * it.dt);
+    if (kind.bite <= 0.0) return;
+    final amount = kind.bite * it.dt;
+    if (!it.hurtFocus(it.focusBody, amount)) return;
+    dealt += amount;
+    // Had its fill: gone, and nobody gets the credit for it.
+    if (dealt >= kind.appetite) it.system.hurt(it.actor, double.infinity);
   }
+
+  @override
+  Map<String, Object?> save() => <String, Object?>{'dealt': dealt};
+
+  @override
+  void restore(Map<String, Object?> from) =>
+      dealt = (from['dealt'] as num?)?.toDouble() ?? 0.0;
 }
 
 final class Horde {
@@ -101,7 +117,7 @@ final class Horde {
         layer: CollisionLayers.actor,
       ),
       health: Health(kind.health),
-      brain: Chaser(kind),
+      brain: kind.mind(kind),
       facing: Facing(),
       entity: entity,
     );

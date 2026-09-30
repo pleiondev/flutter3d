@@ -7,6 +7,7 @@ import 'generator.dart';
 import 'hero.dart';
 import 'horde.dart';
 import 'loot.dart';
+import 'thief.dart';
 import 'volley.dart';
 
 /// A crawl's step, in the order it has to happen in.
@@ -236,13 +237,13 @@ final class CrawlerSimulation {
         final at = monster.position;
         if (at == null || !monster.isAlive || !_inView(at)) continue;
         struck++;
-        _strike(hero, monster, damage);
+        _strike(hero, monster, damage, magic: true);
       }
       for (final mechanism in mechanisms?.all ?? const <Mechanism>[]) {
         if (mechanism is! Generator || mechanism.isDestroyed) continue;
         if (!_inView(mechanism.collider.position)) continue;
         struck++;
-        _strike(hero, mechanism, damage);
+        _strike(hero, mechanism, damage, magic: true);
       }
       events.add(PotionDrunk(hero, struck));
     }
@@ -253,14 +254,23 @@ final class CrawlerSimulation {
       (at.z - framing.centre.z).abs() <= framing.reachZ;
 
   /// [hero] deals [amount] to [target], and is credited if it kills.
-  void _strike(Hero hero, Object? target, double amount) {
+  ///
+  /// [magic] is a potion's reach, the only thing a shotproof monster feels.
+  void _strike(Hero hero, Object? target, double amount, {bool magic = false}) {
     switch (target) {
       case final Actor monster when monster.isAlive:
         final at = monster.position?.clone() ?? Vector3.zero();
         final kind = horde?.kindOf(monster);
-        if (!monster.applyDamage(amount, from: hero) || kind == null) return;
+        if (kind == null || (kind.shotproof && !magic)) return;
+        if (!monster.applyDamage(amount, from: hero)) return;
         hero.score += kind.score;
         events.add(MonsterSlain(hero, kind, at));
+        // A thief caught with something gives it to whoever caught it.
+        final brain = monster.brain;
+        if (brain is Thief) {
+          brain.carrying?.giveTo(hero);
+          brain.carrying = null;
+        }
       case final Generator generator when !generator.isDestroyed:
         if (!generator.applyDamage(amount, from: hero)) return;
         hero.score += generator.score;

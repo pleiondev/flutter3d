@@ -24,5 +24,20 @@ wall, monster or generator (`Volley`). Walking into a monster is attacking it,
 at the class's `melee` rate. A potion reaches everything in view, scaled by
 the class's `magic`. Kills and broken generators score for whoever made them.
 
+**Death and the thief.** `MonsterKind.death` drains fast, cannot be shot or
+fought (`shotproof`), and leaves once it has dealt its `appetite`; only a
+potion reaches it. `MonsterKind.thief` harms nobody: it takes a potion, or a
+key, from the hero it reaches and runs, and is gone with it after
+`Thief.escapeAfter` seconds unless somebody kills it first, which gives the
+thing back to them.
+
+**A crawl from a level document.** `crawlerRegistry` reads the format's
+spawns, doors and exits with this genre's `food`, `key`, `potion`,
+`treasure`, `generator` and `monster`, and `crawlerRules` asks for a spawn and
+an exit. `stageCrawl` turns a level into a `CrawlerSimulation` for a party, a
+hero on each `player_spawn` by its `slot`. Loot and generators the author did
+not name are saved under a name made from where they stand, so eaten food
+stays eaten after a load.
+
 Its `flutter3d_sim` dependency asks for `^0.8.1`, the release that let an
 `ActorSystem` have several foci and rebuild what was born during play.

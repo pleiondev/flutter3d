@@ -21,6 +21,8 @@ package is what a hero is on top of that.
 | `Food`, `DoorKey`, `Potion`, `Treasure` | Loot a living hero takes by walking into it. |
 | `Generator`, `MonsterKind`, `Horde`, `Chaser` | Where monsters come from until it is broken, what they are, the list that keeps them and rebuilds them from a save, and the mind that walks them at a hero. |
 | `Volley`, `Bolt` | The heroes' shots in flight: through each other, into the first wall or monster. |
+| `MonsterKind.death`, `Thief` | What only a potion can stop, and what takes a potion or a key and runs. |
+| `crawlerRegistry`, `crawlerRules`, `stageCrawl` | A level document turned into a crawl for a party. |
 | `CrawlFraming`, `FramingTuning` | Where the shared view has to be for every hero to be in it, and the edge none of them may walk past. |
 | `CrawlCamera` | Eases towards that framing through `CameraRig`. |
 

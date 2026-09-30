@@ -27,8 +27,7 @@ const MonsterKind _straw = MonsterKind(
 );
 
 const List<MonsterKind> _kinds = <MonsterKind>[
-  MonsterKind.grunt,
-  MonsterKind.ghost,
+  ...MonsterKind.all,
   _post,
   _straw,
 ];
@@ -256,6 +255,101 @@ void main() {
       closeTo(Hero.startingHealth - 3.0 - MonsterKind.ghost.touch, 0.01),
     );
     expect(wizard.score, 0, reason: 'nobody killed it');
+  });
+
+  group('Death', () {
+    test(
+      'cannot be shot or fought, and leaves once it has drained its fill',
+      () {
+        final crawl = _Crawl();
+        final warrior = crawl.hero(HeroClass.warrior, 0.0)
+          ..facing.setValues(1.0, 0.0, 0.0)
+          ..fire = true;
+        final death = crawl.horde.spawn(
+          MonsterKind.death,
+          Vector3(5.0, 0.8, 0.0),
+        );
+
+        crawl.run(1.0);
+        expect(death.health!.current, MonsterKind.death.health);
+
+        crawl.run(4.0);
+        expect(crawl.horde.count, 0, reason: 'gone of its own accord');
+        expect(crawl.heard.whereType<MonsterSlain>(), isEmpty);
+        final drained = Hero.startingHealth - 5.0 - warrior.health.current;
+        expect(
+          drained,
+          closeTo(
+            MonsterKind.death.appetite * HeroClass.warrior.damageTaken,
+            3.0,
+          ),
+        );
+      },
+    );
+
+    test('falls to a potion strong enough', () {
+      final crawl = _Crawl();
+      final wizard = crawl.hero(HeroClass.wizard, 0.0)
+        ..potions = 1
+        ..drink = true;
+      crawl.horde.spawn(MonsterKind.death, Vector3(6.0, 0.8, 0.0));
+
+      crawl.run(_dt);
+
+      expect(crawl.horde.count, 0);
+      expect(wizard.score, MonsterKind.death.score);
+    });
+  });
+
+  group('a thief', () {
+    test(
+      'takes a potion before a key, harms nobody, and gets away with it',
+      () {
+        final crawl = _Crawl();
+        final valkyrie = crawl.hero(HeroClass.valkyrie, 0.0)
+          ..potions = 1
+          ..keys = 1;
+        crawl.horde.spawn(MonsterKind.thief, Vector3(5.0, 0.8, 0.0));
+
+        crawl.run(Thief.escapeAfter + 2.0);
+
+        expect(valkyrie.potions, 0);
+        expect(valkyrie.keys, 1);
+        expect(
+          valkyrie.health.current,
+          closeTo(Hero.startingHealth - 6.0, 1e-6),
+        );
+        expect(crawl.heard.whereType<ThiefStole>().single.what, Stolen.potion);
+        expect(
+          crawl.heard.whereType<ThiefEscaped>().single.what,
+          Stolen.potion,
+        );
+        expect(crawl.horde.count, 0);
+      },
+    );
+
+    test('killed while running, gives back what it took', () {
+      final crawl = _Crawl();
+      final elf = crawl.hero(HeroClass.elf, 0.0)..keys = 1;
+      crawl.horde.spawn(MonsterKind.thief, Vector3(5.0, 0.8, 0.0));
+      crawl.run(1.5);
+      expect(elf.keys, 0, reason: 'taken');
+
+      // Shoot after it, the way it ran.
+      final thief = crawl.horde.monsters.single;
+      final run = thief.position! - elf.position
+        ..y = 0.0
+        ..normalize();
+      elf
+        ..facing.setFrom(run)
+        ..fire = true;
+      crawl.run(2.0);
+
+      expect(crawl.horde.count, 0);
+      expect(elf.keys, 1);
+      expect(crawl.heard.whereType<ThiefEscaped>(), isEmpty);
+      expect(elf.score, MonsterKind.thief.score);
+    });
   });
 
   group('a save with the horde in it', () {
