@@ -1,3 +1,9 @@
+## Unreleased
+
+* **Particles follow a shader reload.** `ParticleContributor` and
+  `MeshParticleContributor` drop their pipelines when the renderer relinks,
+  through `flutter3d_core`'s `PassContributor.relinkShaders`.
+
 ## 0.8.1
 
 * **A mesh particle can take light away.** `MeshParticleContributor` takes a

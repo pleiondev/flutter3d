@@ -306,6 +306,9 @@ final class MeshOverlay extends PassContributor {
 
   PipelineHandle? _pipeline;
 
+  @override
+  void relinkShaders() => _pipeline = null;
+
   /// The index sequence 0, 1, 2, … that every draw here is made through.
   ///
   /// **Not an optimisation and not a formality: `CommandEncoder.draw` in this

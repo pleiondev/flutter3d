@@ -49,6 +49,15 @@ abstract base class PassContributor {
   /// particles, splats, anything without a depth of its own — redraws it here
   /// through [ReactiveFrame.spriteStage] or a stage of its own.
   void encodeReactive(ReactiveFrame frame) {}
+
+  /// Drops every pipeline this contributor has linked, so its next frame
+  /// links them again from whatever the stages are now.
+  ///
+  /// `Renderer.relinkShaders` calls it on each contributor after dropping its
+  /// own: a hot reload swaps the code behind a stage and keeps the handle,
+  /// and a pipeline built from the old code would go on drawing it. Nothing
+  /// by default, for a contributor that links nothing of its own.
+  void relinkShaders() {}
 }
 
 /// The contributors a renderer draws, and the order it draws them in.

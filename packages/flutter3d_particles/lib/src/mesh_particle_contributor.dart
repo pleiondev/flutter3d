@@ -247,4 +247,7 @@ final class MeshParticleContributor extends PassContributor {
   final vm.Vector3 _eye = vm.Vector3.zero();
   PipelineHandle? _pipeline;
   Float32List? _instances;
+
+  @override
+  void relinkShaders() => _pipeline = null;
 }
