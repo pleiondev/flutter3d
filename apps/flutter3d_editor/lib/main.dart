@@ -50,6 +50,7 @@ import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/open_run_channel.dart';
 import 'src/play/flutter_run.dart';
+import 'src/play/level_push.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
 import 'src/recent_projects.dart';
@@ -1112,17 +1113,31 @@ class _EditorScreenState extends State<EditorScreen>
       // since they were written. A crash or a full disk halfway through left a
       // truncated level where the good one had been, so one lost session
       // became every future one.
-      await writeFileAtomically(
-        path,
-        // A copy of a generated document takes ownership of itself. One that
-        // still named the generator would invite somebody to run it again, and
-        // running it again is exactly what throws the work away.
-        editing.write(claiming: copy ? kAuthor : null),
-      );
+      // A copy of a generated document takes ownership of itself. One that
+      // still named the generator would invite somebody to run it again, and
+      // running it again is exactly what throws the work away.
+      final document = editing.write(claiming: copy ? kAuthor : null);
+      await writeFileAtomically(path, document);
       editing.history.saved();
       _cubit.say('written to $path');
+      // `HR3`: the game this level is playing in takes it too. Not a copy:
+      // the running game plays the original, not the file beside it.
+      if (!copy) unawaited(_pushToRunningGame(document));
     } catch (error) {
       _cubit.say('could not write $path: $error');
+    }
+  }
+
+  /// Sends a saved level to the game [_run] started, when it is running,
+  /// and says in the status strip what the game did with it.
+  Future<void> _pushToRunningGame(String document) async {
+    if (_run?.state.value case PlayRunning(:final vmService)) {
+      try {
+        final answer = await pushLevel(vmService, document);
+        _cubit.say(describeLevelApplied(answer));
+      } catch (error) {
+        _cubit.say('saved, but the running game did not take it: $error');
+      }
     }
   }
 

@@ -1,0 +1,156 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
+
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+
+import 'run_timeline.dart';
+
+/// The level a running game is playing, and how to change it under the game.
+///
+/// **The game says how; this says when.** Only the game knows what its level
+/// became once loaded — which scene nodes are its lights, which colliders
+/// its brushes, what its entities spawned — so it hands over two functions:
+/// [present] patches what only the picture reads, [rebuild] replaces what the
+/// simulation reads. [apply] asks [diffLevel] which of the two an edit needs
+/// and calls them in the order that keeps the run honest: the simulation's
+/// half through [timeline] when there is one, so the run is replayed under
+/// the new level rather than jumping, then the picture's.
+///
+/// Without a [timeline] the simulation's half is rebuilt in place, which is
+/// what a game with no rewind buffer can do and what it then gets: a run no
+/// replay can reach. The report says which happened.
+final class LiveLevel {
+  LiveLevel({
+    required this._level,
+    required this.present,
+    required this.rebuild,
+    this.timeline,
+  });
+
+  /// Patches the running scene to [next]'s look. [diff] names what changed,
+  /// so a presenter can touch one lamp rather than rebuild them all.
+  final void Function(Level next, LevelDiff diff) present;
+
+  /// Replaces what the simulation reads — colliders, spawns, the ground —
+  /// with [next]'s. Called inside `RunTimeline.swapLevel` when there is a
+  /// [timeline], so it must leave to the snapshot restore what snapshots
+  /// carry.
+  final void Function(Level next) rebuild;
+
+  /// The run to branch when an edit reaches the simulation.
+  final RunTimeline? timeline;
+
+  /// The level being played now.
+  Level get level => _level;
+  Level _level;
+
+  /// Makes [next] the level being played, as little disturbed as the change
+  /// allows.
+  LevelApplied apply(Level next) {
+    final diff = diffLevel(_level, next);
+    if (diff.isEmpty) {
+      _level = next;
+      return LevelApplied(diff: diff);
+    }
+    final int? swappedAt;
+    if (diff.presentationOnly) {
+      swappedAt = null;
+    } else if (timeline case final RunTimeline run) {
+      swappedAt = run.swapLevel(
+        () => rebuild(next),
+        levelDigest: next.digestHex,
+      );
+    } else {
+      rebuild(next);
+      swappedAt = null;
+    }
+    present(next, diff);
+    _level = next;
+    return LevelApplied(
+      diff: diff,
+      swappedAt: swappedAt,
+      rebuiltInPlace: !diff.presentationOnly && swappedAt == null,
+    );
+  }
+}
+
+/// What one [LiveLevel.apply] did.
+final class LevelApplied {
+  const LevelApplied({
+    required this.diff,
+    this.swappedAt,
+    this.rebuiltInPlace = false,
+  });
+
+  final LevelDiff diff;
+
+  /// The step the timeline branched at, when the edit reached the
+  /// simulation and there was a timeline to branch.
+  final int? swappedAt;
+
+  /// The edit reached the simulation and there was no timeline: the run
+  /// carries on from a state a replay cannot reach.
+  final bool rebuiltInPlace;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'diff': diff.toJson(),
+    'swappedAt': ?swappedAt,
+    'rebuiltInPlace': rebuiltInPlace,
+  };
+}
+
+/// Answers `ext.flutter3d.level.apply` for [live]: [parameters] carry the
+/// level's whole `document`, as JSON, and its `hash`, `Level.digestHex`.
+///
+/// **The hash is checked, not trusted.** It is what the editor computed from
+/// the level it saved; the document is what arrived. When the two disagree,
+/// something between them changed the bytes — an encoding, a truncation —
+/// and applying the document would put a level under the run that the editor
+/// never showed anybody. So a mismatch is refused, naming both.
+///
+/// A plain function over the parameters, and [registerLevelExtension] a thin
+/// door onto it, so the answers are tested without a VM service.
+({Map<String, Object?>? result, String? error}) answerLevelApply(
+  LiveLevel live,
+  Map<String, String> parameters,
+) {
+  final document = parameters['document'];
+  final hash = parameters['hash'];
+  if (document == null || hash == null) {
+    return (result: null, error: 'level.apply takes a document and its hash');
+  }
+  final Level next;
+  try {
+    next = Level.fromJson(jsonDecode(document) as Map<String, Object?>);
+  } on Object catch (error) {
+    return (result: null, error: 'the document is not a level: $error');
+  }
+  if (next.digestHex != hash) {
+    return (
+      result: null,
+      error:
+          'the document digests to ${next.digestHex}, not $hash; '
+          'it changed on the way',
+    );
+  }
+  return (result: live.apply(next).toJson(), error: null);
+}
+
+/// Puts [live] on the VM service as `ext.flutter3d.level.apply`, beside the
+/// timeline's own extensions: the editor that saved a level sends it here,
+/// to a game on this machine or on a phone, and the running game takes it.
+void registerLevelExtension(LiveLevel live) {
+  developer.registerExtension('ext.flutter3d.level.apply', (
+    method,
+    parameters,
+  ) async {
+    final (:result, :error) = answerLevelApply(live, parameters);
+    if (error != null) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.invalidParams,
+        error,
+      );
+    }
+    return developer.ServiceExtensionResponse.result(jsonEncode(result));
+  });
+}

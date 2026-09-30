@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **`LiveLevel` takes a level edited under a running game.** The game hands
+  it `present` and `rebuild`; `apply` patches the look in place and sends the
+  simulation's half through `swapLevel`. `registerLevelExtension` puts it on
+  the VM service as `ext.flutter3d.level.apply {document, hash}`, which the
+  editor calls after a save; a document whose digest does not match its hash
+  is refused.
+
 - **`RunTimeline.swapLevel` replaces the level under a running game without
   the run jumping.** It restores the last keyframe, lets the caller swap the
   level, replays the recorded input to the present with the devices muted,
