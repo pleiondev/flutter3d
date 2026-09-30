@@ -8,11 +8,11 @@ In my [previous article](https://medium.com/@dzolotov/i-wrote-a-3d-game-engine-f
 
 The screenshot above is River Sortie, a River Raid-style shooter you can [play in the browser](https://flutter3d.pleion.dev/river/demo/). Everything that moves in it is an ordinary Flame component with a Flame hitbox. Nothing in the game logic knows it is being drawn in 3D.
 
-I built it to see whether that holds up in a real game. Flame is the 2D engine a lot of Flutter developers already write games with, and for a while it and flutter3d lived side by side without talking to each other. If you had a Flame game and wanted light, shadows and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. Below is how it works, and then a small game built on it, from an empty project to a boat collecting buoys on a lake.
+I built it to see whether that holds up in a real game. Flame is the 2D engine a lot of Flutter developers already write games with, and for a while it and flutter3d lived side by side without talking to each other. If you had a Flame game and wanted light, shadows, and depth, you were looking at a rewrite. flame_flutter3d is the package that joins them. Below is how it works, and then a small game built on it, from an empty project to a boat collecting buoys on a lake.
 
 ## The idea: each engine keeps its job
 
-Both renderers stay as they are, and your game stays in Flame. Flame keeps running it: components, collisions, input, effects, the clock. flutter3d draws a 3D world under it. The bridge keeps the two in agreement about where things are, when a frame happens and what the player pressed, and it rests on four decisions.
+Both renderers stay as they are, and your game stays in Flame. Flame keeps running it: components, collisions, input, effects, the clock. flutter3d draws a 3D world under it. The bridge keeps the two in agreement about where things are, when a frame happens, and what the player pressed, and it rests on four decisions.
 
 ### 1. Two layers in one Stack
 
@@ -51,7 +51,7 @@ Who writes and who reads is chosen once, when the component is created, with `Sy
 
 ### 4. One input
 
-`FlameInputBridge` takes the keys, drags, joystick and buttons Flame receives and writes them into `Bindings` and `InputState` from `flutter3d_game`, the same objects a native flutter3d game reads. The bridge has no key table of its own. If a player remaps jump in your settings menu, the remap has to work in the Flame build too, and two tables that disagree look exactly like a remap that silently did nothing.
+`FlameInputBridge` takes the keys, drags, joystick, and buttons Flame receives and writes them into `Bindings` and `InputState` from `flutter3d_game`, the same objects a native flutter3d game reads. The bridge has no key table of its own. If a player remaps jump in your settings menu, the remap has to work in the Flame build too, and two tables that disagree look exactly like a remap that silently did nothing.
 
 ![One key, read by both engines: Flame's key handler takes the press, and the flutter3d side sees the same action held](https://flutter3d.pleion.dev/assets/articles/medium-flame/06_input_bridge.png)
 
@@ -61,7 +61,7 @@ On a phone this pays off. The on-screen stick is a plain Flame `JoystickComponen
 
 With those four pieces in place, most of the package is components that carry one kind of thing across.
 
-Most of the work is done by `Object3dComponent`, a Flame `PositionComponent` that owns a scene node. Position, angle, scale, visibility, opacity and tint cross. Flame's effects reach the scene in the frame they happen, a nested component lands where Flame draws it, and `elevation` lifts a component off its plane. It also exposes `visual`, a node under it that the game can turn freely and the bridge leaves alone, which is how the jet in River Sortie banks without Flame knowing.
+Most of the work is done by `Object3dComponent`, a Flame `PositionComponent` that owns a scene node. Position, angle, scale, visibility, opacity, and tint cross. Flame's effects reach the scene in the frame they happen, a nested component lands where Flame draws it, and `elevation` lifts a component off its plane. It also exposes `visual`, a node under it that the game can turn freely and the bridge leaves alone, which is how the jet in River Sortie banks without Flame knowing.
 
 For physics there are two directions, and River Sortie and the arcade demo use one each. In River Sortie everything is decided by Flame: hitboxes are Flame hitboxes and `onCollisionStart` says who hit whom, while the 3D layer only draws. In the arcade demo collisions are computed by flutter3d's 3D physics, and `CollisionBridge` relays them to Flame's `CollisionCallbacks`, so a ram computed in 3D arrives in Flame as a normal `onCollisionStart`.
 
@@ -73,17 +73,17 @@ For cameras, `ChaseCamera` follows a bridged component in perspective and can sh
 
 ## How River Sortie uses it
 
-River Sortie is the biggest user of the bridge, and it shaped a lot of it. The game mixes in `HasFlutter3d`, so it owns its 3D world: scene, device, camera and renderer are fields of the game, and it builds the river once in `onOpen3d`. It also mixes in `HasFixedStep`, so its logic runs in fixed steps and a second of play comes out the same at any frame rate. Together with a seeded river generator, the river is the same on every run.
+River Sortie is the biggest user of the bridge, and it shaped a lot of it. The game mixes in `HasFlutter3d`, so it owns its 3D world: scene, device, camera, and renderer are fields of the game, and it builds the river once in `onOpen3d`. It also mixes in `HasFixedStep`, so its logic runs in fixed steps and a second of play comes out the same at any frame rate. Together with a seeded river generator, the river is the same on every run.
 
-Every tanker, helicopter and fuel depot is an `Object3dComponent` on one `BridgePlane.ground()` laid over the water. Its Flame position is `x` across the river and `y` along it, and helicopters get an elevation that lifts them to flight height. The banks aren't hitboxes at all: the river generator answers whether any point is water or land, and the jet asks it every step. Stretches of river are built ahead of the jet and released behind it by `ChunkStreamer`. Shots are drawn as instances of one mesh, fire and smoke are 3D particles, reeds on the banks and the flash of an explosion are Flame sprites standing in the scene, and explosions are heard from where they happen.
+Every tanker, helicopter, and fuel depot is an `Object3dComponent` on one `BridgePlane.ground()` laid over the water. Its Flame position is `x` across the river and `y` along it, and helicopters get an elevation that lifts them to flight height. The banks aren't hitboxes at all: the river generator answers whether any point is water or land, and the jet asks it every step. Stretches of river are built ahead of the jet and released behind it by `ChunkStreamer`. Shots are drawn as instances of one mesh, fire and smoke are 3D particles, reeds on the banks and the flash of an explosion are Flame sprites standing in the scene, and explosions are heard from where they happen.
 
 ![A bridge hit in the middle breaks in two, each half going down on its own pier. The "+500" is Flame's text, drawn over a point in the scene](https://flutter3d.pleion.dev/assets/articles/medium-flame/08_river_bridge_down.png)
 
-The game also showed me what the bridge was missing, and most of what's listed above arrived because River Sortie needed it: the fixed step, particles, Flame sprites in the scene and positional sound.
+The game also showed me what the bridge was missing, and most of what's listed above arrived because River Sortie needed it: the fixed step, particles, Flame sprites in the scene, and positional sound.
 
-## Tutorial: a boat, a lake and some buoys
+## Tutorial: a boat, a lake, and some buoys
 
-We'll build a small game where you steer a boat across a lake and collect buoys. It's about 170 lines and uses every piece described above: a game that owns a 3D world, components with bodies in the scene, Flame collisions, the input bridge, a chase camera and a fixed step.
+We'll build a small game where you steer a boat across a lake and collect buoys. It's about 170 lines and uses every piece described above: a game that owns a 3D world, components with bodies in the scene, Flame collisions, the input bridge, a chase camera, and a fixed step.
 
 ![The finished tutorial: a boat about to collect a buoy, with Flame's score text over the 3D scene](https://flutter3d.pleion.dev/assets/articles/medium-flame/07_buoy_run.png)
 
@@ -102,7 +102,7 @@ dependencies:
 
 ### Step 2. Switch on Flutter GPU
 
-flutter3d draws through Flutter GPU, and Flutter GPU is switched on per app, in the platform settings. Skip this and the app starts, opens a window and draws no 3D at all, because it can't load its shader library.
+flutter3d draws through Flutter GPU, and Flutter GPU is switched on per app, in the platform settings. Skip this and the app starts, opens a window, and draws no 3D at all, because it can't load its shader library.
 
 On macOS and iOS, add to `macos/Runner/Info.plist` and `ios/Runner/Info.plist`:
 
@@ -123,7 +123,7 @@ On Android, inside `<application>` in `AndroidManifest.xml`:
 
 ### Step 3. A game that owns a 3D world
 
-The game is a normal `FlameGame` with four mixins. `HasFlutter3d` gives it a scene, a device and a camera, `HasFixedStep` gives it fixed steps, and the other two are plain Flame.
+The game is a normal `FlameGame` with four mixins. `HasFlutter3d` gives it a scene, a device, and a camera, `HasFixedStep` gives it fixed steps, and the other two are plain Flame.
 
 ```dart
 class BuoyRun extends FlameGame
@@ -183,7 +183,7 @@ The world is built in `onOpen3d`, which runs once, after both the game has loade
   }
 ```
 
-The meshes come from code: `PlaneShape`, `CuboidShape` and `SphereShape` are flutter3d's built-in shapes. A glTF model works the same way, as the node a component owns. The score is a regular Flame `TextComponent`, drawn on Flame's layer over the scene.
+The meshes come from code: `PlaneShape`, `CuboidShape`, and `SphereShape` are flutter3d's built-in shapes. A glTF model works the same way, as the node a component owns. The score is a regular Flame `TextComponent`, drawn on Flame's layer over the scene.
 
 ### Step 4. The widget
 
@@ -212,7 +212,7 @@ Because the game has `HasFlutter3d`, the widget needs nothing but the game.
 
 ### Step 5. Components with a body in the scene
 
-A buoy is an `Object3dComponent`: a Flame component with a size, an anchor and a hitbox, plus the scene node it owns.
+A buoy is an `Object3dComponent`: a Flame component with a size, an anchor, and a hitbox, plus the scene node it owns.
 
 ```dart
 class Buoy extends Object3dComponent {
@@ -348,7 +348,7 @@ These are the checks I'd go through first:
 
 ## What it doesn't do yet
 
-Flame is always on top. The layers don't interleave by depth, so HUDs, maps and sprites over the scene work, but a 3D pillar hiding a 2D sprite behind it does not. And Flame's collision callback carries no contact normal or depth, so when you need them you read them on the flutter3d side.
+Flame is always on top. The layers don't interleave by depth, so HUDs, maps, and sprites over the scene work, but a 3D pillar hiding a 2D sprite behind it does not. And Flame's collision callback carries no contact normal or depth, so when you need them you read them on the flutter3d side.
 
 ## Try it
 
