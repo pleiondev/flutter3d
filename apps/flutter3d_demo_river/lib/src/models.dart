@@ -80,7 +80,7 @@ MeshData valleyMesh(Section section) {
     final grown = row.islandGrown;
     final crest = bedDepth + (landHeight - bedDepth) * grown;
     return <Vector3>[
-      p(-valleyReach, landHeight),
+      p(-landReach, landHeight),
       p(row.left - bankTop, landHeight),
       p(row.left + bankUnder, bedDepth),
       p(row.islandLeft - bankUnder * grown, bedDepth),
@@ -89,7 +89,7 @@ MeshData valleyMesh(Section section) {
       p(row.islandRight + bankUnder * grown, bedDepth),
       p(row.right - bankUnder, bedDepth),
       p(row.right + bankTop, landHeight),
-      p(valleyReach, landHeight),
+      p(landReach, landHeight),
     ];
   }
 
@@ -120,21 +120,21 @@ MeshData valleyMesh(Section section) {
   if (section.hasBridge) {
     final row = section.rowAt(section.bridgeAt);
     final z = -section.bridgeAt;
-    final leftLength = row.left - 0.3 + valleyReach;
-    final rightLength = valleyReach - row.right - 0.3;
+    final leftLength = row.left - 0.3 + landReach;
+    final rightLength = landReach - row.right - 0.3;
     parts
       ..add(
         _part(
           CuboidShape(size: Vector3(leftLength, 0.06, 1.8)),
           _road,
-          _at(-valleyReach + leftLength / 2.0, landHeight + 0.03, z),
+          _at(-landReach + leftLength / 2.0, landHeight + 0.03, z),
         ),
       )
       ..add(
         _part(
           CuboidShape(size: Vector3(rightLength, 0.06, 1.8)),
           _road,
-          _at(valleyReach - rightLength / 2.0, landHeight + 0.03, z),
+          _at(landReach - rightLength / 2.0, landHeight + 0.03, z),
         ),
       );
   }
@@ -306,6 +306,11 @@ MeshData depotMesh() => MeshData.merge(<MeshData>[
 MeshData shotMesh() => CuboidShape(
   size: Vector3(0.14, 0.14, 0.9),
 ).build().withColor(linearFromSrgb(1.0, 0.9, 0.4));
+
+/// A helicopter's bullet: a long rod along Z, white, for its material to
+/// colour. Long so it reads as a streak coming at the jet from eleven
+/// metres up; a cube the size of a shard was lost against the water.
+MeshData bulletMesh() => CuboidShape(size: Vector3(0.3, 0.3, 1.6)).build();
 
 /// One shard of an explosion, white: its material gives it its colour.
 MeshData shardMesh() => CuboidShape(size: Vector3.all(0.32)).build();

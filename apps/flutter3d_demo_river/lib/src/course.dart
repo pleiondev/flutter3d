@@ -23,9 +23,15 @@ const double sectionLength = 180.0;
 /// How far either side of the valley's middle the water may ever reach.
 const double riverReach = 17.0;
 
-/// How far either side the land is drawn: past what the camera sees at the
-/// far end of the view, so the valley has no edge on screen.
+/// How far either side of the middle the trees and houses stand.
 const double valleyReach = 46.0;
+
+/// How far either side the grass is drawn: as far as the camera sees at
+/// all. The stretches ahead reach a few hundred units up the river, and a
+/// wide window sees about as far across up there, so land that stopped at
+/// [valleyReach] left the sky showing in both top corners. Only the outer
+/// quads of each row get wider; the valley has no more vertices for it.
+const double landReach = 400.0;
 
 /// Half the water's width under a bridge, and where each stretch starts.
 const double narrowHalf = 4.5;
