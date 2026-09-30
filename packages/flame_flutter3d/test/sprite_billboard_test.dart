@@ -227,4 +227,38 @@ void main() {
     expect(card().readScale().x, isNot(closeTo(wide, 1e-6)));
     expect(sign.currentSprite, same(empty));
   });
+
+  testWidgets('an atlas samples one image sharp and smooth for the callers '
+      'that ask for each', (tester) async {
+    // Mutation: key the materials by the image alone; the second caller
+    // gets the first caller's sampler.
+    final cpu = cpuTestDevice(width: _size, height: _size);
+    final atlas = BillboardAtlas(cpu.device);
+    final (sharp, smooth) = (await tester.runAsync(() async {
+      final image = await _twoFrames();
+      return (
+        await atlas.materialOf(image),
+        await atlas.materialOf(image, smooth: true),
+      );
+    }))!;
+    expect(sharp!.albedoSampler, SamplerOptions.nearestClamp);
+    expect(smooth!.albedoSampler, SamplerOptions.linearClamp);
+  });
+
+  testWidgets('an atlas disposed while an image is still being read makes '
+      'no texture for it', (tester) async {
+    // A billboard removed during its own `onLoad` disposed the atlas under
+    // an upload, which then made a texture nothing would give back.
+    //
+    // Mutation: drop the `_disposed` check after the read.
+    final cpu = cpuTestDevice(width: _size, height: _size);
+    final atlas = BillboardAtlas(cpu.device);
+    final material = await tester.runAsync(() async {
+      final image = await _twoFrames();
+      final pending = atlas.materialOf(image);
+      atlas.dispose();
+      return pending;
+    });
+    expect(material, isNull);
+  });
 }

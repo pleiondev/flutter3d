@@ -138,4 +138,128 @@ void main() {
     await tester.pump();
     expect(find.text('PAUSED'), findsOneWidget);
   });
+
+  testWidgets('new overlay builders under the same names reach the screen '
+      'without a new GameWidget', (tester) async {
+    // A map written inline in a parent's build is new every rebuild, and a
+    // new GameWidget for it had Flame update the game again from layout.
+    //
+    // Mutation: pass the config's map to GameWidget directly and keep it;
+    // the overlay goes on saying "score 1".
+    final device = CpuDevice(
+      width: 32,
+      height: 24,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final camera = CameraNode();
+    final game = FlameGame();
+    final scene = Scene();
+    Widget host(int score) => MaterialApp(
+      home: Flutter3dFlameWidget(
+        game: game,
+        camera: camera,
+        existing: (device: device, renderer: renderer),
+        buildScene: (_) => scene,
+        overlayBuilderMap: <String, OverlayWidgetBuilder<FlameGame>>{
+          'score': (context, game) => Text('score $score'),
+        },
+        initialActiveOverlays: const <String>['score'],
+      ),
+    );
+
+    await tester.pumpWidget(host(1));
+    await tester.pump();
+    final before = tester.widget(find.byType(GameWidget<FlameGame>));
+    expect(find.text('score 1'), findsOneWidget);
+
+    await tester.pumpWidget(host(2));
+    await tester.pump();
+    expect(find.text('score 2'), findsOneWidget);
+    expect(
+      tester.widget(find.byType(GameWidget<FlameGame>)),
+      same(before),
+      reason: 'the same names keep the same GameWidget',
+    );
+  });
+
+  testWidgets('a host that did not start does not tick a game another host '
+      'is showing', (tester) async {
+    // Its clock went into the game from its first build, and every update
+    // then called both hosts' onTick.
+    //
+    // Mutation: add the clock before the host is ready.
+    final device = CpuDevice(
+      width: 32,
+      height: 24,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final game = FlameGame();
+    var shown = 0;
+    var failed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: <Widget>[
+            Expanded(
+              child: Flutter3dFlameWidget(
+                game: game,
+                camera: CameraNode(),
+                existing: (device: device, renderer: renderer),
+                buildScene: (_) => Scene(),
+                onTick: (double _) => shown++,
+              ),
+            ),
+            Expanded(
+              child: Flutter3dFlameWidget(
+                game: game,
+                camera: CameraNode(),
+                existing: (device: device, renderer: renderer),
+                buildScene: (_) => throw StateError('no level'),
+                onTick: (double _) => failed++,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(shown, greaterThan(0));
+    expect(failed, 0);
+  });
+
+  testWidgets('a host that goes lets go of the game it drew for', (
+    tester,
+  ) async {
+    // Compared by `identical` against a fresh tear-off, which never is, the
+    // game kept calling back into, and holding, the disposed host.
+    //
+    // Mutation: compare `owner.redrawer3d` with `_redraw` again.
+    final device = CpuDevice(
+      width: 32,
+      height: 24,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final game = _Owned();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Flutter3dFlameWidget(
+          game: game,
+          existing: (device: device, renderer: renderer),
+          buildScene: (_) => Scene(),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(game.redrawer3d, isNotNull);
+
+    await tester.pumpWidget(const SizedBox());
+    expect(game.redrawer3d, isNull);
+  });
 }
+
+final class _Owned extends FlameGame with HasFlutter3d {}

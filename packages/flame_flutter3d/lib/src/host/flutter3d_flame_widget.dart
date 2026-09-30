@@ -1,5 +1,6 @@
 import 'package:flame/game.dart'
     show FlameGame, GameWidget, OverlayWidgetBuilder;
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -207,7 +208,19 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
       }
       _view = _viewFor();
     }
-    if (!identical(was.overlayBuilderMap, _config.overlayBuilderMap) ||
+    // **Same names, new builders: the overlays rebuild, `GameWidget` stays.**
+    // A map written inline in a parent's `build` is a new map of new closures
+    // every time the parent rebuilds, and replacing `GameWidget` for it made
+    // Flame update the game again from its layout on each of those rebuilds.
+    // The overlays read the builders through [_overlays], so fresh closures
+    // reach the screen without a new `GameWidget`.
+    if (!identical(was.overlayBuilderMap, _config.overlayBuilderMap)) {
+      _overlayBuilders.value++;
+    }
+    if (!setEquals(
+          was.overlayBuilderMap?.keys.toSet(),
+          _config.overlayBuilderMap?.keys.toSet(),
+        ) ||
         !identical(was.initialActiveOverlays, _config.initialActiveOverlays) ||
         !identical(was.focusNode, _config.focusNode) ||
         was.autofocus != _config.autofocus) {
@@ -269,6 +282,32 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
   /// rebuild of this widget from above (a HUD beside it calling `setState`,
   /// say) does not rebuild Flame's own widget either.
   GameWidget<FlameGame>? _gameWidget;
+
+  /// Bumped when the parent hands in new overlay builders under the same
+  /// names; every overlay [_overlays] builds listens to it.
+  final ValueNotifier<int> _overlayBuilders = ValueNotifier<int>(0);
+
+  /// The map `GameWidget` is given: one entry per name in
+  /// [Flutter3dFlameWidget.overlayBuilderMap], each building through
+  /// whatever builder the config holds *now*.
+  Map<String, Widget Function(BuildContext, FlameGame)>? get _overlays =>
+      switch (_config.overlayBuilderMap) {
+        null => null,
+        final map => <String, Widget Function(BuildContext, FlameGame)>{
+          for (final name in map.keys)
+            name: (BuildContext context, FlameGame game) =>
+                ValueListenableBuilder<int>(
+                  valueListenable: _overlayBuilders,
+                  builder: (BuildContext context, int _, Widget? _) =>
+                      _config.overlayBuilderMap![name]!(context, game),
+                ),
+        },
+      };
+
+  /// [_redraw], torn off once: two tear-offs of one method are equal but
+  /// never identical, and [dispose] asks whether the game still holds this
+  /// one.
+  late final void Function() _redrawer = _redraw;
 
   @override
   void initState() {
@@ -366,6 +405,7 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
   /// runs. A game stepped by hand while paused (`stepEngine`) updates
   /// outside a frame, and there the 3D layer does follow a frame later.
   void _onFlameTick(double dt) {
+    if (!mounted) return;
     _config.onTick?.call(dt);
     _redraw();
   }
@@ -392,10 +432,11 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
   void dispose() {
     _clock?.removeFromParent();
     final owner = _owner;
-    if (owner != null && identical(owner.redrawer3d, _redraw)) {
+    if (owner != null && identical(owner.redrawer3d, _redrawer)) {
       owner.redrawer3d = null;
     }
     _frames.dispose();
+    _overlayBuilders.dispose();
     _release?.call();
     super.dispose();
   }
@@ -404,10 +445,18 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
   Widget build(BuildContext context) {
     // Added once, not once per build: `GameWidget` may rebuild this state
     // without the game changing.
-    if (_clock == null) {
+    //
+    // **And only once there is a game on screen to tick for.** Added from
+    // the first build, a host still opening its device, or one that failed
+    // to, put a second clock into a game another host was already showing —
+    // during a route transition, say — and every `update` then called
+    // [Flutter3dFlameWidget.onTick] twice, stepping a simulation there twice
+    // a frame. Flame lets one `GameWidget` attach a game at a time, so a host
+    // that is ready is the only one showing it.
+    if (_clock == null && _error == null && _ready != null) {
       final clock = _clock = BridgeClock(onTick: _onFlameTick);
       _config.game.add(clock);
-      _owner?.redrawer3d = _redraw;
+      _owner?.redrawer3d = _redrawer;
     }
 
     return switch ((_error, _ready)) {
@@ -445,7 +494,7 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
           ),
           _gameWidget ??= GameWidget<FlameGame>(
             game: _config.game,
-            overlayBuilderMap: _config.overlayBuilderMap,
+            overlayBuilderMap: _overlays,
             initialActiveOverlays: _config.initialActiveOverlays,
             focusNode: _config.focusNode,
             autofocus: _config.autofocus,

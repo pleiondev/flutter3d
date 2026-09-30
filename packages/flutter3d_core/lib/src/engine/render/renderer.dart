@@ -4914,6 +4914,16 @@ final class Renderer implements RenderServices {
     _pendingMeshes[lastSubmitted].add(mesh);
   }
 
+  /// Gives [texture] back to the device once no frame in flight can still be
+  /// sampling it — [releaseMeshAfterFrame]'s counterpart, for a texture an
+  /// application uploaded and is done with, and filed under the last frame
+  /// submitted for the same reason.
+  void releaseTextureAfterFrame(TextureHandle texture) {
+    final lastSubmitted =
+        (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
+    _pendingDestroy[lastSubmitted].add(texture);
+  }
+
   final List<List<DeviceMesh>> _pendingMeshes = List<List<DeviceMesh>>.generate(
     _kFramesInFlight,
     (_) => <DeviceMesh>[],

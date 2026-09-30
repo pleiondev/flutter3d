@@ -23,8 +23,15 @@ final class BillboardAtlas {
 
   final GraphicsDevice device;
 
-  final Map<ui.Image, Future<engine.Material?>> _materials =
-      <ui.Image, Future<engine.Material?>>{};
+  /// Keyed by how it is sampled as well as by the picture: a caller asking
+  /// for [materialOf] `smooth` after another asked for it sharp got the
+  /// sharp one.
+  final Map<(ui.Image, bool), Future<engine.Material?>> _materials =
+      <(ui.Image, bool), Future<engine.Material?>>{};
+
+  /// Set by [dispose]. An upload still reading its pixels when the atlas is
+  /// disposed checks it before making a texture nothing would give back.
+  bool _disposed = false;
   final List<TextureHandle> _textures = <TextureHandle>[];
   final Map<(ui.Image, double, double, double, double), DeviceMesh> _cards =
       <(ui.Image, double, double, double, double), DeviceMesh>{};
@@ -37,14 +44,14 @@ final class BillboardAtlas {
   /// The material [image] is drawn with: unlit, cut out where it is clear,
   /// both sides, sampled nearest for pixel art or, [smooth], linearly for
   /// lettering and anything drawn at a finer grain. Uploaded the first time
-  /// it is asked for, which decides how it is sampled; null if the image
-  /// cannot be read.
+  /// it is asked for in each sampling; null if the image cannot be read, or
+  /// if the atlas was disposed while it was being read.
   Future<engine.Material?> materialOf(ui.Image image, {bool smooth = false}) =>
-      _materials.putIfAbsent(image, () async {
+      _materials.putIfAbsent((image, smooth), () async {
         final pixels = await image.toByteData(
           format: ui.ImageByteFormat.rawStraightRgba,
         );
-        if (pixels == null) return null;
+        if (pixels == null || _disposed) return null;
         final texture = device.createTextureFromPixels(
           width: image.width,
           height: image.height,
@@ -115,6 +122,7 @@ final class BillboardAtlas {
   /// Gives back every texture and card, after the frames [drawing] may still
   /// have in flight when it is given.
   void dispose({Renderer? drawing}) {
+    _disposed = true;
     for (final card in _cards.values) {
       if (drawing != null) {
         drawing.releaseMeshAfterFrame(card);
@@ -124,7 +132,11 @@ final class BillboardAtlas {
           ..releaseGeometry(card.indices);
       }
     }
-    _textures.forEach(device.releaseTexture);
+    // After the frames in flight too, like the cards: a texture given back
+    // at once could still be sampled by a frame the GPU has not finished.
+    _textures.forEach(
+      drawing?.releaseTextureAfterFrame ?? device.releaseTexture,
+    );
     _cards.clear();
     _textures.clear();
     _materials.clear();

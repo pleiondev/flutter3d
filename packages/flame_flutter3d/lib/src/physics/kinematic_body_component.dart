@@ -1,3 +1,5 @@
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../host/bridge_priority.dart';
@@ -32,6 +34,7 @@ class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate {
     required super.node,
     required super.scene,
     required super.plane,
+    this.removeFrom,
     super.elevation,
     super.position,
     super.size,
@@ -45,7 +48,25 @@ class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate {
   /// What the world sees of this: moved to where Flame puts it.
   final Collider collider;
 
+  /// The world [collider] leaves when this component leaves the game; null
+  /// leaves it to whoever built it. A lift removed from Flame otherwise
+  /// stayed in the world, unseen, for passengers to stand on.
+  final CollisionWorld? removeFrom;
+
   bool _stepped = false;
+
+  @override
+  void onRemove() {
+    final world = removeFrom;
+    if (world != null) {
+      scheduleMicrotask(() {
+        if (!isMounted && parent == null && identical(collider.world, world)) {
+          world.remove(collider);
+        }
+      });
+    }
+    super.onRemove();
+  }
 
   @override
   void onMount() {

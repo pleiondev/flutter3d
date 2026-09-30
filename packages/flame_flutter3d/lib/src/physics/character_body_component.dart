@@ -1,6 +1,8 @@
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flame/collisions.dart' show CollisionCallbacks;
 import 'package:flutter3d_physics/flutter3d_physics.dart'
-    show CharacterController;
+    show CharacterController, CollisionWorld;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 import '../host/has_fixed_step.dart';
@@ -25,6 +27,7 @@ class CharacterBodyComponent extends Object3dComponent
     required super.scene,
     required super.plane,
     this.drive,
+    this.removeFrom,
     super.size,
     super.anchor,
     super.priority,
@@ -35,6 +38,26 @@ class CharacterBodyComponent extends Object3dComponent
 
   /// What moves [body] by one step of the given seconds.
   final void Function(double dt)? drive;
+
+  /// The world [body]'s collider leaves when this component leaves the game;
+  /// null leaves it to whoever built it. A despawned character otherwise
+  /// stayed in the world, unseen and solid — `RigidBodyComponent.removeFrom`
+  /// says the same of a crate, and is taken out the same way.
+  final CollisionWorld? removeFrom;
+
+  @override
+  void onRemove() {
+    final world = removeFrom;
+    if (world != null) {
+      final collider = body.collider;
+      scheduleMicrotask(() {
+        if (!isMounted && parent == null && identical(collider.world, world)) {
+          world.remove(collider);
+        }
+      });
+    }
+    super.onRemove();
+  }
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();

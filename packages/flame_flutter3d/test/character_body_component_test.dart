@@ -1,6 +1,7 @@
 /// A platformer's runner, moved by its own rules and seen by Flame.
 library;
 
+import 'package:flame/components.dart' show Component, PositionComponent;
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
@@ -66,6 +67,41 @@ void main() {
       expect(runner.climbing, isNotNull, reason: 'it took hold');
       expect(body.position.y, greaterThan(2.0));
       expect(harry.position.y, lessThan(startY - 1.0), reason: 'up the screen');
+    },
+  );
+
+  testWithGame<_Side>(
+    'a runner removed from the game leaves the world with removeFrom, and '
+    'stays in it when only moved',
+    _Side.new,
+    (game) async {
+      // Mutation: drop the removal from `onRemove`; the despawned runner
+      // stays in the world, solid and unseen.
+      final world = CollisionWorld();
+      final body = CharacterController(
+        world: world,
+        position: Vector3(0.0, 0.9, 0.0),
+      );
+      final harry = CharacterBodyComponent(
+        body: body,
+        node: SceneNode(),
+        scene: Scene(),
+        plane: BridgePlane.backdrop(),
+        removeFrom: world,
+      );
+      final shelf = PositionComponent();
+      await game.addAll(<Component>[harry, shelf]);
+      await game.ready();
+
+      harry.parent = shelf;
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(body.collider.world, same(world), reason: 'moved, not gone');
+
+      harry.removeFromParent();
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(body.collider.world, isNull);
     },
   );
 }

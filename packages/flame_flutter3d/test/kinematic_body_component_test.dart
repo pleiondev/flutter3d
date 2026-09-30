@@ -72,4 +72,34 @@ void main() {
       expect(body.position.x - standing, closeTo(1.5, 0.05));
     },
   );
+
+  testWithGame<_Side>(
+    'a lift removed from the game leaves the world with removeFrom',
+    _Side.new,
+    (game) async {
+      // Mutation: drop the removal from `onRemove`; nothing is drawn where
+      // the lift was, and a passenger still stands on it.
+      final world = CollisionWorld();
+      final deck = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.25, 2.0)),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      final lift = KinematicBodyComponent(
+        collider: deck,
+        node: SceneNode(),
+        scene: Scene(),
+        plane: BridgePlane.backdrop(),
+        removeFrom: world,
+      );
+      await game.add(lift);
+      await game.ready();
+
+      lift.removeFromParent();
+      await game.ready();
+      await Future<void>.delayed(Duration.zero);
+      expect(deck.world, isNull);
+    },
+  );
 }
