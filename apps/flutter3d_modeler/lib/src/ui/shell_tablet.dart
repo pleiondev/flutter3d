@@ -12,6 +12,8 @@
 /// every shell, not that a tablet redesigns what a desktop already got right.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../settings.dart' show Workspace;
@@ -85,36 +87,50 @@ class ModelerTabletShell extends StatelessWidget {
               color: theme.colorScheme.surfaceContainer,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  children: <Widget>[
-                    // `ux-21`, and the same fixed cap the desktop bar uses:
-                    // a `Flexible` name steals the width the mode switcher's
-                    // own horizontal scroll needs on exactly the widths this
-                    // shell is for.
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 140),
-                      child: Text(
-                        documentLabel(documentName, isDirty: isDirty),
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: ModelerModeSwitcher(
-                          workspace: workspace,
-                          mode: mode,
-                          onMode: onMode,
-                          submode: submode,
-                          onSubmode: onSubmode,
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints box) => Row(
+                    children: <Widget>[
+                      // `ux-21`, and the same fixed cap the desktop bar uses:
+                      // a `Flexible` name steals the width the mode switcher's
+                      // own horizontal scroll needs on exactly the widths this
+                      // shell is for.
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        child: Text(
+                          documentLabel(documentName, isDirty: isDirty),
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    ...actions,
-                  ],
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ModelerModeSwitcher(
+                            workspace: workspace,
+                            mode: mode,
+                            onMode: onMode,
+                            submode: submode,
+                            onSubmode: onSubmode,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Capped and scrolling, for the reason the desktop bar
+                      // gives beside its own: laid out unbounded, the actions
+                      // overflowed an 800-pixel window by 172 pixels on launch.
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: math.max(0, box.maxWidth - 140 - 24 - 100),
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          reverse: true,
+                          child: Row(children: actions),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
