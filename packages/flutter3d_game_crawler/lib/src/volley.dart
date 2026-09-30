@@ -56,6 +56,10 @@ final class Volley {
 
   List<Bolt> get bolts => List<Bolt>.unmodifiable(_bolts);
 
+  /// Whether [bolt] is still in the air: what a drawing of it asks each frame
+  /// to know when to go.
+  bool isFlying(Bolt bolt) => _bolts.contains(bolt);
+
   /// Fires one from [hero], from the middle of their body along their facing.
   Bolt fire(Hero hero) {
     final bolt = Bolt(

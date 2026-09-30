@@ -17,6 +17,11 @@ dependencies:
   flutter3d_sim: ^0.8.1
   flutter3d_game_crawler: ^0.8.0
 
+  # The game runs on Flame, and the bridge is everything between it and the
+  # 3D layer: the step, the seats, the horde, the level's furniture, the view.
+  flame: ^1.38.2
+  flame_flutter3d: ^0.8.3
+
   # A controller per player: `Gamepad(index: n)` reads the one in slot n.
   pad_input: ^0.4.3
 
@@ -29,6 +34,9 @@ dev_dependencies:
   # A device with no GPU behind it, for the frame test.
   flutter3d_cpu: ^0.8.0
   flutter_lints: ^6.0.0
+
+  # Loads the Flame game with no widget, for the frame test.
+  flame_test: ^2.3.1
 
 flutter:
   uses-material-design: true
