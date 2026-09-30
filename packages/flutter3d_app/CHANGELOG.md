@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A texture repainted under a running game is drawn at whatever size it
+  now is.** `HotSwap.loadTexture` and `registerTexture` watch an image file;
+  a swap after it changed uploads the new picture as a texture of its own,
+  puts it where the old one was in every material of the registered scenes
+  and in their environment, and releases the old one once no frame in flight
+  samples it. `SwappableTexture.changes` tells anything else holding it.
+  `LevelLoader` watches every map a level names, and `LoadedLevel.dispose`
+  stops. `ext.flutter3d.assets.put` accepts an image registered this way.
+
 **A hot reload shows the shaders it reloaded.** Flutter 3.47 reinitializes an
 asset-loaded shader bundle on hot reload, which the engine's own bundle is,
 but a pipeline linked from the old code went on drawing it: the library

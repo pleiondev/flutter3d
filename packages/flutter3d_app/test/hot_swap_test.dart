@@ -13,6 +13,8 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/trace.dart'
+    show RecordingDevice, TraceReleaseTexture;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
@@ -378,5 +380,164 @@ void main() {
       await swap.swap();
       expect(ship.meshes.single.material.roughness, isNot(0.1));
     });
+  });
+
+  group('a texture', () {
+    late CpuDevice device;
+    late HotSwap swap;
+
+    /// A "file" whose first byte is the side of the square it decodes to,
+    /// and zero a file that does not decode.
+    TextureHandle? decode(Uint8List bytes) => bytes.first == 0
+        ? null
+        : device.createTextureFromPixels(
+            width: bytes.first,
+            height: bytes.first,
+            format: TextureFormat.r8g8b8a8UNormInt,
+            pixels: ByteData(bytes.first * bytes.first * 4),
+          );
+
+    setUp(() {
+      device = CpuDevice(
+        width: 16,
+        height: 9,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      swap = HotSwap(enabled: true);
+    });
+
+    ({
+      SwappableTexture texture,
+      engine.Material wall,
+      Scene scene,
+      void Function(int) write,
+    })
+    stage() {
+      var file = Uint8List.fromList(<int>[4]);
+      final first = decode(file)!;
+      final texture = swap.registerTexture(
+        'assets/wall.png',
+        first,
+        read: () async => file,
+        build: (Uint8List bytes) async => decode(bytes),
+        loadedFrom: file,
+      );
+      final wall = engine.Material(name: 'wall')
+        ..albedo = first
+        ..normal = first;
+      final scene = Scene()
+        ..environment = first
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3.all(1.0)).build(),
+            ),
+            wall,
+          ),
+        );
+      swap.registerScene(scene);
+      return (
+        texture: texture,
+        wall: wall,
+        scene: scene,
+        write: (int side) => file = Uint8List.fromList(<int>[side]),
+      );
+    }
+
+    test('of a new size takes the old one\'s place in every slot', () async {
+      // Mutation: skip `_replaceTexture` and the material keeps sampling the
+      // four-texel texture the file no longer is.
+      final it = stage();
+      final heard = <TextureHandle>[];
+      it.texture.changes.addListener(() => heard.add(it.texture.texture));
+
+      it.write(8);
+      final report = await swap.swap();
+
+      expect(report.textures, <String>['assets/wall.png']);
+      final now = it.texture.texture;
+      expect(now.width, 8);
+      expect(it.wall.albedo, same(now));
+      expect(it.wall.normal, same(now), reason: 'every slot that held it');
+      expect(it.scene.environment, same(now));
+      expect(heard, <TextureHandle>[now]);
+    });
+
+    test('an unchanged file is not uploaded again', () async {
+      final it = stage();
+      final before = it.texture.texture;
+
+      final report = await swap.swap();
+
+      expect(report.textures, isEmpty);
+      expect(it.wall.albedo, same(before));
+    });
+
+    test('a file that does not decode keeps the texture that did', () async {
+      final it = stage();
+      final before = it.texture.texture;
+
+      it.write(0);
+      final report = await swap.swap();
+
+      expect(report.refused.single, contains('assets/wall.png'));
+      expect(it.texture.texture, same(before));
+      expect(it.wall.albedo, same(before));
+    });
+
+    test(
+      'the old texture goes back through a renderer, after its frames',
+      () async {
+        // Mutation: release through no renderer and nothing is ever given
+        // back; release at once and it is gone before the frames that still
+        // sample it are.
+        Future<List<int>> releasesPerFrame({required bool change}) async {
+          final it = stage();
+          final recording = RecordingDevice(device);
+          final renderer = Renderer.create(device: recording);
+          final camera = CameraNode()..setPosition(0.0, 0.0, 4.0);
+          it.scene.add(camera);
+          final view = RenderView(camera: camera);
+          swap.registerRenderer(renderer);
+          void frame() => renderer.render(
+            width: 16,
+            height: 9,
+            scene: it.scene,
+            views: <RenderView>[view],
+          );
+          for (var i = 0; i < 4; i++) {
+            frame();
+          }
+          if (change) it.write(8);
+          await swap.swap();
+          final counts = <int>[];
+          for (var i = 0; i < 4; i++) {
+            final before = recording.events.length;
+            frame();
+            counts.add(
+              recording.events
+                  .skip(before)
+                  .whereType<TraceReleaseTexture>()
+                  .length,
+            );
+          }
+          renderer.dispose();
+          return counts;
+        }
+
+        final unchanged = await releasesPerFrame(change: false);
+        swap = HotSwap(enabled: true);
+        final swapped = await releasesPerFrame(change: true);
+
+        expect(unchanged.every((int n) => n == 0), isTrue);
+        expect(swapped.fold<int>(0, (int a, int b) => a + b), 1);
+        expect(
+          swapped.first,
+          0,
+          reason: 'not while a frame may still sample it',
+        );
+      },
+    );
   });
 }

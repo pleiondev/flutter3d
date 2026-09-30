@@ -20,6 +20,14 @@ typedef ModelBytesSource = Future<Uint8List?> Function();
 /// Builds a model from a file's bytes, on the device the game draws with.
 typedef ModelBuild = Future<ModelAsset> Function(Uint8List bytes);
 
+/// Reads the current bytes of an image file, or null when they cannot be
+/// read now.
+typedef TextureBytesSource = Future<Uint8List?> Function();
+
+/// Uploads an image file's bytes as a texture, or null when they do not
+/// decode into one.
+typedef TextureBuild = Future<TextureHandle?> Function(Uint8List bytes);
+
 /// The renderers and shader libraries a running application has, and what to
 /// do with them when its code or its shaders change under it.
 ///
@@ -67,6 +75,7 @@ final class HotSwap {
   final List<WeakReference<Renderer>> _renderers = <WeakReference<Renderer>>[];
   final List<_Library> _libraries = <_Library>[];
   final List<SwappableModel> _models = <SwappableModel>[];
+  final List<SwappableTexture> _textures = <SwappableTexture>[];
   final List<WeakReference<Scene>> _scenes = <WeakReference<Scene>>[];
   final Map<String, Map<String, Object?>> _overrides =
       <String, Map<String, Object?>>{};
@@ -225,6 +234,165 @@ final class HotSwap {
       }
     }
     return null;
+  }
+
+  /// Uploads the image asset at [path], as a level or a material file does,
+  /// and hands it back ready to be swapped when the file changes. Null when
+  /// the file is not there or does not decode.
+  ///
+  /// **A texture of any new size.** A swap uploads the new file as a texture
+  /// of its own and puts it in every slot of every material in the
+  /// registered scenes that held the old one, and in a scene's environment;
+  /// then the old one goes back to the device once no frame in flight can
+  /// still sample it. So a texture may change size, format or mip count
+  /// under a running game. What holds the texture anywhere else — a
+  /// post-process look-up table, a billboard atlas — reads
+  /// [SwappableTexture.texture] or listens to it.
+  ///
+  /// **For a game's own images**, the ones no loader reads for it: a decal,
+  /// a sign, a picture on a wall set up in code. A level's maps are
+  /// `LevelLoader`'s, which registers them itself through [registerTexture].
+  Future<SwappableTexture?> loadTexture(
+    String path, {
+    required GraphicsDevice device,
+    TextureSampling sampling = const TextureSampling(),
+  }) async {
+    Future<Uint8List?> read() async {
+      try {
+        final data = await rootBundle.load(path);
+        return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      } on FlutterError {
+        return null;
+      }
+    }
+
+    Future<TextureHandle?> build(Uint8List bytes) => uploadEncodedImage(
+      device,
+      bytes,
+      decodeImage: defaultImageDecoder,
+      sampling: sampling,
+    );
+
+    final bytes = await read();
+    if (bytes == null) return null;
+    final texture = await build(bytes);
+    if (texture == null) return null;
+    return registerTexture(
+      path,
+      texture,
+      read: read,
+      build: build,
+      loadedFrom: bytes,
+    );
+  }
+
+  /// Wraps [texture], uploaded from the file [read] reads, so that a [swap]
+  /// after the file changed uploads it again with [build] and puts the new
+  /// texture where the old one was — see [loadTexture].
+  ///
+  /// [loadedFrom] are the bytes [texture] was made from, when the caller has
+  /// them; without them the first swap takes the file as it finds it as the
+  /// starting point rather than as a change.
+  SwappableTexture registerTexture(
+    String path,
+    TextureHandle texture, {
+    required TextureBytesSource read,
+    required TextureBuild build,
+    Uint8List? loadedFrom,
+  }) {
+    final swappable = SwappableTexture._(
+      path,
+      texture,
+      read,
+      build,
+      loadedFrom == null
+          ? null
+          : _fingerprint(ByteData.sublistView(loadedFrom)),
+    );
+    if (!enabled) return swappable;
+    _textures
+      ..removeWhere((SwappableTexture t) => t.path == path)
+      ..add(swappable);
+    _registerExtension();
+    return swappable;
+  }
+
+  /// Puts [bytes] in place of the texture registered at [path], as a changed
+  /// file would: what `ext.flutter3d.assets.put` does for an image. Why it
+  /// did not take when it did not, or null when it did or nothing is
+  /// registered there — [hasTexture] tells those two apart.
+  Future<String?> putTexture(String path, Uint8List bytes) async {
+    if (!enabled) return null;
+    for (final texture in _textures) {
+      if (texture.path == path) return _adoptTexture(texture, bytes);
+    }
+    return null;
+  }
+
+  /// Stops watching [texture], for its owner letting it go: a swap after
+  /// that would upload a texture for nothing and release one already
+  /// released.
+  void forgetTexture(SwappableTexture texture) =>
+      _textures.removeWhere((SwappableTexture t) => identical(t, texture));
+
+  /// Whether a texture is registered at [path].
+  bool hasTexture(String path) =>
+      _textures.any((SwappableTexture t) => t.path == path);
+
+  /// Uploads [bytes] for [texture] and puts the result everywhere the old
+  /// one was. Why not, when it did not.
+  Future<String?> _adoptTexture(
+    SwappableTexture texture,
+    Uint8List bytes,
+  ) async {
+    final TextureHandle? next;
+    try {
+      next = await texture._build(bytes);
+    } on Object catch (error) {
+      return '$error';
+    }
+    if (next == null) return 'the new bytes do not decode into an image';
+    final previous = texture.texture;
+    texture._handle.value = next;
+    _replaceTexture(previous, next);
+    _renderers.removeWhere((WeakReference<Renderer> r) => r.target == null);
+    // One renderer releases it: a handle released twice is a mistake a
+    // backend may refuse. With none alive nothing is drawing it either, and
+    // it goes with the device.
+    for (final renderer in _renderers) {
+      if (renderer.target case final Renderer live) {
+        live.releaseTextureAfterFrame(previous);
+        break;
+      }
+    }
+    return null;
+  }
+
+  /// Every slot of every material in the registered scenes, and every
+  /// scene's environment, that held [previous] now holds [next].
+  int _replaceTexture(TextureHandle previous, TextureHandle next) {
+    _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
+    final seen = Set<Material>.identity();
+    TextureHandle? swapped(TextureHandle? slot) =>
+        identical(slot, previous) ? next : slot;
+    for (final reference in _scenes) {
+      final scene = reference.target;
+      if (scene == null) continue;
+      scene.environment = swapped(scene.environment);
+      scene.root.traverse((SceneNode node) {
+        if (node is! MeshNode || !seen.add(node.material)) return;
+        node.material
+          ..albedo = swapped(node.material.albedo)
+          ..normal = swapped(node.material.normal)
+          ..metallicRoughness = swapped(node.material.metallicRoughness)
+          ..occlusion = swapped(node.material.occlusion)
+          ..emissiveTexture = swapped(node.material.emissiveTexture)
+          ..lightmap = swapped(node.material.lightmap)
+          ..coatMap = swapped(node.material.coatMap)
+          ..sheenMap = swapped(node.material.sheenMap);
+      });
+    }
+    return seen.length;
   }
 
   /// Remembers [scene] until it is garbage, for [setMaterial] to find
@@ -413,6 +581,28 @@ final class HotSwap {
       }
     }
     if (models.isNotEmpty) _applyOverrides();
+    final textures = <String>[];
+    for (final texture in List<SwappableTexture>.of(_textures)) {
+      final Uint8List? bytes;
+      try {
+        bytes = await texture._read();
+      } on Object catch (error) {
+        refused.add('${texture.path}: could not be read ($error)');
+        continue;
+      }
+      if (bytes == null) continue;
+      final fingerprint = _fingerprint(ByteData.sublistView(bytes));
+      if (texture._fingerprint == null || fingerprint == texture._fingerprint) {
+        texture._fingerprint = fingerprint;
+        continue;
+      }
+      texture._fingerprint = fingerprint;
+      if (await _adoptTexture(texture, bytes) case final String reason) {
+        refused.add('${texture.path}: $reason');
+      } else {
+        textures.add(texture.path);
+      }
+    }
     _renderers.removeWhere((WeakReference<Renderer> r) => r.target == null);
     for (final renderer in _renderers) {
       renderer.target?.relinkShaders();
@@ -422,6 +612,7 @@ final class HotSwap {
       refreshed: List<String>.unmodifiable(refreshed),
       refused: List<String>.unmodifiable(refused),
       models: List<ModelSwapReport>.unmodifiable(models),
+      textures: List<String>.unmodifiable(textures),
     );
     for (final line in refused) {
       debugPrint('flutter3d: kept the last version that loaded, $line');
@@ -481,11 +672,24 @@ final class HotSwap {
           'assets.put takes a path and its bytes in base64',
         );
       }
-      final report = await instance.put(path, base64Decode(bytes));
+      final decoded = base64Decode(bytes);
+      final report = await instance.put(path, decoded);
+      if (report == null && instance.hasTexture(path)) {
+        final refused = await instance.putTexture(path, decoded);
+        if (refused != null) {
+          return developer.ServiceExtensionResponse.error(
+            developer.ServiceExtensionResponse.invalidParams,
+            refused,
+          );
+        }
+        return developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object?>{'path': path, 'texture': true}),
+        );
+      }
       if (report == null) {
         return developer.ServiceExtensionResponse.error(
           developer.ServiceExtensionResponse.invalidParams,
-          'no model is registered at $path',
+          'no model or texture is registered at $path',
         );
       }
       return developer.ServiceExtensionResponse.result(
@@ -517,6 +721,7 @@ final class HotSwapReport {
     required this.refreshed,
     required this.refused,
     this.models = const <ModelSwapReport>[],
+    this.textures = const <String>[],
   });
 
   /// What a profile or release build reports: nothing was touched.
@@ -539,11 +744,16 @@ final class HotSwapReport {
   /// The models that changed and were adopted.
   final List<ModelSwapReport> models;
 
+  /// The textures whose file changed and whose new texture took the old
+  /// one's place.
+  final List<String> textures;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'renderers': renderers,
     'refreshed': refreshed,
     'refused': refused,
     'models': <Object?>[for (final model in models) model.toJson()],
+    'textures': textures,
   };
 }
 
@@ -637,6 +847,38 @@ final class SwappableModel {
       added: <String>{for (final swap in swaps) ...swap.added}.toList(),
     );
   }
+}
+
+/// A texture a game draws, kept so a changed image file reaches every
+/// material that samples it — see [HotSwap.loadTexture].
+///
+/// **The handle changes; [texture] follows it.** A swap puts a new texture
+/// in place of the old one rather than writing into it, because the new one
+/// may be another size and because writing a level over an existing one
+/// would leave its smaller mips showing the old picture.
+final class SwappableTexture {
+  SwappableTexture._(
+    this.path,
+    TextureHandle texture,
+    this._read,
+    this._build,
+    this._fingerprint,
+  ) : _handle = ValueNotifier<TextureHandle>(texture);
+
+  /// The file it was loaded from, as the game named it.
+  final String path;
+
+  /// The texture drawn now; a new one after each swap.
+  TextureHandle get texture => _handle.value;
+
+  /// [texture], for something that holds it outside a material and has to
+  /// hear when it changes.
+  ValueListenable<TextureHandle> get changes => _handle;
+
+  final ValueNotifier<TextureHandle> _handle;
+  final TextureBytesSource _read;
+  final TextureBuild _build;
+  int? _fingerprint;
 }
 
 /// What a changed file did to one [SwappableModel].
