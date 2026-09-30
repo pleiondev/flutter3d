@@ -159,8 +159,8 @@ hands each key to every player's `FlameInputBridge`, so two on one
 keyboard each move their own; forwarded to one bridge, player two's arrows
 moved player one. `FlameInputBridge.followPad` ticks a `PadInput` in each
 frame, before the steps of a `HasFixedStep` game: nothing ticked one in a
-Flame game. `pad_input` reads one controller today, and a second player's
-pad needs it to tell devices apart.
+Flame game. A second player's controller is a `PadInput` over
+`Gamepad(index: 1)`, which `pad_input` 0.4.3 reads.
 
 **An isometric board.** Under an orthographic lens `eyeOffset` is the angle
 of view: the camera looks along it, and the zoom stays the lens's height.

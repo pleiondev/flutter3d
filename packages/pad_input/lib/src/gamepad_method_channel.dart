@@ -3,10 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'android_mapping.dart';
-import 'darwin_mapping.dart';
 import 'gamepad_platform_interface.dart';
-import 'pad_mirror.dart';
+import 'pad_slots.dart';
 import 'pad_snapshot.dart';
 
 /// A gamepad behind a platform channel.
@@ -65,14 +63,13 @@ final class MethodChannelGamepad extends GamepadPlatform {
   @override
   bool get isSupported => !kIsWeb && _supported.contains(defaultTargetPlatform);
 
-  /// The mirror for this platform, built once and only where it is used.
-  late final PadMirror _state = defaultTargetPlatform == TargetPlatform.android
-      ? _android
-      : DarwinPadState();
+  /// Every controller the platform reports, each in its player's slot;
+  /// built once and only where it is used.
+  @visibleForTesting
+  late final PadSlots slots = defaultTargetPlatform == TargetPlatform.android
+      ? AndroidPads()
+      : DarwinPads();
 
-  /// Android's mirror, named as well as held: its buttons arrive off the
-  /// channel, through the keyboard, and that needs the concrete type.
-  final AndroidPadState _android = AndroidPadState();
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
 
@@ -86,9 +83,12 @@ final class MethodChannelGamepad extends GamepadPlatform {
   }
 
   @override
-  void read(PadSnapshot out) {
+  void read(PadSnapshot out) => readPad(0, out);
+
+  @override
+  void readPad(int index, PadSnapshot out) {
     _ensureListening();
-    _state.fill(out);
+    slots.fill(index, out);
   }
 
   @override
@@ -143,16 +143,17 @@ final class MethodChannelGamepad extends GamepadPlatform {
     // It also means the zeroing happens first and the news second, which is what
     // stops a controller whose battery dies mid-corner from leaving the throttle
     // where it was.
-    final was = _state.connected;
-    _state.note(event);
-    if (_state.connected == was) return;
+    final was = slots.connectedCount;
+    slots.note(event);
+    final now = slots.connectedCount;
+    if (now == was) return;
     _connections.add(
-      _state.connected ? PadConnection.connected : PadConnection.disconnected,
+      now > was ? PadConnection.connected : PadConnection.disconnected,
     );
   }
 
   bool _onKey(KeyEvent event) {
-    _android.noteKey(event);
+    slots.noteKey(event);
     // **Always false, even for a button that was ours.** Returning true marks
     // the event handled and stops it reaching the rest of the application —
     // which is how a player on a television would lose the ability to leave a

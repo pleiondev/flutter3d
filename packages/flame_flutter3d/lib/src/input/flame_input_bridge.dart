@@ -288,9 +288,9 @@ final class _PadFeed extends Component {
 /// two's arrows. [onGameKeyEvent] hands it to every player, and a key is
 /// handled when any of them has it bound.
 ///
-/// Each player's pad goes through [FlameInputBridge.followPad]. `PadInput`
-/// reads the one controller `pad_input` reports today; a second controller
-/// for a second player needs `pad_input` to tell its devices apart.
+/// Each player's pad goes through [FlameInputBridge.followPad]: a `PadInput`
+/// over `Gamepad(index: 1)` is the second player's controller, the second
+/// to connect, as its light says.
 final class PlayerInputs {
   PlayerInputs(this.players) : assert(players.isNotEmpty, 'nobody playing');
 

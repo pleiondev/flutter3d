@@ -76,7 +76,7 @@ dev_dependencies:
   flutter3d_game_platformer: ^0.8.0
 
   # A controller that is not there, for the pad feed's own test.
-  pad_input: ^0.4.0
+  pad_input: ^0.4.3
 
   # Flame's own 2D physics, for the test that a bridged component follows
   # one of its bodies; the bridge itself asks only for Flame's providers.

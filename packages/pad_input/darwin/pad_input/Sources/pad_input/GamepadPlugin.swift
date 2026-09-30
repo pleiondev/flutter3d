@@ -26,18 +26,29 @@ import UIKit
 /// everybody else, which is that a stick's y is positive *upwards*. Flipping it
 /// here would put it where no test could see it.
 ///
-/// The order below is the order that file reads: six axes, then one value per
-/// button in `PadButton.known`'s order. That list and `GCExtendedGamepad` agree
-/// because both are the physical layout of a controller, and a test on the Dart
-/// side checks the count.
+/// The order below is the order that file reads: the slot, six axes, then one
+/// value per button in `PadButton.known`'s order. That list and
+/// `GCExtendedGamepad` agree because both are the physical layout of a
+/// controller, and a test on the Dart side checks the count.
+///
+/// ## One slot a player
+///
+/// Every controller the framework reports is read, each in a slot: the first
+/// to connect is slot nought, the next slot one, and a slot a controller leaves
+/// is the next one's. The slot is its `playerIndex`, so the light on the
+/// controller says which player holds it, and every message carries it.
 public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private static let eventChannelName = "dev.flutter3d/gamepad/events"
 
   /// Six axes and seventeen buttons — see the class doc on the order.
   private static let axisCount = 6
 
+  /// As many as `GCControllerPlayerIndex` has lights for, and as
+  /// `GamepadPlatform.maxPads` says.
+  private static let slotCount = 4
+
   private var sink: FlutterEventSink?
-  private weak var controller: GCController?
+  private var controllers: [GCController?] = Array(repeating: nil, count: slotCount)
   private var observers: [NSObjectProtocol] = []
 
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -61,7 +72,9 @@ public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     // Whatever is already paired. A controller connected before the game started
     // produces no notification and would otherwise stay invisible until the
     // player turned it off and on again.
-    adopt(GCController.controllers().first)
+    for candidate in GCController.controllers() {
+      adopt(candidate)
+    }
     return nil
   }
 
@@ -70,8 +83,10 @@ public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       NotificationCenter.default.removeObserver(observer)
     }
     observers.removeAll()
-    controller?.extendedGamepad?.valueChangedHandler = nil
-    controller = nil
+    for controller in controllers {
+      controller?.extendedGamepad?.valueChangedHandler = nil
+    }
+    controllers = Array(repeating: nil, count: GamepadPlugin.slotCount)
     sink = nil
     return nil
   }
@@ -89,14 +104,18 @@ public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       centre.addObserver(
         forName: .GCControllerDidDisconnect, object: nil, queue: .main
       ) { [weak self] note in
-        guard let self, (note.object as? GCController) === self.controller else { return }
-        self.controller = nil
+        guard let self, let gone = note.object as? GCController,
+          let slot = self.controllers.firstIndex(where: { $0 === gone })
+        else { return }
+        self.controllers[slot] = nil
         // The Dart side zeroes before it passes the news on, so a controller
         // whose battery dies mid-corner cannot leave the throttle where it was.
-        self.sink?(["event": "disconnected"])
-        // Another pad may still be paired. Taking it is what makes swapping
-        // controllers work without a relaunch.
-        self.adopt(GCController.controllers().first)
+        self.sink?(["event": "disconnected", "slot": slot])
+        // A pad paired while every slot was taken may be waiting. Taking it is
+        // what makes swapping controllers work without a relaunch.
+        for candidate in GCController.controllers() {
+          self.adopt(candidate)
+        }
       })
 
     // Losing the player, which is not the same as losing the pad. Handled
@@ -117,31 +136,35 @@ public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
   // MARK: - The controller
 
+  /// Gives [candidate] the first free slot, and its player light.
   private func adopt(_ candidate: GCController?) {
     guard let candidate, let pad = candidate.extendedGamepad else { return }
-    guard candidate !== controller else { return }
+    guard !controllers.contains(where: { $0 === candidate }) else { return }
+    guard let slot = controllers.firstIndex(where: { $0 == nil }) else { return }
 
-    controller?.extendedGamepad?.valueChangedHandler = nil
-    controller = candidate
+    controllers[slot] = candidate
+    candidate.playerIndex = GCControllerPlayerIndex(rawValue: slot) ?? .indexUnset
     sink?([
       "event": "connected",
+      "slot": slot,
       "name": candidate.vendorName ?? "",
     ])
 
     pad.valueChangedHandler = { [weak self] pad, _ in
-      self?.forward(pad)
+      self?.forward(pad, slot: slot)
     }
     // Once immediately: the handler fires on change, and a stick already held
     // when the game started has not changed since.
-    forward(pad)
+    forward(pad, slot: slot)
   }
 
-  private func forward(_ pad: GCExtendedGamepad) {
+  private func forward(_ pad: GCExtendedGamepad, slot: Int) {
     guard let sink else { return }
 
-    // Fixed order, and the Dart side reads it by index. Sticks first, then the
-    // triggers as travel, then a value per button.
+    // Fixed order, and the Dart side reads it by index. The slot, the sticks,
+    // then the triggers as travel, then a value per button.
     var sample: [Double] = [
+      Double(slot),
       Double(pad.leftThumbstick.xAxis.value),
       Double(pad.leftThumbstick.yAxis.value),
       Double(pad.rightThumbstick.xAxis.value),
@@ -149,7 +172,7 @@ public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       Double(pad.leftTrigger.value),
       Double(pad.rightTrigger.value),
     ]
-    sample.reserveCapacity(GamepadPlugin.axisCount + 17)
+    sample.reserveCapacity(1 + GamepadPlugin.axisCount + 17)
 
     // `PadButton.known`'s order, which is the physical layout: the four face
     // buttons by position, the d-pad, the shoulders, the triggers, the stick
