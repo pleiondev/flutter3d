@@ -50,7 +50,7 @@ dependencies:
   # The map a Tiled level is read into, the one `flame_tiled` reads too: a
   # game that loads its level through `TiledComponent` hands over its
   # `tileMap.map`. Plain Dart and XML, no rendering.
-  tiled: ^0.11.1
+  tiled: ^0.12.0
 
   vector_math: ^2.2.0
 
