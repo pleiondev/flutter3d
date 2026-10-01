@@ -6,6 +6,11 @@ This package keeps the two in agreement on transforms, lifecycle, physics
 contacts, input, the camera and the actor system, and neither engine drives
 the other's renderer.
 
+![River Sortie: a jet flies up a 3D river, shooting at tankers and helicopters, with Flame's instrument panel along the bottom](https://raw.githubusercontent.com/pleiondev/flutter3d/main/packages/flame_flutter3d/doc/river_sortie.gif)
+
+River Sortie (`apps/flutter3d_demo_river`) is a Flame game from end to end:
+Flame's components, collisions and instrument panel, drawn in 3D by flutter3d.
+
 ```dart
 class MyGame extends FlameGame with HasFlutter3d {
   late final JetComponent jet;
