@@ -194,6 +194,15 @@ extension _DecalPass on Renderer {
             sampler: _pictureSampler,
           );
         }
+        // **From the top left, and not adjusted for the framebuffer origin,
+        // unlike the matrix above.** A rectangle is the engine's own
+        // vocabulary and every backend takes it from the top: WebGL2's
+        // encoder turns it upside down itself in `setScissor`, as it does for
+        // the scene pass's view rectangles, which are handed over the same
+        // way. The matrix is different because the stage reads texture rows,
+        // which no encoder translates. Flipping here as well was tried: the
+        // WebGL2 `decal-floor` golden differs by 602 pixels, and
+        // `decal_test.dart` keeps a decal in the top rows for the same reason.
         final scissor = batch.covered;
         for (final term in const <double>[0.0, 1.0]) {
           info.params[3] = term;
