@@ -314,6 +314,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'chooses a device, loads a level into a scene and draws it; steps '
       'nothing',
   'flutter3d_audio': 'display: a mix is recomputed once a frame',
+  'flutter3d_audio_core': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',
   'pointer_lock': 'a platform channel',
   'flutter3d_build':

@@ -27,3 +27,12 @@ updates:
     groups:
       dart:
         patterns: ['*']
+    # **Pinned by Flutter, so a floor raised here locks out a Flutter.**
+    # `flutter_test` fixes both versions exactly: vector_math 2.2.0 and
+    # clock 1.1.2 in Flutter 3.44. A bump that rewrote our `^` floors to the
+    # newest release made the whole stack unresolvable there, and Flame's
+    # workspace, which supports 3.44, could not depend on it. The floors are
+    # what we need, not what is newest, and they move by hand.
+    ignore:
+      - dependency-name: vector_math
+      - dependency-name: clock

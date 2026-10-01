@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'audio_scene.dart';
-import 'mixer.dart';
 import 'soloud_backend.dart';
-import 'sound_bank.dart';
 
 /// The device a game plays through, opened, or nothing and a game that is
 /// silent.

@@ -1,4 +1,4 @@
-import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import '../config/game_config.dart';
 
 /// The buses a player is offered, in the order the panel shows them.

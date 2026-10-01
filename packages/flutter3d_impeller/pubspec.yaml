@@ -1,6 +1,6 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
-version: 0.8.1
+version: 0.8.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -16,7 +16,7 @@ resolution: workspace
 # and it is the property a second backend needs: writing one means implementing
 # `flutter3d_hardware`, not understanding the renderer.
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 # Declared rather than left to pub.dev's detector, because the answer is a
 # design fact: Flutter GPU is Metal and Vulkan, so this backend runs on every
@@ -42,7 +42,7 @@ dependencies:
   # Named directly because the HAL's own signatures do: a clear value and a
   # blend constant are `Vector4`, and an implementation of `PassEncoder` cannot
   # spell them without this.
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
   # `ap-06`: `hook/build.dart`'s own contract (`package:hooks`, the same
   # half `ap-00`'s spike proved stable, not `package:data_assets`), and a

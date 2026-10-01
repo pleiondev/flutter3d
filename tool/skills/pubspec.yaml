@@ -9,7 +9,7 @@ resolution: workspace
 # "the publishing order names every package" rule, and this is never going out.
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dev_dependencies:
   test: ^1.24.0

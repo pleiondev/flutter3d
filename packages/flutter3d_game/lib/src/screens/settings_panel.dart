@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart' show Deadzone;
 

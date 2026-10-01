@@ -1,6 +1,6 @@
 name: flutter3d_audio
 description: "Positional audio for flutter3d: attenuation, panning and voice limiting, with a pluggable backend."
-version: 0.8.1
+version: 0.8.2
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -11,15 +11,16 @@ topics:
   - positional-audio
 
 environment:
-  sdk: ^3.12.2
-  flutter: '>=3.47.0'
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 resolution: workspace
 
 dependencies:
   flutter:
     sdk: flutter
-  vector_math: ^2.4.3
+  flutter3d_audio_core: ^0.8.0
+  vector_math: ^2.2.0
   flutter_soloud: ^5.1.2
 
 dev_dependencies:

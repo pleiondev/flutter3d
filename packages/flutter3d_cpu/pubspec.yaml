@@ -2,7 +2,7 @@ name: flutter3d_cpu
 description: >-
   A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
-version: 0.8.2
+version: 0.8.2+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,7 +13,7 @@ topics:
   - testing
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter3d_hardware: ^0.8.0
@@ -21,7 +21,7 @@ dependencies:
   # the library hands every stage as `ShaderHandle.kept` and the encoder
   # refuses binds against — `gfx-92n`. A table of names and nothing else.
   flutter3d_shaders: ^0.8.2
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   test: ^1.25.0

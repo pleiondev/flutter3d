@@ -5,7 +5,7 @@ version: 0.8.4+1
 resolution: workspace
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -50,7 +50,7 @@ dependencies:
   flutter3d_game:
     path: ../../packages/flutter3d_game
 
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
   # The links from a page to its guide on the documentation site.
   url_launcher: ^6.3.0
