@@ -1,3 +1,8 @@
+## Unreleased
+
+**The generated tables carry the decal stage** of `flutter3d_shaders`,
+through glslang and naga like every other stage.
+
 ## 0.8.2
 
 **The generated tables carry the PCSS receiver-plane bias** of

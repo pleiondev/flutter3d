@@ -828,6 +828,25 @@ final class MotionBlurSettings {
   );
 }
 
+/// `P3`'s projected decals: every visible `DecalNode` in the scene painted
+/// onto the geometry inside its box.
+///
+/// **Off by default, and not because a scene without decals would pay.** A
+/// frame with no visible decal registers the pass, finds it inactive and culls
+/// it, whatever this says. It is off because a frame with one reads the
+/// scene's surface and albedo buffers, and that turns multisampling off and
+/// splits the scene pass around the decals so glass in front of one is drawn
+/// over it rather than painted. Those are costs a caller turns on, the way
+/// they turn on every other effect that reads the buffers.
+final class DecalSettings {
+  const DecalSettings({this.enabled = false});
+
+  final bool enabled;
+
+  DecalSettings copyWith({bool? enabled}) =>
+      DecalSettings(enabled: enabled ?? this.enabled);
+}
+
 /// Which viewport shading a frame is drawn with — `gfx-43n`, `44n`, `45n`.
 ///
 /// **A final class with const instances rather than an enum**, the shape
@@ -1150,6 +1169,7 @@ final class RenderSettings {
     this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.motionBlur = const MotionBlurSettings(),
+    this.decals = const DecalSettings(),
     this.viewportShading = const ViewportShadingSettings(),
     this.transparency = TransparencyMode.sorted,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
@@ -1268,7 +1288,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the seventy-eight goldens keep the frame
+  /// nothing headless can run them. So the seventy-nine goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -1356,6 +1376,9 @@ final class RenderSettings {
 
   /// `R6`'s motion blur along the velocity buffer.
   final MotionBlurSettings motionBlur;
+
+  /// `P3`'s projected decals, painted onto the scene before its glass.
+  final DecalSettings decals;
 
   /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
   /// than out of the materials.
@@ -1658,6 +1681,7 @@ final class RenderSettings {
     VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
     MotionBlurSettings? motionBlur,
+    DecalSettings? decals,
     ViewportShadingSettings? viewportShading,
     TransparencyMode? transparency,
   }) => RenderSettings(
@@ -1704,6 +1728,7 @@ final class RenderSettings {
     volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,
     motionBlur: motionBlur ?? this.motionBlur,
+    decals: decals ?? this.decals,
     viewportShading: viewportShading ?? this.viewportShading,
     transparency: transparency ?? this.transparency,
   );
@@ -1783,6 +1808,8 @@ final class RenderSettings {
     // Reflection probes are registered here, one per probe in the scene, and
     // are named by index rather than by a constant — see [probePassName].
     'scene',
+    // `P3`: painted onto the opaque half, before the glass is drawn over it.
+    'decals',
     // `M3`: on a frame with glass, the scene as the opaque half left it, and
     // the glass and the transparent half drawn over it. Culled on any other.
     'scene colour copy',
@@ -2025,7 +2052,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Seventy-eight goldens depend on that being exact, and the composite
+/// existed. Seventy-nine goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

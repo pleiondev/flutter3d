@@ -1,3 +1,10 @@
+## Unreleased
+
+**The decal stage, as the GLSL has it.** `DecalShader` mirrors
+`post/decal.frag` line for line, the mip level of each picture chosen from
+the same footprint the GLSL computes by hand from neighbouring texels of the
+surface buffer.
+
 ## 0.8.2
 
 **The PCSS receiver-plane bias, as the GLSL has it.** The directional

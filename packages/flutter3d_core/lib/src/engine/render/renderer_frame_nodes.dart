@@ -582,18 +582,24 @@ final class _SceneNode extends RenderNode {
     required this.contributors,
     required this.shadowCaster,
     required this.lightOverflow,
+    required RenderSettings settings,
   }) {
     final transmits = _TransmissionPasses._holdsTransmission(scene, ordered);
     // A contributor that reads the scene's depth splits the frame too, and
     // for the same reason: what it reads is an attachment of this pass. It
     // needs no copy of the colour, so that node stays as the glass has it.
     final readsDepth = contributors.any((c) => c.readsSceneDepth);
+    // `P3`: decals split it for the glass's sake rather than their own. They
+    // read the buffers after the pass, which an unsplit frame would allow
+    // too, but glass drawn in the same pass would already be in the picture
+    // and the decal behind it would be painted over the glass.
+    decals = _DecalNode(_renderer, scene, ordered, settings);
     copy = _SceneColourCopyNode(_renderer, active: transmits);
     transparent = _TransparentNode(
       _renderer,
       scene: scene,
       contributors: contributors,
-      active: transmits || readsDepth,
+      active: transmits || readsDepth || decals.isActive,
       readsDepth: readsDepth,
       samples: optionalReads,
     );
@@ -614,6 +620,9 @@ final class _SceneNode extends RenderNode {
 
   /// What the pass counted, for the frame's own report.
   _ScenePass? result;
+
+  /// `P3`'s decals, painted between the two halves.
+  late final _DecalNode decals;
 
   /// The copy of the scene the transmissive draws read, and the pass that
   /// draws them over it — `M3`.
@@ -779,6 +788,73 @@ final class _SceneNode extends RenderNode {
         albedoIsRead: albedoIsRead,
       );
     }
+  }
+}
+
+/// `P3`'s projected decals, painted into the scene target between the
+/// opaque half and the transparent one.
+///
+/// **In place, which no other link in the colour chain is.** The transparent
+/// half draws into the renderer's own scene target and loads it, so a decal
+/// pass that wrote a texture of its own would be drawn over by glass that
+/// never saw it. It can write in place because it never reads the colour:
+/// the two blends that make a decal are a factor times what is there and a
+/// term added to it, and both are blend state rather than texture reads.
+///
+/// Needs three attachments rather than the two [_NeedsSurfaceBuffer] asks
+/// for: the light a decal is laid under is read back through the albedo.
+final class _DecalNode extends RenderNode {
+  _DecalNode(this._renderer, this._scene, this._views, this._settings);
+
+  final Renderer _renderer;
+  final Scene _scene;
+
+  /// Every view, each painted with its own camera inside its own rectangle.
+  final List<RenderView> _views;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'decals';
+
+  @override
+  bool get supported => _renderer.device.maxColorAttachments > 2;
+
+  /// Asked of the scene when the graph is built, so a frame whose decals are
+  /// all hidden is a frame that neither splits nor gives up multisampling.
+  @override
+  bool get isActive =>
+      _settings.decals.enabled &&
+      _scene.decals.any((decal) => decal.visibleInHierarchy);
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+    FrameResourceIds.albedoBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resources = frame.resources;
+    final scene = resources.texture(FrameResourceIds.hdrColour);
+    final surface = resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    final albedo = resources.tryTexture(FrameResourceIds.albedoBuffer);
+    // Hard reads, culled on a device that cannot attach them; a frame that
+    // got neither has no surface to paint, and the picture stands.
+    if (surface != null && albedo != null) {
+      _renderer._encodeDecals(
+        target: scene,
+        surface: surface,
+        albedo: albedo,
+        decals: _scene.decals,
+        views: _views,
+        passState: frame.state,
+      );
+    }
+    resources.provide(FrameResourceIds.hdrColour, scene);
   }
 }
 
