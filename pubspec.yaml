@@ -9,6 +9,12 @@ publish_to: 'none'
 environment:
   sdk: ^3.12.2
 
+# For `test/structure_test.dart`, the one suite the root has: `dart test` run
+# here used to find no test at all and exit 79, which a check that runs it
+# reads as a failure rather than as an empty directory.
+dev_dependencies:
+  test: ^1.25.0
+
 workspace:
   - packages/flutter3d
   - packages/flutter3d_core
