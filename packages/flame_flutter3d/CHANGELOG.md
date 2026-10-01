@@ -1,3 +1,15 @@
+## 0.8.5
+
+**One 3D model in a plain Flame game.** `Model3dComponent` is a
+`PositionComponent` that loads a glTF model, frames it and draws it into its
+own rectangle of Flame's canvas, so a game in an ordinary `GameWidget` shows
+it with no `HasFlutter3d` and no `Flutter3dFlameWidget`. It takes Flame's
+priority like a sprite: a 2D shape with a higher one passes in front of it,
+which the layered bridge cannot do. Its first clip loops on Flame's clock.
+On Impeller the frame reaches the canvas with no copy; on WebGL, WebGPU and
+the software rasteriser it is read back, a frame late. The new dependency on
+`flutter3d_impeller` is imported on native builds only.
+
 ## 0.8.4
 
 **An actor system with several foci.** `ActorSystemComponent(foci:)` steps
