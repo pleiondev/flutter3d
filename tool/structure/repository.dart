@@ -1166,6 +1166,9 @@ const Map<String, Map<String, String>> portableStepExempt =
         'lib/src/debug/hitboxes3d.dart':
             'rings drawn round hitboxes for a person to look at; nothing steps '
             'on a debug line',
+        'lib/src/embed/model3d_component.dart':
+            'frames a camera on a model drawn into the canvas; the angle is '
+            'where the picture is taken from and no run depends on it',
       },
       'flutter3d_sim': <String, String>{
         'lib/src/camera/camera_rig.dart':
