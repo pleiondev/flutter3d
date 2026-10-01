@@ -21,6 +21,7 @@ export 'src/debug/hitboxes3d.dart';
 export 'src/ecs/actor_component.dart';
 export 'src/ecs/actor_system_component.dart';
 export 'src/ecs/instanced_actor_component.dart';
+export 'src/embed/model3d_component.dart';
 export 'src/host/bridge_clock.dart';
 export 'src/host/bridge_priority.dart';
 export 'src/host/flutter3d_flame_widget.dart';
