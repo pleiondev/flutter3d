@@ -415,6 +415,43 @@ void main() {
     expect(centre.y, lessThan(was.y));
   });
 
+  test('a decal near the top of the frame is painted to its edges', () {
+    // The pass cuts each draw to the screen rectangle its boxes cover, counted
+    // from the top left as every rectangle the engine hands a backend is. A
+    // decal in the top rows of the picture, with nothing in the bottom ones,
+    // is the arrangement where a rectangle counted from the wrong edge cuts
+    // away all of it.
+    final it = _stage();
+    final decal = it.scene.add(
+      DecalNode(color: Vector4(1.0, 0.0, 0.0, 1.0))
+        ..setScale(2.0, 1.0, 1.0)
+        ..setPosition(0.0, 0.0, -1.5),
+    );
+    decal.visible = false;
+    final reference = _scene(it);
+    decal.visible = true;
+    final painted = _scene(it);
+
+    // Where the box's footprint on the floor lands, row by row.
+    final project = it.camera.viewProjection(1.0);
+    int row(double z) {
+      final clip = project.transform(Vector4(0.0, 0.0, z, 1.0));
+      return ((0.5 - clip.y / clip.w * 0.5) * _size).floor();
+    }
+
+    final top = row(-2.0);
+    final bottom = row(-1.0);
+    expect(bottom, lessThan(_size ~/ 2), reason: 'the box is in the top half');
+    final rows = _changed(painted, reference).map((p) => p ~/ _size).toSet();
+    // Mutation: a scissor whose y is measured from the bottom, or flipped
+    // again for a backend whose rows run upward, leaves none of these rows
+    // painted.
+    for (var y = top + 1; y < bottom; y++) {
+      expect(rows, contains(y), reason: 'row $y of $top..$bottom');
+    }
+    expect(rows.every((y) => y >= top && y <= bottom), isTrue);
+  });
+
   test('switched off by name like any other pass', () {
     final it = _stage();
     final without = _scene(it);
