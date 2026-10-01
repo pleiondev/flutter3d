@@ -26,6 +26,10 @@ dependencies:
   # this repo already ticks a scene with.
   flutter3d_app: ^0.8.1
 
+  # Impeller's frame as a `ui.Image` with no copy, for a model drawn into
+  # Flame's own canvas (`Model3dComponent`). Imported on native builds only.
+  flutter3d_impeller: ^0.8.1
+
   # The scene graph a Flame component's transform is bridged onto.
   flutter3d: ^0.8.3
 

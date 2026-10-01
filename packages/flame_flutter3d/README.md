@@ -33,6 +33,37 @@ class MyGame extends FlameGame with HasFlutter3d {
 Flutter3dFlameWidget(game: myGame)
 ```
 
+## One model in a 2D game
+
+A game that is 2D and wants one 3D thing in it, a character select screen
+or a boss that turns, does not need any of the above. `Model3dComponent` is
+an ordinary `PositionComponent` that loads a model and draws it into its
+own rectangle of Flame's canvas, so a plain `FlameGame` in a plain
+`GameWidget` shows it:
+
+```dart
+world.add(Model3dComponent(
+  model: 'assets/models/robot.glb',
+  size: Vector2.all(320),
+  anchor: Anchor.center,
+  priority: 1, // over the backdrop, under the HUD
+));
+```
+
+It sits in Flame's order like a sprite does, so a 2D shape with a higher
+priority passes in front of it. Position, size, anchor, angle, scale and
+the camera's zoom all apply. The model's first clip loops on Flame's clock
+and stops when the game is paused; `animation:` picks another clip and
+`viewFrom:` the side the camera looks from. A subclass that wants more than
+one model in the scene overrides `buildScene`.
+
+On Impeller the frame reaches the canvas with no copy. On WebGL, WebGPU and
+the software rasteriser it is read back and decoded, which costs a copy of
+the component's pixels every frame and shows the picture a frame late. A
+model a few hundred pixels square is a small copy; a whole screen of 3D is
+what the bridge proper is for. `example/lib/model3d_main.dart`
+is the whole thing in sixty lines.
+
 ## One clock, two layers
 
 `Flutter3dFlameWidget` puts a flutter3d `SceneSurface` under Flame's own
