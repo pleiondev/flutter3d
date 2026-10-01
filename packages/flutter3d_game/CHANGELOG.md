@@ -1,3 +1,17 @@
+## 0.8.1
+
+**Volumes without SoLoud.** The settings panel names buses and nothing else of
+audio, and it reached them through `flutter3d_audio`, which brought
+`flutter_soloud` and a native build that needs a newer Flutter than 3.44. It
+now depends on `flutter3d_audio_core`, the same `Mixer`, `AudioBus` and
+`SoundDef` without a backend; `flutter3d_audio` re-exports them, so a game
+that plays sound passes its mixer in as before.
+
+**Either `flutter_bloc`.** It takes 8.1.2 as well as 9, which the settings
+cubit compiles and passes its tests against, so a workspace that still has a
+package on 8 resolves. The Dart and `vector_math` constraints are relaxed as
+for the rest of the stack.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

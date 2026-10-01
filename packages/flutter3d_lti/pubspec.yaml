@@ -11,7 +11,7 @@ topics:
   - education
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   # RS256 verification of a platform's `id_token` against its JWKS, and

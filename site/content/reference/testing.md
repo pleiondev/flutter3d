@@ -4,7 +4,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 
 # Testing
 
-10786 tests across 41 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+10786 tests across 42 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -15,7 +15,8 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_lab` | 15 | | `flutter3d_core` | 735 |
 | `flutter3d_lti` | 26 | | `apps/flutter3d_lab_pendulum` | 7 |
 | | | | `apps/flutter3d_lab_incident` | 13 |
-| `flutter3d_game_shooter` | 340 | | `flutter3d_audio` | 59 |
+| `flutter3d_game_shooter` | 340 | | `flutter3d_audio_core` | 55 |
+| | | | `flutter3d_audio` | 4 |
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 62 |
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 63 |
 | `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 64 |
