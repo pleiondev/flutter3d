@@ -233,7 +233,8 @@ point of §3.3.
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
-| `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
+| `flutter3d_audio_core` | 3D positioning, voice limits, mix buses, the backend seam |
+| `flutter3d_audio` | The core re-exported, plus loading and streaming through SoLoud |
 | `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; `LevelScene`, which turns a level into brush meshes, materials, lights and probes with no Flutter; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
 | `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow`, `FieldRow` and `EditorWidgetsTheme` so far |
@@ -2688,7 +2689,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **10786 tests** across 41 packages and 10 applications |
+| Unit tests | **10786 tests** across 42 packages and 10 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3703,9 +3704,10 @@ what went out at 0.4.2.
 **The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
-   `flutter3d_audio`, `flutter3d_physics`, `flutter3d_mcp_kit`,
+   `flutter3d_audio_core`, `flutter3d_physics`, `flutter3d_mcp_kit`,
    `flutter3d_lti`, `pad_input`, `pointer_lock`, `flame_multiplayer`
-2. `flutter3d_conformance`, `flutter3d_core`, `flame_multiplayer_dashwire`
+2. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_audio`,
+   `flame_multiplayer_dashwire`
 3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`,
    `flutter3d_editor_widgets`
 4. `flutter3d`, `flutter3d_model_core`

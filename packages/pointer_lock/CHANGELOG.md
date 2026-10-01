@@ -1,3 +1,10 @@
+## 0.4.2+1
+
+**Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
+`^3.12.2` and Flutter 3.47.0, which were what this repository is built with rather than
+what the package needs. A workspace that supports Flutter 3.44, Flame's among
+them, could not depend on it. Nothing else changed.
+
 ## 0.4.2
 
 * **The package ships a skill** under `skills/` for an agent that has to

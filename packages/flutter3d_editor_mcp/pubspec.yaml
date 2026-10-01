@@ -12,7 +12,7 @@ topics:
 resolution: workspace
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   # The document and everything you can do to one. `EditorCommand` is what makes
@@ -45,7 +45,7 @@ dependencies:
   # every server here shares.
   flutter3d_mcp_kit: ^0.8.0
 
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   test: ^1.25.0

@@ -1,6 +1,6 @@
 name: flutter3d_game
 description: "What a game on flutter3d adds to an application: touch, keyboard, mouse and gamepad input, the run being played, the screens that are not the game, and the actors and fixtures a simulation moves, drawn."
-version: 0.8.0
+version: 0.8.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -12,7 +12,7 @@ topics:
 resolution: workspace
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -42,7 +42,11 @@ dependencies:
   flutter3d_sim: ^0.8.0
 
   # Volumes are a mixer's, and the settings panel is where they are turned.
-  flutter3d_audio: ^0.8.0
+  # The core and not `flutter3d_audio`: the panel names buses and nothing
+  # else, and the SoLoud backend would bring a native build that Flutter 3.44
+  # cannot resolve. A game that plays sound depends on `flutter3d_audio`
+  # itself, whose types are these.
+  flutter3d_audio_core: ^0.8.0
 
   # A torch's flame, which is the particles its light is measured from.
   flutter3d_particles: ^0.8.0
@@ -56,9 +60,9 @@ dependencies:
   # The exception to `ARCHITECTURE.md` §11.3, and a narrow one: pure Dart, no FFI,
   # so it does not break the web build — which is what that section's argument
   # is actually about.
-  flutter_bloc: ^9.1.1
+  flutter_bloc: ">=8.1.2 <10.0.0"
 
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test:

@@ -13,7 +13,7 @@ resolution: workspace
 # which is a worse outcome than the spike living beside the other programs this
 # repository runs on itself. `tool/ci.sh` runs its tests by name.
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -27,7 +27,7 @@ dependencies:
   # see `webgpu_interop.dart`, which declares the slice a triangle needs.
   web: ^1.1.0
 
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test:

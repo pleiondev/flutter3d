@@ -1,6 +1,6 @@
 name: flutter3d_core
 description: "The engine's rendering core with no Flutter SDK behind it: scene graph, animation, the render graph, and model/material loading down to the one call each still needs an injected reader or decoder for."
-version: 0.8.3
+version: 0.8.3+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -11,14 +11,14 @@ topics:
 resolution: workspace
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter3d_hardware: ^0.8.0
   # The typed uniform blocks the renderer fills, generated from the compiled
   # bundle's own layout — `H1`. Pure Dart: the shader sources and two tables.
   flutter3d_shaders: ^0.8.2
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   test: ^1.25.0
