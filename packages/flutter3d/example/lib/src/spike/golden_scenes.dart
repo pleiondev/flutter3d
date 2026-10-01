@@ -1140,6 +1140,18 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
     stage: GoldenStages.smokeSixWay,
   ),
+
+  // P3. Decals on a floor: one in a shadow and against a box, one over it,
+  // one that glows.
+  const GoldenScene(
+    name: 'decal-floor',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.decalFloor,
+    configure: GoldenStages.decalFloorSettings,
+  ),
 ];
 
 /// Looks up a scene by name.

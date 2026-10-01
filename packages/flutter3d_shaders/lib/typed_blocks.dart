@@ -207,6 +207,67 @@ final class ConvolveInfoBlock extends UniformBlock {
   };
 }
 
+/// `DecalInfo`.
+final class DecalInfoBlock extends UniformBlock {
+  DecalInfoBlock() : super('DecalInfo');
+
+  /// `inverse_view_projection`: Matrix, at byte 0.
+  final Float32List inverseViewProjection = Float32List(16);
+
+  /// `camera`: Vector4, at byte 64.
+  final Float32List camera = Float32List(4);
+
+  /// `forward`: Vector4, at byte 80.
+  final Float32List forward = Float32List(4);
+
+  /// `params`: Vector4, at byte 96.
+  final Float32List params = Float32List(4);
+
+  /// `view`: Vector4, at byte 112.
+  final Float32List view = Float32List(4);
+
+  /// `slots`: 4 × Vector4, at byte 128.
+  final Float32List slots = Float32List(16);
+
+  /// `axis_x`: 16 × Vector4, at byte 192.
+  final Float32List axisX = Float32List(64);
+
+  /// `axis_y`: 16 × Vector4, at byte 448.
+  final Float32List axisY = Float32List(64);
+
+  /// `axis_z`: 16 × Vector4, at byte 704.
+  final Float32List axisZ = Float32List(64);
+
+  /// `region`: 16 × Vector4, at byte 960.
+  final Float32List region = Float32List(64);
+
+  /// `color`: 16 × Vector4, at byte 1216.
+  final Float32List color = Float32List(64);
+
+  /// `fade`: 16 × Vector4, at byte 1472.
+  final Float32List fade = Float32List(64);
+
+  /// `emissive`: 16 × Vector4, at byte 1728.
+  final Float32List emissive = Float32List(64);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'inverse_view_projection': inverseViewProjection,
+    'camera': camera,
+    'forward': forward,
+    'params': params,
+    'view': view,
+    'slots': slots,
+    'axis_x': axisX,
+    'axis_y': axisY,
+    'axis_z': axisZ,
+    'region': region,
+    'color': color,
+    'fade': fade,
+    'emissive': emissive,
+  };
+}
+
 /// `DepthPyramidInfo`.
 final class DepthPyramidInfoBlock extends UniformBlock {
   DepthPyramidInfoBlock() : super('DepthPyramidInfo');

@@ -11,6 +11,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
+import '../scene/decal_node.dart';
 import '../scene/instanced_mesh_node.dart';
 import '../scene/irradiance_field.dart';
 import '../scene/irradiance_gather.dart' show kIrradianceReach;
@@ -65,6 +66,7 @@ export 'render_settings.dart';
 
 part 'renderer_batch.dart';
 part 'renderer_contributor_lights.dart';
+part 'renderer_decal_pass.dart';
 part 'renderer_fog_pass.dart';
 part 'renderer_frame_nodes.dart';
 part 'renderer_irradiance_pass.dart';
@@ -176,6 +178,7 @@ final class Renderer implements RenderServices {
     required this.velocityNeighborMaxShader,
     required this.motionBlurShader,
     required this.viewportShadeShader,
+    required this.decalShader,
     required this.wboitResolveShader,
     required this.sceneColourCopyShader,
     required TextureHandle fallbackAlbedo,
@@ -364,6 +367,9 @@ final class Renderer implements RenderServices {
 
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
   final ShaderHandle viewportShadeShader;
+
+  /// `P3`'s projected decals, read out of the surface and albedo buffers.
+  final ShaderHandle decalShader;
 
   /// `R8`'s resolve: the transparent layers' weighted average, laid over the
   /// scene.
@@ -756,6 +762,7 @@ final class Renderer implements RenderServices {
   final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
   final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
+  final DecalInfoBlock _decalInfo = DecalInfoBlock();
   final ShadowLightBlock _shadowLight = ShadowLightBlock();
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
   final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
@@ -1521,7 +1528,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: seventy-eight goldens go through this
+  /// strength has, and for the same reason: seventy-nine goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -1606,6 +1613,7 @@ final class Renderer implements RenderServices {
         velocityNeighborMaxShader: require('VelocityNeighborMax'),
         motionBlurShader: require('MotionBlur'),
         viewportShadeShader: require('ViewportShade'),
+        decalShader: require('Decal'),
         wboitResolveShader: require('WboitResolve'),
         sceneColourCopyShader: require('SceneColourCopy'),
         fallbackAlbedo:
@@ -2530,6 +2538,9 @@ final class Renderer implements RenderServices {
     graph.addNode(irradiance);
     graph
       ..addNode(scene)
+      // `P3`: onto the opaque half, so the copy the glass reads holds the
+      // decals and the glass is drawn over them rather than painted.
+      ..addNode(scene.decals)
       // `M3`: the copy of the scene and the transparent half drawn over it,
       // straight after the scene they split, and culled on a frame without
       // glass.
@@ -3626,6 +3637,7 @@ final class Renderer implements RenderServices {
         contributors: contributors.active.toList(growable: false),
         shadowCaster: shadowCaster,
         lightOverflow: planLights.overflow,
+        settings: settings,
       ),
       bloom: _BloomNode(this, settings.bloom),
       composite: _CompositeNode(this, scene, ordered, settings),
@@ -4081,6 +4093,7 @@ final class Renderer implements RenderServices {
         contributors: contributors.active.toList(growable: false),
         shadowCaster: shadowCaster,
         lightOverflow: lightOverflowCount,
+        settings: settings,
       );
       final bloomNode = _BloomNode(this, settings.bloom);
       compositeNode = _CompositeNode(this, scene, ordered, settings);

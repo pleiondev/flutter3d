@@ -256,6 +256,33 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       ),
     },
   },
+  'Decal': <String, Map<String, UniformMemberLayout>>{
+    'DecalInfo': <String, UniformMemberLayout>{
+      'inverse_view_projection': (
+        offset: 0,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'camera': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 80, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 96, byteLength: 16, elements: 1, type: 'Vector4'),
+      'view': (offset: 112, byteLength: 16, elements: 1, type: 'Vector4'),
+      'slots': (offset: 128, byteLength: 64, elements: 4, type: 'Vector4'),
+      'axis_x': (offset: 192, byteLength: 256, elements: 16, type: 'Vector4'),
+      'axis_y': (offset: 448, byteLength: 256, elements: 16, type: 'Vector4'),
+      'axis_z': (offset: 704, byteLength: 256, elements: 16, type: 'Vector4'),
+      'region': (offset: 960, byteLength: 256, elements: 16, type: 'Vector4'),
+      'color': (offset: 1216, byteLength: 256, elements: 16, type: 'Vector4'),
+      'fade': (offset: 1472, byteLength: 256, elements: 16, type: 'Vector4'),
+      'emissive': (
+        offset: 1728,
+        byteLength: 256,
+        elements: 16,
+        type: 'Vector4',
+      ),
+    },
+  },
   'DepthOfField': <String, Map<String, UniformMemberLayout>>{
     'DofInfo': <String, UniformMemberLayout>{
       'lens': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

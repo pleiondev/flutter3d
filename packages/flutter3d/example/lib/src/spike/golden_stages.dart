@@ -1578,4 +1578,89 @@ abstract final class GoldenStages {
           _look(stage.camera, Vector3(0.0, 0.0, 4.0), Vector3.zero()),
     );
   }
+
+  // ------------------------------------------------------------------ P3
+
+  /// `decal-floor`: three decals on a floor beside a box under the sun —
+  /// `decal_test.dart`'s floor, with each of its claims in one frame.
+  ///
+  /// A ring with a hole in it, half in the box's shadow and reaching up the
+  /// box's side, which its angle limit keeps it off; an orange square of a
+  /// higher order over the ring's corner; and a cyan stripe that glows. The
+  /// ring's picture is drawn here, in Dart, so every backend reads the same
+  /// texels, and its four quarters are four colours so a mirrored picture
+  /// shows.
+  static Future<GoldenStaged> decalFloor(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.9, -1.0, -0.3).normalized());
+    // Enough sky in the shadow for the ring's colours to show there too.
+    stage.scene.ambientIntensity = 0.25;
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dx = (x + 0.5) / size - 0.5;
+        final dy = (y + 0.5) / size - 0.5;
+        final r = math.sqrt(dx * dx + dy * dy);
+        final quarter = (dx < 0.0 ? 0 : 1) + (dy < 0.0 ? 0 : 2);
+        final colour = const <List<int>>[
+          <int>[220, 40, 40],
+          <int>[40, 180, 60],
+          <int>[50, 80, 220],
+          <int>[240, 230, 210],
+        ][quarter];
+        final at = (y * size + x) * 4;
+        pixels
+          ..[at] = colour[0]
+          ..[at + 1] = colour[1]
+          ..[at + 2] = colour[2]
+          ..[at + 3] = r > 0.18 && r < 0.48 ? 255 : 0;
+      }
+    }
+    final ring = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    )!;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(14.0, 0.2, 14.0),
+          Vector3(0.0, -0.1, 0.0),
+          Material(
+            name: 'floor',
+            lighting: LightingModel.lambert,
+            baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+          ),
+        ),
+        _slab(
+          device,
+          Vector3(1.0, 1.0, 1.0),
+          Vector3(-0.2, 0.5, -0.6),
+          Material(name: 'box', baseColor: Vector4(0.6, 0.6, 0.65, 1.0)),
+        ),
+        DecalNode(texture: ring, name: 'ring')
+          ..setScale(3.0, 1.2, 3.0)
+          ..setRotationYawPitchRoll(0.4, 0.0, 0.0)
+          ..setPosition(0.3, 0.0, 0.2),
+        DecalNode(color: Vector4(1.0, 0.55, 0.1, 0.85), order: 1, name: 'tag')
+          ..setScale(0.9, 0.6, 0.9)
+          ..setPosition(1.4, 0.0, 1.0),
+        DecalNode(
+            color: Vector4(0.2, 0.9, 1.0, 1.0),
+            emissive: Vector3.all(1.5),
+            name: 'glow',
+          )
+          ..setScale(2.4, 0.6, 0.25)
+          ..setPosition(-0.6, 0.0, 1.9),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(1.0, 4.0, 5.0), Vector3(0.0, 0.0, 0.2)),
+    );
+  }
+
+  static RenderSettings decalFloorSettings(RenderSettings settings) =>
+      settings.copyWith(decals: const DecalSettings(enabled: true));
 }

@@ -222,6 +222,8 @@ const Map<String, double> _budgets = <String, double>{
   'transmission-glass': 0.01,
   'velocity-shapes': 0.01,
   'window-interior': 0.01,
+  // `P3`, 0 of 172800 measured on 2026-10-01.
+  'decal-floor': 0.01,
 };
 
 /// Scenes this set holds no picture of, and why the picture was refused.

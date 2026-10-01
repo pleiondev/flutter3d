@@ -205,7 +205,7 @@ extension _PostPasses on Renderer {
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
     // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
     // centre untouched at zero rather than running a kernel that rounds to
-    // nothing, and seventy-eight goldens depend on that being the same bytes.
+    // nothing, and seventy-nine goldens depend on that being the same bytes.
     //
     // After a temporal resolve the robust kernel, at the resolve's own
     // strength — `R2`: what softens a resolved picture is the history, and
@@ -1568,7 +1568,7 @@ extension _PostPasses on Renderer {
     // itself — then one draw per view, scissored to its own rectangle, so the
     // exposure in the uniform is the one that view metered. With per-view
     // metering off, or with a single view, this is the one full-frame draw it
-    // has always been and the bytes are the bytes seventy-eight goldens hold.
+    // has always been and the bytes are the bytes seventy-nine goldens hold.
     final perView =
         settings.autoExposure.enabled &&
         settings.autoExposure.perView &&

@@ -1,3 +1,8 @@
+## Unreleased
+
+**The linking check names `Decal`**, so a backend whose bundle lacks it
+fails the check rather than the first frame with a decal in it.
+
 ## 0.8.1
 
 **The linking check names `ContactShadowResolve`**, the stage

@@ -51,6 +51,7 @@ import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_decal.dart';
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_impostor.dart';
 import 'cpu_shaders_irradiance.dart';
@@ -75,6 +76,7 @@ export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
 export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
+export 'cpu_shaders_decal.dart';
 export 'cpu_shaders_irradiance.dart';
 export 'cpu_shaders_layout.dart';
 export 'cpu_shaders_lighting.dart';
@@ -222,6 +224,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'VelocityNeighborMax': const CpuStage.fragment(VelocityNeighborMaxShader()),
     'MotionBlur': const CpuStage.fragment(MotionBlurShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
+    'Decal': const CpuStage.fragment(DecalShader()),
     'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
     'ShadowDistanceMasked': const CpuStage.fragment(
       ShadowDistanceMaskedShader(),

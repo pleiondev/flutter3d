@@ -1,3 +1,11 @@
+## Unreleased
+
+**A decal stage.** `post/decal.frag` (`Decal`) paints up to sixteen
+projected boxes, reading four pictures, over the point the surface buffer
+names under each pixel. It writes a factor and a term for two blends, the
+albedo swapped under the light the albedo buffer lets it read back, and the
+colour an unlit surface and an emissive decal add.
+
 ## 0.8.2
 
 **A PCSS tap allows for the receiver's own slope.** `ShadowFactor` in
