@@ -31,7 +31,7 @@ resolution: workspace
 # The models are not ours and keep their own terms — see `assets/ATTRIBUTION.md`,
 # which travels with them. Everything there is CC0 or public domain.
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   # For `flutter.assets` below, and for nothing else: there is no Dart here

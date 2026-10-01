@@ -4,7 +4,7 @@ publish_to: 'none'
 resolution: workspace
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -62,7 +62,7 @@ dependencies:
   # Only the golden runner needs it, to insist its output directory is
   # absolute — a bundled macOS app runs from the filesystem root.
   path: ^1.9.0
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
   # golden_store_web.dart fetches references over HTTP.
   web: ^1.1.0
 

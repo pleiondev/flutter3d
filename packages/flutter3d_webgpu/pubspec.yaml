@@ -1,6 +1,6 @@
 name: flutter3d_webgpu
 description: "A WebGPU backend for flutter3d: the fourth implementation of flutter3d_hardware, and the first one whose API bakes per-draw state into the pipeline object."
-version: 0.8.2
+version: 0.8.2+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -17,7 +17,7 @@ resolution: workspace
 # the renderer. That property is what let a spike measure this API's cost to the
 # contract before a package existed to hold the answer.
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -30,7 +30,7 @@ dependencies:
   # without this — and the encoder is the next thing written here. Adding it
   # then would mean three parallel branches each editing this file, which is the
   # merge this package was created early to avoid.
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
   # `stageBindings`: what each of the engine's compiled stages keeps, which
   # the library hands every stage as `ShaderHandle.kept` and the encoder

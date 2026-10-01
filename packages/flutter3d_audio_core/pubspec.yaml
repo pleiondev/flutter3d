@@ -1,0 +1,28 @@
+name: flutter3d_audio_core
+description: "Positional audio for flutter3d without a backend: attenuation, panning, occlusion, voice limiting and the mixer's buses."
+version: 0.8.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - audio
+  - sound
+  - game-development
+  - positional-audio
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  vector_math: ^2.2.0
+
+dev_dependencies:
+
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

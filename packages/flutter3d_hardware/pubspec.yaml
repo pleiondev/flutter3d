@@ -1,6 +1,6 @@
 name: flutter3d_hardware
 description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API. No Flutter, no renderer."
-version: 0.8.0
+version: 0.8.0+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -23,10 +23,10 @@ resolution: workspace
 # naming the framework it is otherwise silent about. `present` moved to
 # `presentFrame` in `flutter3d_app`, and nothing here names Flutter any more.
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   test: ^1.25.0

@@ -10,7 +10,7 @@
 /// reaches for first was the one that did not exist.
 library;
 
-import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 

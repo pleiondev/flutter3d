@@ -11,7 +11,7 @@ topics:
 resolution: workspace
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
   # The decoders a hook converts through — glTF/OBJ/`.f3d` in, `.f3d` out
@@ -29,7 +29,7 @@ dependencies:
   # atlases a model carries are the same bytes on every machine that converts
   # it — the device is plain Dart, which is what a build hook needs.
   flutter3d_cpu: ^0.8.0
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
   # `N7`'s per-class texture budgets: the same `TextureBudget` presets and
   # box resize `makeGameReady` fits a project with, so a phone's file carries

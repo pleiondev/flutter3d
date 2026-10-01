@@ -1,3 +1,12 @@
+## 0.8.2
+
+**The positional half is `flutter3d_audio_core` now.** `AudioScene`, the
+`Mixer` and its buses, `SoundDef`, `SoundBank`, `EngineSound`, the listener and
+the attenuation curves moved there unchanged, and this package re-exports
+them, so nothing a caller imports changes. What stays here is the SoLoud
+backend and `Speakers`. The split lets a package that only names a bus, such
+as `flutter3d_game`, leave SoLoud's native build out.
+
 ## 0.8.1
 
 **A sound recorded below 32 kHz plays.** Every source had a low-pass open

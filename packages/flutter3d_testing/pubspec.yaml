@@ -13,8 +13,8 @@ topics:
   - graphics
 
 environment:
-  sdk: ^3.12.2
-  flutter: '>=3.47.0'
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -43,7 +43,7 @@ dependencies:
   # rather than a rendering one.
   flutter_test:
     sdk: flutter
-  vector_math: ^2.4.3
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0
