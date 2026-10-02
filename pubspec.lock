@@ -133,10 +133,10 @@ packages:
     dependency: transitive
     description:
       name: cupertino_icons
-      sha256: "41e005c33bd814be4d3096aff55b1908d419fde52ca656c8c47719ec745873cd"
+      sha256: b7cc2390aac296c083bea762859413eb1cf5b630c70e0c7e4d831018f762a8b2
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.9"
+    version: "2.0.0"
   dart_jsonwebtoken:
     dependency: transitive
     description:
@@ -285,10 +285,10 @@ packages:
     dependency: transitive
     description:
       name: flame_forge2d
-      sha256: "289b1d5450d7455b837e0ddb271017ecb191bd824940d1f800f12e9592c37746"
+      sha256: aaddb5d1a36855e5791361bc8916fc89be45ae19e4605c84f15929443d0a938d
       url: "https://pub.dev"
     source: hosted
-    version: "0.19.3+7"
+    version: "0.20.0"
   flame_test:
     dependency: transitive
     description:
@@ -379,10 +379,10 @@ packages:
     dependency: transitive
     description:
       name: forge2d
-      sha256: "0f63d177f2e137a5007b879fda4076d0b81de065fcd72056c6fc896c82758bb7"
+      sha256: "971805b5d796e5064263955600780a392d1e495b99e5df2647015067e07fa08a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.14.2+1"
+    version: "0.15.2"
   frontend_server_client:
     dependency: transitive
     description:
@@ -922,10 +922,10 @@ packages:
     dependency: transitive
     description:
       name: tiled
-      sha256: f321ce0f27d103527b0d66878c60d9b000ce16c4ef4ae3ce77ce6f5ba4cf5db0
+      sha256: c77d5784d4bdcda81b7d5a34ec8d3aadfba6cb88a7a8a4cf80929abc9620d5b5
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.1"
+    version: "0.12.0"
   tuple:
     dependency: transitive
     description:
@@ -1122,10 +1122,10 @@ packages:
     dependency: transitive
     description:
       name: xml
-      sha256: "971043b3a0d3da28727e40ed3e0b5d18b742fa5a68665cca88e74b7876d5e025"
+      sha256: "67f0aff7be013d107995e9b75bf4e7f2c3ef2dfdb2c8e68024bba0a7fd5756a4"
       url: "https://pub.dev"
     source: hosted
-    version: "6.6.1"
+    version: "7.0.1"
   yaml:
     dependency: transitive
     description:
