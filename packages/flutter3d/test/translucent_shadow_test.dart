@@ -241,6 +241,88 @@ void main() {
     expect(brighter, greaterThan(region.length ~/ 5));
   });
 
+  test('an empty glass tube has a hairline edge, not a dark band', () async {
+    // A thin-walled glass tube standing in the sun. At its silhouette the
+    // light grazes the walls and is reflected nearly whole, but reflected at
+    // grazing it is hardly turned, and lands beside where it would have.
+    // Mutation: count every reflected ray as lost again, and the darkest
+    // pixel falls to under two thirds of the lit floor.
+    const size = 128;
+    Future<List<int>> draw(Material? material) async {
+      final device = CpuDevice(
+        width: size,
+        height: size,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      final scene = Scene()
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3(6, 0.1, 6)).build(),
+            ),
+            Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+          )..setPosition(0.0, -1.0, 0.0),
+        )
+        ..add(
+          LightNode(castsShadow: true)
+            ..setPosition(4.0, 5.0, 0.01)
+            ..lookAt(Vector3.zero()),
+        )
+        ..add(
+          CameraNode()
+            ..setPosition(-0.8, 5.0, 0.01)
+            ..lookAt(Vector3(-0.8, 0.0, 0.0)),
+        );
+      if (material != null) {
+        scene.add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              LatheShape(
+                profile: [Vector2(0.3, -0.95), Vector2(0.3, 0.6)],
+                segments: 48,
+              ).build(),
+            ),
+            material,
+          )..shadowCasting = ShadowCastingMode.shadowsOnly,
+        );
+      }
+      final frame = Renderer.create(device: device).render(
+        width: size,
+        height: size,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        settings: const RenderSettings(
+          shadows: ShadowSettings(translucentCasters: true),
+          look: LookSettings(dither: 0),
+        ),
+      );
+      final bytes = await device.readPixels(frame.frame);
+      return <int>[
+        for (var i = 0; i < size * size * 4; i++) bytes!.getUint8(i),
+      ];
+    }
+
+    final lit = await draw(null);
+    final solid = await draw(_opaque()..doubleSided = true);
+    final glass = await draw(
+      Material(
+        name: 'glass',
+        lighting: LightingModel.pbrLayered,
+        baseColor: Vector4(0.97, 0.99, 1.0, 0.22),
+        alphaMode: MaterialAlphaMode.blend,
+        doubleSided: true,
+        extensions: MaterialExtensions(transmission: 1.0, ior: 1.5),
+      ),
+    );
+    final region = _shadowed(solid, lit);
+    expect(region.length, greaterThan(100), reason: 'the tube casts nothing');
+    final (litR, _, _) = _mean(lit, region);
+    final darkest = region.map((i) => glass[i]).reduce((a, b) => a < b ? a : b);
+    expect(darkest, greaterThan(0.75 * litR));
+  });
+
   test('copyWith keeps the setting', () {
     // `copyWith` has dropped fields before, and `settingsFrom` calls it every
     // frame, so a field it forgets is a setting nobody can turn on.

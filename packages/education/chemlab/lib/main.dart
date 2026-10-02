@@ -302,13 +302,21 @@ class _Controls extends StatelessWidget {
                     onChanged: bench.busy ? null : onLean,
                   ),
                 ),
+              ],
+            ),
+            // The buttons on a line of their own, which wraps: sharing one
+            // with the sliders squeezed them to nothing in a narrow window.
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
                 ActionChip(
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: const Text('Tap'),
                   onPressed: onTap,
                 ),
-                const SizedBox(width: 6),
                 Tooltip(
                   message:
                       'Pour into the clean tube at the front until the two '
@@ -320,7 +328,6 @@ class _Controls extends StatelessWidget {
                     onPressed: bench.canShare(vessel) ? onShare : null,
                   ),
                 ),
-                const SizedBox(width: 8),
                 Tooltip(
                   message:
                       'Off: shadows worked out cut by cut for these round '
@@ -334,7 +341,6 @@ class _Controls extends StatelessWidget {
                     onSelected: onPhotons,
                   ),
                 ),
-                const SizedBox(width: 8),
                 Text(
                   'Drag to turn, scroll to zoom',
                   style: Theme.of(context).textTheme.bodySmall,
