@@ -25,6 +25,10 @@
 //     Schlick term of its index — which is what makes the rim of a glass, met
 //     at a grazing angle, darker than its middle.
 //
+// Where refracted light lands — the bright line down a tube's shadow — is
+// not here: that needs the ray followed through both surfaces, and this
+// stage sees one at a time.
+//
 // The body's share is taken as a square root because a closed caster is
 // recorded from both of its sides: light crosses its body once, and its two
 // surfaces between them give it once. A caster recorded from one side only
@@ -36,8 +40,11 @@
 #include <lib/color.glsl>
 
 uniform TransmittanceInfo {
-  /// rgb: the material's base colour. a: its opacity, one for a material
-  /// that is not blended.
+  /// rgb: the colour light comes out of it: the base colour, and for a
+  /// material that transmits, times what its volume leaves after its
+  /// thickness. a: its opacity — one for a material that is not blended, and
+  /// for one that transmits, whose alpha describes its look rather than
+  /// holes in it.
   vec4 color;
 
   /// xyz: the direction towards the light, in the world. w unused.

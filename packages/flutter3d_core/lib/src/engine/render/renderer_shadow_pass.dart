@@ -530,12 +530,20 @@ extension _ShadowPasses on Renderer {
       final material = node.material;
       if (translucent) {
         // What it lets through is read off the material, which no version
-        // follows: its colour, its transmission and its index.
+        // follows: its colour, its transmission, its index and its volume.
         key = mix(key, material.baseColor.x.hashCode);
         key = mix(key, material.baseColor.y.hashCode);
         key = mix(key, material.baseColor.z.hashCode);
         key = mix(key, (material.extensions?.transmission ?? 0.0).hashCode);
         key = mix(key, (material.extensions?.ior ?? 1.5).hashCode);
+        final volume = material.extensions;
+        if (volume != null) {
+          key = mix(key, volume.thickness.hashCode);
+          key = mix(key, volume.attenuationDistance.hashCode);
+          for (final value in volume.attenuationColor.storage) {
+            key = mix(key, value.hashCode);
+          }
+        }
       }
       key = mix(key, identityHashCode(node));
       key = mix(key, node.worldVersion);
@@ -1258,21 +1266,51 @@ extension _ShadowPasses on Renderer {
           boundKind = kind;
         }
         final material = node.material;
+        final extensions = material.extensions;
         final colour = material.baseColor;
-        final ior = material.extensions?.ior ?? 1.5;
+        final ior = extensions?.ior ?? 1.5;
         final f0 = (ior - 1.0) / (ior + 1.0);
+        final transmits = (extensions?.transmission ?? 0.0) > 0.0;
+        // **What reaches the far side of a transmitting body is the colour of
+        // its depth, not of its surface** — glTF's transmission and volume:
+        // the base colour tints what is transmitted, and the attenuation
+        // colour is what is left after [MaterialExtensions.attenuationDistance]
+        // of it, raised to the thickness over that distance. A solution's
+        // shadow comes out the deep colour light through it really is. And
+        // a transmitting material's alpha says how it looks, not that light
+        // goes round it, so it is taken as wholly there: read as coverage it
+        // let a fifth of the sun through untinted, and washed the colour out.
+        var tint = vm.Vector3(colour.x, colour.y, colour.z);
+        if (transmits) {
+          final distance = extensions!.attenuationDistance;
+          final thickness = extensions.thickness;
+          if (distance.isFinite && distance > 0.0 && thickness > 0.0) {
+            final depth = thickness / distance;
+            final through = extensions.attenuationColor;
+            tint = vm.Vector3(
+              tint.x * math.pow(through.x.clamp(0.0, 1.0), depth),
+              tint.y * math.pow(through.y.clamp(0.0, 1.0), depth),
+              tint.z * math.pow(through.z.clamp(0.0, 1.0), depth),
+            );
+          }
+        }
         _transmittanceInfo.color
-          ..[0] = colour.x
-          ..[1] = colour.y
-          ..[2] = colour.z
-          ..[3] = material.isTransparent ? colour.w : 1.0;
+          ..[0] = tint.x
+          ..[1] = tint.y
+          ..[2] = tint.z
+          ..[3] = transmits
+              ? 1.0
+              : material.isTransparent
+              ? colour.w
+              : 1.0;
         _transmittanceInfo.light
           ..[0] = -aim.x
           ..[1] = -aim.y
           ..[2] = -aim.z
           ..[3] = 0.0;
+        final transmission = material.extensions?.transmission ?? 0.0;
         _transmittanceInfo.params
-          ..[0] = material.extensions?.transmission ?? 0.0
+          ..[0] = transmission
           ..[1] = f0 * f0
           ..[2] = 0.0
           ..[3] = 0.0;

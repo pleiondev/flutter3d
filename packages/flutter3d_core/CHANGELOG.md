@@ -5,7 +5,10 @@
   transmissive material is drawn into the sun's atlas after the opaque
   casters, into the three channels that held nothing, as how much of red,
   green and blue it lets through: its opacity, its transmission tinted by its
-  colour, and the Fresnel loss of its index at that angle. Clear glass casts
+  colour and by what its volume leaves after its thickness
+  (`attenuationColor`, `attenuationDistance`), and the Fresnel loss of its
+  index at that angle. A transmitting material's alpha is read as its look,
+  not as holes in it. Clear glass casts
   a faint shadow with darker edges, a coloured liquid a shadow of its colour,
   and layers combine. A see-through surface that casts is not shaded by it,
   and it does nothing under the `evsm` filter. Off, every frame is drawn byte for byte as
