@@ -9,6 +9,17 @@
   `LevelLoader` watches every map a level names, and `LoadedLevel.dispose`
   stops. `ext.flutter3d.assets.put` accepts an image registered this way.
 
+- **A sky panorama edited under a running game lights it again.**
+  `HotSwap.loadEnvironment` builds the prefiltered cube a `.hdr` or an image
+  asset makes, whose roughest level is also the irradiance, and
+  `SwappableEnvironment.applyTo` puts it on a scene. A swap after the file
+  changed prefilters it again and puts the new cube, with its level count,
+  on every registered scene that was lit by the old one; the old cube goes
+  back to the device after its frames, as a swapped texture does.
+  `registerEnvironment` takes an environment built some other way, the
+  report lists what changed under `environments`, and
+  `ext.flutter3d.assets.put` accepts a panorama registered either way.
+
 **A hot reload shows the shaders it reloaded.** Flutter 3.47 reinitializes an
 asset-loaded shader bundle on hot reload, which the engine's own bundle is,
 but a pipeline linked from the old code went on drawing it: the library

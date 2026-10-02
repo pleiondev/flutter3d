@@ -84,6 +84,13 @@
   reloaded shader reached the scene's own pipelines and not the splats, the
   debug lines or the particles.
 
+- **`EnvironmentMap.fromEncoded` builds an environment from a panorama
+  file's bytes.** A Radiance `.hdr` is told apart by its header and read
+  here; anything else goes through the `ImageDecoder` given. Then it is
+  `fromPanorama` as before. `EnvironmentMap.hdrToRgba8` is the clamp to
+  eight bits that `flutter3d_model_core`'s `panoramaPixels` used to keep to
+  itself, so both read a `.hdr` the same way.
+
 ## 0.8.3+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
