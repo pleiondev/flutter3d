@@ -1,0 +1,103 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:test/test.dart';
+import 'package:vector_math/vector_math.dart';
+
+/// A closed box of planes from (0, 0, 0) to [size].
+List<JetObstacle> _box(double size) => [
+  PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0),
+  PlaneObstacle(normal: Vector3(1, 0, 0), offset: 0),
+  PlaneObstacle(normal: Vector3(-1, 0, 0), offset: -size),
+  PlaneObstacle(normal: Vector3(0, 0, 1), offset: 0),
+  PlaneObstacle(normal: Vector3(0, 0, -1), offset: -size),
+];
+
+void main() {
+  test('a single drop falls as the world falls', () {
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
+    fluid.inject(fluid.particleVolume, Vector3(0, 1, 0), Vector3.zero());
+    for (var i = 0; i < 500; i++) {
+      fluid.step(1 / 1000, gravity: Vector3(0, -1.62, 0));
+    }
+    final y = fluid.positions.single.y;
+    expect(1 - y, closeTo(0.5 * 1.62 * 0.25, 0.5 * 1.62 * 0.25 * 0.01));
+  });
+
+  test('what is less than a particle waits in the bank, and is counted', () {
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
+    fluid.inject(2.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    expect(fluid.count, 2);
+    expect(fluid.volume, closeTo(2.5 * fluid.particleVolume, 1e-18));
+    fluid.inject(0.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    expect(fluid.count, 3);
+  });
+
+  test(
+    'a block of liquid settles at its rest density and stays in its box',
+    () {
+      const s = 0.005;
+      final fluid = ParticleFluid(medium: FluidMedium.water, spacing: s);
+      for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 6; j++) {
+          for (var k = 0; k < 6; k++) {
+            fluid.inject(
+              fluid.particleVolume,
+              Vector3((i + 0.5) * s, (j + 0.5) * s, (k + 0.5) * s),
+              Vector3.zero(),
+            );
+          }
+        }
+      }
+      final start = fluid.volume;
+      final walls = _box(6 * s);
+      for (var t = 0; t < 600; t++) {
+        fluid.step(1 / 600, gravity: Vector3(0, -9.81, 0), obstacles: walls);
+      }
+      expect(fluid.volume, start);
+      // Nothing through the walls, and the bulk of it about as tall as it
+      // was: it neither blew apart nor squashed. A surface particle or two
+      // may ride a little higher.
+      final heights = <double>[];
+      for (final p in fluid.positions) {
+        expect(p.x, inInclusiveRange(-1e-6, 6 * s + 1e-6));
+        expect(p.z, inInclusiveRange(-1e-6, 6 * s + 1e-6));
+        expect(p.y, greaterThanOrEqualTo(-1e-6));
+        heights.add(p.y);
+      }
+      // Its mean height is three spacings — the block's — to five per cent:
+      // at its rest density, neither squeezed by its weight nor spread out.
+      // Mutation: Macklin's artificial pressure at his tenth rather than a
+      // fiftieth, and it settles at 3.6, a sixth too thin.
+      final mean = heights.reduce((a, b) => a + b) / heights.length;
+      expect(mean, closeTo(3.0 * s, 0.15 * s));
+      heights.sort();
+      expect(heights[(heights.length * 0.95).floor()], lessThan(6.2 * s));
+    },
+  );
+
+  test('drops that fall into a vessel are its liquid', () {
+    final body = LiquidBody(
+      shape: RevolvedVessel([
+        Vector2(0, 0),
+        Vector2(0.02, 0),
+        Vector2(0.02, 0.1),
+      ]),
+      medium: FluidMedium.water,
+      volume: 1e-5,
+      modes: 2,
+    );
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
+    fluid.inject(
+      20 * fluid.particleVolume,
+      Vector3(0, 0.05, 0),
+      Vector3.zero(),
+    );
+    final total = body.volume + fluid.volume;
+    for (var i = 0; i < 400; i++) {
+      body.place(Matrix3.identity(), Vector3.zero());
+      body.step(1 / 1000, gravity: Vector3(0, -9.81, 0));
+      fluid.step(1 / 1000, gravity: Vector3(0, -9.81, 0), receivers: [body]);
+    }
+    expect(fluid.count, 0);
+    expect(body.volume + fluid.volume, closeTo(total, total * 1e-12));
+  });
+}

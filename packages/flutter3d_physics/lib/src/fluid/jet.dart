@@ -107,6 +107,27 @@ final class Jet {
         (medium.density * math.max(thickness, 1e-9)),
   );
 
+  /// The share of a parcel that splashes back out where it lands.
+  ///
+  /// Mundo and colleagues' criterion: a drop of diameter D striking at v
+  /// splashes when K = Oh·Re^1.25 passes 57.7, Oh = μ/√(ρσD) weighing
+  /// viscosity against surface tension and Re = ρvD/μ inertia against
+  /// viscosity. A stream of water three millimetres across at a metre a
+  /// second is at 46 and goes in quietly. How much is thrown out past the
+  /// threshold is less settled; this takes a tenth of the excess, up to
+  /// half — an estimate of the secondary-drop fractions measured for crown
+  /// splashes, not a fit to one.
+  static double _splashShare(_Parcel p) {
+    final m = p.medium;
+    final d = 2.0 * math.sqrt(p.section / math.pi);
+    final v = p.velocity.length;
+    if (d <= 0.0 || v <= 0.0) return 0.0;
+    final oh = m.viscosity / math.sqrt(m.density * m.surfaceTension * d);
+    final re = m.density * v * d / m.viscosity;
+    final k = oh * re * math.sqrt(math.sqrt(re));
+    return k <= 57.7 ? 0.0 : math.min(0.5, 0.1 * (k / 57.7 - 1.0));
+  }
+
   /// How much has left the lip, and how much of it receivers have taken.
   double get emitted => _emitted;
   double _emitted = 0.0;
@@ -234,14 +255,36 @@ final class Jet {
         }
       }
       if (into != null) {
-        into.receive(
-          p.volume,
-          p.position,
-          p.velocity,
-          p.medium,
-          p.concentrations,
-        );
-        _landed += p.volume;
+        // Struck hard enough, part of it splashes back out (Mundo).
+        final splash = _splashShare(p);
+        final stays = p.volume * (1.0 - splash);
+        if (splash > 0.0) {
+          final up = gravity.length2 > 0.0
+              ? -gravity.normalized()
+              : Vector3(0, 1, 0);
+          final side = up.cross(
+            up.x.abs() < 0.9 ? Vector3(1, 0, 0) : Vector3(0, 0, 1),
+          )..normalize();
+          final other = up.cross(side);
+          final speed = 0.3 * p.velocity.length;
+          const crown = 8;
+          for (var k = 0; k < crown; k++) {
+            final a = 2.0 * math.pi * (k + 0.5) / crown;
+            final out =
+                (side * Portable.cos(a) + other * Portable.sin(a)) * 0.6 +
+                up * 0.8;
+            drops.add((
+              position: p.position.clone(),
+              velocity: out.normalized() * speed,
+              volume: p.volume * splash / crown,
+              medium: p.medium,
+              concentrations: p.concentrations,
+            ));
+          }
+          _dropped += p.volume * splash;
+        }
+        into.receive(stays, p.position, p.velocity, p.medium, p.concentrations);
+        _landed += stays;
         if (kept.isNotEmpty) kept.last.endsRun = true;
         continue;
       }
