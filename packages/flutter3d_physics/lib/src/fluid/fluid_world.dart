@@ -65,6 +65,8 @@ final class FluidWorld {
           velocity: spill.velocity,
           width: spill.width,
           across: across.length2 > 0.0 ? across : Vector3(1, 0, 0),
+          medium: spill.medium,
+          concentrations: spill.concentrations,
         );
       }
     }

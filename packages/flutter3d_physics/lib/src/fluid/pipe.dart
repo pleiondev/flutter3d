@@ -18,7 +18,8 @@ import 'liquid_body.dart';
 /// creeps to it without swinging.
 ///
 /// **The pressure at each end** is the weight of the liquid above it in the
-/// gravity that vessel feels, less the pull of its surface where it is
+/// gravity that vessel feels — layer by layer, each at its own density —
+/// less the pull of its surface where it is
 /// curved: σ times the curvature at the middle of the meniscus, which is why
 /// a narrow tube joined to a wide one stands higher by Jurin's height.
 final class Pipe {
@@ -55,12 +56,13 @@ final class Pipe {
     final rho = medium.density;
     final g = gravity.length;
     if (g <= 0.0) return;
-    final down = gravity / g;
     final a = math.pi * radius * radius;
-    final head0 = from.depthAbove(at, down);
-    final head1 = to.depthAbove(toAt, down);
-    final p0 = rho * g * head0 - from.capillaryPressure;
-    final p1 = rho * g * head1 - to.capillaryPressure;
+    final head0 = from.depthAbove(at);
+    final head1 = to.depthAbove(toAt);
+    // Every layer over each end, at its own density, less the meniscus's
+    // pull.
+    final p0 = from.pressureAt(at) - from.capillaryPressure;
+    final p1 = to.pressureAt(toAt) - to.capillaryPressure;
     // Air cannot be pushed through: a side whose surface is below its end
     // gives nothing.
     if (head0 <= 0.0 && flow > 0.0) flow = 0.0;
@@ -84,15 +86,12 @@ final class Pipe {
     flow =
         (flow + dt * drive / inertance) /
         (1.0 + dt * (viscous + quadratic) / inertance);
-    var moved = flow * dt;
+    // The liquid at each opening goes through: the layer it opens into.
+    final moved = flow * dt;
     if (moved > 0.0) {
-      moved = math.min(moved, from.volume);
-      from.drain(moved);
-      to.pour(moved);
+      from.drawAt(at, moved).forEach(to.add);
     } else if (moved < 0.0) {
-      final back = math.min(-moved, to.volume);
-      to.drain(back);
-      from.pour(back);
+      to.drawAt(toAt, -moved).forEach(from.add);
     }
   }
 }

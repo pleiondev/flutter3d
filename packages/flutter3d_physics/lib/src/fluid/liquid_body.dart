@@ -6,6 +6,7 @@ import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
 import 'jet.dart';
+import 'liquid_layer.dart';
 import 'outflow.dart';
 import 'vessel_shape.dart';
 
@@ -16,6 +17,8 @@ final class Spill {
     required this.point,
     required this.velocity,
     required this.width,
+    required this.medium,
+    this.concentrations = const {},
   });
 
   /// No spill.
@@ -24,7 +27,12 @@ final class Spill {
     point: Vector3.zero(),
     velocity: Vector3.zero(),
     width: 0.0,
+    medium: FluidMedium.water,
   );
+
+  /// Which liquid ran out — the top layer's — and what was dissolved in it.
+  final FluidMedium medium;
+  final Map<String, double> concentrations;
 
   /// Cubic metres a second.
   final double flow;
@@ -51,26 +59,40 @@ final class Spill {
 /// the lip at the weir's rate wherever the surface, waves and all, stands
 /// above the rim. Nothing else changes the volume: [step] returns what left,
 /// and [pour] is how liquid comes in.
+///
+/// **Liquids that do not mix lie in [layers]**, densest at the bottom, each
+/// boundary a plane square to the same gravity at the height that holds the
+/// volume below it. The waves and the meniscus are the top liquid's, what
+/// runs over the lip is the top layer, and a pipe draws on the layer at its
+/// opening.
 final class LiquidBody implements JetReceiver {
   LiquidBody({
     required this.shape,
-    required this.medium,
+    required FluidMedium medium,
     required double volume,
+    Map<String, double> concentrations = const {},
     int surfaceCells = 40,
     int modes = 12,
     this.wallThickness = 0.0,
-  }) : _volume = volume,
-       surface = FreeSurface(
+  }) : surface = FreeSurface(
          medium: medium,
          cells: surfaceCells,
          modeCount: modes,
        ) {
+    _layers.add(LiquidLayer.at(medium, volume, concentrations));
     surface.layOut(shape, _up, shape.surfaceFor(_up, volume));
   }
 
   final VesselShape shape;
-  final FluidMedium medium;
   final FreeSurface surface;
+
+  /// The liquids in it, bottom first.
+  List<LiquidLayer> get layers => List.unmodifiable(_layers);
+  final List<LiquidLayer> _layers = [];
+
+  /// The liquid at the surface.
+  FluidMedium get medium =>
+      _layers.isEmpty ? surface.medium : _layers.last.medium;
 
   /// How thick the vessel's wall is, for a stream that runs down its
   /// outside; nought for none.
@@ -81,9 +103,8 @@ final class LiquidBody implements JetReceiver {
   double get clock => _clock;
   double _clock = 0.0;
 
-  /// Cubic metres of liquid.
-  double get volume => _volume;
-  double _volume;
+  /// Cubic metres of liquid, every layer.
+  double get volume => _layers.fold(0.0, (sum, l) => sum + l.volume);
 
   /// The vessel's turn and place in the world, as last [place]d.
   final Matrix3 rotation = Matrix3.identity();
@@ -121,11 +142,19 @@ final class LiquidBody implements JetReceiver {
   /// its own volume over the patch it strikes, from where it spreads as
   /// waves.
   @override
-  void receive(double volume, Vector3 point, Vector3 velocity) {
+  void receive(
+    double volume,
+    Vector3 point,
+    Vector3 velocity,
+    FluidMedium medium,
+    Map<String, double> concentrations,
+  ) {
     final spread = surface.knockSpread;
     final patch = 2.0 * math.pi * spread * spread;
     pour(
       volume,
+      medium: medium,
+      concentrations: concentrations,
       where: _local(point),
       knock: patch > 0.0 ? volume / patch : 0.0,
     );
@@ -135,18 +164,90 @@ final class LiquidBody implements JetReceiver {
   Vector3 _local(Vector3 point) =>
       (rotation.clone()..transpose()).transformed(point - position);
 
-  /// Adds [amount] cubic metres of liquid; landing, it knocks the surface
-  /// at [where] (vessel frame) by [knock] metres.
-  void pour(double amount, {Vector3? where, double knock = 0.0}) {
-    _volume += amount;
-    _relayIfMoved(force: true);
+  /// Adds [amount] cubic metres of [medium] — the top liquid's, if none is
+  /// named — carrying [concentrations]; landing, it knocks the surface at
+  /// [where] (vessel frame) by [knock] metres.
+  void pour(
+    double amount, {
+    FluidMedium? medium,
+    Map<String, double> concentrations = const {},
+    Vector3? where,
+    double knock = 0.0,
+  }) {
+    if (amount <= 0.0) return;
+    add(LiquidLayer.at(medium ?? this.medium, amount, concentrations));
     if (where != null && knock != 0.0) surface.knock(where, knock);
   }
 
-  /// Takes [amount] cubic metres away — a drain, a pipe — without a spill.
-  void drain(double amount) {
-    _volume = math.max(_volume - amount, 0.0);
+  /// Adds [layer]: to the layer of the same medium, which it mixes with, or
+  /// as a layer of its own where its density puts it.
+  void add(LiquidLayer layer) {
+    if (layer.volume <= 0.0) return;
+    final same = _layers.where((l) => l.medium.name == layer.medium.name);
+    if (same.isNotEmpty) {
+      same.first.add(layer);
+    } else {
+      _layers
+        ..add(
+          LiquidLayer(
+            medium: layer.medium,
+            volume: layer.volume,
+            amounts: layer.amounts,
+          ),
+        )
+        ..sort((a, b) => b.medium.density.compareTo(a.medium.density));
+    }
+    surface.medium = medium;
     _relayIfMoved(force: true);
+  }
+
+  /// Takes [amount] cubic metres away from the bottom — a drain — without a
+  /// spill; returns what was taken, layer by layer.
+  List<LiquidLayer> drain(double amount) => drawAt(Vector3(0, -1e9, 0), amount);
+
+  /// Takes [amount] cubic metres from the layer at [point] (vessel frame) —
+  /// a pipe's opening — and from the ones above it once that runs out.
+  List<LiquidLayer> drawAt(Vector3 point, double amount) {
+    final tops = layerTops();
+    final h = _up.dot(point);
+    var first = 0;
+    while (first < tops.length - 1 && tops[first] < h) {
+      first++;
+    }
+    final out = <LiquidLayer>[];
+    var left = amount;
+    for (var i = first; i < _layers.length && left > 0.0; i++) {
+      final taken = _layers[i].take(left);
+      left -= taken.volume;
+      if (taken.volume > 0.0) out.add(taken);
+    }
+    _layers.removeWhere((l) => l.volume <= 1e-15);
+    if (_layers.isNotEmpty) surface.medium = medium;
+    _relayIfMoved(force: true);
+    return out;
+  }
+
+  /// The height of each layer's top along [up], bottom first: the plane
+  /// that holds it and every layer under it.
+  List<double> layerTops() {
+    var below = 0.0;
+    return [for (final l in _layers) shape.surfaceFor(_up, below += l.volume)];
+  }
+
+  /// The pressure of the liquid at [point] (vessel frame) above the air's:
+  /// every layer above it, each its own density times the gravity felt
+  /// times how much of it stands over the point.
+  double pressureAt(Vector3 point) {
+    final h = _up.dot(point);
+    final tops = layerTops();
+    var pressure = 0.0;
+    var bottom = -double.infinity;
+    for (var i = 0; i < _layers.length; i++) {
+      final over = tops[i] - math.max(bottom, h);
+      if (over > 0.0) pressure += _layers[i].medium.density * _g * over;
+      bottom = tops[i];
+    }
+    return pressure;
   }
 
   /// Moves the liquid on by [dt] under the world's [gravity], and returns
@@ -174,7 +275,7 @@ final class LiquidBody implements JetReceiver {
       _up = turnBack.transformed(-felt / g)..normalize();
     }
     _relayIfMoved();
-    final depth = surface.area > 0.0 ? _volume / surface.area : 0.0;
+    final depth = surface.area > 0.0 ? volume / surface.area : 0.0;
     surface.step(dt, g: math.max(g, 1e-6), depth: depth);
     return _spill(dt, math.max(g, 1e-6));
   }
@@ -207,19 +308,14 @@ final class LiquidBody implements JetReceiver {
     return m == null ? 0.0 : medium.surfaceTension * m.apexCurvature;
   }
 
-  /// How deep [point] (vessel frame) is under the surface, measured along
-  /// gravity pointing [down] in the world.
-  double depthAbove(Vector3 point, Vector3 down) {
-    final world = rotation.transformed(point) + position;
-    final onSurface = rotation.transformed(_up * height) + position;
-    return (world - onSurface).dot(down);
-  }
+  /// How deep [point] (vessel frame) is under the surface.
+  double depthAbove(Vector3 point) => height - _up.dot(point);
 
   TubeMeniscus? _tube;
 
   TubeMeniscus? _meniscus() {
     final shape = this.shape;
-    if (shape is! RevolvedVessel || _volume <= 0.0) return null;
+    if (shape is! RevolvedVessel || volume <= 0.0) return null;
     final radius = shape.radiusAt(height.clamp(shape.floor, shape.top));
     if (radius <= 0.0) return null;
     final tube = _tube;
@@ -234,7 +330,7 @@ final class LiquidBody implements JetReceiver {
   /// Lays the surface out again when its plane has turned or moved by more
   /// than a little, carrying the waves over.
   void _relayIfMoved({bool force = false}) {
-    final h = shape.surfaceFor(_up, _volume);
+    final h = shape.surfaceFor(_up, volume);
     final turned = 1.0 - _up.dot(surface.up);
     final moved = (h - surface.height).abs();
     if (force || turned > 2e-5 || moved > 1e-4) {
@@ -246,7 +342,7 @@ final class LiquidBody implements JetReceiver {
   /// rate for the depth of liquid standing over it, waves included.
   Spill _spill(double dt, double g) {
     final rim = shape.rim;
-    if (rim.isEmpty || _volume <= 0.0) return Spill.none;
+    if (rim.isEmpty || volume <= 0.0) return Spill.none;
     var flow = 0.0;
     var width = 0.0;
     var crest = 0.0;
@@ -281,16 +377,24 @@ final class LiquidBody implements JetReceiver {
         ? rotation.transformed(along.normalized())
         : Vector3.zero();
     final speed = flow / crest;
-    // No more can leave than there is.
-    final out = math.min(flow * dt, _volume);
+    // The top layer runs out, and no more of it than there is: in the step
+    // it is used up, the one under it takes its place at the lip.
+    final top = _layers.last;
+    final out = math.min(flow * dt, top.volume);
+    final concentrations = top.concentrations;
+    final what = top.medium;
+    top.take(out);
+    if (top.volume <= 1e-15 && _layers.length > 1) _layers.removeLast();
+    surface.medium = medium;
     flow = dt > 0.0 ? out / dt : 0.0;
-    _volume -= out;
     _relayIfMoved();
     return Spill(
       flow: flow,
       point: point + position,
       velocity: direction * speed,
       width: width,
+      medium: what,
+      concentrations: concentrations,
     );
   }
 }
