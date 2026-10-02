@@ -40285,6 +40285,7 @@ fn main_1() {
     var facing: f32;
     var f0_: f32;
     var fresnel: f32;
+    var lost: f32;
     var through: vec3<f32>;
 
     g_albedo = vec3<f32>(0f, 0f, 0f);
@@ -40292,39 +40293,43 @@ fn main_1() {
     g_debug_surface_on = false;
     g_premultiply = false;
     g_pass_through = 0f;
-    let _e39 = transmittance_info.color[3u];
-    opacity = clamp(_e39, 0f, 1f);
-    let _e43 = transmittance_info.params[0u];
-    transmission = clamp(_e43, 0f, 1f);
-    let _e46 = transmittance_info.color;
-    let _e49 = v_texcoord_1;
-    let _e50 = textureSample(base_color_texture_tex, base_color_texture_smp, _e49);
-    tint = (max(_e46.xyz, vec3<f32>(0f, 0f, 0f)) * _e50.xyz);
-    let _e53 = opacity;
-    let _e56 = opacity;
-    let _e57 = transmission;
-    let _e59 = tint;
-    body = (vec3((1f - _e53)) + (_e59 * (_e56 * _e57)));
-    let _e62 = v_normal_1;
-    let _e65 = transmittance_info.light;
-    facing = abs(dot(normalize(_e62), _e65.xyz));
-    let _e71 = transmittance_info.params[1u];
-    f0_ = clamp(_e71, 0f, 1f);
-    let _e73 = f0_;
-    let _e74 = f0_;
-    let _e76 = facing;
-    fresnel = (_e73 + ((1f - _e74) * pow((1f - clamp(_e76, 0f, 1f)), 5f)));
-    let _e82 = body;
-    let _e85 = fresnel;
-    through = (sqrt(max(_e82, vec3<f32>(0f, 0f, 0f))) * (1f - _e85));
-    let _e90 = transmittance_info.params[2u];
-    if (_e90 > 0.5f) {
+    let _e41 = transmittance_info.color[3u];
+    opacity = clamp(_e41, 0f, 1f);
+    let _e45 = transmittance_info.params[0u];
+    transmission = clamp(_e45, 0f, 1f);
+    let _e48 = transmittance_info.color;
+    let _e51 = v_texcoord_1;
+    let _e52 = textureSample(base_color_texture_tex, base_color_texture_smp, _e51);
+    tint = (max(_e48.xyz, vec3<f32>(0f, 0f, 0f)) * _e52.xyz);
+    let _e55 = opacity;
+    let _e58 = opacity;
+    let _e59 = transmission;
+    let _e61 = tint;
+    body = (vec3((1f - _e55)) + (_e61 * (_e58 * _e59)));
+    let _e64 = v_normal_1;
+    let _e67 = transmittance_info.light;
+    facing = clamp(abs(dot(normalize(_e64), _e67.xyz)), 0f, 1f);
+    let _e74 = transmittance_info.params[1u];
+    f0_ = clamp(_e74, 0f, 1f);
+    let _e76 = f0_;
+    let _e77 = f0_;
+    let _e79 = facing;
+    fresnel = (_e76 + ((1f - _e77) * pow((1f - _e79), 5f)));
+    let _e84 = fresnel;
+    let _e85 = facing;
+    let _e87 = facing;
+    lost = (_e84 * min(((2f * _e85) * _e87), 1f));
+    let _e91 = body;
+    let _e94 = lost;
+    through = (sqrt(max(_e91, vec3<f32>(0f, 0f, 0f))) * (1f - _e94));
+    let _e99 = transmittance_info.params[2u];
+    if (_e99 > 0.5f) {
         through = vec3<f32>(0f, 0f, 0f);
     }
-    let _e93 = through[0u];
-    let _e96 = through[1u];
-    let _e99 = through[2u];
-    frag_color = vec4<f32>(0f, (1f - _e93), (1f - _e96), _e99);
+    let _e102 = through[0u];
+    let _e105 = through[1u];
+    let _e108 = through[2u];
+    frag_color = vec4<f32>(0f, (1f - _e102), (1f - _e105), _e108);
     return;
 }
 
