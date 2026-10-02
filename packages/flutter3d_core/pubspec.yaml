@@ -18,6 +18,10 @@ dependencies:
   # The typed uniform blocks the renderer fills, generated from the compiled
   # bundle's own layout — `H1`. Pure Dart: the shader sources and two tables.
   flutter3d_shaders: ^0.8.2
+  # What a liquid, a stream or a puddle is, as data — the meshes that draw
+  # them are built here, from it (`geometry/liquid_shapes.dart`). Plain Dart
+  # like this package, so neither gains Flutter by it.
+  flutter3d_physics: ^0.8.2
   vector_math: ^2.2.0
 
 dev_dependencies:
