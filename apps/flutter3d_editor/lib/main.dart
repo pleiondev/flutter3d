@@ -51,6 +51,7 @@ import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
+import 'src/play/device_picker.dart';
 import 'src/play/live_material.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
@@ -148,10 +149,12 @@ class _EditorScreenState extends State<EditorScreen>
   /// The documents this editor has had open, kept between launches.
   final RecentProjects _projects = RecentProjects();
 
-  /// `HR5`: the project this level belongs to, run with `flutter run`. Kept
-  /// here rather than by [PlayScreen] so closing the panel leaves the game
-  /// running; replaced when a level from another project is played.
-  FlutterRun? _run;
+  /// `HR5`: the game being played — the project this level belongs to, run
+  /// with `flutter run`, or a game attached to by its VM service. Kept here
+  /// rather than by [PlayScreen] so closing the panel leaves the game
+  /// running; replaced when a level from another project is played, or
+  /// another game attached to.
+  PlayedGame? _run;
 
   /// What [_projects] said when the chooser last needed it.
   ///
@@ -1149,8 +1152,9 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  /// Sends a saved level to the game [_run] started, when it is running,
-  /// and says in the status strip what the game did with it.
+  /// Sends a saved level to the game [_run] plays, when it is running,
+  /// whether this editor started it or attached to it, and says in the
+  /// status strip what the game did with it.
   ///
   /// As a patch from [base], the document this save wrote over, when the
   /// game is playing that; whole when it is not.
@@ -1515,10 +1519,12 @@ class _EditorScreenState extends State<EditorScreen>
                   bottom: 0,
                   child: EditorLegend(state: state),
                 ),
-                // `HR5`: runs the project this level belongs to.
+                // `HR5`: runs the project this level belongs to. Beside the
+                // material panel's button: at 92 it lay under the step
+                // panel's, which was drawn over it and took every press.
                 Positioned(
                   top: 4,
-                  right: 92,
+                  right: 212,
                   child: IconButton(
                     icon: const Icon(
                       Icons.play_circle_outline,
@@ -1528,9 +1534,9 @@ class _EditorScreenState extends State<EditorScreen>
                     onPressed: () => _play(state),
                   ),
                 ),
-                // `rp-02`: attaches to a game already running elsewhere,
-                // over the same VM service channel DevTools uses — this
-                // editor still edits no simulation of its own.
+                // `rp-02`, and `HR5` without a process: attaches to a game
+                // already running elsewhere, over the same VM service
+                // channel DevTools uses, and plays it in the same panel.
                 Positioned(
                   top: 4,
                   right: 12,
@@ -1648,8 +1654,6 @@ class _EditorScreenState extends State<EditorScreen>
     await _openRunAt(file.path);
   }
 
-  /// Asks for a running game's VM service address, connects, and opens the
-  /// timeline panel on it — `rp-02`'s door, from the editor's side.
   /// Opens the play panel on the project [state]'s level belongs to,
   /// starting a run of it when none is going.
   Future<void> _play(EditorReady state) async {
@@ -1673,7 +1677,47 @@ class _EditorScreenState extends State<EditorScreen>
     }
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => PlayScreen(run: run, onTimeline: _openTimeline),
+        builder: (_) => PlayScreen(
+          session: run,
+          onTimeline: _openTimeline,
+          picker: ({required bool enabled}) =>
+              DevicePicker(run: run, enabled: enabled),
+        ),
+      ),
+    );
+  }
+
+  /// Attaches to the game at [uri] and opens the play panel on it: its
+  /// console, hot reload and restart, timeline, and every save sent to it.
+  ///
+  /// **Refused while a game this editor started is running.** The editor
+  /// plays one game at a time, and replacing that run would stop a game
+  /// somebody is in the middle of; they stop it first, in its own panel.
+  Future<void> _attach(String uri) async {
+    final session = switch (_run) {
+      final AttachedRun same? when same.vmService == uri => same,
+      final PlayedGame owned?
+          when owned.ownsTheGame && owned.state.value is! PlayStopped =>
+        null,
+      final other => () {
+        unawaited(other?.dispose());
+        return _run = AttachedRun(uri);
+      }(),
+    };
+    if (session == null) {
+      _changed(
+        'a game started here is still running: stop it in the Play panel '
+        'before attaching to another',
+      );
+      return;
+    }
+    if (session.state.value case PlayIdle() || PlayStopped()) {
+      unawaited(session.start());
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayScreen(session: session, onTimeline: _openTimeline),
       ),
     );
   }
@@ -1727,8 +1771,8 @@ class _EditorScreenState extends State<EditorScreen>
       ),
     );
     controller.dispose();
-    if (uri == null || uri.isEmpty || !mounted) return;
-    await _openTimeline(uri);
+    if (uri == null || uri.trim().isEmpty || !mounted) return;
+    await _attach(uri.trim());
   }
 }
 

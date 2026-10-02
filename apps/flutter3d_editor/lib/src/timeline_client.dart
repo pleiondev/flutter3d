@@ -1,5 +1,5 @@
+import 'package:flutter3d_editor_play/attach.dart';
 import 'package:vm_service/vm_service.dart';
-import 'package:vm_service/vm_service_io.dart';
 
 /// What `ext.flutter3d.timeline.preview` answers.
 typedef TimelinePreview = ({bool found, int? step});
@@ -60,8 +60,8 @@ abstract interface class TimelineClient {
 /// This does not start a game, does not know what a genre is, and does not
 /// hold a level document — it only speaks the seven
 /// `ext.flutter3d.timeline.*` extensions `registerTimelineExtensions`
-/// registers on the other end, over a plain WebSocket that every desktop
-/// platform this application ships to already has through `dart:io`.
+/// registers on the other end, over `connectVmService`'s WebSocket, which is
+/// `dart:io`'s on a desktop and the browser's in a web build.
 final class VmServiceTimelineClient implements TimelineClient {
   VmServiceTimelineClient._(this._service, this._isolateId);
 
@@ -72,7 +72,7 @@ final class VmServiceTimelineClient implements TimelineClient {
   /// the same one a person pastes into DevTools, `http://` or `ws://`,
   /// with or without a trailing slash.
   static Future<VmServiceTimelineClient> connect(String uri) async {
-    final service = await vmServiceConnectUri(_asWebSocket(uri));
+    final service = await connectVmService(uri);
     final vm = await service.getVM();
     final isolates = vm.isolates;
     if (isolates == null || isolates.isEmpty) {
@@ -80,15 +80,6 @@ final class VmServiceTimelineClient implements TimelineClient {
       throw StateError('the VM at $uri reports no isolates to attach to');
     }
     return VmServiceTimelineClient._(service, isolates.first.id!);
-  }
-
-  static String _asWebSocket(String uri) {
-    final withScheme = uri
-        .replaceFirst('http://', 'ws://')
-        .replaceFirst('https://', 'wss://');
-    return withScheme.endsWith('/ws')
-        ? withScheme
-        : '${withScheme.replaceFirst(RegExp(r'/$'), '')}/ws';
   }
 
   Future<Map<String, Object?>> _call(

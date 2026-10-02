@@ -5,8 +5,8 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter3d_editor_play/attach.dart';
 import 'package:vm_service/vm_service.dart';
-import 'package:vm_service/vm_service_io.dart';
 
 /// Passes on what the panel sends at most [interval] apart, merging what
 /// arrives in between, and always sends the last of it.
@@ -100,7 +100,7 @@ final class GameMaterials {
   }
 
   Future<({VmService service, String isolate})> _connect() async {
-    final service = await vmServiceConnectUri(vmService);
+    final service = await connectVmService(vmService);
     final vm = await service.getVM();
     for (final ref in vm.isolates ?? const <IsolateRef>[]) {
       final isolate = await service.getIsolate(ref.id!);
