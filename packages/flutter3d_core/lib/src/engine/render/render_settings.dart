@@ -1268,7 +1268,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the seventy-nine goldens keep the frame
+  /// nothing headless can run them. So the eighty-one goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -1821,6 +1821,9 @@ final class RenderSettings {
     // `R7`: measured on the resolved picture, applied in the composite.
     'local exposure',
     'bloom',
+    // `P2`: drawn from the glow and added to it, before the composite reads
+    // it.
+    'lens flare',
     'composite',
     // `R5`: the finished picture brought up to the asked-for size, before
     // the sharpening that follows it.
@@ -1862,6 +1865,7 @@ final class RenderSettings {
   /// composite is where `tonemap: false` is honoured.
   static const Set<String> pixelAlteringPasses = <String>{
     'bloom',
+    'lens flare',
     'ssao',
     // Multiplied into the ambient term in the composite beside the occlusion,
     // so it moves a measured pixel exactly as `ssao` does.
@@ -2025,7 +2029,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Seventy-nine goldens depend on that being exact, and the composite
+/// existed. Eighty-one goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the
@@ -2045,6 +2049,7 @@ final class LookSettings {
     this.vignetteRoundness = 1.0,
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
+    this.distortion = 0.0,
     this.dither = 1.0 / 255.0,
     this.lift,
     this.gamma,
@@ -2090,6 +2095,19 @@ final class LookSettings {
   /// Radial colour dispersion, in screen widths at the corner. 0.005 is
   /// visible without reading as a fault.
   final double chromaticAberration;
+
+  /// Radial lens distortion — `P2`: barrel above nought, pincushion below,
+  /// nought off exactly. The frame is bent by `1 + k·r²` about its middle on
+  /// its own aspect and scaled so its border stays on the frame: a barrel
+  /// holds the corners, a pincushion the edge nearest the middle. 0.1 is a
+  /// wide lens's gentle bow; past 0.5 it reads as a fisheye.
+  ///
+  /// **Everything laid over the scene bends with it** — the glow, the
+  /// occlusion, the contact shadow, the local exposure — because the
+  /// composite bends the coordinate once, before anything is read. The
+  /// vignette, the grain and the dither stay put: they are the film, and the
+  /// film does not move with the glass.
+  final double distortion;
 
   /// Where black is **lifted to**, per channel, so the shadows move and white
   /// stays — `gfx-27n`. Null is neutral, the same as zero. Applied as
@@ -2167,6 +2185,8 @@ final class LookSettings {
   /// and N tall, blue selecting the slice, red running across it and green
   /// down. [buildIdentityLut] makes the one that changes nothing, which is
   /// what a test compares against and what somebody starts from.
+  /// `CubeLut.parse(...).upload(device)` makes one from a `.cube` file, the
+  /// format the grading tools write — `P2`.
   ///
   /// Null is not "a neutral table": nothing is sampled at all, and that is
   /// the difference [lutStrength] of zero also makes.
@@ -2203,6 +2223,7 @@ final class LookSettings {
       vignette == 0.0 &&
       grain == 0.0 &&
       chromaticAberration == 0.0 &&
+      distortion == 0.0 &&
       whiteBalance == 0.0 &&
       tint == 0.0 &&
       _isNeutralTriple(lift, 0.0) &&
@@ -2223,6 +2244,7 @@ final class LookSettings {
     double? vignetteRoundness,
     double? grain,
     double? chromaticAberration,
+    double? distortion,
     double? dither,
     vm.Vector3? lift,
     vm.Vector3? gamma,
@@ -2240,6 +2262,7 @@ final class LookSettings {
     vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
     grain: grain ?? this.grain,
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+    distortion: distortion ?? this.distortion,
     dither: dither ?? this.dither,
     lift: lift ?? this.lift,
     gamma: gamma ?? this.gamma,
@@ -2577,9 +2600,14 @@ final class BloomSettings {
     this.referenceHeight = 0,
     this.halation = 0.0,
     this.scatter = 1.0,
+    this.lensFlare = const LensFlareSettings(),
   });
 
   final bool enabled;
+
+  /// Ghosts and a halo thrown from what blooms — `P2`. Off by default, and
+  /// off whenever the bloom is: it is drawn from the glow.
+  final LensFlareSettings lensFlare;
 
   /// Luminance above which a pixel starts to bloom. One is display white, which
   /// is the only value with a physical meaning: below it nothing is clipping,
@@ -2671,6 +2699,7 @@ final class BloomSettings {
     int? referenceHeight,
     double? halation,
     double? scatter,
+    LensFlareSettings? lensFlare,
   }) => BloomSettings(
     enabled: enabled ?? this.enabled,
     threshold: threshold ?? this.threshold,
@@ -2681,5 +2710,82 @@ final class BloomSettings {
     referenceHeight: referenceHeight ?? this.referenceHeight,
     halation: halation ?? this.halation,
     scatter: scatter ?? this.scatter,
+    lensFlare: lensFlare ?? this.lensFlare,
+  );
+}
+
+/// The reflections a lens throws from a bright light — `P2`.
+///
+/// **Drawn from the glow, and so only where something blooms.** The bloom
+/// chain has already found what is bright and spread it; reading it again at
+/// positions mirrored through the middle of the frame is what puts each ghost
+/// where the light's reflection between two lens elements would land. A
+/// frame with nothing over the bloom threshold has no flare, which is the
+/// right answer, and a frame with the bloom off has none at all.
+///
+/// The ghosts thin out towards the edges and none is drawn past the frame,
+/// and each one's three channels are taken a little apart along its line,
+/// the fringe a coated lens leaves on its reflections. The ring is every
+/// light at [haloRadius] from the middle landing on the far side of it.
+///
+/// Added into the glow, so the composite scales it by the bloom's own
+/// intensity and tone maps it with the rest of the light.
+///
+/// **A ghost is as soft as the glow it is drawn from.** Five levels at full
+/// weight — the bloom's defaults — throw a small lamp's skirt half the frame
+/// wide, and its reflections are as wide as that: a wash rather than a row
+/// of discs. Fewer [BloomSettings.levels] or a [BloomSettings.scatter] below
+/// one tighten the glow, and the ghosts with it.
+final class LensFlareSettings {
+  const LensFlareSettings({
+    this.enabled = false,
+    this.intensity = 1.0,
+    this.ghosts = 4,
+    this.ghostSpacing = 0.35,
+    this.haloRadius = 0.45,
+    this.halo = 0.5,
+    this.fringe = 0.004,
+  });
+
+  final bool enabled;
+
+  /// How much flare, against the glow it is drawn from.
+  final double intensity;
+
+  /// How many ghosts, up to eight.
+  final int ghosts;
+
+  /// How far apart the ghosts fall, as a fraction of the way from the light
+  /// to the middle of the frame.
+  final double ghostSpacing;
+
+  /// The halo's radius, as a fraction of the frame's height.
+  final double haloRadius;
+
+  /// The halo's strength against the ghosts'. Nought draws no ring.
+  final double halo;
+
+  /// How far apart a ghost's channels are taken, in screen widths.
+  final double fringe;
+
+  /// Whether a flare is drawn at all.
+  bool get isActive => enabled && intensity > 0.0 && ghosts > 0;
+
+  LensFlareSettings copyWith({
+    bool? enabled,
+    double? intensity,
+    int? ghosts,
+    double? ghostSpacing,
+    double? haloRadius,
+    double? halo,
+    double? fringe,
+  }) => LensFlareSettings(
+    enabled: enabled ?? this.enabled,
+    intensity: intensity ?? this.intensity,
+    ghosts: ghosts ?? this.ghosts,
+    ghostSpacing: ghostSpacing ?? this.ghostSpacing,
+    haloRadius: haloRadius ?? this.haloRadius,
+    halo: halo ?? this.halo,
+    fringe: fringe ?? this.fringe,
   );
 }

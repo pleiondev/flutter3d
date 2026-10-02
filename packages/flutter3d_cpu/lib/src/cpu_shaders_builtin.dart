@@ -54,6 +54,7 @@ import 'cpu_shaders_debug.dart';
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_impostor.dart';
 import 'cpu_shaders_irradiance.dart';
+import 'cpu_shaders_lens.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_motion_blur.dart';
@@ -78,6 +79,7 @@ export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
 export 'cpu_shaders_irradiance.dart';
 export 'cpu_shaders_layout.dart';
+export 'cpu_shaders_lens.dart';
 export 'cpu_shaders_lighting.dart';
 export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
@@ -238,6 +240,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'SmaaEdges': const CpuStage.fragment(SmaaEdgesShader()),
     'SmaaWeights': const CpuStage.fragment(SmaaWeightsShader()),
     'SmaaBlend': const CpuStage.fragment(SmaaBlendShader()),
+    'LensFlare': const CpuStage.fragment(LensFlareShader()),
     'LocalExposure': const CpuStage.fragment(LocalExposureShader()),
     'LocalExposureBlur': const CpuStage.fragment(LocalExposureBlurShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),

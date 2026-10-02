@@ -253,6 +253,10 @@ const Map<String, double> _budgets = <String, double>{
   // 0.000% measured, where `shadow-teapot` without it sits at half a
   // percent: the two rasterisers' staircases differ, and SMAA rebuilds the
   // same line behind both.
+  'lens-flare': 0.01,
+  // 0.000% measured: the bend resamples the picture through the filter,
+  // which smooths the two rasterisers' staircases into one.
+  'lens-distortion': 0.05,
   'smaa-teapot': 0.05,
   'evsm-soft': 0.5,
   // 0.069% measured: the air right round a torch, where the light falls off

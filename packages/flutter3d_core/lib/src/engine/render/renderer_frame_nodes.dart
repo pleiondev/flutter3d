@@ -1978,6 +1978,55 @@ final class _BloomNode extends RenderNode {
   }
 }
 
+/// The flare thrown from the glow, added to it — `P2`.
+///
+/// Registered after the bloom and before the composite, so it reads the glow
+/// the chain finished and hands the composite the next version of it; with
+/// the bloom off nothing produces the glow and this is culled with it.
+final class _LensFlareNode extends RenderNode {
+  _LensFlareNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final BloomSettings _settings;
+
+  @override
+  String get name => 'lens flare';
+
+  @override
+  bool get isActive =>
+      _settings.enabled &&
+      _settings.intensity > 0.0 &&
+      _settings.lensFlare.isActive &&
+      _renderer.shaders['LensFlare'] != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.bloom];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.bloom];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.lensFlare');
+    final glow = frame.resources.texture(FrameResourceIds.bloom);
+    final target = frame.resources.transient(
+      RenderTargetSpec(
+        width: glow.width,
+        height: glow.height,
+        format: glow.format,
+      ),
+    );
+    frame.resources.provide(FrameResourceIds.bloom, target);
+    _renderer._encodeLensFlare(
+      target: target,
+      glow: glow,
+      settings: _settings.lensFlare,
+      aspect: frame.width / math.max(frame.height, 1),
+    );
+    developer.Timeline.finishSync();
+  }
+}
+
 /// Tone map, sRGB and the debug overlay, as a graph node — the end of the post
 /// chain and the only pass that writes what is shown.
 ///

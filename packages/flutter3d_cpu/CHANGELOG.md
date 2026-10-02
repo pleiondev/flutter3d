@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **The lens in software.** The composite bends its coordinate as
+  `composite.frag` does, and `LensFlareShader` mirrors `lens_flare.frag`;
+  `lens-flare` and `lens-distortion` match Impeller's references to the
+  pixel.
 - **SMAA 1x in software.** `SmaaEdgesShader`, `SmaaWeightsShader` and
   `SmaaBlendShader` mirror `smaa_edges.frag`, `smaa_weights.frag` and
   `smaa_blend.frag` line for line, so the software backend smooths the same

@@ -1080,6 +1080,25 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.smaaTeapot,
   ),
 
+  // P2. A bright panel's reflections thrown across the middle of the frame.
+  const GoldenScene(
+    name: 'lens-flare',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    ground: false,
+    stage: GoldenStages.lensFlare,
+    configure: GoldenStages.lensFlareSettings,
+  ),
+
+  // P2. `shadow-teapot` through a barrel lens.
+  const GoldenScene(
+    name: 'lens-distortion',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.lensDistortion,
+  ),
+
   // R6. A turning wheel blurred along its own motion.
   const GoldenScene(
     name: 'motion-blur-spin',
