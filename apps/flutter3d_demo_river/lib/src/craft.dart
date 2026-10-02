@@ -43,12 +43,18 @@ final class _Kit {
   _Kit(this.device)
     : playerJet = _upload(
         device,
-        jetMesh(Vector4(0.9, 0.2, 0.15, 1.0), Vector4(0.95, 0.95, 0.9, 1.0)),
+        jetPlaneMesh(
+          Vector4(0.9, 0.2, 0.15, 1.0),
+          Vector4(0.95, 0.95, 0.9, 1.0),
+        ),
         math.pi,
       ),
       enemyJet = _upload(
         device,
-        jetMesh(Vector4(0.25, 0.3, 0.55, 1.0), Vector4(0.6, 0.65, 0.75, 1.0)),
+        jetPlaneMesh(
+          Vector4(0.25, 0.3, 0.55, 1.0),
+          Vector4(0.6, 0.65, 0.75, 1.0),
+        ),
         math.pi,
       ),
       tanker = _upload(device, tankerMesh(), -math.pi / 2.0),

@@ -324,7 +324,7 @@ MeshData puffMesh() =>
 
 /// A jet, nose along -Z, about two metres long. The player's until its
 /// model loads, and an enemy jet's in other colours.
-MeshData jetMesh(Vector4 body, Vector4 trim) => MeshData.merge(<MeshData>[
+MeshData jetPlaneMesh(Vector4 body, Vector4 trim) => MeshData.merge(<MeshData>[
   _part(
     const CylinderShape(
       radiusTop: 0.17,
