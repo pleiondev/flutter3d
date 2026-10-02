@@ -60,6 +60,7 @@ names all of them.
 | `MODELS_ASSETS_DIR` | Default `web/assets` |
 | `MODELS_VIEWER_DIR` | Optional; serves the viewer at `/app/` when set |
 | `MODELS_LEARN_DIR` | Default `content/learn/modeler`, which is right in a checkout and nowhere else. A directory with no case in it gives an empty tutorial and one line in the log; the start does not fail |
+| `MODELS_TELEMETRY_LEVELS_DIR` | Optional; the levels telemetry runs are played again in. See [Telemetry](#telemetry) |
 
 ## Tests
 
@@ -74,6 +75,24 @@ checks that the first one was signed out, and deletes the model and its file.
 
 After editing a migration, run `dart run tool/embed_migrations.dart`. With
 `--check` it fails when the generated file is stale.
+
+## Telemetry
+
+The reference server for runs that players agreed to send (N7 in
+`tasks/0.9-engine-roadmap.md`). Under `/api/telemetry/`:
+
+| | |
+|---|---|
+| `POST runs` | A `TelemetryUpload` from `flutter3d_sim`. Refused without the consent it was sent under. The run is played again through `resimulate`; one that diverges, or names a game or a level this server lacks, is refused and nothing is kept. An accepted run keeps its trail, outcome, length and the consent record, not its input, and answers `201 {run, eraseKey}` |
+| `DELETE runs/<run>?key=<eraseKey>` | Deletes the run. Only the key's hash is stored |
+| `GET heatmap?level=<digest>&cell=<metres>` | The newest 2000 runs of that level, binned. The JSON is the playtest report's, which the editor's report screen draws |
+
+`MODELS_TELEMETRY_LEVELS_DIR` names a directory of level documents, keyed by
+their digest; a file that does not parse is named in the log and skipped.
+The games are `HeadlessGame`s handed to `Services(telemetryGames:)` in code.
+`main.server.dart` hands none, because every genre in the repository needs
+Flutter and this process runs under `dart run`, so as shipped the endpoint
+answers 503 and says why.
 
 ## Deploying
 

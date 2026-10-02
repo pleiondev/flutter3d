@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
@@ -231,52 +230,37 @@ final class SimSession {
     } catch (error) {
       return _refuse('could not read the run\'s level "${demo.level}": $error');
     }
-    if (level.digestHex != demo.levelHash) {
-      return _refuse(
-        'the level at "${demo.level}" has changed since the run was recorded '
-        '(hash ${level.digestHex}, the run says ${demo.levelHash}) — a tape '
-        'played into different geometry proves nothing',
-      );
+    // The same replay N7's telemetry server reads metrics off, so a run this
+    // tool calls verified is a run that server would take.
+    final ResimulationRetraced retraced;
+    switch (resimulate(game: game, level: level, demo: demo, dt: _dt)) {
+      case ResimulationLevelChanged(:final found, :final recorded):
+        return _refuse(
+          'the level at "${demo.level}" has changed since the run was '
+          'recorded (hash $found, the run says $recorded) — a tape played '
+          'into different geometry proves nothing',
+        );
+      // A run that does not start where the recording started diverges
+      // before its first step, and saying so is more use than the
+      // checkpoint after.
+      case ResimulationStartDiffers():
+        return _refuse(
+          'diverges before the first step: a fresh ${game.name} run of '
+          '"${demo.level}" does not start where "$path" started',
+        );
+      case final ResimulationDiverged diverged:
+        return _refuse(
+          'diverges — ${diverged.divergence}; the difference arose after '
+          'step ${diverged.agreedUntil}',
+        );
+      case final ResimulationRetraced found:
+        retraced = found;
     }
-
-    final world = CollisionWorld();
-    level.addTo(world);
-    final input = InputState();
-    final run = game.start(level, world, input);
-    world.update();
-    // A run that does not start where the recording started diverges before
-    // its first step, and saying so is more use than the checkpoint after.
-    if (StateDigest.of(run.save().toJson()) !=
-        StateDigest.of(demo.start.toJson())) {
-      return _refuse(
-        'diverges before the first step: a fresh ${game.name} run of '
-        '"${demo.level}" does not start where "$path" started',
-      );
-    }
-
-    final playback = InputTapePlayback(demo.tape);
-    final trace = DigestTrace(every: demo.checkpoints.every);
-    for (var step = 1; step <= demo.steps; step++) {
-      playback.applyTo(input);
-      input.beginStep();
-      run.step(_dt);
-      if (step % trace.every == 0) trace.observe(step, run.save().toJson());
-      input.endStep();
-    }
-
-    final divergence = trace.divergenceFrom(demo.checkpoints.digests);
-    if (divergence != null) {
-      return _refuse(
-        'diverges — $divergence; the difference arose after step '
-        '${math.max(0, divergence.step - trace.every)}',
-      );
-    }
-    final hex = StateDigest.of(
-      run.save().toJson(),
-    ).toRadixString(16).padLeft(8, '0');
+    final run = retraced.run;
+    final hex = retraced.finalDigest.toRadixString(16).padLeft(8, '0');
     final agrees =
         'replayed ${demo.steps} steps of "$path": agrees at all '
-        '${trace.steps.length} checkpoints, ends at step ${demo.steps}, '
+        '${retraced.checkpoints} checkpoints, ends at step ${demo.steps}, '
         'digest $hex';
     if (claim == null) return _ok('$agrees. ${run.summary}');
     try {

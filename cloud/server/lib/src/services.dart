@@ -1,6 +1,8 @@
 /// Everything a request handler or a page reaches for, built once at start.
 library;
 
+import 'package:flutter3d_sim/flutter3d_sim.dart' show HeadlessGame, Level;
+
 import 'auth/accounts.dart';
 import 'config.dart';
 import 'db/database.dart';
@@ -10,11 +12,13 @@ import 'db/models_repository.dart';
 import 'db/projects_repository.dart';
 import 'db/rate_limit.dart';
 import 'db/sessions_repository.dart';
+import 'db/telemetry_repository.dart';
 import 'db/users_repository.dart';
 import 'http/cookies.dart';
 import 'http/gallery_catalogue.dart';
 import 'mail/mailer.dart';
 import 'storage/blob_store.dart';
+import 'telemetry/telemetry_service.dart';
 
 class Services {
   Services({
@@ -23,7 +27,14 @@ class Services {
     required this.mailer,
     required this.blobs,
     GalleryCatalogue? gallery,
+    Map<String, HeadlessGame> telemetryGames = const <String, HeadlessGame>{},
+    Map<String, Level> telemetryLevels = const <String, Level>{},
   }) : gallery = gallery ?? const FixedCatalogue(),
+       telemetry = TelemetryService(
+         games: telemetryGames,
+         levels: telemetryLevels,
+         store: TelemetryRepository(db),
+       ),
        users = UsersRepository(db),
        sessions = SessionsRepository(db),
        tokens = EmailTokensRepository(db),
@@ -64,6 +75,14 @@ class Services {
   final GalleryCatalogue gallery;
   final Mailer mailer;
   final BlobStore blobs;
+
+  /// N7: runs sent with a player's consent, played again and binned.
+  ///
+  /// **Empty unless a deploy hands it games and levels**, and an empty one
+  /// answers every run with why it took none. The games are [HeadlessGame]s
+  /// this process can step, so they are chosen in code where the server is
+  /// built; the levels come from `MODELS_TELEMETRY_LEVELS_DIR`.
+  final TelemetryService telemetry;
 
   final UsersRepository users;
   final SessionsRepository sessions;

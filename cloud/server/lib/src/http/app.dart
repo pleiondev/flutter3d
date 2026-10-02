@@ -38,6 +38,7 @@ import 'metrics.dart';
 import 'render.dart';
 import 'request.dart';
 import 'static_files.dart';
+import 'telemetry_routes.dart';
 
 /// The largest preview picture accepted, in bytes.
 ///
@@ -60,6 +61,9 @@ Handler buildHandler(Services services) {
     // `gal-07`: the modeller's own gallery, behind one endpoint of ours,
     // so the keys the outside catalogues want stay on a machine we own.
     ..mount('/gallery/', galleryRoutes(services.gallery).call)
+    // N7: runs a player agreed to send, played again here; no session and no
+    // cookie, so nothing for a forged form to ride on.
+    ..mount('/api/telemetry/', telemetryRoutes(services.telemetry).call)
     // Nothing here checks who is asking. The endpoint is not linked from any
     // page and nginx keeps it off the public vhost (see
     // `cloud/monitoring/deploy/nginx-grafana.pleion.dev.conf` and

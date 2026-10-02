@@ -52,6 +52,12 @@ dependencies:
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
 
+  # N7: a run sent as telemetry is played again here, through the simulation
+  # the player ran — `resimulate`, `TelemetryUpload`, `Heatmap`. Plain Dart,
+  # which is why a server can hold it at all.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
   # Argon2id for passwords, in Dart. The FFI binding to libargon2 stopped at
   # Dart 2, and a password hash is the one place where a dependency that has
   # stopped is not a trade worth making.
@@ -71,6 +77,10 @@ dev_dependencies:
   jaspr_builder: ^0.23.4
   lints: ^6.0.0
   test: ^1.25.0
+
+  # The positions of the walking body `telemetry_routes_test.dart` re-simulates
+  # — the simulation's own vector type, already in the lock through it.
+  vector_math: ^2.4.3
 
   # `tool/embed_migrations.dart` formats its own output before writing it, so
   # `--check`'s byte comparison and the repository's own `dart format` step
@@ -111,6 +121,8 @@ dependency_overrides:
     path: ../../packages/flutter3d_physics
   flutter3d_shaders:
     path: ../../packages/flutter3d_shaders
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
 
 jaspr:
   mode: server
