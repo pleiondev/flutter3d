@@ -161,7 +161,9 @@ Material glass() => Material(
   roughness: 0.04,
   alphaMode: MaterialAlphaMode.blend,
   doubleSided: true,
-  extensions: MaterialExtensions(transmission: 0.95, ior: 1.5),
+  // A few millimetres of thickness, so what is behind the glass is bent a
+  // little rather than seen straight through a sheet with no depth.
+  extensions: MaterialExtensions(transmission: 0.95, ior: 1.5, thickness: 0.01),
 );
 
 /// A solution: clear liquid that light passes through, tinted by what it
@@ -176,6 +178,10 @@ Material liquid(Vector3 colour) => Material(
   baseColor: Vector4(colour.x, colour.y, colour.z, 0.8),
   roughness: 0.03,
   alphaMode: MaterialAlphaMode.blend,
+  // Blended surfaces leave the depth buffer alone, so the see-through
+  // tabletop, drawn after the liquids, laid itself over their lower half.
+  // Written, the liquid's depth keeps the table behind it.
+  depthWrite: true,
   extensions: MaterialExtensions(
     ior: 1.33,
     transmission: 0.35,
@@ -194,6 +200,10 @@ Material liquid(Vector3 colour) => Material(
 Material paper([TextureHandle? label]) =>
     Material(name: 'label', albedo: label, roughness: 0.8);
 
+/// How the bench is drawn: under [labSky]. The tabletop's reflections are
+/// mirrored geometry (see `Bench`), so no screen-space pass is needed.
+final RenderSettings benchSettings = RenderSettings(sky: labSky);
+
 /// The room the bench stands in, as a sky: bright overhead, a pale horizon
 /// and a darker floor. Glass shows almost nothing of itself; it shows what is
 /// round it, and with nothing round it every tube read as dark plastic. This
@@ -205,7 +215,7 @@ final SkySettings labSky = SkySettings(
   nadir: Vector3(0.18, 0.19, 0.22),
   directionToSun: Vector3(0.5, 1.0, 0.6),
   sunColor: Vector3(1.0, 0.97, 0.92),
-  glowStrength: 0.25,
+  glowStrength: 0.0,
 );
 
 /// [outer] given a wall of [thickness]: up the outside, over a rounded rim

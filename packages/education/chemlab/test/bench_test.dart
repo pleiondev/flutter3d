@@ -91,6 +91,32 @@ void main() {
     expect(beaker.level, beaker.highest);
   });
 
+  test('the bench stays inside the eight lights an object is lit by', () {
+    // Mutation: give the cylinder and the flask caustics too, and a ninth
+    // light pushes the sun out and its shadow with it.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final lights = bench.scene.root.children.whereType<LightNode>();
+    expect(lights.length, lessThanOrEqualTo(LightBuffer.maxLights));
+  });
+
+  test('pouring moves the caustic and its reflection with the liquid', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels.first;
+    final caustic = tube.caustic!;
+
+    bench.pour(tube, tube.lowest + 0.05);
+    final (intensity, position) = (caustic.intensity, caustic.readPosition());
+    bench.pour(tube, tube.highest);
+    // A taller column throws a stronger patch, further from the tube.
+    expect(caustic.intensity, greaterThan(intensity));
+    expect(caustic.readPosition(), isNot(position));
+    // Mutation: leave the reflection on the old mesh, and it shows the
+    // level before the pour.
+    expect(identical(tube.liquidReflection.mesh, tube.liquid.mesh), isTrue);
+  });
+
   test(
     'a label goes on a tube once its picture exists, and only on a tube',
     () {
@@ -127,6 +153,7 @@ void main() {
     final frame = await renderFrame(
       width: 960,
       height: 504,
+      settings: benchSettings,
       clearColor: Vector4(0.1, 0.11, 0.14, 1.0),
       build: (request) {
         final bench = Bench(request.device);
