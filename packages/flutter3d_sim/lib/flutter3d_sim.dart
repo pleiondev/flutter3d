@@ -99,6 +99,8 @@ export 'src/nav/flow_field.dart';
 export 'src/nav/jump_links.dart';
 export 'src/nav/nav_grid.dart';
 export 'src/nav/navigation.dart';
+export 'src/nav/navmesh/navmesh.dart';
+export 'src/nav/navmesh/navmesh_config.dart';
 export 'src/physics/layers.dart';
 export 'src/save/data_source_trace.dart';
 export 'src/save/demo.dart';

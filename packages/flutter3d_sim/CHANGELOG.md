@@ -77,6 +77,20 @@
   camera was, so a chase camera left behind a wall does not start the photo
   there. `shouldPause` takes `photoMode`, which pauses whatever the pointer and
   the pad say, since both are flying the camera.
+
+- **A level bakes into a navigation mesh as well as a grid.**
+  `NavMesh.bake` and `NavMesh.bakeLevel` voxelise the brushes and the
+  `Heightfield`, keep the floors an agent fits on and can step between
+  (`NavMeshConfig`: height, step, radius, slope), erode them by the radius,
+  cut them into regions, outline those, and cut the outlines into convex
+  polygons with their neighbours and an area each. Unlike `NavGrid` it keeps
+  a walkway and the floor under it, and walks up a ramp rather than reading
+  it as a riser. Integers from the voxeliser on, so `NavMesh.digest` is the
+  same on every platform; the VM and Chrome agree on six scenes, and the
+  test holds them. The mesh is eroded by `NavGrid`'s own clearance rule and
+  covers exactly the cells a flow field for the same body accepts. It is
+  the first part of N2; the path search over it comes next.
+
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,
