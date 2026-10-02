@@ -31,6 +31,31 @@ Future<Process> _startFlutter(
   runInShell: Platform.isWindows,
 );
 
+/// Ends a `flutter` process [StartFlutter] started. A parameter of
+/// [FlutterRun] so a test sees a stop reach the process.
+typedef KillFlutter = void Function(Process process);
+
+void _killFlutter(Process process) {
+  switch (treeKillCommand(process.pid, windows: Platform.isWindows)) {
+    case [final executable, ...final arguments]:
+      unawaited(Process.run(executable, arguments));
+    default:
+      process.kill();
+  }
+}
+
+/// The command that ends [pid] together with everything it started, or null
+/// where [Process.kill] already reaches the tool.
+///
+/// **On Windows the process is a shell, not the tool.** `flutter` there is
+/// `flutter.bat`, so [StartFlutter] goes through `cmd.exe`, and
+/// [Process.kill] ends the `cmd.exe` and leaves the Dart process behind it
+/// building, holding the project's `build` directory open. `taskkill /t`
+/// takes the tree. On macOS and Linux `bin/flutter` `exec`s the tool, so the
+/// pid is already the tool's.
+List<String>? treeKillCommand(int pid, {required bool windows}) =>
+    windows ? <String>['taskkill', '/pid', '$pid', '/t', '/f'] : null;
+
 /// One `flutter run --machine`, from start to exit.
 ///
 /// **Its console is the tool's, line for line.** What the game prints, what
@@ -44,6 +69,7 @@ final class FlutterRun implements PlayedGame {
     required this.projectRoot,
     this.device,
     this._start = _startFlutter,
+    this._kill = _killFlutter,
   });
 
   /// The directory with the project's `pubspec.yaml`.
@@ -54,6 +80,8 @@ final class FlutterRun implements PlayedGame {
   String? device;
 
   final StartFlutter _start;
+
+  final KillFlutter _kill;
 
   @override
   String get title => projectRoot;
@@ -133,7 +161,7 @@ final class FlutterRun implements PlayedGame {
   Future<void> stop() async {
     final appId = _appId;
     if (appId == null) {
-      _process?.kill();
+      if (_process case final Process process) _kill(process);
       return;
     }
     try {

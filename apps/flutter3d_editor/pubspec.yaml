@@ -11,10 +11,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # **Desktop only, and there is no web half.** The other three applications
-  # pick a backend at compile time because they ship to a browser; this one
-  # exists to write a file back to the disk it came from, which a browser will
-  # not do. One backend, named here, and no `backend_web.dart`.
+  # **Desktop runners for macOS, Windows and Linux; the web build is a step of
+  # its own.** The other applications pick a backend at compile time because
+  # they ship to a browser. This one was written to save a file back to the
+  # disk it came from, which a browser will not do, so for now there is one
+  # backend, named here, and no `backend_web.dart`. P11 in
+  # `tasks/0.9-engine-roadmap.md` asks for a web build that cannot Play another
+  # project; it brings its backend with it when it lands.
   flutter3d_impeller:
     path: ../../packages/flutter3d_impeller
 
