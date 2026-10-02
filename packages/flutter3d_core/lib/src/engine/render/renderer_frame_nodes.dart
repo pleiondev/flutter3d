@@ -2182,12 +2182,46 @@ final class _FxaaNode extends RenderNode {
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = _renderer._ldrColor!;
     frame.resources.provide(FrameResourceIds.frame, target);
-    _renderer._encodeFxaa(
-      target: target,
-      source: source,
-      settings: _settings,
-      upscaleSharpen: upscaleSharpen,
-    );
+    // `P1`. SMAA smooths and nothing else; a sharpening asked for alongside
+    // it still rides in the FXAA pass, with the smoothing there switched off,
+    // over SMAA's output.
+    if (_settings.enabled &&
+        _settings.method == EdgeSmoothing.smaa &&
+        _renderer._hasSmaa) {
+      final sharpens =
+          _settings.sharpen > 0.0 ||
+          (_settings.temporal.enabled && _settings.temporal.sharpen > 0.0) ||
+          upscaleSharpen > 0.0;
+      final smoothed = sharpens
+          ? frame.resources.transient(
+              RenderTargetSpec(
+                width: source.width,
+                height: source.height,
+                format: _renderer._frameFormat,
+              ),
+            )
+          : target;
+      _renderer._encodeSmaa(
+        target: smoothed,
+        source: source,
+        resources: frame.resources,
+      );
+      if (sharpens) {
+        _renderer._encodeFxaa(
+          target: target,
+          source: smoothed,
+          settings: _settings.copyWith(enabled: false),
+          upscaleSharpen: upscaleSharpen,
+        );
+      }
+    } else {
+      _renderer._encodeFxaa(
+        target: target,
+        source: source,
+        settings: _settings,
+        upscaleSharpen: upscaleSharpen,
+      );
+    }
     developer.Timeline.finishSync();
   }
 }

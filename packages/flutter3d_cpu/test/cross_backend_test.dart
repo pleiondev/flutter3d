@@ -250,6 +250,10 @@ const Map<String, double> _budgets = <String, double>{
   // 1.501% measured: the upscale sharpens the rasteriser's edges and
   // Impeller's multisampled ones differently.
   'easu-half': 1.66,
+  // 0.000% measured, where `shadow-teapot` without it sits at half a
+  // percent: the two rasterisers' staircases differ, and SMAA rebuilds the
+  // same line behind both.
+  'smaa-teapot': 0.05,
   'evsm-soft': 0.5,
   // 0.069% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of

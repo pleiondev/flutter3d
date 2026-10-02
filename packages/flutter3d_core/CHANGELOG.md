@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **SMAA 1x beside FXAA.** `AntiAliasSettings(method: EdgeSmoothing.smaa)`
+  smooths the finished picture in three passes: the luma steps marked, the
+  line behind each staircase rebuilt from where its run ends and which side
+  of each end a crossing edge stands on, and each pixel blended by the area
+  that line covers of it. Against an 8×8 supersample a tilted edge comes out
+  at about a quarter of its hard error. FXAA stays the default; a bundle
+  without the three stages falls back to it. Orthogonal edges only: no
+  diagonal search and no corner rounding. The area table is the engine's
+  `smaaArea`, written by `tool/make_tables.dart` and shared with the
+  software backend byte for byte.
+
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

@@ -1422,6 +1422,21 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'light': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'SmaaBlend': <String, Map<String, UniformMemberLayout>>{
+    'SmaaInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'SmaaEdges': <String, Map<String, UniformMemberLayout>>{
+    'SmaaInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'SmaaWeights': <String, Map<String, UniformMemberLayout>>{
+    'SmaaInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Splat': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

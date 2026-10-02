@@ -27615,6 +27615,664 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'SmaaEdges': WebGpuStage(
+      wgsl: r'''
+struct SmaaInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(1) 
+var source_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var source_texture_smp: sampler;
+@group(1) @binding(0) 
+var<uniform> smaa_info: SmaaInfo;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+
+fn Luma_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
+    var c: vec3<f32>;
+
+    let _e19 = (*at);
+    let _e20 = textureSampleLevel(source_texture_tex, source_texture_smp, _e19, 0f);
+    c = _e20.xyz;
+    let _e22 = c;
+    return dot(_e22, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
+}
+
+fn main_1() {
+    var texel: vec2<f32>;
+    var middle: f32;
+    var param: vec2<f32>;
+    var left: f32;
+    var param_1: vec2<f32>;
+    var top: f32;
+    var param_2: vec2<f32>;
+    var delta: vec2<f32>;
+    var edges: vec2<f32>;
+    var right: f32;
+    var param_3: vec2<f32>;
+    var bottom: f32;
+    var param_4: vec2<f32>;
+    var leftLeft: f32;
+    var param_5: vec2<f32>;
+    var topTop: f32;
+    var param_6: vec2<f32>;
+    var largest: f32;
+
+    let _e36 = smaa_info.params;
+    texel = _e36.xy;
+    let _e38 = v_uv_1;
+    param = _e38;
+    let _e39 = Luma_u0028_vf2_u003b((&param));
+    middle = _e39;
+    let _e40 = v_uv_1;
+    let _e42 = texel[0u];
+    param_1 = (_e40 + vec2<f32>(-(_e42), 0f));
+    let _e46 = Luma_u0028_vf2_u003b((&param_1));
+    left = _e46;
+    let _e47 = v_uv_1;
+    let _e49 = texel[1u];
+    param_2 = (_e47 + vec2<f32>(0f, -(_e49)));
+    let _e53 = Luma_u0028_vf2_u003b((&param_2));
+    top = _e53;
+    let _e54 = middle;
+    let _e55 = left;
+    let _e57 = middle;
+    let _e58 = top;
+    delta = abs(vec2<f32>((_e54 - _e55), (_e57 - _e58)));
+    let _e64 = smaa_info.params[2u];
+    let _e66 = delta;
+    edges = step(vec2(_e64), _e66);
+    let _e69 = edges[0u];
+    let _e71 = edges[1u];
+    if ((_e69 + _e71) == 0f) {
+        frag_color = vec4<f32>(0f, 0f, 0f, 0f);
+        return;
+    }
+    let _e74 = middle;
+    let _e75 = v_uv_1;
+    let _e77 = texel[0u];
+    param_3 = (_e75 + vec2<f32>(_e77, 0f));
+    let _e80 = Luma_u0028_vf2_u003b((&param_3));
+    right = abs((_e74 - _e80));
+    let _e83 = middle;
+    let _e84 = v_uv_1;
+    let _e86 = texel[1u];
+    param_4 = (_e84 + vec2<f32>(0f, _e86));
+    let _e89 = Luma_u0028_vf2_u003b((&param_4));
+    bottom = abs((_e83 - _e89));
+    let _e92 = left;
+    let _e93 = v_uv_1;
+    let _e95 = texel[0u];
+    param_5 = (_e93 + vec2<f32>((-2f * _e95), 0f));
+    let _e99 = Luma_u0028_vf2_u003b((&param_5));
+    leftLeft = abs((_e92 - _e99));
+    let _e102 = top;
+    let _e103 = v_uv_1;
+    let _e105 = texel[1u];
+    param_6 = (_e103 + vec2<f32>(0f, (-2f * _e105)));
+    let _e109 = Luma_u0028_vf2_u003b((&param_6));
+    topTop = abs((_e102 - _e109));
+    let _e113 = delta[0u];
+    let _e115 = delta[1u];
+    let _e117 = right;
+    let _e118 = bottom;
+    let _e121 = leftLeft;
+    let _e122 = topTop;
+    largest = max(max(max(_e113, _e115), max(_e117, _e118)), max(_e121, _e122));
+    let _e125 = largest;
+    let _e129 = smaa_info.params[3u];
+    let _e130 = delta;
+    let _e133 = edges;
+    edges = (_e133 * step(vec2(_e125), (_e130 * _e129)));
+    let _e135 = edges;
+    frag_color = vec4<f32>(_e135.x, _e135.y, 0f, 0f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'SmaaInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'source_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'SmaaWeights': WebGpuStage(
+      wgsl: r'''
+struct SmaaInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(3) 
+var edges_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var edges_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> smaa_info: SmaaInfo;
+@group(1) @binding(1) 
+var area_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var area_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn Area_u0028_f1_u003b_f1_u003b_f1_u003b_f1_u003b(first: ptr<function, f32>, last: ptr<function, f32>, codeFirst: ptr<function, f32>, codeLast: ptr<function, f32>) -> vec2<f32> {
+    var at: vec2<f32>;
+
+    let _e28 = (*codeFirst);
+    let _e29 = (*codeLast);
+    let _e32 = (*first);
+    let _e33 = (*last);
+    at = ((((vec2<f32>(_e28, _e29) * 16f) + sqrt(vec2<f32>(_e32, _e33))) + vec2(0.5f)) / vec2(80f));
+    let _e41 = at;
+    let _e42 = textureSampleLevel(area_texture_tex, area_texture_smp, _e41, 0f);
+    return _e42.xy;
+}
+
+fn Edges_u0028_vf2_u003b(offset: ptr<function, vec2<f32>>) -> vec4<f32> {
+    let _e24 = v_uv_1;
+    let _e25 = (*offset);
+    let _e27 = smaa_info.params;
+    let _e31 = textureSampleLevel(edges_texture_tex, edges_texture_smp, (_e24 + (_e25 * _e27.xy)), 0f);
+    return _e31;
+}
+
+fn main_1() {
+    var here: vec4<f32>;
+    var param: vec2<f32>;
+    var weights: vec4<f32>;
+    var first_1: i32;
+    var i: i32;
+    var param_1: vec2<f32>;
+    var param_2: vec2<f32>;
+    var last_1: i32;
+    var i_1: i32;
+    var next: vec4<f32>;
+    var param_3: vec2<f32>;
+    var f: f32;
+    var l: f32;
+    var codeFirst_1: f32;
+    var local: f32;
+    var param_4: vec2<f32>;
+    var param_5: vec2<f32>;
+    var codeLast_1: f32;
+    var local_1: f32;
+    var param_6: vec2<f32>;
+    var param_7: vec2<f32>;
+    var param_8: f32;
+    var param_9: f32;
+    var param_10: f32;
+    var param_11: f32;
+    var first_2: i32;
+    var i_2: i32;
+    var param_12: vec2<f32>;
+    var param_13: vec2<f32>;
+    var last_2: i32;
+    var i_3: i32;
+    var next_1: vec4<f32>;
+    var param_14: vec2<f32>;
+    var f_1: f32;
+    var l_1: f32;
+    var codeFirst_2: f32;
+    var local_2: f32;
+    var param_15: vec2<f32>;
+    var param_16: vec2<f32>;
+    var codeLast_2: f32;
+    var local_3: f32;
+    var param_17: vec2<f32>;
+    var param_18: vec2<f32>;
+    var param_19: f32;
+    var param_20: f32;
+    var param_21: f32;
+    var param_22: f32;
+    var phi_126_: bool;
+    var phi_159_: bool;
+    var phi_265_: bool;
+    var phi_297_: bool;
+
+    param = vec2<f32>(0f, 0f);
+    let _e70 = Edges_u0028_vf2_u003b((&param));
+    here = _e70;
+    weights = vec4<f32>(0f, 0f, 0f, 0f);
+    let _e72 = here[1u];
+    if (_e72 > 0.5f) {
+        first_1 = 32i;
+        i = 0i;
+        loop {
+            let _e74 = i;
+            if (_e74 < 32i) {
+                let _e76 = i;
+                param_1 = vec2<f32>(-(f32(_e76)), 0f);
+                let _e80 = Edges_u0028_vf2_u003b((&param_1));
+                let _e82 = (_e80.x > 0.5f);
+                phi_126_ = _e82;
+                if !(_e82) {
+                    let _e84 = i;
+                    param_2 = vec2<f32>((-(f32(_e84)) - 1f), 0f);
+                    let _e89 = Edges_u0028_vf2_u003b((&param_2));
+                    phi_126_ = (_e89.y < 0.5f);
+                }
+                let _e93 = phi_126_;
+                if _e93 {
+                    let _e94 = i;
+                    first_1 = _e94;
+                    break;
+                }
+                continue;
+            } else {
+                break;
+            }
+            continuing {
+                let _e95 = i;
+                i = (_e95 + 1i);
+            }
+        }
+        last_1 = 32i;
+        i_1 = 0i;
+        loop {
+            let _e97 = i_1;
+            if (_e97 < 32i) {
+                let _e99 = i_1;
+                param_3 = vec2<f32>((f32(_e99) + 1f), 0f);
+                let _e103 = Edges_u0028_vf2_u003b((&param_3));
+                next = _e103;
+                let _e105 = next[0u];
+                let _e106 = (_e105 > 0.5f);
+                phi_159_ = _e106;
+                if !(_e106) {
+                    let _e109 = next[1u];
+                    phi_159_ = (_e109 < 0.5f);
+                }
+                let _e112 = phi_159_;
+                if _e112 {
+                    let _e113 = i_1;
+                    last_1 = _e113;
+                    break;
+                }
+                continue;
+            } else {
+                break;
+            }
+            continuing {
+                let _e114 = i_1;
+                i_1 = (_e114 + 1i);
+            }
+        }
+        let _e116 = first_1;
+        f = f32(_e116);
+        let _e118 = last_1;
+        l = f32(_e118);
+        let _e120 = first_1;
+        if (_e120 == 32i) {
+            local = 0f;
+        } else {
+            let _e122 = f;
+            param_4 = vec2<f32>(-(_e122), 0f);
+            let _e125 = Edges_u0028_vf2_u003b((&param_4));
+            let _e128 = f;
+            param_5 = vec2<f32>(-(_e128), -1f);
+            let _e131 = Edges_u0028_vf2_u003b((&param_5));
+            local = ((3f * _e125.x) + _e131.x);
+        }
+        let _e134 = local;
+        codeFirst_1 = _e134;
+        let _e135 = last_1;
+        if (_e135 == 32i) {
+            local_1 = 0f;
+        } else {
+            let _e137 = l;
+            param_6 = vec2<f32>((_e137 + 1f), 0f);
+            let _e140 = Edges_u0028_vf2_u003b((&param_6));
+            let _e143 = l;
+            param_7 = vec2<f32>((_e143 + 1f), -1f);
+            let _e146 = Edges_u0028_vf2_u003b((&param_7));
+            local_1 = ((3f * _e140.x) + _e146.x);
+        }
+        let _e149 = local_1;
+        codeLast_1 = _e149;
+        let _e150 = f;
+        param_8 = _e150;
+        let _e151 = l;
+        param_9 = _e151;
+        let _e152 = codeFirst_1;
+        param_10 = _e152;
+        let _e153 = codeLast_1;
+        param_11 = _e153;
+        let _e154 = Area_u0028_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_8), (&param_9), (&param_10), (&param_11));
+        weights[0u] = _e154.x;
+        weights[1u] = _e154.y;
+    }
+    let _e160 = here[0u];
+    if (_e160 > 0.5f) {
+        first_2 = 32i;
+        i_2 = 0i;
+        loop {
+            let _e162 = i_2;
+            if (_e162 < 32i) {
+                let _e164 = i_2;
+                param_12 = vec2<f32>(0f, -(f32(_e164)));
+                let _e168 = Edges_u0028_vf2_u003b((&param_12));
+                let _e170 = (_e168.y > 0.5f);
+                phi_265_ = _e170;
+                if !(_e170) {
+                    let _e172 = i_2;
+                    param_13 = vec2<f32>(0f, (-(f32(_e172)) - 1f));
+                    let _e177 = Edges_u0028_vf2_u003b((&param_13));
+                    phi_265_ = (_e177.x < 0.5f);
+                }
+                let _e181 = phi_265_;
+                if _e181 {
+                    let _e182 = i_2;
+                    first_2 = _e182;
+                    break;
+                }
+                continue;
+            } else {
+                break;
+            }
+            continuing {
+                let _e183 = i_2;
+                i_2 = (_e183 + 1i);
+            }
+        }
+        last_2 = 32i;
+        i_3 = 0i;
+        loop {
+            let _e185 = i_3;
+            if (_e185 < 32i) {
+                let _e187 = i_3;
+                param_14 = vec2<f32>(0f, (f32(_e187) + 1f));
+                let _e191 = Edges_u0028_vf2_u003b((&param_14));
+                next_1 = _e191;
+                let _e193 = next_1[1u];
+                let _e194 = (_e193 > 0.5f);
+                phi_297_ = _e194;
+                if !(_e194) {
+                    let _e197 = next_1[0u];
+                    phi_297_ = (_e197 < 0.5f);
+                }
+                let _e200 = phi_297_;
+                if _e200 {
+                    let _e201 = i_3;
+                    last_2 = _e201;
+                    break;
+                }
+                continue;
+            } else {
+                break;
+            }
+            continuing {
+                let _e202 = i_3;
+                i_3 = (_e202 + 1i);
+            }
+        }
+        let _e204 = first_2;
+        f_1 = f32(_e204);
+        let _e206 = last_2;
+        l_1 = f32(_e206);
+        let _e208 = first_2;
+        if (_e208 == 32i) {
+            local_2 = 0f;
+        } else {
+            let _e210 = f_1;
+            param_15 = vec2<f32>(0f, -(_e210));
+            let _e213 = Edges_u0028_vf2_u003b((&param_15));
+            let _e216 = f_1;
+            param_16 = vec2<f32>(-1f, -(_e216));
+            let _e219 = Edges_u0028_vf2_u003b((&param_16));
+            local_2 = ((3f * _e213.y) + _e219.y);
+        }
+        let _e222 = local_2;
+        codeFirst_2 = _e222;
+        let _e223 = last_2;
+        if (_e223 == 32i) {
+            local_3 = 0f;
+        } else {
+            let _e225 = l_1;
+            param_17 = vec2<f32>(0f, (_e225 + 1f));
+            let _e228 = Edges_u0028_vf2_u003b((&param_17));
+            let _e231 = l_1;
+            param_18 = vec2<f32>(-1f, (_e231 + 1f));
+            let _e234 = Edges_u0028_vf2_u003b((&param_18));
+            local_3 = ((3f * _e228.y) + _e234.y);
+        }
+        let _e237 = local_3;
+        codeLast_2 = _e237;
+        let _e238 = f_1;
+        param_19 = _e238;
+        let _e239 = l_1;
+        param_20 = _e239;
+        let _e240 = codeFirst_2;
+        param_21 = _e240;
+        let _e241 = codeLast_2;
+        param_22 = _e241;
+        let _e242 = Area_u0028_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_19), (&param_20), (&param_21), (&param_22));
+        weights[2u] = _e242.x;
+        weights[3u] = _e242.y;
+    }
+    let _e247 = weights;
+    frag_color = _e247;
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'SmaaInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'area_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'edges_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'SmaaBlend': WebGpuStage(
+      wgsl: r'''
+struct SmaaInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> smaa_info: SmaaInfo;
+@group(1) @binding(1) 
+var blend_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var blend_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(3) 
+var source_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var source_texture_smp: sampler;
+
+fn main_1() {
+    var texel: vec2<f32>;
+    var right: f32;
+    var bottom: f32;
+    var mine: vec4<f32>;
+    var top: f32;
+    var left: f32;
+    var across: bool;
+    var toward: f32;
+    var away: f32;
+    var axis: vec2<f32>;
+    var local: vec2<f32>;
+    var first: vec4<f32>;
+    var second: vec4<f32>;
+    var total: f32;
+
+    let _e29 = smaa_info.params;
+    texel = _e29.xy;
+    let _e31 = v_uv_1;
+    let _e33 = texel[0u];
+    let _e36 = textureSampleLevel(blend_texture_tex, blend_texture_smp, (_e31 + vec2<f32>(_e33, 0f)), 0f);
+    right = _e36.w;
+    let _e38 = v_uv_1;
+    let _e40 = texel[1u];
+    let _e43 = textureSampleLevel(blend_texture_tex, blend_texture_smp, (_e38 + vec2<f32>(0f, _e40)), 0f);
+    bottom = _e43.y;
+    let _e45 = v_uv_1;
+    let _e46 = textureSampleLevel(blend_texture_tex, blend_texture_smp, _e45, 0f);
+    mine = _e46;
+    let _e48 = mine[0u];
+    top = _e48;
+    let _e50 = mine[2u];
+    left = _e50;
+    let _e51 = right;
+    let _e52 = bottom;
+    let _e54 = top;
+    let _e56 = left;
+    if ((((_e51 + _e52) + _e54) + _e56) < 0.00001f) {
+        let _e59 = v_uv_1;
+        let _e60 = textureSampleLevel(source_texture_tex, source_texture_smp, _e59, 0f);
+        frag_color = _e60;
+        return;
+    }
+    let _e61 = right;
+    let _e62 = left;
+    let _e64 = bottom;
+    let _e65 = top;
+    across = (max(_e61, _e62) > max(_e64, _e65));
+    let _e68 = across;
+    let _e69 = right;
+    let _e70 = bottom;
+    toward = select(_e70, _e69, _e68);
+    let _e72 = across;
+    let _e73 = left;
+    let _e74 = top;
+    away = select(_e74, _e73, _e72);
+    let _e76 = across;
+    if _e76 {
+        let _e78 = texel[0u];
+        local = vec2<f32>(_e78, 0f);
+    } else {
+        let _e81 = texel[1u];
+        local = vec2<f32>(0f, _e81);
+    }
+    let _e83 = local;
+    axis = _e83;
+    let _e84 = v_uv_1;
+    let _e85 = toward;
+    let _e86 = axis;
+    let _e89 = textureSampleLevel(source_texture_tex, source_texture_smp, (_e84 + (_e86 * _e85)), 0f);
+    first = _e89;
+    let _e90 = v_uv_1;
+    let _e91 = away;
+    let _e92 = axis;
+    let _e95 = textureSampleLevel(source_texture_tex, source_texture_smp, (_e90 - (_e92 * _e91)), 0f);
+    second = _e95;
+    let _e96 = toward;
+    let _e97 = away;
+    total = (_e96 + _e97);
+    let _e99 = first;
+    let _e100 = toward;
+    let _e101 = total;
+    let _e104 = second;
+    let _e105 = away;
+    let _e106 = total;
+    frag_color = ((_e99 * (_e100 / _e101)) + (_e104 * (_e105 / _e106)));
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'SmaaInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'blend_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'source_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'MrtProbe': WebGpuStage(
       wgsl: r'''
 struct FragmentOutput {

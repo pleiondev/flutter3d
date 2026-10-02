@@ -1,3 +1,9 @@
+## Unreleased
+
+- **SMAA 1x's three stages translated**, through glslang and naga like every
+  other stage; `smaa-teapot` is in the WebGPU reference set and matches
+  Impeller's to the pixel.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

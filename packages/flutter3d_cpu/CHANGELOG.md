@@ -1,3 +1,11 @@
+## Unreleased
+
+- **SMAA 1x in software.** `SmaaEdgesShader`, `SmaaWeightsShader` and
+  `SmaaBlendShader` mirror `smaa_edges.frag`, `smaa_weights.frag` and
+  `smaa_blend.frag` line for line, so the software backend smooths the same
+  edges by the same amounts; its `smaa-teapot` reference matches Impeller's
+  to the pixel.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

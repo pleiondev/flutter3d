@@ -1,3 +1,9 @@
+## Unreleased
+
+- **Three stages for SMAA 1x**: `SmaaEdges`, `SmaaWeights` and `SmaaBlend`,
+  with the `SmaaInfo` block. A bundle must answer to them; the renderer falls
+  back to FXAA when one does not.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

@@ -1268,7 +1268,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the seventy-eight goldens keep the frame
+  /// nothing headless can run them. So the seventy-nine goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -2025,7 +2025,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Seventy-eight goldens depend on that being exact, and the composite
+/// existed. Seventy-nine goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the
@@ -2293,6 +2293,7 @@ int bloomLevelsFor(BloomSettings settings, {required int frameHeight}) {
 final class AntiAliasSettings {
   const AntiAliasSettings({
     this.enabled = false,
+    this.method = EdgeSmoothing.fxaa,
     this.contrastThreshold = 0.125,
     this.blend = 0.75,
     this.sharpen = 0.0,
@@ -2300,6 +2301,11 @@ final class AntiAliasSettings {
   });
 
   final bool enabled;
+
+  /// How the edges are found and smoothed when [enabled] — `P1`.
+  /// [EdgeSmoothing.fxaa], the one pass this setting has always run, is the
+  /// default.
+  final EdgeSmoothing method;
 
   /// Anti-aliasing across frames — `R1`, `R2`. Independent of [enabled]: the
   /// temporal resolve and the edge pass can run together, and the resolve is
@@ -2346,17 +2352,48 @@ final class AntiAliasSettings {
 
   AntiAliasSettings copyWith({
     bool? enabled,
+    EdgeSmoothing? method,
     double? contrastThreshold,
     double? blend,
     double? sharpen,
     TemporalSettings? temporal,
   }) => AntiAliasSettings(
     enabled: enabled ?? this.enabled,
+    method: method ?? this.method,
     contrastThreshold: contrastThreshold ?? this.contrastThreshold,
     blend: blend ?? this.blend,
     sharpen: sharpen ?? this.sharpen,
     temporal: temporal ?? this.temporal,
   );
+}
+
+/// How [AntiAliasSettings] finds and smooths an edge — `P1`.
+///
+/// **A class with constants rather than an enum**, because the set grows:
+/// SMAA's 2x and 4x modes, or its diagonal search, would each be one more
+/// value, and an enum would break every `switch` written against it the day
+/// one arrived.
+final class EdgeSmoothing {
+  const EdgeSmoothing._(this.name);
+
+  /// FXAA 3.11 Quality: one pass, which walks along an edge from every pixel
+  /// with enough local contrast and moves it towards the side the edge leans
+  /// to. Uses [AntiAliasSettings.contrastThreshold] and
+  /// [AntiAliasSettings.blend].
+  static const EdgeSmoothing fxaa = EdgeSmoothing._('fxaa');
+
+  /// SMAA 1x: three passes — the edges marked, the line behind each
+  /// staircase reconstructed from where its run ends and which sides those
+  /// ends are crossed on, and each pixel blended by the area that line
+  /// covers of it. Sharper than FXAA on text and fine texture, which it
+  /// leaves alone, and truer on long shallow edges; a little more work.
+  /// Orthogonal edges only: no diagonal search and no corner rounding.
+  static const EdgeSmoothing smaa = EdgeSmoothing._('smaa');
+
+  final String name;
+
+  @override
+  String toString() => 'EdgeSmoothing.$name';
 }
 
 /// Edges smoothed across frames — `R1`, `R2`.

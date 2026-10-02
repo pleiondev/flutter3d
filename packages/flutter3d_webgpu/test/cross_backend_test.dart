@@ -182,6 +182,7 @@ const Map<String, double> _budgets = <String, double>{
   'cascade-walk': 0.01,
   'clearcoat-car-paint': 0.01,
   'easu-half': 0.01,
+  'smaa-teapot': 0.01,
   'evsm-soft': 0.33,
   'fog-torches': 0.01,
   'glass-stack-oit': 0.01,
