@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`MaterialProgramStage` and `materialLanguageCompiler` moved here** from
+  `flutter3d_testing`, so a game can depend on them, and the software backend
+  this package registers compiles a bundle's material-language stages.
+
 - **A photo goes somewhere.** `takePhoto` draws with `capturePhoto`, encodes
   with `PngStripWriter` and puts the file on a `PhotoShelf`, abandoning it if
   the capture fails. `FilePhotoShelf` writes into the player's Pictures folder

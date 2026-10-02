@@ -36,8 +36,11 @@ String emitMaterialFragment(MaterialProgram program) {
     ..writeln('// what the shader build compiles and what the three GPU')
     ..writeln('// backends translate. The software backend evaluates the same')
     ..writeln('// tree instead of reading this.')
-    // It gathers no lights, so it keeps no light list: see
-    // `LightingModel.usesLightList`.
+    // It gathers no lights, so it keeps no light list — see
+    // `LightingModel.usesLightList` — and no point-shadow block either, as
+    // `unlit.frag` keeps none: a block declared and never bound is a
+    // refused draw on WebGL2.
+    ..writeln('#define F3D_NO_POINT_SHADOW')
     ..writeln('#define F3D_NO_LIGHT_LIST')
     ..writeln('#include <lib/surface.glsl>')
     ..writeln();
@@ -101,7 +104,12 @@ MaterialBindings describeMaterial(MaterialProgram program) {
   // every model except `Normals`.
   return MaterialBindings(
     name: program.name,
-    usesAlbedoTexture: samples.contains('base_color_texture'),
+    // Always: `ReadSurface` samples the base colour map for the albedo every
+    // material reads, whether or not the source names the slot. Asked of the
+    // source alone, a material that never wrote `texture` was drawn with the
+    // map unbound — black on Impeller and a refused draw on WebGL2, found
+    // the first time one was drawn on a GPU (`P8`, `material-language`).
+    usesAlbedoTexture: true,
     usesMaterialMaps:
         samples.contains('normal_texture') ||
         samples.contains('occlusion_texture') ||

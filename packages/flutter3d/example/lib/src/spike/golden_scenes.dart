@@ -1222,6 +1222,19 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.skyPhysicalNightSettings,
   ),
 
+  // P8. One source in the material language, drawn on all four backends: a
+  // GPU section each, and the software set compiling the source the bundle
+  // carries.
+  const GoldenScene(
+    name: 'material-language',
+    source: 'obj: Teapot',
+    lighting: GoldenExtras.rimGlow,
+    shaderBundle: GoldenExtras.rimGlowBundle,
+    shadows: false,
+    bloom: false,
+    ground: false,
+  ),
+
   // P7. Leaf cards cut from a soft alpha: a hard cutoff on Impeller and the
   // software set, multisample coverage on WebGL2 and WebGPU.
   const GoldenScene(

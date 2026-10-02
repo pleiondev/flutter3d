@@ -404,6 +404,11 @@ ShaderBundle compileMaterial(
         fragment: <String, String>{name: webgl},
       ),
       ShaderBundle.webgpuSection: ?webgpu,
+      // The source itself, for the backend that compiles nothing and for a
+      // runtime that builds the material's lighting model from it — `P8`.
+      ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
+        name: text,
+      }),
     },
   );
 }

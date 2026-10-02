@@ -108,6 +108,18 @@ final class ShaderBundle {
   /// would be inventing a version to compare.
   static const String webgpuSection = 'webgpu';
 
+  /// The section a backend that compiles nothing reads — `P8`: the source of
+  /// every stage written in the engine's material language, by stage name,
+  /// as JSON. See [encodeMaterialSection].
+  ///
+  /// **The source rather than anything made from it.** The software
+  /// rasteriser runs Dart and evaluates the language itself, so the text is
+  /// all it needs; and a runtime that has to know how to bind a material —
+  /// which maps it samples, which lighting model stands for it — reads the
+  /// answer out of the same text instead of a second description that could
+  /// disagree with the stage beside it.
+  static const String materialSection = 'material';
+
   /// What the bundle is called, and what a refusal names.
   final String name;
 
@@ -326,4 +338,46 @@ final class _Reader {
     _at += length;
     return copy.buffer.asByteData();
   }
+}
+
+/// The payload of [ShaderBundle.materialSection]: each stage's
+/// material-language source, by stage name — `P8`.
+///
+/// Versioned inside the document, as the WebGPU section is, so the payload
+/// can grow without the container's version moving.
+ByteData encodeMaterialSection(Map<String, String> sources) {
+  final text = jsonEncode(<String, Object?>{
+    'version': 1,
+    'stages': <String, String>{
+      for (final name in sources.keys.toList()..sort()) name: sources[name]!,
+    },
+  });
+  return ByteData.sublistView(Uint8List.fromList(utf8.encode(text)));
+}
+
+/// The sources [encodeMaterialSection] wrote, or empty when [bundle] has no
+/// material section. Throws a [FormatException] for one that is not that
+/// payload.
+Map<String, String> decodeMaterialSection(ShaderBundle bundle) {
+  final section = bundle.sections[ShaderBundle.materialSection];
+  if (section == null) return const <String, String>{};
+  final json = jsonDecode(
+    utf8.decode(
+      section.buffer.asUint8List(section.offsetInBytes, section.lengthInBytes),
+    ),
+  );
+  if (json is! Map<String, Object?> ||
+      json['version'] != 1 ||
+      json['stages'] is! Map<String, Object?>) {
+    throw const FormatException(
+      'the material section is not version 1 of its payload',
+    );
+  }
+  return <String, String>{
+    for (final MapEntry(:key, :value)
+        in (json['stages']! as Map<String, Object?>).entries)
+      key: value is String
+          ? value
+          : throw FormatException('the source of "$key" is not text'),
+  };
 }

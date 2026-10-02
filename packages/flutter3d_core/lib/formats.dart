@@ -69,6 +69,7 @@ export 'src/formats/lighting_model.dart';
 export 'src/formats/material_document.dart';
 export 'src/formats/material_hint.dart';
 export 'src/formats/material_language/material_ast.dart';
+export 'src/formats/material_language/material_bundle.dart';
 export 'src/formats/material_language/material_eval.dart';
 export 'src/formats/material_language/material_glsl.dart';
 export 'src/formats/material_language/material_parser.dart';

@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`MaterialProgramStage` moved to `flutter3d_app`**, which a game can
+  depend on; this package carries `flutter_test`.
+
 * **`testReplay` turns a recorded run into a test that needs no GPU.**
   `testReplay('test/tapes/level.f3drun', start: …, digestAt: …, goldensAt: …)`
   registers a test that plays the tape into the game on the software

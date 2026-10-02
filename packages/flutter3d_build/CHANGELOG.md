@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **A material's bundle carries its source** in the material section, and
+  `kAssetPipelineVersion` is 3, so bundles built before it are built again.
+
 **A material written in the material language compiles at build time into
 a shader bundle every GPU backend loads.** The hook finds
 `assets_src/**/*.f3dmat` and writes `flutter3d_generated/**/*.f3dshaders` at

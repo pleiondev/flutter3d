@@ -264,7 +264,10 @@ void main() {
     final plain = describeMaterial(
       parseMaterial('material M { fragment { return vec4(albedo, alpha); } }'),
     );
-    expect(plain.usesAlbedoTexture, isFalse);
+    // True for every material: `ReadSurface` samples the base colour map for
+    // the albedo whether or not the source names it, and an unbound map was
+    // black on Impeller and a refused draw on WebGL2 — `P8`.
+    expect(plain.usesAlbedoTexture, isTrue);
     expect(plain.usesMaterialMaps, isFalse);
     expect(plain.usesMetallic, isFalse);
 

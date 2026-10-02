@@ -134,7 +134,15 @@ done
         ShaderBundle.impellerSection,
         ShaderBundle.webglSection,
         ShaderBundle.webgpuSection,
+        ShaderBundle.materialSection,
       ]);
+
+      // `P8`: the source itself, which the software backend compiles and a
+      // runtime reads the lighting model out of.
+      expect(
+        decodeMaterialSection(bundle)['RimLight'],
+        contains('material RimLight'),
+      );
 
       // Impeller's is impellerc's answer, as it is.
       expect(
@@ -339,6 +347,7 @@ material Bad {
       expect(readBundle('rim.f3dshaders').sections.keys, <String>[
         ShaderBundle.impellerSection,
         ShaderBundle.webglSection,
+        ShaderBundle.materialSection,
       ]);
       expect(log.text, contains('no "webgpu" section'));
     });

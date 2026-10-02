@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **A bundle built from a `.f3dmat` loads with nothing registered by
+  hand.** `CpuDevice(materialCompiler:)` compiles each stage the bundle
+  carries the source of; a reload points the stage already handed out at the
+  new source, and a source that does not compile leaves the library as it
+  was. `ensureCpuBackendRegistered` takes the compiler too.
+
 - **A mask's surviving fragment is opaque**, as the GLSL now writes it.
 
 - **The orthographic camera in software**: `towardsEye`, `eyeDistance` and

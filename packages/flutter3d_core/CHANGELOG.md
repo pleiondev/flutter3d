@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **`BundledMaterials`** reads the materials a bundle carries and builds
+  each one's `LightingModel` from its source — `P8`. The emitted stage keeps
+  no point-shadow block, and `describeMaterial` asks for the base colour map
+  always, since `ReadSurface` samples it: a material that named no texture
+  was drawn with the map unbound, black on Impeller and refused on WebGL2.
+
 - **`Material.alphaToCoverage`** antialiases a masked surface's edge by the
   multisample resolve rather than cutting it at the threshold, on WebGL2 and
   WebGPU. Elsewhere the hard cutoff is drawn and

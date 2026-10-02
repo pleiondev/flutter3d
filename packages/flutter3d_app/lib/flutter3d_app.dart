@@ -53,6 +53,7 @@ export 'src/level/shared_meshes.dart';
 export 'src/level/surface_mesh.dart';
 export 'src/level/terrain_tiles.dart';
 export 'src/level/visibility_culler.dart';
+export 'src/materials/material_language_stage.dart';
 export 'src/photo/photo_shelf.dart';
 export 'src/storage/storage.dart';
 export 'src/surface/did_not_start.dart';

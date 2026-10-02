@@ -98,6 +98,9 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
+  // 0.183% measured, on the silhouette; the stage the bundle's WebGL2
+  // section carries agrees with Impeller's inside it.
+  'material-language': 0.25,
   // 0.595% measured, on the discs' rims and nowhere else: coverage here,
   // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.7,
