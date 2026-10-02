@@ -17,7 +17,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_shaders/stage_bindings.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 const int _size = 48;
 
@@ -367,6 +367,101 @@ void main() {
         reason: '$mode',
       );
     }
+  });
+
+  test('a thin blended pane shows the glass behind it, not the copy', () {
+    // A tinted volume behind a thin pane that blends. Both transmit, so
+    // neither is in the copy; the pane lets the target through instead,
+    // and the target by then holds the volume.
+    MeshNode volume(DeviceMesh quad) =>
+        MeshNode(
+            quad,
+            Material(
+              lighting: LightingModel.pbrLayered,
+              baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+              roughness: 0.0,
+              extensions: MaterialExtensions(
+                transmission: 1.0,
+                thickness: 0.1,
+                attenuationColor: Vector3(0.1, 0.9, 0.1),
+                attenuationDistance: 0.1,
+              ),
+              doubleSided: true,
+            ),
+          )
+          ..setPosition(0.0, 0.0, -2.5)
+          ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0);
+    MeshNode pane(DeviceMesh quad) =>
+        MeshNode(
+            quad,
+            Material(
+              lighting: LightingModel.pbrLayered,
+              baseColor: Vector4(1.0, 1.0, 1.0, 0.2),
+              roughness: 0.0,
+              alphaMode: MaterialAlphaMode.blend,
+              extensions: MaterialExtensions(transmission: 1.0),
+              doubleSided: true,
+            ),
+          )
+          ..setPosition(0.0, 0.0, -1.5)
+          ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0);
+    final bare = _at(_render(pane: volume).hdr, _left.x, _left.y);
+    final paned = _at(
+      _render(pane: volume, extra: [pane]).hdr,
+      _left.x,
+      _left.y,
+    );
+    // Mutation: read the copy for a thin pane as before. A fifth of the
+    // red wall comes back over the green, and red more than doubles.
+    for (var c = 0; c < 3; c++) {
+      expect(paned[c], closeTo(bare[c], 0.01), reason: 'channel $c');
+    }
+    // And the volume is there to be seen: it takes most of the wall's red.
+    expect(bare.x, lessThan(_linear(_red).x * 0.2));
+  });
+
+  test('a convex volume is thinner where it is crossed at a slant', () {
+    // The same tinted pane as a slab and as a convex body. Head-on the ray
+    // crosses all of either; turned, the body's path is shortened by how
+    // squarely the bent ray meets it and the slab's is not.
+    MeshNode Function(DeviceMesh) tinted({
+      required bool convex,
+      double yaw = 0.0,
+    }) =>
+        (quad) =>
+            MeshNode(
+                quad,
+                Material(
+                  lighting: LightingModel.pbrLayered,
+                  baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+                  roughness: 0.0,
+                  extensions: MaterialExtensions(
+                    transmission: 1.0,
+                    ior: 1.5,
+                    thickness: 0.2,
+                    convexVolume: convex,
+                    attenuationColor: Vector3(0.2, 0.2, 0.2),
+                    attenuationDistance: 0.2,
+                  ),
+                  doubleSided: true,
+                ),
+              )
+              ..setPosition(0.0, 0.0, -2.0)
+              ..setRotationYawPitchRoll(yaw, math.pi / 2, 0.0);
+    Vector4 seen(bool convex, double yaw) => _at(
+      _render(
+        pane: tinted(convex: convex, yaw: yaw),
+        seam: 1.0,
+      ).hdr,
+      _size ~/ 2,
+      _size ~/ 2,
+    );
+    expect(seen(true, 0.0).x, closeTo(seen(false, 0.0).x, 0.005));
+    // Turned by 0.9 the bent ray meets the body at a cosine of 0.85, so it
+    // keeps 0.2^0.85 of the red where the slab keeps 0.2: 1.27 times as much.
+    // Mutation: drop the `convexVolume` lane in `_encodeNode`, and the two
+    // turned panes are the same.
+    expect(seen(true, 0.9).x, greaterThan(seen(false, 0.9).x * 1.2));
   });
 
   test('every declared slot is bound on a split frame', () {

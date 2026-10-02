@@ -729,7 +729,9 @@ extension _MeshEncode on Renderer {
       _layerInfo.attenuation
         ..[0] = layers?.attenuationColor.x ?? 1.0
         ..[1] = layers?.attenuationColor.y ?? 1.0
-        ..[2] = layers?.attenuationColor.z ?? 1.0;
+        ..[2] = layers?.attenuationColor.z ?? 1.0
+        // `MaterialExtensions.convexVolume`, in the spare lane.
+        ..[3] = (layers?.convexVolume ?? false) ? 1.0 : 0.0;
       _layerInfo.iridescence
         ..[0] = layers?.iridescence ?? 0.0
         ..[1] = layers?.iridescenceIor ?? 1.3
