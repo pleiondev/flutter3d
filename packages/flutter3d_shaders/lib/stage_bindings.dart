@@ -336,6 +336,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'ShadowTileReset': (blocks: <String>{}, samplers: <String>{}),
   'ShadowTileResetVertex': (blocks: <String>{}, samplers: <String>{}),
+  'ShadowTransmittance': (
+    blocks: <String>{'TransmittanceInfo'},
+    samplers: <String>{},
+  ),
   'Sky': (blocks: <String>{}, samplers: <String>{}),
   'SkyCube': (blocks: <String>{}, samplers: <String>{'sky_texture'}),
   'SkyCubeVertex': (blocks: <String>{}, samplers: <String>{}),

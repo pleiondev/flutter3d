@@ -94,6 +94,44 @@ final class ShadowDistanceMaskedShader implements CpuFragmentShader {
   }
 }
 
+/// `shadow_transmittance.frag`: what a see-through caster lets through to
+/// the sun — `ShadowSettings.translucentCasters`.
+///
+/// Green and blue are what it takes from red and green, alpha what it leaves
+/// of blue, red nought so the depth beneath survives the blend; the GLSL
+/// stage has the reasons, and this is the same arithmetic.
+final class ShadowTransmittanceShader implements CpuFragmentShader {
+  const ShadowTransmittanceShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final colour = bindings.vec4('TransmittanceInfo', 'color', Vector4.zero());
+    final light = bindings.vec4('TransmittanceInfo', 'light', Vector4.zero());
+    final params = bindings.vec4('TransmittanceInfo', 'params', Vector4.zero());
+    final opacity = colour.w.clamp(0.0, 1.0);
+    final transmission = params.x.clamp(0.0, 1.0);
+    double body(double channel) =>
+        (1.0 - opacity) + opacity * transmission * channel.clamp(0.0, 1.0);
+
+    final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
+    final length = normal.length;
+    final facing = length > 0.0
+        ? (normal.dot(Vector3(light.x, light.y, light.z)) / length).abs()
+        : 1.0;
+    final f0 = params.y.clamp(0.0, 1.0);
+    final fresnel =
+        f0 + (1.0 - f0) * math.pow(1.0 - facing.clamp(0.0, 1.0), 5.0);
+    double through(double channel) =>
+        math.sqrt(math.max(body(channel), 0.0)) * (1.0 - fresnel);
+    return Vector4(
+      0.0,
+      1.0 - through(colour.x),
+      1.0 - through(colour.y),
+      through(colour.z),
+    );
+  }
+}
+
 /// `shadow_copy.frag`: one cascade's tile of the static atlas, into colour
 /// and depth — `S1`.
 final class ShadowCopyShader implements CpuFragmentShader {

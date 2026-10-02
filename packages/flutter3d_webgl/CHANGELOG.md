@@ -1,3 +1,8 @@
+## Unreleased
+
+- The shader table regenerated for `ShadowTransmittance` and the coloured
+  sun shadow (`ShadowSettings.translucentCasters`).
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

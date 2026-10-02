@@ -1,3 +1,7 @@
+## Unreleased
+
+- Links every mesh vertex stage with `ShadowTransmittance`.
+
 ## 0.8.1
 
 **The linking check names `ContactShadowResolve`**, the stage

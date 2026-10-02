@@ -219,6 +219,18 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // kernel, and how far under minus one the value sits is the light-bleeding
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
+  // **What the see-through casters let through** — before the filter, whose
+  // soft path leaves early where it finds no blocker. One bilinear tap: a
+  // translucent caster's shadow is light shaded rather than light stopped,
+  // and its edge is softened by the filtering the tap already gets. Green
+  // and blue hold what was taken from red and green, alpha what was left of
+  // blue — the layout `shadow_transmittance.frag` explains.
+  if (frag_info.shadow_bias.w > 0.5) {
+    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 1.0);
+    light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
+  }
+
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
   if (softness < 0.0) {

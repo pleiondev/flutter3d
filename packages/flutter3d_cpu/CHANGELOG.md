@@ -1,3 +1,9 @@
+## Unreleased
+
+- **`ShadowTransmittance`** and the coloured shadow it feeds, the software
+  twin of the stage and of the light loop's new term
+  (`ShadowSettings.translucentCasters`).
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

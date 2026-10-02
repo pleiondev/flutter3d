@@ -1129,6 +1129,22 @@ final class Renderer implements RenderServices {
   PipelineHandle? _skinnedMaskedCubeShadowPipeline;
   PipelineHandle? _instancedMaskedCubeShadowPipeline;
 
+  /// The same three once more, against `ShadowTransmittance`: see-through
+  /// casters writing what they let through into the sun's atlas —
+  /// `ShadowSettings.translucentCasters`. Never built while it is off.
+  PipelineHandle? _transmittanceShadowPipeline;
+  PipelineHandle? _skinnedTransmittanceShadowPipeline;
+  PipelineHandle? _instancedTransmittanceShadowPipeline;
+
+  /// A see-through caster's colour, opacity, transmission and head-on
+  /// reflectance, and the way to the light, for `ShadowTransmittance`.
+  final TransmittanceInfoBlock _transmittanceInfo = TransmittanceInfoBlock();
+
+  /// Whether the sun's atlas, as last drawn, carries what see-through
+  /// casters let through — read by the draws that light with it, which
+  /// otherwise would take an atlas's empty channels for a black filter.
+  bool _shadowTransmits = false;
+
   /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
   Float32List get _shadowMask => _maskInfo.mask;
   PipelineHandle? _instancedShadowPipeline;
@@ -3192,6 +3208,27 @@ final class Renderer implements RenderServices {
     primitiveType: PrimitiveType.triangle,
     blend: null,
     depthWrite: true,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// How a see-through caster is drawn into the sun's atlas: tested against
+  /// the opaque casters' depth and writing none, so a pane behind a wall adds
+  /// nothing and two panes both count; both faces, since the stage counts a
+  /// closed body as crossed by its two surfaces; and blended so that layers
+  /// combine — what is taken from red and green as `src + dst·(1 − src)`,
+  /// which keeps the depth in red because the stage writes nought there,
+  /// and what is left of blue, in alpha, multiplied. See
+  /// `shadow_transmittance.frag` for the layout.
+  static const PassState _kShadowTransmittanceState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.oneMinusSourceColor,
+      sourceAlphaFactor: BlendFactor.destinationAlpha,
+      destinationAlphaFactor: BlendFactor.zero,
+    ),
+    depthWrite: false,
     depthCompare: CompareFunction.less,
   );
 

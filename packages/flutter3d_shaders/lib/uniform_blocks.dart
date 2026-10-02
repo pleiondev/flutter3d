@@ -1422,6 +1422,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'light': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'ShadowTransmittance': <String, Map<String, UniformMemberLayout>>{
+    'TransmittanceInfo': <String, UniformMemberLayout>{
+      'color': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'light': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Splat': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

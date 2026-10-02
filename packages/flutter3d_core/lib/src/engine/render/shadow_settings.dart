@@ -105,6 +105,7 @@ final class ShadowSettings {
     this.filter,
     this.evsmBlurRadius = 2,
     this.evsmBleedReduction = 0.2,
+    this.translucentCasters = false,
   });
 
   /// How the directional map is filtered — `S2`. Null picks from
@@ -145,6 +146,32 @@ final class ShadowSettings {
   /// and the rest stretched back over the range, which removes the halo and
   /// darkens the soft edge with it; a fifth is the usual compromise.
   final double evsmBleedReduction;
+
+  /// Whether glass, liquid and other see-through casters shade the sun's
+  /// light by what their material lets through, instead of blocking it like
+  /// a wall.
+  ///
+  /// **A shadow map holds one depth per texel**, and a half-transparent caster
+  /// has no single depth to give it, so until this every blended or
+  /// transmissive material cast a shadow as dark as stone. With this on, such
+  /// a caster (`MaterialAlphaMode.blend`, or a transmission above nought) is
+  /// drawn after the opaque ones into the three channels of the atlas that
+  /// held nothing: how much of each of red, green and blue it lets through,
+  /// from its opacity, its transmission, its colour and the Fresnel loss its
+  /// index of refraction gives at that angle — so a clear glass casts a faint
+  /// shadow with darker edges, and a coloured liquid a shadow of its colour.
+  /// Layers combine: light through two walls and a liquid is what all three
+  /// let through.
+  ///
+  /// What it does not do: a receiver standing between the light and the
+  /// translucent caster is shaded as if it were behind it, since the atlas
+  /// keeps the transmittance and not where along the light it happened; and
+  /// it does nothing with [ShadowFilter.evsm], whose moments take over the
+  /// channels this uses. A see-through surface that casts is not shaded by
+  /// it, so a glass does not darken itself; one that casts nothing, a glazed
+  /// floor, is shaded like any other. Off by default, which draws every frame
+  /// exactly as before.
+  final bool translucentCasters;
 
   /// How many cascades the directional map is split into, one to three.
   ///
@@ -491,6 +518,7 @@ final class ShadowSettings {
     ShadowFilter? filter,
     int? evsmBlurRadius,
     double? evsmBleedReduction,
+    bool? translucentCasters,
   }) =>
       // Every field, and that is not bookkeeping. This method already dropped
       // the point-shadow settings on the floor: `settingsFrom` calls it once a
@@ -524,5 +552,6 @@ final class ShadowSettings {
         filter: filter ?? this.filter,
         evsmBlurRadius: evsmBlurRadius ?? this.evsmBlurRadius,
         evsmBleedReduction: evsmBleedReduction ?? this.evsmBleedReduction,
+        translucentCasters: translucentCasters ?? this.translucentCasters,
       );
 }

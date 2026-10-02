@@ -1250,6 +1250,27 @@ final class TileMaxInfoBlock extends UniformBlock {
   };
 }
 
+/// `TransmittanceInfo`.
+final class TransmittanceInfoBlock extends UniformBlock {
+  TransmittanceInfoBlock() : super('TransmittanceInfo');
+
+  /// `color`: Vector4, at byte 0.
+  final Float32List color = Float32List(4);
+
+  /// `light`: Vector4, at byte 16.
+  final Float32List light = Float32List(4);
+
+  /// `params`: Vector4, at byte 32.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'color': color,
+    'light': light,
+    'params': params,
+  };
+}
+
 /// `VelocityInfo`.
 final class VelocityInfoBlock extends UniformBlock {
   VelocityInfoBlock() : super('VelocityInfo');
