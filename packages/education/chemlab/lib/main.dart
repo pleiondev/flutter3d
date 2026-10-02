@@ -95,6 +95,13 @@ class _BenchScreenState extends State<BenchScreen>
     if (!moving) _ticker.stop();
   }
 
+  /// The way the camera looks, which a vessel leans about so that it leans
+  /// in the picture rather than towards the eye.
+  Vector3 _lookingAlong() {
+    final m = _camera.worldMatrix;
+    return Vector3(-m.entry(0, 2), 0, -m.entry(2, 2));
+  }
+
   /// Something has set a liquid moving: run the clock if it is not running.
   void _stir() {
     if (_ticker.isActive) return;
@@ -202,7 +209,13 @@ class _BenchScreenState extends State<BenchScreen>
                 _stir();
               },
               onLean: (angle) {
-                setState(() => bench.lean(bench.vessels[_selected], angle));
+                setState(
+                  () => bench.lean(
+                    bench.vessels[_selected],
+                    angle,
+                    across: _lookingAlong(),
+                  ),
+                );
                 _stir();
               },
               onTap: () {
@@ -293,9 +306,12 @@ class _Controls extends StatelessWidget {
                 const Text('Tilt'),
                 Expanded(
                   child: Slider(
-                    value: vessel.tilt.clamp(-Bench.maxTilt, Bench.maxTilt),
-                    min: -Bench.maxTilt,
-                    max: Bench.maxTilt,
+                    value: vessel.tilt.clamp(
+                      -bench.maxLean(vessel),
+                      bench.maxLean(vessel),
+                    ),
+                    min: -bench.maxLean(vessel),
+                    max: bench.maxLean(vessel),
                     onChanged: bench.busy ? null : onLean,
                   ),
                 ),

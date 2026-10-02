@@ -136,29 +136,32 @@ void main() {
     final total = from.volumeAt(from.level);
     bench.share(from);
     var aloft = 0.0;
-    var tail = 0;
-    var wasPouring = false;
+    var clock = 0.0;
+    var lastPoured = 0.0;
+    var lastSeen = 0.0;
     bool streamVisible() => bench.scene.root.children.any(
       (n) => n.name == 'stream' && n.visible,
     );
     while (bench.busy) {
       final before = from.volumeAt(from.level);
       bench.step(1 / 60);
+      clock += 1 / 60;
       final mine = from.volumeAt(from.level);
       final theirs = to.volumeAt(to.level);
       // Nothing is made: the two tubes never hold more than there was.
       expect(mine + theirs, lessThanOrEqualTo(total * 1.002));
       aloft = math.max(aloft, total - mine - theirs);
-      final pouring = mine < before - 1e-6;
-      // Mutation: fill the clean tube the moment liquid leaves the lip, and
-      // nothing is ever in the air; drop the history, and the stream
-      // vanishes the frame the pour stops instead of falling away.
-      if (wasPouring && !pouring && streamVisible()) tail++;
-      if (!pouring && tail > 0 && streamVisible()) tail++;
-      wasPouring = wasPouring || pouring;
+      if (mine < before - 1e-12) lastPoured = clock;
+      if (streamVisible()) lastSeen = clock;
     }
     expect(aloft, greaterThan(total * 0.02));
-    expect(tail, greaterThan(3));
+    // The last of it falls for a while after the last left the lip — and
+    // then the stream is gone: within a fall, about a third of a second.
+    // Mutation: fill the clean tube the moment liquid leaves the lip, and
+    // nothing is ever in the air; drop the history, and the stream vanishes
+    // the frame the pour stops.
+    expect(lastSeen - lastPoured, greaterThan(0.05));
+    expect(lastSeen - lastPoured, lessThan(0.5));
     // And by the end it has all landed.
     expect(
       from.volumeAt(from.level) + to.volumeAt(to.level),
