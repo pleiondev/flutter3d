@@ -519,6 +519,11 @@ final class WebGlDevice implements GraphicsDevice {
   // OpenGL ES has no glPolygonMode. See canDrawPolygonMode.
   bool get supportsWireframe => false;
 
+  /// True where the context multisamples offscreen targets, which is where
+  /// coverage has samples to spread over — `P7`.
+  @override
+  bool get supportsAlphaToCoverage => _msaaSamples > 1;
+
   @override
   // `DEPTH24_STENCIL8` is WebGL2 core, and it is the format every depth
   // attachment this backend makes is allocated in.

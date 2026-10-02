@@ -194,6 +194,16 @@ abstract interface class PassEncoder {
   /// attachment one off where attachment zero already is.
   void setBlend(BlendState? state, {int attachment = 0});
 
+  /// Whether the next draws turn alpha into multisample coverage — `P7`.
+  ///
+  /// A masked surface drawn this way keeps its alpha rather than cutting at a
+  /// threshold, and the hardware covers that share of each pixel's samples:
+  /// the edge of a leaf or a fence is antialiased by the same resolve that
+  /// smooths a triangle's. Off by default and after every pass begins. Ask
+  /// `GraphicsDevice.supportsAlphaToCoverage` first: a device answering false
+  /// ignores this, and it does nothing in a pass of one sample anywhere.
+  void setAlphaToCoverage(bool enabled);
+
   /// The constant the four constant-reading [BlendFactor]s multiply by.
   ///
   /// [BlendFactor.blendColor] and [BlendFactor.oneMinusBlendColor] read one

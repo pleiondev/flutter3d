@@ -1222,6 +1222,18 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.skyPhysicalNightSettings,
   ),
 
+  // P7. Leaf cards cut from a soft alpha: a hard cutoff on Impeller and the
+  // software set, multisample coverage on WebGL2 and WebGPU.
+  const GoldenScene(
+    name: 'alpha-to-coverage',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.alphaToCoverage,
+  ),
+
   // P7. Metal spheres on a floor under a sky in light fog, through an
   // orthographic camera.
   const GoldenScene(

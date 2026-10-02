@@ -98,6 +98,9 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
+  // 0.595% measured, on the discs' rims and nowhere else: coverage here,
+  // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
+  'alpha-to-coverage': 0.7,
   // 0.394% measured, on the spheres' and the floor's edges, which WebGL2
   // does not multisample as Impeller does; the highlights, the fog and the
   // sky agree.

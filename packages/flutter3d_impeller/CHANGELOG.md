@@ -1,3 +1,8 @@
+## Unreleased
+
+- **`supportsAlphaToCoverage` is false**: flutter_gpu has no
+  alpha-to-coverage and no sample mask. `setAlphaToCoverage` does nothing.
+
 ## 0.8.1+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

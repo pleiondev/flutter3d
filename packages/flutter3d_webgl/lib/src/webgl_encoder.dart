@@ -187,6 +187,10 @@ final class WebGlEncoder implements CommandEncoder {
     // scissor per tile.
     _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
 
+    // Off at every pass's start, as `setAlphaToCoverage` promises: it is
+    // global state, and a pass of leaves left it on for the bloom after it.
+    _gl.disable(web.WebGLRenderingContext.SAMPLE_ALPHA_TO_COVERAGE);
+
     // Depth testing follows the attachment rather than being switched on for
     // every pass. Without a depth buffer GL specifies the test as passing
     // always, so leaving it enabled was harmless and dishonest; a pass that has
@@ -421,6 +425,13 @@ final class WebGlEncoder implements CommandEncoder {
 
   @override
   void setDepthWrite(bool enabled) => _gl.depthMask(enabled);
+
+  /// `SAMPLE_ALPHA_TO_COVERAGE` — `P7`: in a pass of one sample GL turns
+  /// coverage into nothing, which is what the interface promises.
+  @override
+  void setAlphaToCoverage(bool enabled) => enabled
+      ? _gl.enable(web.WebGLRenderingContext.SAMPLE_ALPHA_TO_COVERAGE)
+      : _gl.disable(web.WebGLRenderingContext.SAMPLE_ALPHA_TO_COVERAGE);
 
   @override
   void setDepthCompare(CompareFunction compare) =>

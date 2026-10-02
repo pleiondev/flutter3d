@@ -160,6 +160,10 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   @override
   void setDepthWrite(bool enabled) => _depthWrite = enabled;
 
+  /// Nothing — `P7`: the spike's device answers false to `supportsAlphaToCoverage`.
+  @override
+  void setAlphaToCoverage(bool enabled) {}
+
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
 

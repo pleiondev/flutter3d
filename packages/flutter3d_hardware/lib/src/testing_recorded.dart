@@ -125,6 +125,11 @@ final class RecordedPolygonMode extends Recorded {
   final PolygonMode mode;
 }
 
+final class RecordedAlphaToCoverage extends Recorded {
+  const RecordedAlphaToCoverage(this.enabled);
+  final bool enabled;
+}
+
 final class RecordedCullMode extends Recorded {
   const RecordedCullMode(this.mode);
   final CullMode mode;

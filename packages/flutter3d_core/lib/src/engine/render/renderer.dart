@@ -1565,7 +1565,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: eighty-eight goldens go through this
+  /// strength has, and for the same reason: eighty-nine goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -4644,6 +4644,7 @@ final class Renderer implements RenderServices {
       // scene pass, because it is a fact about the settings and the device
       // rather than about anything that happened during the frame.
       wireframeDeclined: settings.wireframe && !device.supportsWireframe,
+      alphaToCoverageDeclined: passState.coverageDeclined,
       // `gfx-20n`. Half of it comes from the scene pass, which knows what it
       // attached, and half from the graph, which knows whether the node ran.
       // Neither half can answer alone, which is why the answer is assembled

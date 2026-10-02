@@ -199,6 +199,19 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// backend that said true and filled the triangles passed the whole suite.
   bool get supportsWireframe;
 
+  /// Whether `PassEncoder.setAlphaToCoverage` turns a fragment's alpha into
+  /// the share of a multisampled pixel's samples it covers — `P7`.
+  ///
+  /// **Two of the four can.** WebGL2 has `SAMPLE_ALPHA_TO_COVERAGE` and WebGPU
+  /// a pipeline's `alphaToCoverageEnabled`; flutter_gpu exposes neither, nor a
+  /// sample mask a stage could write, and the software rasteriser draws one
+  /// sample a pixel. A device answering false ignores the call, and the
+  /// caller draws the hard alpha test it would have drawn without it —
+  /// `FrameResult.alphaToCoverageDeclined` says so. True means the coverage
+  /// follows alpha in a multisampled pass; a pass of one sample has no
+  /// coverage to spread, on any device.
+  bool get supportsAlphaToCoverage;
+
   /// Whether the depth attachment this device hands out carries a stencil
   /// that `PassEncoder.setStencil` can test against.
   ///

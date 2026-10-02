@@ -97,6 +97,10 @@ final class GpuCommandEncoder implements CommandEncoder {
   @override
   void setDepthWrite(bool enabled) => _pass.setDepthWriteEnable(enabled);
 
+  /// Nothing — `P7`: flutter_gpu has no alpha-to-coverage to set; `supportsAlphaToCoverage` is false.
+  @override
+  void setAlphaToCoverage(bool enabled) {}
+
   @override
   void setDepthCompare(CompareFunction compare) =>
       _pass.setDepthCompareOperation(compare.toGpu());

@@ -194,6 +194,10 @@ final class CpuDevice implements GraphicsDevice {
   // the contract exists to forbid.
   bool get supportsWireframe => false;
 
+  /// False — `P7`: one sample a pixel, so no coverage to spread.
+  @override
+  bool get supportsAlphaToCoverage => false;
+
   @override
   // Both halves are here now: the chain is stored as whole textures and the
   // level is chosen from a per-triangle derivative. See `BoundTexture.sample`

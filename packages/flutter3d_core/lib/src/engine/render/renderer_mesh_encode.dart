@@ -497,10 +497,26 @@ extension _MeshEncode on Renderer {
       _materialData[2] = probe?.intensity ?? scene.ambientIntensity;
       _materialData[3] = settings.specular;
 
+      // `P7`: a masked material's edge as multisample coverage, where the
+      // pass and the device allow it, and its hard cutoff where they do not.
+      final wantsCoverage =
+          override == null &&
+          material.alphaMode == MaterialAlphaMode.mask &&
+          material.alphaToCoverage;
+      final coverage = wantsCoverage && state.coverageAvailable;
+      if (wantsCoverage && !coverage) state.coverageDeclined = true;
+      if (coverage != state.alphaToCoverage) {
+        encoder.setAlphaToCoverage(coverage);
+        state.alphaToCoverage = coverage;
+      }
+
       // A negative cutoff means "not masked". The shader compares against
       // it directly, so encoding the mode in the value keeps a branch and
       // a separate flag out of the uniform block.
       _material2Data[0] = switch (material.alphaMode) {
+        // Above one is the cutoff plus one, with coverage — `P7`: the shader
+        // keeps the fragment and sharpens its alpha rather than cutting.
+        MaterialAlphaMode.mask when coverage => 1.0 + material.alphaCutoff,
         MaterialAlphaMode.mask => material.alphaCutoff,
         // `gfx-16n`'s sentinel. Below -1.5 is "hashed", which the shader
         // reads out of the same component: -1 already meant "not masked" and

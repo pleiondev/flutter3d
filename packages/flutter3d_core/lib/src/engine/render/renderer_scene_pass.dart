@@ -219,6 +219,10 @@ extension _ScenePasses on Renderer {
       // debug overlay at the end of a view leaves the test on `always`, which
       // is exactly the case this catches.
       passState.depthCompare = CompareFunction.less;
+      // `P7`: the meshes of a multisampled pass on a device that can may
+      // turn alpha into coverage.
+      passState.coverageAvailable =
+          msaa != null && device.supportsAlphaToCoverage;
 
       final camera = view.camera;
       final viewMatrix = camera.viewMatrix;
@@ -426,6 +430,14 @@ extension _ScenePasses on Renderer {
       // scene through another matrix, and its split meshes are not this
       // view's to cull.
       _clusterView = null;
+
+      // Off before the contributors and the next view: a particle drawn with
+      // a leaf's coverage still on would be speckled by its own alpha.
+      if (passState.alphaToCoverage) {
+        pass.setAlphaToCoverage(false);
+        passState.alphaToCoverage = false;
+      }
+      passState.coverageAvailable = false;
 
       // `N6`: this view's lights, cells and all, for a contributor that
       // binds them. One that does not never asks, and nothing is built for it.

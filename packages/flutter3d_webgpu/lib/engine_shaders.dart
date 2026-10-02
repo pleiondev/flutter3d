@@ -4493,17 +4493,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_634_: bool;
+    var phi_655_: bool;
 
     let _e88 = (*c);
     let _e89 = (*c);
     let _e91 = any((_e88 != _e89));
-    phi_634_ = _e91;
+    phi_655_ = _e91;
     if !(_e91) {
         let _e93 = (*c);
-        phi_634_ = any((abs(_e93) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_655_ = any((abs(_e93) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e98 = phi_634_;
+    let _e98 = phi_655_;
     return _e98;
 }
 
@@ -4652,80 +4652,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_14: vec3<f32>;
     var param_15: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise: f32;
 
-    let _e94 = v_texcoord_1;
-    let _e95 = MaterialLodBias_u0028_();
-    let _e96 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e94, _e95);
-    texel = _e96;
-    let _e97 = texel;
-    param_14 = _e97.xyz;
-    let _e99 = SrgbToLinear_u0028_vf3_u003b((&param_14));
-    let _e101 = frag_info.base_color;
-    param_15 = _e101.xyz;
-    let _e103 = SrgbToLinear_u0028_vf3_u003b((&param_15));
-    let _e105 = v_color_1;
-    s_1.albedo = ((_e99 * _e103) * _e105.xyz);
-    let _e110 = texel[3u];
-    let _e113 = frag_info.base_color[3u];
-    let _e116 = v_color_1[3u];
-    s_1.alpha = ((_e110 * _e113) * _e116);
-    let _e120 = s_1.albedo;
-    g_albedo = _e120;
-    let _e123 = frag_info.material2_[0u];
-    cutoff = _e123;
-    let _e124 = cutoff;
-    if (_e124 >= 0f) {
-        let _e127 = s_1.alpha;
-        let _e128 = cutoff;
-        if (_e127 < _e128) {
-            discard;
-        }
+    let _e95 = v_texcoord_1;
+    let _e96 = MaterialLodBias_u0028_();
+    let _e97 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e95, _e96);
+    texel = _e97;
+    let _e98 = texel;
+    param_14 = _e98.xyz;
+    let _e100 = SrgbToLinear_u0028_vf3_u003b((&param_14));
+    let _e102 = frag_info.base_color;
+    param_15 = _e102.xyz;
+    let _e104 = SrgbToLinear_u0028_vf3_u003b((&param_15));
+    let _e106 = v_color_1;
+    s_1.albedo = ((_e100 * _e104) * _e106.xyz);
+    let _e111 = texel[3u];
+    let _e114 = frag_info.base_color[3u];
+    let _e117 = v_color_1[3u];
+    s_1.alpha = ((_e111 * _e114) * _e117);
+    let _e121 = s_1.albedo;
+    g_albedo = _e121;
+    let _e124 = frag_info.material2_[0u];
+    cutoff = _e124;
+    let _e125 = cutoff;
+    if (_e125 > 1f) {
+        let _e127 = cutoff;
+        edge = (_e127 - 1f);
+        let _e130 = s_1.alpha;
+        let _e131 = edge;
+        let _e134 = s_1.alpha;
+        let _e135 = fwidth(_e134);
+        s_1.alpha = clamp((((_e130 - _e131) / max(_e135, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e130 = cutoff;
-        if (_e130 < -1.5f) {
-            let _e132 = v_world_position_1;
-            anchored = floor((_e132 * 16f));
-            let _e135 = anchored;
-            noise = fract((sin(dot(_e135, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e141 = s_1.alpha;
-            let _e142 = noise;
-            if (_e141 < _e142) {
+        let _e141 = cutoff;
+        if (_e141 >= 0f) {
+            let _e144 = s_1.alpha;
+            let _e145 = cutoff;
+            if (_e144 < _e145) {
                 discard;
+            }
+            s_1.alpha = 1f;
+        } else {
+            let _e148 = cutoff;
+            if (_e148 < -1.5f) {
+                let _e150 = v_world_position_1;
+                anchored = floor((_e150 * 16f));
+                let _e153 = anchored;
+                noise = fract((sin(dot(_e153, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e159 = s_1.alpha;
+                let _e160 = noise;
+                if (_e159 < _e160) {
+                    discard;
+                }
             }
         }
     }
-    let _e144 = cutoff;
-    let _e146 = cutoff;
-    g_premultiply = ((_e144 < 0f) && (_e146 > -0.75f));
-    let _e149 = v_normal_1;
-    s_1.n = normalize(_e149);
-    let _e152 = gl_FrontFacing_1;
-    if !(_e152) {
-        let _e155 = s_1.n;
-        s_1.n = -(_e155);
+    let _e162 = cutoff;
+    let _e164 = cutoff;
+    g_premultiply = ((_e162 < 0f) && (_e164 > -0.75f));
+    let _e167 = v_normal_1;
+    s_1.n = normalize(_e167);
+    let _e170 = gl_FrontFacing_1;
+    if !(_e170) {
+        let _e173 = s_1.n;
+        s_1.n = -(_e173);
     }
-    let _e158 = TowardsEye_u0028_();
-    s_1.v = _e158;
-    let _e161 = s_1.n;
-    let _e163 = s_1.v;
-    s_1.n_dot_v = max(dot(_e161, _e163), 0.0001f);
-    let _e169 = frag_info.material[0u];
-    s_1.metallic = clamp(_e169, 0f, 1f);
-    let _e174 = frag_info.material[1u];
-    s_1.roughness = clamp(_e174, 0.02f, 1f);
-    let _e178 = frag_info.ambient_ground;
-    let _e181 = frag_info.ambient_sky;
-    let _e185 = s_1.n[1u];
-    let _e192 = frag_info.material[2u];
-    s_1.ambient = (mix(_e178.xyz, _e181.xyz, vec3(((_e185 * 0.5f) + 0.5f))) * _e192);
-    let _e197 = frag_info.frame_params[0u];
-    s_1.exposure = max(_e197, 0f);
+    let _e176 = TowardsEye_u0028_();
+    s_1.v = _e176;
+    let _e179 = s_1.n;
+    let _e181 = s_1.v;
+    s_1.n_dot_v = max(dot(_e179, _e181), 0.0001f);
+    let _e187 = frag_info.material[0u];
+    s_1.metallic = clamp(_e187, 0f, 1f);
+    let _e192 = frag_info.material[1u];
+    s_1.roughness = clamp(_e192, 0.02f, 1f);
+    let _e196 = frag_info.ambient_ground;
+    let _e199 = frag_info.ambient_sky;
+    let _e203 = s_1.n[1u];
+    let _e210 = frag_info.material[2u];
+    s_1.ambient = (mix(_e196.xyz, _e199.xyz, vec3(((_e203 * 0.5f) + 0.5f))) * _e210);
+    let _e215 = frag_info.frame_params[0u];
+    s_1.exposure = max(_e215, 0f);
     s_1.occlusion = 1f;
     s_1.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e202 = s_1;
-    return _e202;
+    let _e220 = s_1;
+    return _e220;
 }
 
 fn main_1() {
@@ -5195,80 +5208,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_6: vec3<f32>;
     var param_7: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise: f32;
 
-    let _e75 = v_texcoord_1;
-    let _e76 = MaterialLodBias_u0028_();
-    let _e77 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e75, _e76);
-    texel = _e77;
-    let _e78 = texel;
-    param_6 = _e78.xyz;
-    let _e80 = SrgbToLinear_u0028_vf3_u003b((&param_6));
-    let _e82 = frag_info.base_color;
-    param_7 = _e82.xyz;
-    let _e84 = SrgbToLinear_u0028_vf3_u003b((&param_7));
-    let _e86 = v_color_1;
-    s.albedo = ((_e80 * _e84) * _e86.xyz);
-    let _e91 = texel[3u];
-    let _e94 = frag_info.base_color[3u];
-    let _e97 = v_color_1[3u];
-    s.alpha = ((_e91 * _e94) * _e97);
-    let _e101 = s.albedo;
-    g_albedo = _e101;
-    let _e104 = frag_info.material2_[0u];
-    cutoff = _e104;
-    let _e105 = cutoff;
-    if (_e105 >= 0f) {
-        let _e108 = s.alpha;
-        let _e109 = cutoff;
-        if (_e108 < _e109) {
-            discard;
-        }
+    let _e76 = v_texcoord_1;
+    let _e77 = MaterialLodBias_u0028_();
+    let _e78 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e76, _e77);
+    texel = _e78;
+    let _e79 = texel;
+    param_6 = _e79.xyz;
+    let _e81 = SrgbToLinear_u0028_vf3_u003b((&param_6));
+    let _e83 = frag_info.base_color;
+    param_7 = _e83.xyz;
+    let _e85 = SrgbToLinear_u0028_vf3_u003b((&param_7));
+    let _e87 = v_color_1;
+    s.albedo = ((_e81 * _e85) * _e87.xyz);
+    let _e92 = texel[3u];
+    let _e95 = frag_info.base_color[3u];
+    let _e98 = v_color_1[3u];
+    s.alpha = ((_e92 * _e95) * _e98);
+    let _e102 = s.albedo;
+    g_albedo = _e102;
+    let _e105 = frag_info.material2_[0u];
+    cutoff = _e105;
+    let _e106 = cutoff;
+    if (_e106 > 1f) {
+        let _e108 = cutoff;
+        edge = (_e108 - 1f);
+        let _e111 = s.alpha;
+        let _e112 = edge;
+        let _e115 = s.alpha;
+        let _e116 = fwidth(_e115);
+        s.alpha = clamp((((_e111 - _e112) / max(_e116, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e111 = cutoff;
-        if (_e111 < -1.5f) {
-            let _e113 = v_world_position_1;
-            anchored = floor((_e113 * 16f));
-            let _e116 = anchored;
-            noise = fract((sin(dot(_e116, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e122 = s.alpha;
-            let _e123 = noise;
-            if (_e122 < _e123) {
+        let _e122 = cutoff;
+        if (_e122 >= 0f) {
+            let _e125 = s.alpha;
+            let _e126 = cutoff;
+            if (_e125 < _e126) {
                 discard;
+            }
+            s.alpha = 1f;
+        } else {
+            let _e129 = cutoff;
+            if (_e129 < -1.5f) {
+                let _e131 = v_world_position_1;
+                anchored = floor((_e131 * 16f));
+                let _e134 = anchored;
+                noise = fract((sin(dot(_e134, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e140 = s.alpha;
+                let _e141 = noise;
+                if (_e140 < _e141) {
+                    discard;
+                }
             }
         }
     }
-    let _e125 = cutoff;
-    let _e127 = cutoff;
-    g_premultiply = ((_e125 < 0f) && (_e127 > -0.75f));
-    let _e130 = v_normal_1;
-    s.n = normalize(_e130);
-    let _e133 = gl_FrontFacing_1;
-    if !(_e133) {
-        let _e136 = s.n;
-        s.n = -(_e136);
+    let _e143 = cutoff;
+    let _e145 = cutoff;
+    g_premultiply = ((_e143 < 0f) && (_e145 > -0.75f));
+    let _e148 = v_normal_1;
+    s.n = normalize(_e148);
+    let _e151 = gl_FrontFacing_1;
+    if !(_e151) {
+        let _e154 = s.n;
+        s.n = -(_e154);
     }
-    let _e139 = TowardsEye_u0028_();
-    s.v = _e139;
-    let _e142 = s.n;
-    let _e144 = s.v;
-    s.n_dot_v = max(dot(_e142, _e144), 0.0001f);
-    let _e150 = frag_info.material[0u];
-    s.metallic = clamp(_e150, 0f, 1f);
-    let _e155 = frag_info.material[1u];
-    s.roughness = clamp(_e155, 0.02f, 1f);
-    let _e159 = frag_info.ambient_ground;
-    let _e162 = frag_info.ambient_sky;
-    let _e166 = s.n[1u];
-    let _e173 = frag_info.material[2u];
-    s.ambient = (mix(_e159.xyz, _e162.xyz, vec3(((_e166 * 0.5f) + 0.5f))) * _e173);
-    let _e178 = frag_info.frame_params[0u];
-    s.exposure = max(_e178, 0f);
+    let _e157 = TowardsEye_u0028_();
+    s.v = _e157;
+    let _e160 = s.n;
+    let _e162 = s.v;
+    s.n_dot_v = max(dot(_e160, _e162), 0.0001f);
+    let _e168 = frag_info.material[0u];
+    s.metallic = clamp(_e168, 0f, 1f);
+    let _e173 = frag_info.material[1u];
+    s.roughness = clamp(_e173, 0.02f, 1f);
+    let _e177 = frag_info.ambient_ground;
+    let _e180 = frag_info.ambient_sky;
+    let _e184 = s.n[1u];
+    let _e191 = frag_info.material[2u];
+    s.ambient = (mix(_e177.xyz, _e180.xyz, vec3(((_e184 * 0.5f) + 0.5f))) * _e191);
+    let _e196 = frag_info.frame_params[0u];
+    s.exposure = max(_e196, 0f);
     s.occlusion = 1f;
     s.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e183 = s;
-    return _e183;
+    let _e201 = s;
+    return _e201;
 }
 
 fn main_1() {
@@ -6122,17 +6148,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_2531_: bool;
+    var phi_2552_: bool;
 
     let _e185 = (*c);
     let _e186 = (*c);
     let _e188 = any((_e185 != _e186));
-    phi_2531_ = _e188;
+    phi_2552_ = _e188;
     if !(_e188) {
         let _e190 = (*c);
-        phi_2531_ = any((abs(_e190) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_2552_ = any((abs(_e190) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e195 = phi_2531_;
+    let _e195 = phi_2552_;
     return _e195;
 }
 
@@ -6549,8 +6575,8 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_48: vec2<f32>;
     var param_49: f32;
     var param_50: f32;
-    var phi_2220_: bool;
-    var phi_2281_: bool;
+    var phi_2241_: bool;
+    var phi_2302_: bool;
 
     let _e238 = (*lightIndex);
     let _e242 = point_shadow.slots[_e238][0u];
@@ -6615,13 +6641,13 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
         let _e336 = a[0u];
         let _e338 = a[1u];
         let _e339 = (_e336 >= _e338);
-        phi_2220_ = _e339;
+        phi_2241_ = _e339;
         if _e339 {
             let _e341 = a[0u];
             let _e343 = a[2u];
-            phi_2220_ = (_e341 >= _e343);
+            phi_2241_ = (_e341 >= _e343);
         }
-        let _e346 = phi_2220_;
+        let _e346 = phi_2241_;
         if _e346 {
             let _e348 = toFragment[0u];
             face = select(1i, 0i, (_e348 > 0f));
@@ -6651,12 +6677,12 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     ndc = (_e380.xy / vec2(_e383));
     let _e387 = ndc[0u];
     let _e389 = (abs(_e387) > 1f);
-    phi_2281_ = _e389;
+    phi_2302_ = _e389;
     if !(_e389) {
         let _e392 = ndc[1u];
-        phi_2281_ = (abs(_e392) > 1f);
+        phi_2302_ = (abs(_e392) > 1f);
     }
-    let _e396 = phi_2281_;
+    let _e396 = phi_2302_;
     if _e396 {
         return 1f;
     }
@@ -6956,11 +6982,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var param_69: f32;
     var tapBias_1: f32;
     var occluder_2: f32;
-    var phi_3476_: bool;
-    var phi_3487_: bool;
-    var phi_3648_: bool;
-    var phi_3655_: bool;
-    var phi_3662_: bool;
+    var phi_3497_: bool;
+    var phi_3508_: bool;
+    var phi_3669_: bool;
+    var phi_3676_: bool;
+    var phi_3683_: bool;
 
     let _e252 = frag_info.shadow_params[3u];
     strength_1 = _e252;
@@ -6981,25 +7007,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e273 = cascadeCount;
     let _e274 = (_e273 > 1i);
-    phi_3476_ = _e274;
+    phi_3497_ = _e274;
     if _e274 {
         let _e275 = viewDistance;
         let _e278 = frag_info.shadow_cascades[0u];
-        phi_3476_ = (_e275 > _e278);
+        phi_3497_ = (_e275 > _e278);
     }
-    let _e281 = phi_3476_;
+    let _e281 = phi_3497_;
     if _e281 {
         cascade = 1i;
     }
     let _e282 = cascadeCount;
     let _e283 = (_e282 > 2i);
-    phi_3487_ = _e283;
+    phi_3508_ = _e283;
     if _e283 {
         let _e284 = viewDistance;
         let _e287 = frag_info.shadow_cascades[1u];
-        phi_3487_ = (_e284 > _e287);
+        phi_3508_ = (_e284 > _e287);
     }
-    let _e290 = phi_3487_;
+    let _e290 = phi_3508_;
     if _e290 {
         cascade = 2i;
     }
@@ -7087,24 +7113,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e397 * 0.5f) + 0.5f), (0.5f - (_e401 * 0.5f)));
             let _e406 = inTile[0u];
             let _e407 = (_e406 < 0f);
-            phi_3648_ = _e407;
+            phi_3669_ = _e407;
             if !(_e407) {
                 let _e410 = inTile[0u];
-                phi_3648_ = (_e410 > 1f);
+                phi_3669_ = (_e410 > 1f);
             }
-            let _e413 = phi_3648_;
-            phi_3655_ = _e413;
+            let _e413 = phi_3669_;
+            phi_3676_ = _e413;
             if !(_e413) {
                 let _e416 = inTile[1u];
-                phi_3655_ = (_e416 < 0f);
+                phi_3676_ = (_e416 < 0f);
             }
-            let _e419 = phi_3655_;
-            phi_3662_ = _e419;
+            let _e419 = phi_3676_;
+            phi_3683_ = _e419;
             if !(_e419) {
                 let _e422 = inTile[1u];
-                phi_3662_ = (_e422 > 1f);
+                phi_3683_ = (_e422 > 1f);
             }
-            let _e425 = phi_3662_;
+            let _e425 = phi_3683_;
             if _e425 {
                 continue;
             }
@@ -8768,80 +8794,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_134: vec3<f32>;
     var param_135: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e191 = v_texcoord_1;
-    let _e192 = MaterialLodBias_u0028_();
-    let _e193 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e191, _e192);
-    texel_6 = _e193;
-    let _e194 = texel_6;
-    param_134 = _e194.xyz;
-    let _e196 = SrgbToLinear_u0028_vf3_u003b((&param_134));
-    let _e198 = frag_info.base_color;
-    param_135 = _e198.xyz;
-    let _e200 = SrgbToLinear_u0028_vf3_u003b((&param_135));
-    let _e202 = v_color_1;
-    s_10.albedo = ((_e196 * _e200) * _e202.xyz);
-    let _e207 = texel_6[3u];
-    let _e210 = frag_info.base_color[3u];
-    let _e213 = v_color_1[3u];
-    s_10.alpha = ((_e207 * _e210) * _e213);
-    let _e217 = s_10.albedo;
-    g_albedo = _e217;
-    let _e220 = frag_info.material2_[0u];
-    cutoff = _e220;
-    let _e221 = cutoff;
-    if (_e221 >= 0f) {
-        let _e224 = s_10.alpha;
-        let _e225 = cutoff;
-        if (_e224 < _e225) {
-            discard;
-        }
+    let _e192 = v_texcoord_1;
+    let _e193 = MaterialLodBias_u0028_();
+    let _e194 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e192, _e193);
+    texel_6 = _e194;
+    let _e195 = texel_6;
+    param_134 = _e195.xyz;
+    let _e197 = SrgbToLinear_u0028_vf3_u003b((&param_134));
+    let _e199 = frag_info.base_color;
+    param_135 = _e199.xyz;
+    let _e201 = SrgbToLinear_u0028_vf3_u003b((&param_135));
+    let _e203 = v_color_1;
+    s_10.albedo = ((_e197 * _e201) * _e203.xyz);
+    let _e208 = texel_6[3u];
+    let _e211 = frag_info.base_color[3u];
+    let _e214 = v_color_1[3u];
+    s_10.alpha = ((_e208 * _e211) * _e214);
+    let _e218 = s_10.albedo;
+    g_albedo = _e218;
+    let _e221 = frag_info.material2_[0u];
+    cutoff = _e221;
+    let _e222 = cutoff;
+    if (_e222 > 1f) {
+        let _e224 = cutoff;
+        edge = (_e224 - 1f);
+        let _e227 = s_10.alpha;
+        let _e228 = edge;
+        let _e231 = s_10.alpha;
+        let _e232 = fwidth(_e231);
+        s_10.alpha = clamp((((_e227 - _e228) / max(_e232, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e227 = cutoff;
-        if (_e227 < -1.5f) {
-            let _e229 = v_world_position_1;
-            anchored = floor((_e229 * 16f));
-            let _e232 = anchored;
-            noise_1 = fract((sin(dot(_e232, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e238 = s_10.alpha;
-            let _e239 = noise_1;
-            if (_e238 < _e239) {
+        let _e238 = cutoff;
+        if (_e238 >= 0f) {
+            let _e241 = s_10.alpha;
+            let _e242 = cutoff;
+            if (_e241 < _e242) {
                 discard;
+            }
+            s_10.alpha = 1f;
+        } else {
+            let _e245 = cutoff;
+            if (_e245 < -1.5f) {
+                let _e247 = v_world_position_1;
+                anchored = floor((_e247 * 16f));
+                let _e250 = anchored;
+                noise_1 = fract((sin(dot(_e250, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e256 = s_10.alpha;
+                let _e257 = noise_1;
+                if (_e256 < _e257) {
+                    discard;
+                }
             }
         }
     }
-    let _e241 = cutoff;
-    let _e243 = cutoff;
-    g_premultiply = ((_e241 < 0f) && (_e243 > -0.75f));
-    let _e246 = v_normal_1;
-    s_10.n = normalize(_e246);
-    let _e249 = gl_FrontFacing_1;
-    if !(_e249) {
-        let _e252 = s_10.n;
-        s_10.n = -(_e252);
+    let _e259 = cutoff;
+    let _e261 = cutoff;
+    g_premultiply = ((_e259 < 0f) && (_e261 > -0.75f));
+    let _e264 = v_normal_1;
+    s_10.n = normalize(_e264);
+    let _e267 = gl_FrontFacing_1;
+    if !(_e267) {
+        let _e270 = s_10.n;
+        s_10.n = -(_e270);
     }
-    let _e255 = TowardsEye_u0028_();
-    s_10.v = _e255;
-    let _e258 = s_10.n;
-    let _e260 = s_10.v;
-    s_10.n_dot_v = max(dot(_e258, _e260), 0.0001f);
-    let _e266 = frag_info.material[0u];
-    s_10.metallic = clamp(_e266, 0f, 1f);
-    let _e271 = frag_info.material[1u];
-    s_10.roughness = clamp(_e271, 0.02f, 1f);
-    let _e275 = frag_info.ambient_ground;
-    let _e278 = frag_info.ambient_sky;
-    let _e282 = s_10.n[1u];
-    let _e289 = frag_info.material[2u];
-    s_10.ambient = (mix(_e275.xyz, _e278.xyz, vec3(((_e282 * 0.5f) + 0.5f))) * _e289);
-    let _e294 = frag_info.frame_params[0u];
-    s_10.exposure = max(_e294, 0f);
+    let _e273 = TowardsEye_u0028_();
+    s_10.v = _e273;
+    let _e276 = s_10.n;
+    let _e278 = s_10.v;
+    s_10.n_dot_v = max(dot(_e276, _e278), 0.0001f);
+    let _e284 = frag_info.material[0u];
+    s_10.metallic = clamp(_e284, 0f, 1f);
+    let _e289 = frag_info.material[1u];
+    s_10.roughness = clamp(_e289, 0.02f, 1f);
+    let _e293 = frag_info.ambient_ground;
+    let _e296 = frag_info.ambient_sky;
+    let _e300 = s_10.n[1u];
+    let _e307 = frag_info.material[2u];
+    s_10.ambient = (mix(_e293.xyz, _e296.xyz, vec3(((_e300 * 0.5f) + 0.5f))) * _e307);
+    let _e312 = frag_info.frame_params[0u];
+    s_10.exposure = max(_e312, 0f);
     s_10.occlusion = 1f;
     s_10.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e299 = s_10;
-    return _e299;
+    let _e317 = s_10;
+    return _e317;
 }
 
 fn main_1() {
@@ -9632,17 +9671,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_2534_: bool;
+    var phi_2555_: bool;
 
     let _e186 = (*c);
     let _e187 = (*c);
     let _e189 = any((_e186 != _e187));
-    phi_2534_ = _e189;
+    phi_2555_ = _e189;
     if !(_e189) {
         let _e191 = (*c);
-        phi_2534_ = any((abs(_e191) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_2555_ = any((abs(_e191) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e196 = phi_2534_;
+    let _e196 = phi_2555_;
     return _e196;
 }
 
@@ -10069,8 +10108,8 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_48: vec2<f32>;
     var param_49: f32;
     var param_50: f32;
-    var phi_2223_: bool;
-    var phi_2284_: bool;
+    var phi_2244_: bool;
+    var phi_2305_: bool;
 
     let _e239 = (*lightIndex);
     let _e243 = point_shadow.slots[_e239][0u];
@@ -10135,13 +10174,13 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
         let _e337 = a[0u];
         let _e339 = a[1u];
         let _e340 = (_e337 >= _e339);
-        phi_2223_ = _e340;
+        phi_2244_ = _e340;
         if _e340 {
             let _e342 = a[0u];
             let _e344 = a[2u];
-            phi_2223_ = (_e342 >= _e344);
+            phi_2244_ = (_e342 >= _e344);
         }
-        let _e347 = phi_2223_;
+        let _e347 = phi_2244_;
         if _e347 {
             let _e349 = toFragment[0u];
             face = select(1i, 0i, (_e349 > 0f));
@@ -10171,12 +10210,12 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     ndc = (_e381.xy / vec2(_e384));
     let _e388 = ndc[0u];
     let _e390 = (abs(_e388) > 1f);
-    phi_2284_ = _e390;
+    phi_2305_ = _e390;
     if !(_e390) {
         let _e393 = ndc[1u];
-        phi_2284_ = (abs(_e393) > 1f);
+        phi_2305_ = (abs(_e393) > 1f);
     }
-    let _e397 = phi_2284_;
+    let _e397 = phi_2305_;
     if _e397 {
         return 1f;
     }
@@ -10476,11 +10515,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var param_69: f32;
     var tapBias_1: f32;
     var occluder_2: f32;
-    var phi_3503_: bool;
-    var phi_3514_: bool;
-    var phi_3675_: bool;
-    var phi_3682_: bool;
-    var phi_3689_: bool;
+    var phi_3524_: bool;
+    var phi_3535_: bool;
+    var phi_3696_: bool;
+    var phi_3703_: bool;
+    var phi_3710_: bool;
 
     let _e253 = frag_info.shadow_params[3u];
     strength_1 = _e253;
@@ -10501,25 +10540,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e274 = cascadeCount;
     let _e275 = (_e274 > 1i);
-    phi_3503_ = _e275;
+    phi_3524_ = _e275;
     if _e275 {
         let _e276 = viewDistance;
         let _e279 = frag_info.shadow_cascades[0u];
-        phi_3503_ = (_e276 > _e279);
+        phi_3524_ = (_e276 > _e279);
     }
-    let _e282 = phi_3503_;
+    let _e282 = phi_3524_;
     if _e282 {
         cascade = 1i;
     }
     let _e283 = cascadeCount;
     let _e284 = (_e283 > 2i);
-    phi_3514_ = _e284;
+    phi_3535_ = _e284;
     if _e284 {
         let _e285 = viewDistance;
         let _e288 = frag_info.shadow_cascades[1u];
-        phi_3514_ = (_e285 > _e288);
+        phi_3535_ = (_e285 > _e288);
     }
-    let _e291 = phi_3514_;
+    let _e291 = phi_3535_;
     if _e291 {
         cascade = 2i;
     }
@@ -10607,24 +10646,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e398 * 0.5f) + 0.5f), (0.5f - (_e402 * 0.5f)));
             let _e407 = inTile[0u];
             let _e408 = (_e407 < 0f);
-            phi_3675_ = _e408;
+            phi_3696_ = _e408;
             if !(_e408) {
                 let _e411 = inTile[0u];
-                phi_3675_ = (_e411 > 1f);
+                phi_3696_ = (_e411 > 1f);
             }
-            let _e414 = phi_3675_;
-            phi_3682_ = _e414;
+            let _e414 = phi_3696_;
+            phi_3703_ = _e414;
             if !(_e414) {
                 let _e417 = inTile[1u];
-                phi_3682_ = (_e417 < 0f);
+                phi_3703_ = (_e417 < 0f);
             }
-            let _e420 = phi_3682_;
-            phi_3689_ = _e420;
+            let _e420 = phi_3703_;
+            phi_3710_ = _e420;
             if !(_e420) {
                 let _e423 = inTile[1u];
-                phi_3689_ = (_e423 > 1f);
+                phi_3710_ = (_e423 > 1f);
             }
-            let _e426 = phi_3689_;
+            let _e426 = phi_3710_;
             if _e426 {
                 continue;
             }
@@ -12304,80 +12343,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_134: vec3<f32>;
     var param_135: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e192 = v_texcoord_1;
-    let _e193 = MaterialLodBias_u0028_();
-    let _e194 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e192, _e193);
-    texel_6 = _e194;
-    let _e195 = texel_6;
-    param_134 = _e195.xyz;
-    let _e197 = SrgbToLinear_u0028_vf3_u003b((&param_134));
-    let _e199 = frag_info.base_color;
-    param_135 = _e199.xyz;
-    let _e201 = SrgbToLinear_u0028_vf3_u003b((&param_135));
-    let _e203 = v_color_1;
-    s_11.albedo = ((_e197 * _e201) * _e203.xyz);
-    let _e208 = texel_6[3u];
-    let _e211 = frag_info.base_color[3u];
-    let _e214 = v_color_1[3u];
-    s_11.alpha = ((_e208 * _e211) * _e214);
-    let _e218 = s_11.albedo;
-    g_albedo = _e218;
-    let _e221 = frag_info.material2_[0u];
-    cutoff = _e221;
-    let _e222 = cutoff;
-    if (_e222 >= 0f) {
-        let _e225 = s_11.alpha;
-        let _e226 = cutoff;
-        if (_e225 < _e226) {
-            discard;
-        }
+    let _e193 = v_texcoord_1;
+    let _e194 = MaterialLodBias_u0028_();
+    let _e195 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e193, _e194);
+    texel_6 = _e195;
+    let _e196 = texel_6;
+    param_134 = _e196.xyz;
+    let _e198 = SrgbToLinear_u0028_vf3_u003b((&param_134));
+    let _e200 = frag_info.base_color;
+    param_135 = _e200.xyz;
+    let _e202 = SrgbToLinear_u0028_vf3_u003b((&param_135));
+    let _e204 = v_color_1;
+    s_11.albedo = ((_e198 * _e202) * _e204.xyz);
+    let _e209 = texel_6[3u];
+    let _e212 = frag_info.base_color[3u];
+    let _e215 = v_color_1[3u];
+    s_11.alpha = ((_e209 * _e212) * _e215);
+    let _e219 = s_11.albedo;
+    g_albedo = _e219;
+    let _e222 = frag_info.material2_[0u];
+    cutoff = _e222;
+    let _e223 = cutoff;
+    if (_e223 > 1f) {
+        let _e225 = cutoff;
+        edge = (_e225 - 1f);
+        let _e228 = s_11.alpha;
+        let _e229 = edge;
+        let _e232 = s_11.alpha;
+        let _e233 = fwidth(_e232);
+        s_11.alpha = clamp((((_e228 - _e229) / max(_e233, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e228 = cutoff;
-        if (_e228 < -1.5f) {
-            let _e230 = v_world_position_1;
-            anchored = floor((_e230 * 16f));
-            let _e233 = anchored;
-            noise_1 = fract((sin(dot(_e233, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e239 = s_11.alpha;
-            let _e240 = noise_1;
-            if (_e239 < _e240) {
+        let _e239 = cutoff;
+        if (_e239 >= 0f) {
+            let _e242 = s_11.alpha;
+            let _e243 = cutoff;
+            if (_e242 < _e243) {
                 discard;
+            }
+            s_11.alpha = 1f;
+        } else {
+            let _e246 = cutoff;
+            if (_e246 < -1.5f) {
+                let _e248 = v_world_position_1;
+                anchored = floor((_e248 * 16f));
+                let _e251 = anchored;
+                noise_1 = fract((sin(dot(_e251, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e257 = s_11.alpha;
+                let _e258 = noise_1;
+                if (_e257 < _e258) {
+                    discard;
+                }
             }
         }
     }
-    let _e242 = cutoff;
-    let _e244 = cutoff;
-    g_premultiply = ((_e242 < 0f) && (_e244 > -0.75f));
-    let _e247 = v_normal_1;
-    s_11.n = normalize(_e247);
-    let _e250 = gl_FrontFacing_1;
-    if !(_e250) {
-        let _e253 = s_11.n;
-        s_11.n = -(_e253);
+    let _e260 = cutoff;
+    let _e262 = cutoff;
+    g_premultiply = ((_e260 < 0f) && (_e262 > -0.75f));
+    let _e265 = v_normal_1;
+    s_11.n = normalize(_e265);
+    let _e268 = gl_FrontFacing_1;
+    if !(_e268) {
+        let _e271 = s_11.n;
+        s_11.n = -(_e271);
     }
-    let _e256 = TowardsEye_u0028_();
-    s_11.v = _e256;
-    let _e259 = s_11.n;
-    let _e261 = s_11.v;
-    s_11.n_dot_v = max(dot(_e259, _e261), 0.0001f);
-    let _e267 = frag_info.material[0u];
-    s_11.metallic = clamp(_e267, 0f, 1f);
-    let _e272 = frag_info.material[1u];
-    s_11.roughness = clamp(_e272, 0.02f, 1f);
-    let _e276 = frag_info.ambient_ground;
-    let _e279 = frag_info.ambient_sky;
-    let _e283 = s_11.n[1u];
-    let _e290 = frag_info.material[2u];
-    s_11.ambient = (mix(_e276.xyz, _e279.xyz, vec3(((_e283 * 0.5f) + 0.5f))) * _e290);
-    let _e295 = frag_info.frame_params[0u];
-    s_11.exposure = max(_e295, 0f);
+    let _e274 = TowardsEye_u0028_();
+    s_11.v = _e274;
+    let _e277 = s_11.n;
+    let _e279 = s_11.v;
+    s_11.n_dot_v = max(dot(_e277, _e279), 0.0001f);
+    let _e285 = frag_info.material[0u];
+    s_11.metallic = clamp(_e285, 0f, 1f);
+    let _e290 = frag_info.material[1u];
+    s_11.roughness = clamp(_e290, 0.02f, 1f);
+    let _e294 = frag_info.ambient_ground;
+    let _e297 = frag_info.ambient_sky;
+    let _e301 = s_11.n[1u];
+    let _e308 = frag_info.material[2u];
+    s_11.ambient = (mix(_e294.xyz, _e297.xyz, vec3(((_e301 * 0.5f) + 0.5f))) * _e308);
+    let _e313 = frag_info.frame_params[0u];
+    s_11.exposure = max(_e313, 0f);
     s_11.occlusion = 1f;
     s_11.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e300 = s_11;
-    return _e300;
+    let _e318 = s_11;
+    return _e318;
 }
 
 fn main_1() {
@@ -13182,17 +13234,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_2873_: bool;
+    var phi_2894_: bool;
 
     let _e205 = (*c);
     let _e206 = (*c);
     let _e208 = any((_e205 != _e206));
-    phi_2873_ = _e208;
+    phi_2894_ = _e208;
     if !(_e208) {
         let _e210 = (*c);
-        phi_2873_ = any((abs(_e210) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_2894_ = any((abs(_e210) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e215 = phi_2873_;
+    let _e215 = phi_2894_;
     return _e215;
 }
 
@@ -13925,8 +13977,8 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_74: vec2<f32>;
     var param_75: f32;
     var param_76: f32;
-    var phi_2564_: bool;
-    var phi_2625_: bool;
+    var phi_2585_: bool;
+    var phi_2646_: bool;
 
     let _e258 = (*lightIndex);
     let _e262 = point_shadow.slots[_e258][0u];
@@ -13991,13 +14043,13 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
         let _e356 = a_1[0u];
         let _e358 = a_1[1u];
         let _e359 = (_e356 >= _e358);
-        phi_2564_ = _e359;
+        phi_2585_ = _e359;
         if _e359 {
             let _e361 = a_1[0u];
             let _e363 = a_1[2u];
-            phi_2564_ = (_e361 >= _e363);
+            phi_2585_ = (_e361 >= _e363);
         }
-        let _e366 = phi_2564_;
+        let _e366 = phi_2585_;
         if _e366 {
             let _e368 = toFragment[0u];
             face = select(1i, 0i, (_e368 > 0f));
@@ -14027,12 +14079,12 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     ndc = (_e400.xy / vec2(_e403));
     let _e407 = ndc[0u];
     let _e409 = (abs(_e407) > 1f);
-    phi_2625_ = _e409;
+    phi_2646_ = _e409;
     if !(_e409) {
         let _e412 = ndc[1u];
-        phi_2625_ = (abs(_e412) > 1f);
+        phi_2646_ = (abs(_e412) > 1f);
     }
-    let _e416 = phi_2625_;
+    let _e416 = phi_2646_;
     if _e416 {
         return 1f;
     }
@@ -14332,11 +14384,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var param_95: f32;
     var tapBias_1: f32;
     var occluder_2: f32;
-    var phi_3842_: bool;
-    var phi_3853_: bool;
-    var phi_4014_: bool;
-    var phi_4021_: bool;
-    var phi_4028_: bool;
+    var phi_3863_: bool;
+    var phi_3874_: bool;
+    var phi_4035_: bool;
+    var phi_4042_: bool;
+    var phi_4049_: bool;
 
     let _e272 = frag_info.shadow_params[3u];
     strength_1 = _e272;
@@ -14357,25 +14409,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e293 = cascadeCount;
     let _e294 = (_e293 > 1i);
-    phi_3842_ = _e294;
+    phi_3863_ = _e294;
     if _e294 {
         let _e295 = viewDistance;
         let _e298 = frag_info.shadow_cascades[0u];
-        phi_3842_ = (_e295 > _e298);
+        phi_3863_ = (_e295 > _e298);
     }
-    let _e301 = phi_3842_;
+    let _e301 = phi_3863_;
     if _e301 {
         cascade = 1i;
     }
     let _e302 = cascadeCount;
     let _e303 = (_e302 > 2i);
-    phi_3853_ = _e303;
+    phi_3874_ = _e303;
     if _e303 {
         let _e304 = viewDistance;
         let _e307 = frag_info.shadow_cascades[1u];
-        phi_3853_ = (_e304 > _e307);
+        phi_3874_ = (_e304 > _e307);
     }
-    let _e310 = phi_3853_;
+    let _e310 = phi_3874_;
     if _e310 {
         cascade = 2i;
     }
@@ -14463,24 +14515,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e417 * 0.5f) + 0.5f), (0.5f - (_e421 * 0.5f)));
             let _e426 = inTile[0u];
             let _e427 = (_e426 < 0f);
-            phi_4014_ = _e427;
+            phi_4035_ = _e427;
             if !(_e427) {
                 let _e430 = inTile[0u];
-                phi_4014_ = (_e430 > 1f);
+                phi_4035_ = (_e430 > 1f);
             }
-            let _e433 = phi_4014_;
-            phi_4021_ = _e433;
+            let _e433 = phi_4035_;
+            phi_4042_ = _e433;
             if !(_e433) {
                 let _e436 = inTile[1u];
-                phi_4021_ = (_e436 < 0f);
+                phi_4042_ = (_e436 < 0f);
             }
-            let _e439 = phi_4021_;
-            phi_4028_ = _e439;
+            let _e439 = phi_4042_;
+            phi_4049_ = _e439;
             if !(_e439) {
                 let _e442 = inTile[1u];
-                phi_4028_ = (_e442 > 1f);
+                phi_4049_ = (_e442 > 1f);
             }
-            let _e445 = phi_4028_;
+            let _e445 = phi_4049_;
             if _e445 {
                 continue;
             }
@@ -16387,80 +16439,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_186: vec3<f32>;
     var param_187: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e211 = v_texcoord_1;
-    let _e212 = MaterialLodBias_u0028_();
-    let _e213 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e211, _e212);
-    texel_6 = _e213;
-    let _e214 = texel_6;
-    param_186 = _e214.xyz;
-    let _e216 = SrgbToLinear_u0028_vf3_u003b((&param_186));
-    let _e218 = frag_info.base_color;
-    param_187 = _e218.xyz;
-    let _e220 = SrgbToLinear_u0028_vf3_u003b((&param_187));
-    let _e222 = v_color_1;
-    s_13.albedo = ((_e216 * _e220) * _e222.xyz);
-    let _e227 = texel_6[3u];
-    let _e230 = frag_info.base_color[3u];
-    let _e233 = v_color_1[3u];
-    s_13.alpha = ((_e227 * _e230) * _e233);
-    let _e237 = s_13.albedo;
-    g_albedo = _e237;
-    let _e240 = frag_info.material2_[0u];
-    cutoff = _e240;
-    let _e241 = cutoff;
-    if (_e241 >= 0f) {
-        let _e244 = s_13.alpha;
-        let _e245 = cutoff;
-        if (_e244 < _e245) {
-            discard;
-        }
+    let _e212 = v_texcoord_1;
+    let _e213 = MaterialLodBias_u0028_();
+    let _e214 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e212, _e213);
+    texel_6 = _e214;
+    let _e215 = texel_6;
+    param_186 = _e215.xyz;
+    let _e217 = SrgbToLinear_u0028_vf3_u003b((&param_186));
+    let _e219 = frag_info.base_color;
+    param_187 = _e219.xyz;
+    let _e221 = SrgbToLinear_u0028_vf3_u003b((&param_187));
+    let _e223 = v_color_1;
+    s_13.albedo = ((_e217 * _e221) * _e223.xyz);
+    let _e228 = texel_6[3u];
+    let _e231 = frag_info.base_color[3u];
+    let _e234 = v_color_1[3u];
+    s_13.alpha = ((_e228 * _e231) * _e234);
+    let _e238 = s_13.albedo;
+    g_albedo = _e238;
+    let _e241 = frag_info.material2_[0u];
+    cutoff = _e241;
+    let _e242 = cutoff;
+    if (_e242 > 1f) {
+        let _e244 = cutoff;
+        edge = (_e244 - 1f);
+        let _e247 = s_13.alpha;
+        let _e248 = edge;
+        let _e251 = s_13.alpha;
+        let _e252 = fwidth(_e251);
+        s_13.alpha = clamp((((_e247 - _e248) / max(_e252, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e247 = cutoff;
-        if (_e247 < -1.5f) {
-            let _e249 = v_world_position_1;
-            anchored = floor((_e249 * 16f));
-            let _e252 = anchored;
-            noise_1 = fract((sin(dot(_e252, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e258 = s_13.alpha;
-            let _e259 = noise_1;
-            if (_e258 < _e259) {
+        let _e258 = cutoff;
+        if (_e258 >= 0f) {
+            let _e261 = s_13.alpha;
+            let _e262 = cutoff;
+            if (_e261 < _e262) {
                 discard;
+            }
+            s_13.alpha = 1f;
+        } else {
+            let _e265 = cutoff;
+            if (_e265 < -1.5f) {
+                let _e267 = v_world_position_1;
+                anchored = floor((_e267 * 16f));
+                let _e270 = anchored;
+                noise_1 = fract((sin(dot(_e270, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e276 = s_13.alpha;
+                let _e277 = noise_1;
+                if (_e276 < _e277) {
+                    discard;
+                }
             }
         }
     }
-    let _e261 = cutoff;
-    let _e263 = cutoff;
-    g_premultiply = ((_e261 < 0f) && (_e263 > -0.75f));
-    let _e266 = v_normal_1;
-    s_13.n = normalize(_e266);
-    let _e269 = gl_FrontFacing_1;
-    if !(_e269) {
-        let _e272 = s_13.n;
-        s_13.n = -(_e272);
+    let _e279 = cutoff;
+    let _e281 = cutoff;
+    g_premultiply = ((_e279 < 0f) && (_e281 > -0.75f));
+    let _e284 = v_normal_1;
+    s_13.n = normalize(_e284);
+    let _e287 = gl_FrontFacing_1;
+    if !(_e287) {
+        let _e290 = s_13.n;
+        s_13.n = -(_e290);
     }
-    let _e275 = TowardsEye_u0028_();
-    s_13.v = _e275;
-    let _e278 = s_13.n;
-    let _e280 = s_13.v;
-    s_13.n_dot_v = max(dot(_e278, _e280), 0.0001f);
-    let _e286 = frag_info.material[0u];
-    s_13.metallic = clamp(_e286, 0f, 1f);
-    let _e291 = frag_info.material[1u];
-    s_13.roughness = clamp(_e291, 0.02f, 1f);
-    let _e295 = frag_info.ambient_ground;
-    let _e298 = frag_info.ambient_sky;
-    let _e302 = s_13.n[1u];
-    let _e309 = frag_info.material[2u];
-    s_13.ambient = (mix(_e295.xyz, _e298.xyz, vec3(((_e302 * 0.5f) + 0.5f))) * _e309);
-    let _e314 = frag_info.frame_params[0u];
-    s_13.exposure = max(_e314, 0f);
+    let _e293 = TowardsEye_u0028_();
+    s_13.v = _e293;
+    let _e296 = s_13.n;
+    let _e298 = s_13.v;
+    s_13.n_dot_v = max(dot(_e296, _e298), 0.0001f);
+    let _e304 = frag_info.material[0u];
+    s_13.metallic = clamp(_e304, 0f, 1f);
+    let _e309 = frag_info.material[1u];
+    s_13.roughness = clamp(_e309, 0.02f, 1f);
+    let _e313 = frag_info.ambient_ground;
+    let _e316 = frag_info.ambient_sky;
+    let _e320 = s_13.n[1u];
+    let _e327 = frag_info.material[2u];
+    s_13.ambient = (mix(_e313.xyz, _e316.xyz, vec3(((_e320 * 0.5f) + 0.5f))) * _e327);
+    let _e332 = frag_info.frame_params[0u];
+    s_13.exposure = max(_e332, 0f);
     s_13.occlusion = 1f;
     s_13.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e319 = s_13;
-    return _e319;
+    let _e337 = s_13;
+    return _e337;
 }
 
 fn main_1() {
@@ -17424,17 +17489,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_2985_: bool;
+    var phi_3006_: bool;
 
     let _e271 = (*c);
     let _e272 = (*c);
     let _e274 = any((_e271 != _e272));
-    phi_2985_ = _e274;
+    phi_3006_ = _e274;
     if !(_e274) {
         let _e276 = (*c);
-        phi_2985_ = any((abs(_e276) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_3006_ = any((abs(_e276) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e281 = phi_2985_;
+    let _e281 = phi_3006_;
     return _e281;
 }
 
@@ -18620,8 +18685,8 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_121: vec2<f32>;
     var param_122: f32;
     var param_123: f32;
-    var phi_2676_: bool;
-    var phi_2737_: bool;
+    var phi_2697_: bool;
+    var phi_2758_: bool;
 
     let _e324 = (*lightIndex);
     let _e328 = point_shadow.slots[_e324][0u];
@@ -18686,13 +18751,13 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
         let _e422 = a_2[0u];
         let _e424 = a_2[1u];
         let _e425 = (_e422 >= _e424);
-        phi_2676_ = _e425;
+        phi_2697_ = _e425;
         if _e425 {
             let _e427 = a_2[0u];
             let _e429 = a_2[2u];
-            phi_2676_ = (_e427 >= _e429);
+            phi_2697_ = (_e427 >= _e429);
         }
-        let _e432 = phi_2676_;
+        let _e432 = phi_2697_;
         if _e432 {
             let _e434 = toFragment[0u];
             face = select(1i, 0i, (_e434 > 0f));
@@ -18722,12 +18787,12 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     ndc = (_e466.xy / vec2(_e469));
     let _e473 = ndc[0u];
     let _e475 = (abs(_e473) > 1f);
-    phi_2737_ = _e475;
+    phi_2758_ = _e475;
     if !(_e475) {
         let _e478 = ndc[1u];
-        phi_2737_ = (abs(_e478) > 1f);
+        phi_2758_ = (abs(_e478) > 1f);
     }
-    let _e482 = phi_2737_;
+    let _e482 = phi_2758_;
     if _e482 {
         return 1f;
     }
@@ -19027,11 +19092,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var param_142: f32;
     var tapBias_1: f32;
     var occluder_2: f32;
-    var phi_4058_: bool;
-    var phi_4069_: bool;
-    var phi_4230_: bool;
-    var phi_4237_: bool;
-    var phi_4244_: bool;
+    var phi_4079_: bool;
+    var phi_4090_: bool;
+    var phi_4251_: bool;
+    var phi_4258_: bool;
+    var phi_4265_: bool;
 
     let _e338 = frag_info.shadow_params[3u];
     strength_1 = _e338;
@@ -19052,25 +19117,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e359 = cascadeCount;
     let _e360 = (_e359 > 1i);
-    phi_4058_ = _e360;
+    phi_4079_ = _e360;
     if _e360 {
         let _e361 = viewDistance;
         let _e364 = frag_info.shadow_cascades[0u];
-        phi_4058_ = (_e361 > _e364);
+        phi_4079_ = (_e361 > _e364);
     }
-    let _e367 = phi_4058_;
+    let _e367 = phi_4079_;
     if _e367 {
         cascade = 1i;
     }
     let _e368 = cascadeCount;
     let _e369 = (_e368 > 2i);
-    phi_4069_ = _e369;
+    phi_4090_ = _e369;
     if _e369 {
         let _e370 = viewDistance;
         let _e373 = frag_info.shadow_cascades[1u];
-        phi_4069_ = (_e370 > _e373);
+        phi_4090_ = (_e370 > _e373);
     }
-    let _e376 = phi_4069_;
+    let _e376 = phi_4090_;
     if _e376 {
         cascade = 2i;
     }
@@ -19158,24 +19223,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e483 * 0.5f) + 0.5f), (0.5f - (_e487 * 0.5f)));
             let _e492 = inTile[0u];
             let _e493 = (_e492 < 0f);
-            phi_4230_ = _e493;
+            phi_4251_ = _e493;
             if !(_e493) {
                 let _e496 = inTile[0u];
-                phi_4230_ = (_e496 > 1f);
+                phi_4251_ = (_e496 > 1f);
             }
-            let _e499 = phi_4230_;
-            phi_4237_ = _e499;
+            let _e499 = phi_4251_;
+            phi_4258_ = _e499;
             if !(_e499) {
                 let _e502 = inTile[1u];
-                phi_4237_ = (_e502 < 0f);
+                phi_4258_ = (_e502 < 0f);
             }
-            let _e505 = phi_4237_;
-            phi_4244_ = _e505;
+            let _e505 = phi_4258_;
+            phi_4265_ = _e505;
             if !(_e505) {
                 let _e508 = inTile[1u];
-                phi_4244_ = (_e508 > 1f);
+                phi_4265_ = (_e508 > 1f);
             }
-            let _e511 = phi_4244_;
+            let _e511 = phi_4265_;
             if _e511 {
                 continue;
             }
@@ -20906,7 +20971,7 @@ fn ReadLayersOnMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     var along_1: vec3<f32>;
     var local_41: f32;
     var local_42: vec3<f32>;
-    var phi_4918_: bool;
+    var phi_4939_: bool;
 
     let _e283 = (*s_12).n_dot_v;
     let _e287 = g_sheen_roughness;
@@ -20955,13 +21020,13 @@ fn ReadLayersOnMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     let _e341 = turn_2[1u];
     along_1 = ((_e335 * _e337) + (_e339 * _e341));
     let _e344 = usable;
-    phi_4918_ = _e344;
+    phi_4939_ = _e344;
     if _e344 {
         let _e345 = along_1;
         let _e346 = along_1;
-        phi_4918_ = (dot(_e345, _e346) > 0.000000000001f);
+        phi_4939_ = (dot(_e345, _e346) > 0.000000000001f);
     }
-    let _e350 = phi_4918_;
+    let _e350 = phi_4939_;
     if _e350 {
         let _e353 = layer_info.anisotropy[0u];
         local_41 = clamp(_e353, 0f, 1f);
@@ -21076,10 +21141,10 @@ fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_
     var local_44: vec3<f32>;
     var local_45: vec3<f32>;
     var sampled: vec3<f32>;
-    var phi_3737_: bool;
-    var phi_3744_: bool;
-    var phi_3751_: bool;
     var phi_3758_: bool;
+    var phi_3765_: bool;
+    var phi_3772_: bool;
+    var phi_3779_: bool;
 
     param_221 = 2i;
     let _e286 = MapUv_u0028_i1_u003b((&param_221));
@@ -21132,31 +21197,31 @@ fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_
     turned = (((_e333 * _e335) + (_e337 * _e339)) * _e342);
     let _e345 = m_2[1u];
     let _e346 = (_e345 != 0f);
-    phi_3737_ = _e346;
+    phi_3758_ = _e346;
     if !(_e346) {
         let _e349 = m_2[2u];
-        phi_3737_ = (_e349 != 0f);
+        phi_3758_ = (_e349 != 0f);
     }
-    let _e352 = phi_3737_;
-    phi_3744_ = _e352;
+    let _e352 = phi_3758_;
+    phi_3765_ = _e352;
     if !(_e352) {
         let _e355 = m_2[0u];
-        phi_3744_ = (_e355 < 0f);
+        phi_3765_ = (_e355 < 0f);
     }
-    let _e358 = phi_3744_;
-    phi_3751_ = _e358;
+    let _e358 = phi_3765_;
+    phi_3772_ = _e358;
     if !(_e358) {
         let _e361 = m_2[3u];
-        phi_3751_ = (_e361 < 0f);
+        phi_3772_ = (_e361 < 0f);
     }
-    let _e364 = phi_3751_;
-    phi_3758_ = _e364;
+    let _e364 = phi_3772_;
+    phi_3779_ = _e364;
     if _e364 {
         let _e365 = turned;
         let _e366 = turned;
-        phi_3758_ = (dot(_e365, _e366) > 0.000000000001f);
+        phi_3779_ = (dot(_e365, _e366) > 0.000000000001f);
     }
-    let _e370 = phi_3758_;
+    let _e370 = phi_3779_;
     turns = _e370;
     let _e371 = turns;
     if _e371 {
@@ -21678,81 +21743,94 @@ fn ReadSurface_u0028_() -> Surface {
     var param_244: vec3<f32>;
     var param_245: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
     param_243 = 0i;
-    let _e278 = MapUv_u0028_i1_u003b((&param_243));
-    let _e279 = MaterialLodBias_u0028_();
-    let _e280 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e278, _e279);
-    texel_6 = _e280;
-    let _e281 = texel_6;
-    param_244 = _e281.xyz;
-    let _e283 = SrgbToLinear_u0028_vf3_u003b((&param_244));
-    let _e285 = frag_info.base_color;
-    param_245 = _e285.xyz;
-    let _e287 = SrgbToLinear_u0028_vf3_u003b((&param_245));
-    let _e289 = v_color_1;
-    s_19.albedo = ((_e283 * _e287) * _e289.xyz);
-    let _e294 = texel_6[3u];
-    let _e297 = frag_info.base_color[3u];
-    let _e300 = v_color_1[3u];
-    s_19.alpha = ((_e294 * _e297) * _e300);
-    let _e304 = s_19.albedo;
-    g_albedo = _e304;
-    let _e307 = frag_info.material2_[0u];
-    cutoff = _e307;
-    let _e308 = cutoff;
-    if (_e308 >= 0f) {
-        let _e311 = s_19.alpha;
-        let _e312 = cutoff;
-        if (_e311 < _e312) {
-            discard;
-        }
+    let _e279 = MapUv_u0028_i1_u003b((&param_243));
+    let _e280 = MaterialLodBias_u0028_();
+    let _e281 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e279, _e280);
+    texel_6 = _e281;
+    let _e282 = texel_6;
+    param_244 = _e282.xyz;
+    let _e284 = SrgbToLinear_u0028_vf3_u003b((&param_244));
+    let _e286 = frag_info.base_color;
+    param_245 = _e286.xyz;
+    let _e288 = SrgbToLinear_u0028_vf3_u003b((&param_245));
+    let _e290 = v_color_1;
+    s_19.albedo = ((_e284 * _e288) * _e290.xyz);
+    let _e295 = texel_6[3u];
+    let _e298 = frag_info.base_color[3u];
+    let _e301 = v_color_1[3u];
+    s_19.alpha = ((_e295 * _e298) * _e301);
+    let _e305 = s_19.albedo;
+    g_albedo = _e305;
+    let _e308 = frag_info.material2_[0u];
+    cutoff = _e308;
+    let _e309 = cutoff;
+    if (_e309 > 1f) {
+        let _e311 = cutoff;
+        edge = (_e311 - 1f);
+        let _e314 = s_19.alpha;
+        let _e315 = edge;
+        let _e318 = s_19.alpha;
+        let _e319 = fwidth(_e318);
+        s_19.alpha = clamp((((_e314 - _e315) / max(_e319, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e314 = cutoff;
-        if (_e314 < -1.5f) {
-            let _e316 = v_world_position_1;
-            anchored = floor((_e316 * 16f));
-            let _e319 = anchored;
-            noise_1 = fract((sin(dot(_e319, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e325 = s_19.alpha;
-            let _e326 = noise_1;
-            if (_e325 < _e326) {
+        let _e325 = cutoff;
+        if (_e325 >= 0f) {
+            let _e328 = s_19.alpha;
+            let _e329 = cutoff;
+            if (_e328 < _e329) {
                 discard;
+            }
+            s_19.alpha = 1f;
+        } else {
+            let _e332 = cutoff;
+            if (_e332 < -1.5f) {
+                let _e334 = v_world_position_1;
+                anchored = floor((_e334 * 16f));
+                let _e337 = anchored;
+                noise_1 = fract((sin(dot(_e337, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e343 = s_19.alpha;
+                let _e344 = noise_1;
+                if (_e343 < _e344) {
+                    discard;
+                }
             }
         }
     }
-    let _e328 = cutoff;
-    let _e330 = cutoff;
-    g_premultiply = ((_e328 < 0f) && (_e330 > -0.75f));
-    let _e333 = v_normal_1;
-    s_19.n = normalize(_e333);
-    let _e336 = gl_FrontFacing_1;
-    if !(_e336) {
-        let _e339 = s_19.n;
-        s_19.n = -(_e339);
+    let _e346 = cutoff;
+    let _e348 = cutoff;
+    g_premultiply = ((_e346 < 0f) && (_e348 > -0.75f));
+    let _e351 = v_normal_1;
+    s_19.n = normalize(_e351);
+    let _e354 = gl_FrontFacing_1;
+    if !(_e354) {
+        let _e357 = s_19.n;
+        s_19.n = -(_e357);
     }
-    let _e342 = TowardsEye_u0028_();
-    s_19.v = _e342;
-    let _e345 = s_19.n;
-    let _e347 = s_19.v;
-    s_19.n_dot_v = max(dot(_e345, _e347), 0.0001f);
-    let _e353 = frag_info.material[0u];
-    s_19.metallic = clamp(_e353, 0f, 1f);
-    let _e358 = frag_info.material[1u];
-    s_19.roughness = clamp(_e358, 0.02f, 1f);
-    let _e362 = frag_info.ambient_ground;
-    let _e365 = frag_info.ambient_sky;
-    let _e369 = s_19.n[1u];
-    let _e376 = frag_info.material[2u];
-    s_19.ambient = (mix(_e362.xyz, _e365.xyz, vec3(((_e369 * 0.5f) + 0.5f))) * _e376);
-    let _e381 = frag_info.frame_params[0u];
-    s_19.exposure = max(_e381, 0f);
+    let _e360 = TowardsEye_u0028_();
+    s_19.v = _e360;
+    let _e363 = s_19.n;
+    let _e365 = s_19.v;
+    s_19.n_dot_v = max(dot(_e363, _e365), 0.0001f);
+    let _e371 = frag_info.material[0u];
+    s_19.metallic = clamp(_e371, 0f, 1f);
+    let _e376 = frag_info.material[1u];
+    s_19.roughness = clamp(_e376, 0.02f, 1f);
+    let _e380 = frag_info.ambient_ground;
+    let _e383 = frag_info.ambient_sky;
+    let _e387 = s_19.n[1u];
+    let _e394 = frag_info.material[2u];
+    s_19.ambient = (mix(_e380.xyz, _e383.xyz, vec3(((_e387 * 0.5f) + 0.5f))) * _e394);
+    let _e399 = frag_info.frame_params[0u];
+    s_19.exposure = max(_e399, 0f);
     s_19.occlusion = 1f;
     s_19.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e386 = s_19;
-    return _e386;
+    let _e404 = s_19;
+    return _e404;
 }
 
 fn main_1() {
@@ -22925,17 +23003,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_2534_: bool;
+    var phi_2555_: bool;
 
     let _e187 = (*c);
     let _e188 = (*c);
     let _e190 = any((_e187 != _e188));
-    phi_2534_ = _e190;
+    phi_2555_ = _e190;
     if !(_e190) {
         let _e192 = (*c);
-        phi_2534_ = any((abs(_e192) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_2555_ = any((abs(_e192) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e197 = phi_2534_;
+    let _e197 = phi_2555_;
     return _e197;
 }
 
@@ -23374,8 +23452,8 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_48: vec2<f32>;
     var param_49: f32;
     var param_50: f32;
-    var phi_2223_: bool;
-    var phi_2284_: bool;
+    var phi_2244_: bool;
+    var phi_2305_: bool;
 
     let _e240 = (*lightIndex);
     let _e244 = point_shadow.slots[_e240][0u];
@@ -23440,13 +23518,13 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
         let _e338 = a[0u];
         let _e340 = a[1u];
         let _e341 = (_e338 >= _e340);
-        phi_2223_ = _e341;
+        phi_2244_ = _e341;
         if _e341 {
             let _e343 = a[0u];
             let _e345 = a[2u];
-            phi_2223_ = (_e343 >= _e345);
+            phi_2244_ = (_e343 >= _e345);
         }
-        let _e348 = phi_2223_;
+        let _e348 = phi_2244_;
         if _e348 {
             let _e350 = toFragment[0u];
             face = select(1i, 0i, (_e350 > 0f));
@@ -23476,12 +23554,12 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     ndc = (_e382.xy / vec2(_e385));
     let _e389 = ndc[0u];
     let _e391 = (abs(_e389) > 1f);
-    phi_2284_ = _e391;
+    phi_2305_ = _e391;
     if !(_e391) {
         let _e394 = ndc[1u];
-        phi_2284_ = (abs(_e394) > 1f);
+        phi_2305_ = (abs(_e394) > 1f);
     }
-    let _e398 = phi_2284_;
+    let _e398 = phi_2305_;
     if _e398 {
         return 1f;
     }
@@ -23781,11 +23859,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var param_69: f32;
     var tapBias_1: f32;
     var occluder_2: f32;
-    var phi_3503_: bool;
-    var phi_3514_: bool;
-    var phi_3675_: bool;
-    var phi_3682_: bool;
-    var phi_3689_: bool;
+    var phi_3524_: bool;
+    var phi_3535_: bool;
+    var phi_3696_: bool;
+    var phi_3703_: bool;
+    var phi_3710_: bool;
 
     let _e254 = frag_info.shadow_params[3u];
     strength_1 = _e254;
@@ -23806,25 +23884,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e275 = cascadeCount;
     let _e276 = (_e275 > 1i);
-    phi_3503_ = _e276;
+    phi_3524_ = _e276;
     if _e276 {
         let _e277 = viewDistance;
         let _e280 = frag_info.shadow_cascades[0u];
-        phi_3503_ = (_e277 > _e280);
+        phi_3524_ = (_e277 > _e280);
     }
-    let _e283 = phi_3503_;
+    let _e283 = phi_3524_;
     if _e283 {
         cascade = 1i;
     }
     let _e284 = cascadeCount;
     let _e285 = (_e284 > 2i);
-    phi_3514_ = _e285;
+    phi_3535_ = _e285;
     if _e285 {
         let _e286 = viewDistance;
         let _e289 = frag_info.shadow_cascades[1u];
-        phi_3514_ = (_e286 > _e289);
+        phi_3535_ = (_e286 > _e289);
     }
-    let _e292 = phi_3514_;
+    let _e292 = phi_3535_;
     if _e292 {
         cascade = 2i;
     }
@@ -23912,24 +23990,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e399 * 0.5f) + 0.5f), (0.5f - (_e403 * 0.5f)));
             let _e408 = inTile[0u];
             let _e409 = (_e408 < 0f);
-            phi_3675_ = _e409;
+            phi_3696_ = _e409;
             if !(_e409) {
                 let _e412 = inTile[0u];
-                phi_3675_ = (_e412 > 1f);
+                phi_3696_ = (_e412 > 1f);
             }
-            let _e415 = phi_3675_;
-            phi_3682_ = _e415;
+            let _e415 = phi_3696_;
+            phi_3703_ = _e415;
             if !(_e415) {
                 let _e418 = inTile[1u];
-                phi_3682_ = (_e418 < 0f);
+                phi_3703_ = (_e418 < 0f);
             }
-            let _e421 = phi_3682_;
-            phi_3689_ = _e421;
+            let _e421 = phi_3703_;
+            phi_3710_ = _e421;
             if !(_e421) {
                 let _e424 = inTile[1u];
-                phi_3689_ = (_e424 > 1f);
+                phi_3710_ = (_e424 > 1f);
             }
-            let _e427 = phi_3689_;
+            let _e427 = phi_3710_;
             if _e427 {
                 continue;
             }
@@ -25609,80 +25687,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_134: vec3<f32>;
     var param_135: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e193 = v_texcoord_1;
-    let _e194 = MaterialLodBias_u0028_();
-    let _e195 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e193, _e194);
-    texel_6 = _e195;
-    let _e196 = texel_6;
-    param_134 = _e196.xyz;
-    let _e198 = SrgbToLinear_u0028_vf3_u003b((&param_134));
-    let _e200 = frag_info.base_color;
-    param_135 = _e200.xyz;
-    let _e202 = SrgbToLinear_u0028_vf3_u003b((&param_135));
-    let _e204 = v_color_1;
-    s_11.albedo = ((_e198 * _e202) * _e204.xyz);
-    let _e209 = texel_6[3u];
-    let _e212 = frag_info.base_color[3u];
-    let _e215 = v_color_1[3u];
-    s_11.alpha = ((_e209 * _e212) * _e215);
-    let _e219 = s_11.albedo;
-    g_albedo = _e219;
-    let _e222 = frag_info.material2_[0u];
-    cutoff = _e222;
-    let _e223 = cutoff;
-    if (_e223 >= 0f) {
-        let _e226 = s_11.alpha;
-        let _e227 = cutoff;
-        if (_e226 < _e227) {
-            discard;
-        }
+    let _e194 = v_texcoord_1;
+    let _e195 = MaterialLodBias_u0028_();
+    let _e196 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e194, _e195);
+    texel_6 = _e196;
+    let _e197 = texel_6;
+    param_134 = _e197.xyz;
+    let _e199 = SrgbToLinear_u0028_vf3_u003b((&param_134));
+    let _e201 = frag_info.base_color;
+    param_135 = _e201.xyz;
+    let _e203 = SrgbToLinear_u0028_vf3_u003b((&param_135));
+    let _e205 = v_color_1;
+    s_11.albedo = ((_e199 * _e203) * _e205.xyz);
+    let _e210 = texel_6[3u];
+    let _e213 = frag_info.base_color[3u];
+    let _e216 = v_color_1[3u];
+    s_11.alpha = ((_e210 * _e213) * _e216);
+    let _e220 = s_11.albedo;
+    g_albedo = _e220;
+    let _e223 = frag_info.material2_[0u];
+    cutoff = _e223;
+    let _e224 = cutoff;
+    if (_e224 > 1f) {
+        let _e226 = cutoff;
+        edge = (_e226 - 1f);
+        let _e229 = s_11.alpha;
+        let _e230 = edge;
+        let _e233 = s_11.alpha;
+        let _e234 = fwidth(_e233);
+        s_11.alpha = clamp((((_e229 - _e230) / max(_e234, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e229 = cutoff;
-        if (_e229 < -1.5f) {
-            let _e231 = v_world_position_1;
-            anchored = floor((_e231 * 16f));
-            let _e234 = anchored;
-            noise_1 = fract((sin(dot(_e234, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e240 = s_11.alpha;
-            let _e241 = noise_1;
-            if (_e240 < _e241) {
+        let _e240 = cutoff;
+        if (_e240 >= 0f) {
+            let _e243 = s_11.alpha;
+            let _e244 = cutoff;
+            if (_e243 < _e244) {
                 discard;
+            }
+            s_11.alpha = 1f;
+        } else {
+            let _e247 = cutoff;
+            if (_e247 < -1.5f) {
+                let _e249 = v_world_position_1;
+                anchored = floor((_e249 * 16f));
+                let _e252 = anchored;
+                noise_1 = fract((sin(dot(_e252, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e258 = s_11.alpha;
+                let _e259 = noise_1;
+                if (_e258 < _e259) {
+                    discard;
+                }
             }
         }
     }
-    let _e243 = cutoff;
-    let _e245 = cutoff;
-    g_premultiply = ((_e243 < 0f) && (_e245 > -0.75f));
-    let _e248 = v_normal_1;
-    s_11.n = normalize(_e248);
-    let _e251 = gl_FrontFacing_1;
-    if !(_e251) {
-        let _e254 = s_11.n;
-        s_11.n = -(_e254);
+    let _e261 = cutoff;
+    let _e263 = cutoff;
+    g_premultiply = ((_e261 < 0f) && (_e263 > -0.75f));
+    let _e266 = v_normal_1;
+    s_11.n = normalize(_e266);
+    let _e269 = gl_FrontFacing_1;
+    if !(_e269) {
+        let _e272 = s_11.n;
+        s_11.n = -(_e272);
     }
-    let _e257 = TowardsEye_u0028_();
-    s_11.v = _e257;
-    let _e260 = s_11.n;
-    let _e262 = s_11.v;
-    s_11.n_dot_v = max(dot(_e260, _e262), 0.0001f);
-    let _e268 = frag_info.material[0u];
-    s_11.metallic = clamp(_e268, 0f, 1f);
-    let _e273 = frag_info.material[1u];
-    s_11.roughness = clamp(_e273, 0.02f, 1f);
-    let _e277 = frag_info.ambient_ground;
-    let _e280 = frag_info.ambient_sky;
-    let _e284 = s_11.n[1u];
-    let _e291 = frag_info.material[2u];
-    s_11.ambient = (mix(_e277.xyz, _e280.xyz, vec3(((_e284 * 0.5f) + 0.5f))) * _e291);
-    let _e296 = frag_info.frame_params[0u];
-    s_11.exposure = max(_e296, 0f);
+    let _e275 = TowardsEye_u0028_();
+    s_11.v = _e275;
+    let _e278 = s_11.n;
+    let _e280 = s_11.v;
+    s_11.n_dot_v = max(dot(_e278, _e280), 0.0001f);
+    let _e286 = frag_info.material[0u];
+    s_11.metallic = clamp(_e286, 0f, 1f);
+    let _e291 = frag_info.material[1u];
+    s_11.roughness = clamp(_e291, 0.02f, 1f);
+    let _e295 = frag_info.ambient_ground;
+    let _e298 = frag_info.ambient_sky;
+    let _e302 = s_11.n[1u];
+    let _e309 = frag_info.material[2u];
+    s_11.ambient = (mix(_e295.xyz, _e298.xyz, vec3(((_e302 * 0.5f) + 0.5f))) * _e309);
+    let _e314 = frag_info.frame_params[0u];
+    s_11.exposure = max(_e314, 0f);
     s_11.occlusion = 1f;
     s_11.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e301 = s_11;
-    return _e301;
+    let _e319 = s_11;
+    return _e319;
 }
 
 fn main_1() {
@@ -45334,17 +45425,17 @@ fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
 }
 
 fn NonFinite_u0028_vf3_u003b(c: ptr<function, vec3<f32>>) -> bool {
-    var phi_2725_: bool;
+    var phi_2746_: bool;
 
     let _e177 = (*c);
     let _e178 = (*c);
     let _e180 = any((_e177 != _e178));
-    phi_2725_ = _e180;
+    phi_2746_ = _e180;
     if !(_e180) {
         let _e182 = (*c);
-        phi_2725_ = any((abs(_e182) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
+        phi_2746_ = any((abs(_e182) > vec3<f32>(300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f, 300000000000000000000000000000000000000f)));
     }
-    let _e187 = phi_2725_;
+    let _e187 = phi_2746_;
     return _e187;
 }
 
@@ -45761,8 +45852,8 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_48: vec2<f32>;
     var param_49: f32;
     var param_50: f32;
-    var phi_2414_: bool;
-    var phi_2475_: bool;
+    var phi_2435_: bool;
+    var phi_2496_: bool;
 
     let _e230 = (*lightIndex);
     let _e234 = point_shadow.slots[_e230][0u];
@@ -45827,13 +45918,13 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
         let _e328 = a[0u];
         let _e330 = a[1u];
         let _e331 = (_e328 >= _e330);
-        phi_2414_ = _e331;
+        phi_2435_ = _e331;
         if _e331 {
             let _e333 = a[0u];
             let _e335 = a[2u];
-            phi_2414_ = (_e333 >= _e335);
+            phi_2435_ = (_e333 >= _e335);
         }
-        let _e338 = phi_2414_;
+        let _e338 = phi_2435_;
         if _e338 {
             let _e340 = toFragment[0u];
             face = select(1i, 0i, (_e340 > 0f));
@@ -45863,12 +45954,12 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     ndc = (_e372.xy / vec2(_e375));
     let _e379 = ndc[0u];
     let _e381 = (abs(_e379) > 1f);
-    phi_2475_ = _e381;
+    phi_2496_ = _e381;
     if !(_e381) {
         let _e384 = ndc[1u];
-        phi_2475_ = (abs(_e384) > 1f);
+        phi_2496_ = (abs(_e384) > 1f);
     }
-    let _e388 = phi_2475_;
+    let _e388 = phi_2496_;
     if _e388 {
         return 1f;
     }
@@ -46168,11 +46259,11 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var param_69: f32;
     var tapBias_1: f32;
     var occluder_2: f32;
-    var phi_2955_: bool;
-    var phi_2966_: bool;
-    var phi_3127_: bool;
-    var phi_3134_: bool;
-    var phi_3141_: bool;
+    var phi_2976_: bool;
+    var phi_2987_: bool;
+    var phi_3148_: bool;
+    var phi_3155_: bool;
+    var phi_3162_: bool;
 
     let _e244 = frag_info.shadow_params[3u];
     strength_1 = _e244;
@@ -46193,25 +46284,25 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     cascade = 0i;
     let _e265 = cascadeCount;
     let _e266 = (_e265 > 1i);
-    phi_2955_ = _e266;
+    phi_2976_ = _e266;
     if _e266 {
         let _e267 = viewDistance;
         let _e270 = frag_info.shadow_cascades[0u];
-        phi_2955_ = (_e267 > _e270);
+        phi_2976_ = (_e267 > _e270);
     }
-    let _e273 = phi_2955_;
+    let _e273 = phi_2976_;
     if _e273 {
         cascade = 1i;
     }
     let _e274 = cascadeCount;
     let _e275 = (_e274 > 2i);
-    phi_2966_ = _e275;
+    phi_2987_ = _e275;
     if _e275 {
         let _e276 = viewDistance;
         let _e279 = frag_info.shadow_cascades[1u];
-        phi_2966_ = (_e276 > _e279);
+        phi_2987_ = (_e276 > _e279);
     }
-    let _e282 = phi_2966_;
+    let _e282 = phi_2987_;
     if _e282 {
         cascade = 2i;
     }
@@ -46299,24 +46390,24 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
             inTile = vec2<f32>(((_e389 * 0.5f) + 0.5f), (0.5f - (_e393 * 0.5f)));
             let _e398 = inTile[0u];
             let _e399 = (_e398 < 0f);
-            phi_3127_ = _e399;
+            phi_3148_ = _e399;
             if !(_e399) {
                 let _e402 = inTile[0u];
-                phi_3127_ = (_e402 > 1f);
+                phi_3148_ = (_e402 > 1f);
             }
-            let _e405 = phi_3127_;
-            phi_3134_ = _e405;
+            let _e405 = phi_3148_;
+            phi_3155_ = _e405;
             if !(_e405) {
                 let _e408 = inTile[1u];
-                phi_3134_ = (_e408 < 0f);
+                phi_3155_ = (_e408 < 0f);
             }
-            let _e411 = phi_3134_;
-            phi_3141_ = _e411;
+            let _e411 = phi_3155_;
+            phi_3162_ = _e411;
             if !(_e411) {
                 let _e414 = inTile[1u];
-                phi_3141_ = (_e414 > 1f);
+                phi_3162_ = (_e414 > 1f);
             }
-            let _e417 = phi_3141_;
+            let _e417 = phi_3162_;
             if _e417 {
                 continue;
             }
@@ -47615,80 +47706,93 @@ fn ReadSurface_u0028_() -> Surface {
     var param_116: vec3<f32>;
     var param_117: vec3<f32>;
     var cutoff: f32;
+    var edge: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e183 = v_texcoord_1;
-    let _e184 = MaterialLodBias_u0028_();
-    let _e185 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e183, _e184);
-    texel_4 = _e185;
-    let _e186 = texel_4;
-    param_116 = _e186.xyz;
-    let _e188 = SrgbToLinear_u0028_vf3_u003b((&param_116));
-    let _e190 = frag_info.base_color;
-    param_117 = _e190.xyz;
-    let _e192 = SrgbToLinear_u0028_vf3_u003b((&param_117));
-    let _e194 = v_color_1;
-    s_8.albedo = ((_e188 * _e192) * _e194.xyz);
-    let _e199 = texel_4[3u];
-    let _e202 = frag_info.base_color[3u];
-    let _e205 = v_color_1[3u];
-    s_8.alpha = ((_e199 * _e202) * _e205);
-    let _e209 = s_8.albedo;
-    g_albedo = _e209;
-    let _e212 = frag_info.material2_[0u];
-    cutoff = _e212;
-    let _e213 = cutoff;
-    if (_e213 >= 0f) {
-        let _e216 = s_8.alpha;
-        let _e217 = cutoff;
-        if (_e216 < _e217) {
-            discard;
-        }
+    let _e184 = v_texcoord_1;
+    let _e185 = MaterialLodBias_u0028_();
+    let _e186 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e184, _e185);
+    texel_4 = _e186;
+    let _e187 = texel_4;
+    param_116 = _e187.xyz;
+    let _e189 = SrgbToLinear_u0028_vf3_u003b((&param_116));
+    let _e191 = frag_info.base_color;
+    param_117 = _e191.xyz;
+    let _e193 = SrgbToLinear_u0028_vf3_u003b((&param_117));
+    let _e195 = v_color_1;
+    s_8.albedo = ((_e189 * _e193) * _e195.xyz);
+    let _e200 = texel_4[3u];
+    let _e203 = frag_info.base_color[3u];
+    let _e206 = v_color_1[3u];
+    s_8.alpha = ((_e200 * _e203) * _e206);
+    let _e210 = s_8.albedo;
+    g_albedo = _e210;
+    let _e213 = frag_info.material2_[0u];
+    cutoff = _e213;
+    let _e214 = cutoff;
+    if (_e214 > 1f) {
+        let _e216 = cutoff;
+        edge = (_e216 - 1f);
+        let _e219 = s_8.alpha;
+        let _e220 = edge;
+        let _e223 = s_8.alpha;
+        let _e224 = fwidth(_e223);
+        s_8.alpha = clamp((((_e219 - _e220) / max(_e224, 0.0001f)) + 0.5f), 0f, 1f);
     } else {
-        let _e219 = cutoff;
-        if (_e219 < -1.5f) {
-            let _e221 = v_world_position_1;
-            anchored = floor((_e221 * 16f));
-            let _e224 = anchored;
-            noise_1 = fract((sin(dot(_e224, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e230 = s_8.alpha;
-            let _e231 = noise_1;
-            if (_e230 < _e231) {
+        let _e230 = cutoff;
+        if (_e230 >= 0f) {
+            let _e233 = s_8.alpha;
+            let _e234 = cutoff;
+            if (_e233 < _e234) {
                 discard;
+            }
+            s_8.alpha = 1f;
+        } else {
+            let _e237 = cutoff;
+            if (_e237 < -1.5f) {
+                let _e239 = v_world_position_1;
+                anchored = floor((_e239 * 16f));
+                let _e242 = anchored;
+                noise_1 = fract((sin(dot(_e242, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+                let _e248 = s_8.alpha;
+                let _e249 = noise_1;
+                if (_e248 < _e249) {
+                    discard;
+                }
             }
         }
     }
-    let _e233 = cutoff;
-    let _e235 = cutoff;
-    g_premultiply = ((_e233 < 0f) && (_e235 > -0.75f));
-    let _e238 = v_normal_1;
-    s_8.n = normalize(_e238);
-    let _e241 = gl_FrontFacing_1;
-    if !(_e241) {
-        let _e244 = s_8.n;
-        s_8.n = -(_e244);
+    let _e251 = cutoff;
+    let _e253 = cutoff;
+    g_premultiply = ((_e251 < 0f) && (_e253 > -0.75f));
+    let _e256 = v_normal_1;
+    s_8.n = normalize(_e256);
+    let _e259 = gl_FrontFacing_1;
+    if !(_e259) {
+        let _e262 = s_8.n;
+        s_8.n = -(_e262);
     }
-    let _e247 = TowardsEye_u0028_();
-    s_8.v = _e247;
-    let _e250 = s_8.n;
-    let _e252 = s_8.v;
-    s_8.n_dot_v = max(dot(_e250, _e252), 0.0001f);
-    let _e258 = frag_info.material[0u];
-    s_8.metallic = clamp(_e258, 0f, 1f);
-    let _e263 = frag_info.material[1u];
-    s_8.roughness = clamp(_e263, 0.02f, 1f);
-    let _e267 = frag_info.ambient_ground;
-    let _e270 = frag_info.ambient_sky;
-    let _e274 = s_8.n[1u];
-    let _e281 = frag_info.material[2u];
-    s_8.ambient = (mix(_e267.xyz, _e270.xyz, vec3(((_e274 * 0.5f) + 0.5f))) * _e281);
-    let _e286 = frag_info.frame_params[0u];
-    s_8.exposure = max(_e286, 0f);
+    let _e265 = TowardsEye_u0028_();
+    s_8.v = _e265;
+    let _e268 = s_8.n;
+    let _e270 = s_8.v;
+    s_8.n_dot_v = max(dot(_e268, _e270), 0.0001f);
+    let _e276 = frag_info.material[0u];
+    s_8.metallic = clamp(_e276, 0f, 1f);
+    let _e281 = frag_info.material[1u];
+    s_8.roughness = clamp(_e281, 0.02f, 1f);
+    let _e285 = frag_info.ambient_ground;
+    let _e288 = frag_info.ambient_sky;
+    let _e292 = s_8.n[1u];
+    let _e299 = frag_info.material[2u];
+    s_8.ambient = (mix(_e285.xyz, _e288.xyz, vec3(((_e292 * 0.5f) + 0.5f))) * _e299);
+    let _e304 = frag_info.frame_params[0u];
+    s_8.exposure = max(_e304, 0f);
     s_8.occlusion = 1f;
     s_8.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e291 = s_8;
-    return _e291;
+    let _e309 = s_8;
+    return _e309;
 }
 
 fn main_1() {
