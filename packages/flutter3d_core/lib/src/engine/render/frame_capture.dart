@@ -28,6 +28,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'draw_journal.dart';
 import 'frame_graph.dart';
 
 /// One resource as one pass left it.
@@ -38,6 +39,7 @@ final class CapturedImage {
     required this.height,
     required this.format,
     this.pixels,
+    this.floats,
     this.refused,
   });
 
@@ -51,6 +53,15 @@ final class CapturedImage {
   /// Premultiplied RGBA8, rows from the top, or null when [refused] says why
   /// there are none.
   final ByteData? pixels;
+
+  /// The texture's own RGBA floats, unclamped, or null where the backend
+  /// cannot hand them back — `P12`.
+  ///
+  /// [pixels] is eight bits a channel on every backend, and a NaN a shader
+  /// wrote clamps to an ordinary byte on the way there. Only a backend that
+  /// keeps its textures as floats can answer this, and the capture asks it
+  /// through [FrameCaptureBuilder.readFloats].
+  final Float32List? floats;
 
   /// Why there is no image, in a sentence a reader can act on.
   ///
@@ -111,9 +122,18 @@ final class CapturedPass {
     required this.writes,
     required this.keeps,
     required this.images,
+    this.micros = 0,
+    this.drawCalls = 0,
+    this.triangles = 0,
   });
 
   final String name;
+
+  /// What the pass cost, as `FrameResult.passes` reported it — `P12`, so a
+  /// capture answers "how big was this frame" on its own.
+  final int micros;
+  final int drawCalls;
+  final int triangles;
 
   /// Whether the node said it had anything to do.
   ///
@@ -150,11 +170,21 @@ final class FrameCapture {
     required this.width,
     required this.height,
     required this.passes,
+    this.draws = const <DrawRecord>[],
+    this.undetailedDraws = const <String, int>{},
   });
 
   final int width;
   final int height;
   final List<CapturedPass> passes;
+
+  /// Every draw the frame described, when the capture asked for them — `P12`.
+  /// Empty otherwise; see [DrawJournal].
+  final List<DrawRecord> draws;
+
+  /// Draws a pass counted without describing, by pass name — see
+  /// [DrawJournal.undetailed].
+  final Map<String, int> undetailedDraws;
 
   /// The pass called [name], or null.
   CapturedPass? passNamed(String name) {
@@ -191,10 +221,23 @@ final class FrameCapture {
 /// queued at the pass boundary and answered afterwards — and a caller should
 /// not be handed a half-filled capture.
 final class FrameCaptureBuilder {
-  FrameCaptureBuilder({required this.width, required this.height});
+  FrameCaptureBuilder({
+    required this.width,
+    required this.height,
+    this.journal,
+    this.readFloats,
+  });
 
   final int width;
   final int height;
+
+  /// Where the frame's draws are written down, or null when nobody asked.
+  final DrawJournal? journal;
+
+  /// Reads a texture's floats as they stand, for a backend that keeps them —
+  /// the software rasteriser's `readHdrPixels`. Null everywhere else, and
+  /// then [CapturedImage.floats] is null too.
+  final Float32List? Function(TextureHandle texture)? readFloats;
 
   final List<_PendingPass> _passes = <_PendingPass>[];
 
@@ -203,6 +246,9 @@ final class FrameCaptureBuilder {
     FrameGraphNode node, {
     required GraphicsDevice device,
     required TextureHandle? Function(ResourceId id) lookup,
+    int micros = 0,
+    int drawCalls = 0,
+    int triangles = 0,
   }) {
     final pending = <Future<CapturedImage>>[];
     // Written *and* maintained: a node that keeps an atlas between frames — the
@@ -223,6 +269,9 @@ final class FrameCaptureBuilder {
         writes: <String>[for (final id in node.writes) id.name],
         keeps: <String>[for (final id in node.keeps) id.name],
         images: pending,
+        micros: micros,
+        drawCalls: drawCalls,
+        triangles: triangles,
       ),
     );
   }
@@ -280,7 +329,19 @@ final class FrameCaptureBuilder {
       height: texture.height,
       format: texture.format,
       pixels: bytes,
+      floats: _floatsOf(texture),
     );
+  }
+
+  /// [readFloats]' answer for [texture], or null when it has none or throws:
+  /// the eight-bit image is still evidence, and losing it to a float read
+  /// that failed would be worse than having only it.
+  Float32List? _floatsOf(TextureHandle texture) {
+    try {
+      return readFloats?.call(texture);
+    } on Object {
+      return null;
+    }
   }
 
   /// The finished capture, once every queued readback has answered.
@@ -297,8 +358,13 @@ final class FrameCaptureBuilder {
           writes: pass.writes,
           keeps: pass.keeps,
           images: await Future.wait(pass.images),
+          micros: pass.micros,
+          drawCalls: pass.drawCalls,
+          triangles: pass.triangles,
         ),
     ],
+    draws: journal?.records ?? const <DrawRecord>[],
+    undetailedDraws: journal?.undetailed ?? const <String, int>{},
   );
 }
 
@@ -311,6 +377,9 @@ final class _PendingPass {
     required this.writes,
     required this.keeps,
     required this.images,
+    required this.micros,
+    required this.drawCalls,
+    required this.triangles,
   });
 
   final String name;
@@ -320,4 +389,7 @@ final class _PendingPass {
   final List<String> writes;
   final List<String> keeps;
   final List<Future<CapturedImage>> images;
+  final int micros;
+  final int drawCalls;
+  final int triangles;
 }

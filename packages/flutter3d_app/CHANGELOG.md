@@ -6,6 +6,18 @@
   on a desktop and the game's own folder on a phone, through a `.part` file and
   a rename. `BrowserPhotoShelf` offers the share sheet where the browser takes
   files and downloads otherwise. `defaultPhotoShelf` picks the platform's.
+
+- **A tool attached to a running game can read the game's own frame.**
+  `registerRenderExtensions` puts `ext.flutter3d.render.passes`,
+  `passOutput`, `draws`, `draw`, `readPixel`, `scanNan` and `stats` on the VM
+  service, each answered from a capture of the next frame the game draws, so
+  what comes back is the GPU frame with its passes, targets and draws rather
+  than a second picture drawn on the software backend. The answers are
+  worked out by `renderPasses`, `renderDraws` and the rest, plain functions of
+  a `FrameCapture` that a test calls directly. `scanNan` reports a float
+  target it could only read as bytes as unread rather than clean: a NaN
+  clamps to an ordinary byte on every hardware readback.
+
 - **A texture repainted under a running game is drawn at whatever size it
   now is.** `HotSwap.loadTexture` and `registerTexture` watch an image file;
   a swap after it changed uploads the new picture as a texture of its own,

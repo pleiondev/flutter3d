@@ -923,6 +923,45 @@ extension _MeshEncode on Renderer {
     state.drawCalls++;
     state.triangles += (indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
+    // `P12`: nothing past the `?.` runs unless this frame is being journaled.
+    state.journal?.add(
+      kind: 'mesh',
+      mesh: node.name,
+      material: material.name,
+      lighting: material.lighting.label,
+      vertices: mesh.vertexCount,
+      indices: indexCount,
+      instances: instanced?.count ?? 1,
+      state: <String, Object?>{
+        'cull': cull ? 'back' : 'none',
+        'blend': orderIndependent != null
+            ? 'weighted'
+            : override != null
+            ? 'override'
+            : (blend ? 'alpha' : 'opaque'),
+        'depthWrite':
+            orderIndependent == null && (material.depthWrite ?? !blend),
+        'depthCompare': depthCompare.name,
+        'winding': node.worldIsMirrored != mirrored ? 'cw' : 'ccw',
+        'skinned': skinned,
+        'instanced': batched,
+        'lightmapped': lightmapped,
+        'clustered': clustered != null,
+        'xray': override != null,
+      },
+      uniforms: <String, Float32List>{
+        'mvp': Float32List.fromList(mvp.storage),
+        'model': Float32List.fromList(modelMatrix.storage),
+        'tint': Float32List.fromList(node.tint.storage),
+        'baseColor': Float32List.fromList(material.baseColor.storage),
+        'emissive': Float32List.fromList(material.emissive.storage),
+        'metallicRoughness': Float32List.fromList(<double>[
+          material.metallic,
+          material.roughness,
+        ]),
+        ...material.parameters,
+      },
+    );
   }
 
   /// The index buffer that draws the clusters of [node]'s split mesh the

@@ -406,6 +406,9 @@ class _GameScreenState extends State<GameScreen>
       frameTimes: _frameTimes,
       bugReport: _remoteBugReport,
     );
+    // `P12`: the frame this game draws, pass by pass and draw by draw, for
+    // whichever renderer is open when somebody asks.
+    registerRenderExtensions(() => _renderer);
 
     _view = RenderView(camera: _camera);
 

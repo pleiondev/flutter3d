@@ -691,6 +691,8 @@ class _RaceScreenState extends State<RaceScreen>
     // `rp-02`: harmless where the VM service is off — `registerExtension`
     // just adds an entry nothing ever asks for.
     registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
+    // `P12`: the frame this game draws, pass by pass and draw by draw.
+    registerRenderExtensions(() => _renderer);
     await _loadCircuit(device);
   }
 

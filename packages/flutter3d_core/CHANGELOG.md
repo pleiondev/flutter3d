@@ -87,6 +87,17 @@
   `PhotoFilter` is eight looks composed onto the game's own `LookSettings`;
   `PhotoFinish` puts the vignette and the grain back over the whole frame
   rather than once per tile.
+
+- **A captured frame can say which draws it made.**
+  `Renderer.captureNextFrame(draws: true)` writes every mesh and shadow-caster
+  draw into a `DrawJournal` — pass, node, material, counts, pipeline state and
+  the values bound — and `FrameCapture.draws` hands them back, with
+  `undetailedDraws` counting the full-screen draws a pass made without a mesh
+  to name. Off in every other frame, where a draw site pays one null check.
+  `readFloats` puts a backend's own floats beside each output's bytes, which
+  the software backend's `readHdrPixels` can answer, and each `CapturedPass`
+  now carries its time, draws and triangles.
+
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.
