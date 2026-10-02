@@ -540,4 +540,172 @@ void main() {
       },
     );
   });
+
+  group('an environment', () {
+    late CpuDevice device;
+    late HotSwap swap;
+    late int builds;
+
+    /// A "panorama" whose first byte is the side of the cube it builds and
+    /// whose second is its level count; a zero side does not build. A flat
+    /// texture stands in for the cube: what a swap does with it is the same.
+    BuiltEnvironment? build(Uint8List bytes) {
+      builds++;
+      if (bytes.first == 0) return null;
+      final texture = device.createTextureFromPixels(
+        width: bytes.first,
+        height: bytes.first,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData(bytes.first * bytes.first * 4),
+      );
+      return texture == null ? null : (texture: texture, levels: bytes[1]);
+    }
+
+    setUp(() {
+      device = CpuDevice(
+        width: 16,
+        height: 9,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      swap = HotSwap(enabled: true);
+      builds = 0;
+    });
+
+    ({
+      SwappableEnvironment environment,
+      Scene lit,
+      Scene other,
+      void Function(int side, int levels) write,
+    })
+    stage() {
+      var file = Uint8List.fromList(<int>[4, 2]);
+      final environment = swap.registerEnvironment(
+        'assets/sky.hdr',
+        build(file)!,
+        read: () async => file,
+        build: (Uint8List bytes) async => build(bytes),
+        loadedFrom: file,
+      );
+      final lit = Scene();
+      environment.applyTo(lit);
+      final elsewhere = build(Uint8List.fromList(<int>[2, 1]))!;
+      final other = Scene()
+        ..environment = elsewhere.texture
+        ..environmentLevels = elsewhere.levels;
+      swap
+        ..registerScene(lit)
+        ..registerScene(other);
+      return (
+        environment: environment,
+        lit: lit,
+        other: other,
+        write: (int side, int levels) =>
+            file = Uint8List.fromList(<int>[side, levels]),
+      );
+    }
+
+    test('is prefiltered again when its file changes, and the scenes it lit '
+        'take the new cube with its level count', () async {
+      // Mutation: set only `Scene.environment` and the scene reads the new
+      // chain's roughness against the old count, so every surface takes the
+      // wrong lobe.
+      final it = stage();
+      final otherCube = it.other.environment;
+      final heard = <BuiltEnvironment>[];
+      it.environment.changes.addListener(() => heard.add(it.environment.built));
+
+      it.write(8, 3);
+      final report = await swap.swap();
+
+      expect(report.environments, <String>['assets/sky.hdr']);
+      final now = it.environment.built;
+      expect(now.texture.width, 8);
+      expect(it.lit.environment, same(now.texture));
+      expect(it.lit.environmentLevels, 3);
+      expect(
+        it.other.environment,
+        same(otherCube),
+        reason: 'a scene lit by another environment keeps it',
+      );
+      expect(it.other.environmentLevels, 1);
+      expect(heard, hasLength(1));
+    });
+
+    test('an unchanged file is not prefiltered again', () async {
+      // Mutation: drop the fingerprint and every hot reload pays for a
+      // convolution of a sky nobody touched.
+      final it = stage();
+      final before = it.lit.environment;
+      final built = builds;
+
+      final report = await swap.swap();
+
+      expect(report.environments, isEmpty);
+      expect(builds, built);
+      expect(it.lit.environment, same(before));
+    });
+
+    test('a file that does not build keeps the cube that did', () async {
+      final it = stage();
+      final before = it.environment.built;
+
+      it.write(0, 2);
+      final report = await swap.swap();
+
+      expect(report.refused.single, contains('assets/sky.hdr'));
+      expect(it.environment.built, same(before));
+      expect(it.lit.environment, same(before.texture));
+      expect(it.lit.environmentLevels, 2);
+    });
+
+    test('bytes put over the VM service take the file\'s place', () async {
+      final it = stage();
+
+      final refused = await swap.putEnvironment(
+        'assets/sky.hdr',
+        Uint8List.fromList(<int>[16, 4]),
+      );
+
+      expect(refused, isNull);
+      expect(swap.hasEnvironment('assets/sky.hdr'), isTrue);
+      expect(it.lit.environment!.width, 16);
+      expect(it.lit.environmentLevels, 4);
+    });
+
+    test(
+      'the old cube goes back through a renderer, after its frames',
+      () async {
+        // Mutation: never release it and every saved sky leaks a cube.
+        final it = stage();
+        final recording = RecordingDevice(device);
+        final renderer = Renderer.create(device: recording);
+        final camera = CameraNode()..setPosition(0.0, 0.0, 4.0);
+        it.lit.add(camera);
+        final view = RenderView(camera: camera);
+        swap.registerRenderer(renderer);
+        void frame() => renderer.render(
+          width: 16,
+          height: 9,
+          scene: it.lit,
+          views: <RenderView>[view],
+        );
+        for (var i = 0; i < 4; i++) {
+          frame();
+        }
+        it.write(8, 2);
+        await swap.swap();
+        final before = recording.events.length;
+        for (var i = 0; i < 4; i++) {
+          frame();
+        }
+        final released = recording.events
+            .skip(before)
+            .whereType<TraceReleaseTexture>()
+            .length;
+        renderer.dispose();
+
+        expect(released, 1);
+      },
+    );
+  });
 }

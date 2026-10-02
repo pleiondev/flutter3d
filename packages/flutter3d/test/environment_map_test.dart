@@ -9,9 +9,11 @@
 /// what most of this file is about.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const int _size = 8;
@@ -299,6 +301,69 @@ void main() {
       expect(
         EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 2, size: 0),
         isNull,
+      );
+    });
+  });
+
+  group('an environment from a file', () {
+    final device = CpuDevice(
+      width: 4,
+      height: 4,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+
+    /// A two-by-one Radiance file, every pixel twice as bright as white.
+    final hdr = Uint8List.fromList(<int>[
+      ...utf8.encode('#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 2\n'),
+      for (var i = 0; i < 2; i++) ...<int>[128, 128, 128, 130],
+    ]);
+
+    test('reads a .hdr itself and anything else through the decoder', () async {
+      // Mutation: hand every file to the decoder and a `.hdr`, which
+      // `dart:ui` does not read, never lights anything.
+      final decoded = <int>[];
+      Future<Rgba8Image?> decode(Uint8List bytes) async {
+        decoded.add(bytes.length);
+        return Rgba8Image(width: 2, height: 1, pixels: Uint8List(8));
+      }
+
+      final fromHdr = await EnvironmentMap.fromEncoded(
+        device,
+        hdr,
+        decodeImage: decode,
+        size: 4,
+        levels: 2,
+      );
+      expect(fromHdr?.levels, 2);
+      expect(decoded, isEmpty);
+
+      final fromPng = await EnvironmentMap.fromEncoded(
+        device,
+        Uint8List.fromList(<int>[0x89, 0x50, 0x4e, 0x47]),
+        decodeImage: decode,
+        size: 4,
+        levels: 2,
+      );
+      expect(fromPng, isNotNull);
+      expect(decoded, <int>[4]);
+    });
+
+    test('is null for bytes neither reader takes', () async {
+      final none = await EnvironmentMap.fromEncoded(
+        device,
+        Uint8List.fromList(<int>[1, 2, 3]),
+        decodeImage: (Uint8List bytes) async => null,
+      );
+      expect(none, isNull);
+    });
+
+    test('clamps a Radiance value above one to white', () {
+      // Mutation: scale by 255 without the clamp and the byte runs past
+      // white, so the brightest part of the sky lights least.
+      final pixels = EnvironmentMap.hdrToRgba8(readHdr(hdr));
+      expect(
+        <int>[for (var i = 0; i < 4; i++) pixels.getUint8(i)],
+        <int>[255, 255, 255, 255],
       );
     });
   });

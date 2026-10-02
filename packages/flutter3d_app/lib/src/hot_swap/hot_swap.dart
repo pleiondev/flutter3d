@@ -28,6 +28,14 @@ typedef TextureBytesSource = Future<Uint8List?> Function();
 /// decode into one.
 typedef TextureBuild = Future<TextureHandle?> Function(Uint8List bytes);
 
+/// A prefiltered environment cube and how many levels it has below its base,
+/// the two things `Scene.environment` and `Scene.environmentLevels` take.
+typedef BuiltEnvironment = ({TextureHandle texture, int levels});
+
+/// Builds an environment from a panorama file's bytes, or null when they do
+/// not decode into one.
+typedef EnvironmentBuild = Future<BuiltEnvironment?> Function(Uint8List bytes);
+
 /// The renderers and shader libraries a running application has, and what to
 /// do with them when its code or its shaders change under it.
 ///
@@ -76,6 +84,7 @@ final class HotSwap {
   final List<_Library> _libraries = <_Library>[];
   final List<SwappableModel> _models = <SwappableModel>[];
   final List<SwappableTexture> _textures = <SwappableTexture>[];
+  final List<SwappableEnvironment> _environments = <SwappableEnvironment>[];
   final List<WeakReference<Scene>> _scenes = <WeakReference<Scene>>[];
   final Map<String, Map<String, Object?>> _overrides =
       <String, Map<String, Object?>>{};
@@ -136,22 +145,14 @@ final class HotSwap {
     required GraphicsDevice device,
   }) async {
     final generated = generatedAssetPathFor(sourcePath);
-    Future<Uint8List?> load(String path) async {
-      try {
-        final data = await rootBundle.load(path);
-        return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-      } on FlutterError {
-        return null;
-      }
-    }
 
     // The file `loadModelAsset` would read: this device class's own first,
     // then the one every class shares.
     Future<Uint8List?> read() async => switch (assetDeviceClass) {
       final DeviceClass reading =>
-        await load(deviceClassPath(generated, reading)) ??
-            await load(generated),
-      null => await load(generated),
+        await _readAsset(deviceClassPath(generated, reading)) ??
+            await _readAsset(generated),
+      null => await _readAsset(generated),
     };
 
     Future<ModelAsset> build(Uint8List bytes) async => ModelAsset.fromDocument(
@@ -257,14 +258,7 @@ final class HotSwap {
     required GraphicsDevice device,
     TextureSampling sampling = const TextureSampling(),
   }) async {
-    Future<Uint8List?> read() async {
-      try {
-        final data = await rootBundle.load(path);
-        return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-      } on FlutterError {
-        return null;
-      }
-    }
+    Future<Uint8List?> read() => _readAsset(path);
 
     Future<TextureHandle?> build(Uint8List bytes) => uploadEncodedImage(
       device,
@@ -355,16 +349,167 @@ final class HotSwap {
     final previous = texture.texture;
     texture._handle.value = next;
     _replaceTexture(previous, next);
+    _releaseAfterFrame(previous);
+    return null;
+  }
+
+  /// Hands [texture] back to the device once no frame in flight can still
+  /// sample it.
+  void _releaseAfterFrame(TextureHandle texture) {
     _renderers.removeWhere((WeakReference<Renderer> r) => r.target == null);
     // One renderer releases it: a handle released twice is a mistake a
     // backend may refuse. With none alive nothing is drawing it either, and
     // it goes with the device.
     for (final renderer in _renderers) {
       if (renderer.target case final Renderer live) {
-        live.releaseTextureAfterFrame(previous);
+        live.releaseTextureAfterFrame(texture);
         break;
       }
     }
+  }
+
+  /// Builds the environment a panorama asset at [path] makes — a Radiance
+  /// `.hdr` or any image Flutter decodes — and hands it back ready to be
+  /// built again when the file changes. Null when the file is not there,
+  /// does not decode, or the device has no cube textures.
+  ///
+  /// **The cube and its irradiance come back together.** The roughest level
+  /// of the chain is the diffuse term (`EnvironmentMap.diffuseLevel`), so one
+  /// prefilter makes both, and a swap after the file changed runs it again
+  /// and puts the new cube, with its level count, on every registered scene
+  /// whose environment was the old one; then the old one goes back to the
+  /// device as a swapped texture does. [size] and [levels] stay as given, so
+  /// the new file may be a panorama of another size.
+  ///
+  /// **A swap costs what the prefilter costs.** It runs where the swap runs,
+  /// and `EnvironmentMap` states the cost: at the default thirty-two a
+  /// fraction of a millisecond, at 512 not something to wait for on every
+  /// save.
+  ///
+  /// **For a game that lights its world from a panorama of its own**, the
+  /// call it makes in place of reading the file and calling
+  /// `EnvironmentMap.fromPanorama`. Put the result on a scene with
+  /// [SwappableEnvironment.applyTo]; a scene a `SceneSurface` draws is
+  /// registered already, and any other has to be passed to [registerScene]
+  /// for a swap to reach it.
+  Future<SwappableEnvironment?> loadEnvironment(
+    String path, {
+    required GraphicsDevice device,
+    int size = 32,
+    int levels = 4,
+  }) async {
+    Future<Uint8List?> read() => _readAsset(path);
+
+    Future<BuiltEnvironment?> build(Uint8List bytes) =>
+        EnvironmentMap.fromEncoded(
+          device,
+          bytes,
+          decodeImage: defaultImageDecoder,
+          size: size,
+          levels: levels,
+        );
+
+    final bytes = await read();
+    if (bytes == null) return null;
+    final built = await build(bytes);
+    if (built == null) return null;
+    return registerEnvironment(
+      path,
+      built,
+      read: read,
+      build: build,
+      loadedFrom: bytes,
+    );
+  }
+
+  /// Wraps [environment], built from the file [read] reads, so that a [swap]
+  /// after the file changed builds it again with [build] and puts the result
+  /// where the old one was — see [loadEnvironment].
+  ///
+  /// For an environment made some other way than [loadEnvironment] makes it:
+  /// a size chosen per device, a decoder of the game's own. [loadedFrom] are
+  /// the bytes [environment] was built from, when the caller has them;
+  /// without them the first swap takes the file as it finds it as the
+  /// starting point rather than as a change.
+  SwappableEnvironment registerEnvironment(
+    String path,
+    BuiltEnvironment environment, {
+    required TextureBytesSource read,
+    required EnvironmentBuild build,
+    Uint8List? loadedFrom,
+  }) {
+    final swappable = SwappableEnvironment._(
+      path,
+      environment,
+      read,
+      build,
+      loadedFrom == null
+          ? null
+          : _fingerprint(ByteData.sublistView(loadedFrom)),
+    );
+    if (!enabled) return swappable;
+    _environments
+      ..removeWhere((SwappableEnvironment e) => e.path == path)
+      ..add(swappable);
+    _registerExtension();
+    return swappable;
+  }
+
+  /// Builds [bytes] in place of the environment registered at [path], as a
+  /// changed file would: what `ext.flutter3d.assets.put` does for a
+  /// panorama. Why it did not take when it did not, or null when it did or
+  /// nothing is registered there — [hasEnvironment] tells those two apart.
+  Future<String?> putEnvironment(String path, Uint8List bytes) async {
+    if (!enabled) return null;
+    for (final environment in _environments) {
+      if (environment.path == path) {
+        return _adoptEnvironment(environment, bytes);
+      }
+    }
+    return null;
+  }
+
+  /// Stops watching [environment], for a game letting it go with the level it
+  /// lit: a swap after that would prefilter a sky nobody draws and release a
+  /// cube already released.
+  void forgetEnvironment(SwappableEnvironment environment) => _environments
+      .removeWhere((SwappableEnvironment e) => identical(e, environment));
+
+  /// Whether an environment is registered at [path].
+  bool hasEnvironment(String path) =>
+      _environments.any((SwappableEnvironment e) => e.path == path);
+
+  /// Builds [bytes] for [environment] and puts the result on every
+  /// registered scene that was lit by the old one. Why not, when it did not.
+  Future<String?> _adoptEnvironment(
+    SwappableEnvironment environment,
+    Uint8List bytes,
+  ) async {
+    final BuiltEnvironment? next;
+    try {
+      next = await environment._build(bytes);
+    } on Object catch (error) {
+      return '$error';
+    }
+    if (next == null) {
+      return 'the new bytes do not decode into a panorama this device can '
+          'hold as a cube';
+    }
+    final previous = environment.built;
+    environment._built.value = next;
+    _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
+    for (final reference in _scenes) {
+      if (reference.target case final Scene scene
+          when identical(scene.environment, previous.texture)) {
+        // The level count with the cube: the shader reads roughness against
+        // it, and a chain that changed length under the old count would
+        // read the wrong lobe.
+        scene
+          ..environment = next.texture
+          ..environmentLevels = next.levels;
+      }
+    }
+    _releaseAfterFrame(previous.texture);
     return null;
   }
 
@@ -559,20 +704,8 @@ final class HotSwap {
     }
     final models = <ModelSwapReport>[];
     for (final model in List<SwappableModel>.of(_models)) {
-      final Uint8List? bytes;
-      try {
-        bytes = await model._read();
-      } on Object catch (error) {
-        refused.add('${model.path}: could not be read ($error)');
-        continue;
-      }
+      final bytes = await _changed(model, refused);
       if (bytes == null) continue;
-      final fingerprint = _fingerprint(ByteData.sublistView(bytes));
-      if (model._fingerprint == null || fingerprint == model._fingerprint) {
-        model._fingerprint = fingerprint;
-        continue;
-      }
-      model._fingerprint = fingerprint;
       final report = await model._adopt(bytes);
       if (report.refused case final String reason) {
         refused.add('${model.path}: $reason');
@@ -583,24 +716,23 @@ final class HotSwap {
     if (models.isNotEmpty) _applyOverrides();
     final textures = <String>[];
     for (final texture in List<SwappableTexture>.of(_textures)) {
-      final Uint8List? bytes;
-      try {
-        bytes = await texture._read();
-      } on Object catch (error) {
-        refused.add('${texture.path}: could not be read ($error)');
-        continue;
-      }
+      final bytes = await _changed(texture, refused);
       if (bytes == null) continue;
-      final fingerprint = _fingerprint(ByteData.sublistView(bytes));
-      if (texture._fingerprint == null || fingerprint == texture._fingerprint) {
-        texture._fingerprint = fingerprint;
-        continue;
-      }
-      texture._fingerprint = fingerprint;
       if (await _adoptTexture(texture, bytes) case final String reason) {
         refused.add('${texture.path}: $reason');
       } else {
         textures.add(texture.path);
+      }
+    }
+    final environments = <String>[];
+    for (final environment in List<SwappableEnvironment>.of(_environments)) {
+      final bytes = await _changed(environment, refused);
+      if (bytes == null) continue;
+      if (await _adoptEnvironment(environment, bytes)
+          case final String reason) {
+        refused.add('${environment.path}: $reason');
+      } else {
+        environments.add(environment.path);
       }
     }
     _renderers.removeWhere((WeakReference<Renderer> r) => r.target == null);
@@ -613,12 +745,42 @@ final class HotSwap {
       refused: List<String>.unmodifiable(refused),
       models: List<ModelSwapReport>.unmodifiable(models),
       textures: List<String>.unmodifiable(textures),
+      environments: List<String>.unmodifiable(environments),
     );
     for (final line in refused) {
       debugPrint('flutter3d: kept the last version that loaded, $line');
     }
     swaps.value++;
     return report;
+  }
+
+  /// [file]'s bytes when they differ from the last ones seen, or null when
+  /// they do not, cannot be read now, or are the first ones seen — which are
+  /// the starting point rather than a change. A read that throws goes into
+  /// [refused].
+  Future<Uint8List?> _changed(_Watched file, List<String> refused) async {
+    final Uint8List? bytes;
+    try {
+      bytes = await file._read();
+    } on Object catch (error) {
+      refused.add('${file.path}: could not be read ($error)');
+      return null;
+    }
+    if (bytes == null) return null;
+    final fingerprint = _fingerprint(ByteData.sublistView(bytes));
+    final seen = file._fingerprint;
+    file._fingerprint = fingerprint;
+    return seen == null || seen == fingerprint ? null : bytes;
+  }
+
+  /// An asset's bytes, or null when the bundle has no such file.
+  static Future<Uint8List?> _readAsset(String path) async {
+    try {
+      final data = await rootBundle.load(path);
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } on FlutterError {
+      return null;
+    }
   }
 
   void _registerExtension() {
@@ -674,8 +836,19 @@ final class HotSwap {
       }
       final decoded = base64Decode(bytes);
       final report = await instance.put(path, decoded);
-      if (report == null && instance.hasTexture(path)) {
-        final refused = await instance.putTexture(path, decoded);
+      final image = switch (report) {
+        null when instance.hasTexture(path) => (
+          kind: 'texture',
+          put: instance.putTexture,
+        ),
+        null when instance.hasEnvironment(path) => (
+          kind: 'environment',
+          put: instance.putEnvironment,
+        ),
+        _ => null,
+      };
+      if (image != null) {
+        final refused = await image.put(path, decoded);
         if (refused != null) {
           return developer.ServiceExtensionResponse.error(
             developer.ServiceExtensionResponse.invalidParams,
@@ -683,13 +856,13 @@ final class HotSwap {
           );
         }
         return developer.ServiceExtensionResponse.result(
-          jsonEncode(<String, Object?>{'path': path, 'texture': true}),
+          jsonEncode(<String, Object?>{'path': path, image.kind: true}),
         );
       }
       if (report == null) {
         return developer.ServiceExtensionResponse.error(
           developer.ServiceExtensionResponse.invalidParams,
-          'no model or texture is registered at $path',
+          'no model, texture or environment is registered at $path',
         );
       }
       return developer.ServiceExtensionResponse.result(
@@ -722,6 +895,7 @@ final class HotSwapReport {
     required this.refused,
     this.models = const <ModelSwapReport>[],
     this.textures = const <String>[],
+    this.environments = const <String>[],
   });
 
   /// What a profile or release build reports: nothing was touched.
@@ -748,12 +922,17 @@ final class HotSwapReport {
   /// one's place.
   final List<String> textures;
 
+  /// The environments whose file changed and whose new cube took the old
+  /// one's place.
+  final List<String> environments;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'renderers': renderers,
     'refreshed': refreshed,
     'refused': refused,
     'models': <Object?>[for (final model in models) model.toJson()],
     'textures': textures,
+    'environments': environments,
   };
 }
 
@@ -771,27 +950,22 @@ final class _Library {
 /// What [HotSwap.loadModel] and [HotSwap.registerModel] hand back. Make
 /// instances through [instantiate], or hand ones made elsewhere to [track];
 /// an instance the game drops is forgotten with it.
-final class SwappableModel {
+final class SwappableModel extends _Watched {
   SwappableModel._(
-    this.path,
+    super.path,
     this._asset,
-    this._read,
+    super._read,
     this._build,
     this._device,
-    this._fingerprint,
+    super._fingerprint,
   );
-
-  /// The file this model was loaded from, as the game named it.
-  final String path;
 
   /// The version drawn now; a new one after each swap.
   ModelAsset get asset => _asset;
   ModelAsset _asset;
 
-  final ModelBytesSource _read;
   final ModelBuild _build;
   final GraphicsDevice? _device;
-  int? _fingerprint;
   final List<WeakReference<ModelInstance>> _instances =
       <WeakReference<ModelInstance>>[];
 
@@ -856,17 +1030,14 @@ final class SwappableModel {
 /// in place of the old one rather than writing into it, because the new one
 /// may be another size and because writing a level over an existing one
 /// would leave its smaller mips showing the old picture.
-final class SwappableTexture {
+final class SwappableTexture extends _Watched {
   SwappableTexture._(
-    this.path,
+    super.path,
     TextureHandle texture,
-    this._read,
+    super._read,
     this._build,
-    this._fingerprint,
+    super._fingerprint,
   ) : _handle = ValueNotifier<TextureHandle>(texture);
-
-  /// The file it was loaded from, as the game named it.
-  final String path;
 
   /// The texture drawn now; a new one after each swap.
   TextureHandle get texture => _handle.value;
@@ -876,8 +1047,47 @@ final class SwappableTexture {
   ValueListenable<TextureHandle> get changes => _handle;
 
   final ValueNotifier<TextureHandle> _handle;
-  final TextureBytesSource _read;
   final TextureBuild _build;
+}
+
+/// An environment a game lights with, kept so a changed panorama file is
+/// prefiltered again and reaches every scene lit by it — see
+/// [HotSwap.loadEnvironment].
+final class SwappableEnvironment extends _Watched {
+  SwappableEnvironment._(
+    super.path,
+    BuiltEnvironment built,
+    super._read,
+    this._build,
+    super._fingerprint,
+  ) : _built = ValueNotifier<BuiltEnvironment>(built);
+
+  /// The cube drawn now and its level count; new ones after each swap.
+  BuiltEnvironment get built => _built.value;
+
+  /// [built], for something that holds the cube outside a scene — a
+  /// weapon's own view, say — and has to hear when it changes.
+  ValueListenable<BuiltEnvironment> get changes => _built;
+
+  /// Lights [scene] with it: the cube and its level count, two fields of a
+  /// scene that are only right together.
+  void applyTo(Scene scene) => scene
+    ..environment = built.texture
+    ..environmentLevels = built.levels;
+
+  final ValueNotifier<BuiltEnvironment> _built;
+  final EnvironmentBuild _build;
+}
+
+/// A file something was built from, and what its bytes were the last time a
+/// swap looked.
+abstract base class _Watched {
+  _Watched(this.path, this._read, this._fingerprint);
+
+  /// The file it was loaded from, as the game named it.
+  final String path;
+
+  final Future<Uint8List?> Function() _read;
   int? _fingerprint;
 }
 
