@@ -140,16 +140,24 @@ final class LiquidBody implements JetReceiver {
   Vector3 _up = Vector3(0, 1, 0);
   double get height => surface.height;
 
-  /// Puts the vessel at [at], turned by [turn]. Called once a step, before
-  /// [step], so the vessel's acceleration can be read off its path.
-  void place(Matrix3 turn, Vector3 at) {
+  /// Puts the vessel at [at], turned by [turn], as it is at [time] seconds
+  /// on the liquid's clock — by default the clock as it stands, the place
+  /// for the next [step]. The vessel's acceleration is read off its path, so
+  /// the time must be when the vessel was there: a caller placing it once a
+  /// frame and stepping a whole number of fixed steps after passes the
+  /// frame's own time (`FluidWorld.time` plus the frame), since stamped with
+  /// the clock instead, a frame that ran one step and the next that ran
+  /// three read as a jolt worth a good part of gravity, and the liquid
+  /// threw itself out of the glass.
+  void place(Matrix3 turn, Vector3 at, {double? time}) {
+    final stamp = time ?? _clock;
     rotation.setFrom(turn);
     position.setFrom(at);
-    // Placed again before a step: the newer place stands for this moment.
-    if (_history.isNotEmpty && _history.last.time == _clock) {
+    // Placed again for the same moment: the newer place stands for it.
+    if (_history.isNotEmpty && _history.last.time >= stamp) {
       _history.removeLast();
     }
-    _history.add((time: _clock, at: at.clone()));
+    _history.add((time: stamp, at: at.clone()));
     if (_history.length > 3) _history.removeAt(0);
   }
 
