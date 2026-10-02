@@ -64,6 +64,13 @@ final class FluidWorld {
       particles.values.fold(0.0, (s, p) => s + p.volume);
 
   double _carried = 0.0;
+  int _ran = 0;
+
+  /// Seconds handed to [advance] so far, the part not yet stepped included:
+  /// the time of whatever the caller places for the frame it is on, as
+  /// `LiquidBody.place`'s `time` wants it. Bodies added at the start share
+  /// this clock.
+  double get time => _ran * step + _carried;
 
   /// Runs as many whole steps as [elapsed] seconds hold, plus what was left
   /// over from the last call; returns how many it ran.
@@ -74,6 +81,7 @@ final class FluidWorld {
       _carried -= step;
       _stepOnce(step);
       ran++;
+      _ran++;
     }
     return ran;
   }

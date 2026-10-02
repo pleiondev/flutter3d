@@ -12,7 +12,6 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_physics/src/portable_math.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
