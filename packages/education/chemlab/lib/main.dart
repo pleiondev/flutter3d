@@ -3,13 +3,14 @@
 ///     flutter run -d chrome
 ///     flutter run -d macos
 ///
-/// Glass turned from profiles, labels typeset in TeX and wrapped on, and a
-/// slider that pours. Drag to turn round the bench, scroll to come closer,
-/// pick a vessel and move the slider to fill or empty it.
+/// Glass turned from profiles, labels typeset in TeX and wrapped on, and
+/// liquid that keeps level and sloshes. Drag to turn round the bench, scroll
+/// to come closer, pick a vessel and pour, tilt or tap it.
 library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -42,7 +43,8 @@ class BenchScreen extends StatefulWidget {
   State<BenchScreen> createState() => _BenchScreenState();
 }
 
-class _BenchScreenState extends State<BenchScreen> {
+class _BenchScreenState extends State<BenchScreen>
+    with SingleTickerProviderStateMixin {
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
@@ -76,6 +78,35 @@ class _BenchScreenState extends State<BenchScreen> {
   ({Renderer renderer, Bench bench})? _ready;
   Object? _error;
   int _selected = 1;
+
+  /// Runs while a liquid moves, and stops when every one is still.
+  late final Ticker _ticker = createTicker(_tick);
+  Duration _last = Duration.zero;
+
+  void _tick(Duration elapsed) {
+    final bench = _ready?.bench;
+    // A frame late is a frame long: held to a thirtieth, so a stall does not
+    // throw the liquid out of its glass.
+    final seconds = ((elapsed - _last).inMicroseconds / 1e6).clamp(0.0, 1 / 30);
+    _last = elapsed;
+    if (bench == null) return;
+    final moving = bench.step(seconds);
+    setState(() {});
+    if (!moving) _ticker.stop();
+  }
+
+  /// Something has set a liquid moving: run the clock if it is not running.
+  void _stir() {
+    if (_ticker.isActive) return;
+    _last = Duration.zero;
+    _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -166,8 +197,18 @@ class _BenchScreenState extends State<BenchScreen> {
               bench: bench,
               selected: _selected,
               onSelect: (i) => setState(() => _selected = i),
-              onPour: (level) =>
-                  setState(() => bench.pour(bench.vessels[_selected], level)),
+              onPour: (level) {
+                setState(() => bench.pour(bench.vessels[_selected], level));
+                _stir();
+              },
+              onLean: (angle) {
+                setState(() => bench.lean(bench.vessels[_selected], angle));
+                _stir();
+              },
+              onTap: () {
+                bench.tap(bench.vessels[_selected]);
+                _stir();
+              },
               onPhotons: (on) => setState(() => bench.photons = on),
             ),
           ),
@@ -183,6 +224,8 @@ class _Controls extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.onPour,
+    required this.onLean,
+    required this.onTap,
     required this.onPhotons,
   });
 
@@ -190,6 +233,8 @@ class _Controls extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onSelect;
   final ValueChanged<double> onPour;
+  final ValueChanged<double> onLean;
+  final VoidCallback onTap;
 
   /// Shadows from the engine's photons, or from the cuts this bench works
   /// out itself.
@@ -240,6 +285,22 @@ class _Controls extends StatelessWidget {
                     onChanged: onPour,
                   ),
                 ),
+                const Text('Tilt'),
+                Expanded(
+                  child: Slider(
+                    value: vessel.tilt,
+                    min: -Bench.maxTilt,
+                    max: Bench.maxTilt,
+                    onChanged: onLean,
+                  ),
+                ),
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: const Text('Tap'),
+                  onPressed: onTap,
+                ),
+                const SizedBox(width: 8),
                 Tooltip(
                   message:
                       'Off: shadows worked out cut by cut for these round '
