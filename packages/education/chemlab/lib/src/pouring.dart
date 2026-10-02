@@ -242,54 +242,148 @@ MeshData cutLiquid({
   return builder.build();
 }
 
-/// A stream of liquid falling from [lip] to the height [floor]: thrown out
-/// at [speed] along [out], horizontal, and falling freely, so it curves
-/// down and narrows as it speeds up. [flow] is how much passes a second; a
-/// steady stream carries the same flow at every height, so its section is
-/// the flow over its speed there, and its radius goes as one over the root
-/// of the speed.
-MeshData stream({
-  required Vector3 lip,
-  required Vector3 out,
-  required double floor,
+/// How liquid leaves a tipped vessel over its lip, worked out from how much
+/// leaves: [flow], cubic metres a second, over a mouth of [radius] tipped
+/// [tilt] from upright.
+///
+/// **The lip is a weir.** The surface stands [head] over the lowest point of
+/// the mouth, and the mouth is a circle tipped with the glass, so at an angle
+/// φ round it from that point the liquid is head − R(1 − cos φ)·sin(tilt)
+/// deep over the edge, where that is above nought. Over a sharp edge liquid
+/// passes at the weir's rate, C_d·(2/3)·√(2g)·depth^(3/2) per metre of edge,
+/// with C_d the 0.62 measured for sharp-crested weirs; summed round the
+/// wetted arc that is the flow, and halving on the head finds the head that
+/// passes [flow]. At the crest the flow is critical, about two thirds of the
+/// head deep, so the sheet leaving the lip has that section and [speed] is
+/// the flow over it. [width] is the wetted arc's chord: how wide the sheet
+/// is as it leaves.
+({double head, double speed, double width}) overLip({
   required double flow,
-  double speed = 0.5,
-  int sides = 14,
-  int rows = 24,
+  required double radius,
+  required double tilt,
 }) {
   const g = 9.81;
-  final fall = math.max(lip.y - floor, 1e-3);
-  final duration = math.sqrt(2.0 * fall / g);
-  final r0 = math.sqrt(flow / (math.pi * speed));
+  const discharge = 0.62;
+  const steps = 360;
+  final dip = radius * math.max(math.sin(tilt).abs(), 1e-3);
+  // The flow over the lip, and the crest's section, for a head.
+  ({double flow, double area}) passing(double head) {
+    var q = 0.0;
+    var area = 0.0;
+    final dPhi = 2.0 * math.pi / steps;
+    for (var i = 0; i < steps; i++) {
+      final phi = -math.pi + (i + 0.5) * dPhi;
+      final depth = head - dip * (1.0 - math.cos(phi));
+      if (depth <= 0.0) continue;
+      final edge = radius * dPhi;
+      q += math.pow(depth, 1.5) * edge;
+      area += depth * edge;
+    }
+    return (
+      flow: discharge * (2.0 / 3.0) * math.sqrt(2.0 * g) * q,
+      area: (2.0 / 3.0) * area,
+    );
+  }
+
+  var lo = 0.0;
+  var hi = 2.0 * dip + radius;
+  for (var i = 0; i < 50; i++) {
+    final mid = 0.5 * (lo + hi);
+    if (passing(mid).flow < flow) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  final head = 0.5 * (lo + hi);
+  final crest = passing(head);
+  final reach = (1.0 - head / dip).clamp(-1.0, 1.0);
+  return (
+    head: head,
+    speed: crest.area > 0.0 ? flow / crest.area : math.sqrt(g * head),
+    width: 2.0 * radius * math.sin(math.acos(reach)),
+  );
+}
+
+/// How fast the edges of a liquid sheet [thickness] thick draw in under
+/// surface tension: Taylor and Culick's √(2σ / ρe), for water's σ and ρ.
+///
+/// On a model [scale] times life size the sheet is a real one [scale] times
+/// thinner, whose edges draw in √scale times faster; and a speed at life
+/// size is √scale times as fast on the model, where time is stretched by
+/// the root of the scale. Together, [scale] times what the formula gives
+/// for the model's own thickness.
+double sheetRetraction(double thickness, {double scale = 1.0}) =>
+    scale * math.sqrt(2.0 * 0.072 / (1000.0 * math.max(thickness, 1e-5)));
+
+/// When a stream thrown at [velocity] from [height] reaches [floor]: the later
+/// root of height + v_y·t − g t² / 2 = floor.
+double fallTime(Vector3 velocity, double height, double floor) {
+  const g = 9.81;
+  final drop = math.max(height - floor, 0.0);
+  return (velocity.y + math.sqrt(velocity.y * velocity.y + 2.0 * g * drop)) / g;
+}
+
+/// A stream of liquid leaving [lip] at [velocity] as a sheet [width] wide,
+/// across [across], and falling freely to the height [floor].
+///
+/// **Nothing in its shape is chosen.** A steady stream carries the same
+/// [flow] past every height, so its section is the flow over its speed
+/// there, and its speed is what falling gives it: it thins as it falls. It
+/// leaves the lip as a flat sheet as wide as the wetted lip, and its edges
+/// draw in at the Taylor–Culick speed until it is round, which for a sheet
+/// this thick takes a fraction of its fall.
+MeshData stream({
+  required Vector3 lip,
+  required Vector3 velocity,
+  required Vector3 across,
+  required double width,
+  required double floor,
+  required double flow,
+  double scale = 1.0,
+  int sides = 16,
+  int rows = 28,
+}) {
+  const g = 9.81;
+  final duration = fallTime(velocity, lip.y, floor);
+  final speed = math.max(velocity.length, 1e-3);
+  final thickness = flow / (speed * math.max(width, 1e-4));
+  final retraction = sheetRetraction(thickness, scale: scale);
   final builder = MeshBuilder(VertexLayout.standard);
   for (var k = 0; k <= rows; k++) {
     final t = duration * k / rows;
-    final centre = lip + out * (speed * t) - Vector3(0, 0.5 * g * t * t, 0);
-    final velocity = out * speed - Vector3(0, g * t, 0);
-    final v = velocity.length;
-    final r = r0 * math.sqrt(speed / v);
-    final axis = velocity / v;
-    final helper = axis.x.abs() < 0.9 ? Vector3(1, 0, 0) : Vector3(0, 0, 1);
-    final e1 = axis.cross(helper)..normalize();
+    final centre = lip + velocity * t - Vector3(0, 0.5 * g * t * t, 0);
+    final v = velocity - Vector3(0, g * t, 0);
+    final area = flow / math.max(v.length, 1e-3);
+    final round = math.sqrt(area / math.pi);
+    // Half its width, drawn in from the lip's, and never narrower than
+    // round; the other half-axis keeps the section.
+    final a = math.max(0.5 * width - retraction * t, round);
+    final b = area / (math.pi * a);
+    final axis = v.normalized();
+    final e1 = (across - axis * across.dot(axis))..normalize();
     final e2 = axis.cross(e1);
     for (var i = 0; i <= sides; i++) {
-      final a = 2.0 * math.pi * i / sides;
-      final n = e1 * math.cos(a) + e2 * math.sin(a);
-      builder.addVertex(position: centre + n * r, normal: n);
+      final angle = 2.0 * math.pi * i / sides;
+      final c = math.cos(angle);
+      final s = math.sin(angle);
+      // The ellipse's normal: its gradient, (x / a², y / b²).
+      final n = (e1 * (c / a) + e2 * (s / b))..normalize();
+      builder.addVertex(
+        position: centre + e1 * (a * c) + e2 * (b * s),
+        normal: n,
+      );
     }
   }
   final columns = sides + 1;
   for (var k = 0; k < rows; k++) {
     for (var i = 0; i < sides; i++) {
       final a = k * columns + i;
-      final b = a + 1;
-      final c = a + columns + 1;
-      final d = a + columns;
       // Drawn from both sides: its material is double-sided, so which way
       // these wind does not matter.
       builder
-        ..addTriangle(a, b, c)
-        ..addTriangle(a, c, d);
+        ..addTriangle(a, a + 1, a + columns + 1)
+        ..addTriangle(a, a + columns + 1, a + columns);
     }
   }
   return builder.build();
