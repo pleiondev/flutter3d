@@ -148,11 +148,15 @@ final class FreeSurface {
     final w1 = omega(k1);
     final radius = math.sqrt(area / math.pi);
     final boundary = _stephens(nu, g, radius, h) * w1;
+    _omega2 = Float64List(_modes.length);
+    _decay = Float64List(_modes.length);
     for (var n = 0; n < _modes.length; n++) {
       final k = math.sqrt(_k2[n]);
       final w = omega(k);
       final decay =
           boundary * math.sqrt(w / math.max(w1, 1e-9)) + 2.0 * nu * k * k;
+      _omega2[n] = w * w;
+      _decay[n] = decay;
       final wd = math.sqrt(math.max(w * w - decay * decay, 1e-12));
       final c = Portable.cos(wd * dt);
       final s = Portable.sin(wd * dt);
@@ -164,6 +168,32 @@ final class FreeSurface {
       _rate[n] = e * (v * c - (decay * b + a * wd) * s);
     }
     _field = null;
+  }
+
+  Float64List _omega2 = Float64List(0);
+  Float64List _decay = Float64List(0);
+
+  /// The force the waves put on the vessel, newtons, in its frame, for a
+  /// liquid of [density]: the liquid's centre of mass moves as the surface
+  /// rocks, and what moves it pushes back on the glass. Each mode shifts the
+  /// centre by its first moment over the surface times its amplitude, so the
+  /// force is −ρ Σ Mₙ äₙ, with äₙ = −ωₙ²aₙ − 2σₙȧₙ as the mode rings.
+  Vector3 force(double density) {
+    final grid = _grid;
+    final out = Vector3.zero();
+    if (grid == null || _omega2.length != _modes.length) return out;
+    for (var n = 0; n < _modes.length; n++) {
+      final moment = Vector3.zero();
+      final shape = _modes[n];
+      for (var i = 0; i < grid.count; i++) {
+        moment.addScaled(grid.e1, shape[i] * grid.cellsU[i]);
+        moment.addScaled(grid.e2, shape[i] * grid.cellsV[i]);
+      }
+      moment.scale(grid.cell2);
+      final accel = -_omega2[n] * _amplitude[n] - 2.0 * _decay[n] * _rate[n];
+      out.addScaled(moment, -density * accel);
+    }
+    return out;
   }
 
   /// How wide a [knock] spreads, metres: the patch's standard deviation.
