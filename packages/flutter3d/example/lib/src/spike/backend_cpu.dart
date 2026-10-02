@@ -13,6 +13,7 @@
 /// fixture.
 library;
 
+import 'package:flutter3d_app/flutter3d_app.dart' show materialLanguageCompiler;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
@@ -32,4 +33,8 @@ GraphicsDevice createCpuBackend({required int width, required int height}) =>
         ...builtinCpuShaders(),
         'ExampleStripes': const CpuStage.fragment(ExampleStripesShader()),
       }),
+      // `P8`: a bundle built from a `.f3dmat` carries its source, and this
+      // compiles it — the `material-language` scene's stage, with no Dart
+      // twin written for it.
+      materialCompiler: materialLanguageCompiler,
     );

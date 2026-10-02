@@ -1,3 +1,42 @@
+## Unreleased
+
+- **A material's bundle carries its source** in the material section, and
+  `kAssetPipelineVersion` is 3, so bundles built before it are built again.
+
+**A material written in the material language compiles at build time into
+a shader bundle every GPU backend loads.** The hook finds
+`assets_src/**/*.f3dmat` and writes `flutter3d_generated/**/*.f3dshaders` at
+the same relative path. It parses each source, emits GLSL through
+`flutter3d_core`'s emitter, resolves the engine's headers from
+`flutter3d_shaders`, and packs one `ShaderBundle` with three sections:
+`impellerc` output for Impeller, GLSL ES 3.00 for WebGL2, and WGSL with its
+reflection for WebGPU. `GraphicsDevice.loadShaders` takes the file on any
+backend; the software backend evaluates the same source on the CPU and needs
+no section. Before this, the language emitted GLSL that nothing built, so a
+material could be evaluated on the CPU and could not be drawn by a GPU.
+
+A mistake in a material fails the build with the file, line and column
+(`fx/rim.f3dmat:3:13: ...`). A compiler refusing the GLSL generated from a
+valid source names the source and keeps the generated `.frag` under
+`.dart_tool/flutter3d_build/materials/`, so the line in the compiler's
+message can be opened. Nothing compiles at run time.
+
+The WebGPU section needs glslangValidator and naga. On a machine without
+them the bundle gets the other two sections and the log says so, and the
+WebGPU backend refuses that bundle by name. Failing the whole build over one
+backend's tooling would make it a requirement for everyone. A missing
+`impellerc` is an error, because it ships in the Flutter SDK that runs the
+hook.
+
+Every material source and every engine shader header is declared as a hook
+dependency, so editing `surface.glsl` rebuilds the bundles that include it.
+A bundle whose inputs did not change is not compiled again, and a bundle
+whose source is gone is deleted. A project without materials does not look
+for a compiler or for the engine's sources at all.
+
+A manifest rule's `glob` and `exclude` apply to materials as they do to
+models.
+
 ## 0.8.0
 
 **Every cached model converts again once.** `kAssetPipelineVersion` is 2,

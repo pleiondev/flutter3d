@@ -149,7 +149,7 @@ void main() {
       'ext.flutter3d.timeline.status',
       isolateId: target.isolateId,
     );
-    expect(_decode(statusBefore), <String, Object?>{'paused': false});
+    expect(_decode(statusBefore), containsPair('paused', false));
 
     final paused = await target.service.callServiceExtension(
       'ext.flutter3d.timeline.pause',
@@ -161,7 +161,7 @@ void main() {
       'ext.flutter3d.timeline.status',
       isolateId: target.isolateId,
     );
-    expect(_decode(statusAfter), <String, Object?>{'paused': true});
+    expect(_decode(statusAfter), containsPair('paused', true));
 
     // stepOnce refuses when the timeline is not paused, from the outside
     // exactly as it does from a direct call — proved by asking for a
@@ -241,7 +241,8 @@ void main() {
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   test('a level sent from outside the process branches the run when it '
-      'moves a brush, and is refused when it changed on the way', () async {
+      'moves a brush, is refused when it changed on the way, and the next '
+      'edit goes as a patch', () async {
     final target = await _startAndConnect();
     addTearDown(() {
       target.service.dispose();
@@ -293,6 +294,38 @@ void main() {
         args: <String, String>{'document': document, 'hash': 'deadbeef'},
       ),
       throwsA(isA<RPCError>()),
+    );
+
+    // The next edit goes as a patch against the level the game now has; the
+    // same patch again is made against a level the game no longer has, and
+    // is answered with the code that tells the editor to send it whole.
+    final fogged = <String, Object?>{...moved, 'fogDensity': 0.04};
+    final patch = jsonEncode(
+      LevelPatch.between(Level.fromJson(moved), Level.fromJson(fogged)),
+    );
+    final patched = _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.level.patch',
+        isolateId: target.isolateId,
+        args: <String, String>{'patch': patch},
+      ),
+    );
+    expect(patched['swappedAt'], isNull);
+    expect((patched['diff']! as Map<String, Object?>)['fog'], isTrue);
+
+    await expectLater(
+      target.service.callServiceExtension(
+        'ext.flutter3d.level.patch',
+        isolateId: target.isolateId,
+        args: <String, String>{'patch': patch},
+      ),
+      throwsA(
+        isA<RPCError>().having(
+          (RPCError error) => error.code,
+          'code',
+          LevelPatch.staleCode,
+        ),
+      ),
     );
   }, timeout: const Timeout(Duration(minutes: 3)));
 
@@ -352,4 +385,71 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
+
+  test('N4: scrub, read the tracks, go back, and branch, from outside the '
+      'process', () async {
+    final target = await _startAndConnect();
+    addTearDown(() {
+      target.service.dispose();
+      target.process.kill();
+    });
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    Future<Map<String, Object?>> call(
+      String verb, [
+      Map<String, String>? args,
+    ]) async => _decode(
+      await target.service.callServiceExtension(
+        'ext.flutter3d.timeline.$verb',
+        isolateId: target.isolateId,
+        args: args,
+      ),
+    );
+
+    // Mutation: scrub without the pause check. The fixture's loop then
+    // steps the scrubbed state and the window below moves under it.
+    final refused = await call('scrubTo', <String, String>{'step': '10'});
+    expect(refused['moved'], isFalse);
+    expect(refused['refusal'], contains('pause'));
+
+    await call('pause');
+    final window = await call('status');
+    final present = window['step']! as int;
+    final oldest = window['oldest']! as int;
+    expect(present, greaterThan(oldest));
+
+    final scrub = oldest + (present - oldest) ~/ 2;
+    expect(await call('scrubTo', <String, String>{'step': '$scrub'}), {
+      'moved': true,
+      'step': scrub,
+    });
+    expect((await call('status'))['scrubbedAt'], scrub);
+
+    final tracks = await call('tracks');
+    expect(tracks['first'], oldest);
+    expect(tracks['last'], present);
+    final lane =
+        ((tracks['entities']! as Map<String, Object?>)['toy']!
+                as Map<String, Object?>)['x']!
+            as List<Object?>;
+    expect(lane, isNotEmpty, reason: 'the toy moves every step');
+
+    expect(await call('returnToPresent'), {'returned': true});
+    expect((await call('status'))['scrubbedAt'], isNull);
+
+    await call('scrubTo', <String, String>{'step': '$scrub'});
+    expect(await call('branchHere'), {'moved': true, 'step': scrub});
+    final after = await call('status');
+    expect(after['step'], scrub);
+    expect(after['paused'], isTrue);
+
+    final history = (await call('history'))['commands']! as List<Object?>;
+    expect(history, <String>[
+      'paused',
+      'scrubbed:$scrub',
+      'returned',
+      'scrubbed:$scrub',
+      'branched:$scrub',
+    ]);
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }

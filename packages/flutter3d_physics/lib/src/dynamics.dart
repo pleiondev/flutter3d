@@ -22,7 +22,10 @@
 ///
 /// ## What it does not do
 ///
-/// No rotation, no joints, no continuous collision. A body moving fast enough
+/// No contact that turns a body — a body built with `canRotate` spins from the
+/// impulses a game gives it and keeps its angular momentum, but the solver
+/// below pushes only along the normal, through the centre. No joints, no
+/// continuous collision. A body moving fast enough
 /// to cross a wall between two steps will cross it; the sweep that stops that
 /// happening for the character controller is not applied here, and stage two is
 /// where it belongs. Stated rather than discovered, and the numbers are in
@@ -213,6 +216,9 @@ final class Dynamics {
         ..setFrom(body.velocity)
         ..scale(dt);
       body.collider.moveTo(body.position + _scratch);
+      // After the solve, like the position: the spin this step ends with is
+      // the one the body turns by. Nothing for a body that cannot turn.
+      body.integrateOrientation(dt);
     }
 
     _separate();

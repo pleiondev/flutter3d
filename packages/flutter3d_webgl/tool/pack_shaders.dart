@@ -60,8 +60,7 @@ import 'dart:typed_data';
 // The container alone: the package's barrel reaches `package:flutter`, which
 // a `dart run` tool cannot load. `shader_bundle.dart` says so.
 import 'package:flutter3d_hardware/shader_bundle.dart';
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgl/src/webgl_bundle_section.dart';
+import 'package:flutter3d_shaders/translate.dart';
 
 import 'source_package.dart';
 

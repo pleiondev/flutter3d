@@ -27,9 +27,13 @@ import 'package:vector_math/vector_math.dart';
 
 /// The declared slots [draw] left unbound, one line each.
 List<String> _unbound(
-  void Function(FakeBackend device, Renderer renderer) draw,
-) {
-  final device = FakeBackend(stageBindings: stageBindings);
+  void Function(FakeBackend device, Renderer renderer) draw, {
+  int attachments = 2,
+}) {
+  final device = FakeBackend(
+    stageBindings: stageBindings,
+    maxColorAttachments: attachments,
+  );
   final renderer = Renderer.create(device: device);
   draw(device, renderer);
   return device.bindingViolations.toSet().toList()..sort();
@@ -141,6 +145,105 @@ void main() {
         views: <RenderView>[RenderView(camera: scene.cameras.single)],
       );
     });
+    expect(unbound, isEmpty, reason: unbound.join('\n'));
+  });
+
+  test('nor does the decal pass, with pictures and without', () {
+    // `P3`: four picture slots a draw binds whether or not a decal names
+    // them, and two buffers out of the scene pass. Three attachments, or the
+    // pass is refused before it binds anything.
+    //
+    // Mutation: binding only the slots a batch fills leaves three of the four
+    // pictures unbound, which is a crash on Metal.
+    final ran = <String>[];
+    final unbound = _unbound((FakeBackend device, Renderer renderer) {
+      final picture = device.createTextureFromPixels(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData(4 * 4 * 4),
+      )!;
+      final scene = Scene()
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3(4.0, 0.2, 4.0)).build(),
+            ),
+            Material(name: 'floor'),
+          )..setPosition(0.0, -0.1, 0.0),
+        )
+        ..add(DecalNode(texture: picture)..setScale(2.0, 1.0, 2.0))
+        ..add(DecalNode()..setScale(1.0, 1.0, 1.0))
+        ..add(
+          CameraNode()
+            ..setPosition(0.0, 4.0, 2.0)
+            ..lookAt(Vector3.zero()),
+        );
+      final result = renderer.render(
+        width: 64,
+        height: 64,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        settings: const RenderSettings(decals: DecalSettings(enabled: true)),
+      );
+      ran.addAll(result.passes.map((p) => p.name));
+    }, attachments: 3);
+    expect(ran, contains('decals'));
+    expect(unbound, isEmpty, reason: unbound.join('\n'));
+  });
+
+  test('nor does a planar reflection, or a camera into a texture', () {
+    // `P4`: the mirrored camera draws the lit scene, the reflection is laid
+    // over a floor through its own stage with its picture and its block, and
+    // a render texture's light is encoded through a full-screen stage. All
+    // three under a shadowed sun, which is what a lit capture binds most of.
+    //
+    // Mutation: binding the reflection without its block, or the floor's
+    // albedo slot to a stage that dropped it, is a violation here and a
+    // crash on Metal.
+    final ran = <String>[];
+    final unbound = _unbound((FakeBackend device, Renderer renderer) {
+      final floor = MeshNode(
+        DeviceMesh.upload(device, const PlaneShape(width: 6, depth: 6).build()),
+        Material(name: 'floor'),
+      );
+      final camera = CameraNode()
+        ..setPosition(0.0, 3.0, 4.0)
+        ..lookAt(Vector3.zero());
+      final scene = Scene()
+        ..add(floor)
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3.all(0.6)).build(),
+            ),
+            Material(name: 'box'),
+          )..setPosition(0.0, 0.8, 0.0),
+        )
+        ..add(PlanarReflectorNode(surfaces: <MeshNode>[floor]))
+        ..add(
+          LightNode(intensity: 3.0)
+            ..setPosition(2.0, 3.0, 4.0)
+            ..lookAt(Vector3.zero()),
+        )
+        ..add(camera)
+        ..addRenderTexture(
+          RenderTexture.create(device, camera: camera, width: 16, height: 16),
+        );
+      final result = renderer.render(
+        width: 64,
+        height: 64,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: const RenderSettings(
+          planarReflections: PlanarReflectionSettings(enabled: true),
+        ),
+      );
+      ran.addAll(result.passes.map((p) => p.name));
+    });
+    expect(ran, containsAll(<String>['planar reflections', 'render textures']));
     expect(unbound, isEmpty, reason: unbound.join('\n'));
   });
 }

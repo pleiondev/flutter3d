@@ -1,5 +1,103 @@
 ## Unreleased
 
+- **A `.f3drun` carries the levels edited under the run.**
+  `Demo.levelSwaps` holds each one as a `DemoLevelSwap`: the step it took
+  effect before and the whole document, since the edited level exists in no
+  asset a replay could look up. On reading, the document is checked against
+  the hash written beside it, and swaps out of step order or past the end of
+  the tape are refused. A run with swaps is written as format 2, so an older
+  build refuses it instead of replaying it into a divergence; a run without
+  any is still written as 1. `f3drun_info` lists the swaps.
+- **`DigestTrace.forgetAfter`** drops the checkpoints after a step, for a
+  run that was lived again from there.
+- **`LevelPatch` carries an edit as the rows that changed.**
+  `LevelPatch.between` matches brushes, lights and entities by the digest
+  of each row (a deleted brush is one edit, not every row after it), takes
+  materials by name and every other key whole. `applyTo` refuses a level
+  other than the one the patch was made against, a row that is not the one
+  it names, and a result that is not the level it was meant to make; when
+  it applies, it says what changed without comparing the two documents.
+  `LevelPatch.staleCode` is the error a game answers a refused patch with.
+- **Behaviour trees and utility choices as data.** `BehaviourTree.read`
+  takes a JSON document of `sequence`, `selector`, `utility`, `invert`,
+  `alwaysSucceed`, `cooldown` and leaves, and answers a tree or every
+  problem with where it is. Leaves and utility considerations are registered
+  by kind in `BehaviourKinds`, which comes with the ones the engine's `Mind`
+  can already do (`goToFocus`, `goTo`, `wait`, `seesFocus`, `check`, `set`,
+  `markFocus`, …). `BehaviourBrain` runs a tree; everything it knows is a
+  `Blackboard` component, so a snapshot or a rewind brings a decision back
+  half made. A board ticked by another tree starts again rather than resuming
+  at node numbers that now name something else.
+- **`bisectTapes` finds where two runs part.** Each side is a
+  `ReplaySide` — a start, a tape and the simulation's step, restore and
+  capture — that keeps the states it has been asked for and plays on from
+  the nearest. The search compares digests and reads the full snapshots
+  once, at the step it names; it says whether that step's input differed,
+  and through an `EntityLayout` which entity and component moved.
+  `bracketFromTraces` narrows the search to one checkpoint interval of two
+  `DigestTrace`s.
+- **`EntityTracks`** reads a run as one lane per component of each entity,
+  holding only the steps a value changed and closing a lane when the
+  component goes. `EntityLayout.ecs` reads an `EcsWorld.save()`,
+  `EntityLayout.rows` one row per entity. `RewindBuffer.oldestStep` is the
+  left end of a scrubber.
+- **A save says what version of the game wrote it, and an old one is
+  migrated.** `SaveSchema` is a game's list of migrations, and its version is
+  their count, so the version cannot move without one. `upgrade` brings an
+  older run up and refuses a newer one, saying it is newer, rather than
+  misreading it. `SaveRecord` is the save document: level, snapshot, schema,
+  step and a digest of the run. `SaveRecord.read` never throws.
+- **`resolveSaves` decides between two copies of a save** by digest and step,
+  against the digest both last agreed on: the same run is in sync, a side
+  still at the base lost to the one that moved, otherwise the further run
+  wins, and two different runs equally far along go to the player.
+- **A run leaves the machine only with the player's yes.**
+  `TelemetryConsent` keeps the answer with the wording it was given to and
+  when; a grant to an older wording does not count, and a damaged settings
+  file reads as not asked. `TelemetryUpload.prepare` is the only way to build
+  an upload and refuses without consent; it drops `Demo.recordedBy`, and the
+  consent travels with the run so a server can refuse one that has none.
+  `TelemetryUploader` checks consent on every send; `HttpTelemetrySink`
+  posts through a `JsonPost` the caller hands in, so this package still
+  imports no network.
+- **`resimulate` plays a demo again and says what it did.** It checks the
+  level hash, the starting state and every checkpoint, and returns a sealed
+  `Resimulation`: the level changed, the start differs, the replay diverged
+  (with the step), or it retraced, with the run, its outcome and a trail of
+  positions.
+- **`Heatmap`** bins trails into cells, counting samples and distinct runs,
+  and marks where runs were lost. Its JSON is the playtest report's, so the
+  editor reads both.
+
+- **Photo mode's camera.** `PhotoCamera` flies with the world paused: look,
+  tilt, zoom, and moves along its own axes with up being the world's. It is
+  held on a tether round where the player stood, inside the level's box when
+  there is one, and out of the walls by sweeping each move and sliding along
+  what it meets. It starts by sweeping out from the player to where the game's
+  camera was, so a chase camera left behind a wall does not start the photo
+  there. `shouldPause` takes `photoMode`, which pauses whatever the pointer and
+  the pad say, since both are flying the camera.
+
+- **A level bakes into a navigation mesh as well as a grid.**
+  `NavMesh.bake` and `NavMesh.bakeLevel` voxelise the brushes and the
+  `Heightfield`, keep the floors an agent fits on and can step between
+  (`NavMeshConfig`: height, step, radius, slope), erode them by the radius,
+  cut them into regions, outline those, and cut the outlines into convex
+  polygons with their neighbours and an area each. Unlike `NavGrid` it keeps
+  a walkway and the floor under it, and walks up a ramp rather than reading
+  it as a riser. Integers from the voxeliser on, so `NavMesh.digest` is the
+  same on every platform; the VM and Chrome agree on six scenes, and the
+  test holds them. The mesh is eroded by `NavGrid`'s own clearance rule and
+  covers exactly the cells a flow field for the same body accepts. It is
+  the first part of N2; the path search over it comes next.
+
+- **A level can be shared behind a short code.** `ShareBundle` is a level
+  document, its hash and optionally a `.f3drun` through it, refused when the
+  run was recorded in another version of the level. `RunService` speaks the
+  `v1/shares` routes over a transport the game hands in, so the package
+  still has no dependency for it, and answers every call with `ServiceDone`
+  or `ServiceRefused` rather than throwing. `cloud/server` speaks this
+  protocol.
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,

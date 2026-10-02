@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -791,8 +792,12 @@ class _SpikePageState extends State<SpikePage>
       // layered model, unlit cards, Lambert floors — and would all be turned
       // back into plain PBR here.
       if (_stagedContent == null) {
+        final parameters = _golden?.scene.materialParameters ?? const {};
         for (final mesh in _scene.meshes) {
           mesh.material.lighting = _lighting;
+          for (final MapEntry(:key, :value) in parameters.entries) {
+            mesh.material.parameters[key] = Float32List.fromList(value);
+          }
         }
       }
 

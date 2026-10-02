@@ -252,6 +252,10 @@ final class GpuRenderBackend implements GraphicsDevice {
   // Impeller exposes glPolygonMode's equivalent, so the request goes through.
   bool get supportsWireframe => true;
 
+  /// False — `P7`: flutter_gpu exposes no alpha-to-coverage and no sample mask.
+  @override
+  bool get supportsAlphaToCoverage => false;
+
   @override
   // flutter_gpu's depth-stencil format is documented never to be depth-only,
   // so a device that names one has a stencil beside its depth; one that

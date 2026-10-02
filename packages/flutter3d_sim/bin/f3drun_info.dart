@@ -66,4 +66,7 @@ void main(List<String> args) {
   print('buildStamp: ${demo.buildStamp}');
   print('platform:   ${demo.platform ?? '(unknown)'}');
   print('recordedBy: ${demo.recordedBy ?? '(anonymous)'}');
+  for (final swap in demo.levelSwaps) {
+    print('levelSwap:  step ${swap.step}, ${swap.levelHash}');
+  }
 }

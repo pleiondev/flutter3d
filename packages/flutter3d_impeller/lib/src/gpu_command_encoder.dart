@@ -97,6 +97,10 @@ final class GpuCommandEncoder implements CommandEncoder {
   @override
   void setDepthWrite(bool enabled) => _pass.setDepthWriteEnable(enabled);
 
+  /// Nothing — `P7`: flutter_gpu has no alpha-to-coverage to set; `supportsAlphaToCoverage` is false.
+  @override
+  void setAlphaToCoverage(bool enabled) {}
+
   @override
   void setDepthCompare(CompareFunction compare) =>
       _pass.setDepthCompareOperation(compare.toGpu());
@@ -197,6 +201,7 @@ final class GpuCommandEncoder implements CommandEncoder {
     // its draw needs after binding the pipeline, never before.
     _pass.clearBindings();
     _indexCount = 0;
+    _indexView = null;
     _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
   }
 
@@ -222,16 +227,32 @@ final class GpuCommandEncoder implements CommandEncoder {
       _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
 
   @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_view(buffer), type.toGpu());
-    _indexCount = indexCount;
-  }
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
+      _bindIndices(_view(buffer), type, indexCount);
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_emplace(bytes), type.toGpu());
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
+      _bindIndices(_emplace(bytes), type, indexCount);
+
+  void _bindIndices(gpu.BufferView view, IndexType type, int indexCount) {
+    _pass.bindIndexBuffer(view, type.toGpu());
+    _indexView = view;
+    _indexType = type;
     _indexCount = indexCount;
+    _boundFirstIndex = 0;
   }
+
+  /// The view the last index bind named, kept so a draw of a window can bind
+  /// a narrower one — `P7`. flutter_gpu's `drawIndexed` takes a count and no
+  /// first index, so where the window starts is said with the view's offset.
+  gpu.BufferView? _indexView;
+  IndexType _indexType = IndexType.int32;
+
+  /// Where the view bound on the pass right now starts, in indices from the
+  /// start of [_indexView]. A window draw moves it, and the next draw that
+  /// wants a different start binds again rather than reading from wherever
+  /// the last window left it.
+  int _boundFirstIndex = 0;
 
   @override
   bool bindUniformBlock(
@@ -336,12 +357,31 @@ final class GpuCommandEncoder implements CommandEncoder {
     // draw after a `clearBindings` inherit the previous mesh's index count,
     // which is the kind of state leak that draws a plausible wrong picture.
     _indexCount = 0;
+    _indexView = null;
   }
 
   @override
-  void draw({int instanceCount = 1}) {
-    if (_indexCount == 0 || instanceCount <= 0) return;
-    _pass.drawIndexed(_indexCount, instanceCount: instanceCount);
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
+    final view = _indexView;
+    if (window.count == 0 || instanceCount <= 0 || view == null) return;
+    if (window.first != _boundFirstIndex) {
+      final skip = window.first * (_indexType == IndexType.int16 ? 2 : 4);
+      _pass.bindIndexBuffer(
+        gpu.BufferView(
+          view.buffer,
+          offsetInBytes: view.offsetInBytes + skip,
+          lengthInBytes: view.lengthInBytes - skip,
+        ),
+        _indexType.toGpu(),
+      );
+      _boundFirstIndex = window.first;
+    }
+    _pass.drawIndexed(window.count, instanceCount: instanceCount);
   }
 
   @override

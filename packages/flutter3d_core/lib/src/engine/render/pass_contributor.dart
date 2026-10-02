@@ -6,6 +6,7 @@ import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene.dart';
+import 'draw_journal.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
@@ -43,6 +44,19 @@ final class FramePassState {
   /// Seeded with what the scene pass establishes for itself, and reseeded
   /// wherever that state is re-established.
   CompareFunction depthCompare = CompareFunction.less;
+
+  /// Whether the pass now encoding may turn alpha into coverage — `P7`: it
+  /// multisamples and the device can. Set by the scene pass for its own
+  /// draws and cleared before its contributors.
+  bool coverageAvailable = false;
+
+  /// What `setAlphaToCoverage` was last told, tracked as [depthCompare] is so
+  /// a scene without the setting emits no call at all. Every pass starts off.
+  bool alphaToCoverage = false;
+
+  /// Whether a material asked for alpha to coverage this frame and was drawn
+  /// with its hard cutoff instead — `FrameResult.alphaToCoverageDeclined`.
+  bool coverageDeclined = false;
   int drawCalls = 0;
   int pipelineSwitches = 0;
   int skinnedDraws = 0;
@@ -57,6 +71,11 @@ final class FramePassState {
   /// nothing in the frame batches; an ordinary [MeshNode] draw is one node,
   /// not one instance of itself, so it does not add to this count.
   int instances = 0;
+
+  /// Where each draw is written down, for the one frame somebody asked to
+  /// see them — `P12`. Null otherwise; see [DrawJournal] for why a draw site
+  /// writes `journal?.add(...)` and nothing more.
+  DrawJournal? journal;
 
   /// Call after encoding anything that binds its own pipeline.
   ///

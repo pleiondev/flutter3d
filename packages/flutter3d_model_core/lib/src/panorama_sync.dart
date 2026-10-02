@@ -92,31 +92,12 @@ final class PanoramaSync {
 }
 
 /// A Radiance file as the RGBA8 `EnvironmentMap.fromPanorama` reads, or null
-/// when it is not one.
-///
-/// **Clamped rather than tone-mapped.** The cube is eight bits a channel —
-/// `EnvironmentMap`'s own doc comment says why, and that this is a real
-/// limitation — so a sun four hundred times brighter than the sky around it
-/// becomes white either way. Rolling the highlights off first would darken
-/// everything else to buy detail in a region the cube cannot hold anyway,
-/// and would make the indirect light a panorama gives differ from the
-/// indirect light the same picture gives as a PNG.
+/// when it is not one — clamped, for the reason `EnvironmentMap.hdrToRgba8`
+/// gives.
 ByteData? panoramaPixels(Uint8List bytes) {
-  final HdrImage image;
   try {
-    image = readHdr(bytes);
+    return EnvironmentMap.hdrToRgba8(readHdr(bytes));
   } on HdrFormatException {
     return null;
   }
-  final ByteData out = ByteData(image.width * image.height * 4);
-  for (var i = 0; i < image.width * image.height; i++) {
-    out
-      ..setUint8(i * 4, _byte(image.rgb[i * 3]))
-      ..setUint8(i * 4 + 1, _byte(image.rgb[i * 3 + 1]))
-      ..setUint8(i * 4 + 2, _byte(image.rgb[i * 3 + 2]))
-      ..setUint8(i * 4 + 3, 255);
-  }
-  return out;
 }
-
-int _byte(double value) => (value * 255.0).round().clamp(0, 255);

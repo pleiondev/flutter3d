@@ -64,6 +64,12 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # `HttpCloudSaves`, a save kept on a server. Not `dart:io`'s client: that
+  # one does not exist in a browser, and a web build is where a player is most
+  # likely to come back on another device. Already in the workspace for
+  # `flutter3d_lti`.
+  http: ^1.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

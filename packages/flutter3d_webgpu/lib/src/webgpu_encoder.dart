@@ -213,6 +213,9 @@ final class WebGpuEncoder implements CommandEncoder {
   WindingOrder _winding = WindingOrder.counterClockwise;
   CompareFunction _depthCompare = CompareFunction.always;
   bool _depthWrite = true;
+
+  /// `setAlphaToCoverage`, off at the pass's start — `P7`.
+  bool _alphaToCoverage = false;
   StencilState? _stencilFront;
   StencilState? _stencilBack;
 
@@ -298,6 +301,12 @@ final class WebGpuEncoder implements CommandEncoder {
 
   @override
   void setDepthWrite(bool enabled) => _depthWrite = enabled;
+
+  /// Into the pipeline's signature: WebGPU sets it when a pipeline is built,
+  /// and only for one of more than one sample, where a pipeline of one would
+  /// be refused — so a pass of one sample builds the pipeline without it.
+  @override
+  void setAlphaToCoverage(bool enabled) => _alphaToCoverage = enabled;
 
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
@@ -527,7 +536,12 @@ final class WebGpuEncoder implements CommandEncoder {
   // ------------------------------------------------------------- the draw
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
     // Below one draws nothing, as it does on the other backends. A negative
     // count handed on would reach `drawIndexed` as an unsigned number in the
     // billions.
@@ -579,7 +593,7 @@ final class WebGpuEncoder implements CommandEncoder {
         indices.offset,
         indices.length,
       )
-      ..drawIndexed(_indexCount, instanceCount);
+      ..drawIndexed(window.count, instanceCount, window.first);
   }
 
   /// The signature this draw's state makes, which is what the cache is
@@ -612,6 +626,7 @@ final class WebGpuEncoder implements CommandEncoder {
       colorFormats: _colorFormats,
       depthFormat: _depthFormat,
       sampleCount: _sampleCount,
+      alphaToCoverage: _alphaToCoverage && _sampleCount > 1,
     );
   }
 
@@ -710,7 +725,7 @@ final class WebGpuEncoder implements CommandEncoder {
     final multisample = GPUMultisampleState(
       count: _sampleCount,
       mask: 0xFFFFFFFF,
-      alphaToCoverageEnabled: false,
+      alphaToCoverageEnabled: signature.alphaToCoverage,
     );
 
     final depthFormat = _depthFormat;

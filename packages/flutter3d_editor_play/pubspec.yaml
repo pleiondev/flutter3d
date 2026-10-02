@@ -21,6 +21,11 @@ dependencies:
   # The running game's VM service, where `ext.flutter3d.level.apply` is.
   vm_service: ^15.3.0
 
+  # The socket to that service, in a browser as well as on a desktop:
+  # `vmServiceConnectUri` opens a `dart:io` `WebSocket`, and the web editor
+  # attaches to a game through nothing else. See `src/vm_connect.dart`.
+  web_socket_channel: ^3.0.0
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
@@ -33,4 +38,6 @@ dev_dependencies:
 # editor application had this code under `lib/src/play`, where the editor's
 # MCP server, which wants the same Play for an agent, could not reach it
 # without depending on an application. Here both depend on it, and neither
-# depends on the other.
+# depends on the other. The `dart:io` stays out of `lib/attach.dart` and what
+# it exports, which is the part of Play a web build has: attaching to a game
+# that is already running.

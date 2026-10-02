@@ -34,5 +34,6 @@ void main() {
   // The albedo is already linear, and an unlit surface is best
   // understood as emitting exactly it, so it goes into the HDR
   // target as light like everything else.
+  if (WriteDebugView(s, s.albedo)) return;
   WriteSurface(s.albedo, s.alpha);
 }

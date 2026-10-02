@@ -51,13 +51,16 @@ import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_decal.dart';
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_impostor.dart';
 import 'cpu_shaders_irradiance.dart';
+import 'cpu_shaders_lens.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_motion_blur.dart';
 import 'cpu_shaders_particles.dart';
+import 'cpu_shaders_planar.dart';
 import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
@@ -65,6 +68,7 @@ import 'cpu_shaders_reactive.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
+import 'cpu_shaders_smaa.dart';
 import 'cpu_shaders_ssao.dart';
 import 'cpu_shaders_temporal.dart';
 import 'cpu_shaders_velocity.dart';
@@ -75,13 +79,16 @@ export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
 export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
+export 'cpu_shaders_decal.dart';
 export 'cpu_shaders_irradiance.dart';
 export 'cpu_shaders_layout.dart';
+export 'cpu_shaders_lens.dart';
 export 'cpu_shaders_lighting.dart';
 export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
 export 'cpu_shaders_motion_blur.dart';
 export 'cpu_shaders_particles.dart';
+export 'cpu_shaders_planar.dart';
 export 'cpu_shaders_post.dart';
 export 'cpu_shaders_probe.dart';
 export 'cpu_shaders_reactive.dart';
@@ -90,6 +97,7 @@ export 'cpu_shaders_shadow_directional.dart';
 export 'cpu_shaders_shadow_passes.dart';
 export 'cpu_shaders_shadow_point.dart';
 export 'cpu_shaders_sky.dart';
+export 'cpu_shaders_smaa.dart';
 export 'cpu_shaders_ssao.dart';
 export 'cpu_shaders_surface.dart';
 export 'cpu_shaders_temporal.dart';
@@ -143,6 +151,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'FullscreenVertex': const CpuStage.vertex(FullscreenVertexShader()),
     'Unlit': const CpuStage.fragment(UnlitShader()),
     'Xray': const CpuStage.fragment(XrayShader()),
+    'PlanarReflection': const CpuStage.fragment(PlanarReflectionShader()),
     'Lambert': const CpuStage.fragment(LambertShader()),
     'BlinnPhong': const CpuStage.fragment(BlinnPhongShader()),
     'Pbr': const CpuStage.fragment(PbrShader()),
@@ -222,17 +231,23 @@ Map<String, CpuStage> builtinCpuShaders() {
     'VelocityNeighborMax': const CpuStage.fragment(VelocityNeighborMaxShader()),
     'MotionBlur': const CpuStage.fragment(MotionBlurShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
+    'Decal': const CpuStage.fragment(DecalShader()),
     'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
     'ShadowDistanceMasked': const CpuStage.fragment(
       ShadowDistanceMaskedShader(),
     ),
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
+    'RenderTextureEncode': const CpuStage.fragment(RenderTextureEncodeShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'WboitResolve': const CpuStage.fragment(WboitResolveShader()),
     'SceneColourCopy': const CpuStage.fragment(SceneColourCopyShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),
+    'SmaaEdges': const CpuStage.fragment(SmaaEdgesShader()),
+    'SmaaWeights': const CpuStage.fragment(SmaaWeightsShader()),
+    'SmaaBlend': const CpuStage.fragment(SmaaBlendShader()),
+    'LensFlare': const CpuStage.fragment(LensFlareShader()),
     'LocalExposure': const CpuStage.fragment(LocalExposureShader()),
     'LocalExposureBlur': const CpuStage.fragment(LocalExposureBlurShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
@@ -251,6 +266,10 @@ Map<String, CpuStage> builtinCpuShaders() {
     'SkyCubeVertex': const CpuStage.vertex(SkyCubeVertexShader()),
     'Sky': const CpuStage.fragment(SkyShader()),
     'SkyCube': const CpuStage.fragment(SkyCubeShader()),
+    // `P5`. The same pass-through vertex stage as the gradient's: see
+    // [SkyPhysicalShader] for why one class answers to both names.
+    'SkyPhysicalVertex': const CpuStage.vertex(SkyVertexShader()),
+    'SkyPhysical': const CpuStage.fragment(SkyPhysicalShader()),
   };
 
   for (final name in kUnimplementedCpuVertexShaders) {

@@ -11,6 +11,10 @@
     "type": "fragment",
     "file": "shaders/lighting/xray.frag"
   },
+  "PlanarReflection": {
+    "type": "fragment",
+    "file": "shaders/lighting/planar_reflection.frag"
+  },
   "Lambert": {
     "type": "fragment",
     "file": "shaders/lighting/lambert.frag"
@@ -78,6 +82,22 @@
   "Fxaa": {
     "type": "fragment",
     "file": "shaders/post/fxaa.frag"
+  },
+  "SmaaEdges": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_edges.frag"
+  },
+  "SmaaWeights": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_weights.frag"
+  },
+  "SmaaBlend": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_blend.frag"
+  },
+  "LensFlare": {
+    "type": "fragment",
+    "file": "shaders/post/lens_flare.frag"
   },
   "MrtProbe": {
     "type": "fragment",
@@ -239,9 +259,17 @@
     "type": "fragment",
     "file": "shaders/post/viewport_shade.frag"
   },
+  "Decal": {
+    "type": "fragment",
+    "file": "shaders/post/decal.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"
+  },
+  "RenderTextureEncode": {
+    "type": "fragment",
+    "file": "shaders/post/render_texture_encode.frag"
   },
   "ShadowDistance": {
     "type": "fragment",
@@ -302,6 +330,14 @@
   "SkyCube": {
     "type": "fragment",
     "file": "shaders/sky_cube.frag"
+  },
+  "SkyPhysicalVertex": {
+    "type": "vertex",
+    "file": "shaders/sky_physical.vert"
+  },
+  "SkyPhysical": {
+    "type": "fragment",
+    "file": "shaders/sky_physical.frag"
   },
   "Luminance": {
     "type": "fragment",

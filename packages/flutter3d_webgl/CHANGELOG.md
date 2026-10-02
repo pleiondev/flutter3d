@@ -4,6 +4,33 @@
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured
   sun shadow (`ShadowSettings.translucentCasters`).
+- **Alpha to coverage**: `SAMPLE_ALPHA_TO_COVERAGE`, off at every pass's
+  start; `supportsAlphaToCoverage` is true where the context multisamples.
+
+- **The generated tables carry the orthographic camera's paths**, and
+  `orthographic-metal` is in the browser reference set.
+
+- **The generated tables carry the debug views**, and `debug-view-split`
+  is in the browser reference set.
+
+- **`LensFlare` translated, and the composite's distortion**;
+  `lens-flare` and `lens-distortion` are in the browser reference set.
+- **SMAA 1x's three stages translated**, from the same sources as every
+  other stage; `smaa-teapot` is in the browser reference set.
+
+**The generated tables carry the decal stage** of `flutter3d_shaders`.
+
+**The generated tables carry `PlanarReflection` and
+`RenderTextureEncode`**, and the `planar-mirror` and `render-texture`
+goldens are in this set.
+
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`.**
+
+**The GLSL ES translator and the section codec moved to
+`flutter3d_shaders`**, so a build hook with no Flutter SDK can use them.
+`encodeWebGlSection`, `decodeWebGlSection` and `WebGlSectionSources` are
+still exported from this package's barrel under the same names.
 
 ## 0.8.2+1
 

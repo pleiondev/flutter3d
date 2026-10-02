@@ -896,19 +896,15 @@ void main() {
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
   vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion +
-          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
-              g_coat_through +
-          coatAmbient,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion +
+             (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+                 g_coat_through +
+             coatAmbient;
 #else
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
 #endif
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 #endif  // PBR_GLSL_

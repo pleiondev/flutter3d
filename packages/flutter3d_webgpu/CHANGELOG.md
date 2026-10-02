@@ -4,6 +4,37 @@
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured
   sun shadow (`ShadowSettings.translucentCasters`).
+- **Alpha to coverage**: a pipeline's `alphaToCoverageEnabled`, part of its
+  signature, set only where the pass multisamples.
+
+- **The generated tables carry the orthographic camera's paths**, and
+  `orthographic-metal` is in the WebGPU reference set.
+
+- **The generated tables carry the debug views**, and `debug-view-split`
+  is in the WebGPU reference set.
+
+- **`LensFlare` translated, and the composite's distortion**, through
+  glslang and naga; both lens scenes match Impeller's to the pixel.
+- **SMAA 1x's three stages translated**, through glslang and naga like every
+  other stage; `smaa-teapot` is in the WebGPU reference set and matches
+  Impeller's to the pixel.
+
+**The generated tables carry the decal stage** of `flutter3d_shaders`,
+through glslang and naga like every other stage.
+
+**The generated tables carry `PlanarReflection` and
+`RenderTextureEncode`**, through glslang and naga like every other stage,
+and the `planar-mirror` and `render-texture` goldens are in this set, both 0
+of 172800 pixels from Impeller.
+
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`**, through glslang and naga like every other stage.
+
+**`prepareStage`, the WGSL compile and the section writer moved to
+`flutter3d_shaders`** for the reason that package's changelog gives. The
+tools and tests here import them from `package:flutter3d_shaders/compile.dart`,
+and `flutter3d_webgl` is no longer a dev dependency: it was here only for
+`resolveIncludes`.
 
 ## 0.8.2+1
 

@@ -190,6 +190,10 @@ sealed class TraceEvent {
       asInt(j['pass']),
       j['value']! as bool,
     ),
+    'setAlphaToCoverage' => TraceSetAlphaToCoverage(
+      asInt(j['pass']),
+      j['value']! as bool,
+    ),
     'setDepthCompare' => TraceSetDepthCompare(
       asInt(j['pass']),
       byName(CompareFunction.values, j['value']),
@@ -251,7 +255,12 @@ sealed class TraceEvent {
       sampler: j['sampler'] == null ? null : samplerFromJson(j['sampler']),
     ),
     'clearBindings' => TraceClearBindings(asInt(j['pass'])),
-    'draw' => TraceDraw(asInt(j['pass']), asInt(j['instanceCount'])),
+    'draw' => TraceDraw(
+      asInt(j['pass']),
+      asInt(j['instanceCount']),
+      j['firstIndex'] == null ? 0 : asInt(j['firstIndex']),
+      j['indexCount'] == null ? null : asInt(j['indexCount']),
+    ),
     'submit' => TraceSubmit(asInt(j['pass'])),
     'createStorageBuffer' => TraceCreateStorageBuffer(
       id: asInt(j['id']),
@@ -693,6 +702,20 @@ final class TraceSetWindingOrder extends TracePassEvent {
   };
 }
 
+/// `PassEncoder.setAlphaToCoverage` — `P7`. A trace recorded before it had
+/// none, which replays as it was recorded: off.
+final class TraceSetAlphaToCoverage extends TracePassEvent {
+  const TraceSetAlphaToCoverage(super.pass, this.value);
+  final bool value;
+  @override
+  String get kind => 'setAlphaToCoverage';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'pass': pass,
+    'value': value,
+  };
+}
+
 final class TraceSetDepthWrite extends TracePassEvent {
   const TraceSetDepthWrite(super.pass, this.value);
   final bool value;
@@ -924,14 +947,27 @@ final class TraceClearBindings extends TracePassEvent {
 }
 
 final class TraceDraw extends TracePassEvent {
-  const TraceDraw(super.pass, [this.instanceCount = 1]);
+  const TraceDraw(
+    super.pass, [
+    this.instanceCount = 1,
+    this.firstIndex = 0,
+    this.indexCount,
+  ]);
   final int instanceCount;
+
+  /// The window of the bound indices — `P7`. Written only when it is not the
+  /// whole binding, so a trace recorded before windows existed reads as it
+  /// was recorded and needs no new format version.
+  final int firstIndex;
+  final int? indexCount;
   @override
   String get kind => 'draw';
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
     'instanceCount': instanceCount,
+    if (firstIndex != 0) 'firstIndex': firstIndex,
+    if (indexCount != null) 'indexCount': indexCount,
   };
 }
 

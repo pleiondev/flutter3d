@@ -32,6 +32,179 @@
   and layers combine. A see-through surface that casts is not shaded by it,
   and it does nothing under the `evsm` filter. Off, every frame is drawn byte for byte as
   before.
+- **A material in the language can declare a `uniform`**, a member of
+  `MaterialParams` that a game sets in `Material.parameters` on every draw,
+  where a `param` is still a constant folded into its variant. The emitter
+  writes the block, `describeMaterial` reports it and its defaults, and
+  `BundledMaterials.parameters` hands a material those defaults.
+
+- **`Material.parameters` is a map of the material's own**, empty and open
+  to additions. It was a shared constant, so a material made without
+  parameters could not be given any.
+
+- **`BundledMaterials`** reads the materials a bundle carries and builds
+  each one's `LightingModel` from its source — `P8`. The emitted stage keeps
+  no point-shadow block, and `describeMaterial` asks for the base colour map
+  always, since `ReadSurface` samples it: a material that named no texture
+  was drawn with the map unbound, black on Impeller and refused on WebGL2.
+
+- **`Material.alphaToCoverage`** antialiases a masked surface's edge by the
+  multisample resolve rather than cutting it at the threshold, on WebGL2 and
+  WebGPU. Elsewhere the hard cutoff is drawn and
+  `FrameResult.alphaToCoverageDeclined` says so. Off by default.
+
+- **A masked surface writes an opaque alpha once it has survived its cut.**
+  It wrote the texture's alpha into the frame, and anything reading the
+  frame as premultiplied brightened every leaf towards its rim.
+
+- **`MeshNode.drawOrder`** puts nodes that share a material in an order:
+  it adds to the material's `drawBucket`, outranks every other sort term in
+  both halves of the list, and is never merged across by the batching. Nought
+  by default.
+
+- **An orthographic camera no longer reads its eye as a point the light
+  travels to.** Highlights, Fresnel and reflections are measured against
+  the view axis rather than from the eye's position, so they stop sliding
+  across the frame as an orthographic camera pans; fog thickens with depth
+  from the eye's plane rather than in rings round it; and the sky is seen
+  through a sixty-degree lens turned as the camera is, rather than as one
+  colour. `isOrthographic` tells a view-projection matrix's kind. Light
+  shafts march from the eye's plane, as the volumetric fog already did.
+  `orthographic-metal` is in all four golden sets.
+
+- **A material channel in place of the light, over all or part of the
+  frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
+  `DebugView` — albedo, the shading normal, roughness, metalness,
+  occlusion, emission, the UV, or magenta where the light came out NaN or
+  infinite — and a `split`, the share of the width left lit, so one draw
+  wipes between the light and the channel. The lit models write the channel
+  themselves, so it shows what the maps did; the composite leaves that side
+  out of the exposure, the curve and the grade. Off by default and an exact
+  no-op; `debug-view-split` is in all four golden sets.
+
+- **`FrameResult.targetBytes`** says what the targets a frame drew into or
+  read from hold, each texture once, without a capture asked for.
+  `textureBytes` is how one is counted: its base level, every slice and
+  sample.
+
+- **The lens: distortion, flare, and tables from a grading tool.**
+  `LookSettings.distortion` bends the frame radially, barrel above nought
+  and pincushion below, held on its border, and everything laid over the
+  scene bends with it while the vignette and the grain stay put.
+  `BloomSettings.lensFlare` throws a bright light's ghosts and halo across
+  the middle of the frame, drawn from the glow so only what blooms flares.
+  `CubeLut` reads a `.cube` file, 3D or 1D with its domain, into the strip
+  `LookSettings.lut` grades through, and `upload` puts it on a device.
+- **SMAA 1x beside FXAA.** `AntiAliasSettings(method: EdgeSmoothing.smaa)`
+  smooths the finished picture in three passes: the luma steps marked, the
+  line behind each staircase rebuilt from where its run ends and which side
+  of each end a crossing edge stands on, and each pixel blended by the area
+  that line covers of it. Against an 8×8 supersample a tilted edge comes out
+  at about a quarter of its hard error. FXAA stays the default; a bundle
+  without the three stages falls back to it. Orthogonal edges only: no
+  diagonal search and no corner rounding. The area table is the engine's
+  `smaaArea`, written by `tool/make_tables.dart` and shared with the
+  software backend byte for byte.
+- **Projected box decals.** A `DecalNode` is a box, its node's unit cube,
+  that paints a picture onto whatever geometry stands inside it: a texture
+  (or none) times an sRGB tint with an opacity, an optional emission, a
+  region of an atlas, an `order` between overlapping decals, and an angle
+  limit past which a surface turned away from the box's up is left alone.
+  `RenderSettings.decals` switches them on and is off by default. The pass
+  reads the point under each pixel back out of the surface buffer, since a
+  depth attachment cannot be sampled, and lays the decal's colour under the
+  light the surface was lit by, read back through the albedo buffer, so a
+  decal in a shadow is in the shadow. It runs between the opaque half of the
+  scene and the transparent one, which it splits the frame for, so glass in
+  front of a decal is drawn over it. It needs three colour attachments and
+  turns multisampling off, as every reader of the surface buffer does.
+
+- **Planar reflections — `P4`.** A `PlanarReflectorNode` is a plane (its
+  node's origin, its local +Y the side it is seen from) and the meshes that
+  lie in it. Each frame, for each view that sees the plane's front, the
+  scene is drawn again through the view's camera mirrored in the plane, with
+  the projection's near plane moved onto the plane (`obliqueNearPlane`), so
+  nothing below it is reflected up through it. The picture, at `resolution`
+  of the view (half by default), is laid over the surfaces in the scene pass
+  straight after the opaque half, through the new `PlanarReflection` stage:
+  read by the pixel's place on screen, weighted by Schlick's Fresnel from
+  `reflectance` (one for a mirror, about 0.02 for water), tinted and fogged.
+  The surfaces keep their own materials and the surface buffer keeps
+  describing them. `RenderSettings.planarReflections` is off by default; a
+  frame without a visible reflector culls the pass either way.
+- **A public camera into a texture — `P4`.** `RenderTexture.create` makes a
+  texture for a camera to draw into; `Scene.addRenderTexture` has it drawn
+  every frame (or once, and again after `invalidate`) before the scene, so
+  a material shows the picture in the frame it was taken. The pass is the
+  reflector's with an ordinary camera: meshes with the frame's lights,
+  shadows and sky, and no post chain. The texture holds sRGB bytes with the
+  top of the picture in its first row on every backend, as an uploaded image
+  does, so it goes into an albedo or emissive slot as one.
+- `mirrorAcrossPlane`, `obliqueNearPlane` and `planeInEyeSpace` are public
+  in `mirror_view.dart`, and two passes join `RenderSettings.passOrder`
+  before `scene`: `render textures` and `planar reflections`.
+- **A physical sky, with stars, and fog that lies on the ground.**
+  `SkySettings.physical` takes a `PhysicalSky`: the air's molecular and haze
+  scattering, their scale heights, the planet, the sunlight entering it, the
+  ground's albedo and the stars. With it set the sky is sunlight scattered
+  once along each view ray, so its colours come from where `directionToSun`
+  puts the sun — blue overhead at noon, red towards a setting sun, dark away
+  from it — and the disc is drawn white through the air in front of it, so it
+  reddens by itself. Stars come out as the sun goes down. `SkySettings.sample`
+  answers from the same model without the stars, so `EnvironmentMap.fromSky`
+  and the renderer's hemispheric ambient follow the sun too, and
+  `PhysicalSky.sunlight` is the colour a directional light standing for the
+  sun should have. A cube map still wins. Null, the default, draws the
+  gradient as before.
+- **Height fog.** `FogSettings.heightFalloff` and `baseHeight` thin the fog
+  upwards by the law `VolumetricFogSettings` marches, integrated along the ray
+  in closed form. A falloff of nought, the default, is the flat fog to the
+  bit. `FogSettings.densityAt` and `copyWith` are new; `Atmosphere` carries
+  `fogHeightFalloff` and `fogBaseHeight` and blends them with the rest.
+  Particles and splats fog as a flat fog as thick as the air at the camera.
+
+- **A photo of any size.** `capturePhoto` draws a picture in tiles on the
+  game's own renderer and hands it out a row of tiles at a time, so memory
+  holds one row however large the picture. Each tile is drawn with a margin
+  of picture round it through the new `CropProjection`, which takes the
+  frame's aspect itself rather than the tile's, and the margin is cropped:
+  with 32 pixels a bloom's seams drop from 53 steps to a few. Exposure is held
+  at what the screen showed; temporal anti-aliasing, motion blur, render scale
+  and chromatic aberration are set aside, and the report says which.
+  `PhotoFilter` is eight looks composed onto the game's own `LookSettings`;
+  `PhotoFinish` puts the vignette and the grain back over the whole frame
+  rather than once per tile.
+
+- **A captured frame can say which draws it made.**
+  `Renderer.captureNextFrame(draws: true)` writes every mesh and shadow-caster
+  draw into a `DrawJournal` — pass, node, material, counts, pipeline state and
+  the values bound — and `FrameCapture.draws` hands them back, with
+  `undetailedDraws` counting the full-screen draws a pass made without a mesh
+  to name. Off in every other frame, where a draw site pays one null check.
+  `readFloats` puts a backend's own floats beside each output's bytes, which
+  the software backend's `readHdrPixels` can answer, and each `CapturedPass`
+  now carries its time, draws and triangles.
+
+- **An animation graph decides which clip plays, in the fixed step.**
+  `AnimationStateMachine` holds states over named clips and transitions
+  between them, each with conditions on typed parameters, a crossfade
+  duration, a priority and an optional exit time; `AnimationGraph` runs it,
+  and `evaluate(dt)` advances by the simulation's step and returns a `Pose`.
+  Parameters are float, integer, boolean or trigger, declared in an
+  `AnimationParameterSchema`, and a write of the wrong type or to a name the
+  schema lacks is refused with a `ParameterWrite` saying what to call
+  instead. A trigger stays set until a transition uses it, so an attack
+  pressed during a swing lands when the swing allows. A definition that
+  cannot run lists its problems through `problems(clips)` rather than
+  building a graph whose transitions are never taken. Until now the choice
+  of clip was left to each game, written against `AnimationPlayer` by hand.
+
+- **`Pose.blendFrom` crossfades whole poses the way the player does.**
+  The player's shortest-arc slerp is now one shared function,
+  `shortestArcSlerp`, used by both, so a graph and a player fading between
+  the same two clips turn each joint the same way. `Pose.restCopy` gives a
+  second pose over the same rest for the outgoing clip.
+
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.
@@ -39,6 +212,13 @@
   contributors live in `flutter3d_particles`, do the same there. Before this a
   reloaded shader reached the scene's own pipelines and not the splats, the
   debug lines or the particles.
+
+- **`EnvironmentMap.fromEncoded` builds an environment from a panorama
+  file's bytes.** A Radiance `.hdr` is told apart by its header and read
+  here; anything else goes through the `ImageDecoder` given. Then it is
+  `fromPanorama` as before. `EnvironmentMap.hdrToRgba8` is the clamp to
+  eight bits that `flutter3d_model_core`'s `panoramaPixels` used to keep to
+  itself, so both read a `.hdr` the same way.
 
 ## 0.8.3+1
 

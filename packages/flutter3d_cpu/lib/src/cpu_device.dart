@@ -129,6 +129,7 @@ final class CpuDevice implements GraphicsDevice {
     this.maxColorAttachments = 3,
     this.hdrOutputFormats = const <TextureFormat>[],
     this.supportsIndependentBlend = true,
+    this.materialCompiler,
   });
 
   final int width;
@@ -137,12 +138,17 @@ final class CpuDevice implements GraphicsDevice {
   @override
   final CpuShaderLibrary shaders;
 
+  /// What makes a Dart stage of a material written in the engine's language,
+  /// for a bundle that carries one — `P8`. Null, the default, refuses such a
+  /// bundle by name, as it refuses any stage [shaders] does not have.
+  final CpuMaterialCompiler? materialCompiler;
+
   /// The bundle's names, answered with this device's own Dart stages; a name
   /// it has no Dart for is a refusal naming the bundle and the stage. See
   /// [CpuLoadedShaderLibrary]. Nothing is compiled, so nothing is waited for.
   @override
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async =>
-      CpuLoadedShaderLibrary.load(shaders, bytes);
+      CpuLoadedShaderLibrary.load(shaders, bytes, compiler: materialCompiler);
 
   @override
   // The engine's own convention, and here it is a choice rather than a
@@ -193,6 +199,10 @@ final class CpuDevice implements GraphicsDevice {
   // Answering true and filling them instead would be the silent substitution
   // the contract exists to forbid.
   bool get supportsWireframe => false;
+
+  /// False — `P7`: one sample a pixel, so no coverage to spread.
+  @override
+  bool get supportsAlphaToCoverage => false;
 
   @override
   // Both halves are here now: the chain is stored as whole textures and the

@@ -13,39 +13,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'play_state.dart';
 import 'watched.dart';
-
-/// Where a run is: not yet started, starting, running with a VM service to
-/// attach to, or over.
-sealed class PlayState {
-  const PlayState();
-}
-
-final class PlayIdle extends PlayState {
-  const PlayIdle();
-}
-
-final class PlayStarting extends PlayState {
-  const PlayStarting(this.message);
-
-  /// What the tool says it is doing: "Launching lib/main.dart…".
-  final String message;
-}
-
-final class PlayRunning extends PlayState {
-  const PlayRunning({required this.appId, required this.vmService});
-
-  final String appId;
-
-  /// The game's VM service, for the timeline panel and `ext.flutter3d.*`.
-  final String vmService;
-}
-
-final class PlayStopped extends PlayState {
-  const PlayStopped(this.exitCode);
-
-  final int exitCode;
-}
 
 /// Starts `flutter` with [arguments] in [workingDirectory]. A parameter of
 /// [FlutterRun] so a test hands it a process of its own making.
@@ -62,6 +31,31 @@ Future<Process> _startFlutter(
   runInShell: Platform.isWindows,
 );
 
+/// Ends a `flutter` process [StartFlutter] started. A parameter of
+/// [FlutterRun] so a test sees a stop reach the process.
+typedef KillFlutter = void Function(Process process);
+
+void _killFlutter(Process process) {
+  switch (treeKillCommand(process.pid, windows: Platform.isWindows)) {
+    case [final executable, ...final arguments]:
+      unawaited(Process.run(executable, arguments));
+    default:
+      process.kill();
+  }
+}
+
+/// The command that ends [pid] together with everything it started, or null
+/// where [Process.kill] already reaches the tool.
+///
+/// **On Windows the process is a shell, not the tool.** `flutter` there is
+/// `flutter.bat`, so [StartFlutter] goes through `cmd.exe`, and
+/// [Process.kill] ends the `cmd.exe` and leaves the Dart process behind it
+/// building, holding the project's `build` directory open. `taskkill /t`
+/// takes the tree. On macOS and Linux `bin/flutter` `exec`s the tool, so the
+/// pid is already the tool's.
+List<String>? treeKillCommand(int pid, {required bool windows}) =>
+    windows ? <String>['taskkill', '/pid', '$pid', '/t', '/f'] : null;
+
 /// One `flutter run --machine`, from start to exit.
 ///
 /// **Its console is the tool's, line for line.** What the game prints, what
@@ -70,11 +64,12 @@ Future<Process> _startFlutter(
 /// go to [console] in the order they arrived, because the moment somebody
 /// needs this panel is the moment something went wrong, and a filtered
 /// console hides exactly that.
-final class FlutterRun {
+final class FlutterRun implements PlayedGame {
   FlutterRun({
     required this.projectRoot,
     this.device,
     this._start = _startFlutter,
+    this._kill = _killFlutter,
   });
 
   /// The directory with the project's `pubspec.yaml`.
@@ -86,12 +81,22 @@ final class FlutterRun {
 
   final StartFlutter _start;
 
+  final KillFlutter _kill;
+
+  @override
+  String get title => projectRoot;
+
+  @override
+  bool get ownsTheGame => true;
+
   /// Where the run is; a panel rebuilds from it.
+  @override
   final Watched<PlayState> state = Watched<PlayState>(const PlayIdle());
 
   /// Every line the run has printed, oldest first. Capped at [consoleLimit],
   /// dropping the oldest, so a game that logs every frame costs a bounded
   /// list and not the editor's memory.
+  @override
   final Watched<List<String>> console = Watched<List<String>>(const <String>[]);
 
   static const int consoleLimit = 2000;
@@ -102,6 +107,7 @@ final class FlutterRun {
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
 
   /// Starts the run. Does nothing while one is already going.
+  @override
   Future<void> start() async {
     if (_process != null) return;
     state.value = const PlayStarting('Starting flutter run…');
@@ -143,16 +149,19 @@ final class FlutterRun {
   /// and swaps changed models from `reassemble`. What the tool said about it,
   /// "Reloaded 3 of 812 libraries" or why it refused, or null when nothing is
   /// running.
+  @override
   Future<String?> hotSwap() => _restart(fullRestart: false);
 
   /// A hot restart: the game starts over from `main`, with the new code.
+  @override
   Future<String?> hotRestart() => _restart(fullRestart: true);
 
   /// Asks the game to stop, and the tool with it.
+  @override
   Future<void> stop() async {
     final appId = _appId;
     if (appId == null) {
-      _process?.kill();
+      if (_process case final Process process) _kill(process);
       return;
     }
     try {
@@ -163,6 +172,7 @@ final class FlutterRun {
   }
 
   /// Stops the run if there is one and lets go of the process.
+  @override
   Future<void> dispose() async {
     await stop();
     await state.close();
@@ -258,13 +268,7 @@ final class FlutterRun {
   }
 
   void _print(String line) {
-    final lines = console.value;
-    console.value = <String>[
-      ...lines.length >= consoleLimit
-          ? lines.skip(lines.length - consoleLimit + 1)
-          : lines,
-      line,
-    ];
+    console.value = appendLine(console.value, line, consoleLimit);
   }
 }
 

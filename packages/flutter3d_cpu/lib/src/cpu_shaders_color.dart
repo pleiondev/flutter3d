@@ -68,16 +68,41 @@ Vector3 decodeOctahedral(double ex, double ey) {
   return n..normalize();
 }
 
+/// `Orthographic` — `P7`: whether `FogInfo.projection.x` says the camera
+/// projects orthographically. False where the block is not bound, which is
+/// what the GLSL's `F3D_NO_FOG` stages are.
+bool orthographic(ShaderBindings b) =>
+    b.vec4('FogInfo', 'projection', Vector4.zero()).x > 0.5;
+
 /// `EyeDistance`: how far this fragment is from the camera, in world metres.
 ///
 /// What the fog fades by. A distance, because fog is a property of the air
-/// between two points and does not care which way the camera faces.
+/// between two points and does not care which way the camera faces — through
+/// a perspective lens. Through an orthographic one, the depth from the eye's
+/// plane, as the GLSL has it.
 double eyeDistance(Float32List v, ShaderBindings b) {
+  if (orthographic(b)) return math.max(viewDepth(v, b), 0.0);
   final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
   final dx = v[kVWorld] - eye.x;
   final dy = v[kVWorld + 1] - eye.y;
   final dz = v[kVWorld + 2] - eye.z;
   return math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/// `TowardsEye` — `P7`: back along the ray that reached this fragment, to
+/// the eye through a perspective lens and against the view axis through an
+/// orthographic one.
+Vector3 towardsEye(Float32List v, ShaderBindings b) {
+  if (orthographic(b)) {
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    return Vector3(-forward.x, -forward.y, -forward.z);
+  }
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  return Vector3(
+    eye.x - v[kVWorld],
+    eye.y - v[kVWorld + 1],
+    eye.z - v[kVWorld + 2],
+  )..normalize();
 }
 
 /// `ViewDepth`: how far this fragment is along the view axis, in world metres.
@@ -192,10 +217,21 @@ void writeSurface(
 /// has a visible plane where it starts. The early return at zero density is
 /// not an optimisation — it is what keeps a scene with no fog byte-identical,
 /// which is what the golden sets are recorded against.
+///
+/// A height fog (`P5`) is the same fog with its density averaged over the ray
+/// in closed form, from the falloff in `eye.w`; nought there skips it, as the
+/// GLSL does, for the same reason the early return is there.
 Vector3 applyFog(Vector3 colour, Float32List v, ShaderBindings b) {
   final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-  final density = fog.w;
+  var density = fog.w;
   if (density <= 0.0) return colour;
+
+  final falloff = b.vec4('FogInfo', 'eye', Vector4.zero()).w;
+  if (falloff > 0.0) {
+    final eyeY = b.vec4('FogInfo', 'eye', Vector4.zero()).y;
+    final k = falloff * (v[kVWorld + 1] - eyeY);
+    density *= k.abs() > 1e-3 ? (1.0 - math.exp(-k)) / k : 1.0 - 0.5 * k;
+  }
 
   final t = math.exp(-density * eyeDistance(v, b)).clamp(0.0, 1.0);
 

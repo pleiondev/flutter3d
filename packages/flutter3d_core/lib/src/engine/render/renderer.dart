@@ -11,6 +11,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
+import '../scene/decal_node.dart';
 import '../scene/instanced_mesh_node.dart';
 import '../scene/irradiance_field.dart';
 import '../scene/irradiance_gather.dart' show kIrradianceReach;
@@ -21,6 +22,7 @@ import '../scene/morph_state.dart';
 import '../scene/occlusion/hi_z_occlusion.dart';
 import '../scene/occlusion/occlusion_test.dart';
 import '../scene/occlusion/software_occlusion.dart';
+import '../scene/planar_reflector_node.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
@@ -29,6 +31,7 @@ import 'cluster_draws.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
+import 'draw_journal.dart';
 import 'empty_frame.dart';
 import 'engine_tables.dart';
 import 'field_pass.dart';
@@ -41,13 +44,16 @@ import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
 import 'material.dart';
+import 'mirror_view.dart';
 import 'object_id_frame.dart';
 import 'pass_contributor.dart';
+import 'physical_sky.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
 import 'render_list.dart';
 import 'render_node.dart';
 import 'render_settings.dart';
+import 'render_texture.dart';
 import 'render_view.dart';
 import 'scene_colour_chain.dart';
 import 'shadow_slots.dart';
@@ -65,12 +71,14 @@ export 'render_settings.dart';
 
 part 'renderer_batch.dart';
 part 'renderer_contributor_lights.dart';
+part 'renderer_decal_pass.dart';
 part 'renderer_fog_pass.dart';
 part 'renderer_frame_nodes.dart';
 part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
+part 'renderer_planar_pass.dart';
 part 'renderer_post_pass.dart';
 part 'renderer_probe_pass.dart';
 part 'renderer_resources.dart';
@@ -176,6 +184,7 @@ final class Renderer implements RenderServices {
     required this.velocityNeighborMaxShader,
     required this.motionBlurShader,
     required this.viewportShadeShader,
+    required this.decalShader,
     required this.wboitResolveShader,
     required this.sceneColourCopyShader,
     required TextureHandle fallbackAlbedo,
@@ -364,6 +373,9 @@ final class Renderer implements RenderServices {
 
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
   final ShaderHandle viewportShadeShader;
+
+  /// `P3`'s projected decals, read out of the surface and albedo buffers.
+  final ShaderHandle decalShader;
 
   /// `R8`'s resolve: the transparent layers' weighted average, laid over the
   /// scene.
@@ -571,10 +583,13 @@ final class Renderer implements RenderServices {
         probe.capture,
         probe.filtered,
       ],
+      for (final planar in _planarStates.values) ...planar.textures,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
     _probeStates.clear();
+    _planarStates.clear();
+    _planarMaterial.extraTextures.clear();
     _fallbackAlbedo = null;
     _fallbackNormal = null;
     _fallbackBlack = null;
@@ -742,6 +757,8 @@ final class Renderer implements RenderServices {
   final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
   final FragInfoBlock _fragInfo = FragInfoBlock();
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final SmaaInfoBlock _smaaInfo = SmaaInfoBlock();
+  final LensFlareInfoBlock _lensFlareInfo = LensFlareInfoBlock();
   final EasuInfoBlock _easuInfo = EasuInfoBlock();
   final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
   final LocalExposureBlurInfoBlock _localExposureBlurInfo =
@@ -756,6 +773,7 @@ final class Renderer implements RenderServices {
   final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
   final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
+  final DecalInfoBlock _decalInfo = DecalInfoBlock();
   final ShadowLightBlock _shadowLight = ShadowLightBlock();
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
   final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
@@ -806,6 +824,28 @@ final class Renderer implements RenderServices {
   Float32List get _probeParams => _probeInfo.params;
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
+
+  /// The planar reflectors this renderer has drawn, by node: a picture per
+  /// view, kept across frames — see `renderer_planar_pass.dart`.
+  final Map<PlanarReflectorNode, _PlanarState> _planarStates =
+      <PlanarReflectorNode, _PlanarState>{};
+
+  /// What a reflector's surfaces are drawn again with: its picture, its view
+  /// and its reflectance, written per reflector, and the surface's own
+  /// sidedness written per draw. Held for the x-ray materials' reason.
+  final PlanarReflectionInfoBlock _planarInfo = PlanarReflectionInfoBlock();
+  late final Material _planarMaterial = Material(
+    name: 'planar reflection',
+    lighting: LightingModel.planarReflection,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+    parameterBlock: _planarInfo.name,
+    parameters: _planarInfo.members,
+    extraTextures: <String, TextureHandle>{},
+  );
+
+  /// A render texture's exposure, for the encode into its bytes.
+  final RenderTextureInfoBlock _renderTextureInfo = RenderTextureInfoBlock();
 
   PipelineHandle? _debugLinePipeline;
 
@@ -899,6 +939,7 @@ final class Renderer implements RenderServices {
     _probePrefilterPipeline = null;
     _skyPipeline = null;
     _skyCubePipeline = null;
+    _skyPhysicalPipeline = null;
     _cubeShadowPipeline = null;
     _skinnedCubeShadowPipeline = null;
     _instancedCubeShadowPipeline = null;
@@ -1181,6 +1222,9 @@ final class Renderer implements RenderServices {
 
   /// The textured half of the same pair, built only if a cube is ever set.
   PipelineHandle? _skyCubePipeline;
+
+  /// The air's, built only if `SkySettings.physical` is ever set — `P5`.
+  PipelineHandle? _skyPhysicalPipeline;
 
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
@@ -1551,7 +1595,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: seventy-eight goldens go through this
+  /// strength has, and for the same reason: ninety goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -1636,6 +1680,7 @@ final class Renderer implements RenderServices {
         velocityNeighborMaxShader: require('VelocityNeighborMax'),
         motionBlurShader: require('MotionBlur'),
         viewportShadeShader: require('ViewportShade'),
+        decalShader: require('Decal'),
         wboitResolveShader: require('WboitResolve'),
         sceneColourCopyShader: require('SceneColourCopy'),
         fallbackAlbedo:
@@ -2140,7 +2185,20 @@ final class Renderer implements RenderServices {
 
     var upX = 1.0, upY = 1.0, upZ = 1.0;
     var downX = 1.0, downY = 1.0, downZ = 1.0;
-    if (sky.enabled) {
+    final air = sky.cubemap == null ? sky.physical : null;
+    if (sky.enabled && air != null) {
+      // `P5`: the same halves, out of the air. Taken off the scattered light
+      // with no disc, for the reason above, and a horizon averaged round the
+      // compass, because towards the sun and away from it differ by a factor
+      // of five at dusk and a surface faces neither.
+      final up = _physicalAmbient(air, sky.resolvedDirectionToSun);
+      upX = up.up.x;
+      upY = up.up.y;
+      upZ = up.up.z;
+      downX = up.down.x;
+      downY = up.down.y;
+      downZ = up.down.z;
+    } else if (sky.enabled) {
       final zenith = sky.resolvedZenith;
       final horizon = sky.resolvedHorizon;
       final nadir = sky.resolvedNadir;
@@ -2166,6 +2224,55 @@ final class Renderer implements RenderServices {
     // scene pass so a probe captured before it shades the room the same way.
     _ambientSky[3] = settings.diffuseModel == DiffuseModel.eon ? 1.0 : 0.0;
   }
+
+  /// The two ends of the hemispheric ambient under a physical sky: half the
+  /// zenith and half the horizon, and half the horizon and half the ground,
+  /// as [_updateAmbient] takes them from a gradient.
+  ///
+  /// Kept from frame to frame while the air and the sun do not change: it is
+  /// ten marches of the sky, which is nothing once and something every frame
+  /// on a phone.
+  ({vm.Vector3 up, vm.Vector3 down}) _physicalAmbient(
+    PhysicalSky air,
+    vm.Vector3 toSun,
+  ) {
+    final kept = _physicalAmbientKept;
+    if (kept != null &&
+        identical(kept.air, air) &&
+        kept.toSun.x == toSun.x &&
+        kept.toSun.y == toSun.y &&
+        kept.toSun.z == toSun.z) {
+      return (up: kept.up, down: kept.down);
+    }
+    final zenith = air.radiance(vm.Vector3(0.0, 1.0, 0.0), toSun);
+    final ground = air.radiance(vm.Vector3(0.0, -1.0, 0.0), toSun);
+    final horizon = vm.Vector3.zero();
+    const around = 8;
+    for (var i = 0; i < around; i++) {
+      final angle = 2.0 * math.pi * i / around;
+      // A degree above the horizon rather than on it: exactly level, the ray
+      // grazes the ground's sphere and which side it lands is rounding.
+      horizon.addScaled(
+        air.radiance(
+          vm.Vector3(math.cos(angle), 0.0175, math.sin(angle)),
+          toSun,
+        ),
+        1.0 / around,
+      );
+    }
+    final up = (zenith + horizon)..scale(0.5);
+    final down = (horizon + ground)..scale(0.5);
+    _physicalAmbientKept = (
+      air: air,
+      toSun: vm.Vector3.copy(toSun),
+      up: up,
+      down: down,
+    );
+    return (up: up, down: down);
+  }
+
+  ({PhysicalSky air, vm.Vector3 toSun, vm.Vector3 up, vm.Vector3 down})?
+  _physicalAmbientKept;
 
   /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
   /// frustum — or w negative when the row belongs to a point light.
@@ -2507,6 +2614,8 @@ final class Renderer implements RenderServices {
     required _ShadowMapNode shadow,
     required List<_ReflectionProbeNode> probes,
     required _IrradianceUpdateNode irradiance,
+    required _RenderTextureNode renderTextures,
+    required _PlanarReflectionNode planarReflections,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
@@ -2558,8 +2667,17 @@ final class Renderer implements RenderServices {
     // `L4`: beside the probes, for their reason — it draws the lit scene and
     // the scene reads what it writes.
     graph.addNode(irradiance);
+    // `P4`: beside the probes, for their reason — each draws the lit scene
+    // through a camera of its own, and the scene optionally reads what each
+    // provides. Registered whatever the scene holds, so the names are known.
+    graph
+      ..addNode(renderTextures)
+      ..addNode(planarReflections);
     graph
       ..addNode(scene)
+      // `P3`: onto the opaque half, so the copy the glass reads holds the
+      // decals and the glass is drawn over them rather than painted.
+      ..addNode(scene.decals)
       // `M3`: the copy of the scene and the transparent half drawn over it,
       // straight after the scene they split, and culled on a frame without
       // glass.
@@ -2685,6 +2803,9 @@ final class Renderer implements RenderServices {
       ..addNode(resolve)
       ..addNode(_LocalExposureNode(this, s))
       ..addNode(bloom)
+      // `P2`: the flare, drawn from the glow and added to it, so the
+      // composite reads both as one.
+      ..addNode(_LensFlareNode(this, s.bloom))
       ..addNode(composite)
       ..addNode(easu)
       // And the smoothing after the composite, which is what lets it read a
@@ -2906,13 +3027,25 @@ final class Renderer implements RenderServices {
   ///
   /// Asking twice before a frame runs replaces the first request: there is one
   /// next frame.
-  Future<FrameCapture> captureNextFrame() {
+  ///
+  /// [draws] also writes every draw down — see [DrawJournal] — and
+  /// [readFloats] reads each output's floats beside its bytes, for a backend
+  /// that can: `P12`'s inspector needs both, and a capture for a person
+  /// looking at pictures needs neither.
+  Future<FrameCapture> captureNextFrame({
+    bool draws = false,
+    Float32List? Function(TextureHandle texture)? readFloats,
+  }) {
     final completer = Completer<FrameCapture>();
     _captureWanted = completer;
+    _captureDraws = draws;
+    _captureFloats = readFloats;
     return completer.future;
   }
 
   Completer<FrameCapture>? _captureWanted;
+  bool _captureDraws = false;
+  Float32List? Function(TextureHandle texture)? _captureFloats;
 
   /// Hands [wanted] the capture this frame built, and clears the builder.
   ///
@@ -3062,12 +3195,20 @@ final class Renderer implements RenderServices {
   }
 
   /// Floats per vertex: two of clip position, three of ray, then six vec4s of
-  /// preset — or one vec4 of tint for the cube.
+  /// preset — the gradient's or the air's, the same size — or one vec4 of
+  /// tint for the cube.
   static const int _kSkyVertexFloats = 2 + 3 + 6 * 4;
   static const int _kSkyCubeVertexFloats = 2 + 3 + 4;
 
   final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
   final vm.Vector3 _skyRay = vm.Vector3.zero();
+
+  /// The lens the sky is seen through when the camera's is orthographic —
+  /// `P7`, set by `_encodeSky` for the one draw: the view axis, the world
+  /// directions of the frame's right and top edges, and the frame's aspect.
+  /// Null through a perspective lens, whose own rays the sky takes.
+  ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})?
+  _skyOrthoLens;
 
   /// Pipelines for full-screen stages this class does not have a field for.
   ///
@@ -3450,6 +3591,9 @@ final class Renderer implements RenderServices {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // `P7`: whether the eye is a point the rays meet at or only where an
+    // orthographic camera was put — see `Orthographic` in `color.glsl`.
+    _fogInfo.projection[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
 
     for (final node in scene.meshes) {
       if (!node.visibleInHierarchy) continue;
@@ -3688,6 +3832,18 @@ final class Renderer implements RenderServices {
             clearColor: ordered.first.clearColor,
           ),
       ],
+      renderTextures: _RenderTextureNode(
+        this,
+        scene: scene,
+        shadowCaster: shadowCaster,
+      ),
+      planarReflections: _PlanarReflectionNode(
+        this,
+        scene: scene,
+        views: ordered,
+        settings: settings,
+        shadowCaster: shadowCaster,
+      ),
       scene: _SceneNode(
         this,
         scene: scene,
@@ -3695,6 +3851,7 @@ final class Renderer implements RenderServices {
         contributors: contributors.active.toList(growable: false),
         shadowCaster: shadowCaster,
         lightOverflow: planLights.overflow,
+        settings: settings,
       ),
       bloom: _BloomNode(this, settings.bloom),
       composite: _CompositeNode(this, scene, ordered, settings),
@@ -4131,6 +4288,7 @@ final class Renderer implements RenderServices {
       // probe that left the scene since last frame gives its cubes back here,
       // and this frame's one whole-cube capture is up for claiming again.
       _retireProbesNotIn(scene);
+      _retireReflectorsNotIn(scene);
       _wholeProbeCaptured = false;
       final probeNodes = <_ReflectionProbeNode>[
         for (var i = 0; i < scene.probes.length; i++)
@@ -4150,6 +4308,7 @@ final class Renderer implements RenderServices {
         contributors: contributors.active.toList(growable: false),
         shadowCaster: shadowCaster,
         lightOverflow: lightOverflowCount,
+        settings: settings,
       );
       final bloomNode = _BloomNode(this, settings.bloom);
       compositeNode = _CompositeNode(this, scene, ordered, settings);
@@ -4176,6 +4335,18 @@ final class Renderer implements RenderServices {
           scene: scene,
           shadowCaster: shadowCaster,
           clearColor: ordered.first.clearColor,
+        ),
+        renderTextures: _RenderTextureNode(
+          this,
+          scene: scene,
+          shadowCaster: shadowCaster,
+        ),
+        planarReflections: _PlanarReflectionNode(
+          this,
+          scene: scene,
+          views: ordered,
+          settings: settings,
+          shadowCaster: shadowCaster,
         ),
         scene: sceneNode,
         bloom: bloomNode,
@@ -4336,7 +4507,13 @@ final class Renderer implements RenderServices {
     _captureWanted = null;
     _capture = capturing == null
         ? null
-        : FrameCaptureBuilder(width: width, height: height);
+        : FrameCaptureBuilder(
+            width: width,
+            height: height,
+            journal: _captureDraws ? DrawJournal() : null,
+            readFloats: _captureFloats,
+          );
+    passState.journal = _capture?.journal;
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
@@ -4357,6 +4534,7 @@ final class Renderer implements RenderServices {
         // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
         // own names rather than a pass nobody can place.
         _passLabel = node.name;
+        passState.journal?.beginPass(i, node.name);
         developer.Timeline.startSync(node.name);
         try {
           node.execute(
@@ -4407,7 +4585,16 @@ final class Renderer implements RenderServices {
         // pool, and the next pass draws over it. A capture taken after the
         // frame would hold whatever the last pass to borrow that shape left
         // there, attributed to whichever pass wrote it first.
-        _capture?.record(node, device: device, lookup: resources.tryTexture);
+        passState.journal?.endPass(passState.drawCalls - drawsBefore);
+        final cost = passTimings.last;
+        _capture?.record(
+          node,
+          device: device,
+          lookup: resources.tryTexture,
+          micros: cost.micros,
+          drawCalls: cost.drawCalls,
+          triangles: cost.triangles,
+        );
         resources.endNode(i);
       }
     } catch (error, stack) {
@@ -4526,6 +4713,7 @@ final class Renderer implements RenderServices {
       // scene pass, because it is a fact about the settings and the device
       // rather than about anything that happened during the frame.
       wireframeDeclined: settings.wireframe && !device.supportsWireframe,
+      alphaToCoverageDeclined: passState.coverageDeclined,
       // `gfx-20n`. Half of it comes from the scene pass, which knows what it
       // attached, and half from the graph, which knows whether the node ran.
       // Neither half can answer alone, which is why the answer is assembled
@@ -4560,6 +4748,7 @@ final class Renderer implements RenderServices {
       // are the compile's own answers, and a second derivation is a second
       // thing to disagree with the frame.
       skipped: frameGraph.skipped,
+      targetBytes: resources.targetBytes,
     );
   }
 

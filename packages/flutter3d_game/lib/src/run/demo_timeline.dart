@@ -1,5 +1,7 @@
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'demo_recording.dart';
+
 /// Rebuilds a [RewindBuffer] that reaches every step of [demo], not only the
 /// last few seconds a live [RunTimeline] keeps — `rp-02`'s "скраббер по всему
 /// прогону из `.f3drun`", built by replaying the whole tape once rather than
@@ -21,6 +23,12 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// still meant to be reachable; a caller wanting to bound memory for a very
 /// long recording can pass a smaller one and accept that only its most
 /// recent stretch scrubs.
+///
+/// A demo with `HR3` level swaps in it is refused: a keyframe before a swap
+/// is a state of the old level, and a scrub to it would restore that state
+/// under whichever level is up. Scrubbing across a swap needs the buffer to
+/// know which level each keyframe belongs to; until it does, [replayDemo]
+/// plays such a run and this does not pretend to scrub it.
 RewindBuffer rewindBufferFromDemo({
   required Demo demo,
   required int stepsPerSecond,
@@ -31,6 +39,14 @@ RewindBuffer rewindBufferFromDemo({
   required Snapshot Function() save,
   required void Function(double dt) stepSim,
 }) {
+  if (demo.levelSwaps.isNotEmpty) {
+    throw ArgumentError.value(
+      demo,
+      'demo',
+      'replaces its level at step ${demo.levelSwaps.first.step}; a scrub '
+          'across a swap would restore one level\'s state under the other',
+    );
+  }
   restore(demo.start);
   final wholeRun = demo.tape.frames.length / stepsPerSecond;
   final buffer = RewindBuffer(

@@ -28,7 +28,7 @@ import 'run_timeline.dart';
 ///
 /// ## What a caller on the other end sees
 ///
-/// Seven extensions always, and up to two more depending on what the caller
+/// Nine extensions always, and up to five more depending on what the caller
 /// hands over — each named `ext.flutter3d.timeline.<verb>`, callable the way
 /// any `package:vm_service` client calls one —
 /// `service.callServiceExtension(isolateId, method: name, args: params)` —
@@ -44,9 +44,20 @@ import 'run_timeline.dart';
 /// * `history` — no parameters; returns `{"commands": [...]}`, one short
 ///   string per [TimelineCommand] — `"paused"`, `"resumed"`, `"stepped"`, or
 ///   `"branched:118"` naming the step a branch landed at.
-/// * `status` — no parameters; returns `{"paused": true}` — what a panel
-///   polls to draw its own pause/play button correctly on first connecting,
-///   rather than assuming the timeline was already running.
+/// * `status` — no parameters; returns `{"paused": true, "step": 600,
+///   "oldest": 0, "scrubbedAt": null}` — what a panel polls to draw its own
+///   pause/play button correctly on first connecting, rather than assuming
+///   the timeline was already running, and the two ends of its scrubber.
+/// * `returnToPresent` — no parameters; returns `{"returned": true}`, false
+///   when there was no scrub to leave.
+/// * `branchHere` — no parameters; returns `{"moved": true, "step": 118}`,
+///   or `{"moved": false, "refusal": "..."}` at the present.
+/// * `scrubTo` — registered only when [capture] is given; `step`, an integer
+///   as a string; the same answer as `branchHere`. `N4`'s scrubber.
+/// * `tracks` — registered only when [capture] and [entityLayout] are given;
+///   `every`, steps between reads (one when absent); returns
+///   [EntityTracks.toJson] over the steps the buffer holds, or
+///   `{"reached": false}` before the first keyframe.
 /// * `frameTimes` — registered only when [frameTimes] is given; no
 ///   parameters, returns that [StepTimeTrace]'s own [StepTimeTrace.toJson] —
 ///   `rp-06`'s strip, read from wherever the caller is already timing its
@@ -72,6 +83,7 @@ void registerTimelineExtensions(
   StepTimeTrace? frameTimes,
   Map<String, Object?> Function()? bugReport,
   Snapshot Function()? capture,
+  EntityLayout? entityLayout,
 }) {
   developer.registerExtension('ext.flutter3d.timeline.pause', (
     method,
@@ -159,7 +171,30 @@ void registerTimelineExtensions(
     parameters,
   ) async {
     return developer.ServiceExtensionResponse.result(
-      jsonEncode(<String, Object?>{'paused': timeline.isPaused}),
+      jsonEncode(<String, Object?>{
+        'paused': timeline.isPaused,
+        'step': timeline.rewind.step,
+        'oldest': timeline.rewind.oldestStep,
+        'scrubbedAt': timeline.scrubbedAt,
+      }),
+    );
+  });
+
+  developer.registerExtension('ext.flutter3d.timeline.returnToPresent', (
+    method,
+    parameters,
+  ) async {
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(<String, Object?>{'returned': timeline.returnToPresent()}),
+    );
+  });
+
+  developer.registerExtension('ext.flutter3d.timeline.branchHere', (
+    method,
+    parameters,
+  ) async {
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(timeline.branchHere().toJson()),
     );
   });
 
@@ -170,6 +205,49 @@ void registerTimelineExtensions(
     ) async {
       return developer.ServiceExtensionResponse.result(
         jsonEncode(frameTimes.toJson()),
+      );
+    });
+  }
+
+  if (capture != null) {
+    developer.registerExtension('ext.flutter3d.timeline.scrubTo', (
+      method,
+      parameters,
+    ) async {
+      final step = int.tryParse(parameters['step'] ?? '');
+      if (step == null) {
+        return developer.ServiceExtensionResponse.error(
+          developer.ServiceExtensionResponse.invalidParams,
+          'step must be an integer',
+        );
+      }
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(timeline.scrubTo(step, capture: capture).toJson()),
+      );
+    });
+  }
+
+  if (capture != null && entityLayout != null) {
+    developer.registerExtension('ext.flutter3d.timeline.tracks', (
+      method,
+      parameters,
+    ) async {
+      final every = int.tryParse(parameters['every'] ?? '') ?? 1;
+      if (every < 1) {
+        return developer.ServiceExtensionResponse.error(
+          developer.ServiceExtensionResponse.invalidParams,
+          'every must be a whole number of steps, one or more',
+        );
+      }
+      final tracks = timeline.tracks(
+        capture: capture,
+        layout: entityLayout,
+        every: every,
+      );
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode(
+          tracks?.toJson() ?? const <String, Object?>{'reached': false},
+        ),
       );
     });
   }
@@ -219,6 +297,8 @@ String _describe(TimelineCommand command) => switch (command) {
   TimelineLevelSwapped(:final step, :final levelDigest) =>
     'level:$step:$levelDigest',
   TimelineReplayed(:final fromStep) => 'replayed:$fromStep',
+  TimelineScrubbed(:final step) => 'scrubbed:$step',
+  TimelineReturned() => 'returned',
 };
 
 /// Puts [tunables] on the VM service, so an inspector can change them while

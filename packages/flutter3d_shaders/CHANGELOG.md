@@ -10,6 +10,64 @@
   sun's atlas with (`ShadowSettings.translucentCasters`), and
   `light_transmittance` in `surface.glsl`, which `ShadowFactor` sets and the
   light loop multiplies the sun by.
+- **A masked cutoff above one is drawn as coverage** — `P7`: `ReadSurface`
+  keeps the fragment and sharpens its alpha over a pixel with `fwidth`. A
+  plain cutoff leaves the surviving fragment's alpha at one.
+
+- **`FogInfo.projection`, `Orthographic`, `TowardsEye`** — `P7`: the lit
+  models, the planar reflection's Fresnel and `EyeDistance` ask whether the
+  camera is orthographic. `light_shafts.frag` starts its march on the eye's
+  plane.
+
+- **`FragInfo.debug_view` and `WriteDebugView`** in `surface.glsl` — `P6`:
+  every lit model asks it before writing its light. NaN is found by
+  comparison, because `impellerc`'s GLSL ES output has no bit casts.
+  `CompositeInfo.lens` y and z say whether a debug view is on and where it
+  starts.
+
+- **`LensFlare`**, with the `LensFlareInfo` block, and a `lens` member
+  appended to `CompositeInfo` for the distortion.
+- **Three stages for SMAA 1x**: `SmaaEdges`, `SmaaWeights` and `SmaaBlend`,
+  with the `SmaaInfo` block. A bundle must answer to them; the renderer falls
+  back to FXAA when one does not.
+
+**A decal stage.** `post/decal.frag` (`Decal`) paints up to sixteen
+projected boxes, reading four pictures, over the point the surface buffer
+names under each pixel. It writes a factor and a term for two blends, the
+albedo swapped under the light the albedo buffer lets it read back, and the
+colour an unlit surface and an emissive decal add.
+
+**Two stages for `P4`.** `lighting/planar_reflection.frag` lays a mirrored
+picture over a reflector's surface, read by the fragment's place in its view
+and weighted by Schlick's Fresnel; it declares no surface buffer, as
+`xray.frag` does not. `post/render_texture_encode.frag` turns a camera's
+light into the sRGB bytes a material's map is read as, turning the rows over
+where the backend draws its first row at the bottom. Both are in the bundle,
+in `kRequiredShaders` and in `stageBindings`, `uniformBlocks` and
+`typed_blocks.dart`.
+
+**`SkyPhysical` and `SkyPhysicalVertex`**, the physical sky: single
+scattering by molecules and haze marched per pixel, sixteen samples along the
+view and eight towards the sun from each, the disc and the stars dimmed by the
+air, and the ground below the horizon. The air travels on the vertices, as the
+gradient's preset does.
+
+**`ApplyFog` integrates a height fog.** `FogInfo.eye.w` carries the falloff
+and `FogInfo.fog.w` the density at the eye; a falloff of nought takes the old
+path unchanged.
+
+**The WebGL2 and WebGPU translators live here now, behind
+`translate.dart` and `compile.dart`.** `flutter3d_build`'s material step has
+to translate a project's materials from a hook process that cannot resolve a
+package declaring the Flutter SDK, and `flutter3d_webgl` and
+`flutter3d_webgpu` both declare one. None of the moved files ever needed the
+SDK. `translate.dart` holds the pure parts: `translateGlsl` and
+`resolveIncludes`, `prepareStage`, and the writers for both sections.
+`compile.dart` adds the parts that need a machine: `loadShaders` (which now
+takes `from:`, and whose `ShaderSet` carries the `root` it read),
+`compileStage` through glslang and naga, and `bundleVaryingLocations`, which
+used to be private to `pack_wgsl_section.dart`. The barrel exports neither,
+so an application carries no compiler.
 
 ## 0.8.2+1
 

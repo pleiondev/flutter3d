@@ -1118,6 +1118,170 @@ abstract final class GoldenStages {
     spatialUpscale: const SpatialUpscaleSettings(enabled: true),
   );
 
+  // ------------------------------------------------------------------ P1
+
+  /// `smaa-teapot`: `shadow-teapot`'s silhouette and shadow edge smoothed by
+  /// SMAA 1x on the finished picture.
+  static RenderSettings smaaTeapot(RenderSettings settings) =>
+      settings.copyWith(
+        antiAlias: settings.antiAlias.copyWith(
+          enabled: true,
+          method: EdgeSmoothing.smaa,
+        ),
+      );
+
+  // ------------------------------------------------------------------ P2
+
+  /// `lens-flare`: one small, very bright panel up and to the left on black,
+  /// and the ghosts and ring its reflections throw across the middle of the
+  /// frame. The glow is kept tight so the ghosts read as discs.
+  static Future<GoldenStaged> lensFlare(GoldenStage stage) async {
+    final device = stage.device;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(0.25, 0.25, 0.05),
+          Vector3(-1.1, 0.7, -3.0),
+          Material(
+            baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+            emissive: Vector3(30.0, 26.0, 20.0),
+          ),
+        )..shadowCasting = ShadowCastingMode.off,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.0, 1.0), Vector3(0.0, 0.0, -3.0)),
+    );
+  }
+
+  static RenderSettings lensFlareSettings(RenderSettings settings) =>
+      settings.copyWith(
+        bloom: settings.bloom.copyWith(
+          enabled: true,
+          intensity: 0.05,
+          levels: 3,
+          scatter: 0.5,
+          lensFlare: const LensFlareSettings(enabled: true, intensity: 3.0),
+        ),
+      );
+
+  /// `lens-distortion`: `shadow-teapot` through a barrel lens, the floor's
+  /// straight edges bowed and the corners held where they were.
+  static RenderSettings lensDistortion(RenderSettings settings) =>
+      settings.copyWith(look: settings.look.copyWith(distortion: 0.3));
+
+  // ------------------------------------------------------------------ P7
+
+  /// `alpha-to-coverage`: six leaf cards lying at different turns, each a
+  /// disc of green whose alpha falls from one at its middle to nought at its
+  /// rim, masked at a half with `Material.alphaToCoverage`. Where the device
+  /// can — WebGL2 and WebGPU, in their multisampled scene pass — the disc's
+  /// edge is the resolve's smooth one; Impeller and the software rasteriser
+  /// draw the same disc cut hard at the cutoff, so this scene's references
+  /// differ between the two pairs at the edges and nowhere else.
+  static Future<GoldenStaged> alphaToCoverage(GoldenStage stage) async {
+    final device = stage.device;
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dx = (x + 0.5) / size - 0.5;
+        final dy = (y + 0.5) / size - 0.5;
+        final r = math.sqrt(dx * dx + dy * dy);
+        final i = (y * size + x) * 4;
+        pixels
+          ..[i] = 60
+          ..[i + 1] = 170
+          ..[i + 2] = 70
+          ..[i + 3] = ((1.0 - r / 0.5).clamp(0.0, 1.0) * 255).round();
+      }
+    }
+    final leaf = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    )!;
+    final card = DeviceMesh.upload(
+      device,
+      const PlaneShape(width: 1.6, depth: 1.6).build(),
+    );
+    final material = Material(
+      lighting: LightingModel.unlit,
+      albedo: leaf,
+      alphaMode: MaterialAlphaMode.mask,
+      alphaCutoff: 0.5,
+      alphaToCoverage: true,
+      doubleSided: true,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        for (var i = 0; i < 6; i++)
+          MeshNode(card, material)
+            ..setPosition((i % 3 - 1) * 1.7, (i ~/ 3 - 0.5) * 1.6, 0.0)
+            ..setRotationYawPitchRoll(i * 0.4, math.pi / 2 - 0.3 * i, i * 0.5),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.0, 6.0), Vector3.zero()),
+    );
+  }
+
+  /// `orthographic-metal`: three metal spheres, rough to smooth, on a floor
+  /// that ends under a sky, in light fog, through an orthographic camera
+  /// looking down at them from the corner — the three things that read the
+  /// eye's position as a point the light travels to. Their highlights sit
+  /// in the same place on each sphere rather than sliding towards where the
+  /// eye's point projects, the fog lies flat rather than in rings round it,
+  /// and the sky is a gradient seen through a sixty-degree lens rather than
+  /// one colour.
+  static Future<GoldenStaged> orthographicMetal(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized());
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(6.0, 0.2, 6.0),
+          Vector3(0.0, -0.1, 0.0),
+          Material(baseColor: Vector4(0.6, 0.6, 0.58, 1.0), roughness: 0.9),
+        ),
+        for (final (i, roughness) in <double>[0.6, 0.35, 0.15].indexed)
+          _sphere(
+            device,
+            Vector3(-1.5 + i * 1.5, 0.5, 0.0),
+            Material(
+              baseColor: Vector4(0.9, 0.75, 0.5, 1.0),
+              metallic: 1.0,
+              roughness: roughness,
+            ),
+          ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 5.0, far: 100.0)
+        ..setPosition(7.0, 6.0, 9.0)
+        ..lookAt(Vector3(0.0, 0.3, 0.0)),
+    );
+  }
+
+  static RenderSettings orthographicMetalSettings(RenderSettings settings) =>
+      settings.copyWith(
+        sky: const SkySettings(enabled: true),
+        fog: FogSettings(color: Vector3(0.7, 0.75, 0.8), density: 0.03),
+      );
+
+  // ------------------------------------------------------------------ P6
+
+  /// `debug-view-split`: the lit teapot left of the middle and its shading
+  /// normal right of it, in one draw — the wipe `DebugViewSettings.split`
+  /// makes, and the composite leaving the right half out of the tone curve.
+  static RenderSettings debugViewSplit(RenderSettings settings) =>
+      settings.copyWith(
+        debugView: const DebugViewSettings(
+          view: DebugView.normal,
+          split: 0.5,
+        ),
+      );
+
   // ------------------------------------------------------------------ R6
 
   /// `motion-blur-spin`: a wheel of three spokes round a hub, turning at a
@@ -1578,4 +1742,355 @@ abstract final class GoldenStages {
           _look(stage.camera, Vector3(0.0, 0.0, 4.0), Vector3.zero()),
     );
   }
+
+  // ------------------------------------------------------------------ P3
+
+  /// `decal-floor`: three decals on a floor beside a box under the sun —
+  /// `decal_test.dart`'s floor, with each of its claims in one frame.
+  ///
+  /// A ring with a hole in it, half in the box's shadow and reaching up the
+  /// box's side, which its angle limit keeps it off; an orange square of a
+  /// higher order over the ring's corner; and a cyan stripe that glows. The
+  /// ring's picture is drawn here, in Dart, so every backend reads the same
+  /// texels, and its four quarters are four colours so a mirrored picture
+  /// shows.
+  static Future<GoldenStaged> decalFloor(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.9, -1.0, -0.3).normalized());
+    // Enough sky in the shadow for the ring's colours to show there too.
+    stage.scene.ambientIntensity = 0.25;
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dx = (x + 0.5) / size - 0.5;
+        final dy = (y + 0.5) / size - 0.5;
+        final r = math.sqrt(dx * dx + dy * dy);
+        final quarter = (dx < 0.0 ? 0 : 1) + (dy < 0.0 ? 0 : 2);
+        final colour = const <List<int>>[
+          <int>[220, 40, 40],
+          <int>[40, 180, 60],
+          <int>[50, 80, 220],
+          <int>[240, 230, 210],
+        ][quarter];
+        final at = (y * size + x) * 4;
+        pixels
+          ..[at] = colour[0]
+          ..[at + 1] = colour[1]
+          ..[at + 2] = colour[2]
+          ..[at + 3] = r > 0.18 && r < 0.48 ? 255 : 0;
+      }
+    }
+    final ring = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    )!;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(14.0, 0.2, 14.0),
+          Vector3(0.0, -0.1, 0.0),
+          Material(
+            name: 'floor',
+            lighting: LightingModel.lambert,
+            baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+          ),
+        ),
+        _slab(
+          device,
+          Vector3(1.0, 1.0, 1.0),
+          Vector3(-0.2, 0.5, -0.6),
+          Material(name: 'box', baseColor: Vector4(0.6, 0.6, 0.65, 1.0)),
+        ),
+        DecalNode(texture: ring, name: 'ring')
+          ..setScale(3.0, 1.2, 3.0)
+          ..setRotationYawPitchRoll(0.4, 0.0, 0.0)
+          ..setPosition(0.3, 0.0, 0.2),
+        DecalNode(color: Vector4(1.0, 0.55, 0.1, 0.85), order: 1, name: 'tag')
+          ..setScale(0.9, 0.6, 0.9)
+          ..setPosition(1.4, 0.0, 1.0),
+        DecalNode(
+            color: Vector4(0.2, 0.9, 1.0, 1.0),
+            emissive: Vector3.all(1.5),
+            name: 'glow',
+          )
+          ..setScale(2.4, 0.6, 0.25)
+          ..setPosition(-0.6, 0.0, 1.9),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(1.0, 4.0, 5.0), Vector3(0.0, 0.0, 0.2)),
+    );
+  }
+
+  static RenderSettings decalFloorSettings(RenderSettings settings) =>
+      settings.copyWith(decals: const DecalSettings(enabled: true));
+  // ------------------------------------------------------------------ P4
+
+  /// The floor `planar-mirror` and `render-texture` stand on: grey, lit.
+  static MeshNode _p4Floor(GraphicsDevice device) => _slab(
+    device,
+    Vector3(14.0, 0.2, 14.0),
+    Vector3(0.0, -0.1, 0.0),
+    Material(
+      name: 'floor',
+      lighting: LightingModel.lambert,
+      baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+    ),
+  );
+
+  /// What both P4 scenes look at: a red box, a blue ball and a yellow post,
+  /// lit by the sun, so a picture of them has shading and shadows to get
+  /// right and no two of its sides look alike.
+  static List<SceneNode> _p4Props(GraphicsDevice device) => <SceneNode>[
+    _slab(
+      device,
+      Vector3(0.8, 0.8, 0.8),
+      Vector3(-0.7, 0.4, -0.3),
+      Material(name: 'box', baseColor: Vector4(0.8, 0.15, 0.1, 1.0)),
+    ),
+    _sphere(
+      device,
+      Vector3(0.6, 0.45, 0.2),
+      Material(name: 'ball', baseColor: Vector4(0.15, 0.3, 0.85, 1.0)),
+      radius: 0.45,
+    ),
+    _slab(
+      device,
+      Vector3(0.25, 1.6, 0.25),
+      Vector3(0.2, 0.8, -1.2),
+      Material(name: 'post', baseColor: Vector4(0.9, 0.75, 0.15, 1.0)),
+    ),
+  ];
+
+  /// `planar-mirror`: a black mirror set into the floor, the props standing
+  /// on and around it — `planar_reflection_test.dart`'s mirror under a sun.
+  ///
+  /// A slightly blue tint, so the reflection cannot be mistaken for a hole
+  /// in the floor showing the world upside down, and the reflection at half
+  /// the view's resolution, which is the default and the path a game takes.
+  static Future<GoldenStaged> planarMirror(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2;
+    final mirror = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 3.2, depth: 2.4).build(),
+      ),
+      Material(
+        name: 'mirror',
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.02, 0.02, 0.03, 1.0),
+      ),
+      name: 'mirror',
+    )..setPosition(0.0, 0.005, 0.3);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _p4Floor(device),
+        mirror,
+        ..._p4Props(device),
+        PlanarReflectorNode(
+          surfaces: <MeshNode>[mirror],
+          tint: Vector3(0.85, 0.9, 1.0),
+          name: 'reflector',
+        )..setPosition(0.0, 0.005, 0.0),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2)),
+    );
+  }
+
+  static RenderSettings planarMirrorSettings(RenderSettings settings) =>
+      settings.copyWith(
+        planarReflections: const PlanarReflectionSettings(enabled: true),
+      );
+
+  /// `render-texture`: a monitor on a stand showing what a camera off to the
+  /// side sees of the props — `planar_reflection_test.dart`'s screen.
+  ///
+  /// The screen is unlit, so it shows the picture as the camera took it, and
+  /// left out of the camera's own picture, which would otherwise hold the
+  /// screen's back.
+  static Future<GoldenStaged> renderTexture(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2;
+    final watcher = CameraNode(name: 'watcher')
+      ..projection = const PerspectiveProjection(
+        fovYRadians: math.pi / 4,
+        near: 0.1,
+        far: 50.0,
+      )
+      ..setPosition(-3.2, 1.6, 2.0)
+      ..lookAt(Vector3(0.0, 0.5, -0.4));
+    final picture = RenderTexture.create(
+      device,
+      camera: watcher,
+      width: 128,
+      height: 96,
+      clearColor: Vector4(0.35, 0.45, 0.6, 1.0),
+    );
+    // A plane stood up to face the eye: its v runs down the screen, the way
+    // a picture's rows do. A box's sides run v up and would show it upside
+    // down, as they would a photograph.
+    const turn = -0.5;
+    final facing = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), turn);
+    final screen = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 1.6, depth: 1.2).build(),
+      ),
+      Material(
+        name: 'screen',
+        lighting: LightingModel.unlit,
+        albedo: picture.texture,
+      ),
+      name: 'screen',
+    )..setPosition(1.9, 1.3, -0.6);
+    screen.setRotation(
+      facing * Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+    );
+    final back = _slab(
+      device,
+      Vector3(1.7, 1.3, 0.04),
+      Vector3(1.9 + 0.03 * math.sin(-turn), 1.3, -0.6 - 0.03 * math.cos(turn)),
+      Material(name: 'bezel', baseColor: Vector4(0.1, 0.1, 0.12, 1.0)),
+    )..setRotation(facing);
+    final stand = _slab(
+      device,
+      Vector3(0.12, 0.7, 0.12),
+      Vector3(1.9, 0.35, -0.6),
+      Material(name: 'stand', baseColor: Vector4(0.2, 0.2, 0.22, 1.0)),
+    );
+    picture.excluded.addAll(<MeshNode>[screen, back, stand]);
+    stage.scene.addRenderTexture(picture);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _p4Floor(device),
+        ..._p4Props(device),
+        screen,
+        back,
+        stand,
+        watcher,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.6, 2.0, 4.8), Vector3(0.6, 0.7, -0.4)),
+    );
+  }
+
+  // ------------------------------------------------------------------ P5
+
+  /// The sun for `sky-physical-dusk`, four degrees up and ahead of the camera.
+  static Vector3 get _duskSun => Vector3(0.35, 0.07, -0.93).normalized();
+
+  /// The sun for `sky-physical-night`, eight degrees below the horizon: the
+  /// glow it leaves behind on one side, and the stars out everywhere else.
+  static Vector3 get _nightSun => Vector3(0.6, -0.139, -0.79).normalized();
+
+  static const PhysicalSky _air = PhysicalSky(starBrightness: 2.0);
+
+  /// A floor reaching to the far plane, and blocks of rising height going
+  /// away from the camera through ground fog — `sky_physical_test.dart`'s
+  /// claims, in one frame: the sky reddens towards the sun, the disc is
+  /// red, and the fog is thick at the foot of each block and thin at its top.
+  static Future<GoldenStaged> skyPhysicalDusk(GoldenStage stage) async {
+    final device = stage.device;
+    final toSun = _duskSun;
+    stage.sun
+      ..setLocalForward(-toSun)
+      ..color.setFrom(_air.sunlight(toSun))
+      ..intensity = 3.0;
+    final grey = Material(
+      baseColor: Vector4(0.55, 0.55, 0.55, 1.0),
+      roughness: 0.8,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(800.0, 0.1, 800.0),
+          Vector3(0.0, -0.05, 0.0),
+          Material(baseColor: Vector4(0.3, 0.32, 0.28, 1.0), roughness: 0.9),
+        ),
+        for (final (i, distance) in <double>[6.0, 12.0, 24.0, 48.0].indexed)
+          _slab(
+            device,
+            Vector3(1.6, 1.5 + i * 1.5, 1.6),
+            Vector3(-2.5 + i * 1.8, 0.75 + i * 0.75, -distance),
+            grey,
+          ),
+      ],
+      everyFrame: (_, _) => _look(
+        stage.camera,
+        Vector3(0.0, 1.6, 4.0),
+        Vector3(0.6, 2.4, -20.0),
+        fovY: math.pi / 3,
+        far: 500.0,
+      ),
+    );
+  }
+
+  static RenderSettings skyPhysicalDuskSettings(RenderSettings settings) {
+    final sky = SkySettings(
+      enabled: true,
+      directionToSun: _duskSun,
+      sunAngularRadiusDegrees: 1.2,
+      sunSoftnessDegrees: 0.3,
+      sunIntensity: 2.0,
+      physical: _air,
+    );
+    // The fog fades to the sky across the camera's line of sight, so the far
+    // blocks sink into the horizon rather than into a grey of their own.
+    final horizon = sky.sample(Vector3(-0.93, 0.02, -0.35));
+    return settings.copyWith(
+      sky: sky,
+      // Under the default 1.6 the horizon a few degrees from a setting sun is
+      // white; half that keeps the band of colour in it readable.
+      exposure: 0.8,
+      fog: FogSettings(color: horizon, density: 0.035, heightFalloff: 0.5),
+    );
+  }
+
+  /// A floor and a block under a sky an hour after sunset, looking up past
+  /// the glow — `sky_physical_test.dart`'s stars.
+  static Future<GoldenStaged> skyPhysicalNight(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.visible = false;
+    stage.scene.ambientIntensity = 0.02;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(800.0, 0.1, 800.0),
+          Vector3(0.0, -0.05, 0.0),
+          Material(baseColor: Vector4(0.2, 0.2, 0.2, 1.0)),
+        ),
+        _slab(
+          device,
+          Vector3(2.0, 3.0, 2.0),
+          Vector3(-3.0, 1.5, -10.0),
+          Material(baseColor: Vector4(0.2, 0.2, 0.2, 1.0)),
+        ),
+      ],
+      everyFrame: (_, _) => _look(
+        stage.camera,
+        Vector3(0.0, 1.6, 0.0),
+        Vector3(3.0, 5.0, -10.0),
+        fovY: math.pi / 3,
+        far: 500.0,
+      ),
+    );
+  }
+
+  static RenderSettings skyPhysicalNightSettings(RenderSettings settings) =>
+      settings.copyWith(
+        sky: SkySettings(
+          enabled: true,
+          directionToSun: _nightSun,
+          physical: _air,
+        ),
+      );
 }

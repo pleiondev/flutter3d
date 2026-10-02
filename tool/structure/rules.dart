@@ -2265,6 +2265,10 @@ List<Finding> _goldenSceneCount() {
       'tool/ci.sh',
       'packages/flutter3d_webgl/tool/golden_web.sh',
       'ARCHITECTURE.md',
+      // The README's own count of the scenes was left at seventy-eight when
+      // the seventy-ninth landed: it was the one page that says it and that
+      // nothing here read.
+      'README.md',
     ])
       File('${repositoryRoot.path}/$where'),
     ..._prosePages(),
@@ -2623,6 +2627,10 @@ const List<String> _countedInWords = <String>[
   'sixty-seven', 'sixty-eight', 'sixty-nine', 'seventy', 'seventy-one',
   'seventy-two', 'seventy-three', 'seventy-four', 'seventy-five',
   'seventy-six', 'seventy-seven', 'seventy-eight', 'seventy-nine', 'eighty',
+  'eighty-one', 'eighty-two', 'eighty-three', 'eighty-four', 'eighty-five',
+  'eighty-six', 'eighty-seven', 'eighty-eight', 'eighty-nine', 'ninety',
+  'ninety-one', 'ninety-two', 'ninety-three', 'ninety-four', 'ninety-five',
+  'ninety-six', 'ninety-seven', 'ninety-eight', 'ninety-nine', 'one hundred',
 ];
 
 /// A count said both ways, so a finding can be read and searched for.

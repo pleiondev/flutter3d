@@ -1,11 +1,16 @@
 ## Unreleased
 
+- **`generatedMaterialPathFor`**: where the build hook writes a `.f3dmat`'s
+  compiled bundle, `flutter3d_generated/<same path>.f3dshaders`.
+
 - **`ModelInstance.adopt` draws a new version of a model in the nodes an
   instance already has.** Surfaces are matched by the name of the node that
   draws them and their place there; each matched `MeshNode` takes the new
   mesh and material and the nodes stay, with their transforms, animation and
   children. `ModelSwap` reports what matched, what the new version dropped
   (left drawn as it was) and what it added (needs instantiating again).
+- `bindMaterial` takes a `name` for the bound material, the file's own by
+  default; a level passes the name its surfaces use.
 
 ## 0.8.3+1
 

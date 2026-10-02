@@ -348,11 +348,13 @@ so. `⌘S` refuses and says who owns the file. `⇧⌘S` writes `crypt.edited.js
 beside it and takes ownership of the copy, because a copy still naming the
 generator invites the same accident.
 
-The editor is desktop only, with no web half. The other three applications
-choose between Impeller and WebGL at compile time because they ship to a
-browser as well. This one exists to write a file back over itself, which a
-browser will not do, so there is no backend to choose and no
-`backend_web.dart`.
+The editor runs on the desktop: there are runners for macOS, Windows and
+Linux, and CI builds the last two. The other applications choose between
+Impeller and WebGL at compile time because they ship to a browser as well.
+This one was written to save a file back over itself, which a browser will not
+do, so for now there is no backend to choose and no `backend_web.dart`. A web
+build that opens and edits but cannot Play another project is a later step of
+the same roadmap item.
 
 The editor has no vocabulary of its own. A level says `monster` or `coin` or
 `checkpoint`, and what those are worth belongs to the game. The engine's own

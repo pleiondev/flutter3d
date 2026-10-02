@@ -25,12 +25,15 @@
 /// of date.
 library;
 
-export 'src/open.dart';
-
 /// The `webgl` section of a loadable bundle, as the packer writes it and the
-/// device reads it. No browser in it, so a harness on the VM can write one.
+/// device reads it. No browser in it, so a harness on the VM can write one;
+/// it lives in `flutter3d_shaders` since P8, where a build hook with no
+/// Flutter SDK can write one too, and is still exported here by name.
+export 'package:flutter3d_shaders/translate.dart'
+    show WebGlSectionSources, decodeWebGlSection, encodeWebGlSection;
+
+export 'src/open.dart';
 export 'src/webgl_backend_registration.dart';
-export 'src/webgl_bundle_section.dart';
 export 'src/webgl_device.dart';
 export 'src/webgl_frame_presenter.dart';
 export 'src/webgl_shaders.dart';

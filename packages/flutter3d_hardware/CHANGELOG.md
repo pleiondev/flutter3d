@@ -1,3 +1,27 @@
+## Unreleased
+
+- **`ShaderBundle.materialSection`**, with `encodeMaterialSection` and
+  `decodeMaterialSection`: each stage's material-language source, by name —
+  `P8`. The backend that compiles nothing compiles it, and a runtime reads a
+  material's lighting model out of it.
+
+- **`GraphicsDevice.supportsAlphaToCoverage` and
+  `PassEncoder.setAlphaToCoverage`**: a fragment's alpha as the share of a
+  multisampled pixel's samples it covers. WebGL2 and WebGPU answer true;
+  Impeller, whose flutter_gpu has no such control, and the software
+  rasteriser answer false and ignore the call. Traced as
+  `TraceSetAlphaToCoverage`; `FakeBackend` takes the answer and `FakePass`
+  records `RecordedAlphaToCoverage`. Every `PassEncoder` gains the method.
+
+- **A draw can read a window of the bound indices.** `PassEncoder.draw` takes
+  `firstIndex` and `indexCount`, so one buffer holding a model's every part is
+  bound once and drawn a part at a time. Leaving both out draws the whole
+  binding, as before. Every implementation of `PassEncoder` changes its
+  signature. A window past the end of the binding is refused with a
+  `RangeError` by `indexWindow`, which every backend calls, rather than left
+  to four drivers that answer it four different ways. Traces record the
+  window only when there is one, so older traces read as they were recorded.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

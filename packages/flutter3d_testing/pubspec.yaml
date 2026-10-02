@@ -48,6 +48,11 @@ dependencies:
 dev_dependencies:
   flutter_lints: ^6.0.0
 
+  # The material language's software stage and compiler, for the two tests
+  # that draw a material written in it — `P8` moved them to the package a
+  # game depends on, which this one is not.
+  flutter3d_app: ^0.8.0
+
   # The Khronos sample models the document decoders read — for the one test
   # that checks a *rendered* round trip rather than a byte one. Not a real
   # dependency: nothing this package ships builds a `ModelDocument`.

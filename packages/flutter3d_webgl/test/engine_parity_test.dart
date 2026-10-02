@@ -3180,6 +3180,7 @@ void _linkTests() {
     ('ParticleMeshVertex', 'ParticleMesh'),
     ('SkyVertex', 'Sky'),
     ('SkyCubeVertex', 'SkyCube'),
+    ('SkyPhysicalVertex', 'SkyPhysical'),
   ];
 
   for (final (vertex, fragment) in pairs) {

@@ -39,6 +39,7 @@ const List<(String, String)> _pairs = <(String, String)>[
   ('FullscreenVertex', 'Ssao'),
   ('SkyVertex', 'Sky'),
   ('SkyCubeVertex', 'SkyCube'),
+  ('SkyPhysicalVertex', 'SkyPhysical'),
   ('ParticleVertex', 'ParticleTextured'),
   ('DebugLineVertex', 'DebugLine'),
 ];

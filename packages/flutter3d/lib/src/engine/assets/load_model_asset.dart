@@ -31,6 +31,19 @@ String generatedAssetPathFor(String sourcePath) {
   return 'flutter3d_generated/$withoutExtension.f3d';
 }
 
+/// Where the build hook wrote [sourcePath]'s compiled material — `P8`:
+/// `assets_src/fx/rim.f3dmat` is `flutter3d_generated/fx/rim.f3dshaders`,
+/// the mapping `AssetLayout.materialPlan` computes in `flutter3d_build`, kept
+/// beside [generatedAssetPathFor] for the reason that one is reimplemented.
+String generatedMaterialPathFor(String sourcePath) {
+  final relative = sourcePath.startsWith(_sourceDirPrefix)
+      ? sourcePath.substring(_sourceDirPrefix.length)
+      : sourcePath;
+  final dot = relative.lastIndexOf('.');
+  final withoutExtension = dot < 0 ? relative : relative.substring(0, dot);
+  return 'flutter3d_generated/$withoutExtension.f3dshaders';
+}
+
 /// The device class every [loadModelAsset] reads as when its caller names
 /// none — `N7`. Null, the default, reads the single `.f3d` a build without
 /// classes writes.

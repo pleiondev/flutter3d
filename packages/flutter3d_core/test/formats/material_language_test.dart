@@ -37,7 +37,9 @@ MaterialSurfaceValues _surface({
   List<double> albedo = const <double>[0.5, 0.5, 0.5],
   double nDotV = 1.0,
   List<double> texel = const <double>[1, 1, 1, 1],
+  Map<String, List<double>> uniforms = const <String, List<double>>{},
 }) => MaterialSurfaceValues(
+  uniforms: uniforms,
   inputs: <String, List<double>>{
     'albedo': albedo,
     'alpha': const <double>[1],
@@ -264,7 +266,10 @@ void main() {
     final plain = describeMaterial(
       parseMaterial('material M { fragment { return vec4(albedo, alpha); } }'),
     );
-    expect(plain.usesAlbedoTexture, isFalse);
+    // True for every material: `ReadSurface` samples the base colour map for
+    // the albedo whether or not the source names it, and an unbound map was
+    // black on Impeller and a refused draw on WebGL2 — `P8`.
+    expect(plain.usesAlbedoTexture, isTrue);
     expect(plain.usesMaterialMaps, isFalse);
     expect(plain.usesMetallic, isFalse);
 
@@ -324,5 +329,102 @@ void main() {
       () => emitMaterialFragment(parseMaterial(_rimLight)),
       throwsA(isA<StateError>()),
     );
+  });
+
+  group('a uniform — P8', () {
+    const source = '''
+material Tint {
+  param float gain = 2.0;
+  uniform vec3 tint = vec3(1.0, 0.5, 0.25);
+  fragment {
+    return vec4(albedo * tint * gain, alpha);
+  }
+}
+''';
+
+    test('is a member of MaterialParams, and a param is still folded', () {
+      // Mutation: fold a uniform with the params in `_fold`, and the block
+      // disappears and the default is baked in.
+      final glsl = emitMaterialFragment(
+        specialiseMaterial(parseMaterial(source), const MaterialVariant('T')),
+      );
+      expect(glsl, contains('uniform MaterialParams {'));
+      expect(glsl, contains('  vec3 tint;'));
+      expect(glsl, contains('material_params.tint'));
+      expect(glsl, isNot(contains('gain')));
+    });
+
+    test('takes the draw\'s value, and its default without one', () {
+      final program = specialiseMaterial(
+        parseMaterial(source),
+        const MaterialVariant('T'),
+      );
+      expect(
+        evaluateMaterial(
+          program,
+          _surface(albedo: <double>[1, 1, 1]),
+        ).sublist(0, 3),
+        <double>[2.0, 1.0, 0.5],
+      );
+      expect(
+        evaluateMaterial(
+          program,
+          _surface(
+            albedo: <double>[1, 1, 1],
+            uniforms: <String, List<double>>{
+              'tint': <double>[0.0, 1.0, 0.0],
+            },
+          ),
+        ).sublist(0, 3),
+        <double>[0.0, 2.0, 0.0],
+      );
+    });
+
+    test('cannot be set by a variant', () {
+      expect(
+        () => specialiseMaterial(
+          parseMaterial(source),
+          const MaterialVariant('T', <String, List<double>>{
+            'tint': <double>[0, 0, 0],
+          }),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test(
+      'says the stage binds Material.parameters, and what they start as',
+      () {
+        final bindings = describeMaterial(parseMaterial(source));
+        expect(bindings.usesMaterialParameters, isTrue);
+        expect(bindings.uniforms, <String, List<double>>{
+          'tint': <double>[1.0, 0.5, 0.25],
+        });
+        expect(
+          bindings
+              .lightingModel(label: 'Tint', shaderName: 'Tint')
+              .usesMaterialParameters,
+          isTrue,
+        );
+        expect(
+          describeMaterial(
+            parseMaterial(
+              'material M { fragment { return vec4(albedo, 1.0); } }',
+            ),
+          ).usesMaterialParameters,
+          isFalse,
+        );
+      },
+    );
+
+    test('cannot take the block\'s own name', () {
+      expect(
+        () => parseMaterial(
+          'material M { uniform float material_params = 1.0; '
+          'fragment { return vec4(albedo, 1.0); } }',
+        ),
+        throwsA(isA<MaterialSyntaxError>()),
+      );
+    });
   });
 }

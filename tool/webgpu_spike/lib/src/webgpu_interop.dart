@@ -105,7 +105,11 @@ extension type GPURenderPassEncoder._(JSObject _) implements JSObject {
   external void setScissorRect(int x, int y, int width, int height);
   external void setBlendConstant(GPUColorDict color);
   external void setStencilReference(int reference);
-  external void drawIndexed(int indexCount, int instanceCount);
+  external void drawIndexed(
+    int indexCount,
+    int instanceCount, [
+    int firstIndex,
+  ]);
   external void end();
 }
 

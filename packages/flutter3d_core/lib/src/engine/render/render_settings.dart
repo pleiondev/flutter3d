@@ -828,6 +828,42 @@ final class MotionBlurSettings {
   );
 }
 
+/// `P3`'s projected decals: every visible `DecalNode` in the scene painted
+/// onto the geometry inside its box.
+///
+/// **Off by default, and not because a scene without decals would pay.** A
+/// frame with no visible decal registers the pass, finds it inactive and culls
+/// it, whatever this says. It is off because a frame with one reads the
+/// scene's surface and albedo buffers, and that turns multisampling off and
+/// splits the scene pass around the decals so glass in front of one is drawn
+/// over it rather than painted. Those are costs a caller turns on, the way
+/// they turn on every other effect that reads the buffers.
+final class DecalSettings {
+  const DecalSettings({this.enabled = false});
+
+  final bool enabled;
+
+  DecalSettings copyWith({bool? enabled}) =>
+      DecalSettings(enabled: enabled ?? this.enabled);
+}
+
+/// `P4`'s planar reflections: every visible `PlanarReflectorNode` gets the
+/// world drawn again through a mirrored camera, and its surfaces show it.
+///
+/// **Off by default, and not because a frame without a reflector would
+/// pay.** With none in the scene the pass is inactive and culled whatever
+/// this says. It is off because one reflector is the scene drawn a second
+/// time per view, which is a cost a caller turns on, the way they turn on
+/// every other effect that doubles a pass.
+final class PlanarReflectionSettings {
+  const PlanarReflectionSettings({this.enabled = false});
+
+  final bool enabled;
+
+  PlanarReflectionSettings copyWith({bool? enabled}) =>
+      PlanarReflectionSettings(enabled: enabled ?? this.enabled);
+}
+
 /// Which viewport shading a frame is drawn with — `gfx-43n`, `44n`, `45n`.
 ///
 /// **A final class with const instances rather than an enum**, the shape
@@ -974,13 +1010,129 @@ final class ViewportShadingSettings {
   );
 }
 
-/// Distance fog.
+/// What a debug view shows in place of the light — `P6`.
+///
+/// **A final class with const instances rather than an enum**, for the reason
+/// [ViewportShading] is one: [code] is what `FragInfo.debug_view.x` carries
+/// to four backends, a number this type owns.
+final class DebugView {
+  const DebugView._(this.name, this.code);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// What goes into `FragInfo.debug_view.x`. Part of the shader contract.
+  final double code;
+
+  /// The lit picture, untouched — the default, and an exact no-op.
+  static const DebugView off = DebugView._('off', 0.0);
+
+  /// The base colour after its texture, tint and vertex colour, as the sRGB
+  /// colour a texture is painted in.
+  static const DebugView albedo = DebugView._('albedo', 1.0);
+
+  /// The shading normal, after the normal map, as `n · 0.5 + 0.5` in world
+  /// space — the normal map's work, which the surface buffer's geometric
+  /// normal does not show.
+  static const DebugView normal = DebugView._('normal', 2.0);
+
+  /// Perceptual roughness as a grey, after the metal-rough map.
+  static const DebugView roughness = DebugView._('roughness', 3.0);
+
+  /// Metalness as a grey, after the metal-rough map.
+  static const DebugView metallic = DebugView._('metallic', 4.0);
+
+  /// The occlusion map's share of light left, as a grey.
+  static const DebugView occlusion = DebugView._('occlusion', 5.0);
+
+  /// Emission as its sRGB colour, clipped at one.
+  static const DebugView emissive = DebugView._('emissive', 6.0);
+
+  /// The base colour map's coordinate, its fraction in red and green: a seam
+  /// is a step in colour, a stretched island a long gradient.
+  static const DebugView uv = DebugView._('uv', 7.0);
+
+  /// Magenta wherever the light came out NaN or infinite, over the light's
+  /// own luminance in a dark grey — where a bad normal, a zero-length vector
+  /// or a division by nought turned shading into nothing.
+  static const DebugView nonFinite = DebugView._('nonFinite', 8.0);
+
+  /// All of them, off first.
+  static const List<DebugView> values = <DebugView>[
+    off,
+    albedo,
+    normal,
+    roughness,
+    metallic,
+    occlusion,
+    emissive,
+    uv,
+    nonFinite,
+  ];
+
+  @override
+  String toString() => 'DebugView.$name';
+}
+
+/// A material channel shown in place of the light, over all or part of the
+/// frame — `P6`.
+///
+/// **Written by the materials, not read back from a buffer**, which is what
+/// sets this apart from [ViewportShadingSettings]: the surface buffer keeps a
+/// geometric normal, a roughness and a depth, and the channels a look-dev
+/// question is about — an albedo too bright, a metalness map read as sRGB, a
+/// seam in the UVs — exist only inside the lit stage. Each lit model asks
+/// `WriteDebugView` before it writes its light. A stage that is not a lit
+/// material — the sky, particles, splats, glass's own pass — draws as it
+/// always does, and right of the split it reaches the screen without the
+/// tone curve, so it reads brighter there than it is.
+///
+/// **The split is a wipe.** Left of [split] the frame is lit as ever, right
+/// of it the channel, in one draw: a material shows where its map and its
+/// light disagree without two captures to line up. Nought is the whole frame.
+///
+/// **Passes between the materials and the composite still run.** Reflections,
+/// depth of field, motion blur and a temporal resolve work on whatever the
+/// scene holds, so turn them off for a clean read of a channel. The
+/// composite's exposure, curve, bloom and grade do not touch the debug side.
+final class DebugViewSettings {
+  const DebugViewSettings({this.view = DebugView.off, this.split = 0.0});
+
+  /// Which channel. [DebugView.off] is the default and an exact no-op.
+  final DebugView view;
+
+  /// Where the debug view starts, as a share of the width from the left:
+  /// nought the whole frame, a half the right half. Held inside nought and
+  /// one.
+  final double split;
+
+  /// Whether a frame drawn with these shows a channel anywhere.
+  bool get active => view != DebugView.off && split < 1.0;
+
+  DebugViewSettings copyWith({DebugView? view, double? split}) =>
+      DebugViewSettings(view: view ?? this.view, split: split ?? this.split);
+}
+
+/// Distance fog, and fog that lies on the ground.
 ///
 /// Exponential per metre, which is what the level format already stores. A
 /// linear fog has a visible plane where it begins, and a dungeon corridor is
 /// exactly where that shows.
+///
+/// **Height fog — `P5`.** With [heightFalloff] above nought the air thins
+/// upwards, `density · e^(−heightFalloff · (y − baseHeight))`, the same law
+/// `VolumetricFogSettings` marches; here it is integrated along the ray in
+/// closed form instead, so it costs an exponential more than the flat fog and
+/// no pass. A valley fills, a hilltop stands out of it, and a camera looking
+/// up sees less fog than one looking along the ground, which a flat fog cannot
+/// say. Nought, the default, is the flat fog and the same numbers to the bit.
 final class FogSettings {
-  const FogSettings({this.color, this.density = 0.0});
+  const FogSettings({
+    this.color,
+    this.density = 0.0,
+    this.heightFalloff = 0.0,
+    this.baseHeight = 0.0,
+  });
 
   /// Linear, not sRGB: it is mixed with scene light before the display
   /// transform, and an sRGB value here reads as a fog too bright at the near
@@ -999,6 +1151,45 @@ final class FogSettings {
   final double density;
 
   bool get enabled => density > 0.0;
+
+  /// How fast the fog thins with height, per metre. Nought is the same fog at
+  /// every height; 0.1 halves it every seven metres, a mist in a valley; 0.01
+  /// every seventy, the haze over a landscape. Negative is held at nought.
+  final double heightFalloff;
+
+  /// The height at which the fog is [density] thick, in world metres.
+  final double baseHeight;
+
+  /// How thick the fog is at height [y], per metre.
+  ///
+  /// What the shader is handed at the eye: the fog block has one spare lane,
+  /// which carries the falloff, so the base height is folded into the
+  /// density here rather than sent. Particles and splats, which fog by
+  /// distance alone, take the same number and so fog as a flat fog as thick
+  /// as the air at the camera — exact for the flat fog, and an approximation
+  /// once it has a falloff.
+  double densityAt(double y) {
+    final falloff = resolvedHeightFalloff;
+    if (falloff == 0.0) return density;
+    // Held where single precision keeps it: past e^±80 the shader's float
+    // is nought or infinite, and either is a frame of nothing but fog.
+    final exponent = (-falloff * (y - baseHeight)).clamp(-80.0, 80.0);
+    return density * math.exp(exponent);
+  }
+
+  double get resolvedHeightFalloff => heightFalloff > 0.0 ? heightFalloff : 0.0;
+
+  FogSettings copyWith({
+    vm.Vector3? color,
+    double? density,
+    double? heightFalloff,
+    double? baseHeight,
+  }) => FogSettings(
+    color: color ?? this.color,
+    density: density ?? this.density,
+    heightFalloff: heightFalloff ?? this.heightFalloff,
+    baseHeight: baseHeight ?? this.baseHeight,
+  );
 
   static final vm.Vector3 _defaultColor = vm.Vector3(0.05, 0.05, 0.05);
 }
@@ -1150,7 +1341,10 @@ final class RenderSettings {
     this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.motionBlur = const MotionBlurSettings(),
+    this.planarReflections = const PlanarReflectionSettings(),
+    this.decals = const DecalSettings(),
     this.viewportShading = const ViewportShadingSettings(),
+    this.debugView = const DebugViewSettings(),
     this.transparency = TransparencyMode.sorted,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
@@ -1268,7 +1462,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the seventy-eight goldens keep the frame
+  /// nothing headless can run them. So the ninety goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -1357,9 +1551,20 @@ final class RenderSettings {
   /// `R6`'s motion blur along the velocity buffer.
   final MotionBlurSettings motionBlur;
 
+  /// `P4`'s planar reflections, each a picture taken through a mirrored
+  /// camera before the scene.
+  final PlanarReflectionSettings planarReflections;
+
+  /// `P3`'s projected decals, painted onto the scene before its glass.
+  final DecalSettings decals;
+
   /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
   /// than out of the materials.
   final ViewportShadingSettings viewportShading;
+
+  /// `P6`'s material channels in place of the light, over all or part of the
+  /// frame.
+  final DebugViewSettings debugView;
 
   final FogSettings fog;
 
@@ -1658,7 +1863,10 @@ final class RenderSettings {
     VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
     MotionBlurSettings? motionBlur,
+    PlanarReflectionSettings? planarReflections,
+    DecalSettings? decals,
     ViewportShadingSettings? viewportShading,
+    DebugViewSettings? debugView,
     TransparencyMode? transparency,
   }) => RenderSettings(
     specular: specular ?? this.specular,
@@ -1704,7 +1912,10 @@ final class RenderSettings {
     volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,
     motionBlur: motionBlur ?? this.motionBlur,
+    planarReflections: planarReflections ?? this.planarReflections,
+    decals: decals ?? this.decals,
     viewportShading: viewportShading ?? this.viewportShading,
+    debugView: debugView ?? this.debugView,
     transparency: transparency ?? this.transparency,
   );
 
@@ -1780,9 +1991,15 @@ final class RenderSettings {
     'shadow moments',
     // `L4`: the irradiance field's probes, a few a frame.
     'irradiance update',
+    // `P4`: what the scene's cameras into textures and its planar reflectors
+    // see, drawn before the scene that shows them.
+    'render textures',
+    'planar reflections',
     // Reflection probes are registered here, one per probe in the scene, and
     // are named by index rather than by a constant — see [probePassName].
     'scene',
+    // `P3`: painted onto the opaque half, before the glass is drawn over it.
+    'decals',
     // `M3`: on a frame with glass, the scene as the opaque half left it, and
     // the glass and the transparent half drawn over it. Culled on any other.
     'scene colour copy',
@@ -1821,6 +2038,9 @@ final class RenderSettings {
     // `R7`: measured on the resolved picture, applied in the composite.
     'local exposure',
     'bloom',
+    // `P2`: drawn from the glow and added to it, before the composite reads
+    // it.
+    'lens flare',
     'composite',
     // `R5`: the finished picture brought up to the asked-for size, before
     // the sharpening that follows it.
@@ -1862,6 +2082,7 @@ final class RenderSettings {
   /// composite is where `tonemap: false` is honoured.
   static const Set<String> pixelAlteringPasses = <String>{
     'bloom',
+    'lens flare',
     'ssao',
     // Multiplied into the ambient term in the composite beside the occlusion,
     // so it moves a measured pixel exactly as `ssao` does.
@@ -2025,7 +2246,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Seventy-eight goldens depend on that being exact, and the composite
+/// existed. Ninety goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the
@@ -2045,6 +2266,7 @@ final class LookSettings {
     this.vignetteRoundness = 1.0,
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
+    this.distortion = 0.0,
     this.dither = 1.0 / 255.0,
     this.lift,
     this.gamma,
@@ -2090,6 +2312,19 @@ final class LookSettings {
   /// Radial colour dispersion, in screen widths at the corner. 0.005 is
   /// visible without reading as a fault.
   final double chromaticAberration;
+
+  /// Radial lens distortion — `P2`: barrel above nought, pincushion below,
+  /// nought off exactly. The frame is bent by `1 + k·r²` about its middle on
+  /// its own aspect and scaled so its border stays on the frame: a barrel
+  /// holds the corners, a pincushion the edge nearest the middle. 0.1 is a
+  /// wide lens's gentle bow; past 0.5 it reads as a fisheye.
+  ///
+  /// **Everything laid over the scene bends with it** — the glow, the
+  /// occlusion, the contact shadow, the local exposure — because the
+  /// composite bends the coordinate once, before anything is read. The
+  /// vignette, the grain and the dither stay put: they are the film, and the
+  /// film does not move with the glass.
+  final double distortion;
 
   /// Where black is **lifted to**, per channel, so the shadows move and white
   /// stays — `gfx-27n`. Null is neutral, the same as zero. Applied as
@@ -2167,6 +2402,8 @@ final class LookSettings {
   /// and N tall, blue selecting the slice, red running across it and green
   /// down. [buildIdentityLut] makes the one that changes nothing, which is
   /// what a test compares against and what somebody starts from.
+  /// `CubeLut.parse(...).upload(device)` makes one from a `.cube` file, the
+  /// format the grading tools write — `P2`.
   ///
   /// Null is not "a neutral table": nothing is sampled at all, and that is
   /// the difference [lutStrength] of zero also makes.
@@ -2203,6 +2440,7 @@ final class LookSettings {
       vignette == 0.0 &&
       grain == 0.0 &&
       chromaticAberration == 0.0 &&
+      distortion == 0.0 &&
       whiteBalance == 0.0 &&
       tint == 0.0 &&
       _isNeutralTriple(lift, 0.0) &&
@@ -2223,6 +2461,7 @@ final class LookSettings {
     double? vignetteRoundness,
     double? grain,
     double? chromaticAberration,
+    double? distortion,
     double? dither,
     vm.Vector3? lift,
     vm.Vector3? gamma,
@@ -2240,6 +2479,7 @@ final class LookSettings {
     vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
     grain: grain ?? this.grain,
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+    distortion: distortion ?? this.distortion,
     dither: dither ?? this.dither,
     lift: lift ?? this.lift,
     gamma: gamma ?? this.gamma,
@@ -2293,6 +2533,7 @@ int bloomLevelsFor(BloomSettings settings, {required int frameHeight}) {
 final class AntiAliasSettings {
   const AntiAliasSettings({
     this.enabled = false,
+    this.method = EdgeSmoothing.fxaa,
     this.contrastThreshold = 0.125,
     this.blend = 0.75,
     this.sharpen = 0.0,
@@ -2300,6 +2541,11 @@ final class AntiAliasSettings {
   });
 
   final bool enabled;
+
+  /// How the edges are found and smoothed when [enabled] — `P1`.
+  /// [EdgeSmoothing.fxaa], the one pass this setting has always run, is the
+  /// default.
+  final EdgeSmoothing method;
 
   /// Anti-aliasing across frames — `R1`, `R2`. Independent of [enabled]: the
   /// temporal resolve and the edge pass can run together, and the resolve is
@@ -2346,17 +2592,48 @@ final class AntiAliasSettings {
 
   AntiAliasSettings copyWith({
     bool? enabled,
+    EdgeSmoothing? method,
     double? contrastThreshold,
     double? blend,
     double? sharpen,
     TemporalSettings? temporal,
   }) => AntiAliasSettings(
     enabled: enabled ?? this.enabled,
+    method: method ?? this.method,
     contrastThreshold: contrastThreshold ?? this.contrastThreshold,
     blend: blend ?? this.blend,
     sharpen: sharpen ?? this.sharpen,
     temporal: temporal ?? this.temporal,
   );
+}
+
+/// How [AntiAliasSettings] finds and smooths an edge — `P1`.
+///
+/// **A class with constants rather than an enum**, because the set grows:
+/// SMAA's 2x and 4x modes, or its diagonal search, would each be one more
+/// value, and an enum would break every `switch` written against it the day
+/// one arrived.
+final class EdgeSmoothing {
+  const EdgeSmoothing._(this.name);
+
+  /// FXAA 3.11 Quality: one pass, which walks along an edge from every pixel
+  /// with enough local contrast and moves it towards the side the edge leans
+  /// to. Uses [AntiAliasSettings.contrastThreshold] and
+  /// [AntiAliasSettings.blend].
+  static const EdgeSmoothing fxaa = EdgeSmoothing._('fxaa');
+
+  /// SMAA 1x: three passes — the edges marked, the line behind each
+  /// staircase reconstructed from where its run ends and which sides those
+  /// ends are crossed on, and each pixel blended by the area that line
+  /// covers of it. Sharper than FXAA on text and fine texture, which it
+  /// leaves alone, and truer on long shallow edges; a little more work.
+  /// Orthogonal edges only: no diagonal search and no corner rounding.
+  static const EdgeSmoothing smaa = EdgeSmoothing._('smaa');
+
+  final String name;
+
+  @override
+  String toString() => 'EdgeSmoothing.$name';
 }
 
 /// Edges smoothed across frames — `R1`, `R2`.
@@ -2540,9 +2817,14 @@ final class BloomSettings {
     this.referenceHeight = 0,
     this.halation = 0.0,
     this.scatter = 1.0,
+    this.lensFlare = const LensFlareSettings(),
   });
 
   final bool enabled;
+
+  /// Ghosts and a halo thrown from what blooms — `P2`. Off by default, and
+  /// off whenever the bloom is: it is drawn from the glow.
+  final LensFlareSettings lensFlare;
 
   /// Luminance above which a pixel starts to bloom. One is display white, which
   /// is the only value with a physical meaning: below it nothing is clipping,
@@ -2634,6 +2916,7 @@ final class BloomSettings {
     int? referenceHeight,
     double? halation,
     double? scatter,
+    LensFlareSettings? lensFlare,
   }) => BloomSettings(
     enabled: enabled ?? this.enabled,
     threshold: threshold ?? this.threshold,
@@ -2644,5 +2927,82 @@ final class BloomSettings {
     referenceHeight: referenceHeight ?? this.referenceHeight,
     halation: halation ?? this.halation,
     scatter: scatter ?? this.scatter,
+    lensFlare: lensFlare ?? this.lensFlare,
+  );
+}
+
+/// The reflections a lens throws from a bright light — `P2`.
+///
+/// **Drawn from the glow, and so only where something blooms.** The bloom
+/// chain has already found what is bright and spread it; reading it again at
+/// positions mirrored through the middle of the frame is what puts each ghost
+/// where the light's reflection between two lens elements would land. A
+/// frame with nothing over the bloom threshold has no flare, which is the
+/// right answer, and a frame with the bloom off has none at all.
+///
+/// The ghosts thin out towards the edges and none is drawn past the frame,
+/// and each one's three channels are taken a little apart along its line,
+/// the fringe a coated lens leaves on its reflections. The ring is every
+/// light at [haloRadius] from the middle landing on the far side of it.
+///
+/// Added into the glow, so the composite scales it by the bloom's own
+/// intensity and tone maps it with the rest of the light.
+///
+/// **A ghost is as soft as the glow it is drawn from.** Five levels at full
+/// weight — the bloom's defaults — throw a small lamp's skirt half the frame
+/// wide, and its reflections are as wide as that: a wash rather than a row
+/// of discs. Fewer [BloomSettings.levels] or a [BloomSettings.scatter] below
+/// one tighten the glow, and the ghosts with it.
+final class LensFlareSettings {
+  const LensFlareSettings({
+    this.enabled = false,
+    this.intensity = 1.0,
+    this.ghosts = 4,
+    this.ghostSpacing = 0.35,
+    this.haloRadius = 0.45,
+    this.halo = 0.5,
+    this.fringe = 0.004,
+  });
+
+  final bool enabled;
+
+  /// How much flare, against the glow it is drawn from.
+  final double intensity;
+
+  /// How many ghosts, up to eight.
+  final int ghosts;
+
+  /// How far apart the ghosts fall, as a fraction of the way from the light
+  /// to the middle of the frame.
+  final double ghostSpacing;
+
+  /// The halo's radius, as a fraction of the frame's height.
+  final double haloRadius;
+
+  /// The halo's strength against the ghosts'. Nought draws no ring.
+  final double halo;
+
+  /// How far apart a ghost's channels are taken, in screen widths.
+  final double fringe;
+
+  /// Whether a flare is drawn at all.
+  bool get isActive => enabled && intensity > 0.0 && ghosts > 0;
+
+  LensFlareSettings copyWith({
+    bool? enabled,
+    double? intensity,
+    int? ghosts,
+    double? ghostSpacing,
+    double? haloRadius,
+    double? halo,
+    double? fringe,
+  }) => LensFlareSettings(
+    enabled: enabled ?? this.enabled,
+    intensity: intensity ?? this.intensity,
+    ghosts: ghosts ?? this.ghosts,
+    ghostSpacing: ghostSpacing ?? this.ghostSpacing,
+    haloRadius: haloRadius ?? this.haloRadius,
+    halo: halo ?? this.halo,
+    fringe: fringe ?? this.fringe,
   );
 }

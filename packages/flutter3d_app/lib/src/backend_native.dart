@@ -16,6 +16,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
 import 'cpu_frame_presenter.dart';
+import 'materials/material_language_stage.dart';
 import 'surface/scene_surface.dart';
 
 /// Whether this build renders at a fixed internal resolution.
@@ -38,7 +39,8 @@ void _ensureRegistered() {
   if (_registered) return;
   _registered = true;
   ensureGpuBackendRegistered();
-  ensureCpuBackendRegistered();
+  // `P8`: a bundle built from a `.f3dmat` draws here with no Dart of its own.
+  ensureCpuBackendRegistered(materialCompiler: materialLanguageCompiler);
   // The one presenter this file still registers directly: `CpuFrame` moved
   // here from `flutter3d_cpu` once that package went flat (mcp-02n), so
   // nowhere else can build it.

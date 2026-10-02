@@ -77,13 +77,25 @@ final class MaterialType {
 /// language would be a member of that block; it is not written, and the reason
 /// is scope rather than impossibility.
 final class MaterialParameter {
-  const MaterialParameter(this.name, this.type, this.defaultValue);
+  const MaterialParameter(
+    this.name,
+    this.type,
+    this.defaultValue, {
+    this.uniform = false,
+  });
 
   final String name;
   final MaterialType type;
 
   /// As many numbers as [type] has components.
   final List<double> defaultValue;
+
+  /// Declared with `uniform` rather than `param` — `P8`: not folded, but a
+  /// member of the `MaterialParams` block, read from `Material.parameters`
+  /// on every draw, so a game sets it without a second entry point. A
+  /// variant cannot set one; [defaultValue] is what a material that names
+  /// no value is given.
+  final bool uniform;
 }
 
 /// One texture slot the material samples, by the name the engine binds it
@@ -480,7 +492,8 @@ final class MaterialVariant {
 
   final String name;
 
-  /// Parameter name to value. Anything not named keeps its default.
+  /// Parameter name to value. Anything not named keeps its default; a
+  /// `uniform` cannot be named here.
   final Map<String, List<double>> values;
 }
 
@@ -516,6 +529,16 @@ MaterialProgram specialiseMaterial(
     }
   }
 
+  for (final key in variant.values.keys) {
+    if (program.parameter(key)!.uniform) {
+      throw ArgumentError(
+        'Variant "${variant.name}" sets "$key", which "${program.name}" '
+        'declares as a uniform: set it on the material, in '
+        'Material.parameters, rather than in a variant.',
+      );
+    }
+  }
+
   return MaterialProgram(
     name: variant.name,
     parameters: program.parameters,
@@ -539,6 +562,9 @@ MaterialExpression _fold(MaterialExpression expression, MaterialVariant v) {
     case MaterialConstant():
     case MaterialInputRef():
     case MaterialLocalRef():
+      return expression;
+    // A uniform stays a reference: its value arrives with each draw.
+    case MaterialParamRef(:final parameter) when parameter.uniform:
       return expression;
     case MaterialParamRef(:final parameter):
       return MaterialConstant(
