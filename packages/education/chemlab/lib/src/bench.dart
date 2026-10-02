@@ -823,8 +823,16 @@ final class Bench {
       _handStep(transfer, seconds);
       moving = true;
     }
+    // Where the glass is at the end of this frame, stamped with that time:
+    // the frame runs a whole number of the world's fixed steps, and a frame
+    // of one step after one of three must not read as a jolt.
+    final now = world.time + seconds;
     for (final vessel in vessels) {
-      vessel.liquid.place(_turnOf(vessel), vessel.body.readPosition());
+      vessel.liquid.place(
+        _turnOf(vessel),
+        vessel.body.readPosition(),
+        time: now,
+      );
     }
     world.advance(seconds);
     if (transfer != null && before != null && seconds > 0.0) {
