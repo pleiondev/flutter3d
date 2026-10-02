@@ -27,6 +27,7 @@ Five labelled test tubes, a graduated cylinder, a beaker and an Erlenmeyer flask
   <div><dt>Pour slider</dt><dd>Fill or empty the vessel you picked</dd></div>
   <div><dt>Tilt slider</dt><dd>Lean it towards you or away; move it quickly and the liquid sloshes</dd></div>
   <div><dt>Tap</dt><dd>Knock on the glass and watch the rings</dd></div>
+  <div><dt>Share with clean tube</dt><dd>Pour the vessel you picked into the empty tube at the front until the two hold the same</dd></div>
 </dl>
 
 ## Glass from profiles
@@ -110,6 +111,18 @@ The picture goes back into the engine through the same atlas. It is painted on a
 The same idea went into the engine as well, for shapes that are not lathes: `ShadowSettings.caustics`. A caster with a volume is drawn from the sun into two small maps, its near faces and its far faces, and one photon per texel is bent in at one and out at the other, followed to whatever lies below, and splatted there. How big each splat is comes from where its neighbouring photons land, so a beam the caster spreads comes out wide and faint and one it focuses comes out small and bright, and light is neither made nor lost. It is general and it is an approximation: it sees two surfaces per caster, so a liquid in a thin glass is followed as the liquid, which is why the glass here is thin-walled, as glTF means it. The demo opens lit that way, with **Engine photons** on; switch it off to see the cut-by-cut optics above, which are exact for these vessels.
 
 It has limits. The atlas keeps the colour, not where along the light it was picked up, so something standing between the sun and a glass would be shaded as if it stood behind it; a bench has nothing like that. It does nothing with the moments filter, which uses those channels for itself. And a see-through surface that casts is not shaded by it, so a glass does not darken itself; the tabletop, which lets a little of the reflections under it through, casts nothing and is shaded like any floor.
+
+## Pouring one tube into another
+
+There is an empty tube at the front of the bench. Pick a solution and press **Share with clean tube**: the tube rises over its neighbours, comes over the clean one, tips until it pours, and stops when both hold the same. Then it goes back to its place and rocks for a second after it is put down.
+
+None of it is keyframed. Tipped that far, a surface is no longer a height over the floor, so the bench works from the volume instead. The surface is the plane level in the world, and in the glass's frame its height along the world's up is whatever leaves the liquid's volume under it. Cut across its axis a tube is a disc and the plane cuts it along a chord, so the volume under the plane is a sum of circular segments, slice by slice, each with a closed-form area. Liquid runs out when that plane would have to stand above the lowest point of the mouth.
+
+That also says how far to tip. The pour has a schedule, how much should be left in the tube at each moment, and every frame the bench finds by halving the lean at which the tube holds exactly that much below its lip. So it tips quickly to where it starts to run and then slowly, further as it empties, which is what a hand does. What left the tube is added to the other one, whose level comes back from its volume.
+
+The stream is a free fall from the lip. A steady stream carries the same flow at every height, so its section is the flow over its speed and its radius goes as one over the root of the speed: it starts as wide as the flow needs and narrows as it falls. Where it lands it keeps starting rings on the surface. Poured into a tube that already holds something, the two mix by Beer and Lambert: each takes light away per metre, so the mixture takes away the two absorptions weighed by volume, and blue into orange comes out as dark as the two together would be, not as a paint mix of their colours.
+
+The tipped liquid is cut out of the inside of the glass by that plane: the inside swept as a lathe, each triangle the plane crosses cut to the part below it, and the outline of the cut closed with a fan for the surface. The volume came out as a staircase at first, slice by slice, and the first few drops into the empty tube vanished in its first step; the slice the surface crosses now counts for the part of it below.
 
 ## Refraction, caustics and reflections
 

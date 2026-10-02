@@ -96,6 +96,10 @@ final class Slosh {
     }
   }
 
+  /// The glass was jerked: the surface is left [dz] of slope along z off
+  /// the plane it settles to, as a tilt that sudden would leave it.
+  void jolt(double dz) => _leave(offZ, -dz);
+
   /// The angular frequency of the mode whose zero is [xi].
   double frequency(double xi) {
     final k = xi / radius;

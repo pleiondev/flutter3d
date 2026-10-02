@@ -209,6 +209,10 @@ class _BenchScreenState extends State<BenchScreen>
                 bench.tap(bench.vessels[_selected]);
                 _stir();
               },
+              onShare: () {
+                setState(() => bench.share(bench.vessels[_selected]));
+                _stir();
+              },
               onPhotons: (on) => setState(() => bench.photons = on),
             ),
           ),
@@ -226,6 +230,7 @@ class _Controls extends StatelessWidget {
     required this.onPour,
     required this.onLean,
     required this.onTap,
+    required this.onShare,
     required this.onPhotons,
   });
 
@@ -235,6 +240,9 @@ class _Controls extends StatelessWidget {
   final ValueChanged<double> onPour;
   final ValueChanged<double> onLean;
   final VoidCallback onTap;
+
+  /// Pours the picked vessel into the clean tube until both hold the same.
+  final VoidCallback onShare;
 
   /// Shadows from the engine's photons, or from the cuts this bench works
   /// out itself.
@@ -282,7 +290,7 @@ class _Controls extends StatelessWidget {
                     value: vessel.level,
                     min: vessel.lowest,
                     max: vessel.highest,
-                    onChanged: onPour,
+                    onChanged: bench.busy ? null : onPour,
                   ),
                 ),
                 const Text('Tilt'),
@@ -291,7 +299,7 @@ class _Controls extends StatelessWidget {
                     value: vessel.tilt,
                     min: -Bench.maxTilt,
                     max: Bench.maxTilt,
-                    onChanged: onLean,
+                    onChanged: bench.busy ? null : onLean,
                   ),
                 ),
                 ActionChip(
@@ -299,6 +307,18 @@ class _Controls extends StatelessWidget {
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: const Text('Tap'),
                   onPressed: onTap,
+                ),
+                const SizedBox(width: 6),
+                Tooltip(
+                  message:
+                      'Pour into the clean tube at the front until the two '
+                      'hold the same',
+                  child: ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: const Text('Share with clean tube'),
+                    onPressed: bench.canShare(vessel) ? onShare : null,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Tooltip(
