@@ -68,6 +68,13 @@ final class MaterialProgramStage implements CpuFragmentShader {
           'uv': <double>[v[kVUv], v[kVUv + 1]],
           'world': <double>[s.world.x, s.world.y, s.world.z],
         },
+        // `P8`: the draw's `MaterialParams`, which is `Material.parameters`,
+        // member by member as the GLSL reads its block.
+        uniforms: <String, List<double>>{
+          for (final parameter in program.parameters)
+            if (parameter.uniform)
+              parameter.name: ?bindings.read('MaterialParams', parameter.name),
+        },
         sample: (slot, u, w) {
           final texture = bindings.textures[slot.bindingName];
           // White is what `surface.glsl` falls back to for an unbound base

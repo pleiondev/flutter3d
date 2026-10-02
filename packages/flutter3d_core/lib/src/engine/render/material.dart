@@ -80,7 +80,7 @@ final class Material {
     this.parameterBlock = 'MaterialParams',
     Map<String, Float32List>? parameters,
     Map<String, TextureHandle>? extraTextures,
-  }) : parameters = parameters ?? const <String, Float32List>{},
+  }) : parameters = parameters ?? <String, Float32List>{},
        textureTransforms =
            textureTransforms ?? <MaterialMap, TextureTransform>{},
        extraTextures = extraTextures ?? const <String, TextureHandle>{},
@@ -177,6 +177,11 @@ final class Material {
   /// Every uniform in this engine is a float vector, a matrix or an array of
   /// either, so a `Float32List` is the only value there is. An integer or a
   /// boolean is encoded as a float, the same way the built-in shaders do it.
+  ///
+  /// **A map of the material's own, empty by default and open to additions**
+  /// — `P8`. It was a shared constant, so a material made without parameters
+  /// could not be given any: a model's surfaces, handed a material written
+  /// in the language after loading, had nowhere to put its uniforms.
   final Map<String, Float32List> parameters;
 
   /// Textures an application's own shader samples, by slot name.

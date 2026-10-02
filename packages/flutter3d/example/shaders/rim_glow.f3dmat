@@ -4,12 +4,15 @@
 // and this text beside them for the software one, and the
 // `material-language` golden draws it on all four from this one source.
 //
-// A shaded body and a blue rim where the surface turns away from the eye:
-// it reads the albedo, the facing and the colour it is tinted with, which is
+// A shaded body and a rim where the surface turns away from the eye: it
+// reads the albedo, the facing and the colour it is tinted with, which is
 // enough to show the stage ran on each backend and agrees with the others.
+// The rim's colour is a uniform, a member of `MaterialParams`: the golden
+// sets it orange over this blue default, so the picture shows the value a
+// game set reached every backend.
 material RimGlow {
   param float rimPower = 3.0;
-  param vec3 rimColor = vec3(0.2, 0.5, 1.0);
+  uniform vec3 rimColor = vec3(0.2, 0.5, 1.0);
 
   fragment {
     let facing = clamp(nDotV, 0.0, 1.0);

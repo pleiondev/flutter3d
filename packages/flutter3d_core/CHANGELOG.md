@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A material in the language can declare a `uniform`**, a member of
+  `MaterialParams` that a game sets in `Material.parameters` on every draw,
+  where a `param` is still a constant folded into its variant. The emitter
+  writes the block, `describeMaterial` reports it and its defaults, and
+  `BundledMaterials.parameters` hands a material those defaults.
+
+- **`Material.parameters` is a map of the material's own**, empty and open
+  to additions. It was a shared constant, so a material made without
+  parameters could not be given any.
+
 - **`BundledMaterials`** reads the materials a bundle carries and builds
   each one's `LightingModel` from its source — `P8`. The emitted stage keeps
   no point-shadow block, and `describeMaterial` asks for the base colour map

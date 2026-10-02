@@ -179,8 +179,8 @@ List<_Token> _lex(String source) {
 /// inputs are written as (shadowing them compiles and reads the wrong value),
 /// and the rest are GLSL words a declaration cannot take.
 const Set<String> _reservedNames = <String>{
-  // The emitter's own.
-  's', 'result', 'main',
+  // The emitter's own, `P8`'s uniform block among them.
+  's', 'result', 'main', 'material_params', 'MaterialParams',
   // `surface.glsl`'s, as the emitted shader spells them.
   'Surface', 'LightSample', 'ReadSurface', 'WriteSurface', 'ShadeLight',
   'LightVisibility', 'v_texcoord', 'v_world_position',
@@ -263,6 +263,8 @@ final class _Parser {
       if (current.kind == 'end') fail('the material is never closed with "}".');
       if (takeWordIf('param')) {
         parseParameter();
+      } else if (takeWordIf('uniform')) {
+        parseParameter(uniform: true);
       } else if (takeWordIf('texture')) {
         parseTexture();
       } else if (takeWordIf('fragment')) {
@@ -271,7 +273,7 @@ final class _Parser {
       } else {
         fail(
           '"${current.text}" is not a declaration: a material holds "param", '
-          '"texture" and one "fragment".',
+          '"uniform", "texture" and one "fragment".',
         );
       }
     }
@@ -286,7 +288,7 @@ final class _Parser {
     );
   }
 
-  void parseParameter() {
+  void parseParameter({bool uniform = false}) {
     final type = parseType();
     if (!type.isNumeric) {
       fail(
@@ -296,6 +298,18 @@ final class _Parser {
     }
     final nameToken = take('name', 'the parameter\'s name');
     checkFreeName(nameToken);
+    // A uniform reaches the shader under its own name, as a member of the
+    // block — `P8` — so the names GLSL and the emitter keep are closed to it,
+    // as they are to a `let`. A `param` is folded and never written.
+    if (uniform &&
+        (_reservedNames.contains(nameToken.text) ||
+            nameToken.text.startsWith('gl_'))) {
+      fail(
+        '"${nameToken.text}" is a name the generated shader already uses, and '
+        'a uniform is written into it under its own name.',
+        nameToken,
+      );
+    }
     take(
       '=',
       '"=" and a default value — a parameter without one is a '
@@ -303,7 +317,9 @@ final class _Parser {
     );
     final value = parseConstant(type);
     take(';', '";" after the parameter');
-    parameters.add(MaterialParameter(nameToken.text, type, value));
+    parameters.add(
+      MaterialParameter(nameToken.text, type, value, uniform: uniform),
+    );
   }
 
   void parseTexture() {

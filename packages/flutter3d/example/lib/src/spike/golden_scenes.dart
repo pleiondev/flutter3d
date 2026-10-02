@@ -1230,6 +1230,11 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     source: 'obj: Teapot',
     lighting: GoldenExtras.rimGlow,
     shaderBundle: GoldenExtras.rimGlowBundle,
+    // Orange over the source's blue: the value set on the material, through
+    // `MaterialParams`, on every backend.
+    materialParameters: <String, List<double>>{
+      'rimColor': <double>[1.0, 0.45, 0.1],
+    },
     shadows: false,
     bloom: false,
     ground: false,
