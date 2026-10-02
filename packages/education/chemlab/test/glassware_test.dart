@@ -12,6 +12,7 @@ void main() {
       ('beaker', beakerProfile()),
       ('flask', flaskProfile()),
       ('cylinder', cylinderProfile()),
+      ('cylinder foot', cylinderFoot()),
     ]) {
       test('a $name starts on the axis and never goes below its base', () {
         // Mutation: start the profile off the axis, and the base is a hole.

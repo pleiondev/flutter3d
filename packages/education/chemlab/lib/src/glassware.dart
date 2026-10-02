@@ -87,18 +87,36 @@ List<Vector2> flaskLiquidProfile(double level) {
   ];
 }
 
-/// A graduated cylinder: a wide foot, then a long narrow tube.
+/// A graduated cylinder's glass: a long narrow tube standing on [cylinderFoot].
 List<Vector2> cylinderProfile() => <Vector2>[
-  Vector2(0, 0),
-  Vector2(0.14, 0),
-  Vector2(0.14, 0),
-  Vector2(0.14, 0.03),
-  Vector2(0.14, 0.03),
+  Vector2(0, 0.03),
   Vector2(0.056, 0.03),
   Vector2(0.056, 0.03),
   Vector2(0.056, 0.86),
   Vector2(0.07, 0.88),
 ];
+
+/// The cylinder's foot: a flat hexagonal slab, swept with six segments.
+///
+/// **It was glass and read as a puddle.** A clear disc lying flat on the
+/// bench shows the bench through it and the reflection under it, and from
+/// above that is exactly what spilt water looks like. Real cylinders stand
+/// on a hexagonal plastic foot, which also stops them rolling away.
+List<Vector2> cylinderFoot() => <Vector2>[
+  Vector2(0, 0),
+  Vector2(0.14, 0),
+  Vector2(0.14, 0),
+  Vector2(0.14, 0.03),
+  Vector2(0.14, 0.03),
+  Vector2(0, 0.03),
+];
+
+/// The foot's plastic: opaque, a little glossy, laboratory blue.
+Material footPlastic() => Material(
+  name: 'foot',
+  baseColor: Vector4(0.2, 0.42, 0.8, 1),
+  roughness: 0.45,
+);
 
 /// Liquid standing on a flat floor at [floor]: a disc of [radius] raised to
 /// [level], with a meniscus on top.
