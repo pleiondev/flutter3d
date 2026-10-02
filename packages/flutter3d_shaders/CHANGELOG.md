@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `ShadowTransmittance` reads the material's base colour map, and neither it
+  nor the stored transmittance is held to one; `ShadowFactor` reads up to
+  four, so a caster can brighten as well as darken.
 - **`ShadowTransmittance`**, the stage a see-through caster is drawn into the
   sun's atlas with (`ShadowSettings.translucentCasters`), and
   `light_transmittance` in `surface.glsl`, which `ShadowFactor` sets and the

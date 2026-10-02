@@ -1314,7 +1314,15 @@ extension _ShadowPasses on Renderer {
           ..[1] = f0 * f0
           ..[2] = 0.0
           ..[3] = 0.0;
-        pass.bindBlock(shader, _transmittanceInfo);
+        pass
+          ..bindBlock(shader, _transmittanceInfo)
+          // What it lets through, painted: white for a material with no map.
+          ..bindTexture(
+            shader,
+            _kAlbedoTextureSlot,
+            material.albedo ?? fallbackAlbedo,
+            sampler: SamplerOptions.linearClamp,
+          );
         drawNode(pass, node, kind, drawMatrices[cascade]);
       }
     }

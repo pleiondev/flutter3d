@@ -227,7 +227,8 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // blue — the layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
     vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
-    vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 1.0);
+    // Up to four: light a caster gathered, not only light it stopped.
+    vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
   }
 

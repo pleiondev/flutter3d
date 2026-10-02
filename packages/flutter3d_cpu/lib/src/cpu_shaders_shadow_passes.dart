@@ -110,8 +110,11 @@ final class ShadowTransmittanceShader implements CpuFragmentShader {
     final params = bindings.vec4('TransmittanceInfo', 'params', Vector4.zero());
     final opacity = colour.w.clamp(0.0, 1.0);
     final transmission = params.x.clamp(0.0, 1.0);
-    double body(double channel) =>
-        (1.0 - opacity) + opacity * transmission * channel.clamp(0.0, 1.0);
+    final map = bindings.textures['base_color_texture'];
+    final texel = map?.sample(v[kVUv], v[kVUv + 1]) ?? Vector4.all(1.0);
+    double body(double channel, double mapped) =>
+        (1.0 - opacity) +
+        opacity * transmission * math.max(channel, 0.0) * mapped;
 
     final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
     final length = normal.length;
@@ -121,13 +124,13 @@ final class ShadowTransmittanceShader implements CpuFragmentShader {
     final f0 = params.y.clamp(0.0, 1.0);
     final fresnel =
         f0 + (1.0 - f0) * math.pow(1.0 - facing.clamp(0.0, 1.0), 5.0);
-    double through(double channel) =>
-        math.sqrt(math.max(body(channel), 0.0)) * (1.0 - fresnel);
+    double through(double channel, double mapped) =>
+        math.sqrt(math.max(body(channel, mapped), 0.0)) * (1.0 - fresnel);
     return Vector4(
       0.0,
-      1.0 - through(colour.x),
-      1.0 - through(colour.y),
-      through(colour.z),
+      1.0 - through(colour.x, texel.x),
+      1.0 - through(colour.y, texel.y),
+      through(colour.z, texel.z),
     );
   }
 }

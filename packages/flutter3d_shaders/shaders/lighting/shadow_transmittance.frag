@@ -27,7 +27,12 @@
 //
 // Where refracted light lands — the bright line down a tube's shadow — is
 // not here: that needs the ray followed through both surfaces, and this
-// stage sees one at a time.
+// stage sees one at a time. What it does offer is the means to say so from
+// outside: the material's base colour map multiplies what it lets through,
+// and neither is held to one, so a caster that is only a shadow — a card
+// marked `ShadowCastingMode.shadowsOnly`, carrying a picture of where the
+// light went — can darken the floor where it went away and brighten it,
+// past one, where it gathered.
 //
 // The body's share is taken as a square root because a closed caster is
 // recorded from both of its sides: light crosses its body once, and its two
@@ -39,8 +44,11 @@
 
 #include <lib/color.glsl>
 
+/// The material's base colour map, or a white texel when it has none.
+uniform sampler2D base_color_texture;
+
 uniform TransmittanceInfo {
-  /// rgb: the colour light comes out of it: the base colour, and for a
+  /// rgb: the colour light comes out of it, not held to one: the base colour, and for a
   /// material that transmits, times what its volume leaves after its
   /// thickness. a: its opacity — one for a material that is not blended, and
   /// for one that transmits, whose alpha describes its look rather than
@@ -59,8 +67,9 @@ transmittance_info;
 void main() {
   float opacity = clamp(transmittance_info.color.a, 0.0, 1.0);
   float transmission = clamp(transmittance_info.params.x, 0.0, 1.0);
-  vec3 body = vec3(1.0 - opacity) +
-              opacity * transmission * clamp(transmittance_info.color.rgb, 0.0, 1.0);
+  vec3 tint = max(transmittance_info.color.rgb, vec3(0.0)) *
+              texture(base_color_texture, v_texcoord).rgb;
+  vec3 body = vec3(1.0 - opacity) + opacity * transmission * tint;
 
   float facing = abs(dot(normalize(v_normal), transmittance_info.light.xyz));
   float f0 = clamp(transmittance_info.params.y, 0.0, 1.0);
