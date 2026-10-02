@@ -1,21 +1,31 @@
 /// Where an agent can stand, baked once from the level's brushes.
 ///
-/// ## Why a grid and not a navigation mesh
+/// ## A grid, and a navigation mesh beside it
 ///
-/// A navmesh earns its complexity by representing *arbitrary* walkable
-/// surfaces. Brushes are not that: a `Brush` is a centre and a size, and
-/// `level.dart` says so outright — there are no slopes. A navmesh over
-/// axis-aligned boxes is a voxelise → region → contour → triangulate pipeline
-/// whose output is the rectangles you could have rasterised directly. The most
-/// code, the hardest to test, and it buys a representation the format cannot
-/// express.
+/// This grid was the whole of navigation for as long as a level was boxes:
+/// over axis-aligned brushes a navmesh is a voxelise → region → contour →
+/// triangulate pipeline whose output is the rectangles a grid rasterises
+/// directly. The level stopped being only boxes. A brush can be a ramp, which
+/// this grid reads as the top of its box and so as a riser as tall as the ramp;
+/// ground can be a `Heightfield`; and a walkway over a floor is a level this
+/// grid can only warn about (see below). `NavMesh` in `navmesh/` is the
+/// pipeline, baked from the same brushes on the same lattice, and it is
+/// beside this grid rather than instead of it.
 ///
-/// **Ground made of samples arrived later and did not change the answer.**
-/// [bakeHeightfield] walks a `Heightfield`, which is terrain and does have
-/// slopes — and a height field is already a lattice, so rasterising it into
-/// this one is a resample rather than a pipeline. The argument against a
-/// navmesh got stronger rather than weaker: the surface it would triangulate
-/// is a grid to begin with.
+/// **What the mesh is for.** It keeps every floor in a column, so a walkway
+/// and the floor under it are both there to walk on. It follows a ramp's
+/// surface. And it is a few dozen convex polygons where this is thousands of
+/// cells, which is what a single agent's search wants: across a convex polygon
+/// the way is a straight line, so a path over the mesh comes out as the few
+/// corners it turns at rather than as a staircase of cell centres.
+///
+/// **What the grid stays for.** A flow field answers every agent at once from
+/// one sweep, which is what a horde wants and a search per agent cannot match,
+/// and its clearance and headroom filters let one bake serve every size of
+/// body. The two agree where they overlap, and a test holds them to it: the
+/// mesh is eroded by this grid's own rule — [clearanceForRadius] over the same
+/// eight-neighbour edges — so it covers exactly the cells a field for a body
+/// of the same radius accepts.
 ///
 /// ## Why it is baked from brushes and not from the collision world
 ///
