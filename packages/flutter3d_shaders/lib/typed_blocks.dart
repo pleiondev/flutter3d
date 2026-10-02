@@ -1112,6 +1112,19 @@ final class SkinInfoBlock extends UniformBlock {
   };
 }
 
+/// `SmaaInfo`.
+final class SmaaInfoBlock extends UniformBlock {
+  SmaaInfoBlock() : super('SmaaInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
+  };
+}
+
 /// `SoftParticleInfo`.
 final class SoftParticleInfoBlock extends UniformBlock {
   SoftParticleInfoBlock() : super('SoftParticleInfo');

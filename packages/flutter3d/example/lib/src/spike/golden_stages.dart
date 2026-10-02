@@ -1118,6 +1118,18 @@ abstract final class GoldenStages {
     spatialUpscale: const SpatialUpscaleSettings(enabled: true),
   );
 
+  // ------------------------------------------------------------------ P1
+
+  /// `smaa-teapot`: `shadow-teapot`'s silhouette and shadow edge smoothed by
+  /// SMAA 1x on the finished picture.
+  static RenderSettings smaaTeapot(RenderSettings settings) =>
+      settings.copyWith(
+        antiAlias: settings.antiAlias.copyWith(
+          enabled: true,
+          method: EdgeSmoothing.smaa,
+        ),
+      );
+
   // ------------------------------------------------------------------ R6
 
   /// `motion-blur-spin`: a wheel of three spokes round a hub, turning at a

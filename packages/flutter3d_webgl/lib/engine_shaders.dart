@@ -22085,6 +22085,252 @@ void main() {
 }
 
 ''',
+    'SmaaEdges': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// SMAA 1x, first of three passes — `P1`: where the luma steps.
+//
+// Red marks a step across a pixel's left side, green across its top. The
+// other two passes read nothing else, so this is where the method decides
+// what an edge is: a step of at least `params.z` in luma, and not much
+// smaller than the largest step beside it. That second test is what keeps
+// SMAA off the inside of a high-contrast texture, which FXAA would smooth as
+// though it were a staircase.
+//
+// `flutter3d_cpu`'s `SmaaEdgesShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The finished picture, tone mapped and encoded.
+uniform sampler2D source_texture;
+
+layout(std140) uniform SmaaInfo {
+  /// x, y: one texel. z: the smallest luma step that is an edge. w: how
+  /// many times smaller than the largest step beside it a step may be and
+  /// still count.
+  vec4 params;
+}
+smaa_info;
+
+/// Rec. 709 weights on the encoded picture.
+float Luma(vec2 at) {
+  vec3 c = textureLod(source_texture, at, 0.0).rgb;
+  return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+void main() {
+  vec2 texel = smaa_info.params.xy;
+  float middle = Luma(v_uv);
+  float left = Luma(v_uv + vec2(-texel.x, 0.0));
+  float top = Luma(v_uv + vec2(0.0, -texel.y));
+  vec2 delta = abs(vec2(middle - left, middle - top));
+  vec2 edges = step(vec2(smaa_info.params.z), delta);
+  if (edges.x + edges.y == 0.0) {
+    frag_color = vec4(0.0);
+    return;
+  }
+
+  float right = abs(middle - Luma(v_uv + vec2(texel.x, 0.0)));
+  float bottom = abs(middle - Luma(v_uv + vec2(0.0, texel.y)));
+  float leftLeft = abs(left - Luma(v_uv + vec2(-2.0 * texel.x, 0.0)));
+  float topTop = abs(top - Luma(v_uv + vec2(0.0, -2.0 * texel.y)));
+  float largest = max(max(max(delta.x, delta.y), max(right, bottom)),
+                      max(leftLeft, topTop));
+  edges *= step(vec2(largest), smaa_info.params.w * delta);
+  frag_color = vec4(edges, 0.0, 0.0);
+}
+
+''',
+    'SmaaWeights': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// SMAA 1x, second of three passes — `P1`: how far each pixel along an edge
+// moves.
+//
+// From every pixel on an edge, a walk to both ends of the run it belongs
+// to: the run ends where the edge stops or where an edge crosses it. Which
+// side of each end a crossing stands on says what shape the staircase is —
+// a step down, a step up, a U — and the line behind that shape, and this
+// pixel's place along it, say how much of the pixel the line covers. That
+// area is precomputed: the engine's `smaaArea` table, 16×16 texels for each
+// pair of end codes, indexed by the square roots of the two distances.
+//
+// Red and green: the top edge's two shares, this pixel's and the one
+// above's. Blue and alpha: the left edge's, this pixel's and the one to the
+// left's. Orthogonal edges only; no diagonal search, no corner rounding.
+//
+// `flutter3d_cpu`'s `SmaaWeightsShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The first pass's edges: red across the left side, green across the top.
+uniform sampler2D edges_texture;
+
+/// The engine's `smaaArea` table, 80×80, filtered.
+uniform sampler2D area_texture;
+
+layout(std140) uniform SmaaInfo {
+  /// x, y: one texel. z, w: the first pass's, unread here.
+  vec4 params;
+}
+smaa_info;
+
+/// The most pixels a search walks from the one it starts at, either way.
+const int kSmaaMaxSearch = 32;
+
+vec4 Edges(vec2 offset) {
+  return textureLod(edges_texture, v_uv + offset * smaa_info.params.xy, 0.0);
+}
+
+/// The table's texel for the two ends' codes and the square roots of the
+/// two distances, filtered between square roots.
+vec2 Area(float first, float last, float codeFirst, float codeLast) {
+  vec2 at = (16.0 * vec2(codeFirst, codeLast) + sqrt(vec2(first, last)) + 0.5) /
+            80.0;
+  return textureLod(area_texture, at, 0.0).rg;
+}
+
+void main() {
+  vec4 here = Edges(vec2(0.0));
+  vec4 weights = vec4(0.0);
+
+  if (here.g > 0.5) {
+    // Along a top edge, to the left: an end where this pixel's own left
+    // side is crossed, or where the next one has no top edge.
+    int first = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      if (Edges(vec2(-float(i), 0.0)).r > 0.5 ||
+          Edges(vec2(-float(i) - 1.0, 0.0)).g < 0.5) {
+        first = i;
+        break;
+      }
+    }
+    int last = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      vec4 next = Edges(vec2(float(i) + 1.0, 0.0));
+      if (next.r > 0.5 || next.g < 0.5) {
+        last = i;
+        break;
+      }
+    }
+    // A crossing on the near side of the edge counts three, on the far
+    // side one: the codes the bilinear fetch of the reference gives.
+    float f = float(first);
+    float l = float(last);
+    float codeFirst = first == kSmaaMaxSearch
+                          ? 0.0
+                          : 3.0 * Edges(vec2(-f, 0.0)).r +
+                                Edges(vec2(-f, -1.0)).r;
+    float codeLast = last == kSmaaMaxSearch
+                         ? 0.0
+                         : 3.0 * Edges(vec2(l + 1.0, 0.0)).r +
+                               Edges(vec2(l + 1.0, -1.0)).r;
+    weights.rg = Area(f, l, codeFirst, codeLast);
+  }
+
+  if (here.r > 0.5) {
+    // Along a left edge, upwards and then down.
+    int first = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      if (Edges(vec2(0.0, -float(i))).g > 0.5 ||
+          Edges(vec2(0.0, -float(i) - 1.0)).r < 0.5) {
+        first = i;
+        break;
+      }
+    }
+    int last = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      vec4 next = Edges(vec2(0.0, float(i) + 1.0));
+      if (next.g > 0.5 || next.r < 0.5) {
+        last = i;
+        break;
+      }
+    }
+    float f = float(first);
+    float l = float(last);
+    float codeFirst = first == kSmaaMaxSearch
+                          ? 0.0
+                          : 3.0 * Edges(vec2(0.0, -f)).g +
+                                Edges(vec2(-1.0, -f)).g;
+    float codeLast = last == kSmaaMaxSearch
+                         ? 0.0
+                         : 3.0 * Edges(vec2(0.0, l + 1.0)).g +
+                               Edges(vec2(-1.0, l + 1.0)).g;
+    weights.ba = Area(f, l, codeFirst, codeLast);
+  }
+
+  frag_color = weights;
+}
+
+''',
+    'SmaaBlend': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// SMAA 1x, last of three passes — `P1`: each pixel moved towards its
+// neighbour across the edge by the share the second pass found.
+//
+// Four shares reach a pixel: its own for its top and left sides, and its
+// right and bottom neighbours' far shares for the sides it shares with them.
+// The larger pair wins — across or along — and the pixel is two filtered
+// taps, each pulled that fraction of a texel towards its side.
+//
+// `flutter3d_cpu`'s `SmaaBlendShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The finished picture, filtered.
+uniform sampler2D source_texture;
+
+/// The second pass's shares.
+uniform sampler2D blend_texture;
+
+layout(std140) uniform SmaaInfo {
+  /// x, y: one texel. z, w: the first pass's, unread here.
+  vec4 params;
+}
+smaa_info;
+
+void main() {
+  vec2 texel = smaa_info.params.xy;
+  float right = textureLod(blend_texture, v_uv + vec2(texel.x, 0.0), 0.0).a;
+  float bottom = textureLod(blend_texture, v_uv + vec2(0.0, texel.y), 0.0).g;
+  vec4 mine = textureLod(blend_texture, v_uv, 0.0);
+  float top = mine.r;
+  float left = mine.b;
+  if (right + bottom + top + left < 1e-5) {
+    frag_color = textureLod(source_texture, v_uv, 0.0);
+    return;
+  }
+
+  bool across = max(right, left) > max(bottom, top);
+  float toward = across ? right : bottom;
+  float away = across ? left : top;
+  vec2 axis = across ? vec2(texel.x, 0.0) : vec2(0.0, texel.y);
+  vec4 first = textureLod(source_texture, v_uv + toward * axis, 0.0);
+  vec4 second = textureLod(source_texture, v_uv - away * axis, 0.0);
+  float total = toward + away;
+  frag_color = first * (toward / total) + second * (away / total);
+}
+
+''',
     'MrtProbe': r'''#version 300 es
 precision highp float;
 precision highp int;

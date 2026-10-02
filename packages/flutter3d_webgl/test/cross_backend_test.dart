@@ -229,6 +229,10 @@ const Map<String, double> _budgets = <String, double>{
   'cascade-walk': 0.04,
   'clearcoat-car-paint': 0.2,
   'easu-half': 0.9,
+  // 0.591% measured, every pixel of it on an edge: WebGL2 already draws
+  // `shadow-teapot`'s silhouette 0.28% apart from Impeller's, and SMAA reads
+  // a slightly different staircase there and moves its neighbours with it.
+  'smaa-teapot': 0.65,
   'evsm-soft': 0.4,
   // 0.047% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of

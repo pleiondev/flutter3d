@@ -1072,6 +1072,14 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.easuHalf,
   ),
 
+  // P1. `shadow-teapot` with its edges smoothed by SMAA 1x.
+  const GoldenScene(
+    name: 'smaa-teapot',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.smaaTeapot,
+  ),
+
   // R6. A turning wheel blurred along its own motion.
   const GoldenScene(
     name: 'motion-blur-spin',

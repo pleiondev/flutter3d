@@ -79,6 +79,18 @@
     "type": "fragment",
     "file": "shaders/post/fxaa.frag"
   },
+  "SmaaEdges": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_edges.frag"
+  },
+  "SmaaWeights": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_weights.frag"
+  },
+  "SmaaBlend": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_blend.frag"
+  },
   "MrtProbe": {
     "type": "fragment",
     "file": "shaders/post/mrt_probe.frag"

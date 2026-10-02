@@ -742,6 +742,7 @@ final class Renderer implements RenderServices {
   final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
   final FragInfoBlock _fragInfo = FragInfoBlock();
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final SmaaInfoBlock _smaaInfo = SmaaInfoBlock();
   final EasuInfoBlock _easuInfo = EasuInfoBlock();
   final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
   final LocalExposureBlurInfoBlock _localExposureBlurInfo =
@@ -1521,7 +1522,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: seventy-eight goldens go through this
+  /// strength has, and for the same reason: seventy-nine goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;

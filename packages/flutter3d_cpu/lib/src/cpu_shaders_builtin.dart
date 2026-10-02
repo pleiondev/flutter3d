@@ -65,6 +65,7 @@ import 'cpu_shaders_reactive.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
+import 'cpu_shaders_smaa.dart';
 import 'cpu_shaders_ssao.dart';
 import 'cpu_shaders_temporal.dart';
 import 'cpu_shaders_velocity.dart';
@@ -90,6 +91,7 @@ export 'cpu_shaders_shadow_directional.dart';
 export 'cpu_shaders_shadow_passes.dart';
 export 'cpu_shaders_shadow_point.dart';
 export 'cpu_shaders_sky.dart';
+export 'cpu_shaders_smaa.dart';
 export 'cpu_shaders_ssao.dart';
 export 'cpu_shaders_surface.dart';
 export 'cpu_shaders_temporal.dart';
@@ -233,6 +235,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Composite': const CpuStage.fragment(CompositeShader()),
     'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),
+    'SmaaEdges': const CpuStage.fragment(SmaaEdgesShader()),
+    'SmaaWeights': const CpuStage.fragment(SmaaWeightsShader()),
+    'SmaaBlend': const CpuStage.fragment(SmaaBlendShader()),
     'LocalExposure': const CpuStage.fragment(LocalExposureShader()),
     'LocalExposureBlur': const CpuStage.fragment(LocalExposureBlurShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),

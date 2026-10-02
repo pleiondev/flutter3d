@@ -40,7 +40,7 @@ void reportLine(String message) {
 /// The scene named in the page's URL, if any.
 ///
 /// A run-time choice here, where the desktop path takes a compile-time define.
-/// The reason is arithmetic: the suite is seventy-eight scenes, and rebuilding
+/// The reason is arithmetic: the suite is seventy-nine scenes, and rebuilding
 /// the bundle for each is seventy-eight dart2js runs to compare seventy-eight
 /// pictures. One build and seventy-eight navigations is the same information
 /// in a fraction of the time.
@@ -58,7 +58,7 @@ String? get sceneOverride {
 /// Whether this run records rather than compares, from the page's URL.
 ///
 /// A run-time choice for the same reason [sceneOverride] is one: the suite is
-/// seventy-eight scenes and rebuilding for each would be seventy-eight dart2js
+/// seventy-nine scenes and rebuilding for each would be seventy-eight dart2js
 /// runs. One build serves both directions, and the URL says which.
 bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 
