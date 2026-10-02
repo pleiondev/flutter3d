@@ -41,6 +41,16 @@
   component goes. `EntityLayout.ecs` reads an `EcsWorld.save()`,
   `EntityLayout.rows` one row per entity. `RewindBuffer.oldestStep` is the
   left end of a scrubber.
+- **A save says what version of the game wrote it, and an old one is
+  migrated.** `SaveSchema` is a game's list of migrations, and its version is
+  their count, so the version cannot move without one. `upgrade` brings an
+  older run up and refuses a newer one, saying it is newer, rather than
+  misreading it. `SaveRecord` is the save document: level, snapshot, schema,
+  step and a digest of the run. `SaveRecord.read` never throws.
+- **`resolveSaves` decides between two copies of a save** by digest and step,
+  against the digest both last agreed on: the same run is in sync, a side
+  still at the base lost to the one that moved, otherwise the further run
+  wins, and two different runs equally far along go to the player.
 
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback

@@ -988,6 +988,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'playing, won, lost. The vocabulary all three games and every '
         'screen are built on, and the same set RunStatus is sealed around',
   },
+  'flutter3d_sim/lib/src/save/save_record.dart': <String, String>{
+    'SaveResolution':
+        'what can come of comparing two copies of one thing: they are the '
+        'same, keep this one, keep that one, or nobody but the player can '
+        'say. A fifth would not be an answer this comparison is missing',
+  },
   'flutter3d_editor_core/lib/src/gizmos.dart': <String, String>{
     'Piece':
         'the three things a level document is made of, seen from an editor: '

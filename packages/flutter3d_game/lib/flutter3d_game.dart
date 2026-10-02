@@ -35,6 +35,10 @@
 /// the run — [RunSession] is an ordinary class.
 library;
 
+export 'src/cloud/cloud_save_store.dart';
+export 'src/cloud/http_cloud_saves.dart';
+export 'src/cloud/platform_cloud_saves.dart';
+export 'src/cloud/save_sync.dart';
 export 'src/config/accommodations.dart';
 export 'src/config/game_config.dart';
 export 'src/input/bindings.dart';
@@ -42,6 +46,7 @@ export 'src/input/desktop_input.dart';
 export 'src/input/pad_actions.dart';
 export 'src/input/playing.dart';
 export 'src/input/touch_controls.dart';
+export 'src/run/autosave.dart';
 export 'src/run/bug_report.dart';
 export 'src/run/demo_recording.dart';
 export 'src/run/demo_timeline.dart';

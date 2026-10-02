@@ -107,6 +107,8 @@ export 'src/save/game_random.dart';
 export 'src/save/replay.dart';
 export 'src/save/rewind.dart';
 export 'src/save/run_stats.dart';
+export 'src/save/save_record.dart';
+export 'src/save/save_schema.dart';
 export 'src/save/scoring.dart';
 export 'src/save/snapshot.dart';
 export 'src/save/state_digest.dart';
