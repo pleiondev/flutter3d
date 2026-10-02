@@ -88,4 +88,44 @@ void main() {
     );
     expect(to.colour.r, closeTo(red, 0.01));
   });
+
+  test('the lip passes the flow it is asked to, and faster for more', () {
+    final slow = overLip(flow: 2e-4, radius: 0.074, tilt: 1.6);
+    final fast = overLip(flow: 1e-3, radius: 0.074, tilt: 1.6);
+    // Mutation: drop the weir's three-halves power, and the head a flow
+    // needs is wrong by a factor that grows with it.
+    expect(fast.head, greaterThan(slow.head));
+    expect(fast.speed, greaterThan(slow.speed));
+    // Critical flow over the crest: a speed of about √(g · 2h/3).
+    expect(slow.speed, closeTo(math.sqrt(9.81 * slow.head * 2 / 3), 0.15));
+    expect(fast.width, lessThanOrEqualTo(2 * 0.074));
+  });
+
+  test('a pour goes in at the mouth, lip over the rim', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[2];
+    final to = bench.clean;
+    bench.share(from);
+    var checked = 0;
+    while (bench.busy) {
+      bench.step(1 / 60);
+      final stream = bench.scene.root.children.firstWhere(
+        (n) => n.name == 'stream',
+        orElse: () => to.body,
+      );
+      if (!identical(stream, to.body) && stream.visible) {
+        // Mutation: hold the lip high over the middle again, and the stream
+        // crosses the rim on its way down: the lip is outside the mouth.
+        final lip = from.body.worldMatrix.transformed3(from.lip);
+        final off = Vector2(lip.x - to.at.x, lip.z - to.at.z).length;
+        expect(off, lessThan(to.lip.z));
+        final rim = to.glass.map((p) => p.y).reduce(math.max);
+        expect(lip.y, greaterThan(to.at.y + rim));
+        expect(lip.y, lessThan(to.at.y + rim + 0.05));
+        checked++;
+      }
+    }
+    expect(checked, greaterThan(10));
+  });
 }

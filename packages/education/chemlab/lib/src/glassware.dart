@@ -11,6 +11,17 @@ import 'package:vector_math/vector_math.dart';
 /// top is what makes the normals face out. A repeated point is a hard edge,
 /// which is how a lip or a base gets a crisp rim instead of a rounded one.
 
+/// How many times life size the bench is: a test tube here is sixteen
+/// centimetres across, a real one sixteen millimetres.
+///
+/// Gravity's part in how liquid moves looks the same at any size if time is
+/// stretched by the root of the scale (Froude's similarity), so a wave or a
+/// fall on this bench is a real one, slowed. Surface tension does not scale
+/// that way: it is what draws a real tube's pour into a thin thread at once,
+/// and on a bench ten times the size it would take ten times as long. So it
+/// is worked out at life size and carried over.
+const double lifeScale = 10.0;
+
 /// The radius of a test tube's wall, which its label and liquid follow.
 const double tubeRadius = 0.08;
 
