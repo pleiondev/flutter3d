@@ -81,6 +81,8 @@ final settings = RenderSettings(
 );
 ```
 
+The first coloured shadows on this bench were hard to see, and the engine was not the reason. Only the sun's share of the light is tinted, and the room was lit by a sky as bright as the sun, so a shadow lost a third of its light and kept most of its grey. The tabletop was dark grey too, and colour does not read on dark grey. The bench now has a light, warm top, a stronger sun and a dimmer sky, and the solutions let more light through, as real ones do: their transmission is 0.85, so a tube's shadow is mostly the colour of what is in it.
+
 It has limits. The atlas keeps the colour, not where along the light it was picked up, so something standing between the sun and a glass would be shaded as if it stood behind it; a bench has nothing like that. It does nothing with the moments filter, which uses those channels for itself. And a see-through surface that casts is not shaded by it, so a glass does not darken itself; the tabletop, which lets a little of the reflections under it through, casts nothing and is shaded like any floor.
 
 ## Refraction, caustics and reflections

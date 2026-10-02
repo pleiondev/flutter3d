@@ -202,7 +202,7 @@ Material liquid(Vector3 colour) => Material(
   depthWrite: true,
   extensions: MaterialExtensions(
     ior: 1.33,
-    transmission: 0.35,
+    transmission: 0.85,
     thickness: 0.06,
     attenuationColor: colour,
     attenuationDistance: 0.08,
