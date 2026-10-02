@@ -18,6 +18,7 @@ final class Vessel {
     required this.highest,
     this.solution,
     this.focuses = true,
+    this.foot,
   });
 
   /// What the controls call it.
@@ -28,6 +29,9 @@ final class Vessel {
 
   /// Its outline, swept into the glass.
   final List<Vector2> glass;
+
+  /// A plastic foot it stands on, swept with six segments; null for none.
+  final List<Vector2>? foot;
 
   /// The liquid's outline when it is filled to a level.
   final List<Vector2> Function(double level) liquidAt;
@@ -118,6 +122,7 @@ List<Vessel> standardVessels() {
       focuses: false,
       at: Vector3(-1.05, 0, -0.25),
       glass: cylinderProfile(),
+      foot: cylinderFoot(),
       liquidAt: (level) => flatLiquidProfile(0.051, 0.034, level),
       colour: const Color(0xFFF2D91A),
       level: 0.62,
@@ -214,6 +219,26 @@ final class Bench {
           ..lightChannels = _vesselChannel
           ..setPositionFrom(vessel.at),
       );
+      final foot = vessel.foot;
+      if (foot != null) {
+        final hexagon = DeviceMesh.upload(
+          device,
+          LatheShape(profile: foot, segments: 6).build(),
+        );
+        scene
+          ..add(
+            MeshNode(hexagon, footPlastic(), name: '${vessel.name} foot')
+              ..lightChannels = _vesselChannel
+              ..setPositionFrom(vessel.at),
+          )
+          ..add(
+            _mirrored(
+              hexagon,
+              _reflection(albedo: null, colour: Vector3(0.2, 0.42, 0.8)),
+              vessel,
+            ),
+          );
+      }
     }
     final environment = EnvironmentMap.fromSky(device, labSky);
     if (environment != null) {
