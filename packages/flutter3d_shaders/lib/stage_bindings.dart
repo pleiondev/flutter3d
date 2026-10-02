@@ -71,6 +71,17 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'DebugLine': (blocks: <String>{}, samplers: <String>{}),
   'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
+  'Decal': (
+    blocks: <String>{'DecalInfo'},
+    samplers: <String>{
+      'albedo_texture',
+      'decal_texture_0',
+      'decal_texture_1',
+      'decal_texture_2',
+      'decal_texture_3',
+      'surface_texture',
+    },
+  ),
   'DepthOfField': (
     blocks: <String>{'DofInfo', 'FragCoordInfo'},
     samplers: <String>{'coc_tile_texture', 'scene_texture', 'surface_texture'},

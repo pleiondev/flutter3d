@@ -255,6 +255,10 @@
     "type": "fragment",
     "file": "shaders/post/viewport_shade.frag"
   },
+  "Decal": {
+    "type": "fragment",
+    "file": "shaders/post/decal.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"

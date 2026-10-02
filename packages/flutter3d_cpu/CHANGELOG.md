@@ -16,6 +16,10 @@
 `^3.12.2` and `vector_math` 2.4.3, which were what this repository is built with rather than
 what the package needs. A workspace that supports Flutter 3.44, Flame's among
 them, could not depend on it. Nothing else changed.
+**The decal stage, as the GLSL has it.** `DecalShader` mirrors
+`post/decal.frag` line for line, the mip level of each picture chosen from
+the same footprint the GLSL computes by hand from neighbouring texels of the
+surface buffer.
 
 ## 0.8.2
 

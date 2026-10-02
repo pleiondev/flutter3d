@@ -145,6 +145,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'VelocityNeighborMax',
       'MotionBlur',
       'ViewportShade',
+      // `P3`: the decals, over the surface and albedo buffers.
+      'Decal',
       'MrtProbe',
       // `H5`: the field kernel the conformance suite steps `FieldPass` with.
       'FieldDecay',

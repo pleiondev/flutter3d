@@ -4,6 +4,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'camera_node.dart';
+import 'decal_node.dart';
 import 'irradiance_field.dart';
 import 'light_node.dart';
 import 'lod_group.dart';
@@ -68,6 +69,13 @@ final class Scene {
   /// per draw, so both want a list rather than a tree walk.
   final List<ReflectionProbeNode> _probes = <ReflectionProbeNode>[];
 
+  /// Projected decals, in attachment order — `P3`.
+  ///
+  /// A registry for the probes' reason: the decal pass reads every one each
+  /// frame, and the order they were attached in breaks ties between equal
+  /// [DecalNode.order]s.
+  final List<DecalNode> _decals = <DecalNode>[];
+
   /// Everything drawable currently in the scene, in attachment order.
   ///
   /// **A view, where these four used to be the lists themselves.** Handing out
@@ -102,6 +110,11 @@ final class Scene {
   List<ReflectionProbeNode> get probes => _probesView;
   late final List<ReflectionProbeNode> _probesView =
       UnmodifiableListView<ReflectionProbeNode>(_probes);
+
+  List<DecalNode> get decals => _decalsView;
+  late final List<DecalNode> _decalsView = UnmodifiableListView<DecalNode>(
+    _decals,
+  );
 
   /// Ambient light applied where no direct light reaches.
   ///
@@ -198,6 +211,7 @@ final class Scene {
     _cameras.clear();
     _lodGroups.clear();
     _probes.clear();
+    _decals.clear();
 
     // Back to front, because `SceneNode.remove` takes the last child without
     // searching for it or shifting the rest; front to back shifted the whole
@@ -227,6 +241,10 @@ final class Scene {
   void registerProbe(ReflectionProbeNode node) => _probes.add(node);
 
   void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
+
+  void registerDecal(DecalNode node) => _decals.add(node);
+
+  void unregisterDecal(DecalNode node) => _decals.remove(node);
 
   /// First light of the given type, or null.
   ///

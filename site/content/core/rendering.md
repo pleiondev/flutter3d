@@ -487,7 +487,7 @@ It is marched at half resolution and brought up by depth, so a halo behind a pil
 
 ```dart
 SkySettings(
-  enabled: true,        // off by default: eighty-one goldens are recorded against none
+  enabled: true,        // off by default: eighty-two goldens are recorded against none
   zenith: Vector3(0.10, 0.22, 0.52),
   horizon: Vector3(0.42, 0.50, 0.62),
   nadir: Vector3(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
@@ -639,6 +639,31 @@ RenderSettings(
 ```
 
 It runs after the tone map, because in HDR a highlight rings around any lobed filter, and only while `renderScale` is below one and the temporal resolve is off; `SpatialUpscaleSettings.runsFor(settings)` answers whether a frame will use it.
+
+## Decals
+
+```dart
+final decal = DecalNode(
+  texture: scorch,                      // sRGB, like a base colour map; null paints the tint alone
+  color: Vector4(1.0, 1.0, 1.0, 0.9),   // sRGB tint, and the opacity in w
+  emissive: Vector3.zero(),             // light the painted colour gives off, as a multiple of it
+  order: 0,                             // higher is painted over lower where two overlap
+  angleLimit: 1.3,                      // radians from the box's up past which a surface is left alone
+)
+  ..setScale(2.0, 0.5, 2.0)             // the picture's size in x and z, how deep it reaches in y
+  ..setPosition(0.0, 0.0, 0.0);
+scene.add(decal);
+
+RenderSettings(decals: DecalSettings(enabled: true)) // off by default
+```
+
+A decal is a box, its node's unit cube, and it paints its picture onto whatever geometry stands inside it, stamped down the box's y axis. A decal with no rotation lies on a floor; to put one on a wall, rotate the box until its up points out of the wall. `region` picks a cell of an atlas.
+
+The decal pass runs after the opaque half of the scene and before the transparent half. A depth attachment cannot be sampled, so it finds the point under each pixel the way reflections and occlusion do, from the depth the surface buffer holds. It then reads back the light that point was lit by, through the albedo buffer, and lays the decal's colour under that light: a decal in a shadow is in the shadow, and a decal under a red lamp is red. The surface's normal and roughness are not changed. Where a surface wrote no albedo, because it is unlit or black, there is no light to read back, and the decal is drawn at its own colour. The surface's own highlight, emission and fog are scaled along with the light, which is close on a matte wall and wrong on a mirror.
+
+Sixteen decals and four pictures fit in one draw. Past that the pass draws again, and where a decal of the second draw lies over one of the first, the light under the first is read through the surface's colour rather than the first decal's.
+
+What it costs: two fullscreen draws per batch, each cut to the screen rectangle its boxes cover. It reads the surface and albedo buffers, so it needs a device that opens three colour attachments, and it turns MSAA off. A frame with a visible decal splits the scene pass the way glass does, so glass in front of a decal is drawn over it rather than painted. A frame whose decals are all hidden registers the pass, finds it inactive and draws what it drew without them.
 
 ## Glass and transparency
 
