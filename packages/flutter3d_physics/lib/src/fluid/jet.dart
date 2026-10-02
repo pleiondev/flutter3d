@@ -5,6 +5,19 @@ import 'package:vector_math/vector_math.dart';
 import '../portable_math.dart';
 import 'fluid_medium.dart';
 
+/// When something thrown at [velocity] from [height] reaches [floor] under
+/// gravity [g] pointing down: the later root of height + v_y·t − g t²/2 =
+/// floor. For aiming a stream: how far it is carried while it falls.
+double fallTime(
+  Vector3 velocity,
+  double height,
+  double floor, {
+  double g = 9.81,
+}) {
+  final drop = math.max(height - floor, 0.0);
+  return (velocity.y + math.sqrt(velocity.y * velocity.y + 2.0 * g * drop)) / g;
+}
+
 /// Something a stream can land in — a vessel's liquid.
 abstract interface class JetReceiver {
   /// Whether a parcel of [radius] at [point] (world) has reached this

@@ -60,8 +60,22 @@ List<LiquidLayerMesh> liquidMeshes(
 /// A point of a triangle: where, and its normal.
 typedef _P = ({Vector3 p, Vector3 n});
 
-/// The inside of [shape] as triangles, wound outwards.
+/// The inside of [shape] as triangles, wound outwards; made once a shape
+/// and kept, since a liquid is drawn again every frame it moves.
 List<List<_P>> _inside(VesselShape shape, int segments, int rows) {
+  final kept = _insides[shape];
+  if (kept != null && kept.segments == segments && kept.rows == rows) {
+    return kept.triangles;
+  }
+  final triangles = _insideOf(shape, segments, rows);
+  _insides[shape] = (segments: segments, rows: rows, triangles: triangles);
+  return triangles;
+}
+
+final Expando<({int segments, int rows, List<List<_P>> triangles})> _insides =
+    Expando();
+
+List<List<_P>> _insideOf(VesselShape shape, int segments, int rows) {
   final out = <List<_P>>[];
   switch (shape) {
     case RevolvedVessel(:final wall):
@@ -240,18 +254,42 @@ void _cap(
     if (_signedArea(loop, e1, e2) < 0.0) ordered = loop.reversed.toList();
     if (_starShaped(ordered, angle)) {
       // Rings from the outline in to the middle, closer near the outline.
-      final grid = <List<int>>[];
-      for (var j = 0; j <= rings; j++) {
-        final u = j / rings;
-        final f = 1.0 - (1.0 - u) * (1.0 - u);
-        final row = <int>[];
-        for (final p in ordered) {
-          final q = middle + (p - middle) * (1.0 - f);
-          row.add(builder.addVertex(position: raise(q), normal: shade(q)));
-        }
-        grid.add(row);
-      }
+      // Raised first, then shaded from their neighbours on the grid: the
+      // surface asked once a point rather than five times for its slope.
       final n = ordered.length;
+      final raised = [
+        for (var j = 0; j <= rings; j++)
+          [
+            for (final p in ordered)
+              raise(
+                middle + (p - middle) * ((1.0 - j / rings) * (1.0 - j / rings)),
+              ),
+          ],
+      ];
+      Vector3 gridNormal(int j, int k) {
+        if (lift == null) return normal;
+        // At the middle every ring point is the same: the ring outside it.
+        final row = math.min(j, rings - 1);
+        final along = raised[row][(k + 1) % n] - raised[row][(k - 1 + n) % n];
+        final across =
+            raised[math.max(row - 1, 0)][k] -
+            raised[math.min(row + 1, rings)][k];
+        final m = along.cross(across);
+        if (m.length2 < 1e-30) return normal;
+        m.normalize();
+        return m.dot(normal) < 0.0 ? -m : m;
+      }
+
+      final grid = [
+        for (var j = 0; j <= rings; j++)
+          [
+            for (var k = 0; k < n; k++)
+              builder.addVertex(
+                position: raised[j][k],
+                normal: gridNormal(j, k),
+              ),
+          ],
+      ];
       for (var j = 0; j < rings; j++) {
         for (var k = 0; k < n; k++) {
           final a = grid[j][k];

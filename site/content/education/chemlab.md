@@ -35,23 +35,25 @@ Five labelled test tubes, a graduated cylinder, a beaker and an Erlenmeyer flask
 Almost everything on a bench is round, so none of it is modelled. Each piece is half of its outline, a profile in the (radius, height) plane ordered bottom to top, swept round the Y axis by `LatheShape`. A test tube is a quarter circle for the bottom, a straight wall and a slight flare at the mouth. A repeated point is a hard edge.
 
 ```dart
-List<Vector2> tubeProfile({double radius = 0.08, double height = 0.9}) => [
+List<Vector2> tubeProfile({double radius = 0.008, double height = 0.09}) => [
   for (var i = 0; i <= 8; i++) // the round bottom
     Vector2(radius * sin(i / 16 * pi), radius - radius * cos(i / 16 * pi)),
   Vector2(radius, height), // the wall
-  Vector2(radius * 1.06, height + 0.01), // the flare
+  Vector2(radius * 1.06, height + 0.001), // the flare
 ];
 ```
 
-That outline is only the outside. Swept as it is, it ends in a bare edge, and from above the mouth of a tube read as a flat paper ring. `glassWall` gives it a wall: the inside is the outline moved in along its normal by four millimetres and walked back down, so its normals face the cavity, and a half circle joins the two as the rim that catches the light. Glass also shows almost nothing of itself, only what is round it, so the scene has a sky for an environment: a bright ceiling, a pale horizon and a darker floor for the glass to reflect.
+Everything is life size, in metres: a test tube is sixteen millimetres across and nine centimetres tall, with half a millimetre of glass. It was ten times that at first, which looked the same and was wrong in every number the liquid depends on; surface tension does not scale with the glass.
+
+That outline is only the outside. Swept as it is, it ends in a bare edge, and from above the mouth of a tube read as a flat paper ring. `glassWall` gives it a wall: the inside is the outline moved in along its normal by half a millimetre and walked back down, so its normals face the cavity, and a half circle joins the two as the rim that catches the light. Glass also shows almost nothing of itself, only what is round it, so the scene has a sky for an environment: a bright ceiling, a pale horizon and a darker floor for the glass to reflect.
 
 ## Liquid that reads as liquid
 
-The liquid fills the inside of the glass up to its surface. Pouring, tilting and every frame of a slosh build a new mesh and swap it in, letting the old one go after the frames still drawing it.
+The liquid fills the inside of the glass up to its surface. Every frame something moves, its mesh is built again from the physics (`liquidMeshes` in `flutter3d_core`) and swapped in, and the old one is let go after the frames still drawing it.
 
 The first version was a coloured solid with a flat lid, and that is exactly how it looked: painted plastic. Several changes fixed that, and the one that mattered most was not in the liquid at all.
 
-- **A meniscus.** Water wets glass and climbs the wall a few millimetres, so the top of the profile rises at the wall and dips towards the middle. The curve catches a thin bright line where it meets the glass, which a flat cap never does.
+- **A meniscus.** Water wets glass and climbs the wall, so the surface rises at the wall and dips towards the middle. Its shape is not drawn: the physics solves the Young–Laplace equation for the tube's radius and water's contact angle, and in a tube this narrow the whole surface is curved. The curve catches a thin bright line where it meets the glass, which a flat cap never does.
 - **Light goes through all of it.** The material is the layered model with full transmission and water's index of refraction, 1.33. Its colour is the volume's, an attenuation colour over thirty centimetres, and the base colour is nearly white so the colour is not given twice.
 - **It is a lens.** A column of liquid is a convex body, and `MaterialExtensions.convexVolume` tells the engine so: the thickness is the depth through the middle, and the path a ray takes inside is that depth times how squarely the bent ray meets the surface. Both the colour and how far behind the liquid the scene is read from follow that path.
 - **A wet surface.** A clear coat with no roughness over the colour gives the sharp highlight a liquid has and a painted surface does not.
@@ -78,15 +80,15 @@ The glass needed a fix in the engine too. A thin wall bends nothing, so what is 
 
 ## Liquid that moves
 
-A liquid's surface keeps level while the glass tilts, and it lags. None of that needs a fluid solver, because a liquid in a round vessel has known modes of oscillation: shapes J_m(ξr/R)·cos mθ, where ξ is a zero of the derivative of J_m so the surface meets the wall square, each ringing at ω² = g·k·tanh(k·h) with k = ξ/R. For a tube this size the first one rocks about two and a half times a second.
+The bench has no liquid code of its own. Each vessel's contents are a `LiquidBody` from `flutter3d_physics`, the bench is a `FluidWorld` under Earth's gravity, and the bench's part is to put the glass where the hand says and draw what comes back. The module is general; chemistry is just the first thing to use it. I wrote it up in [Liquids](/core/liquids/).
 
-- **Tilting.** The surface settles to the plane that is level in the world, and that plane is kept exactly. What the bench follows is how far the liquid is from it, along the first three modes with m = 1. When the glass turns faster than the liquid can follow, the plane moves and the liquid stays where it was, so each mode is left off its rest by its share of the change in slope. A plane expands over those modes with the share 2R / ((ξ² − 1)·J₁(ξ)): the first mode, the sloshing, takes most of it, and the other two are the finer waves that run across the surface as it rocks.
-- **Tapping.** A knock starts the axisymmetric modes, at the zeros of J₁: rings that run out from the middle and fade. None of them moves liquid in or out of the middle, so the level stays where it was poured.
-- **Damping.** Water in glass this size rocks four or five times before it is still, and a finer wave dies sooner, roughly with the root of its frequency.
+- **Tilting.** The surface keeps to the plane level in the gravity the liquid feels, which is the world's less the glass's own acceleration, so a vessel lifted quickly sloshes. The waves on it are the modes of that surface in that vessel, found numerically for whatever cut the plane makes, each ringing at ω² = (gk + σk³/ρ)·tanh(kh). For a test tube the first one rocks about five times a second.
+- **Tapping.** A knock is a small heap of water where the knock lands, laid out over the modes, which carry it off as rings.
+- **Damping.** The boundary layer at the glass takes most of it, as Stephens and Dodge measured, and viscosity takes the finer waves. Water in a tube this size rocks a few times and is still.
 
-Each mode is a damped oscillator stepped six hundred times a second, which costs nothing, and the mesh is rebuilt every frame while anything moves: up the wall at each angle to where the surface meets it, then across the surface to the middle, with the normals taken from the modes' gradients. When the last mode is under a tenth of a millimetre the ticker stops and the bench stops drawing.
+When every mode is under a tenth of a millimetre the ticker stops and the bench stops drawing.
 
-A vessel leans in the picture, about the horizontal axis the camera looks along, and is lifted out of the row just far enough that its underside clears the glass it leans over, as a hand would lift it; set back upright, it is put down again. One vessel is in the hand at a time. It leans no further than where what it holds would reach the lip. Past half a radian the surface is no longer followed with its waves but cut flat by the plane that holds its volume, as in a pour. The cut-by-cut shadows are worked out for upright glass, so while a vessel leans its card is put away and the glass and liquid cast for themselves.
+A vessel leans in the picture, about the horizontal axis the camera looks along, and is lifted out of the row just far enough that its underside clears the glass it leans over, as a hand would lift it; set back upright, it is put down again. One vessel is in the hand at a time. It leans no further than where what it holds would reach the lip. The cut-by-cut shadows are worked out for upright glass, so while a vessel leans its card is put away and the glass and liquid cast for themselves.
 
 ## Shadows that know what the material lets through
 
@@ -116,13 +118,15 @@ It has limits. The atlas keeps the colour, not where along the light it was pick
 
 There is an empty tube at the front of the bench. Pick a solution and press **Share with clean tube**: the tube rises over its neighbours, comes over the clean one, tips until it pours, and stops when both hold the same. Then it goes back to its place and rocks for a second after it is put down.
 
-None of it is keyframed. Tipped that far, a surface is no longer a height over the floor, so the bench works from the volume instead. The surface is the plane level in the world, and in the glass's frame its height along the world's up is whatever leaves the liquid's volume under it. Cut across its axis a tube is a disc and the plane cuts it along a chord, so the volume under the plane is a sum of circular segments, slice by slice, each with a closed-form area. Liquid runs out when that plane would have to stand above the lowest point of the mouth.
+Only the hand is the bench's. It lifts the tube, brings the lip over the clean tube's mouth and tips it; everything the liquid does after that is the physics.
 
-The lean is what the hand decides, and everything else follows from it. At a given lean and volume the surface stands some height over the lowest point of the mouth; that head, through the weir below, is the flow, and the volume goes down by it. No head, no flow: tip the glass back and the liquid draws away from the edge and stops running. The hand tips further while less runs than it wants and back while more does, and it wants less as it nears half, as the root of what is left, so the pour ends in a finite time with the glass resting at the edge of pouring. What left the tube goes into the other one, a fall later.
+The hand tips the glass to where what it holds below its lip is what is in it less the next eighth of a second's worth, so that much stands over the lip and runs. The flow over the lip is a weir's: over each stretch of the rim the surface stands above, C_d·(2/3)·√(2g)·depth^(3/2) per metre, with the measured C_d of 0.62. No head, no flow: tip the glass back and the liquid draws away from the edge and stops. The hand wants less as the pour nears half, as the root of what is left, so it ends with the glass at the edge of pouring.
 
-The stream is worked out from the flow, not drawn. The lip is a weir: the surface stands some height over the lowest point of the mouth, the mouth is a circle tipped with the glass, and over a sharp edge liquid passes at C_d·(2/3)·√(2g)·depth^(3/2) per metre, with the measured C_d of 0.62. Halving on the height finds the one that passes the flow; the flow over the crest is critical, so the sheet leaving the lip is two thirds of that deep, as wide as the wetted edge, and its speed is the flow over its section. From there it falls freely, its section the flow over its speed. Its edges draw in under surface tension at the Taylor–Culick speed, and that one thing is worked out at life size: the bench is ten times a real one, gravity's part looks the same at any size with time stretched by the root of the scale, but surface tension does not, and on a bench this size a pour would stay a sheet ten times too long. At life size it pulls into a thread within a couple of centimetres, as a real one does. What passes each height is what left the lip that long ago, so the section there is that earlier flow over the speed there: the continuity equation along the stream with the pour changing under it. The clean tube fills a fall late, there is always some liquid in the air, and when the pour stops the tail comes away from the lip and falls rather than vanishing. Where the stream reaches the inside of the clean tube it does not bounce, since water wets glass: it loses the part of its speed that went into the wall and runs down the inside as a rivulet pressed flat against it, still carrying the same flow. So the path is followed in steps, held inside the wall below the rim. The pour itself takes two seconds at life size, two times √10 here, and the lip goes over the clean tube's rim, back by half of how far the stream drifts while it falls, so it goes in at the mouth: lip to lip, the way a chemist pours. Where it lands it keeps starting rings on the surface. Poured into a tube that already holds something, the two mix by Beer and Lambert: each takes light away per metre, so the mixture takes away the two absorptions weighed by volume, and blue into orange comes out as dark as the two together would be, not as a paint mix of their colours.
+My first hand answered the flow it saw instead, and it was always late. A glass this small, nearly on its side, empties in the time it takes to notice. Steering by the volume ahead of it fixed that.
 
-The tipped liquid is cut out of the inside of the glass by that plane: the inside swept as a lathe, each triangle the plane crosses cut to the part below it, and the outline of the cut closed with a fan for the surface. The volume came out as a staircase at first, slice by slice, and the first few drops into the empty tube vanished in its first step; the slice the surface crosses now counts for the part of it below.
+What leaves the lip is a stream of parcels, each one step's flow, and its section anywhere is a parcel's volume over how far it travels in a step: the continuity equation, without being told. Its edges draw in under surface tension at the Taylor–Culick speed, so the sheet off the lip pulls into a thread within a couple of centimetres. A thread of water a millimetre across is unstable, and it breaks into drops after about forty diameters, close to five centimetres, which in a nine-centimetre tube is about where it does. Before it was life size the stream never broke; now the bottom of the pour is drops, as it is in a real one. Drops are particles (position-based fluids, with cohesion set so that pulling water apart costs 2σ per square metre), and they land in the clean tube and become its liquid. Where the stream meets glass it does not bounce, since water wets glass; it runs down as a rivulet. Poured slowly enough, it runs down the outside of the glass it came from, which is the teapot effect and the reason a chemist pours briskly.
+
+Everything that lands carries what was dissolved in it. Each solution is a dye at unit strength whose absorbance gives its colour over three centimetres, by Beer and Lambert; poured together, amounts add, and so do absorbances, so blue into orange comes out as dark as light through both would be, not as a paint mix of their colours. Nothing is lost on the way: what left one tube is in the other, in the air, or on the bench, to fifteen places.
 
 ## Refraction, caustics and reflections
 
@@ -137,8 +141,8 @@ The tipped liquid is cut out of the inside of the glass by that plane: the insid
 A lathe's u runs with the angle and its v with the distance along the profile. A label is therefore another strip of the same surface, just outside the glass, and its texture lands on it edge to edge with no stretching. Like a real label it goes more than half way round, so the paper shows from the side; the writing keeps to the middle, which faces the front.
 
 ```dart
-LatheShape labelBand({double radius = 0.08, double wrap = 3.4}) => LatheShape(
-  profile: [Vector2(radius + 0.002, 0.52), Vector2(radius + 0.002, 0.66)],
+LatheShape labelBand({double radius = 0.008, double wrap = 3.4}) => LatheShape(
+  profile: [Vector2(radius + 0.0002, 0.052), Vector2(radius + 0.0002, 0.066)],
   startAngle: pi / 2 - wrap / 2,
   sweepAngle: wrap,
 );
@@ -156,8 +160,9 @@ The camera is the engine's `OrbitController`, with tighter limits than its defau
 
 - **Shadows of everything else.** The optics are worked out for surfaces of revolution under one sun. A vessel's light passing through another vessel is not followed, and a lamp casts ordinary shadows.
 - **The glass in the mirror.** The reflections carry the liquids and the labels; the glass itself is left out, since a copy of something nearly invisible is nearly invisible.
-- **Waves that break.** The modes are linear, so a hard enough jerk makes a surface that would in reality splash simply rock harder. Lean a full tube far enough and the liquid would spill; here it stops at the rim.
+- **Waves that break.** The modes are linear, so a hard enough jerk makes a surface that would in reality splash simply rock harder.
+- **Speed.** The drops are worked out on the CPU, a few dozen at a time, and the slowest part of a pour is stepping them as finely as surface tension at this size needs: a third of a millisecond at most.
 
 ## Tested without a GPU
 
-The package's tests check the profiles, that the label strip's UVs run edge to edge, the half turn, that pouring stays inside the glass, and a picture of the whole bench drawn by the software backend. That picture leaves the labels off, because text is rasterised by the platform and differs between machines; a separate test reads the label card's own pixels.
+The package's tests check the profiles, that the label strip's UVs run edge to edge, the half turn, that filling stops at the glass's limit, that a tap's rings die away, that sharing pours half and loses nothing, that mixed dyes take the colour light through both would, and a picture of the whole bench drawn by the software backend. That picture leaves the labels off, because text is rasterised by the platform and differs between machines; a separate test reads the label card's own pixels.
