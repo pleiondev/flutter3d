@@ -213,7 +213,6 @@ class _BenchScreenState extends State<BenchScreen>
                 setState(() => bench.share(bench.vessels[_selected]));
                 _stir();
               },
-              onPhotons: (on) => setState(() => bench.photons = on),
             ),
           ),
         ],
@@ -231,7 +230,6 @@ class _Controls extends StatelessWidget {
     required this.onLean,
     required this.onTap,
     required this.onShare,
-    required this.onPhotons,
   });
 
   final Bench bench;
@@ -243,10 +241,6 @@ class _Controls extends StatelessWidget {
 
   /// Pours the picked vessel into the clean tube until both hold the same.
   final VoidCallback onShare;
-
-  /// Shadows from the engine's photons, or from the cuts this bench works
-  /// out itself.
-  final ValueChanged<bool> onPhotons;
 
   @override
   Widget build(BuildContext context) {
@@ -326,19 +320,6 @@ class _Controls extends StatelessWidget {
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     label: const Text('Share with clean tube'),
                     onPressed: bench.canShare(vessel) ? onShare : null,
-                  ),
-                ),
-                Tooltip(
-                  message:
-                      'Off: shadows worked out cut by cut for these round '
-                      'vessels. On: the engine follows photons through any '
-                      'refracting volume.',
-                  child: FilterChip(
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    label: const Text('Engine photons'),
-                    selected: bench.photons,
-                    onSelected: onPhotons,
                   ),
                 ),
                 Text(
