@@ -394,7 +394,7 @@ final class Bench {
     height: _height(vessel),
     glassIndex: 1.5,
     liquidIndex: 1.33,
-    liquidAbsorption: absorptionFor(_rgb(vessel.colour), 0.08),
+    liquidAbsorption: absorptionFor(_rgb(vessel.colour), 0.25),
     elevation: _elevation,
     halfWidth: _halfWidth(vessel),
     scale: _lightScale,

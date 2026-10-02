@@ -175,14 +175,20 @@ LatheShape labelBand({
 Material glass() => Material(
   name: 'glass',
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(0.92, 0.97, 1.0, 0.12),
-  roughness: 0.04,
+  // **As visible as its shadow is dark.** Clear glass loses about a twentieth
+  // of the light at each surface, which is what darkens the bench under a
+  // tube, and the same reflection is what shows the glass itself: at a
+  // twelfth of an alpha the tubes were ghosts that cast plain shadows.
+  baseColor: Vector4(0.97, 0.99, 1.0, 0.22),
+  roughness: 0.03,
   alphaMode: MaterialAlphaMode.blend,
   doubleSided: true,
   // Thin-walled, as glTF means it: no thickness. A tube's wall is a few
   // millimetres of glass round air, and given a volume the engine's caustics
   // would follow light through it as through a solid glass rod.
-  extensions: MaterialExtensions(transmission: 0.95, ior: 1.5),
+  // Transmission one: clear glass absorbs next to nothing over a wall, and
+  // what it does lose to reflection the Fresnel term already counts.
+  extensions: MaterialExtensions(transmission: 1.0, ior: 1.5, specular: 1.0),
 );
 
 /// A solution: clear liquid that light passes through, tinted by what it
@@ -205,8 +211,12 @@ Material liquid(Vector3 colour) => Material(
     ior: 1.33,
     transmission: 0.85,
     thickness: 0.06,
+    // The base colour tints what is transmitted already; this deepens it
+    // with the path through the solution, over a quarter of a metre rather
+    // than eight centimetres, or light through a tube came out nearly
+    // black instead of coloured.
     attenuationColor: colour,
-    attenuationDistance: 0.08,
+    attenuationDistance: 0.25,
     specular: 1.0,
     // A wet surface: a clear coat over the colour gives the sharp highlight
     // a liquid has and a painted solid does not.
