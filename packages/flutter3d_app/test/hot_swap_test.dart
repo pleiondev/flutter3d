@@ -133,6 +133,88 @@ void main() {
     expect(it.renderer.pipelineCount, greaterThan(0));
   });
 
+  test('a material written in the language is drawn, edited and drawn again '
+      'from its compiled bundle', () async {
+    // `P8`: what `loadMaterial` adds over `registerLibrary` — the bundle read
+    // from where the hook wrote it, the lighting model read off the source,
+    // and on the software backend the edited source compiled again under the
+    // stage a draw already holds.
+    //
+    // Mutation: register the library without `loadedFrom`, and the first
+    // swap takes the unchanged bundle as a change; drop the registration,
+    // and the edit never reaches the frame.
+    ByteData bundle(String colour) => ShaderBundle(
+      name: 'paint',
+      sdk: '',
+      stages: const <ShaderBundleStage>[
+        ShaderBundleStage('Paint', fragment: true),
+      ],
+      sections: <String, ByteData>{
+        ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
+          'Paint': 'material Paint { fragment { return vec4($colour, 1.0); } }',
+        }),
+      },
+    ).encode();
+    var current = bundle('vec3(1.0, 0.0, 0.0)');
+    String? asked;
+
+    const size = 16;
+    final device = CpuDevice(
+      width: size,
+      height: size,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+      materialCompiler: materialLanguageCompiler,
+    );
+    final swap = HotSwap(enabled: true);
+    final loaded = await swap.loadMaterial(
+      'assets_src/fx/paint.f3dmat',
+      device: device,
+      read: () async {
+        asked = 'read';
+        return current;
+      },
+    );
+    expect(asked, 'read');
+    expect(
+      generatedMaterialPathFor('assets_src/fx/paint.f3dmat'),
+      'flutter3d_generated/fx/paint.f3dshaders',
+    );
+
+    final renderer = Renderer.create(device: device, materials: loaded.library);
+    swap.registerRenderer(renderer);
+    final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
+    final scene = Scene()
+      ..add(camera)
+      ..add(
+        MeshNode(
+          DeviceMesh.upload(device, CuboidShape().build()),
+          engine.Material(lighting: loaded.materials['Paint']),
+        ),
+      );
+    Future<List<int>> centre() async {
+      final frame = renderer.render(
+        width: size,
+        height: size,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          tonemap: false,
+        ),
+      );
+      final pixels = (await device.readPixels(frame.frame))!;
+      final at = ((size ~/ 2) * size + size ~/ 2) * 4;
+      return <int>[pixels.getUint8(at), pixels.getUint8(at + 2)];
+    }
+
+    expect(await centre(), <int>[255, 0]);
+    expect((await swap.swap()).refreshed, isEmpty);
+
+    current = bundle('vec3(0.0, 0.0, 1.0)');
+    expect((await swap.swap()).refreshed, <String>['paint']);
+    expect(await centre(), <int>[0, 255]);
+  });
+
   test('a bundle is refreshed when its bytes change, and only then', () async {
     final library = _Library();
     var current = _bytes(<int>[1, 2, 3]);
