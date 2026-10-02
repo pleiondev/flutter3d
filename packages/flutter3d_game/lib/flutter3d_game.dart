@@ -68,6 +68,7 @@ export 'src/screens/tap_to_restart.dart';
 export 'src/screens/touch_platform.dart';
 export 'src/screens/volumes.dart';
 export 'src/visuals/actor_visuals.dart';
+export 'src/visuals/behaviour_overlay.dart';
 export 'src/visuals/fixture_visuals.dart';
 export 'src/visuals/sound_occlusion.dart';
 export 'src/walk/level_walk.dart';

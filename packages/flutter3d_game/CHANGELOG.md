@@ -16,6 +16,11 @@
   patch made against another version is answered with
   `LevelPatch.staleCode`, which tells the sender to send the whole level; a
   patched level that does not build is refused as an ordinary error.
+- **`BehaviourOverlay` draws what every tree last decided**: a stroke per
+  node on the running path above each actor, coloured by how it came out, and
+  a line to where its leaf is taking it; `describe()` gives the same path by
+  name. It reads boards and never makes one, so switching it on cannot change
+  a snapshot.
 - **`replayAfterHotSwap` asks the question a hot reload leaves open on its
   own.** After every `HotSwap` it lives the last seconds again under the new
   code and says whether they came out the same or where they parted, in the

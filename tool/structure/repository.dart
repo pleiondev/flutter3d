@@ -635,6 +635,13 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flutter3d_sim/lib/src/actors/blackboard.dart': <String, String>{
+    'BehaviourStatus':
+        'success, failure and running are the whole algebra a behaviour '
+        "tree's composites are defined over. A fourth is not an outcome a "
+        "leaf is missing; it is a different kind of tree, and every "
+        'composite would have to be rewritten for it anyway',
+  },
   'flame_flutter3d/lib/src/world/grid_mover.dart': <String, String>{
     'GridHeading':
         'the four ways out of a square cell and standing still. A fifth '
