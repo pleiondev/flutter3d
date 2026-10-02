@@ -266,6 +266,65 @@ void main() {
     expect(_in('parameter:windStrength', Slider), findsOneWidget);
   });
 
+  testWidgets('and dragging it reaches a running game in the engine’s words', (
+    WidgetTester tester,
+  ) async {
+    // `HR4`'s last half: the parameter row had no preview at all, so a game
+    // running beside the editor saw the wind only after a save and a reload.
+    //
+    // Mutation: drop the row's `onPreview`. Nothing is sent while the thumb
+    // is down and the first expectation fails.
+    final editing = openTestDocument();
+    setLevelMaterialField(editing, 'stone', 'roughness', 0.4);
+    final live = <(String, Map<String, Object?>)>[];
+    await tester.pumpWidget(
+      _panel(
+        editing,
+        documents: <String, MaterialDocument>{'stone': _document()},
+        onLive: (String m, Map<String, Object?> f) => live.add((m, f)),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(_in('parameter:windStrength', Slider)),
+    );
+    await gesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    expect(live, isNotEmpty, reason: 'sent while the thumb was still down');
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(live.every((it) => it.$1 == 'stone'), isTrue);
+    expect(
+      live.every(
+        (it) =>
+            it.$2.keys.single == 'parameters/windStrength' &&
+            it.$2.values.single is List<num>,
+      ),
+      isTrue,
+      reason: 'one key, and a list as the uniform is',
+    );
+
+    // And the level's own roughness is not sent for a material the game
+    // draws from its file: the next load would undo what it showed.
+    //
+    // Mutation: send `liveMaterialFields` whatever the material defers to.
+    live.clear();
+    tester.widget<Slider>(_in('field:roughness', Slider)).onChangeEnd!(0.75);
+    await tester.pump();
+    expect(live, isEmpty);
+  });
+
+  test('a parameter in the engine’s words', () {
+    expect(liveParameterFields('wind', 0.5), <String, Object?>{
+      'parameters/wind': <num>[0.5],
+    });
+    expect(liveParameterFields('tint', <num>[0.1, 0.2, 0.3]), <String, Object?>{
+      'parameters/tint': <num>[0.1, 0.2, 0.3],
+    });
+    expect(liveParameterFields('wind', 'strong'), isNull);
+  });
+
   testWidgets('and writing one hands back a document, never a file', (
     WidgetTester tester,
   ) async {

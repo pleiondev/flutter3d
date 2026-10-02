@@ -9,6 +9,15 @@
   `LevelLoader` watches every map a level names, and `LoadedLevel.dispose`
   stops. `ext.flutter3d.assets.put` accepts an image registered this way.
 
+- **A shader parameter dragged in the editor changes the next frame.**
+  `HotSwap.setMaterial` takes `parameters/<name>` beside the built-in
+  fields and writes the numbers into the list `Material.parameters` already
+  holds, which the renderer binds every frame. A parameter the material was
+  not loaded with, or a list of another length, is refused with what the
+  material does have. A level material that defers to a `.fmat` is now
+  called by the level's name for it rather than the file's, so the editor
+  reaches it by the name it knows.
+
 - **A sky panorama edited under a running game lights it again.**
   `HotSwap.loadEnvironment` builds the prefiltered cube a `.hdr` or an image
   asset makes, whose roughest level is also the irradiance, and
