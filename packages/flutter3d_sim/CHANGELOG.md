@@ -18,6 +18,16 @@
   it names, and a result that is not the level it was meant to make; when
   it applies, it says what changed without comparing the two documents.
   `LevelPatch.staleCode` is the error a game answers a refused patch with.
+- **Behaviour trees and utility choices as data.** `BehaviourTree.read`
+  takes a JSON document of `sequence`, `selector`, `utility`, `invert`,
+  `alwaysSucceed`, `cooldown` and leaves, and answers a tree or every
+  problem with where it is. Leaves and utility considerations are registered
+  by kind in `BehaviourKinds`, which comes with the ones the engine's `Mind`
+  can already do (`goToFocus`, `goTo`, `wait`, `seesFocus`, `check`, `set`,
+  `markFocus`, …). `BehaviourBrain` runs a tree; everything it knows is a
+  `Blackboard` component, so a snapshot or a rewind brings a decision back
+  half made. A board ticked by another tree starts again rather than resuming
+  at node numbers that now name something else.
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,

@@ -27,6 +27,7 @@ library;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../ecs/ecs_world.dart';
+import 'blackboard.dart';
 import 'brain.dart';
 import 'health.dart';
 
@@ -130,4 +131,7 @@ void registerActorComponents(EcsWorld entities) {
         if (data is Map) value.brain.restore(data.cast<String, Object?>());
       },
     );
+  // With the rest, so that a behaviour tree's state is in the save of any
+  // world an actor system stands on, whoever made the world.
+  registerBlackboard(entities);
 }
