@@ -42,7 +42,36 @@ List<Vector2> tubeProfile({double radius = 0.08, double height = 0.9}) => [
 
 That outline is only the outside. Swept as it is, it ends in a bare edge, and from above the mouth of a tube read as a flat paper ring. `glassWall` gives it a wall: the inside is the outline moved in along its normal by four millimetres and walked back down, so its normals face the cavity, and a half circle joins the two as the rim that catches the light. Glass also shows almost nothing of itself, only what is round it, so the scene has a sky for an environment: a bright ceiling, a pale horizon and a darker floor for the glass to reflect.
 
-The liquid is a second lathe a little inside the glass, cut at the fill level. Its top is not flat: water wets glass and climbs the wall a few millimetres, so it ends in a meniscus that dips towards the middle. Its material lets light through with water's index of refraction, and its colour also tints what passes through it, so a thicker layer is a deeper colour. Pouring builds a new profile with a different level and swaps the mesh, letting the old one go after the frames still drawing it.
+## Liquid that reads as liquid
+
+The liquid is a second lathe a little inside the glass, cut at the fill level. Pouring builds a new profile with a different level and swaps the mesh, letting the old one go after the frames still drawing it.
+
+The first version was a coloured solid with a flat lid, and that is exactly how it looked: painted plastic. Four small changes fixed that.
+
+- **A meniscus.** Water wets glass and climbs the wall a few millimetres, so the top of the profile rises at the wall and dips towards the middle. The curve catches a thin bright line where it meets the glass, which a flat cap never does.
+- **Light goes through it.** The material is the layered model with some transmission and water's index of refraction, 1.33, so you see through the colour.
+- **Thickness changes the colour.** The solution's colour is also its attenuation colour, so light that crosses more of it comes out deeper. The round bottom of a tube and its edges read darker than the middle, as they do on a real bench.
+- **A wet surface.** A clear coat with almost no roughness over the colour gives the sharp highlight a liquid has and a painted surface does not.
+
+```dart
+Material liquid(Vector3 colour) => Material(
+  lighting: LightingModel.pbrLayered,
+  baseColor: Vector4(colour.x, colour.y, colour.z, 0.8),
+  roughness: 0.03,
+  alphaMode: MaterialAlphaMode.blend,
+  extensions: MaterialExtensions(
+    ior: 1.33, transmission: 0.35, thickness: 0.06,
+    attenuationColor: colour, attenuationDistance: 0.08,
+    clearcoat: 1.0, clearcoatRoughness: 0.02,
+  ),
+);
+```
+
+## Shadows: the glass casts none
+
+A shadow map knows only whether something is between a point and the light, not how much light that something lets through. Every caster darkens the bench as much as a brick would. Clear glass that does this looks wrong straight away: an empty tube threw a shadow as dark as a full one.
+
+So the glass is marked `castsShadow = false`, and the liquid inside it is what casts. The empty top of a tube leaves the bench lit, and the shadow starts where the liquid does. It is not physically right either. Real glass dims the light a little, and a coloured solution throws a tinted shadow; neither is possible until the shadow pass can record partial coverage, which is work for the engine; I would rather leave the shadow honest than fake it in a demo.
 
 ## Labels without a decal
 
@@ -59,6 +88,16 @@ LatheShape labelBand({double radius = 0.08, double wrap = 3.4}) => LatheShape(
 The picture on it is an ordinary widget: a coloured band, the formula typeset by [flutter_math_fork](https://pub.dev/packages/flutter_math_fork), which renders TeX in pure Dart, and a concentration. The application paints the cards out of sight in its own widget tree, reads each back with `RepaintBoundary.toImage` and uploads the pixels as the label's texture.
 
 Three things catch you out. The card must have the strip's own proportions, its arc over its height, or the text is squashed one way and stretched the other; the bench works the card's size out from the strip's. u runs counter-clockwise seen from above, so from the front the text comes out mirrored, and v counts up the strip while image rows count down; reversing the order of the pixels before upload fixes both. And `SceneSurface` draws in `build`, so anything that changes the picture without rebuilding it, a label put on or the camera turned, is not seen until something else asks for a frame: the bench does both inside `setState`.
+
+## Turning round the bench
+
+The camera is the engine's `OrbitController`, with tighter limits than its defaults. Left alone it lets one drag carry the camera under the table, which on a bench is never what anyone wants. The bench keeps the pitch between just above the tabletop and nearly overhead, the distance within the room, and turns a little slower per pixel than the controller does out of the box.
+
+## What it does not do yet
+
+- **Caustics.** A tube of liquid is a lens and should throw a bright patch on the bench behind it. A soft light texture on the tabletop under each vessel would get most of the way there.
+- **Refraction of what is behind.** Transmission here lets the background through but does not bend it; a straight edge seen through a tube stays straight. Doing it properly needs the scene behind the glass as a texture, a pass of its own.
+- **Movement.** When you pour, the surface should rock and settle. A meniscus that sways for a second after the level changes would do it.
 
 ## Tested without a GPU
 
