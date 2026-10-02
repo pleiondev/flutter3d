@@ -250,6 +250,15 @@ for package in packages/*/; do
   fi
 done
 
+# **The teaching examples, one directory down.** `packages/education` groups
+# them rather than being a package, so the loop above walks past it; each
+# example is a Flutter app with a suite of its own.
+for example in packages/education/*/; do
+  [ -f "$example/pubspec.yaml" ] || continue
+  [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
+  step "test $(basename "$example")" in_dir "$example" flutter test
+done
+
 # **The models service, which the loop above cannot see.** `cloud/server` is a
 # service rather than a package, so it sits outside `packages/` and outside the
 # pub workspace, resolves on its own, and would otherwise have no step at all.

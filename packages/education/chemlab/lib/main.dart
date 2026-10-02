@@ -87,7 +87,7 @@ class _BenchScreenState extends State<BenchScreen> {
     try {
       final device = await openDevice(width: 1280, height: 720);
       final renderer = Renderer.create(device: device);
-      final bench = Bench(device)
+      final bench = Bench(device, photons: true)
         ..retire = renderer.releaseMeshAfterFrame
         ..retireTexture = renderer.releaseTextureAfterFrame;
       bench.scene.add(_camera);

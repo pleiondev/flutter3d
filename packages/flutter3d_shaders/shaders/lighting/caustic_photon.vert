@@ -37,11 +37,14 @@ precision highp float;
 /// One corner of the photon's quad, from −1 to 1 on each axis.
 in vec2 corner;
 
-/// Where in its quad this vertex is, for the falloff.
-out vec2 v_offset;
+/// What the photon carries, already divided by the area it covers, in rgb.
+/// The particles' names for the particles' pair, which is what a photon is:
+/// the varyings are numbered once across every stage, and two new names
+/// would be two more for every family to keep apart.
+out vec4 v_color;
 
-/// What the photon carries, already divided by the area it covers.
-out vec3 v_energy;
+/// Where in its quad this vertex is, for the falloff.
+out vec2 v_uv;
 
 uniform CausticInfo {
   /// The caster's map back to the world, and the world into it: the
@@ -162,8 +165,8 @@ vec2 AtLeast(vec2 a, vec2 fallback, float least) {
 }
 
 void main() {
-  v_offset = corner;
-  v_energy = vec3(0.0);
+  v_uv = corner;
+  v_color = vec4(0.0);
   // Off the tile until it is known to land somewhere.
   gl_Position = vec4(4.0, 4.0, 0.5, 1.0);
 
@@ -206,5 +209,5 @@ void main() {
   // The photon's own share of the light, over what the falloff covers:
   // (1 − r²)² integrates to π/3 of the area the quad's disc maps to.
   float share = caustic_info.grid.z * caustic_info.grid.w;
-  v_energy = energy * share / (1.0471976 * area);
+  v_color = vec4(energy * share / (1.0471976 * area), 0.0);
 }

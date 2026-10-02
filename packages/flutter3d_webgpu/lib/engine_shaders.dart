@@ -3506,8 +3506,8 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(1) member: vec2<f32>,
-    @location(0) member_1: vec3<f32>,
+    @location(5) member: vec2<f32>,
+    @location(0) member_1: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -3525,9 +3525,9 @@ var caustic_back_smp: sampler;
 var caustic_depth_tex: texture_2d<f32>;
 @group(0) @binding(4) 
 var caustic_depth_smp: sampler;
-var<private> v_offset: vec2<f32>;
+var<private> v_uv: vec2<f32>;
 var<private> corner_1: vec2<f32>;
-var<private> v_energy: vec3<f32>;
+var<private> v_color: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
 var<private> gl_InstanceIndex_1: i32;
 
@@ -3844,8 +3844,8 @@ fn main_1() {
     var share: f32;
 
     let _e83 = corner_1;
-    v_offset = _e83;
-    v_energy = vec3<f32>(0f, 0f, 0f);
+    v_uv = _e83;
+    v_color = vec4<f32>(0f, 0f, 0f, 0f);
     unnamed.gl_Position = vec4<f32>(4f, 4f, 0.5f, 1f);
     let _e87 = caustic_info.grid[0u];
     n = _e87;
@@ -3984,7 +3984,8 @@ fn main_1() {
     let _e243 = energy_1;
     let _e244 = share;
     let _e246 = area;
-    v_energy = ((_e243 * _e244) / vec3((1.0471976f * _e246)));
+    let _e249 = ((_e243 * _e244) / vec3((1.0471976f * _e246)));
+    v_color = vec4<f32>(_e249.x, _e249.y, _e249.z, 0f);
     return;
 }
 
@@ -3993,8 +3994,8 @@ fn main(@location(0) corner: vec2<f32>, @builtin(instance_index) gl_InstanceInde
     corner_1 = corner;
     gl_InstanceIndex_1 = i32(gl_InstanceIndex);
     main_1();
-    let _e9 = v_offset;
-    let _e10 = v_energy;
+    let _e9 = v_uv;
+    let _e10 = v_color;
     let _e11 = unnamed.gl_Position;
     return VertexOutput(_e9, _e10, _e11);
 }
@@ -40141,8 +40142,8 @@ fn main(@location(2) v_normal: vec3<f32>, @builtin(position) gl_FragCoord: vec4<
     ),
     'CausticPhoton': WebGpuStage(
       wgsl: r'''
-var<private> v_offset_1: vec2<f32>;
-var<private> v_energy_1: vec3<f32>;
+var<private> v_uv_1: vec2<f32>;
+var<private> v_color_1: vec4<f32>;
 var<private> frag_color: vec4<f32>;
 
 fn main_1() {
@@ -40150,8 +40151,8 @@ fn main_1() {
     var k: f32;
     var e: vec3<f32>;
 
-    let _e11 = v_offset_1;
-    let _e12 = v_offset_1;
+    let _e11 = v_uv_1;
+    let _e12 = v_uv_1;
     r2_ = dot(_e11, _e12);
     let _e14 = r2_;
     if (_e14 >= 1f) {
@@ -40160,20 +40161,20 @@ fn main_1() {
     let _e16 = r2_;
     let _e18 = r2_;
     k = ((1f - _e16) * (1f - _e18));
-    let _e21 = v_energy_1;
-    let _e22 = k;
-    e = (_e21 * _e22);
-    let _e25 = e[0u];
-    let _e27 = e[1u];
-    let _e29 = e[2u];
-    frag_color = vec4<f32>(0f, _e25, _e27, _e29);
+    let _e21 = v_color_1;
+    let _e23 = k;
+    e = (_e21.xyz * _e23);
+    let _e26 = e[0u];
+    let _e28 = e[1u];
+    let _e30 = e[2u];
+    frag_color = vec4<f32>(0f, _e26, _e28, _e30);
     return;
 }
 
 @fragment 
-fn main(@location(1) v_offset: vec2<f32>, @location(0) v_energy: vec3<f32>) -> @location(0) vec4<f32> {
-    v_offset_1 = v_offset;
-    v_energy_1 = v_energy;
+fn main(@location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    v_color_1 = v_color;
     main_1();
     let _e5 = frag_color;
     return _e5;
