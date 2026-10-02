@@ -30,6 +30,56 @@ void main() {
     );
   });
 
+  // Mutation: build the patch from the text rather than from the level the
+  // game would parse, or send it when it is longer than the document, and
+  // one of these fails.
+  test('a save after a save goes as a patch, when that is shorter', () {
+    final base = jsonEncode(<String, Object?>{
+      'version': 1,
+      'name': 'yard',
+      'brushes': <Object?>[
+        for (var i = 0; i < 20; i++)
+          <String, Object?>{
+            'at': <double>[i * 2.0, 0, 0],
+            'size': <double>[1, 1, 1],
+          },
+      ],
+    });
+    final moved = base.replaceFirst('[6.0,0.0,0.0]', '[6.5,0.0,0.0]');
+    expect(moved, isNot(base));
+
+    final arguments = levelPatchArguments(base, moved)!;
+    final patch = LevelPatch.fromJson(
+      jsonDecode(arguments['patch']!) as Map<String, Object?>,
+    );
+    expect(patch.rows.single.at, 3);
+    expect(
+      (patch.applyTo(Level.fromJson(jsonDecode(base) as Map<String, Object?>))
+              as LevelPatched)
+          .level
+          .digestHex,
+      levelApplyArguments(moved)['hash'],
+    );
+
+    // A one-line level is shorter whole than as a patch.
+    expect(
+      levelPatchArguments(_document, _document.replaceFirst('0.02', '0.03')),
+      isNull,
+    );
+    expect(levelPatchArguments('not json', _document), isNull);
+  });
+
+  test('a level sent whole after a stale patch says why', () {
+    expect(
+      describeLevelApplied(<String, Object?>{
+        'diff': <String, Object?>{'fog': true},
+        'fellBack': 'the patch was made against level 1 and the game has 2',
+      }),
+      'the game took the new look '
+      '(sent whole: the patch was made against level 1 and the game has 2)',
+    );
+  });
+
   test('the game\'s answer, in a line', () {
     Map<String, Object?> answer({
       List<String> simulation = const <String>[],

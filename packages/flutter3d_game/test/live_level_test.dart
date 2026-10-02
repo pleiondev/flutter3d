@@ -44,6 +44,7 @@ Level _level({double wallAt = 5.0, double fog = 0.0}) =>
       present: (next, diff) => calls.add('present fog=${diff.fog}'),
       rebuild: (next) => calls.add('rebuild ${next.brushes.single.centre.x}'),
       timeline: timeline,
+      swapped: (next, step) => calls.add('swapped $step'),
       prepare: prepares || prepareFails != null
           ? (next) async {
               await Future<void>.delayed(Duration.zero);
@@ -90,7 +91,13 @@ void main() {
 
     final applied = game.live.apply(_level(wallAt: 8.0));
 
-    expect(game.calls, <String>['rebuild 8.0', 'present fog=false']);
+    // Mutation: drop the `swapped` call — the run goes on under the new
+    // level and the demo being recorded never hears of it.
+    expect(game.calls, <String>[
+      'rebuild 8.0',
+      'swapped 0',
+      'present fog=false',
+    ]);
     expect(applied.swappedAt, 0);
     expect(restored, hasLength(1), reason: 'the keyframe the replay starts at');
     expect(
@@ -172,6 +179,62 @@ void main() {
       final game = _game(prepares: true);
       await answerLevelApply(game.live, _send(_level()));
       expect(game.calls, isEmpty);
+    });
+
+    // Mutation: answer a stale patch as an ordinary refusal and the editor
+    // never sends the whole level; mark a level that will not build as
+    // stale and it sends it whole only to be refused again.
+    test('a patch against the level the game has is applied', () async {
+      final game = _game();
+      final patch = LevelPatch.between(_level(), _level(wallAt: 8.0));
+
+      final (:result, :error, :stale) = await answerLevelPatch(
+        game.live,
+        <String, String>{'patch': jsonEncode(patch.toJson())},
+      );
+
+      expect(error, isNull);
+      expect(stale, isFalse);
+      expect((result!['diff']! as Map<String, Object?>)['simulation'], <String>[
+        'brushes',
+      ]);
+      expect(game.calls, <String>['rebuild 8.0', 'present fog=false']);
+      expect(game.live.level.digestHex, _level(wallAt: 8.0).digestHex);
+    });
+
+    test(
+      'a patch against another version is stale, and changes nothing',
+      () async {
+        final game = _game();
+        final patch = LevelPatch.between(
+          _level(fog: 0.04),
+          _level(wallAt: 8.0),
+        );
+
+        final (:result, :error, :stale) = await answerLevelPatch(
+          game.live,
+          <String, String>{'patch': jsonEncode(patch.toJson())},
+        );
+
+        expect(result, isNull);
+        expect(stale, isTrue);
+        expect(error, contains(_level().digestHex));
+        expect(game.calls, isEmpty);
+      },
+    );
+
+    test('a patched level that does not build is refused, not stale', () async {
+      final game = _game(prepareFails: 'no texture stone.png');
+      final patch = LevelPatch.between(_level(), _level(wallAt: 8.0));
+
+      final (:result, :error, :stale) = await answerLevelPatch(
+        game.live,
+        <String, String>{'patch': jsonEncode(patch.toJson())},
+      );
+
+      expect(stale, isFalse);
+      expect(error, contains('did not build'));
+      expect(game.live.level.brushes.single.centre.x, 5.0);
     });
 
     test('refuses what is not a level, and what is missing', () async {

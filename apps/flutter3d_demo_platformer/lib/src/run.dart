@@ -95,6 +95,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
     required this.input,
     required this.openDevice,
     required this.onLevelBuilt,
+    this.onLevelEdited,
     this.startingLives = 3,
     this.pauseBetweenLevels = const Duration(milliseconds: 1400),
   });
@@ -114,6 +115,16 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// moment this fires, not the `RunPlaying` this one becomes.
   final void Function(String asset, LevelReady level, GraphicsDevice device)
   onLevelBuilt;
+
+  /// What the widget does with an edit of the level being played, once the
+  /// run is back at now. [onLevelBuilt] when null.
+  ///
+  /// **Not the same as a load**, because the run goes on: a load begins a
+  /// new demo, and an edit is written into the one being recorded
+  /// (`DemoRecording.levelSwapped`). A widget that began a new demo here
+  /// would lose everything played before the edit.
+  final void Function(String asset, LevelReady level, GraphicsDevice device)?
+  onLevelEdited;
 
   final int startingLives;
 
@@ -208,8 +219,8 @@ final class PlatformerRun extends RunSession<LevelReady> {
   }
 
   /// Installs the edit if [installEdit] has not, then hands the new build to
-  /// [onLevelBuilt] as a load would: the runner's node, the camera, a new
-  /// demo from here.
+  /// [onLevelEdited]: the runner's node, the camera, the edit written into
+  /// the demo.
   void announceEdit() {
     installEdit();
     final playing = status;
@@ -218,7 +229,53 @@ final class PlatformerRun extends RunSession<LevelReady> {
       return;
     }
     _editUntold = false;
-    onLevelBuilt(playing.asset, playing.level, device);
+    (onLevelEdited ?? onLevelBuilt)(playing.asset, playing.level, device);
+  }
+
+  /// Plays [demo] in the level being played, from its start, with the edits
+  /// it recorded swapped in where they were (`HR3`), and says whether it
+  /// kept to its checkpoints. The run is left where the demo ended.
+  ///
+  /// **Every edit is built before the first step**, for the reason
+  /// [prepareEdit] builds ahead: a build waits on the device, and a replay
+  /// that stopped to wait in the middle would be a replay with a hole in it.
+  /// The swap itself is [replaceLevel], as it was when the edit arrived live.
+  ///
+  /// Throws, and plays nothing, when the level up is not the one the demo
+  /// starts in, by path or by content.
+  Future<DemoReplay> replay(Demo demo) async {
+    final playing = status;
+    if (playing is! RunPlaying<LevelReady>) {
+      throw StateError('no level is being played');
+    }
+    if (playing.asset != demo.level) {
+      throw StateError(
+        'the demo starts in ${demo.level}, and ${playing.asset} is up',
+      );
+    }
+    final hash = playing.level.loaded.level.digestHex;
+    if (hash != demo.levelHash) {
+      throw StateError(
+        '${demo.level} digests to $hash, and the demo was recorded in '
+        '${demo.levelHash}; the level has changed since',
+      );
+    }
+    final device = await openDevice();
+    final edits = <LevelReady>[
+      for (final swap in demo.levelSwaps)
+        await _build(playing.asset, device, document: swap.level),
+    ];
+    final next = edits.iterator;
+    return replayDemo(
+      demo: demo,
+      input: input,
+      restore: (Snapshot snapshot) => level!.sim.restore(snapshot),
+      save: () => level!.sim.save(),
+      stepSim: (double dt) => level!.sim.step(dt),
+      swapLevel: (Level _) {
+        if (next.moveNext()) replaceLevel(next.current);
+      },
+    );
   }
 
   @override

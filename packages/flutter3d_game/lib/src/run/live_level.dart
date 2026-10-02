@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'demo_recording.dart';
 import 'run_timeline.dart';
 
 /// The level a running game is playing, and how to change it under the game.
@@ -26,7 +27,14 @@ final class LiveLevel {
     required this.rebuild,
     this.timeline,
     this.prepare,
+    this.swapped,
   });
+
+  /// Told the step [timeline] swapped [next] in before, right after the swap
+  /// and before [present]: what a [DemoRecording] needs to write the edit
+  /// into the run. The step is decided inside `RunTimeline.swapLevel` — the
+  /// last keyframe — so nothing outside the swap can know it otherwise.
+  final void Function(Level next, int step)? swapped;
 
   /// Builds ahead what [rebuild] and [present] will swap in, for a game
   /// whose level cannot be made synchronously: textures to upload, meshes,
@@ -55,37 +63,42 @@ final class LiveLevel {
 
   /// [prepare], then [apply]: what the extension does with a level that
   /// arrived. An edit that changes nothing prepares nothing.
-  Future<LevelApplied> applyWhenReady(Level next) async {
-    if (!diffLevel(level, next).isEmpty) await prepare?.call(next);
-    return apply(next);
+  Future<LevelApplied> applyWhenReady(Level next, {LevelDiff? diff}) async {
+    final change = diff ?? diffLevel(level, next);
+    if (!change.isEmpty) await prepare?.call(next);
+    return apply(next, diff: change);
   }
 
   /// Makes [next] the level being played, as little disturbed as the change
   /// allows.
-  LevelApplied apply(Level next) {
-    final diff = diffLevel(level, next);
-    if (diff.isEmpty) {
+  ///
+  /// [diff] is what a `LevelPatch` already said changed; without one the two
+  /// levels are compared by [diffLevel].
+  LevelApplied apply(Level next, {LevelDiff? diff}) {
+    final change = diff ?? diffLevel(level, next);
+    if (change.isEmpty) {
       level = next;
-      return LevelApplied(diff: diff);
+      return LevelApplied(diff: change);
     }
     final int? swappedAt;
-    if (diff.presentationOnly) {
+    if (change.presentationOnly) {
       swappedAt = null;
     } else if (timeline case final RunTimeline run) {
       swappedAt = run.swapLevel(
         () => rebuild(next),
         levelDigest: next.digestHex,
       );
+      swapped?.call(next, swappedAt);
     } else {
       rebuild(next);
       swappedAt = null;
     }
-    present(next, diff);
+    present(next, change);
     level = next;
     return LevelApplied(
-      diff: diff,
+      diff: change,
       swappedAt: swappedAt,
-      rebuiltInPlace: !diff.presentationOnly && swappedAt == null,
+      rebuiltInPlace: !change.presentationOnly && swappedAt == null,
     );
   }
 }
@@ -159,9 +172,55 @@ Future<({Map<String, Object?>? result, String? error})> answerLevelApply(
   }
 }
 
-/// Puts [live] on the VM service as `ext.flutter3d.level.apply`, beside the
-/// timeline's own extensions: the editor that saved a level sends it here,
-/// to a game on this machine or on a phone, and the running game takes it.
+/// Answers `ext.flutter3d.level.patch` for [live]: [parameters] carry a
+/// `LevelPatch` as JSON, made against the level the editor last saved.
+///
+/// **Two kinds of no, because the sender does different things with them.**
+/// A patch that does not apply to what the game has — another version, a
+/// row that is not the one it names — is [stale]: the editor sends the whole
+/// document, which the game can take whatever it had. A patch that applies
+/// to a level that will not build is refused like a document that will not
+/// build, and is not stale: sent whole, it would be refused again.
+Future<({Map<String, Object?>? result, String? error, bool stale})>
+answerLevelPatch(LiveLevel live, Map<String, String> parameters) async {
+  final text = parameters['patch'];
+  if (text == null) {
+    return (result: null, error: 'level.patch takes a patch', stale: false);
+  }
+  final LevelPatch patch;
+  try {
+    patch = LevelPatch.fromJson(jsonDecode(text) as Map<String, Object?>);
+  } on Object catch (error) {
+    return (
+      result: null,
+      error: 'the patch is not a level patch: $error',
+      stale: false,
+    );
+  }
+  switch (patch.applyTo(live.level)) {
+    case LevelPatchRefused(:final reason):
+      return (result: null, error: reason, stale: true);
+    case LevelPatched(:final level, :final diff):
+      try {
+        final applied = await live.applyWhenReady(level, diff: diff);
+        return (result: applied.toJson(), error: null, stale: false);
+      } on Object catch (error) {
+        return (
+          result: null,
+          error: 'the level did not build: $error',
+          stale: false,
+        );
+      }
+  }
+}
+
+/// Puts [live] on the VM service as `ext.flutter3d.level.apply` and
+/// `ext.flutter3d.level.patch`, beside the timeline's own extensions: the
+/// editor that saved a level sends it here, to a game on this machine or on
+/// a phone, and the running game takes it.
+///
+/// A stale patch is answered with `LevelPatch.staleCode` rather than
+/// `invalidParams`, so the editor can tell "send it whole" from "no".
 void registerLevelExtension(LiveLevel live) {
   developer.registerExtension('ext.flutter3d.level.apply', (
     method,
@@ -171,6 +230,21 @@ void registerLevelExtension(LiveLevel live) {
     if (error != null) {
       return developer.ServiceExtensionResponse.error(
         developer.ServiceExtensionResponse.invalidParams,
+        error,
+      );
+    }
+    return developer.ServiceExtensionResponse.result(jsonEncode(result));
+  });
+  developer.registerExtension('ext.flutter3d.level.patch', (
+    method,
+    parameters,
+  ) async {
+    final (:result, :error, :stale) = await answerLevelPatch(live, parameters);
+    if (error != null) {
+      return developer.ServiceExtensionResponse.error(
+        stale
+            ? LevelPatch.staleCode
+            : developer.ServiceExtensionResponse.invalidParams,
         error,
       );
     }

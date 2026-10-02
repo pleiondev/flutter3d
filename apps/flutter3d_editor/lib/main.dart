@@ -211,6 +211,11 @@ class _EditorScreenState extends State<EditorScreen>
   /// The connection [_liveMaterials] sends through, to the game running now.
   GameMaterials? _gameMaterials;
 
+  /// `HR3`: the open document as it was last read or written, which is the
+  /// best guess at what a running game is playing. A save sends the game a
+  /// patch from this rather than the whole level; the game checks the guess.
+  String? _written;
+
   /// `rp-04`: the macOS side of file association calls back through this —
   /// a double-click on a `.f3drun` in Finder, or a drop on the dock icon.
   OpenRunChannel? _openRunChannel;
@@ -384,10 +389,8 @@ class _EditorScreenState extends State<EditorScreen>
   /// that turns out not to be a level is not offered back tomorrow.
   Future<void> _openAt(String found) async {
     try {
-      final editing = Editing.parse(
-        await File(found).readAsString(),
-        path: found,
-      );
+      final text = await File(found).readAsString();
+      final editing = Editing.parse(text, path: found);
       _recent = _projects.remember(found, exists: _onDisk);
       // Where this document's own `assets/…` live. A game never has to work
       // this out; an editor always does, because the level it has open belongs
@@ -399,6 +402,7 @@ class _EditorScreenState extends State<EditorScreen>
       final looks = await _readLooks(assetRoot);
       _standWhereThePlayerWould(editing.level);
       if (!mounted) return;
+      _written = text;
       _cubit.opened(editing, assetRoot: assetRoot, looks: looks);
       await _build();
     } catch (error) {
@@ -1135,7 +1139,11 @@ class _EditorScreenState extends State<EditorScreen>
       _cubit.say('written to $path');
       // `HR3`: the game this level is playing in takes it too. Not a copy:
       // the running game plays the original, not the file beside it.
-      if (!copy) unawaited(_pushToRunningGame(document));
+      if (!copy) {
+        final base = _written;
+        _written = document;
+        unawaited(_pushToRunningGame(document, base: base));
+      }
     } catch (error) {
       _cubit.say('could not write $path: $error');
     }
@@ -1143,10 +1151,13 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Sends a saved level to the game [_run] started, when it is running,
   /// and says in the status strip what the game did with it.
-  Future<void> _pushToRunningGame(String document) async {
+  ///
+  /// As a patch from [base], the document this save wrote over, when the
+  /// game is playing that; whole when it is not.
+  Future<void> _pushToRunningGame(String document, {String? base}) async {
     if (_run?.state.value case PlayRunning(:final vmService)) {
       try {
-        final answer = await pushLevel(vmService, document);
+        final answer = await pushLevel(vmService, document, base: base);
         _cubit.say(describeLevelApplied(answer));
       } catch (error) {
         _cubit.say('saved, but the running game did not take it: $error');

@@ -29,7 +29,7 @@ if (run.state.value case PlayRunning(:final vmService)) {
 | `FlutterRun` | One `flutter run --machine`: its state, its console, reload, restart, stop |
 | `projectRootFor`, `projectRootOnDisk` | The project a level file belongs to: the nearest `pubspec.yaml` above it |
 | `flutterDevices`, `parseFlutterDevices` | What `-d` can be given, from `flutter devices --machine` |
-| `pushLevel` | A saved level, sent to the running game's `ext.flutter3d.level.apply` |
+| `pushLevel` | A saved level, sent to the running game's `ext.flutter3d.level.apply` — or, given the `base` it was saved over, as a patch to `ext.flutter3d.level.patch`, whole only when the game says the patch is stale |
 | `Watched` | A value and a stream of its changes, where Flutter's `ValueNotifier` cannot go |
 
 `package:flutter3d_editor_play/testing.dart` has `FakeFlutterTool`, a

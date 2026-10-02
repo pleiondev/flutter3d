@@ -1,5 +1,23 @@
 ## Unreleased
 
+- **A `.f3drun` carries the levels edited under the run.**
+  `Demo.levelSwaps` holds each one as a `DemoLevelSwap`: the step it took
+  effect before and the whole document, since the edited level exists in no
+  asset a replay could look up. On reading, the document is checked against
+  the hash written beside it, and swaps out of step order or past the end of
+  the tape are refused. A run with swaps is written as format 2, so an older
+  build refuses it instead of replaying it into a divergence; a run without
+  any is still written as 1. `f3drun_info` lists the swaps.
+- **`DigestTrace.forgetAfter`** drops the checkpoints after a step, for a
+  run that was lived again from there.
+- **`LevelPatch` carries an edit as the rows that changed.**
+  `LevelPatch.between` matches brushes, lights and entities by the digest
+  of each row (a deleted brush is one edit, not every row after it), takes
+  materials by name and every other key whole. `applyTo` refuses a level
+  other than the one the patch was made against, a row that is not the one
+  it names, and a result that is not the level it was meant to make; when
+  it applies, it says what changed without comparing the two documents.
+  `LevelPatch.staleCode` is the error a game answers a refused patch with.
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,

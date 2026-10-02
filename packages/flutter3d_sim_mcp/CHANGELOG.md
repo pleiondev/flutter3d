@@ -1,3 +1,10 @@
+## Unreleased
+
+- **`verify` refuses a run with the level edited under it**, naming the
+  step. The swapped level is built by the game that recorded the run, and a
+  session over a bare simulation would answer with a divergence it did not
+  cause.
+
 ## 0.8.0
 
 **An agent's claim about a run comes with the run that proves it.** The

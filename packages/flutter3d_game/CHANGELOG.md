@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **An edit made under a running game goes into its demo.**
+  `DemoRecording` is the run being written down: start, recorder,
+  checkpoints and the levels swapped in, with `levelSwapped` turning the
+  timeline's step into one on this tape and dropping what the swap lived
+  again. `LiveLevel(swapped:)` hears the step the timeline swapped at, before
+  `present`. `replayDemo` plays a `Demo` from its start, swaps each level in
+  where the tape reaches it and compares the file's checkpoints by step.
+  `rewindBufferFromDemo` refuses a demo with swaps, since a keyframe before a
+  swap belongs to the other level.
+- **`ext.flutter3d.level.patch` takes an edit instead of a whole level.**
+  `registerLevelExtension` registers it beside `level.apply`;
+  `answerLevelPatch` applies a `LevelPatch` to `LiveLevel.level` and passes
+  the patch's own diff to `applyWhenReady(diff:)` and `apply(diff:)`. A
+  patch made against another version is answered with
+  `LevelPatch.staleCode`, which tells the sender to send the whole level; a
+  patched level that does not build is refused as an ordinary error.
 - **`replayAfterHotSwap` asks the question a hot reload leaves open on its
   own.** After every `HotSwap` it lives the last seconds again under the new
   code and says whether they came out the same or where they parted, in the
