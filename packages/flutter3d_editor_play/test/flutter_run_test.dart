@@ -5,6 +5,8 @@
 ///     dart test test/flutter_run_test.dart
 library;
 
+import 'dart:io';
+
 import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
 import 'package:flutter3d_editor_play/testing.dart';
 import 'package:test/test.dart';
@@ -109,6 +111,36 @@ void main() {
       expect(it.run.console.value.first, 'line 5');
     },
   );
+
+  test('a stop before the game has started ends the process', () async {
+    final tool = FakeFlutterTool();
+    final killed = <Process>[];
+    final run = FlutterRun(
+      projectRoot: '/game',
+      start: (_, _) async => tool,
+      kill: killed.add,
+    );
+    await run.start();
+    await run.stop();
+    // Mutation: `stop` calling `Process.kill` directly passes everything
+    // else here and leaves the tool building on Windows, where the process
+    // it was handed is `cmd.exe`.
+    expect(killed, <Process>[tool]);
+    expect(tool.sent, isEmpty);
+  });
+
+  test('on Windows a stop takes the whole tree the shell started', () {
+    // Mutation: dropping `/t` ends `cmd.exe` and orphans the tool; dropping
+    // the Windows branch altogether does the same through `Process.kill`.
+    expect(treeKillCommand(42, windows: true), <String>[
+      'taskkill',
+      '/pid',
+      '42',
+      '/t',
+      '/f',
+    ]);
+    expect(treeKillCommand(42, windows: false), isNull);
+  });
 
   test('a level is run as part of the nearest project above it', () {
     final projects = <String>{'/work/game'};

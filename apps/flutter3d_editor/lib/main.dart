@@ -3,9 +3,9 @@
 ///     cd apps/flutter3d_editor
 ///     flutter run -d macos --dart-define=level=../flutter3d_demo_dungeon/assets/levels/crypt.json
 ///
-/// **Desktop only, and that is not an omission.** This application exists to
-/// write a file back over itself, which a browser will not do — so unlike the
-/// three games there is no web build and no backend to choose between.
+/// **Desktop first: macOS, Windows and Linux.** This application was written
+/// to save a file back over itself, which a browser will not do — so unlike
+/// the games there is no web build yet and no backend to choose between.
 ///
 /// What is here is the shell: a window, a camera, a mouse and a keyboard. The
 /// parts that can lose somebody's work are `package:flutter3d_editor_core`,

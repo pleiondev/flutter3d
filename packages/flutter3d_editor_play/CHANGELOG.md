@@ -24,6 +24,11 @@
   the `ws://…/ws` one. `pushLevel` takes a `connect` for tests.
 - **`FakeGame` and `fakeAttachedRun`** in `testing.dart`: a VM service with
   a flutter tool on it, or without one, that a test controls.
+- **A stop on Windows ends the tool, not only its shell.** `flutter` there
+  starts through `cmd.exe`, and `Process.kill` left the Dart process behind
+  it building; a stop before the game has started now runs `taskkill /t`.
+  `FlutterRun` takes the kill as a parameter, and `treeKillCommand` says
+  which command a platform needs.
 
 - **Play leaves the editor application.** `FlutterRun`, `projectRootFor`
   and `pushLevel` move here from `apps/flutter3d_editor/lib/src/play`, with
