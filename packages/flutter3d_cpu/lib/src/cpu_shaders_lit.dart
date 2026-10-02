@@ -230,7 +230,21 @@ final class _Layers {
     final transmission = b.vec4('LayerInfo', 'transmission', Vector4.zero());
     final attenuation = b.vec4('LayerInfo', 'attenuation', Vector4(1, 1, 1, 0));
     final film = b.vec4('LayerInfo', 'iridescence', Vector4.zero());
-    final thickness = math.max(transmission.y * coatTexel.w, 0.0);
+    var thickness = math.max(transmission.y * coatTexel.w, 0.0);
+    // `MaterialExtensions.convexVolume` — `ReadLayers` has the reasons.
+    if (attenuation.w > 0.5 && thickness > 0.0) {
+      final index = coat.z == 0.0 ? 1.0e4 : math.max(coat.z, 1.0);
+      final incident = -s.view;
+      final d = s.normal.dot(incident);
+      final k = 1.0 - (1.0 - d * d) / (index * index);
+      final bent = k < 0.0
+          ? Vector3.zero()
+          : incident / index - s.normal * (d / index + math.sqrt(k));
+      thickness = math.max(
+        thickness * math.max(-s.normal.dot(bent), 0.0),
+        1e-4 * thickness,
+      );
+    }
     // Beer's law over the thickness, as `ReadLayers` takes it.
     final distance = transmission.z;
     double through(double colour) => distance > 0.0
@@ -801,10 +815,19 @@ final class PbrShader implements CpuFragmentShader {
     final sceneBound =
         layers != null &&
         b.vec4('LayerInfo', 'scene_colour', Vector4.zero()).x > 0.0;
+    // `g_pane`: a blended, transmitting surface with no volume lets the
+    // target through the blend rather than reading what is behind it.
+    final pane =
+        layers != null &&
+        premultiplies(b) &&
+        layers.transmission > 0.0 &&
+        layers.thickness <= 0.0;
     if (layers != null) {
       // `M3`: without an environment, the flat ambient passes through too —
       // unless the scene behind is there to be read.
-      final (tr, tg, tb) = sceneBound ? (0.0, 0.0, 0.0) : layers.transmittance;
+      final (tr, tg, tb) = sceneBound || pane
+          ? (0.0, 0.0, 0.0)
+          : layers.transmittance;
       final t = layers.transmission;
       ambient.multiply(
         Vector3(
@@ -895,7 +918,7 @@ final class PbrShader implements CpuFragmentShader {
             layers.withFilm(layers.f0Dielectric) * ab.x +
             Vector3.all(layers.f90 * ab.y);
         final (tr, tg, tb) = layers.transmittance;
-        final passed = sceneBound
+        final passed = sceneBound || pane
             ? Vector3.zero()
             : (layers.transmitted(s, environment, levels)..multiply(
                 Vector3(
@@ -938,27 +961,31 @@ final class PbrShader implements CpuFragmentShader {
           ..scale(strength);
       }
     }
-    if (sceneBound) {
+    var passThrough = 0.0;
+    if (sceneBound || pane) {
       // `M3`: the scene behind, less what the dielectric reflects and the
       // medium takes, tinted by the base colour — light already, so neither
-      // the ambient strength nor the occlusion scales it.
+      // the ambient strength nor the occlusion scales it. A pane hands the
+      // mean of that share to the blend instead.
       final ab = _envBrdf(b, s.roughness, s.nDotV);
       final reflects =
           layers.withFilm(layers.f0Dielectric) * ab.x +
           Vector3.all(layers.f90 * ab.y);
       final (tr, tg, tb) = layers.transmittance;
-      ambient.add(
-        (diffuseColour.clone()..multiply(
-              layers.sceneBehind(s, v, b)..multiply(
+      final passes =
+          (diffuseColour.clone()..multiply(
                 Vector3(
                   tr * (1.0 - math.min(reflects.x, 1.0)),
                   tg * (1.0 - math.min(reflects.y, 1.0)),
                   tb * (1.0 - math.min(reflects.z, 1.0)),
                 ),
-              ),
-            ))
-            .scaled(layers.transmission),
-      );
+              ))
+              .scaled(layers.transmission);
+      if (pane) {
+        passThrough = ((passes.x + passes.y + passes.z) / 3.0).clamp(0.0, 1.0);
+      } else {
+        ambient.add(layers.sceneBehind(s, v, b)..multiply(passes));
+      }
     }
     // The baked bounce light, diffuse only, as `pbr.frag` adds it.
     ambient += (diffuseColour.clone()..multiply(sampleLightmap(v, b, c)))
@@ -986,6 +1013,7 @@ final class PbrShader implements CpuFragmentShader {
       alpha: s.alpha,
       normal: s.normal,
       roughness: s.roughness,
+      passThrough: passThrough,
     );
   }
 }

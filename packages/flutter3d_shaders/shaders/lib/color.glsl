@@ -100,6 +100,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -307,7 +314,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
