@@ -77,6 +77,17 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'DebugLine': (blocks: <String>{}, samplers: <String>{}),
   'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
+  'Decal': (
+    blocks: <String>{'DecalInfo'},
+    samplers: <String>{
+      'albedo_texture',
+      'decal_texture_0',
+      'decal_texture_1',
+      'decal_texture_2',
+      'decal_texture_3',
+      'surface_texture',
+    },
+  ),
   'DepthOfField': (
     blocks: <String>{'DofInfo', 'FragCoordInfo'},
     samplers: <String>{'coc_tile_texture', 'scene_texture', 'surface_texture'},
@@ -144,6 +155,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'point_shadow_texture',
       'shadow_texture',
     },
+  ),
+  'LensFlare': (
+    blocks: <String>{'LensFlareInfo'},
+    samplers: <String>{'bloom_texture'},
   ),
   'LightShafts': (
     blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ShaftInfo'},
@@ -297,6 +312,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'sheen_texture',
     },
   ),
+  'PlanarReflection': (
+    blocks: <String>{'FogInfo', 'PlanarReflectionInfo'},
+    samplers: <String>{'reflection_texture'},
+  ),
   'PolylineVertex': (
     blocks: <String>{'FrameInfo', 'MaterialParams'},
     samplers: <String>{},
@@ -321,6 +340,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'scene_texture',
       'surface_texture',
     },
+  ),
+  'RenderTextureEncode': (
+    blocks: <String>{'RenderTextureInfo'},
+    samplers: <String>{'source_texture'},
   ),
   'SceneColourCopy': (
     blocks: <String>{'SceneCopyInfo'},
@@ -349,7 +372,21 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'Sky': (blocks: <String>{}, samplers: <String>{}),
   'SkyCube': (blocks: <String>{}, samplers: <String>{'sky_texture'}),
   'SkyCubeVertex': (blocks: <String>{}, samplers: <String>{}),
+  'SkyPhysical': (blocks: <String>{}, samplers: <String>{}),
+  'SkyPhysicalVertex': (blocks: <String>{}, samplers: <String>{}),
   'SkyVertex': (blocks: <String>{}, samplers: <String>{}),
+  'SmaaBlend': (
+    blocks: <String>{'SmaaInfo'},
+    samplers: <String>{'blend_texture', 'source_texture'},
+  ),
+  'SmaaEdges': (
+    blocks: <String>{'SmaaInfo'},
+    samplers: <String>{'source_texture'},
+  ),
+  'SmaaWeights': (
+    blocks: <String>{'SmaaInfo'},
+    samplers: <String>{'area_texture', 'edges_texture'},
+  ),
   'Splat': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
   'SplatHashed': (
     blocks: <String>{'FogInfo', 'SplatHashInfo'},

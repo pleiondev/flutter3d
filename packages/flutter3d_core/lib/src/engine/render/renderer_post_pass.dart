@@ -205,7 +205,7 @@ extension _PostPasses on Renderer {
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
     // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
     // centre untouched at zero rather than running a kernel that rounds to
-    // nothing, and seventy-eight goldens depend on that being the same bytes.
+    // nothing, and ninety goldens depend on that being the same bytes.
     //
     // After a temporal resolve the robust kernel, at the resolve's own
     // strength — `R2`: what softens a resolved picture is the history, and
@@ -229,6 +229,116 @@ extension _PostPasses on Renderer {
         textures: <String, TextureHandle>{_kPostSourceSlot: source},
         uniforms: <String, Map<String, Float32List>>{
           _fxaaInfo.name: _fxaaInfo.members,
+        },
+      ),
+    );
+  }
+
+  /// Whether this device's bundle has SMAA's three stages — `P1`. A bundle
+  /// built before them falls back to FXAA rather than drawing nothing.
+  bool get _hasSmaa =>
+      shaders['SmaaEdges'] != null &&
+      shaders['SmaaWeights'] != null &&
+      shaders['SmaaBlend'] != null;
+
+  /// Smooths the edges of [source] into [target] with SMAA 1x — `P1`.
+  ///
+  /// Three full-screen draws: the edges into a scratch target, the shares
+  /// along them into another, and the blend into [target]. The two
+  /// intermediates are read texel for texel and bound unfiltered; the
+  /// picture and the area table are filtered, which is how the blend moves
+  /// a pixel a fraction of a texel and how the table interpolates between
+  /// the square roots of two distances.
+  ///
+  /// The thresholds are SMAA's own presets, not settings: a luma step of a
+  /// tenth, and a step half the largest beside it.
+  void _encodeSmaa({
+    required TextureHandle target,
+    required TextureHandle source,
+    required FrameResources resources,
+  }) {
+    TextureHandle scratch() => resources.transient(
+      RenderTargetSpec(
+        width: source.width,
+        height: source.height,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    _smaaInfo.params
+      ..[0] = 1.0 / math.max(source.width, 1)
+      ..[1] = 1.0 / math.max(source.height, 1)
+      ..[2] = 0.1
+      ..[3] = 2.0;
+    final uniforms = <String, Map<String, Float32List>>{
+      _smaaInfo.name: _smaaInfo.members,
+    };
+    final edges = scratch();
+    final weights = scratch();
+    drawFullscreen(
+      FullscreenDraw(
+        target: edges,
+        fragment: shaders['SmaaEdges']!,
+        textures: <String, TextureHandle>{_kPostSourceSlot: source},
+        uniforms: uniforms,
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    drawFullscreen(
+      FullscreenDraw(
+        target: weights,
+        fragment: shaders['SmaaWeights']!,
+        textures: <String, TextureHandle>{
+          'edges_texture': edges,
+          'area_texture': EngineTables.of(device).smaaArea,
+        },
+        uniforms: uniforms,
+        sampler: SamplerOptions.nearestClamp,
+        samplers: const <String, SamplerOptions>{
+          'area_texture': SamplerOptions.linearClamp,
+        },
+      ),
+    );
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shaders['SmaaBlend']!,
+        textures: <String, TextureHandle>{
+          _kPostSourceSlot: source,
+          'blend_texture': weights,
+        },
+        uniforms: uniforms,
+        samplers: const <String, SamplerOptions>{
+          'blend_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+  }
+
+  /// The ghosts and the halo [settings] asks for, drawn from [glow] and
+  /// added to it in [target] — `P2`. One full-screen draw.
+  void _encodeLensFlare({
+    required TextureHandle target,
+    required TextureHandle glow,
+    required LensFlareSettings settings,
+    required double aspect,
+  }) {
+    _lensFlareInfo.params
+      ..[0] = math.max(settings.intensity, 0.0)
+      ..[1] = settings.ghosts.clamp(0, 8).toDouble()
+      ..[2] = settings.ghostSpacing
+      ..[3] = settings.haloRadius;
+    _lensFlareInfo.more
+      ..[0] = settings.fringe
+      ..[1] = math.max(settings.halo, 0.0)
+      ..[2] = aspect
+      ..[3] = 0.0;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shaders['LensFlare']!,
+        textures: <String, TextureHandle>{'bloom_texture': glow},
+        uniforms: <String, Map<String, Float32List>>{
+          _lensFlareInfo.name: _lensFlareInfo.members,
         },
       ),
     );
@@ -1568,7 +1678,7 @@ extension _PostPasses on Renderer {
     // itself — then one draw per view, scissored to its own rectangle, so the
     // exposure in the uniform is the one that view metered. With per-view
     // metering off, or with a single view, this is the one full-frame draw it
-    // has always been and the bytes are the bytes seventy-eight goldens hold.
+    // has always been and the bytes are the bytes ninety goldens hold.
     final perView =
         settings.autoExposure.enabled &&
         settings.autoExposure.perView &&
@@ -1681,6 +1791,13 @@ extension _PostPasses on Renderer {
     _compositeContact[3] = localExposure == null
         ? 0.0
         : settings.localExposure.strength.clamp(0.0, 1.0);
+    // `P2`: the lens's bend, nought off exactly.
+    _compositeInfo.lens[0] = settings.look.distortion;
+    // `P6`: right of the split the scene holds display values, which the
+    // composite passes through its encode alone.
+    final debug = settings.debugView;
+    _compositeInfo.lens[1] = debug.active ? 1.0 : 0.0;
+    _compositeInfo.lens[2] = debug.split.clamp(0.0, 1.0);
     pass.bindTexture(
       compositeShader,
       'local_exposure_texture',

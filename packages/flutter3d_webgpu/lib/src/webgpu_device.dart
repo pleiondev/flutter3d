@@ -805,6 +805,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   @override
   bool get supportsWireframe => false;
 
+  /// True — `P7`: a pipeline's `alphaToCoverageEnabled`, wherever the pass
+  /// multisamples, which the scene pass does at four.
+  @override
+  bool get supportsAlphaToCoverage => true;
+
   @override
   bool get supportsStencil => true;
 

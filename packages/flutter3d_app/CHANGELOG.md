@@ -1,5 +1,35 @@
 ## Unreleased
 
+- **`HotSwap.loadMaterial`** loads the bundle the build hook compiled a
+  `.f3dmat` into and watches it — `P8`: the library for the renderer, the
+  materials' lighting models and parameters, and an edit drawn by the next
+  frame after a hot reload, on the software backend too.
+
+- **The software material stage reads a `uniform`** from the draw's
+  `MaterialParams`, as the GLSL does.
+
+- **`MaterialProgramStage` and `materialLanguageCompiler` moved here** from
+  `flutter3d_testing`, so a game can depend on them, and the software backend
+  this package registers compiles a bundle's material-language stages.
+
+- **A photo goes somewhere.** `takePhoto` draws with `capturePhoto`, encodes
+  with `PngStripWriter` and puts the file on a `PhotoShelf`, abandoning it if
+  the capture fails. `FilePhotoShelf` writes into the player's Pictures folder
+  on a desktop and the game's own folder on a phone, through a `.part` file and
+  a rename. `BrowserPhotoShelf` offers the share sheet where the browser takes
+  files and downloads otherwise. `defaultPhotoShelf` picks the platform's.
+
+- **A tool attached to a running game can read the game's own frame.**
+  `registerRenderExtensions` puts `ext.flutter3d.render.passes`,
+  `passOutput`, `draws`, `draw`, `readPixel`, `scanNan` and `stats` on the VM
+  service, each answered from a capture of the next frame the game draws, so
+  what comes back is the GPU frame with its passes, targets and draws rather
+  than a second picture drawn on the software backend. The answers are
+  worked out by `renderPasses`, `renderDraws` and the rest, plain functions of
+  a `FrameCapture` that a test calls directly. `scanNan` reports a float
+  target it could only read as bytes as unread rather than clean: a NaN
+  clamps to an ordinary byte on every hardware readback.
+
 - **A texture repainted under a running game is drawn at whatever size it
   now is.** `HotSwap.loadTexture` and `registerTexture` watch an image file;
   a swap after it changed uploads the new picture as a texture of its own,
@@ -8,6 +38,26 @@
   samples it. `SwappableTexture.changes` tells anything else holding it.
   `LevelLoader` watches every map a level names, and `LoadedLevel.dispose`
   stops. `ext.flutter3d.assets.put` accepts an image registered this way.
+
+- **A shader parameter dragged in the editor changes the next frame.**
+  `HotSwap.setMaterial` takes `parameters/<name>` beside the built-in
+  fields and writes the numbers into the list `Material.parameters` already
+  holds, which the renderer binds every frame. A parameter the material was
+  not loaded with, or a list of another length, is refused with what the
+  material does have. A level material that defers to a `.fmat` is now
+  called by the level's name for it rather than the file's, so the editor
+  reaches it by the name it knows.
+
+- **A sky panorama edited under a running game lights it again.**
+  `HotSwap.loadEnvironment` builds the prefiltered cube a `.hdr` or an image
+  asset makes, whose roughest level is also the irradiance, and
+  `SwappableEnvironment.applyTo` puts it on a scene. A swap after the file
+  changed prefilters it again and puts the new cube, with its level count,
+  on every registered scene that was lit by the old one; the old cube goes
+  back to the device after its frames, as a swapped texture does.
+  `registerEnvironment` takes an environment built some other way, the
+  report lists what changed under `environments`, and
+  `ext.flutter3d.assets.put` accepts a panorama registered either way.
 
 **A hot reload shows the shaders it reloaded.** Flutter 3.47 reinitializes an
 asset-loaded shader bundle on hot reload, which the engine's own bundle is,

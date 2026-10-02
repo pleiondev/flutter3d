@@ -4,6 +4,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../scene/skeleton.dart';
+import 'animation_layer.dart';
 import 'animation_target.dart';
 
 /// A flat, scene-graph-free pose: one hierarchy's local TRS, sampled from a
@@ -122,6 +123,63 @@ final class Pose {
     translations.setAll(0, _restTranslations);
     rotations.setAll(0, _restRotations);
     scales.setAll(0, _restScales);
+  }
+
+  /// A second pose over the same hierarchy and rest, at rest.
+  ///
+  /// What a crossfade needs: somewhere to sample the clip being left while
+  /// this pose holds the one being entered. The rest arrays are shared, not
+  /// copied — nothing writes to them after construction.
+  Pose restCopy() => Pose(
+    parents: parents,
+    restTranslations: _restTranslations,
+    restRotations: _restRotations,
+    restScales: _restScales,
+  );
+
+  /// Mixes [from] into this pose by [weight]: 0 leaves [from], 1 leaves this
+  /// pose as it is.
+  ///
+  /// **The player's crossfade, on whole poses.** Rotation goes through
+  /// [shortestArcSlerp] and translation and scale through a straight line —
+  /// `AnimationPlayer`'s own `_blendInto`, with the same argument order, so a
+  /// graph fading between two clips and a player fading between the same two
+  /// agree joint for joint.
+  void blendFrom(Pose from, double weight) {
+    if (from.nodeCount != nodeCount) {
+      throw ArgumentError(
+        'Cannot blend a pose of ${from.nodeCount} nodes into one of '
+        '$nodeCount.',
+      );
+    }
+    for (var i = 0; i < translations.length; i++) {
+      final t = from.translations[i];
+      final s = from.scales[i];
+      translations[i] = t + (translations[i] - t) * weight;
+      scales[i] = s + (scales[i] - s) * weight;
+    }
+    for (var node = 0; node < nodeCount; node++) {
+      final at = node * 4;
+      final mixed = shortestArcSlerp(
+        Quaternion(
+          from.rotations[at],
+          from.rotations[at + 1],
+          from.rotations[at + 2],
+          from.rotations[at + 3],
+        ),
+        Quaternion(
+          rotations[at],
+          rotations[at + 1],
+          rotations[at + 2],
+          rotations[at + 3],
+        ),
+        weight,
+      );
+      rotations[at] = mixed.x;
+      rotations[at + 1] = mixed.y;
+      rotations[at + 2] = mixed.z;
+      rotations[at + 3] = mixed.w;
+    }
   }
 
   final Float32List _sample3 = Float32List(3);

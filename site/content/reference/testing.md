@@ -1,46 +1,46 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10949 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 11336 tests need a GPU.
 ---
 
 # Testing
 
-10949 tests across 43 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+11336 tests across 43 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 1628 | | | |
+| `flutter3d` | 1658 | | | |
 | | | | `flutter3d_mesh` | 599 |
 | | | | `apps/flutter3d_modeler` | 1750 |
-| `flutter3d_sim` | 591 | | `pad_input` | 67 |
-| `flutter3d_lab` | 15 | | `flutter3d_core` | 739 |
+| `flutter3d_sim` | 691 | | `pad_input` | 67 |
+| `flutter3d_lab` | 15 | | `flutter3d_core` | 771 |
 | `flutter3d_lti` | 26 | | `apps/flutter3d_lab_pendulum` | 7 |
 | | | | `apps/flutter3d_lab_incident` | 13 |
 | `flutter3d_game_shooter` | 340 | | `flutter3d_audio_core` | 55 |
 | | | | `flutter3d_audio` | 4 |
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 62 |
-| `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 63 |
-| `apps/flutter3d_demo_platformer` | 202 | | `flutter3d_impeller` | 64 |
-| `flutter3d_cpu` | 330 | | `apps/flutter3d_demo_strategy` | 50 |
-| `apps/flutter3d_editor` | 224 | | `apps/flutter3d_demo_arcade` | 20 |
+| `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 70 |
+| `apps/flutter3d_demo_platformer` | 208 | | `flutter3d_impeller` | 64 |
+| `flutter3d_cpu` | 380 | | `apps/flutter3d_demo_strategy` | 50 |
+| `apps/flutter3d_editor` | 234 | | `apps/flutter3d_demo_arcade` | 20 |
 | `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 239 | | `flutter3d_webgpu` | 193 |
+| `flutter3d_physics` | 266 | | `flutter3d_webgpu` | 193 |
 | `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 36 |
-| `apps/flutter3d_demo_river` | 54 | | `flutter3d_testing` | 27 |
+| `apps/flutter3d_demo_river` | 54 | | `flutter3d_testing` | 45 |
 | `flutter3d_editor_core` | 141 | | `flutter3d_editor_widgets` | 91 |
-| `apps/flutter3d_demo_dungeon` | 115 | | `flutter3d_app` | 135 |
-| `flutter3d_game` | 279 | | `flutter3d_shaders` | 5 |
+| `apps/flutter3d_demo_dungeon` | 115 | | `flutter3d_app` | 169 |
+| `flutter3d_game` | 325 | | `flutter3d_shaders` | 5 |
 | `flutter3d_particles` | 97 | | `flutter3d_stereo` | 50 |
 | `flutter3d_model_core` | 1172 | | `flutter3d_model_mcp` | 196 |
-| `flutter3d_editor_play` | 12 | | `flutter3d_net` | 15 |
+| `flutter3d_editor_play` | 28 | | `flutter3d_net` | 15 |
 | | | | `flutter3d_net_webrtc` | 2 |
-| | | | `flutter3d_sim_mcp` | 25 |
-| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 127 |
+| | | | `flutter3d_sim_mcp` | 26 |
+| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 136 |
 | | | | `apps/flutter3d_lesson_viewer` | 48 |
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 | `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 88 |
 | `flame_multiplayer` | 9 | | `flame_multiplayer_dashwire` | 3 |
 
-The rows sum to 10923 rather than 10949: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 11309 rather than 11336: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -52,7 +52,7 @@ tool/ci.sh                                   # shaders, analyze, every test
 
 ## Four independent golden sets, not one
 
-Seventy-eight scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+Ninety scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 The browser sets are recorded when a branch lands, not beside it (`golden_web.sh` holds one fixed port for the whole of its run), so a new scene is in the other sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
 
@@ -65,7 +65,7 @@ The browser sets are recorded when a branch lands, not beside it (`golden_web.sh
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
 <div class="why">
-<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps seventy-eight scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps ninety scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.
@@ -152,6 +152,22 @@ What this settles: a run submitted to a server can be replayed bit for bit on a 
 <div class="note">
 <p><code>why:</code> a digest and not a comparison. Two machines cannot compare their worlds by sending each other their worlds: a snapshot is tens of kilobytes and a run is thousands of steps. <code>StateDigest</code> is 32-bit FNV-1a taken over bits rather than text, with the multiply done in halves so that no intermediate passes 2^53 and a browser gets the same number. <code>DigestTrace</code> takes a checkpoint every so many steps and names the first one two runs disagree at, which turns "the replay diverged" into an interval to bisect.</p>
 </div>
+
+## A replay test for your game
+
+The same tape is also the cheapest regression test a game can have. Play a level once with the recorder on, commit the `.f3drun`, and `testReplay` in `flutter3d_testing` plays it back on the software backend in CI:
+
+```dart
+void main() {
+  testReplay(
+    'test/tapes/ascent.f3drun',
+    start: Ascent.open,
+    goldensAt: <int>[120, 600],
+  );
+}
+```
+
+`start` builds the game against the device and the input it is handed, and returns a `ReplaySubject`: four methods, `restore`, `step`, `save` and `frame`, plus the level's hash. At every checkpoint the tape holds (or only those named in `digestAt`) the digest of `save()` has to equal the recorded one, and a mismatch names the step and the last one that still agreed. At each step in `goldensAt` the frame is compared with `test/goldens/<tape>-<step>.png`, recorded on the first local run. A level edited since the recording fails as exactly that, before a step is taken, rather than as a divergence at step 25 that sends somebody into the physics. That check found its first stale tape the day it was written: the platformer's sample on this site had been recorded before the level was last changed. `apps/flutter3d_demo_platformer/test/replay_test.dart` is the whole example, about a hundred lines with the comments.
 
 ## What can be tested without a device
 

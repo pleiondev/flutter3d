@@ -4,6 +4,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'draw.dart';
+
 /// What a test hands back: the scene to draw and the camera to draw it from.
 typedef FrameSubject = ({Scene scene, CameraNode camera});
 
@@ -76,30 +78,13 @@ Future<RenderedFrame> renderFrame({
     fallbackNormal: kit.normal,
   );
 
-  final result = renderer.render(
+  return drawOnce(
+    device: kit.device,
+    renderer: renderer,
+    subject: subject,
     width: width,
     height: height,
-    scene: subject.scene,
-    views: <RenderView>[
-      RenderView(
-        camera: subject.camera,
-        clearColor: clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
-      ),
-    ],
     settings: settings,
-  );
-
-  final pixels = await kit.device.readPixels(result.frame);
-  if (pixels == null) {
-    throw StateError(
-      'the frame could not be read back from the software device, which has '
-      'nothing to be busy with and no driver to blame',
-    );
-  }
-  return (
-    pixels: pixels.buffer.asUint8List(),
-    width: width,
-    height: height,
-    drawCalls: result.drawCalls,
+    clearColor: clearColor,
   );
 }

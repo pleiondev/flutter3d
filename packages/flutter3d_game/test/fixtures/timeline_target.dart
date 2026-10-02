@@ -32,6 +32,11 @@ final class _Toy {
 
   Snapshot save() => Snapshot(<String, Object?>{
     'x': x,
+    // `N4`'s tracks read the toy as one entity; restore ignores it, since
+    // it repeats `x`.
+    'entities': <String, Object?>{
+      'toy': <String, Object?>{'x': x},
+    },
     'random': dice.state,
     'tunables': tunables.toJson(),
   });
@@ -80,6 +85,7 @@ void main() {
     registerTimelineExtensions(
       timeline,
       capture: toy.save,
+      entityLayout: EntityLayout.rows('entities'),
       frameTimes: frameTimes,
       bugReport: () => <String, Object?>{'x': toy.x, 'step': stepNumber},
     );

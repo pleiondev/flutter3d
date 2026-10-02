@@ -108,6 +108,9 @@ final class RecordingDevice implements GraphicsDevice {
   bool get supportsRenderToMip => inner.supportsRenderToMip;
   @override
   bool get supportsWireframe => inner.supportsWireframe;
+
+  @override
+  bool get supportsAlphaToCoverage => inner.supportsAlphaToCoverage;
   @override
   bool get supportsStencil => inner.supportsStencil;
   @override
@@ -476,6 +479,12 @@ final class _RecordingEncoder implements CommandEncoder {
   }
 
   @override
+  void setAlphaToCoverage(bool enabled) {
+    _events.add(TraceSetAlphaToCoverage(_pass, enabled));
+    _inner.setAlphaToCoverage(enabled);
+  }
+
+  @override
   void setDepthWrite(bool enabled) {
     _events.add(TraceSetDepthWrite(_pass, enabled));
     _inner.setDepthWrite(enabled);
@@ -618,9 +627,13 @@ final class _RecordingEncoder implements CommandEncoder {
   }
 
   @override
-  void draw({int instanceCount = 1}) {
-    _events.add(TraceDraw(_pass, instanceCount));
-    _inner.draw(instanceCount: instanceCount);
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    _events.add(TraceDraw(_pass, instanceCount, firstIndex, indexCount));
+    _inner.draw(
+      instanceCount: instanceCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
   }
 
   @override

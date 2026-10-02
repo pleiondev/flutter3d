@@ -7,7 +7,8 @@ import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Snapshot;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show SaveMigration, SaveSchema, Snapshot;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -112,14 +113,54 @@ void main() {
     // shape did not change, so refusing it would cost a player a run to fix a
     // bug that was never theirs.
     //
-    // Mutation: drop the `containsKey('version')` arm in `read`. This fails,
-    // and every existing save becomes a fresh start.
+    // Mutation: drop the arm in `SaveRecord.read` that supplies a missing
+    // version. This fails, and every existing save becomes a fresh start.
     storage.write('save.json', '{"level": "a.json", "run": {"deaths": 3}}');
 
     final read = saves.read();
 
     expect(read, isNotNull);
     expect(read!.run.data['deaths'], 3);
+  });
+
+  test('a save from an older schema is migrated on the way in', () {
+    // A save written before the game split health into hearts. Mutation:
+    // construct the reader without passing `schema` through to
+    // `SaveRecord.read`, and the hearts come back as nothing while the old
+    // field rides along unread.
+    storage.write(
+      'save.json',
+      '{"level": "a.json", "run": {"version": 1, "health": 30}}',
+    );
+    final reader = SaveFile(
+      appName: 'test',
+      storage: storage,
+      schema: SaveSchema(<SaveMigration>[
+        (run) => run..['hearts'] = (run.remove('health')! as num) ~/ 10,
+      ]),
+    );
+
+    final read = reader.readRecord();
+
+    expect(read!.run.data, <String, Object?>{'hearts': 3});
+    expect(read.schema, 1);
+  });
+
+  test('a save says which schema it was written at', () {
+    // Mutation: write without the schema. Every save then reads as version
+    // 0, and the first migration runs again on a run it already changed.
+    final writer = SaveFile(
+      appName: 'test',
+      storage: storage,
+      schema: SaveSchema(<SaveMigration>[(run) => run]),
+    );
+    writer.write('a.json', Snapshot(<String, Object?>{}), step: 12);
+
+    final written =
+        jsonDecode(storage.read('save.json')!) as Map<String, Object?>;
+    expect(written['schema'], 1);
+    expect(written['step'], 12);
+    expect(written['digest'], isA<String>());
   });
 
   test('a finished run is cleared, and clearing twice is fine', () {

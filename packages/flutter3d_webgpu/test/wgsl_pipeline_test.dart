@@ -19,11 +19,7 @@ library;
 
 import 'dart:io';
 
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -139,11 +135,13 @@ void main() {
           );
         });
       }
-      // The twenty names the manifest has today: `R1`'s velocity stages
-      // brought v_current, v_previous and v_depth, a family of their own.
-      // Stated so that a shader adding a twenty-first has to come back and
+      // The twenty-four names the manifest has today: `R1`'s velocity stages
+      // brought v_current, v_previous and v_depth, a family of their own, and
+      // the physical sky brought v_rayleigh, v_mie, v_planet and v_stars into
+      // the sky's family, through the v_ray, v_sun and v_disc it shares.
+      // Stated so that a shader adding a twenty-fifth has to come back and
       // read the family rule.
-      expect(seen.length, 20);
+      expect(seen.length, 24);
     });
 
     test('keeps every family inside WebGPU\'s sixteen locations', () {
@@ -153,10 +151,10 @@ void main() {
         ),
         isTrue,
       );
-      // Five families and a widest of eight. One flat numbering would have
-      // needed twenty.
-      expect(locations.length, 20);
-      expect(locations.values.toSet().length, 8);
+      // Five families and a widest of twelve, the sky's. One flat numbering
+      // would have needed twenty-four.
+      expect(locations.length, 24);
+      expect(locations.values.toSet().length, 12);
     });
 
     test('gives every stage its own bind group', () {

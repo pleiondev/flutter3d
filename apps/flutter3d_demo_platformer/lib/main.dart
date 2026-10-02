@@ -30,6 +30,7 @@ import 'src/credits.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
+import 'src/photo_mode.dart';
 import 'src/reactions.dart';
 import 'src/run.dart';
 import 'src/run_cubit.dart';
@@ -214,6 +215,9 @@ class _GameScreenState extends State<GameScreen>
   final CameraNode _camera = CameraNode(projection: Lens.base);
   late final RenderView _view;
 
+  /// P stops the world and hands the player a camera — see `photo_mode.dart`.
+  final PhotoMode _photo = PhotoMode();
+
   /// The device, for whoever needs it before it exists.
   ///
   /// **A level used to be dropped on the floor if it got here first.**
@@ -316,6 +320,10 @@ class _GameScreenState extends State<GameScreen>
   /// reads [_runOrNull].
   RunCubit get _run => _runOrNull!;
 
+  /// Writes the run at a checkpoint, on the way into a pause and when the
+  /// application goes to the background. Built beside [_runOrNull].
+  Autosave? _autosave;
+
   /// What a step sounds like. See `soundtrack.dart` for why this is a class
   /// and not a method: a decision can be tested, an effect inside a widget
   /// cannot.
@@ -340,41 +348,60 @@ class _GameScreenState extends State<GameScreen>
   /// this repeats rather than reinvents.
   DemoFile? _demos;
 
-  /// Where the run being recorded started, and in which level.
-  Snapshot? _demoStart;
-  String? _demoLevel;
-  String? _demoLevelHash;
-
-  /// A checkpoint every so many steps, taken live while the run is recorded.
-  DigestTrace? _demoCheckpoints;
-
-  /// The demo's own recorder, beside no rewind buffer here — this game has
-  /// none of the dungeon's kill camera to share one with.
-  InputTapeRecorder? _demoRecorder;
+  /// The run being written down: its start, its own recorder — beside no
+  /// rewind buffer here, this game has none of the dungeon's kill camera to
+  /// share one with — its checkpoints, and `HR3`'s edits made under it.
+  DemoRecording? _demo;
 
   /// Starts writing the run down, from the state the level is in now.
   ///
   /// Now rather than at load: a level resumed from a save begins mid-run, and
   /// the demo has to begin where the player did. The tape's seed is the dice
   /// the snapshot carries, which is the one number a replay cannot do without.
-  void _beginDemo(String asset, LevelReady level) {
-    final start = level.sim.save();
-    _demoStart = start;
-    _demoLevel = asset;
-    _demoLevelHash = level.loaded.level.digestHex;
-    _demoCheckpoints = DigestTrace();
+  void _beginDemo(String asset, LevelReady level) => _record(
+    asset: asset,
+    levelHash: level.loaded.level.digestHex,
+    start: level.sim.save(),
+  );
+
+  void _record({
+    required String asset,
+    required String levelHash,
+    required Snapshot start,
+  }) {
     _endRecording();
-    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
-    _demoRecorder = recorder;
-    _loop.recorders.add(recorder);
+    final demo = DemoRecording(
+      level: asset,
+      levelHash: levelHash,
+      start: start,
+      seed: start.data.integer('random'),
+    );
+    _demo = demo;
+    _loop.recorders.add(demo.recorder);
   }
 
   /// Stops the demo's recorder.
-  InputTapeRecorder? _endRecording() {
-    final recorder = _demoRecorder;
-    if (recorder != null) _loop.recorders.remove(recorder);
-    _demoRecorder = null;
-    return recorder;
+  DemoRecording? _endRecording() {
+    final demo = _demo;
+    if (demo != null) _loop.recorders.remove(demo.recorder);
+    _demo = null;
+    return demo;
+  }
+
+  /// `HR3`: writes an edit the timeline swapped in before [step] into the
+  /// demo, so the `.f3drun` replays it rather than parting from the run
+  /// there.
+  ///
+  /// An edit that took effect before this demo began — within a keyframe of
+  /// the level loading — cannot go into it, and the demo starts again from
+  /// now, in the level it was loaded as, with the edit at its first step.
+  void _recordSwap(Level next, int step) {
+    final demo = _demo;
+    final sim = _sim;
+    if (demo == null || sim == null) return;
+    if (demo.levelSwapped(next, stepsAgo: _rewind.step - step)) return;
+    _record(asset: demo.level, levelHash: demo.levelHash, start: sim.save());
+    _demo?.levelSwapped(next, stepsAgo: 0);
   }
 
   /// Writes the run down when it ends, either way.
@@ -383,28 +410,10 @@ class _GameScreenState extends State<GameScreen>
   /// me off the edge" is a sentence, and the demo is the proof. Written once
   /// at the end rather than as it goes — the same reason the save is.
   void _endDemo() {
-    final recorder = _endRecording();
-    final start = _demoStart;
-    final level = _demoLevel;
-    final levelHash = _demoLevelHash;
-    final checkpoints = _demoCheckpoints;
-    if (recorder == null ||
-        start == null ||
-        level == null ||
-        levelHash == null ||
-        checkpoints == null) {
-      return;
-    }
+    final demo = _endRecording();
+    if (demo == null) return;
     _demos?.write(
-      Demo(
-        level: level,
-        levelHash: levelHash,
-        start: start,
-        tape: recorder.tape,
-        buildStamp: _buildStamp,
-        checkpoints: checkpoints,
-        platform: defaultTargetPlatform.name,
-      ),
+      demo.demo(buildStamp: _buildStamp, platform: defaultTargetPlatform.name),
     );
   }
 
@@ -427,8 +436,8 @@ class _GameScreenState extends State<GameScreen>
   /// twice, so later levels move the one door along. Everything the edit
   /// takes is the run's: it builds the edited level ahead, swaps it in inside
   /// [_timeline]'s replay when the simulation has to be lived again, and only
-  /// then tells this widget, through [PlatformerRun.onLevelBuilt] like any
-  /// load.
+  /// then tells this widget, through [PlatformerRun.onLevelEdited]. The step
+  /// the edit took effect at goes into the demo on the way ([_recordSwap]).
   void _takeEdits(LevelReady level) {
     final live = _live;
     if (live != null) {
@@ -443,6 +452,7 @@ class _GameScreenState extends State<GameScreen>
         prepare: run.prepareEdit,
         rebuild: (Level next) => run.installEdit(),
         present: (Level next, LevelDiff diff) => run.announceEdit(),
+        swapped: _recordSwap,
       ),
     );
   }
@@ -482,6 +492,9 @@ class _GameScreenState extends State<GameScreen>
     // `rp-02`: harmless where the VM service is off — `registerExtension`
     // just adds an entry nothing ever asks for.
     registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
+    // `P12`: the frame this game draws, pass by pass and draw by draw, for
+    // whichever renderer is open when somebody asks.
+    registerRenderExtensions(() => _renderer);
     // `HR4`: after every hot reload, the last three seconds lived again under
     // the new code, and the console says whether they came out the same.
     _stopReplays = replayAfterHotSwap(_timeline, capture: _present);
@@ -612,8 +625,13 @@ class _GameScreenState extends State<GameScreen>
           _beginDemo(asset, level);
           _takeEdits(level);
         },
+        onLevelEdited: (String asset, LevelReady level, GraphicsDevice device) {
+          setState(() => _levelArrived(level, device));
+          _takeEdits(level);
+        },
       ),
     );
+    _autosave = Autosave(_run.run)..watchLifecycle();
 
     _ticker = createTicker(_onTick)..start();
 
@@ -779,7 +797,7 @@ class _GameScreenState extends State<GameScreen>
     final sim = _sim;
     if (sim == null) return;
     if (!_screen.shouldSave(sim.respawnPoint)) return;
-    _run.save();
+    _autosave?.checkpoint();
   }
 
   /// What the pad means to a screen rather than to the runner.
@@ -884,7 +902,11 @@ class _GameScreenState extends State<GameScreen>
       pointerIsTheGate: Playing.capturesPointer,
       pointerHeld: _devices.isCaptured,
       padConnected: _pad.isConnected,
+      photoMode: _photo.active,
     );
+    // A pause is where most sessions end — the menu opened to quit, the pad
+    // put down — so the run is written on the way in.
+    _autosave?.paused(_loop.paused);
     _loop.advance(dt);
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said
@@ -903,6 +925,15 @@ class _GameScreenState extends State<GameScreen>
     _particles.advance(_loop.lastFrame);
     _runnerVisuals.animate(dt, _runner);
     _placeCamera(dt);
+    if (_photo.active) {
+      // The paused loop drains nothing, so the look is taken here, and the
+      // photo camera is put on the node after the follow camera was.
+      final look = Vector2.zero();
+      _drainLook(look);
+      _photo
+        ..fly(_input, look, dt)
+        ..applyTo(_camera);
+    }
     _fixtures?.sync(_frames.elapsed);
     _burnLamps();
     _keepSaved();
@@ -913,8 +944,83 @@ class _GameScreenState extends State<GameScreen>
     // cached outcome off `RunOutcome.playing`.
     _run.observe();
     unawaited(_run.advance());
-    if (mounted) setState(() {});
+    // Not while a photo is drawn: a rebuild draws a frame on the renderer the
+    // tiles are drawn on — see `capturePhoto`.
+    if (mounted && !_photo.busy) setState(() {});
   }
+
+  /// Opens photo mode where the follow camera is, or closes it.
+  void _togglePhoto() {
+    final camera = _followCamera;
+    final level = _loaded;
+    final runner = _runner;
+    if (_photo.active) {
+      setState(_photo.leave);
+      return;
+    }
+    if (camera == null || level == null || runner == null) return;
+    setState(
+      () => _photo.enter(
+        world: level.collision,
+        eye: camera.eye,
+        target: camera.target,
+        anchor: runner.body.position,
+        fieldOfView: Lens.base.fovYRadians + camera.extraFov,
+      ),
+    );
+  }
+
+  /// Draws the photo at [scale] times the window and saves it.
+  Future<void> _takePhoto(int scale) async {
+    final renderer = _renderer;
+    if (renderer == null || _photo.busy) return;
+    final size =
+        MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
+    setState(() => _photo.busy = true);
+    // The frame saying so is drawn first; after it nothing redraws until the
+    // picture is done.
+    await SchedulerBinding.instance.endOfFrame;
+    final taken = await takePhoto(
+      renderer: renderer,
+      scene: _scene,
+      camera: _camera,
+      width: (size.width * scale).round(),
+      height: (size.height * scale).round(),
+      settings: _renderSettings(filtered: false),
+      filter: _photo.filter,
+      clearColor: _view.clearColor,
+      shelf: defaultPhotoShelf('platformer'),
+      name: 'platformer-${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    if (!mounted) return;
+    setState(() {
+      _photo
+        ..busy = false
+        ..said = taken.saved.message;
+    });
+  }
+
+  /// What every frame is drawn with; [filtered] puts photo mode's filter on.
+  RenderSettings _renderSettings({bool filtered = true}) => RenderSettings(
+    fog: FogSettings(
+      color: _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
+      density: _loaded?.level.fogDensity ?? 0.0,
+    ),
+    // Three cascades, because this level is a hundred and twenty metres by two
+    // hundred and sixty and one map over that is fourteen centimetres of world
+    // per texel — which drew the runner's own shadow as a blurred slab beside
+    // them, and was reported as the character being drawn twice.
+    //
+    // 2048 rather than the default 1024, which is a real cost: the atlas is
+    // `resolution × cascades` wide, so this is 6144 × 2048. What it buys is the
+    // character's own shadow reading as soft rather than as a staircase — at
+    // 1024 the near cascade is 1.9 cm of world per texel and the penguin's
+    // shadow is a visible flight of steps beside it.
+    shadows: const ShadowSettings(cascades: 3, resolution: 2048),
+    look: filtered && _photo.active
+        ? _photo.look(const LookSettings())
+        : const LookSettings(),
+  );
 
   /// One simulation step. Nothing here draws.
   /// What the last simulated step reported. See where it is drained.
@@ -935,10 +1041,7 @@ class _GameScreenState extends State<GameScreen>
     // `rp-01`'s own checkpoint, taken here rather than replayed later from the
     // finished tape — see the dungeon's identical placement for why the step
     // number has to be the recorder's own.
-    final demoRecorder = _demoRecorder;
-    if (demoRecorder != null) {
-      _demoCheckpoints?.observe(demoRecorder.tape.steps, sim.save().toJson());
-    }
+    _demo?.observe(sim.save);
     // Drained once, here, and handed to everything that wants it. Draining
     // empties the buffer, so two readers each draining would each get half of
     // what happened — and which half would depend on the order they ran in.
@@ -1101,6 +1204,7 @@ class _GameScreenState extends State<GameScreen>
     // Null if the device never opened: nothing ran, so there is nothing to
     // keep — and the cubit to close was never built either.
     _runOrNull?.save();
+    _autosave?.dispose();
     // Closed like the three below, and the cubit unhooks itself from the
     // session first — see `RunCubit.close` for why the order matters.
     unawaited(_runOrNull?.close());
@@ -1185,6 +1289,26 @@ class _GameScreenState extends State<GameScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
+          // Photo mode before the settings: Escape there means "back to the
+          // game", and the panel would take it as "open me".
+          if (event is KeyDownEvent &&
+              _screen.state.started &&
+              !_settings.state.isOpen &&
+              !_photo.busy &&
+              (event.logicalKey == LogicalKeyboardKey.keyP ||
+                  (_photo.active &&
+                      event.logicalKey == LogicalKeyboardKey.escape))) {
+            _togglePhoto();
+            return KeyEventResult.handled;
+          }
+          final photoSays = _photo.key(
+            event,
+            onCapture: (int scale) => unawaited(_takePhoto(scale)),
+          );
+          if (photoSays != null) {
+            setState(() {});
+            return photoSays;
+          }
           // The settings get the key first — see `settingsKeys` for the order
           // and for the bug this call fixed here: R sat above the rebinding, so
           // a player at the end of a run could not bind R to anything.
@@ -1251,29 +1375,7 @@ class _GameScreenState extends State<GameScreen>
                   scene: scene,
                   view: _view,
                   onBeforeFrame: () {},
-                  settings: () => RenderSettings(
-                    fog: FogSettings(
-                      color:
-                          _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
-                      density: _loaded?.level.fogDensity ?? 0.0,
-                    ),
-                    // Three cascades, because this level is a hundred and twenty
-                    // metres by two hundred and sixty and one map over that is
-                    // fourteen centimetres of world per texel — which drew the
-                    // runner's own shadow as a blurred slab beside them, and was
-                    // reported as the character being drawn twice.
-                    //
-                    // 2048 rather than the default 1024, which is a real cost:
-                    // the atlas is `resolution × cascades` wide, so this is
-                    // 6144 × 2048. What it buys is the character's own shadow
-                    // reading as soft rather than as a staircase — at 1024 the
-                    // near cascade is 1.9 cm of world per texel and the penguin's
-                    // shadow is a visible flight of steps beside it.
-                    shadows: const ShadowSettings(
-                      cascades: 3,
-                      resolution: 2048,
-                    ),
-                  ),
+                  settings: _renderSettings,
                   presentFrame: presentFrame,
                 ),
               ),
@@ -1301,7 +1403,10 @@ class _GameScreenState extends State<GameScreen>
               // Not behind the title card: the tallies and its own "Click to
               // play" banner showed through it, saying the same thing twice
               // and counting a run the player has not started.
-              if (sim != null && _screen.state.started)
+              if (_photo.active) PhotoBar(mode: _photo),
+              // Not in photo mode either: the picture is the level, and the
+              // tallies over it are not.
+              if (sim != null && _screen.state.started && !_photo.active)
                 Hud(
                   coins: _runner?.purse['coin'] ?? 0,
                   deaths: sim.deaths,

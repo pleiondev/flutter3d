@@ -116,5 +116,7 @@ void main() {
               frag_info.material.z;
 
   vec3 ambient = s.albedo * s.ambient;
-  WriteSurface(AccumulateLights(s) + ambient, 1.0, 1.0);
+  vec3 lit = AccumulateLights(s) + ambient;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, 1.0, 1.0);
 }

@@ -2,6 +2,11 @@
 /// built from the exact staging and route `test/demo_test.dart` already
 /// proves round-trips — this script only adds the write.
 ///
+/// `N5`: the same bytes go to `test/tapes/ascent.f3drun`, which
+/// `test/replay_test.dart` replays. One recording in two places rather than
+/// the test reading the site's, so the game's tests do not reach outside the
+/// game; and one script, so the two cannot be recorded from different runs.
+///
 /// A `flutter test`-shaped generator rather than `dart run`, for the reason
 /// `rp-05`'s own row now documents at length: `flutter3d_game_platformer`
 /// names `flutter: sdk: flutter`, and plain `dart run` fails compiling the
@@ -56,7 +61,8 @@ void _play(InputState input, int step) {
 }
 
 void main() {
-  test('records site/assets/samples/platformer.f3drun', () {
+  test('records site/assets/samples/platformer.f3drun and the replay '
+      "test's tape", () {
     final levelHash = _shipped().digestHex;
     final live = _stage();
     final start = live.sim.save();
@@ -79,9 +85,14 @@ void main() {
       checkpoints: checkpoints,
     );
 
-    final outFile = File('../../site/assets/samples/platformer.f3drun');
-    outFile.writeAsStringSync(jsonEncode(demo.toJson()));
-    // ignore: avoid_print
-    print('wrote ${outFile.path} (${outFile.lengthSync()} bytes)');
+    final json = jsonEncode(demo.toJson());
+    for (final path in <String>[
+      '../../site/assets/samples/platformer.f3drun',
+      'test/tapes/ascent.f3drun',
+    ]) {
+      final outFile = File(path)..writeAsStringSync(json);
+      // ignore: avoid_print
+      print('wrote ${outFile.path} (${outFile.lengthSync()} bytes)');
+    }
   });
 }

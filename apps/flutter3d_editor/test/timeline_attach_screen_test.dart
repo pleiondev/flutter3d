@@ -83,6 +83,46 @@ final class _FakeTimelineClient implements TimelineClient {
   @override
   Future<Map<String, Object?>> bugReport() async => nextBugReport;
 
+  /// `N4`: a buffer from [oldest] to [present], scrubbed to [scrubbedAt].
+  int present = 600;
+  int? oldest = 0;
+  int? scrubbedAt;
+  String? scrubRefusal;
+  List<TrackLane> nextLanes = const <TrackLane>[];
+
+  @override
+  Future<TimelineWindow> window() async =>
+      (present: present, oldest: oldest, scrubbedAt: scrubbedAt);
+
+  @override
+  Future<String?> scrubTo(int step) async {
+    if (scrubRefusal != null) return scrubRefusal;
+    scrubbedAt = step == present ? null : step;
+    commands.add('scrubbed:$step');
+    return null;
+  }
+
+  @override
+  Future<bool> returnToPresent() async {
+    final was = scrubbedAt != null;
+    scrubbedAt = null;
+    if (was) commands.add('returned');
+    return was;
+  }
+
+  @override
+  Future<String?> branchHere() async {
+    final at = scrubbedAt;
+    if (at == null) return 'scrub to a step first';
+    present = at;
+    scrubbedAt = null;
+    commands.add('branched:$at');
+    return null;
+  }
+
+  @override
+  Future<List<TrackLane>> tracks() async => nextLanes;
+
   @override
   Future<void> dispose() async {}
 }
@@ -271,4 +311,90 @@ void main() {
       expect(button.onPressed, isNotNull, reason: 'usable again once saved');
     },
   );
+
+  group('N4 scrubber', () {
+    testWidgets('is hidden on a live run, which would refuse a scrub', (
+      tester,
+    ) async {
+      // Mutation: drop the `_paused` check in `_scrubber`. The slider is
+      // then offered on a run that refuses every scrub it sends.
+      await _pump(tester, _FakeTimelineClient());
+      expect(find.byType(Slider), findsNothing);
+    });
+
+    testWidgets('a released drag scrubs once, and the way back and the branch '
+        'come alive', (tester) async {
+      // Mutation: scrub from `onChanged`. Every pixel of a drag is then a
+      // replay in the game, and `commands` holds dozens of scrubs.
+      final client = _FakeTimelineClient()..paused = true;
+      await _pump(tester, client);
+      expect(find.text('Scrub: at the present, step 600'), findsOneWidget);
+      final branch = find.widgetWithText(FilledButton, 'Branch here');
+      expect(tester.widget<FilledButton>(branch).onPressed, isNull);
+
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChanged!(120.0);
+      slider.onChanged!(150.0);
+      slider.onChangeEnd!(150.0);
+      await tester.pumpAndSettle();
+
+      expect(client.commands, <String>['scrubbed:150']);
+      expect(find.text('Scrub: step 150 of 600'), findsOneWidget);
+      expect(tester.widget<FilledButton>(branch).onPressed, isNotNull);
+
+      await tester.tap(find.text('Back to present'));
+      await tester.pumpAndSettle();
+      expect(client.commands.last, 'returned');
+      expect(find.text('Scrub: at the present, step 600'), findsOneWidget);
+
+      tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(90.0);
+      await tester.pumpAndSettle();
+      await tester.tap(branch);
+      await tester.pumpAndSettle();
+      expect(client.commands.last, 'branched:90');
+      expect(find.text('Scrub: at the present, step 90'), findsOneWidget);
+    });
+
+    testWidgets('a refused scrub says why', (tester) async {
+      // Mutation: ignore the answer of `scrubTo`. The panel then shows the
+      // scrubbed step while the game is still at the present.
+      final client = _FakeTimelineClient()
+        ..paused = true
+        ..scrubRefusal = 'step 5 is not held; the buffer reaches from 0';
+      await _pump(tester, client);
+
+      tester.widget<Slider>(find.byType(Slider)).onChangeEnd!(5.0);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('is not held'), findsOneWidget);
+      expect(client.commands, isEmpty);
+    });
+
+    testWidgets('lanes load on request, and a mark scrubs to its step', (
+      tester,
+    ) async {
+      // Mutation: hand the mark's tap to `releaseAtStep` like the frame
+      // strip. Tapping a change would then cut the future it sits in.
+      final client = _FakeTimelineClient()
+        ..paused = true
+        ..nextLanes = <TrackLane>[
+          (
+            entity: '7',
+            component: 'Health',
+            steps: <int>[0, 412],
+            values: <String>['100', '93'],
+          ),
+        ];
+      await _pump(tester, client);
+      expect(find.text('7 · Health'), findsNothing);
+
+      await tester.tap(find.text('Load tracks'));
+      await tester.pumpAndSettle();
+      expect(find.text('7 · Health'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey<String>('7.Health@412')));
+      await tester.pumpAndSettle();
+      expect(client.commands, <String>['scrubbed:412']);
+    });
+  });
 }

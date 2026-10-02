@@ -45,6 +45,9 @@ extension _BatchedDraws on Renderer {
         if (!_isBatchable(next) ||
             !identical(next.mesh, first.mesh) ||
             !identical(next.material, first.material) ||
+            // Adjacent across a boundary of two orders, and the merge would
+            // draw the later one at the earlier one's place — `P7`.
+            next.drawOrder != first.drawOrder ||
             next.worldIsMirrored != first.worldIsMirrored ||
             !identical(probes.nearest(next.worldBoundsCentre), probe)) {
           break;

@@ -22,8 +22,7 @@ void main() {
   // roughness, so sampling it would leave a slot the compiler then drops.
   ApplyCommonMaps(s);
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }

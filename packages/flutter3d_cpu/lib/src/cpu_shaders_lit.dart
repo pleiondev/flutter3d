@@ -25,6 +25,8 @@ final class UnlitShader implements CpuFragmentShader {
     // `L5`: reflects no light, as `unlit.frag` says.
     c.albedo = null;
     if (s == null) return null;
+    final debug = writeDebugView(c, v, bindings, s, s.albedo);
+    if (debug != null) return debug;
     // Fully rough, which is what WriteSurface's one-argument form means: a
     // surface that cannot say how polished it is should not be reflected off.
     return writeLit(
@@ -99,6 +101,8 @@ final class LambertShader implements CpuFragmentShader {
         (s.albedo.clone()..multiply(s.ambient + sampleLightmap(v, b, c)))
             .scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
+    final debug = writeDebugView(c, v, b, s, total);
+    if (debug != null) return debug;
     return writeLit(
       c,
       v,
@@ -147,6 +151,8 @@ final class BlinnPhongShader implements CpuFragmentShader {
         (s.albedo.clone()..multiply(s.ambient + sampleLightmap(v, b, c)))
             .scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
+    final debug = writeDebugView(c, v, b, s, total);
+    if (debug != null) return debug;
     return writeLit(
       c,
       v,
@@ -1005,6 +1011,8 @@ final class PbrShader implements CpuFragmentShader {
                 .scaled(through) +
             coatAmbient,
     };
+    final debug = writeDebugView(c, v, b, s, total, transformed: layered);
+    if (debug != null) return debug;
     return writeLit(
       c,
       v,
@@ -1153,6 +1161,8 @@ final class ToonShader implements CpuFragmentShader {
         (s.albedo.clone()..multiply(s.ambient + sampleLightmap(v, b, c)))
             .scaled(s.occlusion);
     final total = lit + ambient + Vector3.all(rim) + s.emissive;
+    final debug = writeDebugView(c, v, b, s, total);
+    if (debug != null) return debug;
     return writeLit(
       c,
       v,

@@ -7,6 +7,60 @@
 - **`ShadowTransmittance`** and the coloured shadow it feeds, the software
   twin of the stage and of the light loop's new term
   (`ShadowSettings.translucentCasters`).
+- **A bundle built from a `.f3dmat` loads with nothing registered by
+  hand.** `CpuDevice(materialCompiler:)` compiles each stage the bundle
+  carries the source of; a reload points the stage already handed out at the
+  new source, and a source that does not compile leaves the library as it
+  was. `ensureCpuBackendRegistered` takes the compiler too.
+
+- **A mask's surviving fragment is opaque**, as the GLSL now writes it.
+
+- **The orthographic camera in software**: `towardsEye`, `eyeDistance` and
+  the light shafts' start follow the GLSL.
+
+- **Debug views in software.** `writeDebugView` mirrors `WriteDebugView`
+  for every lit model and the impostor, and the composite passes the debug
+  side of the split through its encode alone, as the GLSL does.
+
+- **The lens in software.** The composite bends its coordinate as
+  `composite.frag` does, and `LensFlareShader` mirrors `lens_flare.frag`;
+  `lens-flare` and `lens-distortion` match Impeller's references to the
+  pixel.
+- **SMAA 1x in software.** `SmaaEdgesShader`, `SmaaWeightsShader` and
+  `SmaaBlendShader` mirror `smaa_edges.frag`, `smaa_weights.frag` and
+  `smaa_blend.frag` line for line, so the software backend smooths the same
+  edges by the same amounts; its `smaa-teapot` reference matches Impeller's
+  to the pixel.
+
+**The decal stage, as the GLSL has it.** `DecalShader` mirrors
+`post/decal.frag` line for line, the mip level of each picture chosen from
+the same footprint the GLSL computes by hand from neighbouring texels of the
+surface buffer.
+
+**`P4`'s two stages.** `PlanarReflectionShader` mirrors
+`planar_reflection.frag` and `RenderTextureEncodeShader` mirrors
+`render_texture_encode.frag`; `planar_reflection_test.dart` holds ten
+claims about both, and the `planar-mirror` and `render-texture` goldens are
+in this set.
+
+**A triangle is clipped to the depth range, as a GPU clips it.** The
+rasteriser cut triangles at `w` and nowhere else, so a fragment in front of
+the near plane or past the far one was drawn wherever its `w` was positive.
+Nothing showed it while every near plane was parallel to the screen and a
+little way off the eye; the mirrored camera stands its near plane on the
+mirror, and what was below the mirror came up through it here and on no
+other backend. A fragment with a window depth outside `[0, 1]` is dropped
+now, which is the same cut as clipping the triangle, because that depth is
+linear across the screen. No golden of this set moved.
+
+**`SkyPhysicalShader`**, the software `SkyPhysical`, with the stars' hash
+rounded to single precision as the GPU computes it, and **height fog in
+`applyFog`**, as `color.glsl` has it.
+
+- **`PngStripWriter` writes a PNG a strip at a time**, one IDAT chunk per
+  strip and an empty final deflate block at `close`, keeping only the running
+  Adler-32 between strips. It refuses rows past the bottom and a `close` with
+  rows missing. `encodePng` is unchanged, byte for byte.
 
 ## 0.8.2+1
 

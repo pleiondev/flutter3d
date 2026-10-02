@@ -230,7 +230,7 @@ Surface? readSurface(
     toLinear(texel.y) * toLinear(tint.y) * v[kVColour + 1],
     toLinear(texel.z) * toLinear(tint.z) * v[kVColour + 2],
   );
-  final alpha = texel.w * tint.w * v[kVColour + 3];
+  final textured = texel.w * tint.w * v[kVColour + 3];
 
   // Alpha masking, glTF's third alpha mode, before anything else for the
   // reason the GLSL gives: a discarded fragment should not pay for the
@@ -239,8 +239,14 @@ Surface? readSurface(
   final cutoff = bindings
       .vec4('FragInfo', 'material2', Vector4(-1.0, 1.0, 1.0, 1.0))
       .x;
-  if (cutoff >= 0.0) {
-    if (alpha < cutoff) return null;
+  if (cutoff > 1.0) {
+    // `P7`'s coverage, which never reaches this rasteriser: it answers false
+    // to `supportsAlphaToCoverage`, so the engine writes the plain cutoff.
+    // Cut at the cutoff it carries rather than keep a fragment that one
+    // sample a pixel has no coverage to spread.
+    if (textured < cutoff - 1.0) return null;
+  } else if (cutoff >= 0.0) {
+    if (textured < cutoff) return null;
   } else if (cutoff < -1.5) {
     // `gfx-16n`: hashed, the fourth mode. Anchored to world position rather
     // than to the screen so the pattern travels with the surface — see
@@ -256,8 +262,10 @@ Surface? readSurface(
           anchored.x * 12.9898 + anchored.y * 78.233 + anchored.z * 37.719,
         ) *
         43758.5453;
-    if (alpha < t - t.floorToDouble()) return null;
+    if (textured < t - t.floorToDouble()) return null;
   }
+  // What survives a mask's cut is opaque, as `surface.glsl` writes it.
+  final alpha = cutoff >= 0.0 && cutoff <= 1.0 ? 1.0 : textured;
 
   final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
   final length = normal.length;
@@ -269,7 +277,12 @@ Surface? readSurface(
   final material = bindings.vec4('FragInfo', 'material', Vector4.zero());
   final camera = bindings.vec4('FragInfo', 'camera_position', Vector4.zero());
   final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
-  final view = Vector3(camera.x, camera.y, camera.z) - world;
+  // `P7`: against the view axis through an orthographic lens — `TowardsEye`.
+  // The stages without the fog block keep the eye's point, as the GLSL's
+  // `F3D_NO_FOG` ones do, and read as perspective here.
+  final view = orthographic(bindings)
+      ? towardsEye(v, bindings)
+      : Vector3(camera.x, camera.y, camera.z) - world;
   final viewLength = view.length;
   if (viewLength > 1e-6) view.scale(1.0 / viewLength);
 
@@ -499,4 +512,87 @@ void applyCommonMaps(
   applyNormalMap(s, v, b, c, transformed: transformed);
   applyOcclusionMap(s, v, b, c, transformed: transformed);
   applyEmissiveMap(s, v, b, c, transformed: transformed);
+}
+
+/// `NonFinite` from `surface.glsl`: NaN or infinite in any channel.
+bool nonFinite(Vector3 c) =>
+    c.x.isNaN ||
+    c.y.isNaN ||
+    c.z.isNaN ||
+    c.x.isInfinite ||
+    c.y.isInfinite ||
+    c.z.isInfinite;
+
+/// `WriteDebugView` from `surface.glsl` — `P6`: the material channel
+/// `FragInfo.debug_view` asks for, in place of [lit], or null when no view
+/// is on or the fragment sits left of the split, and the caller writes the
+/// light.
+///
+/// Display values converted to linear, through the surface buffer and the
+/// weighted-blended targets as `writeLit` writes them, and without the fog,
+/// for the reasons the GLSL gives. [geometric] is the normal the surface
+/// buffer takes when the stage hands `writeLit` another than [Surface.normal]
+/// — the impostor's card.
+Vector4? writeDebugView(
+  FragmentContext c,
+  Float32List v,
+  ShaderBindings b,
+  Surface s,
+  Vector3 lit, {
+  bool transformed = false,
+  Vector3? geometric,
+}) {
+  final debug = b.vec4('FragInfo', 'debug_view', Vector4.zero());
+  if (debug.x < 0.5) return null;
+  if (c.coord.x < debug.y * debug.z) return null;
+  Vector3 srgbOf(Vector3 linear) => Vector3(
+    toSrgb(linear.x.clamp(0.0, 1.0)),
+    toSrgb(linear.y.clamp(0.0, 1.0)),
+    toSrgb(linear.z.clamp(0.0, 1.0)),
+  );
+  final shown = switch ((debug.x + 0.5).floor()) {
+    1 => srgbOf(s.albedo),
+    2 => Vector3(
+      s.normal.x * 0.5 + 0.5,
+      s.normal.y * 0.5 + 0.5,
+      s.normal.z * 0.5 + 0.5,
+    ),
+    3 => Vector3.all(s.roughness.clamp(0.0, 1.0)),
+    4 => Vector3.all(s.metallic.clamp(0.0, 1.0)),
+    5 => Vector3.all(s.occlusion.clamp(0.0, 1.0)),
+    6 => srgbOf(s.emissive),
+    7 => () {
+      final (u: u, v: w, footprint: _) = mapUv(
+        kMapBaseColor,
+        v,
+        b,
+        c,
+        transformed: transformed,
+      );
+      return Vector3(fract(u), fract(w), 0.0);
+    }(),
+    8 =>
+      nonFinite(lit)
+          ? Vector3(1.0, 0.0, 1.0)
+          : () {
+              final e = srgbOf(lit);
+              return Vector3.all(
+                (0.2126 * e.x + 0.7152 * e.y + 0.0722 * e.z) * 0.5,
+              );
+            }(),
+    _ => Vector3.zero(),
+  };
+  writeSurface(c, v, b, geometric ?? s.normal, s.roughness);
+  final weight = premultiplies(b) ? s.alpha : 1.0;
+  return writeWeightedBlended(
+    c,
+    v,
+    b,
+    Vector4(
+      toLinear(shown.x) * weight,
+      toLinear(shown.y) * weight,
+      toLinear(shown.z) * weight,
+      s.alpha,
+    ),
+  );
 }

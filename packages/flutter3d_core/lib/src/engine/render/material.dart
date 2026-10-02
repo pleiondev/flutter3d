@@ -65,6 +65,7 @@ final class Material {
     this.emissiveStrength = 1.0,
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
+    this.alphaToCoverage = false,
     this.doubleSided = false,
     this.fogged = true,
     this.extensions,
@@ -79,7 +80,7 @@ final class Material {
     this.parameterBlock = 'MaterialParams',
     Map<String, Float32List>? parameters,
     Map<String, TextureHandle>? extraTextures,
-  }) : parameters = parameters ?? const <String, Float32List>{},
+  }) : parameters = parameters ?? <String, Float32List>{},
        textureTransforms =
            textureTransforms ?? <MaterialMap, TextureTransform>{},
        extraTextures = extraTextures ?? const <String, TextureHandle>{},
@@ -176,6 +177,11 @@ final class Material {
   /// Every uniform in this engine is a float vector, a matrix or an array of
   /// either, so a `Float32List` is the only value there is. An integer or a
   /// boolean is encoded as a float, the same way the built-in shaders do it.
+  ///
+  /// **A map of the material's own, empty by default and open to additions**
+  /// — `P8`. It was a shared constant, so a material made without parameters
+  /// could not be given any: a model's surfaces, handed a material written
+  /// in the language after loading, had nowhere to put its uniforms.
   final Map<String, Float32List> parameters;
 
   /// Textures an application's own shader samples, by slot name.
@@ -256,6 +262,19 @@ final class Material {
 
   MaterialAlphaMode alphaMode;
   double alphaCutoff;
+
+  /// A masked surface's edge antialiased by the multisample resolve rather
+  /// than cut at [alphaCutoff] — `P7`.
+  ///
+  /// Read only under [MaterialAlphaMode.mask]. The alpha is sharpened round
+  /// the cutoff to a pixel's width and handed to the hardware as coverage, so
+  /// a leaf, a fence or a grille is as smooth at its edge as a triangle is.
+  /// **Two backends of four can**: WebGL2 and WebGPU, in a multisampled scene
+  /// pass. Elsewhere — Impeller, the software rasteriser, a scene pass that
+  /// gave its multisampling up — the material draws the hard cutoff it draws
+  /// without this, and `FrameResult.alphaToCoverageDeclined` says so. Off by
+  /// default.
+  bool alphaToCoverage;
   bool doubleSided;
 
   /// Whether the frame's fog reaches this material. True for almost
@@ -316,6 +335,8 @@ final class Material {
   /// Signed, and negative is the useful half: ordinary materials sit at zero,
   /// so the only way to be drawn *before* the scene is to ask for less than it.
   /// The usable range is −128 to 127 and values outside it are clamped.
+  /// [MeshNode.drawOrder] adds to it, for an order between nodes that share
+  /// this material.
   int drawBucket;
 
   /// Overrides whether this surface writes depth. Null lets transparency
@@ -395,6 +416,7 @@ final class Material {
           emissiveStrength: emissiveStrength,
           alphaMode: alphaMode,
           alphaCutoff: alphaCutoff,
+          alphaToCoverage: alphaToCoverage,
           doubleSided: doubleSided,
           fogged: fogged,
           extensions: extensions,

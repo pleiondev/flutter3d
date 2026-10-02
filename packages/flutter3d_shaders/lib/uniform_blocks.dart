@@ -23,6 +23,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -119,6 +120,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -238,6 +240,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'gamma': (offset: 96, byteLength: 16, elements: 1, type: 'Vector4'),
       'gain': (offset: 112, byteLength: 16, elements: 1, type: 'Vector4'),
       'contact': (offset: 128, byteLength: 16, elements: 1, type: 'Vector4'),
+      'lens': (offset: 144, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragCoordInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -281,6 +284,33 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         byteLength: 64,
         elements: 1,
         type: 'Matrix',
+      ),
+    },
+  },
+  'Decal': <String, Map<String, UniformMemberLayout>>{
+    'DecalInfo': <String, UniformMemberLayout>{
+      'inverse_view_projection': (
+        offset: 0,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'camera': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 80, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 96, byteLength: 16, elements: 1, type: 'Vector4'),
+      'view': (offset: 112, byteLength: 16, elements: 1, type: 'Vector4'),
+      'slots': (offset: 128, byteLength: 64, elements: 4, type: 'Vector4'),
+      'axis_x': (offset: 192, byteLength: 256, elements: 16, type: 'Vector4'),
+      'axis_y': (offset: 448, byteLength: 256, elements: 16, type: 'Vector4'),
+      'axis_z': (offset: 704, byteLength: 256, elements: 16, type: 'Vector4'),
+      'region': (offset: 960, byteLength: 256, elements: 16, type: 'Vector4'),
+      'color': (offset: 1216, byteLength: 256, elements: 16, type: 'Vector4'),
+      'fade': (offset: 1472, byteLength: 256, elements: 16, type: 'Vector4'),
+      'emissive': (
+        offset: 1728,
+        byteLength: 256,
+        elements: 16,
+        type: 'Vector4',
       ),
     },
   },
@@ -338,6 +368,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -434,6 +465,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -492,6 +524,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -588,6 +621,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -627,6 +661,12 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'params': (offset: 2528, byteLength: 16, elements: 1, type: 'Vector4'),
       'params2': (offset: 2544, byteLength: 16, elements: 1, type: 'Vector4'),
       'params3': (offset: 2560, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'LensFlare': <String, Map<String, UniformMemberLayout>>{
+    'LensFlareInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'more': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'LightShafts': <String, Map<String, UniformMemberLayout>>{
@@ -824,6 +864,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'ObjectId': <String, Map<String, UniformMemberLayout>>{
@@ -1030,6 +1071,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -1126,6 +1168,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1172,6 +1215,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -1268,6 +1312,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1353,6 +1398,19 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'params3': (offset: 2560, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'PlanarReflection': <String, Map<String, UniformMemberLayout>>{
+    'FogInfo': <String, UniformMemberLayout>{
+      'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'PlanarReflectionInfo': <String, UniformMemberLayout>{
+      'view': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tint': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'PolylineVertex': <String, Map<String, UniformMemberLayout>>{
     'FrameInfo': <String, UniformMemberLayout>{
       'mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
@@ -1421,6 +1479,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       ),
     },
   },
+  'RenderTextureEncode': <String, Map<String, UniformMemberLayout>>{
+    'RenderTextureInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'SceneColourCopy': <String, Map<String, UniformMemberLayout>>{
     'SceneCopyInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1455,6 +1518,21 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'color': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'light': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'params': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'SmaaBlend': <String, Map<String, UniformMemberLayout>>{
+    'SmaaInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'SmaaEdges': <String, Map<String, UniformMemberLayout>>{
+    'SmaaInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'SmaaWeights': <String, Map<String, UniformMemberLayout>>{
+    'SmaaInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'Splat': <String, Map<String, UniformMemberLayout>>{
@@ -1521,6 +1599,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -1617,6 +1696,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1663,6 +1743,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -1759,6 +1840,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'Velocity': <String, Map<String, UniformMemberLayout>>{
@@ -1998,6 +2080,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragInfo': <String, UniformMemberLayout>{
       'light_position': (
@@ -2094,6 +2177,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
 };

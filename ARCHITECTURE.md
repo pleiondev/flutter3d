@@ -239,7 +239,7 @@ point of §3.3.
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; `LevelScene`, which turns a level into brush meshes, materials, lights and probes with no Flutter; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
 | `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow`, `FieldRow` and `EditorWidgetsTheme` so far |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
-| `flutter3d_editor_play` | Play from a level editor: the game a level belongs to run with `flutter run --machine`, swapped, restarted and stopped, its devices listed, and a saved level sent to it. What the editor's Play button and `flutter3d_editor_mcp`'s `play` tools both run. Plain Dart with `dart:io`, which is why it is not in `flutter3d_editor_core` |
+| `flutter3d_editor_play` | Play from a level editor: the game a level belongs to run with `flutter run --machine`, swapped, restarted and stopped, its devices listed, and a saved level sent to it. What the editor's Play button and `flutter3d_editor_mcp`'s `play` tools both run. Plain Dart with `dart:io`, which is why it is not in `flutter3d_editor_core`; `attach.dart` is the part without it, a game attached to by its VM service address, which is the web editor's Play |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
 | `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build, and the bakes that need a renderer or a mesh editor ahead of time: levels of detail, impostors, cluster tables, a file per device class, paged splat captures, six-way smoke sheets, and the light optimizer's command. That is why it depends on `flutter3d_cpu`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_editor_core` and `flutter3d_sim`. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
@@ -406,7 +406,8 @@ written and read in:
 ```
 point shadows (static) → point shadows → directional shadows → shadow moments
 reflection probe 0 … n → irradiance update
-scene → scene colour copy → transparent → object ids
+render textures → planar reflections
+scene → decals → scene colour copy → transparent → object ids
 (overlay nodes) → reflections → luminance → depth pyramid
 ssao → ssao blur → contact shadows → contact shadow resolve
 camera velocity → object velocity → reactive mask
@@ -2690,7 +2691,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **10949 tests** across 43 packages and 10 applications |
+| Unit tests | **11336 tests** across 43 packages and 10 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2730,7 +2731,7 @@ material parameter — is the case `doc/boundary-0.5.0.md` worked through for
 set belongs to whoever builds on the package rather than to the package
 itself.
 
-**Golden render tests.** 78 scenes against **four complete independent
+**Golden render tests.** 90 scenes against **four complete independent
 reference sets** — Impeller, the software rasteriser, WebGL2 and WebGPU — each
 held to zero differing pixels against its own set, with a per-channel tolerance
 of 8.
@@ -3142,7 +3143,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws all seventy-eight golden scenes the way Impeller does**,
+**The web backend draws all ninety golden scenes the way Impeller does**,
 between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's
@@ -3258,7 +3259,7 @@ and charge each of them the bytes, and neither is a change to make on somebody
 else's behalf. A build that wants it says so in one flag, and the engine's own
 example takes the same answer from `?backend=webgpu` in the URL — a query
 parameter rather than a define, because the browser golden stand's whole saving
-is one dart2js run serving seventy-eight scenes and both browser backends.
+is one dart2js run serving ninety scenes and both browser backends.
 
 **`flutter3d_shaders` is one text and no two backends take it the same way.**
 Impeller compiles the GLSL with `impellerc`; the WebGL2 generator translates it

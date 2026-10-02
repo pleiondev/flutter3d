@@ -173,6 +173,113 @@ void main() {
     });
   });
 
+  group('HR3: a level swapped under the run', () {
+    Demo swapped(List<DemoLevelSwap> swaps) {
+      final plain = _demo(steps: 6);
+      return Demo(
+        level: plain.level,
+        levelHash: plain.levelHash,
+        start: plain.start,
+        tape: plain.tape,
+        buildStamp: plain.buildStamp,
+        checkpoints: plain.checkpoints,
+        levelSwaps: swaps,
+      );
+    }
+
+    test('carries the document and its step through JSON', () {
+      final edit = Level(name: 'crypt', fogDensity: 0.02);
+      final json =
+          jsonDecode(
+                jsonEncode(
+                  swapped(<DemoLevelSwap>[
+                    DemoLevelSwap(step: 4, level: edit),
+                  ]).toJson(),
+                ),
+              )
+              as Map<String, Object?>;
+
+      final read = Demo.fromJson(json);
+
+      expect(read.levelSwaps.single.step, 4);
+      expect(read.levelSwaps.single.levelHash, edit.digestHex);
+      expect(read.levelSwaps.single.level.fogDensity, 0.02);
+      // Mutation: write 1 whatever the run holds — a build that cannot
+      // replay the swap opens the file and plays through it to a divergence.
+      expect(json['version'], 2);
+    });
+
+    test('a run with no swap is still written as format 1', () {
+      // Mutation: always write `formatVersion` — every demo this build
+      // records becomes unreadable to the build before it, for nothing.
+      expect(_demo().toJson()['version'], 1);
+      expect(_demo().toJson().containsKey('levelSwaps'), isFalse);
+    });
+
+    test('refuses a document that no longer digests to its hash', () {
+      final json = swapped(<DemoLevelSwap>[
+        DemoLevelSwap(step: 2, level: Level(name: 'crypt')),
+      ]).toJson();
+      final swap = (json['levelSwaps']! as List<Map<String, Object?>>).single;
+      (swap['document']! as Map<String, Object?>)['fogDensity'] = 0.5;
+
+      // Mutation: trust the hash — the replay swaps in a level nobody played.
+      expect(
+        () =>
+            Demo.fromJson(jsonDecode(jsonEncode(json)) as Map<String, Object?>),
+        throwsA(
+          isA<DemoFormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('digests to'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses swaps out of order, or past the end of the tape', () {
+      final level = Level(name: 'crypt');
+      for (final swaps in <List<DemoLevelSwap>>[
+        <DemoLevelSwap>[
+          DemoLevelSwap(step: 4, level: level),
+          DemoLevelSwap(step: 2, level: level),
+        ],
+        <DemoLevelSwap>[
+          DemoLevelSwap(step: 3, level: level),
+          DemoLevelSwap(step: 3, level: level),
+        ],
+        <DemoLevelSwap>[DemoLevelSwap(step: 7, level: level)],
+      ]) {
+        // Mutation: drop the order check — a replay walking the list once
+        // would skip the swap that came second and play the wrong level.
+        expect(
+          () => Demo.fromJson(
+            jsonDecode(jsonEncode(swapped(swaps).toJson()))
+                as Map<String, Object?>,
+          ),
+          throwsA(isA<DemoFormatException>()),
+          reason: 'steps ${swaps.map((s) => s.step).toList()}',
+        );
+      }
+    });
+
+    test('a trace forgets what was observed after a step, and keeps the '
+        'rest', () {
+      final trace = DigestTrace(every: 2);
+      for (var step = 1; step <= 8; step++) {
+        trace.observe(step, <String, Object?>{'step': step});
+      }
+
+      trace.forgetAfter(5);
+
+      // Mutation: forget from the step on — the checkpoint at the swap's own
+      // step, taken under the old level and still true, goes with it.
+      expect(trace.steps, <int>[2, 4]);
+      trace.forgetAfter(4);
+      expect(trace.steps, <int>[2, 4]);
+    });
+  });
+
   group('the loop', () {
     test('records one entry per step, with the step\'s look in it', () {
       // The moment is the whole point: after the look for the step is added

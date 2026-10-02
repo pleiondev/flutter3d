@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../assets/image_decoder.dart';
 import 'sky_settings.dart';
 
 /// Builds the cube a surface reflects: one environment, convolved by roughness.
@@ -240,6 +242,82 @@ abstract final class EnvironmentMap {
       mipLevels: chain,
     );
     return texture == null ? null : (texture: texture, levels: levels);
+  }
+
+  /// The same thing from a panorama file's bytes: a Radiance `.hdr`, or any
+  /// image [decodeImage] reads.
+  ///
+  /// **The file, not the pixels, because a file is what changes.** A game
+  /// that loads its sky from an asset and wants the edit drawn under a hot
+  /// swap has the bytes and nothing else; deciding which decoder they need
+  /// belongs beside the upload rather than at every caller that watches a
+  /// file. A `.hdr` is told apart by its header, so the name of the file
+  /// plays no part.
+  ///
+  /// Null for bytes neither reader takes, and for everything [fromPanorama]
+  /// answers with null.
+  static Future<({TextureHandle texture, int levels})?> fromEncoded(
+    GraphicsDevice device,
+    Uint8List bytes, {
+    required ImageDecoder decodeImage,
+    int size = 32,
+    int levels = 4,
+  }) async {
+    final ({ByteData pixels, int width, int height})? panorama =
+        hdrSizeOf(bytes) != null
+        ? _fromHdr(bytes)
+        : switch (await decodeImage(bytes)) {
+            final Rgba8Image image => (
+              pixels: ByteData.sublistView(image.pixels),
+              width: image.width,
+              height: image.height,
+            ),
+            null => null,
+          };
+    if (panorama == null) return null;
+    return fromPanorama(
+      device,
+      panorama.pixels,
+      width: panorama.width,
+      height: panorama.height,
+      size: size,
+      levels: levels,
+    );
+  }
+
+  static ({ByteData pixels, int width, int height})? _fromHdr(Uint8List bytes) {
+    try {
+      final HdrImage image = readHdr(bytes);
+      return (
+        pixels: hdrToRgba8(image),
+        width: image.width,
+        height: image.height,
+      );
+    } on HdrFormatException {
+      return null;
+    }
+  }
+
+  /// A Radiance image as the RGBA8 [fromPanorama] reads.
+  ///
+  /// **Clamped rather than tone-mapped.** The cube is eight bits a channel —
+  /// [fromSky] says why, and that this is a real limitation — so a sun four
+  /// hundred times brighter than the sky around it becomes white either way.
+  /// Rolling the highlights off first would darken everything else to buy
+  /// detail in a region the cube cannot hold anyway, and would make the
+  /// indirect light a panorama gives differ from the indirect light the same
+  /// picture gives as a PNG.
+  static ByteData hdrToRgba8(HdrImage image) {
+    int byte(double value) => (value * 255.0).round().clamp(0, 255);
+    final out = ByteData(image.width * image.height * 4);
+    for (var i = 0; i < image.width * image.height; i++) {
+      out
+        ..setUint8(i * 4, byte(image.rgb[i * 3]))
+        ..setUint8(i * 4 + 1, byte(image.rgb[i * 3 + 1]))
+        ..setUint8(i * 4 + 2, byte(image.rgb[i * 3 + 2]))
+        ..setUint8(i * 4 + 3, 255);
+    }
+    return out;
   }
 
   /// Which level of the chain a shader should treat as the diffuse term.

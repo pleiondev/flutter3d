@@ -304,6 +304,8 @@ void _replayPassEvent(
       pass.setWindingOrder(value);
     case TraceSetDepthWrite(:final value):
       pass.setDepthWrite(value);
+    case TraceSetAlphaToCoverage(:final value):
+      pass.setAlphaToCoverage(value);
     case TraceSetDepthCompare(:final value):
       pass.setDepthCompare(value);
     case TraceSetStencil(:final front, :final back):
@@ -335,8 +337,12 @@ void _replayPassEvent(
       );
     case TraceClearBindings():
       pass.clearBindings();
-    case TraceDraw(:final instanceCount):
-      pass.draw(instanceCount: instanceCount);
+    case TraceDraw(:final instanceCount, :final firstIndex, :final indexCount):
+      pass.draw(
+        instanceCount: instanceCount,
+        firstIndex: firstIndex,
+        indexCount: indexCount,
+      );
     case TraceSubmit():
       pass.submit();
   }

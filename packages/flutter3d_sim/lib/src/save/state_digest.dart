@@ -408,6 +408,20 @@ final class DigestTrace {
     _digests.add(StateDigest.of(state));
   }
 
+  /// Drops the checkpoints taken after [step].
+  ///
+  /// For a run that was lived again from [step] — a level swapped under it:
+  /// what was observed after [step] is a run that no longer happened, and a
+  /// replay checked against it would be checked against the wrong world. The
+  /// steps between [step] and the next [observe] stay unchecked, which is a
+  /// gap and not a false answer.
+  void forgetAfter(int step) {
+    final keep = _steps.indexWhere((s) => s > step);
+    if (keep < 0) return;
+    _steps.removeRange(keep, _steps.length);
+    _digests.removeRange(keep, _digests.length);
+  }
+
   /// The first checkpoint at which this trace and [expected] disagree.
   ///
   /// Null when they agree the whole way, which is the answer the parity test

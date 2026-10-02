@@ -99,6 +99,7 @@ final class GoldenScene {
     this.lightmapped = false,
     this.anisotropicFloor = false,
     this.shaderBundle,
+    this.materialParameters = const <String, List<double>>{},
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
     this.reflectionProbe = false,
@@ -172,6 +173,12 @@ final class GoldenScene {
   /// build is, and the scene is the proof that the same file loads on all
   /// three. See `GoldenExtras.exampleShaderBundle`.
   final String? shaderBundle;
+
+  /// Values for the model's `Material.parameters`, by member — `P8`: what a
+  /// [lighting] whose stage declares `MaterialParams` is drawn with. Set off
+  /// the stage's defaults, so the picture shows the value reached the GPU
+  /// rather than the default the source was compiled with.
+  final Map<String, List<double>> materialParameters;
 
   /// Silhouettes for the nodes on a layer, and — when the mask names one —
   /// the model replaced by a wall with two cubes about it. See

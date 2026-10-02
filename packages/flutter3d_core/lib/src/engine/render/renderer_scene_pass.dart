@@ -175,6 +175,16 @@ extension _ScenePasses on Renderer {
     // shadow's taps anew each frame for the history to average; minus one
     // otherwise, and the turn stays put.
     _targetOrigin[3] = temporal ? (_frameIndex % 32).toDouble() : -1.0;
+    // `P6`: the channel a debug view shows in place of the light, and the
+    // column it starts at — the share of the width times the width of the
+    // target the materials draw into, which is the scene's and not the
+    // output's under a render scale.
+    final debug = settings.debugView;
+    _fragInfo.debugView
+      ..[0] = debug.active ? debug.view.code : 0.0
+      ..[1] = debug.split.clamp(0.0, 1.0)
+      ..[2] = hdr.width.toDouble()
+      ..[3] = 0.0;
     final cameraPosition = vm.Vector3.zero();
 
     for (var viewNumber = 0; viewNumber < ordered.length; viewNumber++) {
@@ -209,6 +219,10 @@ extension _ScenePasses on Renderer {
       // debug overlay at the end of a view leaves the test on `always`, which
       // is exactly the case this catches.
       passState.depthCompare = CompareFunction.less;
+      // `P7`: the meshes of a multisampled pass on a device that can may
+      // turn alpha into coverage.
+      passState.coverageAvailable =
+          msaa != null && device.supportsAlphaToCoverage;
 
       final camera = view.camera;
       final viewMatrix = camera.viewMatrix;
@@ -296,6 +310,11 @@ extension _ScenePasses on Renderer {
       _forwardData[0] = _forward.x;
       _forwardData[1] = _forward.y;
       _forwardData[2] = _forward.z;
+      // `P7`: whether the eye is a point the rays meet at or only where an
+      // orthographic camera was put — see `Orthographic` in `color.glsl`.
+      _fogInfo.projection[0] = camera.projection is OrthographicProjection
+          ? 1.0
+          : 0.0;
 
       developer.Timeline.startSync('Renderer.encodeDraws');
       void encodeOne(MeshNode node) => _encodeNode(
@@ -340,6 +359,21 @@ extension _ScenePasses on Renderer {
       } else {
         encodeHalf(opaque);
       }
+      // `P4`: each reflector's picture over its surfaces, while the depth
+      // buffer holds exactly what the opaque half left — see
+      // `renderer_planar_pass.dart`. Nothing at all without a reflector.
+      _encodePlanarReflections(
+        encoder: pass,
+        scene: scene,
+        view: view,
+        viewNumber: viewNumber,
+        rect: viewRect,
+        frustum: frustum,
+        settings: settings,
+        viewProjection: viewProjection,
+        shadows: shadows,
+        state: passState,
+      );
       // Between the two halves, which is the one place it can go. After the
       // opaque half, so every pixel already covered by geometry fails the depth
       // test before the sky's fragment stage runs — the software rasteriser
@@ -396,6 +430,14 @@ extension _ScenePasses on Renderer {
       // scene through another matrix, and its split meshes are not this
       // view's to cull.
       _clusterView = null;
+
+      // Off before the contributors and the next view: a particle drawn with
+      // a leaf's coverage still on would be speckled by its own alpha.
+      if (passState.alphaToCoverage) {
+        pass.setAlphaToCoverage(false);
+        passState.alphaToCoverage = false;
+      }
+      passState.coverageAvailable = false;
 
       // `N6`: this view's lights, cells and all, for a contributor that
       // binds them. One that does not never asks, and nothing is built for it.

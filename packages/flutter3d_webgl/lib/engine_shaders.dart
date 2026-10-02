@@ -2523,6 +2523,71 @@ void main() {
 }
 
 ''',
+    'SkyPhysicalVertex': r'''#version 300 es
+
+// Vertex stage for the physical sky: the gradient sky's triangle, carrying the
+// air instead of three colours.
+//
+// **Its own stage rather than `sky.vert` read under other names.** The data
+// travels the same way and for the same reason — `sky.vert` sets out what was
+// measured: on Impeller a uniform block never reaches the sky's pipeline and a
+// vertex attribute does — and it is the same size, six vec4s after the ray. But
+// a varying is matched by name between the stages, and a fragment stage reading
+// `v_zenith` as a scattering coefficient is one nobody could maintain.
+//
+// The depth is `sky.vert`'s 0.999999, for `sky.vert`'s reason: the far plane
+// less a hair, so the pass's own `less` passes against a cleared buffer and
+// fails against anything already drawn.
+//
+// Lengths are in kilometres here, not metres. The planet's radius is 6360 of
+// them, and in metres its square is 4·10¹³, which single precision holds to
+// within a few units — enough to put the horizon a pixel off where the ray
+// grazes it. The renderer converts; see `Renderer._skyVertexBytes`.
+precision highp float;
+
+layout(location = 0) in vec2 position;
+
+// The world-space view ray at this corner.
+layout(location = 1) in vec3 corner_ray;
+
+/// rgb: Rayleigh scattering at the ground, per km. a: its scale height, km.
+layout(location = 2) in vec4 rayleigh;
+/// x: Mie scattering at the ground, per km. y: Mie extinction, per km.
+/// z: its scale height, km. w: Henyey–Greenstein's g.
+layout(location = 3) in vec4 mie;
+/// xyz: unit vector pointing at the sun. w: the sunlight entering the air.
+layout(location = 4) in vec4 sun;
+/// x: the planet's radius. y: the top of the air's. z: the eye's, all km.
+/// w: the ground's albedo.
+layout(location = 5) in vec4 planet;
+/// x: how bright the stars are. y: the share of cells holding one.
+/// z: cells across a face of the cube they are scattered on. w: unused.
+layout(location = 6) in vec4 stars;
+/// x: cosine of the disc's angular radius. y: how much softer its edge is,
+/// as a difference of cosines. z: how bright the disc is. w: unused.
+layout(location = 7) in vec4 disc;
+
+out vec3 v_ray;
+out vec4 v_rayleigh;
+out vec4 v_mie;
+out vec4 v_sun;
+out vec4 v_planet;
+out vec4 v_stars;
+out vec4 v_disc;
+
+void main() {
+  v_ray = corner_ray;
+  v_rayleigh = rayleigh;
+  v_mie = mie;
+  v_sun = sun;
+  v_planet = planet;
+  v_stars = stars;
+  v_disc = disc;
+
+  gl_Position = vec4(position, 0.999999, 1.0);
+}
+
+''',
     'VertexTextureProbeVertex': r'''#version 300 es
 
 // **A probe, not a feature.** It answers one question that decides how morph
@@ -2881,11 +2946,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -2896,15 +2963,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -2917,6 +2993,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -3011,6 +3108,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -3018,6 +3125,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -3341,8 +3453,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -3420,6 +3533,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -3510,8 +3632,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -3548,7 +3687,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -4473,6 +4620,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 
@@ -4498,6 +4705,7 @@ void main() {
   // The albedo is already linear, and an unlit surface is best
   // understood as emitting exactly it, so it goes into the HDR
   // target as light like everything else.
+  if (WriteDebugView(s, s.albedo)) return;
   WriteSurface(s.albedo, s.alpha);
 }
 
@@ -4685,11 +4893,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -4700,15 +4910,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -4721,6 +4940,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -4815,6 +5055,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -4822,6 +5072,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -5145,8 +5400,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -5224,6 +5480,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -5314,8 +5579,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -5352,7 +5634,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -6277,6 +6567,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 
@@ -6296,6 +6646,515 @@ void main() {
   // half: colour into the HDR target, and `WriteSurfaceGeometry` compiled away
   // to nothing. The stage binds no fog, so `ApplyFog` is the identity here.
   WriteSurface(s.albedo, s.alpha);
+}
+
+''',
+    'PlanarReflection': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `P4`: a planar reflector's surface, drawn a second time over itself with
+// the picture a mirrored camera took of the world above it.
+//
+// **Laid over the surface rather than inside its lighting.** The reflection
+// is read by the pixel's place on screen, not by anything the material
+// knows, so the stage that reads it needs nothing a lit model has: no maps,
+// no lights, no shadows. Putting it inside the lit models would have been a
+// sampler and a block added to six stages that every other draw pays to
+// declare, and a seventh header permutation to keep byte-identical. As a
+// draw of its own it costs only the surfaces that reflect, and a frame
+// without a reflector compiles and binds exactly what it did.
+//
+// Drawn with the depth test `lessEqual` and no depth write, straight after
+// the opaque half, so it lands on exactly the pixels the surface itself won
+// and nothing in front of the surface is painted. Blended source-over with
+// the colour premultiplied, as every blended draw here is.
+//
+// **No second output**, for the reason `xray.frag` gives at length: a blend
+// protects attachment zero only, and only on the backends whose `setBlend`
+// honours an attachment index. The surface buffer keeps describing the
+// surface underneath, which is the truth about it.
+//
+// **And not `lib/surface.glsl`**, which `xray.frag` does include: that header
+// declares the base colour sampler for every stage that takes it, and a stage
+// that never reads it has it dropped from the Metal function while reflection
+// still reports it, which is the slot `metal_bindings_test.dart` exists to
+// catch. The two things wanted from `FragInfo` come another way: the eye is
+// `FogInfo`'s, and the target's rows ride in this stage's own block.
+#define F3D_NO_SURFACE_BUFFER
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+
+/// The surface's own colour, sRGB-encoded, alpha one where a surface was
+/// drawn — `L5`. The third attachment, present only when a pass reads it (the
+/// indirect light does) and the device opens three; like the surface buffer,
+/// written unconditionally and discarded when absent. Stored in the surface
+/// buffer's format rather than eight bits a channel, and `Renderer` says why.
+layout(location = 2) out vec4 frag_albedo;
+#endif
+
+/// What [frag_albedo] carries: the lit models set it in `ReadSurface`, and a
+/// stage that reflects nothing — unlit, the debug views — leaves it black,
+/// which is what light bounced onto it would come to.
+vec3 g_albedo = vec3(0.0);
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+/// Whether [WriteSurface] weights the colour by its alpha: set by
+/// `ReadSurface` for a material that blends, and false for everything else.
+///
+/// **The blend takes its source as premultiplied**, so a blended surface has
+/// to hand it the colour times the alpha — a pane at a fifth of opaque adds a
+/// fifth of its light, not all of it. glTF's blend mode is Porter and Duff's
+/// over on straight colour, and this is the one place that turns the lit
+/// radiance into what that means. An opaque or masked surface keeps its
+/// colour whole: its alpha is not a coverage, and nothing blends it.
+/// A global for the reason [g_debug_surface] is one.
+bool g_premultiply = false;
+
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
+}
+fog_info;
+
+/// Whether the camera is orthographic — `P7`.
+///
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
+}
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // `L5`: the surface's colour, whatever the surface buffer ends up holding.
+  frag_albedo = vec4(LinearToSrgb(clamp(g_albedo, vec3(0.0), vec3(1.0))), 1.0);
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
+vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
+}
+
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
+/// The fog is mixed in before the weight, so a thin distant pane adds a thin
+/// share of the fog too rather than all of it. Times one when nothing blends,
+/// which is exact, so an opaque draw writes what it always wrote.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  float weight = g_premultiply ? alpha : 1.0;
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
+  WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// What the mirrored camera saw, in linear light, the size of the view it
+/// was taken for or a fraction of it.
+uniform sampler2D reflection_texture;
+
+layout(std140) uniform PlanarReflectionInfo {
+  /// xy: the view's top-left corner in pixels of the target, counted from
+  /// the top. zw: the view's size in pixels.
+  vec4 view;
+
+  /// x: the reflectance straight on, Schlick's F0 — one for a mirror, about
+  /// 0.02 for water. y: the strength the reflection is laid on with, which
+  /// scales the whole Fresnel term. z: the target's rows where its first row
+  /// is the bottom of the picture, nought where it is the top — see
+  /// `FragCoordFromTop`. w unused.
+  vec4 params;
+
+  /// rgb: a linear tint the reflected light is multiplied by. w unused.
+  vec4 tint;
+}
+planar_info;
+
+void main() {
+  // The same pixel the mirrored camera drew, by place on screen: its
+  // projection is the view's own, so the texel under this fragment is the
+  // reflected point behind it. Counted from the top on every backend, and
+  // turned back where the texture's first row is the bottom of the picture.
+  float rows = planar_info.params.z;
+  vec2 pixel = FragCoordFromTop(rows);
+  vec2 uv = (pixel - planar_info.view.xy) / planar_info.view.zw;
+  if (rows > 0.0) uv.y = 1.0 - uv.y;
+  vec3 reflected =
+      textureLod(reflection_texture, uv, 0.0).rgb * planar_info.tint.rgb;
+
+  // Schlick's Fresnel on the geometric normal, facing the eye: water reflects
+  // a little looking down into it and nearly everything at a grazing angle,
+  // and a mirror's F0 of one makes the term one everywhere.
+  vec3 n = normalize(v_normal);
+  if (!gl_FrontFacing) n = -n;
+  vec3 v = TowardsEye();
+  float cosine = clamp(dot(n, v), 0.0, 1.0);
+  float f0 = planar_info.params.x;
+  float grazing = 1.0 - cosine;
+  float grazing2 = grazing * grazing;
+  float fresnel = f0 + (1.0 - f0) * grazing2 * grazing2 * grazing;
+  float alpha = clamp(fresnel * planar_info.params.y, 0.0, 1.0);
+
+  // Fogged as the surface is: the reflection is light leaving the surface
+  // and crosses the same air to the eye. Premultiplied for the blend.
+  frag_color = vec4(ApplyFog(reflected) * alpha, alpha);
 }
 
 ''',
@@ -6475,11 +7334,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -6490,15 +7351,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -6511,6 +7381,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -6605,6 +7496,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -6612,6 +7513,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -6935,8 +7841,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -7014,6 +7921,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -7104,8 +8020,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -7142,7 +8075,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -8065,6 +9006,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -8803,10 +9804,9 @@ void main() {
   // roughness, so sampling it would leave a slot the compiler then drops.
   ApplyCommonMaps(s);
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 ''',
@@ -8988,11 +9988,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -9003,15 +10005,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -9024,6 +10035,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -9118,6 +10150,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -9125,6 +10167,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -9448,8 +10495,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -9527,6 +10575,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -9617,8 +10674,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -9655,7 +10729,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -10578,6 +11660,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -11322,10 +12464,9 @@ void main() {
   // output here.
   ApplyMetallicRoughnessMap(s);
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 ''',
@@ -11536,11 +12677,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -11551,15 +12694,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -11572,6 +12724,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -11666,6 +12839,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -11673,6 +12856,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -11996,8 +13184,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -12075,6 +13264,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -12165,8 +13363,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -12203,7 +13418,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -13126,6 +14349,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -14712,19 +15995,15 @@ void main() {
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
   vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion +
-          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
-              g_coat_through +
-          coatAmbient,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion +
+             (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+                 g_coat_through +
+             coatAmbient;
 #else
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
 #endif
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 #endif  // PBR_GLSL_
@@ -14943,11 +16222,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -14958,15 +16239,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -14979,6 +16269,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -15073,6 +16384,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -15080,6 +16401,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -15403,8 +16729,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -15482,6 +16809,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -15572,8 +16908,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -15610,7 +16963,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -16533,6 +17894,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -18119,19 +19540,15 @@ void main() {
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
   vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion +
-          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
-              g_coat_through +
-          coatAmbient,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion +
+             (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+                 g_coat_through +
+             coatAmbient;
 #else
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
 #endif
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 #endif  // PBR_GLSL_
@@ -18318,11 +19735,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -18333,15 +19752,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -18354,6 +19782,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -18448,6 +19897,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -18455,6 +19914,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -18778,8 +20242,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -18857,6 +20322,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -18947,8 +20421,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -18985,7 +20476,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -19908,6 +21407,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -20662,11 +22221,10 @@ void main() {
   float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
 
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
-          s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
+             s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 ''',
@@ -20814,11 +22372,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -20829,15 +22389,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -20850,6 +22419,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -20944,6 +22534,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -20951,6 +22551,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -21449,8 +23054,34 @@ layout(std140) uniform CompositeInfo {
   /// offset above unchanged and the four backends do not have to agree about
   /// anything they had not already agreed on.
   vec4 contact;
+
+  /// x: radial lens distortion — `P2`, barrel above nought, pincushion
+  /// below, nought off exactly. y: one while a debug view is on — `P6`,
+  /// nought otherwise. z: where the debug view starts, as a share of the
+  /// width from the left. w: unclaimed. Appended for the reason `contact`
+  /// was.
+  vec4 lens;
 }
 composite_info;
+
+/// Where the lens bends [at] to: radially, by `1 + k·r²` on the frame's own
+/// aspect, scaled so the frame's border stays on the frame — `P2`.
+///
+/// **Normalised on the border, not on the corner alone.** A barrel (k above
+/// nought) magnifies the middle and pulls everything else inwards, so the
+/// corners are what reach furthest and are held there. A pincushion does the
+/// opposite, and normalising it on the corners would send the middles of the
+/// edges past the frame and stretch the last row of texels across them; it is
+/// held at the edge nearest the middle instead, and the corners come in.
+vec2 Distort(vec2 at, float k) {
+  float aspect = max(composite_info.look_more.w, 1e-4);
+  vec2 fromCentre = at - vec2(0.5);
+  vec2 onFrame = fromCentre * vec2(aspect, 1.0);
+  float r2 = dot(onFrame, onFrame);
+  float border = k > 0.0 ? 0.25 * (aspect * aspect + 1.0)
+                         : 0.25 * min(aspect * aspect, 1.0);
+  return vec2(0.5) + fromCentre * (1.0 + k * r2) / (1.0 + k * border);
+}
 
 /// Rec. 709 luma, which is what the sRGB primaries weight to.
 float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
@@ -21751,18 +23382,25 @@ void main() {
   //
   // The offset grows from the centre outwards, which is what a real lens does:
   // a ray through the middle of the glass is not dispersed at all.
+  //
+  // `P2`: the lens's own bend, before anything is read, so the scene and
+  // everything laid over it — the glow, the occlusion, the contact shadow,
+  // the local exposure — bend together. Nought leaves `uv` the very value
+  // `v_uv` is, which every golden in the repository depends on.
+  float distortion = composite_info.lens.x;
+  vec2 uv = distortion != 0.0 ? Distort(v_uv, distortion) : v_uv;
   float dispersion = composite_info.look.w;
   vec4 scene;
   if (dispersion > 0.0) {
-    vec2 fromCentre = v_uv - vec2(0.5);
+    vec2 fromCentre = uv - vec2(0.5);
     vec2 step_uv = fromCentre * dispersion;
-    scene = texture(scene_texture, v_uv);
-    scene.r = texture(scene_texture, v_uv + step_uv).r;
-    scene.b = texture(scene_texture, v_uv - step_uv).b;
+    scene = texture(scene_texture, uv);
+    scene.r = texture(scene_texture, uv + step_uv).r;
+    scene.b = texture(scene_texture, uv - step_uv).b;
   } else {
-    scene = texture(scene_texture, v_uv);
+    scene = texture(scene_texture, uv);
   }
-  vec3 bloom = texture(bloom_texture, v_uv).rgb;
+  vec3 bloom = texture(bloom_texture, uv).rgb;
 
   // Four taps in a 2×2, which is not a general-purpose blur: the occlusion pass
   // rotates its kernel by the parity of the pixel, leaving a 2×2 pattern, and
@@ -21771,10 +23409,10 @@ void main() {
   // one without the other either leaves the pattern or smears the contact
   // shadows this whole pass exists to draw.
   vec2 half_texel = composite_info.ao_texel.xy * 0.5;
-  vec4 occlusion = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)) +
-                           texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)) +
-                           texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)) +
-                           texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)));
+  vec4 occlusion = 0.25 * (texture(ao_texture, uv + vec2(half_texel.x, half_texel.y)) +
+                           texture(ao_texture, uv + vec2(-half_texel.x, half_texel.y)) +
+                           texture(ao_texture, uv + vec2(half_texel.x, -half_texel.y)) +
+                           texture(ao_texture, uv + vec2(-half_texel.x, -half_texel.y)));
   // The share left open is in a; the occlusion methods write it into every
   // channel, and the indirect one keeps its light in rgb.
   float ao = occlusion.a;
@@ -21794,7 +23432,7 @@ void main() {
   // the whole point of a contact shadow is the first few centimetres at the
   // join, and a half-resolution one is the seam it exists to draw, blurred
   // away.
-  float contact = texture(contact_shadow_texture, v_uv).r;
+  float contact = texture(contact_shadow_texture, uv).r;
   ao *= mix(1.0, contact, clamp(composite_info.contact.x, 0.0, 1.0));
 
   // Applied to the scene and **not** to the bloom, which is the whole reason
@@ -21817,7 +23455,7 @@ void main() {
   // `R7`: each place of the scene at the exposure that shows it best, before
   // the glow is added and the curve applied. Bilinear from an eighth of the
   // frame: the stops were blurred wide, so there is no edge in them to keep.
-  float localStops = texture(local_exposure_texture, v_uv).r;
+  float localStops = texture(local_exposure_texture, uv).r;
   vec3 exposed = scene.rgb * exp2(localStops * composite_info.contact.w);
   vec3 color = exposed * ao + bloom * composite_info.params.y;
 
@@ -21972,6 +23610,18 @@ void main() {
   }
 
   frag_color = vec4(encoded, scene.a);
+
+  // `P6`: right of the split the materials wrote display values, not light —
+  // see `WriteDebugView` in `surface.glsl` — so the scene goes to the screen
+  // through the encode alone, with no exposure, curve, glow or grade on it.
+  // Chosen here rather than returned from the top: an early return on a
+  // per-pixel condition would leave every read above in non-uniform control
+  // flow, which WGSL refuses.
+  if (composite_info.lens.y > 0.5 && v_uv.x >= composite_info.lens.z) {
+    vec4 raw = textureLod(scene_texture, v_uv, 0.0);
+    frag_color = vec4(LinearToSrgb(clamp(raw.rgb, vec3(0.0), vec3(1.0))),
+                      raw.a);
+  }
 }
 
 ''',
@@ -22574,6 +24224,346 @@ void main() {
 }
 
 ''',
+    'SmaaEdges': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// SMAA 1x, first of three passes — `P1`: where the luma steps.
+//
+// Red marks a step across a pixel's left side, green across its top. The
+// other two passes read nothing else, so this is where the method decides
+// what an edge is: a step of at least `params.z` in luma, and not much
+// smaller than the largest step beside it. That second test is what keeps
+// SMAA off the inside of a high-contrast texture, which FXAA would smooth as
+// though it were a staircase.
+//
+// `flutter3d_cpu`'s `SmaaEdgesShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The finished picture, tone mapped and encoded.
+uniform sampler2D source_texture;
+
+layout(std140) uniform SmaaInfo {
+  /// x, y: one texel. z: the smallest luma step that is an edge. w: how
+  /// many times smaller than the largest step beside it a step may be and
+  /// still count.
+  vec4 params;
+}
+smaa_info;
+
+/// Rec. 709 weights on the encoded picture.
+float Luma(vec2 at) {
+  vec3 c = textureLod(source_texture, at, 0.0).rgb;
+  return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+void main() {
+  vec2 texel = smaa_info.params.xy;
+  float middle = Luma(v_uv);
+  float left = Luma(v_uv + vec2(-texel.x, 0.0));
+  float top = Luma(v_uv + vec2(0.0, -texel.y));
+  vec2 delta = abs(vec2(middle - left, middle - top));
+  vec2 edges = step(vec2(smaa_info.params.z), delta);
+  if (edges.x + edges.y == 0.0) {
+    frag_color = vec4(0.0);
+    return;
+  }
+
+  float right = abs(middle - Luma(v_uv + vec2(texel.x, 0.0)));
+  float bottom = abs(middle - Luma(v_uv + vec2(0.0, texel.y)));
+  float leftLeft = abs(left - Luma(v_uv + vec2(-2.0 * texel.x, 0.0)));
+  float topTop = abs(top - Luma(v_uv + vec2(0.0, -2.0 * texel.y)));
+  float largest = max(max(max(delta.x, delta.y), max(right, bottom)),
+                      max(leftLeft, topTop));
+  edges *= step(vec2(largest), smaa_info.params.w * delta);
+  frag_color = vec4(edges, 0.0, 0.0);
+}
+
+''',
+    'SmaaWeights': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// SMAA 1x, second of three passes — `P1`: how far each pixel along an edge
+// moves.
+//
+// From every pixel on an edge, a walk to both ends of the run it belongs
+// to: the run ends where the edge stops or where an edge crosses it. Which
+// side of each end a crossing stands on says what shape the staircase is —
+// a step down, a step up, a U — and the line behind that shape, and this
+// pixel's place along it, say how much of the pixel the line covers. That
+// area is precomputed: the engine's `smaaArea` table, 16×16 texels for each
+// pair of end codes, indexed by the square roots of the two distances.
+//
+// Red and green: the top edge's two shares, this pixel's and the one
+// above's. Blue and alpha: the left edge's, this pixel's and the one to the
+// left's. Orthogonal edges only; no diagonal search, no corner rounding.
+//
+// `flutter3d_cpu`'s `SmaaWeightsShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The first pass's edges: red across the left side, green across the top.
+uniform sampler2D edges_texture;
+
+/// The engine's `smaaArea` table, 80×80, filtered.
+uniform sampler2D area_texture;
+
+layout(std140) uniform SmaaInfo {
+  /// x, y: one texel. z, w: the first pass's, unread here.
+  vec4 params;
+}
+smaa_info;
+
+/// The most pixels a search walks from the one it starts at, either way.
+const int kSmaaMaxSearch = 32;
+
+vec4 Edges(vec2 offset) {
+  return textureLod(edges_texture, v_uv + offset * smaa_info.params.xy, 0.0);
+}
+
+/// The table's texel for the two ends' codes and the square roots of the
+/// two distances, filtered between square roots.
+vec2 Area(float first, float last, float codeFirst, float codeLast) {
+  vec2 at = (16.0 * vec2(codeFirst, codeLast) + sqrt(vec2(first, last)) + 0.5) /
+            80.0;
+  return textureLod(area_texture, at, 0.0).rg;
+}
+
+void main() {
+  vec4 here = Edges(vec2(0.0));
+  vec4 weights = vec4(0.0);
+
+  if (here.g > 0.5) {
+    // Along a top edge, to the left: an end where this pixel's own left
+    // side is crossed, or where the next one has no top edge.
+    int first = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      if (Edges(vec2(-float(i), 0.0)).r > 0.5 ||
+          Edges(vec2(-float(i) - 1.0, 0.0)).g < 0.5) {
+        first = i;
+        break;
+      }
+    }
+    int last = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      vec4 next = Edges(vec2(float(i) + 1.0, 0.0));
+      if (next.r > 0.5 || next.g < 0.5) {
+        last = i;
+        break;
+      }
+    }
+    // A crossing on the near side of the edge counts three, on the far
+    // side one: the codes the bilinear fetch of the reference gives.
+    float f = float(first);
+    float l = float(last);
+    float codeFirst = first == kSmaaMaxSearch
+                          ? 0.0
+                          : 3.0 * Edges(vec2(-f, 0.0)).r +
+                                Edges(vec2(-f, -1.0)).r;
+    float codeLast = last == kSmaaMaxSearch
+                         ? 0.0
+                         : 3.0 * Edges(vec2(l + 1.0, 0.0)).r +
+                               Edges(vec2(l + 1.0, -1.0)).r;
+    weights.rg = Area(f, l, codeFirst, codeLast);
+  }
+
+  if (here.r > 0.5) {
+    // Along a left edge, upwards and then down.
+    int first = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      if (Edges(vec2(0.0, -float(i))).g > 0.5 ||
+          Edges(vec2(0.0, -float(i) - 1.0)).r < 0.5) {
+        first = i;
+        break;
+      }
+    }
+    int last = kSmaaMaxSearch;
+    for (int i = 0; i < kSmaaMaxSearch; i++) {
+      vec4 next = Edges(vec2(0.0, float(i) + 1.0));
+      if (next.g > 0.5 || next.r < 0.5) {
+        last = i;
+        break;
+      }
+    }
+    float f = float(first);
+    float l = float(last);
+    float codeFirst = first == kSmaaMaxSearch
+                          ? 0.0
+                          : 3.0 * Edges(vec2(0.0, -f)).g +
+                                Edges(vec2(-1.0, -f)).g;
+    float codeLast = last == kSmaaMaxSearch
+                         ? 0.0
+                         : 3.0 * Edges(vec2(0.0, l + 1.0)).g +
+                               Edges(vec2(-1.0, l + 1.0)).g;
+    weights.ba = Area(f, l, codeFirst, codeLast);
+  }
+
+  frag_color = weights;
+}
+
+''',
+    'SmaaBlend': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// SMAA 1x, last of three passes — `P1`: each pixel moved towards its
+// neighbour across the edge by the share the second pass found.
+//
+// Four shares reach a pixel: its own for its top and left sides, and its
+// right and bottom neighbours' far shares for the sides it shares with them.
+// The larger pair wins — across or along — and the pixel is two filtered
+// taps, each pulled that fraction of a texel towards its side.
+//
+// `flutter3d_cpu`'s `SmaaBlendShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The finished picture, filtered.
+uniform sampler2D source_texture;
+
+/// The second pass's shares.
+uniform sampler2D blend_texture;
+
+layout(std140) uniform SmaaInfo {
+  /// x, y: one texel. z, w: the first pass's, unread here.
+  vec4 params;
+}
+smaa_info;
+
+void main() {
+  vec2 texel = smaa_info.params.xy;
+  float right = textureLod(blend_texture, v_uv + vec2(texel.x, 0.0), 0.0).a;
+  float bottom = textureLod(blend_texture, v_uv + vec2(0.0, texel.y), 0.0).g;
+  vec4 mine = textureLod(blend_texture, v_uv, 0.0);
+  float top = mine.r;
+  float left = mine.b;
+  if (right + bottom + top + left < 1e-5) {
+    frag_color = textureLod(source_texture, v_uv, 0.0);
+    return;
+  }
+
+  bool across = max(right, left) > max(bottom, top);
+  float toward = across ? right : bottom;
+  float away = across ? left : top;
+  vec2 axis = across ? vec2(texel.x, 0.0) : vec2(0.0, texel.y);
+  vec4 first = textureLod(source_texture, v_uv + toward * axis, 0.0);
+  vec4 second = textureLod(source_texture, v_uv - away * axis, 0.0);
+  float total = toward + away;
+  frag_color = first * (toward / total) + second * (away / total);
+}
+
+''',
+    'LensFlare': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Lens flare, added to the glow — `P2`.
+//
+// A bright light in the frame reflects between the elements of a lens and
+// lands again as a row of ghosts on the line through the middle of the
+// frame, on the far side, and as a ring round the middle. Both are drawn
+// here from the glow itself: the bloom chain has already picked out what is
+// bright and spread it, so reading it at the mirrored positions is what puts
+// a ghost where the light's reflection would fall, and nothing that is not
+// bright enough to bloom ever flares.
+//
+// Each ghost is weighted by how near the middle it lands, so ghosts thin out
+// towards the edges and one that would land outside the frame is not drawn
+// — no wrapping round, which reads as a light on the wrong side. The three
+// channels are taken a little apart along the ghost's line, which is the
+// colour fringe a coated lens leaves on its reflections.
+//
+// Drawn into the glow rather than into the picture so the composite adds it
+// with the glow, at the glow's own intensity and before the tone map: a
+// flare is light, and it saturates the way the rest of the light does.
+//
+// `flutter3d_cpu`'s `LensFlareShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The glow, as the bloom chain finished it.
+uniform sampler2D bloom_texture;
+
+layout(std140) uniform LensFlareInfo {
+  /// x: how much flare, against the glow it is drawn from. y: how many
+  /// ghosts, up to eight. z: how far apart they fall, as a fraction of the
+  /// way from the light to the middle. w: the halo's radius, as a fraction
+  /// of the frame's height.
+  vec4 params;
+
+  /// x: how far apart the channels of a ghost are taken, in uv. y: the
+  /// halo's strength against the ghosts'. z: the frame's aspect, width over
+  /// height. w: unclaimed.
+  vec4 more;
+}
+lens_flare_info;
+
+/// The glow at [at], its channels taken [spread] apart along [along].
+vec3 Fringed(vec2 at, vec2 along, float spread) {
+  return vec3(textureLod(bloom_texture, at + along * spread, 0.0).r,
+              textureLod(bloom_texture, at, 0.0).g,
+              textureLod(bloom_texture, at - along * spread, 0.0).b);
+}
+
+/// How much a reflection landing at [at] keeps: all of it in the middle,
+/// falling off to nothing at the corners and beyond.
+float Falloff(vec2 at, float power) {
+  float d = length(vec2(0.5) - at) / 0.70710678;
+  return pow(max(1.0 - d, 0.0), power);
+}
+
+void main() {
+  vec3 glow = textureLod(bloom_texture, v_uv, 0.0).rgb;
+  float intensity = lens_flare_info.params.x;
+  // The reflection of the point at `v_uv` lands on the far side of the
+  // middle, so a ghost at `v_uv` comes from the light at `flipped`.
+  vec2 flipped = vec2(1.0) - v_uv;
+  vec2 towardMiddle = (vec2(0.5) - flipped) * lens_flare_info.params.z;
+  float reach = length(towardMiddle);
+  vec2 along = reach > 1e-6 ? towardMiddle / reach : vec2(0.0);
+  float spread = lens_flare_info.more.x;
+
+  vec3 flare = vec3(0.0);
+  int ghosts = int(lens_flare_info.params.y + 0.5);
+  for (int i = 0; i < 8; i++) {
+    if (i >= ghosts) break;
+    vec2 at = flipped + towardMiddle * float(i);
+    flare += Fringed(at, along, spread) * Falloff(at, 10.0);
+  }
+
+  // The ring: every light at one radius from the middle lands on it.
+  float aspect = max(lens_flare_info.more.z, 1e-4);
+  vec2 halo = along * vec2(1.0 / aspect, 1.0) * lens_flare_info.params.w;
+  vec2 haloAt = flipped + halo;
+  flare += Fringed(haloAt, along, spread) * Falloff(haloAt, 5.0) *
+           lens_flare_info.more.y;
+
+  frag_color = vec4(glow + flare * intensity, 1.0);
+}
+
+''',
     'MrtProbe': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -22764,11 +24754,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -22779,15 +24771,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -22800,6 +24801,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -22894,6 +24916,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -22901,6 +24933,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -27675,15 +29712,26 @@ void main() {
   vec2 xy = vec2(v_uv.x * 2.0 - 1.0, 1.0 - v_uv.y * 2.0);
   vec4 nearH = shaft_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
   vec4 farH = shaft_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
-  vec3 origin = nearH.xyz / nearH.w;
-  vec3 along = normalize(farH.xyz / farH.w - origin);
+  vec3 nearPoint = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - nearPoint);
+  float cosine = max(dot(along, shaft_info.forward.xyz), 1e-4);
+
+  // **From the eye's plane, not the near plane** — `P7`, as
+  // `volumetric_fog.frag` already starts. The surface buffer's depth is
+  // measured from the eye, so a march from the near plane ran the near
+  // distance past the surface. Through a perspective lens that is a tenth of
+  // a metre; through an orthographic one the near plane can stand anywhere,
+  // behind the eye included, and the march ended that far off the wall.
+  vec3 origin = nearPoint -
+                along * (dot(nearPoint - shaft_info.camera.xyz,
+                             shaft_info.forward.xyz) /
+                         cosine);
 
   // How far there is air. The surface buffer holds depth along the view axis
   // in metres, so the distance along *this* ray is that over the cosine
   // between the two — a ray at the corner of the frame travels further than
   // the axis does to reach the same plane.
   float surfaceDepth = texture(surface_texture, v_uv).a;
-  float cosine = max(dot(along, shaft_info.forward.xyz), 1e-4);
   float toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
   float distance = min(shaft_info.camera.w, toSurface);
   if (distance <= 0.0) {
@@ -29328,6 +31376,263 @@ void main() {
 }
 
 ''',
+    'Decal': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Projected box decals — `P3`: a picture laid onto whatever geometry stands
+// inside a box, as if it were part of that geometry's material.
+//
+// **The point under a pixel comes from the surface buffer, because it can
+// come from nowhere else.** flutter_gpu cannot sample a depth attachment, so a
+// decal cannot be the usual box drawn against the depth it would read. The
+// scene pass already wrote a world normal and a depth along the view axis into
+// its second attachment, and `WorldAt` turns the two back into a point, as
+// the reflections and the occlusion do.
+//
+// **A material, not a sticker over the lit picture.** The light a surface was
+// lit by is recovered from what the scene pass left: the lit colour over the
+// albedo buffer's colour is the light that reached the point, shadows,
+// probes and the sky's share included. The decal's colour replaces the
+// albedo under that same light, so a decal in shadow is in shadow and a decal
+// under a red lamp is red. It is what keeps this a fullscreen pass of two
+// draws rather than a second lighting model with every light and map bound.
+//
+// **Two draws with one stage, because a pixel needs two terms.** The new
+// colour is the old one times a factor (the albedo swap) plus a term (an
+// unlit stack and an emitted light), and one blend cannot multiply and add.
+// The first draw writes the factor under a multiplying blend, the second the
+// term under an adding one; `params.w` says which.
+//
+// What the albedo cannot say is stated rather than guessed: a surface that
+// wrote no albedo (unlit, or black) has no light to borrow, and there the
+// decal is laid over the picture at its own colour. The surface's emission,
+// its fog and its specular highlight are scaled with the light, which is
+// close for a matte wall and wrong for a mirror.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+uniform sampler2D albedo_texture;
+
+/// Four pictures a draw may read, each a slot a decal names. A slot nobody
+/// names is bound to a one-texel white, for the reason `lib/pbr.glsl` gives:
+/// a declared sampler nobody binds is a crash on Metal.
+uniform sampler2D decal_texture_0;
+uniform sampler2D decal_texture_1;
+uniform sampler2D decal_texture_2;
+uniform sampler2D decal_texture_3;
+
+/// Decals per draw. Must match `_DecalBatch.maxDecals` in
+/// `renderer_decal_pass.dart`; a frame with more draws again over what the
+/// first draw left.
+#define kMaxDecals 16
+
+/// How little albedo still names a light. Below it the decal stops borrowing
+/// the surface's light and is laid on at its own colour, through a ramp
+/// rather than a step so a dark texture does not show a seam where it
+/// crosses.
+#define kAlbedoFloor 0.08
+
+layout(std140) uniform DecalInfo {
+  /// Screen to world, carrying the framebuffer origin — see `UvFromNdc` in
+  /// `post/reflections.frag`.
+  mat4 inverse_view_projection;
+  /// xyz: the camera's position. w: unused.
+  vec4 camera;
+  /// xyz: the direction the camera looks; with [camera] it names the planes
+  /// the surface buffer's depths are measured against. w: unused.
+  vec4 forward;
+  /// x: how many decals. y, z: one texel of the target. w: which term this
+  /// draw writes, nought the factor and one the term.
+  vec4 params;
+  /// The view this draw paints, in the target's texture coordinates: xy
+  /// where it starts, zw how much of the target it spans. The surface buffer
+  /// holds every view side by side and the matrix above is this one's.
+  vec4 view;
+  /// Per slot: xy its size in texels, zw unused.
+  vec4 slots[4];
+  /// The rows of each decal's world-to-box matrix: the box is the unit cube
+  /// about its origin, and its picture faces up its y axis.
+  vec4 axis_x[kMaxDecals];
+  vec4 axis_y[kMaxDecals];
+  vec4 axis_z[kMaxDecals];
+  /// The part of its slot's picture a decal shows: xy where it starts in
+  /// texture coordinates, zw how far it reaches.
+  vec4 region[kMaxDecals];
+  /// rgb: the tint, linear. a: the opacity.
+  vec4 color[kMaxDecals];
+  /// x: the slot, negative for none. y: the cosine of the angle from the
+  /// box's up at which the decal is gone, z: the cosine width over which it
+  /// fades in from there. w: the share of the box's half height, from its
+  /// top and bottom faces, over which it fades out.
+  vec4 fade[kMaxDecals];
+  /// rgb: light the painted colour emits, as a multiple of it. w: unused.
+  vec4 emissive[kMaxDecals];
+}
+decal_info;
+
+vec3 DecodeOctahedral(vec2 e) {
+  e = e * 2.0 - 1.0;
+  vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+  float t = max(-n.z, 0.0);
+  n.x += n.x >= 0.0 ? -t : t;
+  n.y += n.y >= 0.0 ? -t : t;
+  return normalize(n);
+}
+
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(srgb / 12.92, pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+             step(vec3(0.04045), srgb));
+}
+
+/// The world point at [uv], [depth] metres along the view axis: the ray
+/// through the pixel, crossing the plane the depth names. See `WorldAt` in
+/// `post/reflections.frag`, which this is, but for [uv] being the target's
+/// rather than the view's.
+vec3 WorldAt(vec2 uv, float depth) {
+  vec2 inView = (uv - decal_info.view.xy) / decal_info.view.zw;
+  vec2 xy = vec2(inView.x * 2.0 - 1.0, 1.0 - inView.y * 2.0);
+  vec4 nearH = decal_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = decal_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  vec3 origin = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - origin);
+  vec3 axis = decal_info.forward.xyz;
+  return origin +
+         along * ((depth - dot(origin - decal_info.camera.xyz, axis)) /
+                  dot(along, axis));
+}
+
+/// How far the world moves across one texel along [step], taken toward the
+/// neighbour nearer in depth.
+///
+/// **Read from the buffer rather than from `dFdx`**, so the software backend,
+/// which has no quads to difference, picks the same level. The nearer
+/// neighbour, because the far one across a silhouette belongs to another
+/// surface, and its distance would choose the blurriest level for a pixel
+/// that is in the middle of a decal.
+vec3 WorldStep(vec2 step, float depth, vec3 at) {
+  vec4 ahead = textureLod(surface_texture, v_uv + step, 0.0);
+  vec4 behind = textureLod(surface_texture, v_uv - step, 0.0);
+  float aheadGap = ahead.a > 0.0 ? abs(ahead.a - depth) : 1e30;
+  float behindGap = behind.a > 0.0 ? abs(behind.a - depth) : 1e30;
+  vec3 forward = WorldAt(v_uv + step, ahead.a) - at;
+  vec3 backward = at - WorldAt(v_uv - step, behind.a);
+  vec3 chosen = aheadGap <= behindGap ? forward : backward;
+  // Nothing drawn on either side: no footprint, which is the base level.
+  return min(aheadGap, behindGap) < 1e29 ? chosen : vec3(0.0);
+}
+
+vec4 SampleSlot(float slot, vec2 uv, float lod) {
+  // A chain of selects rather than an index: GLSL ES 3.00 cannot index an
+  // array of samplers with anything but a constant.
+  vec4 picture = vec4(1.0);
+  if (slot > 2.5) {
+    picture = textureLod(decal_texture_3, uv, lod);
+  } else if (slot > 1.5) {
+    picture = textureLod(decal_texture_2, uv, lod);
+  } else if (slot > 0.5) {
+    picture = textureLod(decal_texture_1, uv, lod);
+  } else if (slot > -0.5) {
+    picture = textureLod(decal_texture_0, uv, lod);
+  }
+  return picture;
+}
+
+void main() {
+  bool factor = decal_info.params.w < 0.5;
+  vec4 surface = textureLod(surface_texture, v_uv, 0.0);
+
+  // What leaves the pixel as it was, for each draw: a factor of one, a term of
+  // nought. Alpha is not touched by either blend.
+  vec3 keepFactor = vec3(1.0);
+  vec3 keepTerm = vec3(0.0);
+  if (surface.a <= 0.0) {
+    frag_color = vec4(factor ? keepFactor : keepTerm, 1.0);
+    return;
+  }
+
+  float depth = surface.a;
+  vec3 at = WorldAt(v_uv, depth);
+  vec3 normal = DecodeOctahedral(surface.rg);
+  vec3 dx = WorldStep(vec2(decal_info.params.y, 0.0), depth, at);
+  vec3 dy = WorldStep(vec2(0.0, decal_info.params.z), depth, at);
+  vec3 albedo =
+      SrgbToLinear(textureLod(albedo_texture, v_uv, 0.0).rgb);
+
+  // Three stacks, decal over decal in order: the albedo the decals leave, the
+  // share of the picture an unlit stack leaves, and that stack's colour —
+  // premultiplied, as an over composite keeps it — and the emitted light.
+  vec3 painted = albedo;
+  float kept = 1.0;
+  vec3 laid = vec3(0.0);
+  vec3 emitted = vec3(0.0);
+  int count = int(decal_info.params.x + 0.5);
+  for (int i = 0; i < kMaxDecals; i++) {
+    if (i >= count) break;
+    vec4 rowX = decal_info.axis_x[i];
+    vec4 rowY = decal_info.axis_y[i];
+    vec4 rowZ = decal_info.axis_z[i];
+    vec3 local = vec3(dot(rowX.xyz, at) + rowX.w, dot(rowY.xyz, at) + rowY.w,
+                      dot(rowZ.xyz, at) + rowZ.w);
+    if (any(greaterThan(abs(local), vec3(0.5)))) continue;
+
+    vec4 fade = decal_info.fade[i];
+    // The box's up in the world is the gradient of its y, which is the row
+    // itself; normalised, it stays the up under a box scaled unevenly.
+    float facing = dot(normal, normalize(rowY.xyz));
+    float byAngle = clamp((facing - fade.y) / max(fade.z, 1e-4), 0.0, 1.0);
+    float byDepth = fade.w > 0.0
+        ? clamp((0.5 - abs(local.y)) / (fade.w * 0.5), 0.0, 1.0)
+        : 1.0;
+
+    // Seen from above, along the box's down, x runs right and z runs down
+    // the picture: the picture is not mirrored on the face it is stamped on.
+    vec4 region = decal_info.region[i];
+    vec2 uv = region.xy + (local.xz + 0.5) * region.zw;
+
+    // The level from the footprint, as the software backend's sampler
+    // chooses one: the larger axis, in texels, over one pixel.
+    float slot = fade.x;
+    vec2 size = decal_info.slots[int(clamp(slot, 0.0, 3.0))].xy;
+    vec2 alongX = vec2(dot(rowX.xyz, dx), dot(rowZ.xyz, dx)) * region.zw;
+    vec2 alongY = vec2(dot(rowX.xyz, dy), dot(rowZ.xyz, dy)) * region.zw;
+    float footprint = max(max(abs(alongX.x), abs(alongY.x)) * size.x,
+                          max(abs(alongX.y), abs(alongY.y)) * size.y);
+    float lod = footprint > 1.0 ? log2(footprint) : 0.0;
+
+    vec4 picture = SampleSlot(slot, uv, lod);
+    vec4 tint = decal_info.color[i];
+    vec3 colour = SrgbToLinear(picture.rgb) * tint.rgb;
+    float alpha = clamp(picture.a * tint.a * byAngle * byDepth, 0.0, 1.0);
+
+    painted = mix(painted, colour, alpha);
+    kept *= 1.0 - alpha;
+    laid = mix(laid, colour, alpha);
+    emitted = mix(emitted, colour * decal_info.emissive[i].rgb, alpha);
+  }
+
+  // How far the albedo names the light: one at the floor and over it.
+  float named = clamp(max(albedo.r, max(albedo.g, albedo.b)) / kAlbedoFloor,
+                      0.0, 1.0);
+  // The change of albedo under the light it was lit by, as a factor: the new
+  // albedo over the old where the old is over the floor, and exactly one
+  // where no decal reached, whatever the albedo. Written as one plus the
+  // change rather than as the ratio, because under the floor the ratio is not
+  // one for an untouched pixel and the ramp below would darken every dark
+  // surface in the frame.
+  vec3 swap = vec3(1.0) + (painted - albedo) / max(albedo, vec3(kAlbedoFloor));
+  vec3 multiply = swap * named + vec3(kept * (1.0 - named));
+  vec3 add = laid * (1.0 - named) + emitted;
+  frag_color = vec4(factor ? multiply : add, 1.0);
+}
+
+''',
     'ProbePrefilter': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -29447,6 +31752,62 @@ void main() {
   }
 
   frag_color = vec4(weight > 0.0 ? sum / weight : vec3(0.0), 1.0);
+}
+
+''',
+    'RenderTextureEncode': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `P4`: what a `RenderTexture`'s camera saw, turned from linear light into
+// the sRGB bytes a material's map is read as.
+//
+// **Encoded because every map is decoded.** A material reads its base colour
+// and its emission through `SrgbToLinear`, so a texture holding linear light
+// would be darkened a second time in every midtone by whatever showed it. In
+// eight bits rather than half floats for the same reason: it is a picture,
+// sampled like any other picture.
+//
+// **Exposure, and no tone map.** The texture is drawn into a frame that is
+// tone mapped itself, so a curve applied here would be applied twice; what
+// is above one after the camera's own exposure is clipped, as a screen
+// clips it.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D source_texture;
+
+layout(std140) uniform RenderTextureInfo {
+  /// x: the exposure the light is multiplied by before it is clipped. y: one
+  /// where the backend's first row is the bottom of a picture it draws. zw
+  /// unused.
+  vec4 params;
+}
+encode_info;
+
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(max(linear, vec3(0.0)), vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+void main() {
+  // **Written with the top of the picture in the first row, on every
+  // backend**, which is how a picture loaded from a file is uploaded and so
+  // how every material reads its maps. WebGL2 draws a picture with its
+  // bottom in the first row, so there the rows are turned over on the way
+  // through; a copy that kept them would show a monitor upside down in the
+  // browser alone.
+  vec2 uv = v_uv;
+  if (encode_info.params.y > 0.5) uv.y = 1.0 - uv.y;
+  vec3 light = textureLod(source_texture, uv, 0.0).rgb * encode_info.params.x;
+  frag_color = vec4(LinearToSrgb(clamp(light, vec3(0.0), vec3(1.0))), 1.0);
 }
 
 ''',
@@ -29600,11 +31961,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -29615,15 +31978,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -29636,6 +32008,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -29730,6 +32123,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -29737,6 +32140,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -29991,11 +32399,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -30006,15 +32416,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -30027,6 +32446,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -30121,6 +32561,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -30128,6 +32578,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -30377,11 +32832,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -30392,15 +32849,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -30413,6 +32879,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -30507,6 +32994,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -30514,6 +33011,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -30767,11 +33269,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -30782,15 +33286,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -30803,6 +33316,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -30897,6 +33431,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -30904,6 +33448,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -31200,11 +33749,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -31215,15 +33766,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -31236,6 +33796,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -31330,6 +33911,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -31337,6 +33928,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -31889,6 +34485,214 @@ void main() {
 }
 
 ''',
+    'SkyPhysical': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The sky as air: sunlight scattered once by molecules (Rayleigh) and by haze
+// (Mie) along the view ray, the sun's disc seen through what the air leaves of
+// it, stars at night, and the ground below the horizon.
+//
+// **Marched per pixel rather than read from a precomputed table.** A table is
+// what a sky this size usually becomes, and it is two render passes into
+// float targets before the scene, plus a sampler the sky's pipeline would have
+// to be measured taking — `sky.vert` says why nothing is assumed about what
+// reaches it. Sixteen samples along the view and eight towards the sun at each
+// is 144 exponentials a pixel, paid only where no geometry covers the sky,
+// because the stage runs after the opaque half and fails the depth test under
+// it. `SkySettings.physical` documents the cost where a caller will read it.
+//
+// **Single scattering only**, and that is visible: the horizon at noon comes
+// out a pale cyan rather than white, because light scattered twice is what
+// whitens it. Measured against a 128 × 64 march of the same model, the
+// march here is within two per cent of it at the zenith and four at the
+// horizon. Two choices buy that. The view samples are spaced quadratically,
+// short near the eye where a horizontal ray spends its densest air; spaced
+// evenly, sixteen of them put the noon horizon's blue at less than half of
+// what it is. And each sample is dimmed by the air up to its middle rather
+// than its far end, which was another fifteen per cent.
+//
+// The same arithmetic runs in Dart twice: `PhysicalSky.radiance`, for a fog
+// colour, a sunlight colour and an environment map built from the sky, and
+// `SkyPhysicalShader` in the software rasteriser. A test evaluates both.
+precision highp float;
+
+in vec3 v_ray;
+in vec4 v_rayleigh;
+in vec4 v_mie;
+in vec4 v_sun;
+in vec4 v_planet;
+in vec4 v_stars;
+in vec4 v_disc;
+
+layout(location = 0) out vec4 frag_color;
+
+// No surface output, for the reason `sky.frag` records at length: on Impeller,
+// a second output in a single-attachment pass took the process down.
+
+const int kViewSteps = 16;
+const int kLightSteps = 8;
+const float kPi = 3.14159265;
+
+/// How far a ray from radius [r], at cosine [mu] to the local up, runs before
+/// it leaves a sphere of [radius]; negative when it misses.
+///
+/// `(r - radius) * (r + radius)` rather than `r * r - radius * radius`: the
+/// two squares are 4·10⁷ km² apiece and their difference near the ground is a
+/// few hundred, which the subtraction of the squares loses most of in single
+/// precision.
+float Leave(float r, float mu, float radius) {
+  float b = r * mu;
+  float d = b * b - (r - radius) * (r + radius);
+  return d < 0.0 ? -1.0 : -b + sqrt(d);
+}
+
+/// How far the same ray runs before it meets the ground, negative when it
+/// does not.
+float Meet(float r, float mu, float radius) {
+  float b = r * mu;
+  float d = b * b - (r - radius) * (r + radius);
+  return d < 0.0 ? -1.0 : -b - sqrt(d);
+}
+
+/// The air between [p] and space towards [s]: x molecules, y haze, each as a
+/// length of air at ground density.
+vec2 SunwardAir(vec3 p, vec3 s) {
+  float r = length(p);
+  float span = Leave(r, dot(p, s) / r, v_planet.y);
+  float stride = span / float(kLightSteps);
+  vec2 air = vec2(0.0);
+  for (int j = 0; j < kLightSteps; j++) {
+    vec3 q = p + s * ((float(j) + 0.5) * stride);
+    float h = length(q) - v_planet.x;
+    air += exp(-h / vec2(v_rayleigh.w, v_mie.z)) * stride;
+  }
+  return air;
+}
+
+/// What a length of air lets through, per channel.
+vec3 Through(vec2 air) {
+  return exp(-(v_rayleigh.rgb * air.x + vec3(v_mie.y * air.y)));
+}
+
+/// A hash of three small whole numbers into [0, 1), with no sine in it.
+///
+/// `fract(sin(x) * 43758.5)` is the usual one and it is wrong here: the sine
+/// of a large argument is computed differently by every GPU and by the
+/// software rasteriser, so the stars would be in different places on each
+/// backend. This is products and `fract`s of numbers below a few thousand,
+/// which single precision answers alike everywhere to the last few bits.
+float Hash(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+
+/// The stars in direction [d]: a grid of cells on each face of a cube, a share
+/// [v_stars.y] of them holding a star at a place and a brightness of its own.
+float StarField(vec3 d) {
+  vec3 a = abs(d);
+  float face;
+  vec2 uv;
+  if (a.x >= a.y && a.x >= a.z) {
+    face = d.x > 0.0 ? 0.0 : 1.0;
+    uv = d.zy / a.x;
+  } else if (a.y >= a.z) {
+    face = d.y > 0.0 ? 2.0 : 3.0;
+    uv = d.xz / a.y;
+  } else {
+    face = d.z > 0.0 ? 4.0 : 5.0;
+    uv = d.xy / a.z;
+  }
+  vec2 grid = (uv * 0.5 + 0.5) * v_stars.z;
+  vec2 cell = floor(grid);
+  vec3 key = vec3(cell, face);
+  if (Hash(key) >= v_stars.y) return 0.0;
+  vec2 centre = vec2(Hash(key + vec3(17.0, 0.0, 0.0)),
+                     Hash(key + vec3(0.0, 29.0, 0.0))) * 0.6 + 0.2;
+  float off = length(grid - cell - centre);
+  float magnitude = Hash(key + vec3(0.0, 0.0, 13.0));
+  return (1.0 - smoothstep(0.0, 0.35, off)) *
+         (0.15 + 0.85 * magnitude * magnitude * magnitude);
+}
+
+void main() {
+  vec3 d = normalize(v_ray);
+  vec3 s = v_sun.xyz;
+  vec3 eye = vec3(0.0, v_planet.z, 0.0);
+
+  float ground = Meet(v_planet.z, d.y, v_planet.x);
+  bool grounded = ground > 0.0;
+  float span = grounded ? ground : Leave(v_planet.z, d.y, v_planet.y);
+
+  vec2 seenAir = vec2(0.0);
+  vec3 molecules = vec3(0.0);
+  vec3 haze = vec3(0.0);
+  for (int i = 0; i < kViewSteps; i++) {
+    float a0 = float(i) / float(kViewSteps);
+    float a1 = float(i + 1) / float(kViewSteps);
+    float t = span * 0.5 * (a0 * a0 + a1 * a1);
+    float stride = span * (a1 * a1 - a0 * a0);
+    vec3 p = eye + d * t;
+    float r = length(p);
+    vec2 air = exp(-(r - v_planet.x) / vec2(v_rayleigh.w, v_mie.z)) * stride;
+    seenAir += air;
+    // In the planet's shadow: this sample is lit by nothing.
+    if (Meet(r, dot(p, s) / r, v_planet.x) > 0.0) continue;
+    vec3 through = Through(seenAir - 0.5 * air + SunwardAir(p, s));
+    molecules += air.x * through;
+    haze += air.y * through;
+  }
+
+  float mu = dot(d, s);
+  float g = v_mie.w;
+  float gg = g * g;
+  float rayleighPhase = 3.0 / (16.0 * kPi) * (1.0 + mu * mu);
+  // Cornette–Shanks, which is Henyey–Greenstein with the Rayleigh term's
+  // shape folded in. g is held below one by the renderer, so the base of the
+  // power never reaches nought.
+  float miePhase = 3.0 / (8.0 * kPi) * ((1.0 - gg) * (1.0 + mu * mu)) /
+                   ((2.0 + gg) * pow(1.0 + gg - 2.0 * g * mu, 1.5));
+
+  vec3 colour = v_sun.w * (molecules * v_rayleigh.rgb * rayleighPhase +
+                           haze * (v_mie.x * miePhase));
+  vec3 seen = Through(seenAir);
+
+  if (grounded) {
+    // The ground, lit by what the air leaves of the sun and seen through the
+    // air in front of it. Lambertian, and with no light from the sky itself,
+    // so a ground in the sun's shadow is black; it is what fills the lower
+    // half of an environment map built from this sky, not a terrain.
+    vec3 p = eye + d * span;
+    float lit = dot(normalize(p), s);
+    if (lit > 0.0) {
+      colour += seen * Through(SunwardAir(p, s)) *
+                (v_planet.w / kPi * lit * v_sun.w);
+    }
+  } else {
+    // The disc, through the air in front of it: this is what turns it red
+    // at sunset with no colour anybody chose. `sky.frag` explains the
+    // guard and why the soft edge travels as a difference.
+    float disc = v_disc.y > 0.0
+        ? smoothstep(v_disc.x - v_disc.y, v_disc.x, mu)
+        : step(v_disc.x, mu);
+    colour += seen * (disc * v_disc.z);
+
+    // Stars, as the sun goes down: a fade from the sun six degrees above
+    // the horizon to eleven below, rather than the sky's own brightness,
+    // which would need the exposure this stage does not know.
+    float night = 1.0 - smoothstep(-0.2, 0.1, s.y);
+    if (v_stars.x > 0.0 && night > 0.0) {
+      colour += seen * (v_stars.x * night * StarField(d));
+    }
+  }
+
+  frag_color = vec4(colour, 1.0);
+}
+
+''',
     'Luminance': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -32193,11 +34997,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -32208,15 +35014,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -32229,6 +35044,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -32323,6 +35159,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -32330,6 +35176,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -33097,11 +35948,13 @@ float g_pass_through = 0.0;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -33112,15 +35965,24 @@ layout(std140) uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -33133,6 +35995,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG
@@ -33227,6 +36110,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -33234,6 +36127,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -33557,8 +36455,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -33636,6 +36535,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -33726,8 +36634,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -33764,7 +36689,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -34689,6 +37622,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 
@@ -35102,7 +38095,9 @@ void main() {
               frag_info.material.z;
 
   vec3 ambient = s.albedo * s.ambient;
-  WriteSurface(AccumulateLights(s) + ambient, 1.0, 1.0);
+  vec3 lit = AccumulateLights(s) + ambient;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, 1.0, 1.0);
 }
 
 ''',

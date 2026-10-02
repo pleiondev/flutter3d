@@ -284,6 +284,9 @@ extension _ProbePasses on Renderer {
     _targetOrigin[0] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
         ? size.toDouble()
         : 0.0;
+    // A probe captures light for the materials to reflect; a debug view
+    // baked into it would outlive the frame that asked for one.
+    _fragInfo.debugView.fillRange(0, 4, 0.0);
 
     final rect = ScreenRect(width: size, height: size);
     pass.setState(
@@ -321,6 +324,8 @@ extension _ProbePasses on Renderer {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // A probe's faces are perspective, whatever the camera that asked is.
+    _fogInfo.projection[0] = 0.0;
 
     void encodeHalf({required bool blended}) {
       for (final node in scene.meshes) {

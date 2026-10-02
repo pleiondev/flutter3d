@@ -1072,6 +1072,33 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.easuHalf,
   ),
 
+  // P1. `shadow-teapot` with its edges smoothed by SMAA 1x.
+  const GoldenScene(
+    name: 'smaa-teapot',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.smaaTeapot,
+  ),
+
+  // P2. A bright panel's reflections thrown across the middle of the frame.
+  const GoldenScene(
+    name: 'lens-flare',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    ground: false,
+    stage: GoldenStages.lensFlare,
+    configure: GoldenStages.lensFlareSettings,
+  ),
+
+  // P2. `shadow-teapot` through a barrel lens.
+  const GoldenScene(
+    name: 'lens-distortion',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.lensDistortion,
+  ),
+
   // R6. A turning wheel blurred along its own motion.
   const GoldenScene(
     name: 'motion-blur-spin',
@@ -1139,6 +1166,111 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     bloom: false,
     ground: false,
     stage: GoldenStages.smokeSixWay,
+  ),
+
+  // P3. Decals on a floor: one in a shadow and against a box, one over it,
+  // one that glows.
+  const GoldenScene(
+    name: 'decal-floor',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.decalFloor,
+    configure: GoldenStages.decalFloorSettings,
+  ),
+
+  // P4. A mirror in the floor, and a monitor showing a second camera.
+  const GoldenScene(
+    name: 'planar-mirror',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.planarMirror,
+    configure: GoldenStages.planarMirrorSettings,
+  ),
+  const GoldenScene(
+    name: 'render-texture',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.renderTexture,
+  ),
+
+  // P5. The physical sky at dusk over blocks standing in ground fog, and the
+  // same sky after dark with its stars out.
+  const GoldenScene(
+    name: 'sky-physical-dusk',
+    source: 'Cube',
+    lights: <String>{'sun'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.skyPhysicalDusk,
+    configure: GoldenStages.skyPhysicalDuskSettings,
+  ),
+  const GoldenScene(
+    name: 'sky-physical-night',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.skyPhysicalNight,
+    configure: GoldenStages.skyPhysicalNightSettings,
+  ),
+
+  // P8. One source in the material language, drawn on all four backends: a
+  // GPU section each, and the software set compiling the source the bundle
+  // carries.
+  const GoldenScene(
+    name: 'material-language',
+    source: 'obj: Teapot',
+    lighting: GoldenExtras.rimGlow,
+    shaderBundle: GoldenExtras.rimGlowBundle,
+    // Orange over the source's blue: the value set on the material, through
+    // `MaterialParams`, on every backend.
+    materialParameters: <String, List<double>>{
+      'rimColor': <double>[1.0, 0.45, 0.1],
+    },
+    shadows: false,
+    bloom: false,
+    ground: false,
+  ),
+
+  // P7. Leaf cards cut from a soft alpha: a hard cutoff on Impeller and the
+  // software set, multisample coverage on WebGL2 and WebGPU.
+  const GoldenScene(
+    name: 'alpha-to-coverage',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.alphaToCoverage,
+  ),
+
+  // P7. Metal spheres on a floor under a sky in light fog, through an
+  // orthographic camera.
+  const GoldenScene(
+    name: 'orthographic-metal',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicMetal,
+    configure: GoldenStages.orthographicMetalSettings,
+  ),
+
+  // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
+  // normal on the right.
+  const GoldenScene(
+    name: 'debug-view-split',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.debugViewSplit,
   ),
 ];
 

@@ -3,9 +3,9 @@
 ///     cd apps/flutter3d_editor
 ///     flutter run -d macos --dart-define=level=../flutter3d_demo_dungeon/assets/levels/crypt.json
 ///
-/// **Desktop only, and that is not an omission.** This application exists to
-/// write a file back over itself, which a browser will not do — so unlike the
-/// three games there is no web build and no backend to choose between.
+/// **Desktop first: macOS, Windows and Linux.** This application was written
+/// to save a file back over itself, which a browser will not do — so unlike
+/// the games there is no web build yet and no backend to choose between.
 ///
 /// What is here is the shell: a window, a camera, a mouse and a keyboard. The
 /// parts that can lose somebody's work are `package:flutter3d_editor_core`,
@@ -51,6 +51,7 @@ import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
+import 'src/play/device_picker.dart';
 import 'src/play/live_material.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
@@ -148,10 +149,12 @@ class _EditorScreenState extends State<EditorScreen>
   /// The documents this editor has had open, kept between launches.
   final RecentProjects _projects = RecentProjects();
 
-  /// `HR5`: the project this level belongs to, run with `flutter run`. Kept
-  /// here rather than by [PlayScreen] so closing the panel leaves the game
-  /// running; replaced when a level from another project is played.
-  FlutterRun? _run;
+  /// `HR5`: the game being played — the project this level belongs to, run
+  /// with `flutter run`, or a game attached to by its VM service. Kept here
+  /// rather than by [PlayScreen] so closing the panel leaves the game
+  /// running; replaced when a level from another project is played, or
+  /// another game attached to.
+  PlayedGame? _run;
 
   /// What [_projects] said when the chooser last needed it.
   ///
@@ -210,6 +213,11 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// The connection [_liveMaterials] sends through, to the game running now.
   GameMaterials? _gameMaterials;
+
+  /// `HR3`: the open document as it was last read or written, which is the
+  /// best guess at what a running game is playing. A save sends the game a
+  /// patch from this rather than the whole level; the game checks the guess.
+  String? _written;
 
   /// `rp-04`: the macOS side of file association calls back through this —
   /// a double-click on a `.f3drun` in Finder, or a drop on the dock icon.
@@ -384,10 +392,8 @@ class _EditorScreenState extends State<EditorScreen>
   /// that turns out not to be a level is not offered back tomorrow.
   Future<void> _openAt(String found) async {
     try {
-      final editing = Editing.parse(
-        await File(found).readAsString(),
-        path: found,
-      );
+      final text = await File(found).readAsString();
+      final editing = Editing.parse(text, path: found);
       _recent = _projects.remember(found, exists: _onDisk);
       // Where this document's own `assets/…` live. A game never has to work
       // this out; an editor always does, because the level it has open belongs
@@ -399,6 +405,7 @@ class _EditorScreenState extends State<EditorScreen>
       final looks = await _readLooks(assetRoot);
       _standWhereThePlayerWould(editing.level);
       if (!mounted) return;
+      _written = text;
       _cubit.opened(editing, assetRoot: assetRoot, looks: looks);
       await _build();
     } catch (error) {
@@ -1135,18 +1142,26 @@ class _EditorScreenState extends State<EditorScreen>
       _cubit.say('written to $path');
       // `HR3`: the game this level is playing in takes it too. Not a copy:
       // the running game plays the original, not the file beside it.
-      if (!copy) unawaited(_pushToRunningGame(document));
+      if (!copy) {
+        final base = _written;
+        _written = document;
+        unawaited(_pushToRunningGame(document, base: base));
+      }
     } catch (error) {
       _cubit.say('could not write $path: $error');
     }
   }
 
-  /// Sends a saved level to the game [_run] started, when it is running,
-  /// and says in the status strip what the game did with it.
-  Future<void> _pushToRunningGame(String document) async {
+  /// Sends a saved level to the game [_run] plays, when it is running,
+  /// whether this editor started it or attached to it, and says in the
+  /// status strip what the game did with it.
+  ///
+  /// As a patch from [base], the document this save wrote over, when the
+  /// game is playing that; whole when it is not.
+  Future<void> _pushToRunningGame(String document, {String? base}) async {
     if (_run?.state.value case PlayRunning(:final vmService)) {
       try {
-        final answer = await pushLevel(vmService, document);
+        final answer = await pushLevel(vmService, document, base: base);
         _cubit.say(describeLevelApplied(answer));
       } catch (error) {
         _cubit.say('saved, but the running game did not take it: $error');
@@ -1504,10 +1519,12 @@ class _EditorScreenState extends State<EditorScreen>
                   bottom: 0,
                   child: EditorLegend(state: state),
                 ),
-                // `HR5`: runs the project this level belongs to.
+                // `HR5`: runs the project this level belongs to. Beside the
+                // material panel's button: at 92 it lay under the step
+                // panel's, which was drawn over it and took every press.
                 Positioned(
                   top: 4,
-                  right: 92,
+                  right: 212,
                   child: IconButton(
                     icon: const Icon(
                       Icons.play_circle_outline,
@@ -1517,9 +1534,9 @@ class _EditorScreenState extends State<EditorScreen>
                     onPressed: () => _play(state),
                   ),
                 ),
-                // `rp-02`: attaches to a game already running elsewhere,
-                // over the same VM service channel DevTools uses — this
-                // editor still edits no simulation of its own.
+                // `rp-02`, and `HR5` without a process: attaches to a game
+                // already running elsewhere, over the same VM service
+                // channel DevTools uses, and plays it in the same panel.
                 Positioned(
                   top: 4,
                   right: 12,
@@ -1593,10 +1610,14 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Opens `ai-02`'s own screen — the report itself is opened from inside
   /// it, since that is where the file picker and the "no report open" state
-  /// already live.
+  /// already live. The open level's digest goes with it, for N7's heatmap of
+  /// players' runs of exactly this document.
   Future<void> _openPlaytestReport() async {
+    final levelHash = _editing?.level.digestHex;
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const PlaytestReportScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => PlaytestReportScreen(levelHash: levelHash),
+      ),
     );
   }
 
@@ -1637,8 +1658,6 @@ class _EditorScreenState extends State<EditorScreen>
     await _openRunAt(file.path);
   }
 
-  /// Asks for a running game's VM service address, connects, and opens the
-  /// timeline panel on it — `rp-02`'s door, from the editor's side.
   /// Opens the play panel on the project [state]'s level belongs to,
   /// starting a run of it when none is going.
   Future<void> _play(EditorReady state) async {
@@ -1662,7 +1681,47 @@ class _EditorScreenState extends State<EditorScreen>
     }
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => PlayScreen(run: run, onTimeline: _openTimeline),
+        builder: (_) => PlayScreen(
+          session: run,
+          onTimeline: _openTimeline,
+          picker: ({required bool enabled}) =>
+              DevicePicker(run: run, enabled: enabled),
+        ),
+      ),
+    );
+  }
+
+  /// Attaches to the game at [uri] and opens the play panel on it: its
+  /// console, hot reload and restart, timeline, and every save sent to it.
+  ///
+  /// **Refused while a game this editor started is running.** The editor
+  /// plays one game at a time, and replacing that run would stop a game
+  /// somebody is in the middle of; they stop it first, in its own panel.
+  Future<void> _attach(String uri) async {
+    final session = switch (_run) {
+      final AttachedRun same? when same.vmService == uri => same,
+      final PlayedGame owned?
+          when owned.ownsTheGame && owned.state.value is! PlayStopped =>
+        null,
+      final other => () {
+        unawaited(other?.dispose());
+        return _run = AttachedRun(uri);
+      }(),
+    };
+    if (session == null) {
+      _changed(
+        'a game started here is still running: stop it in the Play panel '
+        'before attaching to another',
+      );
+      return;
+    }
+    if (session.state.value case PlayIdle() || PlayStopped()) {
+      unawaited(session.start());
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayScreen(session: session, onTimeline: _openTimeline),
       ),
     );
   }
@@ -1716,8 +1775,8 @@ class _EditorScreenState extends State<EditorScreen>
       ),
     );
     controller.dispose();
-    if (uri == null || uri.isEmpty || !mounted) return;
-    await _openTimeline(uri);
+    if (uri == null || uri.trim().isEmpty || !mounted) return;
+    await _attach(uri.trim());
   }
 }
 

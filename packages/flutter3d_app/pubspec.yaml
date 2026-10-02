@@ -26,6 +26,11 @@ dependencies:
   # The renderer: the `Scene` and `RenderSettings` a surface hands over, and
   # the mesh nodes, lights and probes a level becomes.
   flutter3d: ^0.8.0
+  # The material language's parser and evaluator, for the software stage a
+  # bundle built from a `.f3dmat` is compiled into — `P8`. `flutter3d`
+  # carries it already; named here because this package imports its formats
+  # library directly.
+  flutter3d_core: ^0.8.3
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.

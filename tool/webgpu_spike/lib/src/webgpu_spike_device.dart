@@ -274,6 +274,10 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   @override
   bool get supportsWireframe => false;
 
+  /// False — `P7`: the spike predates it.
+  @override
+  bool get supportsAlphaToCoverage => false;
+
   @override
   bool get supportsStencil => true;
 

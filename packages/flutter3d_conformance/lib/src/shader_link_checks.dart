@@ -92,12 +92,18 @@ Future<void> checkLinking(GraphicsDevice device) async {
     //
     // The x-ray stage reaches the same three, for the same reason. It declares
     // one output where the others declare two, which is the pairing least like
-    // the rest of this table and the one most worth linking here.
+    // the rest of this table and the one most worth linking here. `P4`'s
+    // planar reflection is drawn over its surfaces the same way, and declares
+    // one output for the same reason.
     for (final vertex in <String>[
       'MeshVertex',
       'MeshSkinnedVertex',
       'MeshInstancedVertex',
-    ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
+    ]) ...<(String, String)>[
+      (vertex, 'ObjectId'),
+      (vertex, 'Xray'),
+      (vertex, 'PlanarReflection'),
+    ],
     // `ShadowSettings.caustics`: a refracting caster's faces into its maps,
     // through the static stage, and its photons, whose vertex stage reads
     // three textures and draws one quad per instance.
@@ -123,6 +129,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // `C3`: the surface buffer reduced for the occlusion readback.
       'DepthPyramid',
       'ProbePrefilter',
+      // `P4`: a render texture's light into the bytes a material reads.
+      'RenderTextureEncode',
       'BloomThreshold',
       'BloomDownsample',
       'BloomUpsample',
@@ -153,6 +161,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'VelocityNeighborMax',
       'MotionBlur',
       'ViewportShade',
+      // `P3`: the decals, over the surface and albedo buffers.
+      'Decal',
       'MrtProbe',
       // `H5`: the field kernel the conformance suite steps `FieldPass` with.
       'FieldDecay',
@@ -207,6 +217,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // and nothing ran them.
     ('SkyVertex', 'Sky'),
     ('SkyCubeVertex', 'SkyCube'),
+    // `P5`: the air's pair, whose seven varyings are new on both sides.
+    ('SkyPhysicalVertex', 'SkyPhysical'),
   ];
 
   for (final (vertexName, fragmentName) in pairs) {

@@ -123,6 +123,8 @@ final class FrameResult {
     this.shadowsDenied = 0,
     this.batchedDraws = 0,
     this.wireframeDeclined = false,
+    this.alphaToCoverageDeclined = false,
+    this.targetBytes = 0,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
     this.skipped = const <SkippedPass>[],
@@ -258,6 +260,20 @@ final class FrameResult {
   /// substituting was undone a layer up. Reported here for the same reason
   /// [lightsDropped] is: a setting that did nothing should say so.
   final bool wireframeDeclined;
+
+  /// Whether a material asked for `Material.alphaToCoverage` and was drawn
+  /// with its hard cutoff instead — `P7`: the device has none (Impeller, the
+  /// software rasteriser), or the scene pass gave its multisampling up.
+  final bool alphaToCoverageDeclined;
+
+  /// What the targets this frame drew into or read from hold, in bytes —
+  /// `P6`. Each texture once, its base level, every slice and sample: the
+  /// scene's colour and depth, the surface buffer, the glow's chain, the
+  /// shadow atlas, every scratch target a pass took from the pool. What a
+  /// frame costs in memory before a driver's padding, and what grows when a
+  /// render scale or an effect is turned up — `textureBytes` says how one is
+  /// counted.
+  final int targetBytes;
 
   /// Pipelines the renderer has built so far.
   ///

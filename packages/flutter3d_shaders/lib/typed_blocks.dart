@@ -142,6 +142,9 @@ final class CompositeInfoBlock extends UniformBlock {
   /// `contact`: Vector4, at byte 128.
   final Float32List contact = Float32List(4);
 
+  /// `lens`: Vector4, at byte 144.
+  final Float32List lens = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'params': params,
@@ -153,6 +156,7 @@ final class CompositeInfoBlock extends UniformBlock {
     'gamma': gamma,
     'gain': gain,
     'contact': contact,
+    'lens': lens,
   };
 }
 
@@ -249,6 +253,67 @@ final class ConvolveInfoBlock extends UniformBlock {
     'probe': probe,
     'tiles': tiles,
     'atlas': atlas,
+  };
+}
+
+/// `DecalInfo`.
+final class DecalInfoBlock extends UniformBlock {
+  DecalInfoBlock() : super('DecalInfo');
+
+  /// `inverse_view_projection`: Matrix, at byte 0.
+  final Float32List inverseViewProjection = Float32List(16);
+
+  /// `camera`: Vector4, at byte 64.
+  final Float32List camera = Float32List(4);
+
+  /// `forward`: Vector4, at byte 80.
+  final Float32List forward = Float32List(4);
+
+  /// `params`: Vector4, at byte 96.
+  final Float32List params = Float32List(4);
+
+  /// `view`: Vector4, at byte 112.
+  final Float32List view = Float32List(4);
+
+  /// `slots`: 4 × Vector4, at byte 128.
+  final Float32List slots = Float32List(16);
+
+  /// `axis_x`: 16 × Vector4, at byte 192.
+  final Float32List axisX = Float32List(64);
+
+  /// `axis_y`: 16 × Vector4, at byte 448.
+  final Float32List axisY = Float32List(64);
+
+  /// `axis_z`: 16 × Vector4, at byte 704.
+  final Float32List axisZ = Float32List(64);
+
+  /// `region`: 16 × Vector4, at byte 960.
+  final Float32List region = Float32List(64);
+
+  /// `color`: 16 × Vector4, at byte 1216.
+  final Float32List color = Float32List(64);
+
+  /// `fade`: 16 × Vector4, at byte 1472.
+  final Float32List fade = Float32List(64);
+
+  /// `emissive`: 16 × Vector4, at byte 1728.
+  final Float32List emissive = Float32List(64);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'inverse_view_projection': inverseViewProjection,
+    'camera': camera,
+    'forward': forward,
+    'params': params,
+    'view': view,
+    'slots': slots,
+    'axis_x': axisX,
+    'axis_y': axisY,
+    'axis_z': axisZ,
+    'region': region,
+    'color': color,
+    'fade': fade,
+    'emissive': emissive,
   };
 }
 
@@ -371,11 +436,15 @@ final class FogInfoBlock extends UniformBlock {
   /// `forward`: Vector4, at byte 32.
   final Float32List forward = Float32List(4);
 
+  /// `projection`: Vector4, at byte 48.
+  final Float32List projection = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'fog': fog,
     'eye': eye,
     'forward': forward,
+    'projection': projection,
   };
 }
 
@@ -470,6 +539,9 @@ final class FragInfoBlock extends UniformBlock {
   /// `target_origin`: Vector4, at byte 880.
   final Float32List targetOrigin = Float32List(4);
 
+  /// `debug_view`: Vector4, at byte 896.
+  final Float32List debugView = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'light_position': lightPosition,
@@ -491,6 +563,7 @@ final class FragInfoBlock extends UniformBlock {
     'ambient_ground': ambientGround,
     'shadow_bias': shadowBias,
     'target_origin': targetOrigin,
+    'debug_view': debugView,
   };
 }
 
@@ -632,6 +705,23 @@ final class LayerInfoBlock extends UniformBlock {
     'scene_viewport': sceneViewport,
     'scene_levels': sceneLevels,
     'scene_view_projection': sceneViewProjection,
+  };
+}
+
+/// `LensFlareInfo`.
+final class LensFlareInfoBlock extends UniformBlock {
+  LensFlareInfoBlock() : super('LensFlareInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  /// `more`: Vector4, at byte 16.
+  final Float32List more = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
+    'more': more,
   };
 }
 
@@ -861,6 +951,27 @@ final class ParticleMeshInfoBlock extends UniformBlock {
   };
 }
 
+/// `PlanarReflectionInfo`.
+final class PlanarReflectionInfoBlock extends UniformBlock {
+  PlanarReflectionInfoBlock() : super('PlanarReflectionInfo');
+
+  /// `view`: Vector4, at byte 0.
+  final Float32List view = Float32List(4);
+
+  /// `params`: Vector4, at byte 16.
+  final Float32List params = Float32List(4);
+
+  /// `tint`: Vector4, at byte 32.
+  final Float32List tint = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'view': view,
+    'params': params,
+    'tint': tint,
+  };
+}
+
 /// `PointShadow`.
 final class PointShadowBlock extends UniformBlock {
   PointShadowBlock() : super('PointShadow');
@@ -999,6 +1110,19 @@ final class ReflectionInfoBlock extends UniformBlock {
     'params': params,
     'screen': screen,
     'environment': environment,
+  };
+}
+
+/// `RenderTextureInfo`.
+final class RenderTextureInfoBlock extends UniformBlock {
+  RenderTextureInfoBlock() : super('RenderTextureInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
   };
 }
 
@@ -1154,6 +1278,19 @@ final class SkinInfoBlock extends UniformBlock {
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'joint_matrices': jointMatrices,
+  };
+}
+
+/// `SmaaInfo`.
+final class SmaaInfoBlock extends UniformBlock {
+  SmaaInfoBlock() : super('SmaaInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
   };
 }
 

@@ -178,6 +178,22 @@ Map<String, Object?>? liveMaterialFields(String key, Object? value) =>
       _ => null,
     };
 
+/// What a running game's `ext.flutter3d.material.set` takes for the `.fmat`
+/// parameter [key] set to [value], or null for a value that is not numbers.
+///
+/// **A list whatever the slider handed over**, for the reason the file is
+/// written that way: a uniform is a list, and the game refuses one whose
+/// length is not the one it loaded.
+Map<String, Object?>? liveParameterFields(String key, Object? value) =>
+    switch (value) {
+      final num one => <String, Object?>{
+        'parameters/$key': <num>[one],
+      },
+      final List<Object?> many when many.every((it) => it is num) =>
+        <String, Object?>{'parameters/$key': many},
+      _ => null,
+    };
+
 /// The materials of a level, and the fields of the one that is open.
 final class MaterialPanel extends StatefulWidget {
   const MaterialPanel({
@@ -195,6 +211,11 @@ final class MaterialPanel extends StatefulWidget {
   /// Called with a material's name and [liveMaterialFields] for every value
   /// a slider passes through and every value written, for a running game to
   /// show before anything is saved. Keys a frame cannot show are not sent.
+  ///
+  /// For a material that defers to a `.fmat`, its parameters go out as
+  /// [liveParameterFields] and the level's own fields not at all: the game
+  /// draws that material from the file, so a level colour sent live would
+  /// show something the next load does not.
   final void Function(String material, Map<String, Object?> fields)? onLive;
 
   /// Called after a field was actually written, naming it, so the screen can
@@ -295,7 +316,12 @@ class _MaterialPanelState extends State<MaterialPanel> {
                       value: row[key],
                       hint: levelMaterialHints[key],
                       offers: widget.offers,
-                      onPreview: (Object? value) => _live(name, key, value),
+                      onPreview: (Object? value) => _live(
+                        name,
+                        document == null
+                            ? liveMaterialFields(key, value)
+                            : null,
+                      ),
                       onWrite: (Object? value) {
                         if (setLevelMaterialField(
                           widget.editing,
@@ -303,7 +329,12 @@ class _MaterialPanelState extends State<MaterialPanel> {
                           key,
                           value,
                         )) {
-                          _live(name, key, value);
+                          _live(
+                            name,
+                            document == null
+                                ? liveMaterialFields(key, value)
+                                : null,
+                          );
                           widget.onChanged('$name.$key');
                         }
                       },
@@ -352,28 +383,34 @@ class _MaterialPanelState extends State<MaterialPanel> {
             },
             hint: document.hints[key],
             offers: widget.offers,
+            onPreview: (Object? value) =>
+                _live(name, liveParameterFields(key, value)),
             // Back into a list on the way out, because that is what a uniform
             // is in the file whatever a slider hands over — a bare number under
             // `parameters` reads back as a list of one and would look to the
             // gate like a value the reader had misunderstood.
-            onWrite: (Object? value) => _writeFile(
-              name,
-              document,
-              'parameters/$key',
-              value is num ? <num>[value] : value,
-            ),
+            onWrite: (Object? value) {
+              if (_writeFile(
+                name,
+                document,
+                'parameters/$key',
+                value is num ? <num>[value] : value,
+              )) {
+                _live(name, liveParameterFields(key, value));
+              }
+            },
           ),
       ],
     ];
   }
 
-  void _live(String material, String key, Object? value) {
+  void _live(String material, Map<String, Object?>? fields) {
     final send = widget.onLive;
-    final fields = liveMaterialFields(key, value);
     if (send != null && fields != null) send(material, fields);
   }
 
-  void _writeFile(
+  /// Whether the file's reader took the change.
+  bool _writeFile(
     String name,
     MaterialDocument document,
     String key,
@@ -385,9 +422,10 @@ class _MaterialPanelState extends State<MaterialPanel> {
       value,
       hint: materialDocumentHint(document, key),
     );
-    if (next == null) return;
+    if (next == null) return false;
     widget.onMaterialWritten?.call(name, next);
     widget.onChanged('$name:$key');
+    return true;
   }
 
   Widget _heading(String says) => SectionLabel(

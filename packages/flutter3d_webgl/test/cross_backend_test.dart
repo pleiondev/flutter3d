@@ -98,6 +98,20 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
+  // 0.199% measured, on the silhouette; the stage the bundle's WebGL2
+  // section carries agrees with Impeller's inside it.
+  'material-language': 0.25,
+  // 0.595% measured, on the discs' rims and nowhere else: coverage here,
+  // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
+  'alpha-to-coverage': 0.7,
+  // 0.394% measured, on the spheres' and the floor's edges, which WebGL2
+  // does not multisample as Impeller does; the highlights, the fog and the
+  // sky agree.
+  'orthographic-metal': 0.5,
+  // 0.359% measured, on the silhouette: `shadow-teapot`'s edge between
+  // WebGL2 and Impeller, and the normals' half shows it in brighter colours
+  // than the lit half's.
+  'debug-view-split': 0.45,
   // **Zero measured, and it was 0.558%.** Both this and the occlusion below
   // reconstruct a world point from the depth stored in the surface buffer, and
   // both were handed a matrix adjusted to this backend's `[-1, 1]` clip range
@@ -229,6 +243,14 @@ const Map<String, double> _budgets = <String, double>{
   'cascade-walk': 0.04,
   'clearcoat-car-paint': 0.2,
   'easu-half': 0.9,
+  // 0.591% measured, every pixel of it on an edge: WebGL2 already draws
+  // `shadow-teapot`'s silhouette 0.28% apart from Impeller's, and SMAA reads
+  // a slightly different staircase there and moves its neighbours with it.
+  'lens-flare': 0.01,
+  // 0.388% measured, on the silhouette: `shadow-teapot`'s 0.28% between
+  // WebGL2 and Impeller, magnified by the barrel.
+  'lens-distortion': 0.45,
+  'smaa-teapot': 0.65,
   'evsm-soft': 0.4,
   // 0.047% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of
@@ -251,6 +273,10 @@ const Map<String, double> _budgets = <String, double>{
   'sheen-fabric': 0.23,
   // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
   // 64-bit integers, so a browser baked a different sheet.
+  // `P5`. 11 of 172800 measured against Impeller on 2026-10-01, the floor's
+  // far edge; the night sky 0.
+  'sky-physical-dusk': 0.01,
+  'sky-physical-night': 0.01,
   'smoke-six-way': 0.01,
   'splat-gltf': 0.01,
   // 0.001% measured, since the hash reads the pixel from the top on every
@@ -292,6 +318,14 @@ const Map<String, double> _budgets = <String, double>{
   // pixels here and on Impeller. Two-sided recording took the dots away, and
   // the difference went with them.
   'window-interior': 0.01,
+  // `P3`. 0 of 172800 measured against Impeller on 2026-10-01.
+  'decal-floor': 0.01,
+  // `P4`. 0.172% and 0.193% measured against Impeller on 2026-10-01, single
+  // pixels along silhouette edges, where the two multisample differently;
+  // the reflection and the monitor's picture, which this backend writes
+  // with its rows turned over, agree inside.
+  'planar-mirror': 0.2,
+  'render-texture': 0.22,
 };
 
 /// Scenes budgeted before this set had a picture of them.

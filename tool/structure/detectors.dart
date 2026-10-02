@@ -73,6 +73,15 @@ const List<String> kGenreWords = <String>[
   'lap', 'nitro', 'chicane', 'pit stop',
 ];
 
+/// Names another program chose, which this repository calls by them and
+/// cannot rename, each exempt from [kGenreWords] whole and only whole.
+///
+///   * `reloadSources` is the service the flutter tool registers on a game's
+///     VM service for a hot reload (`flutter3d_editor_play`'s `AttachedRun`
+///     calls it, as DevTools does). Spelling it any other way is a call that
+///     finds nothing; `reloadAll` of our own still fires.
+const Set<String> kProtocolNames = <String>{'reloadSources'};
+
 final RegExp _camel = RegExp(r'[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+');
 final RegExp _identifier = RegExp(r'[A-Za-z_][A-Za-z0-9_]*');
 
@@ -286,6 +295,7 @@ bool _sameWords(List<String> a, List<String> b) {
 List<String> genreWordsIn(String source, {List<String> words = kGenreWords}) {
   final found = <String>[];
   for (final match in _identifier.allMatches(codeOf(source))) {
+    if (kProtocolNames.contains(match.group(0))) continue;
     final said = _words(match.group(0)!);
     for (final forbidden in words) {
       final wanted = forbidden.split(' ');
@@ -478,6 +488,17 @@ List<Finding> proveDetectorsWork() {
     genreWordsIn('// ammo, weapons: all elsewhere.').isEmpty,
     'a line comment',
     'prose explaining the rule must not break it',
+  );
+  quiet(
+    'genre words',
+    genreWordsIn("const swapService = 'reloadSources';").isEmpty,
+    'a protocol method name',
+    'a name another program chose is called by its name',
+  );
+  fires(
+    'genre words',
+    genreWordsIn('Future<void> reloadAll() async {}').isNotEmpty,
+    'reloadAll (one of ours)',
   );
   quiet(
     'genre words',

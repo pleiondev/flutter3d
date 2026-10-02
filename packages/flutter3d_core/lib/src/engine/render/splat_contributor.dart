@@ -618,7 +618,7 @@ final class SplatContributor extends PassContributor {
       ..[0] = colour.x
       ..[1] = colour.y
       ..[2] = colour.z
-      ..[3] = fog.density;
+      ..[3] = fog.densityAt(eye.y);
     _eye
       ..[0] = eye.x
       ..[1] = eye.y

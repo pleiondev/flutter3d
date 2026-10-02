@@ -229,6 +229,22 @@ base class MeshNode extends SceneNode {
   /// looks for. A static thing wrongly left dynamic merely costs a redraw.
   bool shadowIsStatic = false;
 
+  /// Where this node is drawn among the others, on top of its material's
+  /// [Material.drawBucket] — `P7`.
+  ///
+  /// **Per node, because the bucket is per material.** Two nodes sharing a
+  /// material — a decal card and the wall it marks, a ghost and the player it
+  /// replays — could not be put in an order without giving one a copy of the
+  /// material, and a copy breaks the batching, the material's sort id and
+  /// every edit made to the original afterwards. The two are added, and the
+  /// sum outranks every other sort term in both halves of the list: lower
+  /// first, the same within a half in the order the view's sort mode gives.
+  /// The usable sum is −128 to 127 and is clamped beyond it.
+  ///
+  /// Nought by default, which leaves every scene drawn as it was. Nodes of
+  /// different orders are never merged into one instanced draw.
+  int drawOrder = 0;
+
   /// Skips frustum culling for this node.
   ///
   /// Worth setting on anything that follows the camera, such as a skybox, whose

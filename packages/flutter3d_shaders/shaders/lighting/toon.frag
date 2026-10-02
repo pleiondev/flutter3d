@@ -42,9 +42,8 @@ void main() {
   float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
 
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
-          s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
+             s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }

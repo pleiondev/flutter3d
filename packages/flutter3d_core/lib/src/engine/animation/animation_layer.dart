@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_core/formats.dart';
+import 'package:vector_math/vector_math.dart';
+
 import 'animation_target.dart';
 
 /// Where a track sits in a pose: one number for a node and a path together.
@@ -241,4 +245,42 @@ final class AnimationLayer {
   }
 
   return (time: next, reversing: turned, stopped: false);
+}
+
+/// Shortest-arc interpolation between two rotations, [t] of the way from
+/// [from] to [to].
+///
+/// **One copy, for the same reason [advanceTime] is one.** It was the
+/// player's own, and the animation graph's crossfade needs exactly it: two
+/// copies would be two chances for a graph and a player fading between the
+/// same clips to turn a joint a different way.
+///
+/// The sign flip is the part that matters: a quaternion and its negation are
+/// the same rotation, so without choosing the closer of the two, half of all
+/// blends spin the long way.
+Quaternion shortestArcSlerp(Quaternion from, Quaternion to, double t) {
+  final raw = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
+  final sign = raw < 0.0 ? -1.0 : 1.0;
+  final dot = raw * sign;
+
+  final (scaleFrom, scaleTo) = dot > 0.9995
+      // Nearly identical: the arc is so short that a straight line is closer
+      // than the trigonometry's own error.
+      ? (1.0 - t, t)
+      : _arcScales(math.acos(dot), t);
+
+  return Quaternion(
+    scaleFrom * from.x + scaleTo * sign * to.x,
+    scaleFrom * from.y + scaleTo * sign * to.y,
+    scaleFrom * from.z + scaleTo * sign * to.z,
+    scaleFrom * from.w + scaleTo * sign * to.w,
+  )..normalize();
+}
+
+(double, double) _arcScales(double theta, double t) {
+  final sinTheta = math.sin(theta);
+  return (
+    math.sin((1.0 - t) * theta) / sinTheta,
+    math.sin(t * theta) / sinTheta,
+  );
 }

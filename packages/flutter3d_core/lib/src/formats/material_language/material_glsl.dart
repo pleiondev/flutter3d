@@ -11,11 +11,12 @@
 /// `glsl_to_wgsl.dart` prepares it for glslang and naga, all without knowing a
 /// material language exists.
 ///
-/// **What it does not emit is as deliberate.** No uniform block of its own:
-/// the engine's shared blocks are frozen by offset agreement across four
-/// backends, and the one block a material may add — `MaterialParams`, filled
-/// from `Material.parameters` — is not something the language writes yet,
-/// because its parameters are folded constants. No sampler declaration, because `surface.glsl` already declares the ones the
+/// **What it does not emit is as deliberate.** No uniform block of its own
+/// but one: the engine's shared blocks are frozen by offset agreement across
+/// four backends, and the one block a material may add — `MaterialParams`,
+/// filled from `Material.parameters` — is written for the program's
+/// `uniform`s, and only when it has one (`P8`); a `param` is still a folded
+/// constant. No sampler declaration, because `surface.glsl` already declares the ones the
 /// engine binds and a second declaration is a duplicate symbol. No `#define`
 /// the author chose, because a material that could switch headers on and off
 /// could turn off the surface buffer and lie to every screen-space effect.
@@ -36,11 +37,32 @@ String emitMaterialFragment(MaterialProgram program) {
     ..writeln('// what the shader build compiles and what the three GPU')
     ..writeln('// backends translate. The software backend evaluates the same')
     ..writeln('// tree instead of reading this.')
-    // It gathers no lights, so it keeps no light list: see
-    // `LightingModel.usesLightList`.
+    // It gathers no lights, so it keeps no light list — see
+    // `LightingModel.usesLightList` — and no point-shadow block either, as
+    // `unlit.frag` keeps none: a block declared and never bound is a
+    // refused draw on WebGL2.
+    ..writeln('#define F3D_NO_POINT_SHADOW')
     ..writeln('#define F3D_NO_LIGHT_LIST')
     ..writeln('#include <lib/surface.glsl>')
     ..writeln();
+
+  // `P8`: the uniforms, as the block the engine binds `Material.parameters`
+  // to. Declaration order, as std140 lays it out and every backend's
+  // reflection reports it.
+  final uniforms = <MaterialParameter>[
+    for (final parameter in program.parameters)
+      if (parameter.uniform) parameter,
+  ];
+  if (uniforms.isNotEmpty) {
+    out.writeln('uniform MaterialParams {');
+    for (final parameter in uniforms) {
+      out.writeln('  ${parameter.type.name} ${parameter.name};');
+    }
+    out
+      ..writeln('}')
+      ..writeln('material_params;')
+      ..writeln();
+  }
 
   // Both prototypes have to be satisfied whether or not anything calls them,
   // which is what `unlit.frag` says about its own pair. A material in this
@@ -101,7 +123,12 @@ MaterialBindings describeMaterial(MaterialProgram program) {
   // every model except `Normals`.
   return MaterialBindings(
     name: program.name,
-    usesAlbedoTexture: samples.contains('base_color_texture'),
+    // Always: `ReadSurface` samples the base colour map for the albedo every
+    // material reads, whether or not the source names the slot. Asked of the
+    // source alone, a material that never wrote `texture` was drawn with the
+    // map unbound — black on Impeller and a refused draw on WebGL2, found
+    // the first time one was drawn on a GPU (`P8`, `material-language`).
+    usesAlbedoTexture: true,
     usesMaterialMaps:
         samples.contains('normal_texture') ||
         samples.contains('occlusion_texture') ||
@@ -109,6 +136,10 @@ MaterialBindings describeMaterial(MaterialProgram program) {
         samples.contains('metallic_roughness_texture'),
     usesMetallicRoughnessMap: samples.contains('metallic_roughness_texture'),
     usesMetallic: reads.contains('metallic'),
+    uniforms: <String, List<double>>{
+      for (final parameter in program.parameters)
+        if (parameter.uniform) parameter.name: parameter.defaultValue,
+    },
   );
 }
 
@@ -125,6 +156,7 @@ final class MaterialBindings {
     required this.usesMaterialMaps,
     required this.usesMetallicRoughnessMap,
     required this.usesMetallic,
+    this.uniforms = const <String, List<double>>{},
   });
 
   final String name;
@@ -132,6 +164,15 @@ final class MaterialBindings {
   final bool usesMaterialMaps;
   final bool usesMetallicRoughnessMap;
   final bool usesMetallic;
+
+  /// Each `uniform` the program declares, with its default, in declaration
+  /// order — `P8`: the members of the `MaterialParams` block, and what
+  /// `Material.parameters` has to hold for the renderer to bind it.
+  final Map<String, List<double>> uniforms;
+
+  /// Whether the stage declares `MaterialParams`, which is whether the
+  /// program has a uniform.
+  bool get usesMaterialParameters => uniforms.isNotEmpty;
 
   /// Always false: a material in this language returns the light its surface
   /// emits and gathers none, so the emitted stage declares no light list.
@@ -159,6 +200,7 @@ final class MaterialBindings {
     usesMetallicRoughnessMap: usesMetallicRoughnessMap,
     usesMetallic: usesMetallic,
     usesLightList: usesLightList,
+    usesMaterialParameters: usesMaterialParameters,
     vertexStageMorphs: vertexStageMorphs,
   );
 }
@@ -172,6 +214,8 @@ String _glsl(MaterialExpression expression) {
       return input.glsl;
     case MaterialLocalRef(:final name):
       return name;
+    case MaterialParamRef(:final parameter) when parameter.uniform:
+      return 'material_params.${parameter.name}';
     case MaterialParamRef(:final parameter):
       // Reachable only for a program nothing specialised, which is a caller
       // skipping a step rather than a shape this emitter supports: a

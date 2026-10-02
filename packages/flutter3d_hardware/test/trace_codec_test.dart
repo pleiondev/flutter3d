@@ -126,6 +126,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
   const TraceSetCullMode(0, CullMode.frontFace),
   const TraceSetWindingOrder(0, WindingOrder.clockwise),
   const TraceSetDepthWrite(0, false),
+  const TraceSetAlphaToCoverage(0, true),
   const TraceSetDepthCompare(0, CompareFunction.greaterEqual),
   const TraceSetStencil(
     0,
@@ -184,7 +185,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     sampler: SamplerOptions.nearestClamp,
   ),
   const TraceClearBindings(0),
-  const TraceDraw(0, 4),
+  const TraceDraw(0, 4, 3, 6),
   const TraceSubmit(0),
   const TraceReadPixels(1),
   const TraceReadback(texture: 1, region: _rect),
@@ -222,7 +223,7 @@ void main() {
     // round trip below never tries.
     final kinds = _everyEvent().map((e) => e.kind).toList();
     expect(kinds.toSet(), hasLength(kinds.length));
-    expect(kinds, hasLength(47));
+    expect(kinds, hasLength(48));
   });
 
   test('a file read back writes the same file', () {
@@ -234,6 +235,18 @@ void main() {
     expect(read.metadata, <String, Object?>{'backend': 'test'});
     expect(read.events.map((e) => e.kind), _everyEvent().map((e) => e.kind));
     expect(Trace(read.events, metadata: read.metadata).encode(), first);
+  });
+
+  test('a draw of the whole binding reads back as the whole binding', () {
+    // A trace recorded before windows existed has neither key, and has to
+    // read as the draw it was without a new format version.
+    final read = Trace.decode(
+      Trace(const <TraceEvent>[TraceDraw(0, 2)]).encode(),
+    );
+    final draw = read.events.single as TraceDraw;
+    expect(draw.instanceCount, 2);
+    expect(draw.firstIndex, 0);
+    expect(draw.indexCount, isNull);
   });
 
   test('a trace from another format version is refused by name', () {

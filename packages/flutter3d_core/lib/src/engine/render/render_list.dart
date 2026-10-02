@@ -378,7 +378,9 @@ final class RenderList {
     // bucket. `& 0xFF` sent −1 to 255 and drew the thing dead last, silently:
     // a sky asked to go first went behind nothing and in front of everything.
     // Clamping rather than wrapping for the same reason at the other end.
-    final bucket = (material.drawBucket + 128).clamp(0, 255);
+    // `P7`: the node's own order on top of its material's.
+    final bucket = (material.drawBucket + item.requireNode.drawOrder + 128)
+        .clamp(0, 255);
 
     switch (mode) {
       case SortMode.stateThenDepth:

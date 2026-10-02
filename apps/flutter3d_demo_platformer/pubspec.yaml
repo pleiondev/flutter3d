@@ -73,6 +73,11 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
+  # `N5`'s `testReplay`: `test/replay_test.dart` replays a recorded run on the
+  # software backend and checks it by digest and by golden.
+  flutter3d_testing:
+    path: ../../packages/flutter3d_testing
+
   # `ap-12`: the build hook (`hook/build.dart`) that converts
   # `assets_src/models/*.glb` into `flutter3d_generated/*.f3d` on every
   # build — `path`, the same convention every other sibling package in this

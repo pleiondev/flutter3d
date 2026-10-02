@@ -542,6 +542,149 @@ final class _ReflectionProbeNode extends RenderNode {
   }
 }
 
+/// Every [RenderTexture] the scene holds, drawn through its own camera —
+/// `P4`.
+///
+/// **One node for all of them**, with one name the scene optionally reads:
+/// the name is what orders them before the materials that show them, and
+/// the pictures are each texture's own, held by whoever made it rather than
+/// by the frame. So the resource the node keeps stands for the order and is
+/// a texture nothing samples through it.
+///
+/// It optionally reads the shadow maps for a probe's reason: its pictures are
+/// lit and shadowed the way the world is.
+final class _RenderTextureNode extends RenderNode {
+  _RenderTextureNode(
+    this._renderer, {
+    required this.scene,
+    required this.shadowCaster,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final int shadowCaster;
+
+  @override
+  String get name => 'render textures';
+
+  @override
+  bool get isActive => scene.renderTextures.isNotEmpty;
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.shadowMoments,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.renderTextures,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
+    for (final texture in scene.renderTextures) {
+      if (!texture.isDue) continue;
+      developer.Timeline.startSync('Renderer.renderTexture');
+      _renderer._drawRenderTexture(
+        resources: frame.resources,
+        scene: scene,
+        texture: texture,
+        settings: frame.settings,
+        shadows: shadows,
+        passState: frame.state,
+      );
+      developer.Timeline.finishSync();
+    }
+    frame.resources.provide(
+      FrameResourceIds.renderTextures,
+      _renderer.fallbackBlack,
+    );
+  }
+}
+
+/// Every visible [PlanarReflectorNode]'s mirrored picture, a picture per view
+/// — `P4`.
+///
+/// One node and one name for all of them, for [_RenderTextureNode]'s reason:
+/// a reflector has a picture per view, and the scene pass finds this view's
+/// in the renderer's own state, where it is kept between frames. What the
+/// name carries is that the pictures were drawn this frame, before the scene.
+final class _PlanarReflectionNode extends RenderNode {
+  _PlanarReflectionNode(
+    this._renderer, {
+    required this.scene,
+    required this.views,
+    required this.settings,
+    required this.shadowCaster,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+
+  /// Every view, by priority — each gets its own mirrored camera.
+  final List<RenderView> views;
+  final RenderSettings settings;
+  final int shadowCaster;
+
+  @override
+  String get name => 'planar reflections';
+
+  /// Asked of the scene when the graph is built, so a frame whose reflectors
+  /// are all hidden draws no picture for any of them.
+  @override
+  bool get isActive =>
+      settings.planarReflections.enabled &&
+      scene.reflectors.any(
+        (reflector) =>
+            reflector.visibleInHierarchy && reflector.surfaces.isNotEmpty,
+      );
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.shadowMoments,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.planarReflections,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
+    for (final reflector in scene.reflectors) {
+      if (!reflector.visibleInHierarchy || reflector.surfaces.isEmpty) {
+        continue;
+      }
+      developer.Timeline.startSync('Renderer.planarReflection');
+      _renderer._drawPlanarReflection(
+        resources: frame.resources,
+        scene: scene,
+        reflector: reflector,
+        state: _renderer._planarStates[reflector] ??= _PlanarState(),
+        views: views,
+        width: frame.width,
+        height: frame.height,
+        settings: frame.settings,
+        shadows: shadows,
+        passState: frame.state,
+      );
+      developer.Timeline.finishSync();
+    }
+    frame.resources.provide(
+      FrameResourceIds.planarReflections,
+      _renderer.fallbackBlack,
+    );
+  }
+}
+
 /// The world, as a graph node — the pass everything else is ordered around.
 ///
 /// It writes `hdr_colour` and `surface_buffer`, which is what took those two
@@ -582,18 +725,24 @@ final class _SceneNode extends RenderNode {
     required this.contributors,
     required this.shadowCaster,
     required this.lightOverflow,
+    required RenderSettings settings,
   }) {
     final transmits = _TransmissionPasses._holdsTransmission(scene, ordered);
     // A contributor that reads the scene's depth splits the frame too, and
     // for the same reason: what it reads is an attachment of this pass. It
     // needs no copy of the colour, so that node stays as the glass has it.
     final readsDepth = contributors.any((c) => c.readsSceneDepth);
+    // `P3`: decals split it for the glass's sake rather than their own. They
+    // read the buffers after the pass, which an unsplit frame would allow
+    // too, but glass drawn in the same pass would already be in the picture
+    // and the decal behind it would be painted over the glass.
+    decals = _DecalNode(_renderer, scene, ordered, settings);
     copy = _SceneColourCopyNode(_renderer, active: transmits);
     transparent = _TransparentNode(
       _renderer,
       scene: scene,
       contributors: contributors,
-      active: transmits || readsDepth,
+      active: transmits || readsDepth || decals.isActive,
       readsDepth: readsDepth,
       samples: optionalReads,
     );
@@ -614,6 +763,9 @@ final class _SceneNode extends RenderNode {
 
   /// What the pass counted, for the frame's own report.
   _ScenePass? result;
+
+  /// `P3`'s decals, painted between the two halves.
+  late final _DecalNode decals;
 
   /// The copy of the scene the transmissive draws read, and the pass that
   /// draws them over it — `M3`.
@@ -639,6 +791,10 @@ final class _SceneNode extends RenderNode {
     // `L4`: the irradiance atlas the GPU keeps, for the same reason — the
     // lit draws read it when it is there and the bake when it is not.
     FrameResourceIds.irradianceAtlas,
+    // `P4`: what the cameras into textures drew, which a material here may
+    // show, and the mirrored pictures the reflectors' surfaces lay on.
+    FrameResourceIds.renderTextures,
+    FrameResourceIds.planarReflections,
   ];
 
   /// **Both names always, including on a device that cannot attach the
@@ -779,6 +935,73 @@ final class _SceneNode extends RenderNode {
         albedoIsRead: albedoIsRead,
       );
     }
+  }
+}
+
+/// `P3`'s projected decals, painted into the scene target between the
+/// opaque half and the transparent one.
+///
+/// **In place, which no other link in the colour chain is.** The transparent
+/// half draws into the renderer's own scene target and loads it, so a decal
+/// pass that wrote a texture of its own would be drawn over by glass that
+/// never saw it. It can write in place because it never reads the colour:
+/// the two blends that make a decal are a factor times what is there and a
+/// term added to it, and both are blend state rather than texture reads.
+///
+/// Needs three attachments rather than the two [_NeedsSurfaceBuffer] asks
+/// for: the light a decal is laid under is read back through the albedo.
+final class _DecalNode extends RenderNode {
+  _DecalNode(this._renderer, this._scene, this._views, this._settings);
+
+  final Renderer _renderer;
+  final Scene _scene;
+
+  /// Every view, each painted with its own camera inside its own rectangle.
+  final List<RenderView> _views;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'decals';
+
+  @override
+  bool get supported => _renderer.device.maxColorAttachments > 2;
+
+  /// Asked of the scene when the graph is built, so a frame whose decals are
+  /// all hidden is a frame that neither splits nor gives up multisampling.
+  @override
+  bool get isActive =>
+      _settings.decals.enabled &&
+      _scene.decals.any((decal) => decal.visibleInHierarchy);
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+    FrameResourceIds.albedoBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resources = frame.resources;
+    final scene = resources.texture(FrameResourceIds.hdrColour);
+    final surface = resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    final albedo = resources.tryTexture(FrameResourceIds.albedoBuffer);
+    // Hard reads, culled on a device that cannot attach them; a frame that
+    // got neither has no surface to paint, and the picture stands.
+    if (surface != null && albedo != null) {
+      _renderer._encodeDecals(
+        target: scene,
+        surface: surface,
+        albedo: albedo,
+        decals: _scene.decals,
+        views: _views,
+        passState: frame.state,
+      );
+    }
+    resources.provide(FrameResourceIds.hdrColour, scene);
   }
 }
 
@@ -1978,6 +2201,55 @@ final class _BloomNode extends RenderNode {
   }
 }
 
+/// The flare thrown from the glow, added to it — `P2`.
+///
+/// Registered after the bloom and before the composite, so it reads the glow
+/// the chain finished and hands the composite the next version of it; with
+/// the bloom off nothing produces the glow and this is culled with it.
+final class _LensFlareNode extends RenderNode {
+  _LensFlareNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final BloomSettings _settings;
+
+  @override
+  String get name => 'lens flare';
+
+  @override
+  bool get isActive =>
+      _settings.enabled &&
+      _settings.intensity > 0.0 &&
+      _settings.lensFlare.isActive &&
+      _renderer.shaders['LensFlare'] != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.bloom];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.bloom];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.lensFlare');
+    final glow = frame.resources.texture(FrameResourceIds.bloom);
+    final target = frame.resources.transient(
+      RenderTargetSpec(
+        width: glow.width,
+        height: glow.height,
+        format: glow.format,
+      ),
+    );
+    frame.resources.provide(FrameResourceIds.bloom, target);
+    _renderer._encodeLensFlare(
+      target: target,
+      glow: glow,
+      settings: _settings.lensFlare,
+      aspect: frame.width / math.max(frame.height, 1),
+    );
+    developer.Timeline.finishSync();
+  }
+}
+
 /// Tone map, sRGB and the debug overlay, as a graph node — the end of the post
 /// chain and the only pass that writes what is shown.
 ///
@@ -2182,12 +2454,46 @@ final class _FxaaNode extends RenderNode {
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = _renderer._ldrColor!;
     frame.resources.provide(FrameResourceIds.frame, target);
-    _renderer._encodeFxaa(
-      target: target,
-      source: source,
-      settings: _settings,
-      upscaleSharpen: upscaleSharpen,
-    );
+    // `P1`. SMAA smooths and nothing else; a sharpening asked for alongside
+    // it still rides in the FXAA pass, with the smoothing there switched off,
+    // over SMAA's output.
+    if (_settings.enabled &&
+        _settings.method == EdgeSmoothing.smaa &&
+        _renderer._hasSmaa) {
+      final sharpens =
+          _settings.sharpen > 0.0 ||
+          (_settings.temporal.enabled && _settings.temporal.sharpen > 0.0) ||
+          upscaleSharpen > 0.0;
+      final smoothed = sharpens
+          ? frame.resources.transient(
+              RenderTargetSpec(
+                width: source.width,
+                height: source.height,
+                format: _renderer._frameFormat,
+              ),
+            )
+          : target;
+      _renderer._encodeSmaa(
+        target: smoothed,
+        source: source,
+        resources: frame.resources,
+      );
+      if (sharpens) {
+        _renderer._encodeFxaa(
+          target: target,
+          source: smoothed,
+          settings: _settings.copyWith(enabled: false),
+          upscaleSharpen: upscaleSharpen,
+        );
+      }
+    } else {
+      _renderer._encodeFxaa(
+        target: target,
+        source: source,
+        settings: _settings,
+        upscaleSharpen: upscaleSharpen,
+      );
+    }
     developer.Timeline.finishSync();
   }
 }

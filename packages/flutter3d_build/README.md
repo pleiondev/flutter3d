@@ -23,6 +23,18 @@ name in its `hooks: user_defines:` overrides either choice. The value
 `universal` there is the one family every device can load; it is turned into
 BC, ASTC, ETC2 or RGBA8 when the texture is uploaded.
 
+## Materials
+
+A material written in the material language goes under `assets_src/` with the
+extension `.f3dmat`, next to the models that wear it. The hook compiles
+`assets_src/fx/rim.f3dmat` into `flutter3d_generated/fx/rim.f3dshaders`: one
+shader bundle with a fragment stage named after the material, carrying an
+Impeller section, a WebGL2 section and, when `glslangValidator` and `naga` are
+on `PATH`, a WebGPU section. Load it with `GraphicsDevice.loadShaders`.
+Compiling happens only here, at build time. A mistake fails the build with the
+material's file, line and column. A manifest rule's `glob` and `exclude` apply
+to materials as well.
+
 The same converter can be run by hand:
 
 ```sh

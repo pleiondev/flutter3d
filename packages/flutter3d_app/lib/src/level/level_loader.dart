@@ -460,6 +460,7 @@ final class LevelLoader {
       if (entry.value.fmat case final String path) {
         if (await _fmatMaterial(
               device,
+              entry.key,
               path,
               readAsset ?? _bundleAsset,
               loadIssues,
@@ -624,8 +625,14 @@ final class LevelLoader {
   /// The document's own findings come through too, because a `.fmat` with
   /// `roughnesss` in it is exactly the hand-edit that format exists to make
   /// survivable and the warning is the only place it shows.
+  ///
+  /// **Named [name], the level's word for it, not the file's.** The surfaces
+  /// that wear it are named that already, and it is the name the editor
+  /// sends a dragged parameter under (`HotSwap.setMaterial`); the file's own
+  /// name would leave a running level unreachable from the panel editing it.
   static Future<Material?> _fmatMaterial(
     GraphicsDevice device,
+    String name,
     String path,
     AssetBytes read,
     List<LevelIssue> issues,
@@ -640,6 +647,7 @@ final class LevelLoader {
         document,
         device: device,
         resolveUri: source.resolveUri,
+        name: name,
         warnings: warnings,
       );
     } catch (error) {

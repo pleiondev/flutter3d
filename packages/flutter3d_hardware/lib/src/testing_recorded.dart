@@ -17,12 +17,21 @@ sealed class Recorded {
 }
 
 final class RecordedDraw extends Recorded {
-  const RecordedDraw({this.instanceCount = 1});
+  const RecordedDraw({
+    this.instanceCount = 1,
+    this.firstIndex = 0,
+    this.indexCount,
+  });
 
   /// How many instances the draw asked for. One for every draw this engine
   /// made before mesh particles, which is why the characterisation snapshots
   /// print `draw` unadorned unless it is anything else.
   final int instanceCount;
+
+  /// The window of the bound indices the draw read — `P7`. Zero and null, the
+  /// whole binding, for every draw that did not ask for less.
+  final int firstIndex;
+  final int? indexCount;
 }
 
 final class RecordedPipeline extends Recorded {
@@ -114,6 +123,11 @@ final class RecordedPrimitiveType extends Recorded {
 final class RecordedPolygonMode extends Recorded {
   const RecordedPolygonMode(this.mode);
   final PolygonMode mode;
+}
+
+final class RecordedAlphaToCoverage extends Recorded {
+  const RecordedAlphaToCoverage(this.enabled);
+  final bool enabled;
 }
 
 final class RecordedCullMode extends Recorded {

@@ -13,6 +13,7 @@ import 'engine_table.dart';
 import 'tables/aces2_display.dart' as tables;
 import 'tables/blue_noise.dart' as tables;
 import 'tables/ltc.dart' as tables;
+import 'tables/smaa_area.dart' as tables;
 
 export 'engine_table.dart';
 
@@ -32,6 +33,7 @@ final class EngineTables {
     tables.blueNoise,
     tables.aces2Display,
     tables.ltc,
+    tables.smaaArea,
   ];
 
   /// Entries per axis of [aces2Display] — `L2`.
@@ -52,6 +54,9 @@ final class EngineTables {
 
   /// See `tables/ltc.dart`.
   TextureHandle get ltc => this[tables.ltc];
+
+  /// See `tables/smaa_area.dart`.
+  TextureHandle get smaaArea => this[tables.smaaArea];
 
   /// [table] on this device, uploaded now if it was not already.
   TextureHandle operator [](EngineTable table) => _uploaded[table] ??=

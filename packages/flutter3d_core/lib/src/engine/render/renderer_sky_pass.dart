@@ -29,21 +29,28 @@ extension _SkyPass on Renderer {
     final sky = settings.sky;
     if (!sky.enabled) return;
 
-    // Two fragment stages behind one vertex stage: the ray is the same either
-    // way, and which one runs is decided by whether there is a cube to sample.
+    // Three fragment stages: the ray is the same in each, and which one runs
+    // is decided by whether there is a cube to sample, and failing that,
+    // whether there is air to scatter through. A cube wins, as
+    // `SkySettings.physical` says.
     final cubemap = sky.cubemap;
     final textured = cubemap != null;
-    final fragmentName = textured ? 'SkyCube' : 'Sky';
+    final air = textured ? null : sky.physical;
+    final fragmentName = textured
+        ? 'SkyCube'
+        : (air != null ? 'SkyPhysical' : 'Sky');
 
-    // Two vertex stages, one per fragment stage: the layout each draw carries
-    // is derived from the stage's own declarations, and the gradient and the
-    // cube want different things on their vertices. See `sky.vert`.
+    // A vertex stage per fragment stage: the layout each draw carries is
+    // derived from the stage's own declarations, and each sky wants
+    // different things on its vertices. See `sky.vert`.
     //
     // Through the renderer's own library rather than `device.shaders`, like
     // every other stage it resolves by name: a bundle handed in as
     // `materials:` wins any name it shares with the engine's, and a sky it
     // replaced — or reloaded, see `relinkShaders` — was otherwise never seen.
-    final vertexName = textured ? 'SkyCubeVertex' : 'SkyVertex';
+    final vertexName = textured
+        ? 'SkyCubeVertex'
+        : (air != null ? 'SkyPhysicalVertex' : 'SkyVertex');
     final vertex = shaders[vertexName];
     final fragment = shaders[fragmentName];
     if (vertex == null || fragment == null) {
@@ -71,10 +78,15 @@ extension _SkyPass on Renderer {
     pass.setDepthWrite(false);
 
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
+    _skyOrthoLens = isOrthographic(viewProjection)
+        ? _orthoSkyLens(inverse)
+        : null;
 
     pass.bindPipeline(
       textured
           ? (_skyCubePipeline ??= device.createPipeline(vertex, fragment))
+          : air != null
+          ? (_skyPhysicalPipeline ??= device.createPipeline(vertex, fragment))
           : (_skyPipeline ??= device.createPipeline(vertex, fragment)),
     );
     // The tracker described a pipeline this just replaced; the next mesh has to
@@ -95,7 +107,12 @@ extension _SkyPass on Renderer {
       return;
     }
 
-    pass.bindVertexData(_skyVertexBytes(inverse, sky, textured: false), 3);
+    pass.bindVertexData(
+      air != null
+          ? _skyPhysicalVertexBytes(inverse, sky, air)
+          : _skyVertexBytes(inverse, sky, textured: false),
+      3,
+    );
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     pass.draw();
@@ -199,6 +216,72 @@ extension _SkyPass on Renderer {
     return ByteData.sublistView(data, 0, 3 * stride);
   }
 
+  /// The three corners of the physical sky's triangle — `P5`.
+  ///
+  /// The gradient's stride and the gradient's buffer: six vec4s after the ray
+  /// in both, and `sky_physical.vert` lists what each holds. Lengths go over
+  /// in kilometres, converted by `PhysicalSkyKilometres` so the Dart model
+  /// marches with the very numbers the shader does.
+  ByteData _skyPhysicalVertexBytes(
+    vm.Matrix4 inverse,
+    SkySettings sky,
+    PhysicalSky air,
+  ) {
+    final data = _skyVertexData;
+    const corners = <double>[-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
+    const stride = Renderer._kSkyVertexFloats;
+    final k = PhysicalSkyKilometres(air);
+    final toSun = sky.resolvedDirectionToSun.normalized();
+
+    for (var i = 0; i < 3; i++) {
+      final x = corners[i * 2];
+      final y = corners[i * 2 + 1];
+      var at = i * stride;
+
+      data[at++] = x;
+      data[at++] = y;
+
+      _skyCornerRay(inverse, x, y, _skyRay);
+      data[at++] = _skyRay.x;
+      data[at++] = _skyRay.y;
+      data[at++] = _skyRay.z;
+
+      data[at++] = k.rayleigh.x;
+      data[at++] = k.rayleigh.y;
+      data[at++] = k.rayleigh.z;
+      data[at++] = k.rayleighHeight;
+
+      data[at++] = k.mie;
+      data[at++] = k.mieExtinction;
+      data[at++] = k.mieHeight;
+      data[at++] = air.resolvedAnisotropy;
+
+      data[at++] = toSun.x;
+      data[at++] = toSun.y;
+      data[at++] = toSun.z;
+      data[at++] = air.sunIlluminance;
+
+      data[at++] = k.planet;
+      data[at++] = k.top;
+      data[at++] = k.eye;
+      data[at++] = air.groundAlbedo;
+
+      data[at++] = air.starBrightness;
+      data[at++] = air.starDensity;
+      data[at++] = air.starCells.toDouble();
+      data[at++] = 0.0;
+
+      // The disc as the gradient sends it, inner cosine and the width of the
+      // edge — see `_skyVertexBytes` for why not the outer cosine.
+      data[at++] = sky.discInnerCosine;
+      data[at++] = sky.discInnerCosine - sky.discOuterCosine;
+      data[at++] = sky.sunIntensity;
+      data[at++] = 0.0;
+    }
+
+    return ByteData.sublistView(data, 0, 3 * stride);
+  }
+
   /// The world-space view ray at one clip-space corner.
   ///
   /// Two points on the same eye ray, subtracted. The depths are 0.5 and 1.0
@@ -206,12 +289,23 @@ extension _SkyPass on Renderer {
   /// zero-to-one on Impeller and on the software rasteriser and minus-one-to-one
   /// on WebGL, and the difference of two points on one ray is the same direction
   /// wherever the two points sit.
-  static void _skyCornerRay(
-    vm.Matrix4 inverse,
-    double x,
-    double y,
-    vm.Vector3 out,
-  ) {
+  ///
+  /// **Through an orthographic lens every corner's ray is the view axis**, so
+  /// the sky would be one colour, a cube map one texel, and the sun's disc the
+  /// whole frame or nothing — `P7`. The sky is then seen as a perspective
+  /// camera of [_kOrthoSkyFieldOfView] standing where the orthographic one
+  /// does would see it: an orthographic view is a way of drawing the near
+  /// world, not a claim that the sky is infinitely far in one direction only.
+  void _skyCornerRay(vm.Matrix4 inverse, double x, double y, vm.Vector3 out) {
+    final lens = _skyOrthoLens;
+    if (lens != null) {
+      final spread = math.tan(_kOrthoSkyFieldOfView / 2.0);
+      out
+        ..setFrom(lens.forward)
+        ..addScaled(lens.right, x * spread * lens.aspect)
+        ..addScaled(lens.up, y * spread);
+      return;
+    }
     final near = inverse.transform(vm.Vector4(x, y, 0.5, 1.0));
     final far = inverse.transform(vm.Vector4(x, y, 1.0, 1.0));
     out.setValues(
@@ -220,4 +314,36 @@ extension _SkyPass on Renderer {
       far.z / far.w - near.z / near.w,
     );
   }
+
+  /// The view axis and the world directions of the frame's right and top
+  /// edges, out of an orthographic [inverse] view-projection, and the frame's
+  /// aspect — the lens [_skyCornerRay] sees the sky through.
+  ///
+  /// Read off the matrix at the frame's middle and edges rather than off the
+  /// camera, so whatever the backend did to its y — the top edge is the one
+  /// clip y of one points at on every backend — the sky turns with it.
+  static ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})
+  _orthoSkyLens(vm.Matrix4 inverse) {
+    vm.Vector3 at(double x, double y, double z) {
+      final p = inverse.transform(vm.Vector4(x, y, z, 1.0));
+      return vm.Vector3(p.x / p.w, p.y / p.w, p.z / p.w);
+    }
+
+    final centre = at(0.0, 0.0, 0.5);
+    final forward = (at(0.0, 0.0, 1.0) - centre)..normalize();
+    final right = at(1.0, 0.0, 0.5) - centre;
+    final up = at(0.0, 1.0, 0.5) - centre;
+    final halfHeight = up.length;
+    final aspect = halfHeight > 0.0 ? right.length / halfHeight : 1.0;
+    return (
+      forward: forward,
+      right: right..normalize(),
+      up: up..normalize(),
+      aspect: aspect,
+    );
+  }
 }
+
+/// The vertical field of view the sky is seen with through an orthographic
+/// lens, in radians: sixty degrees, a camera's ordinary width — `P7`.
+const double _kOrthoSkyFieldOfView = math.pi / 3.0;

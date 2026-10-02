@@ -1,5 +1,54 @@
 ## Unreleased
 
+- **An edit made under a running game goes into its demo.**
+  `DemoRecording` is the run being written down: start, recorder,
+  checkpoints and the levels swapped in, with `levelSwapped` turning the
+  timeline's step into one on this tape and dropping what the swap lived
+  again. `LiveLevel(swapped:)` hears the step the timeline swapped at, before
+  `present`. `replayDemo` plays a `Demo` from its start, swaps each level in
+  where the tape reaches it and compares the file's checkpoints by step.
+  `rewindBufferFromDemo` refuses a demo with swaps, since a keyframe before a
+  swap belongs to the other level.
+- **`ext.flutter3d.level.patch` takes an edit instead of a whole level.**
+  `registerLevelExtension` registers it beside `level.apply`;
+  `answerLevelPatch` applies a `LevelPatch` to `LiveLevel.level` and passes
+  the patch's own diff to `applyWhenReady(diff:)` and `apply(diff:)`. A
+  patch made against another version is answered with
+  `LevelPatch.staleCode`, which tells the sender to send the whole level; a
+  patched level that does not build is refused as an ordinary error.
+- **`BehaviourOverlay` draws what every tree last decided**: a stroke per
+  node on the running path above each actor, coloured by how it came out, and
+  a line to where its leaf is taking it; `describe()` gives the same path by
+  name. It reads boards and never makes one, so switching it on cannot change
+  a snapshot.
+- **`RunTimeline` scrubs without cutting.** `scrubTo` moves the live state
+  to a held step while paused and keeps the tape and the present;
+  `returnToPresent` puts the present back exactly, `branchHere` cuts the
+  future at the scrubbed step and stays paused, and `stepOnce` from a scrub
+  walks the tape. `resume` from a scrub resumes at the present. `tracks`
+  replays the buffer into `EntityTracks` and puts the live state back.
+  Refusals come back as `ScrubRefused` with a reason.
+- **`registerTimelineExtensions`** adds `scrubTo`, `returnToPresent`,
+  `branchHere` and, with an `entityLayout`, `tracks`; `status` answers the
+  present step, the oldest held and the scrub.
+- **`Autosave` writes the run on the way into a pause, at a checkpoint and
+  when the application goes to the background**, which on a phone is the
+  only warning before the process is ended. `SaveFile` skips a write of the
+  run it last wrote, so a menu opened and closed costs nothing.
+- **`SaveFile` takes a `SaveSchema`** and migrates older saves on the way in;
+  a save now carries its schema, its step and its digest. `readRecord`,
+  `parse`, `writeRecord` and `encode` are for copies kept elsewhere.
+  `RunSession.stepOf` says how far a run has got, and `save` returns whether
+  it wrote.
+- **`SaveSync` keeps a save in the cloud, and sends nothing until the player
+  agrees.** Consent is off on a fresh install and is kept in a document of
+  its own; without it no store is called. Conflicts are settled by
+  `resolveSaves`; two equal runs come back as `SyncOutcome.ask` for the
+  player, and a cloud save from a newer build is left alone. Stores:
+  `HttpCloudSaves` (`GET`/`PUT` with `ETag` preconditions) and
+  `PlatformCloudSaves` for Play Games and iCloud over the
+  `flutter3d/cloud_saves` channel. Every failure is an answer, not a throw.
+
 - **`replayAfterHotSwap` asks the question a hot reload leaves open on its
   own.** After every `HotSwap` it lives the last seconds again under the new
   code and says whether they came out the same or where they parted, in the

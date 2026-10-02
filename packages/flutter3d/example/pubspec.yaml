@@ -70,6 +70,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # `tool/build_material.dart`: the engine's shaders, resolved for the
+  # material it compiles — `P8`.
+  flutter3d_shaders:
+    path: ../../flutter3d_shaders
+  # `test/material_language_test.dart`: the language's parser, to hold the
+  # golden's lighting model to its source.
+  flutter3d_core:
+    path: ../../flutter3d_core
 
 flutter:
   uses-material-design: true
@@ -87,3 +95,6 @@ flutter:
     # refuses to build without it rather than shipping a demo whose
     # `loaded-shader` scene cannot find its bytes.
     - assets/shaders/example.f3dshaders
+    # And the material written in the engine's language, which the same
+    # script compiles from shaders/rim_glow.f3dmat — `P8`.
+    - assets/shaders/rim_glow.f3dshaders

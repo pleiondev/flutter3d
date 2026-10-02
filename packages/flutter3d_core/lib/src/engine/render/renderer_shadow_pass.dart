@@ -50,6 +50,38 @@ CullMode _casterCull(ShadowCasterFaces faces) => switch (faces) {
 /// The pass that draws what the sun cannot see, and the one that draws what a
 /// lamp cannot.
 extension _ShadowPasses on Renderer {
+  /// Writes one caster's draw into [journal] — `P12`.
+  ///
+  /// Called only behind `if (_frameCounters?.journal case final journal?)`,
+  /// so a frame nobody is journaling never reaches it.
+  void _journalCaster(
+    DrawJournal journal,
+    MeshNode node,
+    DrawableGeometry mesh,
+    vm.Matrix4 mvp, {
+    required int instances,
+    required String target,
+  }) => journal.add(
+    kind: 'shadow',
+    mesh: node.name,
+    material: node.material.name,
+    lighting: node.material.lighting.label,
+    vertices: mesh.vertexCount,
+    indices: mesh.indexCount,
+    instances: instances,
+    state: <String, Object?>{
+      'target': target,
+      'masked': _castsMasked(node),
+      'skinned': node.skeleton != null,
+      'instanced': node is InstancedMeshNode,
+      'winding': node.worldIsMirrored ? 'cw' : 'ccw',
+    },
+    uniforms: <String, Float32List>{
+      'mvp': Float32List.fromList(mvp.storage),
+      'model': Float32List.fromList(node.worldMatrix.storage),
+    },
+  );
+
   /// Whether [node] casts through the cut-out shadow stages — `gfx-60n`.
   ///
   /// glTF's MASK mode and nothing else. A blended material is a different
@@ -470,6 +502,16 @@ extension _ShadowPasses on Renderer {
         pass.bindBlock(fragment, _shadowLight);
         pass.draw(instanceCount: instanced?.count ?? 1);
         _frameCounters?.drawCalls++;
+        if (_frameCounters?.journal case final journal?) {
+          _journalCaster(
+            journal,
+            node,
+            mesh,
+            mvp,
+            instances: instanced?.count ?? 1,
+            target: 'cube',
+          );
+        }
         drawn++;
       }
       finishTile(tileIndex, tileStart);
@@ -1120,6 +1162,16 @@ extension _ShadowPasses on Renderer {
       // reported one caster and no draws at all was hiding the cost of the
       // cascade count from every measurement made of it — `gfx-01n`.
       _frameCounters?.drawCalls++;
+      if (_frameCounters?.journal case final journal?) {
+        _journalCaster(
+          journal,
+          node,
+          mesh,
+          mvp,
+          instances: instanced?.count ?? 1,
+          target: 'cascade',
+        );
+      }
     }
 
     /// Draws the casters of [cascade] into [pass] — every caster when [only]
@@ -1199,7 +1251,7 @@ extension _ShadowPasses on Renderer {
         final skinned = skeleton != null;
         // `gfx-60n`. A cut-out caster goes through a stage with a sampler in
         // it; everything else keeps the stage it has always had, which is why
-        // the masked half costs the common path nothing and why seventy-eight
+        // the masked half costs the common path nothing and why ninety
         // goldens recorded against the plain stage cannot move.
         final masked = maskedShadowShader != shadowShader && _castsMasked(node);
         final kind =

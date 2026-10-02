@@ -21,12 +21,21 @@ part of 'renderer.dart';
 /// material already carries it — `depthWrite` and `depthCompare` are the two
 /// fields a backdrop asked for, and a silhouette wants exactly those two.
 final class _DrawOverride {
-  const _DrawOverride({required this.material, required this.blend});
+  const _DrawOverride({
+    required this.material,
+    required this.blend,
+    this.fogged = false,
+  });
 
   final Material material;
 
   /// Null is blending off, as it is on `setBlend`.
   final BlendState? blend;
+
+  /// Whether the frame's fog reaches the draw. Not for a silhouette, which
+  /// is a marker; yes for a planar reflection, which is light leaving a
+  /// surface and crosses the same air the surface's own light does.
+  final bool fogged;
 }
 
 /// Writes [transform] into [out] at [at] as the two rows `MapUv` reads — `C8`.
@@ -488,10 +497,26 @@ extension _MeshEncode on Renderer {
       _materialData[2] = probe?.intensity ?? scene.ambientIntensity;
       _materialData[3] = settings.specular;
 
+      // `P7`: a masked material's edge as multisample coverage, where the
+      // pass and the device allow it, and its hard cutoff where they do not.
+      final wantsCoverage =
+          override == null &&
+          material.alphaMode == MaterialAlphaMode.mask &&
+          material.alphaToCoverage;
+      final coverage = wantsCoverage && state.coverageAvailable;
+      if (wantsCoverage && !coverage) state.coverageDeclined = true;
+      if (coverage != state.alphaToCoverage) {
+        encoder.setAlphaToCoverage(coverage);
+        state.alphaToCoverage = coverage;
+      }
+
       // A negative cutoff means "not masked". The shader compares against
       // it directly, so encoding the mode in the value keeps a branch and
       // a separate flag out of the uniform block.
       _material2Data[0] = switch (material.alphaMode) {
+        // Above one is the cutoff plus one, with coverage — `P7`: the shader
+        // keeps the fragment and sharpens its alpha rather than cutting.
+        MaterialAlphaMode.mask when coverage => 1.0 + material.alphaCutoff,
         MaterialAlphaMode.mask => material.alphaCutoff,
         // `gfx-16n`'s sentinel. Below -1.5 is "hashed", which the shader
         // reads out of the same component: -1 already meant "not masked" and
@@ -682,14 +707,18 @@ extension _MeshEncode on Renderer {
       _fogInfo.name,
       declared: material.lighting.usesFogInfo,
     )) {
-      final fog = override == null && material.fogged
+      final fog = (override?.fogged ?? material.fogged)
           ? settings.fog
           : const FogSettings();
       _fogData[0] = fog.resolvedColor.x;
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;
-      _fogData[3] = fog.density;
       _fogInfo.eye.setAll(0, _cameraData);
+      // `P5`: the density at the eye, and the falloff in the eye's spare lane,
+      // which is all `ApplyFog` needs to integrate a height fog along the ray.
+      // A flat fog writes its density and nought, as it always did.
+      _fogData[3] = fog.densityAt(_cameraData[1]);
+      _fogInfo.eye[3] = fog.resolvedHeightFalloff;
       encoder.bindBlock(fragmentShader, _fogInfo);
     }
 
@@ -933,6 +962,45 @@ extension _MeshEncode on Renderer {
     state.drawCalls++;
     state.triangles += (indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
+    // `P12`: nothing past the `?.` runs unless this frame is being journaled.
+    state.journal?.add(
+      kind: 'mesh',
+      mesh: node.name,
+      material: material.name,
+      lighting: material.lighting.label,
+      vertices: mesh.vertexCount,
+      indices: indexCount,
+      instances: instanced?.count ?? 1,
+      state: <String, Object?>{
+        'cull': cull ? 'back' : 'none',
+        'blend': orderIndependent != null
+            ? 'weighted'
+            : override != null
+            ? 'override'
+            : (blend ? 'alpha' : 'opaque'),
+        'depthWrite':
+            orderIndependent == null && (material.depthWrite ?? !blend),
+        'depthCompare': depthCompare.name,
+        'winding': node.worldIsMirrored != mirrored ? 'cw' : 'ccw',
+        'skinned': skinned,
+        'instanced': batched,
+        'lightmapped': lightmapped,
+        'clustered': clustered != null,
+        'xray': override != null,
+      },
+      uniforms: <String, Float32List>{
+        'mvp': Float32List.fromList(mvp.storage),
+        'model': Float32List.fromList(modelMatrix.storage),
+        'tint': Float32List.fromList(node.tint.storage),
+        'baseColor': Float32List.fromList(material.baseColor.storage),
+        'emissive': Float32List.fromList(material.emissive.storage),
+        'metallicRoughness': Float32List.fromList(<double>[
+          material.metallic,
+          material.roughness,
+        ]),
+        ...material.parameters,
+      },
+    );
   }
 
   /// The index buffer that draws the clusters of [node]'s split mesh the

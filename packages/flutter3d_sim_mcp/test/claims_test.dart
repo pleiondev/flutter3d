@@ -284,6 +284,39 @@ void main() {
       expect(replayed.says, contains('has changed since the run was recorded'));
     });
 
+    test('a run with the level edited under it is refused, naming the '
+        'step', () {
+      final session = _session()..open(_crypt);
+      final path = '${workspace.path}/edited.f3drun';
+      session
+        ..step(steps: 10, moveY: 1.0)
+        ..writeRun(path);
+      final demo = Demo.fromJson(
+        jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
+      );
+      File(path).writeAsStringSync(
+        jsonEncode(
+          Demo(
+            level: demo.level,
+            levelHash: demo.levelHash,
+            start: demo.start,
+            tape: demo.tape,
+            buildStamp: demo.buildStamp,
+            checkpoints: demo.checkpoints,
+            levelSwaps: <DemoLevelSwap>[
+              DemoLevelSwap(step: 4, level: Level(name: 'crypt')),
+            ],
+          ).toJson(),
+        ),
+      );
+
+      // Mutation: drop the refusal — the session plays through the edit in
+      // the shipped crypt and reports the run as diverging.
+      final replayed = session.verify(path);
+      expect(replayed.did, isFalse);
+      expect(replayed.says, contains('edited under it at step 4'));
+    });
+
     test('verify leaves the session\'s own run where it was', () {
       final session = _session()..open(_crypt);
       final path = '${workspace.path}/aside.f3drun';
