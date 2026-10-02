@@ -69,6 +69,14 @@
   and marks where runs were lost. Its JSON is the playtest report's, so the
   editor reads both.
 
+- **Photo mode's camera.** `PhotoCamera` flies with the world paused: look,
+  tilt, zoom, and moves along its own axes with up being the world's. It is
+  held on a tether round where the player stood, inside the level's box when
+  there is one, and out of the walls by sweeping each move and sliding along
+  what it meets. It starts by sweeping out from the player to where the game's
+  camera was, so a chase camera left behind a wall does not start the photo
+  there. `shouldPause` takes `photoMode`, which pauses whatever the pointer and
+  the pad say, since both are flying the camera.
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,

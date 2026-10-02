@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **A photo goes somewhere.** `takePhoto` draws with `capturePhoto`, encodes
+  with `PngStripWriter` and puts the file on a `PhotoShelf`, abandoning it if
+  the capture fails. `FilePhotoShelf` writes into the player's Pictures folder
+  on a desktop and the game's own folder on a phone, through a `.part` file and
+  a rename. `BrowserPhotoShelf` offers the share sheet where the browser takes
+  files and downloads otherwise. `defaultPhotoShelf` picks the platform's.
 - **A texture repainted under a running game is drawn at whatever size it
   now is.** `HotSwap.loadTexture` and `registerTexture` watch an image file;
   a swap after it changed uploads the new picture as a texture of its own,

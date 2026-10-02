@@ -51,6 +51,7 @@ export 'src/actors/brain.dart';
 export 'src/actors/damageable.dart';
 export 'src/actors/health.dart';
 export 'src/camera/camera_rig.dart';
+export 'src/camera/photo_camera.dart';
 export 'src/camera/rig_tuning.dart';
 export 'src/ecs/ecs_world.dart';
 export 'src/ecs/entity.dart';
