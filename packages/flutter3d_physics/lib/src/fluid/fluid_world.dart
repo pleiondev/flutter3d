@@ -2,6 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'jet.dart';
 import 'liquid_body.dart';
+import 'particle_fluid.dart';
 import 'pipe.dart';
 
 /// Liquids in a world: the vessels, the pipes between them, and the streams
@@ -16,7 +17,12 @@ import 'pipe.dart';
 /// long a frame was and runs as many whole steps as fit, carrying the rest
 /// over, so a run is the same run on any frame rate.
 final class FluidWorld {
-  FluidWorld({required this.gravity, this.step = 1.0 / 240.0});
+  FluidWorld({
+    required this.gravity,
+    this.step = 1.0 / 240.0,
+    this.particleSpacing = 0.002,
+    this.floor,
+  });
 
   /// Metres per second squared, shared with whoever else falls.
   final Vector3 gravity;
@@ -30,8 +36,22 @@ final class FluidWorld {
   /// The stream from each vessel's lip, while there is one.
   final Map<LiquidBody, Jet> jets = {};
 
-  /// The drops streams have broken into since they were last taken.
-  final List<JetDrop> drops = [];
+  /// How far apart the particles drops and splashes become sit at rest.
+  final double particleSpacing;
+
+  /// What spilt liquid lands on, if anything: a bench, a floor.
+  final List<JetObstacle>? floor;
+
+  /// Liquid out of every vessel and stream, as particles, one fluid per
+  /// medium: what streams broke into, what splashed, what lies spilt.
+  final Map<String, ParticleFluid> particles = {};
+
+  /// Every cubic metre the world holds: in vessels, in the air, as
+  /// particles.
+  double get volume =>
+      bodies.fold(0.0, (s, b) => s + b.volume) +
+      jets.values.fold(0.0, (s, j) => s + j.inFlight) +
+      particles.values.fold(0.0, (s, p) => s + p.volume);
 
   double _carried = 0.0;
 
@@ -82,11 +102,37 @@ final class FluidWorld {
           if (body.wallThickness > 0.0)
             OutsideWalls(body, thickness: body.wallThickness),
       ];
-      drops.addAll(
-        jet.step(dt, gravity: gravity, obstacles: walls, receivers: bodies),
-      );
+      for (final drop in jet.step(
+        dt,
+        gravity: gravity,
+        obstacles: walls,
+        receivers: bodies,
+      )) {
+        particles
+            .putIfAbsent(
+              drop.medium.name,
+              () =>
+                  ParticleFluid(medium: drop.medium, spacing: particleSpacing),
+            )
+            .inject(drop.volume, drop.position, drop.velocity);
+      }
       if (!jet.flowing) finished.add(source);
     });
     finished.forEach(jets.remove);
+    final everywhere = <JetObstacle>[
+      for (final body in bodies) InsideWalls(body),
+      for (final body in bodies)
+        if (body.wallThickness > 0.0)
+          OutsideWalls(body, thickness: body.wallThickness),
+      ...?floor,
+    ];
+    for (final fluid in particles.values) {
+      fluid.step(
+        dt,
+        gravity: gravity,
+        obstacles: everywhere,
+        receivers: bodies,
+      );
+    }
   }
 }

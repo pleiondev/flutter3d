@@ -4,14 +4,17 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-LiquidBody _tube(FluidMedium m, double volume, {Map<String, double> c = const {}}) =>
-    LiquidBody(
-      shape: RevolvedVessel([Vector2(0, 0), Vector2(0.01, 0), Vector2(0.01, 0.2)]),
-      medium: m,
-      volume: volume,
-      concentrations: c,
-      modes: 2,
-    );
+LiquidBody _tube(
+  FluidMedium m,
+  double volume, {
+  Map<String, double> c = const {},
+}) => LiquidBody(
+  shape: RevolvedVessel([Vector2(0, 0), Vector2(0.01, 0), Vector2(0.01, 0.2)]),
+  medium: m,
+  volume: volume,
+  concentrations: c,
+  modes: 2,
+);
 
 void main() {
   test('two solutions poured together keep every solute', () {
@@ -37,8 +40,7 @@ void main() {
     body
       ..place(Matrix3.identity(), Vector3.zero())
       ..step(1e-3, gravity: Vector3(0, -9.81, 0));
-    final expected =
-        9.81 * (998.2 * 2e-6 / area + 911 * 1e-6 / area);
+    final expected = 9.81 * (998.2 * 2e-6 / area + 911 * 1e-6 / area);
     expect(body.pressureAt(Vector3.zero()), closeTo(expected, expected * 1e-3));
   });
 
@@ -52,7 +54,9 @@ void main() {
       if (spill.medium.name == 'oil') oil += spill.flow * 1e-3;
       if (spill.medium.name == 'water') water += spill.flow * 1e-3;
       // Mutation: spill from the bottom, and water leaves while oil is left.
-      if (water > 0) expect(body.layers.any((l) => l.medium.name == 'oil'), isFalse);
+      if (water > 0) {
+        expect(body.layers.any((l) => l.medium.name == 'oil'), isFalse);
+      }
     }
     expect(oil, closeTo(2e-6, 2e-6 * 1e-6));
     expect(water, greaterThan(0));

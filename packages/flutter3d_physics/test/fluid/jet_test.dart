@@ -219,4 +219,40 @@ void main() {
     // A quick pour leaves it.
     expect(furthest(1.0), greaterThan(r + wall + 0.05));
   });
+
+  test('a hard stream splashes, a gentle one goes in quietly (Mundo)', () {
+    ({double dropped, double landed, double emitted}) pour(double d, double v) {
+      final body = LiquidBody(
+        shape: RevolvedVessel([
+          Vector2(0, 0),
+          Vector2(0.05, 0),
+          Vector2(0.05, 0.1),
+        ]),
+        medium: FluidMedium.water,
+        volume: 1e-4,
+        modes: 2,
+      );
+      final jet = Jet(medium: FluidMedium.water, breakupGrowth: 1e9);
+      final q = math.pi * d * d / 4 * v;
+      for (var i = 0; i < 200; i++) {
+        jet.emit(
+          flow: q,
+          dt: 1e-4,
+          point: Vector3(0, 0.02, 0),
+          velocity: Vector3(0, -v, 0),
+          width: d,
+          across: Vector3(0, 0, 1),
+        );
+        jet.step(1e-4, gravity: Vector3(0, -9.81, 0), receivers: [body]);
+      }
+      return (dropped: jet.dropped, landed: jet.landed, emitted: jet.emitted);
+    }
+
+    final gentle = pour(0.003, 1.0);
+    expect(gentle.dropped, 0.0);
+    final hard = pour(0.005, 3.0);
+    expect(hard.dropped, greaterThan(0.0));
+    expect(hard.dropped, lessThanOrEqualTo(0.5 * hard.landed + hard.dropped));
+  });
 }
+
