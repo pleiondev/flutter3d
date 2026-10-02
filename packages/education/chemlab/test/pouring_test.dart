@@ -1,0 +1,91 @@
+import 'dart:math' as math;
+
+import 'package:chemlab/chemlab.dart';
+import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
+
+void main() {
+  test('a circular segment is none, half and all of the disc', () {
+    expect(segmentArea(1, -1), 0.0);
+    expect(segmentArea(1, 0), closeTo(math.pi / 2, 1e-12));
+    expect(segmentArea(1, 1), closeTo(math.pi, 1e-12));
+  });
+
+  test('the volume under a tilted plane is the volume poured', () {
+    final wall = tubeLiquidProfile(0.8).sublist(0, 9 + 1);
+    final full = volumeUpTo(wall, 0.5);
+    // Tipped by a radian, the plane that leaves the same volume under it.
+    final up = Vector3(0, math.cos(1.0), -math.sin(1.0));
+    final height = surfaceFor(wall, up, full);
+    expect(volumeBelow(wall, up, height), closeTo(full, full * 1e-4));
+    // And an upright vessel's level comes back from its volume.
+    expect(levelFor(wall, full), closeTo(0.5, 1e-4));
+  });
+
+  test('sharing leaves the two tubes holding the same', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[1];
+    final to = bench.clean;
+    final before = from.volumeAt(from.level);
+    expect(to.empty, isTrue);
+    expect(bench.canShare(from), isTrue);
+    expect(bench.canShare(to), isFalse);
+
+    bench.share(from);
+    expect(bench.busy, isTrue);
+    var seconds = 0.0;
+    var streamed = false;
+    while (bench.busy) {
+      bench.step(1 / 60);
+      seconds += 1 / 60;
+      streamed |= bench.scene.root.children.any(
+        (n) => n.name == 'stream' && n.visible,
+      );
+      expect(seconds, lessThan(20));
+    }
+    expect(streamed, isTrue);
+    // Mutation: stop the pour at the start's volume, and nothing moves.
+    final mine = from.volumeAt(from.level);
+    final theirs = to.volumeAt(to.level);
+    expect(mine, closeTo(before / 2, before * 0.01));
+    expect(theirs, closeTo(before / 2, before * 0.01));
+    expect(to.empty, isFalse);
+    expect(to.liquid.visible, isTrue);
+    // The poured tube is back where it stood, upright.
+    expect(from.tilt, 0.0);
+    expect(from.body.readPosition(), from.at);
+    // And the clean tube holds the colour poured into it.
+    expect(to.colour.r, closeTo(from.colour.r, 1e-6));
+    expect(to.colour.g, closeTo(from.colour.g, 1e-6));
+    expect(to.colour.b, closeTo(from.colour.b, 1e-6));
+  });
+
+  test('two solutions poured together take light away together', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final blue = bench.vessels[1];
+    final orange = bench.vessels[3];
+    final to = bench.clean;
+    bench.share(blue);
+    while (bench.busy) {
+      bench.step(1 / 60);
+    }
+    final held = to.volumeAt(to.level);
+    bench.share(orange);
+    final added = (orange.volumeAt(orange.level) - held) / 2;
+    while (bench.busy) {
+      bench.step(1 / 60);
+    }
+    // Beer and Lambert: the mixture's absorption is the two weighed by
+    // volume. Mutation: mix the colours themselves, and red comes out a
+    // shade lighter than the absorptions give.
+    double absorb(double c) => -math.log(c);
+    final red = math.exp(
+      -(absorb(blue.colour.r) * held + absorb(orange.colour.r) * added) /
+          (held + added),
+    );
+    expect(to.colour.r, closeTo(red, 0.01));
+  });
+}

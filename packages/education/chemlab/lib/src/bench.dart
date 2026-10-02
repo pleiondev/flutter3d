@@ -7,6 +7,7 @@ import 'package:vector_math/vector_math.dart';
 import 'glassware.dart';
 import 'label.dart';
 import 'optics.dart';
+import 'pouring.dart';
 import 'slosh.dart';
 
 /// One piece of glass on the bench and what is in it.
@@ -39,7 +40,9 @@ final class Vessel {
   /// The liquid's outline when it is filled to a level.
   final List<Vector2> Function(double level) liquidAt;
 
-  final Color colour;
+  /// The colour of what it holds. State: pouring one solution into another
+  /// mixes them.
+  Color colour;
 
   /// How far it may be filled, in metres up from its base.
   final double lowest;
@@ -57,17 +60,38 @@ final class Vessel {
   /// The inside of the glass, as far up as it may be filled: [liquidAt]'s
   /// outline without its cap, which is where the liquid meets the glass
   /// whatever its surface does.
+  ///
+  /// Carried on straight up to the mouth, a little under the glass's top,
+  /// which is where liquid tipped far enough runs out.
   late final List<Vector2> wall = () {
     final full = liquidAt(highest);
     // The cap is `meniscus`'s six points; its first is the top of the wall.
-    return full.sublist(0, full.length - 5);
+    final side = full.sublist(0, full.length - 5);
+    final mouth = glass.map((p) => p.y).reduce(math.max) - 0.012;
+    return <Vector2>[
+      ...side,
+      if (mouth > side.last.y) Vector2(side.last.x, mouth),
+    ];
   }();
 
+  /// The lowest point of the mouth once the glass leans towards the front:
+  /// the edge of the inside, on the side it leans to.
+  Vector3 get lip => Vector3(0, wall.last.y, wall.last.x);
+
+  /// How much it holds at [level], and the most it can.
+  double volumeAt(double level) => volumeUpTo(wall, level);
+  double get capacity => volumeAt(highest);
+
+  /// Whether there is nothing in it to draw.
+  bool get empty => level - wall.first.y < 0.003;
+
   /// Its liquid's surface and how it moves.
-  late final Slosh slosh = Slosh(
-    radius: radiusAt(wall, level) ?? wall.last.x,
-    depth: level - wall.first.y,
-  );
+  late final Slosh slosh = Slosh(radius: 0.05, depth: 0.1);
+
+  /// Matches [slosh] to the surface [level] gives: its radius and depth.
+  void _fitSlosh() => slosh
+    ..radius = math.max(radiusAt(wall, level) ?? wall.last.x, 0.02)
+    ..depth = math.max(level - wall.first.y, 0.005);
 
   /// The glass and all it carries, which tilts as one; and the same hung
   /// upside down under the tabletop, for the reflections.
@@ -89,6 +113,10 @@ final class Vessel {
 }
 
 Vector3 _rgb(Color c) => Vector3(c.r, c.g, c.b);
+
+/// The name of the empty tube at the front of the bench, which solutions
+/// are poured into.
+const String cleanTube = 'Clean tube';
 
 /// Five labelled test tubes, a graduated cylinder, a beaker and an
 /// Erlenmeyer flask, each holding a solution of its own colour.
@@ -138,6 +166,16 @@ List<Vessel> standardVessels() {
         highest: 0.8,
         solution: solutions[i],
       ),
+    Vessel(
+      name: cleanTube,
+      at: Vector3(0.11, 0, 0.62),
+      glass: tubeProfile(),
+      liquidAt: tubeLiquidProfile,
+      colour: const Color(0xFFFFFFFF),
+      level: 0.0,
+      lowest: 0.0,
+      highest: 0.8,
+    ),
     Vessel(
       name: 'Cylinder',
       at: Vector3(-1.05, 0, -0.25),
@@ -218,6 +256,7 @@ final class Bench {
       scene
         ..add(vessel.body)
         ..add(vessel.mirror);
+      vessel._fitSlosh();
       vessel.liquid = MeshNode(
         _liquidMesh(vessel),
         liquid(_rgb(vessel.colour), depth: 2.0 * _liquidRadius(vessel)),
@@ -248,6 +287,8 @@ final class Bench {
       );
       vessel.body.add(vessel.liquid);
       vessel.mirror.add(vessel.liquidReflection);
+      vessel.liquid.visible = !vessel.empty;
+      vessel.liquidReflection.visible = !vessel.empty;
       vessel.body.add(
         vessel.glassNode =
             MeshNode(
@@ -368,10 +409,9 @@ final class Bench {
   /// Fills [vessel] to [level]: a new profile, cut higher or lower, and
   /// nothing else.
   void pour(Vessel vessel, double level) {
+    if (_transfer != null) return;
     vessel.level = level.clamp(vessel.lowest, vessel.highest);
-    vessel.slosh
-      ..radius = radiusAt(vessel.wall, vessel.level) ?? vessel.wall.last.x
-      ..depth = vessel.level - vessel.wall.first.y;
+    vessel._fitSlosh();
     _reshape(vessel);
     if (!photons && vessel.tilt == 0.0) _repaint(vessel);
   }
@@ -382,9 +422,14 @@ final class Bench {
     liquidVolume(wall: vessel.wall, level: vessel.level, surface: vessel.slosh),
   );
 
-  void _reshape(Vessel vessel) {
+  void _reshape(Vessel vessel, [MeshData? shape]) {
+    vessel.liquid.visible = !vessel.empty;
+    vessel.liquidReflection.visible = !vessel.empty;
+    if (vessel.empty) return;
     final old = vessel.liquid.mesh;
-    vessel.liquid.mesh = _liquidMesh(vessel);
+    vessel.liquid.mesh = shape == null
+        ? _liquidMesh(vessel)
+        : DeviceMesh.upload(device, shape);
     vessel.liquidReflection.mesh = vessel.liquid.mesh;
     if (old is DeviceMesh) (retire ?? _releaseNow)(old);
   }
@@ -397,6 +442,7 @@ final class Bench {
   /// where it stands, lifted so its lowest point still rests on the bench.
   /// The glass goes at once; the liquid follows by [step], late.
   void lean(Vessel vessel, double angle) {
+    if (_transfer != null) return;
     vessel.tilt = angle.clamp(-maxTilt, maxTilt);
     final turn = Quaternion.axisAngle(Vector3(1, 0, 0), vessel.tilt);
     final c = math.cos(vessel.tilt);
@@ -426,11 +472,273 @@ final class Bench {
   /// Knocks on [vessel]'s glass.
   void tap(Vessel vessel) => vessel.slosh.tap(0.01);
 
+  /// Whether a pour is under way, during which the controls wait.
+  bool get busy => _transfer != null;
+  _Transfer? _transfer;
+
+  /// The tube solutions are poured into.
+  Vessel get clean => vessels.firstWhere((v) => v.name == cleanTube);
+
+  /// Whether [from] can be poured into the [clean] tube until the two hold
+  /// the same: it has more, and half of both fits.
+  bool canShare(Vessel from) {
+    if (busy || identical(from, clean)) return false;
+    final mine = from.volumeAt(from.level);
+    final theirs = clean.volumeAt(clean.level);
+    return mine > theirs + 1e-4 && (mine + theirs) / 2.0 <= clean.capacity;
+  }
+
+  /// Pours [from] into the [clean] tube until the two hold the same: lifts
+  /// it over the bench, tips it over the tube's mouth as far as it takes to
+  /// pour that much and no faster, and puts it back. [step] plays it.
+  void share(Vessel from) {
+    if (!canShare(from)) return;
+    final to = clean;
+    final mine = from.volumeAt(from.level);
+    final theirs = to.volumeAt(to.level);
+    from
+      ..tilt = 0.0
+      ..slosh.settle();
+    final transfer = _Transfer(
+      from: from,
+      to: to,
+      start: mine,
+      goal: (mine + theirs) / 2.0,
+      received: theirs,
+    )..spill = _tiltHolding(from, mine);
+    final material = liquid(_rgb(from.colour), depth: 0.04)..doubleSided = true;
+    transfer.stream =
+        MeshNode(
+            DeviceMesh.upload(
+              device,
+              MeshBuilder(VertexLayout.standard).build(),
+            ),
+            material,
+            name: 'stream',
+          )
+          ..visible = false
+          ..castsShadow = false
+          ..lightChannels = _vesselChannel;
+    scene.add(transfer.stream);
+    _transfer = transfer;
+    _castBy(from);
+  }
+
+  /// How long each part of a pour takes: up, over, the pour, and back.
+  static const double _rise = 0.45;
+  static const double _over = 0.75;
+  static const double _pourTime = 2.8;
+  static const double _back = 1.4;
+
+  /// The world's up seen from glass leaning [tilt] towards the front.
+  static Vector3 _upAt(double tilt) =>
+      Vector3(0, math.cos(tilt), -math.sin(tilt));
+
+  /// How much [vessel] holds leaning [tilt] before it runs over its lip.
+  static double _holds(Vessel vessel, double tilt) {
+    final up = _upAt(tilt);
+    return volumeBelow(vessel.wall, up, up.dot(vessel.lip));
+  }
+
+  /// The lean at which [vessel] holds just [volume]: past it, the rest runs
+  /// out. Holding less the further it leans, so found by halving.
+  static double _tiltHolding(Vessel vessel, double volume) {
+    var lo = 0.0;
+    var hi = 2.8;
+    for (var i = 0; i < 36; i++) {
+      final mid = 0.5 * (lo + hi);
+      if (_holds(vessel, mid) > volume) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return 0.5 * (lo + hi);
+  }
+
+  static double _ease(double t) {
+    final x = t.clamp(0.0, 1.0);
+    return x * x * (3.0 - 2.0 * x);
+  }
+
+  /// Places [vessel]'s glass with its base at [base], leaning [tilt].
+  void _pose(Vessel vessel, Vector3 base, double tilt) {
+    vessel.body
+      ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), tilt))
+      ..setPositionFrom(base);
+    vessel.mirror
+      ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), -tilt))
+      ..setPosition(base.x, -base.y, base.z);
+  }
+
+  /// One frame of the pour under way.
+  void _pourStep(_Transfer t, double seconds) {
+    final from = t.from;
+    final to = t.to;
+    t.time += seconds;
+    final raised = from.at + Vector3(0, 1.0, 0);
+    // Over the clean tube's mouth, a little towards the back, so the stream
+    // thrown forward lands in the middle.
+    final aim = to.at + Vector3(0, to.wall.last.y + 0.09, -0.12);
+    Vector3 baseFor(double tilt) {
+      final c = math.cos(tilt);
+      final s = math.sin(tilt);
+      final lip = from.lip;
+      return aim - Vector3(0, lip.y * c - lip.z * s, lip.y * s + lip.z * c);
+    }
+
+    final before = t.volume;
+    var base = from.at.clone();
+    var tilt = 0.0;
+    final time = t.time;
+    if (time < _rise) {
+      base = from.at + (raised - from.at) * _ease(time / _rise);
+    } else if (time < _rise + _over) {
+      final e = _ease((time - _rise) / _over);
+      tilt = t.spill * e;
+      base = raised + (baseFor(tilt) - raised) * e;
+    } else if (time < _rise + _over + _pourTime) {
+      final e = _ease((time - _rise - _over) / _pourTime);
+      t.volume = t.start + (t.goal - t.start) * e;
+      tilt = math.max(_tiltHolding(from, t.volume), t.spill);
+      t.end = tilt;
+      base = baseFor(tilt);
+    } else if (time < _rise + _over + _pourTime + _back) {
+      final s = (time - _rise - _over - _pourTime) / _back;
+      if (s < 0.6) {
+        final e = _ease(s / 0.6);
+        tilt = t.end * (1.0 - e);
+        base = baseFor(tilt) + (raised - baseFor(tilt)) * e;
+      } else {
+        base = raised + (from.at - raised) * _ease((s - 0.6) / 0.4);
+      }
+    } else {
+      _finish(t);
+      return;
+    }
+    _pose(from, base, tilt);
+    from.tilt = tilt;
+
+    // What left the one went into the other.
+    final poured = before - t.volume;
+    final rate = seconds > 0.0 ? poured / seconds : 0.0;
+    t.flow = 0.6 * t.flow + 0.4 * rate;
+    if (poured > 0.0) {
+      final theirs = t.received + (t.start - t.volume);
+      _mix(to, from.colour, poured, theirs - poured);
+      to
+        ..level = levelFor(to.wall, theirs)
+        .._fitSlosh()
+        ..slosh.tap(0.0015 * (_random.nextDouble() - 0.3));
+      _reshape(to);
+    }
+
+    // The liquid in the tipped glass: the plane level in the world that
+    // leaves its volume under it.
+    final up = _upAt(tilt);
+    from.level = levelFor(from.wall, t.volume);
+    _reshape(
+      from,
+      cutLiquid(
+        wall: from.wall,
+        up: up,
+        height: surfaceFor(from.wall, up, t.volume),
+      ),
+    );
+
+    // The stream, while there is one to see.
+    final streaming = t.flow > 1e-4;
+    t.stream.visible = streaming;
+    if (streaming) {
+      final lip = from.body.worldMatrix.transformed3(from.lip);
+      final surface = to.at.y + (to.empty ? to.wall.first.y : to.level);
+      final old = t.stream.mesh;
+      t.stream.mesh = DeviceMesh.upload(
+        device,
+        stream(
+          lip: lip,
+          out: Vector3(0, 0, 1),
+          floor: surface,
+          flow: math.min(t.flow, 0.004),
+        ),
+      );
+      if (old is DeviceMesh) (retire ?? _releaseNow)(old);
+    }
+  }
+
+  /// The pour is over: both vessels stand where they did, upright, the one
+  /// that was poured from rocking from being put down.
+  void _finish(_Transfer t) {
+    final from = t.from;
+    _transfer = null;
+    scene.remove(t.stream);
+    final old = t.stream.mesh;
+    if (old is DeviceMesh) (retire ?? _releaseNow)(old);
+    _pose(from, from.at, 0.0);
+    from
+      ..tilt = 0.0
+      ..level = levelFor(from.wall, t.goal)
+      .._fitSlosh();
+    from.slosh
+      ..settle()
+      ..jolt(0.35);
+    _reshape(from);
+    for (final vessel in [from, t.to]) {
+      _castBy(vessel);
+      if (!photons) _repaint(vessel);
+    }
+  }
+
+  /// Mixes [added] of a solution of [colour] into [vessel], which holds
+  /// [held]. Each solution takes light away by Beer and Lambert, so what
+  /// the mixture takes per metre is the two absorptions weighed by how much
+  /// of each there is; the colour is what is left over the distance the
+  /// colours are given at.
+  void _mix(Vessel vessel, Color colour, double added, double held) {
+    final total = added + held;
+    if (total <= 0.0) return;
+    double absorb(double c) => -math.log(c.clamp(1e-3, 1.0));
+    double blend(double a, double b) =>
+        math.exp(-(absorb(a) * held + absorb(b) * added) / total);
+    final mixed = held <= 0.0
+        ? colour
+        : Color.from(
+            alpha: 1.0,
+            red: blend(vessel.colour.r, colour.r),
+            green: blend(vessel.colour.g, colour.g),
+            blue: blend(vessel.colour.b, colour.b),
+          );
+    final was = vessel.colour;
+    vessel.colour = mixed;
+    if ((was.r - mixed.r).abs() +
+            (was.g - mixed.g).abs() +
+            (was.b - mixed.b).abs() <
+        1e-3) {
+      return;
+    }
+    vessel.liquid.material = liquid(
+      _rgb(mixed),
+      depth: 2.0 * _liquidRadius(vessel),
+    );
+    vessel.liquidReflection.material = _reflection(
+      albedo: null,
+      colour: _rgb(mixed),
+    );
+  }
+
+  final math.Random _random = math.Random(7);
+
   /// Moves every liquid on by [seconds], and says whether any is still
   /// moving, so the caller knows to ask for another frame.
   bool step(double seconds) {
     var moving = false;
+    final transfer = _transfer;
+    if (transfer != null) {
+      _pourStep(transfer, seconds);
+      moving = true;
+    }
     for (final vessel in vessels) {
+      if (identical(vessel, _transfer?.from)) continue;
       if (vessel.slosh.settled) continue;
       vessel.slosh.step(seconds);
       if (vessel.slosh.settled) vessel.slosh.settle();
@@ -445,7 +753,8 @@ final class Bench {
   /// leans — the glass and liquid then cast for themselves, as tinted
   /// translucent casters.
   void _castBy(Vessel vessel) {
-    final card = !photons && vessel.tilt == 0.0;
+    final card =
+        !photons && vessel.tilt == 0.0 && !identical(vessel, _transfer?.from);
     vessel.liquid.castsShadow = !card;
     vessel.glassNode.castsShadow = !card;
     if (card) {
@@ -598,4 +907,39 @@ final class Bench {
     vessel.body.add(vessel.label!);
     return texture;
   }
+}
+
+/// A pour from one vessel into another, under way; see [Bench.share].
+final class _Transfer {
+  _Transfer({
+    required this.from,
+    required this.to,
+    required this.start,
+    required this.goal,
+    required this.received,
+  }) : volume = start;
+
+  final Vessel from;
+  final Vessel to;
+
+  /// What [from] held at the start and will hold at the end, and what [to]
+  /// held at the start.
+  final double start;
+  final double goal;
+  final double received;
+
+  /// What [from] holds now.
+  double volume;
+
+  /// Seconds since the pour began.
+  double time = 0.0;
+
+  /// The lean at which it starts to run, and the furthest it went.
+  double spill = 0.0;
+  double end = 0.0;
+
+  /// How fast it is running now, smoothed over a few frames.
+  double flow = 0.0;
+
+  late final MeshNode stream;
 }
