@@ -515,7 +515,9 @@ final class Bench {
               device,
               stream(
                 lip: from.at + Vector3(0, 0.1, 0),
-                out: Vector3(0, 0, 1),
+                velocity: Vector3(0, -1, 0),
+                across: Vector3(1, 0, 0),
+                width: 0.01,
                 floor: from.at.y,
                 flow: 1e-6,
               ),
@@ -534,7 +536,10 @@ final class Bench {
   /// How long each part of a pour takes: up, over, the pour, and back.
   static const double _rise = 0.45;
   static const double _over = 0.75;
-  static const double _pourTime = 2.8;
+
+  /// A steady pour from a real test tube takes about two seconds; on a
+  /// bench [lifeScale] times the size, that is two seconds times its root.
+  static final double _pourTime = 2.0 * math.sqrt(lifeScale);
   static const double _back = 1.4;
 
   /// The world's up seen from glass leaning [tilt] towards the front.
@@ -578,6 +583,23 @@ final class Bench {
       ..setPosition(base.x, -base.y, base.z);
   }
 
+  /// How the liquid leaves [vessel]'s lip leaning [tilt] at [flow]: along the
+  /// glass, outwards, at the speed the weir over its lip gives (see
+  /// [overLip]), as a sheet as wide as the wetted lip.
+  ({Vector3 velocity, double width}) _thrown(
+    Vessel vessel,
+    double tilt,
+    double flow,
+  ) {
+    final over = overLip(
+      flow: math.max(flow, 1e-7),
+      radius: vessel.lip.z,
+      tilt: tilt,
+    );
+    final along = Vector3(0, math.cos(tilt), math.sin(tilt));
+    return (velocity: along * over.speed, width: over.width);
+  }
+
   /// One frame of the pour under way.
   void _pourStep(_Transfer t, double seconds) {
     final from = t.from;
@@ -586,7 +608,21 @@ final class Bench {
     final raised = from.at + Vector3(0, 1.0, 0);
     // Over the clean tube's mouth, a little towards the back, so the stream
     // thrown forward lands in the middle.
-    final aim = to.at + Vector3(0, to.wall.last.y + 0.09, -0.12);
+    // **Lip to lip, as a chemist pours.** The lip goes a centimetre over the
+    // clean tube's rim, back from the middle by half of how far the stream
+    // is carried forward while it falls to the surface, so it enters through
+    // the mouth and lands near the middle; never further back than the
+    // inside of the wall. The stream is thrown along the glass at the speed
+    // the flow leaves the lip with (see [overLip]).
+    final rim = to.glass.map((p) => p.y).reduce(math.max);
+    final inside = to.lip.z;
+    final surfaceY = to.at.y + (to.empty ? to.wall.first.y : to.level);
+    final thrown = _thrown(from, t.tilt, t.flow);
+    final drift =
+        thrown.velocity.z *
+        fallTime(thrown.velocity, to.at.y + rim + 0.01, surfaceY);
+    final back = math.min(0.5 * drift, inside - 0.01);
+    final aim = to.at + Vector3(0, rim + 0.01, -back);
     Vector3 baseFor(double tilt) {
       final c = math.cos(tilt);
       final s = math.sin(tilt);
@@ -625,6 +661,7 @@ final class Bench {
     }
     _pose(from, base, tilt);
     from.tilt = tilt;
+    t.tilt = tilt;
 
     // What left the one went into the other.
     final poured = before - t.volume;
@@ -660,13 +697,17 @@ final class Bench {
       final lip = from.body.worldMatrix.transformed3(from.lip);
       final surface = to.at.y + (to.empty ? to.wall.first.y : to.level);
       final old = t.stream.mesh;
+      final leaving = _thrown(from, tilt, t.flow);
       t.stream.mesh = DeviceMesh.upload(
         device,
         stream(
           lip: lip,
-          out: Vector3(0, 0, 1),
+          velocity: leaving.velocity,
+          across: Vector3(1, 0, 0),
+          width: leaving.width,
           floor: surface,
-          flow: math.min(t.flow, 0.004),
+          flow: t.flow,
+          scale: lifeScale,
         ),
       );
       if (old is DeviceMesh) (retire ?? _releaseNow)(old);
@@ -947,6 +988,9 @@ final class _Transfer {
 
   /// How fast it is running now, smoothed over a few frames.
   double flow = 0.0;
+
+  /// How far it leaned last frame, which is what the stream left with.
+  double tilt = 0.0;
 
   late final MeshNode stream;
 }
