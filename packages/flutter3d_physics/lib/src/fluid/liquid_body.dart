@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'fluid_medium.dart';
 import 'free_surface.dart';
+import 'jet.dart';
 import 'outflow.dart';
 import 'vessel_shape.dart';
 
@@ -49,7 +50,7 @@ final class Spill {
 /// the lip at the weir's rate wherever the surface, waves and all, stands
 /// above the rim. Nothing else changes the volume: [step] returns what left,
 /// and [pour] is how liquid comes in.
-final class LiquidBody {
+final class LiquidBody implements JetReceiver {
   LiquidBody({
     required this.shape,
     required this.medium,
@@ -92,6 +93,32 @@ final class LiquidBody {
     _history.add(at.clone());
     if (_history.length > 3) _history.removeAt(0);
   }
+
+  /// Whether a parcel of [radius] at [point] (world) is in the vessel with
+  /// its underside at or below the surface.
+  @override
+  bool catches(Vector3 point, double radius) {
+    final q = _local(point);
+    return shape.contains(q) && _up.dot(q) - radius <= surfaceAt(q);
+  }
+
+  /// Liquid arriving from a stream: added, and first heaped where it lands,
+  /// its own volume over the patch it strikes, from where it spreads as
+  /// waves.
+  @override
+  void receive(double volume, Vector3 point, Vector3 velocity) {
+    final spread = surface.knockSpread;
+    final patch = 2.0 * math.pi * spread * spread;
+    pour(
+      volume,
+      where: _local(point),
+      knock: patch > 0.0 ? volume / patch : 0.0,
+    );
+  }
+
+  /// [point] from the world into the vessel's frame.
+  Vector3 _local(Vector3 point) =>
+      (rotation.clone()..transpose()).transformed(point - position);
 
   /// Adds [amount] cubic metres of liquid; landing, it knocks the surface
   /// at [where] (vessel frame) by [knock] metres.
@@ -192,5 +219,70 @@ final class LiquidBody {
       velocity: direction * speed,
       width: width,
     );
+  }
+}
+
+/// The inside of a [LiquidBody]'s vessel as a wall a stream runs along: for
+/// a [RevolvedVessel], the side and the floor; another shape has no walls
+/// yet, and a stream passes through it.
+final class InsideWalls implements JetObstacle {
+  InsideWalls(this.body);
+
+  final LiquidBody body;
+
+  @override
+  ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
+    final shape = body.shape;
+    if (shape is! RevolvedVessel) return null;
+    final q = (body.rotation.clone()..transpose()).transformed(
+      point - body.position,
+    );
+    if (q.y > shape.top || q.y < shape.floor - radius) return null;
+    final r = math.sqrt(q.x * q.x + q.z * q.z);
+    final wall = shape.radiusAt(math.max(q.y, shape.floor));
+    if (r > wall + radius) return null;
+    if (q.y < shape.floor + radius) {
+      return (
+        normal: body.rotation.transformed(Vector3(0, 1, 0)),
+        depth: shape.floor + radius - q.y,
+      );
+    }
+    final reach = wall - radius;
+    if (r <= reach || r < 1e-9) return null;
+    return (
+      normal: body.rotation.transformed(Vector3(-q.x / r, 0, -q.z / r)),
+      depth: r - reach,
+    );
+  }
+}
+
+/// The outside of a [LiquidBody]'s vessel, [thickness] out from its inside,
+/// as a wall a stream runs along: what a slow pour clings to below the lip.
+/// For a [RevolvedVessel]; another shape has none yet.
+final class OutsideWalls implements JetObstacle {
+  OutsideWalls(this.body, {required this.thickness});
+
+  final LiquidBody body;
+  final double thickness;
+
+  @override
+  ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
+    final shape = body.shape;
+    if (shape is! RevolvedVessel) return null;
+    final q = (body.rotation.clone()..transpose()).transformed(
+      point - body.position,
+    );
+    if (q.y > shape.top + thickness || q.y < shape.floor - thickness) {
+      return null;
+    }
+    final r = math.sqrt(q.x * q.x + q.z * q.z);
+    final outside =
+        shape.radiusAt(q.y.clamp(shape.floor, shape.top)) + thickness;
+    final clear = outside + radius;
+    if (r >= clear || r < shape.radiusAt(q.y.clamp(shape.floor, shape.top))) {
+      return null;
+    }
+    final out = r > 1e-9 ? Vector3(q.x / r, 0, q.z / r) : Vector3(1, 0, 0);
+    return (normal: body.rotation.transformed(out), depth: clear - r);
   }
 }

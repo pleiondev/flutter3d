@@ -165,13 +165,16 @@ final class FreeSurface {
     _field = null;
   }
 
+  /// How wide a [knock] spreads, metres: the patch's standard deviation.
+  double get knockSpread => 2.0 * (_grid?.cell ?? 0.0);
+
   /// Knocks the surface at [point] (vessel frame) [strength] metres high,
   /// over a patch two cells across: what is not a wave — the patch's mean —
   /// is not kept, so no liquid is added.
   void knock(Vector3 point, double strength) {
     final grid = _grid;
     if (grid == null || _modes.isEmpty) return;
-    final spread = 2.0 * grid.cell;
+    final spread = knockSpread;
     final bump = Float64List(grid.count);
     for (var i = 0; i < grid.count; i++) {
       final d = grid.point(i) - point;
