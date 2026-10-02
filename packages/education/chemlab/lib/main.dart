@@ -48,13 +48,30 @@ class _BenchScreenState extends State<BenchScreen> {
     camera: _camera,
     clearColor: Vector4(0.1, 0.11, 0.14, 1.0),
   );
+  // A bench is looked at from above and from not too far: the controller's
+  // own limits let the camera go under the table and out of the room.
   late final OrbitController _orbit = OrbitController(
     _camera,
     target: Vector3(0.1, 0.34, 0),
     distance: 2.7,
     yaw: 0.0,
     pitch: 0.2,
-  );
+    minDistance: 0.6,
+    maxDistance: 6.0,
+  )..rotateSensitivity = 0.005;
+
+  static const double _lowestPitch = 0.05;
+  static const double _highestPitch = 1.35;
+
+  void _turn(double dx, double dy) {
+    _orbit.rotate(dx, dy);
+    final pitch = _orbit.pitch.clamp(_lowestPitch, _highestPitch);
+    if (pitch != _orbit.pitch) {
+      _orbit
+        ..pitch = pitch
+        ..apply();
+    }
+  }
 
   ({Renderer renderer, Bench bench})? _ready;
   Object? _error;
@@ -119,7 +136,7 @@ class _BenchScreenState extends State<BenchScreen> {
               // In setState: SceneSurface draws in build, so a camera moved
               // without a rebuild is not drawn until something else is.
               onPointerMove: (PointerMoveEvent event) =>
-                  setState(() => _orbit.rotate(event.delta.dx, event.delta.dy)),
+                  setState(() => _turn(event.delta.dx, event.delta.dy)),
               onPointerSignal: (PointerSignalEvent event) {
                 if (event is PointerScrollEvent) {
                   setState(
