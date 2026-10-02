@@ -218,9 +218,16 @@ Material liquid(Vector3 colour) => Material(
 Material paper([TextureHandle? label]) =>
     Material(name: 'label', albedo: label, roughness: 0.8);
 
-/// How the bench is drawn: under [labSky]. The tabletop's reflections are
-/// mirrored geometry (see `Bench`), so no screen-space pass is needed.
-final RenderSettings benchSettings = RenderSettings(sky: labSky);
+/// How the bench is drawn: under [labSky], with see-through casters shading
+/// the sun by what their material lets through
+/// (`ShadowSettings.translucentCasters`): the glass casts a faint shadow with
+/// darker edges, and each liquid a shadow of its own colour. The tabletop's
+/// reflections are mirrored geometry (see `Bench`), so no screen-space pass
+/// is needed.
+final RenderSettings benchSettings = RenderSettings(
+  sky: labSky,
+  shadows: const ShadowSettings(translucentCasters: true),
+);
 
 /// The room the bench stands in, as a sky: bright overhead, a pale horizon
 /// and a darker floor. Glass shows almost nothing of itself; it shows what is

@@ -67,11 +67,21 @@ Material liquid(Vector3 colour) => Material(
 );
 ```
 
-## Shadows: the glass casts none
+## Shadows that know what the material lets through
 
-A shadow map knows only whether something is between a point and the light, not how much light that something lets through. Every caster darkens the bench as much as a brick would. Clear glass that does this looks wrong straight away: an empty tube threw a shadow as dark as a full one.
+A shadow map holds one depth per texel: whether something stands between a point and the light, and nothing about how much light that something lets through. So every caster darkened the bench as much as a brick would, and an empty tube threw a shadow as dark as a full one.
 
-So the glass is marked `castsShadow = false`, and the liquid inside it is what casts. The empty top of a tube leaves the bench lit, and the shadow starts where the liquid does. It is not physically right either. Real glass dims the light a little, and a coloured solution throws a tinted shadow; neither is possible until the shadow pass can record partial coverage, which is work for the engine; I would rather leave the shadow honest than fake it in a demo.
+For a while the glass was simply marked `castsShadow = false`. I didn't like that, and in the end it went into the engine as `ShadowSettings.translucentCasters`. The atlas is a four-channel texture of which only red held depth, so the other three now hold what see-through casters let through, per colour. A glass or a liquid is drawn into it after the opaque casters, tested against their depth and blended so that layers combine, and the lit pass multiplies the sun by it.
+
+What one surface lets through comes from its material: the share that is not there at all (one minus its opacity), what its transmission passes of the rest, tinted by its colour, and what is not reflected away at its surface, from the Fresnel term of its index of refraction. That last part is why clear glass casts a faint shadow with darker edges: light meets the walls of a tube at a grazing angle near its sides and is mostly reflected there. A coloured solution casts a shadow of its own colour, and light through the walls and the liquid gets all three.
+
+```dart
+final settings = RenderSettings(
+  shadows: ShadowSettings(translucentCasters: true),
+);
+```
+
+It has limits. The atlas keeps the colour, not where along the light it was picked up, so something standing between the sun and a glass would be shaded as if it stood behind it; a bench has nothing like that. It does nothing with the moments filter, which uses those channels for itself. And a see-through surface that casts is not shaded by it, so a glass does not darken itself; the tabletop, which lets a little of the reflections under it through, casts nothing and is shaded like any floor.
 
 ## Refraction, caustics and reflections
 

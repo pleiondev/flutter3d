@@ -212,10 +212,6 @@ final class Bench {
             glass(),
             name: '${vessel.name} glass',
           )
-          // Clear glass barely darkens what is behind it, and the engine's
-          // shadows are all or nothing, so the glass casts none and the
-          // coloured liquid inside it casts the shadow.
-          ..castsShadow = false
           ..lightChannels = _vesselChannel
           ..setPositionFrom(vessel.at),
       );
@@ -265,6 +261,10 @@ final class Bench {
             name: 'bench',
           )
           ..setPosition(0, -0.02, 0.6)
+          // A floor casts nothing. Said here because the top is blended, for
+          // the reflections, and a blended caster is left out of the coloured
+          // shadows so it does not shade itself.
+          ..castsShadow = false
           // Its own channel: the sun reaches every channel, the caustics
           // only this one, and the fill only the glass.
           ..lightChannels = _benchChannel,
