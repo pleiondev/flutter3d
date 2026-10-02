@@ -45,6 +45,7 @@ export 'src/fluid/fluid_world.dart';
 export 'src/fluid/free_surface.dart';
 export 'src/fluid/jet.dart';
 export 'src/fluid/liquid_body.dart';
+export 'src/fluid/liquid_layer.dart';
 export 'src/fluid/outflow.dart';
 export 'src/fluid/pipe.dart';
 export 'src/fluid/vessel_shape.dart';
