@@ -59,6 +59,9 @@ final class Vessel {
 
   /// The card on the bench that carries where its light went; see [Bench].
   late final MeshNode shadow;
+
+  /// Its glass, as drawn.
+  late final MeshNode glassNode;
 }
 
 Vector3 _rgb(Color c) => Vector3(c.r, c.g, c.b);
@@ -173,8 +176,9 @@ List<Vessel> standardVessels() {
 /// The copies are opaque and unlit, so they are drawn before the top and
 /// never sorted against it.
 final class Bench {
-  Bench(this.device, {List<Vessel>? vessels})
-    : vessels = vessels ?? standardVessels() {
+  Bench(this.device, {List<Vessel>? vessels, bool photons = false})
+    : vessels = vessels ?? standardVessels(),
+      _photons = photons {
     for (final vessel in this.vessels) {
       vessel.liquid =
           MeshNode(
@@ -185,7 +189,7 @@ final class Bench {
             ..setPositionFrom(vessel.at)
             ..lightChannels = _vesselChannel;
       vessel.liquid
-        ..castsShadow = false
+        ..castsShadow = photons
         ..receivesTranslucentShadows = false;
       vessel.shadow =
           MeshNode(
@@ -201,7 +205,7 @@ final class Bench {
             )
             ..setPositionFrom(vessel.at)
             ..shadowCasting = ShadowCastingMode.shadowsOnly;
-      scene.add(vessel.shadow);
+      if (!photons) scene.add(vessel.shadow);
       vessel.liquidReflection = _mirrored(
         vessel.liquid.mesh,
         _reflection(albedo: null, colour: _rgb(vessel.colour)),
@@ -211,15 +215,16 @@ final class Bench {
         ..add(vessel.liquid)
         ..add(vessel.liquidReflection);
       scene.add(
-        MeshNode(
-            _lathe(glassWall(vessel.glass)),
-            glass(),
-            name: '${vessel.name} glass',
-          )
-          ..castsShadow = false
-          ..receivesTranslucentShadows = false
-          ..lightChannels = _vesselChannel
-          ..setPositionFrom(vessel.at),
+        vessel.glassNode =
+            MeshNode(
+                _lathe(glassWall(vessel.glass)),
+                glass(),
+                name: '${vessel.name} glass',
+              )
+              ..castsShadow = photons
+              ..receivesTranslucentShadows = false
+              ..lightChannels = _vesselChannel
+              ..setPositionFrom(vessel.at),
       );
       final foot = vessel.foot;
       if (foot != null) {
@@ -294,6 +299,34 @@ final class Bench {
 
   final GraphicsDevice device;
   final Scene scene = Scene();
+
+  /// Whether the shadows come from the engine's caustics
+  /// (`ShadowSettings.caustics`, drawn with [settings]) rather than from the
+  /// cards this bench works out itself. The liquids then cast, as refracting
+  /// volumes, and the thin glass casts by its Fresnel loss; the cards are
+  /// not drawn.
+  bool get photons => _photons;
+  bool _photons;
+
+  set photons(bool value) {
+    if (value == _photons) return;
+    _photons = value;
+    for (final vessel in vessels) {
+      vessel.liquid.castsShadow = value;
+      vessel.glassNode.castsShadow = value;
+      if (value) {
+        scene.remove(vessel.shadow);
+      } else {
+        // Painted for the level it has now: pouring leaves the card alone
+        // while the engine is casting.
+        _repaint(vessel);
+        scene.add(vessel.shadow);
+      }
+    }
+  }
+
+  /// How this bench is drawn.
+  RenderSettings get settings => photons ? photonSettings : benchSettings;
   final List<Vessel> vessels;
 
   /// How a replaced mesh is let go of: after the frames still drawing it
@@ -323,6 +356,10 @@ final class Bench {
     vessel.liquid.mesh = _lathe(vessel.liquidAt(vessel.level));
     vessel.liquidReflection.mesh = vessel.liquid.mesh;
     if (old is DeviceMesh) (retire ?? _releaseNow)(old);
+    if (!photons) _repaint(vessel);
+  }
+
+  void _repaint(Vessel vessel) {
     final material = vessel.shadow.material;
     final picture = material.albedo;
     material.albedo = uploadRgba8(device, _picture(vessel));

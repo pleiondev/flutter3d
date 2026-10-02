@@ -152,7 +152,7 @@ class _BenchScreenState extends State<BenchScreen> {
                 renderer: renderer,
                 scene: bench.scene,
                 view: _view,
-                settings: () => benchSettings,
+                settings: () => bench.settings,
                 onBeforeFrame: () => _orbit.syncProjectionDepth(_camera),
                 presentFrame: presentFrame,
               ),
@@ -168,6 +168,7 @@ class _BenchScreenState extends State<BenchScreen> {
               onSelect: (i) => setState(() => _selected = i),
               onPour: (level) =>
                   setState(() => bench.pour(bench.vessels[_selected], level)),
+              onPhotons: (on) => setState(() => bench.photons = on),
             ),
           ),
         ],
@@ -182,12 +183,17 @@ class _Controls extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.onPour,
+    required this.onPhotons,
   });
 
   final Bench bench;
   final int selected;
   final ValueChanged<int> onSelect;
   final ValueChanged<double> onPour;
+
+  /// Shadows from the engine's photons, or from the cuts this bench works
+  /// out itself.
+  final ValueChanged<bool> onPhotons;
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +240,20 @@ class _Controls extends StatelessWidget {
                     onChanged: onPour,
                   ),
                 ),
+                Tooltip(
+                  message:
+                      'Off: shadows worked out cut by cut for these round '
+                      'vessels. On: the engine follows photons through any '
+                      'refracting volume.',
+                  child: FilterChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: const Text('Engine photons'),
+                    selected: bench.photons,
+                    onSelected: onPhotons,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
                   'Drag to turn, scroll to zoom',
                   style: Theme.of(context).textTheme.bodySmall,
