@@ -133,15 +133,24 @@ uniform FogInfo {
   /// question [eye] does — where the camera is and which way it faces — and
   /// this is the block `color.glsl` can see.
   vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective — `P7`, see [Orthographic]. y, z, w unused. Appended, so
+  /// every offset above stays where four backends agree on it.
+  vec4 projection;
 }
 fog_info;
 
-/// How far this fragment is from the eye, in world metres.
+/// Whether the camera is orthographic — `P7`.
 ///
-/// What the fog fades by. Distance rather than depth, because fog is a
-/// property of the air between two points and does not care which way the
-/// camera happens to face.
-float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+/// **What every eye-relative quantity has to ask first.** Through a
+/// perspective lens the rays meet at the eye, so the way to the eye and the
+/// distance to it are the fragment's own; through an orthographic one the
+/// rays are parallel and the eye is only where the camera was put along its
+/// axis, which moves nothing in the picture. Reading the eye's position as if
+/// it were a point the light travels to slides highlights across the frame
+/// as the camera pans and lays fog in rings round a point nobody sees.
+bool Orthographic() { return fog_info.projection.x > 0.5; }
 
 /// How far this fragment is *along the view axis*, in world metres.
 ///
@@ -154,6 +163,27 @@ float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
 /// reconstruction both projections share.
 float ViewDepth() {
   return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face — through a perspective lens. Through an
+/// orthographic one every ray starts on the eye's plane, so the air a ray
+/// crosses is its depth from that plane, never less than nought.
+float EyeDistance() {
+  return Orthographic() ? max(ViewDepth(), 0.0)
+                        : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction from this fragment back along the ray that reached
+/// it: to the eye through a perspective lens, against the view axis through
+/// an orthographic one — `P7`. What a highlight, a Fresnel term and a
+/// reflection are measured from.
+vec3 TowardsEye() {
+  return Orthographic() ? -fog_info.forward.xyz
+                        : normalize(fog_info.eye.xyz - v_world_position);
 }
 
 #else  // F3D_NO_FOG

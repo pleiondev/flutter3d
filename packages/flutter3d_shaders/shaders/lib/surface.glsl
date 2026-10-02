@@ -291,7 +291,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);

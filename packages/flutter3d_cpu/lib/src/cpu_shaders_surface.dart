@@ -269,7 +269,12 @@ Surface? readSurface(
   final material = bindings.vec4('FragInfo', 'material', Vector4.zero());
   final camera = bindings.vec4('FragInfo', 'camera_position', Vector4.zero());
   final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
-  final view = Vector3(camera.x, camera.y, camera.z) - world;
+  // `P7`: against the view axis through an orthographic lens — `TowardsEye`.
+  // The stages without the fog block keep the eye's point, as the GLSL's
+  // `F3D_NO_FOG` ones do, and read as perspective here.
+  final view = orthographic(bindings)
+      ? towardsEye(v, bindings)
+      : Vector3(camera.x, camera.y, camera.z) - world;
   final viewLength = view.length;
   if (viewLength > 1e-6) view.scale(1.0 / viewLength);
 

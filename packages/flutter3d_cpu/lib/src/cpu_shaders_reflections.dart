@@ -258,13 +258,16 @@ final class LightShaftsShader implements CpuFragmentShader {
     final ndcY = 1.0 - v[1] * 2.0;
     final nearH = inverse.transformed(Vector4(ndcX, ndcY, 0.0, 1.0));
     final farH = inverse.transformed(Vector4(ndcX, ndcY, 1.0, 1.0));
-    final origin = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
+    final nearPoint = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
     final farPoint = Vector3(farH.x, farH.y, farH.z)..scale(1.0 / farH.w);
-    final along = (farPoint - origin)..normalize();
+    final along = (farPoint - nearPoint)..normalize();
 
     final axis = Vector3(forward.x, forward.y, forward.z);
-    final surfaceDepth = surfaceTexture.sample(v[0], v[1]).w;
     final cosine = math.max(along.dot(axis), 1e-4);
+    // From the eye's plane, not the near plane — `P7`, as the GLSL has it.
+    final eye = Vector3(camera.x, camera.y, camera.z);
+    final origin = nearPoint - along * ((nearPoint - eye).dot(axis) / cosine);
+    final surfaceDepth = surfaceTexture.sample(v[0], v[1]).w;
     final toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
     final distance = math.min(camera.w, toSurface);
     if (distance <= 0.0) return scene;
@@ -314,7 +317,6 @@ final class LightShaftsShader implements CpuFragmentShader {
     final sigma = math.max(scatter.w, 0.0);
     final stepTransmittance = math.exp(-sigma * stride);
     var transmittance = math.exp(-sigma * offset);
-    final eye = Vector3(camera.x, camera.y, camera.z);
     var inscatter = 0.0;
     for (var i = 0; i < steps && i < 64; i++) {
       final travelled = offset + i * stride;

@@ -77,6 +77,7 @@ final class Scene {
   /// frame, and the order they were attached in breaks ties between equal
   /// [DecalNode.order]s.
   final List<DecalNode> _decals = <DecalNode>[];
+
   /// Planar reflectors, in attachment order — `P4`. A registry for the
   /// probes' reason: the renderer draws each of them a picture every frame.
   final List<PlanarReflectorNode> _reflectors = <PlanarReflectorNode>[];

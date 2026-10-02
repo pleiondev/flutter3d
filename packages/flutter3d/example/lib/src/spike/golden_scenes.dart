@@ -1222,6 +1222,18 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.skyPhysicalNightSettings,
   ),
 
+  // P7. Metal spheres on a floor under a sky in light fog, through an
+  // orthographic camera.
+  const GoldenScene(
+    name: 'orthographic-metal',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicMetal,
+    configure: GoldenStages.orthographicMetalSettings,
+  ),
+
   // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
   // normal on the right.
   const GoldenScene(

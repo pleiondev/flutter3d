@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **An orthographic camera no longer reads its eye as a point the light
+  travels to.** Highlights, Fresnel and reflections are measured against
+  the view axis rather than from the eye's position, so they stop sliding
+  across the frame as an orthographic camera pans; fog thickens with depth
+  from the eye's plane rather than in rings round it; and the sky is seen
+  through a sixty-degree lens turned as the camera is, rather than as one
+  colour. `isOrthographic` tells a view-projection matrix's kind. Light
+  shafts march from the eye's plane, as the volumetric fog already did.
+  `orthographic-metal` is in all four golden sets.
+
 - **A material channel in place of the light, over all or part of the
   frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
   `DebugView` — albedo, the shading normal, roughness, metalness,

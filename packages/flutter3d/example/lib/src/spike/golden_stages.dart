@@ -1170,6 +1170,51 @@ abstract final class GoldenStages {
   static RenderSettings lensDistortion(RenderSettings settings) =>
       settings.copyWith(look: settings.look.copyWith(distortion: 0.3));
 
+  // ------------------------------------------------------------------ P7
+
+  /// `orthographic-metal`: three metal spheres, rough to smooth, on a floor
+  /// that ends under a sky, in light fog, through an orthographic camera
+  /// looking down at them from the corner — the three things that read the
+  /// eye's position as a point the light travels to. Their highlights sit
+  /// in the same place on each sphere rather than sliding towards where the
+  /// eye's point projects, the fog lies flat rather than in rings round it,
+  /// and the sky is a gradient seen through a sixty-degree lens rather than
+  /// one colour.
+  static Future<GoldenStaged> orthographicMetal(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized());
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(6.0, 0.2, 6.0),
+          Vector3(0.0, -0.1, 0.0),
+          Material(baseColor: Vector4(0.6, 0.6, 0.58, 1.0), roughness: 0.9),
+        ),
+        for (final (i, roughness) in <double>[0.6, 0.35, 0.15].indexed)
+          _sphere(
+            device,
+            Vector3(-1.5 + i * 1.5, 0.5, 0.0),
+            Material(
+              baseColor: Vector4(0.9, 0.75, 0.5, 1.0),
+              metallic: 1.0,
+              roughness: roughness,
+            ),
+          ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 5.0, far: 100.0)
+        ..setPosition(7.0, 6.0, 9.0)
+        ..lookAt(Vector3(0.0, 0.3, 0.0)),
+    );
+  }
+
+  static RenderSettings orthographicMetalSettings(RenderSettings settings) =>
+      settings.copyWith(
+        sky: const SkySettings(enabled: true),
+        fog: FogSettings(color: Vector3(0.7, 0.75, 0.8), density: 0.03),
+      );
+
   // ------------------------------------------------------------------ P6
 
   /// `debug-view-split`: the lit teapot left of the middle and its shading

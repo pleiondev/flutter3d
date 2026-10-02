@@ -306,6 +306,11 @@ extension _ScenePasses on Renderer {
       _forwardData[0] = _forward.x;
       _forwardData[1] = _forward.y;
       _forwardData[2] = _forward.z;
+      // `P7`: whether the eye is a point the rays meet at or only where an
+      // orthographic camera was put — see `Orthographic` in `color.glsl`.
+      _fogInfo.projection[0] = camera.projection is OrthographicProjection
+          ? 1.0
+          : 0.0;
 
       developer.Timeline.startSync('Renderer.encodeDraws');
       void encodeOne(MeshNode node) => _encodeNode(

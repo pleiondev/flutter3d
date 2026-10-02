@@ -1565,7 +1565,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: eighty-seven goldens go through this
+  /// strength has, and for the same reason: eighty-eight goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -3173,6 +3173,13 @@ final class Renderer implements RenderServices {
   final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
   final vm.Vector3 _skyRay = vm.Vector3.zero();
 
+  /// The lens the sky is seen through when the camera's is orthographic —
+  /// `P7`, set by `_encodeSky` for the one draw: the view axis, the world
+  /// directions of the frame's right and top edges, and the frame's aspect.
+  /// Null through a perspective lens, whose own rays the sky takes.
+  ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})?
+  _skyOrthoLens;
+
   /// Pipelines for full-screen stages this class does not have a field for.
   ///
   /// The engine's own effects each keep theirs in a named field, which is fine
@@ -3515,6 +3522,9 @@ final class Renderer implements RenderServices {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // `P7`: whether the eye is a point the rays meet at or only where an
+    // orthographic camera was put — see `Orthographic` in `color.glsl`.
+    _fogInfo.projection[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
 
     for (final node in scene.meshes) {
       if (!node.visibleInHierarchy) continue;

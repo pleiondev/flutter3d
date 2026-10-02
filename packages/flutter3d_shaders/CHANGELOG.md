@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`FogInfo.projection`, `Orthographic`, `TowardsEye`** — `P7`: the lit
+  models, the planar reflection's Fresnel and `EyeDistance` ask whether the
+  camera is orthographic. `light_shafts.frag` starts its march on the eye's
+  plane.
+
 - **`FragInfo.debug_view` and `WriteDebugView`** in `surface.glsl` — `P6`:
   every lit model asks it before writing its light. NaN is found by
   comparison, because `impellerc`'s GLSL ES output has no bit casts.
