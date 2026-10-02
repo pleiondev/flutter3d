@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
 import 'jet.dart';
@@ -57,6 +58,7 @@ final class LiquidBody implements JetReceiver {
     required double volume,
     int surfaceCells = 40,
     int modes = 12,
+    this.wallThickness = 0.0,
   }) : _volume = volume,
        surface = FreeSurface(
          medium: medium,
@@ -70,6 +72,15 @@ final class LiquidBody implements JetReceiver {
   final FluidMedium medium;
   final FreeSurface surface;
 
+  /// How thick the vessel's wall is, for a stream that runs down its
+  /// outside; nought for none.
+  final double wallThickness;
+
+  /// The seconds this liquid has been stepped through: what [place] stamps
+  /// a position with.
+  double get clock => _clock;
+  double _clock = 0.0;
+
   /// Cubic metres of liquid.
   double get volume => _volume;
   double _volume;
@@ -77,7 +88,7 @@ final class LiquidBody implements JetReceiver {
   /// The vessel's turn and place in the world, as last [place]d.
   final Matrix3 rotation = Matrix3.identity();
   final Vector3 position = Vector3.zero();
-  final List<Vector3> _history = [];
+  final List<({double time, Vector3 at})> _history = [];
 
   /// Which way is up in the vessel's frame — square to the gravity felt —
   /// and the height of the surface's plane along it.
@@ -90,7 +101,11 @@ final class LiquidBody implements JetReceiver {
   void place(Matrix3 turn, Vector3 at) {
     rotation.setFrom(turn);
     position.setFrom(at);
-    _history.add(at.clone());
+    // Placed again before a step: the newer place stands for this moment.
+    if (_history.isNotEmpty && _history.last.time == _clock) {
+      _history.removeLast();
+    }
+    _history.add((time: _clock, at: at.clone()));
     if (_history.length > 3) _history.removeAt(0);
   }
 
@@ -139,10 +154,20 @@ final class LiquidBody implements JetReceiver {
   Spill step(double dt, {required Vector3 gravity}) {
     // The gravity felt: the world's, less the vessel's acceleration.
     final felt = gravity.clone();
-    if (_history.length == 3 && dt > 0.0) {
-      final a = (_history[2] - _history[1] * 2.0 + _history[0]) / (dt * dt);
-      felt.sub(a);
+    if (_history.length == 3) {
+      // The second difference over the times the places were stamped,
+      // however many steps lay between them.
+      final (time: t0, at: p0) = _history[0];
+      final (time: t1, at: p1) = _history[1];
+      final (time: t2, at: p2) = _history[2];
+      if (t1 > t0 && t2 > t1) {
+        final v0 = (p1 - p0) / (t1 - t0);
+        final v1 = (p2 - p1) / (t2 - t1);
+        felt.sub((v1 - v0) * (2.0 / (t2 - t0)));
+      }
     }
+    _clock += dt;
+    _g = felt.length;
     final g = felt.length;
     if (g > 1e-9) {
       final turnBack = rotation.clone()..transpose();
@@ -154,9 +179,57 @@ final class LiquidBody implements JetReceiver {
     return _spill(dt, math.max(g, 1e-6));
   }
 
-  /// The surface's height along [up] over [point] (vessel frame): its plane
-  /// and the waves on it.
-  double surfaceAt(Vector3 point) => height + surface.displacement(point);
+  /// The surface's height along [up] over [point] (vessel frame): its plane,
+  /// the waves on it, and the meniscus at the wall.
+  double surfaceAt(Vector3 point) =>
+      height + surface.displacement(point) + meniscusAt(point);
+
+  /// The gravity the liquid felt on its last step, m/s².
+  double get gravity => _g;
+  double _g = 9.81;
+
+  /// How far the meniscus stands over [point] (vessel frame) above the flat
+  /// surface of the same volume — up at a wall the liquid wets, down at one
+  /// it does not, nought on average. For a round vessel, the exact
+  /// Young–Laplace surface for its radius at the surface ([TubeMeniscus]);
+  /// for another, the flat wall's ([wallMeniscus]) by distance from it.
+  double meniscusAt(Vector3 point) {
+    final m = _meniscus();
+    if (m == null) return 0.0;
+    final r = math.sqrt(point.x * point.x + point.z * point.z);
+    return m.heightAt(r) - m.meanHeight;
+  }
+
+  /// The pressure the meniscus takes off the liquid under it, pascals: σ
+  /// times the curvature at its middle.
+  double get capillaryPressure {
+    final m = _meniscus();
+    return m == null ? 0.0 : medium.surfaceTension * m.apexCurvature;
+  }
+
+  /// How deep [point] (vessel frame) is under the surface, measured along
+  /// gravity pointing [down] in the world.
+  double depthAbove(Vector3 point, Vector3 down) {
+    final world = rotation.transformed(point) + position;
+    final onSurface = rotation.transformed(_up * height) + position;
+    return (world - onSurface).dot(down);
+  }
+
+  TubeMeniscus? _tube;
+
+  TubeMeniscus? _meniscus() {
+    final shape = this.shape;
+    if (shape is! RevolvedVessel || _volume <= 0.0) return null;
+    final radius = shape.radiusAt(height.clamp(shape.floor, shape.top));
+    if (radius <= 0.0) return null;
+    final tube = _tube;
+    if (tube != null &&
+        (tube.radius - radius).abs() < 1e-3 * radius &&
+        (tube.g - _g).abs() < 1e-3 * _g) {
+      return tube;
+    }
+    return _tube = TubeMeniscus(medium: medium, radius: radius, g: _g);
+  }
 
   /// Lays the surface out again when its plane has turned or moved by more
   /// than a little, carrying the waves over.
