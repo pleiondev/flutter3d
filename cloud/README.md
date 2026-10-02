@@ -23,6 +23,11 @@ keep are counts of packages.
 | `docker-compose.yml` | Postgres for development and the integration test |
 | `monitoring/` | Prometheus and Grafana for the service's own numbers (accounts, models, disk). [README](monitoring/README.md) |
 
+Two more services live beside it, each with its own README: `lessons/`
+(a lesson page and its embed) and `lti/` (LTI 1.3 launch and grade passback).
+Shared levels and opt-in telemetry are part of this server; see
+[Sharing](#sharing) and [Telemetry](#telemetry).
+
 ## Running it
 
 ```bash
@@ -61,6 +66,9 @@ names all of them.
 | `MODELS_VIEWER_DIR` | Optional; serves the viewer at `/app/` when set |
 | `MODELS_LEARN_DIR` | Default `content/learn/modeler`, which is right in a checkout and nowhere else. A directory with no case in it gives an empty tutorial and one line in the log; the start does not fail |
 | `MODELS_TELEMETRY_LEVELS_DIR` | Optional; the levels telemetry runs are played again in. See [Telemetry](#telemetry) |
+| `MODELS_SHARES_MODERATION` | `review` (default) or `open`. See [Sharing](#sharing) |
+| `MODELS_SHARES_MODERATOR_TOKEN` | Optional, 24 characters or more; without it moderation is off |
+| `MODELS_SHARES_REPORTS_TO_HIDE` | How many reports send a published level back to review. Default 3 |
 
 ## Tests
 
@@ -93,6 +101,41 @@ The games are `HeadlessGame`s handed to `Services(telemetryGames:)` in code.
 `main.server.dart` hands none, because every genre in the repository needs
 Flutter and this process runs under `dart run`, so as shipped the endpoint
 answers 503 and says why.
+
+## Sharing
+
+The reference server for shared levels (N10 in `tasks/0.9-engine-roadmap.md`).
+A player shares a level, or a level with a run through it, and gets a short
+code back. The client and the format are `RunService` and `ShareBundle` in
+`flutter3d_sim`; a game points `RunService` at `https://<host>/api/`. Every
+answer is JSON, and every refusal is `{"message": …}`, which `RunService` hands
+to the game as the reason. No account is involved. Under `/api/v1/`:
+
+| | |
+|---|---|
+| `POST shares` | A `ShareBundle`, at most 4 MB. A run recorded in another version of the level is refused. `201 {code, address, status}`, or `200` with the same code when these bytes were shared before |
+| `GET shares/<code>` | `200 {bundle}` when published, `202` while pending, `410` with the moderator's reason when removed, `404` |
+| `POST shares/<code>/reports` | `{reason}`, answered `202 {message}` |
+| `GET moderation/queue` | Token. Pending levels and anything reported |
+| `GET moderation/shares/<code>` | Token. One level with its record, whatever its status |
+| `POST moderation/shares/<code>` | Token, `{decision: publish \| remove, reason}`. A removal needs a reason; publishing again drops the reports |
+
+A level is filed under the SHA-256 of the bytes the server writes for it, not
+the bytes it was sent, so the same level shared twice gets the same code. Those
+bytes are kept as `text` in `shares`, since `jsonb` would not keep them. The
+code is the first seven characters of the hash in Crockford's base 32, and gets
+longer only if a different level already holds it. People can type it in lower
+case, with dashes, and with O for 0 or L for 1.
+
+In `review` mode nothing opens until a moderator publishes it, so without a
+token `POST shares` answers 503 instead of keeping levels nobody could ever
+publish. In `open` mode a level opens at once, and
+`MODELS_SHARES_REPORTS_TO_HIDE` reports send it back to review. The moderation
+routes take `Authorization: Bearer <MODELS_SHARES_MODERATOR_TOKEN>` and answer
+503 when no token is set.
+
+Not deployed: the production environment sets none of these, so models.pleion.dev
+shares nothing yet.
 
 ## Deploying
 

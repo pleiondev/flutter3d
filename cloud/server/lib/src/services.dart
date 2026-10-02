@@ -12,11 +12,13 @@ import 'db/models_repository.dart';
 import 'db/projects_repository.dart';
 import 'db/rate_limit.dart';
 import 'db/sessions_repository.dart';
+import 'db/shares_repository.dart';
 import 'db/telemetry_repository.dart';
 import 'db/users_repository.dart';
 import 'http/cookies.dart';
 import 'http/gallery_catalogue.dart';
 import 'mail/mailer.dart';
+import 'shares/share_service.dart';
 import 'storage/blob_store.dart';
 import 'telemetry/telemetry_service.dart';
 
@@ -34,6 +36,12 @@ class Services {
          games: telemetryGames,
          levels: telemetryLevels,
          store: TelemetryRepository(db),
+       ),
+       shares = ShareService(
+         store: SharesRepository(db),
+         moderation: config.shareModeration,
+         moderatorToken: config.shareModeratorToken,
+         reportsToHide: config.shareReportsToHide,
        ),
        users = UsersRepository(db),
        sessions = SessionsRepository(db),
@@ -83,6 +91,13 @@ class Services {
   /// this process can step, so they are chosen in code where the server is
   /// built; the levels come from `MODELS_TELEMETRY_LEVELS_DIR`.
   final TelemetryService telemetry;
+
+  /// N10: levels shared behind short codes.
+  ///
+  /// **Refuses every share until somebody can moderate them**, unless the
+  /// deploy chose `MODELS_SHARES_MODERATION=open`: in review, a level nobody
+  /// could ever publish is a level kept for nothing.
+  final ShareService shares;
 
   final UsersRepository users;
   final SessionsRepository sessions;

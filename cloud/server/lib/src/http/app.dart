@@ -37,6 +37,7 @@ import 'learn_routes.dart';
 import 'metrics.dart';
 import 'render.dart';
 import 'request.dart';
+import 'share_routes.dart';
 import 'static_files.dart';
 import 'telemetry_routes.dart';
 
@@ -64,6 +65,10 @@ Handler buildHandler(Services services) {
     // N7: runs a player agreed to send, played again here; no session and no
     // cookie, so nothing for a forged form to ride on.
     ..mount('/api/telemetry/', telemetryRoutes(services.telemetry).call)
+    // N10: levels shared behind short codes, at the paths `RunService` asks
+    // for from a base of `/api/`. What it does not answer falls through to
+    // the routes below, `/api/v1/models` among them.
+    ..mount('/api/', shareRoutes(services.shares).call)
     // Nothing here checks who is asking. The endpoint is not linked from any
     // page and nginx keeps it off the public vhost (see
     // `cloud/monitoring/deploy/nginx-grafana.pleion.dev.conf` and

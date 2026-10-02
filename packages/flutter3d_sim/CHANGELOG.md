@@ -91,6 +91,13 @@
   covers exactly the cells a flow field for the same body accepts. It is
   the first part of N2; the path search over it comes next.
 
+- **A level can be shared behind a short code.** `ShareBundle` is a level
+  document, its hash and optionally a `.f3drun` through it, refused when the
+  run was recorded in another version of the level. `RunService` speaks the
+  `v1/shares` routes over a transport the game hands in, so the package
+  still has no dependency for it, and answers every call with `ServiceDone`
+  or `ServiceRefused` rather than throwing. `cloud/server` speaks this
+  protocol.
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,
