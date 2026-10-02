@@ -175,11 +175,14 @@ LatheShape labelBand({
 Material glass() => Material(
   name: 'glass',
   lighting: LightingModel.pbrLayered,
-  // **As visible as its shadow is dark.** Clear glass loses about a twentieth
-  // of the light at each surface, which is what darkens the bench under a
-  // tube, and the same reflection is what shows the glass itself: at a
-  // twelfth of an alpha the tubes were ghosts that cast plain shadows.
-  baseColor: Vector4(0.97, 0.99, 1.0, 0.22),
+  // **All of it there, and seen by what it reflects.** A thin pane that
+  // transmits is laid over what is behind it and lets through what it does
+  // not reflect (see `g_pane` in the engine), so its alpha is coverage, and
+  // a glass wall covers all of its outline: one. Below that it reflected a
+  // fraction of what glass does, and an empty tube was a ghost. The tint is
+  // laboratory glass's faint green-grey, a few per cent over a wall, which
+  // is also a few per cent off the light under it.
+  baseColor: Vector4(0.93, 0.97, 0.95, 1.0),
   roughness: 0.03,
   alphaMode: MaterialAlphaMode.blend,
   doubleSided: true,
