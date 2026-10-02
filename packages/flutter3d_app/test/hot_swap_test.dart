@@ -380,6 +380,94 @@ void main() {
       await swap.swap();
       expect(ship.meshes.single.material.roughness, isNot(0.1));
     });
+
+    /// A scene with one quad in a material whose shader reads `wind` and
+    /// `tint`, as a `.fmat` with parameters is bound.
+    ({Scene scene, engine.Material material}) waving() {
+      final material = engine.Material(
+        name: 'grass',
+        parameters: <String, Float32List>{
+          'wind': Float32List.fromList(<double>[0.3]),
+          'tint': Float32List.fromList(<double>[0.1, 0.4, 0.5]),
+        },
+      );
+      final scene = Scene()
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3.all(1.0)).build(),
+            ),
+            material,
+          ),
+        );
+      swap.registerScene(scene);
+      return (scene: scene, material: material);
+    }
+
+    test('sets a parameter of its shader in the list the frame binds', () {
+      // `HR4`'s last half: a slider over a `.fmat` parameter reaches the
+      // game. Into the list the material already has, so the renderer, which
+      // binds `parameters` every frame, draws it next frame.
+      //
+      // Mutation: build a new list instead of writing into the old one. The
+      // values match but `held` is not the list the material was loaded with,
+      // and the second expectation fails — as a cached reference to it would.
+      final (scene: _, :material) = waving();
+      final held = material.parameters['wind']!;
+
+      final touched = swap.setMaterial('grass', <String, Object?>{
+        'parameters/wind': 1.5,
+        'parameters/tint': <double>[0.2, 0.2, 0.9],
+      });
+
+      expect(touched, 1);
+      expect(material.parameters['wind'], <double>[1.5]);
+      expect(material.parameters['wind'], same(held));
+      expect(material.parameters['tint']![2], closeTo(0.9, 1e-6));
+    });
+
+    test('refuses a parameter the material was not loaded with, or one of '
+        'another length, and keeps nothing of the call', () {
+      // A member the compiled block does not have throws in the encoder on
+      // every frame of that material, so a typo in a panel must stop here.
+      //
+      // Mutation: drop `_checkParameter`. `gust` is stored as an override, the
+      // first expectation fails, and `tint` takes two numbers into three.
+      final (scene: _, :material) = waving();
+
+      expect(
+        () => swap.setMaterial('grass', <String, Object?>{
+          'parameters/gust': 1.0,
+          'roughness': 0.2,
+        }),
+        throwsA(
+          isA<ArgumentError>().having(
+            (ArgumentError e) => e.message,
+            'message',
+            contains('it has wind, tint'),
+          ),
+        ),
+      );
+      expect(
+        () => swap.setMaterial('grass', <String, Object?>{
+          'parameters/tint': <double>[1, 0],
+        }),
+        throwsArgumentError,
+      );
+      expect(
+        () => swap.setMaterial('grass', <String, Object?>{
+          'parameters/wind': <Object?>['strong'],
+        }),
+        throwsArgumentError,
+      );
+      expect(material.roughness, isNot(0.2), reason: 'nothing of it taken');
+      expect(material.parameters['tint']![0], closeTo(0.1, 1e-6));
+
+      // And nothing kept to come back on a later call for another field.
+      swap.setMaterial('grass', <String, Object?>{'metallic': 0.5});
+      expect(material.roughness, isNot(0.2));
+    });
   });
 
   group('a texture', () {

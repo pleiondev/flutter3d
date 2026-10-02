@@ -553,6 +553,7 @@ final class HotSwap {
   }
 
   /// The fields [setMaterial] understands, and how many numbers each takes.
+  /// A shader's own parameters are named with [parameterField] in front.
   static const Map<String, int> materialFields = <String, int>{
     'baseColor': 4,
     'emissive': 3,
@@ -562,6 +563,21 @@ final class HotSwap {
     'normalScale': 1,
     'alphaCutoff': 1,
   };
+
+  /// What a field of [setMaterial] starts with when it sets one of
+  /// `Material.parameters` rather than a field every material has:
+  /// `parameters/windStrength` is the `windStrength` a `.fmat` lists under
+  /// `parameters` — the editor's own spelling of the same key.
+  ///
+  /// **Written into the list the material already has, and only that.** The
+  /// renderer binds `Material.parameters` afresh every frame, so a number
+  /// written in place is drawn on the next one with nothing rebuilt, the way
+  /// `Material.polylineViewport` is. A parameter the material was not loaded
+  /// with is refused rather than added: the map may be a constant, and a
+  /// member the compiled block does not have makes every frame of that
+  /// material throw in the encoder. A list of another length is refused for
+  /// the same reason — the block's layout is the shader's, not the panel's.
+  static const String parameterField = 'parameters/';
 
   /// Sets [fields] on every material called [name] in the registered
   /// scenes, from the next frame on, and keeps them as overrides.
@@ -578,15 +594,47 @@ final class HotSwap {
   /// [clearMaterial] drops them.
   ///
   /// [fields] maps a name from [materialFields] to a number or a list of
-  /// that many numbers. Throws [ArgumentError] naming the field otherwise.
+  /// that many numbers, or a [parameterField] name to as many numbers as
+  /// that parameter of every such material has. Throws [ArgumentError]
+  /// naming the field otherwise, and keeps nothing of a call it refused.
   /// Returns how many materials took the change.
   int setMaterial(String name, Map<String, Object?> fields) {
     if (!enabled) return 0;
     for (final MapEntry(key: field, :value) in fields.entries) {
       _numbers(field, value);
     }
+    for (final material in _materials(only: name)) {
+      for (final MapEntry(key: field, :value) in fields.entries) {
+        if (field.startsWith(parameterField)) {
+          _checkParameter(material, field, _numbers(field, value).length);
+        }
+      }
+    }
     (_overrides[name] ??= <String, Object?>{}).addAll(fields);
     return _applyOverrides(only: name);
+  }
+
+  static void _checkParameter(Material material, String field, int count) {
+    final parameter = field.substring(parameterField.length);
+    final held = material.parameters[parameter];
+    if (held == null) {
+      final has = material.parameters.keys;
+      throw ArgumentError.value(
+        field,
+        'field',
+        '${material.name} has no parameter "$parameter" '
+            '(${has.isEmpty ? 'it has none' : 'it has ${has.join(', ')}'}); '
+            'one is added by writing it into the material file',
+      );
+    }
+    if (held.length != count) {
+      throw ArgumentError.value(
+        count,
+        field,
+        'takes ${held.length} number${held.length == 1 ? '' : 's'}, as '
+        '${material.name} was loaded with',
+      );
+    }
   }
 
   /// Forgets the overrides for [name], or for every material when null. The
@@ -599,32 +647,45 @@ final class HotSwap {
     }
   }
 
-  int _applyOverrides({String? only}) {
+  /// Every named material in the registered scenes, or every one called
+  /// [only], once however many nodes wear it.
+  Set<Material> _materials({String? only}) {
     _scenes.removeWhere((WeakReference<Scene> s) => s.target == null);
     final seen = Set<Material>.identity();
     for (final scene in _scenes) {
       scene.target?.root.traverse((SceneNode node) {
         if (node is! MeshNode) return;
-        final material = node.material;
-        final name = material.name;
+        final name = node.material.name;
         if (name == null || (only != null && name != only)) return;
-        final fields = _overrides[name];
-        if (fields == null || !seen.add(material)) return;
-        for (final MapEntry(key: field, :value) in fields.entries) {
-          _write(material, field, _numbers(field, value));
-        }
+        seen.add(node.material);
       });
     }
-    return seen.length;
+    return seen;
+  }
+
+  int _applyOverrides({String? only}) {
+    final touched = <Material>[
+      for (final material in _materials(only: only))
+        if (_overrides.containsKey(material.name)) material,
+    ];
+    for (final material in touched) {
+      for (final MapEntry(key: field, :value)
+          in _overrides[material.name]!.entries) {
+        _write(material, field, _numbers(field, value));
+      }
+    }
+    return touched.length;
   }
 
   static List<double> _numbers(String field, Object? value) {
+    final parameter = field.startsWith(parameterField);
     final count = materialFields[field];
-    if (count == null) {
+    if (count == null && !parameter) {
       throw ArgumentError.value(
         field,
         'field',
-        'not a material field; there are ${materialFields.keys.join(', ')}',
+        'not a material field; there are ${materialFields.keys.join(', ')}, '
+            'and $parameterField<name> for a parameter of its shader',
       );
     }
     final numbers = switch (value) {
@@ -635,12 +696,15 @@ final class HotSwap {
       ],
       _ => const <double>[],
     };
-    if (numbers.length != count ||
-        (value is List<Object?> && value.length != count)) {
+    if (numbers.isEmpty ||
+        (value is List<Object?> && value.length != numbers.length) ||
+        (count != null && numbers.length != count)) {
       throw ArgumentError.value(
         value,
         field,
-        'takes $count number${count == 1 ? '' : 's'}',
+        count == null
+            ? 'takes a number or a list of numbers'
+            : 'takes $count number${count == 1 ? '' : 's'}',
       );
     }
     return numbers;
@@ -662,6 +726,13 @@ final class HotSwap {
         material.normalScale = v[0];
       case 'alphaCutoff':
         material.alphaCutoff = v[0];
+      default:
+        // A parameter. A swapped model whose material no longer carries it,
+        // or carries it at another length, is left as the file has it; the
+        // override waits for one that does.
+        final held =
+            material.parameters[field.substring(parameterField.length)];
+        if (held != null && held.length == v.length) held.setAll(0, v);
     }
   }
 

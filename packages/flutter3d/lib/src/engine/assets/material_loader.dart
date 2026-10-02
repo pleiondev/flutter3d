@@ -80,10 +80,15 @@ Future<MaterialDocument> loadMaterialDocument(
 /// field here to hang a sampler off, so the encoder binds it with the
 /// device's default. Only whether it carries a mip chain survives, because
 /// that is part of the texture rather than of the sampler.
+///
+/// [name] is what the material is called once bound, the file's own name by
+/// default. A level passes the name its surfaces use for it, because that is
+/// the one a tool addresses it by (`ext.flutter3d.material.set`).
 Future<Material> bindMaterial(
   MaterialDocument document, {
   required GraphicsDevice device,
   required AssetUriResolver resolveUri,
+  String? name,
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
@@ -192,7 +197,7 @@ Future<Material> bindMaterial(
   }
 
   return Material(
-    name: surface.name,
+    name: name ?? surface.name,
     lighting:
         document.lighting ??
         (surface.lightingModel ??

@@ -6,6 +6,8 @@
   mesh and material and the nodes stay, with their transforms, animation and
   children. `ModelSwap` reports what matched, what the new version dropped
   (left drawn as it was) and what it added (needs instantiating again).
+- `bindMaterial` takes a `name` for the bound material, the file's own by
+  default; a level passes the name its surfaces use.
 
 ## 0.8.3+1
 
