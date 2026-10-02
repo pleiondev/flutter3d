@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/painting.dart' show Color;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'glassware.dart';
 import 'label.dart';
+import 'optics.dart';
 
 /// One piece of glass on the bench and what is in it.
 final class Vessel {
@@ -17,7 +20,6 @@ final class Vessel {
     required this.lowest,
     required this.highest,
     this.solution,
-    this.focuses = true,
     this.foot,
   });
 
@@ -45,13 +47,6 @@ final class Vessel {
   /// What its label says; null for glass that wears none.
   final Solution? solution;
 
-  /// Whether its liquid throws a caustic on the bench. **The engine packs at
-  /// most eight lights per object**, and the bench already has the sun and
-  /// a fill: a ninth light pushes one out, and the sun's shadow went with
-  /// it. Six caustics fit; the cylinder's narrow column and the flask go
-  /// without.
-  final bool focuses;
-
   /// How full it is now. State: pouring changes it.
   double level;
 
@@ -62,9 +57,8 @@ final class Vessel {
   late final MeshNode liquidReflection;
   MeshNode? labelReflection;
 
-  /// The bright patch its liquid focuses onto the bench, if it [focuses];
-  /// see [Bench].
-  LightNode? caustic;
+  /// The card on the bench that carries where its light went; see [Bench].
+  late final MeshNode shadow;
 }
 
 Vector3 _rgb(Color c) => Vector3(c.r, c.g, c.b);
@@ -119,7 +113,6 @@ List<Vessel> standardVessels() {
       ),
     Vessel(
       name: 'Cylinder',
-      focuses: false,
       at: Vector3(-1.05, 0, -0.25),
       glass: cylinderProfile(),
       foot: cylinderFoot(),
@@ -141,7 +134,6 @@ List<Vessel> standardVessels() {
     ),
     Vessel(
       name: 'Flask',
-      focuses: false,
       at: Vector3(1.32, 0, -0.45),
       glass: flaskProfile(),
       liquidAt: flaskLiquidProfile,
@@ -159,13 +151,18 @@ List<Vessel> standardVessels() {
 /// so the blended glass lies over what it holds. A tube also gets a label, a
 /// third lathe just outside the glass, once [dress] has its picture.
 ///
-/// **The caustics are a light, not a calculation.** A column of liquid is a
-/// lens, and sunlight through it lands as a bright, tinted patch inside its
-/// own shadow. The engine traces no photons, so each vessel carries a small
-/// spot light of its solution's colour, aimed at where its liquid's shadow
-/// falls and shining on the bench alone (light channel 1): the glass and the
-/// liquids stay on channel 0 and are not lit by it. Pouring moves the patch
-/// and makes it stronger or weaker with the height of the column.
+/// **The shadows are worked out, not guessed.** A vessel is a surface of
+/// revolution, so the sunlight through it can be followed by geometric
+/// optics in each horizontal cut (see `optics.dart`): bent at every surface,
+/// reflected and dimmed on the way, and gathered where it lands. What lands
+/// is painted on a card lying on the bench along the vessel's shadow, which
+/// casts into the sun's atlas and nothing else
+/// (`ShadowCastingMode.shadowsOnly`, `ShadowSettings.translucentCasters`):
+/// dark where the light was turned away, coloured where it went through the
+/// solution, and brighter than the bench around it where the liquid focused
+/// it. The glass and the liquid cast nothing of their own, and neither they
+/// nor the labels are shaded by the card, which stands for the light under
+/// them, not over them. Pouring paints the card again.
 ///
 /// **The reflections in the tabletop are geometry too.** Screen-space
 /// reflections read only what the opaque pass drew, and the glass and the
@@ -187,17 +184,24 @@ final class Bench {
             )
             ..setPositionFrom(vessel.at)
             ..lightChannels = _vesselChannel;
-      if (vessel.focuses) {
-        final caustic = vessel.caustic = LightNode(
-          type: LightType.spot,
-          name: '${vessel.name} caustic',
-          color: _rgb(vessel.colour) * 0.8 + Vector3.all(0.2),
-          outerConeAngle: 0.12,
-          innerConeAngle: 0.02,
-        )..channels = _benchChannel;
-        scene.add(caustic);
-        _focus(vessel);
-      }
+      vessel.liquid
+        ..castsShadow = false
+        ..receivesTranslucentShadows = false;
+      vessel.shadow =
+          MeshNode(
+              _card(vessel),
+              Material(
+                name: 'shadow card',
+                lighting: LightingModel.pbrLayered,
+                baseColor: Vector4(_lightScale, _lightScale, _lightScale, 1.0),
+                albedo: uploadRgba8(device, _picture(vessel)),
+                extensions: MaterialExtensions(transmission: 1.0, ior: 1.0),
+              ),
+              name: '${vessel.name} shadow',
+            )
+            ..setPositionFrom(vessel.at)
+            ..shadowCasting = ShadowCastingMode.shadowsOnly;
+      scene.add(vessel.shadow);
       vessel.liquidReflection = _mirrored(
         vessel.liquid.mesh,
         _reflection(albedo: null, colour: _rgb(vessel.colour)),
@@ -212,6 +216,8 @@ final class Bench {
             glass(),
             name: '${vessel.name} glass',
           )
+          ..castsShadow = false
+          ..receivesTranslucentShadows = false
           ..lightChannels = _vesselChannel
           ..setPositionFrom(vessel.at),
       );
@@ -268,8 +274,8 @@ final class Bench {
           // the reflections, and a blended caster is left out of the coloured
           // shadows so it does not shade itself.
           ..castsShadow = false
-          // Its own channel: the sun reaches every channel, the caustics
-          // only this one, and the fill only the glass.
+          // Its own channel: the sun reaches every channel, and the fill
+          // only the glass.
           ..lightChannels = _benchChannel,
       )
       ..add(
@@ -295,6 +301,11 @@ final class Bench {
   /// when there is none.
   void Function(DeviceMesh mesh)? retire;
 
+  /// How a replaced shadow picture is let go of: after the frames still
+  /// sampling it when there is a renderer
+  /// (`Renderer.releaseTextureAfterFrame`), and kept when there is none.
+  void Function(TextureHandle texture)? retireTexture;
+
   void _releaseNow(DeviceMesh mesh) => device
     ..releaseGeometry(mesh.vertices)
     ..releaseGeometry(mesh.indices);
@@ -312,7 +323,79 @@ final class Bench {
     vessel.liquid.mesh = _lathe(vessel.liquidAt(vessel.level));
     vessel.liquidReflection.mesh = vessel.liquid.mesh;
     if (old is DeviceMesh) (retire ?? _releaseNow)(old);
-    _focus(vessel);
+    final material = vessel.shadow.material;
+    final picture = material.albedo;
+    material.albedo = uploadRgba8(device, _picture(vessel));
+    if (picture != null) retireTexture?.call(picture);
+  }
+
+  /// The most a card's picture can brighten the bench: light gathered past
+  /// this, at a focus, is held to it. Three is well past what the liquids
+  /// here gather at the distances their shadows fall.
+  static const double _lightScale = 3.0;
+
+  /// The glass's thickness, as `glassWall` gives it.
+  static const double _wall = 0.004;
+
+  /// The sun's elevation above the bench, and the way its light crosses it.
+  static final double _elevation = math.asin(-_sun.y);
+  static final Vector3 _across = (Vector3(_sun.x, 0, _sun.z)..normalize());
+
+  /// How far either side of its axis a vessel's card reaches: the light a
+  /// liquid spreads past its focus lands well outside the glass.
+  static double _halfWidth(Vessel vessel) =>
+      3.0 * vessel.glass.map((p) => p.x).reduce(math.max);
+
+  static double _height(Vessel vessel) =>
+      vessel.glass.map((p) => p.y).reduce(math.max);
+
+  /// Where [vessel]'s light goes, as its card shows it.
+  Rgba8Image _picture(Vessel vessel) => shadowPicture(
+    glass: vessel.glass,
+    liquid: vessel.liquidAt(vessel.level),
+    wall: _wall,
+    height: _height(vessel),
+    glassIndex: 1.5,
+    liquidIndex: 1.33,
+    liquidAbsorption: absorptionFor(_rgb(vessel.colour), 0.08),
+    elevation: _elevation,
+    halfWidth: _halfWidth(vessel),
+    scale: _lightScale,
+  );
+
+  /// The card [vessel]'s light is painted on: a strip lying a hair above the
+  /// bench from under its axis out along the light's way, as long as its
+  /// tallest point throws a shadow, and as wide as [_halfWidth] either side.
+  /// U runs across it and V away from the vessel, so the picture's rows are
+  /// the cuts from the base up. Two coincident layers, because the stage
+  /// counts a caster as crossed by two surfaces and takes a square root for
+  /// each: two layers give back the picture as it was painted.
+  DeviceMesh _card(Vessel vessel) {
+    final half = _halfWidth(vessel);
+    final length = _height(vessel) / math.tan(_elevation);
+    final side = Vector3(-_across.z, 0, _across.x);
+    final builder = MeshBuilder(VertexLayout.standard);
+    final normal = Vector3(0, 1, 0);
+    final tangent = Vector4(side.x, side.y, side.z, 1);
+    for (var layer = 0; layer < 2; layer++) {
+      final base = layer * 4;
+      for (final (u, v) in const [
+        (0.0, 0.0),
+        (1.0, 0.0),
+        (1.0, 1.0),
+        (0.0, 1.0),
+      ]) {
+        final at = side * ((u * 2.0 - 1.0) * half) + _across * (v * length);
+        builder.addVertex(
+          position: Vector3(at.x, 0.0015, at.z),
+          normal: normal,
+          texcoord: Vector2(u, v),
+          tangent: tangent,
+        );
+      }
+      builder.addQuad(base, base + 1, base + 2, base + 3);
+    }
+    return DeviceMesh.upload(device, builder.build());
   }
 
   /// [mesh] hung upside down under the tabletop at [vessel]'s place.
@@ -342,20 +425,6 @@ final class Bench {
   /// Where sunlight goes: the sun node's forward.
   static final Vector3 _sun = Vector3(-0.5, -1.0, -0.6)..normalize();
 
-  /// Aims [vessel]'s caustic at the middle of its liquid's shadow, along
-  /// the sunlight from half a metre back, as strong as the column is tall.
-  void _focus(Vessel vessel) {
-    final caustic = vessel.caustic;
-    if (caustic == null) return;
-    final middle = (vessel.lowest + vessel.level) * 0.5;
-    final lit = vessel.at + Vector3(0, middle, 0) + _sun * (middle / -_sun.y);
-    final from = lit - _sun * 0.5;
-    caustic
-      ..intensity = 4.0 * (vessel.level - vessel.lowest).clamp(0.0, 1.0)
-      ..setPosition(from.x, from.y, from.z)
-      ..lookAt(lit);
-  }
-
   /// Wraps [image] round [vessel] as its label, and returns the texture it
   /// uploaded.
   ///
@@ -380,6 +449,7 @@ final class Bench {
     scene.add(vessel.labelReflection!);
     vessel.label = MeshNode(band, paper(texture), name: '${vessel.name} label')
       ..setPositionFrom(vessel.at)
+      ..receivesTranslucentShadows = false
       ..lightChannels = _vesselChannel;
     scene.add(vessel.label!);
     return texture;

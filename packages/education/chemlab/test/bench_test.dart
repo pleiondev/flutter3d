@@ -100,21 +100,34 @@ void main() {
     expect(lights.length, lessThanOrEqualTo(LightBuffer.maxLights));
   });
 
-  test('pouring moves the caustic and its reflection with the liquid', () {
+  test('pouring paints the shadow again and moves the reflection', () {
     final kit = cpuTestDevice(width: 8, height: 8);
     final bench = Bench(kit.device);
     final tube = bench.vessels.first;
-    final caustic = tube.caustic!;
+    final before = tube.shadow.material.albedo;
 
-    bench.pour(tube, tube.lowest + 0.05);
-    final (intensity, position) = (caustic.intensity, caustic.readPosition());
     bench.pour(tube, tube.highest);
-    // A taller column throws a stronger patch, further from the tube.
-    expect(caustic.intensity, greaterThan(intensity));
-    expect(caustic.readPosition(), isNot(position));
+    // Mutation: keep the picture painted for the old level, and the shadow
+    // shows the liquid where it was.
+    expect(tube.shadow.material.albedo, isNot(same(before)));
+    expect(tube.shadow.shadowCasting, ShadowCastingMode.shadowsOnly);
     // Mutation: leave the reflection on the old mesh, and it shows the
     // level before the pour.
     expect(identical(tube.liquidReflection.mesh, tube.liquid.mesh), isTrue);
+  });
+
+  test('the glass and the liquid leave their shadow to the card', () {
+    // Mutation: let the glass cast as well, and its own coarse shadow lies
+    // over the worked-out one.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels.first;
+    final glass = bench.scene.meshes.firstWhere(
+      (n) => n.name == '${tube.name} glass',
+    );
+    expect(glass.castsShadow, isFalse);
+    expect(tube.liquid.castsShadow, isFalse);
+    expect(glass.receivesTranslucentShadows, isFalse);
   });
 
   test(

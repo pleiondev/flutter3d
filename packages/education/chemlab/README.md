@@ -29,8 +29,10 @@ through with water's index of refraction and tints it, so a thicker layer is
 deeper in colour. Pouring is a new profile with a different level
 (`Bench.pour`).
 
-The caustics are spot lights, one per vessel, tinted with its solution and
-aimed at its liquid's shadow; light channels keep them on the bench. The
+The shadows and caustics are geometric optics (`optics.dart`): each
+horizontal cut of a vessel is a set of circles, sunbeams are followed through
+them by Snell, Fresnel and Beer–Lambert and counted where they land, and the
+result is painted on a shadow-only card on the bench. The
 reflections in the tabletop are the liquids and labels mirrored under a top
 that lets a little of them through. Refraction is the engine's own: glass
 and liquid read a copy of the opaque scene, offset by their index.
