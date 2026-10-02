@@ -507,11 +507,18 @@ final class Bench {
       received: theirs,
     )..spill = _tiltHolding(from, mine);
     final material = liquid(_rgb(from.colour), depth: 0.04)..doubleSided = true;
+    // A real stream, hidden, until there is one to see: Metal makes no buffer
+    // of no bytes, so an empty mesh is no placeholder there.
     transfer.stream =
         MeshNode(
             DeviceMesh.upload(
               device,
-              MeshBuilder(VertexLayout.standard).build(),
+              stream(
+                lip: from.at + Vector3(0, 0.1, 0),
+                out: Vector3(0, 0, 1),
+                floor: from.at.y,
+                flow: 1e-6,
+              ),
             ),
             material,
             name: 'stream',
