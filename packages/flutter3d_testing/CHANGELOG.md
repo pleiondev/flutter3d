@@ -1,3 +1,20 @@
+## Unreleased
+
+* **`testReplay` turns a recorded run into a test that needs no GPU.**
+  `testReplay('test/tapes/level.f3drun', start: …, digestAt: …, goldensAt: …)`
+  registers a test that plays the tape into the game on the software
+  backend. At each step in `digestAt` (every checkpoint the tape holds, by
+  default) the digest of the game's snapshot must equal the recorded one; a
+  divergence names its step and the last checkpoint that agreed. At each
+  step in `goldensAt` the frame is compared with
+  `test/goldens/<tape>-<step>.png`. The game implements `ReplaySubject`
+  (`levelHash`, `restore`, `step`, `save`, `frame`) and gets a `ReplayStart`
+  with the tape, the input to read and the device to upload to. A step past
+  the end of the tape, a digest where the tape has no checkpoint, a test
+  that checks nothing and a level changed since the recording all fail
+  before the first step. `expectReplayMatches` does the same for a `Demo`
+  in memory, and `readTape` reads a `.f3drun` or says why it cannot.
+
 ## 0.8.0
 
 * **Two pictures can be compared the way an eye would.** `flip` takes two
