@@ -1,5 +1,7 @@
 ## Unreleased
 
+- The software `ShadowTransmittance` reads the base colour map and lets the
+  transmittance pass one, as the GLSL stage does.
 - **`ShadowTransmittance`** and the coloured shadow it feeds, the software
   twin of the stage and of the light loop's new term
   (`ShadowSettings.translucentCasters`).

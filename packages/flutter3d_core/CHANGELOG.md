@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A see-through caster can paint what it lets through.** Its base colour
+  map multiplies the transmittance, and neither is held to one, so a card
+  marked `ShadowCastingMode.shadowsOnly` can carry a picture of where light
+  went: darker where it was turned away, brighter where a lens gathered it.
+  `MeshNode.receivesTranslucentShadows` (true by default) lets a surface that
+  stands in front of a translucent caster, such as a label on a glass, opt
+  out of being shaded by it.
 - **See-through casters shade the sun by what they let through.**
   `ShadowSettings.translucentCasters`, off by default. A blended or
   transmissive material is drawn into the sun's atlas after the opaque

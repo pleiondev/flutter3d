@@ -13,6 +13,8 @@
 ///  * with nothing see-through in the scene, turning it on changes no pixel.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +28,9 @@ Future<List<int>> _frame({
   required Material? card,
   required bool translucent,
   bool casting = true,
+  TextureHandle Function(CpuDevice device)? map,
+  ShadowCastingMode? mode,
+  double sun = 1.0,
 }) async {
   final device = CpuDevice(
     width: _size,
@@ -44,7 +49,7 @@ Future<List<int>> _frame({
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(
-      LightNode(intensity: 1.0, castsShadow: true)
+      LightNode(intensity: sun, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -54,18 +59,22 @@ Future<List<int>> _frame({
         ..lookAt(Vector3.zero()),
     );
   if (card != null) {
+    if (map != null) card.albedo = map(device);
     scene.add(
       MeshNode(
           DeviceMesh.upload(
             device,
-            CuboidShape(size: Vector3(2, 0.05, 2)).build(),
+            // A painted card is one surface: a slab's underside reads its
+            // map mirrored, and would put the black half over the white.
+            map != null
+                ? const PlaneShape(width: 2, depth: 2).build()
+                : CuboidShape(size: Vector3(2, 0.05, 2)).build(),
           ),
           card,
         )
         ..setPosition(0.0, 1.0, 0.0)
-        ..shadowCasting = casting
-            ? ShadowCastingMode.on
-            : ShadowCastingMode.off,
+        ..shadowCasting =
+            mode ?? (casting ? ShadowCastingMode.on : ShadowCastingMode.off),
     );
   }
   final frame = renderer.render(
@@ -179,6 +188,57 @@ void main() {
     // Mutation: clear the atlas's free channels to ones, or set the flag on
     // a draw whose atlas carries none, and the floor goes black.
     expect(on, off);
+  });
+
+  test('a painted card can take light away and gather it', () async {
+    // A caster that is only a shadow, carrying a picture of where the light
+    // went: black on one half, white on the other, and a colour of two, so
+    // the white half lets twice the light through. Mutation: hold the colour
+    // or the stored value to one, and nothing is brightened; drop the map,
+    // and both halves read alike.
+    TextureHandle halves(CpuDevice device) {
+      final pixels = Uint8List.fromList(<int>[
+        0, 0, 0, 255, /**/ 255, 255, 255, 255, //
+        0, 0, 0, 255, /**/ 255, 255, 255, 255,
+      ]);
+      return device.createTextureFromPixels(
+        width: 2,
+        height: 2,
+        pixels: ByteData.sublistView(pixels),
+        format: TextureFormat.r8g8b8a8UNormInt,
+      )!;
+    }
+
+    // A dimmer sun than the other tests, so the lit floor sits where the
+    // tone curve still has room above it; and every card a shadow only, so
+    // none of them hides the half of its shadow the light falls past it on.
+    final lit = await _frame(card: null, translucent: true, sun: 0.3);
+    final solid = await _frame(
+      card: _opaque(),
+      translucent: true,
+      sun: 0.3,
+      mode: ShadowCastingMode.shadowsOnly,
+    );
+    final region = _shadowed(solid, lit);
+    final painted = await _frame(
+      sun: 0.3,
+      card: Material(
+        name: 'lens picture',
+        lighting: LightingModel.pbrLayered,
+        baseColor: Vector4(2.0, 2.0, 2.0, 1.0),
+        extensions: MaterialExtensions(transmission: 1.0, ior: 1.0),
+      ),
+      translucent: true,
+      map: halves,
+      mode: ShadowCastingMode.shadowsOnly,
+    );
+    var darker = 0, brighter = 0;
+    for (final i in region) {
+      if (painted[i] < lit[i] - 20) darker++;
+      if (painted[i] > lit[i] + 3) brighter++;
+    }
+    expect(darker, greaterThan(region.length ~/ 5));
+    expect(brighter, greaterThan(region.length ~/ 5));
   });
 
   test('copyWith keeps the setting', () {

@@ -186,7 +186,7 @@ double shadowFactor(
   if (biases.w > 0.5) {
     final stored = map.sample(u.clamp(loU, hiU), vv.clamp(loV, hiV));
     final k = strength.clamp(0.0, 1.0);
-    double through(double value) => 1.0 + (value.clamp(0.0, 1.0) - 1.0) * k;
+    double through(double value) => 1.0 + (value.clamp(0.0, 4.0) - 1.0) * k;
     shadowTransmittance.setValues(
       through(1.0 - stored.y),
       through(1.0 - stored.z),

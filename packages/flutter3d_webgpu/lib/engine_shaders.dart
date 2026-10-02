@@ -6340,7 +6340,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
         let _e539 = stored_2[1u];
         let _e542 = stored_2[2u];
         let _e545 = stored_2[3u];
-        through = clamp(vec3<f32>((1f - _e539), (1f - _e542), _e545), vec3(0f), vec3(1f));
+        through = clamp(vec3<f32>((1f - _e539), (1f - _e542), _e545), vec3(0f), vec3(4f));
         let _e550 = through;
         let _e551 = strength_1;
         light_transmittance = mix(vec3<f32>(1f, 1f, 1f), _e550, vec3(clamp(_e551, 0f, 1f)));
@@ -9669,7 +9669,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
         let _e540 = stored_2[1u];
         let _e543 = stored_2[2u];
         let _e546 = stored_2[3u];
-        through = clamp(vec3<f32>((1f - _e540), (1f - _e543), _e546), vec3(0f), vec3(1f));
+        through = clamp(vec3<f32>((1f - _e540), (1f - _e543), _e546), vec3(0f), vec3(4f));
         let _e551 = through;
         let _e552 = strength_1;
         light_transmittance = mix(vec3<f32>(1f, 1f, 1f), _e551, vec3(clamp(_e552, 0f, 1f)));
@@ -13334,7 +13334,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
         let _e559 = stored_2[1u];
         let _e562 = stored_2[2u];
         let _e565 = stored_2[3u];
-        through = clamp(vec3<f32>((1f - _e559), (1f - _e562), _e565), vec3(0f), vec3(1f));
+        through = clamp(vec3<f32>((1f - _e559), (1f - _e562), _e565), vec3(0f), vec3(4f));
         let _e570 = through;
         let _e571 = strength_1;
         light_transmittance = mix(vec3<f32>(1f, 1f, 1f), _e570, vec3(clamp(_e571, 0f, 1f)));
@@ -17822,7 +17822,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
         let _e625 = stored_2[1u];
         let _e628 = stored_2[2u];
         let _e631 = stored_2[3u];
-        through = clamp(vec3<f32>((1f - _e625), (1f - _e628), _e631), vec3(0f), vec3(1f));
+        through = clamp(vec3<f32>((1f - _e625), (1f - _e628), _e631), vec3(0f), vec3(4f));
         let _e636 = through;
         let _e637 = strength_1;
         light_transmittance = mix(vec3<f32>(1f, 1f, 1f), _e636, vec3(clamp(_e637, 0f, 1f)));
@@ -22399,7 +22399,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
         let _e541 = stored_2[1u];
         let _e544 = stored_2[2u];
         let _e547 = stored_2[3u];
-        through = clamp(vec3<f32>((1f - _e541), (1f - _e544), _e547), vec3(0f), vec3(1f));
+        through = clamp(vec3<f32>((1f - _e541), (1f - _e544), _e547), vec3(0f), vec3(4f));
         let _e552 = through;
         let _e553 = strength_1;
         light_transmittance = mix(vec3<f32>(1f, 1f, 1f), _e552, vec3(clamp(_e553, 0f, 1f)));
@@ -39507,10 +39507,14 @@ var<private> g_debug_surface_on: bool;
 var<private> g_premultiply: bool;
 @group(1) @binding(0) 
 var<uniform> transmittance_info: TransmittanceInfo;
+@group(1) @binding(1) 
+var base_color_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var base_color_texture_smp: sampler;
+var<private> v_texcoord_1: vec2<f32>;
 var<private> v_normal_1: vec3<f32>;
 var<private> frag_color: vec4<f32>;
 var<private> v_world_position_1: vec3<f32>;
-var<private> v_texcoord_1: vec2<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_color_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
@@ -39518,6 +39522,7 @@ var<private> v_lightmap_uv_1: vec2<f32>;
 fn main_1() {
     var opacity: f32;
     var transmission: f32;
+    var tint: vec3<f32>;
     var body: vec3<f32>;
     var facing: f32;
     var f0_: f32;
@@ -39528,39 +39533,43 @@ fn main_1() {
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
     g_premultiply = false;
-    let _e34 = transmittance_info.color[3u];
-    opacity = clamp(_e34, 0f, 1f);
-    let _e38 = transmittance_info.params[0u];
-    transmission = clamp(_e38, 0f, 1f);
-    let _e40 = opacity;
-    let _e43 = opacity;
-    let _e44 = transmission;
-    let _e47 = transmittance_info.color;
-    body = (vec3((1f - _e40)) + (clamp(_e47.xyz, vec3(0f), vec3(1f)) * (_e43 * _e44)));
-    let _e54 = v_normal_1;
-    let _e57 = transmittance_info.light;
-    facing = abs(dot(normalize(_e54), _e57.xyz));
-    let _e63 = transmittance_info.params[1u];
-    f0_ = clamp(_e63, 0f, 1f);
-    let _e65 = f0_;
-    let _e66 = f0_;
-    let _e68 = facing;
-    fresnel = (_e65 + ((1f - _e66) * pow((1f - clamp(_e68, 0f, 1f)), 5f)));
-    let _e74 = body;
-    let _e77 = fresnel;
-    through = (sqrt(max(_e74, vec3<f32>(0f, 0f, 0f))) * (1f - _e77));
-    let _e81 = through[0u];
-    let _e84 = through[1u];
-    let _e87 = through[2u];
-    frag_color = vec4<f32>(0f, (1f - _e81), (1f - _e84), _e87);
+    let _e37 = transmittance_info.color[3u];
+    opacity = clamp(_e37, 0f, 1f);
+    let _e41 = transmittance_info.params[0u];
+    transmission = clamp(_e41, 0f, 1f);
+    let _e44 = transmittance_info.color;
+    let _e47 = v_texcoord_1;
+    let _e48 = textureSample(base_color_texture_tex, base_color_texture_smp, _e47);
+    tint = (max(_e44.xyz, vec3<f32>(0f, 0f, 0f)) * _e48.xyz);
+    let _e51 = opacity;
+    let _e54 = opacity;
+    let _e55 = transmission;
+    let _e57 = tint;
+    body = (vec3((1f - _e51)) + (_e57 * (_e54 * _e55)));
+    let _e60 = v_normal_1;
+    let _e63 = transmittance_info.light;
+    facing = abs(dot(normalize(_e60), _e63.xyz));
+    let _e69 = transmittance_info.params[1u];
+    f0_ = clamp(_e69, 0f, 1f);
+    let _e71 = f0_;
+    let _e72 = f0_;
+    let _e74 = facing;
+    fresnel = (_e71 + ((1f - _e72) * pow((1f - clamp(_e74, 0f, 1f)), 5f)));
+    let _e80 = body;
+    let _e83 = fresnel;
+    through = (sqrt(max(_e80, vec3<f32>(0f, 0f, 0f))) * (1f - _e83));
+    let _e87 = through[0u];
+    let _e90 = through[1u];
+    let _e93 = through[2u];
+    frag_color = vec4<f32>(0f, (1f - _e87), (1f - _e90), _e93);
     return;
 }
 
 @fragment 
-fn main(@location(2) v_normal: vec3<f32>, @location(6) v_world_position: vec3<f32>, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(4) v_texcoord: vec2<f32>, @location(2) v_normal: vec3<f32>, @location(6) v_world_position: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_texcoord_1 = v_texcoord;
     v_normal_1 = v_normal;
     v_world_position_1 = v_world_position;
-    v_texcoord_1 = v_texcoord;
     v_tangent_1 = v_tangent;
     v_color_1 = v_color;
     v_lightmap_uv_1 = v_lightmap_uv;
@@ -39591,7 +39600,15 @@ fn main(@location(2) v_normal: vec3<f32>, @location(6) v_world_position: vec3<f3
           ],
         ),
       ],
-      samplers: <WebGpuSampler>[],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'base_color_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
     ),
     'ShadowCopy': WebGpuStage(
       wgsl: r'''
@@ -42505,7 +42522,7 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
         let _e530 = stored_2[1u];
         let _e533 = stored_2[2u];
         let _e536 = stored_2[3u];
-        through = clamp(vec3<f32>((1f - _e530), (1f - _e533), _e536), vec3(0f), vec3(1f));
+        through = clamp(vec3<f32>((1f - _e530), (1f - _e533), _e536), vec3(0f), vec3(4f));
         let _e541 = through;
         let _e542 = strength_1;
         light_transmittance = mix(vec3<f32>(1f, 1f, 1f), _e541, vec3(clamp(_e542, 0f, 1f)));

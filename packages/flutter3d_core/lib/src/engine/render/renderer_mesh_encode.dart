@@ -577,6 +577,7 @@ extension _MeshEncode on Renderer {
               (node.material.extensions?.transmission ?? 0.0) > 0.0);
       _shadowCascadeBias[3] =
           _shadowTransmits &&
+              node.receivesTranslucentShadows &&
               shadows.directional != null &&
               shadows.directionalMoments == null &&
               !castsThrough
