@@ -53,7 +53,13 @@ void main() {
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final image = forLathe((await tester.runAsync(() => capture(boundary)))!);
 
-    expect((image.width, image.height), (512, 256));
+    // The card has the strip's proportions. Mutation: a fixed wide card on a
+    // tall strip, and the text is pulled upwards on the glass.
+    expect(
+      (image.width, image.height),
+      (LabelCard.size.width.toInt(), LabelCard.size.height.toInt()),
+    );
+    expect(image.width / image.height, closeTo(labelAspect(), 0.01));
     final pixels = Uint32List.view(image.pixels.buffer);
     int rgb(int p) => p & 0x00FFFFFF;
     // Turned half round, the band that was along the top is along the

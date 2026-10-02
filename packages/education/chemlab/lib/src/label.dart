@@ -5,6 +5,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter3d/flutter3d.dart' show Rgba8Image;
 import 'package:flutter_math_fork/flutter_math.dart';
 
+import 'glassware.dart';
+
 /// What a tube holds: its formula in TeX, a note for the label, the label's
 /// band colour, and the colour of the solution itself.
 typedef Solution = ({String tex, String note, Color band, Color colour});
@@ -23,7 +25,10 @@ class LabelCard extends StatelessWidget {
 
   final Solution solution;
 
-  static const Size size = Size(512, 256);
+  /// The card has the label strip's own proportions, so it lands on the
+  /// glass undistorted; 384 pixels high is enough for the formula to stay
+  /// sharp at the size a tube is seen.
+  static final Size size = Size((384 * labelAspect()).roundToDouble(), 384);
 
   @override
   Widget build(BuildContext context) => Container(
@@ -32,15 +37,17 @@ class LabelCard extends StatelessWidget {
     color: _paper,
     child: Column(
       children: [
-        Container(height: 48, color: solution.band),
+        Container(height: 52, color: solution.band),
         const Spacer(),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 64),
+          // The card goes more than half way round the tube; the
+          // formula keeps to the middle third, the part that faces front.
+          padding: EdgeInsets.symmetric(horizontal: size.width / 3),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Math.tex(
               solution.tex,
-              textStyle: const TextStyle(fontSize: 124, color: _ink),
+              textStyle: const TextStyle(fontSize: 112, color: _ink),
             ),
           ),
         ),
@@ -50,11 +57,11 @@ class LabelCard extends StatelessWidget {
           style: const TextStyle(
             fontFamily: 'KaTeX_Main',
             package: 'flutter_math_fork',
-            fontSize: 50,
+            fontSize: 46,
             color: _ink,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 22),
       ],
     ),
   );
