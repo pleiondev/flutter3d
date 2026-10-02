@@ -78,6 +78,9 @@ extension _SkyPass on Renderer {
     pass.setDepthWrite(false);
 
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
+    _skyOrthoLens = isOrthographic(viewProjection)
+        ? _orthoSkyLens(inverse)
+        : null;
 
     pass.bindPipeline(
       textured
@@ -286,12 +289,23 @@ extension _SkyPass on Renderer {
   /// zero-to-one on Impeller and on the software rasteriser and minus-one-to-one
   /// on WebGL, and the difference of two points on one ray is the same direction
   /// wherever the two points sit.
-  static void _skyCornerRay(
-    vm.Matrix4 inverse,
-    double x,
-    double y,
-    vm.Vector3 out,
-  ) {
+  ///
+  /// **Through an orthographic lens every corner's ray is the view axis**, so
+  /// the sky would be one colour, a cube map one texel, and the sun's disc the
+  /// whole frame or nothing — `P7`. The sky is then seen as a perspective
+  /// camera of [_kOrthoSkyFieldOfView] standing where the orthographic one
+  /// does would see it: an orthographic view is a way of drawing the near
+  /// world, not a claim that the sky is infinitely far in one direction only.
+  void _skyCornerRay(vm.Matrix4 inverse, double x, double y, vm.Vector3 out) {
+    final lens = _skyOrthoLens;
+    if (lens != null) {
+      final spread = math.tan(_kOrthoSkyFieldOfView / 2.0);
+      out
+        ..setFrom(lens.forward)
+        ..addScaled(lens.right, x * spread * lens.aspect)
+        ..addScaled(lens.up, y * spread);
+      return;
+    }
     final near = inverse.transform(vm.Vector4(x, y, 0.5, 1.0));
     final far = inverse.transform(vm.Vector4(x, y, 1.0, 1.0));
     out.setValues(
@@ -300,4 +314,36 @@ extension _SkyPass on Renderer {
       far.z / far.w - near.z / near.w,
     );
   }
+
+  /// The view axis and the world directions of the frame's right and top
+  /// edges, out of an orthographic [inverse] view-projection, and the frame's
+  /// aspect — the lens [_skyCornerRay] sees the sky through.
+  ///
+  /// Read off the matrix at the frame's middle and edges rather than off the
+  /// camera, so whatever the backend did to its y — the top edge is the one
+  /// clip y of one points at on every backend — the sky turns with it.
+  static ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})
+  _orthoSkyLens(vm.Matrix4 inverse) {
+    vm.Vector3 at(double x, double y, double z) {
+      final p = inverse.transform(vm.Vector4(x, y, z, 1.0));
+      return vm.Vector3(p.x / p.w, p.y / p.w, p.z / p.w);
+    }
+
+    final centre = at(0.0, 0.0, 0.5);
+    final forward = (at(0.0, 0.0, 1.0) - centre)..normalize();
+    final right = at(1.0, 0.0, 0.5) - centre;
+    final up = at(0.0, 1.0, 0.5) - centre;
+    final halfHeight = up.length;
+    final aspect = halfHeight > 0.0 ? right.length / halfHeight : 1.0;
+    return (
+      forward: forward,
+      right: right..normalize(),
+      up: up..normalize(),
+      aspect: aspect,
+    );
+  }
 }
+
+/// The vertical field of view the sky is seen with through an orthographic
+/// lens, in radians: sixty degrees, a camera's ordinary width — `P7`.
+const double _kOrthoSkyFieldOfView = math.pi / 3.0;

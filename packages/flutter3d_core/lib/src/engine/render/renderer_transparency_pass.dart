@@ -128,6 +128,8 @@ extension _TransparencyPasses on Renderer {
     _forwardData[0] = deferred.forward.x;
     _forwardData[1] = deferred.forward.y;
     _forwardData[2] = deferred.forward.z;
+    _fogInfo.projection[0] =
+        deferred.view.camera.projection is OrthographicProjection ? 1.0 : 0.0;
     _clustersActive = deferred.clustered;
     _aimSceneColour(deferred);
     if (deferred.clustered && rebuildClusters) {

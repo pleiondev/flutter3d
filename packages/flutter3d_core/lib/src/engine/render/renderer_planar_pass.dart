@@ -114,6 +114,8 @@ extension _PlanarPasses on Renderer {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // A mirror of an orthographic view is orthographic too.
+    _fogInfo.projection[0] = isOrthographic(skyViewProjection) ? 1.0 : 0.0;
 
     final frustum = vm.Frustum.matrix(viewProjection);
     void encodeHalf({required bool blended}) {

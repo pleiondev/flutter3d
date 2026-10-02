@@ -44,12 +44,7 @@ final class PlanarReflectionShader implements CpuFragmentShader {
     final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2])
       ..normalize();
     if (!c.frontFacing) normal.negate();
-    final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-    final toEye = Vector3(
-      eye.x - v[kVWorld],
-      eye.y - v[kVWorld + 1],
-      eye.z - v[kVWorld + 2],
-    )..normalize();
+    final toEye = towardsEye(v, b);
     final cosine = normal.dot(toEye).clamp(0.0, 1.0);
     final f0 = params.x;
     final grazing = 1.0 - cosine;

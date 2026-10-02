@@ -626,3 +626,21 @@ Vector3 viewAxisOf(Matrix4 viewProjection, [Vector3? out]) {
   if (result.length2 > 0.0) result.normalize();
   return result;
 }
+
+/// Whether [viewProjection] projects orthographically — `P7`.
+///
+/// Read out of the matrix for the reason [viewAxisOf] is: a probe face and a
+/// mirrored view have no camera to ask. An orthographic projection leaves w
+/// alone, so the matrix's bottom row is the view's own, nought nought nought
+/// and a number; a perspective one puts the depth there. What
+/// [toDepthRange] and [toFramebufferOrigin] do touches the depth and the
+/// height rows and leaves that one.
+bool isOrthographic(Matrix4 viewProjection) {
+  final m = viewProjection.storage;
+  final w = m[15].abs();
+  const tiny = 1e-9;
+  return w > tiny &&
+      m[3].abs() <= tiny * w &&
+      m[7].abs() <= tiny * w &&
+      m[11].abs() <= tiny * w;
+}

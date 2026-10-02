@@ -391,11 +391,15 @@ final class FogInfoBlock extends UniformBlock {
   /// `forward`: Vector4, at byte 32.
   final Float32List forward = Float32List(4);
 
+  /// `projection`: Vector4, at byte 48.
+  final Float32List projection = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'fog': fog,
     'eye': eye,
     'forward': forward,
+    'projection': projection,
   };
 }
 

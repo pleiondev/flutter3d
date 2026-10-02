@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **The generated tables carry the orthographic camera's paths**, and
+  `orthographic-metal` is in the browser reference set.
+
 - **The generated tables carry the debug views**, and `debug-view-split`
   is in the browser reference set.
 

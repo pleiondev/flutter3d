@@ -70,7 +70,7 @@ void main() {
   // and a mirror's F0 of one makes the term one everywhere.
   vec3 n = normalize(v_normal);
   if (!gl_FrontFacing) n = -n;
-  vec3 v = normalize(fog_info.eye.xyz - v_world_position);
+  vec3 v = TowardsEye();
   float cosine = clamp(dot(n, v), 0.0, 1.0);
   float f0 = planar_info.params.x;
   float grazing = 1.0 - cosine;

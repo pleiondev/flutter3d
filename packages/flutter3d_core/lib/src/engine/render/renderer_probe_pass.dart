@@ -324,6 +324,8 @@ extension _ProbePasses on Renderer {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // A probe's faces are perspective, whatever the camera that asked is.
+    _fogInfo.projection[0] = 0.0;
 
     void encodeHalf({required bool blended}) {
       for (final node in scene.meshes) {

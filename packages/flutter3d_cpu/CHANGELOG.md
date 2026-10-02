@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **The orthographic camera in software**: `towardsEye`, `eyeDistance` and
+  the light shafts' start follow the GLSL.
+
 - **Debug views in software.** `writeDebugView` mirrors `WriteDebugView`
   for every lit model and the impostor, and the composite passes the debug
   side of the split through its encode alone, as the GLSL does.

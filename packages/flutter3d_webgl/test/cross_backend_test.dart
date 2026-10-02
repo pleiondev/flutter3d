@@ -98,6 +98,10 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
+  // 0.394% measured, on the spheres' and the floor's edges, which WebGL2
+  // does not multisample as Impeller does; the highlights, the fog and the
+  // sky agree.
+  'orthographic-metal': 0.5,
   // 0.359% measured, on the silhouette: `shadow-teapot`'s edge between
   // WebGL2 and Impeller, and the normals' half shows it in brighter colours
   // than the lit half's.
