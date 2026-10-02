@@ -247,4 +247,29 @@ void main() {
     final expected = math.sqrt(blue.dye.r * orange.dye.r);
     expect(mixed.r, closeTo(expected, 0.01));
   });
+
+  test('a pour drawn at uneven frames still pours half', () {
+    // A browser's frames are anything from a 90th to a 30th of a second.
+    // Mutation: stamp the glass's place with the liquid's own clock, and
+    // the frames that ran one fixed step against those that ran eight read
+    // as jolts: the liquid is thrown out of the glass and the clean tube
+    // gets little of it.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[2];
+    final to = bench.clean;
+    final total = from.liquid.volume;
+    bench.share(from);
+    const frames = [1 / 60, 1 / 40, 1 / 90, 1 / 30, 1 / 75];
+    var i = 0;
+    var seconds = 0.0;
+    while (bench.busy) {
+      final frame = frames[i++ % frames.length];
+      bench.step(frame);
+      seconds += frame;
+      expect(seconds, lessThan(30));
+    }
+    expect(from.liquid.volume, closeTo(total / 2, total * 0.05));
+    expect(to.liquid.volume, closeTo(total / 2, total * 0.05));
+  });
 }
