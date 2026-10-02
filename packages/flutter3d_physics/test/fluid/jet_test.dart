@@ -255,4 +255,3 @@ void main() {
     expect(hard.dropped, lessThanOrEqualTo(0.5 * hard.landed + hard.dropped));
   });
 }
-

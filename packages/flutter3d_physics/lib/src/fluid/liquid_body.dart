@@ -80,7 +80,7 @@ final class LiquidBody implements JetReceiver {
          modeCount: modes,
        ) {
     _layers.add(LiquidLayer.at(medium, volume, concentrations));
-    surface.layOut(shape, _up, shape.surfaceFor(_up, volume));
+    surface.layOut(shape, _up, shape.surfaceFor(_up, volume + displaced));
   }
 
   final VesselShape shape;
@@ -89,6 +89,29 @@ final class LiquidBody implements JetReceiver {
   /// The liquids in it, bottom first.
   List<LiquidLayer> get layers => List.unmodifiable(_layers);
   final List<LiquidLayer> _layers = [];
+
+  /// How much of the vessel solid bodies in it take up below the surface,
+  /// cubic metres: liquid cannot be where they are, so the surface stands
+  /// that much higher. Set by whoever floats bodies in it — `FluidWorld`.
+  double displaced = 0.0;
+
+  /// The force the liquid puts on its vessel, newtons, in the world, for
+  /// [gravity]: its weight less what it takes to carry it with the vessel's
+  /// acceleration, the push of its waves rocking, and the reaction of what
+  /// ran over the lip on the last step.
+  Vector3 load(Vector3 gravity) {
+    final mass = _layers.fold(0.0, (s, l) => s + l.medium.density * l.volume);
+    final out = (gravity - _acceleration) * mass;
+    out.add(rotation.transformed(surface.force(medium.density)));
+    final spilt = _lastSpill;
+    if (spilt != null) {
+      out.addScaled(spilt.velocity, -spilt.medium.density * spilt.flow);
+    }
+    return out;
+  }
+
+  final Vector3 _acceleration = Vector3.zero();
+  Spill? _lastSpill;
 
   /// The liquid at the surface.
   FluidMedium get medium =>
@@ -264,7 +287,8 @@ final class LiquidBody implements JetReceiver {
       if (t1 > t0 && t2 > t1) {
         final v0 = (p1 - p0) / (t1 - t0);
         final v1 = (p2 - p1) / (t2 - t1);
-        felt.sub((v1 - v0) * (2.0 / (t2 - t0)));
+        _acceleration.setFrom((v1 - v0) * (2.0 / (t2 - t0)));
+        felt.sub(_acceleration);
       }
     }
     _clock += dt;
@@ -277,7 +301,9 @@ final class LiquidBody implements JetReceiver {
     _relayIfMoved();
     final depth = surface.area > 0.0 ? volume / surface.area : 0.0;
     surface.step(dt, g: math.max(g, 1e-6), depth: depth);
-    return _spill(dt, math.max(g, 1e-6));
+    final spill = _spill(dt, math.max(g, 1e-6));
+    _lastSpill = spill.flow > 0.0 ? spill : null;
+    return spill;
   }
 
   /// The surface's height along [up] over [point] (vessel frame): its plane,
@@ -330,7 +356,7 @@ final class LiquidBody implements JetReceiver {
   /// Lays the surface out again when its plane has turned or moved by more
   /// than a little, carrying the waves over.
   void _relayIfMoved({bool force = false}) {
-    final h = shape.surfaceFor(_up, volume);
+    final h = shape.surfaceFor(_up, volume + displaced);
     final turned = 1.0 - _up.dot(surface.up);
     final moved = (h - surface.height).abs();
     if (force || turned > 2e-5 || moved > 1e-4) {
