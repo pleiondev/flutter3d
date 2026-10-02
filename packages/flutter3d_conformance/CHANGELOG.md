@@ -9,6 +9,10 @@ backend whose bundle lacks either fails the check rather than the first
 frame with a reflector or a render texture in it.
 **The linking check pairs `SkyPhysicalVertex` with `SkyPhysical`**, whose
 seven varyings are new on both sides.
+**A window of the index buffer draws that window.** A new shader check draws
+a window over the second of two triangles in one index buffer, then over the
+first, then with no count, and asks that a window past the end of the binding
+is refused with a `RangeError`. Thirty-two shader checks, forty-two in all.
 
 ## 0.8.1
 

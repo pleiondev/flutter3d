@@ -335,8 +335,12 @@ void _replayPassEvent(
       );
     case TraceClearBindings():
       pass.clearBindings();
-    case TraceDraw(:final instanceCount):
-      pass.draw(instanceCount: instanceCount);
+    case TraceDraw(:final instanceCount, :final firstIndex, :final indexCount):
+      pass.draw(
+        instanceCount: instanceCount,
+        firstIndex: firstIndex,
+        indexCount: indexCount,
+      );
     case TraceSubmit():
       pass.submit();
   }

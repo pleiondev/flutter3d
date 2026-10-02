@@ -154,12 +154,22 @@ final class FakePass implements CommandEncoder {
       commands.add(RecordedVertices(vertexCount, transient: true, slot: slot));
 
   @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
-      commands.add(RecordedIndices(type, indexCount, transient: false));
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    commands.add(RecordedIndices(type, indexCount, transient: false));
+    _boundIndices = indexCount;
+  }
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
-      commands.add(RecordedIndices(type, indexCount, transient: true));
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    commands.add(RecordedIndices(type, indexCount, transient: true));
+    _boundIndices = indexCount;
+  }
+
+  /// How many indices the last binding carried, for holding a draw's window
+  /// to it as every real backend does. Null until something is bound, and
+  /// then a window is recorded as it was asked for: a test that draws with
+  /// nothing bound is asserting on the order of calls, not on geometry.
+  int? _boundIndices;
 
   @override
   bool bindUniformBlock(
@@ -202,11 +212,26 @@ final class FakePass implements CommandEncoder {
   void clearBindings() {
     commands.add(const RecordedClearBindings());
     _forget();
+    _boundIndices = null;
   }
 
   @override
-  void draw({int instanceCount = 1}) {
-    commands.add(RecordedDraw(instanceCount: instanceCount));
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = switch (_boundIndices) {
+      final bound? => indexWindow(
+        bound,
+        firstIndex: firstIndex,
+        indexCount: indexCount,
+      ),
+      null => (first: firstIndex, count: indexCount),
+    };
+    commands.add(
+      RecordedDraw(
+        instanceCount: instanceCount,
+        firstIndex: window.first,
+        indexCount: indexCount == null ? null : window.count,
+      ),
+    );
     final bindings = stageBindings;
     final pipeline = _pipelineName;
     if (bindings == null || pipeline == null) return;

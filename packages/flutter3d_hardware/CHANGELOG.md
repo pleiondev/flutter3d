@@ -1,3 +1,14 @@
+## Unreleased
+
+- **A draw can read a window of the bound indices.** `PassEncoder.draw` takes
+  `firstIndex` and `indexCount`, so one buffer holding a model's every part is
+  bound once and drawn a part at a time. Leaving both out draws the whole
+  binding, as before. Every implementation of `PassEncoder` changes its
+  signature. A window past the end of the binding is refused with a
+  `RangeError` by `indexWindow`, which every backend calls, rather than left
+  to four drivers that answer it four different ways. Traces record the
+  window only when there is one, so older traces read as they were recorded.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

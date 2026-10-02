@@ -890,8 +890,17 @@ final class WebGlEncoder implements CommandEncoder {
   }
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
     if (instanceCount <= 0) return;
+    // WebGL2 says where a window starts as a byte offset into the bound
+    // buffer, so the start is added to the one the binding already carries.
+    final offset =
+        _indexOffset + window.first * (_indexType == IndexType.int16 ? 2 : 4);
     _clearWhatWasNotBound();
     if (instanceCount == 1) {
       // Not `drawElementsInstanced` with a count of one. They are specified to
@@ -901,16 +910,16 @@ final class WebGlEncoder implements CommandEncoder {
       // driver disagrees with the specification.
       _gl.drawElements(
         _primitive,
-        _indexCount,
+        window.count,
         indexTypeToGl(_indexType),
-        _indexOffset,
+        offset,
       );
     } else {
       _gl.drawElementsInstanced(
         _primitive,
-        _indexCount,
+        window.count,
         indexTypeToGl(_indexType),
-        _indexOffset,
+        offset,
         instanceCount,
       );
     }
