@@ -54,6 +54,7 @@ import 'package:test/test.dart';
 /// multisampling on silhouettes, and an additive quad's edge deposits too
 /// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
+  'debug-view-split': 0.01,
   // 0.025% measured, down from 0.633%. Screen-space reflections are a march,
   // and what is left is the two rasterisers disagreeing about where a ray ends
   // — an edge inside the reflection rather than an edge in the scene. The rest

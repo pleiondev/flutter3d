@@ -254,6 +254,8 @@ final class ImpostorShader implements CpuFragmentShader {
     // on a back face as every lit stage turns it.
     final geometric = worldFacing.clone();
     if (!c.frontFacing) geometric.negate();
+    final debug = writeDebugView(c, v, b, s, total, geometric: geometric);
+    if (debug != null) return debug;
     return writeLit(
       c,
       v,

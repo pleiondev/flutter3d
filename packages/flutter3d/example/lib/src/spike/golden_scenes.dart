@@ -1221,6 +1221,15 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     stage: GoldenStages.skyPhysicalNight,
     configure: GoldenStages.skyPhysicalNightSettings,
   ),
+
+  // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
+  // normal on the right.
+  const GoldenScene(
+    name: 'debug-view-split',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.debugViewSplit,
+  ),
 ];
 
 /// Looks up a scene by name.

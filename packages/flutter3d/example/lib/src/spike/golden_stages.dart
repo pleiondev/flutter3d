@@ -1170,6 +1170,19 @@ abstract final class GoldenStages {
   static RenderSettings lensDistortion(RenderSettings settings) =>
       settings.copyWith(look: settings.look.copyWith(distortion: 0.3));
 
+  // ------------------------------------------------------------------ P6
+
+  /// `debug-view-split`: the lit teapot left of the middle and its shading
+  /// normal right of it, in one draw — the wipe `DebugViewSettings.split`
+  /// makes, and the composite leaving the right half out of the tone curve.
+  static RenderSettings debugViewSplit(RenderSettings settings) =>
+      settings.copyWith(
+        debugView: const DebugViewSettings(
+          view: DebugView.normal,
+          split: 0.5,
+        ),
+      );
+
   // ------------------------------------------------------------------ R6
 
   /// `motion-blur-spin`: a wheel of three spokes round a hub, turning at a

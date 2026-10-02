@@ -109,10 +109,23 @@ final class FrameResources {
   /// otherwise the source's.
   TextureHandle _acquire(RenderTargetSpec spec) {
     final free = _reusable[spec];
-    return free != null && free.isNotEmpty
+    final texture = free != null && free.isNotEmpty
         ? free.removeLast()
         : source.acquire(spec);
+    _seen.add(texture);
+    return texture;
   }
+
+  /// Every texture this frame's nodes drew into or were handed, once each.
+  final Set<TextureHandle> _seen = Set<TextureHandle>.identity();
+
+  /// What the targets this frame touched hold, in bytes — `P6`,
+  /// `FrameResult.targetBytes`: the pooled scratch the nodes took and every
+  /// texture a node provided, the long-lived ones (the scene's colour, the
+  /// shadow atlas) among them, counted once however many versions stood on
+  /// one. See [textureBytes] for what one texture is counted as.
+  int get targetBytes =>
+      _seen.fold(0, (int sum, TextureHandle t) => sum + textureBytes(t));
 
   /// Ends a texture's lifetime in this frame.
   ///
@@ -224,6 +237,7 @@ final class FrameResources {
   /// in nobody else's hands, and once the key names the provided texture no
   /// retirement would ever find it again.
   void provide(ResourceId id, TextureHandle texture) {
+    _seen.add(texture);
     final key = ResourceVersion(id, _writeVersionFor(id));
     final replaced = _live[key];
     // **The node's own scratch, handed in as its output, is still pooled** —
@@ -530,4 +544,33 @@ final class FrameResources {
   /// own texture, handed in before anything has run.
   int _writeVersionFor(ResourceId id) =>
       _node < 0 ? 0 : graph.writeVersionOf(_node, id) ?? 0;
+}
+
+/// What [texture] holds, in bytes: its base level, every slice, every
+/// sample — `P6`.
+///
+/// **An estimate a driver would round up, never down.** A device pads rows
+/// and keeps tiles of its own, and none of the four backends says by how
+/// much; what this counts is what the texels themselves need, the number a
+/// budget is set against. A mip chain is not counted, because a handle does
+/// not say it has one: the engine's own targets have none, and the pictures
+/// it samples are not targets.
+int textureBytes(TextureHandle texture) {
+  final perTexel = switch (texture.format) {
+    TextureFormat.a8UNormInt ||
+    TextureFormat.r8UNormInt ||
+    TextureFormat.s8UInt => 1,
+    TextureFormat.r8g8UNormInt => 2,
+    TextureFormat.r16g16b16a16Float || TextureFormat.d32FloatS8UInt => 8,
+    TextureFormat.r32g32b32a32Float => 16,
+    // Four bytes: the eight-bit colours, a float channel, depth with stencil.
+    // A compressed format is never a target and is counted as the colour it
+    // decodes to.
+    _ => 4,
+  };
+  return texture.width *
+      texture.height *
+      texture.sliceCount *
+      texture.sampleCount *
+      perTexel;
 }

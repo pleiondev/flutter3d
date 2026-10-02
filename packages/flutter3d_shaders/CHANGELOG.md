@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **`FragInfo.debug_view` and `WriteDebugView`** in `surface.glsl` — `P6`:
+  every lit model asks it before writing its light. NaN is found by
+  comparison, because `impellerc`'s GLSL ES output has no bit casts.
+  `CompositeInfo.lens` y and z say whether a debug view is on and where it
+  starts.
+
 - **`LensFlare`**, with the `LensFlareInfo` block, and a `lens` member
   appended to `CompositeInfo` for the distortion.
 - **Three stages for SMAA 1x**: `SmaaEdges`, `SmaaWeights` and `SmaaBlend`,

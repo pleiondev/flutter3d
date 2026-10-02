@@ -490,6 +490,9 @@ final class FragInfoBlock extends UniformBlock {
   /// `target_origin`: Vector4, at byte 880.
   final Float32List targetOrigin = Float32List(4);
 
+  /// `debug_view`: Vector4, at byte 896.
+  final Float32List debugView = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'light_position': lightPosition,
@@ -511,6 +514,7 @@ final class FragInfoBlock extends UniformBlock {
     'ambient_ground': ambientGround,
     'shadow_bias': shadowBias,
     'target_origin': targetOrigin,
+    'debug_view': debugView,
   };
 }
 

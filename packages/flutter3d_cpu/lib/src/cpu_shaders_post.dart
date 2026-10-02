@@ -44,7 +44,12 @@ final class CompositeShader implements CpuFragmentShader {
   /// `Distort` in `composite.frag`: radially by `1 + k·r²` on the frame's
   /// aspect, held on the border — at the corners for a barrel, at the
   /// nearest edge for a pincushion.
-  static (double, double) _distort(double u, double w, double k, double aspect) {
+  static (double, double) _distort(
+    double u,
+    double w,
+    double k,
+    double aspect,
+  ) {
     final a = math.max(aspect, 1e-4);
     final dx = u - 0.5;
     final dy = w - 0.5;
@@ -79,6 +84,18 @@ final class CompositeShader implements CpuFragmentShader {
     // over the scene bends with it — `Distort` in `composite.frag`. Nought
     // leaves the coordinate the very value it was.
     final lens = bindings.vec4('CompositeInfo', 'lens', Vector4.zero());
+    // `P6`: right of a debug view's split the scene holds display values,
+    // and only the encode touches them. A return here where the GLSL decides
+    // at its end: this rasteriser has no uniform control flow to keep.
+    if (lens.y > 0.5 && v[0] >= lens.z) {
+      final raw = scene.sample(v[0], v[1]);
+      return Vector4(
+        toSrgb(raw.x.clamp(0.0, 1.0)),
+        toSrgb(raw.y.clamp(0.0, 1.0)),
+        toSrgb(raw.z.clamp(0.0, 1.0)),
+        raw.w,
+      );
+    }
     final (u, w) = lens.x != 0.0
         ? _distort(v[0], v[1], lens.x, lookMore.w)
         : (v[0], v[1]);
@@ -163,7 +180,7 @@ final class CompositeShader implements CpuFragmentShader {
 
     // Skipped at exactly one, which is what both settings off comes to: a
     // multiply by one is exact, so this is a shortcut rather than a difference,
-    // and it keeps the frames eighty-six goldens hold untouched by arithmetic
+    // and it keeps the frames eighty-seven goldens hold untouched by arithmetic
     // they never used to go through.
     if (shade != 1.0) colour.scale(shade);
 

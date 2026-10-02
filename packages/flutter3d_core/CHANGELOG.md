@@ -1,5 +1,20 @@
 ## Unreleased
 
+- **A material channel in place of the light, over all or part of the
+  frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
+  `DebugView` — albedo, the shading normal, roughness, metalness,
+  occlusion, emission, the UV, or magenta where the light came out NaN or
+  infinite — and a `split`, the share of the width left lit, so one draw
+  wipes between the light and the channel. The lit models write the channel
+  themselves, so it shows what the maps did; the composite leaves that side
+  out of the exposure, the curve and the grade. Off by default and an exact
+  no-op; `debug-view-split` is in all four golden sets.
+
+- **`FrameResult.targetBytes`** says what the targets a frame drew into or
+  read from hold, each texture once, without a capture asked for.
+  `textureBytes` is how one is counted: its base level, every slice and
+  sample.
+
 - **The lens: distortion, flare, and tables from a grading tool.**
   `LookSettings.distortion` bends the frame radially, barrel above nought
   and pincushion below, held on its border, and everything laid over the

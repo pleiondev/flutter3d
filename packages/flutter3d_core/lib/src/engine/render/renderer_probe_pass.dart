@@ -284,6 +284,9 @@ extension _ProbePasses on Renderer {
     _targetOrigin[0] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
         ? size.toDouble()
         : 0.0;
+    // A probe captures light for the materials to reflect; a debug view
+    // baked into it would outlive the frame that asked for one.
+    _fragInfo.debugView.fillRange(0, 4, 0.0);
 
     final rect = ScreenRect(width: size, height: size);
     pass.setState(

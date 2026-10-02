@@ -118,8 +118,10 @@ uniform CompositeInfo {
   vec4 contact;
 
   /// x: radial lens distortion — `P2`, barrel above nought, pincushion
-  /// below, nought off exactly. y, z, w: unclaimed. Appended for the reason
-  /// `contact` was.
+  /// below, nought off exactly. y: one while a debug view is on — `P6`,
+  /// nought otherwise. z: where the debug view starts, as a share of the
+  /// width from the left. w: unclaimed. Appended for the reason `contact`
+  /// was.
   vec4 lens;
 }
 composite_info;
@@ -670,4 +672,16 @@ void main() {
   }
 
   frag_color = vec4(encoded, scene.a);
+
+  // `P6`: right of the split the materials wrote display values, not light —
+  // see `WriteDebugView` in `surface.glsl` — so the scene goes to the screen
+  // through the encode alone, with no exposure, curve, glow or grade on it.
+  // Chosen here rather than returned from the top: an early return on a
+  // per-pixel condition would leave every read above in non-uniform control
+  // flow, which WGSL refuses.
+  if (composite_info.lens.y > 0.5 && v_uv.x >= composite_info.lens.z) {
+    vec4 raw = textureLod(scene_texture, v_uv, 0.0);
+    frag_color = vec4(LinearToSrgb(clamp(raw.rgb, vec3(0.0), vec3(1.0))),
+                      raw.a);
+  }
 }

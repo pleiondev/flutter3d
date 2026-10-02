@@ -3277,6 +3277,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -4319,6 +4328,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 
@@ -4344,6 +4413,7 @@ void main() {
   // The albedo is already linear, and an unlit surface is best
   // understood as emitting exactly it, so it goes into the HDR
   // target as light like everything else.
+  if (WriteDebugView(s, s.albedo)) return;
   WriteSurface(s.albedo, s.alpha);
 }
 
@@ -5077,6 +5147,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -6117,6 +6196,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -7334,6 +7473,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -8376,6 +8524,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 // --- lib/irradiance.glsl ---
@@ -9099,10 +9307,9 @@ void main() {
   // roughness, so sampling it would leave a slot the compiler then drops.
   ApplyCommonMaps(s);
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 ''',
@@ -9830,6 +10037,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -10870,6 +11086,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -11601,10 +11877,9 @@ void main() {
   // output here.
   ApplyMetallicRoughnessMap(s);
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 ''',
@@ -12361,6 +12636,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -13401,6 +13685,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -14947,19 +15291,15 @@ void main() {
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
   vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion +
-          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
-              g_coat_through +
-          coatAmbient,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion +
+             (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+                 g_coat_through +
+             coatAmbient;
 #else
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
 #endif
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 #endif  // PBR_GLSL_
@@ -15724,6 +16064,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -16764,6 +17113,66 @@ vec3 AccumulateLights(Surface s) {
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_
@@ -18310,19 +18719,15 @@ void main() {
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
   vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion +
-          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
-              g_coat_through +
-          coatAmbient,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion +
+             (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+                 g_coat_through +
+             coatAmbient;
 #else
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + s.emissive;
 #endif
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 #endif  // PBR_GLSL_
@@ -19055,6 +19460,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -20097,6 +20511,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 // --- lib/irradiance.glsl ---
@@ -20836,11 +21310,10 @@ void main() {
   float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
   vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
 
-  WriteSurface(
-      AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
-          s.emissive,
-      s.alpha,
-      s.roughness);
+  vec3 lit = AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
+             s.emissive;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, s.alpha, s.roughness);
 }
 
 ''',
@@ -21634,8 +22107,10 @@ layout(std140) uniform CompositeInfo {
   vec4 contact;
 
   /// x: radial lens distortion — `P2`, barrel above nought, pincushion
-  /// below, nought off exactly. y, z, w: unclaimed. Appended for the reason
-  /// `contact` was.
+  /// below, nought off exactly. y: one while a debug view is on — `P6`,
+  /// nought otherwise. z: where the debug view starts, as a share of the
+  /// width from the left. w: unclaimed. Appended for the reason `contact`
+  /// was.
   vec4 lens;
 }
 composite_info;
@@ -22186,6 +22661,18 @@ void main() {
   }
 
   frag_color = vec4(encoded, scene.a);
+
+  // `P6`: right of the split the materials wrote display values, not light —
+  // see `WriteDebugView` in `surface.glsl` — so the scene goes to the screen
+  // through the encode alone, with no exposure, curve, glow or grade on it.
+  // Chosen here rather than returned from the top: an early return on a
+  // per-pixel condition would leave every read above in non-uniform control
+  // flow, which WGSL refuses.
+  if (composite_info.lens.y > 0.5 && v_uv.x >= composite_info.lens.z) {
+    vec4 raw = textureLod(scene_texture, v_uv, 0.0);
+    frag_color = vec4(LinearToSrgb(clamp(raw.rgb, vec3(0.0), vec3(1.0))),
+                      raw.a);
+  }
 }
 
 ''',
@@ -33914,6 +34401,15 @@ layout(std140) uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light — `P6`, `DebugView.code`, nought
+  /// for none. y: where it starts, as a share of the target's width from the
+  /// left; nought is the whole frame. z: the target's width in pixels, which
+  /// turns the share into a column. w unused.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
@@ -34956,6 +35452,66 @@ vec3 AccumulateLights(Surface s) {
   return total;
 }
 
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  if (gl_FragCoord.x < frag_info.debug_view.y * frag_info.debug_view.z) {
+    return false;
+  }
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
+}
+
 #endif  // SURFACE_GLSL_
 
 
@@ -35356,7 +35912,9 @@ void main() {
               frag_info.material.z;
 
   vec3 ambient = s.albedo * s.ambient;
-  WriteSurface(AccumulateLights(s) + ambient, 1.0, 1.0);
+  vec3 lit = AccumulateLights(s) + ambient;
+  if (WriteDebugView(s, lit)) return;
+  WriteSurface(lit, 1.0, 1.0);
 }
 
 ''',
