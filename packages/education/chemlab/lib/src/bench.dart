@@ -241,7 +241,10 @@ final class Bench {
       scene
         ..environment = environment.texture
         ..environmentLevels = environment.levels
-        ..ambientIntensity = 1.0;
+        // The sun carries most of the light, as through a lab window: the
+        // coloured shadows tint only the sun's share, and under a sky as
+        // bright as the sun they were barely there.
+        ..ambientIntensity = 0.55;
     }
     scene
       ..add(
@@ -252,7 +255,7 @@ final class Bench {
             ),
             Material(
               name: 'bench',
-              baseColor: Vector4(0.2, 0.22, 0.25, 0.92),
+              baseColor: Vector4(0.46, 0.45, 0.43, 0.92),
               alphaMode: MaterialAlphaMode.blend,
               // Glossy enough for the screen-space reflections, which fade
               // out by 0.25: the liquids show in the tabletop.
@@ -270,7 +273,7 @@ final class Bench {
           ..lightChannels = _benchChannel,
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.4)
+        LightNode(name: 'sun', intensity: 2.6)
           ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
       )
       ..add(
