@@ -98,6 +98,26 @@
   the software backend's `readHdrPixels` can answer, and each `CapturedPass`
   now carries its time, draws and triangles.
 
+- **An animation graph decides which clip plays, in the fixed step.**
+  `AnimationStateMachine` holds states over named clips and transitions
+  between them, each with conditions on typed parameters, a crossfade
+  duration, a priority and an optional exit time; `AnimationGraph` runs it,
+  and `evaluate(dt)` advances by the simulation's step and returns a `Pose`.
+  Parameters are float, integer, boolean or trigger, declared in an
+  `AnimationParameterSchema`, and a write of the wrong type or to a name the
+  schema lacks is refused with a `ParameterWrite` saying what to call
+  instead. A trigger stays set until a transition uses it, so an attack
+  pressed during a swing lands when the swing allows. A definition that
+  cannot run lists its problems through `problems(clips)` rather than
+  building a graph whose transitions are never taken. Until now the choice
+  of clip was left to each game, written against `AnimationPlayer` by hand.
+
+- **`Pose.blendFrom` crossfades whole poses the way the player does.**
+  The player's shortest-arc slerp is now one shared function,
+  `shortestArcSlerp`, used by both, so a graph and a player fading between
+  the same two clips turn each joint the same way. `Pose.restCopy` gives a
+  second pose over the same rest for the outgoing clip.
+
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

@@ -241,41 +241,6 @@ final class AnimationPlayer {
   static double _mix(double from, double to, double t) =>
       from + (to - from) * t;
 
-  /// Shortest-arc interpolation between two rotations.
-  ///
-  /// The sign flip is the part that matters: a quaternion and its negation are
-  /// the same rotation, so without choosing the closer of the two, half of all
-  /// blends spin the long way.
-  static Quaternion _slerp(Quaternion from, Quaternion to, double t) {
-    var dot = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
-    var sign = 1.0;
-    if (dot < 0.0) {
-      dot = -dot;
-      sign = -1.0;
-    }
-
-    double scaleFrom;
-    double scaleTo;
-    if (dot > 0.9995) {
-      // Nearly identical: the arc is so short that a straight line is closer
-      // than the trigonometry's own error.
-      scaleFrom = 1.0 - t;
-      scaleTo = t;
-    } else {
-      final theta = math.acos(dot);
-      final sinTheta = math.sin(theta);
-      scaleFrom = math.sin((1.0 - t) * theta) / sinTheta;
-      scaleTo = math.sin(t * theta) / sinTheta;
-    }
-
-    return Quaternion(
-      scaleFrom * from.x + scaleTo * sign * to.x,
-      scaleFrom * from.y + scaleTo * sign * to.y,
-      scaleFrom * from.z + scaleTo * sign * to.z,
-      scaleFrom * from.w + scaleTo * sign * to.w,
-    )..normalize();
-  }
-
   /// [q] scaled by [t]: a quarter of a turn, not a quarter of four numbers.
   ///
   /// The slerp from no rotation, written out — the identity end collapses most
@@ -285,8 +250,8 @@ final class AnimationPlayer {
   /// nowhere else — which is why the fixture for it uses a quarter.
   static Quaternion _scaledRotation(Quaternion q, double t) {
     // A quaternion and its negation are the same rotation, and the one with a
-    // positive w is the short way round — the same choice [_slerp] makes, and
-    // for the same reason.
+    // positive w is the short way round — the same choice [shortestArcSlerp]
+    // makes, and for the same reason.
     final sign = q.w < 0.0 ? -1.0 : 1.0;
     final w = sign * q.w;
     if (w > 0.9995) {
@@ -790,7 +755,7 @@ final class AnimationPlayer {
         // Slerp, not a component lerp: blending quaternions linearly and
         // renormalising takes the long way round whenever the two are more than
         // a quarter turn apart, which is exactly what a hurt reaction is.
-        final mixed = _slerp(_fadeQuaternion, _quaternion, weight);
+        final mixed = shortestArcSlerp(_fadeQuaternion, _quaternion, weight);
         into[0] = mixed.x;
         into[1] = mixed.y;
         into[2] = mixed.z;
