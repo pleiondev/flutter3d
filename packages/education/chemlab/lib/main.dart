@@ -281,7 +281,10 @@ class _Controls extends StatelessWidget {
                 const Text('Pour'),
                 Expanded(
                   child: Slider(
-                    value: vessel.level,
+                    // Held to the slider's range: a pour tips and empties
+                    // the vessel past what the controls offer, and a slider
+                    // given a value outside its range throws.
+                    value: vessel.level.clamp(vessel.lowest, vessel.highest),
                     min: vessel.lowest,
                     max: vessel.highest,
                     onChanged: bench.busy ? null : onPour,
@@ -290,7 +293,7 @@ class _Controls extends StatelessWidget {
                 const Text('Tilt'),
                 Expanded(
                   child: Slider(
-                    value: vessel.tilt,
+                    value: vessel.tilt.clamp(-Bench.maxTilt, Bench.maxTilt),
                     min: -Bench.maxTilt,
                     max: Bench.maxTilt,
                     onChanged: bench.busy ? null : onLean,
