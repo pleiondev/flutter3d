@@ -1129,6 +1129,36 @@ final class Renderer implements RenderServices {
   PipelineHandle? _skinnedMaskedCubeShadowPipeline;
   PipelineHandle? _instancedMaskedCubeShadowPipeline;
 
+  /// The same three once more, against `ShadowTransmittance`: see-through
+  /// casters writing what they let through into the sun's atlas —
+  /// `ShadowSettings.translucentCasters`. Never built while it is off.
+  PipelineHandle? _transmittanceShadowPipeline;
+  PipelineHandle? _skinnedTransmittanceShadowPipeline;
+  PipelineHandle? _instancedTransmittanceShadowPipeline;
+
+  /// A see-through caster's colour, opacity, transmission and head-on
+  /// reflectance, and the way to the light, for `ShadowTransmittance`.
+  final TransmittanceInfoBlock _transmittanceInfo = TransmittanceInfoBlock();
+
+  /// `ShadowSettings.caustics`: a refracting caster's faces into its maps,
+  /// and its photons into the atlas; built the first frame they are needed.
+  PipelineHandle? _causticSurfacePipeline;
+  PipelineHandle? _causticPhotonPipeline;
+
+  /// Six corners, two triangles: the quad each photon is drawn as.
+  GeometryBuffer? _causticQuad;
+
+  /// A photon's matrices, grid and the caster's optics.
+  final CausticInfoBlock _causticInfo = CausticInfoBlock();
+
+  /// Whether the sun's atlas, as last drawn, had photons added to it.
+  bool _shadowCaustics = false;
+
+  /// Whether the sun's atlas, as last drawn, carries what see-through
+  /// casters let through — read by the draws that light with it, which
+  /// otherwise would take an atlas's empty channels for a black filter.
+  bool _shadowTransmits = false;
+
   /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
   Float32List get _shadowMask => _maskInfo.mask;
   PipelineHandle? _instancedShadowPipeline;
@@ -3193,6 +3223,45 @@ final class Renderer implements RenderServices {
     blend: null,
     depthWrite: true,
     depthCompare: CompareFunction.less,
+  );
+
+  /// How a see-through caster is drawn into the sun's atlas: tested against
+  /// the opaque casters' depth and writing none, so a pane behind a wall adds
+  /// nothing and two panes both count; both faces, since the stage counts a
+  /// closed body as crossed by its two surfaces; and blended so that layers
+  /// combine — what is taken from red and green as `src + dst·(1 − src)`,
+  /// which keeps the depth in red because the stage writes nought there,
+  /// and what is left of blue, in alpha, multiplied. See
+  /// `shadow_transmittance.frag` for the layout.
+  static const PassState _kShadowTransmittanceState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.oneMinusSourceColor,
+      sourceAlphaFactor: BlendFactor.destinationAlpha,
+      destinationAlphaFactor: BlendFactor.zero,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// Photons given back into the atlas: colour as destination minus source,
+  /// which takes from what green and blue say was taken from red and green,
+  /// and alpha as destination plus source, which adds to what is left of
+  /// blue. Every photon lands wherever it lands, so no depth.
+  static const PassState _kCausticPhotonState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      colorOperation: BlendOperation.reverseSubtract,
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.one,
+      sourceAlphaFactor: BlendFactor.one,
+      destinationAlphaFactor: BlendFactor.one,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
   );
 
   /// Blanking one tile of the atlas by drawing over it.

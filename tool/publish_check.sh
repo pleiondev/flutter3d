@@ -69,6 +69,10 @@ ALLOWED='modified in git|The previous version is'
 
 for dir in packages/*/; do
   name="$(basename "$dir")"
+  # A directory that groups packages rather than being one —
+  # `packages/education` holds the teaching examples, each its own app that
+  # is never published — has no pubspec of its own.
+  [ -f "$dir/pubspec.yaml" ] || continue
   cp "$dir/pubspec.yaml" "$BACKUPS/$name.yaml"
   python3 - "$dir/pubspec.yaml" <<'PY'
 import sys

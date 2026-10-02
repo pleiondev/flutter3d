@@ -194,6 +194,34 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'forward': (offset: 144, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'CausticPhotonVertex': <String, Map<String, UniformMemberLayout>>{
+    'CausticInfo': <String, UniformMemberLayout>{
+      'map_to_world': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'world_to_map': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'world_to_tile': (
+        offset: 128,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'world_to_clip': (
+        offset: 192,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'grid': (offset: 256, byteLength: 16, elements: 1, type: 'Vector4'),
+      'light': (offset: 272, byteLength: 16, elements: 1, type: 'Vector4'),
+      'optics': (offset: 288, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tint': (offset: 304, byteLength: 16, elements: 1, type: 'Vector4'),
+      'attenuation': (
+        offset: 320,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+    },
+  },
   'Composite': <String, Map<String, UniformMemberLayout>>{
     'CompositeInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1420,6 +1448,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     },
     'ShadowLight': <String, UniformMemberLayout>{
       'light': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'ShadowTransmittance': <String, Map<String, UniformMemberLayout>>{
+    'TransmittanceInfo': <String, UniformMemberLayout>{
+      'color': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'light': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'Splat': <String, Map<String, UniformMemberLayout>>{

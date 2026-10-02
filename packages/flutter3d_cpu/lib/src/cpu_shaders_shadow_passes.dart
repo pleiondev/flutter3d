@@ -94,6 +94,50 @@ final class ShadowDistanceMaskedShader implements CpuFragmentShader {
   }
 }
 
+/// `shadow_transmittance.frag`: what a see-through caster lets through to
+/// the sun — `ShadowSettings.translucentCasters`.
+///
+/// Green and blue are what it takes from red and green, alpha what it leaves
+/// of blue, red nought so the depth beneath survives the blend; the GLSL
+/// stage has the reasons, and this is the same arithmetic.
+final class ShadowTransmittanceShader implements CpuFragmentShader {
+  const ShadowTransmittanceShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final colour = bindings.vec4('TransmittanceInfo', 'color', Vector4.zero());
+    final light = bindings.vec4('TransmittanceInfo', 'light', Vector4.zero());
+    final params = bindings.vec4('TransmittanceInfo', 'params', Vector4.zero());
+    final opacity = colour.w.clamp(0.0, 1.0);
+    final transmission = params.x.clamp(0.0, 1.0);
+    final map = bindings.textures['base_color_texture'];
+    final texel = map?.sample(v[kVUv], v[kVUv + 1]) ?? Vector4.all(1.0);
+    double body(double channel, double mapped) =>
+        (1.0 - opacity) +
+        opacity * transmission * math.max(channel, 0.0) * mapped;
+
+    final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
+    final length = normal.length;
+    final facing = length > 0.0
+        ? (normal.dot(Vector3(light.x, light.y, light.z)) / length).abs()
+        : 1.0;
+    final f0 = params.y.clamp(0.0, 1.0);
+    final fresnel =
+        f0 + (1.0 - f0) * math.pow(1.0 - facing.clamp(0.0, 1.0), 5.0);
+    // A caster whose photons are followed stops all of its light here.
+    final stops = params.z > 0.5;
+    double through(double channel, double mapped) => stops
+        ? 0.0
+        : math.sqrt(math.max(body(channel, mapped), 0.0)) * (1.0 - fresnel);
+    return Vector4(
+      0.0,
+      1.0 - through(colour.x, texel.x),
+      1.0 - through(colour.y, texel.y),
+      through(colour.z, texel.z),
+    );
+  }
+}
+
 /// `shadow_copy.frag`: one cascade's tile of the static atlas, into colour
 /// and depth — `S1`.
 final class ShadowCopyShader implements CpuFragmentShader {
@@ -153,5 +197,211 @@ final class ShadowTileResetVertexShader implements CpuVertexShader {
     out[0] = a[2];
     out[1] = a[3];
     return Vector4(a[0], a[1], 1.0, 1.0);
+  }
+}
+
+/// `caustic_surface.frag`: a refracting caster's normal and depth, as the sun
+/// sees it — `ShadowSettings.caustics`.
+final class CausticSurfaceShader implements CpuFragmentShader {
+  const CausticSurfaceShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
+    if (normal.length2 > 0.0) normal.normalize();
+    return Vector4(normal.x, normal.y, normal.z, c.coord.z);
+  }
+}
+
+/// `caustic_photon.vert`: one photon followed through a caster to where it
+/// lands, sized by where its neighbours land — the same arithmetic, with the
+/// instance index as the texel.
+final class CausticPhotonVertexShader implements CpuVertexShaderByIndex {
+  const CausticPhotonVertexShader();
+
+  @override
+  int get varyingCount => 5;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) =>
+      runAt(0, 0, a, bindings, out);
+
+  static Vector2 _mapUv(Vector4 p) => Vector2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5);
+
+  static double _schlick(double f0, double cosine) {
+    final c = (1.0 - cosine).clamp(0.0, 1.0);
+    return f0 + (1.0 - f0) * c * c * c * c * c;
+  }
+
+  /// GLSL's `refract`, zero on total internal reflection.
+  static Vector3 _refract(Vector3 i, Vector3 n, double eta) {
+    final d = n.dot(i);
+    final k = 1.0 - eta * eta * (1.0 - d * d);
+    if (k < 0.0) return Vector3.zero();
+    return i * eta - n * (eta * d + math.sqrt(k));
+  }
+
+  static Vector4 _sample(BoundTexture? t, double u, double v) =>
+      t?.sample(u.clamp(0.0, 1.0), v.clamp(0.0, 1.0)) ?? Vector4.zero();
+
+  /// `Follow`: where the photon at [u], [v] lands in clip space, and what it
+  /// carries; null if it does not land.
+  static (Vector2, Vector3)? _follow(ShaderBindings b, double u, double v) {
+    const block = 'CausticInfo';
+    final mapToWorld = b.mat4(block, 'map_to_world');
+    final worldToMap = b.mat4(block, 'world_to_map');
+    final worldToTile = b.mat4(block, 'world_to_tile');
+    final worldToClip = b.mat4(block, 'world_to_clip');
+    final light = b.vec4(block, 'light', Vector4.zero());
+    final optics = b.vec4(block, 'optics', Vector4.zero());
+    final tint = b.vec4(block, 'tint', Vector4.zero());
+    final attenuation = b.vec4(block, 'attenuation', Vector4.zero());
+    final frontMap = b.textures['caustic_front'];
+    final backMap = b.textures['caustic_back'];
+    final depthMap = b.textures['caustic_depth'];
+
+    final front = _sample(frontMap, u, v);
+    final frontNormal = Vector3(front.x, front.y, front.z);
+    if (front.w >= 1.0 || frontNormal.length2 < 0.25) return null;
+
+    final ndc = Vector4(u * 2.0 - 1.0, (0.5 - v) * 2.0, front.w, 1.0);
+    final entry4 = mapToWorld.transform(ndc);
+    final entry = Vector3(entry4.x, entry4.y, entry4.z);
+    final depthAxis = mapToWorld.transform(Vector4(0, 0, 1, 0));
+    final range = Vector3(depthAxis.x, depthAxis.y, depthAxis.z).length;
+
+    final l = Vector3(light.x, light.y, light.z)..normalize();
+    var n1 = frontNormal.normalized();
+    if (n1.dot(l) > 0.0) n1 = -n1;
+    final index = math.max(optics.x, 1.0);
+    final inside = _refract(l, n1, 1.0 / index);
+
+    final back = _sample(backMap, u, v);
+    if (back.w <= front.w) return null;
+    final across = (back.w - front.w) * range;
+    final exit = entry + inside * (across / math.max(inside.dot(l), 0.2));
+    final atMap = _mapUv(
+      worldToMap.transform(Vector4(exit.x, exit.y, exit.z, 1)),
+    );
+    final there = _sample(backMap, atMap.x, atMap.y);
+    final thereNormal = Vector3(there.x, there.y, there.z);
+    var n2 = thereNormal.length2 > 0.25
+        ? thereNormal.normalized()
+        : Vector3(back.x, back.y, back.z).normalized();
+    if (n2.dot(inside) < 0.0) n2 = -n2;
+    var outRay = _refract(inside, -n2, index);
+    if (outRay.length2 < 1e-6) return null;
+    outRay = outRay.normalized();
+    if (outRay.dot(l) < 0.3) return null;
+
+    final f0 = optics.y;
+    final keep =
+        (1.0 - _schlick(f0, l.dot(n1).abs())) *
+        (1.0 - _schlick(f0, outRay.dot(n2).abs()));
+    var er = tint.x * keep, eg = tint.y * keep, eb = tint.z * keep;
+    final fading = optics.z;
+    if (fading > 0.0) {
+      final depth = (exit - entry).length / fading;
+      er *= math.pow(math.max(attenuation.x, 1e-4), depth);
+      eg *= math.pow(math.max(attenuation.y, 1e-4), depth);
+      eb *= math.pow(math.max(attenuation.z, 1e-4), depth);
+    }
+
+    var p = exit.clone();
+    final down = math.max(outRay.dot(l), 0.05);
+    for (var k = 0; k < 4; k++) {
+      final q = worldToTile.transform(Vector4(p.x, p.y, p.z, 1));
+      final at = _mapUv(q);
+      final receiver = _sample(depthMap, at.x, at.y).x;
+      var advance = (receiver - q.z) * range / down;
+      if (k == 0) advance = math.max(advance, 0.0);
+      p += outRay * advance;
+    }
+    final landed = worldToTile.transform(Vector4(p.x, p.y, p.z, 1));
+    final landedAt = _mapUv(landed);
+    final under = _sample(depthMap, landedAt.x, landedAt.y).x;
+    if ((under - landed.z).abs() * range > 0.02) return null;
+
+    final clip = worldToClip.transform(Vector4(p.x, p.y, p.z, 1));
+    return (Vector2(clip.x / clip.w, clip.y / clip.w), Vector3(er, eg, eb));
+  }
+
+  static Vector2 _atLeast(Vector2 a, Vector2 fallback, double least) {
+    final size = a.length;
+    if (size < 1e-9) return fallback.normalized() * least;
+    return size < least ? a * (least / size) : a;
+  }
+
+  @override
+  Vector4 runAt(
+    int vertexIndex,
+    int instanceIndex,
+    Float32List a,
+    ShaderBindings b,
+    Float32List out,
+  ) {
+    out[0] = a[0];
+    out[1] = a[1];
+    out[2] = 0.0;
+    out[3] = 0.0;
+    out[4] = 0.0;
+    final away = Vector4(4.0, 4.0, 0.5, 1.0);
+    final grid = b.vec4('CausticInfo', 'grid', Vector4.zero());
+    final n = grid.x.round();
+    if (n < 1) return away;
+    final u = (instanceIndex % n + 0.5) / n;
+    final v = (instanceIndex ~/ n + 0.5) / n;
+    final texel = 1.0 / n;
+
+    final here = _follow(b, u, v);
+    if (here == null) return away;
+    final (at, energy) = here;
+
+    final spacingX = Vector2(grid.z, 0.0);
+    final spacingY = Vector2(0.0, grid.w);
+    var across = spacingX;
+    final nextX = _follow(b, u + texel, v);
+    if (nextX != null) {
+      across = nextX.$1 - at;
+    } else {
+      final prevX = _follow(b, u - texel, v);
+      if (prevX != null) across = at - prevX.$1;
+    }
+    var down = spacingY;
+    final nextY = _follow(b, u, v + texel);
+    if (nextY != null) {
+      down = nextY.$1 - at;
+    } else {
+      final prevY = _follow(b, u, v - texel);
+      if (prevY != null) down = at - prevY.$1;
+    }
+    final least = grid.y;
+    final ax = _atLeast(across * 1.5, spacingX, least);
+    final by = _atLeast(down * 1.5, spacingY, least);
+    final area = math.max((ax.x * by.y - ax.y * by.x).abs(), least * least);
+    final share = grid.z * grid.w;
+    final scale = share / (1.0471976 * area);
+    out[2] = energy.x * scale;
+    out[3] = energy.y * scale;
+    out[4] = energy.z * scale;
+    return Vector4(
+      at.x + a[0] * ax.x + a[1] * by.x,
+      at.y + a[0] * ax.y + a[1] * by.y,
+      0.5,
+      1.0,
+    );
+  }
+}
+
+/// `caustic_photon.frag`: a photon's quad, given back into the atlas.
+final class CausticPhotonShader implements CpuFragmentShader {
+  const CausticPhotonShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final r2 = v[0] * v[0] + v[1] * v[1];
+    if (r2 >= 1.0) return null;
+    final k = (1.0 - r2) * (1.0 - r2);
+    return Vector4(0.0, v[2] * k, v[3] * k, v[4] * k);
   }
 }

@@ -1,3 +1,16 @@
+## Unreleased
+
+- **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
+  of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
+  when its photons are followed.
+- `ShadowTransmittance` reads the material's base colour map, and neither it
+  nor the stored transmittance is held to one; `ShadowFactor` reads up to
+  four, so a caster can brighten as well as darken.
+- **`ShadowTransmittance`**, the stage a see-through caster is drawn into the
+  sun's atlas with (`ShadowSettings.translucentCasters`), and
+  `light_transmittance` in `surface.glsl`, which `ShadowFactor` sets and the
+  light loop multiplies the sun by.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

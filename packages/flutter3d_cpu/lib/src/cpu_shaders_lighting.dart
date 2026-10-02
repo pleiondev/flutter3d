@@ -421,6 +421,7 @@ Vector3 accumulateLights(
     // has six rows and the slot table eight entries, so a light from the list
     // has no row to read and asking would index past the table.
     var visibility = 1.0;
+    shadowTransmittance.setValues(1.0, 1.0, 1.0);
     if (i < kMaxLights) {
       visibility = shadowed ? shadowFactor(s, b, i, light.nDotL, c) : 1.0;
       visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
@@ -428,9 +429,9 @@ Vector3 accumulateLights(
     if (visibility <= 0.0) continue;
     final response = shade(s, light);
     total += Vector3(
-      response.x * light.radiance.x,
-      response.y * light.radiance.y,
-      response.z * light.radiance.z,
+      response.x * light.radiance.x * shadowTransmittance.x,
+      response.y * light.radiance.y * shadowTransmittance.y,
+      response.z * light.radiance.z * shadowTransmittance.z,
     )..scale(light.nDotL * visibility);
   }
   return total;

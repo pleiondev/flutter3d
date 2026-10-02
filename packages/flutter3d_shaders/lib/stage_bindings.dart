@@ -49,6 +49,12 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'CameraVelocityInfo'},
     samplers: <String>{'surface_texture'},
   ),
+  'CausticPhoton': (blocks: <String>{}, samplers: <String>{}),
+  'CausticPhotonVertex': (
+    blocks: <String>{'CausticInfo'},
+    samplers: <String>{'caustic_back', 'caustic_depth', 'caustic_front'},
+  ),
+  'CausticSurface': (blocks: <String>{}, samplers: <String>{}),
   'Composite': (
     blocks: <String>{'CompositeInfo', 'FragCoordInfo'},
     samplers: <String>{
@@ -336,6 +342,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'ShadowTileReset': (blocks: <String>{}, samplers: <String>{}),
   'ShadowTileResetVertex': (blocks: <String>{}, samplers: <String>{}),
+  'ShadowTransmittance': (
+    blocks: <String>{'TransmittanceInfo'},
+    samplers: <String>{'base_color_texture'},
+  ),
   'Sky': (blocks: <String>{}, samplers: <String>{}),
   'SkyCube': (blocks: <String>{}, samplers: <String>{'sky_texture'}),
   'SkyCubeVertex': (blocks: <String>{}, samplers: <String>{}),
