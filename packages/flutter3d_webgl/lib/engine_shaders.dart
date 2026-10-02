@@ -2858,6 +2858,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -3065,7 +3072,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -4654,6 +4662,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -4861,7 +4876,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -6436,6 +6452,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -6643,7 +6666,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -8941,6 +8965,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -9148,7 +9179,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -11481,6 +11513,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -11688,7 +11727,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -13832,7 +13872,8 @@ layout(std140) uniform LayerInfo {
   /// `KHR_materials_dispersion` — `M3`.
   vec4 transmission;
 
-  /// rgb: the volume's attenuation colour, linear. w: unused.
+  /// rgb: the volume's attenuation colour, linear. w: one when the volume
+  /// is a convex body — `MaterialExtensions.convexVolume`.
   vec4 attenuation;
 
   /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
@@ -13930,6 +13971,16 @@ vec3 g_transmittance = vec3(1.0);
 float g_iridescence = 0.0;
 vec3 g_irid_fresnel = vec3(0.04);
 
+/// Whether this is a thin pane over whatever is behind it — `M3`: a blended
+/// surface that transmits and has no volume. Light crosses a thin wall
+/// without bending, so what is behind it is exactly what the target already
+/// holds where it is drawn, and the blend lets that through
+/// ([g_pass_through]) rather than the shader reading it from the copy. The
+/// copy is taken before any transmissive draw, so read from it, the liquid
+/// in a glass tube vanished behind the tube's own wall, which showed the
+/// table where the liquid stood.
+bool g_pane = false;
+
 /// Whether the index is `KHR_materials_ior`'s nought: the value its
 /// specular-glossiness migration writes, which means an index of infinity —
 /// a Fresnel of one at every angle, and no dispersion.
@@ -13976,6 +14027,15 @@ void ReadLayers(Surface s) {
   // `M3`: the coat map's other two lanes.
   g_transmission = clamp(layer_info.transmission.x * coatTexel.b, 0.0, 1.0);
   g_thickness = max(layer_info.transmission.y * coatTexel.a, 0.0);
+  // `MaterialExtensions.convexVolume`: the thickness is the body's depth
+  // through its middle, and a ray crosses as much of it as squarely as the
+  // bent ray meets the surface — Filament's solid sphere. Kept above nought,
+  // where nought means a thin wall.
+  if (layer_info.attenuation.w > 0.5 && g_thickness > 0.0) {
+    vec3 bent = refract(-s.v, s.n, 1.0 / RefractionIor());
+    g_thickness = max(g_thickness * max(-dot(s.n, bent), 0.0),
+                      1e-4 * g_thickness);
+  }
   // Beer's law over the thickness: what is left of each colour after the
   // attenuation distance is the attenuation colour.
   float distance = layer_info.transmission.z;
@@ -14508,7 +14568,9 @@ void main() {
   // `M3`: without an environment the light passing through is the flat
   // ambient too, less what the medium takes — unless the scene behind is
   // there to be read, when that share is the scene instead (below).
-  ambient *= mix(vec3(1.0), SceneColourBound() ? vec3(0.0) : g_transmittance,
+  g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
+  ambient *= mix(vec3(1.0),
+                 SceneColourBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -14590,7 +14652,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound()
+    vec3 through = SceneColourBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -14615,13 +14677,18 @@ void main() {
   // copy of it — less what the dielectric reflects and what the medium
   // takes, tinted by the base colour. Light already, so neither the ambient
   // strength nor the occlusion scales it.
-  if (SceneColourBound()) {
-    vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
-    vec3 sceneReflects =
-        mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
-        g_f90 * sceneAb.y;
-    ambient += diffuseColor * SceneBehind(s) * g_transmittance *
-               (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
+  vec3 sceneReflects =
+      mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
+      g_f90 * sceneAb.y;
+  vec3 passes = diffuseColor * g_transmittance *
+                (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  if (g_pane) {
+    // One alpha for the three colours: a pane's tint is kept as its mean,
+    // which is what clear and faintly tinted glass needs.
+    g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
+  } else if (SceneColourBound()) {
+    ambient += SceneBehind(s) * passes;
   }
 #endif
   // The light the level's walls throw on each other, baked: diffuse only,
@@ -14853,6 +14920,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -15060,7 +15134,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -17204,7 +17279,8 @@ layout(std140) uniform LayerInfo {
   /// `KHR_materials_dispersion` — `M3`.
   vec4 transmission;
 
-  /// rgb: the volume's attenuation colour, linear. w: unused.
+  /// rgb: the volume's attenuation colour, linear. w: one when the volume
+  /// is a convex body — `MaterialExtensions.convexVolume`.
   vec4 attenuation;
 
   /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
@@ -17302,6 +17378,16 @@ vec3 g_transmittance = vec3(1.0);
 float g_iridescence = 0.0;
 vec3 g_irid_fresnel = vec3(0.04);
 
+/// Whether this is a thin pane over whatever is behind it — `M3`: a blended
+/// surface that transmits and has no volume. Light crosses a thin wall
+/// without bending, so what is behind it is exactly what the target already
+/// holds where it is drawn, and the blend lets that through
+/// ([g_pass_through]) rather than the shader reading it from the copy. The
+/// copy is taken before any transmissive draw, so read from it, the liquid
+/// in a glass tube vanished behind the tube's own wall, which showed the
+/// table where the liquid stood.
+bool g_pane = false;
+
 /// Whether the index is `KHR_materials_ior`'s nought: the value its
 /// specular-glossiness migration writes, which means an index of infinity —
 /// a Fresnel of one at every angle, and no dispersion.
@@ -17348,6 +17434,15 @@ void ReadLayers(Surface s) {
   // `M3`: the coat map's other two lanes.
   g_transmission = clamp(layer_info.transmission.x * coatTexel.b, 0.0, 1.0);
   g_thickness = max(layer_info.transmission.y * coatTexel.a, 0.0);
+  // `MaterialExtensions.convexVolume`: the thickness is the body's depth
+  // through its middle, and a ray crosses as much of it as squarely as the
+  // bent ray meets the surface — Filament's solid sphere. Kept above nought,
+  // where nought means a thin wall.
+  if (layer_info.attenuation.w > 0.5 && g_thickness > 0.0) {
+    vec3 bent = refract(-s.v, s.n, 1.0 / RefractionIor());
+    g_thickness = max(g_thickness * max(-dot(s.n, bent), 0.0),
+                      1e-4 * g_thickness);
+  }
   // Beer's law over the thickness: what is left of each colour after the
   // attenuation distance is the attenuation colour.
   float distance = layer_info.transmission.z;
@@ -17880,7 +17975,9 @@ void main() {
   // `M3`: without an environment the light passing through is the flat
   // ambient too, less what the medium takes — unless the scene behind is
   // there to be read, when that share is the scene instead (below).
-  ambient *= mix(vec3(1.0), SceneColourBound() ? vec3(0.0) : g_transmittance,
+  g_pane = g_premultiply && g_transmission > 0.0 && g_thickness <= 0.0;
+  ambient *= mix(vec3(1.0),
+                 SceneColourBound() || g_pane ? vec3(0.0) : g_transmittance,
                  g_transmission);
 #endif
 
@@ -17962,7 +18059,7 @@ void main() {
     // and the scene's added below.
     vec3 reflects =
         mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
-    vec3 through = SceneColourBound()
+    vec3 through = SceneColourBound() || g_pane
                        ? vec3(0.0)
                        : TransmittedRadiance(s, levels) * g_transmittance *
                              (vec3(1.0) - min(reflects, vec3(1.0)));
@@ -17987,13 +18084,18 @@ void main() {
   // copy of it — less what the dielectric reflects and what the medium
   // takes, tinted by the base colour. Light already, so neither the ambient
   // strength nor the occlusion scales it.
-  if (SceneColourBound()) {
-    vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
-    vec3 sceneReflects =
-        mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
-        g_f90 * sceneAb.y;
-    ambient += diffuseColor * SceneBehind(s) * g_transmittance *
-               (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  vec2 sceneAb = EnvBrdf(s.roughness, s.n_dot_v);
+  vec3 sceneReflects =
+      mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * sceneAb.x +
+      g_f90 * sceneAb.y;
+  vec3 passes = diffuseColor * g_transmittance *
+                (vec3(1.0) - min(sceneReflects, vec3(1.0))) * g_transmission;
+  if (g_pane) {
+    // One alpha for the three colours: a pane's tint is kept as its mean,
+    // which is what clear and faintly tinted glass needs.
+    g_pass_through = clamp((passes.r + passes.g + passes.b) / 3.0, 0.0, 1.0);
+  } else if (SceneColourBound()) {
+    ambient += SceneBehind(s) * passes;
   }
 #endif
   // The light the level's walls throw on each other, baked: diffuse only,
@@ -18192,6 +18294,13 @@ bool g_debug_surface_on = false;
 /// colour whole: its alpha is not a coverage, and nothing blends it.
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
+
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
 
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
@@ -18400,7 +18509,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -20681,6 +20791,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -20888,7 +21005,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -22623,6 +22741,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -22830,7 +22955,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -29451,6 +29577,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -29658,7 +29791,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -29834,6 +29968,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -30041,7 +30182,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -30212,6 +30354,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -30419,7 +30568,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -30594,6 +30744,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -30801,7 +30958,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -31019,6 +31177,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -31226,7 +31391,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -31993,6 +32159,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -32200,7 +32373,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }
@@ -32889,6 +33063,13 @@ bool g_debug_surface_on = false;
 /// A global for the reason [g_debug_surface] is one.
 bool g_premultiply = false;
 
+/// How much of what is already behind a blended surface comes through it —
+/// a thin pane of glass, `M3`: what the blend multiplies the target by is
+/// one minus the alpha, so the alpha written is the coverage less this share
+/// of it, while the colour stays weighted by the coverage alone. Nought for
+/// everything else, which writes what it always wrote.
+float g_pass_through = 0.0;
+
 // **A stage that needs none of this must be able to declare none of it.** On
 // Vulkan both stages' descriptors are merged into one set layout, and two
 // bindings with the same number in it is not a layout the specification
@@ -33096,7 +33277,8 @@ void WriteWeightedBlended() {
 /// which is exact, so an opaque draw writes what it always wrote.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   float weight = g_premultiply ? alpha : 1.0;
-  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  frag_color = vec4(ApplyFog(linearColor) * weight,
+                    alpha * (1.0 - g_pass_through));
   WriteSurfaceGeometry(roughness);
   WriteWeightedBlended();
 }

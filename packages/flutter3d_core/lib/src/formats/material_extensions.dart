@@ -54,6 +54,7 @@ final class MaterialExtensions {
     this.thicknessTexture,
     this.attenuationDistance = double.infinity,
     Vector3? attenuationColor,
+    this.convexVolume = false,
     this.dispersion = 0.0,
     this.iridescence = 0.0,
     this.iridescenceTexture,
@@ -133,6 +134,21 @@ final class MaterialExtensions {
   /// infinite, the default, is a medium that takes nothing away.
   final double attenuationDistance;
   final Vector3 attenuationColor;
+
+  /// Whether the volume is a closed, convex body — a ball of glass, a column
+  /// of liquid — rather than a slab. Not part of glTF, and not written to it.
+  ///
+  /// [thickness] is then taken as the body's depth through its middle, and
+  /// the path a ray travels inside is that depth times how squarely the bent
+  /// ray meets the surface, the solid-sphere model Filament uses: the whole
+  /// [thickness] where the eye looks straight in, next to nothing at the
+  /// silhouette. Both the colour the volume gives and how far behind it the
+  /// refracted scene is read from follow that path, so a coloured liquid in
+  /// a tube is deep in the middle and pale at its edges, and the scene seen
+  /// through it bends most where it is thickest — which is most of what
+  /// tells a column of liquid from a painted cylinder. Off, the default, the
+  /// path is [thickness] everywhere, as glTF's volume means it.
+  final bool convexVolume;
 
   /// `KHR_materials_dispersion`: how far apart the index of refraction is
   /// spread over the spectrum, in the extension's own units (20 / Abbe
@@ -248,6 +264,7 @@ final class MaterialExtensions {
       thicknessTexture: each(thicknessTexture),
       attenuationDistance: attenuationDistance,
       attenuationColor: attenuationColor.clone(),
+      convexVolume: convexVolume,
       dispersion: dispersion,
       iridescence: iridescence,
       iridescenceTexture: each(iridescenceTexture),

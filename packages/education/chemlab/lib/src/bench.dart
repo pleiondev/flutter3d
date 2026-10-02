@@ -7,6 +7,7 @@ import 'package:vector_math/vector_math.dart';
 import 'glassware.dart';
 import 'label.dart';
 import 'optics.dart';
+import 'slosh.dart';
 
 /// One piece of glass on the bench and what is in it.
 final class Vessel {
@@ -49,6 +50,29 @@ final class Vessel {
 
   /// How full it is now. State: pouring changes it.
   double level;
+
+  /// How far it leans towards the front of the bench, in radians. State.
+  double tilt = 0.0;
+
+  /// The inside of the glass, as far up as it may be filled: [liquidAt]'s
+  /// outline without its cap, which is where the liquid meets the glass
+  /// whatever its surface does.
+  late final List<Vector2> wall = () {
+    final full = liquidAt(highest);
+    // The cap is `meniscus`'s six points; its first is the top of the wall.
+    return full.sublist(0, full.length - 5);
+  }();
+
+  /// Its liquid's surface and how it moves.
+  late final Slosh slosh = Slosh(
+    radius: radiusAt(wall, level) ?? wall.last.x,
+    depth: level - wall.first.y,
+  );
+
+  /// The glass and all it carries, which tilts as one; and the same hung
+  /// upside down under the tabletop, for the reflections.
+  late final SceneNode body;
+  late final SceneNode mirror;
 
   late final MeshNode liquid;
   MeshNode? label;
@@ -172,22 +196,33 @@ List<Vessel> standardVessels() {
 /// liquids are drawn after it, so the tabletop reflected the labels and
 /// nothing else. The table is flat, though, and a flat mirror has an exact
 /// answer: each liquid and label again, scaled by -1 in height so it hangs
-/// under the top, and a top that lets a twelfth of what is under it through.
-/// The copies are opaque and unlit, so they are drawn before the top and
-/// never sorted against it.
+/// under the top, laid over the top at a twelfth of its strength and only
+/// where it is behind it (`CompareFunction.greater`), which is where a
+/// mirror shows it.
+///
+/// **The top itself is opaque**, so it is in the copy of the scene the
+/// liquids read what is behind them from. It used to be the reflections that
+/// showed through a top a twelfth transparent; then the top was drawn after
+/// the liquids, not before, and a column of water showed the sky behind the
+/// bench instead of the bench, bent — a white rod rather than a lens.
 final class Bench {
   Bench(this.device, {List<Vessel>? vessels, bool photons = false})
     : vessels = vessels ?? standardVessels(),
       _photons = photons {
     for (final vessel in this.vessels) {
-      vessel.liquid =
-          MeshNode(
-              _lathe(vessel.liquidAt(vessel.level)),
-              liquid(_rgb(vessel.colour)),
-              name: '${vessel.name} liquid',
-            )
-            ..setPositionFrom(vessel.at)
-            ..lightChannels = _vesselChannel;
+      vessel
+        ..body = (SceneNode(name: vessel.name)..setPositionFrom(vessel.at))
+        ..mirror = (SceneNode(name: '${vessel.name} reflection')
+          ..setPositionFrom(vessel.at)
+          ..setScale(1, -1, 1));
+      scene
+        ..add(vessel.body)
+        ..add(vessel.mirror);
+      vessel.liquid = MeshNode(
+        _liquidMesh(vessel),
+        liquid(_rgb(vessel.colour), depth: 2.0 * _liquidRadius(vessel)),
+        name: '${vessel.name} liquid',
+      )..lightChannels = _vesselChannel;
       vessel.liquid
         ..castsShadow = photons
         ..receivesTranslucentShadows = false;
@@ -211,10 +246,9 @@ final class Bench {
         _reflection(albedo: null, colour: _rgb(vessel.colour)),
         vessel,
       );
-      scene
-        ..add(vessel.liquid)
-        ..add(vessel.liquidReflection);
-      scene.add(
+      vessel.body.add(vessel.liquid);
+      vessel.mirror.add(vessel.liquidReflection);
+      vessel.body.add(
         vessel.glassNode =
             MeshNode(
                 _lathe(glassWall(vessel.glass)),
@@ -223,8 +257,7 @@ final class Bench {
               )
               ..castsShadow = photons
               ..receivesTranslucentShadows = false
-              ..lightChannels = _vesselChannel
-              ..setPositionFrom(vessel.at),
+              ..lightChannels = _vesselChannel,
       );
       final foot = vessel.foot;
       if (foot != null) {
@@ -232,19 +265,17 @@ final class Bench {
           device,
           LatheShape(profile: foot, segments: 6).build(),
         );
-        scene
-          ..add(
-            MeshNode(hexagon, footPlastic(), name: '${vessel.name} foot')
-              ..lightChannels = _vesselChannel
-              ..setPositionFrom(vessel.at),
-          )
-          ..add(
-            _mirrored(
-              hexagon,
-              _reflection(albedo: null, colour: Vector3(0.2, 0.42, 0.8)),
-              vessel,
-            ),
-          );
+        vessel.body.add(
+          MeshNode(hexagon, footPlastic(), name: '${vessel.name} foot')
+            ..lightChannels = _vesselChannel,
+        );
+        vessel.mirror.add(
+          _mirrored(
+            hexagon,
+            _reflection(albedo: null, colour: Vector3(0.2, 0.42, 0.8)),
+            vessel,
+          ),
+        );
       }
     }
     final environment = EnvironmentMap.fromSky(device, labSky);
@@ -266,18 +297,13 @@ final class Bench {
             ),
             Material(
               name: 'bench',
-              baseColor: Vector4(0.46, 0.45, 0.43, 0.92),
-              alphaMode: MaterialAlphaMode.blend,
-              // Glossy enough for the screen-space reflections, which fade
-              // out by 0.25: the liquids show in the tabletop.
+              baseColor: Vector4(0.46, 0.45, 0.43, 1.0),
               roughness: 0.25,
             ),
             name: 'bench',
           )
           ..setPosition(0, -0.02, 0.6)
-          // A floor casts nothing. Said here because the top is blended, for
-          // the reflections, and a blended caster is left out of the coloured
-          // shadows so it does not shade itself.
+          // A floor casts nothing.
           ..castsShadow = false
           // Its own channel: the sun reaches every channel, and the fill
           // only the glass.
@@ -312,16 +338,7 @@ final class Bench {
     if (value == _photons) return;
     _photons = value;
     for (final vessel in vessels) {
-      vessel.liquid.castsShadow = value;
-      vessel.glassNode.castsShadow = value;
-      if (value) {
-        scene.remove(vessel.shadow);
-      } else {
-        // Painted for the level it has now: pouring leaves the card alone
-        // while the engine is casting.
-        _repaint(vessel);
-        scene.add(vessel.shadow);
-      }
+      _castBy(vessel);
     }
   }
 
@@ -352,11 +369,95 @@ final class Bench {
   /// nothing else.
   void pour(Vessel vessel, double level) {
     vessel.level = level.clamp(vessel.lowest, vessel.highest);
+    vessel.slosh
+      ..radius = radiusAt(vessel.wall, vessel.level) ?? vessel.wall.last.x
+      ..depth = vessel.level - vessel.wall.first.y;
+    _reshape(vessel);
+    if (!photons && vessel.tilt == 0.0) _repaint(vessel);
+  }
+
+  /// The liquid's mesh for where its surface is now.
+  DeviceMesh _liquidMesh(Vessel vessel) => DeviceMesh.upload(
+    device,
+    liquidVolume(wall: vessel.wall, level: vessel.level, surface: vessel.slosh),
+  );
+
+  void _reshape(Vessel vessel) {
     final old = vessel.liquid.mesh;
-    vessel.liquid.mesh = _lathe(vessel.liquidAt(vessel.level));
+    vessel.liquid.mesh = _liquidMesh(vessel);
     vessel.liquidReflection.mesh = vessel.liquid.mesh;
     if (old is DeviceMesh) (retire ?? _releaseNow)(old);
-    if (!photons) _repaint(vessel);
+  }
+
+  /// The most a vessel leans either way: further, and the tall tubes reach
+  /// over their neighbours' place in the row.
+  static const double maxTilt = 0.5;
+
+  /// Leans [vessel] by [angle] radians towards the front of the bench, about
+  /// where it stands, lifted so its lowest point still rests on the bench.
+  /// The glass goes at once; the liquid follows by [step], late.
+  void lean(Vessel vessel, double angle) {
+    vessel.tilt = angle.clamp(-maxTilt, maxTilt);
+    final turn = Quaternion.axisAngle(Vector3(1, 0, 0), vessel.tilt);
+    final c = math.cos(vessel.tilt);
+    final s = math.sin(vessel.tilt).abs();
+    // The lowest point of the glass, and of its foot, once turned.
+    final lowest = [
+      ...vessel.glass,
+      ...?vessel.foot,
+    ].map((p) => p.y * c - p.x * s).reduce(math.min);
+    vessel.body
+      ..setRotation(turn)
+      ..setPosition(vessel.at.x, vessel.at.y - lowest, vessel.at.z);
+    // The mirror of a turn about x is the opposite turn.
+    vessel.mirror
+      ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), -vessel.tilt))
+      ..setPosition(vessel.at.x, -(vessel.at.y - lowest), vessel.at.z);
+    // Level in the world: the world's up seen from the glass, which is the
+    // turn's second row.
+    final m = vessel.body.localMatrix;
+    final up = Vector3(m.entry(1, 0), m.entry(1, 1), m.entry(1, 2));
+    vessel.slosh
+      ..targetX = -up.x / up.y
+      ..targetZ = -up.z / up.y;
+    _castBy(vessel);
+  }
+
+  /// Knocks on [vessel]'s glass.
+  void tap(Vessel vessel) => vessel.slosh.tap(0.01);
+
+  /// Moves every liquid on by [seconds], and says whether any is still
+  /// moving, so the caller knows to ask for another frame.
+  bool step(double seconds) {
+    var moving = false;
+    for (final vessel in vessels) {
+      if (vessel.slosh.settled) continue;
+      vessel.slosh.step(seconds);
+      if (vessel.slosh.settled) vessel.slosh.settle();
+      _reshape(vessel);
+      moving = true;
+    }
+    return moving;
+  }
+
+  /// Who casts [vessel]'s shadow: the engine's photons, or this bench's card,
+  /// which is worked out for glass standing upright and is put away while it
+  /// leans — the glass and liquid then cast for themselves, as tinted
+  /// translucent casters.
+  void _castBy(Vessel vessel) {
+    final card = !photons && vessel.tilt == 0.0;
+    vessel.liquid.castsShadow = !card;
+    vessel.glassNode.castsShadow = !card;
+    if (card) {
+      if (vessel.shadow.parent == null) {
+        // Painted for the level it has now: pouring leaves the card alone
+        // while the engine is casting.
+        _repaint(vessel);
+        scene.add(vessel.shadow);
+      }
+    } else if (vessel.shadow.parent != null) {
+      scene.remove(vessel.shadow);
+    }
   }
 
   void _repaint(Vessel vessel) {
@@ -383,6 +484,11 @@ final class Bench {
   static double _halfWidth(Vessel vessel) =>
       3.0 * vessel.glass.map((p) => p.x).reduce(math.max);
 
+  /// How wide [vessel]'s liquid is across its middle: the widest the
+  /// profile reaches at its usual level.
+  static double _liquidRadius(Vessel vessel) =>
+      vessel.liquidAt(vessel.level).map((p) => p.x).reduce(math.max);
+
   static double _height(Vessel vessel) =>
       vessel.glass.map((p) => p.y).reduce(math.max);
 
@@ -394,7 +500,7 @@ final class Bench {
     height: _height(vessel),
     glassIndex: 1.5,
     liquidIndex: 1.33,
-    liquidAbsorption: absorptionFor(_rgb(vessel.colour), 0.25),
+    liquidAbsorption: absorptionFor(_rgb(vessel.colour), 0.3),
     elevation: _elevation,
     halfWidth: _halfWidth(vessel),
     scale: _lightScale,
@@ -435,16 +541,17 @@ final class Bench {
     return DeviceMesh.upload(device, builder.build());
   }
 
-  /// [mesh] hung upside down under the tabletop at [vessel]'s place.
+  /// [mesh] for [vessel]'s mirror, which hangs it upside down under the
+  /// tabletop.
   MeshNode _mirrored(MeshGeometry mesh, Material material, Vessel vessel) =>
       MeshNode(mesh, material, name: '${vessel.name} reflection')
-        ..setPositionFrom(vessel.at)
-        ..setScale(1, -1, 1)
         ..castsShadow = false
         ..lightChannels = LightChannels.none;
 
   /// What a reflection is drawn with: flat, a little darker than the
   /// thing, and from both sides, since the mirroring turns it inside out.
+  /// Blended at a twelfth over the top, behind which it hangs, and drawn
+  /// only there: nearer than the top is not in the mirror.
   static Material _reflection({
     required TextureHandle? albedo,
     required Vector3 colour,
@@ -452,8 +559,11 @@ final class Bench {
     name: 'reflection',
     lighting: LightingModel.unlit,
     albedo: albedo,
-    baseColor: Vector4(colour.x * 0.7, colour.y * 0.7, colour.z * 0.7, 1),
+    baseColor: Vector4(colour.x * 0.7, colour.y * 0.7, colour.z * 0.7, 0.08),
+    alphaMode: MaterialAlphaMode.blend,
     doubleSided: true,
+    depthWrite: false,
+    depthCompare: CompareFunction.greater,
   );
 
   static const int _vesselChannel = 1 << 0;
@@ -473,22 +583,19 @@ final class Bench {
   TextureHandle? dress(Vessel vessel, Rgba8Image image) {
     if (vessel.solution == null) return null;
     final texture = uploadRgba8(device, image);
-    final old = vessel.label;
-    if (old != null) scene.remove(old);
-    final oldReflection = vessel.labelReflection;
-    if (oldReflection != null) scene.remove(oldReflection);
+    vessel.label?.removeFromParent();
+    vessel.labelReflection?.removeFromParent();
     final band = DeviceMesh.upload(device, labelBand().build());
     vessel.labelReflection = _mirrored(
       band,
       _reflection(albedo: texture, colour: Vector3.all(1)),
       vessel,
     );
-    scene.add(vessel.labelReflection!);
+    vessel.mirror.add(vessel.labelReflection!);
     vessel.label = MeshNode(band, paper(texture), name: '${vessel.name} label')
-      ..setPositionFrom(vessel.at)
       ..receivesTranslucentShadows = false
       ..lightChannels = _vesselChannel;
-    scene.add(vessel.label!);
+    vessel.body.add(vessel.label!);
     return texture;
   }
 }

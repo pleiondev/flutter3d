@@ -191,17 +191,27 @@ Material glass() => Material(
   extensions: MaterialExtensions(transmission: 1.0, ior: 1.5, specular: 1.0),
 );
 
-/// A solution: clear liquid that light passes through, tinted by what it
+/// A solution: clear liquid that light passes through, coloured by what it
 /// holds, with water's index of refraction.
 ///
-/// The colour goes into the attenuation as well as the base colour, so a
-/// thicker layer is a deeper colour, as it is in a real tube: the round
-/// bottom and the edges read darker than the middle.
-Material liquid(Vector3 colour) => Material(
+/// **It reads as liquid because of what it does to the light, not its
+/// paint.** Fully transmitting, so what is behind it shows through, bent;
+/// a convex body ([MaterialExtensions.convexVolume]) [depth] across, so the
+/// path through it, and with it the colour and the bend, is deepest down the
+/// middle and fades to the silhouette, where a painted cylinder stays one
+/// flat colour to its edge; and a wet, glossy surface with a clear coat. The
+/// colour is the volume's: [colour] after [_fade] of it, with a base nearly
+/// white so it is not given twice.
+Material liquid(Vector3 colour, {double depth = 0.148}) => Material(
   name: 'liquid',
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(colour.x, colour.y, colour.z, 0.8),
-  roughness: 0.03,
+  baseColor: Vector4(
+    0.75 + 0.25 * colour.x,
+    0.75 + 0.25 * colour.y,
+    0.75 + 0.25 * colour.z,
+    1.0,
+  ),
+  roughness: 0.02,
   alphaMode: MaterialAlphaMode.blend,
   // Blended surfaces leave the depth buffer alone, so the see-through
   // tabletop, drawn after the liquids, laid itself over their lower half.
@@ -209,21 +219,19 @@ Material liquid(Vector3 colour) => Material(
   depthWrite: true,
   extensions: MaterialExtensions(
     ior: 1.33,
-    transmission: 0.85,
-    thickness: 0.06,
-    // The base colour tints what is transmitted already; this deepens it
-    // with the path through the solution, over a quarter of a metre rather
-    // than eight centimetres, or light through a tube came out nearly
-    // black instead of coloured.
+    transmission: 1.0,
+    thickness: depth,
+    convexVolume: true,
     attenuationColor: colour,
-    attenuationDistance: 0.25,
+    attenuationDistance: _fade,
     specular: 1.0,
-    // A wet surface: a clear coat over the colour gives the sharp highlight
-    // a liquid has and a painted solid does not.
     clearcoat: 1.0,
-    clearcoatRoughness: 0.02,
+    clearcoatRoughness: 0.0,
   ),
 );
+
+/// How far light goes through a solution before it is the solution's colour.
+const double _fade = 0.3;
 
 /// Paper, wearing [label] once it has been drawn.
 Material paper([TextureHandle? label]) =>

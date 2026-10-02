@@ -145,12 +145,13 @@ void main() {
       expect(tube.label, isNull);
       expect(bench.dress(tube, picture), isNotNull);
       expect(tube.label!.material.albedo, isNotNull);
-      expect(bench.scene.root.children, contains(tube.label));
+      expect(tube.body.children, contains(tube.label));
 
       // Drawn again, the old label goes.
       final first = tube.label!;
       bench.dress(tube, picture);
-      expect(bench.scene.root.children, isNot(contains(first)));
+      expect(tube.body.children, isNot(contains(first)));
+      expect(first.parent, isNull);
 
       expect(bench.dress(beaker, picture), isNull);
       expect(beaker.label, isNull);
