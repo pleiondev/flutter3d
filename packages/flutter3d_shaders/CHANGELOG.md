@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
+  of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
+  when its photons are followed.
 - `ShadowTransmittance` reads the material's base colour map, and neither it
   nor the stored transmittance is held to one; `ShadowFactor` reads up to
   four, so a caster can brighten as well as darken.

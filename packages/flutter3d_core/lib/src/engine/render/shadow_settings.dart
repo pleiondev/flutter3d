@@ -106,6 +106,8 @@ final class ShadowSettings {
     this.evsmBlurRadius = 2,
     this.evsmBleedReduction = 0.2,
     this.translucentCasters = false,
+    this.caustics = false,
+    this.causticPhotons = 128,
   });
 
   /// How the directional map is filtered — `S2`. Null picks from
@@ -174,6 +176,31 @@ final class ShadowSettings {
   /// floor, is shaded like any other. Off by default, which draws every frame
   /// exactly as before.
   final bool translucentCasters;
+
+  /// Whether light through a refracting caster is followed to where it lands
+  /// — caustics. Needs [translucentCasters].
+  ///
+  /// A caster with a volume (transmission above nought and a thickness, as
+  /// glTF's `KHR_materials_volume` says one has) is drawn from the sun twice
+  /// into small maps of its own, its near faces and its far faces, and one
+  /// photon per texel of them is bent in by Snell's law at the near face and
+  /// out at the far one, dimmed by Fresnel and by what its volume absorbs over
+  /// the path, followed to the first opaque surface below, and added into the
+  /// atlas there. The caster itself stops all of the sun's light, so what
+  /// lands under it is only what the photons bring: the dark rim and the
+  /// bright focal line a glass of water throws, in the colour of what is in
+  /// it. A thin-walled caster (no thickness) refracts nothing and keeps the
+  /// shading [translucentCasters] gives it, which is what a glass's own wall
+  /// wants.
+  ///
+  /// It follows two surfaces, the nearest and the farthest, so a liquid
+  /// inside a thin glass is followed as the liquid; a body with more
+  /// interfaces than two is followed as if it had two. Static meshes only.
+  final bool caustics;
+
+  /// How many photons a refracting caster sends along each side of its
+  /// footprint in a cascade: [causticPhotons]² for each, per cascade.
+  final int causticPhotons;
 
   /// How many cascades the directional map is split into, one to three.
   ///
@@ -521,6 +548,8 @@ final class ShadowSettings {
     int? evsmBlurRadius,
     double? evsmBleedReduction,
     bool? translucentCasters,
+    bool? caustics,
+    int? causticPhotons,
   }) =>
       // Every field, and that is not bookkeeping. This method already dropped
       // the point-shadow settings on the floor: `settingsFrom` calls it once a
@@ -555,5 +584,7 @@ final class ShadowSettings {
         evsmBlurRadius: evsmBlurRadius ?? this.evsmBlurRadius,
         evsmBleedReduction: evsmBleedReduction ?? this.evsmBleedReduction,
         translucentCasters: translucentCasters ?? this.translucentCasters,
+        caustics: caustics ?? this.caustics,
+        causticPhotons: causticPhotons ?? this.causticPhotons,
       );
 }

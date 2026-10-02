@@ -1140,6 +1140,20 @@ final class Renderer implements RenderServices {
   /// reflectance, and the way to the light, for `ShadowTransmittance`.
   final TransmittanceInfoBlock _transmittanceInfo = TransmittanceInfoBlock();
 
+  /// `ShadowSettings.caustics`: a refracting caster's faces into its maps,
+  /// and its photons into the atlas; built the first frame they are needed.
+  PipelineHandle? _causticSurfacePipeline;
+  PipelineHandle? _causticPhotonPipeline;
+
+  /// Six corners, two triangles: the quad each photon is drawn as.
+  GeometryBuffer? _causticQuad;
+
+  /// A photon's matrices, grid and the caster's optics.
+  final CausticInfoBlock _causticInfo = CausticInfoBlock();
+
+  /// Whether the sun's atlas, as last drawn, had photons added to it.
+  bool _shadowCaustics = false;
+
   /// Whether the sun's atlas, as last drawn, carries what see-through
   /// casters let through — read by the draws that light with it, which
   /// otherwise would take an atlas's empty channels for a black filter.
@@ -3230,6 +3244,24 @@ final class Renderer implements RenderServices {
     ),
     depthWrite: false,
     depthCompare: CompareFunction.less,
+  );
+
+  /// Photons given back into the atlas: colour as destination minus source,
+  /// which takes from what green and blue say was taken from red and green,
+  /// and alpha as destination plus source, which adds to what is left of
+  /// blue. Every photon lands wherever it lands, so no depth.
+  static const PassState _kCausticPhotonState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      colorOperation: BlendOperation.reverseSubtract,
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.one,
+      sourceAlphaFactor: BlendFactor.one,
+      destinationAlphaFactor: BlendFactor.one,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
   );
 
   /// Blanking one tile of the atlas by drawing over it.

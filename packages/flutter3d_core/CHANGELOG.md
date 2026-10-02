@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Caustics.** `ShadowSettings.caustics` (with `translucentCasters`, off by
+  default) follows the sun's light through every caster with a volume — a
+  transmission and a thickness. Each is drawn from the sun into two small
+  maps of its own, near faces and far faces; one photon per texel is bent in
+  and out by Snell's law, dimmed by Fresnel and by its volume's absorption
+  over the path, followed to the first opaque surface below, and added into
+  the atlas there, sized by where its neighbours land so that light is
+  neither made nor lost. The caster itself stops the light, so what lands
+  under it is what its photons bring: the bright focal line and dark rim a
+  glass of water throws, in the colour of what is in it. Thin-walled casters
+  keep the shading they had. Static meshes only; `causticPhotons` sets the
+  grid.
 - **A see-through caster can paint what it lets through.** Its base colour
   map multiplies the transmittance, and neither is held to one, so a card
   marked `ShadowCastingMode.shadowsOnly` can carry a picture of where light
