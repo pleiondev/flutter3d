@@ -116,18 +116,24 @@ class _BenchScreenState extends State<BenchScreen> {
           ),
           Positioned.fill(
             child: Listener(
+              // In setState: SceneSurface draws in build, so a camera moved
+              // without a rebuild is not drawn until something else is.
               onPointerMove: (PointerMoveEvent event) =>
-                  _orbit.rotate(event.delta.dx, event.delta.dy),
+                  setState(() => _orbit.rotate(event.delta.dx, event.delta.dy)),
               onPointerSignal: (PointerSignalEvent event) {
                 if (event is PointerScrollEvent) {
-                  _orbit.zoom(event.scrollDelta.dy > 0.0 ? 1.1 : 1.0 / 1.1);
+                  setState(
+                    () => _orbit.zoom(
+                      event.scrollDelta.dy > 0.0 ? 1.1 : 1.0 / 1.1,
+                    ),
+                  );
                 }
               },
               child: SceneSurface(
                 renderer: renderer,
                 scene: bench.scene,
                 view: _view,
-                settings: () => const RenderSettings(),
+                settings: () => RenderSettings(sky: labSky),
                 onBeforeFrame: () => _orbit.syncProjectionDepth(_camera),
                 presentFrame: presentFrame,
               ),

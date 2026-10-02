@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:chemlab/chemlab.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 void main() {
   group('profiles', () {
@@ -19,16 +20,31 @@ void main() {
       });
     }
 
-    test('a liquid is cut at its level and capped on the axis', () {
-      // Mutation: drop the cap, and the liquid is an open cup.
-      for (final profile in [
-        tubeLiquidProfile(0.4),
-        flatLiquidProfile(0.19, 0.004, 0.25),
-        flaskLiquidProfile(0.2),
+    test('a liquid is closed at its level, climbing the wall a little', () {
+      // Mutation: drop the cap, and the liquid is an open cup; flatten the
+      // meniscus, and it reads as a solid.
+      for (final (level, profile) in [
+        (0.4, tubeLiquidProfile(0.4)),
+        (0.25, flatLiquidProfile(0.19, 0.004, 0.25)),
+        (0.2, flaskLiquidProfile(0.2)),
       ]) {
-        expect(profile.last.x, 0);
-        expect(profile.last.y, closeTo(profile[profile.length - 2].y, 1e-12));
+        expect(profile.last, Vector2(0, level));
+        final wall = profile[profile.length - 6];
+        expect(wall.y, greaterThan(level));
+        expect(wall.x, greaterThan(0));
       }
+    });
+
+    test('a glass wall has an inside and a rounded rim', () {
+      // Mutation: return the outline as it was, and the mouth is a bare edge.
+      final outer = tubeProfile();
+      final wall = glassWall(outer);
+      expect(wall.length, greaterThan(outer.length * 2));
+      expect(wall.first, outer.first);
+      expect(wall.last.x, 0);
+      expect(wall.last.y, greaterThan(outer.first.y));
+      final top = wall.map((p) => p.y).reduce((a, b) => a > b ? a : b);
+      expect(top, greaterThan(outer.last.y));
     });
 
     test('a liquid stays inside its glass', () {

@@ -146,9 +146,24 @@ final class Bench {
       )..setPositionFrom(vessel.at);
       scene.add(vessel.liquid);
       scene.add(
-        MeshNode(_lathe(vessel.glass), glass(), name: '${vessel.name} glass')
+        MeshNode(
+            _lathe(glassWall(vessel.glass)),
+            glass(),
+            name: '${vessel.name} glass',
+          )
+          // Clear glass barely darkens what is behind it, and the engine's
+          // shadows are all or nothing, so the glass casts none and the
+          // coloured liquid inside it casts the shadow.
+          ..castsShadow = false
           ..setPositionFrom(vessel.at),
       );
+    }
+    final environment = EnvironmentMap.fromSky(device, labSky);
+    if (environment != null) {
+      scene
+        ..environment = environment.texture
+        ..environmentLevels = environment.levels
+        ..ambientIntensity = 1.0;
     }
     scene
       ..add(
