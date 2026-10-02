@@ -131,6 +131,51 @@ final class HotSwap {
     _registerExtension();
   }
 
+  /// Loads the material the build hook compiled [sourcePath] — a `.f3dmat`
+  /// under `assets_src/` — into, onto [device], and watches it — `P8`.
+  ///
+  /// **The one call a game makes for a material it writes in the language.**
+  /// Hand [HotMaterials.library] to the renderer as its `materials` and
+  /// give a `Material` the lighting model and parameters
+  /// [HotMaterials.materials] reads off the source. A hot reload after the
+  /// source was edited and the hook compiled it again refreshes the library
+  /// and relinks every registered renderer, so the next frame draws the
+  /// edit — on the software backend too, which compiles the new source the
+  /// bundle carries. What the edit cannot reach is a material already
+  /// holding the lighting model: a source that starts sampling a map, or
+  /// declares a uniform it did not, binds differently, and those materials
+  /// are given the new model from a fresh [HotMaterials.materials] by the
+  /// game, or the game is restarted.
+  ///
+  /// [read] stands in for the asset bundle in a test. Throws a [StateError]
+  /// naming the file when there is nothing compiled to read — the hook has
+  /// not run, or the path is not under `assets_src/`.
+  Future<HotMaterials> loadMaterial(
+    String sourcePath, {
+    required GraphicsDevice device,
+    ShaderBundleSource? read,
+  }) async {
+    final generated = generatedMaterialPathFor(sourcePath);
+    final source =
+        read ??
+        () async {
+          try {
+            return await rootBundle.load(generated);
+          } on FlutterError {
+            return null;
+          }
+        };
+    final bytes =
+        await source() ??
+        (throw StateError(
+          'no compiled material at $generated for $sourcePath: the build '
+          'hook compiles assets_src/**/*.f3dmat when the app is built',
+        ));
+    final library = await device.loadShaders(bytes);
+    registerLibrary(library, read: source, loadedFrom: bytes);
+    return HotMaterials(library, BundledMaterials.read(bytes));
+  }
+
   /// Loads the model the build hook converted [sourcePath] into, as
   /// `loadModelAsset` does, and hands it back ready to be swapped when the
   /// file changes.
@@ -1211,4 +1256,17 @@ final class _MemorySource extends AssetSource {
       (AssetRequest request) async => throw StateError(
         '$path was sent as bytes and has no files beside it',
       );
+}
+
+/// What [HotSwap.loadMaterial] loaded: the library a renderer draws the
+/// materials with, and how to bind each — `P8`.
+final class HotMaterials {
+  const HotMaterials(this.library, this.materials);
+
+  /// The compiled stages, refreshed in place on a hot reload.
+  final LoadedShaderLibrary library;
+
+  /// Each material's lighting model and default parameters, read off its
+  /// source when it was loaded.
+  final BundledMaterials materials;
 }

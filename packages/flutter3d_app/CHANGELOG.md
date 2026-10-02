@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`HotSwap.loadMaterial`** loads the bundle the build hook compiled a
+  `.f3dmat` into and watches it — `P8`: the library for the renderer, the
+  materials' lighting models and parameters, and an edit drawn by the next
+  frame after a hot reload, on the software backend too.
+
 - **The software material stage reads a `uniform`** from the draw's
   `MaterialParams`, as the GLSL does.
 
