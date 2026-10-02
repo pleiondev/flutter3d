@@ -157,9 +157,11 @@ final class ShadowSettings {
   /// a caster (`MaterialAlphaMode.blend`, or a transmission above nought) is
   /// drawn after the opaque ones into the three channels of the atlas that
   /// held nothing: how much of each of red, green and blue it lets through,
-  /// from its opacity, its transmission, its colour and the Fresnel loss its
-  /// index of refraction gives at that angle — so a clear glass casts a faint
-  /// shadow with darker edges, and a coloured liquid a shadow of its colour.
+  /// from its opacity, its transmission, its colour and volume, and the
+  /// Fresnel loss its index of refraction gives at that angle — so a clear
+  /// glass casts a faint shadow with darker edges, and a coloured solution a
+  /// shadow of the deep colour light through it takes. Where refracted light
+  /// lands, the bright line down a tube's shadow, is not modelled.
   /// Layers combine: light through two walls and a liquid is what all three
   /// let through.
   ///
