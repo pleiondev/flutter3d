@@ -324,49 +324,135 @@ double fallTime(Vector3 velocity, double height, double floor) {
   return (velocity.y + math.sqrt(velocity.y * velocity.y + 2.0 * g * drop)) / g;
 }
 
+/// The inside of an upright tube a stream may fall into: its axis through
+/// ([x], [z]), the [radius] of its inside, and the height of its [rim].
+typedef StreamWall = ({double x, double z, double radius, double rim});
+
 /// A stream of liquid leaving [lip] at [velocity] as a sheet [width] wide,
-/// across [across], and falling freely to the height [floor].
+/// across [across], and falling to the height [floor] — inside [wall], if
+/// there is one.
 ///
 /// **Nothing in its shape is chosen.** A steady stream carries the same
 /// [flow] past every height, so its section is the flow over its speed
 /// there, and its speed is what falling gives it: it thins as it falls. It
 /// leaves the lip as a flat sheet as wide as the wetted lip, and its edges
-/// draw in at the Taylor–Culick speed until it is round, which for a sheet
-/// this thick takes a fraction of its fall.
-MeshData stream({
+/// draw in at the Taylor–Culick speed until it is round.
+///
+/// **Where it meets the glass it stays on it.** Water wets glass, so a
+/// stream that reaches the inside of the wall does not bounce: it loses the
+/// part of its speed that went into the wall, keeps the part along it, and
+/// runs down the inside as a rivulet pressed flat against the glass, still
+/// carrying the same flow. So the path is followed in steps rather than
+/// written down, held inside the wall below the rim.
+///
+/// **What passes a height is what left the lip that long ago.** [flowAt]
+/// gives the flow that left the lip [age] seconds back, so the stream's
+/// section where it has been falling that long is that flow over its speed
+/// there: the continuity equation along the stream, with the pour changing
+/// under it. Where nothing left, there is nothing, so when the pour stops
+/// the tail comes away from the lip and falls. Returned with the mesh is how
+/// long the fall takes, which is how late what leaves the lip arrives.
+({MeshData mesh, double duration}) stream({
   required Vector3 lip,
   required Vector3 velocity,
   required Vector3 across,
   required double width,
   required double floor,
   required double flow,
+  double Function(double age)? flowAt,
+  StreamWall? wall,
   double scale = 1.0,
   int sides = 16,
-  int rows = 28,
 }) {
   const g = 9.81;
-  final duration = fallTime(velocity, lip.y, floor);
-  final speed = math.max(velocity.length, 1e-3);
-  final thickness = flow / (speed * math.max(width, 1e-4));
+  const dt = 1.0 / 1200.0;
+  final speed0 = math.max(velocity.length, 1e-3);
+  final thickness = flow / (speed0 * math.max(width, 1e-4));
   final retraction = sheetRetraction(thickness, scale: scale);
+
+  // The path, a point every few steps: where, how fast, and whether on the
+  // glass by then.
+  final path = <({Vector3 p, Vector3 v, bool onWall, double t})>[];
+  var p = lip.clone();
+  final v = velocity.clone();
+  var onWall = false;
+  var t = 0.0;
+  for (var i = 0; i < 20000; i++) {
+    if (i % 12 == 0) {
+      path.add((p: p.clone(), v: v.clone(), onWall: onWall, t: t));
+    }
+    if (p.y <= floor) break;
+    v.y -= g * dt;
+    p += v * dt;
+    t += dt;
+    if (wall != null && p.y < wall.rim) {
+      final dx = p.x - wall.x;
+      final dz = p.z - wall.z;
+      final d = math.sqrt(dx * dx + dz * dz);
+      final area = flow / math.max(v.length, 1e-3);
+      final inside = wall.radius - math.sqrt(area / math.pi) * 0.5;
+      if (d >= inside && d > 1e-6) {
+        // On the glass: held to it, and what moved into it is gone.
+        final nx = dx / d;
+        final nz = dz / d;
+        p
+          ..x = wall.x + nx * inside
+          ..z = wall.z + nz * inside;
+        final into = v.x * nx + v.z * nz;
+        if (into > 0.0) {
+          v
+            ..x -= into * nx
+            ..z -= into * nz;
+        }
+        onWall = true;
+      }
+    }
+  }
+  if (path.last.p.y > floor) {
+    path.add((p: p.clone(), v: v.clone(), onWall: onWall, t: t));
+  }
+
   final builder = MeshBuilder(VertexLayout.standard);
-  for (var k = 0; k <= rows; k++) {
-    final t = duration * k / rows;
-    final centre = lip + velocity * t - Vector3(0, 0.5 * g * t * t, 0);
-    final v = velocity - Vector3(0, g * t, 0);
-    final area = flow / math.max(v.length, 1e-3);
+  for (final step in path) {
+    final local = flowAt?.call(step.t) ?? flow;
+    final area = math.max(local, 0.0) / math.max(step.v.length, 1e-3);
     final round = math.sqrt(area / math.pi);
-    // Half its width, drawn in from the lip's, and never narrower than
-    // round; the other half-axis keeps the section.
-    final a = math.max(0.5 * width - retraction * t, round);
+    final axis = step.v.length2 > 0.0 ? step.v.normalized() : Vector3(0, -1, 0);
+    late Vector3 e1;
+    late double a;
+    var centre = step.p;
+    if (step.onWall && wall != null) {
+      // A rivulet on the glass: its flat side along the wall, twice as wide
+      // as it is thick, its back against the glass.
+      final out = Vector3(step.p.x - wall.x, 0, step.p.z - wall.z)..normalize();
+      e1 = out.cross(axis)..normalize();
+      a = math.max(math.sqrt(2.0) * round, 1e-6);
+    } else {
+      e1 = (across - axis * across.dot(axis))..normalize();
+      // Half its width, drawn in from the lip's, and never narrower than
+      // round; the other half-axis keeps the section.
+      // Nought where nothing passes: a gap in the stream.
+      a = local > 0.0
+          ? math.max(0.5 * width - retraction * step.t, round)
+          : 1e-6;
+    }
     final b = area / (math.pi * a);
-    final axis = v.normalized();
-    final e1 = (across - axis * across.dot(axis))..normalize();
     final e2 = axis.cross(e1);
+    if (step.onWall && wall != null) {
+      // Its back on the glass rather than its middle.
+      final out = Vector3(step.p.x - wall.x, 0, step.p.z - wall.z)..normalize();
+      centre = step.p + out * (0.5 * round - b);
+    }
     for (var i = 0; i <= sides; i++) {
       final angle = 2.0 * math.pi * i / sides;
       final c = math.cos(angle);
       final s = math.sin(angle);
+      // Nothing passing here: the ring shrinks to a point, which draws
+      // nothing.
+      if (area <= 0.0) {
+        builder.addVertex(position: centre, normal: e1);
+        continue;
+      }
       // The ellipse's normal: its gradient, (x / a², y / b²).
       final n = (e1 * (c / a) + e2 * (s / b))..normalize();
       builder.addVertex(
@@ -376,7 +462,7 @@ MeshData stream({
     }
   }
   final columns = sides + 1;
-  for (var k = 0; k < rows; k++) {
+  for (var k = 0; k + 1 < path.length; k++) {
     for (var i = 0; i < sides; i++) {
       final a = k * columns + i;
       // Drawn from both sides: its material is double-sided, so which way
@@ -386,5 +472,5 @@ MeshData stream({
         ..addTriangle(a, a + columns + 1, a + columns);
     }
   }
-  return builder.build();
+  return (mesh: builder.build(), duration: path.last.t);
 }

@@ -482,7 +482,9 @@ final class Bench {
   /// Whether [from] can be poured into the [clean] tube until the two hold
   /// the same: it has more, and half of both fits.
   bool canShare(Vessel from) {
-    if (busy || identical(from, clean)) return false;
+    // The clean tube stands upright to be poured into: the stream is held
+    // inside it as a vertical cylinder.
+    if (busy || identical(from, clean) || clean.tilt != 0.0) return false;
     final mine = from.volumeAt(from.level);
     final theirs = clean.volumeAt(clean.level);
     return mine > theirs + 1e-4 && (mine + theirs) / 2.0 <= clean.capacity;
@@ -520,7 +522,7 @@ final class Bench {
                 width: 0.01,
                 floor: from.at.y,
                 flow: 1e-6,
-              ),
+              ).mesh,
             ),
             material,
             name: 'stream',
@@ -663,15 +665,19 @@ final class Bench {
     from.tilt = tilt;
     t.tilt = tilt;
 
-    // What left the one went into the other.
+    // What left the lip this frame, and what reaches the clean tube: what
+    // left it a fall ago. Between the two is the liquid in the air.
     final poured = before - t.volume;
     final rate = seconds > 0.0 ? poured / seconds : 0.0;
-    t.flow = 0.6 * t.flow + 0.4 * rate;
-    if (poured > 0.0) {
-      final theirs = t.received + (t.start - t.volume);
-      _mix(to, from.colour, poured, theirs - poured);
+    t.emitted.add((time: t.time, rate: rate));
+    t.flow = rate;
+    final arriving = t.rateAt(t.time - t.fall) * seconds;
+    if (arriving > 0.0) {
+      final held = t.received + t.arrived;
+      t.arrived = math.min(t.arrived + arriving, t.start - t.goal);
+      _mix(to, from.colour, t.received + t.arrived - held, held);
       to
-        ..level = levelFor(to.wall, theirs)
+        ..level = levelFor(to.wall, t.received + t.arrived)
         .._fitSlosh()
         ..slosh.tap(0.0015 * (_random.nextDouble() - 0.3));
       _reshape(to);
@@ -690,27 +696,51 @@ final class Bench {
       ),
     );
 
-    // The stream, while there is one to see.
-    final streaming = t.flow > 1e-4;
+    // The stream, while any of it is in the air. While liquid leaves the
+    // lip the path is the one it leaves on; once it stops, the last of it
+    // keeps the path it was on and falls away from the lip.
+    double inAir(double age) => t.rateAt(t.time - age);
+    var peak = 0.0;
+    for (var k = 0; k <= 20; k++) {
+      peak = math.max(peak, inAir(t.fall * k / 20));
+    }
+    final streaming = peak > 1e-7;
     t.stream.visible = streaming;
     if (streaming) {
-      final lip = from.body.worldMatrix.transformed3(from.lip);
-      final surface = to.at.y + (to.empty ? to.wall.first.y : to.level);
-      final old = t.stream.mesh;
-      final leaving = _thrown(from, tilt, t.flow);
-      t.stream.mesh = DeviceMesh.upload(
-        device,
-        stream(
-          lip: lip,
+      if (rate > 1e-7) {
+        final leaving = _thrown(from, tilt, rate);
+        t.launch = (
+          lip: from.body.worldMatrix.transformed3(from.lip),
           velocity: leaving.velocity,
-          across: Vector3(1, 0, 0),
           width: leaving.width,
+          flow: rate,
+        );
+      }
+      final launch = t.launch;
+      if (launch != null) {
+        final surface = to.at.y + (to.empty ? to.wall.first.y : to.level);
+        final old = t.stream.mesh;
+        final built = stream(
+          lip: launch.lip,
+          velocity: launch.velocity,
+          across: Vector3(1, 0, 0),
+          width: launch.width,
           floor: surface,
-          flow: t.flow,
+          flow: launch.flow,
+          flowAt: inAir,
           scale: lifeScale,
-        ),
-      );
-      if (old is DeviceMesh) (retire ?? _releaseNow)(old);
+          wall: (
+            x: to.at.x,
+            z: to.at.z,
+            radius: to.lip.z,
+            rim: to.at.y + to.glass.map((p) => p.y).reduce(math.max),
+          ),
+        );
+        t
+          ..stream.mesh = DeviceMesh.upload(device, built.mesh)
+          ..fall = built.duration;
+        if (old is DeviceMesh) (retire ?? _releaseNow)(old);
+      }
     }
   }
 
@@ -727,6 +757,16 @@ final class Bench {
       ..tilt = 0.0
       ..level = levelFor(from.wall, t.goal)
       .._fitSlosh();
+    // Whatever was still in the air has landed by now.
+    final to = t.to;
+    if (t.arrived < t.start - t.goal) {
+      final held = t.received + t.arrived;
+      _mix(to, from.colour, t.start - t.goal - t.arrived, held);
+      to
+        ..level = levelFor(to.wall, t.received + t.start - t.goal)
+        .._fitSlosh();
+      _reshape(to);
+    }
     from.slosh
       ..settle()
       ..jolt(0.35);
@@ -991,6 +1031,31 @@ final class _Transfer {
 
   /// How far it leaned last frame, which is what the stream left with.
   double tilt = 0.0;
+
+  /// How fast liquid left the lip, frame by frame: the stream's history.
+  final List<({double time, double rate})> emitted = [];
+
+  /// How much of what left has reached the clean tube.
+  double arrived = 0.0;
+
+  /// How long a drop takes from the lip to the surface, as the last stream
+  /// found it.
+  double fall = 0.35;
+
+  /// Where and how the stream last left the lip: the path its tail keeps
+  /// once nothing more leaves.
+  ({Vector3 lip, Vector3 velocity, double width, double flow})? launch;
+
+  /// How fast liquid left the lip at [time]: the rate of the frame that
+  /// time falls in, nought before the first.
+  double rateAt(double time) {
+    if (emitted.isEmpty || time <= emitted.first.time - 1e-9) return 0.0;
+    for (var i = 1; i < emitted.length; i++) {
+      // A frame's rate held over the span that ends at its time.
+      if (time <= emitted[i].time) return emitted[i].rate;
+    }
+    return emitted.last.rate;
+  }
 
   late final MeshNode stream;
 }
