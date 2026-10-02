@@ -37,7 +37,8 @@ import 'vessel_shape.dart';
 final class FreeSurface {
   FreeSurface({required this.medium, this.cells = 40, this.modeCount = 12});
 
-  final FluidMedium medium;
+  /// The liquid at the surface: the top one, when there are layers.
+  FluidMedium medium;
 
   /// How many cells the grid has across its wider side.
   final int cells;

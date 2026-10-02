@@ -11,8 +11,15 @@ abstract interface class JetReceiver {
   /// receiver's surface: whether its underside has.
   bool catches(Vector3 point, double radius);
 
-  /// Takes [volume] cubic metres arriving at [point] moving at [velocity].
-  void receive(double volume, Vector3 point, Vector3 velocity);
+  /// Takes [volume] cubic metres of [medium] carrying [concentrations],
+  /// arriving at [point] moving at [velocity].
+  void receive(
+    double volume,
+    Vector3 point,
+    Vector3 velocity,
+    FluidMedium medium,
+    Map<String, double> concentrations,
+  );
 }
 
 /// Something a stream can run into and along — a wall.
@@ -23,7 +30,13 @@ abstract interface class JetObstacle {
 }
 
 /// A drop a stream broke into, leaving it: where, how fast, how much.
-typedef JetDrop = ({Vector3 position, Vector3 velocity, double volume});
+typedef JetDrop = ({
+  Vector3 position,
+  Vector3 velocity,
+  double volume,
+  FluidMedium medium,
+  Map<String, double> concentrations,
+});
 
 /// One point of a stream as a renderer draws it: where, which way it moves,
 /// and its section — an ellipse [wide] across [across] and [thick] the other
@@ -68,6 +81,8 @@ typedef JetSample = ({
 final class Jet {
   Jet({required this.medium, this.breakupGrowth = 12.0});
 
+  /// The liquid a parcel is when [emit] is not told otherwise, and the one
+  /// [clingSpeed] answers for.
   final FluidMedium medium;
 
   /// How many e-foldings of growth part the stream.
@@ -117,6 +132,8 @@ final class Jet {
     required Vector3 velocity,
     required double width,
     required Vector3 across,
+    FluidMedium? medium,
+    Map<String, double> concentrations = const {},
   }) {
     final volume = flow * dt;
     if (volume <= 0.0) {
@@ -136,6 +153,8 @@ final class Jet {
         width: w,
         sheet: flow / (speed * w),
         across: across.clone()..normalize(),
+        medium: medium ?? this.medium,
+        concentrations: concentrations,
       ),
     );
   }
@@ -149,11 +168,11 @@ final class Jet {
     List<JetReceiver> receivers = const [],
   }) {
     final drops = <JetDrop>[];
-    final rho = medium.density;
-    final sigma = medium.surfaceTension;
-    final mu = medium.viscosity;
     for (var i = 0; i < _parcels.length; i++) {
       final p = _parcels[i];
+      final rho = p.medium.density;
+      final sigma = p.medium.surfaceTension;
+      final mu = p.medium.viscosity;
       p.velocity.addScaled(gravity, dt);
       p.position.addScaled(p.velocity, dt);
       p.age += dt;
@@ -215,7 +234,13 @@ final class Jet {
         }
       }
       if (into != null) {
-        into.receive(p.volume, p.position, p.velocity);
+        into.receive(
+          p.volume,
+          p.position,
+          p.velocity,
+          p.medium,
+          p.concentrations,
+        );
         _landed += p.volume;
         if (kept.isNotEmpty) kept.last.endsRun = true;
         continue;
@@ -231,6 +256,8 @@ final class Jet {
             position: p.position.clone(),
             velocity: p.velocity.clone(),
             volume: p.volume / count,
+            medium: p.medium,
+            concentrations: p.concentrations,
           ));
         }
         _dropped += p.volume;
@@ -250,8 +277,6 @@ final class Jet {
   List<List<JetSample>> get runs {
     final out = <List<JetSample>>[];
     var run = <JetSample>[];
-    final sigma = medium.surfaceTension;
-    final rho = medium.density;
     for (var i = _parcels.length - 1; i >= 0; i--) {
       final p = _parcels[i];
       // A break between this parcel and the newer ones already in the run.
@@ -261,7 +286,11 @@ final class Jet {
       }
       final section = p.section;
       final round = math.sqrt(section / math.pi);
-      final retract = math.sqrt(2.0 * sigma / (rho * math.max(p.sheet, 1e-6)));
+      final retract = math.sqrt(
+        2.0 *
+            p.medium.surfaceTension /
+            (p.medium.density * math.max(p.sheet, 1e-6)),
+      );
       final wide = p.onWall
           ? math.sqrt(2.0) * round
           : math.max(0.5 * p.width - retract * p.age, round);
@@ -287,7 +316,13 @@ final class _Parcel {
     required this.width,
     required this.sheet,
     required this.across,
+    required this.medium,
+    required this.concentrations,
   });
+
+  /// What it is: which liquid, and what is dissolved in it.
+  final FluidMedium medium;
+  final Map<String, double> concentrations;
 
   final Vector3 position;
   final Vector3 velocity;
