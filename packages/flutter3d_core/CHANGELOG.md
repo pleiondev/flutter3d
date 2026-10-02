@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`MeshNode.drawOrder`** puts nodes that share a material in an order:
+  it adds to the material's `drawBucket`, outranks every other sort term in
+  both halves of the list, and is never merged across by the batching. Nought
+  by default.
+
 - **An orthographic camera no longer reads its eye as a point the light
   travels to.** Highlights, Fresnel and reflections are measured against
   the view axis rather than from the eye's position, so they stop sliding

@@ -316,6 +316,8 @@ final class Material {
   /// Signed, and negative is the useful half: ordinary materials sit at zero,
   /// so the only way to be drawn *before* the scene is to ask for less than it.
   /// The usable range is −128 to 127 and values outside it are clamped.
+  /// [MeshNode.drawOrder] adds to it, for an order between nodes that share
+  /// this material.
   int drawBucket;
 
   /// Overrides whether this surface writes depth. Null lets transparency
