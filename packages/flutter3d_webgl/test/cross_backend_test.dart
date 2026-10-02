@@ -98,6 +98,10 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
+  // 0.359% measured, on the silhouette: `shadow-teapot`'s edge between
+  // WebGL2 and Impeller, and the normals' half shows it in brighter colours
+  // than the lit half's.
+  'debug-view-split': 0.45,
   // **Zero measured, and it was 0.558%.** Both this and the occlusion below
   // reconstruct a world point from the depth stored in the surface buffer, and
   // both were handed a matrix adjusted to this backend's `[-1, 1]` clip range

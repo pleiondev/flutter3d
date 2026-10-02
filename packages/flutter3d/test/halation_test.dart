@@ -87,7 +87,7 @@ void main() {
 
   test('zero is an exact identity, and is the default', () async {
     // The multiplier is one on every channel at zero, so the chain comes out
-    // byte for byte as it did — which is what eighty-six goldens need.
+    // byte for byte as it did — which is what eighty-seven goldens need.
     expect(const BloomSettings().halation, 0.0);
     final a = await _glow(halation: 0.0);
     final b = await _glow(halation: 0.0);

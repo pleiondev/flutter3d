@@ -93,6 +93,9 @@ extension _PlanarPasses on Renderer {
     _targetOrigin[1] = 0.0;
     _targetOrigin[2] = settings.energyCompensation ? 1.0 : 0.0;
     _targetOrigin[3] = -1.0;
+    // A reflection shows the light, whatever the frame's debug view: the
+    // mirror is part of the picture being debugged, not a material in it.
+    _fragInfo.debugView.fillRange(0, 4, 0.0);
     pass.setState(
       Renderer._kSceneViewState.copyWith(
         viewport: rect,

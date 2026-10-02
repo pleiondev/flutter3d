@@ -500,3 +500,86 @@ void applyCommonMaps(
   applyOcclusionMap(s, v, b, c, transformed: transformed);
   applyEmissiveMap(s, v, b, c, transformed: transformed);
 }
+
+/// `NonFinite` from `surface.glsl`: NaN or infinite in any channel.
+bool nonFinite(Vector3 c) =>
+    c.x.isNaN ||
+    c.y.isNaN ||
+    c.z.isNaN ||
+    c.x.isInfinite ||
+    c.y.isInfinite ||
+    c.z.isInfinite;
+
+/// `WriteDebugView` from `surface.glsl` — `P6`: the material channel
+/// `FragInfo.debug_view` asks for, in place of [lit], or null when no view
+/// is on or the fragment sits left of the split, and the caller writes the
+/// light.
+///
+/// Display values converted to linear, through the surface buffer and the
+/// weighted-blended targets as `writeLit` writes them, and without the fog,
+/// for the reasons the GLSL gives. [geometric] is the normal the surface
+/// buffer takes when the stage hands `writeLit` another than [Surface.normal]
+/// — the impostor's card.
+Vector4? writeDebugView(
+  FragmentContext c,
+  Float32List v,
+  ShaderBindings b,
+  Surface s,
+  Vector3 lit, {
+  bool transformed = false,
+  Vector3? geometric,
+}) {
+  final debug = b.vec4('FragInfo', 'debug_view', Vector4.zero());
+  if (debug.x < 0.5) return null;
+  if (c.coord.x < debug.y * debug.z) return null;
+  Vector3 srgbOf(Vector3 linear) => Vector3(
+    toSrgb(linear.x.clamp(0.0, 1.0)),
+    toSrgb(linear.y.clamp(0.0, 1.0)),
+    toSrgb(linear.z.clamp(0.0, 1.0)),
+  );
+  final shown = switch ((debug.x + 0.5).floor()) {
+    1 => srgbOf(s.albedo),
+    2 => Vector3(
+      s.normal.x * 0.5 + 0.5,
+      s.normal.y * 0.5 + 0.5,
+      s.normal.z * 0.5 + 0.5,
+    ),
+    3 => Vector3.all(s.roughness.clamp(0.0, 1.0)),
+    4 => Vector3.all(s.metallic.clamp(0.0, 1.0)),
+    5 => Vector3.all(s.occlusion.clamp(0.0, 1.0)),
+    6 => srgbOf(s.emissive),
+    7 => () {
+      final (u: u, v: w, footprint: _) = mapUv(
+        kMapBaseColor,
+        v,
+        b,
+        c,
+        transformed: transformed,
+      );
+      return Vector3(fract(u), fract(w), 0.0);
+    }(),
+    8 =>
+      nonFinite(lit)
+          ? Vector3(1.0, 0.0, 1.0)
+          : () {
+              final e = srgbOf(lit);
+              return Vector3.all(
+                (0.2126 * e.x + 0.7152 * e.y + 0.0722 * e.z) * 0.5,
+              );
+            }(),
+    _ => Vector3.zero(),
+  };
+  writeSurface(c, v, b, geometric ?? s.normal, s.roughness);
+  final weight = premultiplies(b) ? s.alpha : 1.0;
+  return writeWeightedBlended(
+    c,
+    v,
+    b,
+    Vector4(
+      toLinear(shown.x) * weight,
+      toLinear(shown.y) * weight,
+      toLinear(shown.z) * weight,
+      s.alpha,
+    ),
+  );
+}

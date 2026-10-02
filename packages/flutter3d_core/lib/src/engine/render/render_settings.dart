@@ -1010,6 +1010,109 @@ final class ViewportShadingSettings {
   );
 }
 
+/// What a debug view shows in place of the light — `P6`.
+///
+/// **A final class with const instances rather than an enum**, for the reason
+/// [ViewportShading] is one: [code] is what `FragInfo.debug_view.x` carries
+/// to four backends, a number this type owns.
+final class DebugView {
+  const DebugView._(this.name, this.code);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// What goes into `FragInfo.debug_view.x`. Part of the shader contract.
+  final double code;
+
+  /// The lit picture, untouched — the default, and an exact no-op.
+  static const DebugView off = DebugView._('off', 0.0);
+
+  /// The base colour after its texture, tint and vertex colour, as the sRGB
+  /// colour a texture is painted in.
+  static const DebugView albedo = DebugView._('albedo', 1.0);
+
+  /// The shading normal, after the normal map, as `n · 0.5 + 0.5` in world
+  /// space — the normal map's work, which the surface buffer's geometric
+  /// normal does not show.
+  static const DebugView normal = DebugView._('normal', 2.0);
+
+  /// Perceptual roughness as a grey, after the metal-rough map.
+  static const DebugView roughness = DebugView._('roughness', 3.0);
+
+  /// Metalness as a grey, after the metal-rough map.
+  static const DebugView metallic = DebugView._('metallic', 4.0);
+
+  /// The occlusion map's share of light left, as a grey.
+  static const DebugView occlusion = DebugView._('occlusion', 5.0);
+
+  /// Emission as its sRGB colour, clipped at one.
+  static const DebugView emissive = DebugView._('emissive', 6.0);
+
+  /// The base colour map's coordinate, its fraction in red and green: a seam
+  /// is a step in colour, a stretched island a long gradient.
+  static const DebugView uv = DebugView._('uv', 7.0);
+
+  /// Magenta wherever the light came out NaN or infinite, over the light's
+  /// own luminance in a dark grey — where a bad normal, a zero-length vector
+  /// or a division by nought turned shading into nothing.
+  static const DebugView nonFinite = DebugView._('nonFinite', 8.0);
+
+  /// All of them, off first.
+  static const List<DebugView> values = <DebugView>[
+    off,
+    albedo,
+    normal,
+    roughness,
+    metallic,
+    occlusion,
+    emissive,
+    uv,
+    nonFinite,
+  ];
+
+  @override
+  String toString() => 'DebugView.$name';
+}
+
+/// A material channel shown in place of the light, over all or part of the
+/// frame — `P6`.
+///
+/// **Written by the materials, not read back from a buffer**, which is what
+/// sets this apart from [ViewportShadingSettings]: the surface buffer keeps a
+/// geometric normal, a roughness and a depth, and the channels a look-dev
+/// question is about — an albedo too bright, a metalness map read as sRGB, a
+/// seam in the UVs — exist only inside the lit stage. Each lit model asks
+/// `WriteDebugView` before it writes its light. A stage that is not a lit
+/// material — the sky, particles, splats, glass's own pass — draws as it
+/// always does, and right of the split it reaches the screen without the
+/// tone curve, so it reads brighter there than it is.
+///
+/// **The split is a wipe.** Left of [split] the frame is lit as ever, right
+/// of it the channel, in one draw: a material shows where its map and its
+/// light disagree without two captures to line up. Nought is the whole frame.
+///
+/// **Passes between the materials and the composite still run.** Reflections,
+/// depth of field, motion blur and a temporal resolve work on whatever the
+/// scene holds, so turn them off for a clean read of a channel. The
+/// composite's exposure, curve, bloom and grade do not touch the debug side.
+final class DebugViewSettings {
+  const DebugViewSettings({this.view = DebugView.off, this.split = 0.0});
+
+  /// Which channel. [DebugView.off] is the default and an exact no-op.
+  final DebugView view;
+
+  /// Where the debug view starts, as a share of the width from the left:
+  /// nought the whole frame, a half the right half. Held inside nought and
+  /// one.
+  final double split;
+
+  /// Whether a frame drawn with these shows a channel anywhere.
+  bool get active => view != DebugView.off && split < 1.0;
+
+  DebugViewSettings copyWith({DebugView? view, double? split}) =>
+      DebugViewSettings(view: view ?? this.view, split: split ?? this.split);
+}
+
 /// Distance fog, and fog that lies on the ground.
 ///
 /// Exponential per metre, which is what the level format already stores. A
@@ -1241,6 +1344,7 @@ final class RenderSettings {
     this.planarReflections = const PlanarReflectionSettings(),
     this.decals = const DecalSettings(),
     this.viewportShading = const ViewportShadingSettings(),
+    this.debugView = const DebugViewSettings(),
     this.transparency = TransparencyMode.sorted,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
@@ -1358,7 +1462,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the eighty-six goldens keep the frame
+  /// nothing headless can run them. So the eighty-seven goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -1457,6 +1561,10 @@ final class RenderSettings {
   /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
   /// than out of the materials.
   final ViewportShadingSettings viewportShading;
+
+  /// `P6`'s material channels in place of the light, over all or part of the
+  /// frame.
+  final DebugViewSettings debugView;
 
   final FogSettings fog;
 
@@ -1758,6 +1866,7 @@ final class RenderSettings {
     PlanarReflectionSettings? planarReflections,
     DecalSettings? decals,
     ViewportShadingSettings? viewportShading,
+    DebugViewSettings? debugView,
     TransparencyMode? transparency,
   }) => RenderSettings(
     specular: specular ?? this.specular,
@@ -1806,6 +1915,7 @@ final class RenderSettings {
     planarReflections: planarReflections ?? this.planarReflections,
     decals: decals ?? this.decals,
     viewportShading: viewportShading ?? this.viewportShading,
+    debugView: debugView ?? this.debugView,
     transparency: transparency ?? this.transparency,
   );
 
@@ -2136,7 +2246,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Eighty-six goldens depend on that being exact, and the composite
+/// existed. Eighty-seven goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

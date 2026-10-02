@@ -119,6 +119,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -434,6 +435,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -588,6 +590,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1132,6 +1135,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1274,6 +1278,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1648,6 +1653,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'IrradianceInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1790,6 +1796,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'Velocity': <String, Map<String, UniformMemberLayout>>{
@@ -2125,6 +2132,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+      'debug_view': (offset: 896, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
 };

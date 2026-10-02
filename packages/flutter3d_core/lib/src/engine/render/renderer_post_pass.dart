@@ -205,7 +205,7 @@ extension _PostPasses on Renderer {
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
     // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
     // centre untouched at zero rather than running a kernel that rounds to
-    // nothing, and eighty-six goldens depend on that being the same bytes.
+    // nothing, and eighty-seven goldens depend on that being the same bytes.
     //
     // After a temporal resolve the robust kernel, at the resolve's own
     // strength — `R2`: what softens a resolved picture is the history, and
@@ -1678,7 +1678,7 @@ extension _PostPasses on Renderer {
     // itself — then one draw per view, scissored to its own rectangle, so the
     // exposure in the uniform is the one that view metered. With per-view
     // metering off, or with a single view, this is the one full-frame draw it
-    // has always been and the bytes are the bytes eighty-six goldens hold.
+    // has always been and the bytes are the bytes eighty-seven goldens hold.
     final perView =
         settings.autoExposure.enabled &&
         settings.autoExposure.perView &&
@@ -1793,6 +1793,11 @@ extension _PostPasses on Renderer {
         : settings.localExposure.strength.clamp(0.0, 1.0);
     // `P2`: the lens's bend, nought off exactly.
     _compositeInfo.lens[0] = settings.look.distortion;
+    // `P6`: right of the split the scene holds display values, which the
+    // composite passes through its encode alone.
+    final debug = settings.debugView;
+    _compositeInfo.lens[1] = debug.active ? 1.0 : 0.0;
+    _compositeInfo.lens[2] = debug.split.clamp(0.0, 1.0);
     pass.bindTexture(
       compositeShader,
       'local_exposure_texture',

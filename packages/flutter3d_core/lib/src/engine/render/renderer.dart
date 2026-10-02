@@ -1565,7 +1565,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: eighty-six goldens go through this
+  /// strength has, and for the same reason: eighty-seven goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -4668,6 +4668,7 @@ final class Renderer implements RenderServices {
       // are the compile's own answers, and a second derivation is a second
       // thing to disagree with the frame.
       skipped: frameGraph.skipped,
+      targetBytes: resources.targetBytes,
     );
   }
 

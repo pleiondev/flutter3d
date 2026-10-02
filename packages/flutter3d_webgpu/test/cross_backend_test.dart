@@ -127,6 +127,7 @@ const int _channel = 8;
 /// paragraph on the line where its name already is, which is how the two
 /// siblings grew every explanation they carry.
 const Map<String, double> _budgets = <String, double>{
+  'debug-view-split': 0.01,
   'teapot-generated-normals': 0.01,
   'shadow-teapot': 0.01,
   'bloom-sphere': 0.01,

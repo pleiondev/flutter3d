@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **The generated tables carry the debug views**, and `debug-view-split`
+  is in the browser reference set.
+
 - **`LensFlare` translated, and the composite's distortion**;
   `lens-flare` and `lens-distortion` are in the browser reference set.
 - **SMAA 1x's three stages translated**, from the same sources as every

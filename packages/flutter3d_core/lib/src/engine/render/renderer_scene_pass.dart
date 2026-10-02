@@ -175,6 +175,16 @@ extension _ScenePasses on Renderer {
     // shadow's taps anew each frame for the history to average; minus one
     // otherwise, and the turn stays put.
     _targetOrigin[3] = temporal ? (_frameIndex % 32).toDouble() : -1.0;
+    // `P6`: the channel a debug view shows in place of the light, and the
+    // column it starts at — the share of the width times the width of the
+    // target the materials draw into, which is the scene's and not the
+    // output's under a render scale.
+    final debug = settings.debugView;
+    _fragInfo.debugView
+      ..[0] = debug.active ? debug.view.code : 0.0
+      ..[1] = debug.split.clamp(0.0, 1.0)
+      ..[2] = hdr.width.toDouble()
+      ..[3] = 0.0;
     final cameraPosition = vm.Vector3.zero();
 
     for (var viewNumber = 0; viewNumber < ordered.length; viewNumber++) {

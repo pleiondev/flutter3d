@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **Debug views in software.** `writeDebugView` mirrors `WriteDebugView`
+  for every lit model and the impostor, and the composite passes the debug
+  side of the split through its encode alone, as the GLSL does.
+
 - **The lens in software.** The composite bends its coordinate as
   `composite.frag` does, and `LensFlareShader` mirrors `lens_flare.frag`;
   `lens-flare` and `lens-distortion` match Impeller's references to the

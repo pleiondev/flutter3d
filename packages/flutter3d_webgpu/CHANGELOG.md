@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **The generated tables carry the debug views**, and `debug-view-split`
+  is in the WebGPU reference set.
+
 - **`LensFlare` translated, and the composite's distortion**, through
   glslang and naga; both lens scenes match Impeller's to the pixel.
 - **SMAA 1x's three stages translated**, through glslang and naga like every
