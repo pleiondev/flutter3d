@@ -9,6 +9,21 @@ typedef TimelinePreview = ({bool found, int? step});
 /// for the one shape it reads out of it.
 typedef StepCosts = ({List<int> steps, List<double> millis});
 
+/// What `ext.flutter3d.timeline.status` answers: the two ends of the
+/// scrubber — the oldest step a rewind reaches and the present — and where
+/// the live state is scrubbed to, null at the present.
+typedef TimelineWindow = ({int present, int? oldest, int? scrubbedAt});
+
+/// One lane of `ext.flutter3d.timeline.tracks`: the steps one component of
+/// one entity changed at, and what it changed to, as text — the panel draws
+/// marks and tooltips and never reads the value back.
+typedef TrackLane = ({
+  String entity,
+  String component,
+  List<int> steps,
+  List<String> values,
+});
+
 /// What a running game's `RunTimeline` looks like from outside it.
 ///
 /// An interface rather than [VmServiceTimelineClient] directly, so
@@ -49,6 +64,24 @@ abstract interface class TimelineClient {
   /// if that callback itself threw (nothing recorded yet, most likely).
   Future<Map<String, Object?>> bugReport();
 
+  /// `N4`: the scrubber's range and position.
+  Future<TimelineWindow> window();
+
+  /// Moves the live state to before [step] without cutting anything. Null
+  /// when it moved; otherwise the running game's reason it did not.
+  Future<String?> scrubTo(int step);
+
+  /// Puts the present back after a scrub; false when there was none.
+  Future<bool> returnToPresent();
+
+  /// Makes the scrubbed step the present. Null when it did; otherwise the
+  /// reason it did not.
+  Future<String?> branchHere();
+
+  /// Every lane over the steps the game holds, entity by entity. Throws if
+  /// the running game registered no entity layout to read them through.
+  Future<List<TrackLane>> tracks();
+
   /// Closes the connection. Safe to call more than once.
   Future<void> dispose();
 }
@@ -58,7 +91,7 @@ abstract interface class TimelineClient {
 ///
 /// **The same channel DevTools and `flutter attach` use, and nothing else.**
 /// This does not start a game, does not know what a genre is, and does not
-/// hold a level document — it only speaks the seven
+/// hold a level document — it only speaks the
 /// `ext.flutter3d.timeline.*` extensions `registerTimelineExtensions`
 /// registers on the other end, over `connectVmService`'s WebSocket, which is
 /// `dart:io`'s on a desktop and the browser's in a web build.
@@ -143,6 +176,57 @@ final class VmServiceTimelineClient implements TimelineClient {
 
   @override
   Future<Map<String, Object?>> bugReport() => _call('bugReport');
+
+  @override
+  Future<TimelineWindow> window() async {
+    final json = await _call('status');
+    // A game built before `N4` answers `paused` alone; it reads as a window
+    // with nothing in it, which hides the scrubber rather than failing.
+    return (
+      present: json['step'] as int? ?? 0,
+      oldest: json['oldest'] as int?,
+      scrubbedAt: json['scrubbedAt'] as int?,
+    );
+  }
+
+  @override
+  Future<String?> scrubTo(int step) async =>
+      _refusal(await _call('scrubTo', <String, String>{'step': '$step'}));
+
+  @override
+  Future<bool> returnToPresent() async =>
+      (await _call('returnToPresent'))['returned']! as bool;
+
+  @override
+  Future<String?> branchHere() async => _refusal(await _call('branchHere'));
+
+  static String? _refusal(Map<String, Object?> json) =>
+      json['moved'] == true ? null : '${json['refusal']}';
+
+  @override
+  Future<List<TrackLane>> tracks() async {
+    final json = await _call('tracks');
+    final entities = json['entities'];
+    if (entities is! Map<String, Object?>) return const <TrackLane>[];
+    return <TrackLane>[
+      for (final MapEntry(key: entity, value: lanes) in entities.entries)
+        if (lanes is Map<String, Object?>)
+          for (final MapEntry(key: component, value: samples) in lanes.entries)
+            if (samples is List<Object?>)
+              (
+                entity: entity,
+                component: component,
+                steps: <int>[
+                  for (final sample in samples.cast<Map<String, Object?>>())
+                    sample['step']! as int,
+                ],
+                values: <String>[
+                  for (final sample in samples.cast<Map<String, Object?>>())
+                    sample['absent'] == true ? 'absent' : '${sample['value']}',
+                ],
+              ),
+    ];
+  }
 
   @override
   Future<void> dispose() => _service.dispose();

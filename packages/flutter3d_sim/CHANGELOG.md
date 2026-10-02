@@ -28,6 +28,20 @@
   `Blackboard` component, so a snapshot or a rewind brings a decision back
   half made. A board ticked by another tree starts again rather than resuming
   at node numbers that now name something else.
+- **`bisectTapes` finds where two runs part.** Each side is a
+  `ReplaySide` — a start, a tape and the simulation's step, restore and
+  capture — that keeps the states it has been asked for and plays on from
+  the nearest. The search compares digests and reads the full snapshots
+  once, at the step it names; it says whether that step's input differed,
+  and through an `EntityLayout` which entity and component moved.
+  `bracketFromTraces` narrows the search to one checkpoint interval of two
+  `DigestTrace`s.
+- **`EntityTracks`** reads a run as one lane per component of each entity,
+  holding only the steps a value changed and closing a lane when the
+  component goes. `EntityLayout.ecs` reads an `EcsWorld.save()`,
+  `EntityLayout.rows` one row per entity. `RewindBuffer.oldestStep` is the
+  left end of a scrubber.
+
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback
   applies it, and `Tunables` is the step's side: named values with defaults,
