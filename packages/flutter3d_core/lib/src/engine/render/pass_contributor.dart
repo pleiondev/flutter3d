@@ -6,6 +6,7 @@ import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene.dart';
+import 'draw_journal.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
@@ -57,6 +58,11 @@ final class FramePassState {
   /// nothing in the frame batches; an ordinary [MeshNode] draw is one node,
   /// not one instance of itself, so it does not add to this count.
   int instances = 0;
+
+  /// Where each draw is written down, for the one frame somebody asked to
+  /// see them — `P12`. Null otherwise; see [DrawJournal] for why a draw site
+  /// writes `journal?.add(...)` and nothing more.
+  DrawJournal? journal;
 
   /// Call after encoding anything that binds its own pipeline.
   ///

@@ -31,6 +31,7 @@ import 'cluster_draws.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
+import 'draw_journal.dart';
 import 'empty_frame.dart';
 import 'engine_tables.dart';
 import 'field_pass.dart';
@@ -2996,13 +2997,25 @@ final class Renderer implements RenderServices {
   ///
   /// Asking twice before a frame runs replaces the first request: there is one
   /// next frame.
-  Future<FrameCapture> captureNextFrame() {
+  ///
+  /// [draws] also writes every draw down — see [DrawJournal] — and
+  /// [readFloats] reads each output's floats beside its bytes, for a backend
+  /// that can: `P12`'s inspector needs both, and a capture for a person
+  /// looking at pictures needs neither.
+  Future<FrameCapture> captureNextFrame({
+    bool draws = false,
+    Float32List? Function(TextureHandle texture)? readFloats,
+  }) {
     final completer = Completer<FrameCapture>();
     _captureWanted = completer;
+    _captureDraws = draws;
+    _captureFloats = readFloats;
     return completer.future;
   }
 
   Completer<FrameCapture>? _captureWanted;
+  bool _captureDraws = false;
+  Float32List? Function(TextureHandle texture)? _captureFloats;
 
   /// Hands [wanted] the capture this frame built, and clears the builder.
   ///
@@ -4415,7 +4428,13 @@ final class Renderer implements RenderServices {
     _captureWanted = null;
     _capture = capturing == null
         ? null
-        : FrameCaptureBuilder(width: width, height: height);
+        : FrameCaptureBuilder(
+            width: width,
+            height: height,
+            journal: _captureDraws ? DrawJournal() : null,
+            readFloats: _captureFloats,
+          );
+    passState.journal = _capture?.journal;
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
@@ -4436,6 +4455,7 @@ final class Renderer implements RenderServices {
         // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
         // own names rather than a pass nobody can place.
         _passLabel = node.name;
+        passState.journal?.beginPass(i, node.name);
         developer.Timeline.startSync(node.name);
         try {
           node.execute(
@@ -4486,7 +4506,16 @@ final class Renderer implements RenderServices {
         // pool, and the next pass draws over it. A capture taken after the
         // frame would hold whatever the last pass to borrow that shape left
         // there, attributed to whichever pass wrote it first.
-        _capture?.record(node, device: device, lookup: resources.tryTexture);
+        passState.journal?.endPass(passState.drawCalls - drawsBefore);
+        final cost = passTimings.last;
+        _capture?.record(
+          node,
+          device: device,
+          lookup: resources.tryTexture,
+          micros: cost.micros,
+          drawCalls: cost.drawCalls,
+          triangles: cost.triangles,
+        );
         resources.endNode(i);
       }
     } catch (error, stack) {

@@ -79,6 +79,7 @@ export 'src/engine/render/adaptive_scale.dart';
 export 'src/engine/render/cluster_draws.dart';
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
+export 'src/engine/render/draw_journal.dart';
 export 'src/engine/render/empty_frame.dart';
 export 'src/engine/render/environment_map.dart';
 export 'src/engine/render/field_pass.dart';

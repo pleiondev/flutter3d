@@ -492,6 +492,9 @@ class _GameScreenState extends State<GameScreen>
     // `rp-02`: harmless where the VM service is off — `registerExtension`
     // just adds an entry nothing ever asks for.
     registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
+    // `P12`: the frame this game draws, pass by pass and draw by draw, for
+    // whichever renderer is open when somebody asks.
+    registerRenderExtensions(() => _renderer);
     // `HR4`: after every hot reload, the last three seconds lived again under
     // the new code, and the console says whether they came out the same.
     _stopReplays = replayAfterHotSwap(_timeline, capture: _present);
