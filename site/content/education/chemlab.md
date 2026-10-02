@@ -118,7 +118,7 @@ It has limits. The atlas keeps the colour, not where along the light it was pick
 
 There is an empty tube at the front of the bench. Pick a solution and press **Share with clean tube**: the tube rises over its neighbours, comes over the clean one, tips until it pours, and stops when both hold the same. Then it goes back to its place and rocks for a second after it is put down.
 
-Only the hand is the bench's. It lifts the tube, brings the lip over the clean tube's mouth and tips it; everything the liquid does after that is the physics.
+Only the hand is the bench's. It lifts the tube, brings the lip over the clean tube's mouth from the side and tips it across the picture, about the axis the camera looks along; it used to tip towards the camera, and from the front a tube tipped at you only seems to rise and shorten. Everything the liquid does after that is the physics.
 
 The hand tips the glass to where what it holds below its lip is what is in it less the next eighth of a second's worth, so that much stands over the lip and runs. The flow over the lip is a weir's: over each stretch of the rim the surface stands above, C_d·(2/3)·√(2g)·depth^(3/2) per metre, with the measured C_d of 0.62. No head, no flow: tip the glass back and the liquid draws away from the edge and stops. The hand wants less as the pour nears half, as the root of what is left, so it ends with the glass at the edge of pouring.
 

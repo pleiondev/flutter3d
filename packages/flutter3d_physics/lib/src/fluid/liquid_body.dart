@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import '../portable_math.dart';
 import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
@@ -165,8 +166,11 @@ final class LiquidBody implements JetReceiver {
   /// its underside at or below the surface.
   @override
   bool catches(Vector3 point, double radius) {
-    final q = _local(point);
-    if (!shape.contains(q)) return false;
+    // Far from the glass, said at once and with nothing made: every drop
+    // and parcel in flight asks every vessel this every step, and building
+    // the frame for each was most of what a pour cost.
+    final q = shape is RevolvedVessel ? _near(point, radius) : _local(point);
+    if (q == null || !shape.contains(q)) return false;
     // Empty, there is no surface to land on: what reaches the bottom wets
     // it and stays, the start of a liquid. A quarter of a radius of slack,
     // since what rests on glass rests a radius off it and no nearer.
@@ -174,9 +178,9 @@ final class LiquidBody implements JetReceiver {
     return _up.dot(q) - radius <= surface + 0.25 * radius;
   }
 
-  /// Liquid arriving from a stream: added, and first heaped where it lands,
-  /// its own volume over the patch it strikes, from where it spreads as
-  /// waves.
+  /// Liquid arriving from a stream: added, first heaped where it lands —
+  /// its own volume over the patch it strikes — and striking the surface
+  /// with the momentum it comes down with, from where both spread as waves.
   @override
   void receive(
     double volume,
@@ -187,12 +191,16 @@ final class LiquidBody implements JetReceiver {
   ) {
     final spread = surface.knockSpread;
     final patch = 2.0 * math.pi * spread * spread;
-    pour(
-      volume,
-      medium: medium,
-      concentrations: concentrations,
-      where: _local(point),
-      knock: patch > 0.0 ? volume / patch : 0.0,
+    pour(volume, medium: medium, concentrations: concentrations);
+    if (patch <= 0.0) return;
+    // How fast it comes down onto the surface: along the vessel's up.
+    final down = -(rotation.clone()..transpose())
+        .transformed(velocity)
+        .dot(_up);
+    surface.land(
+      _local(point),
+      heap: volume / patch,
+      flux: down > 0.0 ? volume * down / patch : 0.0,
     );
   }
 
@@ -217,6 +225,20 @@ final class LiquidBody implements JetReceiver {
     final reach = shape.widest + margin;
     if (x * x + z * z > reach * reach) return null;
     return Vector3(x, y, z);
+  }
+
+  /// Whether anything within [distance] of [centre] (world) could be at
+  /// this vessel's walls: by the ball round its inside.
+  bool _reaches(Vector3 centre, double distance) {
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return true;
+    final half = 0.5 * (shape.top - shape.floor);
+    final middle =
+        position +
+        rotation.transformed(Vector3(0, 0.5 * (shape.top + shape.floor), 0));
+    final ball =
+        math.sqrt(shape.widest * shape.widest + half * half) + distance;
+    return centre.distanceToSquared(middle) < ball * ball;
   }
 
   Vector3 _toLocal(Vector3 point) =>
@@ -380,21 +402,37 @@ final class LiquidBody implements JetReceiver {
   /// How deep [point] (vessel frame) is under the surface.
   double depthAbove(Vector3 point) => height - _up.dot(point);
 
-  TubeMeniscus? _tube;
+  /// Menisci already solved, by the radius they were solved for, in steps of
+  /// a hundredth of it; and the medium and gravity they were solved under.
+  ///
+  /// **Kept, not solved again.** Each is a shooting solution of the
+  /// Young–Laplace equation. Kept one at a time, a surface rising through a
+  /// test tube's round bottom, where the radius changes with every step,
+  /// solved one on every question asked of the surface — each drop that
+  /// landed asked one — and filling the bottom of the clean tube cost three
+  /// times the rest of the pour. A hundredth of the radius is a fiftieth of
+  /// the meniscus's rise or less.
+  final Map<int, TubeMeniscus> _menisci = {};
+  FluidMedium? _menisciMedium;
+  double _menisciG = double.nan;
 
   TubeMeniscus? _meniscus() {
     final shape = this.shape;
     if (shape is! RevolvedVessel || volume <= 0.0) return null;
     final radius = shape.radiusAt(height.clamp(shape.floor, shape.top));
     if (radius <= 0.0) return null;
-    final tube = _tube;
-    if (tube != null &&
-        identical(tube.medium, medium) &&
-        (tube.radius - radius).abs() < 1e-3 * radius &&
-        (tube.g - _g).abs() < 1e-3 * _g) {
-      return tube;
+    if (!identical(_menisciMedium, medium) ||
+        !((_menisciG - _g).abs() < 1e-3 * _g)) {
+      _menisci.clear();
+      _menisciMedium = medium;
+      _menisciG = _g;
     }
-    return _tube = TubeMeniscus(medium: medium, radius: radius, g: _g);
+    final key = (Portable.log(radius) / 0.01).round();
+    return _menisci[key] ??= TubeMeniscus(
+      medium: medium,
+      radius: Portable.exp(key * 0.01),
+      g: _menisciG,
+    );
   }
 
   /// The volume and up the surface's height was last found for, and the
@@ -500,11 +538,25 @@ final class InsideWalls implements JetObstacle {
   final LiquidBody body;
 
   @override
+  bool reaches(Vector3 centre, double distance) =>
+      body._reaches(centre, distance + body.wallThickness);
+
+  @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
     final shape = body.shape;
     if (shape is! RevolvedVessel) return null;
     final q = body._near(point, body.wallThickness + radius);
     if (q == null) return null;
+    // Under the inside's floor and beyond its edge is outside the glass,
+    // beside its foot, where the outside answers. Taken for the inside's,
+    // a drop on the bench by a beaker's foot, half a millimetre down where
+    // the floor inside is half a millimetre up, was pushed up into the
+    // glass while the bench pushed it down, and left at metres a second.
+    if (q.y < shape.floor &&
+        q.x * q.x + q.z * q.z >=
+            shape.radiusAt(shape.floor) * shape.radiusAt(shape.floor)) {
+      return null;
+    }
     final at = shape.wallDistance(q);
     if (at == null) return null;
     // Within a radius of the inside, or into the glass up to half its
@@ -528,11 +580,24 @@ final class OutsideWalls implements JetObstacle {
   final double thickness;
 
   @override
+  bool reaches(Vector3 centre, double distance) =>
+      body._reaches(centre, distance + thickness);
+
+  @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
     final shape = body.shape;
     if (shape is! RevolvedVessel) return null;
     final q = body._near(point, thickness + radius);
     if (q == null) return null;
+    // Below the inside's floor the glass is its foot, standing on whatever
+    // the vessel stands on: pushed out sideways, never down into the bench.
+    if (q.y < shape.floor) {
+      final r = math.sqrt(q.x * q.x + q.z * q.z);
+      final clear = shape.radiusAt(shape.floor) + thickness + radius;
+      if (r >= clear || r < shape.radiusAt(shape.floor)) return null;
+      final out = r > 1e-12 ? Vector3(q.x / r, 0, q.z / r) : Vector3(1, 0, 0);
+      return (normal: body.rotation.transformed(out), depth: clear - r);
+    }
     // The rim's top is glass too, up to its thickness above the mouth.
     final at = shape.wallDistance(
       q.y > shape.top && q.y <= shape.top + thickness
