@@ -56,15 +56,16 @@ CpuDevice _device({CpuMaterialCompiler? compiler}) => CpuDevice(
 Future<Vector3> _centre(
   CpuDevice device,
   LoadedShaderLibrary library,
-  LightingModel lighting,
-) async {
+  LightingModel lighting, {
+  Map<String, Float32List> parameters = const <String, Float32List>{},
+}) async {
   final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
   final scene = Scene()
     ..add(camera)
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape().build()),
-        Material(lighting: lighting),
+        Material(lighting: lighting)..parameters.addAll(parameters),
       ),
     );
   final result = Renderer.create(device: device, materials: library).render(
@@ -201,5 +202,37 @@ material Mapped {
       )['Other'],
       throwsArgumentError,
     );
+  });
+
+  test('a uniform takes the value set on the material', () async {
+    // `P8`: the value a game sets in `Material.parameters`, bound as
+    // `MaterialParams`, reaches the software stage as it reaches the GPU's.
+    const source = '''
+material Tinted {
+  uniform vec3 tint = vec3(1.0, 0.0, 0.0);
+  fragment {
+    return vec4(tint, 1.0);
+  }
+}
+''';
+    final device = _device(compiler: materialLanguageCompiler);
+    final bytes = _bundle(<String, String>{'Tinted': source});
+    final library = await device.loadShaders(bytes);
+    final materials = BundledMaterials.read(bytes);
+    final lighting = materials['Tinted'];
+    expect(lighting.usesMaterialParameters, isTrue);
+
+    final defaults = materials.parameters('Tinted');
+    expect(defaults['tint'], <double>[1.0, 0.0, 0.0]);
+    final centre = await _centre(
+      device,
+      library,
+      lighting,
+      parameters: <String, Float32List>{
+        'tint': Float32List.fromList(<double>[0.0, 1.0, 0.0]),
+      },
+    );
+    expect(centre.x, closeTo(0.0, 0.01));
+    expect(centre.y, closeTo(1.0, 0.01));
   });
 }

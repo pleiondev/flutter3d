@@ -32,10 +32,19 @@ import 'material_ast.dart';
 /// [checkMaterialSurface] exists to ask that question once rather than per
 /// draw.
 final class MaterialSurfaceValues {
-  const MaterialSurfaceValues({required this.inputs, required this.sample});
+  const MaterialSurfaceValues({
+    required this.inputs,
+    required this.sample,
+    this.uniforms = const <String, List<double>>{},
+  });
 
   /// Input name to value, as many numbers as the input's type has components.
   final Map<String, List<double>> inputs;
+
+  /// The draw's value of each `uniform` the program declares — `P8`, what
+  /// `Material.parameters` bound as `MaterialParams`. One it lacks reads its
+  /// default, as the engine's own block reads nothing bound as nought.
+  final Map<String, List<double>> uniforms;
 
   /// One texel, RGBA, from the slot the material declared.
   final List<double> Function(MaterialTextureSlot slot, double u, double v)
@@ -108,6 +117,11 @@ List<double> _evaluate(
         throw StateError('"$name" is read before it is bound.');
       }
       return value;
+    case MaterialParamRef(:final parameter) when parameter.uniform:
+      final value = surface.uniforms[parameter.name];
+      return value != null && value.length >= parameter.type.components
+          ? value.sublist(0, parameter.type.components)
+          : parameter.defaultValue;
     case MaterialParamRef(:final parameter):
       throw StateError(
         'The parameter "${parameter.name}" has no value. Specialise the '

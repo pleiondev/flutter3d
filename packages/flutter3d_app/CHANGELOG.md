@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **The software material stage reads a `uniform`** from the draw's
+  `MaterialParams`, as the GLSL does.
+
 - **`MaterialProgramStage` and `materialLanguageCompiler` moved here** from
   `flutter3d_testing`, so a game can depend on them, and the software backend
   this package registers compiles a bundle's material-language stages.

@@ -22,7 +22,11 @@ import 'material_parser.dart';
 /// `materials`; a `Material` whose `lighting` is one of these draws the
 /// stage of that name, on every backend that has a section for it.
 final class BundledMaterials {
-  BundledMaterials._(this.bundle, this.lighting);
+  BundledMaterials._(this.bundle, this._bindings)
+    : lighting = <String, LightingModel>{
+        for (final MapEntry(key: name, value: bindings) in _bindings.entries)
+          name: bindings.lightingModel(label: name, shaderName: name),
+      };
 
   /// Reads [bytes], a bundle as `GraphicsDevice.loadShaders` takes it.
   ///
@@ -40,16 +44,16 @@ final class BundledMaterials {
         'describe its LightingModel by hand',
       );
     }
-    return BundledMaterials._(bundle, <String, LightingModel>{
+    return BundledMaterials._(bundle, <String, MaterialBindings>{
       for (final MapEntry(key: name, value: source) in sources.entries)
-        name: describeMaterial(
-          parseMaterial(source),
-        ).lightingModel(label: name, shaderName: name),
+        name: describeMaterial(parseMaterial(source)),
     });
   }
 
   /// The bundle, decoded.
   final ShaderBundle bundle;
+
+  final Map<String, MaterialBindings> _bindings;
 
   /// Each material's lighting model, by its name, which is also its stage's.
   final Map<String, LightingModel> lighting;
@@ -64,4 +68,23 @@ final class BundledMaterials {
         'bundle "${bundle.name}" has the materials '
             '${lighting.keys.join(', ')}',
       ));
+
+  /// What `Material.parameters` starts as for material [name]: each
+  /// `uniform` the source declares, at its default — `P8`. A fresh map every
+  /// call, so one material's edits are not another's. Empty for a material
+  /// with no uniform.
+  Map<String, Float32List> parameters(String name) {
+    final bindings =
+        _bindings[name] ??
+        (throw ArgumentError.value(
+          name,
+          'name',
+          'bundle "${bundle.name}" has the materials '
+              '${lighting.keys.join(', ')}',
+        ));
+    return <String, Float32List>{
+      for (final MapEntry(:key, :value) in bindings.uniforms.entries)
+        key: Float32List.fromList(value),
+    };
+  }
 }

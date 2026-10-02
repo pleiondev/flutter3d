@@ -63,6 +63,7 @@ abstract final class GoldenExtras {
     usesMetallicRoughnessMap: false,
     usesMetallic: false,
     usesLightList: false,
+    usesMaterialParameters: true,
   );
 
   /// Simulated seconds before the frame is drawn.
