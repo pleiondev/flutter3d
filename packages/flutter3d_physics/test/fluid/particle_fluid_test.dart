@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -99,5 +101,73 @@ void main() {
     }
     expect(fluid.count, 0);
     expect(body.volume + fluid.volume, closeTo(total, total * 1e-12));
+  });
+
+  group('a test tube, a millimetre a particle', () {
+    // Sixteen millimetres across, half a millimetre of glass, a round
+    // bottom: a lathe profile from the middle of the floor up the side.
+    List<Vector2> inside() => [
+      Vector2(0, 0.0005),
+      for (var i = 1; i <= 8; i++)
+        Vector2(
+          0.0075 * math.sin(i / 8 * math.pi / 2),
+          0.0005 + 0.0075 * (1 - math.cos(i / 8 * math.pi / 2)),
+        ),
+      Vector2(0.0075, 0.09),
+    ];
+
+    LiquidBody tube({double volume = 0.0}) => LiquidBody(
+      shape: RevolvedVessel(inside()),
+      medium: FluidMedium.water,
+      volume: volume,
+      modes: 2,
+      wallThickness: 0.0005,
+    )..place(Matrix3.identity(), Vector3.zero());
+
+    test('drops this small keep together', () {
+      // Surface tension moves a millimetre particle its own size in a third
+      // of a millisecond. Mutation: step it twice a 240th of a second, as
+      // a two-millimetre one, and four particles fly metres apart.
+      final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.001)
+        ..inject(4e-9, Vector3(0, 1, 0), Vector3.zero());
+      for (var i = 0; i < 12; i++) {
+        fluid.step(1 / 240, gravity: Vector3.zero());
+      }
+      for (final p in fluid.positions) {
+        expect((p - Vector3(0, 1, 0)).length, lessThan(0.003));
+      }
+    });
+
+    test('drops falling in land in it, round bottom and all', () {
+      // Mutation: hold particles by the radius at their height, which is
+      // nearly nought round the bottom, and they fall through the glass.
+      final body = tube();
+      final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.001);
+      final walls = <JetObstacle>[
+        InsideWalls(body),
+        OutsideWalls(body, thickness: 0.0005),
+      ];
+      for (var s = 0; s < 240; s++) {
+        if (s < 60 && s % 3 == 0) {
+          fluid.inject(
+            4e-9,
+            Vector3(0.002, 0.04, 0.001),
+            Vector3(0, -1, 0),
+            concentrations: {'dye': 2.0},
+          );
+        }
+        fluid.step(
+          1 / 240,
+          gravity: Vector3(0, -9.81, 0),
+          obstacles: walls,
+          receivers: [body],
+        );
+      }
+      expect(fluid.count, 0);
+      expect(body.volume, closeTo(80e-9, 1e-15));
+      // What was dissolved in the drops came with them. Mutation: hand
+      // them over with nothing in them, and a poured dye loses its colour.
+      expect(body.layers.single.concentration('dye'), closeTo(2.0, 1e-9));
+    });
   });
 }

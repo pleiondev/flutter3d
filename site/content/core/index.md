@@ -17,7 +17,7 @@ Nothing in this section is genre knowledge. That property is what made the secon
 | [`flutter3d_sim`](/core/simulation/) | Fixed step, input, levels and holes in them, mechanisms, actors, navigation and the automap, ECS, snapshots, demos, rewind | `flutter3d_physics`, `vector_math`. Plain Dart, no Flutter |
 | [`flutter3d_app`](/core/session/) | The backend choice, the surface a frame reaches Flutter through, a level loaded into a scene, storage | `flutter3d`, `flutter3d_sim` and Flutter |
 | `flutter3d_game` | The devices, the run, the settings and save screens, actor and fixture visuals | `flutter3d_app`, `flutter3d_sim` and Flutter |
-| [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies | nothing. Plain Dart |
+| [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies, [liquids](/core/liquids/) | nothing. Plain Dart |
 
 **Four backends implement the HAL**, and an application names exactly one of them in its pubspec:
 

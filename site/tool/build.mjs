@@ -163,6 +163,7 @@ const NAV = [
       { file: 'core/assets.md', url: '/core/assets/', title: 'Assets & animation' },
       { file: 'core/simulation.md', url: '/core/simulation/', title: 'Simulation layer' },
       { file: 'core/physics.md', url: '/core/physics/', title: 'Collision & physics' },
+      { file: 'core/liquids.md', url: '/core/liquids/', title: 'Liquids' },
       { file: 'core/extras.md', url: '/core/extras/', title: 'Particles & audio' },
       { file: 'core/tutorial.md', url: '/core/tutorial/', title: 'Tutorial: first scene', kind: 'tutorial' },
       { file: 'core/session.md', url: '/core/session/', title: 'Assembling an application', kind: 'guide' },

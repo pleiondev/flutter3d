@@ -139,6 +139,12 @@ final class FreeSurface {
   /// is, so any step is stable.
   void step(double dt, {required double g, required double depth}) {
     if (_modes.isEmpty) return;
+    // Still water stays still: nothing to ring.
+    var still = true;
+    for (var n = 0; n < _amplitude.length && still; n++) {
+      still = _amplitude[n] == 0.0 && _rate[n] == 0.0;
+    }
+    if (still) return;
     final nu = medium.kinematicViscosity;
     final tension = medium.surfaceTension / medium.density;
     final h = math.max(depth, 1e-6);
@@ -263,12 +269,29 @@ final class FreeSurface {
   }
 
   /// The largest a mode stands anywhere, per unit amplitude.
+  /// The largest a mode gets anywhere on the surface, once a layout.
   double _norm(int n) {
-    var most = 0.0;
-    for (final x in _modes[n]) {
-      most = math.max(most, x.abs());
+    if (!identical(_normsOf, _modes)) {
+      _normsOf = _modes;
+      _norms = [
+        for (final mode in _modes)
+          mode.fold(0.0, (most, x) => math.max(most, x.abs())),
+      ];
     }
-    return most;
+    return _norms[n];
+  }
+
+  List<Float64List>? _normsOf;
+  List<double> _norms = const [];
+
+  /// The most the waves can stand off the plane anywhere just now: no more
+  /// than every mode at its peak at once.
+  double get reach {
+    var sum = 0.0;
+    for (var n = 0; n < _amplitude.length; n++) {
+      sum += _amplitude[n].abs() * _norm(n);
+    }
+    return sum;
   }
 
   /// [values] over the cells as amplitudes of the kept modes: the modes are

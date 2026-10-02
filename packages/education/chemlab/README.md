@@ -64,7 +64,9 @@ Three things to know when doing the same:
 ## Tests
 
 `flutter test` checks the profiles, that the label strip's UVs run edge to
-edge, the half turn, that pouring stays inside the glass, and a picture of the
-bench drawn by the software backend with no GPU. The golden leaves the labels
+edge, the half turn, that filling stops at the glass's limit, that sharing
+pours half and loses nothing, that mixed dyes take the colour light through
+both would, and a picture of the bench drawn by the software backend with no
+GPU. The liquid itself is `flutter3d_physics`'s and is tested there. The golden leaves the labels
 off, since text is rasterised by the platform and differs between machines;
 the label test checks the card's own pixels instead.
