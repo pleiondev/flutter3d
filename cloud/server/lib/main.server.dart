@@ -86,9 +86,13 @@ Future<void> main(List<String> arguments) async {
     }
   });
 
+  final sharing = services.shares.takesShares
+      ? 'sharing in ${config.shareModeration.name} mode'
+      : 'sharing off: review mode with no moderator token';
   stdout.writeln(
     'models on http://${server.address.host}:${server.port} '
-    '(${config.sendsMail ? 'sending mail' : 'printing mail to the log'})',
+    '(${config.sendsMail ? 'sending mail' : 'printing mail to the log'}; '
+    '$sharing)',
   );
 
   // systemd stops a unit with SIGTERM; answering it lets requests in flight

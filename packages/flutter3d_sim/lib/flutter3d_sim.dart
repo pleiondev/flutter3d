@@ -118,6 +118,8 @@ export 'src/save/state_digest.dart';
 export 'src/save/step_time_trace.dart';
 export 'src/save/tally.dart';
 export 'src/save/tape_bisect.dart';
+export 'src/share/run_service.dart';
+export 'src/share/share_bundle.dart';
 export 'src/telemetry/heatmap.dart';
 export 'src/telemetry/resimulation.dart';
 export 'src/telemetry/telemetry_consent.dart';
