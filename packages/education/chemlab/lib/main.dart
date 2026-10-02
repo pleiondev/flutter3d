@@ -150,7 +150,7 @@ class _BenchScreenState extends State<BenchScreen> {
                 renderer: renderer,
                 scene: bench.scene,
                 view: _view,
-                settings: () => RenderSettings(sky: labSky),
+                settings: () => benchSettings,
                 onBeforeFrame: () => _orbit.syncProjectionDepth(_camera),
                 presentFrame: presentFrame,
               ),

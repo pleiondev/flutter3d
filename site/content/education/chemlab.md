@@ -73,6 +73,16 @@ A shadow map knows only whether something is between a point and the light, not 
 
 So the glass is marked `castsShadow = false`, and the liquid inside it is what casts. The empty top of a tube leaves the bench lit, and the shadow starts where the liquid does. It is not physically right either. Real glass dims the light a little, and a coloured solution throws a tinted shadow; neither is possible until the shadow pass can record partial coverage, which is work for the engine; I would rather leave the shadow honest than fake it in a demo.
 
+## Refraction, caustics and reflections
+
+**Refraction comes from the engine.** When a frame holds a material with transmission, the renderer draws the opaque scene first, copies it, and the glass and the liquids read that copy offset along the ray their index bends. Look at the bench through a tube and its edge kinks. Two limits come with it. It is screen-space, so it can only bend what is already on the screen. And the liquid is not in the copy, since it is drawn after it, so the glass in front of a liquid bends the bench behind it but not the liquid. The glass has a centimetre of thickness for this; with none it is a sheet that bends nothing.
+
+**The caustics are lights.** A column of liquid is a lens, and sunlight through it lands as a bright, tinted patch inside its own shadow. The engine traces no photons, so each vessel carries a small spot light of its solution's colour, aimed along the sunlight at the middle of the liquid's shadow. Light channels keep it on the bench: the glass and the liquids are on channel 0, the bench on channel 1, and the spot reaches only channel 1. Pouring moves the patch with the height of the column and makes it stronger.
+
+The engine lights each object with at most eight lights, which I found out by losing the sun's shadow. The bench has the sun and a fill, so eight caustics would make ten, and the sun was the one pushed out. Six fit; the measuring cylinder and the flask go without.
+
+**The reflections in the tabletop are geometry.** Screen-space reflections were the first try, and they reflected only the labels: the pass reads what the opaque pass drew, and the glass and the liquids come after it. A flat mirror, though, has an exact answer. Each liquid and label is drawn again, scaled by -1 in height so it hangs under the tabletop, flat and a little darker, and the top lets a twelfth of what is under it through. The copies are opaque, so they are drawn before the top and never sorted against it. Blended surfaces write no depth, so the top first laid itself over the lower half of every liquid; the liquids now write theirs.
+
 ## Labels without a decal
 
 A lathe's u runs with the angle and its v with the distance along the profile. A label is therefore another strip of the same surface, just outside the glass, and its texture lands on it edge to edge with no stretching. Like a real label it goes more than half way round, so the paper shows from the side; the writing keeps to the middle, which faces the front.
@@ -95,8 +105,8 @@ The camera is the engine's `OrbitController`, with tighter limits than its defau
 
 ## What it does not do yet
 
-- **Caustics.** A tube of liquid is a lens and should throw a bright patch on the bench behind it. A soft light texture on the tabletop under each vessel would get most of the way there.
-- **Refraction of what is behind.** Transmission here lets the background through but does not bend it; a straight edge seen through a tube stays straight. Doing it properly needs the scene behind the glass as a texture, a pass of its own.
+- **Real caustics.** The patches are placed, not traced: they do not sharpen into the bright line a real tube throws, and glass without liquid throws none.
+- **The glass in the mirror.** The reflections carry the liquids and the labels; the glass itself is left out, since a copy of something nearly invisible is nearly invisible.
 - **Movement.** When you pour, the surface should rock and settle. A meniscus that sways for a second after the level changes would do it.
 
 ## Tested without a GPU
