@@ -346,6 +346,7 @@ final class LiquidBody implements JetReceiver {
     if (radius <= 0.0) return null;
     final tube = _tube;
     if (tube != null &&
+        identical(tube.medium, medium) &&
         (tube.radius - radius).abs() < 1e-3 * radius &&
         (tube.g - _g).abs() < 1e-3 * _g) {
       return tube;
