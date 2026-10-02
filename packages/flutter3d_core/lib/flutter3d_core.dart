@@ -48,6 +48,11 @@ export 'src/engine/animation/animation.dart';
 export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
 export 'src/engine/animation/baked_poses.dart';
+// The animation graph, N1: typed parameters, a state machine over clips, and
+// the fixed-step evaluation that turns them into a `Pose`.
+export 'src/engine/animation/graph/animation_graph.dart';
+export 'src/engine/animation/graph/animation_parameters.dart';
+export 'src/engine/animation/graph/animation_state_machine.dart';
 export 'src/engine/animation/inverse_kinematics.dart';
 export 'src/engine/animation/pose.dart';
 export 'src/engine/animation/skin_blend.dart';
