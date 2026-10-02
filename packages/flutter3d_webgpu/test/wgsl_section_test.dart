@@ -29,10 +29,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
 import 'package:flutter3d_webgpu/src/webgpu_loaded_shaders.dart';
-import 'package:flutter3d_webgpu/src/wgsl_section.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

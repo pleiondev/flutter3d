@@ -6,27 +6,25 @@
 /// somebody added a `.frag` and forgot to name it in the manifest — which is
 /// the day the engine starts asking for a stage no backend has.
 ///
-/// The twin of `flutter3d_webgl/tool/source_package.dart`, and copied rather
-/// than shared: a `tool/` directory is a program and not a library, so nothing
-/// under one package's `tool/` is importable from another's. Twenty lines of
-/// pub plumbing is a cheaper duplicate than making one backend's build scripts
-/// part of another backend's published surface.
+/// Reached through `package:flutter3d_shaders/compile.dart`, never the barrel:
+/// it reads files, and `dart:io` compiles for the web to stubs that throw,
+/// which is why a browser test importing it still loads.
 ///
-/// **`dart:io` under `lib/`, which reads oddly in a backend that only runs in a
-/// browser.** It is here rather than in `tool/` because the browser test runner
-/// serves a package from `test/` and cannot read a sibling directory, so a test
-/// may only import what is under `lib/`. Nothing this package exports reaches
-/// it, so nothing a consumer builds carries it; and `dart:io` compiles for the
-/// web to stubs that throw, which is why the browser run gets through this file
-/// rather than failing on it.
+/// **`from` is P8's.** A build hook runs with the working directory wherever
+/// the Flutter tool left it, and has to find `flutter3d_shaders` through the
+/// project it is building rather than through itself.
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
 /// Every shader file, keyed the way an `#include <…>` spells it, beside the
-/// manifest's entry points in the order it lists them.
+/// manifest's entry points in the order it lists them, and the `shaders/`
+/// directory both were read from — which `impellerc` needs as an include
+/// root, and which has to be this one rather than one found again, or two
+/// sections of one bundle could be built against two trees.
 typedef ShaderSet = ({
+  String root,
   Map<String, String> sources,
   Map<String, ({String file, bool fragment})> stages,
 });
@@ -35,8 +33,8 @@ typedef ShaderSet = ({
 ///
 /// Throws [StateError] with a message worth showing a person when the package
 /// is not there or has no `shaders/` in it.
-ShaderSet loadShaders() {
-  final root = packageRoot('flutter3d_shaders');
+ShaderSet loadShaders({String? from}) {
+  final root = packageRoot('flutter3d_shaders', from: from);
   final shaders = Directory('$root/shaders');
   if (!shaders.existsSync()) throw StateError('no shaders/ in $root');
 
@@ -72,11 +70,11 @@ ShaderSet loadShaders() {
     stages[name] = (file: file, fragment: entry['type'] == 'fragment');
   });
 
-  return (sources: sources, stages: stages);
+  return (root: shaders.path, sources: sources, stages: stages);
 }
 
 /// The root directory of [name], through `.dart_tool/package_config.json` at or
-/// above the working directory.
+/// above [from], the working directory when it is null.
 ///
 /// The one mapping pub guarantees for path, git and hosted dependencies alike.
 /// A relative path would work here and break the day this package is consumed
@@ -84,8 +82,9 @@ ShaderSet loadShaders() {
 ///
 /// `rootUri` is a URI and relative for a workspace member, resolved against
 /// `.dart_tool/` — which is why this is `Uri.resolve` and not a string join.
-String packageRoot(String name) {
-  var dir = Directory.current;
+String packageRoot(String name, {String? from}) {
+  final start = Directory(from ?? Directory.current.path).absolute;
+  var dir = start;
   while (true) {
     final config = File('${dir.path}/.dart_tool/package_config.json');
     if (config.existsSync()) {
@@ -107,9 +106,7 @@ String packageRoot(String name) {
     }
     final parent = dir.parent;
     if (parent.path == dir.path) {
-      throw StateError(
-        'no .dart_tool/package_config.json above ${Directory.current.path}',
-      );
+      throw StateError('no .dart_tool/package_config.json above ${start.path}');
     }
     dir = parent;
   }

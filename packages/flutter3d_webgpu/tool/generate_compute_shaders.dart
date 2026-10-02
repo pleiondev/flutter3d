@@ -15,9 +15,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
+import 'package:flutter3d_shaders/compile.dart';
 
 final RegExp _localSize = RegExp(
   r'layout\s*\(\s*local_size_x\s*=\s*(\d+)'

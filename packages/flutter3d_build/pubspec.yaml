@@ -44,6 +44,14 @@ dependencies:
   flutter3d_editor_core: ^0.8.0
   flutter3d_sim: ^0.8.0
 
+  # P8's material step: `ShaderBundle`, the container it writes, and
+  # `flutter3d_shaders`' `compile.dart` — the engine's headers a material
+  # includes, the WebGL2 and WebGPU translators, and the WGSL compile. Both
+  # flat; the translators moved out of the two web backends for exactly this
+  # line, since a package declaring the Flutter SDK cannot be listed here.
+  flutter3d_hardware: ^0.8.0
+  flutter3d_shaders: ^0.8.2
+
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the
   # other half, `package:data_assets`, stays out (see `ap-00`'s own writeup
@@ -79,9 +87,6 @@ dependencies:
   image: ^4.10.1
 
 dev_dependencies:
-  # `RecordingDevice`, which a test wraps round the impostor bake's device to
-  # count what the bake uploads against what it releases.
-  flutter3d_hardware: ^0.8.0
   test: ^1.25.0
   flutter_lints: ^6.0.0
 

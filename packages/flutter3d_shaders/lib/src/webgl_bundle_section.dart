@@ -1,15 +1,18 @@
 /// The WebGL section of a `ShaderBundle`: GLSL ES 3.00 sources by name.
 ///
 /// A JSON document, `{"vertex": {name: source}, "fragment": {name: source}}`,
-/// as UTF-8. Text rather than anything compiled, because that is what this
-/// backend compiles from: the browser is the compiler, and there is nothing
-/// to run ahead of time except the translation from the engine's GLSL, which
-/// `tool/pack_shaders.dart` does when it writes the section.
+/// as UTF-8. Text rather than anything compiled, because that is what the
+/// WebGL backend compiles from: the browser is the compiler, and there is
+/// nothing to run ahead of time except the translation from the engine's GLSL,
+/// which `flutter3d_webgl/tool/pack_shaders.dart` and `flutter3d_build`'s
+/// material step do when they write the section.
 ///
-/// **No `package:web` here, on purpose.** The packer runs on the Dart VM,
-/// where a browser binding does not load, and it has to write exactly what
-/// the device reads. One file both import is how the two stay the same
-/// document.
+/// **No `package:web` here, on purpose.** The packers run on the Dart VM,
+/// where a browser binding does not load, and they have to write exactly what
+/// the device reads. One file every side imports is how they stay the same
+/// document — which is also why it lives in `flutter3d_shaders` rather than in
+/// `flutter3d_webgl`: a build hook cannot resolve a package that declares the
+/// Flutter SDK.
 library;
 
 import 'dart:convert';

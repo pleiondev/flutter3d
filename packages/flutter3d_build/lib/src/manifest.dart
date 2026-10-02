@@ -17,6 +17,11 @@
 /// `chair.desktop.f3d` — each cut to its class's `DeviceClassBudget`. A
 /// manifest without it builds what it always built.
 ///
+/// **Materials (`*.f3dmat`, P8) are matched by the same rules**, and only
+/// `glob` and `exclude` mean anything to them. A material has no textures to
+/// compress and no levels of detail, so `exclude: true` is the one thing a
+/// rule can say about one. `AssetLayout.materialPlan` reads it.
+///
 /// **`"**/*.obj"` matches a root-level `a.obj` too.** That is
 /// `package:glob`'s rule since 2.2.0, where `**` at the start of a pattern
 /// may match no directory at all; before it, the same pattern skipped every

@@ -6,17 +6,12 @@
   with the `SmaaInfo` block. A bundle must answer to them; the renderer falls
   back to FXAA when one does not.
 
-## 0.8.2+1
-
-**Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
-`^3.12.2`, which were what this repository is built with rather than
-what the package needs. A workspace that supports Flutter 3.44, Flame's among
-them, could not depend on it. Nothing else changed.
 **A decal stage.** `post/decal.frag` (`Decal`) paints up to sixteen
 projected boxes, reading four pictures, over the point the surface buffer
 names under each pixel. It writes a factor and a term for two blends, the
 albedo swapped under the light the albedo buffer lets it read back, and the
 colour an unlit surface and an emissive decal add.
+
 **Two stages for `P4`.** `lighting/planar_reflection.frag` lays a mirrored
 picture over a reflector's surface, read by the fragment's place in its view
 and weighted by Schlick's Fresnel; it declares no surface buffer, as
@@ -25,6 +20,7 @@ light into the sRGB bytes a material's map is read as, turning the rows over
 where the backend draws its first row at the bottom. Both are in the bundle,
 in `kRequiredShaders` and in `stageBindings`, `uniformBlocks` and
 `typed_blocks.dart`.
+
 **`SkyPhysical` and `SkyPhysicalVertex`**, the physical sky: single
 scattering by molecules and haze marched per pixel, sixteen samples along the
 view and eight towards the sun from each, the disc and the stars dimmed by the
@@ -34,6 +30,26 @@ gradient's preset does.
 **`ApplyFog` integrates a height fog.** `FogInfo.eye.w` carries the falloff
 and `FogInfo.fog.w` the density at the eye; a falloff of nought takes the old
 path unchanged.
+
+**The WebGL2 and WebGPU translators live here now, behind
+`translate.dart` and `compile.dart`.** `flutter3d_build`'s material step has
+to translate a project's materials from a hook process that cannot resolve a
+package declaring the Flutter SDK, and `flutter3d_webgl` and
+`flutter3d_webgpu` both declare one. None of the moved files ever needed the
+SDK. `translate.dart` holds the pure parts: `translateGlsl` and
+`resolveIncludes`, `prepareStage`, and the writers for both sections.
+`compile.dart` adds the parts that need a machine: `loadShaders` (which now
+takes `from:`, and whose `ShaderSet` carries the `root` it read),
+`compileStage` through glslang and naga, and `bundleVaryingLocations`, which
+used to be private to `pack_wgsl_section.dart`. The barrel exports neither,
+so an application carries no compiler.
+
+## 0.8.2+1
+
+**Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
+`^3.12.2`, which were what this repository is built with rather than
+what the package needs. A workspace that supports Flutter 3.44, Flame's among
+them, could not depend on it. Nothing else changed.
 
 ## 0.8.2
 

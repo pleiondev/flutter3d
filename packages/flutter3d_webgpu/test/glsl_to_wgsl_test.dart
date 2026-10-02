@@ -14,9 +14,7 @@
 @TestOn('vm')
 library;
 
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Includes resolved and then the stage prepared, the way

@@ -20,6 +20,7 @@ import 'package:hooks/hooks.dart';
 import 'convert.dart';
 import 'device_classes.dart';
 import 'layout.dart';
+import 'material_build.dart';
 import 'pipeline_version.dart';
 
 /// What one call to [runAssetBuild] did, for a hook's own log line and for
@@ -384,7 +385,22 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
     textures: textures,
     deviceClasses: deviceClasses,
   );
-  for (final source in report.dependencies) {
+
+  // **Materials — P8.** After the models, and in the same hook, because they
+  // land in the same directory the project already bundles. A material that
+  // does not compile fails the build here, naming its file and line, rather
+  // than a draw at run time: there is no compiler to fall back to there.
+  final MaterialBuildReport materials;
+  try {
+    materials = runMaterialBuild(projectRoot);
+  } on MaterialBuildException catch (error) {
+    throw BuildError(message: error.toString());
+  }
+
+  for (final source in <String>[
+    ...report.dependencies,
+    ...materials.dependencies,
+  ]) {
     output.dependencies.add(Uri.file(source));
   }
 }

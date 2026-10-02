@@ -10,16 +10,11 @@
   edges by the same amounts; its `smaa-teapot` reference matches Impeller's
   to the pixel.
 
-## 0.8.2+1
-
-**Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
-`^3.12.2` and `vector_math` 2.4.3, which were what this repository is built with rather than
-what the package needs. A workspace that supports Flutter 3.44, Flame's among
-them, could not depend on it. Nothing else changed.
 **The decal stage, as the GLSL has it.** `DecalShader` mirrors
 `post/decal.frag` line for line, the mip level of each picture chosen from
 the same footprint the GLSL computes by hand from neighbouring texels of the
 surface buffer.
+
 **`P4`'s two stages.** `PlanarReflectionShader` mirrors
 `planar_reflection.frag` and `RenderTextureEncodeShader` mirrors
 `render_texture_encode.frag`; `planar_reflection_test.dart` holds ten
@@ -35,9 +30,17 @@ mirror, and what was below the mirror came up through it here and on no
 other backend. A fragment with a window depth outside `[0, 1]` is dropped
 now, which is the same cut as clipping the triangle, because that depth is
 linear across the screen. No golden of this set moved.
+
 **`SkyPhysicalShader`**, the software `SkyPhysical`, with the stars' hash
 rounded to single precision as the GPU computes it, and **height fog in
 `applyFog`**, as `color.glsl` has it.
+
+## 0.8.2+1
+
+**Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
+`^3.12.2` and `vector_math` 2.4.3, which were what this repository is built with rather than
+what the package needs. A workspace that supports Flutter 3.44, Flame's among
+them, could not depend on it. Nothing else changed.
 
 ## 0.8.2
 

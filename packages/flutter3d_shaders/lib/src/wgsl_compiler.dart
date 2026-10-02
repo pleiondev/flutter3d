@@ -35,10 +35,9 @@
 /// the packer already made. The packer numbers them, so the reflection is a
 /// by-product of the numbering rather than a reconstruction of it.
 ///
-/// Under `lib/src/` for the reason `source_package.dart` gives: the browser
-/// test runner cannot read a directory beside `test/`, so a build-time file no
-/// test can import is a build-time file no test can measure. Nothing this
-/// package exports reaches it.
+/// Reached through `package:flutter3d_shaders/compile.dart` only, never the
+/// package's barrel: it runs processes, and nothing a consumer's application
+/// builds has a reason to carry that.
 library;
 
 import 'dart:io';

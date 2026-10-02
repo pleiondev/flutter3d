@@ -42,23 +42,13 @@ library;
 
 import 'dart:io';
 
-// The include resolver, and only the include resolver. A second one would be a
-// second answer to "which headers does this shader really pull in", and the two
-// backends would drift apart in the one place where drifting apart cannot be
-// seen from either side. Called from here rather than from `prepareStage`
-// because `flutter3d_webgl` is a dev dependency and a file under `lib/` may
-// only import what ships.
-//
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
-// The std140 cross-check and the pair a finished stage is, shared with
-// `tool/pack_wgsl_section.dart`. Two copies of the check would be two rules,
-// and the loadable path — where the GLSL is somebody else's — is the one that
-// needs it most.
-import 'package:flutter3d_webgpu/src/wgsl_section.dart';
+// The translator, the include resolver WebGL2's generator also uses, the two
+// compilers and the std140 cross-check — all in `flutter3d_shaders` since P8,
+// shared with `tool/pack_wgsl_section.dart` and with `flutter3d_build`'s
+// material step. A second include resolver would be a second answer to
+// "which headers does this shader really pull in", and two copies of the
+// check would be two rules.
+import 'package:flutter3d_shaders/compile.dart';
 
 void main(List<String> args) {
   final ShaderSet shaders;

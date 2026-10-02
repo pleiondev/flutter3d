@@ -1,36 +1,29 @@
 /// What a packer writes into a bundle's `webgpu` section, as text.
 ///
-/// The reading half of this document is `lib/src/webgpu_bundle_section.dart`,
-/// and that file says its own most valuable line out loud: no `package:web`
-/// here and no `dart:js_interop`, so that the packer on the VM and the device
-/// in the browser read one document rather than two transcriptions of it.
+/// The reading half of this document is `flutter3d_webgpu`'s
+/// `lib/src/webgpu_bundle_section.dart`, and that file says its own most
+/// valuable line out loud: no `package:web` here and no `dart:js_interop`, so
+/// that the packer on the VM and the device in the browser read one document
+/// rather than two transcriptions of it.
 ///
 /// **This is the writing half, and it could not be that same file.** The codec
-/// there reaches `flutter3d_hardware`'s barrel for `VertexFormat`, the barrel
-/// reaches `package:flutter`, and a bundle is packed by a `dart run` script
-/// with no `dart:ui` under it — `flutter3d_webgl/tool/pack_shaders.dart` is one
-/// and `tool/pack_wgsl_section.dart` beside this file is its sibling. Importing
-/// the codec from either is a compile error naming `dart:ui`, which is the
-/// measurement that put these twenty lines of `jsonEncode` here rather than in
-/// the codec.
+/// there reaches `flutter3d_hardware`'s barrel for `VertexFormat`, and a bundle
+/// is packed by a process with no `dart:ui` under it —
+/// `flutter3d_webgl/tool/pack_shaders.dart`,
+/// `flutter3d_webgpu/tool/pack_wgsl_section.dart`, and since P8 a project's
+/// own build hook through `flutter3d_build`. That last one cannot even resolve
+/// `flutter3d_webgpu`, which declares the Flutter SDK, and is why this writer
+/// lives in `flutter3d_shaders` now rather than beside its reader.
 ///
-/// What holds the two halves together instead is `test/wgsl_section_test.dart`,
-/// which writes a document with every field populated and reads it back with
-/// `decodeWebGpuSection`, field for field. A writer nobody read back would be
-/// the real duplication — the JSON would be right about the shape and wrong
-/// about a spelling, and the first thing to notice would be a bundle refused on
-/// somebody's machine.
+/// What holds the two halves together instead is `flutter3d_webgpu`'s
+/// `test/wgsl_section_test.dart`, which writes a document with every field
+/// populated and reads it back with `decodeWebGpuSection`, field for field. A
+/// writer nobody read back would be the real duplication — the JSON would be
+/// right about the shape and wrong about a spelling, and the first thing to
+/// notice would be a bundle refused on somebody's machine.
 ///
-/// **Under `lib/src/` and not under `tool/`**, which reads oddly for a file only
-/// a build script calls, and is the same decision `glsl_to_wgsl.dart`,
-/// `wgsl_compiler.dart` and `source_package.dart` all record: the browser test
-/// runner serves this package from `test/` and cannot read a sibling directory,
-/// so a build-time file under `tool/` is a build-time file no test can measure.
-/// It was written there first and the whole Chrome pass failed to compile on
-/// the import, which is as clear a measurement of that rule as it gets. Nothing
-/// this package exports reaches this file, so nothing a consumer builds carries
-/// it; and it imports `dart:convert` and the translator alone, so the round trip
-/// above runs in a browser as readily as on the VM.
+/// It imports `dart:convert` and the translator alone, so the round trip above
+/// runs in a browser as readily as on the VM.
 ///
 /// One spelling in particular is why that test earns its keep.
 /// [PreparedSampler.dimension] carries a `WebGpuTextureDimension`'s *Dart* name
