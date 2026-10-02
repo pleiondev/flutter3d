@@ -37,6 +37,9 @@ FAILED=()
 # which is not there is a different failure with the same colour.
 for package in packages/*/; do
   name="$(basename "$package")"
+  # A directory that groups packages rather than being one — see
+  # `publish_check.sh`.
+  [ -f "$package/pubspec.yaml" ] || continue
   mkdir -p "$WORK/packages/$name"
   # `lib`, `bin` and the pubspec are what a resolve and a `--help` need. Tests
   # and examples are not copied: they carry `flutter_test` on purpose in the

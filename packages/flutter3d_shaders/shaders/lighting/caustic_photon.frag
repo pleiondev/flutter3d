@@ -14,15 +14,15 @@
 
 precision highp float;
 
-in vec2 v_offset;
-in vec3 v_energy;
+in vec4 v_color;
+in vec2 v_uv;
 
 out vec4 frag_color;
 
 void main() {
-  float r2 = dot(v_offset, v_offset);
+  float r2 = dot(v_uv, v_uv);
   if (r2 >= 1.0) discard;
   float k = (1.0 - r2) * (1.0 - r2);
-  vec3 e = v_energy * k;
+  vec3 e = v_color.rgb * k;
   frag_color = vec4(0.0, e.r, e.g, e.b);
 }
