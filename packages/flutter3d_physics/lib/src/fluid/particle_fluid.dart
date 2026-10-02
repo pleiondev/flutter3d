@@ -15,6 +15,10 @@ final class PlaneObstacle implements JetObstacle {
   final double offset;
 
   @override
+  bool reaches(Vector3 centre, double distance) =>
+      normal.dot(centre) - offset < distance;
+
+  @override
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
     final d = normal.dot(point) - offset - radius;
     return d < 0.0 ? (normal: normal, depth: -d) : null;
@@ -193,21 +197,39 @@ final class ParticleFluid {
     List<JetReceiver> receivers = const [],
   }) {
     if (_x.isEmpty) return;
-    // A quarter of the capillary time a substep at most, and two fifths of
-    // a spacing's travel: a wall holds what comes within a radius of it or
-    // half its thickness into it, a band wider than that, so nothing passes
-    // through glass thinner than a particle between one look and the next.
-    // Never fewer than asked.
+    // A quarter of the capillary time a substep at most, and never fewer
+    // than asked. How far a particle goes in one is not held here: it is
+    // moved in pieces against the walls instead (`_advance`), which costs a
+    // wall test, not a density solve, per piece.
     final fastest = _v.fold(0.0, (m, v) => math.max(m, v.length));
-    final count = [
-      substeps,
-      (dt / (0.25 * capillaryTime)).ceil(),
-      (fastest * dt / (0.4 * spacing)).ceil(),
-    ].reduce(math.max).clamp(1, 256);
+    final count = math
+        .max(substeps, (dt / (0.25 * capillaryTime)).ceil())
+        .clamp(1, 256);
     final sub = dt / count;
     final g = _V(gravity.x, gravity.y, gravity.z);
+    // The walls anything here could reach this step, found once: every
+    // particle, and as far as the fastest goes, in one ball.
+    final low = _x.first.copy();
+    final high = _x.first.copy();
+    for (final p in _x) {
+      low
+        ..x = math.min(low.x, p.x)
+        ..y = math.min(low.y, p.y)
+        ..z = math.min(low.z, p.z);
+      high
+        ..x = math.max(high.x, p.x)
+        ..y = math.max(high.y, p.y)
+        ..z = math.max(high.z, p.z);
+    }
+    final walls = obstaclesNear(
+      obstacles,
+      ((low + high) * 0.5).toVector3(),
+      0.5 * (high - low).length +
+          (fastest + gravity.length * dt) * dt +
+          spacing,
+    );
     for (var s = 0; s < count; s++) {
-      _substep(sub, g, obstacles);
+      _substep(sub, g, walls);
     }
     // Into a vessel's liquid: handed over, whole.
     final radius = 0.5 * spacing;
@@ -227,6 +249,16 @@ final class ParticleFluid {
 
   void _substep(double dt, _V gravity, List<JetObstacle> obstacles) {
     final n = _x.length;
+    // Where a particle starts inside a wall or under the floor, it is put
+    // out first, its velocity left alone. A drop let go near the bottom of a
+    // glass is laid out as a little block round where it parted, and a
+    // particle of the block can start under the floor; put out by the
+    // correction pass instead, its four millimetres became its velocity
+    // over a fifth of a millisecond, and it left at eighteen metres a
+    // second.
+    for (var i = 0; i < n; i++) {
+      _collide(_x[i], obstacles);
+    }
     final rho0 = medium.density;
     final m = _mass;
     final norm = 1.0 / _latticeSum;
@@ -261,7 +293,9 @@ final class ParticleFluid {
       _v[i].addScaled(a, dt);
     }
     // Predict, then hold the density to the rest density.
-    final p = [for (var i = 0; i < n; i++) _x[i] + _v[i] * dt];
+    final p = [
+      for (var i = 0; i < n; i++) _advance(_x[i], _v[i], dt, obstacles),
+    ];
     final lambda = List<double>.filled(n, 0.0);
     final grid2 = _Grid(h, p);
     final near = [for (var i = 0; i < n; i++) grid2.near(i, p)];
@@ -329,6 +363,24 @@ final class ParticleFluid {
       _v[i] = smoothed[i];
       _x[i] = p[i];
     }
+  }
+
+  /// Where [x] moving at [v] is after [dt]: moved in pieces of two fifths
+  /// of a spacing, put out of the walls after each. A wall holds what comes
+  /// within a radius of it or half its thickness into it, a band wider than
+  /// a piece, so nothing passes through glass thinner than a particle; a
+  /// drop falling a metre a second into a test tube went five millimetres a
+  /// step and through its bottom.
+  _V _advance(_V x, _V v, double dt, List<JetObstacle> obstacles) {
+    final p = x.copy();
+    final pieces = obstacles.isEmpty
+        ? 1
+        : (v.length * dt / (0.4 * spacing)).ceil().clamp(1, 64);
+    for (var k = 0; k < pieces; k++) {
+      p.addScaled(v, dt / pieces);
+      if (pieces > 1) _collide(p, obstacles);
+    }
+    return p;
   }
 
   void _collide(_V p, List<JetObstacle> obstacles) {
@@ -425,8 +477,18 @@ final class _Grid {
   int _key(_V p) =>
       _pack((p.x / cell).floor(), (p.y / cell).floor(), (p.z / cell).floor());
 
-  static int _pack(int x, int y, int z) =>
-      ((x & 0x1fffff) << 42) | ((y & 0x1fffff) << 21) | (z & 0x1fffff);
+  /// By multiplication, as `spatial_grid.dart` does, and not by shifting
+  /// into the high bits: on the web an int's bitwise operations are 32 bits
+  /// wide, `x << 42` kept almost nothing of `x`, cells far apart shared a
+  /// key, a particle met the same neighbour several times over, and the
+  /// liquid read as many times its density and flew apart. Each index is
+  /// held to ±2¹⁶ cells and the key under 2⁵¹, which a double holds exactly.
+  static int _pack(int x, int y, int z) {
+    const span = 1 << 17;
+    const half = 1 << 16;
+    int wrap(int v) => (v + half) % span;
+    return (wrap(x) * span + wrap(y)) * span + wrap(z);
+  }
 
   /// The points within [cell] of point [i], itself left out.
   List<int> near(int i, List<_V> points) {

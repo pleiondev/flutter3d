@@ -40,7 +40,23 @@ abstract interface class JetObstacle {
   /// Where a parcel of [radius] at [point] (world) is into this obstacle:
   /// the way out and how far, or null when it is clear of it.
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius);
+
+  /// Whether anything within [distance] of [centre] (world) could touch
+  /// this obstacle: false only when it certainly cannot. Asked once a step
+  /// for everything in flight together, so the walls far from it are not
+  /// asked again for each parcel, piece and pass.
+  bool reaches(Vector3 centre, double distance);
 }
+
+/// [obstacles] that something within [distance] of [centre] could touch.
+List<JetObstacle> obstaclesNear(
+  List<JetObstacle> obstacles,
+  Vector3 centre,
+  double distance,
+) => [
+  for (final o in obstacles)
+    if (o.reaches(centre, distance)) o,
+];
 
 /// A drop a stream broke into, leaving it: where, how fast, how much.
 typedef JetDrop = ({
@@ -202,25 +218,52 @@ final class Jet {
     List<JetReceiver> receivers = const [],
   }) {
     final drops = <JetDrop>[];
+    var walls = obstacles;
+    if (_parcels.isNotEmpty) {
+      // Every parcel, and as far as any moves this step, in one ball.
+      final low = _parcels.first.position.clone();
+      final high = low.clone();
+      var travel = 0.0;
+      for (final p in _parcels) {
+        Vector3.min(low, p.position, low);
+        Vector3.max(high, p.position, high);
+        final speed = p.velocity.length + gravity.length * dt;
+        travel = math.max(travel, speed * dt + math.sqrt(p.section / math.pi));
+      }
+      walls = obstaclesNear(
+        obstacles,
+        (low + high) * 0.5,
+        (high - low).length * 0.5 + travel + 0.01,
+      );
+    }
     for (var i = 0; i < _parcels.length; i++) {
       final p = _parcels[i];
       final rho = p.medium.density;
       final sigma = p.medium.surfaceTension;
       final mu = p.medium.viscosity;
       p.velocity.addScaled(gravity, dt);
-      p.position.addScaled(p.velocity, dt);
+      p.previous.setFrom(p.position);
       p.age += dt;
       final section = p.section;
       final radius = math.sqrt(section / math.pi);
       var touched = false;
-      for (final wall in obstacles) {
-        final hit = wall.touch(p.position, radius);
-        if (hit == null) continue;
-        p.position.addScaled(hit.normal, hit.depth);
-        final into = p.velocity.dot(hit.normal);
-        if (into < 0.0) p.velocity.addScaled(hit.normal, -into);
-        p.onWall = true;
-        touched = true;
+      // **In pieces no longer than its own radius**, held by the walls after
+      // each. A stream falls five millimetres a step into a test tube whose
+      // glass is half a millimetre: moved in one go, a parcel above the
+      // bottom of an empty tube was under its glass a step later, and broke
+      // into drops beneath the tube.
+      final pieces = (p.velocity.length * dt / radius).ceil().clamp(1, 16);
+      for (var k = 0; k < pieces; k++) {
+        p.position.addScaled(p.velocity, dt / pieces);
+        for (final wall in walls) {
+          final hit = wall.touch(p.position, radius);
+          if (hit == null) continue;
+          p.position.addScaled(hit.normal, hit.depth);
+          final into = p.velocity.dot(hit.normal);
+          if (into < 0.0) p.velocity.addScaled(hit.normal, -into);
+          p.onWall = true;
+          touched = true;
+        }
       }
       // Off the wall this step: held to it while surface tension outweighs
       // its inertia, let go when it does not.
@@ -230,7 +273,7 @@ final class Jet {
         final contact = 0.1 * radius;
         final reach = 2.0 * radius;
         var held = false;
-        for (final wall in obstacles) {
+        for (final wall in walls) {
           final near = wall.touch(p.position, radius + contact);
           if (near != null) {
             held = true;
@@ -238,7 +281,7 @@ final class Jet {
           }
         }
         if (!held && p.velocity.length < clingSpeed(2.0 * radius)) {
-          for (final wall in obstacles) {
+          for (final wall in walls) {
             final hit = wall.touch(p.position, radius + reach);
             if (hit == null) continue;
             p.position.addScaled(hit.normal, hit.depth - reach);
@@ -261,10 +304,20 @@ final class Jet {
     final kept = <_Parcel>[];
     for (final p in _parcels) {
       JetReceiver? into;
-      for (final r in receivers) {
-        if (r.catches(p.position, math.sqrt(p.section / math.pi))) {
-          into = r;
-          break;
+      // Anywhere along the way it came this step, a radius at a time: what
+      // passes the surface of a liquid between one step and the next has
+      // landed in it.
+      final radius = math.sqrt(p.section / math.pi);
+      final way = p.position - p.previous;
+      final looks = (way.length / radius).ceil().clamp(1, 16);
+      search:
+      for (var k = 1; k <= looks; k++) {
+        final at = p.previous + way * (k / looks);
+        for (final r in receivers) {
+          if (r.catches(at, radius)) {
+            into = r;
+            break search;
+          }
         }
       }
       if (into != null) {
@@ -396,6 +449,9 @@ final class _Parcel {
   double age = 0.0;
   double growth = 0.0;
   bool onWall = false;
+
+  /// Where it was at the start of the step.
+  final Vector3 previous = Vector3.zero();
 
   /// Whether the stream breaks between this parcel and the next one to
   /// have left the lip.

@@ -121,6 +121,32 @@ void main() {
         expect(child.readWorldPosition().x, closeTo(5.0, 1e-6));
       },
     );
+
+    test('reading the local matrix after a move does not hide the move', () {
+      // A frame draws the node, which fills the world cache; then the node
+      // moves and something asks its local matrix before the next frame —
+      // the chemistry bench hands it to the liquid. Mutation: let
+      // `_recomputeLocal` clear the dirty flag without marking the world
+      // stale, and the world matrix keeps the old place: the glass rose for
+      // the liquid and stayed in its rack on screen.
+      final root = SceneNode();
+      final node = SceneNode();
+      root.add(node);
+      expect(node.readWorldPosition().y, closeTo(0.0, 1e-6));
+
+      node
+        ..setPosition(0.0, 0.1, 0.0)
+        ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), 1.0));
+      expect(node.localMatrix.getTranslation().y, closeTo(0.1, 1e-6));
+      expect(node.readWorldPosition().y, closeTo(0.1, 1e-6));
+
+      // And the same for a node with no parent.
+      final alone = SceneNode();
+      expect(alone.readWorldPosition().x, closeTo(0.0, 1e-6));
+      alone.setPosition(2.0, 0.0, 0.0);
+      expect(alone.localMatrix.getTranslation().x, closeTo(2.0, 1e-6));
+      expect(alone.readWorldPosition().x, closeTo(2.0, 1e-6));
+    });
   });
 
   group('hierarchy', () {

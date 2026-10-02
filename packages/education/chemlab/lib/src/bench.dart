@@ -395,8 +395,30 @@ final class Bench {
 
   void _swap(MeshNode node, MeshData data) {
     final old = node.mesh;
-    node.mesh = DeviceMesh.upload(device, data);
+    node.mesh = _upload(data);
     if (old is DeviceMesh) (retire ?? _releaseNow)(old);
+  }
+
+  /// [data] on the device, or, when it has nothing in it, one triangle too
+  /// small to see: Metal makes no buffer of no bytes, and a stream with no
+  /// parcels yet, or drops before the first, threw on every frame of a pour
+  /// and stopped it there. The software device takes an empty buffer, so the
+  /// tests never saw it.
+  DeviceMesh _upload(MeshData data) {
+    if (data.vertexCount > 0 && data.indexCount > 0) {
+      return DeviceMesh.upload(device, data);
+    }
+    final tiny = MeshBuilder(VertexLayout.standard);
+    final up = Vector3(0, 1, 0);
+    for (final p in [
+      Vector3.zero(),
+      Vector3(1e-6, 0, 0),
+      Vector3(0, 0, 1e-6),
+    ]) {
+      tiny.addVertex(position: p, normal: up);
+    }
+    tiny.addTriangle(0, 1, 2);
+    return DeviceMesh.upload(device, tiny.build());
   }
 
   DeviceMesh _lathe(List<Vector2> profile) => DeviceMesh.upload(
@@ -622,19 +644,28 @@ final class Bench {
   /// it over the bench, tips it over the tube's mouth as far as it takes to
   /// pour that much and no faster, and puts it back. [step] plays it; the
   /// liquid itself runs, falls and lands by the physics.
-  void share(Vessel from) {
+  ///
+  /// It tips about [across], a horizontal axis — the way the camera looks,
+  /// so that the pour leans in the picture: tipped towards the eye, a tube
+  /// seen from the front only seemed to rise and shorten.
+  void share(Vessel from, {Vector3? across}) {
     if (!canShare(from)) return;
     final mine = from.liquid.volume;
     final theirs = clean.liquid.volume;
+    final flat = across == null ? null : Vector3(across.x, 0, across.z);
+    final axis = flat != null && flat.length2 > 1e-9
+        ? (flat..normalize())
+        : Vector3(1, 0, 0);
     from
       ..tilt = 0.0
       ..lift = 0.0
-      ..leanAxis = Vector3(1, 0, 0);
+      ..leanAxis = axis;
     _transfer = _Transfer(
       from: from,
       to: clean,
       start: mine,
       goal: (mine + theirs) / 2.0,
+      axis: axis,
     )..spill = _tiltHolding(from, mine);
     _castBy(from);
   }
@@ -646,7 +677,8 @@ final class Bench {
   static const double _pourTime = 2.0;
   static const double _back = 1.4;
 
-  /// The world's up seen from glass leaning [tilt] towards the front.
+  /// The world's up seen from glass leaning [tilt] towards its local +z:
+  /// what it holds is the same whichever way a round glass leans.
   static Vector3 _upAt(double tilt) =>
       Vector3(0, math.cos(tilt), -math.sin(tilt));
 
@@ -674,10 +706,10 @@ final class Bench {
   /// Places [vessel]'s glass with its base at [base], leaning [tilt].
   void _pose(Vessel vessel, Vector3 base, double tilt) {
     vessel.body
-      ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), tilt))
+      ..setRotation(Quaternion.axisAngle(vessel.leanAxis, tilt))
       ..setPositionFrom(base);
     vessel.mirror
-      ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), -tilt))
+      ..setRotation(Quaternion.axisAngle(vessel.leanAxis, -tilt))
       ..setPosition(base.x, -base.y, base.z);
   }
 
@@ -715,14 +747,16 @@ final class Bench {
           thrown.z *
           fallTime(thrown, to.at.y + rim + 0.001, to.at.y + to.level);
       final back = math.min(0.5 * drift, to.lip.z - 0.001);
-      return to.at + Vector3(0, rim + 0.001, -back);
+      return to.at + Vector3(0, rim + 0.001, 0) - t.towards * back;
     }();
-    Vector3 baseFor(double tilt) {
-      final c = math.cos(tilt);
-      final s = math.sin(tilt);
-      final lip = from.lip;
-      return aim - Vector3(0, lip.y * c - lip.z * s, lip.y * s + lip.z * c);
-    }
+    // The lip is the side of the mouth that goes down: towards the pour.
+    final lip = t.towards * from.lip.z + Vector3(0, from.lip.y, 0);
+    // Turned by the matrix the scene node will be: `Quaternion.rotated`
+    // turns the other way round, and the lip came down a hand's width past
+    // the clean tube.
+    Vector3 baseFor(double tilt) =>
+        aim -
+        Quaternion.axisAngle(t.axis, tilt).asRotationMatrix().transformed(lip);
 
     var base = from.at.clone();
     var tilt = 0.0;
@@ -875,7 +909,7 @@ final class Bench {
       if (i == vessel.layers.length) {
         final node =
             MeshNode(
-                DeviceMesh.upload(device, meshes[i].mesh),
+                _upload(meshes[i].mesh),
                 liquid(_rgb(colour), depth: depth),
                 name: '${vessel.name} liquid',
               )
@@ -927,7 +961,7 @@ final class Bench {
       final node = _streams.putIfAbsent(source, () {
         final made =
             MeshNode(
-                DeviceMesh.upload(device, mesh),
+                _upload(mesh),
                 liquid(_rgb(colour(from)), depth: 0.002)..doubleSided = true,
                 name: 'stream',
               )
@@ -942,7 +976,7 @@ final class Bench {
     world.particles.forEach((medium, fluid) {
       final node = _drops.putIfAbsent(medium, () {
         final made = MeshNode(
-          DeviceMesh.upload(device, particleMesh(const [], 0.0005)),
+          _upload(particleMesh(const [], 0.0005)),
           liquid(Vector3(0.9, 0.95, 1.0), depth: 0.001),
           name: 'drops',
         )..castsShadow = false;
@@ -1128,10 +1162,16 @@ final class _Transfer {
     required this.to,
     required this.start,
     required this.goal,
-  });
+    required this.axis,
+  }) : towards = axis.cross(Vector3(0, 1, 0))..normalize();
 
   final Vessel from;
   final Vessel to;
+
+  /// The horizontal axis the glass tips about, and the way it pours: a turn
+  /// about [axis] brings up round to [towards].
+  final Vector3 axis;
+  final Vector3 towards;
 
   /// What [from] held at the start, and what it is to hold at the end.
   final double start;

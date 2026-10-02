@@ -85,6 +85,8 @@ final class FreeSurface {
   /// and the modes are what cost time to find. Only the liquid left behind
   /// by the move is added to the waves.
   void layOut(VesselShape shape, Vector3 up, double height) {
+    // What landed on the old grid is laid on its modes before they go.
+    if (_modes.isNotEmpty) _applyLandings();
     final old = _grid;
     if (old != null &&
         _modes.isNotEmpty &&
@@ -138,7 +140,9 @@ final class FreeSurface {
   /// [depth] deep on average: each mode exactly, as the damped oscillator it
   /// is, so any step is stable.
   void step(double dt, {required double g, required double depth}) {
+    _depth = depth;
     if (_modes.isEmpty) return;
+    _applyLandings();
     // Still water stays still: nothing to ring.
     var still = true;
     for (var n = 0; n < _amplitude.length && still; n++) {
@@ -205,6 +209,76 @@ final class FreeSurface {
   /// How wide a [knock] spreads, metres: the patch's standard deviation.
   double get knockSpread => 2.0 * (_grid?.cell ?? 0.0);
 
+  /// The liquid's depth on the last step, for [strike].
+  double _depth = 0.0;
+
+  /// Liquid landing at [point] (vessel frame): [heap], its volume over the
+  /// patch [knock] spreads it on, in metres; and [flux], that volume times
+  /// the speed it comes down at over the same patch, in m²/s.
+  ///
+  /// **The strike.** An impulse that sudden is an impulsive pressure, which
+  /// leaves the liquid under it with a velocity potential φ = −P/ρ and
+  /// nothing else yet; on a mode of wavenumber k the surface then moves at
+  /// k·tanh(kh) times that mode's share of φ (linear waves, η_t = φ_z). A
+  /// stream landing in one place keeps a dip under it; drops arriving one
+  /// by one set it ringing.
+  ///
+  /// **Gathered and laid on the modes once a step.** A pour lands a thousand
+  /// drops a second, and projecting each onto the modes as it came was most
+  /// of what the pour cost; the waves cannot tell, since they move only when
+  /// stepped.
+  void land(Vector3 point, {double heap = 0.0, double flux = 0.0}) {
+    final grid = _grid;
+    if (grid == null || _modes.isEmpty) return;
+    if (heap != 0.0) {
+      _gather(_pendingHeap ??= Float64List(grid.count), point, heap);
+    }
+    if (flux != 0.0) {
+      _gather(_pendingPhi ??= Float64List(grid.count), point, -flux);
+    }
+  }
+
+  Float64List? _pendingHeap;
+  Float64List? _pendingPhi;
+
+  /// Adds a bump [strength] high at [point], [knockSpread] wide, into
+  /// [field]: only where it is more than a ten-thousandth of its height.
+  void _gather(Float64List field, Vector3 point, double strength) {
+    final grid = _grid!;
+    final spread = knockSpread;
+    final reach2 = 18.4 * spread * spread; // e^(−r²/2s²) > 1e-4
+    for (var i = 0; i < grid.count; i++) {
+      final d = grid.point(i) - point;
+      final along = grid.up.dot(d);
+      final r2 = d.length2 - along * along;
+      if (r2 > reach2) continue;
+      field[i] += strength * Portable.exp(-r2 / (2.0 * spread * spread));
+    }
+  }
+
+  /// Lays what [land] gathered onto the modes.
+  void _applyLandings() {
+    final heap = _pendingHeap;
+    final phi = _pendingPhi;
+    _pendingHeap = null;
+    _pendingPhi = null;
+    if (heap != null) {
+      final added = _project(heap);
+      for (var n = 0; n < added.length; n++) {
+        _amplitude[n] += added[n];
+      }
+    }
+    if (phi != null) {
+      final share = _project(phi);
+      final h = math.max(_depth, 1e-6);
+      for (var n = 0; n < share.length; n++) {
+        final k = math.sqrt(_k2[n]);
+        _rate[n] += k * _tanh(k * h) * share[n];
+      }
+    }
+    if (heap != null || phi != null) _field = null;
+  }
+
   /// Knocks the surface at [point] (vessel frame) [strength] metres high,
   /// over a patch two cells across: what is not a wave — the patch's mean —
   /// is not kept, so no liquid is added.
@@ -217,6 +291,7 @@ final class FreeSurface {
       final d = grid.point(i) - point;
       final along = grid.up.dot(d);
       final r2 = d.length2 - along * along;
+      if (r2 > 18.4 * spread * spread) continue;
       bump[i] = strength * Portable.exp(-r2 / (2.0 * spread * spread));
     }
     final added = _project(bump);

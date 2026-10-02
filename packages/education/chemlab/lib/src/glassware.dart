@@ -246,14 +246,18 @@ Material paper([TextureHandle? label]) =>
 /// reflections are mirrored geometry (see `Bench`), so no screen-space pass
 /// is needed.
 ///
-/// The shadows are fitted to a bench, not a level: a metre of view rather
-/// than sixty, and a normal offset of two millimetres rather than two
-/// centimetres, which on glass this size is most of a tube.
+/// The shadows are fitted to a bench, not a level: sixty centimetres of view
+/// rather than sixty metres, as far as the camera goes, and a normal offset
+/// of two millimetres rather than two centimetres, which on glass this size
+/// is most of a tube. The map is twice the default's edge: at a metre and
+/// 1024 texels a tube's shadow edge stepped by most of a millimetre, which a
+/// close look at a sixteen-millimetre tube shows as stairs.
 final RenderSettings benchSettings = RenderSettings(
   sky: labSky,
   shadows: const ShadowSettings(
     translucentCasters: true,
-    viewDistance: 1.0,
+    resolution: 2048,
+    viewDistance: 0.6,
     normalOffset: 0.002,
   ),
 );
@@ -266,7 +270,8 @@ final RenderSettings photonSettings = RenderSettings(
     translucentCasters: true,
     caustics: true,
     causticPhotons: 128,
-    viewDistance: 1.0,
+    resolution: 2048,
+    viewDistance: 0.6,
     normalOffset: 0.002,
   ),
 );
