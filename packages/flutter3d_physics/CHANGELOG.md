@@ -1,3 +1,27 @@
+## Unreleased
+
+- **A body can turn, if it is built to.** `RigidBody` has an `orientation`,
+  an `angularVelocity`, an inertia tensor in its own axes
+  (`inertiaLocal`, `inverseInertiaLocal`) and one in the world's
+  (`inverseInertiaWorld`), plus `applyImpulseAt` and `applyTorqueImpulse`.
+  `inertiaFor(shape, mass)` gives the principal moments of a box, a sphere
+  and a capsule; a wedge and a heightfield are taken as their bounding box.
+  Only a body built with `canRotate: true` turns, because every shipped
+  level was tuned against crates that do not tip. The others have an
+  inverse inertia of zero and step exactly as before. A turning body
+  keeps its angular momentum rather than its angular velocity, which is
+  the gyroscopic term taken implicitly: a box spun off its principal axes
+  for ten seconds holds L to within 1e-4. `angularDamping` is zero by
+  default. No contact turns a body yet, and the collider stays
+  axis-aligned. `save()` writes the orientation and spin only for a body
+  that can turn, so saved levels and their digests do not change.
+  `readQuaternion` reads one back.
+- **The step has trigonometry it may call.** `src/portable_math.dart`
+  holds `sin`, `cos`, `sinCos`, `atan`, `atan2`, `asin` and `acos` built
+  from fdlibm's kernels out of IEEE arithmetic alone, for the hinge
+  angles and cone limits that come next. It is not exported, because
+  `flutter3d_sim` re-exports this package beside its own `Portable`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
