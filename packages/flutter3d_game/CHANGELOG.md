@@ -31,6 +31,23 @@
 - **`registerTimelineExtensions`** adds `scrubTo`, `returnToPresent`,
   `branchHere` and, with an `entityLayout`, `tracks`; `status` answers the
   present step, the oldest held and the scrub.
+- **`Autosave` writes the run on the way into a pause, at a checkpoint and
+  when the application goes to the background**, which on a phone is the
+  only warning before the process is ended. `SaveFile` skips a write of the
+  run it last wrote, so a menu opened and closed costs nothing.
+- **`SaveFile` takes a `SaveSchema`** and migrates older saves on the way in;
+  a save now carries its schema, its step and its digest. `readRecord`,
+  `parse`, `writeRecord` and `encode` are for copies kept elsewhere.
+  `RunSession.stepOf` says how far a run has got, and `save` returns whether
+  it wrote.
+- **`SaveSync` keeps a save in the cloud, and sends nothing until the player
+  agrees.** Consent is off on a fresh install and is kept in a document of
+  its own; without it no store is called. Conflicts are settled by
+  `resolveSaves`; two equal runs come back as `SyncOutcome.ask` for the
+  player, and a cloud save from a newer build is left alone. Stores:
+  `HttpCloudSaves` (`GET`/`PUT` with `ETag` preconditions) and
+  `PlatformCloudSaves` for Play Games and iCloud over the
+  `flutter3d/cloud_saves` channel. Every failure is an answer, not a throw.
 
 - **`replayAfterHotSwap` asks the question a hot reload leaves open on its
   own.** After every `HotSwap` it lives the last seconds again under the new

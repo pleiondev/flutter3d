@@ -316,6 +316,10 @@ class _GameScreenState extends State<GameScreen>
   /// reads [_runOrNull].
   RunCubit get _run => _runOrNull!;
 
+  /// Writes the run at a checkpoint, on the way into a pause and when the
+  /// application goes to the background. Built beside [_runOrNull].
+  Autosave? _autosave;
+
   /// What a step sounds like. See `soundtrack.dart` for why this is a class
   /// and not a method: a decision can be tested, an effect inside a widget
   /// cannot.
@@ -620,6 +624,7 @@ class _GameScreenState extends State<GameScreen>
         },
       ),
     );
+    _autosave = Autosave(_run.run)..watchLifecycle();
 
     _ticker = createTicker(_onTick)..start();
 
@@ -785,7 +790,7 @@ class _GameScreenState extends State<GameScreen>
     final sim = _sim;
     if (sim == null) return;
     if (!_screen.shouldSave(sim.respawnPoint)) return;
-    _run.save();
+    _autosave?.checkpoint();
   }
 
   /// What the pad means to a screen rather than to the runner.
@@ -891,6 +896,9 @@ class _GameScreenState extends State<GameScreen>
       pointerHeld: _devices.isCaptured,
       padConnected: _pad.isConnected,
     );
+    // A pause is where most sessions end — the menu opened to quit, the pad
+    // put down — so the run is written on the way in.
+    _autosave?.paused(_loop.paused);
     _loop.advance(dt);
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said
@@ -1104,6 +1112,7 @@ class _GameScreenState extends State<GameScreen>
     // Null if the device never opened: nothing ran, so there is nothing to
     // keep — and the cubit to close was never built either.
     _runOrNull?.save();
+    _autosave?.dispose();
     // Closed like the three below, and the cubit unhooks itself from the
     // session first — see `RunCubit.close` for why the order matters.
     unawaited(_runOrNull?.close());

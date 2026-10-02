@@ -291,6 +291,12 @@ final class PlatformerRun extends RunSession<LevelReady> {
   void restoreInto(LevelReady level, Snapshot snapshot) =>
       level.sim.restore(snapshot);
 
+  /// The elapsed time in steps. It is carried from level to level and adds up
+  /// the loop's fixed sixtieths, so it is the run's step count across levels
+  /// without a counter of its own.
+  @override
+  int stepOf(LevelReady level) => (level.sim.elapsed * 60.0).round();
+
   /// The tally of the run so far. Only this side knows what the level after
   /// this one is, so only this side can carry anything into it.
   @override

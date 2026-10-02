@@ -103,6 +103,14 @@ abstract base class RunSession<L> {
   /// changed.
   void restoreInto(L level, Snapshot snapshot);
 
+  /// How far the run has got, in simulation steps across all its levels.
+  /// Zero by default.
+  ///
+  /// Written beside the save so two copies of it can be told apart by more
+  /// than a clock — see `resolveSaves`. A game that leaves it at zero still
+  /// syncs; two different runs of it are simply always the player's call.
+  int stepOf(L level) => 0;
+
   /// What the player takes with them into [next]. Empty by default.
   ///
   /// Called on the level being left, before the next one is read — which is the
@@ -304,11 +312,16 @@ abstract base class RunSession<L> {
     save();
   }
 
-  /// Writes where the run has got to, if there is one worth writing.
-  void save() {
+  /// Writes where the run has got to, if there is one worth writing, and says
+  /// whether it did.
+  bool save() {
     final playing = _status;
-    if (playing is! RunPlaying<L> || playing.outcome.isOver) return;
-    saves.write(playing.asset, snapshotOf(playing.level));
+    if (playing is! RunPlaying<L> || playing.outcome.isOver) return false;
+    return saves.write(
+      playing.asset,
+      snapshotOf(playing.level),
+      step: stepOf(playing.level),
+    );
   }
 
   /// Puts [next], another build of the level being played, in its place, and
