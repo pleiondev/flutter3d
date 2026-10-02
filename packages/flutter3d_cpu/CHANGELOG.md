@@ -1,3 +1,13 @@
+## Unreleased
+
+- The software caustic stages: a refracting caster's faces, the photon
+  vertex stage with its ray differentials, and the photon quad.
+- The software `ShadowTransmittance` reads the base colour map and lets the
+  transmittance pass one, as the GLSL stage does.
+- **`ShadowTransmittance`** and the coloured shadow it feeds, the software
+  twin of the stage and of the light loop's new term
+  (`ShadowSettings.translucentCasters`).
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

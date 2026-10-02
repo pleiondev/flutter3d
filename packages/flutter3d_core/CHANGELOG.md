@@ -1,5 +1,37 @@
 ## Unreleased
 
+- **Caustics.** `ShadowSettings.caustics` (with `translucentCasters`, off by
+  default) follows the sun's light through every caster with a volume — a
+  transmission and a thickness. Each is drawn from the sun into two small
+  maps of its own, near faces and far faces; one photon per texel is bent in
+  and out by Snell's law, dimmed by Fresnel and by its volume's absorption
+  over the path, followed to the first opaque surface below, and added into
+  the atlas there, sized by where its neighbours land so that light is
+  neither made nor lost. The caster itself stops the light, so what lands
+  under it is what its photons bring: the bright focal line and dark rim a
+  glass of water throws, in the colour of what is in it. Thin-walled casters
+  keep the shading they had. Static meshes only; `causticPhotons` sets the
+  grid.
+- **A see-through caster can paint what it lets through.** Its base colour
+  map multiplies the transmittance, and neither is held to one, so a card
+  marked `ShadowCastingMode.shadowsOnly` can carry a picture of where light
+  went: darker where it was turned away, brighter where a lens gathered it.
+  `MeshNode.receivesTranslucentShadows` (true by default) lets a surface that
+  stands in front of a translucent caster, such as a label on a glass, opt
+  out of being shaded by it.
+- **See-through casters shade the sun by what they let through.**
+  `ShadowSettings.translucentCasters`, off by default. A blended or
+  transmissive material is drawn into the sun's atlas after the opaque
+  casters, into the three channels that held nothing, as how much of red,
+  green and blue it lets through: its opacity, its transmission tinted by its
+  colour and by what its volume leaves after its thickness
+  (`attenuationColor`, `attenuationDistance`), and the Fresnel loss of its
+  index at that angle. A transmitting material's alpha is read as its look,
+  not as holes in it. Clear glass casts
+  a faint shadow with darker edges, a coloured liquid a shadow of its colour,
+  and layers combine. A see-through surface that casts is not shaded by it,
+  and it does nothing under the `evsm` filter. Off, every frame is drawn byte for byte as
+  before.
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

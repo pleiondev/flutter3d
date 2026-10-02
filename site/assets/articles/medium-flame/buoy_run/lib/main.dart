@@ -148,8 +148,11 @@ class Boat extends Object3dComponent
 
   // Step 6: an ordinary Flame collision.
   @override
-  void onCollisionStart(Set<Vector2> points, PositionComponent other) {
-    super.onCollisionStart(points, other);
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
+    super.onCollisionStart(intersectionPoints, other);
     if (other is Buoy) game.collect(other);
   }
 }

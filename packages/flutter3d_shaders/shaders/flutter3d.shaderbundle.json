@@ -255,6 +255,22 @@
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance_masked.frag"
   },
+  "CausticSurface": {
+    "type": "fragment",
+    "file": "shaders/lighting/caustic_surface.frag"
+  },
+  "CausticPhotonVertex": {
+    "type": "vertex",
+    "file": "shaders/lighting/caustic_photon.vert"
+  },
+  "CausticPhoton": {
+    "type": "fragment",
+    "file": "shaders/lighting/caustic_photon.frag"
+  },
+  "ShadowTransmittance": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_transmittance.frag"
+  },
   "ShadowCopy": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_copy.frag"

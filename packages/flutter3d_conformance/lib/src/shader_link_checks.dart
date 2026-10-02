@@ -81,6 +81,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // plain ones do not, so they are a different link.
       (vertex, 'ShadowDepthMasked'),
       (vertex, 'ShadowDistanceMasked'),
+      // `ShadowSettings.translucentCasters`: a see-through mesh into the
+      // sun's atlas, reading the normal the others ignore.
+      (vertex, 'ShadowTransmittance'),
     ],
     // The picking pass draws every mesh again through the stage its layout
     // needs — plain, skinned or instanced; a lightmapped mesh has the plain
@@ -95,6 +98,11 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'MeshSkinnedVertex',
       'MeshInstancedVertex',
     ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
+    // `ShadowSettings.caustics`: a refracting caster's faces into its maps,
+    // through the static stage, and its photons, whose vertex stage reads
+    // three textures and draws one quad per instance.
+    ('MeshVertex', 'CausticSurface'),
+    ('CausticPhotonVertex', 'CausticPhoton'),
     // `R1`: the three stages a moved node is drawn through into the velocity
     // buffer, each with the one fragment stage that differences them.
     // `R4`: and with the stage that marks a blended surface reactive, which

@@ -66,6 +66,51 @@ final class CameraVelocityInfoBlock extends UniformBlock {
   };
 }
 
+/// `CausticInfo`.
+final class CausticInfoBlock extends UniformBlock {
+  CausticInfoBlock() : super('CausticInfo');
+
+  /// `map_to_world`: Matrix, at byte 0.
+  final Float32List mapToWorld = Float32List(16);
+
+  /// `world_to_map`: Matrix, at byte 64.
+  final Float32List worldToMap = Float32List(16);
+
+  /// `world_to_tile`: Matrix, at byte 128.
+  final Float32List worldToTile = Float32List(16);
+
+  /// `world_to_clip`: Matrix, at byte 192.
+  final Float32List worldToClip = Float32List(16);
+
+  /// `grid`: Vector4, at byte 256.
+  final Float32List grid = Float32List(4);
+
+  /// `light`: Vector4, at byte 272.
+  final Float32List light = Float32List(4);
+
+  /// `optics`: Vector4, at byte 288.
+  final Float32List optics = Float32List(4);
+
+  /// `tint`: Vector4, at byte 304.
+  final Float32List tint = Float32List(4);
+
+  /// `attenuation`: Vector4, at byte 320.
+  final Float32List attenuation = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'map_to_world': mapToWorld,
+    'world_to_map': worldToMap,
+    'world_to_tile': worldToTile,
+    'world_to_clip': worldToClip,
+    'grid': grid,
+    'light': light,
+    'optics': optics,
+    'tint': tint,
+    'attenuation': attenuation,
+  };
+}
+
 /// `CompositeInfo`.
 final class CompositeInfoBlock extends UniformBlock {
   CompositeInfoBlock() : super('CompositeInfo');
@@ -1247,6 +1292,27 @@ final class TileMaxInfoBlock extends UniformBlock {
     'source': source,
     'params': params,
     'target': target,
+  };
+}
+
+/// `TransmittanceInfo`.
+final class TransmittanceInfoBlock extends UniformBlock {
+  TransmittanceInfoBlock() : super('TransmittanceInfo');
+
+  /// `color`: Vector4, at byte 0.
+  final Float32List color = Float32List(4);
+
+  /// `light`: Vector4, at byte 16.
+  final Float32List light = Float32List(4);
+
+  /// `params`: Vector4, at byte 32.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'color': color,
+    'light': light,
+    'params': params,
   };
 }
 

@@ -105,6 +105,9 @@ final class ShadowSettings {
     this.filter,
     this.evsmBlurRadius = 2,
     this.evsmBleedReduction = 0.2,
+    this.translucentCasters = false,
+    this.caustics = false,
+    this.causticPhotons = 128,
   });
 
   /// How the directional map is filtered — `S2`. Null picks from
@@ -145,6 +148,59 @@ final class ShadowSettings {
   /// and the rest stretched back over the range, which removes the halo and
   /// darkens the soft edge with it; a fifth is the usual compromise.
   final double evsmBleedReduction;
+
+  /// Whether glass, liquid and other see-through casters shade the sun's
+  /// light by what their material lets through, instead of blocking it like
+  /// a wall.
+  ///
+  /// **A shadow map holds one depth per texel**, and a half-transparent caster
+  /// has no single depth to give it, so until this every blended or
+  /// transmissive material cast a shadow as dark as stone. With this on, such
+  /// a caster (`MaterialAlphaMode.blend`, or a transmission above nought) is
+  /// drawn after the opaque ones into the three channels of the atlas that
+  /// held nothing: how much of each of red, green and blue it lets through,
+  /// from its opacity, its transmission, its colour and volume, and the
+  /// Fresnel loss its index of refraction gives at that angle — so a clear
+  /// glass casts a faint shadow with darker edges, and a coloured solution a
+  /// shadow of the deep colour light through it takes. Where refracted light
+  /// lands, the bright line down a tube's shadow, is not modelled.
+  /// Layers combine: light through two walls and a liquid is what all three
+  /// let through.
+  ///
+  /// What it does not do: a receiver standing between the light and the
+  /// translucent caster is shaded as if it were behind it, since the atlas
+  /// keeps the transmittance and not where along the light it happened; and
+  /// it does nothing with [ShadowFilter.evsm], whose moments take over the
+  /// channels this uses. A see-through surface that casts is not shaded by
+  /// it, so a glass does not darken itself; one that casts nothing, a glazed
+  /// floor, is shaded like any other. Off by default, which draws every frame
+  /// exactly as before.
+  final bool translucentCasters;
+
+  /// Whether light through a refracting caster is followed to where it lands
+  /// — caustics. Needs [translucentCasters].
+  ///
+  /// A caster with a volume (transmission above nought and a thickness, as
+  /// glTF's `KHR_materials_volume` says one has) is drawn from the sun twice
+  /// into small maps of its own, its near faces and its far faces, and one
+  /// photon per texel of them is bent in by Snell's law at the near face and
+  /// out at the far one, dimmed by Fresnel and by what its volume absorbs over
+  /// the path, followed to the first opaque surface below, and added into the
+  /// atlas there. The caster itself stops all of the sun's light, so what
+  /// lands under it is only what the photons bring: the dark rim and the
+  /// bright focal line a glass of water throws, in the colour of what is in
+  /// it. A thin-walled caster (no thickness) refracts nothing and keeps the
+  /// shading [translucentCasters] gives it, which is what a glass's own wall
+  /// wants.
+  ///
+  /// It follows two surfaces, the nearest and the farthest, so a liquid
+  /// inside a thin glass is followed as the liquid; a body with more
+  /// interfaces than two is followed as if it had two. Static meshes only.
+  final bool caustics;
+
+  /// How many photons a refracting caster sends along each side of its
+  /// footprint in a cascade: [causticPhotons]² for each, per cascade.
+  final int causticPhotons;
 
   /// How many cascades the directional map is split into, one to three.
   ///
@@ -491,6 +547,9 @@ final class ShadowSettings {
     ShadowFilter? filter,
     int? evsmBlurRadius,
     double? evsmBleedReduction,
+    bool? translucentCasters,
+    bool? caustics,
+    int? causticPhotons,
   }) =>
       // Every field, and that is not bookkeeping. This method already dropped
       // the point-shadow settings on the floor: `settingsFrom` calls it once a
@@ -524,5 +583,8 @@ final class ShadowSettings {
         filter: filter ?? this.filter,
         evsmBlurRadius: evsmBlurRadius ?? this.evsmBlurRadius,
         evsmBleedReduction: evsmBleedReduction ?? this.evsmBleedReduction,
+        translucentCasters: translucentCasters ?? this.translucentCasters,
+        caustics: caustics ?? this.caustics,
+        causticPhotons: causticPhotons ?? this.causticPhotons,
       );
 }

@@ -133,7 +133,9 @@ uniform FragInfo {
   vec4 ambient_ground;
 
   /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
-  /// depth. w unused.
+  /// depth. w: one when the atlas carries what see-through casters let
+  /// through and this draw is to be shaded by it, nought otherwise —
+  /// `ShadowSettings.translucentCasters`; see `ShadowFactor`.
   ///
   /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
   /// a near cascade is stretched towards the light when a caster stands
@@ -672,6 +674,15 @@ LightSample SampleLight(int index, Surface s) {
 /// returns `ShadowFactor(...)`; an unlit one returns 1.
 float LightVisibility(Surface s, LightSample light, int index);
 
+/// What the see-through casters between the sun and this fragment let
+/// through, per channel — `ShadowSettings.translucentCasters`. Set by
+/// `ShadowFactor` for the light it shadows and reset to one before every
+/// light, so a model that samples no shadow map, and every light but the
+/// sun, leaves it white. A colour beside the visibility rather than folded
+/// into it, because visibility is one number in every model and coloured
+/// light is not.
+vec3 light_transmittance = vec3(1.0);
+
 /// A model's per-light term, defined by each fragment shader.
 ///
 /// A prototype here and the definition in the model is what lets the loop below
@@ -1090,6 +1101,7 @@ vec3 AccumulateLights(Surface s) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
+    light_transmittance = vec3(1.0);
     // A light from the list has no shadow row to read — see `LightHasShadow`.
     // A branch rather than something folded into the two calls, because both
     // index tables eight entries wide and the ninth light would read past them
@@ -1099,7 +1111,8 @@ vec3 AccumulateLights(Surface s) {
               PointShadowFactor(v_world_position, s.n, i)
         : 1.0;
     if (visibility <= 0.0) continue;
-    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
+    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility *
+             light_transmittance;
   }
 
   return total;

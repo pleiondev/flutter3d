@@ -205,6 +205,17 @@ base class MeshNode extends SceneNode {
   bool get castsShadowFromEveryFace =>
       shadowCasting.castsFromEveryFace || material.doubleSided;
 
+  /// Whether this node is shaded by what see-through casters let through to
+  /// the sun — `ShadowSettings.translucentCasters`. True by default.
+  ///
+  /// The atlas keeps the colour a pane or a liquid gives the light and not
+  /// where along the ray it gave it, so a surface standing *in front of* a
+  /// translucent caster, between it and the sun, is shaded as if it stood
+  /// behind. Most scenes never put anything there; one that does — a label
+  /// wrapped round a glass, a card painted with the light under a lens —
+  /// turns it off for that surface.
+  bool receivesTranslucentShadows = true;
+
   /// Whether this caster never moves.
   ///
   /// A dungeon's walls do not, and their contribution to a point light's cube
