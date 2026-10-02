@@ -35,6 +35,11 @@ linear across the screen. No golden of this set moved.
 rounded to single precision as the GPU computes it, and **height fog in
 `applyFog`**, as `color.glsl` has it.
 
+- **`PngStripWriter` writes a PNG a strip at a time**, one IDAT chunk per
+  strip and an empty final deflate block at `close`, keeping only the running
+  Adler-32 between strips. It refuses rows past the bottom and a `close` with
+  rows missing. `encodePng` is unchanged, byte for byte.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

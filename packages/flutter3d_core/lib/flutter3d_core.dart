@@ -95,6 +95,7 @@ export 'src/engine/render/mesh_overlay.dart';
 export 'src/engine/render/mirror_view.dart';
 export 'src/engine/render/pass_contribution.dart';
 export 'src/engine/render/pass_contributor.dart';
+export 'src/engine/render/photo_capture.dart';
 export 'src/engine/render/physical_sky.dart' show PhysicalSky;
 export 'src/engine/render/probe_faces.dart';
 export 'src/engine/render/procedural_texture.dart';

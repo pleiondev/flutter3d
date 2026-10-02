@@ -420,6 +420,73 @@ final class TiledProjection extends Projection {
   }
 }
 
+/// Any rectangle of a larger virtual frame — `N8`'s photo capture.
+///
+/// [TiledProjection]'s crop of NDC space, with the rectangle given directly
+/// rather than as a square of a grid: [left], [top], [right] and [bottom] are
+/// fractions of the whole frame's width and height, rows counting down from
+/// the top as an image's do. They may run outside `[0, 1]`, and that is the
+/// point of the class: a photo tile is drawn with a margin of the picture
+/// around it on every side — past the frame's own edge, for the outer tiles —
+/// so a blur reaching across a tile's edge has something real to read there,
+/// and the margin is cropped away afterwards.
+///
+/// **The whole frame's aspect is held here, and the one [toMatrix] is handed
+/// is ignored.** The renderer passes the viewport's own, which for a tile is
+/// the tile's — and a tile with a margin round it is never the shape of the
+/// frame. [TiledProjection] asks its caller to pass the frame's aspect
+/// instead, which the renderer has no way to do.
+final class CropProjection extends Projection {
+  const CropProjection(
+    this.base, {
+    required this.frameAspect,
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+  });
+
+  final Projection base;
+
+  /// Width over height of the whole frame the rectangle is a piece of.
+  final double frameAspect;
+
+  final double left;
+  final double top;
+  final double right;
+  final double bottom;
+
+  @override
+  double get near => base.near;
+
+  @override
+  double get far => base.far;
+
+  @override
+  double? get verticalFieldOfView => base.verticalFieldOfView;
+
+  @override
+  Matrix4 toMatrix(double aspect) {
+    if (right <= left || bottom <= top) {
+      throw ArgumentError(
+        'Degenerate crop: left/right are $left/$right and top/bottom are '
+        '$top/$bottom; a crop needs some width and some height.',
+      );
+    }
+    // The rectangle in NDC: x runs as the fractions do, y the other way.
+    final x0 = -1.0 + 2.0 * left;
+    final x1 = -1.0 + 2.0 * right;
+    final y0 = 1.0 - 2.0 * bottom;
+    final y1 = 1.0 - 2.0 * top;
+    final crop = Matrix4.identity()
+      ..setEntry(0, 0, 2.0 / (x1 - x0))
+      ..setEntry(0, 3, -(x1 + x0) / (x1 - x0))
+      ..setEntry(1, 1, 2.0 / (y1 - y0))
+      ..setEntry(1, 3, -(y1 + y0) / (y1 - y0));
+    return crop * base.toMatrix(frameAspect);
+  }
+}
+
 /// [base] moved a fraction of a pixel across the screen — `R1`.
 ///
 /// The same crop of NDC space [TiledProjection] makes, with a scale of one:

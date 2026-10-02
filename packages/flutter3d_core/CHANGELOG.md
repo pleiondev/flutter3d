@@ -76,6 +76,17 @@
   `fogHeightFalloff` and `fogBaseHeight` and blends them with the rest.
   Particles and splats fog as a flat fog as thick as the air at the camera.
 
+- **A photo of any size.** `capturePhoto` draws a picture in tiles on the
+  game's own renderer and hands it out a row of tiles at a time, so memory
+  holds one row however large the picture. Each tile is drawn with a margin
+  of picture round it through the new `CropProjection`, which takes the
+  frame's aspect itself rather than the tile's, and the margin is cropped:
+  with 32 pixels a bloom's seams drop from 53 steps to a few. Exposure is held
+  at what the screen showed; temporal anti-aliasing, motion blur, render scale
+  and chromatic aberration are set aside, and the report says which.
+  `PhotoFilter` is eight looks composed onto the game's own `LookSettings`;
+  `PhotoFinish` puts the vignette and the grain back over the whole frame
+  rather than once per tile.
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

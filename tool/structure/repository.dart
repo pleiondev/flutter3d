@@ -218,6 +218,12 @@ const Map<String, Set<String>> genreBridgeHalf = <String, Set<String>>{
 /// it does instead: a camera with no subject to follow has no rig to turn, and
 /// that is a reason; "it was easier" is not.
 const Map<String, String> notARigCamera = <String, String>{
+  'flutter3d_sim/lib/src/camera/photo_camera.dart':
+      'photo mode\'s camera, flown by the player with the world paused: it '
+      'follows nothing, so there is no smoothing to share, and a shake or a '
+      'kick on a camera lining up a still picture is the one thing it must '
+      'not have. It keeps out of walls by sweeping each move, which the rig\'s '
+      'ray back from a subject cannot do for a camera with no subject',
   'flutter3d_core/lib/src/engine/scene/camera_node.dart':
       'the scene-graph camera the rig steers, not a camera that follows '
       'anything: it holds the projection and the view, sits below '
@@ -1190,6 +1196,9 @@ const Map<String, Map<String, String>> portableStepExempt =
       'flutter3d_sim': <String, String>{
         'lib/src/camera/camera_rig.dart':
             'a camera is where the picture is taken from; no run depends on it',
+        'lib/src/camera/photo_camera.dart':
+            'flown only while the run is paused for a photo, and nothing it '
+            'does reaches a snapshot or a tape',
         'lib/src/world/light_fixture.dart':
             'how bright a lamp looks on a frame, which nothing steps on',
         'lib/src/level/lightmap_baker.dart':
