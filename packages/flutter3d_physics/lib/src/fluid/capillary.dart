@@ -80,7 +80,16 @@ final class TubeMeniscus {
 
   /// The mean height of the surface above its middle, weighed by area: what
   /// the meniscus takes out of a flat surface's level, so the volume stays.
-  double get meanHeight {
+  late final double meanHeight = _meanHeight();
+
+  /// The highest the meniscus stands above its mean: at the wall when the
+  /// liquid wets it, in the middle when it does not.
+  late final double peak = math.max(
+    heightAt(radius) - meanHeight,
+    heightAt(0.0) - meanHeight,
+  );
+
+  double _meanHeight() {
     var sum = 0.0;
     var area = 0.0;
     for (var i = 1; i < _r.length; i++) {

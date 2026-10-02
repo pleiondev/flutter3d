@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:chemlab/chemlab.dart';
@@ -76,19 +77,19 @@ void main() {
     expect(ink, greaterThan(2000));
   });
 
-  test('pouring cuts the liquid at the new level, within its glass', () async {
+  test('pouring fills to the level asked, within its glass', () async {
     final kit = cpuTestDevice(width: 8, height: 8);
     final bench = Bench(kit.device);
     final beaker = bench.vessels.firstWhere((v) => v.name == 'Beaker');
-    final before = beaker.liquid.mesh;
+    final before = beaker.layers.single.node.mesh;
 
-    bench.pour(beaker, 0.3);
-    expect(beaker.level, 0.3);
-    expect(identical(beaker.liquid.mesh, before), isFalse);
+    bench.pour(beaker, 0.03);
+    expect(beaker.level, closeTo(0.03, 1e-9));
+    expect(identical(beaker.layers.single.node.mesh, before), isFalse);
 
     // Mutation: drop the clamp, and a beaker holds more than it can.
     bench.pour(beaker, 5);
-    expect(beaker.level, beaker.highest);
+    expect(beaker.level, closeTo(beaker.highest, 1e-9));
   });
 
   test('the bench stays inside the eight lights an object is lit by', () {
@@ -113,7 +114,8 @@ void main() {
     expect(tube.shadow.shadowCasting, ShadowCastingMode.shadowsOnly);
     // Mutation: leave the reflection on the old mesh, and it shows the
     // level before the pour.
-    expect(identical(tube.liquidReflection.mesh, tube.liquid.mesh), isTrue);
+    final layer = tube.layers.single;
+    expect(identical(layer.reflection.mesh, layer.node.mesh), isTrue);
   });
 
   test('the glass and the liquid leave their shadow to the card', () {
@@ -124,7 +126,7 @@ void main() {
     final tube = bench.vessels.first;
     final glass = tube.glassNode;
     expect(glass.castsShadow, isFalse);
-    expect(tube.liquid.castsShadow, isFalse);
+    expect(tube.layers.single.node.castsShadow, isFalse);
     expect(glass.receivesTranslucentShadows, isFalse);
   });
 
@@ -170,11 +172,79 @@ void main() {
       build: (request) {
         final bench = Bench(request.device);
         final camera = CameraNode(name: 'eye')
-          ..setPosition(0.1, 0.85, 2.55)
-          ..lookAt(Vector3(0.1, 0.34, 0));
+          ..setPosition(0.01, 0.085, 0.255)
+          ..lookAt(Vector3(0.01, 0.034, 0));
         return (scene: bench.scene, camera: camera);
       },
     );
     await expectMatchesGolden(frame, 'test/goldens/bench.png');
+  });
+
+  test('a tap rings the surface, and the rings die away', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels[1];
+    bench.tap(tube);
+    expect(bench.step(1 / 60), isTrue);
+    var seconds = 0.0;
+    while (bench.step(1 / 60)) {
+      seconds += 1 / 60;
+      expect(seconds, lessThan(30));
+    }
+  });
+
+  test('sharing pours half into the clean tube, lip over the rim', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[2];
+    final to = bench.clean;
+    final total = from.liquid.volume;
+    final everything = bench.world.volume;
+    expect(bench.canShare(from), isTrue);
+    bench.share(from);
+    var seconds = 0.0;
+    var poured = false;
+    while (bench.busy) {
+      final before = from.liquid.volume;
+      bench.step(1 / 60);
+      seconds += 1 / 60;
+      expect(seconds, lessThan(30));
+      if (from.liquid.volume < before - 1e-12) {
+        poured = true;
+        // While it runs, its lip is over the clean tube's mouth.
+        // Its own matrix: it hangs off the root, and the world's is only
+        // brought up to date when the scene is drawn.
+        final lip = from.body.localMatrix.transformed3(from.lip);
+        final off = Vector2(lip.x - to.at.x, lip.z - to.at.z).length;
+        expect(off, lessThan(to.lip.z));
+      }
+    }
+    while (bench.world.volume > 0 && bench.world.jets.isNotEmpty) {
+      bench.step(1 / 60);
+    }
+    expect(poured, isTrue);
+    // The two hold about the same, and nothing is lost: what is not in them
+    // is drops on the bench.
+    final mine = from.liquid.volume;
+    final theirs = to.liquid.volume;
+    expect(mine, closeTo(total / 2, total * 0.05));
+    expect(theirs, closeTo(total / 2, total * 0.05));
+    expect(bench.world.volume, closeTo(everything, everything * 1e-9));
+    // And the clean tube holds the colour poured into it.
+    expect(bench.colour(to), bench.colour(from));
+  });
+
+  test('two dyes poured together are the colour light through both is', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final blue = bench.vessels[1];
+    final orange = bench.vessels[3];
+    final to = bench.clean;
+    to.liquid.pour(1e-6, concentrations: {blue.name: 1.0});
+    to.liquid.pour(1e-6, concentrations: {orange.name: 1.0});
+    final mixed = bench.colour(to);
+    // Half of each: each dye's absorbance at half strength, added.
+    final expected = math.sqrt(blue.dye.r * orange.dye.r);
+    expect(mixed.r, closeTo(expected, 0.01));
   });
 }

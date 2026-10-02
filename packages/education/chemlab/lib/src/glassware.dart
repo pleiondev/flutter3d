@@ -11,47 +11,33 @@ import 'package:vector_math/vector_math.dart';
 /// top is what makes the normals face out. A repeated point is a hard edge,
 /// which is how a lip or a base gets a crisp rim instead of a rounded one.
 
-/// How many times life size the bench is: a test tube here is sixteen
-/// centimetres across, a real one sixteen millimetres.
-///
-/// Gravity's part in how liquid moves looks the same at any size if time is
-/// stretched by the root of the scale (Froude's similarity), so a wave or a
-/// fall on this bench is a real one, slowed. Surface tension does not scale
-/// that way: it is what draws a real tube's pour into a thin thread at once,
-/// and on a bench ten times the size it would take ten times as long. So it
-/// is worked out at life size and carried over.
-const double lifeScale = 10.0;
+/// The radius of a test tube's wall, which its label follows: sixteen
+/// millimetres across, as a real one is. Everything here is in metres and
+/// life size — the liquid in it is worked out in SI (`flutter3d_physics`),
+/// and a bench ten times the size would pour like one.
+const double tubeRadius = 0.008;
 
-/// The radius of a test tube's wall, which its label and liquid follow.
-const double tubeRadius = 0.08;
+/// How thick the glass is.
+const double glassThickness = 0.0005;
 
 /// A test tube's outside: a hemispherical bottom, a straight wall and a
 /// slight flare at the mouth. [glassWall] gives it its thickness and rim.
-List<Vector2> tubeProfile({double radius = tubeRadius, double height = 0.9}) =>
+List<Vector2> tubeProfile({double radius = tubeRadius, double height = 0.09}) =>
     <Vector2>[
       ..._roundBottom(radius),
       Vector2(radius, height),
-      Vector2(radius * 1.06, height + 0.01),
+      Vector2(radius * 1.06, height + 0.001),
     ];
 
-/// A test tube's liquid: the same bottom a little inside the glass, cut at
-/// [level] and closed with a meniscus.
-List<Vector2> tubeLiquidProfile(double level, {double radius = 0.074}) =>
-    <Vector2>[..._roundBottom(radius), ...meniscus(radius, level)];
-
-/// The top of a liquid standing at [level] in glass of [radius]: water wets
-/// glass, so it climbs the wall a few millimetres and dips towards the
-/// middle. A flat cap reads as a solid; the curve and the bright line it
-/// catches where it meets the wall are what make it read as liquid.
-List<Vector2> meniscus(double radius, double level, {double rise = 0.008}) =>
-    <Vector2>[
-      Vector2(radius, level + rise),
-      Vector2(radius, level + rise),
-      Vector2(radius * 0.88, level + rise * 0.4),
-      Vector2(radius * 0.66, level + rise * 0.12),
-      Vector2(radius * 0.33, level + rise * 0.02),
-      Vector2(0, level),
-    ];
+/// A test tube's inside: the same bottom a glass's thickness in, straight
+/// up to the mouth.
+List<Vector2> tubeInside({double radius = tubeRadius, double height = 0.09}) {
+  final r = radius - glassThickness;
+  return <Vector2>[
+    for (final p in _roundBottom(r)) Vector2(p.x, p.y + glassThickness),
+    Vector2(r, height - 0.001),
+  ];
+}
 
 List<Vector2> _roundBottom(double radius) => <Vector2>[
   for (var i = 0; i <= 8; i++)
@@ -61,50 +47,61 @@ List<Vector2> _roundBottom(double radius) => <Vector2>[
     ),
 ];
 
-/// A beaker: a flat base, a straight wall and a flared rim.
+/// A beaker: a flat base, a straight wall and a flared rim; fifty
+/// millilitres.
 List<Vector2> beakerProfile() => <Vector2>[
   Vector2(0, 0),
-  Vector2(0.2, 0),
-  Vector2(0.2, 0),
-  Vector2(0.2, 0.42),
-  Vector2(0.218, 0.44),
+  Vector2(0.02, 0),
+  Vector2(0.02, 0),
+  Vector2(0.02, 0.042),
+  Vector2(0.0218, 0.044),
+];
+
+/// The beaker's inside.
+List<Vector2> beakerInside() => <Vector2>[
+  Vector2(0, glassThickness),
+  Vector2(0.02 - glassThickness, glassThickness),
+  Vector2(0.02 - glassThickness, 0.041),
 ];
 
 /// An Erlenmeyer flask: a flat base, a cone and a neck.
 List<Vector2> flaskProfile() => <Vector2>[
   Vector2(0, 0),
-  Vector2(0.26, 0),
-  Vector2(0.26, 0),
-  Vector2(0.27, 0.02),
-  Vector2(0.09, 0.42),
-  Vector2(0.075, 0.46),
-  Vector2(0.075, 0.62),
-  Vector2(0.09, 0.62),
-  Vector2(0.09, 0.635),
+  Vector2(0.026, 0),
+  Vector2(0.026, 0),
+  Vector2(0.027, 0.002),
+  Vector2(0.009, 0.042),
+  Vector2(0.0075, 0.046),
+  Vector2(0.0075, 0.062),
+  Vector2(0.009, 0.062),
+  Vector2(0.009, 0.0635),
 ];
 
-/// The flask's liquid up to [level], which may be anywhere on the cone.
-List<Vector2> flaskLiquidProfile(double level) {
-  // The cone runs from radius 0.262 at 0.02 to 0.09 at 0.42, a hair inside
-  // the glass.
-  final t = ((level - 0.02) / 0.4).clamp(0.0, 1.0);
-  final top = 0.255 + (0.085 - 0.255) * t;
-  return <Vector2>[
-    Vector2(0, 0.004),
-    Vector2(0.255, 0.004),
-    Vector2(0.255, 0.004),
-    Vector2(0.255, 0.02),
-    ...meniscus(top, level),
-  ];
-}
+/// The flask's inside: the floor, the cone and the neck, a glass's
+/// thickness in.
+List<Vector2> flaskInside() => <Vector2>[
+  Vector2(0, glassThickness),
+  Vector2(0.0255, glassThickness),
+  Vector2(0.0255, 0.002),
+  Vector2(0.0085, 0.042),
+  Vector2(0.007, 0.046),
+  Vector2(0.007, 0.061),
+];
 
 /// A graduated cylinder's glass: a long narrow tube standing on [cylinderFoot].
 List<Vector2> cylinderProfile() => <Vector2>[
-  Vector2(0, 0.03),
-  Vector2(0.056, 0.03),
-  Vector2(0.056, 0.03),
-  Vector2(0.056, 0.86),
-  Vector2(0.07, 0.88),
+  Vector2(0, 0.003),
+  Vector2(0.0056, 0.003),
+  Vector2(0.0056, 0.003),
+  Vector2(0.0056, 0.086),
+  Vector2(0.007, 0.088),
+];
+
+/// The cylinder's inside.
+List<Vector2> cylinderInside() => <Vector2>[
+  Vector2(0, 0.0034),
+  Vector2(0.0051, 0.0034),
+  Vector2(0.0051, 0.085),
 ];
 
 /// The cylinder's foot: a flat hexagonal slab, swept with six segments.
@@ -115,11 +112,11 @@ List<Vector2> cylinderProfile() => <Vector2>[
 /// on a hexagonal plastic foot, which also stops them rolling away.
 List<Vector2> cylinderFoot() => <Vector2>[
   Vector2(0, 0),
-  Vector2(0.14, 0),
-  Vector2(0.14, 0),
-  Vector2(0.14, 0.03),
-  Vector2(0.14, 0.03),
-  Vector2(0, 0.03),
+  Vector2(0.014, 0),
+  Vector2(0.014, 0),
+  Vector2(0.014, 0.003),
+  Vector2(0.014, 0.003),
+  Vector2(0, 0.003),
 ];
 
 /// The foot's plastic: opaque, a little glossy, laboratory blue.
@@ -129,19 +126,9 @@ Material footPlastic() => Material(
   roughness: 0.45,
 );
 
-/// Liquid standing on a flat floor at [floor]: a disc of [radius] raised to
-/// [level], with a meniscus on top.
-List<Vector2> flatLiquidProfile(double radius, double floor, double level) =>
-    <Vector2>[
-      Vector2(0, floor),
-      Vector2(radius, floor),
-      Vector2(radius, floor),
-      ...meniscus(radius, level),
-    ];
-
 /// Where a tube's label starts and ends, and how much of the turn it covers.
-const double labelFrom = 0.52;
-const double labelTo = 0.66;
+const double labelFrom = 0.052;
+const double labelTo = 0.066;
 const double labelWrap = 3.4; // about 195 degrees
 
 /// Width over height of the label as it sits on the glass: the arc it covers
@@ -153,7 +140,7 @@ double labelAspect({
   double from = labelFrom,
   double to = labelTo,
   double wrap = labelWrap,
-}) => (radius + 0.002) * wrap / (to - from);
+}) => (radius + 0.0002) * wrap / (to - from);
 
 /// A label wrapped round part of a tube: a strip of the same surface of
 /// revolution, just outside the glass.
@@ -175,8 +162,8 @@ LatheShape labelBand({
   name: 'label',
   segments: 24,
   profile: <Vector2>[
-    Vector2(radius + 0.002, from),
-    Vector2(radius + 0.002, to),
+    Vector2(radius + 0.0002, from),
+    Vector2(radius + 0.0002, to),
   ],
   startAngle: facing - wrap / 2,
   sweepAngle: wrap,
@@ -214,9 +201,9 @@ Material glass() => Material(
 /// path through it, and with it the colour and the bend, is deepest down the
 /// middle and fades to the silhouette, where a painted cylinder stays one
 /// flat colour to its edge; and a wet, glossy surface with a clear coat. The
-/// colour is the volume's: [colour] after [_fade] of it, with a base nearly
+/// colour is the volume's: [colour] after [fade] of it, with a base nearly
 /// white so it is not given twice.
-Material liquid(Vector3 colour, {double depth = 0.148}) => Material(
+Material liquid(Vector3 colour, {double depth = 0.0148}) => Material(
   name: 'liquid',
   lighting: LightingModel.pbrLayered,
   baseColor: Vector4(
@@ -237,15 +224,16 @@ Material liquid(Vector3 colour, {double depth = 0.148}) => Material(
     thickness: depth,
     convexVolume: true,
     attenuationColor: colour,
-    attenuationDistance: _fade,
+    attenuationDistance: fade,
     specular: 1.0,
     clearcoat: 1.0,
     clearcoatRoughness: 0.0,
   ),
 );
 
-/// How far light goes through a solution before it is the solution's colour.
-const double _fade = 0.3;
+/// How far light goes through a solution before it is the solution's colour:
+/// three centimetres, about two tubes across.
+const double fade = 0.03;
 
 /// Paper, wearing [label] once it has been drawn.
 Material paper([TextureHandle? label]) =>
@@ -257,9 +245,17 @@ Material paper([TextureHandle? label]) =>
 /// darker edges, and each liquid a shadow of its own colour. The tabletop's
 /// reflections are mirrored geometry (see `Bench`), so no screen-space pass
 /// is needed.
+///
+/// The shadows are fitted to a bench, not a level: a metre of view rather
+/// than sixty, and a normal offset of two millimetres rather than two
+/// centimetres, which on glass this size is most of a tube.
 final RenderSettings benchSettings = RenderSettings(
   sky: labSky,
-  shadows: const ShadowSettings(translucentCasters: true),
+  shadows: const ShadowSettings(
+    translucentCasters: true,
+    viewDistance: 1.0,
+    normalOffset: 0.002,
+  ),
 );
 
 /// [benchSettings] with the engine's own caustics on, for a `Bench` made with
@@ -270,6 +266,8 @@ final RenderSettings photonSettings = RenderSettings(
     translucentCasters: true,
     caustics: true,
     causticPhotons: 128,
+    viewDistance: 1.0,
+    normalOffset: 0.002,
   ),
 );
 
@@ -295,7 +293,10 @@ final SkySettings labSky = SkySettings(
 /// ring. Real glass has a wall: the inside is the outline moved in along its
 /// normal, walked top to bottom so its normals face the cavity, and the two
 /// meet in a half circle that catches the light.
-List<Vector2> glassWall(List<Vector2> outer, {double thickness = 0.004}) {
+List<Vector2> glassWall(
+  List<Vector2> outer, {
+  double thickness = glassThickness,
+}) {
   // Repeated points mark hard edges; for offsetting, each point's normal
   // comes from its nearest neighbours that are somewhere else.
   final points = <Vector2>[

@@ -254,4 +254,14 @@ void main() {
     expect(hard.dropped, greaterThan(0.0));
     expect(hard.dropped, lessThanOrEqualTo(0.5 * hard.landed + hard.dropped));
   });
+
+  test('a throw falls as long as the parabola says', () {
+    // Dropped from rest: √(2h/g). Thrown up first: longer, by the climb
+    // and the fall back. Mutation: take the earlier root, and a throw
+    // upwards lands before it is thrown.
+    expect(fallTime(Vector3.zero(), 0.2, 0.0), closeTo(0.2019, 1e-4));
+    final up = fallTime(Vector3(0, 1, 0), 0.2, 0.0);
+    expect(up, closeTo((1 + math.sqrt(1 + 2 * 9.81 * 0.2)) / 9.81, 1e-12));
+    expect(fallTime(Vector3.zero(), 0.2, 0.0, g: 1.62), greaterThan(0.49));
+  });
 }

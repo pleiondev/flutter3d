@@ -89,9 +89,20 @@ final class ParticleFluid {
   /// The particles' spacing at rest, metres.
   final double spacing;
 
-  /// Density passes per substep, and substeps per [step].
+  /// Density passes per substep, and the fewest substeps per [step].
   final int iterations;
   final int substeps;
+
+  /// The time surface tension takes to move a particle its own size,
+  /// √(ρs³/σ): the cohesion between neighbours is a spring this quick, and
+  /// a step stepped explicitly must be well inside it. A third of a
+  /// millisecond for millimetre water, where a fixed two substeps of a
+  /// 240th of a second threw drops apart at metres a second.
+  double get capillaryTime => medium.surfaceTension > 0.0
+      ? math.sqrt(
+          medium.density * spacing * spacing * spacing / medium.surfaceTension,
+        )
+      : double.infinity;
 
   /// The kernel's reach.
   final double h;
@@ -103,6 +114,11 @@ final class ParticleFluid {
   // single precision has only a tenth of that to spare.
   final List<_V> _x = [];
   final List<_V> _v = [];
+
+  /// What is dissolved in each particle, as concentrations; and in the
+  /// bank, as amounts.
+  final List<Map<String, double>> _c = [];
+  final Map<String, double> _bankAmounts = {};
   double _bank = 0.0;
   double _received = 0.0;
 
@@ -120,15 +136,31 @@ final class ParticleFluid {
   /// Cubic metres handed to receivers so far.
   double get received => _received;
 
-  /// Adds [amount] cubic metres at [position] moving at [velocity]: as many
-  /// whole particles as it and the bank make, laid out round [position] at
-  /// the spacing so none start on top of another.
-  void inject(double amount, Vector3 position, Vector3 velocity) {
+  /// Adds [amount] cubic metres at [position] moving at [velocity], with
+  /// [concentrations] dissolved in it: as many whole particles as it and
+  /// the bank make, laid out round [position] at the spacing so none start
+  /// on top of another, each carrying what the bank holds per cubic metre.
+  void inject(
+    double amount,
+    Vector3 position,
+    Vector3 velocity, {
+    Map<String, double> concentrations = const {},
+  }) {
     _bank += amount;
+    concentrations.forEach((key, c) {
+      _bankAmounts[key] = (_bankAmounts[key] ?? 0.0) + c * amount;
+    });
     // A hair of slack, so that halves that add up to a whole make one.
     final whole = (_bank / particleVolume + 1e-9).floor();
     if (whole <= 0) return;
-    _bank = math.max(_bank - whole * particleVolume, 0.0);
+    final carried = {
+      for (final e in _bankAmounts.entries) e.key: e.value / _bank,
+    };
+    final left = math.max(_bank - whole * particleVolume, 0.0);
+    for (final key in _bankAmounts.keys.toList()) {
+      _bankAmounts[key] = carried[key]! * left;
+    }
+    _bank = left;
     var side = 1;
     while (side * side * side < whole) {
       side++;
@@ -145,6 +177,7 @@ final class ParticleFluid {
             ),
           );
           _v.add(_V(velocity.x, velocity.y, velocity.z));
+          _c.add(carried);
           placed++;
         }
       }
@@ -160,9 +193,20 @@ final class ParticleFluid {
     List<JetReceiver> receivers = const [],
   }) {
     if (_x.isEmpty) return;
-    final sub = dt / substeps;
+    // A quarter of the capillary time a substep at most, and two fifths of
+    // a spacing's travel: a wall holds what comes within a radius of it or
+    // half its thickness into it, a band wider than that, so nothing passes
+    // through glass thinner than a particle between one look and the next.
+    // Never fewer than asked.
+    final fastest = _v.fold(0.0, (m, v) => math.max(m, v.length));
+    final count = [
+      substeps,
+      (dt / (0.25 * capillaryTime)).ceil(),
+      (fastest * dt / (0.4 * spacing)).ceil(),
+    ].reduce(math.max).clamp(1, 256);
+    final sub = dt / count;
     final g = _V(gravity.x, gravity.y, gravity.z);
-    for (var s = 0; s < substeps; s++) {
+    for (var s = 0; s < count; s++) {
       _substep(sub, g, obstacles);
     }
     // Into a vessel's liquid: handed over, whole.
@@ -171,10 +215,11 @@ final class ParticleFluid {
       final at = _x[i].toVector3();
       for (final r in receivers) {
         if (!r.catches(at, radius)) continue;
-        r.receive(particleVolume, at, _v[i].toVector3(), medium, const {});
+        r.receive(particleVolume, at, _v[i].toVector3(), medium, _c[i]);
         _received += particleVolume;
         _x.removeAt(i);
         _v.removeAt(i);
+        _c.removeAt(i);
         break;
       }
     }

@@ -54,12 +54,13 @@ class _BenchScreenState extends State<BenchScreen>
   // own limits let the camera go under the table and out of the room.
   late final OrbitController _orbit = OrbitController(
     _camera,
-    target: Vector3(0.1, 0.34, 0),
-    distance: 2.7,
+    // Life size: a bench of test tubes sixteen millimetres across.
+    target: Vector3(0.01, 0.034, 0),
+    distance: 0.27,
     yaw: 0.0,
     pitch: 0.2,
-    minDistance: 0.6,
-    maxDistance: 6.0,
+    minDistance: 0.06,
+    maxDistance: 0.6,
   )..rotateSensitivity = 0.005;
 
   static const double _lowestPitch = 0.05;
@@ -281,7 +282,7 @@ class _Controls extends StatelessWidget {
                         label: Text(bench.vessels[i].name),
                         selected: i == selected,
                         avatar: CircleAvatar(
-                          backgroundColor: bench.vessels[i].colour,
+                          backgroundColor: bench.colour(bench.vessels[i]),
                         ),
                         onSelected: (_) => onSelect(i),
                       ),

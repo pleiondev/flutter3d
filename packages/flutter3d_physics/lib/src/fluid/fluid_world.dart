@@ -18,6 +18,7 @@ import 'pipe.dart';
 /// **A fixed step**, like the rest of this package: [advance] takes however
 /// long a frame was and runs as many whole steps as fit, carrying the rest
 /// over, so a run is the same run on any frame rate.
+
 final class FluidWorld {
   FluidWorld({
     required this.gravity,
@@ -130,7 +131,12 @@ final class FluidWorld {
               () =>
                   ParticleFluid(medium: drop.medium, spacing: particleSpacing),
             )
-            .inject(drop.volume, drop.position, drop.velocity);
+            .inject(
+              drop.volume,
+              drop.position,
+              drop.velocity,
+              concentrations: drop.concentrations,
+            );
       }
       if (!jet.flowing) finished.add(source);
     });
