@@ -305,6 +305,11 @@ const Map<String, double> _budgets = <String, double>{
   'transmission-glass': 0.01,
   'velocity-shapes': 0.01,
   'window-interior': 0.39,
+  // `P3`. 0.067% measured, single pixels along the ring's alpha edge, the
+  // boxes' edges and the box's shadow: where a sample lands on either side
+  // of a picture's texel or a box's face is decided in float32 here and in
+  // half floats and the GPU's own arithmetic there.
+  'decal-floor': 0.08,
 };
 
 /// How far apart two channels may be before the pixel counts as differing.

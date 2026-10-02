@@ -18,6 +18,19 @@
   diagonal search and no corner rounding. The area table is the engine's
   `smaaArea`, written by `tool/make_tables.dart` and shared with the
   software backend byte for byte.
+- **Projected box decals.** A `DecalNode` is a box, its node's unit cube,
+  that paints a picture onto whatever geometry stands inside it: a texture
+  (or none) times an sRGB tint with an opacity, an optional emission, a
+  region of an atlas, an `order` between overlapping decals, and an angle
+  limit past which a surface turned away from the box's up is left alone.
+  `RenderSettings.decals` switches them on and is off by default. The pass
+  reads the point under each pixel back out of the surface buffer, since a
+  depth attachment cannot be sampled, and lays the decal's colour under the
+  light the surface was lit by, read back through the albedo buffer, so a
+  decal in a shadow is in the shadow. It runs between the opaque half of the
+  scene and the transparent one, which it splits the frame for, so glass in
+  front of a decal is drawn over it. It needs three colour attachments and
+  turns multisampling off, as every reader of the surface buffer does.
 
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new

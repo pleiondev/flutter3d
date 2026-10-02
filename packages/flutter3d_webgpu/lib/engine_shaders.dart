@@ -39820,6 +39820,658 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'Decal': WebGpuStage(
+      wgsl: r'''
+struct DecalInfo {
+    inverse_view_projection: mat4x4<f32>,
+    camera: vec4<f32>,
+    forward: vec4<f32>,
+    params: vec4<f32>,
+    view: vec4<f32>,
+    slots: array<vec4<f32>, 4>,
+    axis_x: array<vec4<f32>, 16>,
+    axis_y: array<vec4<f32>, 16>,
+    axis_z: array<vec4<f32>, 16>,
+    region: array<vec4<f32>, 16>,
+    color: array<vec4<f32>, 16>,
+    fade: array<vec4<f32>, 16>,
+    emissive: array<vec4<f32>, 16>,
+}
+
+@group(1) @binding(0) 
+var<uniform> decal_info: DecalInfo;
+@group(1) @binding(11) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(12) 
+var surface_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(9) 
+var decal_texture_3_tex: texture_2d<f32>;
+@group(1) @binding(10) 
+var decal_texture_3_smp: sampler;
+@group(1) @binding(7) 
+var decal_texture_2_tex: texture_2d<f32>;
+@group(1) @binding(8) 
+var decal_texture_2_smp: sampler;
+@group(1) @binding(5) 
+var decal_texture_1_tex: texture_2d<f32>;
+@group(1) @binding(6) 
+var decal_texture_1_smp: sampler;
+@group(1) @binding(3) 
+var decal_texture_0_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var decal_texture_0_smp: sampler;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(1) 
+var albedo_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var albedo_texture_smp: sampler;
+
+fn SampleSlot_u0028_f1_u003b_vf2_u003b_f1_u003b(slot: ptr<function, f32>, uv: ptr<function, vec2<f32>>, lod: ptr<function, f32>) -> vec4<f32> {
+    var picture: vec4<f32>;
+
+    picture = vec4<f32>(1f, 1f, 1f, 1f);
+    let _e64 = (*slot);
+    if (_e64 > 2.5f) {
+        let _e66 = (*uv);
+        let _e67 = (*lod);
+        let _e68 = textureSampleLevel(decal_texture_3_tex, decal_texture_3_smp, _e66, _e67);
+        picture = _e68;
+    } else {
+        let _e69 = (*slot);
+        if (_e69 > 1.5f) {
+            let _e71 = (*uv);
+            let _e72 = (*lod);
+            let _e73 = textureSampleLevel(decal_texture_2_tex, decal_texture_2_smp, _e71, _e72);
+            picture = _e73;
+        } else {
+            let _e74 = (*slot);
+            if (_e74 > 0.5f) {
+                let _e76 = (*uv);
+                let _e77 = (*lod);
+                let _e78 = textureSampleLevel(decal_texture_1_tex, decal_texture_1_smp, _e76, _e77);
+                picture = _e78;
+            } else {
+                let _e79 = (*slot);
+                if (_e79 > -0.5f) {
+                    let _e81 = (*uv);
+                    let _e82 = (*lod);
+                    let _e83 = textureSampleLevel(decal_texture_0_tex, decal_texture_0_smp, _e81, _e82);
+                    picture = _e83;
+                }
+            }
+        }
+    }
+    let _e84 = picture;
+    return _e84;
+}
+
+fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
+    let _e61 = (*srgb);
+    let _e64 = (*srgb);
+    let _e69 = (*srgb);
+    return mix((_e61 / vec3(12.92f)), pow(((_e64 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e69));
+}
+
+fn WorldAt_u0028_vf2_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
+    var inView: vec2<f32>;
+    var xy: vec2<f32>;
+    var nearH: vec4<f32>;
+    var farH: vec4<f32>;
+    var origin: vec3<f32>;
+    var along: vec3<f32>;
+    var axis: vec3<f32>;
+
+    let _e69 = (*uv_1);
+    let _e71 = decal_info.view;
+    let _e75 = decal_info.view;
+    inView = ((_e69 - _e71.xy) / _e75.zw);
+    let _e79 = inView[0u];
+    let _e83 = inView[1u];
+    xy = vec2<f32>(((_e79 * 2f) - 1f), (1f - (_e83 * 2f)));
+    let _e88 = decal_info.inverse_view_projection;
+    let _e89 = xy;
+    nearH = (_e88 * vec4<f32>(_e89.x, _e89.y, 0f, 1f));
+    let _e95 = decal_info.inverse_view_projection;
+    let _e96 = xy;
+    farH = (_e95 * vec4<f32>(_e96.x, _e96.y, 1f, 1f));
+    let _e101 = nearH;
+    let _e104 = nearH[3u];
+    origin = (_e101.xyz / vec3(_e104));
+    let _e107 = farH;
+    let _e110 = farH[3u];
+    let _e113 = origin;
+    along = normalize(((_e107.xyz / vec3(_e110)) - _e113));
+    let _e117 = decal_info.forward;
+    axis = _e117.xyz;
+    let _e119 = origin;
+    let _e120 = along;
+    let _e121 = (*depth);
+    let _e122 = origin;
+    let _e124 = decal_info.camera;
+    let _e127 = axis;
+    let _e130 = along;
+    let _e131 = axis;
+    return (_e119 + (_e120 * ((_e121 - dot((_e122 - _e124.xyz), _e127)) / dot(_e130, _e131))));
+}
+
+fn WorldStep_u0028_vf2_u003b_f1_u003b_vf3_u003b(step_: ptr<function, vec2<f32>>, depth_1: ptr<function, f32>, at: ptr<function, vec3<f32>>) -> vec3<f32> {
+    var ahead: vec4<f32>;
+    var behind: vec4<f32>;
+    var aheadGap: f32;
+    var local: f32;
+    var behindGap: f32;
+    var local_1: f32;
+    var forward: vec3<f32>;
+    var param: vec2<f32>;
+    var param_1: f32;
+    var backward: vec3<f32>;
+    var param_2: vec2<f32>;
+    var param_3: f32;
+    var chosen: vec3<f32>;
+
+    let _e76 = v_uv_1;
+    let _e77 = (*step_);
+    let _e79 = textureSampleLevel(surface_texture_tex, surface_texture_smp, (_e76 + _e77), 0f);
+    ahead = _e79;
+    let _e80 = v_uv_1;
+    let _e81 = (*step_);
+    let _e83 = textureSampleLevel(surface_texture_tex, surface_texture_smp, (_e80 - _e81), 0f);
+    behind = _e83;
+    let _e85 = ahead[3u];
+    if (_e85 > 0f) {
+        let _e88 = ahead[3u];
+        let _e89 = (*depth_1);
+        local = abs((_e88 - _e89));
+    } else {
+        local = 1000000000000000000000000000000f;
+    }
+    let _e92 = local;
+    aheadGap = _e92;
+    let _e94 = behind[3u];
+    if (_e94 > 0f) {
+        let _e97 = behind[3u];
+        let _e98 = (*depth_1);
+        local_1 = abs((_e97 - _e98));
+    } else {
+        local_1 = 1000000000000000000000000000000f;
+    }
+    let _e101 = local_1;
+    behindGap = _e101;
+    let _e102 = v_uv_1;
+    let _e103 = (*step_);
+    param = (_e102 + _e103);
+    let _e106 = ahead[3u];
+    param_1 = _e106;
+    let _e107 = WorldAt_u0028_vf2_u003b_f1_u003b((&param), (&param_1));
+    let _e108 = (*at);
+    forward = (_e107 - _e108);
+    let _e110 = (*at);
+    let _e111 = v_uv_1;
+    let _e112 = (*step_);
+    param_2 = (_e111 - _e112);
+    let _e115 = behind[3u];
+    param_3 = _e115;
+    let _e116 = WorldAt_u0028_vf2_u003b_f1_u003b((&param_2), (&param_3));
+    backward = (_e110 - _e116);
+    let _e118 = aheadGap;
+    let _e119 = behindGap;
+    let _e121 = forward;
+    let _e122 = backward;
+    chosen = select(_e122, _e121, vec3((_e118 <= _e119)));
+    let _e125 = aheadGap;
+    let _e126 = behindGap;
+    let _e129 = chosen;
+    return select(vec3<f32>(0f, 0f, 0f), _e129, vec3((min(_e125, _e126) < 100000000000000000000000000000f)));
+}
+
+fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
+    var n: vec3<f32>;
+    var t: f32;
+    var local_2: f32;
+    var local_3: f32;
+
+    let _e65 = (*e);
+    (*e) = ((_e65 * 2f) - vec2(1f));
+    let _e69 = (*e);
+    let _e71 = (*e)[0u];
+    let _e75 = (*e)[1u];
+    n = vec3<f32>(_e69.x, _e69.y, ((1f - abs(_e71)) - abs(_e75)));
+    let _e82 = n[2u];
+    t = max(-(_e82), 0f);
+    let _e86 = n[0u];
+    if (_e86 >= 0f) {
+        let _e88 = t;
+        local_2 = -(_e88);
+    } else {
+        let _e90 = t;
+        local_2 = _e90;
+    }
+    let _e91 = local_2;
+    let _e93 = n[0u];
+    n[0u] = (_e93 + _e91);
+    let _e97 = n[1u];
+    if (_e97 >= 0f) {
+        let _e99 = t;
+        local_3 = -(_e99);
+    } else {
+        let _e101 = t;
+        local_3 = _e101;
+    }
+    let _e102 = local_3;
+    let _e104 = n[1u];
+    n[1u] = (_e104 + _e102);
+    let _e107 = n;
+    return normalize(_e107);
+}
+
+fn main_1() {
+    var factor: bool;
+    var surface: vec4<f32>;
+    var keepFactor: vec3<f32>;
+    var keepTerm: vec3<f32>;
+    var depth_2: f32;
+    var at_1: vec3<f32>;
+    var param_4: vec2<f32>;
+    var param_5: f32;
+    var normal: vec3<f32>;
+    var param_6: vec2<f32>;
+    var dx: vec3<f32>;
+    var param_7: vec2<f32>;
+    var param_8: f32;
+    var param_9: vec3<f32>;
+    var dy: vec3<f32>;
+    var param_10: vec2<f32>;
+    var param_11: f32;
+    var param_12: vec3<f32>;
+    var albedo: vec3<f32>;
+    var param_13: vec3<f32>;
+    var painted: vec3<f32>;
+    var kept: f32;
+    var laid: vec3<f32>;
+    var emitted: vec3<f32>;
+    var count: i32;
+    var i: i32;
+    var rowX: vec4<f32>;
+    var rowY: vec4<f32>;
+    var rowZ: vec4<f32>;
+    var local_4: vec3<f32>;
+    var fade: vec4<f32>;
+    var facing: f32;
+    var byAngle: f32;
+    var byDepth: f32;
+    var local_5: f32;
+    var region: vec4<f32>;
+    var uv_2: vec2<f32>;
+    var slot_1: f32;
+    var size: vec2<f32>;
+    var alongX: vec2<f32>;
+    var alongY: vec2<f32>;
+    var footprint: f32;
+    var lod_1: f32;
+    var local_6: f32;
+    var picture_1: vec4<f32>;
+    var param_14: f32;
+    var param_15: vec2<f32>;
+    var param_16: f32;
+    var tint: vec4<f32>;
+    var colour: vec3<f32>;
+    var param_17: vec3<f32>;
+    var alpha: f32;
+    var named: f32;
+    var swap: vec3<f32>;
+    var multiply: vec3<f32>;
+    var add: vec3<f32>;
+
+    let _e118 = decal_info.params[3u];
+    factor = (_e118 < 0.5f);
+    let _e120 = v_uv_1;
+    let _e121 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e120, 0f);
+    surface = _e121;
+    keepFactor = vec3<f32>(1f, 1f, 1f);
+    keepTerm = vec3<f32>(0f, 0f, 0f);
+    let _e123 = surface[3u];
+    if (_e123 <= 0f) {
+        let _e125 = factor;
+        let _e126 = keepFactor;
+        let _e127 = keepTerm;
+        let _e129 = select(_e127, _e126, vec3(_e125));
+        frag_color = vec4<f32>(_e129.x, _e129.y, _e129.z, 1f);
+        return;
+    }
+    let _e135 = surface[3u];
+    depth_2 = _e135;
+    let _e136 = v_uv_1;
+    param_4 = _e136;
+    let _e137 = depth_2;
+    param_5 = _e137;
+    let _e138 = WorldAt_u0028_vf2_u003b_f1_u003b((&param_4), (&param_5));
+    at_1 = _e138;
+    let _e139 = surface;
+    param_6 = _e139.xy;
+    let _e141 = DecodeOctahedral_u0028_vf2_u003b((&param_6));
+    normal = _e141;
+    let _e144 = decal_info.params[1u];
+    param_7 = vec2<f32>(_e144, 0f);
+    let _e146 = depth_2;
+    param_8 = _e146;
+    let _e147 = at_1;
+    param_9 = _e147;
+    let _e148 = WorldStep_u0028_vf2_u003b_f1_u003b_vf3_u003b((&param_7), (&param_8), (&param_9));
+    dx = _e148;
+    let _e151 = decal_info.params[2u];
+    param_10 = vec2<f32>(0f, _e151);
+    let _e153 = depth_2;
+    param_11 = _e153;
+    let _e154 = at_1;
+    param_12 = _e154;
+    let _e155 = WorldStep_u0028_vf2_u003b_f1_u003b_vf3_u003b((&param_10), (&param_11), (&param_12));
+    dy = _e155;
+    let _e156 = v_uv_1;
+    let _e157 = textureSampleLevel(albedo_texture_tex, albedo_texture_smp, _e156, 0f);
+    param_13 = _e157.xyz;
+    let _e159 = SrgbToLinear_u0028_vf3_u003b((&param_13));
+    albedo = _e159;
+    let _e160 = albedo;
+    painted = _e160;
+    kept = 1f;
+    laid = vec3<f32>(0f, 0f, 0f);
+    emitted = vec3<f32>(0f, 0f, 0f);
+    let _e163 = decal_info.params[0u];
+    count = i32((_e163 + 0.5f));
+    i = 0i;
+    loop {
+        let _e166 = i;
+        if (_e166 < 16i) {
+            let _e168 = i;
+            let _e169 = count;
+            if (_e168 >= _e169) {
+                break;
+            }
+            let _e171 = i;
+            let _e174 = decal_info.axis_x[_e171];
+            rowX = _e174;
+            let _e175 = i;
+            let _e178 = decal_info.axis_y[_e175];
+            rowY = _e178;
+            let _e179 = i;
+            let _e182 = decal_info.axis_z[_e179];
+            rowZ = _e182;
+            let _e183 = rowX;
+            let _e185 = at_1;
+            let _e188 = rowX[3u];
+            let _e190 = rowY;
+            let _e192 = at_1;
+            let _e195 = rowY[3u];
+            let _e197 = rowZ;
+            let _e199 = at_1;
+            let _e202 = rowZ[3u];
+            local_4 = vec3<f32>((dot(_e183.xyz, _e185) + _e188), (dot(_e190.xyz, _e192) + _e195), (dot(_e197.xyz, _e199) + _e202));
+            let _e205 = local_4;
+            if any((abs(_e205) > vec3<f32>(0.5f, 0.5f, 0.5f))) {
+                continue;
+            }
+            let _e209 = i;
+            let _e212 = decal_info.fade[_e209];
+            fade = _e212;
+            let _e213 = normal;
+            let _e214 = rowY;
+            facing = dot(_e213, normalize(_e214.xyz));
+            let _e218 = facing;
+            let _e220 = fade[1u];
+            let _e223 = fade[2u];
+            byAngle = clamp(((_e218 - _e220) / max(_e223, 0.0001f)), 0f, 1f);
+            let _e228 = fade[3u];
+            if (_e228 > 0f) {
+                let _e231 = local_4[1u];
+                let _e235 = fade[3u];
+                local_5 = clamp(((0.5f - abs(_e231)) / (_e235 * 0.5f)), 0f, 1f);
+            } else {
+                local_5 = 1f;
+            }
+            let _e239 = local_5;
+            byDepth = _e239;
+            let _e240 = i;
+            let _e243 = decal_info.region[_e240];
+            region = _e243;
+            let _e244 = region;
+            let _e246 = local_4;
+            let _e250 = region;
+            uv_2 = (_e244.xy + ((_e246.xz + vec2(0.5f)) * _e250.zw));
+            let _e255 = fade[0u];
+            slot_1 = _e255;
+            let _e256 = slot_1;
+            let _e261 = decal_info.slots[i32(clamp(_e256, 0f, 3f))];
+            size = _e261.xy;
+            let _e263 = rowX;
+            let _e265 = dx;
+            let _e267 = rowZ;
+            let _e269 = dx;
+            let _e272 = region;
+            alongX = (vec2<f32>(dot(_e263.xyz, _e265), dot(_e267.xyz, _e269)) * _e272.zw);
+            let _e275 = rowX;
+            let _e277 = dy;
+            let _e279 = rowZ;
+            let _e281 = dy;
+            let _e284 = region;
+            alongY = (vec2<f32>(dot(_e275.xyz, _e277), dot(_e279.xyz, _e281)) * _e284.zw);
+            let _e288 = alongX[0u];
+            let _e291 = alongY[0u];
+            let _e295 = size[0u];
+            let _e298 = alongX[1u];
+            let _e301 = alongY[1u];
+            let _e305 = size[1u];
+            footprint = max((max(abs(_e288), abs(_e291)) * _e295), (max(abs(_e298), abs(_e301)) * _e305));
+            let _e308 = footprint;
+            if (_e308 > 1f) {
+                let _e310 = footprint;
+                local_6 = log2(_e310);
+            } else {
+                local_6 = 0f;
+            }
+            let _e312 = local_6;
+            lod_1 = _e312;
+            let _e313 = slot_1;
+            param_14 = _e313;
+            let _e314 = uv_2;
+            param_15 = _e314;
+            let _e315 = lod_1;
+            param_16 = _e315;
+            let _e316 = SampleSlot_u0028_f1_u003b_vf2_u003b_f1_u003b((&param_14), (&param_15), (&param_16));
+            picture_1 = _e316;
+            let _e317 = i;
+            let _e320 = decal_info.color[_e317];
+            tint = _e320;
+            let _e321 = picture_1;
+            param_17 = _e321.xyz;
+            let _e323 = SrgbToLinear_u0028_vf3_u003b((&param_17));
+            let _e324 = tint;
+            colour = (_e323 * _e324.xyz);
+            let _e328 = picture_1[3u];
+            let _e330 = tint[3u];
+            let _e332 = byAngle;
+            let _e334 = byDepth;
+            alpha = clamp((((_e328 * _e330) * _e332) * _e334), 0f, 1f);
+            let _e337 = painted;
+            let _e338 = colour;
+            let _e339 = alpha;
+            painted = mix(_e337, _e338, vec3(_e339));
+            let _e342 = alpha;
+            let _e344 = kept;
+            kept = (_e344 * (1f - _e342));
+            let _e346 = laid;
+            let _e347 = colour;
+            let _e348 = alpha;
+            laid = mix(_e346, _e347, vec3(_e348));
+            let _e351 = emitted;
+            let _e352 = colour;
+            let _e353 = i;
+            let _e356 = decal_info.emissive[_e353];
+            let _e359 = alpha;
+            emitted = mix(_e351, (_e352 * _e356.xyz), vec3(_e359));
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e362 = i;
+            i = (_e362 + 1i);
+        }
+    }
+    let _e365 = albedo[0u];
+    let _e367 = albedo[1u];
+    let _e369 = albedo[2u];
+    named = clamp((max(_e365, max(_e367, _e369)) / 0.08f), 0f, 1f);
+    let _e374 = painted;
+    let _e375 = albedo;
+    let _e377 = albedo;
+    swap = (vec3<f32>(1f, 1f, 1f) + ((_e374 - _e375) / max(_e377, vec3<f32>(0.08f, 0.08f, 0.08f))));
+    let _e381 = swap;
+    let _e382 = named;
+    let _e384 = kept;
+    let _e385 = named;
+    multiply = ((_e381 * _e382) + vec3((_e384 * (1f - _e385))));
+    let _e390 = laid;
+    let _e391 = named;
+    let _e394 = emitted;
+    add = ((_e390 * (1f - _e391)) + _e394);
+    let _e396 = factor;
+    let _e397 = multiply;
+    let _e398 = add;
+    let _e400 = select(_e398, _e397, vec3(_e396));
+    frag_color = vec4<f32>(_e400.x, _e400.y, _e400.z, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'DecalInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 1984,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'inverse_view_projection',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 64,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 80,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 96,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'view',
+              offsetInBytes: 112,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'slots',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'axis_x',
+              offsetInBytes: 192,
+              sizeInBytes: 256,
+            ),
+            WebGpuBlockMember(
+              name: 'axis_y',
+              offsetInBytes: 448,
+              sizeInBytes: 256,
+            ),
+            WebGpuBlockMember(
+              name: 'axis_z',
+              offsetInBytes: 704,
+              sizeInBytes: 256,
+            ),
+            WebGpuBlockMember(
+              name: 'region',
+              offsetInBytes: 960,
+              sizeInBytes: 256,
+            ),
+            WebGpuBlockMember(
+              name: 'color',
+              offsetInBytes: 1216,
+              sizeInBytes: 256,
+            ),
+            WebGpuBlockMember(
+              name: 'fade',
+              offsetInBytes: 1472,
+              sizeInBytes: 256,
+            ),
+            WebGpuBlockMember(
+              name: 'emissive',
+              offsetInBytes: 1728,
+              sizeInBytes: 256,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'albedo_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'decal_texture_0',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'decal_texture_1',
+          group: 1,
+          textureBinding: 5,
+          samplerBinding: 6,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'decal_texture_2',
+          group: 1,
+          textureBinding: 7,
+          samplerBinding: 8,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'decal_texture_3',
+          group: 1,
+          textureBinding: 9,
+          samplerBinding: 10,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 11,
+          samplerBinding: 12,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ProbePrefilter': WebGpuStage(
       wgsl: r'''
 struct ProbeInfo {

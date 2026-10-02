@@ -11,6 +11,7 @@
 `^3.12.2` and `vector_math` 2.4.3, which were what this repository is built with rather than
 what the package needs. A workspace that supports Flutter 3.44, Flame's among
 them, could not depend on it. Nothing else changed.
+**The generated tables carry the decal stage** of `flutter3d_shaders`.
 
 ## 0.8.2
 

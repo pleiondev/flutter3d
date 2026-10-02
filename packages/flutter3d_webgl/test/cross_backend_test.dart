@@ -300,6 +300,8 @@ const Map<String, double> _budgets = <String, double>{
   // pixels here and on Impeller. Two-sided recording took the dots away, and
   // the difference went with them.
   'window-interior': 0.01,
+  // `P3`. 0 of 172800 measured against Impeller on 2026-10-01.
+  'decal-floor': 0.01,
 };
 
 /// Scenes budgeted before this set had a picture of them.

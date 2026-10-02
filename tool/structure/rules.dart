@@ -2265,6 +2265,10 @@ List<Finding> _goldenSceneCount() {
       'tool/ci.sh',
       'packages/flutter3d_webgl/tool/golden_web.sh',
       'ARCHITECTURE.md',
+      // The README's own count of the scenes was left at seventy-eight when
+      // the seventy-ninth landed: it was the one page that says it and that
+      // nothing here read.
+      'README.md',
     ])
       File('${repositoryRoot.path}/$where'),
     ..._prosePages(),

@@ -12,6 +12,11 @@
 `^3.12.2`, which were what this repository is built with rather than
 what the package needs. A workspace that supports Flutter 3.44, Flame's among
 them, could not depend on it. Nothing else changed.
+**A decal stage.** `post/decal.frag` (`Decal`) paints up to sixteen
+projected boxes, reading four pictures, over the point the surface buffer
+names under each pixel. It writes a factor and a term for two blends, the
+albedo swapped under the light the albedo buffer lets it read back, and the
+colour an unlit surface and an emissive decal add.
 
 ## 0.8.2
 
