@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`ShaderBundle.materialSection`**, with `encodeMaterialSection` and
+  `decodeMaterialSection`: each stage's material-language source, by name —
+  `P8`. The backend that compiles nothing compiles it, and a runtime reads a
+  material's lighting model out of it.
+
 - **`GraphicsDevice.supportsAlphaToCoverage` and
   `PassEncoder.setAlphaToCoverage`**: a fragment's alpha as the share of a
   multisampled pixel's samples it covers. WebGL2 and WebGPU answer true;

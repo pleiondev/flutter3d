@@ -46,6 +46,25 @@ abstract final class GoldenExtras {
     usesFogInfo: true,
   );
 
+  /// The example's material written in the engine's language — `P8`:
+  /// `shaders/rim_glow.f3dmat`, compiled by `tool/build_material.dart` into
+  /// every GPU section with its source beside them for the software backend.
+  static const String rimGlowBundle = 'assets/shaders/rim_glow.f3dshaders';
+
+  /// The lighting model `BundledMaterials` reads out of [rimGlowBundle]'s
+  /// source, written as a constant because a golden scene is one; the
+  /// example's `material_language_test.dart` holds the two equal, so this
+  /// is the program's answer and not a second description of it.
+  static const LightingModel rimGlow = LightingModel(
+    'RimGlow',
+    'RimGlow',
+    usesAlbedoTexture: true,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMetallic: false,
+    usesLightList: false,
+  );
+
   /// Simulated seconds before the frame is drawn.
   ///
   /// Chosen so the burst is mid-flight: at zero every particle sits on the

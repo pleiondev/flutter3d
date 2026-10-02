@@ -54,6 +54,9 @@ import 'package:test/test.dart';
 /// multisampling on silhouettes, and an additive quad's edge deposits too
 /// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
+  // 0.272% measured, on the silhouette, which Impeller multisamples; the
+  // body and the rim the source computes agree inside it.
+  'material-language': 0.35,
   // 0.005% measured: both draw the hard cutoff, Impeller and this set alike.
   'alpha-to-coverage': 0.01,
   // 0.575% measured, on the spheres' and the floor's edges, which Impeller

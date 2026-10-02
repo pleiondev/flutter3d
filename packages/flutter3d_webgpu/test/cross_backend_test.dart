@@ -127,6 +127,7 @@ const int _channel = 8;
 /// paragraph on the line where its name already is, which is how the two
 /// siblings grew every explanation they carry.
 const Map<String, double> _budgets = <String, double>{
+  'material-language': 0.01,
   // 0.565% measured, on the discs' rims and nowhere else: coverage here,
   // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.65,

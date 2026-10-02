@@ -4,7 +4,10 @@
 /// `flutter3d_core` as a dev dependency with "nothing in `lib/` reaches it"
 /// written beside it: a backend that imported the engine's formats library
 /// would invert the direction an application assembles the two in. This
-/// package already depends on both, which is what it is for.
+/// package already depends on both, which is what it is for. It lived in
+/// `flutter3d_testing` until a game needed it — `P8`, a bundle built from a
+/// `.f3dmat` drawn on the software backend — and a game cannot depend on a
+/// package that carries `flutter_test`.
 ///
 /// Everything that decides what a material *means* is in
 /// `material_eval.dart`, beside the emitter that writes the GLSL — so what is
@@ -96,4 +99,24 @@ final class MaterialProgramStage implements CpuFragmentShader {
       roughness: 1,
     );
   }
+}
+
+/// A `CpuMaterialCompiler` for the engine's material language — `P8`: the
+/// source parsed and specialised at its declared defaults, as the build does
+/// for the GPU sections beside it, and run by [MaterialProgramStage].
+///
+/// Handed to `CpuDevice(materialCompiler: ...)`, a bundle the build made from
+/// a `.f3dmat` loads on the software backend with nothing registered by hand.
+/// A source that does not parse is refused with its line and column.
+CpuFragmentShader materialLanguageCompiler(String stage, String source) {
+  final program = parseMaterial(source);
+  if (program.name != stage) {
+    throw FormatException(
+      'the source is material "${program.name}" and the bundle calls it '
+      '"$stage"',
+    );
+  }
+  return MaterialProgramStage(
+    specialiseMaterial(program, MaterialVariant(program.name)),
+  );
 }

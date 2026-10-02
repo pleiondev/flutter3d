@@ -22,7 +22,11 @@ bool _registered = false;
 /// A fallback, not a preferred opener: the software rasteriser is where a
 /// native build lands when nothing faster starts, not a backend a build
 /// prefers.
-void ensureCpuBackendRegistered() {
+///
+/// [materialCompiler] is what the device compiles a bundle's material-language
+/// stages with — `P8`; `flutter3d_app` hands its own in. The first call
+/// decides it, as it decides everything else here.
+void ensureCpuBackendRegistered({CpuMaterialCompiler? materialCompiler}) {
   if (_registered) return;
   _registered = true;
   registerBackendOpener(
@@ -31,6 +35,7 @@ void ensureCpuBackendRegistered() {
       width: width,
       height: height,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
+      materialCompiler: materialCompiler,
     ),
     asFallback: true,
   );
