@@ -47,7 +47,6 @@ import '../ecs/ecs_world.dart';
 import '../ecs/entity.dart';
 import '../loop/game_event.dart';
 import '../math/motion.dart';
-import '../math/portable_math.dart';
 import '../math/tolerances.dart';
 import '../nav/jump_links.dart';
 import '../nav/navigation.dart';
