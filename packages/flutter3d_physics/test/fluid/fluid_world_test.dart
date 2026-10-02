@@ -40,14 +40,10 @@ void main() {
       target.place(Matrix3.identity(), Vector3.zero());
       world.advance(world.step);
     }
-    final aloft = world.jets.values.fold(0.0, (s, j) => s + j.inFlight);
-    final dropped = world.drops.fold(0.0, (s, d) => s + d.volume);
+
     // Mutation: let the source's own inside catch its spill back, and
     // nothing ever leaves it.
     expect(target.volume, greaterThan(0));
-    expect(
-      source.volume + target.volume + aloft + dropped,
-      closeTo(total, total * 1e-9),
-    );
+    expect(world.volume, closeTo(total, total * 1e-9));
   });
 }
