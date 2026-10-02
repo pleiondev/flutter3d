@@ -14,6 +14,9 @@ dependencies:
     path: ../../flutter3d
   flutter3d_app:
     path: ../../flutter3d_app
+  # The liquids: what is in each glass, how it moves, pours and mixes.
+  flutter3d_physics:
+    path: ../../flutter3d_physics
   # TeX in pure Dart, for the formulas on the labels: K_2Cr_2O_7 set with
   # real subscripts instead of drawn by hand.
   flutter_math_fork: ^0.7.4

@@ -120,4 +120,33 @@ void main() {
     expect(c.holds(up), lessThan(c.capacity));
     expect(_box(Vector3(1, 1, 1), rim: false).lip(up), isNull);
   });
+
+  test('the wall is as near as the nearest of it, round the bottom too', () {
+    // A round-bottomed tube, a centimetre across.
+    final tube = RevolvedVessel([
+      for (var i = 0; i <= 16; i++)
+        Vector2(
+          0.005 * math.sin(i / 16 * math.pi / 2),
+          0.005 * (1 - math.cos(i / 16 * math.pi / 2)),
+        ),
+      Vector2(0.005, 0.05),
+    ]);
+    // Up the side: by the radius.
+    final side = tube.wallDistance(Vector3(0.004, 0.03, 0))!;
+    expect(side.distance, closeTo(-0.001, 1e-9));
+    expect(side.normal.x, closeTo(1, 1e-9));
+    // Near the bottom, off the axis: by the distance to the bowl, which is
+    // what is left of its radius round the centre of the bowl. Mutation:
+    // measure by the radius at this height, a millimetre and a half, and
+    // a point inside reads as in the glass.
+    final low = Vector3(0.003, 0.002, 0);
+    final bowl = tube.wallDistance(low)!;
+    final fromCentre = (low - Vector3(0, 0.005, 0)).length;
+    expect(bowl.distance, closeTo(fromCentre - 0.005, 2e-5));
+    expect(bowl.normal.y, lessThan(0));
+    // Below the glass, outside.
+    expect(tube.wallDistance(Vector3(0, -0.001, 0))!.distance, greaterThan(0));
+    // Above the mouth, no wall.
+    expect(tube.wallDistance(Vector3(0, 0.06, 0)), isNull);
+  });
 }

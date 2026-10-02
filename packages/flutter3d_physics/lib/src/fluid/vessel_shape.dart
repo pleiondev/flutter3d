@@ -49,6 +49,38 @@ extension VesselVolumes on VesselShape {
     return 0.5 * (lo + hi);
   }
 
+  /// [surfaceFor], started from [guess], the height it stood at a moment
+  /// ago: by secants on the volume, whose slope is the area of the cut and
+  /// changes little over a step, so three or four volumes are enough where
+  /// halving takes fifty-two. Halving still, if the secants stray out of
+  /// the vessel or do not settle to [tolerance] of its height.
+  double surfaceNear(
+    Vector3 up,
+    double volume,
+    double guess, {
+    double tolerance = 1e-10,
+  }) {
+    final (:low, :high) = span(up);
+    final size = high - low;
+    if (!(guess > low && guess < high) || volume <= 0.0) {
+      return surfaceFor(up, volume);
+    }
+    var h0 = guess;
+    var v0 = volumeBelow(up, h0) - volume;
+    var h1 = guess + 1e-4 * size * (v0 > 0.0 ? -1.0 : 1.0);
+    for (var i = 0; i < 8; i++) {
+      final v1 = volumeBelow(up, h1) - volume;
+      if ((h1 - h0).abs() <= tolerance * size || v1 == 0.0) return h1;
+      if (v1 == v0) break;
+      final next = h1 - v1 * (h1 - h0) / (v1 - v0);
+      if (!(next > low && next < high)) break;
+      h0 = h1;
+      v0 = v1;
+      h1 = next;
+    }
+    return surfaceFor(up, volume);
+  }
+
   /// The level [volume] stands at in the vessel upright.
   double levelFor(double volume) => surfaceFor(Vector3(0, 1, 0), volume);
 
@@ -109,7 +141,49 @@ final class RevolvedVessel implements VesselShape {
   final int rimPoints;
 
   late final double floor = wall.map((p) => p.y).reduce(math.min);
+
+  /// The widest the inside gets.
+  late final double widest = wall.map((p) => p.x).reduce(math.max);
   late final double top = wall.map((p) => p.y).reduce(math.max);
+
+  /// How far [point] (vessel frame) is from the wall, across it: negative
+  /// inside, positive in or beyond the glass; and the wall's outward
+  /// normal there. Measured in the plane through the axis to the nearest
+  /// piece of the profile, so it holds round a rounded bottom as up a
+  /// straight side, where the radius at a height says nothing of how near
+  /// the bottom is. Null above the mouth, where there is no wall.
+  ({double distance, Vector3 normal})? wallDistance(Vector3 point) {
+    if (point.y > top) return null;
+    final r = math.sqrt(point.x * point.x + point.z * point.z);
+    final out = r > 1e-12
+        ? Vector3(point.x / r, 0, point.z / r)
+        : Vector3(1, 0, 0);
+    final q = Vector2(r, point.y);
+    var best = double.infinity;
+    var normal = Vector2(0, -1);
+    var sign = 1.0;
+    for (var i = 0; i + 1 < wall.length; i++) {
+      final a = wall[i];
+      final d = wall[i + 1] - a;
+      final length2 = d.length2;
+      if (length2 < 1e-24) continue;
+      final t = ((q - a).dot(d) / length2).clamp(0.0, 1.0);
+      final off = q - (a + d * t);
+      final distance = off.length;
+      if (distance < best) {
+        best = distance;
+        // Outward is to the right of the way the profile runs, from the
+        // middle of the floor up to the mouth.
+        final right = Vector2(d.y, -d.x)..normalize();
+        sign = off.dot(right) >= 0.0 ? 1.0 : -1.0;
+        normal = right;
+      }
+    }
+    return (
+      distance: sign * best,
+      normal: out * normal.x + Vector3(0, normal.y, 0),
+    );
+  }
 
   /// The radius of the inside at [height], or nought outside its height.
   double radiusAt(double height) {

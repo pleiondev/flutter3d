@@ -158,7 +158,12 @@ final class LiquidBody implements JetReceiver {
   @override
   bool catches(Vector3 point, double radius) {
     final q = _local(point);
-    return shape.contains(q) && _up.dot(q) - radius <= surfaceAt(q);
+    if (!shape.contains(q)) return false;
+    // Empty, there is no surface to land on: what reaches the bottom wets
+    // it and stays, the start of a liquid. A quarter of a radius of slack,
+    // since what rests on glass rests a radius off it and no nearer.
+    final surface = volume > 0.0 ? surfaceAt(q) : shape.span(_up).low;
+    return _up.dot(q) - radius <= surface + 0.25 * radius;
   }
 
   /// Liquid arriving from a stream: added, and first heaped where it lands,
@@ -184,7 +189,29 @@ final class LiquidBody implements JetReceiver {
   }
 
   /// [point] from the world into the vessel's frame.
-  Vector3 _local(Vector3 point) =>
+  Vector3 _local(Vector3 point) => _toLocal(point);
+
+  /// [point] in the vessel's frame, or null when it is further from the
+  /// vessel than [margin] beyond its inside, sideways or along its axis:
+  /// what an obstacle asks first, many times a step, so no matrix is made.
+  Vector3? _near(Vector3 point, double margin) {
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return null;
+    final m = rotation.storage;
+    final dx = point.x - position.x;
+    final dy = point.y - position.y;
+    final dz = point.z - position.z;
+    // Rᵀ(p − o), column by column.
+    final y = m[3] * dx + m[4] * dy + m[5] * dz;
+    if (y < shape.floor - margin || y > shape.top + margin) return null;
+    final x = m[0] * dx + m[1] * dy + m[2] * dz;
+    final z = m[6] * dx + m[7] * dy + m[8] * dz;
+    final reach = shape.widest + margin;
+    if (x * x + z * z > reach * reach) return null;
+    return Vector3(x, y, z);
+  }
+
+  Vector3 _toLocal(Vector3 point) =>
       (rotation.clone()..transpose()).transformed(point - position);
 
   /// Adds [amount] cubic metres of [medium] — the top liquid's, if none is
@@ -254,7 +281,15 @@ final class LiquidBody implements JetReceiver {
   /// that holds it and every layer under it.
   List<double> layerTops() {
     var below = 0.0;
-    return [for (final l in _layers) shape.surfaceFor(_up, below += l.volume)];
+    // Each from the surface's own height, which the top one is near and
+    // the others are under.
+    final guess = surface.height;
+    return [
+      for (final l in _layers)
+        guess.isFinite && guess != 0.0
+            ? shape.surfaceNear(_up, below += l.volume, guess)
+            : shape.surfaceFor(_up, below += l.volume),
+    ];
   }
 
   /// The pressure of the liquid at [point] (vessel frame) above the air's:
@@ -354,10 +389,25 @@ final class LiquidBody implements JetReceiver {
     return _tube = TubeMeniscus(medium: medium, radius: radius, g: _g);
   }
 
+  /// The volume and up the surface's height was last found for, and the
+  /// height.
+  double _laidFor = double.nan;
+  final Vector3 _laidUp = Vector3.zero();
+  double _laidAt = double.nan;
+
   /// Lays the surface out again when its plane has turned or moved by more
   /// than a little, carrying the waves over.
   void _relayIfMoved({bool force = false}) {
-    final h = shape.surfaceFor(_up, volume + displaced);
+    final target = volume + displaced;
+    // Standing still, nothing to find; moving, found from where it was.
+    final h = !force && target == _laidFor && _up == _laidUp
+        ? _laidAt
+        : (_laidAt.isNaN
+              ? shape.surfaceFor(_up, target)
+              : shape.surfaceNear(_up, target, _laidAt));
+    _laidFor = target;
+    _laidUp.setFrom(_up);
+    _laidAt = h;
     final turned = 1.0 - _up.dot(surface.up);
     final moved = (h - surface.height).abs();
     if (force || turned > 2e-5 || moved > 1e-4) {
@@ -370,6 +420,13 @@ final class LiquidBody implements JetReceiver {
   Spill _spill(double dt, double g) {
     final rim = shape.rim;
     if (rim.isEmpty || volume <= 0.0) return Spill.none;
+    // Nowhere near the lip, waves at their highest and meniscus and all:
+    // nothing to ask the rim.
+    final edge = shape.lip(_up);
+    if (edge != null &&
+        height + surface.reach + (_meniscus()?.peak ?? 0.0) < edge.height) {
+      return Spill.none;
+    }
     var flow = 0.0;
     var width = 0.0;
     var crest = 0.0;
@@ -438,24 +495,17 @@ final class InsideWalls implements JetObstacle {
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
     final shape = body.shape;
     if (shape is! RevolvedVessel) return null;
-    final q = (body.rotation.clone()..transpose()).transformed(
-      point - body.position,
-    );
-    if (q.y > shape.top || q.y < shape.floor - radius) return null;
-    final r = math.sqrt(q.x * q.x + q.z * q.z);
-    final wall = shape.radiusAt(math.max(q.y, shape.floor));
-    if (r > wall + radius) return null;
-    if (q.y < shape.floor + radius) {
-      return (
-        normal: body.rotation.transformed(Vector3(0, 1, 0)),
-        depth: shape.floor + radius - q.y,
-      );
-    }
-    final reach = wall - radius;
-    if (r <= reach || r < 1e-9) return null;
+    final q = body._near(point, body.wallThickness + radius);
+    if (q == null) return null;
+    final at = shape.wallDistance(q);
+    if (at == null) return null;
+    // Within a radius of the inside, or into the glass up to half its
+    // thickness: past that it is the outside's.
+    final glass = body.wallThickness > 0.0 ? 0.5 * body.wallThickness : radius;
+    if (at.distance <= -radius || at.distance >= glass) return null;
     return (
-      normal: body.rotation.transformed(Vector3(-q.x / r, 0, -q.z / r)),
-      depth: r - reach,
+      normal: body.rotation.transformed(-at.normal),
+      depth: at.distance + radius,
     );
   }
 }
@@ -473,20 +523,20 @@ final class OutsideWalls implements JetObstacle {
   ({Vector3 normal, double depth})? touch(Vector3 point, double radius) {
     final shape = body.shape;
     if (shape is! RevolvedVessel) return null;
-    final q = (body.rotation.clone()..transpose()).transformed(
-      point - body.position,
+    final q = body._near(point, thickness + radius);
+    if (q == null) return null;
+    // The rim's top is glass too, up to its thickness above the mouth.
+    final at = shape.wallDistance(
+      q.y > shape.top && q.y <= shape.top + thickness
+          ? Vector3(q.x, shape.top, q.z)
+          : q,
     );
-    if (q.y > shape.top + thickness || q.y < shape.floor - thickness) {
-      return null;
-    }
-    final r = math.sqrt(q.x * q.x + q.z * q.z);
-    final outside =
-        shape.radiusAt(q.y.clamp(shape.floor, shape.top)) + thickness;
-    final clear = outside + radius;
-    if (r >= clear || r < shape.radiusAt(q.y.clamp(shape.floor, shape.top))) {
-      return null;
-    }
-    final out = r > 1e-9 ? Vector3(q.x / r, 0, q.z / r) : Vector3(1, 0, 0);
-    return (normal: body.rotation.transformed(out), depth: clear - r);
+    if (at == null) return null;
+    final clear = thickness + radius;
+    if (at.distance < 0.5 * thickness || at.distance >= clear) return null;
+    return (
+      normal: body.rotation.transformed(at.normal),
+      depth: clear - at.distance,
+    );
   }
 }
