@@ -20,7 +20,7 @@ What could **not** be written from the contract is the shaders. That limit is re
 <li>The semantics that are part of the contract and appear in no signature</li>
 <li>What the 0.8 members ask, compute among them, and which backend answers yes</li>
 <li>The conformance suite, and how to run it before you have a single shader</li>
-<li>The eighty-eight shader entry points your bundle must answer to</li>
+<li>The ninety shader entry points your bundle must answer to</li>
 </ul>
 </div>
 
@@ -398,14 +398,15 @@ for (final RequiredShader shader in kRequiredShaders) {
 }
 ```
 
-Eighty-three entry points. `kRequiredShaders` and the bundle manifest are kept in step with each other by `flutter3d_shaders/test/manifest_test.dart`, and this table is kept in step with both by the `the site names every shader a bundle must answer to` rule. It was eleven names short for as long as nothing compared it with anything, and a missing name is not a degraded picture: `Renderer.create` throws on the first one it cannot find.
+Eighty-five entry points. `kRequiredShaders` and the bundle manifest are kept in step with each other by `flutter3d_shaders/test/manifest_test.dart`, and this table is kept in step with both by the `the site names every shader a bundle must answer to` rule. It was eleven names short for as long as nothing compared it with anything, and a missing name is not a degraded picture: `Renderer.create` throws on the first one it cannot find.
 
 | Stage | Names |
 |---|---|
 | Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `PolylineVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex`, `ImpostorVertex`, `VelocityVertex`, `VelocitySkinnedVertex`, `VelocityInstancedVertex` |
-| Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals`, `PbrLayered`, `Impostor` |
+| Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals`, `PbrLayered`, `Impostor`, `PlanarReflection` |
 | Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowDepthMasked`, `ShadowDistanceMasked`, `ShadowTileReset`, `EvsmFilter`, `ShadowCopy` |
 | Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `SmaaEdges`, `SmaaWeights`, `SmaaBlend`, `LensFlare`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `ContactShadowResolve`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve`, `DofTileMax`, `Decal` |
+| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `ContactShadowResolve`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve`, `DofTileMax`, `RenderTextureEncode` |
 | Particles | `Particle`, `ParticleTextured`, `ParticleMesh`, `ParticleSixWay`, `ReactiveSprite`, `SplatHashed`, `ParticleSoft`, `ParticleTexturedSoft`, `ParticleSixWaySoft` |
 | Sky | `Sky`, `SkyCube` |
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |

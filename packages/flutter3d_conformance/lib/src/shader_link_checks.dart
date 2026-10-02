@@ -89,12 +89,18 @@ Future<void> checkLinking(GraphicsDevice device) async {
     //
     // The x-ray stage reaches the same three, for the same reason. It declares
     // one output where the others declare two, which is the pairing least like
-    // the rest of this table and the one most worth linking here.
+    // the rest of this table and the one most worth linking here. `P4`'s
+    // planar reflection is drawn over its surfaces the same way, and declares
+    // one output for the same reason.
     for (final vertex in <String>[
       'MeshVertex',
       'MeshSkinnedVertex',
       'MeshInstancedVertex',
-    ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
+    ]) ...<(String, String)>[
+      (vertex, 'ObjectId'),
+      (vertex, 'Xray'),
+      (vertex, 'PlanarReflection'),
+    ],
     // `R1`: the three stages a moved node is drawn through into the velocity
     // buffer, each with the one fragment stage that differences them.
     // `R4`: and with the stage that marks a blended surface reactive, which
@@ -115,6 +121,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // `C3`: the surface buffer reduced for the occlusion readback.
       'DepthPyramid',
       'ProbePrefilter',
+      // `P4`: a render texture's light into the bytes a material reads.
+      'RenderTextureEncode',
       'BloomThreshold',
       'BloomDownsample',
       'BloomUpsample',

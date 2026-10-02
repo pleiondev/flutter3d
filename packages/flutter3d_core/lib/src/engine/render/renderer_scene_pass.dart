@@ -340,6 +340,21 @@ extension _ScenePasses on Renderer {
       } else {
         encodeHalf(opaque);
       }
+      // `P4`: each reflector's picture over its surfaces, while the depth
+      // buffer holds exactly what the opaque half left — see
+      // `renderer_planar_pass.dart`. Nothing at all without a reflector.
+      _encodePlanarReflections(
+        encoder: pass,
+        scene: scene,
+        view: view,
+        viewNumber: viewNumber,
+        rect: viewRect,
+        frustum: frustum,
+        settings: settings,
+        viewProjection: viewProjection,
+        shadows: shadows,
+        state: passState,
+      );
       // Between the two halves, which is the one place it can go. After the
       // opaque half, so every pixel already covered by geometry fails the depth
       // test before the sky's fragment stage runs — the software rasteriser

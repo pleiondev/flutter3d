@@ -22,6 +22,7 @@ import '../scene/morph_state.dart';
 import '../scene/occlusion/hi_z_occlusion.dart';
 import '../scene/occlusion/occlusion_test.dart';
 import '../scene/occlusion/software_occlusion.dart';
+import '../scene/planar_reflector_node.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
@@ -42,6 +43,7 @@ import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
 import 'material.dart';
+import 'mirror_view.dart';
 import 'object_id_frame.dart';
 import 'pass_contributor.dart';
 import 'probe_faces.dart';
@@ -49,6 +51,7 @@ import 'procedural_texture.dart';
 import 'render_list.dart';
 import 'render_node.dart';
 import 'render_settings.dart';
+import 'render_texture.dart';
 import 'render_view.dart';
 import 'scene_colour_chain.dart';
 import 'shadow_slots.dart';
@@ -73,6 +76,7 @@ part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
+part 'renderer_planar_pass.dart';
 part 'renderer_post_pass.dart';
 part 'renderer_probe_pass.dart';
 part 'renderer_resources.dart';
@@ -577,10 +581,13 @@ final class Renderer implements RenderServices {
         probe.capture,
         probe.filtered,
       ],
+      for (final planar in _planarStates.values) ...planar.textures,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
     _probeStates.clear();
+    _planarStates.clear();
+    _planarMaterial.extraTextures.clear();
     _fallbackAlbedo = null;
     _fallbackNormal = null;
     _fallbackBlack = null;
@@ -815,6 +822,28 @@ final class Renderer implements RenderServices {
   Float32List get _probeParams => _probeInfo.params;
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
+
+  /// The planar reflectors this renderer has drawn, by node: a picture per
+  /// view, kept across frames — see `renderer_planar_pass.dart`.
+  final Map<PlanarReflectorNode, _PlanarState> _planarStates =
+      <PlanarReflectorNode, _PlanarState>{};
+
+  /// What a reflector's surfaces are drawn again with: its picture, its view
+  /// and its reflectance, written per reflector, and the surface's own
+  /// sidedness written per draw. Held for the x-ray materials' reason.
+  final PlanarReflectionInfoBlock _planarInfo = PlanarReflectionInfoBlock();
+  late final Material _planarMaterial = Material(
+    name: 'planar reflection',
+    lighting: LightingModel.planarReflection,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+    parameterBlock: _planarInfo.name,
+    parameters: _planarInfo.members,
+    extraTextures: <String, TextureHandle>{},
+  );
+
+  /// A render texture's exposure, for the encode into its bytes.
+  final RenderTextureInfoBlock _renderTextureInfo = RenderTextureInfoBlock();
 
   PipelineHandle? _debugLinePipeline;
 
@@ -1530,7 +1559,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: eighty-two goldens go through this
+  /// strength has, and for the same reason: eighty-four goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -2487,6 +2516,8 @@ final class Renderer implements RenderServices {
     required _ShadowMapNode shadow,
     required List<_ReflectionProbeNode> probes,
     required _IrradianceUpdateNode irradiance,
+    required _RenderTextureNode renderTextures,
+    required _PlanarReflectionNode planarReflections,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
@@ -2538,6 +2569,12 @@ final class Renderer implements RenderServices {
     // `L4`: beside the probes, for their reason — it draws the lit scene and
     // the scene reads what it writes.
     graph.addNode(irradiance);
+    // `P4`: beside the probes, for their reason — each draws the lit scene
+    // through a camera of its own, and the scene optionally reads what each
+    // provides. Registered whatever the scene holds, so the names are known.
+    graph
+      ..addNode(renderTextures)
+      ..addNode(planarReflections);
     graph
       ..addNode(scene)
       // `P3`: onto the opaque half, so the copy the glass reads holds the
@@ -3635,6 +3672,18 @@ final class Renderer implements RenderServices {
             clearColor: ordered.first.clearColor,
           ),
       ],
+      renderTextures: _RenderTextureNode(
+        this,
+        scene: scene,
+        shadowCaster: shadowCaster,
+      ),
+      planarReflections: _PlanarReflectionNode(
+        this,
+        scene: scene,
+        views: ordered,
+        settings: settings,
+        shadowCaster: shadowCaster,
+      ),
       scene: _SceneNode(
         this,
         scene: scene,
@@ -4079,6 +4128,7 @@ final class Renderer implements RenderServices {
       // probe that left the scene since last frame gives its cubes back here,
       // and this frame's one whole-cube capture is up for claiming again.
       _retireProbesNotIn(scene);
+      _retireReflectorsNotIn(scene);
       _wholeProbeCaptured = false;
       final probeNodes = <_ReflectionProbeNode>[
         for (var i = 0; i < scene.probes.length; i++)
@@ -4125,6 +4175,18 @@ final class Renderer implements RenderServices {
           scene: scene,
           shadowCaster: shadowCaster,
           clearColor: ordered.first.clearColor,
+        ),
+        renderTextures: _RenderTextureNode(
+          this,
+          scene: scene,
+          shadowCaster: shadowCaster,
+        ),
+        planarReflections: _PlanarReflectionNode(
+          this,
+          scene: scene,
+          views: ordered,
+          settings: settings,
+          shadowCaster: shadowCaster,
         ),
         scene: sceneNode,
         bloom: bloomNode,

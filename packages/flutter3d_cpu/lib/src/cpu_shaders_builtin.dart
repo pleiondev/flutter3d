@@ -60,6 +60,7 @@ import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_motion_blur.dart';
 import 'cpu_shaders_particles.dart';
+import 'cpu_shaders_planar.dart';
 import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
@@ -87,6 +88,7 @@ export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
 export 'cpu_shaders_motion_blur.dart';
 export 'cpu_shaders_particles.dart';
+export 'cpu_shaders_planar.dart';
 export 'cpu_shaders_post.dart';
 export 'cpu_shaders_probe.dart';
 export 'cpu_shaders_reactive.dart';
@@ -149,6 +151,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'FullscreenVertex': const CpuStage.vertex(FullscreenVertexShader()),
     'Unlit': const CpuStage.fragment(UnlitShader()),
     'Xray': const CpuStage.fragment(XrayShader()),
+    'PlanarReflection': const CpuStage.fragment(PlanarReflectionShader()),
     'Lambert': const CpuStage.fragment(LambertShader()),
     'BlinnPhong': const CpuStage.fragment(BlinnPhongShader()),
     'Pbr': const CpuStage.fragment(PbrShader()),
@@ -234,6 +237,7 @@ Map<String, CpuStage> builtinCpuShaders() {
       ShadowDistanceMaskedShader(),
     ),
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
+    'RenderTextureEncode': const CpuStage.fragment(RenderTextureEncodeShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'WboitResolve': const CpuStage.fragment(WboitResolveShader()),
     'SceneColourCopy': const CpuStage.fragment(SceneColourCopyShader()),

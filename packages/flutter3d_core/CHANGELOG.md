@@ -32,6 +32,30 @@
   front of a decal is drawn over it. It needs three colour attachments and
   turns multisampling off, as every reader of the surface buffer does.
 
+- **Planar reflections — `P4`.** A `PlanarReflectorNode` is a plane (its
+  node's origin, its local +Y the side it is seen from) and the meshes that
+  lie in it. Each frame, for each view that sees the plane's front, the
+  scene is drawn again through the view's camera mirrored in the plane, with
+  the projection's near plane moved onto the plane (`obliqueNearPlane`), so
+  nothing below it is reflected up through it. The picture, at `resolution`
+  of the view (half by default), is laid over the surfaces in the scene pass
+  straight after the opaque half, through the new `PlanarReflection` stage:
+  read by the pixel's place on screen, weighted by Schlick's Fresnel from
+  `reflectance` (one for a mirror, about 0.02 for water), tinted and fogged.
+  The surfaces keep their own materials and the surface buffer keeps
+  describing them. `RenderSettings.planarReflections` is off by default; a
+  frame without a visible reflector culls the pass either way.
+- **A public camera into a texture — `P4`.** `RenderTexture.create` makes a
+  texture for a camera to draw into; `Scene.addRenderTexture` has it drawn
+  every frame (or once, and again after `invalidate`) before the scene, so
+  a material shows the picture in the frame it was taken. The pass is the
+  reflector's with an ordinary camera: meshes with the frame's lights,
+  shadows and sky, and no post chain. The texture holds sRGB bytes with the
+  top of the picture in its first row on every backend, as an uploaded image
+  does, so it goes into an albedo or emissive slot as one.
+- `mirrorAcrossPlane`, `obliqueNearPlane` and `planeInEyeSpace` are public
+  in `mirror_view.dart`, and two passes join `RenderSettings.passOrder`
+  before `scene`: `render textures` and `planar reflections`.
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

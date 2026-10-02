@@ -11,6 +11,10 @@
     "type": "fragment",
     "file": "shaders/lighting/xray.frag"
   },
+  "PlanarReflection": {
+    "type": "fragment",
+    "file": "shaders/lighting/planar_reflection.frag"
+  },
   "Lambert": {
     "type": "fragment",
     "file": "shaders/lighting/lambert.frag"
@@ -262,6 +266,10 @@
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"
+  },
+  "RenderTextureEncode": {
+    "type": "fragment",
+    "file": "shaders/post/render_texture_encode.frag"
   },
   "ShadowDistance": {
     "type": "fragment",

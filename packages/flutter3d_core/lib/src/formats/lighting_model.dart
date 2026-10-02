@@ -90,6 +90,25 @@ final class LightingModel {
     usesMaterialParameters: false,
   );
 
+  /// A planar reflector's surface drawn again with the mirrored picture over
+  /// it — `P4`, the stage `renderer_planar_pass.dart` draws with.
+  ///
+  /// Absent from [builtIn] for [xray]'s reason: it is not a way to light a
+  /// material but a second draw over one, and a material asking for it would
+  /// be a surface with nothing under its reflection. It reads no maps, no
+  /// lights and no `FragInfo` — the eye is the fog block's — and declares no
+  /// surface buffer, so it leaves what the surface below it wrote there.
+  static const LightingModel planarReflection = LightingModel(
+    'Planar reflection',
+    'PlanarReflection',
+    usesFragInfo: false,
+    usesFogInfo: true,
+    usesAlbedoTexture: false,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+
   /// A line of constant screen width — `gfx-86n`: [unlit]'s fragment stage
   /// behind the engine's own `PolylineVertex`, which widens `buildPolyline`'s
   /// geometry by the number of pixels each point carries.

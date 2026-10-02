@@ -20,6 +20,21 @@ them, could not depend on it. Nothing else changed.
 `post/decal.frag` line for line, the mip level of each picture chosen from
 the same footprint the GLSL computes by hand from neighbouring texels of the
 surface buffer.
+**`P4`'s two stages.** `PlanarReflectionShader` mirrors
+`planar_reflection.frag` and `RenderTextureEncodeShader` mirrors
+`render_texture_encode.frag`; `planar_reflection_test.dart` holds ten
+claims about both, and the `planar-mirror` and `render-texture` goldens are
+in this set.
+
+**A triangle is clipped to the depth range, as a GPU clips it.** The
+rasteriser cut triangles at `w` and nowhere else, so a fragment in front of
+the near plane or past the far one was drawn wherever its `w` was positive.
+Nothing showed it while every near plane was parallel to the screen and a
+little way off the eye; the mirrored camera stands its near plane on the
+mirror, and what was below the mirror came up through it here and on no
+other backend. A fragment with a window depth outside `[0, 1]` is dropped
+now, which is the same cut as clipping the triangle, because that depth is
+linear across the screen. No golden of this set moved.
 
 ## 0.8.2
 

@@ -70,6 +70,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'PbrLayered', fragment: true),
   (name: 'PolylineVertex', fragment: false),
   (name: 'ProbePrefilter', fragment: true),
+  (name: 'PlanarReflection', fragment: true),
+  (name: 'RenderTextureEncode', fragment: true),
   (name: 'Reflections', fragment: true),
   (name: 'Ssao', fragment: true),
   (name: 'Splat', fragment: true),

@@ -5044,6 +5044,221 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(4) v_texcoord: vec2<
         ),
       ],
     ),
+    'PlanarReflection': WebGpuStage(
+      wgsl: r'''
+struct FogInfo {
+    fog: vec4<f32>,
+    eye: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+struct PlanarReflectionInfo {
+    view: vec4<f32>,
+    params: vec4<f32>,
+    tint: vec4<f32>,
+}
+
+var<private> g_albedo: vec3<f32>;
+var<private> g_debug_surface: vec3<f32>;
+var<private> g_debug_surface_on: bool;
+var<private> g_premultiply: bool;
+var<private> v_world_position_1: vec3<f32>;
+@group(1) @binding(0) 
+var<uniform> fog_info: FogInfo;
+var<private> gl_FragCoord_1: vec4<f32>;
+@group(1) @binding(1) 
+var<uniform> planar_info: PlanarReflectionInfo;
+@group(1) @binding(2) 
+var reflection_texture_tex: texture_2d<f32>;
+@group(1) @binding(3) 
+var reflection_texture_smp: sampler;
+var<private> v_normal_1: vec3<f32>;
+var<private> gl_FrontFacing_1: bool;
+var<private> frag_color: vec4<f32>;
+var<private> v_texcoord_1: vec2<f32>;
+var<private> v_tangent_1: vec4<f32>;
+var<private> v_color_1: vec4<f32>;
+var<private> v_lightmap_uv_1: vec2<f32>;
+
+fn EyeDistance_u0028_() -> f32 {
+    let _e29 = v_world_position_1;
+    let _e31 = fog_info.eye;
+    return distance(_e29, _e31.xyz);
+}
+
+fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
+    var density: f32;
+    var d: f32;
+
+    let _e34 = fog_info.fog[3u];
+    density = _e34;
+    let _e35 = density;
+    if (_e35 <= 0f) {
+        let _e37 = (*color);
+        return _e37;
+    }
+    let _e38 = EyeDistance_u0028_();
+    d = _e38;
+    let _e40 = fog_info.fog;
+    let _e42 = (*color);
+    let _e43 = density;
+    let _e45 = d;
+    return mix(_e40.xyz, _e42, vec3(clamp(exp((-(_e43) * _e45)), 0f, 1f)));
+}
+
+fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
+    var local: vec2<f32>;
+
+    let _e31 = (*rows);
+    if (_e31 > 0f) {
+        let _e34 = gl_FragCoord_1[0u];
+        let _e35 = (*rows);
+        let _e37 = gl_FragCoord_1[1u];
+        local = vec2<f32>(_e34, (_e35 - _e37));
+    } else {
+        let _e40 = gl_FragCoord_1;
+        local = _e40.xy;
+    }
+    let _e42 = local;
+    return _e42;
+}
+
+fn main_1() {
+    var rows_1: f32;
+    var pixel: vec2<f32>;
+    var param: f32;
+    var uv: vec2<f32>;
+    var reflected: vec3<f32>;
+    var n: vec3<f32>;
+    var v: vec3<f32>;
+    var cosine: f32;
+    var f0_: f32;
+    var grazing: f32;
+    var grazing2_: f32;
+    var fresnel: f32;
+    var alpha: f32;
+    var param_1: vec3<f32>;
+
+    g_albedo = vec3<f32>(0f, 0f, 0f);
+    g_debug_surface = vec3<f32>(0f, 0f, 0f);
+    g_debug_surface_on = false;
+    g_premultiply = false;
+    let _e45 = planar_info.params[2u];
+    rows_1 = _e45;
+    let _e46 = rows_1;
+    param = _e46;
+    let _e47 = FragCoordFromTop_u0028_f1_u003b((&param));
+    pixel = _e47;
+    let _e48 = pixel;
+    let _e50 = planar_info.view;
+    let _e54 = planar_info.view;
+    uv = ((_e48 - _e50.xy) / _e54.zw);
+    let _e57 = rows_1;
+    if (_e57 > 0f) {
+        let _e60 = uv[1u];
+        uv[1u] = (1f - _e60);
+    }
+    let _e63 = uv;
+    let _e64 = textureSampleLevel(reflection_texture_tex, reflection_texture_smp, _e63, 0f);
+    let _e67 = planar_info.tint;
+    reflected = (_e64.xyz * _e67.xyz);
+    let _e70 = v_normal_1;
+    n = normalize(_e70);
+    let _e72 = gl_FrontFacing_1;
+    if !(_e72) {
+        let _e74 = n;
+        n = -(_e74);
+    }
+    let _e77 = fog_info.eye;
+    let _e79 = v_world_position_1;
+    v = normalize((_e77.xyz - _e79));
+    let _e82 = n;
+    let _e83 = v;
+    cosine = clamp(dot(_e82, _e83), 0f, 1f);
+    let _e88 = planar_info.params[0u];
+    f0_ = _e88;
+    let _e89 = cosine;
+    grazing = (1f - _e89);
+    let _e91 = grazing;
+    let _e92 = grazing;
+    grazing2_ = (_e91 * _e92);
+    let _e94 = f0_;
+    let _e95 = f0_;
+    let _e97 = grazing2_;
+    let _e99 = grazing2_;
+    let _e101 = grazing;
+    fresnel = (_e94 + ((((1f - _e95) * _e97) * _e99) * _e101));
+    let _e104 = fresnel;
+    let _e107 = planar_info.params[1u];
+    alpha = clamp((_e104 * _e107), 0f, 1f);
+    let _e110 = reflected;
+    param_1 = _e110;
+    let _e111 = ApplyFog_u0028_vf3_u003b((&param_1));
+    let _e112 = alpha;
+    let _e113 = (_e111 * _e112);
+    let _e114 = alpha;
+    frag_color = vec4<f32>(_e113.x, _e113.y, _e113.z, _e114);
+    return;
+}
+
+@fragment 
+fn main(@location(6) v_world_position: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_world_position_1 = v_world_position;
+    gl_FragCoord_1 = gl_FragCoord;
+    v_normal_1 = v_normal;
+    gl_FrontFacing_1 = gl_FrontFacing;
+    v_texcoord_1 = v_texcoord;
+    v_tangent_1 = v_tangent;
+    v_color_1 = v_color;
+    v_lightmap_uv_1 = v_lightmap_uv;
+    main_1();
+    let _e17 = frag_color;
+    return _e17;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FogInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'PlanarReflectionInfo',
+          group: 1,
+          binding: 1,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'view', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(name: 'tint', offsetInBytes: 32, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'reflection_texture',
+          group: 1,
+          textureBinding: 2,
+          samplerBinding: 3,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'Lambert': WebGpuStage(
       wgsl: r'''
 struct Surface {
@@ -40700,6 +40915,85 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
           textureBinding: 1,
           samplerBinding: 2,
           dimension: WebGpuTextureDimension.cube,
+        ),
+      ],
+    ),
+    'RenderTextureEncode': WebGpuStage(
+      wgsl: r'''
+struct RenderTextureInfo {
+    params: vec4<f32>,
+}
+
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> encode_info: RenderTextureInfo;
+@group(1) @binding(1) 
+var source_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var source_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
+    let _e22 = (*linear);
+    let _e24 = (*linear);
+    let _e29 = (*linear);
+    return mix((_e22 * 12.92f), ((pow(max(_e24, vec3<f32>(0f, 0f, 0f)), vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e29));
+}
+
+fn main_1() {
+    var uv: vec2<f32>;
+    var light: vec3<f32>;
+    var param: vec3<f32>;
+
+    let _e24 = v_uv_1;
+    uv = _e24;
+    let _e27 = encode_info.params[1u];
+    if (_e27 > 0.5f) {
+        let _e30 = uv[1u];
+        uv[1u] = (1f - _e30);
+    }
+    let _e33 = uv;
+    let _e34 = textureSampleLevel(source_texture_tex, source_texture_smp, _e33, 0f);
+    let _e38 = encode_info.params[0u];
+    light = (_e34.xyz * _e38);
+    let _e40 = light;
+    param = clamp(_e40, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e42 = LinearToSrgb_u0028_vf3_u003b((&param));
+    frag_color = vec4<f32>(_e42.x, _e42.y, _e42.z, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'RenderTextureInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'source_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
     ),

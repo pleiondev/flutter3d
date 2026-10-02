@@ -542,6 +542,149 @@ final class _ReflectionProbeNode extends RenderNode {
   }
 }
 
+/// Every [RenderTexture] the scene holds, drawn through its own camera —
+/// `P4`.
+///
+/// **One node for all of them**, with one name the scene optionally reads:
+/// the name is what orders them before the materials that show them, and
+/// the pictures are each texture's own, held by whoever made it rather than
+/// by the frame. So the resource the node keeps stands for the order and is
+/// a texture nothing samples through it.
+///
+/// It optionally reads the shadow maps for a probe's reason: its pictures are
+/// lit and shadowed the way the world is.
+final class _RenderTextureNode extends RenderNode {
+  _RenderTextureNode(
+    this._renderer, {
+    required this.scene,
+    required this.shadowCaster,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final int shadowCaster;
+
+  @override
+  String get name => 'render textures';
+
+  @override
+  bool get isActive => scene.renderTextures.isNotEmpty;
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.shadowMoments,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.renderTextures,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
+    for (final texture in scene.renderTextures) {
+      if (!texture.isDue) continue;
+      developer.Timeline.startSync('Renderer.renderTexture');
+      _renderer._drawRenderTexture(
+        resources: frame.resources,
+        scene: scene,
+        texture: texture,
+        settings: frame.settings,
+        shadows: shadows,
+        passState: frame.state,
+      );
+      developer.Timeline.finishSync();
+    }
+    frame.resources.provide(
+      FrameResourceIds.renderTextures,
+      _renderer.fallbackBlack,
+    );
+  }
+}
+
+/// Every visible [PlanarReflectorNode]'s mirrored picture, a picture per view
+/// — `P4`.
+///
+/// One node and one name for all of them, for [_RenderTextureNode]'s reason:
+/// a reflector has a picture per view, and the scene pass finds this view's
+/// in the renderer's own state, where it is kept between frames. What the
+/// name carries is that the pictures were drawn this frame, before the scene.
+final class _PlanarReflectionNode extends RenderNode {
+  _PlanarReflectionNode(
+    this._renderer, {
+    required this.scene,
+    required this.views,
+    required this.settings,
+    required this.shadowCaster,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+
+  /// Every view, by priority — each gets its own mirrored camera.
+  final List<RenderView> views;
+  final RenderSettings settings;
+  final int shadowCaster;
+
+  @override
+  String get name => 'planar reflections';
+
+  /// Asked of the scene when the graph is built, so a frame whose reflectors
+  /// are all hidden draws no picture for any of them.
+  @override
+  bool get isActive =>
+      settings.planarReflections.enabled &&
+      scene.reflectors.any(
+        (reflector) =>
+            reflector.visibleInHierarchy && reflector.surfaces.isNotEmpty,
+      );
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.shadowMoments,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.planarReflections,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
+    for (final reflector in scene.reflectors) {
+      if (!reflector.visibleInHierarchy || reflector.surfaces.isEmpty) {
+        continue;
+      }
+      developer.Timeline.startSync('Renderer.planarReflection');
+      _renderer._drawPlanarReflection(
+        resources: frame.resources,
+        scene: scene,
+        reflector: reflector,
+        state: _renderer._planarStates[reflector] ??= _PlanarState(),
+        views: views,
+        width: frame.width,
+        height: frame.height,
+        settings: frame.settings,
+        shadows: shadows,
+        passState: frame.state,
+      );
+      developer.Timeline.finishSync();
+    }
+    frame.resources.provide(
+      FrameResourceIds.planarReflections,
+      _renderer.fallbackBlack,
+    );
+  }
+}
+
 /// The world, as a graph node — the pass everything else is ordered around.
 ///
 /// It writes `hdr_colour` and `surface_buffer`, which is what took those two
@@ -648,6 +791,10 @@ final class _SceneNode extends RenderNode {
     // `L4`: the irradiance atlas the GPU keeps, for the same reason — the
     // lit draws read it when it is there and the bake when it is not.
     FrameResourceIds.irradianceAtlas,
+    // `P4`: what the cameras into textures drew, which a material here may
+    // show, and the mirrored pictures the reflectors' surfaces lay on.
+    FrameResourceIds.renderTextures,
+    FrameResourceIds.planarReflections,
   ];
 
   /// **Both names always, including on a device that cannot attach the

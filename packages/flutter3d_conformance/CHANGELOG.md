@@ -2,6 +2,11 @@
 
 **The linking check names `Decal`**, so a backend whose bundle lacks it
 fails the check rather than the first frame with a decal in it.
+**The linking check names `PlanarReflection` and `RenderTextureEncode`**:
+the first through the three mesh vertex stages it is drawn over a
+reflector's surfaces with, the second through the full-screen one, so a
+backend whose bundle lacks either fails the check rather than the first
+frame with a reflector or a render texture in it.
 
 ## 0.8.1
 

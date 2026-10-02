@@ -17,6 +17,14 @@ projected boxes, reading four pictures, over the point the surface buffer
 names under each pixel. It writes a factor and a term for two blends, the
 albedo swapped under the light the albedo buffer lets it read back, and the
 colour an unlit surface and an emissive decal add.
+**Two stages for `P4`.** `lighting/planar_reflection.frag` lays a mirrored
+picture over a reflector's surface, read by the fragment's place in its view
+and weighted by Schlick's Fresnel; it declares no surface buffer, as
+`xray.frag` does not. `post/render_texture_encode.frag` turns a camera's
+light into the sRGB bytes a material's map is read as, turning the rows over
+where the backend draws its first row at the bottom. Both are in the bundle,
+in `kRequiredShaders` and in `stageBindings`, `uniformBlocks` and
+`typed_blocks.dart`.
 
 ## 0.8.2
 
