@@ -8,3 +8,4 @@ export 'src/bench.dart';
 export 'src/glassware.dart';
 export 'src/label.dart';
 export 'src/optics.dart';
+export 'src/slosh.dart';

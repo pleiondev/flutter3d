@@ -224,6 +224,7 @@ Vector4 writeLit(
   required double alpha,
   required Vector3 normal,
   required double roughness,
+  double passThrough = 0.0,
 }) {
   writeSurface(c, v, b, normal, roughness);
   // `g_premultiply`: a blended material's colour is weighted by its alpha,
@@ -234,7 +235,14 @@ Vector4 writeLit(
     c,
     v,
     b,
-    Vector4(fogged.x * weight, fogged.y * weight, fogged.z * weight, alpha),
+    // `g_pass_through`: a thin pane lets that share of what is behind it
+    // through the blend.
+    Vector4(
+      fogged.x * weight,
+      fogged.y * weight,
+      fogged.z * weight,
+      alpha * (1.0 - passThrough),
+    ),
   );
 }
 

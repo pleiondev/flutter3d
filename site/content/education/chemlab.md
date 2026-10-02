@@ -25,6 +25,8 @@ Five labelled test tubes, a graduated cylinder, a beaker and an Erlenmeyer flask
   <div><dt>Scroll</dt><dd>Come closer or step back</dd></div>
   <div><dt>Vessel chips</dt><dd>Pick what to pour into</dd></div>
   <div><dt>Pour slider</dt><dd>Fill or empty the vessel you picked</dd></div>
+  <div><dt>Tilt slider</dt><dd>Lean it towards you or away; move it quickly and the liquid sloshes</dd></div>
+  <div><dt>Tap</dt><dd>Knock on the glass and watch the rings</dd></div>
 </dl>
 
 ## Glass from profiles
@@ -44,28 +46,46 @@ That outline is only the outside. Swept as it is, it ends in a bare edge, and fr
 
 ## Liquid that reads as liquid
 
-The liquid is a second lathe a little inside the glass, cut at the fill level. Pouring builds a new profile with a different level and swaps the mesh, letting the old one go after the frames still drawing it.
+The liquid fills the inside of the glass up to its surface. Pouring, tilting and every frame of a slosh build a new mesh and swap it in, letting the old one go after the frames still drawing it.
 
-The first version was a coloured solid with a flat lid, and that is exactly how it looked: painted plastic. Four small changes fixed that.
+The first version was a coloured solid with a flat lid, and that is exactly how it looked: painted plastic. Several changes fixed that, and the one that mattered most was not in the liquid at all.
 
 - **A meniscus.** Water wets glass and climbs the wall a few millimetres, so the top of the profile rises at the wall and dips towards the middle. The curve catches a thin bright line where it meets the glass, which a flat cap never does.
-- **Light goes through it.** The material is the layered model with some transmission and water's index of refraction, 1.33, so you see through the colour.
-- **Thickness changes the colour.** The solution's colour is also its attenuation colour, so light that crosses more of it comes out deeper. The round bottom of a tube and its edges read darker than the middle, as they do on a real bench.
-- **A wet surface.** A clear coat with almost no roughness over the colour gives the sharp highlight a liquid has and a painted surface does not.
+- **Light goes through all of it.** The material is the layered model with full transmission and water's index of refraction, 1.33. Its colour is the volume's, an attenuation colour over thirty centimetres, and the base colour is nearly white so the colour is not given twice.
+- **It is a lens.** A column of liquid is a convex body, and `MaterialExtensions.convexVolume` tells the engine so: the thickness is the depth through the middle, and the path a ray takes inside is that depth times how squarely the bent ray meets the surface. Both the colour and how far behind the liquid the scene is read from follow that path.
+- **A wet surface.** A clear coat with no roughness over the colour gives the sharp highlight a liquid has and a painted surface does not.
 
 ```dart
-Material liquid(Vector3 colour) => Material(
+Material liquid(Vector3 colour, {required double depth}) => Material(
   lighting: LightingModel.pbrLayered,
-  baseColor: Vector4(colour.x, colour.y, colour.z, 0.8),
-  roughness: 0.03,
+  baseColor: Vector4(0.75 + 0.25 * colour.x, 0.75 + 0.25 * colour.y,
+      0.75 + 0.25 * colour.z, 1.0),
+  roughness: 0.02,
   alphaMode: MaterialAlphaMode.blend,
+  depthWrite: true,
   extensions: MaterialExtensions(
-    ior: 1.33, transmission: 0.35, thickness: 0.06,
-    attenuationColor: colour, attenuationDistance: 0.08,
-    clearcoat: 1.0, clearcoatRoughness: 0.02,
+    ior: 1.33, transmission: 1.0, thickness: depth, convexVolume: true,
+    attenuationColor: colour, attenuationDistance: 0.3,
+    clearcoat: 1.0, clearcoatRoughness: 0.0,
   ),
 );
 ```
+
+I expected the convex volume to make the edges of a column paler than its middle, and it hardly does. A ray entering a cylinder of water near its edge is bent towards the axis, so even there it crosses two thirds of the middle's depth. That is true of real tubes too, and it is not what tells liquid from plastic. What does is the world seen through it: the bench, the horizon and the shadows behind a tube, flipped and stretched. For a long time the liquids showed none of that, and the reason was the table. It was slightly transparent, for the reflections under it, so it was drawn after the liquids and was missing from the copy of the scene they read what is behind them from. Through a column of water they saw the sky behind the bench, and clear water came out as a white rod. Made opaque, the table is in the copy, and every tube became a lens.
+
+The glass needed a fix in the engine too. A thin wall bends nothing, so what is behind it is exactly what the frame already holds where it is drawn. The engine used to read it from the copy instead, and the copy is taken before any transmissive draw, so a tube's wall showed the table where its liquid stood and washed the colour out. A blended material that transmits and has no thickness is now composited over the frame: it adds what it reflects and lets the rest through by its alpha, so the liquid shows through its glass.
+
+## Liquid that moves
+
+A liquid's surface keeps level while the glass tilts, and it lags. None of that needs a fluid solver, because a liquid in a round vessel has known modes of oscillation: shapes J_m(ξr/R)·cos mθ, where ξ is a zero of the derivative of J_m so the surface meets the wall square, each ringing at ω² = g·k·tanh(k·h) with k = ξ/R. For a tube this size the first one rocks about two and a half times a second.
+
+- **Tilting.** The surface settles to the plane that is level in the world, and that plane is kept exactly. What the bench follows is how far the liquid is from it, along the first three modes with m = 1. When the glass turns faster than the liquid can follow, the plane moves and the liquid stays where it was, so each mode is left off its rest by its share of the change in slope. A plane expands over those modes with the share 2R / ((ξ² − 1)·J₁(ξ)): the first mode, the sloshing, takes most of it, and the other two are the finer waves that run across the surface as it rocks.
+- **Tapping.** A knock starts the axisymmetric modes, at the zeros of J₁: rings that run out from the middle and fade. None of them moves liquid in or out of the middle, so the level stays where it was poured.
+- **Damping.** Water in glass this size rocks four or five times before it is still, and a finer wave dies sooner, roughly with the root of its frequency.
+
+Each mode is a damped oscillator stepped six hundred times a second, which costs nothing, and the mesh is rebuilt every frame while anything moves: up the wall at each angle to where the surface meets it, then across the surface to the middle, with the normals taken from the modes' gradients. When the last mode is under a tenth of a millimetre the ticker stops and the bench stops drawing.
+
+A leaning vessel turns about where it stands and is lifted so its lowest point stays on the bench. The cut-by-cut shadows are worked out for upright glass, so while a vessel leans its card is put away and the glass and liquid cast for themselves.
 
 ## Shadows that know what the material lets through
 
@@ -93,11 +113,11 @@ It has limits. The atlas keeps the colour, not where along the light it was pick
 
 ## Refraction, caustics and reflections
 
-**Refraction comes from the engine.** When a frame holds a material with transmission, the renderer draws the opaque scene first, copies it, and the glass and the liquids read that copy offset along the ray their index bends. Look at the bench through a tube and its edge kinks. Two limits come with it. It is screen-space, so it can only bend what is already on the screen. And the liquid is not in the copy, since it is drawn after it, so the glass in front of a liquid bends the bench behind it but not the liquid. The glass has a centimetre of thickness for this; with none it is a sheet that bends nothing.
+**Refraction comes from the engine.** When a frame holds a material with transmission, the renderer draws the opaque scene first, copies it, and the liquids read that copy offset along the ray their index bends. It is screen-space, so it can only bend what is already on the screen, and one liquid does not see another through itself: both read the same copy. The glass is thin-walled and bends nothing, so it is composited over whatever is behind it, liquid included.
 
 **The caustics come from the optics** described above: the bright line the liquid focuses is where the traced beams pile up on the bench. An earlier version put a small coloured spot light in each shadow instead, which looked right from a distance and was wrong in every detail, and cost a light per vessel out of the eight the engine gives an object.
 
-**The reflections in the tabletop are geometry.** Screen-space reflections were the first try, and they reflected only the labels: the pass reads what the opaque pass drew, and the glass and the liquids come after it. A flat mirror, though, has an exact answer. Each liquid and label is drawn again, scaled by -1 in height so it hangs under the tabletop, flat and a little darker, and the top lets a twelfth of what is under it through. The copies are opaque, so they are drawn before the top and never sorted against it. Blended surfaces write no depth, so the top first laid itself over the lower half of every liquid; the liquids now write theirs.
+**The reflections in the tabletop are geometry.** Screen-space reflections were the first try, and they reflected only the labels: the pass reads what the opaque pass drew, and the glass and the liquids come after it. A flat mirror, though, has an exact answer. Each liquid and label is drawn again, scaled by -1 in height so it hangs under the tabletop, flat and a little darker. The copies used to show through a top a twelfth transparent; now the top is opaque, for the refraction above, and the copies are laid over it at a twelfth of their strength with `CompareFunction.greater`, which draws them only where they are behind the top. That is where a mirror shows them, and nowhere else.
 
 ## Labels without a decal
 
@@ -123,7 +143,7 @@ The camera is the engine's `OrbitController`, with tighter limits than its defau
 
 - **Shadows of everything else.** The optics are worked out for surfaces of revolution under one sun. A vessel's light passing through another vessel is not followed, and a lamp casts ordinary shadows.
 - **The glass in the mirror.** The reflections carry the liquids and the labels; the glass itself is left out, since a copy of something nearly invisible is nearly invisible.
-- **Movement.** When you pour, the surface should rock and settle. A meniscus that sways for a second after the level changes would do it.
+- **Waves that break.** The modes are linear, so a hard enough jerk makes a surface that would in reality splash simply rock harder. Lean a full tube far enough and the liquid would spill; here it stops at the rim.
 
 ## Tested without a GPU
 
