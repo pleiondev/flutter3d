@@ -242,6 +242,17 @@ const NAV = [
     ],
   },
   {
+    // Teaching: labs that can be checked, the LTI bridge, and a chemistry
+    // bench to start from. Not a genre, so it does not count as one.
+    section: 'Education',
+    slug: 'education',
+    badge: 'labs',
+    pages: [
+      { file: 'education/index.md', url: '/education/', title: 'What there is for teaching' },
+      { file: 'education/chemlab.md', url: '/education/chemlab/', title: 'Chemistry bench', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Showcase',
     slug: 'showcase',
     badge: 'engine',
