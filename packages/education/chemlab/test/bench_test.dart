@@ -122,9 +122,7 @@ void main() {
     final kit = cpuTestDevice(width: 8, height: 8);
     final bench = Bench(kit.device);
     final tube = bench.vessels.first;
-    final glass = bench.scene.meshes.firstWhere(
-      (n) => n.name == '${tube.name} glass',
-    );
+    final glass = tube.glassNode;
     expect(glass.castsShadow, isFalse);
     expect(tube.liquid.castsShadow, isFalse);
     expect(glass.receivesTranslucentShadows, isFalse);

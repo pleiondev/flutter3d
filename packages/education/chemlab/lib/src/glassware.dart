@@ -179,9 +179,10 @@ Material glass() => Material(
   roughness: 0.04,
   alphaMode: MaterialAlphaMode.blend,
   doubleSided: true,
-  // A few millimetres of thickness, so what is behind the glass is bent a
-  // little rather than seen straight through a sheet with no depth.
-  extensions: MaterialExtensions(transmission: 0.95, ior: 1.5, thickness: 0.01),
+  // Thin-walled, as glTF means it: no thickness. A tube's wall is a few
+  // millimetres of glass round air, and given a volume the engine's caustics
+  // would follow light through it as through a solid glass rod.
+  extensions: MaterialExtensions(transmission: 0.95, ior: 1.5),
 );
 
 /// A solution: clear liquid that light passes through, tinted by what it
@@ -227,6 +228,17 @@ Material paper([TextureHandle? label]) =>
 final RenderSettings benchSettings = RenderSettings(
   sky: labSky,
   shadows: const ShadowSettings(translucentCasters: true),
+);
+
+/// [benchSettings] with the engine's own caustics on, for a `Bench` made with
+/// `photons: true`.
+final RenderSettings photonSettings = RenderSettings(
+  sky: labSky,
+  shadows: const ShadowSettings(
+    translucentCasters: true,
+    caustics: true,
+    causticPhotons: 128,
+  ),
 );
 
 /// The room the bench stands in, as a sky: bright overhead, a pale horizon
