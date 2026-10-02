@@ -3230,8 +3230,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -3406,8 +3407,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -5138,8 +5156,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -5314,8 +5333,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -7532,8 +7568,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -7708,8 +7745,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -10134,8 +10188,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -10310,8 +10365,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -12771,8 +12843,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -12947,8 +13020,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -16237,8 +16327,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -16413,8 +16504,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -19671,8 +19779,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -19847,8 +19956,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -34841,8 +34967,9 @@ layout(std140) uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -35017,8 +35144,25 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  } else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern

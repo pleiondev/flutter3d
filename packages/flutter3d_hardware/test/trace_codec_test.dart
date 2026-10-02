@@ -126,6 +126,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
   const TraceSetCullMode(0, CullMode.frontFace),
   const TraceSetWindingOrder(0, WindingOrder.clockwise),
   const TraceSetDepthWrite(0, false),
+  const TraceSetAlphaToCoverage(0, true),
   const TraceSetDepthCompare(0, CompareFunction.greaterEqual),
   const TraceSetStencil(
     0,
@@ -222,7 +223,7 @@ void main() {
     // round trip below never tries.
     final kinds = _everyEvent().map((e) => e.kind).toList();
     expect(kinds.toSet(), hasLength(kinds.length));
-    expect(kinds, hasLength(47));
+    expect(kinds, hasLength(48));
   });
 
   test('a file read back writes the same file', () {

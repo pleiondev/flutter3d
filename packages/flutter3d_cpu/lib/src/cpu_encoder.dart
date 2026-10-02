@@ -181,6 +181,10 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void setDepthWrite(bool enabled) => _depthWrite = enabled;
 
+  /// Nothing — `P7`: one sample a pixel has no coverage to spread; `supportsAlphaToCoverage` is false.
+  @override
+  void setAlphaToCoverage(bool enabled) {}
+
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
 

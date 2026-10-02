@@ -54,6 +54,9 @@ final class FakePass implements CommandEncoder {
   // usually does not.
   PrimitiveType? primitiveType;
   PolygonMode? polygonMode;
+
+  /// The last `setAlphaToCoverage`, or null when the pass never set it.
+  bool? alphaToCoverage;
   CullMode? cullMode;
   WindingOrder? windingOrder;
   bool? depthWrite;
@@ -87,6 +90,12 @@ final class FakePass implements CommandEncoder {
   void setPolygonMode(PolygonMode mode) {
     polygonMode = mode;
     commands.add(RecordedPolygonMode(mode));
+  }
+
+  @override
+  void setAlphaToCoverage(bool enabled) {
+    alphaToCoverage = enabled;
+    commands.add(RecordedAlphaToCoverage(enabled));
   }
 
   @override

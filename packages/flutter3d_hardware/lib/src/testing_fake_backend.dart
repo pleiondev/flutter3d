@@ -142,6 +142,7 @@ final class FakeBackend implements GraphicsDevice {
   FakeBackend({
     Set<String> missingShaders = const <String>{},
     this.supportsWireframe = true,
+    this.supportsAlphaToCoverage = true,
     this.supportsStencil = true,
     this.supportsRenderToMip = true,
     this.unsupportedFormats = const <TextureFormat>{},
@@ -223,6 +224,12 @@ final class FakeBackend implements GraphicsDevice {
   /// that would refuse it mid-frame.
   @override
   final bool supportsWireframe;
+
+  /// Settable for the reason [supportsWireframe] is: two of the four real
+  /// backends say no, and the engine is meant to draw the hard alpha test
+  /// there and report it.
+  @override
+  final bool supportsAlphaToCoverage;
 
   /// True, because a fake has nothing to be incapable with. The real answer is
   /// a device property, and the two backends that have one disagree.

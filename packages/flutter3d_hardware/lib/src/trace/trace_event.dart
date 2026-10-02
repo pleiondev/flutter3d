@@ -190,6 +190,10 @@ sealed class TraceEvent {
       asInt(j['pass']),
       j['value']! as bool,
     ),
+    'setAlphaToCoverage' => TraceSetAlphaToCoverage(
+      asInt(j['pass']),
+      j['value']! as bool,
+    ),
     'setDepthCompare' => TraceSetDepthCompare(
       asInt(j['pass']),
       byName(CompareFunction.values, j['value']),
@@ -695,6 +699,20 @@ final class TraceSetWindingOrder extends TracePassEvent {
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
     'value': value.name,
+  };
+}
+
+/// `PassEncoder.setAlphaToCoverage` — `P7`. A trace recorded before it had
+/// none, which replays as it was recorded: off.
+final class TraceSetAlphaToCoverage extends TracePassEvent {
+  const TraceSetAlphaToCoverage(super.pass, this.value);
+  final bool value;
+  @override
+  String get kind => 'setAlphaToCoverage';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'pass': pass,
+    'value': value,
   };
 }
 

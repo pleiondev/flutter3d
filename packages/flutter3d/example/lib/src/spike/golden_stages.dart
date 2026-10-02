@@ -1172,6 +1172,60 @@ abstract final class GoldenStages {
 
   // ------------------------------------------------------------------ P7
 
+  /// `alpha-to-coverage`: six leaf cards lying at different turns, each a
+  /// disc of green whose alpha falls from one at its middle to nought at its
+  /// rim, masked at a half with `Material.alphaToCoverage`. Where the device
+  /// can — WebGL2 and WebGPU, in their multisampled scene pass — the disc's
+  /// edge is the resolve's smooth one; Impeller and the software rasteriser
+  /// draw the same disc cut hard at the cutoff, so this scene's references
+  /// differ between the two pairs at the edges and nowhere else.
+  static Future<GoldenStaged> alphaToCoverage(GoldenStage stage) async {
+    final device = stage.device;
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dx = (x + 0.5) / size - 0.5;
+        final dy = (y + 0.5) / size - 0.5;
+        final r = math.sqrt(dx * dx + dy * dy);
+        final i = (y * size + x) * 4;
+        pixels
+          ..[i] = 60
+          ..[i + 1] = 170
+          ..[i + 2] = 70
+          ..[i + 3] = ((1.0 - r / 0.5).clamp(0.0, 1.0) * 255).round();
+      }
+    }
+    final leaf = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    )!;
+    final card = DeviceMesh.upload(
+      device,
+      const PlaneShape(width: 1.6, depth: 1.6).build(),
+    );
+    final material = Material(
+      lighting: LightingModel.unlit,
+      albedo: leaf,
+      alphaMode: MaterialAlphaMode.mask,
+      alphaCutoff: 0.5,
+      alphaToCoverage: true,
+      doubleSided: true,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        for (var i = 0; i < 6; i++)
+          MeshNode(card, material)
+            ..setPosition((i % 3 - 1) * 1.7, (i ~/ 3 - 0.5) * 1.6, 0.0)
+            ..setRotationYawPitchRoll(i * 0.4, math.pi / 2 - 0.3 * i, i * 0.5),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.0, 6.0), Vector3.zero()),
+    );
+  }
+
   /// `orthographic-metal`: three metal spheres, rough to smooth, on a floor
   /// that ends under a sky, in light fog, through an orthographic camera
   /// looking down at them from the corner — the three things that read the

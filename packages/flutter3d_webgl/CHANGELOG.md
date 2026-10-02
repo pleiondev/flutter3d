@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **Alpha to coverage**: `SAMPLE_ALPHA_TO_COVERAGE`, off at every pass's
+  start; `supportsAlphaToCoverage` is true where the context multisamples.
+
 - **The generated tables carry the orthographic camera's paths**, and
   `orthographic-metal` is in the browser reference set.
 

@@ -230,7 +230,7 @@ Surface? readSurface(
     toLinear(texel.y) * toLinear(tint.y) * v[kVColour + 1],
     toLinear(texel.z) * toLinear(tint.z) * v[kVColour + 2],
   );
-  final alpha = texel.w * tint.w * v[kVColour + 3];
+  final textured = texel.w * tint.w * v[kVColour + 3];
 
   // Alpha masking, glTF's third alpha mode, before anything else for the
   // reason the GLSL gives: a discarded fragment should not pay for the
@@ -239,8 +239,14 @@ Surface? readSurface(
   final cutoff = bindings
       .vec4('FragInfo', 'material2', Vector4(-1.0, 1.0, 1.0, 1.0))
       .x;
-  if (cutoff >= 0.0) {
-    if (alpha < cutoff) return null;
+  if (cutoff > 1.0) {
+    // `P7`'s coverage, which never reaches this rasteriser: it answers false
+    // to `supportsAlphaToCoverage`, so the engine writes the plain cutoff.
+    // Cut at the cutoff it carries rather than keep a fragment that one
+    // sample a pixel has no coverage to spread.
+    if (textured < cutoff - 1.0) return null;
+  } else if (cutoff >= 0.0) {
+    if (textured < cutoff) return null;
   } else if (cutoff < -1.5) {
     // `gfx-16n`: hashed, the fourth mode. Anchored to world position rather
     // than to the screen so the pattern travels with the surface — see
@@ -256,8 +262,10 @@ Surface? readSurface(
           anchored.x * 12.9898 + anchored.y * 78.233 + anchored.z * 37.719,
         ) *
         43758.5453;
-    if (alpha < t - t.floorToDouble()) return null;
+    if (textured < t - t.floorToDouble()) return null;
   }
+  // What survives a mask's cut is opaque, as `surface.glsl` writes it.
+  final alpha = cutoff >= 0.0 && cutoff <= 1.0 ? 1.0 : textured;
 
   final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
   final length = normal.length;

@@ -108,6 +108,9 @@ final class RecordingDevice implements GraphicsDevice {
   bool get supportsRenderToMip => inner.supportsRenderToMip;
   @override
   bool get supportsWireframe => inner.supportsWireframe;
+
+  @override
+  bool get supportsAlphaToCoverage => inner.supportsAlphaToCoverage;
   @override
   bool get supportsStencil => inner.supportsStencil;
   @override
@@ -473,6 +476,12 @@ final class _RecordingEncoder implements CommandEncoder {
   void setWindingOrder(WindingOrder order) {
     _events.add(TraceSetWindingOrder(_pass, order));
     _inner.setWindingOrder(order);
+  }
+
+  @override
+  void setAlphaToCoverage(bool enabled) {
+    _events.add(TraceSetAlphaToCoverage(_pass, enabled));
+    _inner.setAlphaToCoverage(enabled);
   }
 
   @override

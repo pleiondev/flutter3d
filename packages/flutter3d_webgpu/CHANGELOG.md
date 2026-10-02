@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **Alpha to coverage**: a pipeline's `alphaToCoverageEnabled`, part of its
+  signature, set only where the pass multisamples.
+
 - **The generated tables carry the orthographic camera's paths**, and
   `orthographic-metal` is in the WebGPU reference set.
 

@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **`Material.alphaToCoverage`** antialiases a masked surface's edge by the
+  multisample resolve rather than cutting it at the threshold, on WebGL2 and
+  WebGPU. Elsewhere the hard cutoff is drawn and
+  `FrameResult.alphaToCoverageDeclined` says so. Off by default.
+
+- **A masked surface writes an opaque alpha once it has survived its cut.**
+  It wrote the texture's alpha into the frame, and anything reading the
+  frame as premultiplied brightened every leaf towards its rim.
+
 - **`MeshNode.drawOrder`** puts nodes that share a material in an order:
   it adds to the material's `drawBucket`, outranks every other sort term in
   both halves of the list, and is never merged across by the batching. Nought

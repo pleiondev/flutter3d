@@ -123,6 +123,7 @@ final class FrameResult {
     this.shadowsDenied = 0,
     this.batchedDraws = 0,
     this.wireframeDeclined = false,
+    this.alphaToCoverageDeclined = false,
     this.targetBytes = 0,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
@@ -259,6 +260,11 @@ final class FrameResult {
   /// substituting was undone a layer up. Reported here for the same reason
   /// [lightsDropped] is: a setting that did nothing should say so.
   final bool wireframeDeclined;
+
+  /// Whether a material asked for `Material.alphaToCoverage` and was drawn
+  /// with its hard cutoff instead — `P7`: the device has none (Impeller, the
+  /// software rasteriser), or the scene pass gave its multisampling up.
+  final bool alphaToCoverageDeclined;
 
   /// What the targets this frame drew into or read from hold, in bytes —
   /// `P6`. Each texture once, its base level, every slice and sample: the

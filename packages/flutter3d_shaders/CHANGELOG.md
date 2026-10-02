@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **A masked cutoff above one is drawn as coverage** — `P7`: `ReadSurface`
+  keeps the fragment and sharpens its alpha over a pixel with `fwidth`. A
+  plain cutoff leaves the surviving fragment's alpha at one.
+
 - **`FogInfo.projection`, `Orthographic`, `TowardsEye`** — `P7`: the lit
   models, the planar reflection's Fresnel and `EyeDistance` ask whether the
   camera is orthographic. `light_shafts.frag` starts its march on the eye's

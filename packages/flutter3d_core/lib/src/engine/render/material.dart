@@ -65,6 +65,7 @@ final class Material {
     this.emissiveStrength = 1.0,
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
+    this.alphaToCoverage = false,
     this.doubleSided = false,
     this.fogged = true,
     this.extensions,
@@ -256,6 +257,19 @@ final class Material {
 
   MaterialAlphaMode alphaMode;
   double alphaCutoff;
+
+  /// A masked surface's edge antialiased by the multisample resolve rather
+  /// than cut at [alphaCutoff] — `P7`.
+  ///
+  /// Read only under [MaterialAlphaMode.mask]. The alpha is sharpened round
+  /// the cutoff to a pixel's width and handed to the hardware as coverage, so
+  /// a leaf, a fence or a grille is as smooth at its edge as a triangle is.
+  /// **Two backends of four can**: WebGL2 and WebGPU, in a multisampled scene
+  /// pass. Elsewhere — Impeller, the software rasteriser, a scene pass that
+  /// gave its multisampling up — the material draws the hard cutoff it draws
+  /// without this, and `FrameResult.alphaToCoverageDeclined` says so. Off by
+  /// default.
+  bool alphaToCoverage;
   bool doubleSided;
 
   /// Whether the frame's fog reaches this material. True for almost
@@ -397,6 +411,7 @@ final class Material {
           emissiveStrength: emissiveStrength,
           alphaMode: alphaMode,
           alphaCutoff: alphaCutoff,
+          alphaToCoverage: alphaToCoverage,
           doubleSided: doubleSided,
           fogged: fogged,
           extensions: extensions,

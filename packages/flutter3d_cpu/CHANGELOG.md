@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **A mask's surviving fragment is opaque**, as the GLSL now writes it.
+
 - **The orthographic camera in software**: `towardsEye`, `eyeDistance` and
   the light shafts' start follow the GLSL.
 

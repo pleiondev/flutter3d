@@ -54,8 +54,15 @@ import 'package:test/test.dart';
 /// multisampling on silhouettes, and an additive quad's edge deposits too
 /// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
-  'orthographic-metal': 0.01,
-  'debug-view-split': 0.01,
+  // 0.005% measured: both draw the hard cutoff, Impeller and this set alike.
+  'alpha-to-coverage': 0.01,
+  // 0.575% measured, on the spheres' and the floor's edges, which Impeller
+  // multisamples and this set does not; the highlights, fog and sky agree.
+  // Recorded first from an Impeller build by mistake, which read 0%.
+  'orthographic-metal': 0.65,
+  // 0.567% measured, on the silhouette and the floor's far edge, which
+  // Impeller multisamples; both halves of the wipe agree inside.
+  'debug-view-split': 0.65,
   // 0.025% measured, down from 0.633%. Screen-space reflections are a march,
   // and what is left is the two rasterisers disagreeing about where a ray ends
   // — an edge inside the reflection rather than an edge in the scene. The rest
@@ -252,14 +259,14 @@ const Map<String, double> _budgets = <String, double>{
   // 1.501% measured: the upscale sharpens the rasteriser's edges and
   // Impeller's multisampled ones differently.
   'easu-half': 1.66,
-  // 0.000% measured, where `shadow-teapot` without it sits at half a
-  // percent: the two rasterisers' staircases differ, and SMAA rebuilds the
-  // same line behind both.
-  'lens-flare': 0.01,
-  // 0.000% measured: the bend resamples the picture through the filter,
-  // which smooths the two rasterisers' staircases into one.
-  'lens-distortion': 0.05,
-  'smaa-teapot': 0.05,
+  // 0.028% measured, on the panel's edge; the flare's ghosts agree.
+  'lens-flare': 0.04,
+  // 0.725% measured, on the silhouette: `shadow-teapot`'s edge magnified
+  // by the barrel.
+  'lens-distortion': 0.8,
+  // 0.778% measured: SMAA here smooths edges that Impeller has already
+  // multisampled, so the two smooth different steps by different amounts.
+  'smaa-teapot': 0.85,
   'evsm-soft': 0.5,
   // 0.069% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of

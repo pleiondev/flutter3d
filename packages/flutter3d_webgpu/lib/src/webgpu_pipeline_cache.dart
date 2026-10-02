@@ -105,6 +105,7 @@ final class WebGpuPipelineSignature {
     required List<String> colorFormats,
     required this.depthFormat,
     required this.sampleCount,
+    this.alphaToCoverage = false,
     this.vertexModule,
     this.fragmentModule,
   }) : blends = List<BlendState?>.unmodifiable(blends),
@@ -160,6 +161,10 @@ final class WebGpuPipelineSignature {
   final String? depthFormat;
   final int sampleCount;
 
+  /// `alphaToCoverageEnabled` — `P7`. Part of a pipeline in WebGPU, so a
+  /// masked material drawn with and without it is two.
+  final bool alphaToCoverage;
+
   @override
   bool operator ==(Object other) =>
       other is WebGpuPipelineSignature &&
@@ -176,6 +181,7 @@ final class WebGpuPipelineSignature {
       other.stencil == stencil &&
       other.depthFormat == depthFormat &&
       other.sampleCount == sampleCount &&
+      other.alphaToCoverage == alphaToCoverage &&
       _same<BlendState?>(other.blends, blends) &&
       _same<String>(other.colorFormats, colorFormats);
 
@@ -204,6 +210,7 @@ final class WebGpuPipelineSignature {
     Object.hashAll(colorFormats),
     depthFormat,
     sampleCount,
+    alphaToCoverage,
   );
 
   @override
@@ -214,7 +221,8 @@ final class WebGpuPipelineSignature {
       'stencil: ${stencil ?? 'off'}, '
       'blend: ${blends.map((BlendState? b) => b == null ? 'off' : 'on').join('+')}, '
       'targets: ${colorFormats.join('+')}'
-      '${depthFormat == null ? '' : '/$depthFormat'}, x$sampleCount)';
+      '${depthFormat == null ? '' : '/$depthFormat'}, x$sampleCount'
+      '${alphaToCoverage ? ', alpha to coverage' : ''})';
 }
 
 /// The pipelines this device has built, by the signature that produced each.
