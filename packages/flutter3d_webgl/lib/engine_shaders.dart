@@ -31449,11 +31449,22 @@ void main() {
               texture(base_color_texture, v_texcoord).rgb;
   vec3 body = vec3(1.0 - opacity) + opacity * transmission * tint;
 
-  float facing = abs(dot(normalize(v_normal), transmittance_info.light.xyz));
+  float facing = clamp(
+      abs(dot(normalize(v_normal), transmittance_info.light.xyz)), 0.0, 1.0);
   float f0 = clamp(transmittance_info.params.y, 0.0, 1.0);
-  float fresnel = f0 + (1.0 - f0) * pow(1.0 - clamp(facing, 0.0, 1.0), 5.0);
+  float fresnel = f0 + (1.0 - f0) * pow(1.0 - facing, 5.0);
+  // **What is reflected is lost to the shadow only as far as it is turned
+  // away.** Light meeting a surface at an angle θ to its normal and
+  // reflected leaves deflected by π − 2θ: back where it came from head-on,
+  // and hardly turned at all at grazing, where Fresnel reflects nearly all
+  // of it — it carries on down and lands beside where it would have. Taken
+  // as lost, that grazing light gave a clear glass tube's shadow a dark
+  // outline as wide as a texel or two, where a real one has a hairline. The
+  // share lost is 1 − cos(π − 2θ) = 2 cos²θ, held to one: whole from about
+  // 45° to head-on, nothing at grazing.
+  float lost = fresnel * min(2.0 * facing * facing, 1.0);
 
-  vec3 through = sqrt(max(body, vec3(0.0))) * (1.0 - fresnel);
+  vec3 through = sqrt(max(body, vec3(0.0))) * (1.0 - lost);
   // A caster whose photons are followed (`ShadowSettings.caustics`) stops
   // all of the light here; the photon pass gives it back where it lands.
   if (transmittance_info.params.z > 0.5) through = vec3(0.0);

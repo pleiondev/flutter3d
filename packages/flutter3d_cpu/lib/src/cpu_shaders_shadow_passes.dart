@@ -124,11 +124,14 @@ final class ShadowTransmittanceShader implements CpuFragmentShader {
     final f0 = params.y.clamp(0.0, 1.0);
     final fresnel =
         f0 + (1.0 - f0) * math.pow(1.0 - facing.clamp(0.0, 1.0), 5.0);
+    // What is reflected is lost only as far as it is turned away: 2 cos²θ
+    // of it, held to one — `shadow_transmittance.frag` has the reasons.
+    final lost = fresnel * math.min(2.0 * facing * facing, 1.0);
     // A caster whose photons are followed stops all of its light here.
     final stops = params.z > 0.5;
     double through(double channel, double mapped) => stops
         ? 0.0
-        : math.sqrt(math.max(body(channel, mapped), 0.0)) * (1.0 - fresnel);
+        : math.sqrt(math.max(body(channel, mapped), 0.0)) * (1.0 - lost);
     return Vector4(
       0.0,
       1.0 - through(colour.x, texel.x),
