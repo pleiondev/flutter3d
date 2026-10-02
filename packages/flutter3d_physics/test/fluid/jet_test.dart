@@ -220,4 +220,3 @@ void main() {
     expect(furthest(1.0), greaterThan(r + wall + 0.05));
   });
 }
-
