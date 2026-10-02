@@ -22,6 +22,28 @@ test('the crypt still looks like the crypt', () async {
 The first run records the reference and says so. Later runs fail when the
 picture changes, and the message says by how much and how to re-record.
 
+## Replaying a recorded run
+
+A `.f3drun` your game recorded is a test too:
+
+```dart
+void main() {
+  testReplay(
+    'test/tapes/ascent.f3drun',
+    start: Ascent.open, // builds a ReplaySubject on the device it is given
+    goldensAt: <int>[120, 600],
+  );
+}
+```
+
+The replay runs on the software backend. At every checkpoint the tape holds
+(or only those you name in `digestAt`) the simulation's digest has to match the
+recorded one, and the frames at `goldensAt` are compared with
+`test/goldens/ascent-120.png` and `ascent-600.png`. If the level changed since
+the tape was recorded, the test says that before stepping, because a
+divergence at step 25 would send you looking in the wrong place.
+`apps/flutter3d_demo_platformer/test/replay_test.dart` is a complete example.
+
 ## Why this can exist here and nowhere else
 
 `flutter3d_cpu` is a full backend: a software rasteriser that passes the same

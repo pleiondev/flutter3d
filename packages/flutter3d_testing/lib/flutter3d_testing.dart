@@ -45,3 +45,4 @@ export 'src/quality_table_builder.dart';
 export 'src/render_frame.dart';
 export 'src/replay_golden.dart';
 export 'src/replay_pacing.dart';
+export 'src/test_replay.dart';
