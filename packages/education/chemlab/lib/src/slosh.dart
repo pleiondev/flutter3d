@@ -153,6 +153,14 @@ final class Slosh {
         quiet(rings, _ringRates, ringZeros);
   }
 
+  /// Sets where the surface settles without leaving the liquid behind, and
+  /// puts it there: for a glass turned past where the waves are followed.
+  void rest(double x, double z) {
+    _targetX = x;
+    _targetZ = z;
+    settle();
+  }
+
   /// Puts the surface where it settles, at once.
   void settle() {
     for (final list in [offX, offZ, _rateX, _rateZ, rings, _ringRates]) {

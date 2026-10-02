@@ -54,8 +54,14 @@ final class Vessel {
   /// How full it is now. State: pouring changes it.
   double level;
 
-  /// How far it leans towards the front of the bench, in radians. State.
+  /// How far it leans, in radians, and about which horizontal axis. State.
   double tilt = 0.0;
+  Vector3 leanAxis = Vector3(1, 0, 0);
+
+  /// How far it is lifted out of the row to lean, from nought, standing in
+  /// its place, to one, clear of the other glass. State: [Bench.step] moves
+  /// it.
+  double lift = 0.0;
 
   /// The inside of the glass, as far up as it may be filled: [liquidAt]'s
   /// outline without its cap, which is where the liquid meets the glass
@@ -427,6 +433,18 @@ final class Bench {
     vessel.liquidReflection.visible = !vessel.empty;
     if (vessel.empty) return;
     final old = vessel.liquid.mesh;
+    // Tipped past where the waves are followed: the plane level in the
+    // world that holds its volume, as in a pour.
+    if (shape == null && vessel.tilt.abs() > waveTilt) {
+      final m = vessel.body.localMatrix;
+      final up = Vector3(m.entry(1, 0), m.entry(1, 1), m.entry(1, 2));
+      final volume = vessel.volumeAt(vessel.level);
+      shape = cutLiquid(
+        wall: vessel.wall,
+        up: up,
+        height: surfaceFor(vessel.wall, up, volume),
+      );
+    }
     vessel.liquid.mesh = shape == null
         ? _liquidMesh(vessel)
         : DeviceMesh.upload(device, shape);
@@ -434,39 +452,138 @@ final class Bench {
     if (old is DeviceMesh) (retire ?? _releaseNow)(old);
   }
 
-  /// The most a vessel leans either way: further, and the tall tubes reach
-  /// over their neighbours' place in the row.
-  static const double maxTilt = 0.5;
+  /// The furthest a surface is followed with its waves; past it the glass
+  /// is tipped far enough that the surface is cut flat by the plane that
+  /// holds the liquid's volume, as in a pour.
+  static const double waveTilt = 0.5;
 
-  /// Leans [vessel] by [angle] radians towards the front of the bench, about
-  /// where it stands, lifted so its lowest point still rests on the bench.
-  /// The glass goes at once; the liquid follows by [step], late.
-  void lean(Vessel vessel, double angle) {
+  /// The furthest [vessel] may lean either way: a little short of where what
+  /// it holds reaches the lip and would run out on the bench.
+  double maxLean(Vessel vessel) => math.max(
+    0.05,
+    math.min(1.45, _tiltHolding(vessel, vessel.volumeAt(vessel.level)) - 0.08),
+  );
+
+  /// How far [vessel] must be lifted to lean as it does without passing
+  /// through the glass standing round it.
+  ///
+  /// Walked up its axis: wherever the tipped glass is over another vessel's
+  /// footprint, its underside there has to clear that vessel's top by a
+  /// centimetre. A vessel leaning away from its neighbours is hardly lifted;
+  /// one leaning over a row of tubes goes over their mouths.
+  double _clearance(Vessel vessel) {
+    if (vessel.tilt == 0.0) return 0.0;
+    final turn = Matrix3.zero()
+      ..setFrom(
+        Quaternion.axisAngle(vessel.leanAxis, vessel.tilt).asRotationMatrix(),
+      );
+    final top = vessel.glass.map((p) => p.y).reduce(math.max);
+    final sideways = math.sin(vessel.tilt).abs();
+    var lowest = double.infinity;
+    for (final p in [...vessel.glass, ...?vessel.foot]) {
+      for (var k = 0; k < 24; k++) {
+        final a = 2.0 * math.pi * k / 24;
+        lowest = math.min(
+          lowest,
+          turn
+              .transformed(Vector3(p.x * math.cos(a), p.y, p.x * math.sin(a)))
+              .y,
+        );
+      }
+    }
+    var need = 0.0;
+    for (var i = 0; i <= 48; i++) {
+      final h = top * i / 48;
+      final r = radiusAt(vessel.glass, h) ?? 0.0;
+      final axis = turn.transformed(Vector3(0, h, 0));
+      // Its underside here, standing on the bench before any lift.
+      final under = axis.y - lowest - r * sideways;
+      for (final other in vessels) {
+        if (identical(other, vessel) || other.tilt != 0.0) continue;
+        // Its footprint: the glass, or the foot it stands on if wider.
+        final reach = [
+          ...other.glass,
+          ...?other.foot,
+        ].map((p) => p.x).reduce(math.max);
+        final dx = vessel.at.x + axis.x - other.at.x;
+        final dz = vessel.at.z + axis.z - other.at.z;
+        if (math.sqrt(dx * dx + dz * dz) > reach + r + 0.01) continue;
+        final otherTop = other.glass.map((p) => p.y).reduce(math.max);
+        need = math.max(need, otherTop + 0.01 - under);
+      }
+    }
+    return need;
+  }
+
+  /// Leans [vessel] by [angle] radians about [across], a horizontal axis —
+  /// the way the camera looks, so it leans in the picture — after lifting
+  /// it out of the row ([step] lifts and lowers it). The glass turns at once;
+  /// the liquid keeps level and follows late.
+  void lean(Vessel vessel, double angle, {Vector3? across}) {
     if (_transfer != null) return;
-    vessel.tilt = angle.clamp(-maxTilt, maxTilt);
-    final turn = Quaternion.axisAngle(Vector3(1, 0, 0), vessel.tilt);
-    final c = math.cos(vessel.tilt);
-    final s = math.sin(vessel.tilt).abs();
-    // The lowest point of the glass, and of its foot, once turned.
-    final lowest = [
-      ...vessel.glass,
-      ...?vessel.foot,
-    ].map((p) => p.y * c - p.x * s).reduce(math.min);
-    vessel.body
-      ..setRotation(turn)
-      ..setPosition(vessel.at.x, vessel.at.y - lowest, vessel.at.z);
-    // The mirror of a turn about x is the opposite turn.
-    vessel.mirror
-      ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), -vessel.tilt))
-      ..setPosition(vessel.at.x, -(vessel.at.y - lowest), vessel.at.z);
-    // Level in the world: the world's up seen from the glass, which is the
-    // turn's second row.
+    final limit = maxLean(vessel);
+    vessel.tilt = angle.clamp(-limit, limit);
+    // One vessel in the hand: leaning this one puts the last one back.
+    if (vessel.tilt != 0.0) {
+      for (final other in vessels) {
+        if (identical(other, vessel) || other.tilt == 0.0) continue;
+        other.tilt = 0.0;
+        _place(other);
+        _settleLevel(other);
+        _castBy(other);
+      }
+    }
+    if (across != null) {
+      final flat = Vector3(across.x, 0, across.z);
+      if (flat.length2 > 1e-9) vessel.leanAxis = flat..normalize();
+    }
+    _place(vessel);
+    _settleLevel(vessel);
+    _castBy(vessel);
+  }
+
+  /// Tells [vessel]'s liquid where level now is in the glass's frame: the
+  /// world's up seen from the glass, the turn's second row. Within the
+  /// waves' reach the liquid is left behind by the change and rocks; past
+  /// it the surface is put level at once and cut flat.
+  void _settleLevel(Vessel vessel) {
     final m = vessel.body.localMatrix;
     final up = Vector3(m.entry(1, 0), m.entry(1, 1), m.entry(1, 2));
-    vessel.slosh
-      ..targetX = -up.x / up.y
-      ..targetZ = -up.z / up.y;
-    _castBy(vessel);
+    if (vessel.tilt.abs() <= waveTilt) {
+      vessel.slosh
+        ..targetX = -up.x / up.y
+        ..targetZ = -up.z / up.y;
+    } else {
+      vessel.slosh.rest(-up.x / up.y, -up.z / up.y);
+      _reshape(vessel);
+    }
+  }
+
+  /// Puts [vessel]'s glass where its lean and lift say: turned about its
+  /// lean axis, raised by its lift, its lowest point on the bench when the
+  /// lift is nought.
+  void _place(Vessel vessel) {
+    final turn = Quaternion.axisAngle(vessel.leanAxis, vessel.tilt);
+    // The lowest point of the glass, and of its foot, once turned.
+    var lowest = double.infinity;
+    for (final p in [...vessel.glass, ...?vessel.foot]) {
+      for (var k = 0; k < 24; k++) {
+        final a = 2.0 * math.pi * k / 24;
+        final turned = turn.rotated(
+          Vector3(p.x * math.cos(a), p.y, p.x * math.sin(a)),
+        );
+        lowest = math.min(lowest, turned.y);
+      }
+    }
+    final lift = _ease(vessel.lift) * _clearance(vessel);
+    final y = vessel.at.y - lowest + lift;
+    vessel.body
+      ..setRotation(turn)
+      ..setPosition(vessel.at.x, y, vessel.at.z);
+    // The mirror of a turn about a horizontal axis is the opposite turn.
+    vessel.mirror
+      ..setRotation(Quaternion.axisAngle(vessel.leanAxis, -vessel.tilt))
+      ..setPosition(vessel.at.x, -y, vessel.at.z);
   }
 
   /// Knocks on [vessel]'s glass.
@@ -500,6 +617,7 @@ final class Bench {
     final theirs = to.volumeAt(to.level);
     from
       ..tilt = 0.0
+      ..lift = 0.0
       ..slosh.settle();
     final transfer = _Transfer(
       from: from,
@@ -602,6 +720,26 @@ final class Bench {
     return (velocity: along * over.speed, width: over.width);
   }
 
+  /// Lets liquid run over [t]'s lip for [seconds] with the glass leaning
+  /// [tilt], and says how fast it ran.
+  ///
+  /// **The lean decides, the volume follows.** The surface is the plane
+  /// level in the world that leaves the liquid's volume under it; how far it
+  /// stands over the lowest point of the mouth is the head, and the weir
+  /// over the lip passes what that head passes ([lipFlow]). No head, no
+  /// flow: liquid that has drawn back from the edge does not pour. The hand
+  /// stops at the half it was asked for.
+  double _runOff(_Transfer t, double tilt, double seconds) {
+    final from = t.from;
+    final up = _upAt(tilt);
+    final head = surfaceFor(from.wall, up, t.volume) - up.dot(from.lip);
+    final flow = lipFlow(head: head, radius: from.lip.z, tilt: tilt).flow;
+    final room = math.max(t.volume - t.goal, 0.0);
+    final out = math.min(flow * seconds, room);
+    t.volume -= out;
+    return seconds > 0.0 ? out / seconds : 0.0;
+  }
+
   /// One frame of the pour under way.
   void _pourStep(_Transfer t, double seconds) {
     final from = t.from;
@@ -642,14 +780,36 @@ final class Bench {
       final e = _ease((time - _rise) / _over);
       tilt = t.spill * e;
       base = raised + (baseFor(tilt) - raised) * e;
-    } else if (time < _rise + _over + _pourTime) {
-      final e = _ease((time - _rise - _over) / _pourTime);
-      t.volume = t.start + (t.goal - t.start) * e;
-      tilt = math.max(_tiltHolding(from, t.volume), t.spill);
-      t.end = tilt;
+    } else if (t.poured == null) {
+      // The hand: it tips further while less runs than it wants, back while
+      // more does, and wants less the nearer it is to done, so the glass
+      // comes to rest at the edge of pouring as the last of it leaves.
+      final start = _rise + _over;
+      if (t.hand == 0.0) t.hand = t.spill;
+      final amount = t.start - t.goal;
+      final most = 1.5 * amount / _pourTime;
+      const substeps = 8;
+      final dt = seconds / substeps;
+      for (var k = 0; k < substeps; k++) {
+        final flow = _runOff(t, t.hand, dt);
+        final remaining = t.volume - t.goal;
+        // As the root of what is left, so the pour ends: in proportion to
+        // it, the last of it would trickle out for ever.
+        final wanted =
+            most *
+            _ease((time - start) / 0.6) *
+            math.min(1.0, math.sqrt(remaining / (0.8 * most)));
+        t.hand += (3.0 * (wanted - flow) / most).clamp(-0.6, 0.6) * dt;
+      }
+      tilt = t.hand;
+      if (t.volume - t.goal <= 1e-9 || time - start > 3.0 * _pourTime) {
+        t
+          ..poured = time
+          ..end = tilt;
+      }
       base = baseFor(tilt);
-    } else if (time < _rise + _over + _pourTime + _back) {
-      final s = (time - _rise - _over - _pourTime) / _back;
+    } else if (time < t.poured! + _back) {
+      final s = (time - t.poured!) / _back;
       if (s < 0.6) {
         final e = _ease(s / 0.6);
         tilt = t.end * (1.0 - e);
@@ -661,6 +821,9 @@ final class Bench {
       _finish(t);
       return;
     }
+    // Whatever the phase, liquid runs over the lip while the surface stands
+    // above it; tipping back draws it from the edge, and the stream stops.
+    if (t.poured != null || time < _rise + _over) _runOff(t, tilt, seconds);
     _pose(from, base, tilt);
     from.tilt = tilt;
     t.tilt = tilt;
@@ -755,15 +918,16 @@ final class Bench {
     _pose(from, from.at, 0.0);
     from
       ..tilt = 0.0
-      ..level = levelFor(from.wall, t.goal)
+      ..level = levelFor(from.wall, t.volume)
       .._fitSlosh();
     // Whatever was still in the air has landed by now.
     final to = t.to;
-    if (t.arrived < t.start - t.goal) {
+    final left = t.start - t.volume;
+    if (t.arrived < left) {
       final held = t.received + t.arrived;
-      _mix(to, from.colour, t.start - t.goal - t.arrived, held);
+      _mix(to, from.colour, left - t.arrived, held);
       to
-        ..level = levelFor(to.wall, t.received + t.start - t.goal)
+        ..level = levelFor(to.wall, t.received + left)
         .._fitSlosh();
       _reshape(to);
     }
@@ -827,6 +991,16 @@ final class Bench {
     }
     for (final vessel in vessels) {
       if (identical(vessel, _transfer?.from)) continue;
+      // Lifted out of the row while it leans, put back when it does not.
+      final wanted = vessel.tilt != 0.0 ? 1.0 : 0.0;
+      if (vessel.lift != wanted) {
+        final change = seconds / 0.6;
+        vessel.lift = wanted > vessel.lift
+            ? math.min(vessel.lift + change, wanted)
+            : math.max(vessel.lift - change, wanted);
+        _place(vessel);
+        moving = true;
+      }
       if (vessel.slosh.settled) continue;
       vessel.slosh.step(seconds);
       if (vessel.slosh.settled) vessel.slosh.settle();
@@ -1025,6 +1199,11 @@ final class _Transfer {
   /// The lean at which it starts to run, and the furthest it went.
   double spill = 0.0;
   double end = 0.0;
+
+  /// The lean the hand holds while it pours, and when the pour was done:
+  /// null until it is.
+  double hand = 0.0;
+  double? poured;
 
   /// How fast it is running now, smoothed over a few frames.
   double flow = 0.0;

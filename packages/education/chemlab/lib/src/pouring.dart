@@ -257,33 +257,46 @@ MeshData cutLiquid({
 /// head deep, so the sheet leaving the lip has that section and [speed] is
 /// the flow over it. [width] is the wetted arc's chord: how wide the sheet
 /// is as it leaves.
-({double head, double speed, double width}) overLip({
-  required double flow,
+/// How much passes a weir round a mouth of [radius] tipped [tilt] from
+/// upright, with the surface [head] over its lowest point, and the section
+/// of the sheet at the crest; see [overLip]. Nothing at a head of nought or
+/// less: the liquid has drawn back from the edge.
+({double flow, double area}) lipFlow({
+  required double head,
   required double radius,
   required double tilt,
 }) {
   const g = 9.81;
   const discharge = 0.62;
   const steps = 360;
+  if (head <= 0.0) return (flow: 0.0, area: 0.0);
   final dip = radius * math.max(math.sin(tilt).abs(), 1e-3);
-  // The flow over the lip, and the crest's section, for a head.
-  ({double flow, double area}) passing(double head) {
-    var q = 0.0;
-    var area = 0.0;
-    final dPhi = 2.0 * math.pi / steps;
-    for (var i = 0; i < steps; i++) {
-      final phi = -math.pi + (i + 0.5) * dPhi;
-      final depth = head - dip * (1.0 - math.cos(phi));
-      if (depth <= 0.0) continue;
-      final edge = radius * dPhi;
-      q += math.pow(depth, 1.5) * edge;
-      area += depth * edge;
-    }
-    return (
-      flow: discharge * (2.0 / 3.0) * math.sqrt(2.0 * g) * q,
-      area: (2.0 / 3.0) * area,
-    );
+  var q = 0.0;
+  var area = 0.0;
+  final dPhi = 2.0 * math.pi / steps;
+  for (var i = 0; i < steps; i++) {
+    final phi = -math.pi + (i + 0.5) * dPhi;
+    final depth = head - dip * (1.0 - math.cos(phi));
+    if (depth <= 0.0) continue;
+    final edge = radius * dPhi;
+    q += math.pow(depth, 1.5) * edge;
+    area += depth * edge;
   }
+  return (
+    flow: discharge * (2.0 / 3.0) * math.sqrt(2.0 * g) * q,
+    area: (2.0 / 3.0) * area,
+  );
+}
+
+({double head, double speed, double width}) overLip({
+  required double flow,
+  required double radius,
+  required double tilt,
+}) {
+  const g = 9.81;
+  final dip = radius * math.max(math.sin(tilt).abs(), 1e-3);
+  ({double flow, double area}) passing(double head) =>
+      lipFlow(head: head, radius: radius, tilt: tilt);
 
   var lo = 0.0;
   var hi = 2.0 * dip + radius;
