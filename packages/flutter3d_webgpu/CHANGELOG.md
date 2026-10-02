@@ -6,20 +6,29 @@
   other stage; `smaa-teapot` is in the WebGPU reference set and matches
   Impeller's to the pixel.
 
+**The generated tables carry the decal stage** of `flutter3d_shaders`,
+through glslang and naga like every other stage.
+
+**The generated tables carry `PlanarReflection` and
+`RenderTextureEncode`**, through glslang and naga like every other stage,
+and the `planar-mirror` and `render-texture` goldens are in this set, both 0
+of 172800 pixels from Impeller.
+
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`**, through glslang and naga like every other stage.
+
+**`prepareStage`, the WGSL compile and the section writer moved to
+`flutter3d_shaders`** for the reason that package's changelog gives. The
+tools and tests here import them from `package:flutter3d_shaders/compile.dart`,
+and `flutter3d_webgl` is no longer a dev dependency: it was here only for
+`resolveIncludes`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
 `^3.12.2` and `vector_math` 2.4.3, which were what this repository is built with rather than
 what the package needs. A workspace that supports Flutter 3.44, Flame's among
 them, could not depend on it. Nothing else changed.
-**The generated tables carry the decal stage** of `flutter3d_shaders`,
-through glslang and naga like every other stage.
-**The generated tables carry `PlanarReflection` and
-`RenderTextureEncode`**, through glslang and naga like every other stage,
-and the `planar-mirror` and `render-texture` goldens are in this set, both 0
-of 172800 pixels from Impeller.
-**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
-height fog in `ApplyFog`**, through glslang and naga like every other stage.
 
 ## 0.8.2
 

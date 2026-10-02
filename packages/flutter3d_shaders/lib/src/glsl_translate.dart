@@ -14,6 +14,11 @@
 /// Pure text in, pure text out, so every rule below is testable without a
 /// browser. What it cannot check is whether the result *compiles*; that is what
 /// the harness is for.
+///
+/// **In `flutter3d_shaders` since P8**, moved out of `flutter3d_webgl` for the
+/// reason `glsl_to_wgsl.dart` beside it gives: a project's build hook
+/// translates its materials with it, and cannot resolve a package that
+/// declares the Flutter SDK.
 library;
 
 /// A source file the translator can read.

@@ -7,7 +7,7 @@
 /// at offsets nobody wrote to.
 library;
 
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -21,14 +21,12 @@
 ///
 /// A bundle is one file with a section per backend, and `pack_shaders.dart` in
 /// `flutter3d_webgl` is what assembles it. It could have grown a third section
-/// the way it grew the first two — except that everything the WGSL section is
-/// made of lives here: the translator in `lib/src/glsl_to_wgsl.dart`, the two
-/// external compilers in `lib/src/wgsl_compiler.dart`, and the shape of the
-/// document in `lib/src/wgsl_section.dart`. Reaching for those from
-/// the WebGL package's build script would make one backend's tooling depend on
-/// another backend's library, which is the coupling four separate backends
-/// exist to avoid — and `flutter3d_webgl` does not depend on this package, so
-/// it would not even resolve.
+/// the way it grew the first two — and since P8 it could, because the
+/// translator, the two external compilers and the shape of the document all
+/// live in `flutter3d_shaders` (`compile.dart`), where `flutter3d_build`'s
+/// material step reaches them too. What stays here is the decision to run
+/// glslang and naga at all: a machine without them still builds a bundle with
+/// the other sections, and this program is the step it skips.
 ///
 /// So the section arrives at `pack_shaders.dart` already made, exactly the way
 /// impellerc's does: it is copied in under `--webgpu FILE` and that packer
@@ -74,15 +72,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-// The include resolver, and only the include resolver — the reason
-// `tool/generate_shaders.dart` gives, and the same dev dependency.
-//
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
-import 'package:flutter3d_webgpu/src/wgsl_section.dart';
+import 'package:flutter3d_shaders/compile.dart';
 
 void main(List<String> args) {
   final options = _Options.parse(args);
@@ -140,7 +130,7 @@ void main(List<String> args) {
     }
   }
 
-  final entries = <String, _Entry>{};
+  final entries = <String, BundleStageSource>{};
   manifest.forEach((name, spec) {
     final entry = spec as Map<String, dynamic>;
     final file = entry['file'] as String;
@@ -165,7 +155,15 @@ void main(List<String> args) {
     );
   });
 
-  final locations = _varyingLocations(engine, entries);
+  // Numbered against the engine's manifest as well as this one, and refused
+  // when that would move a number the engine already committed — see the
+  // header, and `bundleVaryingLocations`.
+  final Map<String, int> locations;
+  try {
+    locations = bundleVaryingLocations(engine, entries.values);
+  } on WgslPrepareError catch (error) {
+    _fail(error.message);
+  }
 
   final vertex = <String, PackedStage>{};
   final fragment = <String, PackedStage>{};
@@ -205,60 +203,6 @@ void main(List<String> args) {
     'wrote ${options.out}: ${vertex.length} vertex, ${fragment.length} '
     'fragment, section version $kSectionVersion, ${document.length} bytes',
   );
-}
-
-/// One manifest entry, with its `#include`s already expanded.
-typedef _Entry = ({String file, bool fragment, String resolved});
-
-/// A location per varying name, agreeing with the engine's committed table.
-///
-/// See the header: computed over both manifests, then held against the engine's
-/// alone. The failure is a refusal to pack rather than a section that would
-/// compile and read the wrong slot.
-Map<String, int> _varyingLocations(ShaderSet engine, Map<String, _Entry> mine) {
-  final theirs = <Set<String>>[];
-  for (final entry in engine.stages.values) {
-    final String resolved;
-    try {
-      resolved = resolveIncludes(
-        engine.sources[entry.file]!,
-        engine.sources,
-        from: entry.file,
-      );
-    } on GlslTranslateError catch (error) {
-      _fail('the engine\'s ${entry.file}: ${error.message}');
-    }
-    theirs.add(
-      scanVaryings(resolved, from: entry.file, fragment: entry.fragment),
-    );
-  }
-  final ours = <Set<String>>[
-    for (final entry in mine.values)
-      scanVaryings(entry.resolved, from: entry.file, fragment: entry.fragment),
-  ];
-
-  final Map<String, int> engineOnly;
-  final Map<String, int> together;
-  try {
-    engineOnly = assignVaryingLocations(theirs);
-    together = assignVaryingLocations(<Set<String>>[...theirs, ...ours]);
-  } on WgslPrepareError catch (error) {
-    _fail(error.message);
-  }
-
-  for (final entry in engineOnly.entries) {
-    if (together[entry.key] == entry.value) continue;
-    _fail(
-      'this bundle moves the engine\'s varying "${entry.key}" from location '
-      '${entry.value} to ${together[entry.key]}. A stage packed here is paired '
-      'with a stage the engine already compiled, and WebGPU joins the two by '
-      'location alone, so the numbering cannot be renegotiated by a bundle. '
-      'A varying declared beside the engine\'s in one stage joins their '
-      'family and renumbers it — give it a name of its own, or declare it in '
-      'a stage that shares nothing with the engine\'s.',
-    );
-  }
-  return together;
 }
 
 /// `flutter3d_shaders`' root, or a failure naming what to run.

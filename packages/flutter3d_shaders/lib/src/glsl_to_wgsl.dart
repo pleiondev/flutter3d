@@ -13,22 +13,20 @@
 /// is the only part that needs a process, and by then the shape of the answer
 /// is already settled.
 ///
-/// Under `lib/src/` and not under `tool/`, the way
-/// `flutter3d_webgl/lib/src/glsl_translate.dart` is: nothing a consumer builds
-/// reaches it, since `lib/engine_shaders.dart` is a table and not a
-/// translation, and a test can import it. The browser test runner serves a
-/// package from `test/` and cannot read a sibling directory, so a translator in
-/// `tool/` is a translator no test in this package could name.
+/// **Here, in `flutter3d_shaders`, rather than in `flutter3d_webgpu` where it
+/// was written** — P8. A project's build hook compiles its own materials into
+/// a WebGPU section, and that hook is a process with no Flutter SDK to
+/// resolve; `flutter3d_webgpu` declares one, so nothing under its `lib/` is
+/// reachable from there at all. The translator never needed the SDK, only the
+/// package it lived in did. `package:flutter3d_shaders/translate.dart` is the
+/// door; the WebGPU backend reads the section this feeds and keeps everything
+/// that talks to a browser.
 ///
 /// **The `#include`s are already resolved by the time anything here runs, and
-/// the caller resolves them.** `resolveIncludes` belongs to
-/// `flutter3d_webgl/lib/src/glsl_translate.dart` and is reused rather than
-/// rewritten — a second answer to "which headers does this shader really pull
-/// in" is how two backends drift apart in the one place neither can see. It is
-/// called from `tool/generate_shaders.dart` and from the tests rather than from
-/// here because that package is a *dev* dependency: a backend that depended on
-/// another backend at run time would not be two backends, and a file under
-/// `lib/` may only import what ships.
+/// the caller resolves them** — with `resolveIncludes` from
+/// `glsl_translate.dart` beside this file, reused rather than rewritten: a
+/// second answer to "which headers does this shader really pull in" is how two
+/// backends drift apart in the one place neither can see.
 ///
 /// ## Why the source has to be edited at all
 ///

@@ -5,18 +5,26 @@
 - **SMAA 1x's three stages translated**, from the same sources as every
   other stage; `smaa-teapot` is in the browser reference set.
 
+**The generated tables carry the decal stage** of `flutter3d_shaders`.
+
+**The generated tables carry `PlanarReflection` and
+`RenderTextureEncode`**, and the `planar-mirror` and `render-texture`
+goldens are in this set.
+
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`.**
+
+**The GLSL ES translator and the section codec moved to
+`flutter3d_shaders`**, so a build hook with no Flutter SDK can use them.
+`encodeWebGlSection`, `decodeWebGlSection` and `WebGlSectionSources` are
+still exported from this package's barrel under the same names.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart
 `^3.12.2` and `vector_math` 2.4.3, which were what this repository is built with rather than
 what the package needs. A workspace that supports Flutter 3.44, Flame's among
 them, could not depend on it. Nothing else changed.
-**The generated tables carry the decal stage** of `flutter3d_shaders`.
-**The generated tables carry `PlanarReflection` and
-`RenderTextureEncode`**, and the `planar-mirror` and `render-texture`
-goldens are in this set.
-**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
-height fog in `ApplyFog`.**
 
 ## 0.8.2
 

@@ -19,11 +19,7 @@ library;
 
 import 'dart:io';
 
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

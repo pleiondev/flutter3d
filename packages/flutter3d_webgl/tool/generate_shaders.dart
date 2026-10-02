@@ -16,7 +16,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
+import 'package:flutter3d_shaders/translate.dart';
 
 import 'source_package.dart';
 

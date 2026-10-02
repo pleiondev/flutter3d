@@ -12,9 +12,9 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/translate.dart' show decodeWebGlSection;
 import 'package:web/web.dart' as web;
 
-import 'webgl_bundle_section.dart';
 import 'webgl_shaders.dart';
 
 /// A [LoadedShaderLibrary] over sources a bundle carried.

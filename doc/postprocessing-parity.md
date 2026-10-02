@@ -73,9 +73,9 @@ transcription, and a golden scene". That was written from the survey and is
 wrong by three. **A post effect costs two hand-written implementations**: the
 GLSL source in `flutter3d_shaders`, and its Dart transcription for the CPU
 rasteriser, which has no shaders at all. WebGL and WebGPU are not transpiled
-by hand — `flutter3d_webgl/lib/src/glsl_translate.dart` and
-`flutter3d_webgpu/lib/src/glsl_to_wgsl.dart` are general translators driven by
-`tool/generate_shaders.dart`, and a new uniform or a new branch goes through
+by hand — `flutter3d_shaders/lib/src/glsl_translate.dart` and
+`flutter3d_shaders/lib/src/glsl_to_wgsl.dart` are general translators driven by
+each backend's `tool/generate_shaders.dart`, and a new uniform or a new branch goes through
 them untouched.
 
 Measured rather than assumed, while landing `gfx-26n`: editing

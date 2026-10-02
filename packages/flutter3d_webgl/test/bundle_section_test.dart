@@ -9,7 +9,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_webgl/src/webgl_bundle_section.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
