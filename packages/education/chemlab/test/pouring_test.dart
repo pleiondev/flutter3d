@@ -109,12 +109,11 @@ void main() {
     bench.share(from);
     var checked = 0;
     while (bench.busy) {
+      final before = from.volumeAt(from.level);
       bench.step(1 / 60);
-      final stream = bench.scene.root.children.firstWhere(
-        (n) => n.name == 'stream',
-        orElse: () => to.body,
-      );
-      if (!identical(stream, to.body) && stream.visible) {
+      // While liquid is leaving the lip; the tail that falls after it may
+      // be in the air as the tube goes back.
+      if (from.volumeAt(from.level) < before - 1e-6) {
         // Mutation: hold the lip high over the middle again, and the stream
         // crosses the rim on its way down: the lip is outside the mouth.
         final lip = from.body.worldMatrix.transformed3(from.lip);
@@ -128,4 +127,43 @@ void main() {
     }
     expect(checked, greaterThan(10));
   });
+
+  test('what leaves the lip is in the air for a fall before it lands', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[2];
+    final to = bench.clean;
+    final total = from.volumeAt(from.level);
+    bench.share(from);
+    var aloft = 0.0;
+    var tail = 0;
+    var wasPouring = false;
+    bool streamVisible() => bench.scene.root.children.any(
+      (n) => n.name == 'stream' && n.visible,
+    );
+    while (bench.busy) {
+      final before = from.volumeAt(from.level);
+      bench.step(1 / 60);
+      final mine = from.volumeAt(from.level);
+      final theirs = to.volumeAt(to.level);
+      // Nothing is made: the two tubes never hold more than there was.
+      expect(mine + theirs, lessThanOrEqualTo(total * 1.002));
+      aloft = math.max(aloft, total - mine - theirs);
+      final pouring = mine < before - 1e-6;
+      // Mutation: fill the clean tube the moment liquid leaves the lip, and
+      // nothing is ever in the air; drop the history, and the stream
+      // vanishes the frame the pour stops instead of falling away.
+      if (wasPouring && !pouring && streamVisible()) tail++;
+      if (!pouring && tail > 0 && streamVisible()) tail++;
+      wasPouring = wasPouring || pouring;
+    }
+    expect(aloft, greaterThan(total * 0.02));
+    expect(tail, greaterThan(3));
+    // And by the end it has all landed.
+    expect(
+      from.volumeAt(from.level) + to.volumeAt(to.level),
+      closeTo(total, total * 0.01),
+    );
+  });
 }
+
