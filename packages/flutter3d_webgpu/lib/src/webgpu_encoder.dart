@@ -527,7 +527,12 @@ final class WebGpuEncoder implements CommandEncoder {
   // ------------------------------------------------------------- the draw
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
     // Below one draws nothing, as it does on the other backends. A negative
     // count handed on would reach `drawIndexed` as an unsigned number in the
     // billions.
@@ -579,7 +584,7 @@ final class WebGpuEncoder implements CommandEncoder {
         indices.offset,
         indices.length,
       )
-      ..drawIndexed(_indexCount, instanceCount);
+      ..drawIndexed(window.count, instanceCount, window.first);
   }
 
   /// The signature this draw's state makes, which is what the cache is

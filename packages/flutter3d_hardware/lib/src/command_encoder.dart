@@ -381,7 +381,50 @@ abstract interface class PassEncoder {
   /// Zero draws nothing, which matters because the number usually comes from a
   /// live population: a particle system with nothing alive should not be a
   /// special case at every call site.
-  void draw({int instanceCount = 1});
+  ///
+  /// [firstIndex] and [indexCount] draw a window of the bound indices rather
+  /// than all of them — `P7`. Null [indexCount] reads to the end of the
+  /// binding, so leaving both out is the whole buffer, as it always was.
+  ///
+  /// **On the draw, not on the binding, for the reason [instanceCount] is.**
+  /// One buffer holding a model's every part is bound once and drawn a part at
+  /// a time, each part with its own material; a window on the binding would
+  /// mean binding the same buffer again for every part to say something only
+  /// the draw knows. WebGPU and Metal take a first index on the draw for the
+  /// same reason, and WebGL2 takes a byte offset there.
+  ///
+  /// **A window past the end of the binding is refused with a [RangeError],
+  /// on every backend, before anything reaches the driver** — see
+  /// [indexWindow], which all four call. Left to the drivers it would be four
+  /// different answers: WebGL2 reports `INVALID_OPERATION` and draws nothing,
+  /// WebGPU invalidates the whole pass, Metal leaves it undefined, and the
+  /// software rasteriser would read past its bytes and throw from somewhere
+  /// that names none of them. Held by the conformance check
+  /// `a window of the index buffer draws that window`.
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount});
+}
+
+/// The window of [bound] indices a draw reads, from [firstIndex] for
+/// [indexCount] of them, or to the end when [indexCount] is null.
+///
+/// **For a backend's [PassEncoder.draw]**, so that all four refuse the same
+/// windows in the same words rather than each reaching its driver's own
+/// answer. Throws a [RangeError] naming the three numbers when the window
+/// does not lie inside the binding.
+({int first, int count}) indexWindow(
+  int bound, {
+  int firstIndex = 0,
+  int? indexCount,
+}) {
+  final count = indexCount ?? bound - firstIndex;
+  if (firstIndex < 0 || count < 0 || firstIndex + count > bound) {
+    throw RangeError(
+      'a draw of $count indices from index $firstIndex reads past the '
+      '$bound the index binding holds. Draw a window inside it, or bind the '
+      'buffer whose indices the window means.',
+    );
+  }
+  return (first: firstIndex, count: count);
 }
 
 /// A pass somebody opened, and must therefore close.

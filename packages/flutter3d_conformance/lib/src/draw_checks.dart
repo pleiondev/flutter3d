@@ -91,6 +91,158 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
   );
 }
 
+/// `draw(firstIndex:, indexCount:)` draws that window of the bound indices and
+/// nothing else — `P7`.
+///
+/// One index buffer holds two triangles, each covering the whole target, the
+/// first red and the second green. A window over the second must read back
+/// green and a window over the first red, and a window over both green, since
+/// the second is drawn over the first. A backend that ignores the start reads
+/// red where green was asked for; one that ignores the count reads green where
+/// red was.
+///
+/// **Four backends say where a window starts four different ways** — WebGPU
+/// with a first index on the draw, WebGL2 with a byte offset, Impeller with a
+/// narrower view of the buffer bound again, the software rasteriser by
+/// counting — which is why it is asked of every device rather than of one.
+///
+/// And a window past the end of the binding is refused with a [RangeError]
+/// before anything reaches the driver, which left alone would answer four
+/// different ways (`PassEncoder.draw` lists them).
+Future<void> checkIndexWindowDraw(GraphicsDevice device) async {
+  const size = 8;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
+  final pipeline = device.createPipeline(vertex!, fragment!);
+
+  final vertices = Float32List.fromList(<double>[
+    -1, -1, 0.5, 1, 0, 0, 1, //
+    3, -1, 0.5, 1, 0, 0, 1,
+    -1, 3, 0.5, 1, 0, 0, 1,
+    -1, -1, 0.5, 0, 1, 0, 1,
+    3, -1, 0.5, 0, 1, 0, 1,
+    -1, 3, 0.5, 0, 1, 0, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2, 3, 4, 5]);
+
+  Future<List<int>> colourOf({required int firstIndex, int? indexCount}) async {
+    final target = device.createTexture(
+      const RenderTargetSpec(
+        width: size,
+        height: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4.zero(),
+          ),
+        ],
+      ),
+    );
+    pass
+      ..bindPipeline(pipeline)
+      ..setPrimitiveType(PrimitiveType.triangle)
+      ..setCullMode(CullMode.none)
+      ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+        'view_projection': Float32List.fromList(Matrix4.identity().storage),
+      })
+      ..bindVertexData(ByteData.sublistView(vertices), 6)
+      ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 6)
+      ..draw(firstIndex: firstIndex, indexCount: indexCount)
+      ..submit();
+    final pixels = await device.readPixels(target);
+    require(pixels != null, 'the target could not be read back');
+    final bytes = pixels!.buffer.asUint8List();
+    final at = ((size ~/ 2) * size + size ~/ 2) * 4;
+    return <int>[bytes[at], bytes[at + 1], bytes[at + 2]];
+  }
+
+  bool near(List<int> got, List<int> want) =>
+      got.indexed.every(((int, int) c) => (c.$2 - want[c.$1]).abs() <= 8);
+
+  const red = <int>[255, 0, 0];
+  const green = <int>[0, 255, 0];
+
+  // Mutation: drop `firstIndex +` from the `_indexAt` call in
+  // `CpuEncoder._drawOnce`. The second triangle is then read from the first
+  // three indices and this reads back red.
+  final second = await colourOf(firstIndex: 3, indexCount: 3);
+  require(
+    near(second, green),
+    'a window of three indices from index 3 drew $second where the second '
+    'triangle\'s green was expected — the start of the window was ignored',
+  );
+
+  final first = await colourOf(firstIndex: 0, indexCount: 3);
+  require(
+    near(first, red),
+    'a window of the first three indices drew $first where the first '
+    'triangle\'s red was expected — the count was ignored and both were drawn',
+  );
+
+  final both = await colourOf(firstIndex: 0);
+  require(
+    near(both, green),
+    'a draw with no count drew $both where the second triangle, drawn last, '
+    'was expected — a missing count must read to the end of the binding',
+  );
+
+  // The refusal is asked in a pass of its own, which is submitted afterwards
+  // whatever happened, so a backend that does not refuse still leaves the
+  // device as the next check expects it.
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ),
+  );
+  pass
+    ..bindPipeline(pipeline)
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(vertices), 6)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 6);
+  final refused = () {
+    try {
+      pass.draw(firstIndex: 4, indexCount: 3);
+      return false;
+    } on RangeError {
+      return true;
+    }
+  }();
+  pass.submit();
+  require(
+    refused,
+    'a window of three indices from index 4 of a binding of six was not '
+    'refused. It reads past the end, and every backend has to say so the same '
+    'way rather than leave it to a driver',
+  );
+}
+
 /// A buffer uploaded for a use is bound for that use, and draws.
 ///
 /// **This check used to assert nothing.** It uploaded sixty-four zero bytes

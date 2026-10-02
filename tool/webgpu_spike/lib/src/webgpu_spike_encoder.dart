@@ -291,7 +291,12 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   // ------------------------------------------------------------- the draw
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
     if (instanceCount == 0) return;
     final pipeline = _pipeline;
     if (pipeline == null) {
@@ -309,7 +314,7 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
     }
     _pass
       ..setIndexBuffer(_indexBuffer!, gpuIndexFormat(_indexType))
-      ..drawIndexed(_indexCount, instanceCount);
+      ..drawIndexed(window.count, instanceCount, window.first);
   }
 
   /// The key this draw's state makes, which is also what the pipeline cache is

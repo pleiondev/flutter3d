@@ -618,9 +618,13 @@ final class _RecordingEncoder implements CommandEncoder {
   }
 
   @override
-  void draw({int instanceCount = 1}) {
-    _events.add(TraceDraw(_pass, instanceCount));
-    _inner.draw(instanceCount: instanceCount);
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    _events.add(TraceDraw(_pass, instanceCount, firstIndex, indexCount));
+    _inner.draw(
+      instanceCount: instanceCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
   }
 
   @override

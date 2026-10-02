@@ -371,7 +371,16 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    // Refused before the first instance rather than inside the loop, so a
+    // window past the binding draws nothing at all, as on the other three.
+    final window = _indices == null
+        ? null
+        : indexWindow(
+            _indexCount,
+            firstIndex: firstIndex,
+            indexCount: indexCount,
+          );
     // Honestly, and to no advantage — which is the point. A scene the software
     // backend refuses to draw is a scene with no cross-backend check, and the
     // two most expensive bugs this repository has found were both found by
@@ -383,11 +392,11 @@ final class CpuEncoder implements CommandEncoder {
     // attributes means on any backend. The instance *index* arrives with the
     // vertex layouts that give a stage something to read it for.
     for (var instance = 0; instance < instanceCount; instance++) {
-      _drawOnce(instance);
+      _drawOnce(instance, window?.first ?? 0, window?.count ?? 0);
     }
   }
 
-  void _drawOnce(int instance) {
+  void _drawOnce(int instance, int firstIndex, int indexCount) {
     final pipeline = _pipeline;
     final vertices = _vertices;
     if (pipeline == null || vertices == null) return;
@@ -424,13 +433,13 @@ final class CpuEncoder implements CommandEncoder {
 
     final perPrimitive = _primitive == PrimitiveType.line ? 2 : 3;
     final count = _indices != null
-        ? _indexCount ~/ perPrimitive
+        ? indexCount ~/ perPrimitive
         : _vertexCount ~/ perPrimitive;
 
     for (var t = 0; t < count; t++) {
       for (var corner = 0; corner < perPrimitive; corner++) {
         final vertex = _indices != null
-            ? _indexAt(t * perPrimitive + corner)
+            ? _indexAt(firstIndex + t * perPrimitive + corner)
             : t * perPrimitive + corner;
         if (!fetch.into(attributes, vertex)) return;
         // A stage that wants its own index gets it — see
