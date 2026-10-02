@@ -18,6 +18,8 @@ through glslang and naga like every other stage.
 `RenderTextureEncode`**, through glslang and naga like every other stage,
 and the `planar-mirror` and `render-texture` goldens are in this set, both 0
 of 172800 pixels from Impeller.
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`**, through glslang and naga like every other stage.
 
 ## 0.8.2
 

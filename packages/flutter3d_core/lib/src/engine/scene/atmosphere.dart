@@ -22,6 +22,8 @@ final class Atmosphere {
     required Vector3 sky,
     Vector3? fogColor,
     this.fogDensity = 0.0,
+    this.fogHeightFalloff = 0.0,
+    this.fogBaseHeight = 0.0,
     required Vector3 sunColor,
     this.sunIntensity = 2.0,
     Vector3? ambientColor,
@@ -38,8 +40,15 @@ final class Atmosphere {
   /// end of the world meets the sky without a seam.
   final Vector3 fogColor;
 
-  /// How thick the fog is, per metre.
+  /// How thick the fog is, per metre, at [fogBaseHeight].
   final double fogDensity;
+
+  /// How fast the fog thins upwards, per metre, and the height at which it is
+  /// [fogDensity] thick — `FogSettings.heightFalloff` and `baseHeight`. Nought
+  /// is fog at every height alike, which every atmosphere was before `P5`; a
+  /// morning that burns off is a falloff blended up through the day.
+  final double fogHeightFalloff;
+  final double fogBaseHeight;
 
   final Vector3 sunColor;
   final double sunIntensity;
@@ -55,6 +64,8 @@ final class Atmosphere {
       sky: mix(a.sky, b.sky),
       fogColor: mix(a.fogColor, b.fogColor),
       fogDensity: blend(a.fogDensity, b.fogDensity),
+      fogHeightFalloff: blend(a.fogHeightFalloff, b.fogHeightFalloff),
+      fogBaseHeight: blend(a.fogBaseHeight, b.fogBaseHeight),
       sunColor: mix(a.sunColor, b.sunColor),
       sunIntensity: blend(a.sunIntensity, b.sunIntensity),
       ambientColor: mix(a.ambientColor, b.ambientColor),
@@ -63,7 +74,12 @@ final class Atmosphere {
   }
 
   /// The fog this atmosphere draws with, for `RenderSettings.fog`.
-  FogSettings get fog => FogSettings(color: fogColor, density: fogDensity);
+  FogSettings get fog => FogSettings(
+    color: fogColor,
+    density: fogDensity,
+    heightFalloff: fogHeightFalloff,
+    baseHeight: fogBaseHeight,
+  );
 
   /// Puts this atmosphere on [scene]'s ambient light and on [sun], and
   /// writes the sky into [clearColor] if given (a view's clear colour is

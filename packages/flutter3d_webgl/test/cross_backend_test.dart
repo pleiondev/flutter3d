@@ -259,6 +259,10 @@ const Map<String, double> _budgets = <String, double>{
   'sheen-fabric': 0.23,
   // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
   // 64-bit integers, so a browser baked a different sheet.
+  // `P5`. 11 of 172800 measured against Impeller on 2026-10-01, the floor's
+  // far edge; the night sky 0.
+  'sky-physical-dusk': 0.01,
+  'sky-physical-night': 0.01,
   'smoke-six-way': 0.01,
   'splat-gltf': 0.01,
   // 0.001% measured, since the hash reads the pixel from the top on every

@@ -46,6 +46,7 @@ import 'material.dart';
 import 'mirror_view.dart';
 import 'object_id_frame.dart';
 import 'pass_contributor.dart';
+import 'physical_sky.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
 import 'render_list.dart';
@@ -937,6 +938,7 @@ final class Renderer implements RenderServices {
     _probePrefilterPipeline = null;
     _skyPipeline = null;
     _skyCubePipeline = null;
+    _skyPhysicalPipeline = null;
     _cubeShadowPipeline = null;
     _skinnedCubeShadowPipeline = null;
     _instancedCubeShadowPipeline = null;
@@ -1189,6 +1191,9 @@ final class Renderer implements RenderServices {
 
   /// The textured half of the same pair, built only if a cube is ever set.
   PipelineHandle? _skyCubePipeline;
+
+  /// The air's, built only if `SkySettings.physical` is ever set — `P5`.
+  PipelineHandle? _skyPhysicalPipeline;
 
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
@@ -1559,7 +1564,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: eighty-four goldens go through this
+  /// strength has, and for the same reason: eighty-six goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -2149,7 +2154,20 @@ final class Renderer implements RenderServices {
 
     var upX = 1.0, upY = 1.0, upZ = 1.0;
     var downX = 1.0, downY = 1.0, downZ = 1.0;
-    if (sky.enabled) {
+    final air = sky.cubemap == null ? sky.physical : null;
+    if (sky.enabled && air != null) {
+      // `P5`: the same halves, out of the air. Taken off the scattered light
+      // with no disc, for the reason above, and a horizon averaged round the
+      // compass, because towards the sun and away from it differ by a factor
+      // of five at dusk and a surface faces neither.
+      final up = _physicalAmbient(air, sky.resolvedDirectionToSun);
+      upX = up.up.x;
+      upY = up.up.y;
+      upZ = up.up.z;
+      downX = up.down.x;
+      downY = up.down.y;
+      downZ = up.down.z;
+    } else if (sky.enabled) {
       final zenith = sky.resolvedZenith;
       final horizon = sky.resolvedHorizon;
       final nadir = sky.resolvedNadir;
@@ -2175,6 +2193,55 @@ final class Renderer implements RenderServices {
     // scene pass so a probe captured before it shades the room the same way.
     _ambientSky[3] = settings.diffuseModel == DiffuseModel.eon ? 1.0 : 0.0;
   }
+
+  /// The two ends of the hemispheric ambient under a physical sky: half the
+  /// zenith and half the horizon, and half the horizon and half the ground,
+  /// as [_updateAmbient] takes them from a gradient.
+  ///
+  /// Kept from frame to frame while the air and the sun do not change: it is
+  /// ten marches of the sky, which is nothing once and something every frame
+  /// on a phone.
+  ({vm.Vector3 up, vm.Vector3 down}) _physicalAmbient(
+    PhysicalSky air,
+    vm.Vector3 toSun,
+  ) {
+    final kept = _physicalAmbientKept;
+    if (kept != null &&
+        identical(kept.air, air) &&
+        kept.toSun.x == toSun.x &&
+        kept.toSun.y == toSun.y &&
+        kept.toSun.z == toSun.z) {
+      return (up: kept.up, down: kept.down);
+    }
+    final zenith = air.radiance(vm.Vector3(0.0, 1.0, 0.0), toSun);
+    final ground = air.radiance(vm.Vector3(0.0, -1.0, 0.0), toSun);
+    final horizon = vm.Vector3.zero();
+    const around = 8;
+    for (var i = 0; i < around; i++) {
+      final angle = 2.0 * math.pi * i / around;
+      // A degree above the horizon rather than on it: exactly level, the ray
+      // grazes the ground's sphere and which side it lands is rounding.
+      horizon.addScaled(
+        air.radiance(
+          vm.Vector3(math.cos(angle), 0.0175, math.sin(angle)),
+          toSun,
+        ),
+        1.0 / around,
+      );
+    }
+    final up = (zenith + horizon)..scale(0.5);
+    final down = (horizon + ground)..scale(0.5);
+    _physicalAmbientKept = (
+      air: air,
+      toSun: vm.Vector3.copy(toSun),
+      up: up,
+      down: down,
+    );
+    return (up: up, down: down);
+  }
+
+  ({PhysicalSky air, vm.Vector3 toSun, vm.Vector3 up, vm.Vector3 down})?
+  _physicalAmbientKept;
 
   /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
   /// frustum — or w negative when the row belongs to a point light.
@@ -3085,7 +3152,8 @@ final class Renderer implements RenderServices {
   }
 
   /// Floats per vertex: two of clip position, three of ray, then six vec4s of
-  /// preset — or one vec4 of tint for the cube.
+  /// preset — the gradient's or the air's, the same size — or one vec4 of
+  /// tint for the cube.
   static const int _kSkyVertexFloats = 2 + 3 + 6 * 4;
   static const int _kSkyCubeVertexFloats = 2 + 3 + 4;
 

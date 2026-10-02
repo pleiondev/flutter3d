@@ -199,16 +199,16 @@ Set<String> scanVaryings(
 ///
 /// ## Why not simply sort every name in the manifest
 ///
-/// Because there are seventeen of them and a location must be below
+/// Because there are twenty-four of them and a location must be below
 /// `maxInterStageShaderVariables`, which is sixteen. One flat numbering runs
-/// out by one name.
+/// out eight names short.
 ///
 /// Two names only ever have to agree when some stage declares both — that is
 /// what makes them share a pipeline. So the names are grouped into families by
 /// exactly that relation and each family is numbered from zero: the mesh
 /// varyings and the sky varyings never meet in one stage, and there is no
-/// pipeline in which their numbers could collide. Four families come out of the
-/// manifest today, the largest with eight names in it.
+/// pipeline in which their numbers could collide. Five families come out of the
+/// manifest today, the largest, the sky's, with twelve names in it.
 ///
 /// Deterministic throughout — every list is sorted before it is numbered —
 /// because `tool/ci.sh` regenerates the shader table and diffs it, and a

@@ -676,8 +676,12 @@ extension _MeshEncode on Renderer {
       _fogData[0] = fog.resolvedColor.x;
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;
-      _fogData[3] = fog.density;
       _fogInfo.eye.setAll(0, _cameraData);
+      // `P5`: the density at the eye, and the falloff in the eye's spare lane,
+      // which is all `ApplyFog` needs to integrate a height fog along the ray.
+      // A flat fog writes its density and nought, as it always did.
+      _fogData[3] = fog.densityAt(_cameraData[1]);
+      _fogInfo.eye[3] = fog.resolvedHeightFalloff;
       encoder.bindBlock(fragmentShader, _fogInfo);
     }
 

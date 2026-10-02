@@ -209,6 +209,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // and nothing ran them.
     ('SkyVertex', 'Sky'),
     ('SkyCubeVertex', 'SkyCube'),
+    // `P5`: the air's pair, whose seven varyings are new on both sides.
+    ('SkyPhysicalVertex', 'SkyPhysical'),
   ];
 
   for (final (vertexName, fragmentName) in pairs) {

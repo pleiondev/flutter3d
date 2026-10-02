@@ -2308,6 +2308,71 @@ void main() {
 }
 
 ''',
+    'SkyPhysicalVertex': r'''#version 300 es
+
+// Vertex stage for the physical sky: the gradient sky's triangle, carrying the
+// air instead of three colours.
+//
+// **Its own stage rather than `sky.vert` read under other names.** The data
+// travels the same way and for the same reason — `sky.vert` sets out what was
+// measured: on Impeller a uniform block never reaches the sky's pipeline and a
+// vertex attribute does — and it is the same size, six vec4s after the ray. But
+// a varying is matched by name between the stages, and a fragment stage reading
+// `v_zenith` as a scattering coefficient is one nobody could maintain.
+//
+// The depth is `sky.vert`'s 0.999999, for `sky.vert`'s reason: the far plane
+// less a hair, so the pass's own `less` passes against a cleared buffer and
+// fails against anything already drawn.
+//
+// Lengths are in kilometres here, not metres. The planet's radius is 6360 of
+// them, and in metres its square is 4·10¹³, which single precision holds to
+// within a few units — enough to put the horizon a pixel off where the ray
+// grazes it. The renderer converts; see `Renderer._skyVertexBytes`.
+precision highp float;
+
+layout(location = 0) in vec2 position;
+
+// The world-space view ray at this corner.
+layout(location = 1) in vec3 corner_ray;
+
+/// rgb: Rayleigh scattering at the ground, per km. a: its scale height, km.
+layout(location = 2) in vec4 rayleigh;
+/// x: Mie scattering at the ground, per km. y: Mie extinction, per km.
+/// z: its scale height, km. w: Henyey–Greenstein's g.
+layout(location = 3) in vec4 mie;
+/// xyz: unit vector pointing at the sun. w: the sunlight entering the air.
+layout(location = 4) in vec4 sun;
+/// x: the planet's radius. y: the top of the air's. z: the eye's, all km.
+/// w: the ground's albedo.
+layout(location = 5) in vec4 planet;
+/// x: how bright the stars are. y: the share of cells holding one.
+/// z: cells across a face of the cube they are scattered on. w: unused.
+layout(location = 6) in vec4 stars;
+/// x: cosine of the disc's angular radius. y: how much softer its edge is,
+/// as a difference of cosines. z: how bright the disc is. w: unused.
+layout(location = 7) in vec4 disc;
+
+out vec3 v_ray;
+out vec4 v_rayleigh;
+out vec4 v_mie;
+out vec4 v_sun;
+out vec4 v_planet;
+out vec4 v_stars;
+out vec4 v_disc;
+
+void main() {
+  v_ray = corner_ray;
+  v_rayleigh = rayleigh;
+  v_mie = mie;
+  v_sun = sun;
+  v_planet = planet;
+  v_stars = stars;
+  v_disc = disc;
+
+  gl_Position = vec4(position, 0.999999, 1.0);
+}
+
+''',
     'VertexTextureProbeVertex': r'''#version 300 es
 
 // **A probe, not a feature.** It answers one question that decides how morph
@@ -2659,11 +2724,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -2789,6 +2856,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -2796,6 +2873,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -4442,11 +4524,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -4572,6 +4656,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -4579,6 +4673,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -6196,11 +6295,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -6326,6 +6427,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -6333,6 +6444,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -6665,11 +6781,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -6795,6 +6913,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -6802,6 +6930,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -9144,11 +9277,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -9274,6 +9409,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -9281,6 +9426,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -11658,11 +11808,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -11788,6 +11940,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -11795,6 +11957,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -15004,11 +15171,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -15134,6 +15303,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -15141,6 +15320,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -18318,11 +18502,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -18448,6 +18634,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -18455,6 +18651,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -20780,11 +20981,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -20910,6 +21113,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -20917,6 +21130,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -23093,11 +23311,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -23223,6 +23443,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -23230,6 +23460,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -30234,11 +30469,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -30364,6 +30601,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -30371,6 +30618,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -30617,11 +30869,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -30747,6 +31001,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -30754,6 +31018,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -30995,11 +31264,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -31125,6 +31396,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -31132,6 +31413,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -31657,6 +31943,214 @@ void main() {
 }
 
 ''',
+    'SkyPhysical': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The sky as air: sunlight scattered once by molecules (Rayleigh) and by haze
+// (Mie) along the view ray, the sun's disc seen through what the air leaves of
+// it, stars at night, and the ground below the horizon.
+//
+// **Marched per pixel rather than read from a precomputed table.** A table is
+// what a sky this size usually becomes, and it is two render passes into
+// float targets before the scene, plus a sampler the sky's pipeline would have
+// to be measured taking — `sky.vert` says why nothing is assumed about what
+// reaches it. Sixteen samples along the view and eight towards the sun at each
+// is 144 exponentials a pixel, paid only where no geometry covers the sky,
+// because the stage runs after the opaque half and fails the depth test under
+// it. `SkySettings.physical` documents the cost where a caller will read it.
+//
+// **Single scattering only**, and that is visible: the horizon at noon comes
+// out a pale cyan rather than white, because light scattered twice is what
+// whitens it. Measured against a 128 × 64 march of the same model, the
+// march here is within two per cent of it at the zenith and four at the
+// horizon. Two choices buy that. The view samples are spaced quadratically,
+// short near the eye where a horizontal ray spends its densest air; spaced
+// evenly, sixteen of them put the noon horizon's blue at less than half of
+// what it is. And each sample is dimmed by the air up to its middle rather
+// than its far end, which was another fifteen per cent.
+//
+// The same arithmetic runs in Dart twice: `PhysicalSky.radiance`, for a fog
+// colour, a sunlight colour and an environment map built from the sky, and
+// `SkyPhysicalShader` in the software rasteriser. A test evaluates both.
+precision highp float;
+
+in vec3 v_ray;
+in vec4 v_rayleigh;
+in vec4 v_mie;
+in vec4 v_sun;
+in vec4 v_planet;
+in vec4 v_stars;
+in vec4 v_disc;
+
+layout(location = 0) out vec4 frag_color;
+
+// No surface output, for the reason `sky.frag` records at length: on Impeller,
+// a second output in a single-attachment pass took the process down.
+
+const int kViewSteps = 16;
+const int kLightSteps = 8;
+const float kPi = 3.14159265;
+
+/// How far a ray from radius [r], at cosine [mu] to the local up, runs before
+/// it leaves a sphere of [radius]; negative when it misses.
+///
+/// `(r - radius) * (r + radius)` rather than `r * r - radius * radius`: the
+/// two squares are 4·10⁷ km² apiece and their difference near the ground is a
+/// few hundred, which the subtraction of the squares loses most of in single
+/// precision.
+float Leave(float r, float mu, float radius) {
+  float b = r * mu;
+  float d = b * b - (r - radius) * (r + radius);
+  return d < 0.0 ? -1.0 : -b + sqrt(d);
+}
+
+/// How far the same ray runs before it meets the ground, negative when it
+/// does not.
+float Meet(float r, float mu, float radius) {
+  float b = r * mu;
+  float d = b * b - (r - radius) * (r + radius);
+  return d < 0.0 ? -1.0 : -b - sqrt(d);
+}
+
+/// The air between [p] and space towards [s]: x molecules, y haze, each as a
+/// length of air at ground density.
+vec2 SunwardAir(vec3 p, vec3 s) {
+  float r = length(p);
+  float span = Leave(r, dot(p, s) / r, v_planet.y);
+  float stride = span / float(kLightSteps);
+  vec2 air = vec2(0.0);
+  for (int j = 0; j < kLightSteps; j++) {
+    vec3 q = p + s * ((float(j) + 0.5) * stride);
+    float h = length(q) - v_planet.x;
+    air += exp(-h / vec2(v_rayleigh.w, v_mie.z)) * stride;
+  }
+  return air;
+}
+
+/// What a length of air lets through, per channel.
+vec3 Through(vec2 air) {
+  return exp(-(v_rayleigh.rgb * air.x + vec3(v_mie.y * air.y)));
+}
+
+/// A hash of three small whole numbers into [0, 1), with no sine in it.
+///
+/// `fract(sin(x) * 43758.5)` is the usual one and it is wrong here: the sine
+/// of a large argument is computed differently by every GPU and by the
+/// software rasteriser, so the stars would be in different places on each
+/// backend. This is products and `fract`s of numbers below a few thousand,
+/// which single precision answers alike everywhere to the last few bits.
+float Hash(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+
+/// The stars in direction [d]: a grid of cells on each face of a cube, a share
+/// [v_stars.y] of them holding a star at a place and a brightness of its own.
+float StarField(vec3 d) {
+  vec3 a = abs(d);
+  float face;
+  vec2 uv;
+  if (a.x >= a.y && a.x >= a.z) {
+    face = d.x > 0.0 ? 0.0 : 1.0;
+    uv = d.zy / a.x;
+  } else if (a.y >= a.z) {
+    face = d.y > 0.0 ? 2.0 : 3.0;
+    uv = d.xz / a.y;
+  } else {
+    face = d.z > 0.0 ? 4.0 : 5.0;
+    uv = d.xy / a.z;
+  }
+  vec2 grid = (uv * 0.5 + 0.5) * v_stars.z;
+  vec2 cell = floor(grid);
+  vec3 key = vec3(cell, face);
+  if (Hash(key) >= v_stars.y) return 0.0;
+  vec2 centre = vec2(Hash(key + vec3(17.0, 0.0, 0.0)),
+                     Hash(key + vec3(0.0, 29.0, 0.0))) * 0.6 + 0.2;
+  float off = length(grid - cell - centre);
+  float magnitude = Hash(key + vec3(0.0, 0.0, 13.0));
+  return (1.0 - smoothstep(0.0, 0.35, off)) *
+         (0.15 + 0.85 * magnitude * magnitude * magnitude);
+}
+
+void main() {
+  vec3 d = normalize(v_ray);
+  vec3 s = v_sun.xyz;
+  vec3 eye = vec3(0.0, v_planet.z, 0.0);
+
+  float ground = Meet(v_planet.z, d.y, v_planet.x);
+  bool grounded = ground > 0.0;
+  float span = grounded ? ground : Leave(v_planet.z, d.y, v_planet.y);
+
+  vec2 seenAir = vec2(0.0);
+  vec3 molecules = vec3(0.0);
+  vec3 haze = vec3(0.0);
+  for (int i = 0; i < kViewSteps; i++) {
+    float a0 = float(i) / float(kViewSteps);
+    float a1 = float(i + 1) / float(kViewSteps);
+    float t = span * 0.5 * (a0 * a0 + a1 * a1);
+    float stride = span * (a1 * a1 - a0 * a0);
+    vec3 p = eye + d * t;
+    float r = length(p);
+    vec2 air = exp(-(r - v_planet.x) / vec2(v_rayleigh.w, v_mie.z)) * stride;
+    seenAir += air;
+    // In the planet's shadow: this sample is lit by nothing.
+    if (Meet(r, dot(p, s) / r, v_planet.x) > 0.0) continue;
+    vec3 through = Through(seenAir - 0.5 * air + SunwardAir(p, s));
+    molecules += air.x * through;
+    haze += air.y * through;
+  }
+
+  float mu = dot(d, s);
+  float g = v_mie.w;
+  float gg = g * g;
+  float rayleighPhase = 3.0 / (16.0 * kPi) * (1.0 + mu * mu);
+  // Cornette–Shanks, which is Henyey–Greenstein with the Rayleigh term's
+  // shape folded in. g is held below one by the renderer, so the base of the
+  // power never reaches nought.
+  float miePhase = 3.0 / (8.0 * kPi) * ((1.0 - gg) * (1.0 + mu * mu)) /
+                   ((2.0 + gg) * pow(1.0 + gg - 2.0 * g * mu, 1.5));
+
+  vec3 colour = v_sun.w * (molecules * v_rayleigh.rgb * rayleighPhase +
+                           haze * (v_mie.x * miePhase));
+  vec3 seen = Through(seenAir);
+
+  if (grounded) {
+    // The ground, lit by what the air leaves of the sun and seen through the
+    // air in front of it. Lambertian, and with no light from the sky itself,
+    // so a ground in the sun's shadow is black; it is what fills the lower
+    // half of an environment map built from this sky, not a terrain.
+    vec3 p = eye + d * span;
+    float lit = dot(normalize(p), s);
+    if (lit > 0.0) {
+      colour += seen * Through(SunwardAir(p, s)) *
+                (v_planet.w / kPi * lit * v_sun.w);
+    }
+  } else {
+    // The disc, through the air in front of it: this is what turns it red
+    // at sunset with no colour anybody chose. `sky.frag` explains the
+    // guard and why the soft edge travels as a difference.
+    float disc = v_disc.y > 0.0
+        ? smoothstep(v_disc.x - v_disc.y, v_disc.x, mu)
+        : step(v_disc.x, mu);
+    colour += seen * (disc * v_disc.z);
+
+    // Stars, as the sun goes down: a fade from the sun six degrees above
+    // the horizon to eleven below, rather than the sky's own brightness,
+    // which would need the exposure this stage does not know.
+    float night = 1.0 - smoothstep(-0.2, 0.1, s.y);
+    if (v_stars.x > 0.0 && night > 0.0) {
+      colour += seen * (v_stars.x * night * StarField(d));
+    }
+  }
+
+  frag_color = vec4(colour, 1.0);
+}
+
+''',
     'Luminance': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -31954,11 +32448,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -32084,6 +32580,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -32091,6 +32597,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }
@@ -32850,11 +33361,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -32980,6 +33493,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -32987,6 +33510,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }

@@ -29,21 +29,28 @@ extension _SkyPass on Renderer {
     final sky = settings.sky;
     if (!sky.enabled) return;
 
-    // Two fragment stages behind one vertex stage: the ray is the same either
-    // way, and which one runs is decided by whether there is a cube to sample.
+    // Three fragment stages: the ray is the same in each, and which one runs
+    // is decided by whether there is a cube to sample, and failing that,
+    // whether there is air to scatter through. A cube wins, as
+    // `SkySettings.physical` says.
     final cubemap = sky.cubemap;
     final textured = cubemap != null;
-    final fragmentName = textured ? 'SkyCube' : 'Sky';
+    final air = textured ? null : sky.physical;
+    final fragmentName = textured
+        ? 'SkyCube'
+        : (air != null ? 'SkyPhysical' : 'Sky');
 
-    // Two vertex stages, one per fragment stage: the layout each draw carries
-    // is derived from the stage's own declarations, and the gradient and the
-    // cube want different things on their vertices. See `sky.vert`.
+    // A vertex stage per fragment stage: the layout each draw carries is
+    // derived from the stage's own declarations, and each sky wants
+    // different things on its vertices. See `sky.vert`.
     //
     // Through the renderer's own library rather than `device.shaders`, like
     // every other stage it resolves by name: a bundle handed in as
     // `materials:` wins any name it shares with the engine's, and a sky it
     // replaced — or reloaded, see `relinkShaders` — was otherwise never seen.
-    final vertexName = textured ? 'SkyCubeVertex' : 'SkyVertex';
+    final vertexName = textured
+        ? 'SkyCubeVertex'
+        : (air != null ? 'SkyPhysicalVertex' : 'SkyVertex');
     final vertex = shaders[vertexName];
     final fragment = shaders[fragmentName];
     if (vertex == null || fragment == null) {
@@ -75,6 +82,8 @@ extension _SkyPass on Renderer {
     pass.bindPipeline(
       textured
           ? (_skyCubePipeline ??= device.createPipeline(vertex, fragment))
+          : air != null
+          ? (_skyPhysicalPipeline ??= device.createPipeline(vertex, fragment))
           : (_skyPipeline ??= device.createPipeline(vertex, fragment)),
     );
     // The tracker described a pipeline this just replaced; the next mesh has to
@@ -95,7 +104,12 @@ extension _SkyPass on Renderer {
       return;
     }
 
-    pass.bindVertexData(_skyVertexBytes(inverse, sky, textured: false), 3);
+    pass.bindVertexData(
+      air != null
+          ? _skyPhysicalVertexBytes(inverse, sky, air)
+          : _skyVertexBytes(inverse, sky, textured: false),
+      3,
+    );
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     pass.draw();
@@ -196,6 +210,72 @@ extension _SkyPass on Renderer {
     }
 
     // Element indices, not bytes: the source is a Float32List.
+    return ByteData.sublistView(data, 0, 3 * stride);
+  }
+
+  /// The three corners of the physical sky's triangle — `P5`.
+  ///
+  /// The gradient's stride and the gradient's buffer: six vec4s after the ray
+  /// in both, and `sky_physical.vert` lists what each holds. Lengths go over
+  /// in kilometres, converted by `PhysicalSkyKilometres` so the Dart model
+  /// marches with the very numbers the shader does.
+  ByteData _skyPhysicalVertexBytes(
+    vm.Matrix4 inverse,
+    SkySettings sky,
+    PhysicalSky air,
+  ) {
+    final data = _skyVertexData;
+    const corners = <double>[-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
+    const stride = Renderer._kSkyVertexFloats;
+    final k = PhysicalSkyKilometres(air);
+    final toSun = sky.resolvedDirectionToSun.normalized();
+
+    for (var i = 0; i < 3; i++) {
+      final x = corners[i * 2];
+      final y = corners[i * 2 + 1];
+      var at = i * stride;
+
+      data[at++] = x;
+      data[at++] = y;
+
+      _skyCornerRay(inverse, x, y, _skyRay);
+      data[at++] = _skyRay.x;
+      data[at++] = _skyRay.y;
+      data[at++] = _skyRay.z;
+
+      data[at++] = k.rayleigh.x;
+      data[at++] = k.rayleigh.y;
+      data[at++] = k.rayleigh.z;
+      data[at++] = k.rayleighHeight;
+
+      data[at++] = k.mie;
+      data[at++] = k.mieExtinction;
+      data[at++] = k.mieHeight;
+      data[at++] = air.resolvedAnisotropy;
+
+      data[at++] = toSun.x;
+      data[at++] = toSun.y;
+      data[at++] = toSun.z;
+      data[at++] = air.sunIlluminance;
+
+      data[at++] = k.planet;
+      data[at++] = k.top;
+      data[at++] = k.eye;
+      data[at++] = air.groundAlbedo;
+
+      data[at++] = air.starBrightness;
+      data[at++] = air.starDensity;
+      data[at++] = air.starCells.toDouble();
+      data[at++] = 0.0;
+
+      // The disc as the gradient sends it, inner cosine and the width of the
+      // edge — see `_skyVertexBytes` for why not the outer cosine.
+      data[at++] = sky.discInnerCosine;
+      data[at++] = sky.discInnerCosine - sky.discOuterCosine;
+      data[at++] = sky.sunIntensity;
+      data[at++] = 0.0;
+    }
+
     return ByteData.sublistView(data, 0, 3 * stride);
   }
 

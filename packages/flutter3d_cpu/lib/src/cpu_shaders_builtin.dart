@@ -262,6 +262,10 @@ Map<String, CpuStage> builtinCpuShaders() {
     'SkyCubeVertex': const CpuStage.vertex(SkyCubeVertexShader()),
     'Sky': const CpuStage.fragment(SkyShader()),
     'SkyCube': const CpuStage.fragment(SkyCubeShader()),
+    // `P5`. The same pass-through vertex stage as the gradient's: see
+    // [SkyPhysicalShader] for why one class answers to both names.
+    'SkyPhysicalVertex': const CpuStage.vertex(SkyVertexShader()),
+    'SkyPhysical': const CpuStage.fragment(SkyPhysicalShader()),
   };
 
   for (final name in kUnimplementedCpuVertexShaders) {

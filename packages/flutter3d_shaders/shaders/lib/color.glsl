@@ -116,11 +116,13 @@ bool g_premultiply = false;
 /// way to move offsets nobody expected to move. Three vec4s is a cheap price
 /// for not touching any of that.
 uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space. Duplicated from FragInfo so this
-  /// block stands alone; a vec3 is cheaper than a coupling.
+  /// block stands alone; a vec3 is cheaper than a coupling. w: how fast the
+  /// fog thins upwards, per metre — `P5`, see [ApplyFog]; nought is flat fog.
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
@@ -246,6 +248,16 @@ void WriteSurfaceGeometry(float roughness) {
 ///
 /// Exponential rather than linear, because linear fog has a visible plane
 /// where it starts and a dungeon corridor is exactly where that shows.
+///
+/// **Height fog — `P5`.** `fog_info.fog.w` is the density at the eye and
+/// `fog_info.eye.w` how fast it falls off upwards, per metre. The density
+/// along the ray is then `density · e^(−falloff · Δy · t)` for t from nought
+/// to one, and its mean over the ray is `(1 − e^(−k)) / k` with
+/// `k = falloff · Δy`: an exact integral, so a fog lying on the ground costs
+/// one exponential here and no march. Below a thousandth `k` is answered by
+/// the first two terms of the same series, because the quotient there is
+/// two nearly equal numbers divided by a small one. A falloff of nought skips
+/// all of it, which keeps a flat fog the same to the bit.
 vec3 ApplyFog(vec3 color) {
 #ifdef F3D_NO_FOG
   return color;
@@ -253,6 +265,11 @@ vec3 ApplyFog(vec3 color) {
   float density = fog_info.fog.w;
   if (density <= 0.0) return color;
   float d = EyeDistance();
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
   return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
 #endif
 }

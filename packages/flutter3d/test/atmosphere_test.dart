@@ -32,6 +32,24 @@ void main() {
     expect(dusk.fog.density, closeTo(0.01, 1e-6));
   });
 
+  test('a height fog blends with the rest of the air and reaches the fog', () {
+    // `P5`. Mutation: leave the two new fields out of `lerp`, or out of the
+    // `fog` getter. A morning mist that is meant to lift through the day
+    // either never lifts or never lies on the ground at all.
+    final mist = Atmosphere(
+      sky: Vector3(0.6, 0.6, 0.6),
+      fogDensity: 0.05,
+      fogHeightFalloff: 0.2,
+      fogBaseHeight: 2.0,
+      sunColor: Vector3(1.0, 1.0, 1.0),
+    );
+    final half = Atmosphere.lerp(_noon(), mist, 0.5);
+    expect(half.fogHeightFalloff, closeTo(0.1, 1e-9));
+    expect(half.fogBaseHeight, closeTo(1.0, 1e-9));
+    expect(half.fog.heightFalloff, closeTo(0.1, 1e-9));
+    expect(half.fog.baseHeight, closeTo(1.0, 1e-9));
+  });
+
   test('a day goes round, blending the last key back into the first', () {
     final day = AtmosphereCycle(<(double, Atmosphere)>[
       (0.0, _noon()),

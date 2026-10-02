@@ -279,6 +279,13 @@ const Map<String, double> _budgets = <String, double>{
   'rough-metals': 0.26,
   'scan-chunks': 0.57,
   'sheen-fabric': 0.39,
+  // `P5`. 0.451% measured, the boxes' silhouettes and the row where the
+  // floor meets the far plane: Impeller multisamples both and the software
+  // rasteriser does not. The sky itself agrees, march and all.
+  'sky-physical-dusk': 0.5,
+  // 0.028% measured, edges of the block; every star is where Impeller put it,
+  // because the hash is rounded to single precision here as it is there.
+  'sky-physical-night': 0.04,
   'smoke-six-way': 0.01,
   'splat-gltf': 0.02,
   // 0.011% measured, since the hash reads the pixel the same way up and
