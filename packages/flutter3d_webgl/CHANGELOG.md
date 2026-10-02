@@ -15,6 +15,8 @@ them, could not depend on it. Nothing else changed.
 **The generated tables carry `PlanarReflection` and
 `RenderTextureEncode`**, and the `planar-mirror` and `render-texture`
 goldens are in this set.
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`.**
 
 ## 0.8.2
 

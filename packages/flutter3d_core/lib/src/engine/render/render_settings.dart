@@ -1010,13 +1010,26 @@ final class ViewportShadingSettings {
   );
 }
 
-/// Distance fog.
+/// Distance fog, and fog that lies on the ground.
 ///
 /// Exponential per metre, which is what the level format already stores. A
 /// linear fog has a visible plane where it begins, and a dungeon corridor is
 /// exactly where that shows.
+///
+/// **Height fog — `P5`.** With [heightFalloff] above nought the air thins
+/// upwards, `density · e^(−heightFalloff · (y − baseHeight))`, the same law
+/// `VolumetricFogSettings` marches; here it is integrated along the ray in
+/// closed form instead, so it costs an exponential more than the flat fog and
+/// no pass. A valley fills, a hilltop stands out of it, and a camera looking
+/// up sees less fog than one looking along the ground, which a flat fog cannot
+/// say. Nought, the default, is the flat fog and the same numbers to the bit.
 final class FogSettings {
-  const FogSettings({this.color, this.density = 0.0});
+  const FogSettings({
+    this.color,
+    this.density = 0.0,
+    this.heightFalloff = 0.0,
+    this.baseHeight = 0.0,
+  });
 
   /// Linear, not sRGB: it is mixed with scene light before the display
   /// transform, and an sRGB value here reads as a fog too bright at the near
@@ -1035,6 +1048,45 @@ final class FogSettings {
   final double density;
 
   bool get enabled => density > 0.0;
+
+  /// How fast the fog thins with height, per metre. Nought is the same fog at
+  /// every height; 0.1 halves it every seven metres, a mist in a valley; 0.01
+  /// every seventy, the haze over a landscape. Negative is held at nought.
+  final double heightFalloff;
+
+  /// The height at which the fog is [density] thick, in world metres.
+  final double baseHeight;
+
+  /// How thick the fog is at height [y], per metre.
+  ///
+  /// What the shader is handed at the eye: the fog block has one spare lane,
+  /// which carries the falloff, so the base height is folded into the
+  /// density here rather than sent. Particles and splats, which fog by
+  /// distance alone, take the same number and so fog as a flat fog as thick
+  /// as the air at the camera — exact for the flat fog, and an approximation
+  /// once it has a falloff.
+  double densityAt(double y) {
+    final falloff = resolvedHeightFalloff;
+    if (falloff == 0.0) return density;
+    // Held where single precision keeps it: past e^±80 the shader's float
+    // is nought or infinite, and either is a frame of nothing but fog.
+    final exponent = (-falloff * (y - baseHeight)).clamp(-80.0, 80.0);
+    return density * math.exp(exponent);
+  }
+
+  double get resolvedHeightFalloff => heightFalloff > 0.0 ? heightFalloff : 0.0;
+
+  FogSettings copyWith({
+    vm.Vector3? color,
+    double? density,
+    double? heightFalloff,
+    double? baseHeight,
+  }) => FogSettings(
+    color: color ?? this.color,
+    density: density ?? this.density,
+    heightFalloff: heightFalloff ?? this.heightFalloff,
+    baseHeight: baseHeight ?? this.baseHeight,
+  );
 
   static final vm.Vector3 _defaultColor = vm.Vector3(0.05, 0.05, 0.05);
 }
@@ -1306,7 +1358,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the eighty-four goldens keep the frame
+  /// nothing headless can run them. So the eighty-six goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -2084,7 +2136,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Eighty-four goldens depend on that being exact, and the composite
+/// existed. Eighty-six goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

@@ -56,6 +56,26 @@
 - `mirrorAcrossPlane`, `obliqueNearPlane` and `planeInEyeSpace` are public
   in `mirror_view.dart`, and two passes join `RenderSettings.passOrder`
   before `scene`: `render textures` and `planar reflections`.
+- **A physical sky, with stars, and fog that lies on the ground.**
+  `SkySettings.physical` takes a `PhysicalSky`: the air's molecular and haze
+  scattering, their scale heights, the planet, the sunlight entering it, the
+  ground's albedo and the stars. With it set the sky is sunlight scattered
+  once along each view ray, so its colours come from where `directionToSun`
+  puts the sun — blue overhead at noon, red towards a setting sun, dark away
+  from it — and the disc is drawn white through the air in front of it, so it
+  reddens by itself. Stars come out as the sun goes down. `SkySettings.sample`
+  answers from the same model without the stars, so `EnvironmentMap.fromSky`
+  and the renderer's hemispheric ambient follow the sun too, and
+  `PhysicalSky.sunlight` is the colour a directional light standing for the
+  sun should have. A cube map still wins. Null, the default, draws the
+  gradient as before.
+- **Height fog.** `FogSettings.heightFalloff` and `baseHeight` thin the fog
+  upwards by the law `VolumetricFogSettings` marches, integrated along the ray
+  in closed form. A falloff of nought, the default, is the flat fog to the
+  bit. `FogSettings.densityAt` and `copyWith` are new; `Atmosphere` carries
+  `fogHeightFalloff` and `fogBaseHeight` and blends them with the rest.
+  Particles and splats fog as a flat fog as thick as the air at the camera.
+
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

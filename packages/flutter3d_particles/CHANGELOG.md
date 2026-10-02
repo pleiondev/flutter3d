@@ -1,5 +1,10 @@
 ## Unreleased
 
+* **Height fog, as thick as it is at the camera.** Both contributors hand
+  their stages `FogSettings.densityAt` the camera's height rather than the
+  density at the fog's base, so a height fog does not leave particles fogged
+  as though they stood on the ground.
+
 * **Particles follow a shader reload.** `ParticleContributor` and
   `MeshParticleContributor` drop their pipelines when the renderer relinks,
   through `flutter3d_core`'s `PassContributor.relinkShaders`.

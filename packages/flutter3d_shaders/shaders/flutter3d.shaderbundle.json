@@ -315,6 +315,14 @@
     "type": "fragment",
     "file": "shaders/sky_cube.frag"
   },
+  "SkyPhysicalVertex": {
+    "type": "vertex",
+    "file": "shaders/sky_physical.vert"
+  },
+  "SkyPhysical": {
+    "type": "fragment",
+    "file": "shaders/sky_physical.frag"
+  },
   "Luminance": {
     "type": "fragment",
     "file": "shaders/post/luminance.frag"

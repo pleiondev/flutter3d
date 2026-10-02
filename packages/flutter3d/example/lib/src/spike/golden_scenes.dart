@@ -1198,6 +1198,29 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
     stage: GoldenStages.renderTexture,
   ),
+
+  // P5. The physical sky at dusk over blocks standing in ground fog, and the
+  // same sky after dark with its stars out.
+  const GoldenScene(
+    name: 'sky-physical-dusk',
+    source: 'Cube',
+    lights: <String>{'sun'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.skyPhysicalDusk,
+    configure: GoldenStages.skyPhysicalDuskSettings,
+  ),
+  const GoldenScene(
+    name: 'sky-physical-night',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.skyPhysicalNight,
+    configure: GoldenStages.skyPhysicalNightSettings,
+  ),
 ];
 
 /// Looks up a scene by name.

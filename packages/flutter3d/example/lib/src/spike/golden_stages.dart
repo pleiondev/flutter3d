@@ -1868,4 +1868,117 @@ abstract final class GoldenStages {
           _look(stage.camera, Vector3(0.6, 2.0, 4.8), Vector3(0.6, 0.7, -0.4)),
     );
   }
+
+  // ------------------------------------------------------------------ P5
+
+  /// The sun for `sky-physical-dusk`, four degrees up and ahead of the camera.
+  static Vector3 get _duskSun => Vector3(0.35, 0.07, -0.93).normalized();
+
+  /// The sun for `sky-physical-night`, eight degrees below the horizon: the
+  /// glow it leaves behind on one side, and the stars out everywhere else.
+  static Vector3 get _nightSun => Vector3(0.6, -0.139, -0.79).normalized();
+
+  static const PhysicalSky _air = PhysicalSky(starBrightness: 2.0);
+
+  /// A floor reaching to the far plane, and blocks of rising height going
+  /// away from the camera through ground fog — `sky_physical_test.dart`'s
+  /// claims, in one frame: the sky reddens towards the sun, the disc is
+  /// red, and the fog is thick at the foot of each block and thin at its top.
+  static Future<GoldenStaged> skyPhysicalDusk(GoldenStage stage) async {
+    final device = stage.device;
+    final toSun = _duskSun;
+    stage.sun
+      ..setLocalForward(-toSun)
+      ..color.setFrom(_air.sunlight(toSun))
+      ..intensity = 3.0;
+    final grey = Material(
+      baseColor: Vector4(0.55, 0.55, 0.55, 1.0),
+      roughness: 0.8,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(800.0, 0.1, 800.0),
+          Vector3(0.0, -0.05, 0.0),
+          Material(baseColor: Vector4(0.3, 0.32, 0.28, 1.0), roughness: 0.9),
+        ),
+        for (final (i, distance) in <double>[6.0, 12.0, 24.0, 48.0].indexed)
+          _slab(
+            device,
+            Vector3(1.6, 1.5 + i * 1.5, 1.6),
+            Vector3(-2.5 + i * 1.8, 0.75 + i * 0.75, -distance),
+            grey,
+          ),
+      ],
+      everyFrame: (_, _) => _look(
+        stage.camera,
+        Vector3(0.0, 1.6, 4.0),
+        Vector3(0.6, 2.4, -20.0),
+        fovY: math.pi / 3,
+        far: 500.0,
+      ),
+    );
+  }
+
+  static RenderSettings skyPhysicalDuskSettings(RenderSettings settings) {
+    final sky = SkySettings(
+      enabled: true,
+      directionToSun: _duskSun,
+      sunAngularRadiusDegrees: 1.2,
+      sunSoftnessDegrees: 0.3,
+      sunIntensity: 2.0,
+      physical: _air,
+    );
+    // The fog fades to the sky across the camera's line of sight, so the far
+    // blocks sink into the horizon rather than into a grey of their own.
+    final horizon = sky.sample(Vector3(-0.93, 0.02, -0.35));
+    return settings.copyWith(
+      sky: sky,
+      // Under the default 1.6 the horizon a few degrees from a setting sun is
+      // white; half that keeps the band of colour in it readable.
+      exposure: 0.8,
+      fog: FogSettings(color: horizon, density: 0.035, heightFalloff: 0.5),
+    );
+  }
+
+  /// A floor and a block under a sky an hour after sunset, looking up past
+  /// the glow — `sky_physical_test.dart`'s stars.
+  static Future<GoldenStaged> skyPhysicalNight(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.visible = false;
+    stage.scene.ambientIntensity = 0.02;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(800.0, 0.1, 800.0),
+          Vector3(0.0, -0.05, 0.0),
+          Material(baseColor: Vector4(0.2, 0.2, 0.2, 1.0)),
+        ),
+        _slab(
+          device,
+          Vector3(2.0, 3.0, 2.0),
+          Vector3(-3.0, 1.5, -10.0),
+          Material(baseColor: Vector4(0.2, 0.2, 0.2, 1.0)),
+        ),
+      ],
+      everyFrame: (_, _) => _look(
+        stage.camera,
+        Vector3(0.0, 1.6, 0.0),
+        Vector3(3.0, 5.0, -10.0),
+        fovY: math.pi / 3,
+        far: 500.0,
+      ),
+    );
+  }
+
+  static RenderSettings skyPhysicalNightSettings(RenderSettings settings) =>
+      settings.copyWith(
+        sky: SkySettings(
+          enabled: true,
+          directionToSun: _nightSun,
+          physical: _air,
+        ),
+      );
 }

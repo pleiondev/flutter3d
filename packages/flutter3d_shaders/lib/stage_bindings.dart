@@ -362,6 +362,8 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'Sky': (blocks: <String>{}, samplers: <String>{}),
   'SkyCube': (blocks: <String>{}, samplers: <String>{'sky_texture'}),
   'SkyCubeVertex': (blocks: <String>{}, samplers: <String>{}),
+  'SkyPhysical': (blocks: <String>{}, samplers: <String>{}),
+  'SkyPhysicalVertex': (blocks: <String>{}, samplers: <String>{}),
   'SkyVertex': (blocks: <String>{}, samplers: <String>{}),
   'SmaaBlend': (
     blocks: <String>{'SmaaInfo'},

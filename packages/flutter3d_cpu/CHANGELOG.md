@@ -35,6 +35,9 @@ mirror, and what was below the mirror came up through it here and on no
 other backend. A fragment with a window depth outside `[0, 1]` is dropped
 now, which is the same cut as clipping the triangle, because that depth is
 linear across the screen. No golden of this set moved.
+**`SkyPhysicalShader`**, the software `SkyPhysical`, with the stars' hash
+rounded to single precision as the GPU computes it, and **height fog in
+`applyFog`**, as `color.glsl` has it.
 
 ## 0.8.2
 

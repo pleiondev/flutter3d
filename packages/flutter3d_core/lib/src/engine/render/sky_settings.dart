@@ -34,6 +34,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'physical_sky.dart';
+
 /// What the sky looks like, and whether there is one.
 final class SkySettings {
   const SkySettings({
@@ -50,6 +52,7 @@ final class SkySettings {
     this.sunIntensity = 0.0,
     this.cubemap,
     this.tint,
+    this.physical,
   });
 
   /// Whether to draw at all. False emits nothing — see the library docstring.
@@ -137,6 +140,26 @@ final class SkySettings {
 
   static Vector3 get _defaultTint => Vector3(1.0, 1.0, 1.0);
 
+  /// The air to scatter the sun through instead of evaluating the gradient —
+  /// `P5`. Null, the default, draws the gradient.
+  ///
+  /// When this is set the colours of the sky come from the air and where the
+  /// sun is: [zenith], [horizon], [nadir], [sunColor], [glowExponent] and
+  /// [glowStrength] are not read. [directionToSun] places the sun, and the
+  /// disc keeps its size, softness and [sunIntensity], drawn white and dimmed
+  /// by the air in front of it — so it reddens towards the horizon by itself,
+  /// and is gone below it. Stars come out as the sun goes down; see
+  /// [PhysicalSky.starBrightness].
+  ///
+  /// A [cubemap] still wins: a photographed sky is a sky somebody chose.
+  ///
+  /// [sample] answers from the same model, so an environment map built from
+  /// the sky, a fog colour picked off its horizon and the ambient the renderer
+  /// takes from it all follow the sun too. The stars are the one part [sample]
+  /// leaves out: an environment map thirty-two texels a side would turn each
+  /// into a bright texel somewhere it does not belong.
+  final PhysicalSky? physical;
+
   /// The colour of the sky in [direction], on the CPU.
   ///
   /// The same arithmetic the shader runs, for the things that cannot ask the
@@ -145,6 +168,8 @@ final class SkySettings {
   ///
   /// [direction] need not be normalised.
   Vector3 sample(Vector3 direction) {
+    final air = physical;
+    if (air != null) return _samplePhysical(air, direction);
     final length = direction.length;
     if (length <= 0.0) return Vector3.copy(resolvedHorizon);
     final x = direction.x / length;
@@ -175,6 +200,21 @@ final class SkySettings {
     return colour;
   }
 
+  /// [sample] for a physical sky: the scattered light, and the disc where the
+  /// ray reaches space, white and dimmed by the air it crossed.
+  Vector3 _samplePhysical(PhysicalSky air, Vector3 direction) {
+    final seen = air.look(direction, resolvedDirectionToSun);
+    final colour = seen.radiance;
+    if (seen.ground || sunIntensity <= 0.0) return colour;
+    final length = direction.length;
+    if (length <= 0.0) return colour;
+    final towards = direction.dot(resolvedDirectionToSun.normalized()) / length;
+    final edge =
+        _smoothstep(discOuterCosine, discInnerCosine, towards) * sunIntensity;
+    if (edge > 0.0) colour.addScaled(seen.transmittance, edge);
+    return colour;
+  }
+
   /// Cosine of the disc's angular radius, and of the radius plus its soft edge.
   ///
   /// Cosines rather than angles because that is what a dot product answers, and
@@ -201,6 +241,7 @@ final class SkySettings {
     double? sunIntensity,
     TextureHandle? cubemap,
     Vector3? tint,
+    PhysicalSky? physical,
   }) => SkySettings(
     enabled: enabled ?? this.enabled,
     zenith: zenith ?? this.zenith,
@@ -216,6 +257,7 @@ final class SkySettings {
     sunIntensity: sunIntensity ?? this.sunIntensity,
     cubemap: cubemap ?? this.cubemap,
     tint: tint ?? this.tint,
+    physical: physical ?? this.physical,
   );
 }
 

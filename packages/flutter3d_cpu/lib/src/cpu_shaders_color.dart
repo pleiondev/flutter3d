@@ -192,10 +192,21 @@ void writeSurface(
 /// has a visible plane where it starts. The early return at zero density is
 /// not an optimisation — it is what keeps a scene with no fog byte-identical,
 /// which is what the golden sets are recorded against.
+///
+/// A height fog (`P5`) is the same fog with its density averaged over the ray
+/// in closed form, from the falloff in `eye.w`; nought there skips it, as the
+/// GLSL does, for the same reason the early return is there.
 Vector3 applyFog(Vector3 colour, Float32List v, ShaderBindings b) {
   final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-  final density = fog.w;
+  var density = fog.w;
   if (density <= 0.0) return colour;
+
+  final falloff = b.vec4('FogInfo', 'eye', Vector4.zero()).w;
+  if (falloff > 0.0) {
+    final eyeY = b.vec4('FogInfo', 'eye', Vector4.zero()).y;
+    final k = falloff * (v[kVWorld + 1] - eyeY);
+    density *= k.abs() > 1e-3 ? (1.0 - math.exp(-k)) / k : 1.0 - 0.5 * k;
+  }
 
   final t = math.exp(-density * eyeDistance(v, b)).clamp(0.0, 1.0);
 

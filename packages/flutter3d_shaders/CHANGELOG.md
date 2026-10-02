@@ -25,6 +25,15 @@ light into the sRGB bytes a material's map is read as, turning the rows over
 where the backend draws its first row at the bottom. Both are in the bundle,
 in `kRequiredShaders` and in `stageBindings`, `uniformBlocks` and
 `typed_blocks.dart`.
+**`SkyPhysical` and `SkyPhysicalVertex`**, the physical sky: single
+scattering by molecules and haze marched per pixel, sixteen samples along the
+view and eight towards the sun from each, the disc and the stars dimmed by the
+air, and the ground below the horizon. The air travels on the vertices, as the
+gradient's preset does.
+
+**`ApplyFog` integrates a height fog.** `FogInfo.eye.w` carries the falloff
+and `FogInfo.fog.w` the density at the eye; a falloff of nought takes the old
+path unchanged.
 
 ## 0.8.2
 
