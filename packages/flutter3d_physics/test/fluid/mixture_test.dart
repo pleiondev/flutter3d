@@ -87,4 +87,26 @@ void main() {
     expect(a.layers.last.medium.name, 'oil');
     expect(a.layers.last.volume, closeTo(5e-6, 1e-12));
   });
+
+  test('the meniscus is the top liquid\'s', () {
+    // Mutation: keep the water's meniscus once oil is poured over it, and
+    // the wall rise stays water's, a third higher.
+    final body = _tube(FluidMedium.water, 8e-6);
+    body
+      ..place(Matrix3.identity(), Vector3.zero())
+      ..step(1e-4, gravity: Vector3(0, -9.81, 0));
+    final water = body.meniscusAt(Vector3(0.01, 0, 0));
+    body
+      ..pour(4e-6, medium: FluidMedium.oil)
+      ..place(Matrix3.identity(), Vector3.zero())
+      ..step(1e-4, gravity: Vector3(0, -9.81, 0));
+    final oil = body.meniscusAt(Vector3(0.01, 0, 0));
+    final expected = TubeMeniscus(
+      medium: FluidMedium.oil,
+      radius: 0.01,
+      g: 9.81,
+    );
+    expect(oil, closeTo(expected.wallRise - expected.meanHeight, 1e-9));
+    expect(oil, lessThan(water));
+  });
 }
