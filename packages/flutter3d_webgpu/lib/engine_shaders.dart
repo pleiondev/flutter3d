@@ -3484,6 +3484,607 @@ fn main(@location(2) i_position: vec3<f32>, @location(0) position: vec3<f32>, @l
       ],
       samplers: <WebGpuSampler>[],
     ),
+    'CausticPhotonVertex': WebGpuStage(
+      wgsl: r'''
+struct CausticInfo {
+    map_to_world: mat4x4<f32>,
+    world_to_map: mat4x4<f32>,
+    world_to_tile: mat4x4<f32>,
+    world_to_clip: mat4x4<f32>,
+    grid: vec4<f32>,
+    light: vec4<f32>,
+    optics: vec4<f32>,
+    tint: vec4<f32>,
+    attenuation: vec4<f32>,
+}
+
+struct gl_PerVertex {
+    @builtin(position) gl_Position: vec4<f32>,
+    gl_PointSize: f32,
+    gl_ClipDistance: array<f32, 1>,
+    gl_CullDistance: array<f32, 1>,
+}
+
+struct VertexOutput {
+    @location(1) member: vec2<f32>,
+    @location(0) member_1: vec3<f32>,
+    @builtin(position) gl_Position: vec4<f32>,
+}
+
+@group(0) @binding(5) 
+var caustic_front_tex: texture_2d<f32>;
+@group(0) @binding(6) 
+var caustic_front_smp: sampler;
+@group(0) @binding(0) 
+var<uniform> caustic_info: CausticInfo;
+@group(0) @binding(1) 
+var caustic_back_tex: texture_2d<f32>;
+@group(0) @binding(2) 
+var caustic_back_smp: sampler;
+@group(0) @binding(3) 
+var caustic_depth_tex: texture_2d<f32>;
+@group(0) @binding(4) 
+var caustic_depth_smp: sampler;
+var<private> v_offset: vec2<f32>;
+var<private> corner_1: vec2<f32>;
+var<private> v_energy: vec3<f32>;
+var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
+var<private> gl_InstanceIndex_1: i32;
+
+fn AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b(a: ptr<function, vec2<f32>>, fallback: ptr<function, vec2<f32>>, least: ptr<function, f32>) -> vec2<f32> {
+    var size: f32;
+    var local: vec2<f32>;
+
+    let _e50 = (*a);
+    size = length(_e50);
+    let _e52 = size;
+    if (_e52 < 0.000000001f) {
+        let _e54 = (*fallback);
+        let _e56 = (*least);
+        return (normalize(_e54) * _e56);
+    }
+    let _e58 = size;
+    let _e59 = (*least);
+    if (_e58 < _e59) {
+        let _e61 = (*a);
+        let _e62 = (*least);
+        let _e63 = size;
+        local = (_e61 * (_e62 / _e63));
+    } else {
+        let _e66 = (*a);
+        local = _e66;
+    }
+    let _e67 = local;
+    return _e67;
+}
+
+fn Schlick_u0028_f1_u003b_f1_u003b(f0_: ptr<function, f32>, cosine: ptr<function, f32>) -> f32 {
+    var c: f32;
+
+    let _e48 = (*cosine);
+    c = clamp((1f - _e48), 0f, 1f);
+    let _e51 = (*f0_);
+    let _e52 = (*f0_);
+    let _e54 = c;
+    let _e56 = c;
+    let _e58 = c;
+    let _e60 = c;
+    let _e62 = c;
+    return (_e51 + ((((((1f - _e52) * _e54) * _e56) * _e58) * _e60) * _e62));
+}
+
+fn MapUv_u0028_vf4_u003b(p: ptr<function, vec4<f32>>) -> vec2<f32> {
+    let _e47 = (*p)[0u];
+    let _e51 = (*p)[1u];
+    return vec2<f32>(((_e47 * 0.5f) + 0.5f), (0.5f - (_e51 * 0.5f)));
+}
+
+fn Follow_u0028_vf2_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, energy: ptr<function, vec3<f32>>) -> vec4<f32> {
+    var front: vec4<f32>;
+    var ndc: vec2<f32>;
+    var entry: vec3<f32>;
+    var range: f32;
+    var l: vec3<f32>;
+    var n1_: vec3<f32>;
+    var index: f32;
+    var inside: vec3<f32>;
+    var back: vec4<f32>;
+    var across: f32;
+    var exit: vec3<f32>;
+    var there: vec4<f32>;
+    var param: vec4<f32>;
+    var n2_: vec3<f32>;
+    var local_1: vec3<f32>;
+    var out_ray: vec3<f32>;
+    var f0_1: f32;
+    var param_1: f32;
+    var param_2: f32;
+    var param_3: f32;
+    var param_4: f32;
+    var fading: f32;
+    var p_1: vec3<f32>;
+    var down: f32;
+    var k: i32;
+    var q: vec4<f32>;
+    var receiver: f32;
+    var param_5: vec4<f32>;
+    var advance: f32;
+    var landed: vec4<f32>;
+    var under: f32;
+    var param_6: vec4<f32>;
+    var clip: vec4<f32>;
+    var phi_100_: bool;
+
+    (*energy) = vec3<f32>(0f, 0f, 0f);
+    let _e80 = (*uv);
+    let _e81 = textureSampleLevel(caustic_front_tex, caustic_front_smp, _e80, 0f);
+    front = _e81;
+    let _e83 = front[3u];
+    let _e84 = (_e83 >= 1f);
+    phi_100_ = _e84;
+    if !(_e84) {
+        let _e86 = front;
+        let _e88 = front;
+        phi_100_ = (dot(_e86.xyz, _e88.xyz) < 0.25f);
+    }
+    let _e93 = phi_100_;
+    if _e93 {
+        return vec4<f32>(0f, 0f, 0f, 0f);
+    }
+    let _e95 = (*uv)[0u];
+    let _e99 = (*uv)[1u];
+    ndc = vec2<f32>(((_e95 * 2f) - 1f), ((0.5f - _e99) * 2f));
+    let _e104 = caustic_info.map_to_world;
+    let _e105 = ndc;
+    let _e107 = front[3u];
+    entry = (_e104 * vec4<f32>(_e105.x, _e105.y, _e107, 1f)).xyz;
+    let _e114 = caustic_info.map_to_world;
+    range = length((_e114 * vec4<f32>(0f, 0f, 1f, 0f)).xyz);
+    let _e119 = caustic_info.light;
+    l = normalize(_e119.xyz);
+    let _e122 = front;
+    n1_ = normalize(_e122.xyz);
+    let _e125 = n1_;
+    let _e126 = l;
+    if (dot(_e125, _e126) > 0f) {
+        let _e129 = n1_;
+        n1_ = -(_e129);
+    }
+    let _e133 = caustic_info.optics[0u];
+    index = max(_e133, 1f);
+    let _e135 = l;
+    let _e136 = n1_;
+    let _e137 = index;
+    inside = refract(_e135, _e136, (1f / _e137));
+    let _e140 = (*uv);
+    let _e141 = textureSampleLevel(caustic_back_tex, caustic_back_smp, _e140, 0f);
+    back = _e141;
+    let _e143 = back[3u];
+    let _e145 = front[3u];
+    if (_e143 <= _e145) {
+        return vec4<f32>(0f, 0f, 0f, 0f);
+    }
+    let _e148 = back[3u];
+    let _e150 = front[3u];
+    let _e152 = range;
+    across = ((_e148 - _e150) * _e152);
+    let _e154 = entry;
+    let _e155 = inside;
+    let _e156 = across;
+    let _e157 = inside;
+    let _e158 = l;
+    exit = (_e154 + (_e155 * (_e156 / max(dot(_e157, _e158), 0.2f))));
+    let _e165 = caustic_info.world_to_map;
+    let _e166 = exit;
+    param = (_e165 * vec4<f32>(_e166.x, _e166.y, _e166.z, 1f));
+    let _e172 = MapUv_u0028_vf4_u003b((&param));
+    let _e176 = textureSampleLevel(caustic_back_tex, caustic_back_smp, clamp(_e172, vec2(0f), vec2(1f)), 0f);
+    there = _e176;
+    let _e177 = there;
+    let _e179 = there;
+    if (dot(_e177.xyz, _e179.xyz) > 0.25f) {
+        let _e183 = there;
+        local_1 = normalize(_e183.xyz);
+    } else {
+        let _e186 = back;
+        local_1 = normalize(_e186.xyz);
+    }
+    let _e189 = local_1;
+    n2_ = _e189;
+    let _e190 = n2_;
+    let _e191 = inside;
+    if (dot(_e190, _e191) < 0f) {
+        let _e194 = n2_;
+        n2_ = -(_e194);
+    }
+    let _e196 = inside;
+    let _e197 = n2_;
+    let _e199 = index;
+    out_ray = refract(_e196, -(_e197), _e199);
+    let _e201 = out_ray;
+    let _e202 = out_ray;
+    if (dot(_e201, _e202) < 0.000001f) {
+        return vec4<f32>(0f, 0f, 0f, 0f);
+    }
+    let _e205 = out_ray;
+    out_ray = normalize(_e205);
+    let _e207 = out_ray;
+    let _e208 = l;
+    if (dot(_e207, _e208) < 0.3f) {
+        return vec4<f32>(0f, 0f, 0f, 0f);
+    }
+    let _e213 = caustic_info.optics[1u];
+    f0_1 = _e213;
+    let _e215 = caustic_info.tint;
+    let _e217 = l;
+    let _e218 = n1_;
+    let _e221 = f0_1;
+    param_1 = _e221;
+    param_2 = abs(dot(_e217, _e218));
+    let _e222 = Schlick_u0028_f1_u003b_f1_u003b((&param_1), (&param_2));
+    let _e225 = out_ray;
+    let _e226 = n2_;
+    let _e229 = f0_1;
+    param_3 = _e229;
+    param_4 = abs(dot(_e225, _e226));
+    let _e230 = Schlick_u0028_f1_u003b_f1_u003b((&param_3), (&param_4));
+    (*energy) = ((_e215.xyz * (1f - _e222)) * (1f - _e230));
+    let _e235 = caustic_info.optics[2u];
+    fading = _e235;
+    let _e236 = fading;
+    if (_e236 > 0f) {
+        let _e239 = caustic_info.attenuation;
+        let _e242 = exit;
+        let _e243 = entry;
+        let _e246 = fading;
+        let _e250 = (*energy);
+        (*energy) = (_e250 * pow(max(_e239.xyz, vec3<f32>(0.0001f, 0.0001f, 0.0001f)), vec3((length((_e242 - _e243)) / _e246))));
+    }
+    let _e252 = exit;
+    p_1 = _e252;
+    let _e253 = out_ray;
+    let _e254 = l;
+    down = max(dot(_e253, _e254), 0.05f);
+    k = 0i;
+    loop {
+        let _e257 = k;
+        if (_e257 < 4i) {
+            let _e260 = caustic_info.world_to_tile;
+            let _e261 = p_1;
+            q = (_e260 * vec4<f32>(_e261.x, _e261.y, _e261.z, 1f));
+            let _e267 = q;
+            param_5 = _e267;
+            let _e268 = MapUv_u0028_vf4_u003b((&param_5));
+            let _e272 = textureSampleLevel(caustic_depth_tex, caustic_depth_smp, clamp(_e268, vec2(0f), vec2(1f)), 0f);
+            receiver = _e272.x;
+            let _e274 = receiver;
+            let _e276 = q[2u];
+            let _e278 = range;
+            let _e280 = down;
+            advance = (((_e274 - _e276) * _e278) / _e280);
+            let _e282 = k;
+            if (_e282 == 0i) {
+                let _e284 = advance;
+                advance = max(_e284, 0f);
+            }
+            let _e286 = out_ray;
+            let _e287 = advance;
+            let _e289 = p_1;
+            p_1 = (_e289 + (_e286 * _e287));
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e291 = k;
+            k = (_e291 + 1i);
+        }
+    }
+    let _e294 = caustic_info.world_to_tile;
+    let _e295 = p_1;
+    landed = (_e294 * vec4<f32>(_e295.x, _e295.y, _e295.z, 1f));
+    let _e301 = landed;
+    param_6 = _e301;
+    let _e302 = MapUv_u0028_vf4_u003b((&param_6));
+    let _e306 = textureSampleLevel(caustic_depth_tex, caustic_depth_smp, clamp(_e302, vec2(0f), vec2(1f)), 0f);
+    under = _e306.x;
+    let _e308 = under;
+    let _e310 = landed[2u];
+    let _e313 = range;
+    if ((abs((_e308 - _e310)) * _e313) > 0.02f) {
+        return vec4<f32>(0f, 0f, 0f, 0f);
+    }
+    let _e317 = caustic_info.world_to_clip;
+    let _e318 = p_1;
+    clip = (_e317 * vec4<f32>(_e318.x, _e318.y, _e318.z, 1f));
+    let _e324 = clip;
+    let _e327 = clip[3u];
+    let _e329 = (_e324.xy / vec2(_e327));
+    return vec4<f32>(_e329.x, _e329.y, 0f, 1f);
+}
+
+fn main_1() {
+    var n: f32;
+    var id: f32;
+    var column: f32;
+    var row: f32;
+    var uv_1: vec2<f32>;
+    var texel: f32;
+    var here: vec4<f32>;
+    var energy_1: vec3<f32>;
+    var param_7: vec2<f32>;
+    var param_8: vec3<f32>;
+    var spacing_x: vec2<f32>;
+    var spacing_y: vec2<f32>;
+    var next_x: vec4<f32>;
+    var unused: vec3<f32>;
+    var param_9: vec2<f32>;
+    var param_10: vec3<f32>;
+    var a_1: vec2<f32>;
+    var local_2: vec2<f32>;
+    var prev_x: vec4<f32>;
+    var param_11: vec2<f32>;
+    var param_12: vec3<f32>;
+    var next_y: vec4<f32>;
+    var param_13: vec2<f32>;
+    var param_14: vec3<f32>;
+    var b: vec2<f32>;
+    var local_3: vec2<f32>;
+    var prev_y: vec4<f32>;
+    var param_15: vec2<f32>;
+    var param_16: vec3<f32>;
+    var least_1: f32;
+    var param_17: vec2<f32>;
+    var param_18: vec2<f32>;
+    var param_19: f32;
+    var param_20: vec2<f32>;
+    var param_21: vec2<f32>;
+    var param_22: f32;
+    var area: f32;
+    var share: f32;
+
+    let _e83 = corner_1;
+    v_offset = _e83;
+    v_energy = vec3<f32>(0f, 0f, 0f);
+    unnamed.gl_Position = vec4<f32>(4f, 4f, 0.5f, 1f);
+    let _e87 = caustic_info.grid[0u];
+    n = _e87;
+    let _e88 = gl_InstanceIndex_1;
+    id = f32(_e88);
+    let _e90 = id;
+    let _e91 = n;
+    column = (_e90 - (floor((_e90 / _e91)) * _e91));
+    let _e96 = id;
+    let _e97 = n;
+    row = floor((_e96 / _e97));
+    let _e100 = column;
+    let _e102 = n;
+    let _e104 = row;
+    let _e106 = n;
+    uv_1 = vec2<f32>(((_e100 + 0.5f) / _e102), ((_e104 + 0.5f) / _e106));
+    let _e109 = n;
+    texel = (1f / _e109);
+    let _e111 = uv_1;
+    param_7 = _e111;
+    let _e112 = Follow_u0028_vf2_u003b_vf3_u003b((&param_7), (&param_8));
+    let _e113 = param_8;
+    energy_1 = _e113;
+    here = _e112;
+    let _e115 = here[3u];
+    if (_e115 < 0.5f) {
+        return;
+    }
+    let _e119 = caustic_info.grid[2u];
+    spacing_x = vec2<f32>(_e119, 0f);
+    let _e123 = caustic_info.grid[3u];
+    spacing_y = vec2<f32>(0f, _e123);
+    let _e125 = uv_1;
+    let _e126 = texel;
+    param_9 = (_e125 + vec2<f32>(_e126, 0f));
+    let _e129 = Follow_u0028_vf2_u003b_vf3_u003b((&param_9), (&param_10));
+    let _e130 = param_10;
+    unused = _e130;
+    next_x = _e129;
+    let _e132 = next_x[3u];
+    if (_e132 > 0.5f) {
+        let _e134 = next_x;
+        let _e136 = here;
+        local_2 = (_e134.xy - _e136.xy);
+    } else {
+        let _e139 = spacing_x;
+        local_2 = _e139;
+    }
+    let _e140 = local_2;
+    a_1 = _e140;
+    let _e142 = next_x[3u];
+    if (_e142 < 0.5f) {
+        let _e144 = uv_1;
+        let _e145 = texel;
+        param_11 = (_e144 - vec2<f32>(_e145, 0f));
+        let _e148 = Follow_u0028_vf2_u003b_vf3_u003b((&param_11), (&param_12));
+        let _e149 = param_12;
+        unused = _e149;
+        prev_x = _e148;
+        let _e151 = prev_x[3u];
+        if (_e151 > 0.5f) {
+            let _e153 = here;
+            let _e155 = prev_x;
+            a_1 = (_e153.xy - _e155.xy);
+        }
+    }
+    let _e158 = uv_1;
+    let _e159 = texel;
+    param_13 = (_e158 + vec2<f32>(0f, _e159));
+    let _e162 = Follow_u0028_vf2_u003b_vf3_u003b((&param_13), (&param_14));
+    let _e163 = param_14;
+    unused = _e163;
+    next_y = _e162;
+    let _e165 = next_y[3u];
+    if (_e165 > 0.5f) {
+        let _e167 = next_y;
+        let _e169 = here;
+        local_3 = (_e167.xy - _e169.xy);
+    } else {
+        let _e172 = spacing_y;
+        local_3 = _e172;
+    }
+    let _e173 = local_3;
+    b = _e173;
+    let _e175 = next_y[3u];
+    if (_e175 < 0.5f) {
+        let _e177 = uv_1;
+        let _e178 = texel;
+        param_15 = (_e177 - vec2<f32>(0f, _e178));
+        let _e181 = Follow_u0028_vf2_u003b_vf3_u003b((&param_15), (&param_16));
+        let _e182 = param_16;
+        unused = _e182;
+        prev_y = _e181;
+        let _e184 = prev_y[3u];
+        if (_e184 > 0.5f) {
+            let _e186 = here;
+            let _e188 = prev_y;
+            b = (_e186.xy - _e188.xy);
+        }
+    }
+    let _e193 = caustic_info.grid[1u];
+    least_1 = _e193;
+    let _e194 = a_1;
+    param_17 = (_e194 * 1.5f);
+    let _e196 = spacing_x;
+    param_18 = _e196;
+    let _e197 = least_1;
+    param_19 = _e197;
+    let _e198 = AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19));
+    a_1 = _e198;
+    let _e199 = b;
+    param_20 = (_e199 * 1.5f);
+    let _e201 = spacing_y;
+    param_21 = _e201;
+    let _e202 = least_1;
+    param_22 = _e202;
+    let _e203 = AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b((&param_20), (&param_21), (&param_22));
+    b = _e203;
+    let _e205 = a_1[0u];
+    let _e207 = b[1u];
+    let _e210 = a_1[1u];
+    let _e212 = b[0u];
+    let _e216 = least_1;
+    let _e217 = least_1;
+    area = max(abs(((_e205 * _e207) - (_e210 * _e212))), (_e216 * _e217));
+    let _e220 = here;
+    let _e223 = corner_1[0u];
+    let _e224 = a_1;
+    let _e228 = corner_1[1u];
+    let _e229 = b;
+    let _e231 = ((_e220.xy + (_e224 * _e223)) + (_e229 * _e228));
+    unnamed.gl_Position = vec4<f32>(_e231.x, _e231.y, 0.5f, 1f);
+    let _e238 = caustic_info.grid[2u];
+    let _e241 = caustic_info.grid[3u];
+    share = (_e238 * _e241);
+    let _e243 = energy_1;
+    let _e244 = share;
+    let _e246 = area;
+    v_energy = ((_e243 * _e244) / vec3((1.0471976f * _e246)));
+    return;
+}
+
+@vertex 
+fn main(@location(0) corner: vec2<f32>, @builtin(instance_index) gl_InstanceIndex: u32) -> VertexOutput {
+    corner_1 = corner;
+    gl_InstanceIndex_1 = i32(gl_InstanceIndex);
+    main_1();
+    let _e9 = v_offset;
+    let _e10 = v_energy;
+    let _e11 = unnamed.gl_Position;
+    return VertexOutput(_e9, _e10, _e11);
+}
+''',
+      attributes: <WebGpuAttribute>[
+        WebGpuAttribute(
+          name: 'corner',
+          location: 0,
+          format: VertexFormat.float32x2,
+        ),
+      ],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'CausticInfo',
+          group: 0,
+          binding: 0,
+          sizeInBytes: 336,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'map_to_world',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'world_to_map',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'world_to_tile',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'world_to_clip',
+              offsetInBytes: 192,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'grid',
+              offsetInBytes: 256,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'light',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'optics',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'tint',
+              offsetInBytes: 304,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'attenuation',
+              offsetInBytes: 320,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'caustic_back',
+          group: 0,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'caustic_depth',
+          group: 0,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'caustic_front',
+          group: 0,
+          textureBinding: 5,
+          samplerBinding: 6,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ShadowTileResetVertex': WebGpuStage(
       wgsl: r'''
 struct gl_PerVertex {
@@ -39493,6 +40094,95 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<
         ),
       ],
     ),
+    'CausticSurface': WebGpuStage(
+      wgsl: r'''
+var<private> g_albedo: vec3<f32>;
+var<private> g_debug_surface: vec3<f32>;
+var<private> g_debug_surface_on: bool;
+var<private> g_premultiply: bool;
+var<private> frag_color: vec4<f32>;
+var<private> v_normal_1: vec3<f32>;
+var<private> gl_FragCoord_1: vec4<f32>;
+var<private> v_world_position_1: vec3<f32>;
+var<private> v_texcoord_1: vec2<f32>;
+var<private> v_tangent_1: vec4<f32>;
+var<private> v_color_1: vec4<f32>;
+var<private> v_lightmap_uv_1: vec2<f32>;
+
+fn main_1() {
+    g_albedo = vec3<f32>(0f, 0f, 0f);
+    g_debug_surface = vec3<f32>(0f, 0f, 0f);
+    g_debug_surface_on = false;
+    g_premultiply = false;
+    let _e17 = v_normal_1;
+    let _e18 = normalize(_e17);
+    let _e20 = gl_FragCoord_1[2u];
+    frag_color = vec4<f32>(_e18.x, _e18.y, _e18.z, _e20);
+    return;
+}
+
+@fragment 
+fn main(@location(2) v_normal: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_world_position: vec3<f32>, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_normal_1 = v_normal;
+    gl_FragCoord_1 = gl_FragCoord;
+    v_world_position_1 = v_world_position;
+    v_texcoord_1 = v_texcoord;
+    v_tangent_1 = v_tangent;
+    v_color_1 = v_color;
+    v_lightmap_uv_1 = v_lightmap_uv;
+    main_1();
+    let _e15 = frag_color;
+    return _e15;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[],
+      samplers: <WebGpuSampler>[],
+    ),
+    'CausticPhoton': WebGpuStage(
+      wgsl: r'''
+var<private> v_offset_1: vec2<f32>;
+var<private> v_energy_1: vec3<f32>;
+var<private> frag_color: vec4<f32>;
+
+fn main_1() {
+    var r2_: f32;
+    var k: f32;
+    var e: vec3<f32>;
+
+    let _e11 = v_offset_1;
+    let _e12 = v_offset_1;
+    r2_ = dot(_e11, _e12);
+    let _e14 = r2_;
+    if (_e14 >= 1f) {
+        discard;
+    }
+    let _e16 = r2_;
+    let _e18 = r2_;
+    k = ((1f - _e16) * (1f - _e18));
+    let _e21 = v_energy_1;
+    let _e22 = k;
+    e = (_e21 * _e22);
+    let _e25 = e[0u];
+    let _e27 = e[1u];
+    let _e29 = e[2u];
+    frag_color = vec4<f32>(0f, _e25, _e27, _e29);
+    return;
+}
+
+@fragment 
+fn main(@location(1) v_offset: vec2<f32>, @location(0) v_energy: vec3<f32>) -> @location(0) vec4<f32> {
+    v_offset_1 = v_offset;
+    v_energy_1 = v_energy;
+    main_1();
+    let _e5 = frag_color;
+    return _e5;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[],
+      samplers: <WebGpuSampler>[],
+    ),
     'ShadowTransmittance': WebGpuStage(
       wgsl: r'''
 struct TransmittanceInfo {
@@ -39533,35 +40223,39 @@ fn main_1() {
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
     g_premultiply = false;
-    let _e37 = transmittance_info.color[3u];
-    opacity = clamp(_e37, 0f, 1f);
-    let _e41 = transmittance_info.params[0u];
-    transmission = clamp(_e41, 0f, 1f);
-    let _e44 = transmittance_info.color;
-    let _e47 = v_texcoord_1;
-    let _e48 = textureSample(base_color_texture_tex, base_color_texture_smp, _e47);
-    tint = (max(_e44.xyz, vec3<f32>(0f, 0f, 0f)) * _e48.xyz);
-    let _e51 = opacity;
-    let _e54 = opacity;
-    let _e55 = transmission;
-    let _e57 = tint;
-    body = (vec3((1f - _e51)) + (_e57 * (_e54 * _e55)));
-    let _e60 = v_normal_1;
-    let _e63 = transmittance_info.light;
-    facing = abs(dot(normalize(_e60), _e63.xyz));
-    let _e69 = transmittance_info.params[1u];
-    f0_ = clamp(_e69, 0f, 1f);
-    let _e71 = f0_;
+    let _e38 = transmittance_info.color[3u];
+    opacity = clamp(_e38, 0f, 1f);
+    let _e42 = transmittance_info.params[0u];
+    transmission = clamp(_e42, 0f, 1f);
+    let _e45 = transmittance_info.color;
+    let _e48 = v_texcoord_1;
+    let _e49 = textureSample(base_color_texture_tex, base_color_texture_smp, _e48);
+    tint = (max(_e45.xyz, vec3<f32>(0f, 0f, 0f)) * _e49.xyz);
+    let _e52 = opacity;
+    let _e55 = opacity;
+    let _e56 = transmission;
+    let _e58 = tint;
+    body = (vec3((1f - _e52)) + (_e58 * (_e55 * _e56)));
+    let _e61 = v_normal_1;
+    let _e64 = transmittance_info.light;
+    facing = abs(dot(normalize(_e61), _e64.xyz));
+    let _e70 = transmittance_info.params[1u];
+    f0_ = clamp(_e70, 0f, 1f);
     let _e72 = f0_;
-    let _e74 = facing;
-    fresnel = (_e71 + ((1f - _e72) * pow((1f - clamp(_e74, 0f, 1f)), 5f)));
-    let _e80 = body;
-    let _e83 = fresnel;
-    through = (sqrt(max(_e80, vec3<f32>(0f, 0f, 0f))) * (1f - _e83));
-    let _e87 = through[0u];
-    let _e90 = through[1u];
-    let _e93 = through[2u];
-    frag_color = vec4<f32>(0f, (1f - _e87), (1f - _e90), _e93);
+    let _e73 = f0_;
+    let _e75 = facing;
+    fresnel = (_e72 + ((1f - _e73) * pow((1f - clamp(_e75, 0f, 1f)), 5f)));
+    let _e81 = body;
+    let _e84 = fresnel;
+    through = (sqrt(max(_e81, vec3<f32>(0f, 0f, 0f))) * (1f - _e84));
+    let _e89 = transmittance_info.params[2u];
+    if (_e89 > 0.5f) {
+        through = vec3<f32>(0f, 0f, 0f);
+    }
+    let _e92 = through[0u];
+    let _e95 = through[1u];
+    let _e98 = through[2u];
+    frag_color = vec4<f32>(0f, (1f - _e92), (1f - _e95), _e98);
     return;
 }
 

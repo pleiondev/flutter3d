@@ -59,7 +59,9 @@ uniform TransmittanceInfo {
   vec4 light;
 
   /// x: the transmission, nought for a material that has none. y: the
-  /// reflectance head-on, ((n − 1) / (n + 1))² of its index. zw unused.
+  /// reflectance head-on, ((n − 1) / (n + 1))² of its index. z: one when its
+  /// photons are followed and its light is given back by them, nought
+  /// otherwise. w unused.
   vec4 params;
 }
 transmittance_info;
@@ -76,5 +78,8 @@ void main() {
   float fresnel = f0 + (1.0 - f0) * pow(1.0 - clamp(facing, 0.0, 1.0), 5.0);
 
   vec3 through = sqrt(max(body, vec3(0.0))) * (1.0 - fresnel);
+  // A caster whose photons are followed (`ShadowSettings.caustics`) stops
+  // all of the light here; the photon pass gives it back where it lands.
+  if (transmittance_info.params.z > 0.5) through = vec3(0.0);
   frag_color = vec4(0.0, 1.0 - through.r, 1.0 - through.g, through.b);
 }

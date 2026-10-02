@@ -239,6 +239,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowCopy': const CpuStage.fragment(ShadowCopyShader()),
     'ShadowTransmittance': const CpuStage.fragment(ShadowTransmittanceShader()),
+    'CausticSurface': const CpuStage.fragment(CausticSurfaceShader()),
+    'CausticPhotonVertex': const CpuStage.vertex(CausticPhotonVertexShader()),
+    'CausticPhoton': const CpuStage.fragment(CausticPhotonShader()),
     'EvsmFilter': const CpuStage.fragment(EvsmFilterShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
     'ShadowTileResetVertex': const CpuStage.vertex(

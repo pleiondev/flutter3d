@@ -632,11 +632,36 @@ extension _ShadowPasses on Renderer {
         ? shaders['ShadowTransmittance']
         : null;
     final transmits = transmittanceShader != null;
+    // `ShadowSettings.caustics`: the three stages it adds and the copy it
+    // borrows, or nothing at all.
+    final causticSurface = shaders['CausticSurface'];
+    final photonVertex = shaders['CausticPhotonVertex'];
+    final photonFragment = shaders['CausticPhoton'];
+    final caustics =
+        transmits &&
+        settings.caustics &&
+        causticSurface != null &&
+        photonVertex != null &&
+        photonFragment != null &&
+        shaders['ShadowCopy'] != null &&
+        shaders['FullscreenVertex'] != null;
     bool seeThrough(MeshNode node) {
       if (!transmits) return false;
       final material = node.material;
       return material.isTransparent ||
           (material.extensions?.transmission ?? 0.0) > 0.0;
+    }
+
+    // Whether [node]'s light is followed as photons: a static caster with a
+    // volume — transmission and a thickness. A thin-walled one refracts
+    // nothing worth following.
+    bool refracts(MeshNode node) {
+      if (!caustics || !seeThrough(node)) return false;
+      if (node is InstancedMeshNode || node.skeleton != null) return false;
+      final extensions = node.material.extensions;
+      return extensions != null &&
+          extensions.transmission > 0.0 &&
+          extensions.thickness > 0.0;
     }
 
     // Casters only. The last cascade is fitted to this, so anything counted
@@ -910,7 +935,8 @@ extension _ShadowPasses on Renderer {
         _shadowMap == null ||
         _shadowResolution != resolution ||
         _shadowCascadeCount != count ||
-        _shadowTransmits != transmits;
+        _shadowTransmits != transmits ||
+        _shadowCaustics != caustics;
     final staticFresh = fresh || _shadowMapStatic == null;
     // `S1`: the static casters keyed as a whole rather than per tile, since
     // a tile that scrolls gains the casters its new strip holds without any
@@ -1019,6 +1045,7 @@ extension _ShadowPasses on Renderer {
       _shadowResolution = resolution;
       _shadowCascadeCount = count;
       _shadowTransmits = transmits;
+      _shadowCaustics = caustics;
     }
     if (split && staticModes.any((mode) => mode != _StaticTile.keep)) {
       _shadowMapStaticSpare ??= device.createTexture(atlasSpec());
@@ -1312,7 +1339,8 @@ extension _ShadowPasses on Renderer {
         _transmittanceInfo.params
           ..[0] = transmission
           ..[1] = f0 * f0
-          ..[2] = 0.0
+          // Its light stopped here and given back by its photons.
+          ..[2] = refracts(node) ? 1.0 : 0.0
           ..[3] = 0.0;
         pass
           ..bindBlock(shader, _transmittanceInfo)
@@ -1422,6 +1450,292 @@ extension _ShadowPasses on Renderer {
       _frameCounters?.drawCalls++;
     }
 
+    /// `ShadowSettings.caustics` for [cascade]: its opaque depth copied out,
+    /// each refracting caster's near and far faces drawn into maps of its
+    /// own, and one photon per texel of them followed through it and added
+    /// back into the tile where it lands. See `caustic_photon.vert`.
+    void followPhotons(int cascade) {
+      final frustum = cascadeFrusta[cascade];
+      final casters = <MeshNode>[
+        for (final node in meshes)
+          if (refracts(node) && _drawsIntoCascade(node, frustum)) node,
+      ];
+      if (casters.isEmpty) return;
+
+      // The tile's opaque depth, where photons land, in a texture of its own:
+      // the atlas cannot be read by the pass that draws into it.
+      final depthCopy = resources.transient(
+        RenderTargetSpec(
+          width: resolution,
+          height: resolution,
+          format: hdrFormat,
+        ),
+      );
+      final copyDepth = resources.transient(
+        RenderTargetSpec(
+          width: resolution,
+          height: resolution,
+          format: device.defaultDepthStencilFormat,
+          storageMode: StorageMode.deviceTransient,
+        ),
+      );
+      final whole = ScreenRect(width: resolution, height: resolution);
+      final copyPass = device.beginRenderPass(
+        RenderPassDescriptor(
+          label: _passLabel,
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: depthCopy,
+              clearValue: vm.Vector4(1.0, 0.0, 0.0, 1.0),
+            ),
+          ],
+          depth: DepthTarget(texture: copyDepth),
+        ),
+      );
+      final copyShader = shaders['ShadowCopy']!;
+      _shadowCopyInfo.tile
+        ..[0] = count > 1 ? cascade / count : 0.0
+        ..[1] = 0.0
+        ..[2] = 1.0 / count
+        ..[3] = 1.0;
+      _shadowCopyInfo.shift
+        ..[0] = 0.0
+        ..[1] = 0.0
+        ..[2] = 0.0
+        ..[3] = 0.0;
+      copyPass
+        ..setState(
+          Renderer._kShadowCopyState.copyWith(viewport: whole, scissor: whole),
+        )
+        ..bindPipeline(
+          _shadowCopyPipeline ??= device.createPipeline(
+            shaders['FullscreenVertex']!,
+            copyShader,
+          ),
+        )
+        ..bindBlock(copyShader, _shadowCopyInfo)
+        ..bindTexture(
+          copyShader,
+          'static_shadow_texture',
+          _shadowMap!,
+          sampler: SamplerOptions.nearestClamp,
+        )
+        ..bindVertexBuffer(_fullscreenTriangle, 3)
+        ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
+        ..draw();
+      copyPass.submit();
+      _frameCounters?.drawCalls++;
+
+      final photons = settings.causticPhotons.clamp(8, 512);
+      final raw = rawMatrices[cascade];
+      final surfacePipeline = _causticSurfacePipeline ??= device.createPipeline(
+        vertexShader,
+        causticSurface!,
+      );
+
+      final maps =
+          <
+            ({
+              MeshNode node,
+              TextureHandle front,
+              TextureHandle back,
+              vm.Matrix4 toMap,
+              double width,
+              double height,
+            })
+          >[];
+      for (final node in casters) {
+        // The caster's footprint in the cascade's clip space, a little
+        // padded, and the cascade's matrix cropped to it.
+        final box = node.worldBounds;
+        var x0 = double.infinity, x1 = -double.infinity;
+        var y0 = double.infinity, y1 = -double.infinity;
+        for (var corner = 0; corner < 8; corner++) {
+          final p = raw.transform(
+            vm.Vector4(
+              corner & 1 == 0 ? box.min.x : box.max.x,
+              corner & 2 == 0 ? box.min.y : box.max.y,
+              corner & 4 == 0 ? box.min.z : box.max.z,
+              1.0,
+            ),
+          );
+          x0 = math.min(x0, p.x / p.w);
+          x1 = math.max(x1, p.x / p.w);
+          y0 = math.min(y0, p.y / p.w);
+          y1 = math.max(y1, p.y / p.w);
+        }
+        final padX = (x1 - x0) * 0.02, padY = (y1 - y0) * 0.02;
+        x0 = math.max(x0 - padX, -1.0);
+        x1 = math.min(x1 + padX, 1.0);
+        y0 = math.max(y0 - padY, -1.0);
+        y1 = math.min(y1 + padY, 1.0);
+        if (x1 - x0 < 1e-6 || y1 - y0 < 1e-6) continue;
+        final crop = vm.Matrix4.identity()
+          ..setEntry(0, 0, 2.0 / (x1 - x0))
+          ..setEntry(1, 1, 2.0 / (y1 - y0))
+          ..setEntry(0, 3, -(x1 + x0) / (x1 - x0))
+          ..setEntry(1, 3, -(y1 + y0) / (y1 - y0));
+        final cropped = crop.multiplied(raw);
+        final drawCropped = toDepthRange(cropped, device.depthRange);
+        final sampleCropped = toFramebufferOrigin(
+          cropped,
+          device.framebufferOrigin,
+        );
+
+        TextureHandle face({required bool near}) {
+          final target = resources.transient(
+            RenderTargetSpec(
+              width: photons,
+              height: photons,
+              format: hdrFormat,
+            ),
+          );
+          final depth = resources.transient(
+            RenderTargetSpec(
+              width: photons,
+              height: photons,
+              format: device.defaultDepthStencilFormat,
+              storageMode: StorageMode.deviceTransient,
+            ),
+          );
+          final facePass = device.beginRenderPass(
+            RenderPassDescriptor(
+              label: _passLabel,
+              colors: <ColorTarget>[
+                ColorTarget(
+                  texture: target,
+                  // No surface: a depth past the far plane for the near
+                  // faces, before the near one for the far faces.
+                  clearValue: near
+                      ? vm.Vector4(0.0, 0.0, 0.0, 1.0)
+                      : vm.Vector4(0.0, 0.0, 0.0, 0.0),
+                ),
+              ],
+              depth: DepthTarget(texture: depth, clearValue: near ? 1.0 : 0.0),
+            ),
+          );
+          final square = ScreenRect(width: photons, height: photons);
+          facePass
+            ..setState(
+              PassState(
+                primitiveType: PrimitiveType.triangle,
+                viewport: square,
+                scissor: square,
+                cullMode: near ? CullMode.backFace : CullMode.frontFace,
+                depthWrite: true,
+                depthCompare: near
+                    ? CompareFunction.less
+                    : CompareFunction.greater,
+              ),
+            )
+            ..bindPipeline(surfacePipeline);
+          drawNode(facePass, node, 0, drawCropped);
+          facePass.submit();
+          return target;
+        }
+
+        maps.add((
+          node: node,
+          front: face(near: true),
+          back: face(near: false),
+          toMap: sampleCropped,
+          width: x1 - x0,
+          height: y1 - y0,
+        ));
+      }
+      if (maps.isEmpty) return;
+
+      // The photons, into the tile.
+      final tile = tileOf(cascade);
+      final photonPass = open(_shadowMap!, load: true);
+      final quad = _causticQuad ??= device.uploadGeometry(
+        Float32List.fromList(<double>[
+          -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, //
+          -1.0, -1.0, 1.0, 1.0, -1.0, 1.0,
+        ]).buffer.asByteData(),
+        GeometryUsage.vertices,
+      );
+      photonPass
+        ..setState(
+          Renderer._kCausticPhotonState.copyWith(viewport: tile, scissor: tile),
+        )
+        ..bindPipeline(
+          _causticPhotonPipeline ??= device.createPipeline(
+            photonVertex!,
+            photonFragment!,
+          ),
+        )
+        ..bindVertexBuffer(quad, 6)
+        ..bindIndexBuffer(_identityIndices(6), IndexType.int32, 6);
+      final texel = 2.0 / resolution;
+      for (final map in maps) {
+        final material = map.node.material;
+        final extensions = material.extensions!;
+        final ior = math.max(extensions.ior, 1.0);
+        final f0 = (ior - 1.0) / (ior + 1.0);
+        // The least a photon's quad reaches either way: two texels, or a
+        // photon gathered to a point falls between texel centres.
+        final least = 2.0 * texel;
+        final distance = extensions.attenuationDistance;
+        _causticInfo.mapToWorld.setAll(
+          0,
+          vm.Matrix4.inverted(map.toMap).storage,
+        );
+        _causticInfo.worldToMap.setAll(0, map.toMap.storage);
+        _causticInfo.worldToTile.setAll(0, shaderMatrices[cascade].storage);
+        _causticInfo.worldToClip.setAll(0, drawMatrices[cascade].storage);
+        _causticInfo.grid
+          ..[0] = photons.toDouble()
+          ..[1] = least
+          ..[2] = map.width / photons
+          ..[3] = map.height / photons;
+        _causticInfo.light
+          ..[0] = aim.x
+          ..[1] = aim.y
+          ..[2] = aim.z
+          ..[3] = 0.0;
+        _causticInfo.optics
+          ..[0] = ior
+          ..[1] = f0 * f0
+          ..[2] = distance.isFinite && distance > 0.0 ? distance : 0.0
+          ..[3] = 0.0;
+        final transmission = extensions.transmission;
+        _causticInfo.tint
+          ..[0] = transmission * material.baseColor.x
+          ..[1] = transmission * material.baseColor.y
+          ..[2] = transmission * material.baseColor.z
+          ..[3] = 0.0;
+        _causticInfo.attenuation
+          ..[0] = extensions.attenuationColor.x
+          ..[1] = extensions.attenuationColor.y
+          ..[2] = extensions.attenuationColor.z
+          ..[3] = 0.0;
+        photonPass
+          ..bindBlock(photonVertex!, _causticInfo)
+          ..bindTexture(
+            photonVertex,
+            'caustic_front',
+            map.front,
+            sampler: SamplerOptions.nearestClamp,
+          )
+          ..bindTexture(
+            photonVertex,
+            'caustic_back',
+            map.back,
+            sampler: SamplerOptions.nearestClamp,
+          )
+          ..bindTexture(
+            photonVertex,
+            'caustic_depth',
+            depthCopy,
+            sampler: SamplerOptions.nearestClamp,
+          )
+          ..draw(instanceCount: photons * photons);
+        _frameCounters?.drawCalls++;
+      }
+      photonPass.submit();
+    }
+
     developer.Timeline.startSync('Renderer.shadowPass');
     if (split && staticModes.any((mode) => mode != _StaticTile.keep)) {
       // Into the spare atlas, every tile: a kept one copied across, a
@@ -1469,6 +1783,11 @@ extension _ShadowPasses on Renderer {
       drawSeeThrough(pass, cascade);
     }
     pass.submit();
+    if (caustics) {
+      for (var cascade = 0; cascade < count; cascade++) {
+        if (dirty[cascade]) followPhotons(cascade);
+      }
+    }
     developer.Timeline.finishSync();
     _shadowMapVersion++;
 
