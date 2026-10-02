@@ -563,6 +563,26 @@ extension _MeshEncode on Renderer {
           ? settings.shadows.directionalLightRadius
           : ShadowSettings.sunAngularRadius;
 
+      // `ShadowSettings.translucentCasters`: whether this draw is shaded by
+      // what the see-through casters let through, in the one spare
+      // component of `shadow_bias`. Only when the atlas the shader reads is
+      // the one that carries it — not the moments — and never for a surface
+      // that is itself one of those casters, which would otherwise darken by
+      // its own colour wherever it stands in its own shadow. A see-through
+      // surface that casts nothing — a glazed floor, a water plane — is
+      // shaded like any other.
+      final castsThrough =
+          node.shadowCasting.casts &&
+          (node.material.isTransparent ||
+              (node.material.extensions?.transmission ?? 0.0) > 0.0);
+      _shadowCascadeBias[3] =
+          _shadowTransmits &&
+              shadows.directional != null &&
+              shadows.directionalMoments == null &&
+              !castsThrough
+          ? 1.0
+          : 0.0;
+
       // Gated on the model, like every other block and sampler here. Unlit
       // declares FragInfo but reaches no lighting loop, so the compiler drops
       // all three of these — and binding a block the compiled shader does not

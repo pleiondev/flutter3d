@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **See-through casters shade the sun by what they let through.**
+  `ShadowSettings.translucentCasters`, off by default. A blended or
+  transmissive material is drawn into the sun's atlas after the opaque
+  casters, into the three channels that held nothing, as how much of red,
+  green and blue it lets through: its opacity, its transmission tinted by its
+  colour, and the Fresnel loss of its index at that angle. Clear glass casts
+  a faint shadow with darker edges, a coloured liquid a shadow of its colour,
+  and layers combine. A see-through surface that casts is not shaded by it,
+  and it does nothing under the `evsm` filter. Off, every frame is drawn byte for byte as
+  before.
 - **A reload reaches the contributors too.** `Renderer.relinkShaders` asks
   every `PassContributor` to drop what it linked, through the new
   `PassContributor.relinkShaders`, which does nothing by default.

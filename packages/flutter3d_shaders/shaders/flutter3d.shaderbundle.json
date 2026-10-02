@@ -255,6 +255,10 @@
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance_masked.frag"
   },
+  "ShadowTransmittance": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_transmittance.frag"
+  },
   "ShadowCopy": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_copy.frag"

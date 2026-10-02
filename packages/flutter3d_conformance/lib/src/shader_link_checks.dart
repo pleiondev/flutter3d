@@ -81,6 +81,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // plain ones do not, so they are a different link.
       (vertex, 'ShadowDepthMasked'),
       (vertex, 'ShadowDistanceMasked'),
+      // `ShadowSettings.translucentCasters`: a see-through mesh into the
+      // sun's atlas, reading the normal the others ignore.
+      (vertex, 'ShadowTransmittance'),
     ],
     // The picking pass draws every mesh again through the stage its layout
     // needs — plain, skinned or instanced; a lightmapped mesh has the plain

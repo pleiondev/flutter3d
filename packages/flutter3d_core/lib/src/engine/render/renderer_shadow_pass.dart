@@ -508,6 +508,7 @@ extension _ShadowPasses on Renderer {
     vm.Matrix4? shaderMatrix,
     vm.Frustum? frustum, {
     bool? only,
+    bool Function(MeshNode node)? seeThrough,
   }) {
     int mix(int key, int value) => 0x1fffffff & (key * 31 + value);
     var key = mix(
@@ -518,9 +519,24 @@ extension _ShadowPasses on Renderer {
       key = mix(key, value.hashCode);
     }
     for (final node in scene.meshes) {
-      if (only != null && node.shadowIsStatic != only) continue;
+      // A see-through caster is never kept in the static atlas — its share
+      // of the map is blended into the frame's, after the walls — so it
+      // belongs to the frame's key whatever it is marked as.
+      final translucent = seeThrough?.call(node) ?? false;
+      if (only != null && (translucent ? only : node.shadowIsStatic != only)) {
+        continue;
+      }
       if (!_drawsIntoCascade(node, frustum)) continue;
       final material = node.material;
+      if (translucent) {
+        // What it lets through is read off the material, which no version
+        // follows: its colour, its transmission and its index.
+        key = mix(key, material.baseColor.x.hashCode);
+        key = mix(key, material.baseColor.y.hashCode);
+        key = mix(key, material.baseColor.z.hashCode);
+        key = mix(key, (material.extensions?.transmission ?? 0.0).hashCode);
+        key = mix(key, (material.extensions?.ior ?? 1.5).hashCode);
+      }
       key = mix(key, identityHashCode(node));
       key = mix(key, node.worldVersion);
       key = mix(key, identityHashCode(material));
@@ -599,6 +615,21 @@ extension _ShadowPasses on Renderer {
     // row, which is the shadow a cut-out caster used to get rather than no
     // shadow at all, and `masked` below then never fires.
     final maskedShadowShader = shaders['ShadowDepthMasked'] ?? shadowShader;
+    // `ShadowSettings.translucentCasters`: null when it is off, under the
+    // moments filter whose blur takes over the channels it writes, or in a
+    // bundle without the stage — and then every caster is drawn as before.
+    final transmittanceShader =
+        settings.translucentCasters &&
+            settings.directionalFilter != ShadowFilter.evsm
+        ? shaders['ShadowTransmittance']
+        : null;
+    final transmits = transmittanceShader != null;
+    bool seeThrough(MeshNode node) {
+      if (!transmits) return false;
+      final material = node.material;
+      return material.isTransparent ||
+          (material.extensions?.transmission ?? 0.0) > 0.0;
+    }
 
     // Casters only. The last cascade is fitted to this, so anything counted
     // here that cannot cast a shadow spends texels on nothing: a sky dome or a
@@ -865,16 +896,26 @@ extension _ShadowPasses on Renderer {
     // atlas holds nothing, so every tile is drawn and the pass clears;
     // otherwise the pass keeps the atlas and redraws only the rest. A frame
     // tile's key takes in its static tile's, so a static change redraws both.
+    // A change of layout is a fresh atlas too: one drawn without the
+    // see-through channels holds ones where this frame reads "all taken".
     final fresh =
         _shadowMap == null ||
         _shadowResolution != resolution ||
-        _shadowCascadeCount != count;
+        _shadowCascadeCount != count ||
+        _shadowTransmits != transmits;
     final staticFresh = fresh || _shadowMapStatic == null;
     // `S1`: the static casters keyed as a whole rather than per tile, since
     // a tile that scrolls gains the casters its new strip holds without any
     // of them having changed; and each tile's key is that and its matrix.
     final staticScene = split
-        ? _cascadeBakeKey(scene, settings, null, null, only: true)
+        ? _cascadeBakeKey(
+            scene,
+            settings,
+            null,
+            null,
+            only: true,
+            seeThrough: transmits ? seeThrough : null,
+          )
         : 0;
     final staticKeys = <int>[
       for (var i = 0; i < count; i++)
@@ -891,6 +932,7 @@ extension _ShadowPasses on Renderer {
                       shaderMatrices[i],
                       cascadeFrusta[i],
                       only: split ? false : null,
+                      seeThrough: transmits ? seeThrough : null,
                     ) *
                     31 +
                 (split ? staticKeys[i] + 1 : 0)),
@@ -904,7 +946,14 @@ extension _ShadowPasses on Renderer {
     }
     // The tile reset is what lets a pass keep the others; a bundle without it
     // draws every tile from a clear, as the pass always did.
-    final keep = !fresh && resetShader != null && resetVertexShader != null;
+    // Not with see-through casters: their share is blended over what is
+    // there, so a redrawn tile has to start from the clear, and a clear takes
+    // the whole atlas.
+    final keep =
+        !fresh &&
+        !transmits &&
+        resetShader != null &&
+        resetVertexShader != null;
     for (var i = 0; i < count; i++) {
       if (!keep) dirty[i] = true;
       if (dirty[i]) _directionalBaked[i] = keys[i];
@@ -961,6 +1010,7 @@ extension _ShadowPasses on Renderer {
       );
       _shadowResolution = resolution;
       _shadowCascadeCount = count;
+      _shadowTransmits = transmits;
     }
     if (split && staticModes.any((mode) => mode != _StaticTile.keep)) {
       _shadowMapStaticSpare ??= device.createTexture(atlasSpec());
@@ -985,6 +1035,57 @@ extension _ShadowPasses on Renderer {
             height: resolution,
           )
         : full;
+
+    /// Binds [node]'s geometry, matrices, morph, instances and joints for the
+    /// vertex stage [kind] picks (0 static, 1 skinned, 2 instanced, plus
+    /// three for a masked fragment stage), and draws it once.
+    void drawNode(
+      CommandEncoder pass,
+      MeshNode node,
+      int kind,
+      vm.Matrix4 drawMatrix,
+    ) {
+      final mesh = node.mesh as DrawableGeometry;
+      final instanced = node is InstancedMeshNode ? node : null;
+      final skeleton = node.skeleton;
+      pass.setWindingOrder(
+        node.worldIsMirrored
+            ? WindingOrder.clockwise
+            : WindingOrder.counterClockwise,
+      );
+      pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
+      pass.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
+
+      mvp
+        ..setFrom(drawMatrix)
+        ..multiply(node.worldMatrix);
+      final stage = switch (kind) {
+        2 => instancedVertexShader,
+        1 => skinnedVertexShader,
+        _ => vertexShader,
+      };
+      _frameInfo.mvp.setAll(0, mvp.storage);
+      _frameInfo.model.setAll(0, node.worldMatrix.storage);
+      _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
+      pass.bindBlock(stage, _frameInfo);
+      _bindMorph(pass, stage, node.morph);
+      if (instanced != null) {
+        _bindInstanceMorph(pass, stage, instanced);
+      }
+      if (instanced != null) {
+        pass.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
+      }
+      if (skeleton != null) {
+        skeleton.update(node.worldMatrix);
+        _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+        pass.bindBlock(skinnedVertexShader, _skinInfo);
+      }
+      pass.draw(instanceCount: instanced?.count ?? 1);
+      // A caster in three cascades is three draws, and a frame that
+      // reported one caster and no draws at all was hiding the cost of the
+      // cascade count from every measurement made of it — `gfx-01n`.
+      _frameCounters?.drawCalls++;
+    }
 
     /// Draws the casters of [cascade] into [pass] — every caster when [only]
     /// is null, and the static or the dynamic ones otherwise.
@@ -1016,11 +1117,12 @@ extension _ShadowPasses on Renderer {
       // vertex layout, so it needs the skinned stage here too; drawing it with
       // the static one would read joints and weights as position and normal.
       int? boundKind;
-      final drawMatrix = drawMatrices[cascade];
       final casterFrustum = cascadeFrusta[cascade];
 
       for (var i = 0; i < meshes.length; i++) {
         final node = meshes[i];
+        // Drawn after the walls, by [drawSeeThrough], in the frame's atlas.
+        if (seeThrough(node)) continue;
         if (only != null && node.shadowIsStatic != only) continue;
         // **A caster outside this cascade is not drawn into it — `gfx-63n`.**
         // Every cascade used to walk the whole scene, so a level larger than
@@ -1039,7 +1141,6 @@ extension _ShadowPasses on Renderer {
             !within.any((f) => f.intersectsWithAabb3(node.worldBounds))) {
           continue;
         }
-        final mesh = node.mesh as DrawableGeometry;
         final instanced = node is InstancedMeshNode ? node : null;
 
         // Both sides recorded for a surface that has only one, so the sun does
@@ -1106,48 +1207,77 @@ extension _ShadowPasses on Renderer {
           boundKind = kind;
         }
         if (masked) _bindShadowMask(pass, maskedShadowShader, node.material);
+        drawNode(pass, node, kind, drawMatrices[cascade]);
+      }
+    }
 
-        pass.setWindingOrder(
-          node.worldIsMirrored
-              ? WindingOrder.clockwise
-              : WindingOrder.counterClockwise,
-        );
-        pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
-        pass.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
-
-        mvp
-          ..setFrom(drawMatrix)
-          ..multiply(node.worldMatrix);
-        final stage = switch (kind) {
-          2 => instancedVertexShader,
-          1 => skinnedVertexShader,
-          _ => vertexShader,
-        };
-        _frameInfo.mvp.setAll(0, mvp.storage);
-        _frameInfo.model.setAll(0, node.worldMatrix.storage);
-        _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
-        pass.bindBlock(stage, _frameInfo);
-        _bindMorph(pass, stage, node.morph);
-        if (instanced != null) {
-          _bindInstanceMorph(pass, stage, instanced);
+    /// Draws [cascade]'s see-through casters into [pass], over the walls
+    /// [drawCasters] left there — `ShadowSettings.translucentCasters`.
+    void drawSeeThrough(CommandEncoder pass, int cascade) {
+      final shader = transmittanceShader;
+      if (shader == null) return;
+      final tile = tileOf(cascade);
+      final casterFrustum = cascadeFrusta[cascade];
+      var stated = false;
+      int? boundKind;
+      for (final node in meshes) {
+        if (!seeThrough(node) || !_drawsIntoCascade(node, casterFrustum)) {
+          continue;
         }
-        if (instanced != null) {
-          pass.bindVertexData(
-            instanced.instanceBytes,
-            instanced.count,
-            slot: 1,
+        if (!stated) {
+          pass.setState(
+            Renderer._kShadowTransmittanceState.copyWith(
+              viewport: tile,
+              scissor: tile,
+            ),
           );
+          stated = true;
         }
-        if (skeleton != null) {
-          skeleton.update(node.worldMatrix);
-          _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
-          pass.bindBlock(skinnedVertexShader, _skinInfo);
+        final kind = node is InstancedMeshNode
+            ? 2
+            : node.skeleton != null
+            ? 1
+            : 0;
+        if (boundKind != kind) {
+          pass.bindPipeline(switch (kind) {
+            2 =>
+              _instancedTransmittanceShadowPipeline ??= device.createPipeline(
+                instancedVertexShader,
+                shader,
+                layout: _kInstancedLayout,
+              ),
+            1 => _skinnedTransmittanceShadowPipeline ??= device.createPipeline(
+              skinnedVertexShader,
+              shader,
+            ),
+            _ => _transmittanceShadowPipeline ??= device.createPipeline(
+              vertexShader,
+              shader,
+            ),
+          });
+          boundKind = kind;
         }
-        pass.draw(instanceCount: instanced?.count ?? 1);
-        // A caster in three cascades is three draws, and a frame that
-        // reported one caster and no draws at all was hiding the cost of the
-        // cascade count from every measurement made of it — `gfx-01n`.
-        _frameCounters?.drawCalls++;
+        final material = node.material;
+        final colour = material.baseColor;
+        final ior = material.extensions?.ior ?? 1.5;
+        final f0 = (ior - 1.0) / (ior + 1.0);
+        _transmittanceInfo.color
+          ..[0] = colour.x
+          ..[1] = colour.y
+          ..[2] = colour.z
+          ..[3] = material.isTransparent ? colour.w : 1.0;
+        _transmittanceInfo.light
+          ..[0] = -aim.x
+          ..[1] = -aim.y
+          ..[2] = -aim.z
+          ..[3] = 0.0;
+        _transmittanceInfo.params
+          ..[0] = material.extensions?.transmission ?? 0.0
+          ..[1] = f0 * f0
+          ..[2] = 0.0
+          ..[3] = 0.0;
+        pass.bindBlock(shader, _transmittanceInfo);
+        drawNode(pass, node, kind, drawMatrices[cascade]);
       }
     }
 
@@ -1171,26 +1301,36 @@ extension _ShadowPasses on Renderer {
       _frameCounters?.drawCalls++;
     }
 
-    CommandEncoder open(TextureHandle target, {required bool load}) =>
-        device.beginRenderPass(
-          RenderPassDescriptor(
-            label: _passLabel,
-            colors: <ColorTarget>[
-              ColorTarget(
-                texture: target,
-                // Cleared to the far plane, so anything the pass does not draw
-                // reads as "nothing between here and the light" — or, since
-                // `S1`, kept, when some tiles still hold this frame's
-                // picture. The depth is cleared either way: it lives only as
-                // long as the pass, and a kept tile draws nothing that would
-                // test against it.
-                clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
-                loadAction: load ? LoadAction.load : LoadAction.clear,
-              ),
-            ],
-            depth: DepthTarget(texture: depth),
+    CommandEncoder open(
+      TextureHandle target, {
+      required bool load,
+      bool transmittance = false,
+    }) => device.beginRenderPass(
+      RenderPassDescriptor(
+        label: _passLabel,
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            // Cleared to the far plane, so anything the pass does not draw
+            // reads as "nothing between here and the light" — or, since
+            // `S1`, kept, when some tiles still hold this frame's
+            // picture. The depth is cleared either way: it lives only as
+            // long as the pass, and a kept tile draws nothing that would
+            // test against it.
+            //
+            // With see-through casters the frame's atlas clears to
+            // (1, 0, 0, 1) instead: the far plane, nothing taken from red
+            // or green, all of blue left — the layout
+            // `shadow_transmittance.frag` explains.
+            clearValue: transmittance
+                ? vm.Vector4(1.0, 0.0, 0.0, 1.0)
+                : vm.Vector4(1.0, 1.0, 1.0, 1.0),
+            loadAction: load ? LoadAction.load : LoadAction.clear,
           ),
-        );
+        ],
+        depth: DepthTarget(texture: depth),
+      ),
+    );
 
     developer.Timeline.startSync('Renderer.shadowPass');
 
@@ -1268,7 +1408,7 @@ extension _ShadowPasses on Renderer {
       _staticSceneKey = staticScene;
     }
 
-    final pass = open(_shadowMap!, load: keep);
+    final pass = open(_shadowMap!, load: keep, transmittance: transmits);
     for (var cascade = 0; cascade < count; cascade++) {
       if (!dirty[cascade]) continue;
       if (split) {
@@ -1280,6 +1420,7 @@ extension _ShadowPasses on Renderer {
         if (keep) resetTile(pass, cascade);
         drawCasters(pass, cascade);
       }
+      drawSeeThrough(pass, cascade);
     }
     pass.submit();
     developer.Timeline.finishSync();

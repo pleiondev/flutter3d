@@ -96,6 +96,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'ShadowDistance', fragment: true),
   (name: 'ShadowDepthMasked', fragment: true),
   (name: 'ShadowDistanceMasked', fragment: true),
+  (name: 'ShadowTransmittance', fragment: true),
   (name: 'ShadowCopy', fragment: true),
   (name: 'EvsmFilter', fragment: true),
   (name: 'ShadowTileReset', fragment: true),
