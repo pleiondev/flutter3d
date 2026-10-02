@@ -302,6 +302,12 @@ const Map<String, double> _budgets = <String, double>{
   'window-interior': 0.01,
   // `P3`. 0 of 172800 measured against Impeller on 2026-10-01.
   'decal-floor': 0.01,
+  // `P4`. 0.172% and 0.193% measured against Impeller on 2026-10-01, single
+  // pixels along silhouette edges, where the two multisample differently;
+  // the reflection and the monitor's picture, which this backend writes
+  // with its rows turned over, agree inside.
+  'planar-mirror': 0.2,
+  'render-texture': 0.22,
 };
 
 /// Scenes budgeted before this set had a picture of them.

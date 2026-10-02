@@ -3,12 +3,14 @@ import 'dart:collection';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../render/render_texture.dart';
 import 'camera_node.dart';
 import 'decal_node.dart';
 import 'irradiance_field.dart';
 import 'light_node.dart';
 import 'lod_group.dart';
 import 'mesh_node.dart';
+import 'planar_reflector_node.dart';
 import 'reflection_probe_node.dart';
 import 'scene_node.dart';
 
@@ -75,6 +77,14 @@ final class Scene {
   /// frame, and the order they were attached in breaks ties between equal
   /// [DecalNode.order]s.
   final List<DecalNode> _decals = <DecalNode>[];
+  /// Planar reflectors, in attachment order — `P4`. A registry for the
+  /// probes' reason: the renderer draws each of them a picture every frame.
+  final List<PlanarReflectorNode> _reflectors = <PlanarReflectorNode>[];
+
+  /// Cameras drawing into textures — `P4`. Not nodes, so not registered by
+  /// attaching anything: a [RenderTexture] is added here, and is drawn for as
+  /// long as it stays.
+  final List<RenderTexture> _renderTextures = <RenderTexture>[];
 
   /// Everything drawable currently in the scene, in attachment order.
   ///
@@ -115,6 +125,25 @@ final class Scene {
   late final List<DecalNode> _decalsView = UnmodifiableListView<DecalNode>(
     _decals,
   );
+  List<PlanarReflectorNode> get reflectors => _reflectorsView;
+  late final List<PlanarReflectorNode> _reflectorsView =
+      UnmodifiableListView<PlanarReflectorNode>(_reflectors);
+
+  List<RenderTexture> get renderTextures => _renderTexturesView;
+  late final List<RenderTexture> _renderTexturesView =
+      UnmodifiableListView<RenderTexture>(_renderTextures);
+
+  /// Has [texture]'s camera draw into it every frame, before the scene — or
+  /// once, if it does not refresh every frame. Adding it twice draws it once.
+  void addRenderTexture(RenderTexture texture) {
+    if (!_renderTextures.contains(texture)) _renderTextures.add(texture);
+  }
+
+  /// Stops drawing [texture]: for a game switching a monitor off, or taking
+  /// a portal down, before it gives the texture back. Nothing here calls it;
+  /// the texture itself is its owner's to give back.
+  void removeRenderTexture(RenderTexture texture) =>
+      _renderTextures.remove(texture);
 
   /// Ambient light applied where no direct light reaches.
   ///
@@ -212,6 +241,8 @@ final class Scene {
     _lodGroups.clear();
     _probes.clear();
     _decals.clear();
+    _reflectors.clear();
+    _renderTextures.clear();
 
     // Back to front, because `SceneNode.remove` takes the last child without
     // searching for it or shifting the rest; front to back shifted the whole
@@ -245,6 +276,10 @@ final class Scene {
   void registerDecal(DecalNode node) => _decals.add(node);
 
   void unregisterDecal(DecalNode node) => _decals.remove(node);
+  void registerReflector(PlanarReflectorNode node) => _reflectors.add(node);
+
+  void unregisterReflector(PlanarReflectorNode node) =>
+      _reflectors.remove(node);
 
   /// First light of the given type, or null.
   ///

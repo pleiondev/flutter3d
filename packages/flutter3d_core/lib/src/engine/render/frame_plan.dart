@@ -119,4 +119,16 @@ abstract final class FrameResourceIds {
   /// the world that reflects it.
   static ResourceId reflectionProbe(int index) =>
       ResourceId('reflection_probe_$index');
+
+  /// What the scene's `RenderTexture`s were drawn into — `P4`.
+  ///
+  /// One name for all of them, and what it stands for is the order: the
+  /// scene reads it optionally, so every camera into a texture draws before
+  /// the materials that show its picture. The pictures themselves are each
+  /// texture's own and outlive the frame.
+  static const ResourceId renderTextures = ResourceId('render_textures');
+
+  /// The mirrored pictures of the scene's planar reflectors — `P4`, one
+  /// name for all of them and every view, for [renderTextures]' reason.
+  static const ResourceId planarReflections = ResourceId('planar_reflections');
 }

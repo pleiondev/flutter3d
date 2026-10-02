@@ -21,12 +21,21 @@ part of 'renderer.dart';
 /// material already carries it — `depthWrite` and `depthCompare` are the two
 /// fields a backdrop asked for, and a silhouette wants exactly those two.
 final class _DrawOverride {
-  const _DrawOverride({required this.material, required this.blend});
+  const _DrawOverride({
+    required this.material,
+    required this.blend,
+    this.fogged = false,
+  });
 
   final Material material;
 
   /// Null is blending off, as it is on `setBlend`.
   final BlendState? blend;
+
+  /// Whether the frame's fog reaches the draw. Not for a silhouette, which
+  /// is a marker; yes for a planar reflection, which is light leaving a
+  /// surface and crosses the same air the surface's own light does.
+  final bool fogged;
 }
 
 /// Writes [transform] into [out] at [at] as the two rows `MapUv` reads — `C8`.
@@ -661,7 +670,7 @@ extension _MeshEncode on Renderer {
       _fogInfo.name,
       declared: material.lighting.usesFogInfo,
     )) {
-      final fog = override == null && material.fogged
+      final fog = (override?.fogged ?? material.fogged)
           ? settings.fog
           : const FogSettings();
       _fogData[0] = fog.resolvedColor.x;

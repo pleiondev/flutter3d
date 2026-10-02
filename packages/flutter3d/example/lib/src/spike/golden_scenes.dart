@@ -1179,6 +1179,25 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     stage: GoldenStages.decalFloor,
     configure: GoldenStages.decalFloorSettings,
   ),
+
+  // P4. A mirror in the floor, and a monitor showing a second camera.
+  const GoldenScene(
+    name: 'planar-mirror',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.planarMirror,
+    configure: GoldenStages.planarMirrorSettings,
+  ),
+  const GoldenScene(
+    name: 'render-texture',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.renderTexture,
+  ),
 ];
 
 /// Looks up a scene by name.

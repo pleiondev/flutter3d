@@ -310,6 +310,11 @@ const Map<String, double> _budgets = <String, double>{
   // of a picture's texel or a box's face is decided in float32 here and in
   // half floats and the GPU's own arithmetic there.
   'decal-floor': 0.08,
+  // `P4`. 0.841% and 0.962% measured, every pixel on a silhouette edge,
+  // which Impeller multisamples and this rasteriser does not: the inside of
+  // the mirror's reflection and of the monitor's picture agree.
+  'planar-mirror': 0.9,
+  'render-texture': 1.0,
 };
 
 /// How far apart two channels may be before the pixel counts as differing.

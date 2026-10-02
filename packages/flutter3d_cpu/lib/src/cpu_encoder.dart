@@ -1066,6 +1066,13 @@ final class CpuEncoder implements CommandEncoder {
         final b2 = w0 / area;
 
         final z = _asStored(sz0 * b0 + sz1 * b1 + sz2 * b2);
+        // The depth clip every GPU does and the clipper above does not: a
+        // fragment outside `[0, 1]` is in front of the near plane or past
+        // the far one. Window depth is linear across the screen, so dropping
+        // the fragment is the same cut as clipping the triangle. It mattered
+        // once a near plane stopped being parallel to the screen — `P4`'s
+        // mirrored camera stands its near plane on the mirror.
+        if (z < 0.0 || z > 1.0) continue;
         final index = y * target.width + x;
         final fate = _fateOf(stencil, stencilState, index, z, depth);
         final op = _operationFor(fate, stencilState);

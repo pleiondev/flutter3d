@@ -306,6 +306,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'sheen_texture',
     },
   ),
+  'PlanarReflection': (
+    blocks: <String>{'FogInfo', 'PlanarReflectionInfo'},
+    samplers: <String>{'reflection_texture'},
+  ),
   'PolylineVertex': (
     blocks: <String>{'FrameInfo', 'MaterialParams'},
     samplers: <String>{},
@@ -330,6 +334,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'scene_texture',
       'surface_texture',
     },
+  ),
+  'RenderTextureEncode': (
+    blocks: <String>{'RenderTextureInfo'},
+    samplers: <String>{'source_texture'},
   ),
   'SceneColourCopy': (
     blocks: <String>{'SceneCopyInfo'},

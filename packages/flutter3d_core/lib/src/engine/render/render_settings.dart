@@ -847,6 +847,23 @@ final class DecalSettings {
       DecalSettings(enabled: enabled ?? this.enabled);
 }
 
+/// `P4`'s planar reflections: every visible `PlanarReflectorNode` gets the
+/// world drawn again through a mirrored camera, and its surfaces show it.
+///
+/// **Off by default, and not because a frame without a reflector would
+/// pay.** With none in the scene the pass is inactive and culled whatever
+/// this says. It is off because one reflector is the scene drawn a second
+/// time per view, which is a cost a caller turns on, the way they turn on
+/// every other effect that doubles a pass.
+final class PlanarReflectionSettings {
+  const PlanarReflectionSettings({this.enabled = false});
+
+  final bool enabled;
+
+  PlanarReflectionSettings copyWith({bool? enabled}) =>
+      PlanarReflectionSettings(enabled: enabled ?? this.enabled);
+}
+
 /// Which viewport shading a frame is drawn with — `gfx-43n`, `44n`, `45n`.
 ///
 /// **A final class with const instances rather than an enum**, the shape
@@ -1169,6 +1186,7 @@ final class RenderSettings {
     this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.motionBlur = const MotionBlurSettings(),
+    this.planarReflections = const PlanarReflectionSettings(),
     this.decals = const DecalSettings(),
     this.viewportShading = const ViewportShadingSettings(),
     this.transparency = TransparencyMode.sorted,
@@ -1288,7 +1306,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the eighty-two goldens keep the frame
+  /// nothing headless can run them. So the eighty-four goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -1376,6 +1394,10 @@ final class RenderSettings {
 
   /// `R6`'s motion blur along the velocity buffer.
   final MotionBlurSettings motionBlur;
+
+  /// `P4`'s planar reflections, each a picture taken through a mirrored
+  /// camera before the scene.
+  final PlanarReflectionSettings planarReflections;
 
   /// `P3`'s projected decals, painted onto the scene before its glass.
   final DecalSettings decals;
@@ -1681,6 +1703,7 @@ final class RenderSettings {
     VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
     MotionBlurSettings? motionBlur,
+    PlanarReflectionSettings? planarReflections,
     DecalSettings? decals,
     ViewportShadingSettings? viewportShading,
     TransparencyMode? transparency,
@@ -1728,6 +1751,7 @@ final class RenderSettings {
     volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,
     motionBlur: motionBlur ?? this.motionBlur,
+    planarReflections: planarReflections ?? this.planarReflections,
     decals: decals ?? this.decals,
     viewportShading: viewportShading ?? this.viewportShading,
     transparency: transparency ?? this.transparency,
@@ -1805,6 +1829,10 @@ final class RenderSettings {
     'shadow moments',
     // `L4`: the irradiance field's probes, a few a frame.
     'irradiance update',
+    // `P4`: what the scene's cameras into textures and its planar reflectors
+    // see, drawn before the scene that shows them.
+    'render textures',
+    'planar reflections',
     // Reflection probes are registered here, one per probe in the scene, and
     // are named by index rather than by a constant — see [probePassName].
     'scene',
@@ -2056,7 +2084,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Eighty-two goldens depend on that being exact, and the composite
+/// existed. Eighty-four goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

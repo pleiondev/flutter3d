@@ -192,4 +192,58 @@ void main() {
     expect(ran, contains('decals'));
     expect(unbound, isEmpty, reason: unbound.join('\n'));
   });
+
+  test('nor does a planar reflection, or a camera into a texture', () {
+    // `P4`: the mirrored camera draws the lit scene, the reflection is laid
+    // over a floor through its own stage with its picture and its block, and
+    // a render texture's light is encoded through a full-screen stage. All
+    // three under a shadowed sun, which is what a lit capture binds most of.
+    //
+    // Mutation: binding the reflection without its block, or the floor's
+    // albedo slot to a stage that dropped it, is a violation here and a
+    // crash on Metal.
+    final ran = <String>[];
+    final unbound = _unbound((FakeBackend device, Renderer renderer) {
+      final floor = MeshNode(
+        DeviceMesh.upload(device, const PlaneShape(width: 6, depth: 6).build()),
+        Material(name: 'floor'),
+      );
+      final camera = CameraNode()
+        ..setPosition(0.0, 3.0, 4.0)
+        ..lookAt(Vector3.zero());
+      final scene = Scene()
+        ..add(floor)
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3.all(0.6)).build(),
+            ),
+            Material(name: 'box'),
+          )..setPosition(0.0, 0.8, 0.0),
+        )
+        ..add(PlanarReflectorNode(surfaces: <MeshNode>[floor]))
+        ..add(
+          LightNode(intensity: 3.0)
+            ..setPosition(2.0, 3.0, 4.0)
+            ..lookAt(Vector3.zero()),
+        )
+        ..add(camera)
+        ..addRenderTexture(
+          RenderTexture.create(device, camera: camera, width: 16, height: 16),
+        );
+      final result = renderer.render(
+        width: 64,
+        height: 64,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: const RenderSettings(
+          planarReflections: PlanarReflectionSettings(enabled: true),
+        ),
+      );
+      ran.addAll(result.passes.map((p) => p.name));
+    });
+    expect(ran, containsAll(<String>['planar reflections', 'render textures']));
+    expect(unbound, isEmpty, reason: unbound.join('\n'));
+  });
 }

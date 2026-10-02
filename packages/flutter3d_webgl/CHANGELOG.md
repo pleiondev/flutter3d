@@ -12,6 +12,9 @@
 what the package needs. A workspace that supports Flutter 3.44, Flame's among
 them, could not depend on it. Nothing else changed.
 **The generated tables carry the decal stage** of `flutter3d_shaders`.
+**The generated tables carry `PlanarReflection` and
+`RenderTextureEncode`**, and the `planar-mirror` and `render-texture`
+goldens are in this set.
 
 ## 0.8.2
 

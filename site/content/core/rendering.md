@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto and local exposure, HDR output, bloom, cascaded and point shadows, the sky, reflection probes, fog, screen-space reflections, ambient occlusion, colour grading, temporal anti-aliasing, glass and transparency, material layers, occlusion culling, the frame budget, picking by pixel, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto and local exposure, HDR output, bloom, cascaded and point shadows, the sky, reflection probes, planar reflections and cameras into textures, fog, screen-space reflections, ambient occlusion, colour grading, temporal anti-aliasing, glass and transparency, material layers, occlusion culling, the frame budget, picking by pixel, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -487,7 +487,7 @@ It is marched at half resolution and brought up by depth, so a halo behind a pil
 
 ```dart
 SkySettings(
-  enabled: true,        // off by default: eighty-two goldens are recorded against none
+  enabled: true,        // off by default: eighty-four goldens are recorded against none
   zenith: Vector3(0.10, 0.22, 0.52),
   horizon: Vector3(0.42, 0.50, 0.62),
   nadir: Vector3(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
@@ -533,6 +533,43 @@ What a rolling one costs was measured on the racing demo's frame (the player's c
 <div class="why">
 <p>A cube map is addressed by a left-handed table (on the +X face, column zero looks along +Z), and a right-handed camera puts every face's left on the right, so each view is drawn through a mirror and the winding is flipped with it; a backend whose row zero is at the bottom negates y as well, which makes the two a half turn and leaves the winding alone. Nothing in a picture says whether a face is mirrored, which is why the face table is tested by projecting known directions on both origins, and why the conformance suite clears one face of one level and reads it back through the very stage that fills the chain.</p>
 </div>
+
+## Planar reflections
+
+A probe is a cube seen from one point, which is right for a ball and wrong for a floor: the reflection in a floor depends on where you stand. A `PlanarReflectorNode` draws the world again through the view's own camera mirrored in a plane, so a mirror, a polished hall or a still pool shows what is actually above it from where the eye actually is.
+
+```dart
+final mirror = MeshNode(DeviceMesh.upload(device, const PlaneShape(width: 3, depth: 2).build()), floorMaterial);
+scene
+  ..add(mirror)
+  ..add(PlanarReflectorNode(surfaces: [mirror], reflectance: 1.0));  // 0.02 for water
+renderer.render(/* … */, settings: const RenderSettings(
+  planarReflections: PlanarReflectionSettings(enabled: true),
+));
+```
+
+{{golden planar-mirror | A black mirror set into a lit floor, with a red box, a blue ball and a yellow post standing on and around it. The reflection is the scene drawn through the camera mirrored in the floor, lit and shadowed by the same sun, at half the view's resolution and tinted slightly blue.}}
+
+The plane goes through the node's origin, with its local +Y as the side it is seen from; a camera behind it sees no reflection. The surfaces keep their own materials, and the reflection is laid over each of them straight after the opaque half of the scene pass, on exactly the pixels the surface won, weighted by Schlick's Fresnel from `reflectance`. With one the surface is a mirror at every angle; with water's 0.02 it reflects little looking down and nearly everything along the horizon. The picture is read by the pixel's place on screen, which is why it is drawn per view and at the view's own projection, at `resolution` of its size (half by default).
+
+Nothing below the plane may come up through it, and no stage here has a clip distance to write. So the mirrored camera's near plane is moved onto the mirror itself, the oblique frustum of Lengyel's 2005 paper: the rasteriser's own near clip does the cut, and what it costs is the far plane, which tilts. `clipOffset` lowers the cut a centimetre so a wall standing on the floor keeps its foot in the reflection. The software backend used to clip only at the eye and had to learn to drop fragments outside the depth range, as every GPU does, before it drew the same picture.
+
+It is off by default and costs a second drawing of the scene per view while it is on. Neither particles nor anything else a contributor draws is in the reflection, nothing is reflected twice, and a surface that blends is drawn after its reflection, so on transparent water the picture lies under the water rather than on it.
+
+## Cameras into textures
+
+The same pass, pointed through an ordinary camera, is public as `RenderTexture`: a monitor, a portal, a minimap.
+
+```dart
+final feed = RenderTexture.create(device, camera: securityCamera, width: 256, height: 192);
+feed.excluded.add(monitor);   // a screen must not film itself
+scene.addRenderTexture(feed);
+monitor.material = Material(lighting: LightingModel.unlit, albedo: feed.texture);
+```
+
+{{golden render-texture | The same props on the same floor, and a monitor on a stand showing what a second camera off to the left sees of them, drawn earlier in the same frame.}}
+
+It is drawn before the scene, so a material shows the picture in the frame it was taken. The texture holds sRGB bytes with the top of the picture in its first row on every backend, the way an uploaded image does, so it goes into an albedo or emissive slot like any picture: unlit, it shows what the camera saw; lit, it is lit again, like a printed photograph. The light is multiplied by `exposure` and clipped, and tone mapping is left to the frame that shows it. `refreshEveryFrame: false` draws it once and then only after `invalidate()`. No post chain runs on it.
 
 ## The look
 

@@ -227,6 +227,9 @@ const Map<String, double> _budgets = <String, double>{
   'window-interior': 0.01,
   // `P3`, 0 of 172800 measured on 2026-10-01.
   'decal-floor': 0.01,
+  // `P4`. 0 of 172800 measured against Impeller on 2026-10-01.
+  'planar-mirror': 0.01,
+  'render-texture': 0.01,
 };
 
 /// Scenes this set holds no picture of, and why the picture was refused.

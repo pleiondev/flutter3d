@@ -6042,6 +6042,460 @@ void main() {
 }
 
 ''',
+    'PlanarReflection': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `P4`: a planar reflector's surface, drawn a second time over itself with
+// the picture a mirrored camera took of the world above it.
+//
+// **Laid over the surface rather than inside its lighting.** The reflection
+// is read by the pixel's place on screen, not by anything the material
+// knows, so the stage that reads it needs nothing a lit model has: no maps,
+// no lights, no shadows. Putting it inside the lit models would have been a
+// sampler and a block added to six stages that every other draw pays to
+// declare, and a seventh header permutation to keep byte-identical. As a
+// draw of its own it costs only the surfaces that reflect, and a frame
+// without a reflector compiles and binds exactly what it did.
+//
+// Drawn with the depth test `lessEqual` and no depth write, straight after
+// the opaque half, so it lands on exactly the pixels the surface itself won
+// and nothing in front of the surface is painted. Blended source-over with
+// the colour premultiplied, as every blended draw here is.
+//
+// **No second output**, for the reason `xray.frag` gives at length: a blend
+// protects attachment zero only, and only on the backends whose `setBlend`
+// honours an attachment index. The surface buffer keeps describing the
+// surface underneath, which is the truth about it.
+//
+// **And not `lib/surface.glsl`**, which `xray.frag` does include: that header
+// declares the base colour sampler for every stage that takes it, and a stage
+// that never reads it has it dropped from the Metal function while reflection
+// still reports it, which is the slot `metal_bindings_test.dart` exists to
+// catch. The two things wanted from `FragInfo` come another way: the eye is
+// `FogInfo`'s, and the target's rows ride in this stage's own block.
+#define F3D_NO_SURFACE_BUFFER
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+
+/// The surface's own colour, sRGB-encoded, alpha one where a surface was
+/// drawn — `L5`. The third attachment, present only when a pass reads it (the
+/// indirect light does) and the device opens three; like the surface buffer,
+/// written unconditionally and discarded when absent. Stored in the surface
+/// buffer's format rather than eight bits a channel, and `Renderer` says why.
+layout(location = 2) out vec4 frag_albedo;
+#endif
+
+/// What [frag_albedo] carries: the lit models set it in `ReadSurface`, and a
+/// stage that reflects nothing — unlit, the debug views — leaves it black,
+/// which is what light bounced onto it would come to.
+vec3 g_albedo = vec3(0.0);
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+/// Whether [WriteSurface] weights the colour by its alpha: set by
+/// `ReadSurface` for a material that blends, and false for everything else.
+///
+/// **The blend takes its source as premultiplied**, so a blended surface has
+/// to hand it the colour times the alpha — a pane at a fifth of opaque adds a
+/// fifth of its light, not all of it. glTF's blend mode is Porter and Duff's
+/// over on straight colour, and this is the one place that turns the lit
+/// radiance into what that means. An opaque or masked surface keeps its
+/// colour whole: its alpha is not a coverage, and nothing blends it.
+/// A global for the reason [g_debug_surface] is one.
+bool g_premultiply = false;
+
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
+}
+fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // `L5`: the surface's colour, whatever the surface buffer ends up holding.
+  frag_albedo = vec4(LinearToSrgb(clamp(g_albedo, vec3(0.0), vec3(1.0))), 1.0);
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = EyeDistance();
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
+}
+
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
+/// The fog is mixed in before the weight, so a thin distant pane adds a thin
+/// share of the fog too rather than all of it. Times one when nothing blends,
+/// which is exact, so an opaque draw writes what it always wrote.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  float weight = g_premultiply ? alpha : 1.0;
+  frag_color = vec4(ApplyFog(linearColor) * weight, alpha);
+  WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+/// What the mirrored camera saw, in linear light, the size of the view it
+/// was taken for or a fraction of it.
+uniform sampler2D reflection_texture;
+
+layout(std140) uniform PlanarReflectionInfo {
+  /// xy: the view's top-left corner in pixels of the target, counted from
+  /// the top. zw: the view's size in pixels.
+  vec4 view;
+
+  /// x: the reflectance straight on, Schlick's F0 — one for a mirror, about
+  /// 0.02 for water. y: the strength the reflection is laid on with, which
+  /// scales the whole Fresnel term. z: the target's rows where its first row
+  /// is the bottom of the picture, nought where it is the top — see
+  /// `FragCoordFromTop`. w unused.
+  vec4 params;
+
+  /// rgb: a linear tint the reflected light is multiplied by. w unused.
+  vec4 tint;
+}
+planar_info;
+
+void main() {
+  // The same pixel the mirrored camera drew, by place on screen: its
+  // projection is the view's own, so the texel under this fragment is the
+  // reflected point behind it. Counted from the top on every backend, and
+  // turned back where the texture's first row is the bottom of the picture.
+  float rows = planar_info.params.z;
+  vec2 pixel = FragCoordFromTop(rows);
+  vec2 uv = (pixel - planar_info.view.xy) / planar_info.view.zw;
+  if (rows > 0.0) uv.y = 1.0 - uv.y;
+  vec3 reflected =
+      textureLod(reflection_texture, uv, 0.0).rgb * planar_info.tint.rgb;
+
+  // Schlick's Fresnel on the geometric normal, facing the eye: water reflects
+  // a little looking down into it and nearly everything at a grazing angle,
+  // and a mirror's F0 of one makes the term one everywhere.
+  vec3 n = normalize(v_normal);
+  if (!gl_FrontFacing) n = -n;
+  vec3 v = normalize(fog_info.eye.xyz - v_world_position);
+  float cosine = clamp(dot(n, v), 0.0, 1.0);
+  float f0 = planar_info.params.x;
+  float grazing = 1.0 - cosine;
+  float grazing2 = grazing * grazing;
+  float fresnel = f0 + (1.0 - f0) * grazing2 * grazing2 * grazing;
+  float alpha = clamp(fresnel * planar_info.params.y, 0.0, 1.0);
+
+  // Fogged as the surface is: the reflection is light leaving the surface
+  // and crosses the same air to the eye. Premultiplied for the blend.
+  frag_color = vec4(ApplyFog(reflected) * alpha, alpha);
+}
+
+''',
     'Lambert': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -29578,6 +30032,62 @@ void main() {
   }
 
   frag_color = vec4(weight > 0.0 ? sum / weight : vec3(0.0), 1.0);
+}
+
+''',
+    'RenderTextureEncode': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// `P4`: what a `RenderTexture`'s camera saw, turned from linear light into
+// the sRGB bytes a material's map is read as.
+//
+// **Encoded because every map is decoded.** A material reads its base colour
+// and its emission through `SrgbToLinear`, so a texture holding linear light
+// would be darkened a second time in every midtone by whatever showed it. In
+// eight bits rather than half floats for the same reason: it is a picture,
+// sampled like any other picture.
+//
+// **Exposure, and no tone map.** The texture is drawn into a frame that is
+// tone mapped itself, so a curve applied here would be applied twice; what
+// is above one after the camera's own exposure is clipped, as a screen
+// clips it.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D source_texture;
+
+layout(std140) uniform RenderTextureInfo {
+  /// x: the exposure the light is multiplied by before it is clipped. y: one
+  /// where the backend's first row is the bottom of a picture it draws. zw
+  /// unused.
+  vec4 params;
+}
+encode_info;
+
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(max(linear, vec3(0.0)), vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+void main() {
+  // **Written with the top of the picture in the first row, on every
+  // backend**, which is how a picture loaded from a file is uploaded and so
+  // how every material reads its maps. WebGL2 draws a picture with its
+  // bottom in the first row, so there the rows are turned over on the way
+  // through; a copy that kept them would show a monitor upside down in the
+  // browser alone.
+  vec2 uv = v_uv;
+  if (encode_info.params.y > 0.5) uv.y = 1.0 - uv.y;
+  vec3 light = textureLod(source_texture, uv, 0.0).rgb * encode_info.params.x;
+  frag_color = vec4(LinearToSrgb(clamp(light, vec3(0.0), vec3(1.0))), 1.0);
 }
 
 ''',

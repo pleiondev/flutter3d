@@ -1715,4 +1715,157 @@ abstract final class GoldenStages {
 
   static RenderSettings decalFloorSettings(RenderSettings settings) =>
       settings.copyWith(decals: const DecalSettings(enabled: true));
+  // ------------------------------------------------------------------ P4
+
+  /// The floor `planar-mirror` and `render-texture` stand on: grey, lit.
+  static MeshNode _p4Floor(GraphicsDevice device) => _slab(
+    device,
+    Vector3(14.0, 0.2, 14.0),
+    Vector3(0.0, -0.1, 0.0),
+    Material(
+      name: 'floor',
+      lighting: LightingModel.lambert,
+      baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+    ),
+  );
+
+  /// What both P4 scenes look at: a red box, a blue ball and a yellow post,
+  /// lit by the sun, so a picture of them has shading and shadows to get
+  /// right and no two of its sides look alike.
+  static List<SceneNode> _p4Props(GraphicsDevice device) => <SceneNode>[
+    _slab(
+      device,
+      Vector3(0.8, 0.8, 0.8),
+      Vector3(-0.7, 0.4, -0.3),
+      Material(name: 'box', baseColor: Vector4(0.8, 0.15, 0.1, 1.0)),
+    ),
+    _sphere(
+      device,
+      Vector3(0.6, 0.45, 0.2),
+      Material(name: 'ball', baseColor: Vector4(0.15, 0.3, 0.85, 1.0)),
+      radius: 0.45,
+    ),
+    _slab(
+      device,
+      Vector3(0.25, 1.6, 0.25),
+      Vector3(0.2, 0.8, -1.2),
+      Material(name: 'post', baseColor: Vector4(0.9, 0.75, 0.15, 1.0)),
+    ),
+  ];
+
+  /// `planar-mirror`: a black mirror set into the floor, the props standing
+  /// on and around it — `planar_reflection_test.dart`'s mirror under a sun.
+  ///
+  /// A slightly blue tint, so the reflection cannot be mistaken for a hole
+  /// in the floor showing the world upside down, and the reflection at half
+  /// the view's resolution, which is the default and the path a game takes.
+  static Future<GoldenStaged> planarMirror(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2;
+    final mirror = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 3.2, depth: 2.4).build(),
+      ),
+      Material(
+        name: 'mirror',
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.02, 0.02, 0.03, 1.0),
+      ),
+      name: 'mirror',
+    )..setPosition(0.0, 0.005, 0.3);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _p4Floor(device),
+        mirror,
+        ..._p4Props(device),
+        PlanarReflectorNode(
+          surfaces: <MeshNode>[mirror],
+          tint: Vector3(0.85, 0.9, 1.0),
+          name: 'reflector',
+        )..setPosition(0.0, 0.005, 0.0),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2)),
+    );
+  }
+
+  static RenderSettings planarMirrorSettings(RenderSettings settings) =>
+      settings.copyWith(
+        planarReflections: const PlanarReflectionSettings(enabled: true),
+      );
+
+  /// `render-texture`: a monitor on a stand showing what a camera off to the
+  /// side sees of the props — `planar_reflection_test.dart`'s screen.
+  ///
+  /// The screen is unlit, so it shows the picture as the camera took it, and
+  /// left out of the camera's own picture, which would otherwise hold the
+  /// screen's back.
+  static Future<GoldenStaged> renderTexture(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2;
+    final watcher = CameraNode(name: 'watcher')
+      ..projection = const PerspectiveProjection(
+        fovYRadians: math.pi / 4,
+        near: 0.1,
+        far: 50.0,
+      )
+      ..setPosition(-3.2, 1.6, 2.0)
+      ..lookAt(Vector3(0.0, 0.5, -0.4));
+    final picture = RenderTexture.create(
+      device,
+      camera: watcher,
+      width: 128,
+      height: 96,
+      clearColor: Vector4(0.35, 0.45, 0.6, 1.0),
+    );
+    // A plane stood up to face the eye: its v runs down the screen, the way
+    // a picture's rows do. A box's sides run v up and would show it upside
+    // down, as they would a photograph.
+    const turn = -0.5;
+    final facing = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), turn);
+    final screen = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 1.6, depth: 1.2).build(),
+      ),
+      Material(
+        name: 'screen',
+        lighting: LightingModel.unlit,
+        albedo: picture.texture,
+      ),
+      name: 'screen',
+    )..setPosition(1.9, 1.3, -0.6);
+    screen.setRotation(
+      facing * Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+    );
+    final back = _slab(
+      device,
+      Vector3(1.7, 1.3, 0.04),
+      Vector3(1.9 + 0.03 * math.sin(-turn), 1.3, -0.6 - 0.03 * math.cos(turn)),
+      Material(name: 'bezel', baseColor: Vector4(0.1, 0.1, 0.12, 1.0)),
+    )..setRotation(facing);
+    final stand = _slab(
+      device,
+      Vector3(0.12, 0.7, 0.12),
+      Vector3(1.9, 0.35, -0.6),
+      Material(name: 'stand', baseColor: Vector4(0.2, 0.2, 0.22, 1.0)),
+    );
+    picture.excluded.addAll(<MeshNode>[screen, back, stand]);
+    stage.scene.addRenderTexture(picture);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _p4Floor(device),
+        ..._p4Props(device),
+        screen,
+        back,
+        stand,
+        watcher,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.6, 2.0, 4.8), Vector3(0.6, 0.7, -0.4)),
+    );
+  }
 }

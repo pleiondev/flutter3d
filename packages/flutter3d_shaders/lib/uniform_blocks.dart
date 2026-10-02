@@ -1359,6 +1359,18 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'params3': (offset: 2560, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'PlanarReflection': <String, Map<String, UniformMemberLayout>>{
+    'FogInfo': <String, UniformMemberLayout>{
+      'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'PlanarReflectionInfo': <String, UniformMemberLayout>{
+      'view': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tint': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'PolylineVertex': <String, Map<String, UniformMemberLayout>>{
     'FrameInfo': <String, UniformMemberLayout>{
       'mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
@@ -1425,6 +1437,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+    },
+  },
+  'RenderTextureEncode': <String, Map<String, UniformMemberLayout>>{
+    'RenderTextureInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'SceneColourCopy': <String, Map<String, UniformMemberLayout>>{

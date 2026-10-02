@@ -898,6 +898,27 @@ final class ParticleMeshInfoBlock extends UniformBlock {
   };
 }
 
+/// `PlanarReflectionInfo`.
+final class PlanarReflectionInfoBlock extends UniformBlock {
+  PlanarReflectionInfoBlock() : super('PlanarReflectionInfo');
+
+  /// `view`: Vector4, at byte 0.
+  final Float32List view = Float32List(4);
+
+  /// `params`: Vector4, at byte 16.
+  final Float32List params = Float32List(4);
+
+  /// `tint`: Vector4, at byte 32.
+  final Float32List tint = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'view': view,
+    'params': params,
+    'tint': tint,
+  };
+}
+
 /// `PointShadow`.
 final class PointShadowBlock extends UniformBlock {
   PointShadowBlock() : super('PointShadow');
@@ -1036,6 +1057,19 @@ final class ReflectionInfoBlock extends UniformBlock {
     'params': params,
     'screen': screen,
     'environment': environment,
+  };
+}
+
+/// `RenderTextureInfo`.
+final class RenderTextureInfoBlock extends UniformBlock {
+  RenderTextureInfoBlock() : super('RenderTextureInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
   };
 }
 
