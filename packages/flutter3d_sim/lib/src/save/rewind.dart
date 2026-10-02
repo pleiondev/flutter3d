@@ -124,6 +124,10 @@ final class RewindBuffer {
     _forget();
   }
 
+  /// The earliest step a rewind can reach, or null before the first
+  /// keyframe — the left end of a scrubber, whose right end is [step].
+  int? get oldestStep => _keyframes.isEmpty ? null : _keyframes.first.step;
+
   /// How many seconds back a rewind can currently reach.
   ///
   /// Less than [history] at the start of a run and until the first keyframe is

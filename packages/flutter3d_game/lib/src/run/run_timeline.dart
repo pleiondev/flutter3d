@@ -27,6 +27,32 @@ final class TimelineStepped extends TimelineCommand {
 final class TimelineBranched extends TimelineCommand {
   const TimelineBranched(this.step);
   final int step;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TimelineBranched && other.step == step;
+
+  @override
+  int get hashCode => step.hashCode;
+}
+
+/// The live state was moved to the state before [step] to be looked at; the
+/// tape and the present are kept, and nothing has branched yet.
+final class TimelineScrubbed extends TimelineCommand {
+  const TimelineScrubbed(this.step);
+  final int step;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TimelineScrubbed && other.step == step;
+
+  @override
+  int get hashCode => step.hashCode;
+}
+
+/// A scrub was left, and the present put back as it was.
+final class TimelineReturned extends TimelineCommand {
+  const TimelineReturned();
 }
 
 /// The level under the run was replaced, taking effect before [step]: the
@@ -132,6 +158,40 @@ final class CodeReplay {
   };
 }
 
+/// What [RunTimeline.scrubTo] and [RunTimeline.branchHere] answered.
+sealed class ScrubAnswer {
+  const ScrubAnswer();
+
+  Map<String, Object?> toJson();
+}
+
+/// The live state is now the state before [step].
+final class ScrubMoved extends ScrubAnswer {
+  const ScrubMoved(this.step);
+  final int step;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'moved': true,
+    'step': step,
+  };
+}
+
+/// Nothing moved, and [reason] says why and what to do instead.
+final class ScrubRefused extends ScrubAnswer {
+  const ScrubRefused(this.reason);
+  final String reason;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'moved': false,
+    'refusal': reason,
+  };
+
+  @override
+  String toString() => reason;
+}
+
 /// Pause, step, rewind and branch, built on a live [RewindBuffer].
 ///
 /// **What `rp-02`'s editor panel is a face for, not the panel itself.** The
@@ -205,8 +265,12 @@ final class RunTimeline {
     _history.add(const TimelinePaused());
   }
 
+  /// Lets the run go on. From a scrub, the present is put back first: the
+  /// run resumes where it was paused, and going on from the scrubbed moment
+  /// instead is [branchHere], asked for by name.
   void resume() {
     if (!_paused) return;
+    returnToPresent();
     _paused = false;
     _history.add(const TimelineResumed());
   }
@@ -214,9 +278,19 @@ final class RunTimeline {
   /// Runs one fixed step. Only while [isPaused] — a step taken on a running
   /// timeline would be a second step nobody asked for, on top of whatever is
   /// driving the loop already.
+  ///
+  /// From a scrub this moves the scrub one step along the tape rather than
+  /// stepping the simulation off it, so "step" in a debugger walks the
+  /// recorded run; at the present the scrub ends.
   void stepOnce() {
     if (!_paused) {
       throw StateError('stepOnce is only valid while the timeline is paused');
+    }
+    final at = _scrubbedAt;
+    if (at != null) {
+      _scrubForward(at + 1);
+      _history.add(const TimelineStepped());
+      return;
     }
     input.beginStep();
     stepSim(stepSeconds);
@@ -239,6 +313,7 @@ final class RunTimeline {
   /// release is asking to keep playing from here, not to pause on arrival —
   /// call [pause] afterwards for that.
   void releaseAt(RewindPoint point) {
+    _forgetScrub();
     restore(point.snapshot);
     final toPoint = InputTapePlayback(point.tapeToPoint);
     final wasMuted = input.muted;
@@ -279,6 +354,7 @@ final class RunTimeline {
   /// Returns the step the new level took effect before, which is what
   /// [TimelineLevelSwapped] records.
   int swapLevel(void Function() swap, {required String levelDigest}) {
+    returnToPresent();
     final point = rewind.rewindTo(rewind.step);
     if (point == null) {
       swap();
@@ -327,6 +403,7 @@ final class RunTimeline {
     required double seconds,
     required Snapshot Function() capture,
   }) {
+    returnToPresent();
     final now = rewind.step;
     final point = rewind.rewindBy(seconds);
     if (point == null) return null;
@@ -388,5 +465,172 @@ final class RunTimeline {
     if (point == null) return false;
     releaseAt(point);
     return true;
+  }
+
+  /// The present, written down when a scrub began; null while not scrubbed.
+  Snapshot? _present;
+
+  int? _scrubbedAt;
+
+  /// The step the live state is scrubbed to, or null at the present.
+  int? get scrubbedAt => _scrubbedAt;
+
+  /// Puts the live state where the run was before [step], to be looked at,
+  /// keeping the tape and the present: the scrubber of a time-travel
+  /// debugger.
+  ///
+  /// **Not [releaseAt].** A release cuts the buffer, so dragging back and
+  /// forth through it would forget the future on the first drag. A scrub
+  /// keeps everything: [capture] writes the present down once, on the first
+  /// scrub, and [returnToPresent] restores it exactly; going on from the
+  /// scrubbed moment is [branchHere]. Scrubbing forward from a scrubbed step
+  /// plays on from there instead of from the keyframe, so a drag to the
+  /// right costs the distance dragged.
+  ///
+  /// Only while paused, since the loop would step the scrubbed state as if it
+  /// were the present. A scrub to the present is [returnToPresent].
+  ScrubAnswer scrubTo(int step, {required Snapshot Function() capture}) {
+    if (!_paused) {
+      return const ScrubRefused(
+        'the run is live, so a scrub would be stepped on by the loop; pause '
+        'it first',
+      );
+    }
+    if (step == rewind.step) {
+      returnToPresent();
+      return ScrubMoved(step);
+    }
+    final point = rewind.rewindTo(step);
+    if (point == null) {
+      return ScrubRefused(switch (rewind.oldestStep) {
+        null =>
+          'nothing is held yet to scrub through; let the run play a '
+              'keyframe interval first',
+        final oldest =>
+          'step $step is not held; the buffer reaches from step '
+              '$oldest to ${rewind.step}',
+      });
+    }
+    _present ??= capture();
+    _scrubTo(point);
+    _history.add(TimelineScrubbed(step));
+    return ScrubMoved(step);
+  }
+
+  /// Puts the present back after a scrub. Does nothing at the present, and
+  /// answers whether there was a scrub to leave.
+  bool returnToPresent() {
+    final present = _present;
+    if (present == null) return false;
+    restore(present);
+    _forgetScrub();
+    _history.add(const TimelineReturned());
+    return true;
+  }
+
+  /// Makes the scrubbed moment the present: the tape after it is cut, as
+  /// [releaseAt] cuts it, and the run goes on from here when resumed.
+  ///
+  /// **Stays paused**, unlike [releaseAt]: the person branching is looking
+  /// at the moment they chose, and the first step of the new branch is
+  /// theirs to take.
+  ScrubAnswer branchHere() {
+    final at = _scrubbedAt;
+    final point = at == null ? null : rewind.rewindTo(at);
+    if (at == null || point == null) {
+      return const ScrubRefused(
+        'the run is at the present, which is already where it goes on '
+        'from; scrub to a step first',
+      );
+    }
+    rewind.cut(point);
+    _forgetScrub();
+    _history.add(TimelineBranched(at));
+    return ScrubMoved(at);
+  }
+
+  /// What every entity did over the steps the buffer holds, read through
+  /// [layout] from a [capture] of each step.
+  ///
+  /// The steps are lived again from the oldest keyframe with the devices
+  /// muted and the live state is put back afterwards — at the present or at
+  /// the scrub, wherever it was — so asking costs a replay of the buffer and
+  /// changes nothing. [every] reads one step in so many, for a buffer whose
+  /// snapshots are too large to take sixty times a second of history. Null
+  /// before the first keyframe.
+  EntityTracks? tracks({
+    required Snapshot Function() capture,
+    required EntityLayout layout,
+    int every = 1,
+  }) {
+    final oldest = rewind.oldestStep;
+    final point = oldest == null ? null : rewind.rewindTo(oldest);
+    if (oldest == null || point == null) return null;
+    final here = capture();
+    final tracks = EntityTracks(layout);
+    restore(point.snapshot);
+    tracks.observe(oldest, capture());
+    final playback = InputTapePlayback(
+      InputTape(seed: point.seed, frames: point.frames),
+    );
+    final wasMuted = input.muted;
+    input.muted = true;
+    try {
+      while (!playback.isFinished) {
+        playback.applyTo(input);
+        input.beginStep();
+        stepSim(stepSeconds);
+        input.endStep();
+        final step = oldest + playback.step;
+        if (step % every == 0 || step == rewind.step) {
+          tracks.observe(step, capture());
+        }
+      }
+    } finally {
+      input.muted = wasMuted;
+    }
+    restore(here);
+    return tracks;
+  }
+
+  void _scrubTo(RewindPoint point) {
+    final base = point.step - point.replayed;
+    final at = _scrubbedAt;
+    final from = at != null && at >= base && at <= point.step ? at : base;
+    if (from != at) restore(point.snapshot);
+    _playMuted(point.frames.sublist(from - base, point.replayed), point.seed);
+    _scrubbedAt = point.step;
+  }
+
+  /// [stepOnce] from a scrub: one step further along the tape, which ends the
+  /// scrub when it reaches the present.
+  void _scrubForward(int step) {
+    final point = rewind.rewindTo(step);
+    if (step >= rewind.step || point == null) {
+      returnToPresent();
+      return;
+    }
+    _scrubTo(point);
+  }
+
+  void _forgetScrub() {
+    _present = null;
+    _scrubbedAt = null;
+  }
+
+  void _playMuted(List<InputFrame> frames, int seed) {
+    final playback = InputTapePlayback(InputTape(seed: seed, frames: frames));
+    final wasMuted = input.muted;
+    input.muted = true;
+    try {
+      while (!playback.isFinished) {
+        playback.applyTo(input);
+        input.beginStep();
+        stepSim(stepSeconds);
+        input.endStep();
+      }
+    } finally {
+      input.muted = wasMuted;
+    }
   }
 }

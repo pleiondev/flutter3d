@@ -21,6 +21,17 @@
   a line to where its leaf is taking it; `describe()` gives the same path by
   name. It reads boards and never makes one, so switching it on cannot change
   a snapshot.
+- **`RunTimeline` scrubs without cutting.** `scrubTo` moves the live state
+  to a held step while paused and keeps the tape and the present;
+  `returnToPresent` puts the present back exactly, `branchHere` cuts the
+  future at the scrubbed step and stays paused, and `stepOnce` from a scrub
+  walks the tape. `resume` from a scrub resumes at the present. `tracks`
+  replays the buffer into `EntityTracks` and puts the live state back.
+  Refusals come back as `ScrubRefused` with a reason.
+- **`registerTimelineExtensions`** adds `scrubTo`, `returnToPresent`,
+  `branchHere` and, with an `entityLayout`, `tracks`; `status` answers the
+  present step, the oldest held and the scrub.
+
 - **`replayAfterHotSwap` asks the question a hot reload leaves open on its
   own.** After every `HotSwap` it lives the last seconds again under the new
   code and says whether they came out the same or where they parted, in the
