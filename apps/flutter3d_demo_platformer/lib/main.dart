@@ -340,41 +340,60 @@ class _GameScreenState extends State<GameScreen>
   /// this repeats rather than reinvents.
   DemoFile? _demos;
 
-  /// Where the run being recorded started, and in which level.
-  Snapshot? _demoStart;
-  String? _demoLevel;
-  String? _demoLevelHash;
-
-  /// A checkpoint every so many steps, taken live while the run is recorded.
-  DigestTrace? _demoCheckpoints;
-
-  /// The demo's own recorder, beside no rewind buffer here — this game has
-  /// none of the dungeon's kill camera to share one with.
-  InputTapeRecorder? _demoRecorder;
+  /// The run being written down: its start, its own recorder — beside no
+  /// rewind buffer here, this game has none of the dungeon's kill camera to
+  /// share one with — its checkpoints, and `HR3`'s edits made under it.
+  DemoRecording? _demo;
 
   /// Starts writing the run down, from the state the level is in now.
   ///
   /// Now rather than at load: a level resumed from a save begins mid-run, and
   /// the demo has to begin where the player did. The tape's seed is the dice
   /// the snapshot carries, which is the one number a replay cannot do without.
-  void _beginDemo(String asset, LevelReady level) {
-    final start = level.sim.save();
-    _demoStart = start;
-    _demoLevel = asset;
-    _demoLevelHash = level.loaded.level.digestHex;
-    _demoCheckpoints = DigestTrace();
+  void _beginDemo(String asset, LevelReady level) => _record(
+    asset: asset,
+    levelHash: level.loaded.level.digestHex,
+    start: level.sim.save(),
+  );
+
+  void _record({
+    required String asset,
+    required String levelHash,
+    required Snapshot start,
+  }) {
     _endRecording();
-    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
-    _demoRecorder = recorder;
-    _loop.recorders.add(recorder);
+    final demo = DemoRecording(
+      level: asset,
+      levelHash: levelHash,
+      start: start,
+      seed: start.data.integer('random'),
+    );
+    _demo = demo;
+    _loop.recorders.add(demo.recorder);
   }
 
   /// Stops the demo's recorder.
-  InputTapeRecorder? _endRecording() {
-    final recorder = _demoRecorder;
-    if (recorder != null) _loop.recorders.remove(recorder);
-    _demoRecorder = null;
-    return recorder;
+  DemoRecording? _endRecording() {
+    final demo = _demo;
+    if (demo != null) _loop.recorders.remove(demo.recorder);
+    _demo = null;
+    return demo;
+  }
+
+  /// `HR3`: writes an edit the timeline swapped in before [step] into the
+  /// demo, so the `.f3drun` replays it rather than parting from the run
+  /// there.
+  ///
+  /// An edit that took effect before this demo began — within a keyframe of
+  /// the level loading — cannot go into it, and the demo starts again from
+  /// now, in the level it was loaded as, with the edit at its first step.
+  void _recordSwap(Level next, int step) {
+    final demo = _demo;
+    final sim = _sim;
+    if (demo == null || sim == null) return;
+    if (demo.levelSwapped(next, stepsAgo: _rewind.step - step)) return;
+    _record(asset: demo.level, levelHash: demo.levelHash, start: sim.save());
+    _demo?.levelSwapped(next, stepsAgo: 0);
   }
 
   /// Writes the run down when it ends, either way.
@@ -383,28 +402,10 @@ class _GameScreenState extends State<GameScreen>
   /// me off the edge" is a sentence, and the demo is the proof. Written once
   /// at the end rather than as it goes — the same reason the save is.
   void _endDemo() {
-    final recorder = _endRecording();
-    final start = _demoStart;
-    final level = _demoLevel;
-    final levelHash = _demoLevelHash;
-    final checkpoints = _demoCheckpoints;
-    if (recorder == null ||
-        start == null ||
-        level == null ||
-        levelHash == null ||
-        checkpoints == null) {
-      return;
-    }
+    final demo = _endRecording();
+    if (demo == null) return;
     _demos?.write(
-      Demo(
-        level: level,
-        levelHash: levelHash,
-        start: start,
-        tape: recorder.tape,
-        buildStamp: _buildStamp,
-        checkpoints: checkpoints,
-        platform: defaultTargetPlatform.name,
-      ),
+      demo.demo(buildStamp: _buildStamp, platform: defaultTargetPlatform.name),
     );
   }
 
@@ -427,8 +428,8 @@ class _GameScreenState extends State<GameScreen>
   /// twice, so later levels move the one door along. Everything the edit
   /// takes is the run's: it builds the edited level ahead, swaps it in inside
   /// [_timeline]'s replay when the simulation has to be lived again, and only
-  /// then tells this widget, through [PlatformerRun.onLevelBuilt] like any
-  /// load.
+  /// then tells this widget, through [PlatformerRun.onLevelEdited]. The step
+  /// the edit took effect at goes into the demo on the way ([_recordSwap]).
   void _takeEdits(LevelReady level) {
     final live = _live;
     if (live != null) {
@@ -443,6 +444,7 @@ class _GameScreenState extends State<GameScreen>
         prepare: run.prepareEdit,
         rebuild: (Level next) => run.installEdit(),
         present: (Level next, LevelDiff diff) => run.announceEdit(),
+        swapped: _recordSwap,
       ),
     );
   }
@@ -610,6 +612,10 @@ class _GameScreenState extends State<GameScreen>
         onLevelBuilt: (String asset, LevelReady level, GraphicsDevice device) {
           setState(() => _levelArrived(level, device));
           _beginDemo(asset, level);
+          _takeEdits(level);
+        },
+        onLevelEdited: (String asset, LevelReady level, GraphicsDevice device) {
+          setState(() => _levelArrived(level, device));
           _takeEdits(level);
         },
       ),
@@ -935,10 +941,7 @@ class _GameScreenState extends State<GameScreen>
     // `rp-01`'s own checkpoint, taken here rather than replayed later from the
     // finished tape — see the dungeon's identical placement for why the step
     // number has to be the recorder's own.
-    final demoRecorder = _demoRecorder;
-    if (demoRecorder != null) {
-      _demoCheckpoints?.observe(demoRecorder.tape.steps, sim.save().toJson());
-    }
+    _demo?.observe(sim.save);
     // Drained once, here, and handed to everything that wants it. Draining
     // empties the buffer, so two readers each draining would each get half of
     // what happened — and which half would depend on the order they ran in.

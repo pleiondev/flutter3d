@@ -208,6 +208,16 @@ final class SimSession {
     } catch (error) {
       return _refuse('could not read a run from "$path": $error');
     }
+    // A swapped level goes in through the game's own build, which a session
+    // over a bare simulation does not have; playing through the swap would
+    // answer with a divergence the simulation did not cause.
+    if (demo.levelSwaps case [final first, ...]) {
+      return _refuse(
+        '"$path" has the level edited under it at step ${first.step}, and '
+        'this replays a run in one level — play it in the game it was '
+        'recorded in',
+      );
+    }
     final ReadingPredicate? claim;
     try {
       claim = predicate == null ? null : ReadingPredicate.fromJson(predicate);

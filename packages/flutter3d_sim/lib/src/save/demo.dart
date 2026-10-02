@@ -1,4 +1,5 @@
 import '../input/input_tape.dart';
+import '../level/level.dart';
 import 'data_source_trace.dart';
 import 'snapshot.dart';
 import 'state_digest.dart';
@@ -50,6 +51,13 @@ import 'state_digest.dart';
 /// silently degrades to a video. [platform] and [recordedBy] are the
 /// genuinely optional half: worth keeping when known, meaningless to invent
 /// when not.
+///
+/// ## `HR3`: a level edited under the run
+///
+/// [levelSwaps] are the edits the editor sent into the game while this run
+/// was recorded, each with the whole document and the step it took effect
+/// before. Without them a run with an edit in it parts from its own replay at
+/// the edit, and the checkpoints say so without saying why.
 final class Demo {
   const Demo({
     required this.level,
@@ -61,10 +69,18 @@ final class Demo {
     this.platform,
     this.recordedBy,
     this.dataSources,
+    this.levelSwaps = const <DemoLevelSwap>[],
   });
 
   /// Bumped when an existing field changes meaning.
-  static const int formatVersion = 1;
+  ///
+  /// **2 is written only by a run with [levelSwaps] in it.** A build that
+  /// reads 1 would play such a file through the first level to the end and
+  /// report a divergence nobody can explain; refusing it with "a newer build"
+  /// is the honest answer. A run with no edit in it means exactly what it
+  /// meant before, so it is still written as 1 and older builds still open
+  /// it.
+  static const int formatVersion = 2;
 
   /// The extension a run is written under — `.f3drun`, wherever it becomes an
   /// actual file: attached to a bug report, downloaded from the cloud, or
@@ -119,11 +135,19 @@ final class Demo {
   /// with no recorded bindings, not a run misread.
   final DataSourceTrace? dataSources;
 
+  /// The levels put under the run while it was recorded, in step order, no
+  /// two at the same step. Empty for a run played in one level throughout.
+  ///
+  /// [level] and [levelHash] still name the level the run started in: that
+  /// is the one a replay loads, and these are swapped in as the tape reaches
+  /// them.
+  final List<DemoLevelSwap> levelSwaps;
+
   /// How many fixed steps the run lasted.
   int get steps => tape.steps;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': formatVersion,
+    'version': levelSwaps.isEmpty ? 1 : formatVersion,
     'level': level,
     'levelHash': levelHash,
     'run': start.toJson(),
@@ -133,6 +157,10 @@ final class Demo {
     if (platform != null) 'platform': platform,
     if (recordedBy != null) 'recordedBy': recordedBy,
     if (dataSources != null) 'dataSources': dataSources!.toJson(),
+    if (levelSwaps.isNotEmpty)
+      'levelSwaps': <Map<String, Object?>>[
+        for (final swap in levelSwaps) swap.toJson(),
+      ],
   };
 
   /// Reads a demo, or throws a [DemoFormatException] that says why not.
@@ -206,17 +234,101 @@ final class Demo {
         throw DemoFormatException('the data sources: ${error.message}');
       }
     }
+    final readTape = InputTape.fromJson(tape);
     return Demo(
       level: level,
       levelHash: levelHash,
       start: start,
-      tape: InputTape.fromJson(tape),
+      tape: readTape,
       buildStamp: buildStamp,
       checkpoints: trace,
       platform: platform is String ? platform : null,
       recordedBy: recordedBy is String ? recordedBy : null,
       dataSources: dataSources,
+      levelSwaps: _readSwaps(json['levelSwaps'], steps: readTape.steps),
     );
+  }
+
+  static List<DemoLevelSwap> _readSwaps(Object? raw, {required int steps}) {
+    if (raw == null) return const <DemoLevelSwap>[];
+    if (raw is! List) {
+      throw const DemoFormatException('the level swaps are not a list');
+    }
+    final swaps = <DemoLevelSwap>[
+      for (final entry in raw) DemoLevelSwap._fromJson(entry, steps: steps),
+    ];
+    for (var i = 1; i < swaps.length; i++) {
+      if (swaps[i].step <= swaps[i - 1].step) {
+        throw DemoFormatException(
+          'the level swap at step ${swaps[i].step} comes after the one at '
+          'step ${swaps[i - 1].step}; swaps are written in step order, one '
+          'per step',
+        );
+      }
+    }
+    return List<DemoLevelSwap>.unmodifiable(swaps);
+  }
+}
+
+/// One level put under a recorded run: [level] took effect before step
+/// [step] of the tape, that is, after [step] of its frames had been played.
+///
+/// **The whole document, not only its digest.** The level a game was edited
+/// into exists in the editor that sent it and nowhere a replay can look it
+/// up — not in the game's assets, which still hold the level as shipped. A
+/// digest alone would make the file unplayable everywhere but the machine
+/// that recorded it, on the afternoon it was recorded.
+final class DemoLevelSwap {
+  const DemoLevelSwap({required this.step, required this.level});
+
+  final int step;
+  final Level level;
+
+  /// [Level.digestHex] of [level], what the editor and the timeline call it.
+  String get levelHash => level.digestHex;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'step': step,
+    'levelHash': levelHash,
+    'document': level.toJson(),
+  };
+
+  /// **The digest is checked against the document**, as
+  /// `ext.flutter3d.level.apply` checks it: a document that no longer
+  /// digests to what was written beside it is not the level the run was
+  /// played in.
+  factory DemoLevelSwap._fromJson(Object? json, {required int steps}) {
+    if (json is! Map<String, Object?>) {
+      throw const DemoFormatException('a level swap is not a document');
+    }
+    final step = json['step'];
+    if (step is! int || step < 0 || step > steps) {
+      throw DemoFormatException(
+        'a level swap names step $step, and the tape has steps 0 to $steps',
+      );
+    }
+    final hash = json['levelHash'];
+    final document = json['document'];
+    if (hash is! String || document is! Map<String, Object?>) {
+      throw DemoFormatException(
+        'the level swap at step $step has no level hash or no document',
+      );
+    }
+    final Level level;
+    try {
+      level = Level.fromJson(document);
+    } on LevelFormatException catch (error) {
+      throw DemoFormatException(
+        'the level swapped in at step $step: ${error.message}',
+      );
+    }
+    if (level.digestHex != hash) {
+      throw DemoFormatException(
+        'the level swapped in at step $step digests to ${level.digestHex}, '
+        'not $hash; the document changed after it was written',
+      );
+    }
+    return DemoLevelSwap(step: step, level: level);
   }
 }
 

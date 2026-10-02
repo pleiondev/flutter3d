@@ -69,6 +69,7 @@ export 'src/level/level.dart';
 export 'src/level/level_collision.dart';
 export 'src/level/level_diff.dart';
 export 'src/level/level_issue.dart';
+export 'src/level/level_patch.dart';
 export 'src/level/level_validator.dart';
 export 'src/level/level_visibility.dart';
 export 'src/level/lightmap.dart';
