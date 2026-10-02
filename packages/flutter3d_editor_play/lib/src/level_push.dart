@@ -5,7 +5,8 @@ import 'dart:convert';
 
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vm_service/vm_service.dart';
-import 'package:vm_service/vm_service_io.dart';
+
+import 'vm_connect.dart';
 
 /// The parameters `ext.flutter3d.level.apply` takes for [document]: the text
 /// as saved, and the digest of the level it parses to.
@@ -95,10 +96,11 @@ Future<Map<String, Object?>> pushLevel(
   String vmService,
   String document, {
   String? base,
+  ConnectVmService connect = connectVmService,
 }) async {
   const method = 'ext.flutter3d.level.apply';
   const patchMethod = 'ext.flutter3d.level.patch';
-  final service = await vmServiceConnectUri(vmService);
+  final service = await connect(vmService);
   try {
     final vm = await service.getVM();
     for (final ref in vm.isolates ?? const <IsolateRef>[]) {

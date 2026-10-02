@@ -48,7 +48,8 @@ dependencies:
 
   # Play: the project run with `flutter run --machine`, its devices, and a
   # saved level sent to it. Shared with `flutter3d_editor_mcp`, so an agent's
-  # Play is this toolbar's.
+  # Play is this toolbar's. Its `attach.dart` is the Play a web build has: a
+  # running game attached to by address, imported by `src/play/play_screen.dart`.
   flutter3d_editor_play:
     path: ../../packages/flutter3d_editor_play
 
@@ -90,8 +91,8 @@ dependencies:
   # its `RunTimeline` — `rp-02`'s answer to "the editor runs the project",
   # over the same channel DevTools and `flutter attach` use, per
   # `doc/tooling-plan.md`. Not a plugin: this package speaks the VM service
-  # protocol over a plain WebSocket, which this application already has
-  # through `dart:io` on every platform it ships to.
+  # protocol over a plain WebSocket, opened by `flutter3d_editor_play`'s
+  # `connectVmService` so the same code reaches a game from a browser.
   vm_service: ^15.3.0
 
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
