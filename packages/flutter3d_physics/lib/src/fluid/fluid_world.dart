@@ -1,5 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
+import '../rigid_body.dart';
+import 'buoyancy.dart';
 import 'jet.dart';
 import 'liquid_body.dart';
 import 'particle_fluid.dart';
@@ -31,6 +33,13 @@ final class FluidWorld {
   final double step;
 
   final List<LiquidBody> bodies = [];
+
+  /// Rigid bodies the liquids push on: buoyed up, slowed, and taking up
+  /// room in whatever vessel they are in.
+  final List<FloatingBody> floating = [];
+
+  /// Adds [body] to [floating].
+  void float(RigidBody body) => floating.add(FloatingBody(body));
   final List<Pipe> pipes = [];
 
   /// The stream from each vessel's lip, while there is one.
@@ -69,6 +78,13 @@ final class FluidWorld {
   }
 
   void _stepOnce(double dt) {
+    for (final liquid in bodies) {
+      var displaced = 0.0;
+      for (final f in floating) {
+        displaced += f.push(liquid, dt, gravity);
+      }
+      liquid.displaced = displaced;
+    }
     for (final pipe in pipes) {
       pipe.step(dt, gravity: gravity);
     }
