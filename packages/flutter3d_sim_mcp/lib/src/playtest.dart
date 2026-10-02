@@ -123,46 +123,28 @@ final class Playtest {
   /// metres on a side, counting how many positions from how many distinct
   /// runs landed in each — the JSON `ai-01`'s own row promises, and the
   /// same shape `ai-02`'s editor layer draws directly over the level.
+  ///
+  /// [Heatmap] does the binning, and N7's telemetry server bins real players'
+  /// runs through it too, so the two reports are one format.
   static Map<String, Object?> heatmap(
     List<PlaytestRun> runs, {
     double cellSize = 1.0,
-  }) {
-    final counts = <(int, int), int>{};
-    final runsThroughCell = <(int, int), Set<int>>{};
-    for (final run in runs) {
-      for (final (x, z) in run.positions) {
-        final cell = ((x / cellSize).floor(), (z / cellSize).floor());
-        counts[cell] = (counts[cell] ?? 0) + 1;
-        (runsThroughCell[cell] ??= <int>{}).add(run.seed);
-      }
-    }
-    return <String, Object?>{
-      'cellSize': cellSize,
-      'cells': <Map<String, Object?>>[
-        for (final entry in counts.entries)
-          <String, Object?>{
-            'x': entry.key.$1,
-            'z': entry.key.$2,
-            'samples': entry.value,
-            'runs': runsThroughCell[entry.key]!.length,
-          },
-      ],
-      'deaths': <Map<String, Object?>>[
-        for (final run in runs)
-          if (run.outcome == PlaytestOutcome.died && run.positions.isNotEmpty)
-            <String, Object?>{
-              'seed': run.seed,
-              'step': run.steps,
-              'x': run.positions.last.$1,
-              'z': run.positions.last.$2,
-            },
-      ],
-      'outcomes': <String, int>{
-        for (final outcome in PlaytestOutcome.values)
-          outcome.name: runs.where((r) => r.outcome == outcome).length,
-      },
-    };
-  }
+  }) => Heatmap.bin(
+    <HeatmapTrail>[
+      for (final run in runs)
+        HeatmapTrail(
+          run: run.seed,
+          steps: run.steps,
+          outcome: run.outcome.name,
+          positions: run.positions,
+          endedBadly: run.outcome == PlaytestOutcome.died,
+        ),
+    ],
+    cellSize: cellSize,
+    outcomeNames: <String>[
+      for (final outcome in PlaytestOutcome.values) outcome.name,
+    ],
+  ).toJson();
 }
 
 /// A random policy's intent for one step — held for a stretch rather than

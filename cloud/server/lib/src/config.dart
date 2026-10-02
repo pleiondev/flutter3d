@@ -23,6 +23,7 @@ class Config {
     this.assetsDirectory = 'web/assets',
     this.viewerDirectory,
     this.learnDirectory = 'content/learn/modeler',
+    this.telemetryLevelsDirectory,
   });
 
   /// Reads the configuration from the process environment.
@@ -63,6 +64,7 @@ class Config {
       assetsDirectory: env['MODELS_ASSETS_DIR'] ?? 'web/assets',
       viewerDirectory: env['MODELS_VIEWER_DIR'],
       learnDirectory: env['MODELS_LEARN_DIR'] ?? 'content/learn/modeler',
+      telemetryLevelsDirectory: env['MODELS_TELEMETRY_LEVELS_DIR'],
     );
 
     if (missing.isNotEmpty) throw ConfigError(missing);
@@ -119,6 +121,11 @@ class Config {
   /// so production would have served the index with nothing on it and said
   /// nothing.
   final String learnDirectory;
+
+  /// N7: the level documents telemetry runs are played again in, or null for
+  /// a server that takes no telemetry. Optional, because most deploys of the
+  /// models service have no game to play them with.
+  final String? telemetryLevelsDirectory;
 
   /// Whether letters are actually sent.
   bool get sendsMail => resendApiKey != null;

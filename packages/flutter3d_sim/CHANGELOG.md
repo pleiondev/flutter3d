@@ -51,6 +51,23 @@
   against the digest both last agreed on: the same run is in sync, a side
   still at the base lost to the one that moved, otherwise the further run
   wins, and two different runs equally far along go to the player.
+- **A run leaves the machine only with the player's yes.**
+  `TelemetryConsent` keeps the answer with the wording it was given to and
+  when; a grant to an older wording does not count, and a damaged settings
+  file reads as not asked. `TelemetryUpload.prepare` is the only way to build
+  an upload and refuses without consent; it drops `Demo.recordedBy`, and the
+  consent travels with the run so a server can refuse one that has none.
+  `TelemetryUploader` checks consent on every send; `HttpTelemetrySink`
+  posts through a `JsonPost` the caller hands in, so this package still
+  imports no network.
+- **`resimulate` plays a demo again and says what it did.** It checks the
+  level hash, the starting state and every checkpoint, and returns a sealed
+  `Resimulation`: the level changed, the start differs, the replay diverged
+  (with the step), or it retraced, with the run, its outcome and a trail of
+  positions.
+- **`Heatmap`** bins trails into cells, counting samples and distinct runs,
+  and marks where runs were lost. Its JSON is the playtest report's, so the
+  editor reads both.
 
 - **A number tuned while the game runs is on the tape.** `InputState.tune`
   sets a tunable for one step, `InputFrame.tunes` records it, playback

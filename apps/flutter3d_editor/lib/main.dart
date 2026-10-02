@@ -1610,10 +1610,14 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Opens `ai-02`'s own screen — the report itself is opened from inside
   /// it, since that is where the file picker and the "no report open" state
-  /// already live.
+  /// already live. The open level's digest goes with it, for N7's heatmap of
+  /// players' runs of exactly this document.
   Future<void> _openPlaytestReport() async {
+    final levelHash = _editing?.level.digestHex;
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const PlaytestReportScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => PlaytestReportScreen(levelHash: levelHash),
+      ),
     );
   }
 
