@@ -20960,8 +20960,32 @@ layout(std140) uniform CompositeInfo {
   /// offset above unchanged and the four backends do not have to agree about
   /// anything they had not already agreed on.
   vec4 contact;
+
+  /// x: radial lens distortion — `P2`, barrel above nought, pincushion
+  /// below, nought off exactly. y, z, w: unclaimed. Appended for the reason
+  /// `contact` was.
+  vec4 lens;
 }
 composite_info;
+
+/// Where the lens bends [at] to: radially, by `1 + k·r²` on the frame's own
+/// aspect, scaled so the frame's border stays on the frame — `P2`.
+///
+/// **Normalised on the border, not on the corner alone.** A barrel (k above
+/// nought) magnifies the middle and pulls everything else inwards, so the
+/// corners are what reach furthest and are held there. A pincushion does the
+/// opposite, and normalising it on the corners would send the middles of the
+/// edges past the frame and stretch the last row of texels across them; it is
+/// held at the edge nearest the middle instead, and the corners come in.
+vec2 Distort(vec2 at, float k) {
+  float aspect = max(composite_info.look_more.w, 1e-4);
+  vec2 fromCentre = at - vec2(0.5);
+  vec2 onFrame = fromCentre * vec2(aspect, 1.0);
+  float r2 = dot(onFrame, onFrame);
+  float border = k > 0.0 ? 0.25 * (aspect * aspect + 1.0)
+                         : 0.25 * min(aspect * aspect, 1.0);
+  return vec2(0.5) + fromCentre * (1.0 + k * r2) / (1.0 + k * border);
+}
 
 /// Rec. 709 luma, which is what the sRGB primaries weight to.
 float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
@@ -21262,18 +21286,25 @@ void main() {
   //
   // The offset grows from the centre outwards, which is what a real lens does:
   // a ray through the middle of the glass is not dispersed at all.
+  //
+  // `P2`: the lens's own bend, before anything is read, so the scene and
+  // everything laid over it — the glow, the occlusion, the contact shadow,
+  // the local exposure — bend together. Nought leaves `uv` the very value
+  // `v_uv` is, which every golden in the repository depends on.
+  float distortion = composite_info.lens.x;
+  vec2 uv = distortion != 0.0 ? Distort(v_uv, distortion) : v_uv;
   float dispersion = composite_info.look.w;
   vec4 scene;
   if (dispersion > 0.0) {
-    vec2 fromCentre = v_uv - vec2(0.5);
+    vec2 fromCentre = uv - vec2(0.5);
     vec2 step_uv = fromCentre * dispersion;
-    scene = texture(scene_texture, v_uv);
-    scene.r = texture(scene_texture, v_uv + step_uv).r;
-    scene.b = texture(scene_texture, v_uv - step_uv).b;
+    scene = texture(scene_texture, uv);
+    scene.r = texture(scene_texture, uv + step_uv).r;
+    scene.b = texture(scene_texture, uv - step_uv).b;
   } else {
-    scene = texture(scene_texture, v_uv);
+    scene = texture(scene_texture, uv);
   }
-  vec3 bloom = texture(bloom_texture, v_uv).rgb;
+  vec3 bloom = texture(bloom_texture, uv).rgb;
 
   // Four taps in a 2×2, which is not a general-purpose blur: the occlusion pass
   // rotates its kernel by the parity of the pixel, leaving a 2×2 pattern, and
@@ -21282,10 +21313,10 @@ void main() {
   // one without the other either leaves the pattern or smears the contact
   // shadows this whole pass exists to draw.
   vec2 half_texel = composite_info.ao_texel.xy * 0.5;
-  vec4 occlusion = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)) +
-                           texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)) +
-                           texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)) +
-                           texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)));
+  vec4 occlusion = 0.25 * (texture(ao_texture, uv + vec2(half_texel.x, half_texel.y)) +
+                           texture(ao_texture, uv + vec2(-half_texel.x, half_texel.y)) +
+                           texture(ao_texture, uv + vec2(half_texel.x, -half_texel.y)) +
+                           texture(ao_texture, uv + vec2(-half_texel.x, -half_texel.y)));
   // The share left open is in a; the occlusion methods write it into every
   // channel, and the indirect one keeps its light in rgb.
   float ao = occlusion.a;
@@ -21305,7 +21336,7 @@ void main() {
   // the whole point of a contact shadow is the first few centimetres at the
   // join, and a half-resolution one is the seam it exists to draw, blurred
   // away.
-  float contact = texture(contact_shadow_texture, v_uv).r;
+  float contact = texture(contact_shadow_texture, uv).r;
   ao *= mix(1.0, contact, clamp(composite_info.contact.x, 0.0, 1.0));
 
   // Applied to the scene and **not** to the bloom, which is the whole reason
@@ -21328,7 +21359,7 @@ void main() {
   // `R7`: each place of the scene at the exposure that shows it best, before
   // the glow is added and the curve applied. Bilinear from an eighth of the
   // frame: the stops were blurred wide, so there is no edge in them to keep.
-  float localStops = texture(local_exposure_texture, v_uv).r;
+  float localStops = texture(local_exposure_texture, uv).r;
   vec3 exposed = scene.rgb * exp2(localStops * composite_info.contact.w);
   vec3 color = exposed * ao + bloom * composite_info.params.y;
 
@@ -22328,6 +22359,100 @@ void main() {
   vec4 second = textureLod(source_texture, v_uv - away * axis, 0.0);
   float total = toward + away;
   frag_color = first * (toward / total) + second * (away / total);
+}
+
+''',
+    'LensFlare': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Lens flare, added to the glow — `P2`.
+//
+// A bright light in the frame reflects between the elements of a lens and
+// lands again as a row of ghosts on the line through the middle of the
+// frame, on the far side, and as a ring round the middle. Both are drawn
+// here from the glow itself: the bloom chain has already picked out what is
+// bright and spread it, so reading it at the mirrored positions is what puts
+// a ghost where the light's reflection would fall, and nothing that is not
+// bright enough to bloom ever flares.
+//
+// Each ghost is weighted by how near the middle it lands, so ghosts thin out
+// towards the edges and one that would land outside the frame is not drawn
+// — no wrapping round, which reads as a light on the wrong side. The three
+// channels are taken a little apart along the ghost's line, which is the
+// colour fringe a coated lens leaves on its reflections.
+//
+// Drawn into the glow rather than into the picture so the composite adds it
+// with the glow, at the glow's own intensity and before the tone map: a
+// flare is light, and it saturates the way the rest of the light does.
+//
+// `flutter3d_cpu`'s `LensFlareShader` is this, line for line.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The glow, as the bloom chain finished it.
+uniform sampler2D bloom_texture;
+
+layout(std140) uniform LensFlareInfo {
+  /// x: how much flare, against the glow it is drawn from. y: how many
+  /// ghosts, up to eight. z: how far apart they fall, as a fraction of the
+  /// way from the light to the middle. w: the halo's radius, as a fraction
+  /// of the frame's height.
+  vec4 params;
+
+  /// x: how far apart the channels of a ghost are taken, in uv. y: the
+  /// halo's strength against the ghosts'. z: the frame's aspect, width over
+  /// height. w: unclaimed.
+  vec4 more;
+}
+lens_flare_info;
+
+/// The glow at [at], its channels taken [spread] apart along [along].
+vec3 Fringed(vec2 at, vec2 along, float spread) {
+  return vec3(textureLod(bloom_texture, at + along * spread, 0.0).r,
+              textureLod(bloom_texture, at, 0.0).g,
+              textureLod(bloom_texture, at - along * spread, 0.0).b);
+}
+
+/// How much a reflection landing at [at] keeps: all of it in the middle,
+/// falling off to nothing at the corners and beyond.
+float Falloff(vec2 at, float power) {
+  float d = length(vec2(0.5) - at) / 0.70710678;
+  return pow(max(1.0 - d, 0.0), power);
+}
+
+void main() {
+  vec3 glow = textureLod(bloom_texture, v_uv, 0.0).rgb;
+  float intensity = lens_flare_info.params.x;
+  // The reflection of the point at `v_uv` lands on the far side of the
+  // middle, so a ghost at `v_uv` comes from the light at `flipped`.
+  vec2 flipped = vec2(1.0) - v_uv;
+  vec2 towardMiddle = (vec2(0.5) - flipped) * lens_flare_info.params.z;
+  float reach = length(towardMiddle);
+  vec2 along = reach > 1e-6 ? towardMiddle / reach : vec2(0.0);
+  float spread = lens_flare_info.more.x;
+
+  vec3 flare = vec3(0.0);
+  int ghosts = int(lens_flare_info.params.y + 0.5);
+  for (int i = 0; i < 8; i++) {
+    if (i >= ghosts) break;
+    vec2 at = flipped + towardMiddle * float(i);
+    flare += Fringed(at, along, spread) * Falloff(at, 10.0);
+  }
+
+  // The ring: every light at one radius from the middle lands on it.
+  float aspect = max(lens_flare_info.more.z, 1e-4);
+  vec2 halo = along * vec2(1.0 / aspect, 1.0) * lens_flare_info.params.w;
+  vec2 haloAt = flipped + halo;
+  flare += Fringed(haloAt, along, spread) * Falloff(haloAt, 5.0) *
+           lens_flare_info.more.y;
+
+  frag_color = vec4(glow + flare * intensity, 1.0);
 }
 
 ''',

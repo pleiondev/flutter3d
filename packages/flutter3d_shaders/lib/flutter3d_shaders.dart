@@ -44,6 +44,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'SmaaEdges', fragment: true),
   (name: 'SmaaWeights', fragment: true),
   (name: 'SmaaBlend', fragment: true),
+  (name: 'LensFlare', fragment: true),
   (name: 'LocalExposure', fragment: true),
   (name: 'LocalExposureBlur', fragment: true),
   (name: 'Lambert', fragment: true),

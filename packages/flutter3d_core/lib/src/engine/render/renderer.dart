@@ -743,6 +743,7 @@ final class Renderer implements RenderServices {
   final FragInfoBlock _fragInfo = FragInfoBlock();
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
   final SmaaInfoBlock _smaaInfo = SmaaInfoBlock();
+  final LensFlareInfoBlock _lensFlareInfo = LensFlareInfoBlock();
   final EasuInfoBlock _easuInfo = EasuInfoBlock();
   final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
   final LocalExposureBlurInfoBlock _localExposureBlurInfo =
@@ -1522,7 +1523,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: seventy-nine goldens go through this
+  /// strength has, and for the same reason: eighty-one goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -2656,6 +2657,9 @@ final class Renderer implements RenderServices {
       ..addNode(resolve)
       ..addNode(_LocalExposureNode(this, s))
       ..addNode(bloom)
+      // `P2`: the flare, drawn from the glow and added to it, so the
+      // composite reads both as one.
+      ..addNode(_LensFlareNode(this, s.bloom))
       ..addNode(composite)
       ..addNode(easu)
       // And the smoothing after the composite, which is what lets it read a

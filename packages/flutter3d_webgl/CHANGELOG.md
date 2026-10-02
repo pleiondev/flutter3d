@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **`LensFlare` translated, and the composite's distortion**;
+  `lens-flare` and `lens-distortion` are in the browser reference set.
 - **SMAA 1x's three stages translated**, from the same sources as every
   other stage; `smaa-teapot` is in the browser reference set.
 

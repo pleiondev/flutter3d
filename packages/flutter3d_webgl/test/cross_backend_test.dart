@@ -232,6 +232,10 @@ const Map<String, double> _budgets = <String, double>{
   // 0.591% measured, every pixel of it on an edge: WebGL2 already draws
   // `shadow-teapot`'s silhouette 0.28% apart from Impeller's, and SMAA reads
   // a slightly different staircase there and moves its neighbours with it.
+  'lens-flare': 0.01,
+  // 0.388% measured, on the silhouette: `shadow-teapot`'s 0.28% between
+  // WebGL2 and Impeller, magnified by the barrel.
+  'lens-distortion': 0.45,
   'smaa-teapot': 0.65,
   'evsm-soft': 0.4,
   // 0.047% measured: the air right round a torch, where the light falls off

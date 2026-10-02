@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **`LensFlare` translated, and the composite's distortion**, through
+  glslang and naga; both lens scenes match Impeller's to the pixel.
 - **SMAA 1x's three stages translated**, through glslang and naga like every
   other stage; `smaa-teapot` is in the WebGPU reference set and matches
   Impeller's to the pixel.

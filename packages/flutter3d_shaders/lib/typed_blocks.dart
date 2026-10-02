@@ -97,6 +97,9 @@ final class CompositeInfoBlock extends UniformBlock {
   /// `contact`: Vector4, at byte 128.
   final Float32List contact = Float32List(4);
 
+  /// `lens`: Vector4, at byte 144.
+  final Float32List lens = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'params': params,
@@ -108,6 +111,7 @@ final class CompositeInfoBlock extends UniformBlock {
     'gamma': gamma,
     'gain': gain,
     'contact': contact,
+    'lens': lens,
   };
 }
 
@@ -587,6 +591,23 @@ final class LayerInfoBlock extends UniformBlock {
     'scene_viewport': sceneViewport,
     'scene_levels': sceneLevels,
     'scene_view_projection': sceneViewProjection,
+  };
+}
+
+/// `LensFlareInfo`.
+final class LensFlareInfoBlock extends UniformBlock {
+  LensFlareInfoBlock() : super('LensFlareInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  /// `more`: Vector4, at byte 16.
+  final Float32List more = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
+    'more': more,
   };
 }
 

@@ -210,6 +210,7 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'gamma': (offset: 96, byteLength: 16, elements: 1, type: 'Vector4'),
       'gain': (offset: 112, byteLength: 16, elements: 1, type: 'Vector4'),
       'contact': (offset: 128, byteLength: 16, elements: 1, type: 'Vector4'),
+      'lens': (offset: 144, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'FragCoordInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -599,6 +600,12 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'params': (offset: 2528, byteLength: 16, elements: 1, type: 'Vector4'),
       'params2': (offset: 2544, byteLength: 16, elements: 1, type: 'Vector4'),
       'params3': (offset: 2560, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'LensFlare': <String, Map<String, UniformMemberLayout>>{
+    'LensFlareInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'more': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'LightShafts': <String, Map<String, UniformMemberLayout>>{

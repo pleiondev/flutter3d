@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **`LensFlare`**, with the `LensFlareInfo` block, and a `lens` member
+  appended to `CompositeInfo` for the distortion.
 - **Three stages for SMAA 1x**: `SmaaEdges`, `SmaaWeights` and `SmaaBlend`,
   with the `SmaaInfo` block. A bundle must answer to them; the renderer falls
   back to FXAA when one does not.

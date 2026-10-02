@@ -1130,6 +1130,46 @@ abstract final class GoldenStages {
         ),
       );
 
+  // ------------------------------------------------------------------ P2
+
+  /// `lens-flare`: one small, very bright panel up and to the left on black,
+  /// and the ghosts and ring its reflections throw across the middle of the
+  /// frame. The glow is kept tight so the ghosts read as discs.
+  static Future<GoldenStaged> lensFlare(GoldenStage stage) async {
+    final device = stage.device;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(0.25, 0.25, 0.05),
+          Vector3(-1.1, 0.7, -3.0),
+          Material(
+            baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+            emissive: Vector3(30.0, 26.0, 20.0),
+          ),
+        )..shadowCasting = ShadowCastingMode.off,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.0, 1.0), Vector3(0.0, 0.0, -3.0)),
+    );
+  }
+
+  static RenderSettings lensFlareSettings(RenderSettings settings) =>
+      settings.copyWith(
+        bloom: settings.bloom.copyWith(
+          enabled: true,
+          intensity: 0.05,
+          levels: 3,
+          scatter: 0.5,
+          lensFlare: const LensFlareSettings(enabled: true, intensity: 3.0),
+        ),
+      );
+
+  /// `lens-distortion`: `shadow-teapot` through a barrel lens, the floor's
+  /// straight edges bowed and the corners held where they were.
+  static RenderSettings lensDistortion(RenderSettings settings) =>
+      settings.copyWith(look: settings.look.copyWith(distortion: 0.3));
+
   // ------------------------------------------------------------------ R6
 
   /// `motion-blur-spin`: a wheel of three spokes round a hub, turning at a

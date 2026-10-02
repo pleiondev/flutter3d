@@ -139,6 +139,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
     },
   ),
+  'LensFlare': (
+    blocks: <String>{'LensFlareInfo'},
+    samplers: <String>{'bloom_texture'},
+  ),
   'LightShafts': (
     blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ShaftInfo'},
     samplers: <String>{

@@ -91,6 +91,10 @@
     "type": "fragment",
     "file": "shaders/post/smaa_blend.frag"
   },
+  "LensFlare": {
+    "type": "fragment",
+    "file": "shaders/post/lens_flare.frag"
+  },
   "MrtProbe": {
     "type": "fragment",
     "file": "shaders/post/mrt_probe.frag"

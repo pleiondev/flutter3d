@@ -205,7 +205,7 @@ extension _PostPasses on Renderer {
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
     // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
     // centre untouched at zero rather than running a kernel that rounds to
-    // nothing, and seventy-nine goldens depend on that being the same bytes.
+    // nothing, and eighty-one goldens depend on that being the same bytes.
     //
     // After a temporal resolve the robust kernel, at the resolve's own
     // strength — `R2`: what softens a resolved picture is the history, and
@@ -309,6 +309,36 @@ extension _PostPasses on Renderer {
         uniforms: uniforms,
         samplers: const <String, SamplerOptions>{
           'blend_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+  }
+
+  /// The ghosts and the halo [settings] asks for, drawn from [glow] and
+  /// added to it in [target] — `P2`. One full-screen draw.
+  void _encodeLensFlare({
+    required TextureHandle target,
+    required TextureHandle glow,
+    required LensFlareSettings settings,
+    required double aspect,
+  }) {
+    _lensFlareInfo.params
+      ..[0] = math.max(settings.intensity, 0.0)
+      ..[1] = settings.ghosts.clamp(0, 8).toDouble()
+      ..[2] = settings.ghostSpacing
+      ..[3] = settings.haloRadius;
+    _lensFlareInfo.more
+      ..[0] = settings.fringe
+      ..[1] = math.max(settings.halo, 0.0)
+      ..[2] = aspect
+      ..[3] = 0.0;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shaders['LensFlare']!,
+        textures: <String, TextureHandle>{'bloom_texture': glow},
+        uniforms: <String, Map<String, Float32List>>{
+          _lensFlareInfo.name: _lensFlareInfo.members,
         },
       ),
     );
@@ -1648,7 +1678,7 @@ extension _PostPasses on Renderer {
     // itself — then one draw per view, scissored to its own rectangle, so the
     // exposure in the uniform is the one that view metered. With per-view
     // metering off, or with a single view, this is the one full-frame draw it
-    // has always been and the bytes are the bytes seventy-nine goldens hold.
+    // has always been and the bytes are the bytes eighty-one goldens hold.
     final perView =
         settings.autoExposure.enabled &&
         settings.autoExposure.perView &&
@@ -1761,6 +1791,8 @@ extension _PostPasses on Renderer {
     _compositeContact[3] = localExposure == null
         ? 0.0
         : settings.localExposure.strength.clamp(0.0, 1.0);
+    // `P2`: the lens's bend, nought off exactly.
+    _compositeInfo.lens[0] = settings.look.distortion;
     pass.bindTexture(
       compositeShader,
       'local_exposure_texture',

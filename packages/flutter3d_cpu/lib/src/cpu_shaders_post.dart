@@ -41,6 +41,19 @@ final class FullscreenVertexShader implements CpuVertexShader {
 final class CompositeShader implements CpuFragmentShader {
   const CompositeShader();
 
+  /// `Distort` in `composite.frag`: radially by `1 + k·r²` on the frame's
+  /// aspect, held on the border — at the corners for a barrel, at the
+  /// nearest edge for a pincushion.
+  static (double, double) _distort(double u, double w, double k, double aspect) {
+    final a = math.max(aspect, 1e-4);
+    final dx = u - 0.5;
+    final dy = w - 0.5;
+    final r2 = dx * a * dx * a + dy * dy;
+    final border = k > 0.0 ? 0.25 * (a * a + 1.0) : 0.25 * math.min(a * a, 1.0);
+    final scale = (1.0 + k * r2) / (1.0 + k * border);
+    return (0.5 + dx * scale, 0.5 + dy * scale);
+  }
+
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
     final scene = bindings.textures['scene_texture'];
@@ -62,15 +75,23 @@ final class CompositeShader implements CpuFragmentShader {
       Vector4(0.0, 0.0, 0.0, 1.0),
     );
 
+    // `P2`: the lens's own bend, before anything is read, so everything laid
+    // over the scene bends with it — `Distort` in `composite.frag`. Nought
+    // leaves the coordinate the very value it was.
+    final lens = bindings.vec4('CompositeInfo', 'lens', Vector4.zero());
+    final (u, w) = lens.x != 0.0
+        ? _distort(v[0], v[1], lens.x, lookMore.w)
+        : (v[0], v[1]);
+
     // Dispersion at sampling, because that is where a lens does it — see the
     // note in `composite.frag`, which this mirrors operation for operation.
-    final sampled = scene.sample(v[0], v[1]);
+    final sampled = scene.sample(u, w);
     var colour = Vector3(sampled.x, sampled.y, sampled.z);
     if (look.w > 0.0) {
-      final ox = (v[0] - 0.5) * look.w;
-      final oy = (v[1] - 0.5) * look.w;
-      colour.x = scene.sample(v[0] + ox, v[1] + oy).x;
-      colour.z = scene.sample(v[0] - ox, v[1] - oy).z;
+      final ox = (u - 0.5) * look.w;
+      final oy = (w - 0.5) * look.w;
+      colour.x = scene.sample(u + ox, w + oy).x;
+      colour.z = scene.sample(u - ox, w - oy).z;
     }
 
     // Occlusion first, then the glow — the order matters and it is the order
@@ -97,7 +118,7 @@ final class CompositeShader implements CpuFragmentShader {
       final stops = bindings.textures['local_exposure_texture'];
       if (stops != null) {
         colour.scale(
-          math.pow(2.0, stops.sample(v[0], v[1]).x * contactInfo.w).toDouble(),
+          math.pow(2.0, stops.sample(u, w).x * contactInfo.w).toDouble(),
         );
       }
     }
@@ -108,10 +129,10 @@ final class CompositeShader implements CpuFragmentShader {
       final texel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
       final hx = texel.x * 0.5;
       final hy = texel.y * 0.5;
-      final t0 = ao.sample(v[0] + hx, v[1] + hy);
-      final t1 = ao.sample(v[0] - hx, v[1] + hy);
-      final t2 = ao.sample(v[0] + hx, v[1] - hy);
-      final t3 = ao.sample(v[0] - hx, v[1] - hy);
+      final t0 = ao.sample(u + hx, w + hy);
+      final t1 = ao.sample(u - hx, w + hy);
+      final t2 = ao.sample(u + hx, w - hy);
+      final t3 = ao.sample(u - hx, w - hy);
       // The share left open is in a; the occlusion methods write it into
       // every channel.
       final occlusion = 0.25 * (t0.w + t1.w + t2.w + t3.w);
@@ -136,13 +157,13 @@ final class CompositeShader implements CpuFragmentShader {
     final contactMap = bindings.textures['contact_shadow_texture'];
     final contactStrength = contactInfo.x.clamp(0.0, 1.0);
     if (contactMap != null && contactStrength > 0.0) {
-      final contact = contactMap.sample(v[0], v[1]).x;
+      final contact = contactMap.sample(u, w).x;
       shade *= 1.0 + (contact - 1.0) * contactStrength;
     }
 
     // Skipped at exactly one, which is what both settings off comes to: a
     // multiply by one is exact, so this is a shortcut rather than a difference,
-    // and it keeps the frames seventy-nine goldens hold untouched by arithmetic
+    // and it keeps the frames eighty-one goldens hold untouched by arithmetic
     // they never used to go through.
     if (shade != 1.0) colour.scale(shade);
 
@@ -151,7 +172,7 @@ final class CompositeShader implements CpuFragmentShader {
     // make here either.
     final bloom = bindings.textures['bloom_texture'];
     if (bloom != null) {
-      final b = bloom.sample(v[0], v[1]);
+      final b = bloom.sample(u, w);
       colour += Vector3(b.x, b.y, b.z) * params.y;
     }
     if (bounced != null) colour += bounced;

@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **The lens: distortion, flare, and tables from a grading tool.**
+  `LookSettings.distortion` bends the frame radially, barrel above nought
+  and pincushion below, held on its border, and everything laid over the
+  scene bends with it while the vignette and the grain stay put.
+  `BloomSettings.lensFlare` throws a bright light's ghosts and halo across
+  the middle of the frame, drawn from the glow so only what blooms flares.
+  `CubeLut` reads a `.cube` file, 3D or 1D with its domain, into the strip
+  `LookSettings.lut` grades through, and `upload` puts it on a device.
 - **SMAA 1x beside FXAA.** `AntiAliasSettings(method: EdgeSmoothing.smaa)`
   smooths the finished picture in three passes: the luma steps marked, the
   line behind each staircase rebuilt from where its run ends and which side
