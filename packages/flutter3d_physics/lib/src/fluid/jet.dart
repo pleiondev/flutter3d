@@ -201,8 +201,26 @@ final class Jet {
     _fresh = true;
     final speed = math.max(velocity.length, 1e-6);
     final w = math.max(width, 1e-6);
+    // **Laminar or turbulent, from how it leaves.** Under a Reynolds number
+    // of 2300 the stream is smooth, and parts where its own ripples have
+    // grown e¹² times, as [breakupGrowth] counts. Past 4000 it leaves the
+    // lip already disturbed, and parts sooner, at L/D = 8.51·We^0.32
+    // (Grant and Middleman, 1966, for turbulent jets). Between the two the
+    // length runs from one correlation to the other with Re.
+    final m = medium ?? this.medium;
+    final d = 2.0 * math.sqrt(flow / (speed * math.pi));
+    final re = m.density * speed * d / m.viscosity;
+    var intact = double.infinity;
+    if (re > 2300.0 && m.surfaceTension > 0.0) {
+      final we = m.density * speed * speed * d / m.surfaceTension;
+      final laminar = 12.0 * d * (math.sqrt(we) + 3.0 * we / re);
+      final turbulent = 8.51 * d * Portable.pow(we, 0.32);
+      final t = ((re - 2300.0) / 1700.0).clamp(0.0, 1.0);
+      intact = laminar + t * (turbulent - laminar);
+    }
     _parcels.add(
       _Parcel(
+        intact: intact,
         position: point.clone(),
         velocity: velocity.clone(),
         volume: volume,
@@ -253,6 +271,7 @@ final class Jet {
       p.velocity.addScaled(gravity, dt);
       p.previous.setFrom(p.position);
       p.age += dt;
+      p.travelled += p.velocity.length * dt;
       final section = p.section;
       final radius = math.sqrt(section / math.pi);
       var touched = false;
@@ -400,7 +419,7 @@ final class Jet {
         continue;
       }
       // A rivulet on a wall does not part: the wall holds it.
-      if (!p.onWall && p.growth >= breakupGrowth) {
+      if (!p.onWall && (p.growth >= breakupGrowth || p.travelled >= p.intact)) {
         // Drops of 1.89 diameters, as many as its volume makes.
         final d = 2.0 * math.sqrt(p.section / math.pi) * 1.89;
         final one = math.pi * d * d * d / 6.0;
@@ -542,6 +561,7 @@ final class Jet {
 
 final class _Parcel {
   _Parcel({
+    required this.intact,
     required this.position,
     required this.velocity,
     required this.volume,
@@ -573,6 +593,12 @@ final class _Parcel {
 
   double age = 0.0;
   double growth = 0.0;
+
+  /// How far it has come from the lip, and how far a stream that left as
+  /// it did goes before it parts: infinite for a laminar one, which parts
+  /// by [growth] instead.
+  double travelled = 0.0;
+  final double intact;
   bool onWall = false;
 
   /// Where it was at the start of the step.
