@@ -498,13 +498,21 @@ MeshData jetMesh(Jet jet, {int sides = 14}) {
 /// world: an icosahedron split once, forty-two points, round enough at the
 /// size of a drop that its outline does not show its faces as the twelve
 /// points of a bare icosahedron did.
-MeshData particleMesh(List<Vector3> positions, double radius) {
+///
+/// [radii], when given, is one radius a sphere, in place of [radius].
+MeshData particleMesh(
+  List<Vector3> positions,
+  double radius, {
+  List<double>? radii,
+}) {
   final (points, faces) = _sphere;
   final builder = MeshBuilder(VertexLayout.standard);
-  for (final centre in positions) {
+  for (var i = 0; i < positions.length; i++) {
+    final centre = positions[i];
+    final r = radii?[i] ?? radius;
     final base = builder.vertexCount;
     for (final v in points) {
-      builder.addVertex(position: centre + v * radius, normal: v);
+      builder.addVertex(position: centre + v * r, normal: v);
     }
     for (final f in faces) {
       builder.addTriangle(base + f.$1, base + f.$2, base + f.$3);

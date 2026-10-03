@@ -256,7 +256,9 @@ final class Bench {
         surfaceCells: 24,
         wallThickness: glassThickness,
       );
-      if (!white) _dyes[vessel.name] = _absorbance(vessel.dye);
+      if (!white) {
+        _dyes[vessel.name] = _measured(vessel) ?? _absorbance(vessel.dye);
+      }
       world.bodies.add(vessel.liquid);
       vessel.shadow =
           MeshNode(
@@ -428,10 +430,42 @@ final class Bench {
 
   // --------------------------------------------------------------- colour
 
-  /// Each dye's absorbance per metre at unit concentration: what makes it
-  /// its colour over [fade] of it.
+  /// Each dye's absorbance per metre at unit concentration — the strength
+  /// on its label.
   final Map<String, Vector3> _dyes = {};
 
+  /// Molar absorption coefficients, L·mol⁻¹·cm⁻¹, of what the labelled
+  /// tubes hold, at about 610, 550 and 465 nm, where the eye's red, green
+  /// and blue lie: read off published spectra of the aqueous ions, good to
+  /// a few tens of percent, and enough to tell which solutions light goes
+  /// through and which it does not. Copper(II) absorbs the red end weakly
+  /// (its band peaks near 810 nm), permanganate the green very strongly
+  /// (peaks at 525 and 545 nm), dichromate the blue (450 nm), nickel(II)
+  /// little anywhere (395 and 720 nm), and hydrochloric acid nothing.
+  static const Map<String, (double, double, double)> molarAbsorption = {
+    'HCl': (0.0, 0.0, 0.0),
+    'CuSO4': (4.5, 1.2, 0.2),
+    'KMnO4': (150.0, 2300.0, 450.0),
+    'K2Cr2O7': (0.2, 2.0, 250.0),
+    'NiCl2': (1.1, 0.6, 0.8),
+  };
+
+  /// [vessel]'s absorbance per metre from [molarAbsorption] and the
+  /// strength on its label, A = εcl in base ten: null for glass with no
+  /// label or a solution not in the table.
+  static Vector3? _measured(Vessel vessel) {
+    final solution = vessel.solution;
+    final eps = molarAbsorption[vessel.name];
+    if (solution == null || eps == null) return null;
+    final molar = double.tryParse(solution.note.split(' ').first);
+    if (molar == null) return null;
+    // ln 10 for base e, a hundred centimetres to the metre.
+    final k = math.ln10 * molar * 100.0;
+    return Vector3(eps.$1 * k, eps.$2 * k, eps.$3 * k);
+  }
+
+  /// What makes [colour] the colour of [fade] of a liquid: for the glass
+  /// with no label, whose solution is only a colour.
   static Vector3 _absorbance(Color colour) {
     double mu(double c) => -math.log(c.clamp(1e-3, 1.0)) / fade;
     return Vector3(mu(colour.r), mu(colour.g), mu(colour.b));
@@ -994,10 +1028,66 @@ final class Bench {
         node.material = liquid(_rgb(colour), depth: 2.0 * fluid.spacing);
       }
       if (fluid.count > 0) any = true;
-      _swap(node, particleMesh(fluid.positions, 0.5 * fluid.spacing));
+      final drops = _clusters(fluid.positions, fluid.spacing);
+      _swap(
+        node,
+        particleMesh(
+          [for (final d in drops) d.centre],
+          0.0,
+          radii: [
+            for (final d in drops)
+              math
+                  .pow(
+                    3.0 * d.count * fluid.particleVolume / (4.0 * math.pi),
+                    1.0 / 3.0,
+                  )
+                  .toDouble(),
+          ],
+        ),
+      );
       node.visible = fluid.count > 0;
     });
     return any;
+  }
+
+  /// [positions] gathered into drops: particles nearer each other than
+  /// one and a half spacings are one drop, drawn as one sphere of all their
+  /// liquid. A stream that breaks into drops two and a third of its width
+  /// across was drawn as a scatter of millimetre dots, each a particle.
+  static List<({Vector3 centre, int count})> _clusters(
+    List<Vector3> positions,
+    double spacing,
+  ) {
+    final n = positions.length;
+    final parent = List<int>.generate(n, (i) => i);
+    int root(int i) {
+      var r = i;
+      while (parent[r] != r) {
+        r = parent[r];
+      }
+      return parent[i] = r;
+    }
+
+    final reach2 = 2.25 * spacing * spacing;
+    for (var i = 0; i < n; i++) {
+      for (var j = i + 1; j < n; j++) {
+        if (positions[i].distanceToSquared(positions[j]) < reach2) {
+          parent[root(i)] = root(j);
+        }
+      }
+    }
+    final sums = <int, ({Vector3 sum, int count})>{};
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      final s = sums[r];
+      sums[r] = s == null
+          ? (sum: positions[i].clone(), count: 1)
+          : (sum: s.sum..add(positions[i]), count: s.count + 1);
+    }
+    return [
+      for (final s in sums.values)
+        (centre: s.sum / s.count.toDouble(), count: s.count),
+    ];
   }
 
   // -------------------------------------------------------------- shadows
