@@ -183,15 +183,17 @@ void main() {
   float sigma = max(shaft_info.scatter.w, 0.0);
   float stepTransmittance = exp(-sigma * stride);
   float transmittance = exp(-sigma * offset);
-  vec3 eye = shaft_info.camera.xyz;
   float inscatter = 0.0;
   for (int i = 0; i < 64; i++) {
     if (i >= steps) break;
     float travelled = offset + float(i) * stride;
     vec3 at = origin + along * travelled;
-    // The cascade chosen by distance from the eye, the metric `shadow.glsl`
-    // picks a surface's cascade by, so a shaft and the ground under it agree.
-    float lit = LitAt(at, length(at - eye));
+    // The cascade chosen by the metric `shadow.glsl` picks a surface's
+    // cascade by, so a shaft and the ground under it agree: the way along
+    // the ray from where depth is nought, which is the distance from the eye
+    // through a perspective lens and the depth along the axis through an
+    // orthographic one (`P7`), whose cascades are slabs of depth.
+    float lit = LitAt(at, travelled);
     inscatter += transmittance * (1.0 - stepTransmittance) * lit;
     transmittance *= stepTransmittance;
   }

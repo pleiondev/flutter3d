@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Shadow cascades under an orthographic camera split by depth across what
+  the view sees** — `P7`. They were split by distance from the eye, which an
+  orthographic camera puts tens of metres back, so the near cascades covered
+  air in front of the lens and every shadow came from the last, whole-level
+  map. Now the depths where the view box meets the casters' bounds, capped at
+  `ShadowSettings.viewDistance`, are cut into equal slabs, one per near
+  cascade, each fitted to its own share of the box; the last cascade is still
+  the whole scene, and the reach back towards the light is kept.
+  `Renderer.debugCascadeSplits` reports where they ended.
+  `orthographic-shadow` is in all four golden sets.
+
 - **Caustics.** `ShadowSettings.caustics` (with `translucentCasters`, off by
   default) follows the sun's light through every caster with a volume — a
   transmission and a thickness. Each is drawn from the sun into two small

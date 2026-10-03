@@ -1269,6 +1269,51 @@ abstract final class GoldenStages {
         fog: FogSettings(color: Vector3(0.7, 0.75, 0.8), density: 0.03),
       );
 
+  /// `orthographic-shadow`: a floor eighty metres long running away from an
+  /// isometric camera forty metres back, with a row of posts and slabs down
+  /// it from the bottom of the frame to the top. Split by distance from the
+  /// eye, the near cascades covered air in front of the lens and every
+  /// shadow came from the whole-floor map; split by depth across what the
+  /// view sees, the posts at the top of the frame cast as sharp a shadow as
+  /// the ones at the bottom.
+  static Future<GoldenStaged> orthographicShadow(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, 0.35).normalized());
+    final stone = Material(
+      baseColor: Vector4(0.62, 0.6, 0.56, 1.0),
+      roughness: 0.9,
+    );
+    final post = Material(baseColor: Vector4(0.7, 0.3, 0.2, 1.0));
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(10.0, 0.2, 80.0),
+          Vector3(0.0, -0.1, 30.0),
+          stone,
+        ),
+        for (var i = 0; i < 6; i++) ...<SceneNode>[
+          _slab(
+            device,
+            Vector3(0.3, 2.0, 0.3),
+            Vector3(-2.5, 1.0, i * 4.0),
+            post,
+          ),
+          _slab(
+            device,
+            Vector3(1.6, 0.2, 0.6),
+            Vector3(2.0, 1.8, i * 4.0 + 1.0),
+            post,
+          ),
+        ],
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 14.0, far: 200.0)
+        ..setPosition(-14.0, 26.0, -26.0)
+        ..lookAt(Vector3(0.0, 0.0, 10.0)),
+    );
+  }
+
   // ------------------------------------------------------------------ P6
 
   /// `debug-view-split`: the lit teapot left of the middle and its shading
@@ -1276,10 +1321,7 @@ abstract final class GoldenStages {
   /// makes, and the composite leaving the right half out of the tone curve.
   static RenderSettings debugViewSplit(RenderSettings settings) =>
       settings.copyWith(
-        debugView: const DebugViewSettings(
-          view: DebugView.normal,
-          split: 0.5,
-        ),
+        debugView: const DebugViewSettings(view: DebugView.normal, split: 0.5),
       );
 
   // ------------------------------------------------------------------ R6

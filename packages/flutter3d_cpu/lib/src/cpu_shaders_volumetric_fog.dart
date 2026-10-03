@@ -118,9 +118,12 @@ final class VolumetricFogShader implements CpuFragmentShader {
     var transmittance = 1.0;
     final inscatter = Vector3.zero();
     for (var i = 0; i < steps && i < 64; i++) {
-      final at = origin + along * (offset + i * stride);
+      final travelled = offset + i * stride;
+      final at = origin + along * travelled;
       final stepTransmittance = math.exp(-density(at.y) * stride);
-      final sunShare = sunPhase * litAt(at, (at - eye).length);
+      // By the way along the ray from where depth is nought, as the GLSL
+      // picks the cascade — `P7`.
+      final sunShare = sunPhase * litAt(at, travelled);
       final light = Vector3(
         sunRadiance.x * sunShare + ambient.x * 0.07957747,
         sunRadiance.y * sunShare + ambient.y * 0.07957747,
