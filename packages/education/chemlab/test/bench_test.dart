@@ -336,4 +336,41 @@ void main() {
     expect(tube.liquid.volume, closeTo(start, start * 1e-9));
     expect(bench.world.jets, isEmpty);
   });
+
+  test('a tube leaned either way is lifted out of the row alike', () {
+    // Mutation: lift it only as far as the side it leans to needs, and the
+    // tube at the end of the row, leaning off it, lies down on the bench.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    double height(double lean) {
+      final bench = Bench(kit.device);
+      final tube = bench.vessels.first;
+      bench.lean(tube, lean, across: Vector3(0, 0, -1));
+      for (var i = 0; i < 120; i++) {
+        bench.step(1 / 60);
+      }
+      return tube.body.localMatrix.getTranslation().y;
+    }
+
+    expect(height(-1.0), closeTo(height(1.0), 1e-6));
+    expect(height(-1.0), greaterThan(0.05));
+  });
+
+  test('a tube turned mouth down empties into a puddle on the bench', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels[2];
+    final everything = bench.world.volume;
+    final held = tube.liquid.volume;
+    bench.lean(tube, bench.maxLean(tube), across: Vector3(0, 0, -1));
+    for (var i = 0; i < 600; i++) {
+      bench.step(1 / 60);
+    }
+    expect(tube.liquid.volume, lessThan(held * 0.02));
+    // Every drop of it is somewhere: in the glasses, in the air, or lying
+    // on the bench, nearly all of it as one puddle.
+    expect(bench.world.volume, closeTo(everything, everything * 1e-9));
+    final lying = bench.world.spills.single;
+    expect(lying.volume, greaterThan(held * 0.9));
+    expect(lying.puddles.first.volume, greaterThan(held * 0.8));
+  });
 }
