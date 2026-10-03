@@ -27,16 +27,8 @@ out vec4 frag_color;
 
 uniform sampler2D particle_texture;
 
-/// Declared again for the same reason the other particle stages declare it:
-/// this shader shares none of the lit path's headers.
-uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
-  vec4 fog;
-
-  /// xyz: camera position in world space.
-  vec4 eye;
-}
-fog_info;
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+#include <lib/particle_fog.glsl>
 
 void main() {
   // `texture`, not `textureLod`. The level is chosen from the derivative the
@@ -49,13 +41,7 @@ void main() {
   // Attenuation rather than a mix. Blending an additive particle toward the
   // fog colour makes a distant one *add* fog to the wall behind it — the same
   // note as the other two particle stages, kept because each is read alone.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
 
   // The texture's alpha is coverage and the particle's is brightness, so the
   // two multiply rather than one replacing the other: a faded spark of a

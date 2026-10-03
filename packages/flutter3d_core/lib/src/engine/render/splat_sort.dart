@@ -112,12 +112,19 @@ final class SplatSorter {
   double _lastRange = 0.0;
 
   /// Orders [cloud] far to near by distance from [eye], with the cloud placed
-  /// in the world by [model] when it is given.
+  /// in the world by [model] when it is given — or, given [axis], by depth
+  /// along it.
+  ///
+  /// **[axis] is for an orthographic camera — `P7`.** Its rays are parallel,
+  /// so what is in front of what along a ray is depth along the view axis;
+  /// a distance from the eye's point, which is only where the camera was put,
+  /// orders two splats side by side at one depth by how far each is from
+  /// the axis, and the nearer one off-axis can be drawn under the other.
   ///
   /// The distances are quantised across the range this cloud spans from
   /// this eye, not across a fixed one: sixteen bits over the cloud's own
   /// depth is what keeps a small cloud and a large one equally well ordered.
-  void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model}) {
+  void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model, Vector3? axis}) {
     final count = cloud.count;
     if (_keys.length < count) {
       _keys = Uint32List(count);
@@ -137,6 +144,8 @@ final class SplatSorter {
     final centres = cloud.centres;
     final m = model?.storage;
     final ex = eye.x, ey = eye.y, ez = eye.z;
+    final along = axis != null;
+    final ax = axis?.x ?? 0.0, ay = axis?.y ?? 0.0, az = axis?.z ?? 0.0;
     var near = double.infinity;
     var far = double.negativeInfinity;
     for (var i = 0; i < count; i++) {
@@ -150,7 +159,9 @@ final class SplatSorter {
           (m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13]) - ey;
       final dz =
           (m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14]) - ez;
-      final d = math.sqrt(dx * dx + dy * dy + dz * dz);
+      final d = along
+          ? dx * ax + dy * ay + dz * az
+          : math.sqrt(dx * dx + dy * dy + dz * dz);
       distances[i] = d;
       if (d < near) near = d;
       if (d > far) far = d;

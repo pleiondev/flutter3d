@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Splats under an orthographic camera are sorted by depth along the view
+  axis** (`P7`): `SplatSorter.sort` and `SplatQuads.build` take an `axis`,
+  and `SplatContributor` passes the camera's under an orthographic lens. By
+  distance from the eye's point, two splats side by side at one depth were
+  ordered by how far each stood from the axis. A turn of the axis sorts
+  again.
+
+- `SplatContributor` binds the fog's whole block, the view axis, the lens
+  and the height fog's falloff with it, so a cloud fogs by depth under an
+  orthographic camera and thins upwards in a height fog (`P7`, `P5`).
+
 - **Shadow cascades under an orthographic camera split by depth across what
   the view sees** — `P7`. They were split by distance from the eye, which an
   orthographic camera puts tens of metres back, so the near cascades covered

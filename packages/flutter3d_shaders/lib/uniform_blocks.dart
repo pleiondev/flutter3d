@@ -877,12 +877,16 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'ParticleMesh': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'ParticleMeshVertex': <String, Map<String, UniformMemberLayout>>{
@@ -926,6 +930,8 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -990,6 +996,8 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1032,6 +1040,8 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'SoftParticleInfo': <String, UniformMemberLayout>{
       'target': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1043,12 +1053,16 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'ParticleTexturedSoft': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'SoftParticleInfo': <String, UniformMemberLayout>{
       'target': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1539,12 +1553,16 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'SplatHashed': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'projection': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'SplatHashInfo': <String, UniformMemberLayout>{
       'frame': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

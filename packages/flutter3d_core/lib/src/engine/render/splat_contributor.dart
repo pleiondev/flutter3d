@@ -34,6 +34,7 @@ import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
+import '../scene/projection.dart';
 import '../scene/scene_node.dart';
 import 'engine_tables.dart';
 import 'identity_indices.dart';
@@ -177,6 +178,10 @@ final class SplatQuads {
   final Float64List _sortedModel = Float64List(16);
   bool _sortedWithModel = false;
 
+  /// The view axis the last sort ordered by, or null when it ordered by
+  /// distance — `P7`, see [build]'s `axis`.
+  Vector3? _sortedAxis;
+
   /// How many times [build] has sorted. For the tests that hold it to not
   /// sorting on every frame.
   int get sorts => _sorts;
@@ -217,6 +222,11 @@ final class SplatQuads {
   /// projected onto [right] and [up] alone and nothing is added — the exact
   /// ellipse on the view axis, and a quad whose size is the splat's own, for
   /// a caller with no projection to hand.
+  ///
+  /// [axis], the view axis, orders by depth along it instead of by distance
+  /// from [eye] — `P7`, for an orthographic camera, whose rays are parallel.
+  /// A turn then reorders the cloud, so the sort also runs when the axis has
+  /// turned further than [resortFraction].
   void build({
     required Vector3 eye,
     required Vector3 right,
@@ -224,10 +234,11 @@ final class SplatQuads {
     Matrix4? model,
     bool sorted = true,
     SplatLens? lens,
+    Vector3? axis,
   }) {
     // A tree's cut is chosen where the sort runs, so a hashed build still
     // sorts when the cut moves: the order and the cut have to agree.
-    if ((sorted || lod != null) && _needsSort(eye, model)) {
+    if ((sorted || lod != null) && _needsSort(eye, model, axis)) {
       final lod = this.lod;
       if (lod != null) {
         // The cut is chosen by distance in the tree's own space, so the eye
@@ -238,9 +249,10 @@ final class SplatQuads {
         _sortedPageVersion = lod.tree.pageVersion;
         _sortedBudget = lod.budget;
       }
-      _sorter.sort(cloud, eye, model: model);
+      _sorter.sort(cloud, eye, model: model, axis: axis);
       _sorts++;
       _sortedEye = eye.clone();
+      _sortedAxis = axis?.clone();
       _sortedWithModel = model != null;
       if (model != null) _sortedModel.setAll(0, model.storage);
     }
@@ -410,9 +422,15 @@ final class SplatQuads {
     vertexCount = count * kSplatVerticesPerSplat;
   }
 
-  bool _needsSort(Vector3 eye, Matrix4? model) {
+  bool _needsSort(Vector3 eye, Matrix4? model, Vector3? axis) {
     final last = _sortedEye;
     if (last == null) return true;
+    // `P7`: by depth, a turn reorders what a move of the eye does not.
+    final sortedAxis = _sortedAxis;
+    if ((axis == null) != (sortedAxis == null)) return true;
+    if (axis != null && axis.distanceTo(sortedAxis!) > resortFraction) {
+      return true;
+    }
     final lod = this.lod;
     if (lod != null &&
         (lod.tree.pageVersion != _sortedPageVersion ||
@@ -456,11 +474,14 @@ final class SplatContributor extends PassContributor {
   final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
   final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
 
-  /// `FogInfo`'s two members as both splat stages declare them: the fog's
-  /// colour and density, and the eye. Not `FogInfoBlock`, which is the lit
-  /// stages' three-member layout.
+  /// `FogInfo`'s four members, the lit stages' layout, which both splat
+  /// stages declare whole since `P7` — `lib/particle_fog.glsl`: the fog's
+  /// colour and density, the eye and the height fog's falloff, the view
+  /// axis, and whether the lens is orthographic.
   final Float32List _fog = Float32List(4);
   final Float32List _eye = Float32List(4);
+  final Float32List _forward = Float32List(4);
+  final Float32List _projection = Float32List(4);
 
   SplatContributor(
     SplatCloud cloud, {
@@ -573,6 +594,8 @@ final class SplatContributor extends PassContributor {
       model: node?.worldMatrix,
       sorted: !hashed,
       lens: lens,
+      // `P7`: through an orthographic lens, back to front is by depth.
+      axis: isOrthographic(viewProjection) ? forward : null,
     );
     if (quads.vertexCount == 0) return;
 
@@ -619,14 +642,28 @@ final class SplatContributor extends PassContributor {
       ..[1] = colour.y
       ..[2] = colour.z
       ..[3] = fog.densityAt(eye.y);
+    // `P5`, `P7`: the height fog's falloff, integrated per fragment as the
+    // lit stages do, and the view axis and lens, so an orthographic camera
+    // fogs a cloud by depth from its plane rather than in rings.
     _eye
       ..[0] = eye.x
       ..[1] = eye.y
-      ..[2] = eye.z;
+      ..[2] = eye.z
+      ..[3] = fog.resolvedHeightFalloff;
+    _forward
+      ..[0] = forward.x
+      ..[1] = forward.y
+      ..[2] = forward.z;
+    _projection[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
     frame.encoder.bindUniformBlock(
       fragmentShader,
       'FogInfo',
-      <String, Float32List>{'fog': _fog, 'eye': _eye},
+      <String, Float32List>{
+        'fog': _fog,
+        'eye': _eye,
+        'forward': _forward,
+        'projection': _projection,
+      },
     );
     if (hashed) {
       // The frame's slice of the engine's blue noise, the same slice the

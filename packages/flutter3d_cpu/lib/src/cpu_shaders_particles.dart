@@ -42,6 +42,44 @@ double softParticleFade(
   return stored > 0.0 ? fade : 1.0;
 }
 
+/// `lib/particle_fog.glsl`'s `ParticleEyeDistance` — `P7`: the air between
+/// the eye and world `(x, y, z)`, the distance through a perspective lens and
+/// the depth from the eye's plane through an orthographic one.
+double particleEyeDistance(ShaderBindings b, double x, double y, double z) {
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final dx = x - eye.x;
+  final dy = y - eye.y;
+  final dz = z - eye.z;
+  if (orthographic(b)) {
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    return math.max(dx * forward.x + dy * forward.y + dz * forward.z, 0.0);
+  }
+  return math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/// `lib/particle_fog.glsl`'s `ParticleFogTransmittance` — `P5`, `P7`: how
+/// much of a fragment at world `(x, y, z)` the fog leaves, height fog and all,
+/// as [applyFog] has it for the lit stages. One with no fog.
+double particleFogTransmittance(
+  ShaderBindings b,
+  double x,
+  double y,
+  double z,
+) {
+  final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+  if (fog.w <= 0.0) return 1.0;
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final falloff = eye.w;
+  final k = falloff * (y - eye.y);
+  final density = falloff > 0.0
+      ? fog.w * (k.abs() > 1e-3 ? (1.0 - math.exp(-k)) / k : 1.0 - 0.5 * k)
+      : fog.w;
+  return math
+      .exp(-density * particleEyeDistance(b, x, y, z))
+      .clamp(0.0, 1.0)
+      .toDouble();
+}
+
 /// `particle.vert`: a billboard corner, and the world position for the fog.
 final class ParticleVertexShader implements CpuVertexShader {
   const ParticleVertexShader();
@@ -97,14 +135,7 @@ final class ParticleTexturedShader implements CpuFragmentShader {
       texel = texture.sample(v[4], v[5], du: du, dv: dv);
     }
 
-    var fogged = 1.0;
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
-      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-    }
+    final fogged = particleFogTransmittance(b, v[6], v[7], v[8]);
 
     // The texture's alpha is coverage and the particle's is brightness, so the
     // two multiply.
@@ -192,9 +223,7 @@ final class ParticleSixWayShader implements CpuFragmentShader {
     // covers what is behind it.
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d = (world - Vector3(eye.x, eye.y, eye.z)).length;
-      final fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      final fogged = particleFogTransmittance(b, v[6], v[7], v[8]);
       colour
         ..x = fog.x + (colour.x - fog.x) * fogged
         ..y = fog.y + (colour.y - fog.y) * fogged
@@ -260,12 +289,15 @@ final class ParticleMeshShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
 
-    final tx = eye.x - v[4];
-    final ty = eye.y - v[5];
-    final tz = eye.z - v[6];
+    // `ParticleTowardsEye` — `P7`: against the view axis through an
+    // orthographic lens, to the eye's point through a perspective one.
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    final ortho = orthographic(b);
+    final tx = ortho ? -forward.x : eye.x - v[4];
+    final ty = ortho ? -forward.y : eye.y - v[5];
+    final tz = ortho ? -forward.z : eye.z - v[6];
     final distance = math.sqrt(tx * tx + ty * ty + tz * tz);
 
     var facing = 1.0;
@@ -282,10 +314,7 @@ final class ParticleMeshShader implements CpuFragmentShader {
     // a face that vanished there would carve a dark seam along it.
     final intensity = 0.35 + 0.65 * facing;
 
-    var fogged = 1.0;
-    if (fog.w > 0.0) {
-      fogged = math.exp(-fog.w * distance).clamp(0.0, 1.0);
-    }
+    final fogged = particleFogTransmittance(b, v[4], v[5], v[6]);
 
     final scale = v[3] * intensity * fogged;
     return Vector4(v[0] * scale, v[1] * scale, v[2] * scale, 1.0);
@@ -310,14 +339,7 @@ final class ParticleShader implements CpuFragmentShader {
         falloff *
         (soft ? softParticleFade(b, c, v[6], v[7], v[8]) : 1.0);
 
-    var fogged = 1.0;
-    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
-      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
-    }
+    final fogged = particleFogTransmittance(b, v[6], v[7], v[8]);
 
     final scale = v[3] * intensity * fogged;
     // Alpha one with the colour premultiplied: these draw additively, so the
@@ -352,10 +374,7 @@ final class SplatShader implements CpuFragmentShader {
     var bl = v[2];
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
-      final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      final visibility = particleFogTransmittance(b, v[6], v[7], v[8]);
       // A mix rather than an attenuation, which is the opposite of the particle
       // stage and for the opposite reason: this is blended, so a splat that
       // faded toward black would put black into the wall behind it.
@@ -429,11 +448,7 @@ final class SplatHashedShader implements CpuFragmentShader {
 
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w <= 0.0) return Vector4(v[0], v[1], v[2], 1.0);
-    final fogEye = b.vec4('FogInfo', 'eye', Vector4.zero());
-    final d =
-        (Vector3(v[6], v[7], v[8]) - Vector3(fogEye.x, fogEye.y, fogEye.z))
-            .length;
-    final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+    final visibility = particleFogTransmittance(b, v[6], v[7], v[8]);
     return Vector4(
       fog.x + (v[0] - fog.x) * visibility,
       fog.y + (v[1] - fog.y) * visibility,
