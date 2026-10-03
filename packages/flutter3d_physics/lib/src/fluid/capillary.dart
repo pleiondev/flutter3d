@@ -122,7 +122,8 @@ final class TubeMeniscus {
     // As fine as sixty halvings of the bracket went: in a wide tube the
     // middle is nearly flat, its curvature a billionth of the bracket's,
     // and the angle at the wall goes with it exponentially.
-    final tolerance = (hi - lo) * math.pow(2.0, -60);
+    // 2⁻⁶⁰, exactly: a power of two is, in a double.
+    final tolerance = (hi - lo) * 8.673617379884035e-19;
     for (var i = 0; i < 200 && hi - lo > tolerance; i++) {
       var mid = flo.isFinite && fhi.isFinite && fhi != flo
           ? lo - flo * (hi - lo) / (fhi - flo)
