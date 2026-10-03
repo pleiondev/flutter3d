@@ -104,14 +104,56 @@ final class TubeMeniscus {
   void _solve() {
     final target = math.pi / 2 - medium.contactAngle;
     final bond = medium.density * g / medium.surfaceTension;
+    // **By false position, not by halving.** The angle the surface meets
+    // the wall at goes smoothly and steadily with the curvature at its
+    // middle, so the straight line through the two ends of the bracket
+    // lands near the curvature that meets it at the contact angle, and
+    // Illinois's halving of the end that stays (Dowell and Jarratt, 1971)
+    // keeps that from stalling at one end. A dozen shots, where sixty
+    // halvings took ten milliseconds a meniscus, and a test tube being
+    // filled up its round bottom wanted a new one every other step. A shot
+    // that comes back with no angle, or a line that falls outside the
+    // bracket, is halved instead.
     var lo = -40.0 / radius;
     var hi = 40.0 / radius;
-    for (var i = 0; i < 60; i++) {
-      final mid = 0.5 * (lo + hi);
-      if (_shoot(mid, bond).angle < target) {
+    var flo = _shoot(lo, bond).angle - target;
+    var fhi = _shoot(hi, bond).angle - target;
+    var kept = 0;
+    // As fine as sixty halvings of the bracket went: in a wide tube the
+    // middle is nearly flat, its curvature a billionth of the bracket's,
+    // and the angle at the wall goes with it exponentially.
+    final tolerance = (hi - lo) * math.pow(2.0, -60);
+    for (var i = 0; i < 200 && hi - lo > tolerance; i++) {
+      var mid = flo.isFinite && fhi.isFinite && fhi != flo
+          ? lo - flo * (hi - lo) / (fhi - flo)
+          : 0.5 * (lo + hi);
+      if (!(mid > lo && mid < hi)) mid = 0.5 * (lo + hi);
+      final f = _shoot(mid, bond).angle - target;
+      if (!f.isFinite) {
+        // No surface reaches the wall this way: as halving would, take
+        // the side the bracket's own ends say.
+        if (flo.isFinite && flo > 0.0) {
+          hi = mid;
+        } else {
+          lo = mid;
+        }
+        continue;
+      }
+      if (f.abs() < 1e-15) {
         lo = mid;
+        hi = mid;
+        break;
+      }
+      if (f < 0.0) {
+        lo = mid;
+        flo = f;
+        if (kept == 1) fhi *= 0.5;
+        kept = 1;
       } else {
         hi = mid;
+        fhi = f;
+        if (kept == -1) flo *= 0.5;
+        kept = -1;
       }
     }
     apexCurvature = 0.5 * (lo + hi);
@@ -137,7 +179,10 @@ final class TubeMeniscus {
     final zs = <double>[0.0];
     double turn(double r, double z, double phi) =>
         bond * z + b - Portable.sin(phi) / math.max(r, 1e-12);
-    final ds = radius / (samples * 8);
+    // Two steps a kept sample: Runge–Kutta's error goes as the fourth power
+    // of the step, and eight a sample bought nothing measured against one
+    // eight times finer again, at four times the cost.
+    final ds = radius / (samples * 2);
     var guard = 0;
     while (r < radius && guard++ < samples * 400) {
       // Runge–Kutta in arc length.

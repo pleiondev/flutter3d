@@ -243,6 +243,9 @@ final class LiquidBody implements JetReceiver {
 
   /// Whether anything within [distance] of [centre] (world) could be at
   /// this vessel's walls: by the ball round its inside.
+  @override
+  bool reaches(Vector3 centre, double distance) => _reaches(centre, distance);
+
   bool _reaches(Vector3 centre, double distance) {
     final shape = this.shape;
     if (shape is! RevolvedVessel) return true;
@@ -577,10 +580,31 @@ final class LiquidBody implements JetReceiver {
       _menisciG = _g;
     }
     final key = (Portable.log(radius) / 0.01).round();
-    return _menisci[key] ??= TubeMeniscus(
+    return _menisci[key] ??= _sharedMeniscus(medium, key, _menisciG);
+  }
+
+  /// **One meniscus for every vessel of the liquid and gravity**: the
+  /// shape depends on nothing else, and a bench's six tubes worked out the
+  /// same ones six times over, seven at the first frame, a tenth of a
+  /// second.
+  static final Map<(double, double, double, double, int), TubeMeniscus>
+  _menisciShared = {};
+
+  static TubeMeniscus _sharedMeniscus(FluidMedium medium, int key, double g) {
+    // Gravity to a part in a thousand, as a vessel's own cache keeps it.
+    final gKey = (g * 1000).roundToDouble();
+    final id = (
+      medium.density,
+      medium.surfaceTension,
+      medium.contactAngle,
+      gKey,
+      key,
+    );
+    if (_menisciShared.length > 4096) _menisciShared.clear();
+    return _menisciShared[id] ??= TubeMeniscus(
       medium: medium,
       radius: Portable.exp(key * 0.01),
-      g: _menisciG,
+      g: gKey / 1000,
     );
   }
 

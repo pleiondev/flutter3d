@@ -373,6 +373,7 @@ final class ParticleFluid {
     for (var i = _x.length - 1; i >= 0; i--) {
       final at = _x[i].toVector3();
       for (final r in receivers) {
+        if (!r.reaches(at, radius)) continue;
         if (!r.catches(at, radius) && !r.wets(at, radius)) continue;
         r.receive(_vol[i], at, _v[i].toVector3(), medium, _c[i]);
         _received += _vol[i];
@@ -511,6 +512,7 @@ final class ParticleFluid {
       }
       final now = d.x.toVector3();
       for (final receiver in receivers) {
+        if (!receiver.reaches(now, r)) continue;
         if (!receiver.catches(now, r) && !receiver.wets(now, r)) continue;
         receiver.receive(d.volume, now, d.v.toVector3(), medium, d.c);
         _received += d.volume;

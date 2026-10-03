@@ -206,6 +206,10 @@ final class PuddleSurface implements JetReceiver {
   bool wets(Vector3 point, double radius) => false;
 
   @override
+  bool reaches(Vector3 centre, double distance) =>
+      surface.reaches(centre, distance);
+
+  @override
   void receive(
     double volume,
     Vector3 point,
