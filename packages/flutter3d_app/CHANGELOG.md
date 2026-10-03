@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **`HotMaterials.bind(material, name)`** keeps a material drawn with a
+  bundled `.f3dmat` across hot reloads — `P8`. After an edit the hook
+  compiled, a bound material gets the lighting model the new source
+  describes and a default for a uniform it now declares, keeping the values
+  the game set; an edit that starts sampling a map or declares a uniform
+  used to reach only the materials the game gave the new model by hand.
+
 - **A scene written as widgets** — `P10`. `Scene3D` opens a device, makes a
   renderer and a scene and draws them; `Mesh3D`, `Model3D` (loaded
   asynchronously, with a placeholder, its animation clip, speed and pause as

@@ -215,6 +215,83 @@ void main() {
     expect(await centre(), <int>[0, 255]);
   });
 
+  test('an edit that declares a uniform reaches a bound material', () async {
+    // `P8`: an edit that changes how a material binds. The first source
+    // paints red and declares nothing; the second declares `tint`, defaulting
+    // to green, and paints it. A material bound through `HotMaterials.bind`
+    // is given the new model and the new default, and draws green. Given the
+    // first model by hand, it would bind no `MaterialParams` and draw black.
+    //
+    // Mutation: drop `onRefreshed: materials._adopt` from `loadMaterial` —
+    // the material keeps the model that binds nothing.
+    ByteData bundle(String source) => ShaderBundle(
+      name: 'paint',
+      sdk: '',
+      stages: const <ShaderBundleStage>[
+        ShaderBundleStage('Paint', fragment: true),
+      ],
+      sections: <String, ByteData>{
+        ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
+          'Paint': source,
+        }),
+      },
+    ).encode();
+    var current = bundle(
+      'material Paint { fragment { return vec4(1.0, 0.0, 0.0, 1.0); } }',
+    );
+
+    const size = 16;
+    final device = CpuDevice(
+      width: size,
+      height: size,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+      materialCompiler: materialLanguageCompiler,
+    );
+    final swap = HotSwap(enabled: true);
+    final loaded = await swap.loadMaterial(
+      'assets_src/fx/paint.f3dmat',
+      device: device,
+      read: () async => current,
+    );
+    final renderer = Renderer.create(device: device, materials: loaded.library);
+    swap.registerRenderer(renderer);
+    final material = loaded.bind(engine.Material(), 'Paint');
+    expect(material.lighting.usesMaterialParameters, isFalse);
+    final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
+    final scene = Scene()
+      ..add(camera)
+      ..add(
+        MeshNode(DeviceMesh.upload(device, CuboidShape().build()), material),
+      );
+    Future<List<int>> centre() async {
+      final frame = renderer.render(
+        width: size,
+        height: size,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          tonemap: false,
+        ),
+      );
+      final pixels = (await device.readPixels(frame.frame))!;
+      final at = ((size ~/ 2) * size + size ~/ 2) * 4;
+      return <int>[pixels.getUint8(at), pixels.getUint8(at + 1)];
+    }
+
+    expect(await centre(), <int>[255, 0]);
+    current = bundle('''
+material Paint {
+  uniform vec3 tint = vec3(0.0, 1.0, 0.0);
+  fragment { return vec4(tint, 1.0); }
+}
+''');
+    expect((await swap.swap()).refreshed, <String>['paint']);
+    expect(material.lighting.usesMaterialParameters, isTrue);
+    expect(material.parameters['tint'], <double>[0.0, 1.0, 0.0]);
+    expect(await centre(), <int>[0, 255]);
+  });
+
   test('a bundle is refreshed when its bytes change, and only then', () async {
     final library = _Library();
     var current = _bytes(<int>[1, 2, 3]);

@@ -118,6 +118,7 @@ final class HotSwap {
     LoadedShaderLibrary library, {
     required ShaderBundleSource read,
     ByteData? loadedFrom,
+    void Function(ByteData bytes)? onRefreshed,
   }) {
     if (!enabled) return;
     _libraries.removeWhere((_Library l) => l.library.target == null);
@@ -126,6 +127,7 @@ final class HotSwap {
         WeakReference<LoadedShaderLibrary>(library),
         read,
         loadedFrom == null ? null : _fingerprint(loadedFrom),
+        onRefreshed,
       ),
     );
     _registerExtension();
@@ -135,17 +137,16 @@ final class HotSwap {
   /// under `assets_src/` — into, onto [device], and watches it — `P8`.
   ///
   /// **The one call a game makes for a material it writes in the language.**
-  /// Hand [HotMaterials.library] to the renderer as its `materials` and
-  /// give a `Material` the lighting model and parameters
-  /// [HotMaterials.materials] reads off the source. A hot reload after the
-  /// source was edited and the hook compiled it again refreshes the library
-  /// and relinks every registered renderer, so the next frame draws the
-  /// edit — on the software backend too, which compiles the new source the
-  /// bundle carries. What the edit cannot reach is a material already
-  /// holding the lighting model: a source that starts sampling a map, or
-  /// declares a uniform it did not, binds differently, and those materials
-  /// are given the new model from a fresh [HotMaterials.materials] by the
-  /// game, or the game is restarted.
+  /// Hand [HotMaterials.library] to the renderer — as its `materials`, or
+  /// through `Renderer.addMaterials`, once for every `.f3dmat` — and
+  /// bind each `Material` drawn with one of its stages through
+  /// [HotMaterials.bind]. A hot reload after the source was edited and the
+  /// hook compiled it again refreshes the library and relinks every
+  /// registered renderer, so the next frame draws the edit — on the software
+  /// backend too, which compiles the new source the bundle carries — and
+  /// gives every bound material the lighting model the new source describes,
+  /// so an edit that starts sampling a map or declares a new uniform binds
+  /// as the new program does.
   ///
   /// [read] stands in for the asset bundle in a test. Throws a [StateError]
   /// naming the file when there is nothing compiled to read — the hook has
@@ -172,8 +173,14 @@ final class HotSwap {
           'hook compiles assets_src/**/*.f3dmat when the app is built',
         ));
     final library = await device.loadShaders(bytes);
-    registerLibrary(library, read: source, loadedFrom: bytes);
-    return HotMaterials(library, BundledMaterials.read(bytes));
+    final materials = HotMaterials(library, BundledMaterials.read(bytes));
+    registerLibrary(
+      library,
+      read: source,
+      loadedFrom: bytes,
+      onRefreshed: materials._adopt,
+    );
+    return materials;
   }
 
   /// Loads the model the build hook converted [sourcePath] into, as
@@ -810,6 +817,7 @@ final class HotSwap {
       try {
         library.refresh(bytes);
         entry.fingerprint = fingerprint;
+        entry.onRefreshed?.call(bytes);
         refreshed.add(library.name);
       } on ShaderBundleRefused catch (refusal) {
         // The library is as it was; the next reload tries these bytes again
@@ -1053,11 +1061,15 @@ final class HotSwapReport {
 }
 
 final class _Library {
-  _Library(this.library, this.read, this.fingerprint);
+  _Library(this.library, this.read, this.fingerprint, this.onRefreshed);
 
   final WeakReference<LoadedShaderLibrary> library;
   final ShaderBundleSource read;
   int? fingerprint;
+
+  /// Told the bytes a refresh took, after it took them — how
+  /// [HotMaterials] rebinds what it bound.
+  final void Function(ByteData bytes)? onRefreshed;
 }
 
 /// A model a game draws, and every instance of it, kept together so a
@@ -1261,12 +1273,65 @@ final class _MemorySource extends AssetSource {
 /// What [HotSwap.loadMaterial] loaded: the library a renderer draws the
 /// materials with, and how to bind each — `P8`.
 final class HotMaterials {
-  const HotMaterials(this.library, this.materials);
+  HotMaterials(this.library, BundledMaterials materials)
+    : _materials = materials;
 
   /// The compiled stages, refreshed in place on a hot reload.
   final LoadedShaderLibrary library;
 
   /// Each material's lighting model and default parameters, read off its
-  /// source when it was loaded.
-  final BundledMaterials materials;
+  /// source — as it was loaded, and again after every hot reload.
+  BundledMaterials get materials => _materials;
+  BundledMaterials _materials;
+
+  final List<(WeakReference<Material>, String)> _bound =
+      <(WeakReference<Material>, String)>[];
+
+  /// Draws [material] with the bundle's material [name], and keeps it drawn
+  /// that way across hot reloads — `P8`. Returns [material].
+  ///
+  /// Gives it the lighting model and a default for every `uniform` it has
+  /// not got a value for. After a reload that changed the source, again: the
+  /// model the new program describes — a map it now samples, the light list
+  /// it now reads — and a default for a uniform it now declares, keeping the
+  /// values the game set for the ones it still does and dropping the ones it
+  /// no longer declares. Held weakly; a material the game drops is
+  /// forgotten.
+  Material bind(Material material, String name) {
+    _rebind(material, name);
+    _bound
+      ..removeWhere(
+        ((WeakReference<Material>, String) it) =>
+            it.$1.target == null || identical(it.$1.target, material),
+      )
+      ..add((WeakReference<Material>(material), name));
+    return material;
+  }
+
+  void _rebind(Material material, String name) {
+    material.lighting = _materials[name];
+    final defaults = _materials.parameters(name);
+    material.parameters
+      ..removeWhere((String key, _) => !defaults.containsKey(key))
+      ..addAll(<String, Float32List>{
+        for (final MapEntry(:key, :value) in defaults.entries)
+          if (!material.parameters.containsKey(key)) key: value,
+      });
+  }
+
+  /// A reload took [bytes]: read the sources again and rebind. A material
+  /// whose name the new bundle no longer has keeps what it had, since there
+  /// is nothing better to give it; the library refused the reload in that
+  /// case anyway if the stage was in use.
+  void _adopt(ByteData bytes) {
+    _materials = BundledMaterials.read(bytes);
+    for (final (reference, name) in List.of(_bound)) {
+      final material = reference.target;
+      if (material == null || !_materials.lighting.containsKey(name)) continue;
+      _rebind(material, name);
+    }
+    _bound.removeWhere(
+      ((WeakReference<Material>, String) it) => it.$1.target == null,
+    );
+  }
 }

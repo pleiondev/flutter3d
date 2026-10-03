@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **`Renderer.addMaterials` and `removeMaterials`**: more than one bundle of
+  materials, added after the renderer was made — `P8`. Each `.f3dmat` the
+  build hook compiles is a bundle of its own. Added later is consulted
+  earlier, so a bundle naming a stage another has replaces it; what the
+  renderer resolved by name is forgotten and linked again at the next draw.
+
 - **Caustics.** `ShadowSettings.caustics` (with `translucentCasters`, off by
   default) follows the sun's light through every caster with a volume — a
   transmission and a thickness. Each is drawn from the sun into two small
