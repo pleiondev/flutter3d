@@ -12,7 +12,8 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
         RevolvedVessel,
         VesselVolumes,
         fallTime,
-        overCircularLip;
+        overCircularLip,
+        circularWeir;
 import 'package:vector_math/vector_math.dart';
 
 import 'glassware.dart';
@@ -355,8 +356,12 @@ final class Bench {
             name: 'bench',
           )
           ..setPosition(0, -0.002, 0.06)
-          // A floor casts nothing.
-          ..castsShadow = false
+          // **In the shadow map, though it shades nothing below it.** The
+          // engine's photons, bent through a liquid, land on whatever the
+          // map holds under them; with the tabletop left out they found
+          // nothing, were lost, and every solution threw the same grey
+          // shadow, clear acid as dark as permanganate.
+          ..castsShadow = true
           // Its own channel: the sun reaches every channel, and the fill
           // only the glass.
           ..lightChannels = _benchChannel,
@@ -834,6 +839,46 @@ final class Bench {
     return 0.5 * (lo + hi);
   }
 
+  /// The lean at which [vessel], holding [volume], runs [flow] over its lip:
+  /// where the surface stands over the lip by the head a circular weir
+  /// needs for it. Found by halving, from the lean where it starts to run.
+  static double _tiltPouring(Vessel vessel, double volume, double flow) {
+    final lowest = _tiltHolding(vessel, volume);
+    if (flow <= 0.0) return lowest;
+    final radius = vessel.lip.z;
+    double short(double tilt) {
+      final up = _upAt(tilt);
+      final lip = vessel.shape.lip(up);
+      if (lip == null) return 0.0;
+      // By secants from the lip, which the surface is a little over.
+      final head =
+          vessel.shape.surfaceNear(up, volume, lip.height + 1e-4) - lip.height;
+      // The flow that head passes, straight from the weir, rather than the
+      // head that flow needs, which is a search of its own inside this one.
+      final passes = circularWeir(
+        head: head,
+        radius: radius,
+        tilt: tilt,
+        g: 9.81,
+        steps: 90,
+      ).flow;
+      return flow - passes;
+    }
+
+    var lo = lowest;
+    var hi = math.min(lowest + 0.8, 2.6);
+    if (short(hi) > 0.0) return hi;
+    for (var i = 0; i < 14; i++) {
+      final mid = 0.5 * (lo + hi);
+      if (short(mid) > 0.0) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return 0.5 * (lo + hi);
+  }
+
   static double _ease(double t) {
     final x = t.clamp(0.0, 1.0);
     return x * x * (3.0 - 2.0 * x);
@@ -913,18 +958,19 @@ final class Bench {
           most *
           _ease((time - start) / 0.6) *
           math.min(1.0, math.sqrt(remaining / (0.8 * most)));
-      // Ahead of the liquid, not behind it: tipped to where what the glass
-      // holds below its lip is what is in it less the next eighth of a
-      // second's worth, so that much stands over the lip to run. A hand
-      // that answered the flow it saw was always late, and a glass this
-      // small, nearly on its side, empties in the time it takes to notice.
+      // Ahead of the liquid, not behind it: tipped to where the lip runs
+      // what the hand wants, by the same weir the liquid runs by. A hand
+      // that answered the flow it saw was always late; one that tipped to
+      // hold the next eighth of a second's worth less stood the surface a
+      // fraction of a millimetre over the lip of a tube on its side, where
+      // its whole length spreads it, and the clean tube filled drop by drop.
       final target = math.max(
-        _tiltHolding(from, from.liquid.volume - wanted * 0.12),
+        _tiltPouring(from, from.liquid.volume, wanted),
         t.spill,
       );
       t.hand += (target - t.hand).clamp(-2.0 * seconds, 2.0 * seconds);
       tilt = t.hand;
-      if (remaining <= 1e-10 || time - start > 3.0 * _pourTime) {
+      if (remaining <= 1e-10 || time - start > 3.0 * _pourTime + 2.0) {
         t
           ..poured = time
           ..end = tilt;
@@ -1038,7 +1084,15 @@ final class Bench {
       .._drawnTilt = vessel.tilt
       .._drawnLift = vessel.lift;
     final meshes = vessel.liquid.volume > 0.0
-        ? liquidMeshes(vessel.liquid)
+        ? (() {
+            final m = liquidMeshes(
+              vessel.liquid,
+              segments: 32,
+              rows: 24,
+              rings: 8,
+            );
+            return m;
+          })()
         : const <LiquidLayerMesh>[];
     // As many nodes as layers.
     while (vessel.layers.length > meshes.length) {
