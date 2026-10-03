@@ -197,6 +197,7 @@ final class Jet {
       return;
     }
     _emitted += volume;
+    _fresh = true;
     final speed = math.max(velocity.length, 1e-6);
     final w = math.max(width, 1e-6);
     _parcels.add(
@@ -223,6 +224,7 @@ final class Jet {
     List<JetReceiver> receivers = const [],
   }) {
     final drops = <JetDrop>[];
+    _retract(dt);
     var walls = obstacles;
     if (_parcels.isNotEmpty) {
       // Every parcel, and as far as any moves this step, in one ball.
@@ -386,6 +388,83 @@ final class Jet {
     return drops;
   }
 
+  /// Whether anything left the lip since the last step: the newest parcel
+  /// is held to the lip while it does, and its end is free once it stops.
+  bool _fresh = false;
+
+  /// **A free end draws back into the stream** (Keller, 1983): surface
+  /// tension pulls a thread's end in at √(σ/ρr), gathering what it passes
+  /// into a bulb. The upper end of a stretch held neither by the lip nor by
+  /// a wall gives as much of its liquid to its neighbour as that speed
+  /// covers of its length in the step, and goes once it has given it all.
+  /// Without it the tail of a pour, cut off as the glass came back up, fell
+  /// whole, as wide at its end as anywhere, like a bent rod of glass.
+  void _retract(double dt) {
+    final fresh = _fresh;
+    _fresh = false;
+    bool newerFree(int i) =>
+        (i == _parcels.length - 1 && !fresh) || _parcels[i].endsRun;
+    bool olderFree(int i) => i == 0 || _parcels[i - 1].endsRun;
+    var i = _parcels.length - 1;
+    while (i >= 1) {
+      final bulb = _parcels[i];
+      if (bulb.onWall || !newerFree(i)) {
+        i--;
+        continue;
+      }
+      // The bulb eats the thread ahead of it at the speed the thread's own
+      // radius gives, a parcel at a time, for as long as the step lasts.
+      var left = dt;
+      while (left > 0.0 && !olderFree(i)) {
+        final thread = _parcels[i - 1];
+        // The thread's far end is an end too: what is left is a drop.
+        if (thread.onWall || olderFree(i - 1)) break;
+        final radius = math.sqrt(thread.section / math.pi);
+        if (radius <= 0.0) break;
+        final speed = math.sqrt(
+          thread.medium.surfaceTension / (thread.medium.density * radius),
+        );
+        final length = math.max(thread.velocity.length, 1e-6) * thread.dt;
+        final whole = length / speed;
+        final eaten = whole <= left ? 1.0 : left / whole;
+        _gather(bulb, thread, thread.volume * eaten);
+        left -= whole * eaten;
+        if (eaten < 1.0) {
+          thread.dt *= 1.0 - eaten;
+          break;
+        }
+        // All of it: the bulb is where it was.
+        bulb.position.setFrom(thread.position);
+        bulb.previous.setFrom(thread.previous);
+        _parcels.removeAt(i - 1);
+        i--;
+      }
+      i--;
+    }
+  }
+
+  /// [amount] of [from]'s liquid into [into], with its momentum and what is
+  /// dissolved in it.
+  static void _gather(_Parcel into, _Parcel from, double amount) {
+    if (amount <= 0.0) return;
+    final total = into.volume + amount;
+    into.velocity
+      ..scale(into.volume / total)
+      ..addScaled(from.velocity, amount / total);
+    into.concentrations = {
+      for (final k in {
+        ...into.concentrations.keys,
+        ...from.concentrations.keys,
+      })
+        k:
+            ((into.concentrations[k] ?? 0.0) * into.volume +
+                (from.concentrations[k] ?? 0.0) * amount) /
+            total,
+    };
+    into.volume = total;
+    from.volume -= amount;
+  }
+
   /// The stream as runs of samples, lip first: each run is a stretch with
   /// nothing missing from it, ready to be swept into a tube.
   List<List<JetSample>> get runs {
@@ -436,15 +515,16 @@ final class _Parcel {
 
   /// What it is: which liquid, and what is dissolved in it.
   final FluidMedium medium;
-  final Map<String, double> concentrations;
+  Map<String, double> concentrations;
 
   final Vector3 position;
   final Vector3 velocity;
-  final double volume;
+  double volume;
 
   /// The step it left in: its length along the stream is its speed times
-  /// this, so its section is its volume over that.
-  final double dt;
+  /// this, so its section is its volume over that. Shortened as a bulb
+  /// eats into it, which leaves its section as it was.
+  double dt;
 
   /// How wide and thick a sheet it left as, and which way across.
   final double width;
