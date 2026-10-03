@@ -1167,8 +1167,7 @@ final class Bench {
       // nearly no width, and kept so, the half poured into it showed a
       // fraction of the colour of the half left behind.
       final thickness = layer.node.material.extensions?.thickness ?? 0.0;
-      if (layer.colour != colour ||
-          (thickness - depth).abs() > 0.02 * depth) {
+      if (layer.colour != colour || (thickness - depth).abs() > 0.02 * depth) {
         layer.node.material = liquid(_rgb(colour), depth: depth);
         layer.reflection.material = _reflection(
           albedo: null,
@@ -1238,12 +1237,7 @@ final class Bench {
           0.0,
           radii: [
             for (final d in drops)
-              math
-                  .pow(
-                    3.0 * d.volume / (4.0 * math.pi),
-                    1.0 / 3.0,
-                  )
-                  .toDouble(),
+              math.pow(3.0 * d.volume / (4.0 * math.pi), 1.0 / 3.0).toDouble(),
           ],
         ),
       );
@@ -1277,10 +1271,7 @@ final class Bench {
       }
       final r = puddle.radius(g);
       if (r < puddle.restRadius(g)) any = true;
-      _swap(
-        node,
-        capMesh([puddle.centre], [r], [puddle.capHeight(r)]),
-      );
+      _swap(node, capMesh([puddle.centre], [r], [puddle.capHeight(r)]));
       node.visible = true;
     }
     _reflectSpilt();
@@ -1293,9 +1284,8 @@ final class Bench {
   /// mirror nowhere, under glasses whose liquids all did.
   void _reflectSpilt() {
     final nodes = [..._streams.values, ..._drops.values, ..._puddles];
-    for (final gone in _spiltReflections.keys
-        .where((n) => !nodes.contains(n))
-        .toList()) {
+    for (final gone
+        in _spiltReflections.keys.where((n) => !nodes.contains(n)).toList()) {
       _spiltReflections.remove(gone)!.removeFromParent();
     }
     for (final node in nodes) {
@@ -1363,8 +1353,7 @@ final class Bench {
           : (sum: s.sum..addScaled(positions[i], v), volume: s.volume + v);
     }
     return [
-      for (final s in sums.values)
-        (centre: s.sum / s.volume, volume: s.volume),
+      for (final s in sums.values) (centre: s.sum / s.volume, volume: s.volume),
     ];
   }
 

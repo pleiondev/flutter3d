@@ -134,7 +134,7 @@ final class FreeSurface {
       _rate = Float64List(0);
       return;
     }
-    final (shapes, k2) = _lowestModes(grid, modeCount);
+    final (shapes, k2) = _modesOf(grid, modeCount);
     _modes = shapes;
     _k2 = k2;
     // The liquid stays: what stood off the old plane stands off the new one
@@ -440,47 +440,135 @@ final class FreeSurface {
 
   /// The lowest [count] non-flat modes of [grid]'s Laplacian with the wall's
   /// condition, orthonormal under the area, and their k².
+  /// [_lowestModes], solved once for each cross-section there is.
+  ///
+  /// **They depend on which cells are inside and on nothing else**: the grid
+  /// is laid on the same lattice at every height, so a straight-sided glass
+  /// has the one cross-section all the way up, and every tube on the bench
+  /// the same one. Solved again each time the level rose half a cell, a
+  /// tube being poured into worked out its modes every other step, fifty
+  /// milliseconds each, and that was most of a pour's cost. Read only, so
+  /// shared between surfaces.
+  static (List<Float64List>, Float64List) _modesOf(_Grid grid, int count) {
+    final key = Object.hash(
+      count,
+      grid.columns,
+      grid.rows,
+      grid.cell,
+      Object.hashAll(grid.index),
+    );
+    final hits = _solved[key];
+    if (hits != null) {
+      for (final hit in hits) {
+        if (hit.count == count &&
+            hit.columns == grid.columns &&
+            hit.rows == grid.rows &&
+            hit.cell == grid.cell &&
+            _same(hit.index, grid.index)) {
+          return hit.modes;
+        }
+      }
+    }
+    final modes = _lowestModes(grid, count);
+    if (_solved.length >= 256) _solved.remove(_solved.keys.first);
+    (_solved[key] ??= []).add((
+      count: count,
+      columns: grid.columns,
+      rows: grid.rows,
+      cell: grid.cell,
+      index: Int32List.fromList(grid.index),
+      modes: modes,
+    ));
+    return modes;
+  }
+
+  static bool _same(Int32List a, Int32List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static final Map<
+    int,
+    List<
+      ({
+        int count,
+        int columns,
+        int rows,
+        double cell,
+        Int32List index,
+        (List<Float64List>, Float64List) modes,
+      })
+    >
+  >
+  _solved = {};
+
   static (List<Float64List>, Float64List) _lowestModes(_Grid grid, int count) {
     final n = grid.count;
     final inv = 1.0 / grid.cell2;
     // The graph Laplacian: each cell against the neighbours it has inside.
     // A neighbour outside is the wall, and leaving it out is ∂φ/∂n = 0.
-    Float64List apply(Float64List x) {
-      final y = Float64List(n);
-      for (var i = 0; i < n; i++) {
-        var sum = 0.0;
-        for (final j in grid.neighbours[i]) {
-          sum += x[i] - x[j];
-        }
-        y[i] = sum * inv;
-      }
-      return y;
-    }
-
+    //
     // The lowest of L are the highest of L⁻¹, and well apart there, where
     // near nought they crowd together and Lanczos on L itself would take
-    // hundreds of steps to tell them apart. L⁻¹ is applied by conjugate
-    // gradients, on the flat-free part where L can be inverted.
+    // hundreds of steps to tell them apart.
+    //
+    // **L + σ factored once, as a band, and each solve two sweeps along
+    // it.** The cells are numbered row by row, so a cell's neighbours are
+    // within a row's worth of it and L is a band that wide. The Lanczos
+    // steps all solve against the same L; conjugate gradients went at it
+    // afresh each time, some hundreds of passes over the grid each, and a
+    // cross-section's modes cost seventy milliseconds where the factor
+    // costs a few. L is singular, the flat mode being free, so σ, a
+    // millionth of its scale, makes it definite; the modes are the same and
+    // their values come out σ higher, which is taken off below.
+    final sigma = 1e-6 * inv;
+    var band = 0;
+    for (var i = 0; i < n; i++) {
+      for (final k in grid.neighbours[i]) {
+        band = math.max(band, (i - k).abs());
+      }
+    }
+    final w1 = band + 1;
+    // Lower band: L(i, j) at i·w1 + (i − j).
+    final factor = Float64List(n * w1);
+    for (var i = 0; i < n; i++) {
+      factor[i * w1] = grid.neighbours[i].length * inv + sigma;
+      for (final k in grid.neighbours[i]) {
+        if (k < i) factor[i * w1 + (i - k)] = -inv;
+      }
+    }
+    for (var i = 0; i < n; i++) {
+      final lo = math.max(0, i - band);
+      for (var j = lo; j <= i; j++) {
+        var sum = factor[i * w1 + (i - j)];
+        final from = math.max(lo, j - band);
+        for (var k = from; k < j; k++) {
+          sum -= factor[i * w1 + (i - k)] * factor[j * w1 + (j - k)];
+        }
+        factor[i * w1 + (i - j)] = i == j
+            ? math.sqrt(math.max(sum, 1e-300))
+            : sum / factor[j * w1];
+      }
+    }
     Float64List solve(Float64List b) {
-      final x = Float64List(n);
-      final r = Float64List.fromList(b);
-      _removeMean(r);
-      final p = Float64List.fromList(r);
-      var rr = _dot(r, r);
-      final stop = 1e-24 * math.max(rr, 1e-300);
-      for (var it = 0; it < 4 * n && rr > stop; it++) {
-        final ap = apply(p);
-        final step = rr / _dot(p, ap);
-        for (var i = 0; i < n; i++) {
-          x[i] += step * p[i];
-          r[i] -= step * ap[i];
+      final x = Float64List.fromList(b);
+      _removeMean(x);
+      for (var i = 0; i < n; i++) {
+        var sum = x[i];
+        for (var k = math.max(0, i - band); k < i; k++) {
+          sum -= factor[i * w1 + (i - k)] * x[k];
         }
-        final next = _dot(r, r);
-        final ratio = next / rr;
-        rr = next;
-        for (var i = 0; i < n; i++) {
-          p[i] = r[i] + ratio * p[i];
+        x[i] = sum / factor[i * w1];
+      }
+      for (var i = n - 1; i >= 0; i--) {
+        var sum = x[i];
+        for (var k = i + 1; k <= math.min(n - 1, i + band); k++) {
+          sum -= factor[k * w1 + (k - i)] * x[k];
         }
+        x[i] = sum / factor[i * w1];
       }
       _removeMean(x);
       return x;
@@ -541,7 +629,7 @@ final class FreeSurface {
     final scale = 1.0 / math.sqrt(grid.cell2);
     for (final r in order) {
       if (values[r] <= 0.0) continue;
-      final lambda = 1.0 / values[r];
+      final lambda = 1.0 / values[r] - sigma;
       final shape = Float64List(n);
       for (var j = 0; j < size; j++) {
         final weight = vectors[j * size + r];

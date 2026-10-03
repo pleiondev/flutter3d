@@ -254,6 +254,15 @@ final class Jet {
       final section = p.section;
       final radius = math.sqrt(section / math.pi);
       var touched = false;
+      // Its own walls: within what it moves this step and the three radii a
+      // clinging parcel is looked for by. Every wall near the whole stream,
+      // asked for every piece of every parcel, cost the tail of a pour a
+      // third of a frame.
+      final near = obstaclesNear(
+        walls,
+        p.position,
+        p.velocity.length * dt + 3.0 * radius,
+      );
       // **In pieces no longer than its own radius**, held by the walls after
       // each. A stream falls five millimetres a step into a test tube whose
       // glass is half a millimetre: moved in one go, a parcel above the
@@ -262,7 +271,7 @@ final class Jet {
       final pieces = (p.velocity.length * dt / radius).ceil().clamp(1, 16);
       for (var k = 0; k < pieces; k++) {
         p.position.addScaled(p.velocity, dt / pieces);
-        for (final wall in walls) {
+        for (final wall in near) {
           final hit = wall.touch(p.position, radius);
           if (hit == null) continue;
           p.position.addScaled(hit.normal, hit.depth);
@@ -280,7 +289,7 @@ final class Jet {
         final contact = 0.1 * radius;
         final reach = 2.0 * radius;
         var held = false;
-        for (final wall in walls) {
+        for (final wall in near) {
           final near = wall.touch(p.position, radius + contact);
           if (near != null) {
             held = true;
@@ -288,7 +297,7 @@ final class Jet {
           }
         }
         if (!held && p.velocity.length < clingSpeed(2.0 * radius)) {
-          for (final wall in walls) {
+          for (final wall in near) {
             final hit = wall.touch(p.position, radius + reach);
             if (hit == null) continue;
             p.position.addScaled(hit.normal, hit.depth - reach);
@@ -319,7 +328,11 @@ final class Jet {
       final looks = (way.length / radius).ceil().clamp(1, 16);
       search:
       for (var k = 1; k <= looks; k++) {
-        final at = p.previous + way * (k / looks);
+        // One point moved along, not one made per look.
+        final at = _look
+          ..setFrom(way)
+          ..scale(k / looks)
+          ..add(p.previous);
         for (final r in receivers) {
           if (r.catches(at, radius)) {
             into = r;
@@ -387,6 +400,8 @@ final class Jet {
       ..addAll(kept);
     return drops;
   }
+
+  final Vector3 _look = Vector3.zero();
 
   /// Whether anything left the lip since the last step: the newest parcel
   /// is held to the lip while it does, and its end is free once it stops.
