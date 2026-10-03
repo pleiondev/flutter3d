@@ -250,6 +250,35 @@ void main() {
       expect(quads.sorts, 2, reason: '50 mm is outside it');
     });
 
+    test('through an orthographic lens a move does not sort again and a turn '
+        'does — P7', () {
+      // Depth along a fixed axis changes by the same amount for every splat
+      // when the camera moves, so no order changes; turning the axis does.
+      //
+      // Mutation: keep the distance rule for an orthographic lens — the
+      // metre's move below re-sorts.
+      final quads = grid();
+      SplatLens lens(Vector3 forward) =>
+          SplatLens(forward: forward, focal: 100.0, depthWeight: 0.0);
+      void look(Vector3 eye, Vector3 forward, Vector3 right) => quads.build(
+        eye: eye,
+        right: right,
+        up: Vector3(0.0, 1.0, 0.0),
+        lens: lens(forward),
+      );
+      look(Vector3.zero(), Vector3(0.0, 0.0, -1.0), Vector3(1.0, 0.0, 0.0));
+      expect(quads.sorts, 1);
+      look(
+        Vector3(1.0, 0.0, 3.0),
+        Vector3(0.0, 0.0, -1.0),
+        Vector3(1.0, 0.0, 0.0),
+      );
+      expect(quads.sorts, 1, reason: 'a move along any way changes no order');
+      final turned = Vector3(0.3, 0.0, -1.0)..normalize();
+      look(Vector3.zero(), turned, Vector3(1.0, 0.0, 0.3)..normalize());
+      expect(quads.sorts, 2, reason: 'a turn does');
+    });
+
     test('a threshold of nought sorts on every move', () {
       final quads = grid()..resortFraction = 0.0;
       _build(quads);

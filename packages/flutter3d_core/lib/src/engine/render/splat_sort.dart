@@ -22,6 +22,13 @@
 /// does not change when the camera turns, only when it moves. So a camera
 /// that looks around never re-sorts, and `SplatQuads` only has to ask
 /// whether the eye has travelled far enough to matter.
+///
+/// **Through an orthographic lens, by depth along the axis instead** — `P7`.
+/// There the rays are parallel and do not meet at the eye, so what is in
+/// front of what is depth along the view axis, and distance from wherever
+/// the camera was put along it puts a splat off to the side behind one it
+/// covers. The consequence turns round with it: moving the camera adds the
+/// same to every depth and changes no order, and turning it does.
 library;
 
 import 'dart:math' as math;
@@ -112,12 +119,14 @@ final class SplatSorter {
   double _lastRange = 0.0;
 
   /// Orders [cloud] far to near by distance from [eye], with the cloud placed
-  /// in the world by [model] when it is given.
+  /// in the world by [model] when it is given — or, given an [axis] (unit
+  /// length), by depth from [eye] along it, which is an orthographic
+  /// camera's order.
   ///
   /// The distances are quantised across the range this cloud spans from
   /// this eye, not across a fixed one: sixteen bits over the cloud's own
   /// depth is what keeps a small cloud and a large one equally well ordered.
-  void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model}) {
+  void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model, Vector3? axis}) {
     final count = cloud.count;
     if (_keys.length < count) {
       _keys = Uint32List(count);
@@ -150,7 +159,9 @@ final class SplatSorter {
           (m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13]) - ey;
       final dz =
           (m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14]) - ez;
-      final d = math.sqrt(dx * dx + dy * dy + dz * dz);
+      final d = axis == null
+          ? math.sqrt(dx * dx + dy * dy + dz * dz)
+          : dx * axis.x + dy * axis.y + dz * axis.z;
       distances[i] = d;
       if (d < near) near = d;
       if (d > far) far = d;

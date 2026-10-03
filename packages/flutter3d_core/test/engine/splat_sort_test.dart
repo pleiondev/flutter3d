@@ -171,6 +171,31 @@ void main() {
     expect(sorter.order.sublist(0, 2), orderedEquals(<int>[0, 1]));
   });
 
+  test('along an axis, depth decides and distance does not — P7', () {
+    // An orthographic camera's order. The first splat is on the axis five
+    // metres deep; the second four deep and ten to the side, so it is the
+    // further by distance and the nearer by depth, and through parallel
+    // rays it covers the first.
+    //
+    // Mutation: ignore [axis] in `SplatSorter.sort` — the second is drawn
+    // first and the first paints over what should cover it.
+    final cloud = SplatCloud(
+      centres: Float32List.fromList(<double>[0, 0, -5, 10, 0, -4]),
+      colours: Float32List(8),
+      scales: Float32List(6),
+      rotations: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1]),
+    );
+    final sorter = SplatSorter()
+      ..sort(cloud, Vector3.zero(), axis: Vector3(0.0, 0.0, -1.0));
+    expect(sorter.order.sublist(0, 2), orderedEquals(<int>[0, 1]));
+    sorter.sort(cloud, Vector3.zero());
+    expect(
+      sorter.order.sublist(0, 2),
+      orderedEquals(<int>[1, 0]),
+      reason: 'by distance the order is the other way round',
+    );
+  });
+
   test('an empty cloud and a one-splat cloud sort without complaint', () {
     final sorter = SplatSorter()..sort(_randomCloud(0, 1), Vector3.zero());
     expect(sorter.lastRange, 0.0);

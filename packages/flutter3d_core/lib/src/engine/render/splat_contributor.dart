@@ -109,6 +109,9 @@ final class SplatLens {
   /// The camera's view axis, unit length, in world space.
   final Vector3 forward;
 
+  /// Whether this is an orthographic lens: clip `w` does not grow with depth.
+  bool get orthographic => depthWeight == 0.0;
+
   /// Pixels per unit of `x / w` on the screen: half the viewport's height
   /// times the projection's vertical scale.
   final double focal;
@@ -175,6 +178,10 @@ final class SplatQuads {
   /// Where the eye was, and where the cloud was placed, at the last sort.
   /// Null until the first, and after [invalidateSort].
   Vector3? _sortedEye;
+
+  /// The axis the last sort ordered along, or null when it ordered by
+  /// distance — `P7`.
+  Vector3? _sortedAxis;
   final Float64List _sortedModel = Float64List(16);
   bool _sortedWithModel = false;
 
@@ -201,7 +208,9 @@ final class SplatQuads {
   ///
   /// Both axes are expected orthonormal, which is what a camera's own basis
   /// is. The camera's forward axis is not needed: the order is by distance
-  /// from [eye], which a turn does not change — see `splat_sort.dart`.
+  /// from [eye], which a turn does not change — see `splat_sort.dart` —
+  /// except through an orthographic [lens], whose order is depth along its
+  /// axis.
   ///
   /// The quads are rebuilt every call, since their axes follow the camera's
   /// own; the sort, which is most of the cost, runs only when the eye has
@@ -228,7 +237,9 @@ final class SplatQuads {
   }) {
     // A tree's cut is chosen where the sort runs, so a hashed build still
     // sorts when the cut moves: the order and the cut have to agree.
-    if ((sorted || lod != null) && _needsSort(eye, model)) {
+    // `P7`: depth along the axis through an orthographic lens.
+    final axis = lens != null && lens.orthographic ? lens.forward : null;
+    if ((sorted || lod != null) && _needsSort(eye, model, axis)) {
       final lod = this.lod;
       if (lod != null) {
         // The cut is chosen by distance in the tree's own space, so the eye
@@ -239,9 +250,10 @@ final class SplatQuads {
         _sortedPageVersion = lod.tree.pageVersion;
         _sortedBudget = lod.budget;
       }
-      _sorter.sort(cloud, eye, model: model);
+      _sorter.sort(cloud, eye, model: model, axis: axis);
       _sorts++;
       _sortedEye = eye.clone();
+      _sortedAxis = axis?.clone();
       _sortedWithModel = model != null;
       if (model != null) _sortedModel.setAll(0, model.storage);
     }
@@ -411,7 +423,7 @@ final class SplatQuads {
     vertexCount = count * kSplatVerticesPerSplat;
   }
 
-  bool _needsSort(Vector3 eye, Matrix4? model) {
+  bool _needsSort(Vector3 eye, Matrix4? model, Vector3? axis) {
     final last = _sortedEye;
     if (last == null) return true;
     final lod = this.lod;
@@ -426,6 +438,16 @@ final class SplatQuads {
       for (var k = 0; k < 16; k++) {
         if (storage[k] != _sortedModel[k]) return true;
       }
+    }
+    final sortedAxis = _sortedAxis;
+    if ((axis != null) != (sortedAxis != null)) return true;
+    if (axis != null && sortedAxis != null) {
+      // Through an orthographic lens a move changes no order and a turn
+      // does: turned by an angle θ, a splat's depth moves by up to the
+      // cloud's extent times θ, held to the same fraction a move is. A tree's
+      // cut still follows the eye, so a move re-sorts when there is one.
+      if (sortedAxis.distanceTo(axis) > resortFraction) return true;
+      if (lod == null) return false;
     }
     return last.distanceTo(eye) > resortFraction * _sorter.lastRange;
   }
