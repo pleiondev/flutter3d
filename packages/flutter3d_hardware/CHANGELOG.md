@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`ShaderLibraryStack`**: any number of libraries consulted in order, the
+  first that answers winning — `P8`. What a game with more than one compiled
+  material bundle hands a renderer.
+
 - **`ShaderBundle.materialSection`**, with `encodeMaterialSection` and
   `decodeMaterialSection`: each stage's material-language source, by name —
   `P8`. The backend that compiles nothing compiles it, and a runtime reads a

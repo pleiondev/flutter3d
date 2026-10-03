@@ -55,9 +55,10 @@ CpuDevice _device({CpuMaterialCompiler? compiler}) => CpuDevice(
 /// renderer whose materials are [library].
 Future<Vector3> _centre(
   CpuDevice device,
-  LoadedShaderLibrary library,
+  LoadedShaderLibrary? library,
   LightingModel lighting, {
   Map<String, Float32List> parameters = const <String, Float32List>{},
+  Renderer? renderer,
 }) async {
   final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
   final scene = Scene()
@@ -68,7 +69,9 @@ Future<Vector3> _centre(
         Material(lighting: lighting)..parameters.addAll(parameters),
       ),
     );
-  final result = Renderer.create(device: device, materials: library).render(
+  final drawing =
+      renderer ?? Renderer.create(device: device, materials: library);
+  final result = drawing.render(
     width: _size,
     height: _size,
     scene: scene,
@@ -234,5 +237,72 @@ material Tinted {
     );
     expect(centre.x, closeTo(0.0, 0.01));
     expect(centre.y, closeTo(1.0, 0.01));
+  });
+
+  group('more than one bundle — P8', () {
+    test('two bundles added to one renderer both draw', () async {
+      // Each `.f3dmat` the hook compiles is a bundle of its own.
+      //
+      // Mutation: make `Renderer.addMaterials` keep only the latest library
+      // — the first bundle's material is a missing stage.
+      final device = _device(compiler: materialLanguageCompiler);
+      final red = _bundle(<String, String>{
+        'Red': _flat('Red', 'vec3(1.0, 0.0, 0.0)'),
+      });
+      final blue = _bundle(<String, String>{
+        'Blue': _flat('Blue', 'vec3(0.0, 0.0, 1.0)'),
+      });
+      final renderer = Renderer.create(device: device)
+        ..addMaterials(await device.loadShaders(red))
+        ..addMaterials(await device.loadShaders(blue));
+
+      final first = await _centre(
+        device,
+        null,
+        BundledMaterials.read(red)['Red'],
+        renderer: renderer,
+      );
+      final second = await _centre(
+        device,
+        null,
+        BundledMaterials.read(blue)['Blue'],
+        renderer: renderer,
+      );
+      expect(first.x, closeTo(1.0, 0.01));
+      expect(second.z, closeTo(1.0, 0.01));
+    });
+
+    test('the one added later wins a name, and taking it out gives the name '
+        'back', () async {
+      // Mutation: keep `_fragmentShaders` across `addMaterials` — the stage
+      // the renderer resolved first goes on drawing after the name changed
+      // hands.
+      final device = _device(compiler: materialLanguageCompiler);
+      final red = await device.loadShaders(
+        _bundle(<String, String>{
+          'Paint': _flat('Paint', 'vec3(1.0, 0.0, 0.0)'),
+        }),
+      );
+      final green = await device.loadShaders(
+        _bundle(<String, String>{
+          'Paint': _flat('Paint', 'vec3(0.0, 1.0, 0.0)'),
+        }),
+      );
+      final lighting = BundledMaterials.read(
+        _bundle(<String, String>{
+          'Paint': _flat('Paint', 'vec3(1.0, 0.0, 0.0)'),
+        }),
+      )['Paint'];
+      final renderer = Renderer.create(device: device, materials: red);
+
+      Future<Vector3> paint() =>
+          _centre(device, null, lighting, renderer: renderer);
+      expect((await paint()).x, closeTo(1.0, 0.01));
+      renderer.addMaterials(green);
+      expect((await paint()).y, closeTo(1.0, 0.01));
+      expect(renderer.removeMaterials(green), isTrue);
+      expect((await paint()).x, closeTo(1.0, 0.01));
+      expect(renderer.removeMaterials(green), isFalse);
+    });
   });
 }

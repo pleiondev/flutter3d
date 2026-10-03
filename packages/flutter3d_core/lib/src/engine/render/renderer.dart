@@ -222,7 +222,54 @@ final class Renderer implements RenderServices {
   /// application that compiles a stage of its own and hands the library in gets
   /// that stage found first, and needs no entry in any table of this package's.
   ShaderLibrary get shaders => _shaders;
-  late final ShaderLibrary _shaders;
+  late ShaderLibrary _shaders;
+
+  /// What [shaders] is built over: `materials` as [Renderer.create] was
+  /// given it, over the backend's bundle.
+  late final ShaderLibrary _baseShaders;
+
+  /// The libraries [addMaterials] added, the latest first.
+  final List<ShaderLibrary> _addedMaterials = <ShaderLibrary>[];
+
+  /// Adds [library] to the stages this renderer finds by name, ahead of
+  /// everything it already had — `P8`.
+  ///
+  /// **More than one bundle of materials.** The build hook compiles each
+  /// `.f3dmat` into a bundle of its own, a level loaded after the renderer
+  /// was made brings its own, and `materials` at [Renderer.create] is one
+  /// library. Added later means consulted earlier, as a layer is: a bundle
+  /// that names a stage another already has is replacing it, which is what a
+  /// game loading a variant of a look means by it. Adding a library that is
+  /// already here moves it to the front. What the renderer resolved by name
+  /// is forgotten, since a name may now answer differently, and linked again
+  /// at the next draw that asks.
+  void addMaterials(ShaderLibrary library) {
+    _addedMaterials
+      ..remove(library)
+      ..insert(0, library);
+    _relayerShaders();
+  }
+
+  /// Takes [library] back out of what [addMaterials] added, and says whether
+  /// it was there. A material still naming one of its stages draws as a
+  /// material whose stage is missing does.
+  bool removeMaterials(ShaderLibrary library) {
+    final removed = _addedMaterials.remove(library);
+    if (removed) _relayerShaders();
+    return removed;
+  }
+
+  void _relayerShaders() {
+    _fragmentShaders.clear();
+    _materialVertexShaders.clear();
+    _pipelineCache.clear();
+    _shaders = _addedMaterials.isEmpty
+        ? _baseShaders
+        : ShaderLibraryStack(<ShaderLibrary>[
+            ..._addedMaterials,
+            _baseShaders,
+          ]);
+  }
 
   /// What draws alongside the world.
   ///
@@ -1692,6 +1739,7 @@ final class Renderer implements RenderServices {
         ).upload(device),
         msaaEnabled: device.supportsOffscreenMsaa,
       )
+      .._baseShaders = library
       .._shaders = library
       .._listenForGpuTimings();
   }

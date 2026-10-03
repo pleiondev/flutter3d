@@ -203,3 +203,31 @@ final class LayeredShaderLibrary implements ShaderLibrary {
   @override
   ShaderHandle? operator [](String name) => first[name] ?? second[name];
 }
+
+/// Any number of libraries consulted in order, the first that answers
+/// winning — `P8`.
+///
+/// What a game with more than one compiled material bundle hands the
+/// renderer: each `.f3dmat` the build hook compiles is a bundle of its own,
+/// and [LayeredShaderLibrary] takes two. The same rule as there — the
+/// earlier library wins a clash — for the same reason.
+///
+/// The list is copied, so a caller adding to its own list afterwards changes
+/// nothing here; a renderer that takes libraries one at a time keeps its own
+/// stack — see `Renderer.addMaterials`.
+final class ShaderLibraryStack implements ShaderLibrary {
+  ShaderLibraryStack(Iterable<ShaderLibrary> libraries)
+    : libraries = List<ShaderLibrary>.unmodifiable(libraries);
+
+  /// The libraries, searched first to last.
+  final List<ShaderLibrary> libraries;
+
+  @override
+  ShaderHandle? operator [](String name) {
+    for (final library in libraries) {
+      final found = library[name];
+      if (found != null) return found;
+    }
+    return null;
+  }
+}
