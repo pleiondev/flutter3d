@@ -24,6 +24,11 @@ abstract interface class JetReceiver {
   /// receiver's surface: whether its underside has.
   bool catches(Vector3 point, double radius);
 
+  /// Whether a drop of [radius] at [point] (world) touches this receiver's
+  /// glass from inside it: water wets glass, and a drop held there by the
+  /// wall runs down into the liquid as a film.
+  bool wets(Vector3 point, double radius);
+
   /// Takes [volume] cubic metres of [medium] carrying [concentrations],
   /// arriving at [point] moving at [velocity].
   void receive(
