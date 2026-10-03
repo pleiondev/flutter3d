@@ -1,5 +1,10 @@
 ## Unreleased
 
+- `ShadowFactor` picks a cascade by depth along the view axis through an
+  orthographic lens (`P7`); the light shafts and the volumetric fog pick by
+  the way along the ray from where depth is nought, the same distance through
+  a perspective lens.
+
 - **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
   of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
   when its photons are followed.
