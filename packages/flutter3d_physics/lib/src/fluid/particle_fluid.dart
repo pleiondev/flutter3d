@@ -119,6 +119,16 @@ final class ParticleFluid {
   final List<_V> _x = [];
   final List<_V> _v = [];
 
+  /// Each particle's liquid, cubic metres: [particleVolume], but for the
+  /// last of a run of drops, which is what was left in the bank.
+  final List<double> _vol = [];
+
+  /// Where and how fast the last liquid came in, and whether any came in
+  /// since the last step: the bank is let go there once none does.
+  final _V _lastAt = _V(0, 0, 0);
+  final _V _lastVelocity = _V(0, 0, 0);
+  bool _injected = false;
+
   /// What is dissolved in each particle, as concentrations; and in the
   /// bank, as amounts.
   final List<Map<String, double>> _c = [];
@@ -135,7 +145,10 @@ final class ParticleFluid {
   int get count => _x.length;
 
   /// Cubic metres here: every particle and the bank.
-  double get volume => _x.length * particleVolume + _bank;
+  double get volume => _vol.fold(0.0, (s, v) => s + v) + _bank;
+
+  /// The particles' liquid, cubic metres each.
+  List<double> get volumes => List.unmodifiable(_vol);
 
   /// What is dissolved in the particles, as concentrations over all of
   /// them: for drawing them the colour of what they are.
@@ -162,6 +175,15 @@ final class ParticleFluid {
     Map<String, double> concentrations = const {},
   }) {
     _bank += amount;
+    _injected = true;
+    _lastAt
+      ..x = position.x
+      ..y = position.y
+      ..z = position.z;
+    _lastVelocity
+      ..x = velocity.x
+      ..y = velocity.y
+      ..z = velocity.z;
     concentrations.forEach((key, c) {
       _bankAmounts[key] = (_bankAmounts[key] ?? 0.0) + c * amount;
     });
@@ -192,6 +214,7 @@ final class ParticleFluid {
             ),
           );
           _v.add(_V(velocity.x, velocity.y, velocity.z));
+          _vol.add(particleVolume);
           _c.add(carried);
           placed++;
         }
@@ -207,6 +230,19 @@ final class ParticleFluid {
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
   }) {
+    // **What is less than a particle is let go too**, once no more liquid
+    // comes to make it one: as a particle of its own amount, where the last
+    // came in. Kept in the bank, the end of every run of drops, up to a
+    // particle's worth of it, was counted and was nowhere.
+    if (!_injected && _bank > 0.0) {
+      _x.add(_lastAt.copy());
+      _v.add(_lastVelocity.copy());
+      _vol.add(_bank);
+      _c.add({for (final e in _bankAmounts.entries) e.key: e.value / _bank});
+      _bank = 0.0;
+      _bankAmounts.clear();
+    }
+    _injected = false;
     if (_x.isEmpty) return;
     // A quarter of the capillary time a substep at most, and never fewer
     // than asked. How far a particle goes in one is not held here: it is
@@ -249,10 +285,11 @@ final class ParticleFluid {
       final at = _x[i].toVector3();
       for (final r in receivers) {
         if (!r.catches(at, radius) && !r.wets(at, radius)) continue;
-        r.receive(particleVolume, at, _v[i].toVector3(), medium, _c[i]);
-        _received += particleVolume;
+        r.receive(_vol[i], at, _v[i].toVector3(), medium, _c[i]);
+        _received += _vol[i];
         _x.removeAt(i);
         _v.removeAt(i);
+        _vol.removeAt(i);
         _c.removeAt(i);
         break;
       }
