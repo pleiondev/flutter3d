@@ -47,14 +47,13 @@ final class NativeBodyType {
   String toString() => 'NativeBodyType.$name';
 }
 
-/// What a body is shaped like, for its inertia, its surface and its drag —
-/// `F3dShapeKind` and its three numbers. Collision arrives with the
-/// contacts, over the same shapes.
+/// What a body is shaped like: what it collides as, and its inertia, its
+/// surface and its drag — `F3dShapeKind` and its three numbers.
 final class NativeShape {
   const NativeShape._(this.kind, this.first, this.second, this.third);
 
-  /// No extent: it does not turn, has no surface and feels no wind. What a
-  /// new body is.
+  /// No extent: it touches nothing, does not turn, has no surface and feels
+  /// no wind. What a new body is.
   static const NativeShape point = NativeShape._(c.ShapeKind.point, 0, 0, 0);
 
   const NativeShape.sphere(double radius)
@@ -86,6 +85,7 @@ final class NativeMaterial {
     this.burnRate = 0.0,
     this.fuelFraction = 0.0,
     this.flameFeedback = 0.0,
+    this.conductivity = 1.0,
   });
 
   /// The core's typical values for a material: one place they live, so the
@@ -110,6 +110,7 @@ final class NativeMaterial {
         burnRate: m.burn_rate,
         fuelFraction: m.fuel_fraction,
         flameFeedback: m.flame_feedback,
+        conductivity: m.conductivity,
       );
     } finally {
       calloc.free(out);
@@ -138,11 +139,14 @@ final class NativeMaterial {
   /// The share of the fire's heat that goes back into the body; the rest
   /// leaves as the hot gas a smoke grid takes.
   final double flameFeedback;
+
+  /// W / (m K): how readily heat crosses into what it touches.
+  final double conductivity;
 }
 
 /// What a step said happened to a body — `F3dEventKind`. Constants rather
-/// than an enum, for the reason [NativeBodyType] gives: contact events
-/// arrive with the contacts.
+/// than an enum, for the reason [NativeBodyType] gives: the solver and the
+/// joints will bring kinds of their own.
 final class NativeEventKind {
   const NativeEventKind._(this.code, this.name);
 
@@ -167,12 +171,27 @@ final class NativeEventKind {
     'burntOut',
   );
 
+  /// Two bodies came to touch; the event's `other` is the second.
+  static const NativeEventKind contactBegan = NativeEventKind._(
+    c.EventKind.contactBegan,
+    'contactBegan',
+  );
+
+  /// Two bodies stopped touching. Ended by a body's removal, it names a body
+  /// no longer there.
+  static const NativeEventKind contactEnded = NativeEventKind._(
+    c.EventKind.contactEnded,
+    'contactEnded',
+  );
+
   static const List<NativeEventKind> _all = <NativeEventKind>[
     slept,
     woke,
     ignited,
     extinguished,
     burntOut,
+    contactBegan,
+    contactEnded,
   ];
 
   /// The kind the core's [code] names; one this binding does not know yet
@@ -196,8 +215,28 @@ final class NativeEventKind {
   String toString() => 'NativeEventKind.$name';
 }
 
-/// One event, in the order the step raised it.
-typedef NativeEvent = ({NativeBody body, NativeEventKind kind});
+/// One event, in the order the step raised it. [other] is the second body
+/// of an event between two, and null for the rest.
+typedef NativeEvent = ({
+  NativeBody body,
+  NativeBody? other,
+  NativeEventKind kind,
+});
+
+/// Where two bodies touch: one point of their manifold.
+typedef NativeContact = ({
+  NativeBody a,
+  NativeBody b,
+
+  /// Out of [b], into [a]: the way [a] moves to come apart.
+  Vector3 normal,
+
+  /// Halfway between the two surfaces, relative to the origin.
+  Vector3 point,
+
+  /// Positive inside, negative for a gap within the margin.
+  double depth,
+});
 
 /// A point in doubles: the world's origin, or a body's place in the world's
 /// own coordinates. Not a [Vector3], which holds single precision and
@@ -426,14 +465,22 @@ final class NativeWorld implements Finalizable {
   List<NativeEvent> readEvents() {
     const batch = 256;
     final bodies = malloc<Uint64>(batch);
+    final others = malloc<Uint64>(batch);
     final kinds = malloc<Uint32>(batch);
     try {
       final events = <NativeEvent>[];
       while (true) {
-        final read = c.f3d_world_read_events(_live, bodies, kinds, batch);
+        final read = c.f3d_world_read_events(
+          _live,
+          bodies,
+          others,
+          kinds,
+          batch,
+        );
         for (var i = 0; i < read; i++) {
           events.add((
             body: NativeBody(bodies[i]),
+            other: others[i] == 0 ? null : NativeBody(others[i]),
             kind: NativeEventKind.of(kinds[i]),
           ));
         }
@@ -442,7 +489,49 @@ final class NativeWorld implements Finalizable {
     } finally {
       malloc
         ..free(bodies)
+        ..free(others)
         ..free(kinds);
+    }
+  }
+
+  /// How near two shapes must come to make a contact, m; 0.02 for a new
+  /// world. A contact inside it but not touching has a negative depth.
+  set contactMargin(double margin) {
+    if (c.f3d_world_set_contact_margin(_live, margin) == 0) {
+      throw ArgumentError.value(margin, 'margin', 'negative or not finite');
+    }
+  }
+
+  /// Every contact point the last step found, in order of the pair's slots.
+  List<NativeContact> readContacts() {
+    final count = c.f3d_world_contact_count(_live);
+    if (count == 0) return const <NativeContact>[];
+    final values = malloc<Float>(count * c.contactFloats);
+    final pairs = malloc<Uint64>(count * 2);
+    try {
+      final read = c.f3d_world_read_contacts(_live, values, pairs, count);
+      return <NativeContact>[
+        for (var i = 0; i < read; i++)
+          (
+            a: NativeBody(pairs[i * 2]),
+            b: NativeBody(pairs[i * 2 + 1]),
+            normal: Vector3(
+              values[i * c.contactFloats],
+              values[i * c.contactFloats + 1],
+              values[i * c.contactFloats + 2],
+            ),
+            point: Vector3(
+              values[i * c.contactFloats + 3],
+              values[i * c.contactFloats + 4],
+              values[i * c.contactFloats + 5],
+            ),
+            depth: values[i * c.contactFloats + 6],
+          ),
+      ];
+    } finally {
+      malloc
+        ..free(values)
+        ..free(pairs);
     }
   }
 
@@ -685,6 +774,21 @@ final class NativeWorld implements Finalizable {
     torque,
   );
 
+  /// What [body] is, [layer], and what it meets, [mask]: two bodies collide
+  /// when each one's layer has a bit in the other's mask. Defaults 1 and
+  /// every bit.
+  void setCollisionFilter(
+    NativeBody body, {
+    required int layer,
+    required int mask,
+  }) => _check(
+    c.f3d_body_set_collision_filter(_live, body.raw, layer, mask),
+    body,
+  );
+
+  /// Whether [body] sleeps. Bodies sleep and wake by islands: those joined
+  /// by their contacts sleep when all have been still for the sleep time,
+  /// and wake together when any of them moves.
   bool isAsleep(NativeBody body) {
     _check(c.f3d_body_is_valid(_live, body.raw), body);
     return c.f3d_body_is_asleep(_live, body.raw) == 1;
@@ -707,7 +811,8 @@ final class NativeWorld implements Finalizable {
         ..heat_of_combustion = material.heatOfCombustion
         ..burn_rate = material.burnRate
         ..fuel_fraction = material.fuelFraction
-        ..flame_feedback = material.flameFeedback;
+        ..flame_feedback = material.flameFeedback
+        ..conductivity = material.conductivity;
       _check(c.f3d_body_set_material(_live, body.raw, m), body, material);
     } finally {
       calloc.free(m);

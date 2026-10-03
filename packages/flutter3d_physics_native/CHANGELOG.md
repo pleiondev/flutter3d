@@ -1,5 +1,29 @@
 ## Unreleased
 
+- **Contacts, phase 2.** Every pair of sphere, box and capsule, turned
+  however they are turned, answers with a manifold: one normal and up to four
+  points halfway between the surfaces, each with its depth and the features
+  that made it. Two boxes are parted along the least of fifteen axes, a
+  resting box keeps its whole face — the incident face clipped to the
+  reference face and, when that leaves eight points, the four that span the
+  most — a box on its edge keeps the edge, crossed edges meet at a point, and
+  a capsule lying on a box or along another capsule keeps both ends. A sort
+  and sweep finds the pairs, exactly those trying every pair finds, and
+  collision layers and masks filter them.
+- **What began and ended touching**, as events naming both bodies.
+- **Islands.** Bodies joined by their contacts sleep when all of them have
+  been still and wake together when one moves, so a crate knocked off a
+  stack wakes the crate under it; two sleeping bodies keep their contact.
+- **Heat across a contact**, by Holm's constriction over the contact's area —
+  a face's polygon, or Hertz's circle where a curve presses in — taken
+  implicitly for each pair. A fixed body of no thermal mass is a reservoir: a
+  hot plate stays hot. Materials have a conductivity. Wood is an insulator,
+  so a burning block warms the one it touches but does not light it; fire
+  crossing by its flames waits for the smoke grid.
+- **Nothing pushes touching bodies apart yet**: the solver is phase 3. The
+  WebAssembly module and the native library agree to the byte on a scene
+  that falls through a floor, contacts, events and heat included.
+
 - **The world's core, phase 1.** Bodies turn: a sphere, box or capsule
   gives a body its inertia, surface and drag, and the orientation steps as
   `flutter3d_physics` steps it, the angular momentum carried through the

@@ -26,6 +26,7 @@ F3dWorld *f3d_world_create(void) {
   world->s.air_density = F3D_R(1.204);
   world->s.sleep_speed = F3D_R(0.05);
   world->s.sleep_time = F3D_R(0.5);
+  world->s.contact_margin = F3D_R(0.02);
   return world;
 }
 
@@ -34,6 +35,9 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->slots);
   f3d_free(world->grid);
   f3d_free(world->events);
+  f3d_free(world->manifolds);
+  f3d_free(world->next_manifolds);
+  f3d_free(world->scratch);
   f3d_free(world);
 }
 
@@ -64,7 +68,6 @@ void f3d_world_get_air(const F3dWorld *world, f3d_real *out) {
   out[1] = world->s.air_density;
 }
 
-static void wake(F3dWorld *world, F3dSlot *s);
 
 /* A change of wind wakes every body that feels it: asleep, it would hang
  * in the new wind as if the old one still blew. */
@@ -72,7 +75,7 @@ static void wake_in_wind(F3dWorld *world) {
   for (uint32_t i = 0; i < world->s.used; i++) {
     F3dSlot *s = &world->slots[i];
     if (s->live && s->surface > F3D_R(0.0) && s->shape_drag > F3D_R(0.0)) {
-      wake(world, s);
+      f3d_wake(world, s);
     }
   }
 }
@@ -220,6 +223,11 @@ F3dSlot *f3d_slot_of(const F3dWorld *world, F3dBody body) {
 }
 
 void f3d_push_event(F3dWorld *world, F3dBody body, uint32_t kind) {
+  f3d_push_pair_event(world, body, 0, kind);
+}
+
+void f3d_push_pair_event(F3dWorld *world, F3dBody body, F3dBody other,
+                         uint32_t kind) {
   if (world->events == NULL) {
     world->events = (F3dEventRecord *)f3d_alloc(
         (size_t)F3D_EVENT_CAPACITY * sizeof(F3dEventRecord));
@@ -237,16 +245,19 @@ void f3d_push_event(F3dWorld *world, F3dBody body, uint32_t kind) {
   const uint32_t at =
       (world->s.events_head + world->s.events_count) % F3D_EVENT_CAPACITY;
   world->events[at].body = body;
+  world->events[at].other = other;
   world->events[at].kind = kind;
   world->s.events_count++;
 }
 
 uint32_t f3d_world_read_events(F3dWorld *world, F3dBody *bodies,
-                               uint32_t *kinds, uint32_t capacity) {
+                               F3dBody *others, uint32_t *kinds,
+                               uint32_t capacity) {
   uint32_t read = 0;
   while (read < capacity && world->s.events_count > 0) {
     const F3dEventRecord *e = &world->events[world->s.events_head];
     bodies[read] = e->body;
+    if (others != NULL) others[read] = e->other;
     kinds[read] = e->kind;
     world->s.events_head = (world->s.events_head + 1u) % F3D_EVENT_CAPACITY;
     world->s.events_count--;
@@ -307,6 +318,8 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
   s->mass = mass;
   f3d_material_preset(F3D_MATERIAL_INERT, &s->material);
   s->temperature = world->s.air_temperature;
+  s->layer = 1u;
+  s->mask = UINT32_MAX;
   f3d_refresh_mass(s);
   world->s.live++;
   return handle_of(slot, generation);
@@ -342,7 +355,7 @@ static void get3(const F3dVec3 *v, f3d_real *out) {
   out[2] = v->z;
 }
 
-static void wake(F3dWorld *world, F3dSlot *s) {
+void f3d_wake(F3dWorld *world, F3dSlot *s) {
   s->still = F3D_R(0.0);
   if (!(s->flags & F3D_FLAG_ASLEEP)) return;
   s->flags &= (uint8_t)~F3D_FLAG_ASLEEP;
@@ -360,7 +373,7 @@ int f3d_body_set_velocity(F3dWorld *world, F3dBody body, f3d_real x,
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !finite3(x, y, z)) return 0;
   set3(&s->velocity, x, y, z);
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -376,7 +389,7 @@ int f3d_body_set_position(F3dWorld *world, F3dBody body, f3d_real x,
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !finite3(x, y, z)) return 0;
   set3(&s->position, x, y, z);
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -403,7 +416,7 @@ int f3d_body_set_angular_velocity(F3dWorld *world, F3dBody body, f3d_real x,
   if (s == NULL || !finite3(x, y, z)) return 0;
   if (!turns(s)) return 1;
   set3(&s->spin, x, y, z);
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -429,7 +442,7 @@ int f3d_body_set_orientation(F3dWorld *world, F3dBody body, f3d_real x,
     s->orientation.z = z / length;
     s->orientation.w = w / length;
   }
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -473,7 +486,7 @@ int f3d_body_set_shape(F3dWorld *world, F3dBody body, F3dShapeKind kind,
   s->shape = (uint8_t)kind;
   f3d_refresh_mass(s);
   if (!turns(s)) set3(&s->spin, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -543,7 +556,7 @@ int f3d_body_apply_impulse(F3dWorld *world, F3dBody body, f3d_real x,
   s->velocity.x += x * s->inverse_mass;
   s->velocity.y += y * s->inverse_mass;
   s->velocity.z += z * s->inverse_mass;
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -566,7 +579,7 @@ int f3d_body_apply_impulse_at(F3dWorld *world, F3dBody body, f3d_real x,
     l.z = rx * y - ry * x;
     spin_by(s, l);
   }
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -577,7 +590,7 @@ int f3d_body_add_force(F3dWorld *world, F3dBody body, f3d_real x, f3d_real y,
   s->force.x += x;
   s->force.y += y;
   s->force.z += z;
-  if (s->inverse_mass != F3D_R(0.0)) wake(world, s);
+  if (s->inverse_mass != F3D_R(0.0)) f3d_wake(world, s);
   return 1;
 }
 
@@ -588,7 +601,7 @@ int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x, f3d_real y,
   s->torque.x += x;
   s->torque.y += y;
   s->torque.z += z;
-  if (turns(s)) wake(world, s);
+  if (turns(s)) f3d_wake(world, s);
   return 1;
 }
 
@@ -600,7 +613,7 @@ int f3d_body_is_asleep(const F3dWorld *world, F3dBody body) {
 int f3d_body_wake(F3dWorld *world, F3dBody body) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL) return 0;
-  wake(world, s);
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -644,5 +657,6 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
 void f3d_world_step(F3dWorld *world, f3d_real dt) {
   if (!(f3d_finite(dt) && dt > F3D_R(0.0))) return;
   f3d_step_motion(world, dt);
+  f3d_step_collide(world);
   f3d_step_heat(world, dt);
 }

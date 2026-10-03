@@ -122,7 +122,7 @@ const gridPtr = f.f3d_buffer_alloc(grid.length * 4);
 new Float32Array(f.memory.buffer, gridPtr, grid.length).set(grid);
 f.f3d_world_set_wind_grid(world, -5, 0, -5, 5, 2, 1, 2, gridPtr);
 f.f3d_buffer_free(gridPtr);
-const material = f.f3d_buffer_alloc(7 * 4);
+const material = f.f3d_buffer_alloc(8 * 4);
 f.f3d_material_preset(1, material);
 for (const b of bodies) {
   const h = f.f3d_body_create(world, 0, b[0], b[1], b[2], 1.0);
@@ -134,6 +134,8 @@ for (const b of bodies) {
   f.f3d_body_add_water(world, h, b[14]);
 }
 f.f3d_buffer_free(material);
+const floor = f.f3d_body_create(world, 1, 0, -1, 0, 0);
+f.f3d_body_set_shape(world, floor, 2, 200, 1, 200);
 for (let i = 0; i < steps; i++) f.f3d_world_step(world, dt);
 const size = f.f3d_world_snapshot_size(world);
 const ptr = f.f3d_buffer_alloc(size);
@@ -222,6 +224,14 @@ void main() {
         ..setTemperature(body, b[13])
         ..addWater(body, b[14]);
     }
+    // A floor they fall through, with no solver yet: contacts, events and
+    // heat across them, all in the comparison.
+    final floor = world.addBody(
+      position: Vector3(0.0, -1.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world.setShape(floor, NativeShape.box(Vector3(200.0, 1.0, 200.0)));
     for (var i = 0; i < _steps; i++) {
       world.step(_dt);
     }
@@ -230,7 +240,13 @@ void main() {
     expect(fromWasm.length, fromNative.length);
     expect(fromWasm, orderedEquals(fromNative));
     // And the scenario reached what it was built to: a fire, a turn.
-    expect(world.readEvents(), isNotEmpty);
+    expect(
+      world.readEvents().map((e) => e.kind),
+      containsAll(<NativeEventKind>[
+        NativeEventKind.ignited,
+        NativeEventKind.contactBegan,
+      ]),
+    );
   }, skip: missing.isEmpty ? false : 'no ${missing.join(', ')}');
 
   test('the module imports nothing and exports the API', () {

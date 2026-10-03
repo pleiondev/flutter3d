@@ -213,27 +213,19 @@ void f3d_step_motion(F3dWorld *world, f3d_real dt) {
     }
     s->force.x = s->force.y = s->force.z = F3D_R(0.0);
     s->torque.x = s->torque.y = s->torque.z = F3D_R(0.0);
-    /* Sleep: slower than the sleep speed, in m/s and in rad/s alike, for
-     * the sleep time. Spin counts: a body turning on the spot is not at
-     * rest. */
-    if (world->s.sleep_time > F3D_R(0.0)) {
-      const f3d_real v2 = s->velocity.x * s->velocity.x +
-                          s->velocity.y * s->velocity.y +
-                          s->velocity.z * s->velocity.z;
-      const f3d_real w2 = s->spin.x * s->spin.x + s->spin.y * s->spin.y +
-                          s->spin.z * s->spin.z;
-      if (v2 > sleep2 || w2 > sleep2) {
-        s->still = F3D_R(0.0);
-      } else {
-        s->still += dt;
-        if (s->still >= world->s.sleep_time) {
-          s->flags |= F3D_FLAG_ASLEEP;
-          s->still = F3D_R(0.0);
-          s->velocity.x = s->velocity.y = s->velocity.z = F3D_R(0.0);
-          s->spin.x = s->spin.y = s->spin.z = F3D_R(0.0);
-          f3d_push_event(world, f3d_handle_of(world, s), F3D_EVENT_SLEPT);
-        }
-      }
+    /* How long it has been still: slower than the sleep speed, in m/s and
+     * in rad/s alike. Spin counts: a body turning on the spot is not at
+     * rest. Whether it sleeps is its island's to say, in the collision
+     * stage. */
+    const f3d_real v2 = s->velocity.x * s->velocity.x +
+                        s->velocity.y * s->velocity.y +
+                        s->velocity.z * s->velocity.z;
+    const f3d_real w2 =
+        s->spin.x * s->spin.x + s->spin.y * s->spin.y + s->spin.z * s->spin.z;
+    if (v2 > sleep2 || w2 > sleep2) {
+      s->still = F3D_R(0.0);
+    } else {
+      s->still += dt;
     }
   }
 }

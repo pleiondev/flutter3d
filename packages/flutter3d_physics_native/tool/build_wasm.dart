@@ -23,6 +23,8 @@ const List<String> wasmSources = <String>[
   'csrc/src/f3d_motion.c',
   'csrc/src/f3d_heat.c',
   'csrc/src/f3d_snapshot.c',
+  'csrc/src/f3d_collide.c',
+  'csrc/src/f3d_narrow.c',
   'csrc/src/f3d_memory_wasm.c',
 ];
 

@@ -174,7 +174,7 @@ static void test_fire(void) {
   f3d_body_set_temperature(w, block, 600);
   f3d_world_step(w, F3D_R(0.1));
   CHECK(burning(w, block));
-  CHECK(f3d_world_read_events(w, bodies, kinds, 8) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 8) == 1);
   CHECK(bodies[0] == block && kinds[0] == F3D_EVENT_IGNITED);
   /* Alight, it loses 11 g/s per m² of its 0.06 m², gives 15 MJ/kg, and
    * keeps three tenths of it: it heats itself, and the rest leaves. */
@@ -200,7 +200,7 @@ static void test_fire(void) {
     steps++;
   }
   CHECK_NEAR(steps * 0.1 + 10.1, 0.48 / rate, 1e-2);
-  CHECK(f3d_world_read_events(w, bodies, kinds, 8) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 8) == 1);
   CHECK(kinds[0] == F3D_EVENT_BURNT_OUT);
   f3d_body_get_fuel(w, block, &fuel);
   CHECK(fuel == 0);
@@ -289,7 +289,7 @@ static void test_water(void) {
   CHECK(held);
   CHECK(!caught_wet);
   CHECK(burning(w, wet_block));
-  f3d_world_read_events(w, bodies, kinds, 8);
+  f3d_world_read_events(w, bodies, NULL, kinds, 8);
 
   /* Half a kilogram on the burning block puts it out. */
   for (int i = 0; i < 100; i++) f3d_world_step(w, F3D_R(0.1));
@@ -297,7 +297,7 @@ static void test_water(void) {
   f3d_body_add_water(w, wet_block, F3D_R(0.5));
   f3d_world_step(w, F3D_R(0.1));
   CHECK(!burning(w, wet_block));
-  CHECK(f3d_world_read_events(w, bodies, kinds, 8) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 8) == 1);
   CHECK(bodies[0] == wet_block && kinds[0] == F3D_EVENT_EXTINGUISHED);
   f3d_body_get_temperature(w, wet_block, &t);
   CHECK(t == F3D_WATER_BOILS);

@@ -86,6 +86,90 @@ static inline F3dVec3 f3d_sym_times(F3dSym3 m, F3dVec3 v) {
   return out;
 }
 
+static inline F3dVec3 f3d_v3(f3d_real x, f3d_real y, f3d_real z) {
+  F3dVec3 v;
+  v.x = x;
+  v.y = y;
+  v.z = z;
+  return v;
+}
+static inline F3dVec3 f3d_add(F3dVec3 a, F3dVec3 b) {
+  return f3d_v3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+static inline F3dVec3 f3d_sub(F3dVec3 a, F3dVec3 b) {
+  return f3d_v3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+static inline F3dVec3 f3d_scale(F3dVec3 a, f3d_real k) {
+  return f3d_v3(a.x * k, a.y * k, a.z * k);
+}
+/* a + b·k. */
+static inline F3dVec3 f3d_madd(F3dVec3 a, F3dVec3 b, f3d_real k) {
+  return f3d_v3(a.x + b.x * k, a.y + b.y * k, a.z + b.z * k);
+}
+static inline f3d_real f3d_dot(F3dVec3 a, F3dVec3 b) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+static inline F3dVec3 f3d_cross(F3dVec3 a, F3dVec3 b) {
+  return f3d_v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
+                a.x * b.y - a.y * b.x);
+}
+static inline f3d_real f3d_abs(f3d_real x) { return x < F3D_R(0.0) ? -x : x; }
+static inline f3d_real f3d_clamp(f3d_real x, f3d_real lo, f3d_real hi) {
+  return x < lo ? lo : (x > hi ? hi : x);
+}
+
+/* A rotation as its three columns: the body's own axes in the world's. */
+typedef struct F3dMat3 {
+  F3dVec3 c[3];
+} F3dMat3;
+
+F3dMat3 f3d_mat_of(F3dQuat q);
+
+/* ------------------------------------------------------------- contacts */
+
+/* Points a manifold holds at most: four keep a box resting on a face from
+ * rocking, and more add nothing a solver uses. */
+#define F3D_MANIFOLD_POINTS 4u
+
+typedef struct F3dContactPoint {
+  /* Halfway between the two surfaces, relative to the origin. */
+  F3dVec3 point;
+  /* Positive inside, negative a gap within the margin. */
+  f3d_real depth;
+  /* Which features made it, so a solver can carry its impulse to the next
+   * step's point from the same features. */
+  uint32_t id;
+} F3dContactPoint;
+
+/* Everything two bodies' shapes touch at. Plain data: a snapshot copies it
+ * whole. */
+typedef struct F3dManifold {
+  /* The lower slot is a, the higher b. */
+  F3dBody a;
+  F3dBody b;
+  /* Out of b, into a: the way a moves to come apart. */
+  F3dVec3 normal;
+  uint32_t count;
+  /* 1 while some point is at or past touching, not only within the
+   * margin. */
+  uint32_t touching;
+  F3dContactPoint points[F3D_MANIFOLD_POINTS];
+} F3dManifold;
+
+/* A shape where it stands, as the narrow phase reads it. */
+typedef struct F3dPlaced {
+  uint32_t kind;
+  F3dVec3 size;
+  F3dVec3 at;
+  F3dMat3 axes;
+} F3dPlaced;
+
+/* Fills [out]'s normal and points for [a] against [b], within [margin],
+ * and returns how many points; nought when they are further apart. The
+ * normal points out of b into a. */
+uint32_t f3d_collide(const F3dPlaced *a, const F3dPlaced *b, f3d_real margin,
+                     F3dManifold *out);
+
 /* ---------------------------------------------------------------- world */
 
 /* Bits of F3dSlot.flags. */
@@ -138,10 +222,16 @@ typedef struct F3dSlot {
   f3d_real fuel;
   /* W given off as gas over the last step. */
   f3d_real heat_release;
+  /* What it is, and what it meets: a pair collides when each one's layer is
+   * in the other's mask. */
+  uint32_t layer;
+  uint32_t mask;
 } F3dSlot;
 
 typedef struct F3dEventRecord {
   F3dBody body;
+  /* The other body, for an event between two; nought otherwise. */
+  F3dBody other;
   uint32_t kind;
   uint32_t reserved;
 } F3dEventRecord;
@@ -169,6 +259,10 @@ typedef struct F3dWorldState {
   uint32_t events_head;
   uint32_t events_count;
   uint32_t events_dropped;
+  /* How near counts as a contact. */
+  f3d_real contact_margin;
+  /* Manifolds the last step found, in order of their pair. */
+  uint32_t manifold_count;
 } F3dWorldState;
 
 struct F3dWorld {
@@ -179,6 +273,16 @@ struct F3dWorld {
   f3d_real *grid;
   /* A ring of F3D_EVENT_CAPACITY, allocated with the first event. */
   F3dEventRecord *events;
+  /* The last step's manifolds, manifold_count of them, and room for the
+   * next step's beside them. */
+  F3dManifold *manifolds;
+  F3dManifold *next_manifolds;
+  uint32_t manifold_capacity;
+  uint32_t next_capacity;
+  /* Scratch the collision stage grows and keeps, so a step allocates only
+   * when the world grows. None of it outlives a step. */
+  void *scratch;
+  size_t scratch_bytes;
 };
 
 /* The slot [body] names in [world], or null for a stale or foreign one. */
@@ -191,9 +295,18 @@ F3dBody f3d_handle_of(const F3dWorld *world, const F3dSlot *slot);
 void f3d_refresh_mass(F3dSlot *slot);
 
 void f3d_push_event(F3dWorld *world, F3dBody body, uint32_t kind);
+void f3d_push_pair_event(F3dWorld *world, F3dBody body, F3dBody other,
+                         uint32_t kind);
 
-/* The step's halves: motion, then heat. */
+/* Wakes a body, raising its event when it slept. */
+void f3d_wake(F3dWorld *world, F3dSlot *slot);
+
+/* A shape's placement, from its slot. */
+F3dPlaced f3d_placed_of(const F3dSlot *slot);
+
+/* The step's stages: motion, collision, heat. */
 void f3d_step_motion(F3dWorld *world, f3d_real dt);
+void f3d_step_collide(F3dWorld *world);
 void f3d_step_heat(F3dWorld *world, f3d_real dt);
 
 #endif /* F3D_INTERNAL_H_ */

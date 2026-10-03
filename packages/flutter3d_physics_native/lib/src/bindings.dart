@@ -18,13 +18,16 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 3;
+const int abiVersion = 4;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
 
 /// `F3D_FIRE_FLOATS`.
 const int fireFloats = 4;
+
+/// `F3D_CONTACT_FLOATS`.
+const int contactFloats = 7;
 
 /// `F3D_EVENT_CAPACITY`.
 const int eventCapacity = 65536;
@@ -60,6 +63,8 @@ abstract final class EventKind {
   static const int ignited = 2;
   static const int extinguished = 3;
   static const int burntOut = 4;
+  static const int contactBegan = 5;
+  static const int contactEnded = 6;
 }
 
 final class F3dWorld extends Opaque {}
@@ -80,6 +85,8 @@ final class F3dMaterial extends Struct {
   external double fuel_fraction;
   @Float()
   external double flame_feedback;
+  @Float()
+  external double conductivity;
 }
 
 @Native<Uint32 Function()>(isLeaf: true)
@@ -218,13 +225,47 @@ external int f3d_world_read_fires(
 );
 
 @Native<
-  Uint32 Function(Pointer<F3dWorld>, Pointer<Uint64>, Pointer<Uint32>, Uint32)
+  Uint32 Function(
+    Pointer<F3dWorld>,
+    Pointer<Uint64>,
+    Pointer<Uint64>,
+    Pointer<Uint32>,
+    Uint32,
+  )
 >(isLeaf: true)
 external int f3d_world_read_events(
   Pointer<F3dWorld> world,
   Pointer<Uint64> bodies,
+  Pointer<Uint64> others,
   Pointer<Uint32> kinds,
   int capacity,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Float)>(isLeaf: true)
+external int f3d_world_set_contact_margin(
+  Pointer<F3dWorld> world,
+  double margin,
+);
+
+@Native<Uint32 Function(Pointer<F3dWorld>)>(isLeaf: true)
+external int f3d_world_contact_count(Pointer<F3dWorld> world);
+
+@Native<
+  Uint32 Function(Pointer<F3dWorld>, Pointer<Float>, Pointer<Uint64>, Uint32)
+>(isLeaf: true)
+external int f3d_world_read_contacts(
+  Pointer<F3dWorld> world,
+  Pointer<Float> contacts,
+  Pointer<Uint64> pairs,
+  int capacity,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Uint32, Uint32)>(isLeaf: true)
+external int f3d_body_set_collision_filter(
+  Pointer<F3dWorld> world,
+  int body,
+  int layer,
+  int mask,
 );
 
 @Native<Uint32 Function(Pointer<F3dWorld>)>(isLeaf: true)

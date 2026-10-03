@@ -4,8 +4,8 @@
  *
  * A body is one temperature throughout — a lumped mass, which is right
  * while heat crosses it faster than it leaves its surface (a Biot number
- * under a tenth) and is what a game's crate, log or tyre needs. Conduction
- * between bodies that touch arrives with the contacts.
+ * under a tenth) and is what a game's crate, log or tyre needs. Bodies that
+ * touch pass heat across the contact.
  */
 #include "f3d_internal.h"
 
@@ -13,6 +13,7 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
   F3dMaterial m;
   f3d_zero(&m, sizeof m);
   m.emissivity = F3D_R(0.9);
+  m.conductivity = F3D_R(1.0);
   switch (kind) {
     case F3D_MATERIAL_INERT:
       m.specific_heat = F3D_R(1000.0);
@@ -22,6 +23,7 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
        * kilogram, and a burning surface losing about eleven grams a second
        * per square metre. */
       m.specific_heat = F3D_R(1700.0);
+      m.conductivity = F3D_R(0.12);
       m.ignition_temperature = F3D_R(573.15);
       m.heat_of_combustion = F3D_R(1.5e7);
       m.burn_rate = F3D_R(0.011);
@@ -31,6 +33,7 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
     case F3D_MATERIAL_PAPER:
       /* It catches at 451 °F. */
       m.specific_heat = F3D_R(1340.0);
+      m.conductivity = F3D_R(0.05);
       m.ignition_temperature = F3D_R(506.15);
       m.heat_of_combustion = F3D_R(1.6e7);
       m.burn_rate = F3D_R(0.02);
@@ -39,6 +42,7 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
       break;
     case F3D_MATERIAL_RUBBER:
       m.specific_heat = F3D_R(2010.0);
+      m.conductivity = F3D_R(0.16);
       m.emissivity = F3D_R(0.92);
       m.ignition_temperature = F3D_R(623.15);
       m.heat_of_combustion = F3D_R(3.2e7);
@@ -49,10 +53,12 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
     case F3D_MATERIAL_STEEL:
       /* Weathered, not polished: a polished surface is a tenth of this. */
       m.specific_heat = F3D_R(490.0);
+      m.conductivity = F3D_R(50.0);
       m.emissivity = F3D_R(0.6);
       break;
     case F3D_MATERIAL_STONE:
       m.specific_heat = F3D_R(840.0);
+      m.conductivity = F3D_R(2.5);
       m.emissivity = F3D_R(0.93);
       break;
     default:
@@ -84,6 +90,7 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
     return 0;
   }
   if (!in_range(m.flame_feedback, F3D_R(0.0), F3D_R(1.0))) return 0;
+  if (!(f3d_finite(m.conductivity) && m.conductivity > F3D_R(0.0))) return 0;
   s->material = m;
   s->fuel = s->mass * m.fuel_fraction;
   if (s->fuel <= F3D_R(0.0) || m.ignition_temperature <= F3D_R(0.0)) {
@@ -171,8 +178,103 @@ static f3d_real convection(f3d_real u) {
   return F3D_R(10.45) - v + F3D_R(10.0) * f3d_sqrt(v);
 }
 
+/* J/K the body holds: its own and its water's. */
+static f3d_real capacity_of(const F3dSlot *s) {
+  return s->mass * s->material.specific_heat + s->water * F3D_WATER_HEAT;
+}
+
+/* How big a body is where it touches: a ball's radius, a capsule's, a
+ * box's least half extent. */
+static f3d_real radius_of(const F3dSlot *s) {
+  switch (s->shape) {
+    case F3D_SHAPE_SPHERE:
+    case F3D_SHAPE_CAPSULE:
+      return s->size.x;
+    case F3D_SHAPE_BOX:
+      return f3d_min(s->size.x, f3d_min(s->size.y, s->size.z));
+    default:
+      return F3D_R(0.0);
+  }
+}
+
+/* Twice the area of the polygon a, b, c, d in that order, seen along n. */
+static f3d_real quad2(F3dVec3 a, F3dVec3 b, F3dVec3 c, F3dVec3 d, F3dVec3 n) {
+  return f3d_abs(f3d_dot(f3d_cross(f3d_sub(c, a), f3d_sub(d, b)), n));
+}
+
+/* The area two bodies touch over, m². A face resting on a face touches over
+ * the polygon its points span — of four points in whatever order, the
+ * largest of the three ways round is the convex one. A curved body pressed
+ * in by δ touches over Hertz's circle of radius √(Rδ), and two points of a
+ * line touch over its length by that circle's width. */
+static f3d_real contact_area(const F3dManifold *m, f3d_real r) {
+  f3d_real depth = F3D_R(0.0);
+  for (uint32_t i = 0; i < m->count; i++) {
+    depth = f3d_max(depth, m->points[i].depth);
+  }
+  const f3d_real pressed = r * depth;
+  const F3dVec3 n = m->normal;
+  const F3dContactPoint *p = m->points;
+  f3d_real area = F3D_PI * pressed;
+  if (m->count == 2) {
+    const F3dVec3 d = f3d_sub(p[1].point, p[0].point);
+    area = f3d_max(area, f3d_sqrt(f3d_dot(d, d)) * F3D_R(2.0) *
+                             f3d_sqrt(pressed));
+  } else if (m->count == 3) {
+    area = f3d_max(area, F3D_R(0.5) * f3d_abs(f3d_dot(
+                             f3d_cross(f3d_sub(p[1].point, p[0].point),
+                                       f3d_sub(p[2].point, p[0].point)),
+                             n)));
+  } else if (m->count == 4) {
+    const f3d_real a = quad2(p[0].point, p[1].point, p[2].point, p[3].point, n);
+    const f3d_real b = quad2(p[0].point, p[1].point, p[3].point, p[2].point, n);
+    const f3d_real c = quad2(p[0].point, p[2].point, p[1].point, p[3].point, n);
+    area = f3d_max(area, F3D_R(0.5) * f3d_max(a, f3d_max(b, c)));
+  }
+  return area;
+}
+
+/* Heat across every contact that touches. The conductance is Holm's
+ * constriction of two bodies meeting over a spot of radius a,
+ * G = 4a / (1/k₁ + 1/k₂), with a the radius of a circle of the contact's
+ * area; and the exchange is taken implicitly for the pair, so it carries
+ * them towards one temperature and never past it. In key order, so the
+ * same world passes the same heat. */
+static void conduct(F3dWorld *world, f3d_real dt) {
+  for (uint32_t i = 0; i < world->s.manifold_count; i++) {
+    const F3dManifold *m = &world->manifolds[i];
+    if (!m->touching) continue;
+    F3dSlot *a = f3d_slot_of(world, m->a);
+    F3dSlot *b = f3d_slot_of(world, m->b);
+    if (a == NULL || b == NULL) continue;
+    const f3d_real ca = capacity_of(a), cb = capacity_of(b);
+    /* No thermal mass: a fixed one is a reservoir, and nothing else can
+     * have none. */
+    const f3d_real ia = ca > F3D_R(0.0) ? F3D_R(1.0) / ca : F3D_R(0.0);
+    const f3d_real ib = cb > F3D_R(0.0) ? F3D_R(1.0) / cb : F3D_R(0.0);
+    if (ia == F3D_R(0.0) && ib == F3D_R(0.0)) continue;
+    const f3d_real ra = radius_of(a), rb = radius_of(b);
+    const f3d_real r = ra > F3D_R(0.0) && rb > F3D_R(0.0)
+                           ? ra * rb / (ra + rb)
+                           : f3d_max(ra, rb);
+    const f3d_real area = contact_area(m, r);
+    if (!(area > F3D_R(0.0))) continue;
+    const f3d_real spot = f3d_sqrt(area / F3D_PI);
+    const f3d_real g =
+        F3D_R(4.0) * spot /
+        (F3D_R(1.0) / a->material.conductivity +
+         F3D_R(1.0) / b->material.conductivity);
+    const f3d_real gdt = g * dt;
+    const f3d_real q = gdt * (b->temperature - a->temperature) /
+                       (F3D_R(1.0) + gdt * (ia + ib));
+    a->temperature += q * ia;
+    b->temperature -= q * ib;
+  }
+}
+
 void f3d_step_heat(F3dWorld *world, f3d_real dt) {
   const f3d_real ta = world->s.air_temperature;
+  conduct(world, dt);
   for (uint32_t i = 0; i < world->s.used; i++) {
     F3dSlot *s = &world->slots[i];
     if (!s->live) continue;

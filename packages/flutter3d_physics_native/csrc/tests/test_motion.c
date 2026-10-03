@@ -268,7 +268,7 @@ static void test_sleep(void) {
   CHECK(!f3d_body_is_asleep(w, b));
   for (int i = 0; i < 2; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
   CHECK(f3d_body_is_asleep(w, b));
-  CHECK(f3d_world_read_events(w, bodies, kinds, 4) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 4) == 1);
   CHECK(bodies[0] == b && kinds[0] == F3D_EVENT_SLEPT);
   f3d_real v[3], p[3], q[3];
   f3d_body_get_velocity(w, b, v);
@@ -282,7 +282,7 @@ static void test_sleep(void) {
   /* Pushed, it wakes and says so. */
   f3d_body_apply_impulse(w, b, 0, 1, 0);
   CHECK(!f3d_body_is_asleep(w, b));
-  CHECK(f3d_world_read_events(w, bodies, kinds, 4) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 4) == 1);
   CHECK(kinds[0] == F3D_EVENT_WOKE);
   /* A change of wind wakes what it blows on. */
   f3d_world_set_gravity(w, 0, 0, 0);

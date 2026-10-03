@@ -308,15 +308,15 @@ static void test_events(void) {
   F3dWorld *w = f3d_world_create();
   F3dBody bodies[4];
   uint32_t kinds[4];
-  CHECK(f3d_world_read_events(w, bodies, kinds, 4) == 0);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 4) == 0);
   f3d_push_event(w, 11, F3D_EVENT_IGNITED);
   f3d_push_event(w, 12, F3D_EVENT_SLEPT);
   f3d_push_event(w, 13, F3D_EVENT_WOKE);
   /* Read a part: the oldest first, and the rest waits. */
-  CHECK(f3d_world_read_events(w, bodies, kinds, 2) == 2);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 2) == 2);
   CHECK(bodies[0] == 11 && kinds[0] == F3D_EVENT_IGNITED);
   CHECK(bodies[1] == 12 && kinds[1] == F3D_EVENT_SLEPT);
-  CHECK(f3d_world_read_events(w, bodies, kinds, 4) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 4) == 1);
   CHECK(bodies[0] == 13 && kinds[0] == F3D_EVENT_WOKE);
   /* Past the capacity, the newest are dropped and counted, and the ring
    * wraps without losing order. */
@@ -324,12 +324,12 @@ static void test_events(void) {
     f3d_push_event(w, i + 1u, F3D_EVENT_SLEPT);
   }
   CHECK(f3d_world_events_dropped(w) == 5);
-  CHECK(f3d_world_read_events(w, bodies, kinds, 1) == 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 1) == 1);
   CHECK(bodies[0] == 1);
   f3d_push_event(w, 777, F3D_EVENT_WOKE);
   uint32_t left = 0;
   F3dBody last = 0;
-  while (f3d_world_read_events(w, bodies, kinds, 1) == 1) {
+  while (f3d_world_read_events(w, bodies, NULL, kinds, 1) == 1) {
     left++;
     last = bodies[0];
   }

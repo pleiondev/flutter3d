@@ -75,8 +75,8 @@ static void test_round_trip(void) {
   /* Including what they said happened. */
   F3dBody ba[64], bb[64];
   uint32_t ka[64], kb[64];
-  const uint32_t na = f3d_world_read_events(a, ba, ka, 64);
-  const uint32_t nb = f3d_world_read_events(b, bb, kb, 64);
+  const uint32_t na = f3d_world_read_events(a, ba, NULL, ka, 64);
+  const uint32_t nb = f3d_world_read_events(b, bb, NULL, kb, 64);
   CHECK(na == nb && na > 0);
   CHECK(memcmp(ba, bb, na * sizeof(F3dBody)) == 0);
   CHECK(memcmp(ka, kb, na * sizeof(uint32_t)) == 0);

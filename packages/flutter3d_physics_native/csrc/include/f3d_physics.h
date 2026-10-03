@@ -1,9 +1,9 @@
 /*
  * The physics core of flutter3d, in C11 — P9.
  *
- * One world owns everything it steps: bodies, their heat and fire, the wind
- * they move through, and colliders, contacts, joints and islands as they
- * arrive. Nothing here calls back into the caller during a step; what a step
+ * One world owns everything it steps: bodies, the contacts between their
+ * shapes and the islands those make, their heat and fire, the wind they
+ * move through, and the solver and joints as they arrive. Nothing here calls back into the caller during a step; what a step
  * produces is read afterwards, in flat buffers, which is what a Dart FFI
  * call or a WebAssembly import wants.
  *
@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 3u
+#define F3D_ABI_VERSION 4u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -65,8 +65,8 @@ typedef enum F3dBodyType {
   F3D_BODY_FIXED = 1,
 } F3dBodyType;
 
-/* What a body is shaped like, for its inertia, its surface and its drag.
- * Collision arrives with the contacts; these are the same shapes. */
+/* What a body is shaped like: what it collides as, and its inertia, its
+ * surface and its drag. */
 typedef enum F3dShapeKind {
   /* No extent: does not turn, has no surface, feels no wind. */
   F3D_SHAPE_POINT = 0,
@@ -96,6 +96,8 @@ typedef struct F3dMaterial {
   /* The share of the fire's heat that goes back into the body, nought to
    * one; the rest leaves as the hot gas a smoke grid takes. */
   f3d_real flame_feedback;
+  /* W / (m K): how readily heat crosses into what it touches. */
+  f3d_real conductivity;
 } F3dMaterial;
 
 typedef enum F3dMaterialKind {
@@ -114,6 +116,10 @@ typedef enum F3dEventKind {
   F3D_EVENT_IGNITED = 2,
   F3D_EVENT_EXTINGUISHED = 3,
   F3D_EVENT_BURNT_OUT = 4,
+  /* Two bodies came to touch, or stopped: the second is the other. A
+   * contact within the margin but not touching is neither. */
+  F3D_EVENT_CONTACT_BEGAN = 5,
+  F3D_EVENT_CONTACT_ENDED = 6,
 } F3dEventKind;
 
 /* Reals one body takes in f3d_world_read_transforms: position xyz, then the
@@ -123,6 +129,11 @@ typedef enum F3dEventKind {
 /* Reals one fire takes in f3d_world_read_fires: position xyz, then the
  * watts it gives off as hot gas. */
 #define F3D_FIRE_FLOATS 4u
+
+/* Reals one contact point takes in f3d_world_read_contacts: the normal
+ * xyz, out of the second body into the first, the point xyz halfway
+ * between their surfaces, and the depth, positive inside. */
+#define F3D_CONTACT_FLOATS 7u
 
 /* Events held unread before the newest are dropped and counted. */
 #define F3D_EVENT_CAPACITY 65536u
@@ -208,10 +219,15 @@ F3D_API uint32_t f3d_world_body_count(const F3dWorld *world);
  * steps: the velocity gains gravity, the wind's drag and the forces added
  * since the last step, all times dt, and the spin the torques; then the
  * position gains the new velocity times dt and the orientation turns by the
- * spin, its angular momentum carried through. Then every body's heat: what
+ * spin, its angular momentum carried through. Then the contacts where the
+ * bodies now stand, what began and ended touching, and the islands that
+ * sleep and wake. Then every body's heat: what crossed each contact, what
  * the bus brought, the fire's share, convection to the moving air and
  * radiation to it, the water on it boiling off at 373.15 K first. Forces,
- * torques and heat added through the bus are spent by the step. */
+ * torques and heat added through the bus are spent by the step.
+ *
+ * Nothing yet pushes touching bodies apart: the solver is the next phase.
+ * The contacts are found and reported, and heat crosses them. */
 F3D_API void f3d_world_step(F3dWorld *world, f3d_real dt);
 
 /* Writes every body's transform, F3D_TRANSFORM_FLOATS reals apiece, into
@@ -229,10 +245,29 @@ F3D_API uint32_t f3d_world_read_transforms(const F3dWorld *world,
 F3D_API uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
                                       F3dBody *handles, uint32_t capacity);
 
-/* Moves up to [capacity] events, oldest first, into [bodies] and [kinds],
- * and returns how many. What is not read stays for the next call. */
+/* Moves up to [capacity] events, oldest first, into [bodies], [others]
+ * (the second body of an event between two, nought for the rest; may be
+ * null) and [kinds], and returns how many. What is not read stays for the
+ * next call. A contact's handles are as they were when it ended, so one
+ * ended by a body's removal names a body no longer there. */
 F3D_API uint32_t f3d_world_read_events(F3dWorld *world, F3dBody *bodies,
-                                       uint32_t *kinds, uint32_t capacity);
+                                       F3dBody *others, uint32_t *kinds,
+                                       uint32_t capacity);
+
+/* How near two shapes must come to make a contact, m; a contact inside it
+ * but not touching has a negative depth. 0 for a margin that is negative
+ * or not finite. Default 0.02. */
+F3D_API int f3d_world_set_contact_margin(F3dWorld *world, f3d_real margin);
+
+/* Contact points the last step found, over every pair. */
+F3D_API uint32_t f3d_world_contact_count(const F3dWorld *world);
+
+/* Writes up to [capacity] contact points, F3D_CONTACT_FLOATS reals apiece,
+ * into [contacts], and each one's two bodies into [pairs] two at a time
+ * when that is not null, in order of the pair's slots; returns how many. */
+F3D_API uint32_t f3d_world_read_contacts(const F3dWorld *world,
+                                         f3d_real *contacts, F3dBody *pairs,
+                                         uint32_t capacity);
 
 /* Events dropped because F3D_EVENT_CAPACITY were waiting unread. */
 F3D_API uint32_t f3d_world_events_dropped(const F3dWorld *world);
@@ -345,7 +380,15 @@ F3D_API int f3d_body_add_force(F3dWorld *world, F3dBody body, f3d_real x,
 F3D_API int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x,
                                 f3d_real y, f3d_real z);
 
-/* 1 while the body sleeps. */
+/* What the body is, [layer], and what it meets, [mask]: two bodies collide
+ * when each one's layer has a bit in the other's mask. Defaults 1 and every
+ * bit. */
+F3D_API int f3d_body_set_collision_filter(F3dWorld *world, F3dBody body,
+                                          uint32_t layer, uint32_t mask);
+
+/* 1 while the body sleeps. Bodies sleep and wake by islands: those joined
+ * by their contacts sleep when all of them have been still for the sleep
+ * time, and wake together when any of them moves. */
 F3D_API int f3d_body_is_asleep(const F3dWorld *world, F3dBody body);
 
 /* Wakes the body, and starts its sleep clock again. */
@@ -357,7 +400,9 @@ F3D_API int f3d_body_wake(F3dWorld *world, F3dBody body);
 F3D_API int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out);
 
 /* What the body is made of. Its fuel is its mass times the material's
- * fuel fraction, counted from now. 0 for a value out of its range. */
+ * fuel fraction, counted from now. 0 for a value out of its range. A fixed
+ * body of no thermal mass — no mass and no water — is a reservoir: it gives
+ * and takes heat through its contacts and keeps its temperature. */
 F3D_API int f3d_body_set_material(F3dWorld *world, F3dBody body,
                                   const F3dMaterial *material);
 
