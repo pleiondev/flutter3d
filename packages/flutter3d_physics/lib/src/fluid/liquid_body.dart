@@ -178,6 +178,18 @@ final class LiquidBody implements JetReceiver {
     return _up.dot(q) - radius <= surface + 0.25 * radius;
   }
 
+  @override
+  bool wets(Vector3 point, double radius) {
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return false;
+    final q = _near(point, radius);
+    if (q == null || !shape.contains(q)) return false;
+    final at = shape.wallDistance(q);
+    // Held a radius off the glass, and so touching it within a radius and
+    // a quarter.
+    return at != null && at.distance > -1.25 * radius;
+  }
+
   /// Liquid arriving from a stream: added, first heaped where it lands —
   /// its own volume over the patch it strikes — and striking the surface
   /// with the momentum it comes down with, from where both spread as waves.

@@ -242,12 +242,13 @@ final class ParticleFluid {
     for (var s = 0; s < count; s++) {
       _substep(sub, g, walls);
     }
-    // Into a vessel's liquid: handed over, whole.
+    // Into a vessel's liquid, or onto its glass inside, which runs down
+    // into it: handed over, whole.
     final radius = 0.5 * spacing;
     for (var i = _x.length - 1; i >= 0; i--) {
       final at = _x[i].toVector3();
       for (final r in receivers) {
-        if (!r.catches(at, radius)) continue;
+        if (!r.catches(at, radius) && !r.wets(at, radius)) continue;
         r.receive(particleVolume, at, _v[i].toVector3(), medium, _c[i]);
         _received += particleVolume;
         _x.removeAt(i);
@@ -270,6 +271,14 @@ final class ParticleFluid {
     for (var i = 0; i < n; i++) {
       _collide(_x[i], obstacles);
     }
+    // **What touches a wall is pinned to it.** A drop's edge on glass or
+    // the bench holds where it is until something pushes harder than the
+    // contact angle's hysteresis lets it, which nothing a millimetre drop
+    // weighs does: a particle touching a wall at the start of the substep
+    // moves only off it, or not at all. Left free along it, three
+    // particles that came down on the bench rolled away over each other as
+    // a wheel does, faster with every turn.
+    final pinned = [for (var i = 0; i < n; i++) _contact(_x[i], obstacles)];
     final rho0 = medium.density;
     final m = _mass;
     final norm = 1.0 / _latticeSum;
@@ -305,7 +314,11 @@ final class ParticleFluid {
     }
     // Predict, then hold the density to the rest density.
     final p = [
-      for (var i = 0; i < n; i++) _advance(_x[i], _v[i], dt, obstacles),
+      for (var i = 0; i < n; i++)
+        if (pinned[i] case final wall?)
+          _pin(_advance(_x[i], _v[i], dt, obstacles), _x[i], wall)
+        else
+          _advance(_x[i], _v[i], dt, obstacles),
     ];
     final lambda = List<double>.filled(n, 0.0);
     final grid2 = _Grid(h, p);
@@ -353,6 +366,7 @@ final class ParticleFluid {
       for (var i = 0; i < n; i++) {
         p[i].add(delta[i]);
         _collide(p[i], obstacles);
+        if (pinned[i] case final wall?) _pin(p[i], _x[i], wall);
       }
     }
     // Velocities from the move, then XSPH's viscosity.
@@ -370,11 +384,102 @@ final class ParticleFluid {
         smoothed[i].addScaled(_v[j] - _v[i], share * w);
       }
     }
+    // A viscous liquid's velocity at a wall at rest is nil along it, and
+    // nothing goes on into it: what touches one keeps only the part of its
+    // velocity that leaves. Left its speed along the wall, a drop that fell
+    // on the bench slid off at five centimetres a second and never
+    // stopped, and ended up under another glass's foot, looking as if it
+    // were inside.
+    final onWall = List<bool>.filled(n, false);
     for (var i = 0; i < n; i++) {
-      _v[i] = smoothed[i];
+      final wall = _contact(p[i], obstacles);
+      onWall[i] = wall != null;
+      _v[i] = wall == null
+          ? smoothed[i]
+          : wall * math.max(_dot(smoothed[i], wall), 0.0);
       _x[i] = p[i];
     }
+    _holdSmallDrops(near, onWall, gravity);
   }
+
+  /// **A drop smaller than the capillary length, pinned, stands still.**
+  /// Under ℓc = √(σ/ρg), 2.7 mm for water, surface tension holds a drop's
+  /// shape against its weight, and what of it touches a wall is pinned:
+  /// it stays as a whole where it is. Pinning only the particles that touch
+  /// let the others turn over them, and a three-particle drop on the bench
+  /// rolled away; a puddle wider than ℓc still spreads.
+  void _holdSmallDrops(List<List<int>> near, List<bool> onWall, _V gravity) {
+    final n = _x.length;
+    final g = gravity.length;
+    if (n == 0 || g <= 0.0 || medium.surfaceTension <= 0.0) return;
+    final capillary = math.sqrt(medium.surfaceTension / (medium.density * g));
+    final parent = List<int>.generate(n, (i) => i);
+    int root(int i) {
+      var r = i;
+      while (parent[r] != r) {
+        r = parent[r];
+      }
+      return parent[i] = r;
+    }
+
+    // One drop: particles nearer each other than a spacing and a half.
+    final touching = 2.25 * spacing * spacing;
+    for (var i = 0; i < n; i++) {
+      for (final j in near[i]) {
+        if (_x[i].distance2(_x[j]) < touching) parent[root(i)] = root(j);
+      }
+    }
+    final low = <int, _V>{};
+    final high = <int, _V>{};
+    final held = <int>{};
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      final p = _x[i];
+      final lo = low[r] ??= p.copy();
+      final hi = high[r] ??= p.copy();
+      lo
+        ..x = math.min(lo.x, p.x)
+        ..y = math.min(lo.y, p.y)
+        ..z = math.min(lo.z, p.z);
+      hi
+        ..x = math.max(hi.x, p.x)
+        ..y = math.max(hi.y, p.y)
+        ..z = math.max(hi.z, p.z);
+      if (onWall[i]) held.add(r);
+    }
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      if (!held.contains(r)) continue;
+      // Across it, a particle's width beyond the centres.
+      if ((high[r]! - low[r]!).length + spacing < capillary) {
+        _v[i] = _V(0, 0, 0);
+      }
+    }
+  }
+
+  /// The normal of the wall [p] touches, if it touches one. Put out a
+  /// radius from a wall, a particle touches it at a radius and a little.
+  _V? _contact(_V p, List<JetObstacle> obstacles) {
+    final reach = 0.55 * spacing;
+    for (final o in obstacles) {
+      final hit = o.touch(p.toVector3(), reach);
+      if (hit != null) return _V(hit.normal.x, hit.normal.y, hit.normal.z);
+    }
+    return null;
+  }
+
+  /// [p] moved back to where [from] was along the wall of normal [n]: off
+  /// it is the only way it goes.
+  _V _pin(_V p, _V from, _V n) {
+    final off = math.max(_dot(p - from, n), 0.0);
+    p
+      ..x = from.x + n.x * off
+      ..y = from.y + n.y * off
+      ..z = from.z + n.z * off;
+    return p;
+  }
+
+  static double _dot(_V a, _V b) => a.x * b.x + a.y * b.y + a.z * b.z;
 
   /// Where [x] moving at [v] is after [dt]: moved in pieces of two fifths
   /// of a spacing, put out of the walls after each. A wall holds what comes
