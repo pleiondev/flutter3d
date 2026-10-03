@@ -139,7 +139,8 @@ final class FluidWorld {
     for (final body in bodies) {
       body
         ..background = helper
-        ..surface.solver = helper;
+        ..surface.solver = helper
+        ..surface.nativeModes = nativeKernels;
     }
     for (final liquid in bodies) {
       var displaced = 0.0;

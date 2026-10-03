@@ -171,4 +171,57 @@ void main() {
       expect((fast - reference).length, lessThan(0.001));
     },
   );
+
+  test('the native modes of a round cross-section are the Dart ones', () {
+    // A disc of cells twelve across its radius, as a test tube's surface.
+    const r = 12;
+    final index = <int, int>{};
+    for (var y = -r; y <= r; y++) {
+      for (var x = -r; x <= r; x++) {
+        if (x * x + y * y <= r * r) {
+          index[(y + r) * 100 + (x + r)] = index.length;
+        }
+      }
+    }
+    final neighbours = List<List<int>>.generate(index.length, (_) => []);
+    index.forEach((key, i) {
+      for (final d in const [1, -1, 100, -100]) {
+        final j = index[key + d];
+        if (j != null) neighbours[i].add(j);
+      }
+    });
+    final n = index.length;
+    const cell2 = 0.0006 * 0.0006;
+    final dart = FreeSurface.solveModes(n, neighbours, cell2, 4);
+    final native = FreeSurface.solveModes(
+      n,
+      neighbours,
+      cell2,
+      4,
+      native: true,
+    );
+    for (var m = 0; m < 4; m++) {
+      expect(native.$2[m], closeTo(dart.$2[m], dart.$2[m] * 1e-9));
+    }
+    // Each native mode lies in the span of the Dart modes of its own k²:
+    // a round section's come in pairs, and either turn of a pair is right.
+    double dot(Float64List a, Float64List b) {
+      var s = 0.0;
+      for (var i = 0; i < n; i++) {
+        s += a[i] * b[i];
+      }
+      return s;
+    }
+
+    for (var m = 0; m < 4; m++) {
+      final mode = native.$1[m];
+      var projected = 0.0;
+      for (var d = 0; d < 4; d++) {
+        if ((dart.$2[d] - native.$2[m]).abs() > dart.$2[d] * 1e-6) continue;
+        final c = dot(mode, dart.$1[d]) / dot(dart.$1[d], dart.$1[d]);
+        projected += c * c * dot(dart.$1[d], dart.$1[d]);
+      }
+      expect(projected / dot(mode, mode), closeTo(1.0, 1e-9));
+    }
+  });
 }

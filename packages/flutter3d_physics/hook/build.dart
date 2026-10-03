@@ -28,7 +28,7 @@ void main(List<String> arguments) async {
     final builder = CBuilder.library(
       name: 'flutter3d_physics_native',
       assetName: 'src/fluid/native/pbf_native.dart',
-      sources: ['src/pbf_kernels.c'],
+      sources: ['src/pbf_kernels.c', 'src/surface_modes.c'],
       flags: msvc ? const ['/O2'] : const ['-O3', '-fno-math-errno'],
     );
     try {

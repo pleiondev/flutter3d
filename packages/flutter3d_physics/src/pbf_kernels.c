@@ -76,7 +76,7 @@ static inline f3d_d2 poly6_2(const double* k, f3d_d2 r2) {
 }
 #endif
 
-F3D_EXPORT int32_t f3d_pbf_version(void) { return 3; }
+F3D_EXPORT int32_t f3d_pbf_version(void) { return 4; }
 
 // Of the rows [start] and [list], those within [radius] at [x], in order,
 // into [out_start] and [out] (room for as many as [list] has).
