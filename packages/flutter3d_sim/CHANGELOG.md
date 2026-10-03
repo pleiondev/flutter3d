@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A brush can say where it draws.** `Brush.drawOrder`, `drawOrder` in the
+  document and written only when it is not nought, is the engine's
+  `MeshNode.drawOrder` for level geometry: a water surface after the floor
+  under it, a decal brush over a wall. Brushes at different places in the
+  order are never one batch, since a batch draws as one; a breach keeps the
+  order of the brush it cut.
+
 - **A `.f3drun` carries the levels edited under the run.**
   `Demo.levelSwaps` holds each one as a `DemoLevelSwap`: the step it took
   effect before and the whole document, since the edited level exists in no

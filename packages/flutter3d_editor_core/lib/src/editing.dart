@@ -253,6 +253,7 @@ final class Editing {
             shadowCasting: brush.shadowCasting,
             layer: brush.layer,
             ramp: brush.ramp,
+            drawOrder: brush.drawOrder,
           ),
         );
         selected = level.brushes.length - 1;
@@ -481,6 +482,7 @@ final class Editing {
         'surface': '',
         'layer': 0,
         'ramp': '+x',
+        'drawOrder': 0,
       },
       Piece.light => const <String, Object?>{
         'type': 'point',

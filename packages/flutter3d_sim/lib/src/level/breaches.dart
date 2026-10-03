@@ -48,6 +48,7 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
         shadowCasting: brush.shadowCasting,
         surface: brush.surface,
         layer: brush.layer,
+        drawOrder: brush.drawOrder,
       ),
     );
   }

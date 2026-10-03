@@ -218,7 +218,10 @@ final class LevelScene {
           // from both faces. See `Brush.shadowCasting` — and note that this
           // is why surfaces are batched by that answer as well as by
           // material: a batch is the smallest thing that can answer it.
-          ..shadowCasting = shadowModeOf(surface.shadowCasting);
+          ..shadowCasting = shadowModeOf(surface.shadowCasting)
+          // `P7`: the document's order, which is also why surfaces are
+          // batched by it.
+          ..drawOrder = surface.drawOrder;
     return (
       node: node,
       mesh: mesh,

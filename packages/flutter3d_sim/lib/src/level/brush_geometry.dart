@@ -112,7 +112,8 @@ final class BrushGeometry {
   }) {
     final builders = <String, SurfaceBuilder>{};
 
-    // Keyed by material and by the shadow answer, because a batch is the
+    // Keyed by material, by the draw order — `P7` — and by the shadow
+    // answer, because a batch is the
     // smallest thing that can be taken out of the shadow pass — and by the
     // cell, when there is a table to say which cell a face is in. A level
     // with no fences and no table produces exactly the batches it always did.
@@ -120,12 +121,15 @@ final class BrushGeometry {
       final brush = level.brushes[index];
       final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
       final own = perBrush ? '|#$index' : '';
-      final key = '${brush.material}|${brush.shadowCasting.name}|$slot$own';
+      final key =
+          '${brush.material}|${brush.shadowCasting.name}|$slot$own'
+          '|${brush.drawOrder}';
       return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(
           brush.material,
           shadowCasting: brush.shadowCasting,
+          drawOrder: brush.drawOrder,
           lightmapped: lightmap != null,
           brush: perBrush ? index : null,
         ),

@@ -1,3 +1,9 @@
+## Unreleased
+
+- **The draw order of a brush, in the scene and the inspector.**
+  `LevelScene` gives each batch its brushes' `drawOrder`, a duplicate keeps
+  it, and the inspector offers it on a brush that has never said.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

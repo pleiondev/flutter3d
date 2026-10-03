@@ -16,6 +16,7 @@ final class BrushSurface {
   BrushSurface({
     required this.material,
     required this.shadowCasting,
+    this.drawOrder = 0,
     required this.positions,
     required this.normals,
     required this.texcoords,
@@ -26,6 +27,9 @@ final class BrushSurface {
   });
 
   final String material;
+
+  /// [Brush.drawOrder] of the brushes this surface was built from — `P7`.
+  final int drawOrder;
 
   /// Which of the level's brushes this surface is, when the level was built
   /// one surface per brush (`BrushGeometry.build`'s `perBrush`), and null

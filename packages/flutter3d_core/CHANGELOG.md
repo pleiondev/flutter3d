@@ -96,6 +96,17 @@
   stood between that plane and the camera used to have a depth of nought
   or less, which the surface buffer reads as sky, and took no fog.
 
+- **Splats through an orthographic camera are sorted by depth.** Distance
+  from wherever the camera was put along its axis put a splat off to the
+  side behind one it covers; `SplatSorter.sort` takes an `axis`, and
+  `SplatQuads` sorts along the lens's own through an orthographic one,
+  re-sorting when it turns rather than when it moves.
+
+- **`MeshOverlay.lookThrough(camera, width, height)`** works the overlay's
+  pixel out from the camera's projection, which answers for every kind of
+  lens. The example worked it out from a field of view and sized every
+  handle through an orthographic camera as if seen in perspective.
+
 - **A material channel in place of the light, over all or part of the
   frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
   `DebugView` — albedo, the shading normal, roughness, metalness,

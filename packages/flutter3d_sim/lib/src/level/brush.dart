@@ -62,6 +62,7 @@ final class Brush {
     String? surface,
     this.layer,
     this.ramp,
+    this.drawOrder = 0,
     Map<String, Object?> source = const <String, Object?>{},
   }) : centre = centre.clone(),
        size = size.clone(),
@@ -109,6 +110,15 @@ final class Brush {
   /// through, a wall the AI respects and the player does not — all of them are
   /// a brush on a bit of its own, and all of them were unauthorable.
   final int? layer;
+
+  /// Where this brush draws among things in the same bucket — `P7`, the
+  /// engine's `MeshNode.drawOrder` said in the level document.
+  ///
+  /// Nought unless the document says otherwise. Higher draws later: a decal
+  /// brush laid over a floor, a water surface that must come after what is
+  /// under it. Brushes with different orders never share a batch, since a
+  /// batch draws as one.
+  final int drawOrder;
 
   /// Whether this brush stops anything.
   ///
@@ -203,6 +213,7 @@ final class Brush {
     surface: json.textOrNull('surface'),
     layer: json.integerOrNull('layer'),
     ramp: _rampFromName(json.textOrNull('ramp')),
+    drawOrder: json.integerOrNull('drawOrder') ?? 0,
     source: json,
   );
 
@@ -264,6 +275,7 @@ final class Brush {
         ramp == null ? null : _rampName(ramp!),
         whenAbsent: ramp != null,
       ),
+      WriteThroughField('drawOrder', drawOrder, whenAbsent: drawOrder != 0),
     ]);
   }
 }
