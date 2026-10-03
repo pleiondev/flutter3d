@@ -650,6 +650,7 @@ extension _ShadowPasses on Renderer {
     required ShadowSettings settings,
     required int casterIndex,
     CameraNode? camera,
+    double aspect = 1.0,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
@@ -749,7 +750,30 @@ extension _ShadowPasses on Renderer {
     final radii = <double>[];
     final splits = <double>[0.0, 0.0];
 
-    if (count > 1 && camera != null) {
+    if (count > 1 &&
+        camera != null &&
+        camera.projection is OrthographicProjection) {
+      // `P7`: through an orthographic lens the eye is only where the camera
+      // was put, often tens of metres back, and splitting by distance from
+      // it spent the near cascades on air. Split evenly by depth across what
+      // the view box sees of the casters instead — see
+      // [orthographicCascades]. The shaders pick a cascade by the same depth
+      // through that lens (`shadow.glsl`).
+      final near = orthographicCascades(
+        viewProjection: camera.viewProjection(aspect),
+        eye: camera.readWorldPosition(),
+        forward: camera.readForward(),
+        boundsMin: bounds.min,
+        boundsMax: bounds.max,
+        slabs: count - 1,
+        reach: math.max(settings.viewDistance, 1.0),
+      );
+      for (final (i, cascade) in near.indexed) {
+        splits[i] = cascade.end;
+        centres.add(cascade.centre);
+        radii.add(cascade.radius);
+      }
+    } else if (count > 1 && camera != null) {
       final eyeAt = camera.readWorldPosition();
       final forward = camera.readForward();
       final near = 1.0;
@@ -1251,7 +1275,7 @@ extension _ShadowPasses on Renderer {
         final skinned = skeleton != null;
         // `gfx-60n`. A cut-out caster goes through a stage with a sampler in
         // it; everything else keeps the stage it has always had, which is why
-        // the masked half costs the common path nothing and why ninety
+        // the masked half costs the common path nothing and why ninety-one
         // goldens recorded against the plain stage cannot move.
         final masked = maskedShadowShader != shadowShader && _castsMasked(node);
         final kind =

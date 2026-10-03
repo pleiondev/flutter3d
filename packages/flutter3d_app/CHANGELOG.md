@@ -1,5 +1,8 @@
 ## Unreleased
 
+- A level's `Brush.drawOrder` reaches the nodes `LevelLoader` builds
+  (`P7`).
+
 - **`HotSwap.loadMaterial`** loads the bundle the build hook compiled a
   `.f3dmat` into and watches it — `P8`: the library for the renderer, the
   materials' lighting models and parameters, and an edit drawn by the next

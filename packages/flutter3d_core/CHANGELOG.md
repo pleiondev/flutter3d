@@ -1,5 +1,30 @@
 ## Unreleased
 
+- **Splats under an orthographic camera are sorted by depth along the view
+  axis** (`P7`): `SplatSorter.sort` and `SplatQuads.build` take an `axis`,
+  and `SplatContributor` passes the camera's under an orthographic lens. By
+  distance from the eye's point, two splats side by side at one depth were
+  ordered by how far each stood from the axis. A turn of the axis sorts
+  again.
+
+- `SplatContributor` binds the fog's whole block, the view axis, the lens
+  and the height fog's falloff with it, so a cloud fogs by depth under an
+  orthographic camera and thins upwards in a height fog (`P7`, `P5`).
+
+- **Shadow cascades under an orthographic camera split by depth across what
+  the view sees** — `P7`. They were split by distance from the eye, which an
+  orthographic camera puts tens of metres back, so the near cascades covered
+  air in front of the lens and every shadow came from the last, whole-level
+  map. Now the depths where the view box meets the casters' bounds, capped at
+  `ShadowSettings.viewDistance`, are cut into equal slabs, one per near
+  cascade, each fitted to its own share of the box; the last cascade is still
+  the whole scene, and the reach back towards the light is kept. The slab
+  ends and the radii are rounded onto a grid a sixteenth of their power of
+  two, so a pan or a caster that moves leaves the maps' texels, and the
+  scroll of a still tile, where they were.
+  `Renderer.debugCascadeSplits` reports where they ended.
+  `orthographic-shadow` is in all four golden sets.
+
 - **Caustics.** `ShadowSettings.caustics` (with `translucentCasters`, off by
   default) follows the sun's light through every caster with a volume — a
   transmission and a thickness. Each is drawn from the sun into two small

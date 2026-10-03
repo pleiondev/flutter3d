@@ -77,8 +77,16 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // suggests. Falling through to the next one costs a branch and removes a
   // whole class of missing-shadow bug, and the last cascade is fitted to the
   // entire scene, so the fall-through always terminates somewhere real.
+  //
+  // `P7`: through an orthographic lens the cascades are slabs of depth along
+  // the view axis, because the eye is only where the camera was put and a
+  // distance from it is mostly how far it was put back. The renderer splits
+  // by that depth there, so this picks by it.
   int cascadeCount = int(frag_info.shadow_cascades.z + 0.5);
   float viewDistance = length(v_world_position - frag_info.camera_position.xyz);
+#ifndef F3D_NO_FOG
+  if (Orthographic()) viewDistance = max(ViewDepth(), 0.0);
+#endif
   int cascade = 0;
   if (cascadeCount > 1 && viewDistance > frag_info.shadow_cascades.x) cascade = 1;
   if (cascadeCount > 2 && viewDistance > frag_info.shadow_cascades.y) cascade = 2;

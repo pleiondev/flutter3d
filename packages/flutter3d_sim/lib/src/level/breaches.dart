@@ -48,6 +48,8 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
         shadowCasting: brush.shadowCasting,
         surface: brush.surface,
         layer: brush.layer,
+        // A stripe cut in half is still drawn over the floor it lies on.
+        drawOrder: brush.drawOrder,
       ),
     );
   }

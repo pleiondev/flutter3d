@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
+import 'cpu_shaders_color.dart';
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_surface.dart';
 
@@ -62,7 +63,11 @@ double shadowFactor(
   final cascades = b.vec4('FragInfo', 'shadow_cascades', Vector4(0, 0, 1, 0));
   final count = (cascades.z + 0.5).floor().clamp(1, 3);
   final camera = b.vec4('FragInfo', 'camera_position', Vector4.zero());
-  final viewDistance = (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  // `P7`: by depth along the view axis through an orthographic lens, where
+  // the renderer splits the cascades into slabs of depth.
+  final viewDistance = orthographic(b)
+      ? math.max(0.0, (s.world - _fogEye(b)).dot(_fogForward(b)))
+      : (s.world - Vector3(camera.x, camera.y, camera.z)).length;
   var cascade = 0;
   if (count > 1 && viewDistance > cascades.x) cascade = 1;
   if (count > 2 && viewDistance > cascades.y) cascade = 2;
@@ -284,4 +289,15 @@ double shadowNoise(ShaderBindings b, FragmentContext? c) {
   final y = row + step;
   double fract(double v) => v - v.floorToDouble();
   return fract(52.9829189 * fract(x * 0.06711056 + y * 0.00583715));
+}
+
+/// `FogInfo.eye` and `FogInfo.forward`, which `ViewDepth` measures from.
+Vector3 _fogEye(ShaderBindings b) {
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  return Vector3(eye.x, eye.y, eye.z);
+}
+
+Vector3 _fogForward(ShaderBindings b) {
+  final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+  return Vector3(forward.x, forward.y, forward.z);
 }

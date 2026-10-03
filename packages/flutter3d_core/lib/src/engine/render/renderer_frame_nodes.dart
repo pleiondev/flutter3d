@@ -301,11 +301,16 @@ final class _ShadowMapNode extends RenderNode {
     required this.settings,
     required this.casterIndex,
     this.camera,
+    this.aspect = 1.0,
   });
 
   /// Where the player is looking, for cascade splits. Null for a scene with no
   /// views, which is a scene with nothing to split by.
   final CameraNode? camera;
+
+  /// [camera]'s view's width over its height — `P7`: an orthographic view's
+  /// box is as wide as this makes it, and its cascades are fitted to the box.
+  final double aspect;
 
   final Renderer _renderer;
   final Scene scene;
@@ -332,6 +337,7 @@ final class _ShadowMapNode extends RenderNode {
       settings: settings,
       casterIndex: casterIndex,
       camera: camera,
+      aspect: aspect,
     );
     if (!drew) return;
     frame.resources.provide(

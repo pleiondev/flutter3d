@@ -16,6 +16,7 @@ final class BrushSurface {
   BrushSurface({
     required this.material,
     required this.shadowCasting,
+    this.drawOrder = 0,
     required this.positions,
     required this.normals,
     required this.texcoords,
@@ -58,6 +59,11 @@ final class BrushSurface {
   /// Whether it takes part in the shadow pass at all — the two-state view of
   /// [shadowCasting], as on the brushes this came from.
   bool get castsShadow => shadowCasting.casts;
+
+  /// Where the draw built from this goes among the others — `Brush.drawOrder`
+  /// of the brushes it came from, which share it: surfaces are keyed by it
+  /// too, because the node a batch becomes has one place in the order.
+  final int drawOrder;
 
   /// Three floats per vertex.
   final Float32List positions;

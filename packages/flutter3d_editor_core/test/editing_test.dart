@@ -214,6 +214,32 @@ void main() {
       expect(editing.brush!.centre.x, from.centre.x + from.size.x);
       expect(editing.brush!.material, from.material);
     });
+
+    test('and a duplicate keeps its place in the draw order', () {
+      // Mutation: leave `drawOrder` out of the copy `duplicate` builds. A
+      // second stripe copied off the first is drawn at nought and fights the
+      // floor the first one sits on cleanly.
+      final editing = Editing.parse(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'name': 'test',
+          'brushes': <Object?>[
+            <String, Object?>{
+              'at': <double>[0.0, 0.01, 0.0],
+              'size': <double>[1.0, 0.02, 20.0],
+              'solid': false,
+              'drawOrder': 3,
+            },
+          ],
+        }),
+        path: '/levels/test.json',
+      )..select(Piece.brush, 0);
+
+      editing.duplicate();
+
+      expect(editing.level.brushes, hasLength(2));
+      expect(editing.brush!.drawOrder, 3);
+    });
   });
 
   group('undo', () {

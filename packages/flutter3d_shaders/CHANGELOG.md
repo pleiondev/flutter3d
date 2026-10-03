@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **Particles and splats declare the fog's block whole**, in the new
+  `lib/particle_fog.glsl` — `P7`, `P5`. They declared its first two members,
+  so they fogged in rings round the eye's point under an orthographic
+  camera, faced a mesh particle towards that point, and fogged at the
+  camera's density in a height fog. Now they fog by depth from the eye's
+  plane through an orthographic lens, a mesh particle faces the view axis
+  there, and the height fog is integrated along the ray as `ApplyFog` does.
+
+- `ShadowFactor` picks a cascade by depth along the view axis through an
+  orthographic lens (`P7`); the light shafts and the volumetric fog pick by
+  the way along the ray from where depth is nought, the same distance through
+  a perspective lens.
+
 - **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
   of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
   when its photons are followed.

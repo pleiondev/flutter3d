@@ -1,5 +1,8 @@
 ## Unreleased
 
+- The `orthographic-shadow` golden scene: posts down a long floor through an
+  isometric camera, the shadow cascades split by depth (`P7`).
+
 - **`generatedMaterialPathFor`**: where the build hook writes a `.f3dmat`'s
   compiled bundle, `flutter3d_generated/<same path>.f3dshaders`.
 

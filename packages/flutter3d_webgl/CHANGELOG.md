@@ -1,5 +1,11 @@
 ## Unreleased
 
+- The shader table regenerated for the particles' and splats' whole fog
+  block.
+
+- The shader table regenerated for the orthographic camera's cascade pick;
+  `orthographic-shadow` is in the browser reference set.
+
 - The shader table regenerated for the caustic stages.
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured

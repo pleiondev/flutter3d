@@ -2691,7 +2691,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **11340 tests** across 43 packages and 10 applications |
+| Unit tests | **11368 tests** across 43 packages and 10 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2731,7 +2731,7 @@ material parameter — is the case `doc/boundary-0.5.0.md` worked through for
 set belongs to whoever builds on the package rather than to the package
 itself.
 
-**Golden render tests.** 90 scenes against **four complete independent
+**Golden render tests.** 91 scenes against **four complete independent
 reference sets** — Impeller, the software rasteriser, WebGL2 and WebGPU — each
 held to zero differing pixels against its own set, with a per-channel tolerance
 of 8.
@@ -3143,7 +3143,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws all ninety golden scenes the way Impeller does**,
+**The web backend draws all ninety-one golden scenes the way Impeller does**,
 between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's
@@ -3259,7 +3259,7 @@ and charge each of them the bytes, and neither is a change to make on somebody
 else's behalf. A build that wants it says so in one flag, and the engine's own
 example takes the same answer from `?backend=webgpu` in the URL — a query
 parameter rather than a define, because the browser golden stand's whole saving
-is one dart2js run serving ninety scenes and both browser backends.
+is one dart2js run serving ninety-one scenes and both browser backends.
 
 **`flutter3d_shaders` is one text and no two backends take it the same way.**
 Impeller compiles the GLSL with `impellerc`; the WebGL2 generator translates it

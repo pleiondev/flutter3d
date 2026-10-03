@@ -206,15 +206,25 @@ final class MeshParticleContributor extends PassContributor {
     _fog[1] = colour.y;
     _fog[2] = colour.z;
     view.camera.readWorldPosition(_eye);
-    // The air as thick as it is at the camera: a height fog's falloff is not
-    // integrated here — `FogSettings.densityAt` says what that costs.
+    // The density at the camera and the height fog's falloff, which the
+    // stage integrates along the ray as the lit stages do — `P5`; the view
+    // axis and the lens, so an orthographic camera fogs by depth from its
+    // plane — `P7`. The lit layout, whole: `lib/particle_fog.glsl`.
     _fog[3] = fog.densityAt(_eye.y);
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
+    _eyeData[3] = fog.resolvedHeightFalloff;
+    view.camera.readForward(_fogAxis);
+    _fogForward[0] = _fogAxis.x;
+    _fogForward[1] = _fogAxis.y;
+    _fogForward[2] = _fogAxis.z;
+    _fogProjection[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
     encoder.bindUniformBlock(fragmentShader, 'FogInfo', <String, Float32List>{
       'fog': _fog,
       'eye': _eyeData,
+      'forward': _fogForward,
+      'projection': _fogProjection,
     });
 
     encoder.draw(instanceCount: written);
@@ -246,6 +256,9 @@ final class MeshParticleContributor extends PassContributor {
   final Set<String> _missing = <String>{};
   final Float32List _fog = Float32List(4);
   final Float32List _eyeData = Float32List(4);
+  final Float32List _fogForward = Float32List(4);
+  final Float32List _fogProjection = Float32List(4);
+  final vm.Vector3 _fogAxis = vm.Vector3.zero();
   final vm.Vector3 _eye = vm.Vector3.zero();
   PipelineHandle? _pipeline;
   Float32List? _instances;

@@ -353,7 +353,6 @@ void main() {
   float g = fog_info.sun.w;
   float sunPhase = HenyeyGreenstein(dot(along, fog_info.sun.xyz), g);
   bool clustered = fog_info.albedo.w > 0.5;
-  vec3 eye = fog_info.camera.xyz;
   float transmittance = 1.0;
   vec3 inscatter = vec3(0.0);
   for (int i = 0; i < 64; i++) {
@@ -362,8 +361,11 @@ void main() {
     vec3 at = origin + along * travelled;
     float stepTransmittance = exp(-Density(at.y) * stride);
 
+    // The cascade by the way along the ray from where depth is nought, as
+    // `light_shafts.frag` picks it: the distance from the eye through a
+    // perspective lens, the depth through an orthographic one (`P7`).
     vec3 light = fog_info.sun_radiance.rgb *
-                     (sunPhase * LitAt(at, length(at - eye))) +
+                     (sunPhase * LitAt(at, travelled)) +
                  fog_info.ambient.rgb * 0.07957747;
     if (clustered) {
       light += fog_info.albedo.rgb * ClusterLight(at, along, g);

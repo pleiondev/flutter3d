@@ -1,5 +1,11 @@
 ## Unreleased
 
+* **Particles fog as the lit scene does** — `P7`, `P5`. Both contributors
+  bind the fog's whole block: the height fog's falloff, integrated along the
+  ray rather than read at the camera, and the view axis and the lens, so an
+  orthographic camera fogs by depth from its plane and a mesh particle
+  faces its axis.
+
 * **Height fog, as thick as it is at the camera.** Both contributors hand
   their stages `FogSettings.densityAt` the camera's height rather than the
   density at the fog's base, so a height fog does not leave particles fogged

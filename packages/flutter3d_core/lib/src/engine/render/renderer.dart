@@ -46,6 +46,7 @@ import 'light_clusters.dart';
 import 'material.dart';
 import 'mirror_view.dart';
 import 'object_id_frame.dart';
+import 'orthographic_cascades.dart';
 import 'pass_contributor.dart';
 import 'physical_sky.dart';
 import 'probe_faces.dart';
@@ -1235,9 +1236,21 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _shadowMatrixFar = vm.Matrix4.identity();
   final vm.Matrix4 _shadowMatrixFarthest = vm.Matrix4.identity();
 
-  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// x, y: where cascades 0 and 1 end, in metres from the camera — through an
+  /// orthographic lens, in metres of depth along its axis (`P7`). z: how many
   /// there are. w: one texel of a tile, vertically.
   Float32List get _shadowCascades => _fragInfo.shadowCascades;
+
+  /// Where the near cascades ended, as of the last shadow pass: the two
+  /// numbers the shaders compare a fragment's distance — or, through an
+  /// orthographic lens, its depth — against to pick one.
+  ///
+  /// For tests, which have to know which cascade a point lands in to say how
+  /// many texels it gets.
+  List<double> get debugCascadeSplits => List<double>.unmodifiable(<double>[
+    _shadowCascades[0],
+    _shadowCascades[1],
+  ]);
 
   int _shadowCascadeCount = 1;
 
@@ -1595,7 +1608,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: ninety goldens go through this
+  /// strength has, and for the same reason: ninety-one goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -4282,6 +4295,18 @@ final class Renderer implements RenderServices {
         // splits and one map cannot serve both; the primary view wins, which
         // is the same answer reflections give.
         camera: ordered.isEmpty ? null : ordered.first.camera,
+        aspect: ordered.isEmpty
+            ? 1.0
+            : switch (_viewportPixels(
+                ordered.first.viewportFraction,
+                width,
+                height,
+              )) {
+                // A viewport with no height has no aspect; a square one
+                // keeps the projection and the corner solver finite.
+                final rect when rect.height > 0 => rect.width / rect.height,
+                _ => 1.0,
+              },
       );
       // One node per probe the scene holds, in scene order, so the name the
       // scene reads for the i-th probe is the name the i-th node provides. A

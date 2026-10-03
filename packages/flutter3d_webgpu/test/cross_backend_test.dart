@@ -132,6 +132,7 @@ const Map<String, double> _budgets = <String, double>{
   // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.65,
   'orthographic-metal': 0.01,
+  'orthographic-shadow': 0.01,
   'debug-view-split': 0.01,
   'teapot-generated-normals': 0.01,
   'shadow-teapot': 0.01,

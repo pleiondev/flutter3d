@@ -1,3 +1,8 @@
+## Unreleased
+
+- `LevelScene` sets each brush batch's `MeshNode.drawOrder` from the level's
+  `Brush.drawOrder` (`P7`), and a duplicated brush keeps its order.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

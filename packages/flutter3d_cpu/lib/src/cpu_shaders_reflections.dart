@@ -321,7 +321,9 @@ final class LightShaftsShader implements CpuFragmentShader {
     for (var i = 0; i < steps && i < 64; i++) {
       final travelled = offset + i * stride;
       final at = origin + along * travelled;
-      final lit = litAt(at, (at - eye).length);
+      // By the way along the ray from where depth is nought, as the GLSL
+      // picks the cascade — `P7`.
+      final lit = litAt(at, travelled);
       inscatter += transmittance * (1.0 - stepTransmittance) * lit;
       transmittance *= stepTransmittance;
     }
