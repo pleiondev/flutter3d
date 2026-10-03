@@ -36,6 +36,7 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
+| [`packages/flutter3d_audio_core`](packages/flutter3d_audio_core) | The same audio scene with no backend under it: the buses, the sounds a game declares and the seam a backend fills, for a package that names sounds and should not pull in SoLoud |
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
 | [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
 | [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets, so a game built on it carries the decoders and not the 4.1 MB they were checked against |
@@ -55,6 +56,7 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_game_strategy`](packages/flutter3d_game_strategy) | A fourth genre, and the first without a protagonist: ground made of samples, a crowd that takes orders and shoves itself apart, flow fields shared by destination, an economy, a fight, fog a side has to walk into, and a policy that plays a side without a mouse |
 | [`packages/flutter3d_editor_core`](packages/flutter3d_editor_core) | The level editor with the editor taken out: the document being selected in, nudged, undone and written back, the handles a pointer hits, the palette a level builds out of itself, and the project a template becomes. Plain Dart, so a linter or a service can depend on it |
 | [`packages/flutter3d_editor_mcp`](packages/flutter3d_editor_mcp) | The same editor offered to an agent: an MCP server over stdio whose tools are the editor's own commands, one document per process |
+| [`packages/flutter3d_editor_play`](packages/flutter3d_editor_play) | Play from the editor: the game a level belongs to run with `flutter run --machine`, reloaded, stopped and handed a level saved while it runs. The editor's Play button and the MCP server's `play` tools are both this code |
 | [`packages/flutter3d_editor_widgets`](packages/flutter3d_editor_widgets) | The controls the modeller and the level editor share instead of each keeping a copy: number, colour, range, enum and texture fields and the row they assemble into, over one theme |
 | [`packages/flutter3d_mcp_kit`](packages/flutter3d_mcp_kit) | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
@@ -63,15 +65,23 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_sim_mcp`](packages/flutter3d_sim_mcp) | A level an agent can play without seeing it, and a second server that says why a frame is wrong: one pixel's HDR value, the passes that ran, a scan for NaN |
 | [`packages/flutter3d_sim`](packages/flutter3d_sim) | The simulation with no Flutter in it: the fixed step, the level format, entities, navigation, saves, replays and the portable arithmetic that makes a run reproduce on another machine |
 | [`packages/flutter3d_net`](packages/flutter3d_net), [`flutter3d_net_webrtc`](packages/flutter3d_net_webrtc) | Rollback netcode for two peers over `flutter3d_sim`, with the network behind one interface, and that interface over a WebRTC data channel |
-| [`packages/flutter3d_build`](packages/flutter3d_build) | The build hook: model and texture sources converted into what the engine loads, on every build, with a content-hash cache |
+| [`packages/flame_multiplayer`](packages/flame_multiplayer), [`flame_multiplayer_dashwire`](packages/flame_multiplayer_dashwire) | Two players on two machines for any game with a fixed step, Flame or not: a room with a handshake and separate channels, rollback play, turns with a replay for the one watching, and a race ghost. No dependencies at all; the second package carries it over a `dashwire` connection |
+| [`packages/flame_flutter3d`](packages/flame_flutter3d) | A bridge to the Flame 2D engine: Flame runs the game and draws its layer, flutter3d draws the 3D one, and the two agree on transforms, lifecycle, physics contacts, input, the camera and the actor system. A single model can also draw into a plain Flame game as a component. [README](packages/flame_flutter3d/README.md) |
+| [`packages/flame_flutter3d_audio`](packages/flame_flutter3d_audio) | Sound for a bridged Flame game: the audio scene as a component, silent until the player's first input, and loops that play as long as their component lives |
+| [`packages/flutter3d_build`](packages/flutter3d_build) | The build hook: model and texture sources converted into what the engine loads, on every build, with a content-hash cache. Textures come out as BC or ETC2 blocks for the platform being built for |
 | [`packages/flutter3d_lab`](packages/flutter3d_lab) | Virtual laboratory simulations a server can replay with no Flutter SDK. The pendulum is the first |
+| [`packages/flutter3d_lti`](packages/flutter3d_lti) | LTI 1.3 launch and xAPI reporting for a lesson run from a school's LMS: the OIDC login, an `id_token` checked against the platform's keys, grades through Assignment and Grade Services, and xAPI statements. Plain Dart, with no server framework |
+| [`packages/education/chemlab`](packages/education/chemlab) | A chemistry bench: glassware turned from profiles, labels typeset in TeX and wrapped on, and liquid you can pour. In a browser on the site, under Education |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
+| [`apps/flutter3d_demo_arcade`](apps/flutter3d_demo_arcade) | Meteor Yard: a ship over a 3D yard that uses every part of the Flame bridge at once |
+| [`apps/flutter3d_demo_river`](apps/flutter3d_demo_river) | River Sortie: a jet up a river that never ends, a Flame game from end to end that flutter3d only draws |
+| [`apps/flutter3d_showcase`](apps/flutter3d_showcase) | Every capability of the engine on a page of its own, running live, with the version it appeared in and a guide that builds it from nothing |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
 | [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | The model editor: mesh editing, materials and a texture graph, UV, sculpting, retopology, texture painting, rigging and animation, simulation and LOD over one project document, with undo that records who made each change. On macOS and in a browser, where it is <https://models.pleion.dev> |
-| [`apps/flutter3d_lesson_viewer`](apps/flutter3d_lesson_viewer), [`flutter3d_stereo_lesson_viewer`](apps/flutter3d_stereo_lesson_viewer), [`flutter3d_lab_pendulum`](apps/flutter3d_lab_pendulum) | The lessons: a level document with steps in it, played flat or as a stereo pair, and the pendulum laboratory a student runs |
+| [`apps/flutter3d_lesson_viewer`](apps/flutter3d_lesson_viewer), [`flutter3d_stereo_lesson_viewer`](apps/flutter3d_stereo_lesson_viewer), [`flutter3d_lab_pendulum`](apps/flutter3d_lab_pendulum), [`flutter3d_lab_incident`](apps/flutter3d_lab_incident) | The lessons: a level document with steps in it, played flat or as a stereo pair, the pendulum laboratory a student runs, and a recorded incident an engineer scrubs through on an operator's panel |
 | [`packages/flutter3d_app/example`](packages/flutter3d_app/example) | The smallest application on the engine: a lit cube you can turn. What a project that is not a game starts from |
 | [`packages/flutter3d_game/example`](packages/flutter3d_game/example) | A level you can walk around, with no genre in it: what a new game starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
@@ -186,9 +196,19 @@ mesh particles. Rendering into a mip level came with them. `ColorTarget.mipLevel
 names a face and a level, and the environment map is prefiltered through it.
 Compressed pixel formats are here too: the BC, ETC2 and ASTC families are in
 `TextureFormat`, every backend answers `supportsTextureFormat` for itself, and
-a KTX2 that arrives is read. No asset in this repository ships a compressed
-texture, though, because `dart run flutter3d_build:convert` has no encoder to
-make one. That gap is upstream of the engine, not in it.
+a KTX2 that arrives is read. The converter writes them as well:
+`dart run flutter3d_build:convert --textures bc` encodes BC1 for an opaque
+image and BC3 for one with alpha, `--textures etc2` encodes ETC2 RGB, and
+`--textures universal` writes one file of 4×4 blocks that the load turns into
+BC, ASTC, ETC2 or RGBA8, whichever the device samples. Each gets a mip chain
+unless `--no-mips` asks otherwise. ETC2 still leaves an image with alpha as it
+arrived, because the EAC alpha block is not written yet, and ASTC comes only
+out of a `universal` file at load, since there is no `--textures astc`.
+The build hook picks the family from its target: BC on desktop, ETC2 on
+Android and iOS, nothing on the web, where a browser can be any machine. So a
+native build of the dungeon, platformer or racing demo carries its models'
+textures compressed. A web build carries them as PNG, and the images the demos
+load from `assets/textures/` still go through `dart:ui` as RGBA8.
 
 One entry is left on the list: compute passes, and with them GPU particles,
 GPU skinning, GPU culling and indirect draw. It is recorded in

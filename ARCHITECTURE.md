@@ -1937,14 +1937,20 @@ slots is uploaded once.
 
 ### 8.4 Textures and caching
 
-PNG and JPEG through `dart:ui`, uploaded as RGBA8, which is what every texture
-this repository ships costs: a 2048² one is 16 MB however small its file was.
-That is a statement about the assets rather than about the engine.
+PNG and JPEG through `dart:ui`, uploaded as RGBA8, which is what a loose
+texture file costs: a 2048² one is 16 MB however small its file was.
 `TextureFormat` names the BC, ETC2 and ASTC families,
 `GraphicsDevice.supportsTextureFormat` answers for each of them per backend, and
 a KTX2 that arrives carrying blocks those answers allow goes to the device as
-blocks. The gap is upstream, where `dart run flutter3d_build:convert` has no encoder
-to produce one; [§15](#15-limits) tells that half at length.
+blocks. `dart run flutter3d_build:convert --textures <family>` produces them
+from a model's own images, through the encoders in `flutter3d_core`'s
+`formats/ktx2/encode/`: `bc` is BC1 for an opaque image and BC3 for one with
+alpha, `etc2` is ETC2 RGB, and `universal` is a 4×4 block intermediate the
+load turns into BC, ASTC 4×4, ETC2 or RGBA8 against what the device samples.
+The build hook runs the same code on every build, BC for a desktop target
+and ETC2 for a phone, so the models in a native build of the three games
+carry compressed textures. [§15](#15-limits) lists what is still left
+uncompressed.
 
 Mip chains are built on the CPU by `MipChain.build` and every backend uploads
 the same bytes, because WebGL2 has `glGenerateMipmap`, Impeller has nothing of the
@@ -3006,13 +3012,21 @@ copy ran. It keeps both halves of the contract and costs a staging texture per
 readback in flight; a `DeviceBuffer` that could be read would make it a copy
 and a `Uint8List`.
 
-**No compressed texture in an asset this engine ships**, so every texture in
-the three games still costs its uncompressed size — but one that arrives is
-read and, where the device samples it, uploaded as it is.
+**Compressed textures stop at the model.** The converter encodes a model's
+images (`--textures bc`, `etc2` or `universal`, and the build hook picks BC
+or ETC2 from its target), so the games' models carry blocks in a native
+build. What stays uncompressed: every texture in a web build, where the hook
+cannot know the machine and passes images through; the loose PNGs under each
+game's `assets/textures/`, which never pass through the converter; an image
+with alpha under `etc2`, because the EAC alpha block is not written yet; and
+an image whose sides are not whole 4×4 blocks, which the encoder leaves as it
+arrived and says so. The converter writes no ASTC file of its own: a device
+that samples ASTC gets it from a `universal` file, transcoded at load.
 `texture_upload.dart` sniffs KTX2 before `dart:ui` ever sees the bytes.
-Basis Universal/ETC1S transcodes to plain RGBA8 on an isolate, mip chain and
-alpha slice included (`flutter3d_samples/assets/ktx2/`, three files held
-level by level against the encoder's own unpack); a file carrying its own
+Basis Universal transcodes to plain RGBA8 on an isolate, ETC1S and UASTC LDR
+4×4 both, mip chain and alpha slice included (ETC1S files in
+`flutter3d_samples/assets/ktx2/`, UASTC ones in `flutter3d_core`'s test
+fixtures, held level by level against the encoder's own unpack); a file carrying its own
 BC, ETC2 or ASTC blocks goes to the device as those blocks after
 `GraphicsDevice.supportsTextureFormat` has said yes — flutter_gpu's
 per-family capability on Impeller, the context's extensions on WebGL2, a
@@ -3021,10 +3035,8 @@ will. A no is a texture left out with a sentence in the model's warnings or
 the level's issues, never a guess. A conformance check draws one hand-built
 BC1 and one ETC2 block on every backend that claims the family and reads
 the colour back, which is the first time an Impeller compressed upload was
-drawn rather than only allocated. Still refused by name: UASTC, Zstandard
-and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
-is upstream: `dart run flutter3d_build:convert` has no encoder, so nothing produces a
-compressed KTX2 for this engine's own pipeline to read.
+drawn rather than only allocated. Zstandard and ZLIB supercompression are
+unpacked. Still refused by name: texture arrays, cube maps and 3D textures.
 
 **A material hint describes a control and refuses nothing.** `MaterialHintKind`
 — a range, a colour of three or four channels, a texture path with the suffixes
