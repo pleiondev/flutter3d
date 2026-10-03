@@ -34,6 +34,7 @@ import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
+import '../scene/projection.dart' show isOrthographic;
 import '../scene/scene_node.dart';
 import 'engine_tables.dart';
 import 'identity_indices.dart';
@@ -456,11 +457,12 @@ final class SplatContributor extends PassContributor {
   final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
   final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
 
-  /// `FogInfo`'s two members as both splat stages declare them: the fog's
-  /// colour and density, and the eye. Not `FogInfoBlock`, which is the lit
-  /// stages' three-member layout.
+  /// `FogInfo` as `contributor_eye.glsl` declares it for both splat stages:
+  /// the fog's colour and density, the eye, the view axis and the lens.
   final Float32List _fog = Float32List(4);
   final Float32List _eye = Float32List(4);
+  final Float32List _forward = Float32List(4);
+  final Float32List _projection = Float32List(4);
 
   SplatContributor(
     SplatCloud cloud, {
@@ -623,10 +625,22 @@ final class SplatContributor extends PassContributor {
       ..[0] = eye.x
       ..[1] = eye.y
       ..[2] = eye.z;
+    // Through an orthographic camera the fog is measured from the eye's
+    // plane, along the axis — `P7`.
+    _forward
+      ..[0] = forward.x
+      ..[1] = forward.y
+      ..[2] = forward.z;
+    _projection[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
     frame.encoder.bindUniformBlock(
       fragmentShader,
       'FogInfo',
-      <String, Float32List>{'fog': _fog, 'eye': _eye},
+      <String, Float32List>{
+        'fog': _fog,
+        'eye': _eye,
+        'forward': _forward,
+        'projection': _projection,
+      },
     );
     if (hashed) {
       // The frame's slice of the engine's blue noise, the same slice the

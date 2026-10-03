@@ -212,9 +212,20 @@ final class MeshParticleContributor extends PassContributor {
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
+    // The view axis and the lens, so the stage measures the fog from the
+    // eye's plane through an orthographic camera rather than in rings round a
+    // point the picture does not depend on — `P7`.
+    view.camera.readForward(_eye);
+    _forwardData
+      ..[0] = _eye.x
+      ..[1] = _eye.y
+      ..[2] = _eye.z;
+    _projectionData[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
     encoder.bindUniformBlock(fragmentShader, 'FogInfo', <String, Float32List>{
       'fog': _fog,
       'eye': _eyeData,
+      'forward': _forwardData,
+      'projection': _projectionData,
     });
 
     encoder.draw(instanceCount: written);
@@ -246,6 +257,8 @@ final class MeshParticleContributor extends PassContributor {
   final Set<String> _missing = <String>{};
   final Float32List _fog = Float32List(4);
   final Float32List _eyeData = Float32List(4);
+  final Float32List _forwardData = Float32List(4);
+  final Float32List _projectionData = Float32List(4);
   final vm.Vector3 _eye = vm.Vector3.zero();
   PipelineHandle? _pipeline;
   Float32List? _instances;

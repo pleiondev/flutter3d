@@ -133,6 +133,7 @@ const Map<String, double> _budgets = <String, double>{
   'alpha-to-coverage': 0.65,
   'orthographic-metal': 0.01,
   'orthographic-shadows': 0.01,
+  'orthographic-particles': 0.01,
   'debug-view-split': 0.01,
   'teapot-generated-normals': 0.01,
   'shadow-teapot': 0.01,

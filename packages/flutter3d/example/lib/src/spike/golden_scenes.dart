@@ -1275,6 +1275,18 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.orthographicShadowsSettings,
   ),
 
+  // P7. Billboards, splats and mesh particles through an orthographic camera
+  // in fog: fogged by depth from the eye's plane, every column alike.
+  const GoldenScene(
+    name: 'orthographic-particles',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicParticles,
+    configure: GoldenStages.orthographicParticlesSettings,
+  ),
+
   // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
   // normal on the right.
   const GoldenScene(

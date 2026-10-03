@@ -1,5 +1,13 @@
 ## Unreleased
 
+* **Particles through an orthographic camera fog by depth.** Every particle
+  stage measured its fog from the eye's position and a mesh particle lit
+  its faces by how squarely they faced it; through an orthographic lens the
+  eye is only where the camera was put along its axis, so a particle off
+  the axis came out foggier and a shard dimmer than the same one on it. The
+  contributors now bind the view axis and the lens, and the stages measure
+  from the eye's plane and against the axis.
+
 * **Height fog, as thick as it is at the camera.** Both contributors hand
   their stages `FogSettings.densityAt` the camera's height rather than the
   density at the fog's base, so a height fog does not leave particles fogged

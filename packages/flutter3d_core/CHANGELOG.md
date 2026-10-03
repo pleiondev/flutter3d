@@ -82,6 +82,13 @@
   along the axis, so stepping the camera back along it changes nothing.
   `orthographic-shadows` is in all four golden sets.
 
+- **Splats through an orthographic camera fog by depth.** Both splat stages
+  measured the fog from the eye's position, so a splat off the axis came out
+  foggier than one on it; they now read the view axis and the lens from
+  `FogInfo`, as the lit stages do, through `contributor_eye.glsl`, which the
+  particle stages share. `orthographic-particles` — billboards, splats and
+  mesh particles, five columns alike — is in all four golden sets.
+
 - **A material channel in place of the light, over all or part of the
   frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
   `DebugView` — albedo, the shading normal, roughness, metalness,

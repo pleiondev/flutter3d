@@ -25207,23 +25207,62 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The lit shaders' block, declared again because this shader shares none of
-/// their headers — it has a different vertex layout and none of their varyings.
-///
-/// **The first two members of it, not all three.** `color.glsl` carries a
-/// `forward` beside these, for the view axis the surface buffer measures its
-/// depths along; a particle writes no surface buffer, so it neither declares
-/// that member nor is bound one. The two blocks share a name and not a shape,
-/// which is fine — they belong to different programs — and a check that binds
-/// this one has to bind what it declares.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 void main() {
   // Distance from the middle of the quad, where the corners sit at 1.
@@ -25244,7 +25283,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }
@@ -25393,16 +25432,62 @@ layout(location = 0) out vec4 frag_color;
 
 uniform sampler2D particle_texture;
 
-/// Declared again for the same reason the other particle stages declare it:
-/// this shader shares none of the lit path's headers.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 void main() {
   // `texture`, not `textureLod`. The level is chosen from the derivative the
@@ -25418,7 +25503,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }
@@ -25871,16 +25956,62 @@ layout(location = 0) out vec4 frag_color;
 uniform sampler2D six_way_positive;
 uniform sampler2D six_way_negative;
 
-/// Declared again, as in the other particle stages, since this shares none of
-/// the lit path's headers.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 layout(std140) uniform SixWayInfo {
   /// xyz: the quad's right, which is the camera's, in world space.
@@ -25943,7 +26074,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }
@@ -26096,23 +26227,62 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The lit shaders' block, declared again because this shader shares none of
-/// their headers — it has a different vertex layout and none of their varyings.
-///
-/// **The first two members of it, not all three.** `color.glsl` carries a
-/// `forward` beside these, for the view axis the surface buffer measures its
-/// depths along; a particle writes no surface buffer, so it neither declares
-/// that member nor is bound one. The two blocks share a name and not a shape,
-/// which is fine — they belong to different programs — and a check that binds
-/// this one has to bind what it declares.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 void main() {
   // Distance from the middle of the quad, where the corners sit at 1.
@@ -26133,7 +26303,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }
@@ -26282,16 +26452,62 @@ layout(location = 0) out vec4 frag_color;
 
 uniform sampler2D particle_texture;
 
-/// Declared again for the same reason the other particle stages declare it:
-/// this shader shares none of the lit path's headers.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 void main() {
   // `texture`, not `textureLod`. The level is chosen from the derivative the
@@ -26307,7 +26523,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }
@@ -26761,16 +26977,62 @@ layout(location = 0) out vec4 frag_color;
 uniform sampler2D six_way_positive;
 uniform sampler2D six_way_negative;
 
-/// Declared again, as in the other particle stages, since this shares none of
-/// the lit path's headers.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 layout(std140) uniform SixWayInfo {
   /// xyz: the quad's right, which is the camera's, in world space.
@@ -26833,7 +27095,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }
@@ -26886,18 +27148,62 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The same block the particle stage declares, for the same reason it declares
-/// it: a different vertex layout and none of the lit shaders' varyings, so none
-/// of their headers apply. Two members, not three — nothing here writes a
-/// surface buffer, so there is no view axis to measure a depth along.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 void main() {
   // `exp(-½ dᵀd)` with d already in standard deviations, which is what the
@@ -26924,7 +27230,7 @@ void main() {
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
     float visibility = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
     colour = mix(fog_info.fog.rgb, colour, visibility);
@@ -27024,15 +27330,62 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The block `splat.frag` declares, for the fog mix it makes.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
+
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
 
 /// `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4 atlas.
 uniform sampler2D blue_noise_texture;
@@ -27103,7 +27456,7 @@ void main() {
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
     float visibility = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
     colour = mix(fog_info.fog.rgb, colour, visibility);
@@ -27148,27 +27501,74 @@ in vec3 v_normal;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The same block the other particle stage declares, for the same reason: this
-/// shader shares none of the lit shaders' headers.
+// --- lib/contributor_eye.glsl ---
+// The eye and the fog, for the stages that share none of the lit path's
+// headers — particles, mesh particles, splats.
+//
+// They have a vertex layout of their own and none of the lit shaders'
+// varyings, so `color.glsl` does not apply; this is the part of it they need:
+// the `FogInfo` block as the lit stages declare it, and the two eye-relative
+// questions asked of a world position passed in rather than of a varying.
+//
+// **All four members, `P7`.** The block used to stop after `eye`, and through
+// an orthographic camera the fog then lay in rings round the eye's position
+// — a point the picture does not depend on — and a mesh particle's faces were
+// lit by how squarely they faced it. A stage that declares this block has to
+// be bound all four, which is what the contributors do.
+
+#ifndef CONTRIBUTOR_EYE_GLSL_
+#define CONTRIBUTOR_EYE_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
   /// xyz: camera position in world space.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective.
+  vec4 projection;
 }
 fog_info;
 
+/// How much air lies between [world] and the eye, in world metres: the
+/// distance to it through a perspective lens, the depth from its plane
+/// through an orthographic one, where every ray starts on that plane.
+float FogDistance(vec3 world) {
+  return fog_info.projection.x > 0.5
+      ? max(dot(world - fog_info.eye.xyz, fog_info.forward.xyz), 0.0)
+      : distance(world, fog_info.eye.xyz);
+}
+
+/// The unit direction from [world] back along the ray that reached it: to
+/// the eye through a perspective lens, against the view axis through an
+/// orthographic one. Nought where [world] is the eye.
+vec3 TowardsEyeFrom(vec3 world) {
+  if (fog_info.projection.x > 0.5) return -fog_info.forward.xyz;
+  vec3 to_eye = fog_info.eye.xyz - world;
+  float length_to_eye = length(to_eye);
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+#endif  // CONTRIBUTOR_EYE_GLSL_
+
+
 void main() {
-  vec3 to_eye = fog_info.eye.xyz - v_world_position;
-  float distance_to_eye = length(to_eye);
+  // Back along the ray that reached the fragment: to the eye, or against the
+  // view axis through an orthographic lens — `P7`.
+  vec3 towards_eye = TowardsEyeFrom(v_world_position);
 
   // `abs`, not `max(dot, 0)`. Nothing here is culled — a particle mesh is seen
   // from every side as it tumbles — so a back face is as visible as a front
   // one, and clamping would make half of every shard go black rather than dim.
   vec3 n = normalize(v_normal);
-  float facing = distance_to_eye > 0.0
-      ? abs(dot(n, to_eye / distance_to_eye))
+  float facing = dot(towards_eye, towards_eye) > 0.0
+      ? abs(dot(n, towards_eye))
       : 1.0;
 
   // Never all the way to zero. A silhouette edge is exactly perpendicular to
@@ -27181,7 +27581,8 @@ void main() {
   // additive particle *add* fog to the wall behind it.
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
-    fogged = clamp(exp(-fog_info.fog.w * distance_to_eye), 0.0, 1.0);
+    fogged = clamp(
+        exp(-fog_info.fog.w * FogDistance(v_world_position)), 0.0, 1.0);
   }
 
   frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);

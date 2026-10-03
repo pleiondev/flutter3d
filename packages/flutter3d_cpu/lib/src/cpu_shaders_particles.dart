@@ -42,6 +42,31 @@ double softParticleFade(
   return stored > 0.0 ? fade : 1.0;
 }
 
+/// `FogDistance` of `contributor_eye.glsl`: the air between a point and the
+/// eye — the distance to it, or the depth from its plane through an
+/// orthographic lens.
+double fogDistance(ShaderBindings b, double x, double y, double z) {
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final dx = x - eye.x;
+  final dy = y - eye.y;
+  final dz = z - eye.z;
+  if (!orthographic(b)) return math.sqrt(dx * dx + dy * dy + dz * dz);
+  final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+  return math.max(dx * forward.x + dy * forward.y + dz * forward.z, 0.0);
+}
+
+/// `TowardsEyeFrom` of `contributor_eye.glsl`: the unit direction back along
+/// the ray that reached a point, nought at the eye.
+Vector3 towardsEyeFrom(ShaderBindings b, double x, double y, double z) {
+  if (orthographic(b)) {
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    return Vector3(-forward.x, -forward.y, -forward.z);
+  }
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final to = Vector3(eye.x - x, eye.y - y, eye.z - z);
+  return to.length2 > 0.0 ? (to..normalize()) : to;
+}
+
 /// `particle.vert`: a billboard corner, and the world position for the fog.
 final class ParticleVertexShader implements CpuVertexShader {
   const ParticleVertexShader();
@@ -100,9 +125,7 @@ final class ParticleTexturedShader implements CpuFragmentShader {
     var fogged = 1.0;
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
+      final d = fogDistance(b, v[6], v[7], v[8]);
       fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
     }
 
@@ -192,8 +215,7 @@ final class ParticleSixWayShader implements CpuFragmentShader {
     // covers what is behind it.
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d = (world - Vector3(eye.x, eye.y, eye.z)).length;
+      final d = fogDistance(b, world.x, world.y, world.z);
       final fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
       colour
         ..x = fog.x + (colour.x - fog.x) * fogged
@@ -261,21 +283,18 @@ final class ParticleMeshShader implements CpuFragmentShader {
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
-    final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-
-    final tx = eye.x - v[4];
-    final ty = eye.y - v[5];
-    final tz = eye.z - v[6];
-    final distance = math.sqrt(tx * tx + ty * ty + tz * tz);
+    // `TowardsEyeFrom`: to the eye, or against the view axis through an
+    // orthographic lens — `P7`.
+    final towards = towardsEyeFrom(b, v[4], v[5], v[6]);
 
     var facing = 1.0;
-    if (distance > 0.0) {
+    if (towards.length2 > 0.0) {
       final n = Vector3(v[7], v[8], v[9]);
       final length = n.length;
       if (length > 0.0) {
         // `abs`, because nothing here is culled and a back face is as visible
         // as a front one.
-        facing = ((n.x * tx + n.y * ty + n.z * tz) / (length * distance)).abs();
+        facing = (n.dot(towards) / length).abs();
       }
     }
     // Never to zero: a silhouette edge is exactly perpendicular to the eye, and
@@ -284,7 +303,9 @@ final class ParticleMeshShader implements CpuFragmentShader {
 
     var fogged = 1.0;
     if (fog.w > 0.0) {
-      fogged = math.exp(-fog.w * distance).clamp(0.0, 1.0);
+      fogged = math
+          .exp(-fog.w * fogDistance(b, v[4], v[5], v[6]))
+          .clamp(0.0, 1.0);
     }
 
     final scale = v[3] * intensity * fogged;
@@ -313,9 +334,7 @@ final class ParticleShader implements CpuFragmentShader {
     var fogged = 1.0;
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
+      final d = fogDistance(b, v[6], v[7], v[8]);
       fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
     }
 
@@ -352,9 +371,7 @@ final class SplatShader implements CpuFragmentShader {
     var bl = v[2];
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
-      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d =
-          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
+      final d = fogDistance(b, v[6], v[7], v[8]);
       final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
       // A mix rather than an attenuation, which is the opposite of the particle
       // stage and for the opposite reason: this is blended, so a splat that
@@ -429,10 +446,7 @@ final class SplatHashedShader implements CpuFragmentShader {
 
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w <= 0.0) return Vector4(v[0], v[1], v[2], 1.0);
-    final fogEye = b.vec4('FogInfo', 'eye', Vector4.zero());
-    final d =
-        (Vector3(v[6], v[7], v[8]) - Vector3(fogEye.x, fogEye.y, fogEye.z))
-            .length;
+    final d = fogDistance(b, v[6], v[7], v[8]);
     final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
     return Vector4(
       fog.x + (v[0] - fog.x) * visibility,

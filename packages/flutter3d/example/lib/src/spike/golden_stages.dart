@@ -1313,6 +1313,84 @@ abstract final class GoldenStages {
   static RenderSettings orthographicShadowsSettings(RenderSettings settings) =>
       settings.copyWith(shadows: settings.shadows.copyWith(cascades: 3));
 
+  /// `orthographic-particles`: three rows across a dark wall in fog, seen
+  /// through an orthographic camera — billboards above, splats in the
+  /// middle, mesh particles below, five of each at the same depth. Through
+  /// this lens the eye is only where the camera was put along its axis, so
+  /// every column must fog alike; measured from the eye's position, as the
+  /// three stages did, the outer columns came out darker than the middle
+  /// one, and the shards' faces dimmer.
+  static Future<GoldenStaged> orthographicParticles(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.visible = false;
+    ParticleEffect still(double size, Vector4 colour) => ParticleEffect(
+      count: 1,
+      emitter: const SphereEmitter(speed: Range.exact(0.0)),
+      lifetime: const Range.exact(10.0),
+      size: Range.exact(size),
+      color: colour,
+    );
+    final billboards = ParticleSystem(capacity: 8, seed: 1);
+    final shards = ParticleSystem(capacity: 8, seed: 1);
+    for (var i = 0; i < 5; i++) {
+      final x = -3.0 + i * 1.5;
+      billboards.burst(
+        still(0.9, Vector4(1.0, 0.6, 0.2, 1.0)),
+        Vector3(x, 1.4, -5.0),
+      );
+      shards.burst(
+        still(0.35, Vector4(0.3, 0.8, 1.0, 1.0)),
+        Vector3(x, -1.4, -5.0),
+      );
+    }
+    final splats = SplatCloud(
+      centres: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[-3.0 + i * 1.5, 0.0, -5.0],
+      ]),
+      colours: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[0.9, 0.3, 0.6, 1.0],
+      ]),
+      scales: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[0.25, 0.25, 0.25],
+      ]),
+      rotations: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[0.0, 0.0, 0.0, 1.0],
+      ]),
+    );
+    stage.renderer
+      ..addContributor(ParticleContributor(billboards))
+      ..addContributor(SplatContributor(splats))
+      ..addContributor(
+        MeshParticleContributor(
+          shards,
+          mesh: DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3.all(1.0)).build(),
+          ),
+        ),
+      );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(20.0, 20.0, 1.0),
+          Vector3(0.0, 0.0, -9.5),
+          _unlit(Vector4(0.15, 0.15, 0.15, 1.0)),
+        ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 5.0, far: 100.0)
+        ..setPosition(0.0, 0.0, 0.0)
+        ..lookAt(Vector3(0.0, 0.0, -1.0)),
+    );
+  }
+
+  static RenderSettings orthographicParticlesSettings(
+    RenderSettings settings,
+  ) => settings.copyWith(
+    fog: FogSettings(color: Vector3(0.35, 0.4, 0.5), density: 0.12),
+  );
+
   // ------------------------------------------------------------------ P6
 
   /// `debug-view-split`: the lit teapot left of the middle and its shading

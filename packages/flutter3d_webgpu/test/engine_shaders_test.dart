@@ -196,14 +196,12 @@ void main() {
     // for it, so a model that laid it out differently would read another
     // model's bytes at the wrong offsets.
     //
-    // **Per member and not per block, because one block name here is
-    // deliberately two shapes.** The three particle stages share none of the
-    // lit path's headers and declare a `FogInfo` of their own with the first
-    // two members and not the third — `lighting/particle.frag` says so at
-    // length: a particle writes no surface buffer, so it is never bound the
-    // `forward` the lit models measure their depths along. Two blocks with one
-    // name and different lengths is safe exactly as long as what they do share
-    // lands in the same place, which is what this measures.
+    // **Per member and not per block, because one block name may be declared
+    // in more than one shape.** The particle and splat stages share none of
+    // the lit path's headers and declare `FogInfo` through
+    // `contributor_eye.glsl` instead. Two declarations of one name are safe
+    // exactly as long as what they share lands in the same place, which is
+    // what this measures.
     final offsets = <String, Map<String, (String, int)>>{};
     stages.forEach((name, entry) {
       for (final block in entry.stage.blocks) {
@@ -227,12 +225,14 @@ void main() {
 
     expect(offsets['FragInfo']!['ambient_ground']!.$2, 848);
     expect(offsets['FogInfo']!['eye']!.$2, 16);
-    // The member the particle stages do not declare, from the stages that do.
     expect(offsets['FogInfo']!['forward']!.$2, 32);
+    // `P7`: the particle and splat stages declare the whole block through
+    // `contributor_eye.glsl` now, and their contributors bind all four.
+    expect(offsets['FogInfo']!['projection']!.$2, 48);
     expect(
       engineShaders.fragment['Particle']!.blocks.single.members.length,
-      2,
-      reason: 'the particle FogInfo grew a member it is never bound',
+      4,
+      reason: 'the particle FogInfo is the lit stages\' block, all of it',
     );
   });
 }
