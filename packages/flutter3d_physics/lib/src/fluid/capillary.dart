@@ -42,6 +42,26 @@ final class TubeMeniscus {
     _solve();
   }
 
+  /// A meniscus already solved, from what [solution] gave: for one worked
+  /// out on another isolate.
+  TubeMeniscus.solved({
+    required this.medium,
+    required this.radius,
+    required this.g,
+    required ({double apexCurvature, List<double> r, List<double> z}) solution,
+    this.samples = 64,
+  }) {
+    apexCurvature = solution.apexCurvature;
+    _r = solution.r;
+    _z = solution.z;
+    wallRise = _z.last;
+  }
+
+  /// What another isolate sends back: the curvature at the middle and the
+  /// surface's points.
+  ({double apexCurvature, List<double> r, List<double> z}) get solution =>
+      (apexCurvature: apexCurvature, r: _r, z: _z);
+
   final FluidMedium medium;
   final double radius;
   final double g;

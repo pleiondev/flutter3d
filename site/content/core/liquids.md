@@ -113,6 +113,13 @@ A body holds layers. Liquids that mix are one layer, keeping amounts of solutes,
 
 A body turning in the liquid is held back too, by Stokes's torque 8πμR³ω on the sphere of its volume, for the part of it that is under: a ball spun in glycerol slows by e in ρR²/15μ.
 
+## Faster, where a run need not replay
+
+Two switches on `FluidWorld` trade the bit-for-bit replay for speed, and change nothing that happens otherwise.
+
+- `nativeKernels: true` runs the particles' pair loops and neighbour search in C, built by the package's own hook with the machine's C compiler and vectorised. Each kernel matches the Dart one to a part in 10¹². Where no compiler was found, and on the web, the Dart kernels run.
+- `background: true` works out what would stop a frame, a cross-section's modes or a meniscus not met before, on another isolate. The vessel carries on as it was until the answer comes. On the web there are no isolates, and it is all worked out at once.
+
 ## Being honest about it
 
 - The surface is linear, so it rocks harder where real water would break.

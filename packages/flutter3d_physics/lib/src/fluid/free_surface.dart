@@ -108,23 +108,38 @@ final class FreeSurface {
         _modes.isNotEmpty &&
         1.0 - old.up.dot(up.normalized()) < 0.5 * reuseTurn * reuseTurn &&
         (height - old.height).abs() < 0.5 * old.cell) {
-      final moved = old.movedTo(up, height);
-      final behind = Float64List(moved.count);
-      for (var i = 0; i < moved.count; i++) {
-        final p = moved.point(i);
-        behind[i] = -(old.up.dot(p) - old.height);
-      }
-      _grid = moved;
-      final added = _project(behind);
-      for (var n = 0; n < added.length; n++) {
-        _amplitude[n] += added[n];
-      }
-      _field = null;
+      _carryOn(old, up, height);
       return;
     }
+    final grid = _Grid.cut(shape, up, height, cells);
+    // **Not waited for, where it may be put off.** A cross-section whose
+    // modes are not worked out yet is handed to [solver] to work out
+    // elsewhere, and the surface carries on its old grid moved to where it
+    // is now, as it does for a small turn, until they come: then it is
+    // laid out again ([step]). Waited for, a tube tipped to an angle it had
+    // not been at cost a frame a tenth of a second.
+    final defer = solver;
+    if (defer != null &&
+        old != null &&
+        _modes.isNotEmpty &&
+        grid.count >= 6 &&
+        _cachedModes(grid, modeCount) == null) {
+      _wanted = (shape: shape, up: up.clone(), height: height, grid: grid);
+      final count = modeCount;
+      // Asked once, however many steps go by before it comes.
+      final key = _keyOf(grid, count);
+      if (_asked.add(key)) {
+        defer.solve(grid.count, grid.neighbours, grid.cell2, count, (modes) {
+          _asked.remove(key);
+          _remember(grid, count, modes);
+        });
+      }
+      _carryOn(old, up, height);
+      return;
+    }
+    _wanted = null;
     final oldHeights = old == null ? null : _heights();
     final oldRates = old == null ? null : _sumModes(_rate);
-    final grid = _Grid.cut(shape, up, height, cells);
     _grid = grid;
     _field = null;
     if (grid.count < 6) {
@@ -152,11 +167,49 @@ final class FreeSurface {
     _rate = _project(rates);
   }
 
+  /// The old grid moved to the plane at [height] across [up], its modes
+  /// kept: what the liquid stood off the old plane it stands off the new.
+  void _carryOn(_Grid old, Vector3 up, double height) {
+    final moved = old.movedTo(up, height);
+    final behind = Float64List(moved.count);
+    for (var i = 0; i < moved.count; i++) {
+      final p = moved.point(i);
+      behind[i] = -(old.up.dot(p) - old.height);
+    }
+    _grid = moved;
+    final added = _project(behind);
+    for (var n = 0; n < added.length; n++) {
+      _amplitude[n] += added[n];
+    }
+    _field = null;
+  }
+
+  /// Where cross-sections not yet worked out are worked out instead of
+  /// waited for: another isolate, set by a world that may be stepped so
+  /// (`FluidWorld.background`). Null, they are worked out at once.
+  ModeSolver? solver;
+
+  /// Whether it is carrying on its old grid while its new cross-section's
+  /// modes are worked out elsewhere.
+  bool get waitingForModes => _wanted != null;
+
+  /// The cross-sections asked for and not come yet, by key.
+  static final Set<int> _asked = {};
+
+  /// The layout put off until its modes come.
+  ({VesselShape shape, Vector3 up, double height, _Grid grid})? _wanted;
+
   /// Moves the waves on by [dt] seconds under gravity [g], over a liquid
   /// [depth] deep on average: each mode exactly, as the damped oscillator it
   /// is, so any step is stable.
   void step(double dt, {required double g, required double depth}) {
     _depth = depth;
+    // The modes put off for have come: laid out now, as it would have been.
+    final wanted = _wanted;
+    if (wanted != null && _cachedModes(wanted.grid, modeCount) != null) {
+      _wanted = null;
+      layOut(wanted.shape, wanted.up, wanted.height);
+    }
     if (_modes.isEmpty) return;
     _applyLandings();
     // Still water stays still: nothing to ring.
@@ -450,28 +503,44 @@ final class FreeSurface {
   /// milliseconds each, and that was most of a pour's cost. Read only, so
   /// shared between surfaces.
   static (List<Float64List>, Float64List) _modesOf(_Grid grid, int count) {
-    final key = Object.hash(
-      count,
-      grid.columns,
-      grid.rows,
-      grid.cell,
-      Object.hashAll(grid.index),
-    );
-    final hits = _solved[key];
-    if (hits != null) {
-      for (final hit in hits) {
-        if (hit.count == count &&
-            hit.columns == grid.columns &&
-            hit.rows == grid.rows &&
-            hit.cell == grid.cell &&
-            _same(hit.index, grid.index)) {
-          return hit.modes;
-        }
+    final cached = _cachedModes(grid, count);
+    if (cached != null) return cached;
+    final modes = _lowestModes(grid, count);
+    _remember(grid, count, modes);
+    return modes;
+  }
+
+  static int _keyOf(_Grid grid, int count) => Object.hash(
+    count,
+    grid.columns,
+    grid.rows,
+    grid.cell,
+    Object.hashAll(grid.index),
+  );
+
+  static (List<Float64List>, Float64List)? _cachedModes(_Grid grid, int count) {
+    final hits = _solved[_keyOf(grid, count)];
+    if (hits == null) return null;
+    for (final hit in hits) {
+      if (hit.count == count &&
+          hit.columns == grid.columns &&
+          hit.rows == grid.rows &&
+          hit.cell == grid.cell &&
+          _same(hit.index, grid.index)) {
+        return hit.modes;
       }
     }
-    final modes = _lowestModes(grid, count);
+    return null;
+  }
+
+  static void _remember(
+    _Grid grid,
+    int count,
+    (List<Float64List>, Float64List) modes,
+  ) {
+    if (_cachedModes(grid, count) != null) return;
     if (_solved.length >= 256) _solved.remove(_solved.keys.first);
-    (_solved[key] ??= []).add((
+    (_solved[_keyOf(grid, count)] ??= []).add((
       count: count,
       columns: grid.columns,
       rows: grid.rows,
@@ -479,7 +548,6 @@ final class FreeSurface {
       index: Int32List.fromList(grid.index),
       modes: modes,
     ));
-    return modes;
   }
 
   static bool _same(Int32List a, Int32List b) {
@@ -505,9 +573,19 @@ final class FreeSurface {
   >
   _solved = {};
 
-  static (List<Float64List>, Float64List) _lowestModes(_Grid grid, int count) {
-    final n = grid.count;
-    final inv = 1.0 / grid.cell2;
+  static (List<Float64List>, Float64List) _lowestModes(_Grid grid, int count) =>
+      solveModes(grid.count, grid.neighbours, grid.cell2, count);
+
+  /// The lowest [count] non-flat modes of the graph Laplacian of [n] cells
+  /// [cell2] square metres each, with [neighbours] inside, and their k²:
+  /// all the solve needs, so another isolate can do it from these alone.
+  static (List<Float64List>, Float64List) solveModes(
+    int n,
+    List<List<int>> neighbours,
+    double cell2,
+    int count,
+  ) {
+    final inv = 1.0 / cell2;
     // The graph Laplacian: each cell against the neighbours it has inside.
     // A neighbour outside is the wall, and leaving it out is ∂φ/∂n = 0.
     //
@@ -527,7 +605,7 @@ final class FreeSurface {
     final sigma = 1e-6 * inv;
     var band = 0;
     for (var i = 0; i < n; i++) {
-      for (final k in grid.neighbours[i]) {
+      for (final k in neighbours[i]) {
         band = math.max(band, (i - k).abs());
       }
     }
@@ -535,8 +613,8 @@ final class FreeSurface {
     // Lower band: L(i, j) at i·w1 + (i − j).
     final factor = Float64List(n * w1);
     for (var i = 0; i < n; i++) {
-      factor[i * w1] = grid.neighbours[i].length * inv + sigma;
-      for (final k in grid.neighbours[i]) {
+      factor[i * w1] = neighbours[i].length * inv + sigma;
+      for (final k in neighbours[i]) {
         if (k < i) factor[i * w1 + (i - k)] = -inv;
       }
     }
@@ -626,7 +704,7 @@ final class FreeSurface {
       ..sort((x, y) => values[y].compareTo(values[x]));
     final modes = <Float64List>[];
     final k2 = <double>[];
-    final scale = 1.0 / math.sqrt(grid.cell2);
+    final scale = 1.0 / math.sqrt(cell2);
     for (final r in order) {
       if (values[r] <= 0.0) continue;
       final lambda = 1.0 / values[r] - sigma;
@@ -910,4 +988,18 @@ final class _Grid {
     }
     return best < 0 ? 0.0 : values[best];
   }
+}
+
+/// Something that works out a cross-section's modes elsewhere and calls back
+/// with them: see [FreeSurface.solver].
+abstract interface class ModeSolver {
+  /// Works out [FreeSurface.solveModes] for these and calls [done] with the
+  /// result, later, on this isolate.
+  void solve(
+    int n,
+    List<List<int>> neighbours,
+    double cell2,
+    int count,
+    void Function((List<Float64List>, Float64List) modes) done,
+  );
 }
