@@ -15,8 +15,9 @@
 // with an illegal instruction. Two lanes everywhere (SSE2 and NEON are
 // in every x86-64 and arm64); on x86-64 also four, built for AVX2, and
 // eight, built for AVX-512F, each taken only where the processor says it
-// has them. Without fused multiply-adds, so that each lane rounds as the
-// scalar loop does.
+// has them, eight being there for a test to ask for: four is the default
+// (see [f3d_default_lanes]). Without fused multiply-adds, so that each lane
+// rounds as the scalar loop does.
 //
 // The constants come as one array, in this order:
 //   0 h, 1 h², 2 ρ₀, 3 m, 4 norm, 5 γ, 6 rest stiffness,
@@ -442,9 +443,14 @@ static int32_t f3d_widest(void) {
 // by whichever isolate asks first, or set by a test.
 static int32_t f3d_lanes = 0;
 
+// **Four on x86-64 where there is AVX2, not the widest there is.** On a
+// CI runner with AVX-512F, eight lanes were as fast as four built with gcc
+// and slower built with clang (0.67 and 0.77 ms against 0.70 and 0.65): the
+// loops wait on gathering each neighbour's numbers, not on arithmetic.
+// Four against two was 1.5 times as fast.
 static int32_t f3d_default_lanes(void) {
 #if F3D_X86
-  return f3d_widest();
+  return f3d_widest() >= 4 ? 4 : 2;
 #elif F3D_VECTOR
   return F3D_ARM_LANES;
 #else
