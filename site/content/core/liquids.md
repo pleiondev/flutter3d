@@ -57,12 +57,13 @@ What leaves goes into a `Jet`, as parcels each holding one step's flow. A parcel
 - A thread grows Rayleigh–Plateau ripples at Weber's rate, the Grant–Middleman form of it, and breaks into drops when they have grown e¹² times. On a wall it does not break.
 - Where it meets glass the liquid wets, it runs down the wall as a rivulet. Too slow, and it runs down the outside of the glass it came from: the teapot effect, with cling speed √(σ(1 + cos θ)/(ρe)).
 - A fast drop that lands on a surface splashes when Mundo's K = Oh·Re^1.25 is over 57.7.
+- The upper end of a stretch the lip no longer holds, the tail of a pour that has stopped, draws back into a bulb at Keller's √(σ/ρr), eating the thread ahead of it.
 
 The world keeps the accounts: every jet's `emitted` is `inFlight + landed + dropped`.
 
 ## Drops
 
-Drops are `ParticleFluid`, position-based fluids on the CPU, in double precision. Particles are held to the rest density only where they are compressed, so a surface does not pull itself inward. Cohesion follows Akinci, with the coefficient worked out so that pulling a slab of particles apart costs 2σ per square metre, which is what surface tension is. A particle is stepped in substeps short against the capillary time √(ρs³/σ), a third of a millisecond for millimetre water, and short enough that nothing passes through glass between one look and the next. Drops that land in a vessel become its liquid, with what was dissolved in them.
+Drops are `ParticleFluid`, position-based fluids on the CPU, in double precision. Particles are held to the rest density only where they are compressed, so a surface does not pull itself inward. Cohesion follows Akinci, with the coefficient worked out so that pulling a slab of particles apart costs 2σ per square metre, which is what surface tension is. A particle is stepped in substeps short against the capillary time √(ρs³/σ), a third of a millisecond for millimetre water, and short enough that nothing passes through glass between one look and the next. Drops that land in a vessel become its liquid, with what was dissolved in them. Liquid arrives in any amount and leaves as whole particles; what is short of one waits only while more is coming, and then goes as a last, smaller particle where the rest came in.
 
 A drop is stopped by the wall it touches: a viscous liquid has no velocity along a wall at rest, and a drop smaller than the capillary length √(σ/ρg), 2.7 mm for water, is held whole by its pinned edge. A drop that touches a vessel's glass from inside runs down into its liquid.
 

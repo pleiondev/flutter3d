@@ -1016,6 +1016,16 @@ final class Bench {
   final Map<String, MeshNode> _drops = {};
   final Map<String, Color> _dropColours = {};
 
+  /// What is out of the glasses (streams, drops, puddles) hung upside down
+  /// under the tabletop, as each vessel's liquid is in its own mirror: one
+  /// reflection per node, sharing its mesh.
+  late final SceneNode _spiltMirror = () {
+    final made = SceneNode(name: 'spilt reflection')..setScale(1, -1, 1);
+    scene.add(made);
+    return made;
+  }();
+  final Map<MeshNode, MeshNode> _spiltReflections = {};
+
   /// The puddles on the bench drawn, one node each, reused in order.
   final List<MeshNode> _puddles = [];
   final List<Color?> _puddleColours = [];
@@ -1199,7 +1209,7 @@ final class Bench {
         node.material = liquid(_rgb(colour), depth: 2.0 * fluid.spacing);
       }
       if (fluid.count > 0) any = true;
-      final drops = _clusters(fluid.positions, fluid.spacing);
+      final drops = _clusters(fluid.positions, fluid.volumes, fluid.spacing);
       _swap(
         node,
         particleMesh(
@@ -1209,7 +1219,7 @@ final class Bench {
             for (final d in drops)
               math
                   .pow(
-                    3.0 * d.count * fluid.particleVolume / (4.0 * math.pi),
+                    3.0 * d.volume / (4.0 * math.pi),
                     1.0 / 3.0,
                   )
                   .toDouble(),
@@ -1252,15 +1262,55 @@ final class Bench {
       );
       node.visible = true;
     }
+    _reflectSpilt();
     return any;
+  }
+
+  /// Every stream, drop and puddle node given its reflection, or brought
+  /// up to date with it: the same mesh, shown when it is, the colour of
+  /// its liquid. Left out, a stream poured over the bench stood in the
+  /// mirror nowhere, under glasses whose liquids all did.
+  void _reflectSpilt() {
+    final nodes = [..._streams.values, ..._drops.values, ..._puddles];
+    for (final gone in _spiltReflections.keys
+        .where((n) => !nodes.contains(n))
+        .toList()) {
+      _spiltReflections.remove(gone)!.removeFromParent();
+    }
+    for (final node in nodes) {
+      final c = node.material.baseColor;
+      final colour = Vector3(c.x, c.y, c.z);
+      final reflection = _spiltReflections.putIfAbsent(node, () {
+        final made =
+            MeshNode(
+                node.mesh,
+                _reflection(albedo: null, colour: colour),
+                name: '${node.name} reflection',
+              )
+              ..castsShadow = false
+              ..lightChannels = LightChannels.none;
+        _spiltMirror.add(made);
+        return made;
+      });
+      reflection
+        ..mesh = node.mesh
+        ..visible = node.visible;
+      final was = reflection.material.baseColor;
+      if ((was.x - colour.x * 0.7).abs() > 1e-6 ||
+          (was.y - colour.y * 0.7).abs() > 1e-6 ||
+          (was.z - colour.z * 0.7).abs() > 1e-6) {
+        reflection.material = _reflection(albedo: null, colour: colour);
+      }
+    }
   }
 
   /// [positions] gathered into drops: particles nearer each other than
   /// one and a half spacings are one drop, drawn as one sphere of all their
   /// liquid. A stream that breaks into drops two and a third of its width
   /// across was drawn as a scatter of millimetre dots, each a particle.
-  static List<({Vector3 centre, int count})> _clusters(
+  static List<({Vector3 centre, double volume})> _clusters(
     List<Vector3> positions,
+    List<double> volumes,
     double spacing,
   ) {
     final n = positions.length;
@@ -1281,17 +1331,19 @@ final class Bench {
         }
       }
     }
-    final sums = <int, ({Vector3 sum, int count})>{};
+    // Each drop's middle is the middle of its liquid, weighed by volume.
+    final sums = <int, ({Vector3 sum, double volume})>{};
     for (var i = 0; i < n; i++) {
       final r = root(i);
       final s = sums[r];
+      final v = volumes[i];
       sums[r] = s == null
-          ? (sum: positions[i].clone(), count: 1)
-          : (sum: s.sum..add(positions[i]), count: s.count + 1);
+          ? (sum: positions[i] * v, volume: v)
+          : (sum: s.sum..addScaled(positions[i], v), volume: s.volume + v);
     }
     return [
       for (final s in sums.values)
-        (centre: s.sum / s.count.toDouble(), count: s.count),
+        (centre: s.sum / s.volume, volume: s.volume),
     ];
   }
 
