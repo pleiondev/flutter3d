@@ -113,6 +113,45 @@ void main() {
     expect(-ball.velocity.y, closeTo(stokes, stokes * 0.03));
   });
 
+  test('a ball spun in glycerol slows as Stokes\'s torque says', () {
+    // 8πμR³ω against a ball's 2/5·mR²: its spin falls by e in ρR²/15μ, six
+    // milliseconds for a centimetre ball as heavy as the glycerol. Slow
+    // enough, a tenth of a Reynolds number, for Stokes to hold. Mutation:
+    // leave the torque out, and it spins on as it was.
+    final gravity = Vector3(0, -9.81, 0);
+    final collisions = CollisionWorld();
+    final dynamics = Dynamics(world: collisions, gravity: gravity);
+    const r = 0.01;
+    final rho = FluidMedium.glycerol.density;
+    final ball = RigidBody(
+      world: collisions,
+      shape: CollisionSphere(r),
+      position: Vector3(0, 0.1, 0),
+      mass: rho * 4 / 3 * math.pi * r * r * r,
+      canRotate: true,
+    );
+    ball.angularVelocity.setValues(0, 1, 0);
+    dynamics.add(ball);
+    const dt = 1 / 20000;
+    final world = FluidWorld(gravity: gravity, step: dt);
+    final vat = LiquidBody(
+      shape: _vat(0.05, 0.4),
+      medium: FluidMedium.glycerol,
+      volume: math.pi * 0.0025 * 0.3,
+      modes: 2,
+    );
+    world.bodies.add(vat);
+    world.float(ball);
+    final tau = rho * r * r / (15 * FluidMedium.glycerol.viscosity);
+    final steps = (tau / dt).round();
+    for (var i = 0; i < steps; i++) {
+      vat.place(Matrix3.identity(), Vector3.zero());
+      world.advance(dt);
+      dynamics.step(dt);
+    }
+    expect(ball.angularVelocity.y, closeTo(math.exp(-1), math.exp(-1) * 0.02));
+  });
+
   test('a body under the surface raises the level by its volume', () {
     final collisions = CollisionWorld();
     final world = FluidWorld(gravity: Vector3(0, -9.81, 0));
