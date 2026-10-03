@@ -140,6 +140,7 @@ final class FluidWorld {
       body
         ..background = helper
         ..surface.solver = helper
+        ..nativeMeniscus = nativeKernels
         ..surface.nativeModes = nativeKernels;
     }
     for (final liquid in bodies) {

@@ -22,3 +22,11 @@ int nativeSurfaceLanczos(
   Float64List alpha,
   Float64List beta,
 ) => -1;
+
+/// No native code here: null.
+({double apexCurvature, List<double> r, List<double> z})? nativeMeniscus(
+  double radius,
+  double bond,
+  double contactAngle,
+  int samples,
+) => null;

@@ -575,21 +575,25 @@ final class LiquidBody implements JetReceiver {
     final radius = shape.radiusAt(height.clamp(shape.floor, shape.top));
     if (radius <= 0.0) return null;
     if (!identical(_menisciMedium, medium) ||
-        !((_menisciG - _g).abs() < 1e-3 * _g)) {
+        !((_menisciG - _g).abs() < 1e-3 * _g) ||
+        _menisciNative != nativeMeniscus) {
       _menisci.clear();
       _menisciMedium = medium;
       _menisciG = _g;
+      _menisciNative = nativeMeniscus;
     }
+    final native = nativeMeniscus;
     final key = (Portable.log(radius) / 0.01).round();
     final have = _menisci[key];
     if (have != null) return have;
     final bg = background;
     if (bg != null) {
-      final shared = _menisciShared[_meniscusId(medium, key, _menisciG)];
+      final shared =
+          _menisciShared[_meniscusId(medium, key, _menisciG, native)];
       if (shared != null) return _menisci[key] = shared;
       // **Asked of the background, not waited for**: until it comes, the
       // nearest radius's meniscus stands in, or none.
-      _askMeniscus(bg, medium, key, _menisciG);
+      _askMeniscus(bg, medium, key, _menisciG, native);
       TubeMeniscus? nearest;
       var gap = 1 << 30;
       _menisci.forEach((k, m) {
@@ -600,25 +604,35 @@ final class LiquidBody implements JetReceiver {
       });
       return nearest;
     }
-    return _menisci[key] = _sharedMeniscus(medium, key, _menisciG);
+    return _menisci[key] = _sharedMeniscus(medium, key, _menisciG, native);
   }
+
+  bool _menisciNative = false;
+
+  /// Whether its menisci are solved natively where that was built: on the
+  /// platform's own sine, to within a tolerance of the Dart solve rather
+  /// than to the bit. Set by a world that may be stepped so
+  /// (`FluidWorld.nativeKernels`).
+  bool nativeMeniscus = false;
 
   /// Where a meniscus not yet worked out is worked out instead of waited
   /// for; set by a world that may be stepped so (`FluidWorld.background`).
   FluidBackground? background;
 
-  static final Set<(double, double, double, double, int)> _menisciAsked = {};
+  static final Set<_MeniscusId> _menisciAsked = {};
 
-  static (double, double, double, double, int) _meniscusId(
+  static _MeniscusId _meniscusId(
     FluidMedium medium,
     int key,
     double g,
+    bool native,
   ) => (
     medium.density,
     medium.surfaceTension,
     medium.contactAngle,
     (g * 1000).roundToDouble(),
     key,
+    native,
   );
 
   static void _askMeniscus(
@@ -626,31 +640,40 @@ final class LiquidBody implements JetReceiver {
     FluidMedium medium,
     int key,
     double g,
+    bool native,
   ) {
-    final id = _meniscusId(medium, key, g);
+    final id = _meniscusId(medium, key, g, native);
     if (!_menisciAsked.add(id)) return;
     bg.meniscus(medium, Portable.exp(key * 0.01), id.$4 / 1000, (m) {
       _menisciAsked.remove(id);
       _menisciShared[id] = m;
-    });
+    }, native: native);
   }
 
   /// **One meniscus for every vessel of the liquid and gravity**: the
   /// shape depends on nothing else, and a bench's six tubes worked out the
   /// same ones six times over, seven at the first frame, a tenth of a
   /// second.
-  static final Map<(double, double, double, double, int), TubeMeniscus>
-  _menisciShared = {};
+  ///
+  /// Kept apart by whether they were solved natively: a world that must
+  /// replay to the bit never reads one solved for another.
+  static final Map<_MeniscusId, TubeMeniscus> _menisciShared = {};
 
-  static TubeMeniscus _sharedMeniscus(FluidMedium medium, int key, double g) {
+  static TubeMeniscus _sharedMeniscus(
+    FluidMedium medium,
+    int key,
+    double g,
+    bool native,
+  ) {
     // Gravity to a part in a thousand, as a vessel's own cache keeps it.
-    final id = _meniscusId(medium, key, g);
+    final id = _meniscusId(medium, key, g, native);
     final gKey = id.$4;
     if (_menisciShared.length > 4096) _menisciShared.clear();
     return _menisciShared[id] ??= TubeMeniscus(
       medium: medium,
       radius: Portable.exp(key * 0.01),
       g: gKey / 1000,
+      native: native,
     );
   }
 
@@ -838,3 +861,8 @@ final class OutsideWalls implements JetObstacle {
     );
   }
 }
+
+/// What a meniscus is kept by: the liquid's density, surface tension and
+/// contact angle, gravity to a part in a thousand, the radius's key, and
+/// whether it was solved natively.
+typedef _MeniscusId = (double, double, double, double, int, bool);
