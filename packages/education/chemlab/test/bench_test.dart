@@ -316,4 +316,24 @@ void main() {
     }
     check(bench.scene.root);
   });
+
+  test('leaning a tube within its limit spills none of it', () {
+    // The hand turns and lifts it smoothly to the lean asked. Mutation: set
+    // the lean at once, or lift it by the height the lean it had needed,
+    // and the jolt turns the surface over: a tube asked for a tenth of a
+    // radian more emptied itself in one step.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels[1];
+    final start = tube.liquid.volume;
+    for (final lean in [0.05, 0.1, 0.2, 0.0, 0.8, 1.2, 0.0]) {
+      bench.lean(tube, lean, across: Vector3(0.35, 0, -0.94));
+      for (var i = 0; i < 150; i++) {
+        bench.step(1 / 60);
+      }
+      expect(tube.tilt, closeTo(lean.clamp(0.0, bench.maxLean(tube)), 1e-3));
+    }
+    expect(tube.liquid.volume, closeTo(start, start * 1e-9));
+    expect(bench.world.jets, isEmpty);
+  });
 }

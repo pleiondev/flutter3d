@@ -62,6 +62,18 @@ final class Vessel {
 
   /// How far it leans, in radians, and about which horizontal axis. State.
   double tilt = 0.0;
+
+  /// How far it is asked to lean, and how fast it is turning towards that:
+  /// [Bench.step] brings [tilt] round to it as a hand would.
+  double leanTo = 0.0;
+  double _turning = 0.0;
+  double _aim = 0.0;
+
+  /// How high the hand holds it out of the row, and how fast that is
+  /// changing.
+  double _raised = 0.0;
+  double _rising = 0.0;
+  double _raiseAim = 0.0;
   Vector3 leanAxis = Vector3(1, 0, 0);
 
   /// How far it is lifted out of the row to lean, from nought, standing in
@@ -547,14 +559,13 @@ final class Bench {
   /// footprint, its underside there has to clear that vessel's top by a
   /// millimetre. A vessel leaning away from its neighbours is hardly lifted;
   /// one leaning over a row of tubes goes over their mouths.
-  double _clearance(Vessel vessel) {
-    if (vessel.tilt == 0.0) return 0.0;
+  double _clearance(Vessel vessel, [double? at]) {
+    final tilt = at ?? vessel.tilt;
+    if (tilt == 0.0) return 0.0;
     final turn = Matrix3.zero()
-      ..setFrom(
-        Quaternion.axisAngle(vessel.leanAxis, vessel.tilt).asRotationMatrix(),
-      );
+      ..setFrom(Quaternion.axisAngle(vessel.leanAxis, tilt).asRotationMatrix());
     final top = vessel.glass.map((p) => p.y).reduce(math.max);
-    final sideways = math.sin(vessel.tilt).abs();
+    final sideways = math.sin(tilt).abs();
     var lowest = double.infinity;
     for (final p in [...vessel.glass, ...?vessel.foot]) {
       for (var k = 0; k < 24; k++) {
@@ -595,25 +606,94 @@ final class Bench {
   /// the way the camera looks, so it leans in the picture — after lifting
   /// it out of the row ([step] lifts and lowers it). The glass turns at
   /// once; the liquid keeps level and follows late, as liquid does.
+  ///
+  /// **Asked, not set.** [step] turns the glass to [angle] as a hand would,
+  /// smoothly. Set at once, the glass jumped a frame's worth of lean and
+  /// lift, the liquid felt a jolt of several g, its surface turned over, and
+  /// a tube tipped by ten degrees emptied itself in one step.
   void lean(Vessel vessel, double angle, {Vector3? across}) {
     if (busy) return;
     final limit = maxLean(vessel);
-    vessel.tilt = angle.clamp(-limit, limit);
-    if (across != null) {
+    vessel.leanTo = angle.clamp(-limit, limit);
+    if (across != null && vessel.tilt == 0.0) {
       final flat = Vector3(across.x, 0, across.z);
       if (flat.length2 > 1e-9) vessel.leanAxis = flat..normalize();
     }
     // One vessel in the hand: leaning this one puts the last one back.
-    if (vessel.tilt != 0.0) {
+    if (vessel.leanTo != 0.0) {
       for (final other in vessels) {
-        if (identical(other, vessel) || other.tilt == 0.0) continue;
-        other.tilt = 0.0;
-        _place(other);
-        _castBy(other);
+        if (!identical(other, vessel)) other.leanTo = 0.0;
       }
     }
+  }
+
+  /// How quickly a hand brings a glass round to the lean asked of it: the
+  /// lean asked is first eased ([_aimRate]), and the glass turns towards
+  /// the eased aim critically damped ([_handRate]), so it gathers speed
+  /// from nothing and sheds it to nothing, a third of a second or so.
+  /// Turning straight at the lean asked, critically damped alone, it took
+  /// all its angular acceleration in the first instant; a tube asked for
+  /// 0.8 rad felt three metres a second squared at once and threw a third
+  /// of what it held over its lip.
+  static const double _aimRate = 6.0;
+  static const double _handRate = 8.0;
+
+  /// Raises or lowers [vessel] towards [height] for [seconds], eased as a
+  /// turn is; says whether it moved.
+  bool _ease2(Vessel vessel, double height, double seconds) {
+    if (vessel._raised == height &&
+        vessel._raiseAim == height &&
+        vessel._rising == 0.0) {
+      return false;
+    }
+    final pieces = (seconds * 240).ceil().clamp(1, 32);
+    final dt = seconds / pieces;
+    for (var k = 0; k < pieces; k++) {
+      vessel._raiseAim += _aimRate * (height - vessel._raiseAim) * dt;
+      final pull =
+          _handRate * _handRate * (vessel._raiseAim - vessel._raised) -
+          2.0 * _handRate * vessel._rising;
+      vessel._rising += pull * dt;
+      vessel._raised += vessel._rising * dt;
+    }
+    if ((height - vessel._raised).abs() < 1e-6 && vessel._rising.abs() < 1e-5) {
+      vessel
+        .._raised = height
+        .._raiseAim = height
+        .._rising = 0.0;
+    }
+    return true;
+  }
+
+  /// Turns [vessel] towards [Vessel.leanTo] for [seconds]; says whether it
+  /// moved.
+  bool _turn(Vessel vessel, double seconds) {
+    if (vessel.tilt == vessel.leanTo &&
+        vessel._aim == vessel.leanTo &&
+        vessel._turning == 0.0) {
+      return false;
+    }
+    final wasUpright = vessel.tilt == 0.0;
+    final pieces = (seconds * 240).ceil().clamp(1, 32);
+    final dt = seconds / pieces;
+    for (var k = 0; k < pieces; k++) {
+      vessel._aim += _aimRate * (vessel.leanTo - vessel._aim) * dt;
+      final pull =
+          _handRate * _handRate * (vessel._aim - vessel.tilt) -
+          2.0 * _handRate * vessel._turning;
+      vessel._turning += pull * dt;
+      vessel.tilt += vessel._turning * dt;
+    }
+    if ((vessel.leanTo - vessel.tilt).abs() < 1e-5 &&
+        vessel._turning.abs() < 1e-4) {
+      vessel
+        ..tilt = vessel.leanTo
+        .._aim = vessel.leanTo
+        .._turning = 0.0;
+    }
     _place(vessel);
-    _castBy(vessel);
+    if (wasUpright != (vessel.tilt == 0.0)) _castBy(vessel);
+    return true;
   }
 
   /// Puts [vessel]'s glass where its lean and lift say: turned about its
@@ -632,7 +712,7 @@ final class Bench {
         lowest = math.min(lowest, turned.y);
       }
     }
-    final lift = _ease(vessel.lift) * _clearance(vessel);
+    final lift = vessel._raised;
     final y = vessel.at.y - lowest + lift;
     vessel.body
       ..setRotation(turn)
@@ -704,6 +784,9 @@ final class Bench {
         : Vector3(1, 0, 0);
     from
       ..tilt = 0.0
+      ..leanTo = 0.0
+      .._aim = 0.0
+      .._turning = 0.0
       ..lift = 0.0
       ..leanAxis = axis;
     _transfer = _Transfer(
@@ -717,10 +800,17 @@ final class Bench {
   }
 
   /// How long each part of a pour takes: up, over, and back; the pour
-  /// itself is as long as the hand takes, about two seconds.
+  /// itself is as long as the hand takes, about a second.
+  ///
+  /// **Briskly, as a chemist pours half a tube.** Over two seconds the
+  /// stream ran a millimetre across, and a thread that thin parts into
+  /// drops some forty widths down, about five centimetres: the clean tube
+  /// filled by dripping. At four times the flow the stream is twice as
+  /// wide, and since how far a stream falls before it parts grows as its
+  /// width to the power one and a half, it reaches the surface whole.
   static const double _rise = 0.45;
   static const double _over = 1.2;
-  static const double _pourTime = 2.0;
+  static const double _pourTime = 0.8;
   static const double _back = 1.4;
 
   /// The world's up seen from glass leaning [tilt] towards its local +z:
@@ -887,13 +977,19 @@ final class Bench {
     var moving = false;
     for (final vessel in vessels) {
       if (identical(vessel, _transfer?.from)) continue;
-      // Lifted out of the row while it leans, put back when it does not.
-      final wanted = vessel.tilt != 0.0 ? 1.0 : 0.0;
-      if (vessel.lift != wanted) {
-        final change = seconds / 0.6;
-        vessel.lift = wanted > vessel.lift
-            ? math.min(vessel.lift + change, wanted)
-            : math.max(vessel.lift - change, wanted);
+      // **Lifted out of the row before it leans, and put back after.** The
+      // height it must clear its neighbours by is taken for the lean it is
+      // going to as well as the one it has, so the hand rises first; and
+      // the rise is eased as the turn is. Taken for the lean it had, the
+      // height jumped by centimetres the frame the tipping glass first came
+      // over a neighbour, and the jolt threw nearly all it held out.
+      final need = math.max(
+        _clearance(vessel),
+        _clearance(vessel, vessel.leanTo),
+      );
+      final rose = _ease2(vessel, need, seconds);
+      vessel.lift = need > 0.0 ? 1.0 : 0.0;
+      if (_turn(vessel, seconds) | rose) {
         _place(vessel);
         moving = true;
       }
