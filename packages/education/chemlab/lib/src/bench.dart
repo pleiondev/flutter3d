@@ -61,6 +61,10 @@ final class Vessel {
   /// What its label says; null for glass that wears none.
   final Solution? solution;
 
+  /// What it last held, as concentrations: what filling it again from
+  /// empty fills it with. Null until it has held anything.
+  Map<String, double>? _held;
+
   /// How far it leans, in radians, and about which horizontal axis. State.
   double tilt = 0.0;
 
@@ -535,15 +539,21 @@ final class Bench {
     final now = vessel.liquid.volume;
     if (target > now) {
       final layers = vessel.liquid.layers;
+      // From empty: what it last held. The clean tube, emptied of what was
+      // poured into it and filled again, came back as plain water, its
+      // label being none.
       vessel.liquid.pour(
         target - now,
-        concentrations: layers.isEmpty
-            ? (vessel.dye.toARGB32() == 0xFFFFFFFF
-                  ? const {}
-                  : {vessel.name: 1.0})
-            : layers.last.concentrations,
+        concentrations: layers.isNotEmpty
+            ? layers.last.concentrations
+            : vessel._held ??
+                  (vessel.dye.toARGB32() == 0xFFFFFFFF
+                      ? const {}
+                      : {vessel.name: 1.0}),
       );
     } else if (target < now) {
+      final layers = vessel.liquid.layers;
+      if (layers.isNotEmpty) vessel._held = layers.last.concentrations;
       vessel.liquid.drain(now - target);
     }
     _redraw(vessel);
@@ -1035,6 +1045,10 @@ final class Bench {
   bool step(double seconds) {
     var moving = false;
     for (final vessel in vessels) {
+      final layers = vessel.liquid.layers;
+      if (layers.isNotEmpty) vessel._held = layers.last.concentrations;
+    }
+    for (final vessel in vessels) {
       if (identical(vessel, _transfer?.from)) continue;
       // **Lifted out of the row before it leans, and put back after.** The
       // height it must clear its neighbours by is taken for the lean it is
@@ -1147,7 +1161,14 @@ final class Bench {
       final layer = vessel.layers[i];
       _swap(layer.node, meshes[i].mesh);
       layer.reflection.mesh = layer.node.mesh;
-      if (layer.colour != colour) {
+      // Made again when the colour changes, and when the width across the
+      // glass at the level does: the clean tube's first layer was made with
+      // the first drops, a hair up its round bottom where the glass is
+      // nearly no width, and kept so, the half poured into it showed a
+      // fraction of the colour of the half left behind.
+      final thickness = layer.node.material.extensions?.thickness ?? 0.0;
+      if (layer.colour != colour ||
+          (thickness - depth).abs() > 0.02 * depth) {
         layer.node.material = liquid(_rgb(colour), depth: depth);
         layer.reflection.material = _reflection(
           albedo: null,
