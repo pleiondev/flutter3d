@@ -26,6 +26,12 @@ abstract interface class JetReceiver {
   /// receiver's surface: whether its underside has.
   bool catches(Vector3 point, double radius);
 
+  /// Whether anything within [distance] of [centre] (world) could be
+  /// caught: false only when it certainly cannot. What a parcel asks
+  /// first, so the receivers far from it are not asked at every point of
+  /// its way.
+  bool reaches(Vector3 centre, double distance);
+
   /// Whether a drop of [radius] at [point] (world) touches this receiver's
   /// glass from inside it: water wets glass, and a drop held there by the
   /// wall runs down into the liquid as a film.
@@ -377,14 +383,22 @@ final class Jet {
       final radius = math.sqrt(p.section / math.pi);
       final way = p.position - p.previous;
       final looks = (way.length / radius).ceil().clamp(1, 16);
+      // Only the receivers its way passes near: every point of every
+      // parcel's way asked of every glass on the bench was a third of a
+      // pour's cost.
+      final middle = (p.position + p.previous)..scale(0.5);
+      final near = [
+        for (final r in receivers)
+          if (r.reaches(middle, 0.5 * way.length + radius)) r,
+      ];
       search:
-      for (var k = 1; k <= looks; k++) {
+      for (var k = 1; k <= looks && near.isNotEmpty; k++) {
         // One point moved along, not one made per look.
         final at = _look
           ..setFrom(way)
           ..scale(k / looks)
           ..add(p.previous);
-        for (final r in receivers) {
+        for (final r in near) {
           if (r.catches(at, radius)) {
             into = r;
             break search;
