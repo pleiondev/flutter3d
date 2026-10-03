@@ -199,6 +199,16 @@ void main() {
     vec4 prev_y = Follow(uv - vec2(0.0, texel), unused);
     if (prev_y.w > 0.5) b = here.xy - prev_y.xy;
   }
+  // **Stretched past sixteen times its own spacing either way, left out.**
+  // Its light is spread a two-hundred-and-fiftieth as thin as where it set
+  // out, so it shows nothing; drawn, a photon whose neighbour landed across
+  // the tile was a quad over most of it, and the hundreds of them at a
+  // liquid's rim, where the light leaves edge-on, cost more than the rest
+  // of the frame together once the bench was in the map for them to land.
+  if (length(a) > 16.0 * caustic_info.grid.z ||
+      length(b) > 16.0 * caustic_info.grid.w) {
+    return;
+  }
   // Half again, so neighbouring quads overlap, and never under the least.
   float least = caustic_info.grid.y;
   a = AtLeast(1.5 * a, spacing_x, least);

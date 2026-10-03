@@ -378,6 +378,13 @@ final class CausticPhotonVertexShader implements CpuVertexShaderByIndex {
       final prevY = _follow(b, u, v - texel);
       if (prevY != null) down = at - prevY.$1;
     }
+    // Stretched past sixteen times its own spacing either way, a photon's
+    // light is spread a two-hundred-and-fiftieth as thin as where it set
+    // out, and drawing it is a quad over most of the tile for nothing to
+    // see: as caustic_photon.vert, it is left out.
+    if (across.length > 16.0 * grid.z || down.length > 16.0 * grid.w) {
+      return away;
+    }
     final least = grid.y;
     final ax = _atLeast(across * 1.5, spacingX, least);
     final by = _atLeast(down * 1.5, spacingY, least);

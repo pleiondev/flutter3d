@@ -3535,48 +3535,48 @@ fn AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b(a: ptr<function, vec2<f32>>, fallb
     var size: f32;
     var local: vec2<f32>;
 
-    let _e50 = (*a);
-    size = length(_e50);
-    let _e52 = size;
-    if (_e52 < 0.000000001f) {
-        let _e54 = (*fallback);
-        let _e56 = (*least);
-        return (normalize(_e54) * _e56);
+    let _e51 = (*a);
+    size = length(_e51);
+    let _e53 = size;
+    if (_e53 < 0.000000001f) {
+        let _e55 = (*fallback);
+        let _e57 = (*least);
+        return (normalize(_e55) * _e57);
     }
-    let _e58 = size;
-    let _e59 = (*least);
-    if (_e58 < _e59) {
-        let _e61 = (*a);
-        let _e62 = (*least);
-        let _e63 = size;
-        local = (_e61 * (_e62 / _e63));
+    let _e59 = size;
+    let _e60 = (*least);
+    if (_e59 < _e60) {
+        let _e62 = (*a);
+        let _e63 = (*least);
+        let _e64 = size;
+        local = (_e62 * (_e63 / _e64));
     } else {
-        let _e66 = (*a);
-        local = _e66;
+        let _e67 = (*a);
+        local = _e67;
     }
-    let _e67 = local;
-    return _e67;
+    let _e68 = local;
+    return _e68;
 }
 
 fn Schlick_u0028_f1_u003b_f1_u003b(f0_: ptr<function, f32>, cosine: ptr<function, f32>) -> f32 {
     var c: f32;
 
-    let _e48 = (*cosine);
-    c = clamp((1f - _e48), 0f, 1f);
-    let _e51 = (*f0_);
+    let _e49 = (*cosine);
+    c = clamp((1f - _e49), 0f, 1f);
     let _e52 = (*f0_);
-    let _e54 = c;
-    let _e56 = c;
-    let _e58 = c;
-    let _e60 = c;
-    let _e62 = c;
-    return (_e51 + ((((((1f - _e52) * _e54) * _e56) * _e58) * _e60) * _e62));
+    let _e53 = (*f0_);
+    let _e55 = c;
+    let _e57 = c;
+    let _e59 = c;
+    let _e61 = c;
+    let _e63 = c;
+    return (_e52 + ((((((1f - _e53) * _e55) * _e57) * _e59) * _e61) * _e63));
 }
 
 fn MapUv_u0028_vf4_u003b(p: ptr<function, vec4<f32>>) -> vec2<f32> {
-    let _e47 = (*p)[0u];
-    let _e51 = (*p)[1u];
-    return vec2<f32>(((_e47 * 0.5f) + 0.5f), (0.5f - (_e51 * 0.5f)));
+    let _e48 = (*p)[0u];
+    let _e52 = (*p)[1u];
+    return vec2<f32>(((_e48 * 0.5f) + 0.5f), (0.5f - (_e52 * 0.5f)));
 }
 
 fn Follow_u0028_vf2_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, energy: ptr<function, vec3<f32>>) -> vec4<f32> {
@@ -3616,191 +3616,191 @@ fn Follow_u0028_vf2_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, energy: ptr<fu
     var phi_100_: bool;
 
     (*energy) = vec3<f32>(0f, 0f, 0f);
-    let _e80 = (*uv);
-    let _e81 = textureSampleLevel(caustic_front_tex, caustic_front_smp, _e80, 0f);
-    front = _e81;
-    let _e83 = front[3u];
-    let _e84 = (_e83 >= 1f);
-    phi_100_ = _e84;
-    if !(_e84) {
-        let _e86 = front;
-        let _e88 = front;
-        phi_100_ = (dot(_e86.xyz, _e88.xyz) < 0.25f);
+    let _e81 = (*uv);
+    let _e82 = textureSampleLevel(caustic_front_tex, caustic_front_smp, _e81, 0f);
+    front = _e82;
+    let _e84 = front[3u];
+    let _e85 = (_e84 >= 1f);
+    phi_100_ = _e85;
+    if !(_e85) {
+        let _e87 = front;
+        let _e89 = front;
+        phi_100_ = (dot(_e87.xyz, _e89.xyz) < 0.25f);
     }
-    let _e93 = phi_100_;
-    if _e93 {
+    let _e94 = phi_100_;
+    if _e94 {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }
-    let _e95 = (*uv)[0u];
-    let _e99 = (*uv)[1u];
-    ndc = vec2<f32>(((_e95 * 2f) - 1f), ((0.5f - _e99) * 2f));
-    let _e104 = caustic_info.map_to_world;
-    let _e105 = ndc;
-    let _e107 = front[3u];
-    entry = (_e104 * vec4<f32>(_e105.x, _e105.y, _e107, 1f)).xyz;
-    let _e114 = caustic_info.map_to_world;
-    range = length((_e114 * vec4<f32>(0f, 0f, 1f, 0f)).xyz);
-    let _e119 = caustic_info.light;
-    l = normalize(_e119.xyz);
-    let _e122 = front;
-    n1_ = normalize(_e122.xyz);
-    let _e125 = n1_;
-    let _e126 = l;
-    if (dot(_e125, _e126) > 0f) {
-        let _e129 = n1_;
-        n1_ = -(_e129);
+    let _e96 = (*uv)[0u];
+    let _e100 = (*uv)[1u];
+    ndc = vec2<f32>(((_e96 * 2f) - 1f), ((0.5f - _e100) * 2f));
+    let _e105 = caustic_info.map_to_world;
+    let _e106 = ndc;
+    let _e108 = front[3u];
+    entry = (_e105 * vec4<f32>(_e106.x, _e106.y, _e108, 1f)).xyz;
+    let _e115 = caustic_info.map_to_world;
+    range = length((_e115 * vec4<f32>(0f, 0f, 1f, 0f)).xyz);
+    let _e120 = caustic_info.light;
+    l = normalize(_e120.xyz);
+    let _e123 = front;
+    n1_ = normalize(_e123.xyz);
+    let _e126 = n1_;
+    let _e127 = l;
+    if (dot(_e126, _e127) > 0f) {
+        let _e130 = n1_;
+        n1_ = -(_e130);
     }
-    let _e133 = caustic_info.optics[0u];
-    index = max(_e133, 1f);
-    let _e135 = l;
-    let _e136 = n1_;
-    let _e137 = index;
-    inside = refract(_e135, _e136, (1f / _e137));
-    let _e140 = (*uv);
-    let _e141 = textureSampleLevel(caustic_back_tex, caustic_back_smp, _e140, 0f);
-    back = _e141;
-    let _e143 = back[3u];
-    let _e145 = front[3u];
-    if (_e143 <= _e145) {
+    let _e134 = caustic_info.optics[0u];
+    index = max(_e134, 1f);
+    let _e136 = l;
+    let _e137 = n1_;
+    let _e138 = index;
+    inside = refract(_e136, _e137, (1f / _e138));
+    let _e141 = (*uv);
+    let _e142 = textureSampleLevel(caustic_back_tex, caustic_back_smp, _e141, 0f);
+    back = _e142;
+    let _e144 = back[3u];
+    let _e146 = front[3u];
+    if (_e144 <= _e146) {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }
-    let _e148 = back[3u];
-    let _e150 = front[3u];
-    let _e152 = range;
-    across = ((_e148 - _e150) * _e152);
-    let _e154 = entry;
-    let _e155 = inside;
-    let _e156 = across;
-    let _e157 = inside;
-    let _e158 = l;
-    exit = (_e154 + (_e155 * (_e156 / max(dot(_e157, _e158), 0.2f))));
-    let _e165 = caustic_info.world_to_map;
-    let _e166 = exit;
-    param = (_e165 * vec4<f32>(_e166.x, _e166.y, _e166.z, 1f));
-    let _e172 = MapUv_u0028_vf4_u003b((&param));
-    let _e176 = textureSampleLevel(caustic_back_tex, caustic_back_smp, clamp(_e172, vec2(0f), vec2(1f)), 0f);
-    there = _e176;
-    let _e177 = there;
-    let _e179 = there;
-    if (dot(_e177.xyz, _e179.xyz) > 0.25f) {
-        let _e183 = there;
-        local_1 = normalize(_e183.xyz);
+    let _e149 = back[3u];
+    let _e151 = front[3u];
+    let _e153 = range;
+    across = ((_e149 - _e151) * _e153);
+    let _e155 = entry;
+    let _e156 = inside;
+    let _e157 = across;
+    let _e158 = inside;
+    let _e159 = l;
+    exit = (_e155 + (_e156 * (_e157 / max(dot(_e158, _e159), 0.2f))));
+    let _e166 = caustic_info.world_to_map;
+    let _e167 = exit;
+    param = (_e166 * vec4<f32>(_e167.x, _e167.y, _e167.z, 1f));
+    let _e173 = MapUv_u0028_vf4_u003b((&param));
+    let _e177 = textureSampleLevel(caustic_back_tex, caustic_back_smp, clamp(_e173, vec2(0f), vec2(1f)), 0f);
+    there = _e177;
+    let _e178 = there;
+    let _e180 = there;
+    if (dot(_e178.xyz, _e180.xyz) > 0.25f) {
+        let _e184 = there;
+        local_1 = normalize(_e184.xyz);
     } else {
-        let _e186 = back;
-        local_1 = normalize(_e186.xyz);
+        let _e187 = back;
+        local_1 = normalize(_e187.xyz);
     }
-    let _e189 = local_1;
-    n2_ = _e189;
-    let _e190 = n2_;
-    let _e191 = inside;
-    if (dot(_e190, _e191) < 0f) {
-        let _e194 = n2_;
-        n2_ = -(_e194);
+    let _e190 = local_1;
+    n2_ = _e190;
+    let _e191 = n2_;
+    let _e192 = inside;
+    if (dot(_e191, _e192) < 0f) {
+        let _e195 = n2_;
+        n2_ = -(_e195);
     }
-    let _e196 = inside;
-    let _e197 = n2_;
-    let _e199 = index;
-    out_ray = refract(_e196, -(_e197), _e199);
-    let _e201 = out_ray;
+    let _e197 = inside;
+    let _e198 = n2_;
+    let _e200 = index;
+    out_ray = refract(_e197, -(_e198), _e200);
     let _e202 = out_ray;
-    if (dot(_e201, _e202) < 0.000001f) {
+    let _e203 = out_ray;
+    if (dot(_e202, _e203) < 0.000001f) {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }
-    let _e205 = out_ray;
-    out_ray = normalize(_e205);
-    let _e207 = out_ray;
-    let _e208 = l;
-    if (dot(_e207, _e208) < 0.3f) {
+    let _e206 = out_ray;
+    out_ray = normalize(_e206);
+    let _e208 = out_ray;
+    let _e209 = l;
+    if (dot(_e208, _e209) < 0.3f) {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }
-    let _e213 = caustic_info.optics[1u];
-    f0_1 = _e213;
-    let _e215 = caustic_info.tint;
-    let _e217 = l;
-    let _e218 = n1_;
-    let _e221 = f0_1;
-    param_1 = _e221;
-    param_2 = abs(dot(_e217, _e218));
-    let _e222 = Schlick_u0028_f1_u003b_f1_u003b((&param_1), (&param_2));
-    let _e225 = out_ray;
-    let _e226 = n2_;
-    let _e229 = f0_1;
-    param_3 = _e229;
-    param_4 = abs(dot(_e225, _e226));
-    let _e230 = Schlick_u0028_f1_u003b_f1_u003b((&param_3), (&param_4));
-    (*energy) = ((_e215.xyz * (1f - _e222)) * (1f - _e230));
-    let _e235 = caustic_info.optics[2u];
-    fading = _e235;
-    let _e236 = fading;
-    if (_e236 > 0f) {
-        let _e239 = caustic_info.attenuation;
-        let _e242 = exit;
-        let _e243 = entry;
-        let _e246 = fading;
-        let _e250 = (*energy);
-        (*energy) = (_e250 * pow(max(_e239.xyz, vec3<f32>(0.0001f, 0.0001f, 0.0001f)), vec3((length((_e242 - _e243)) / _e246))));
+    let _e214 = caustic_info.optics[1u];
+    f0_1 = _e214;
+    let _e216 = caustic_info.tint;
+    let _e218 = l;
+    let _e219 = n1_;
+    let _e222 = f0_1;
+    param_1 = _e222;
+    param_2 = abs(dot(_e218, _e219));
+    let _e223 = Schlick_u0028_f1_u003b_f1_u003b((&param_1), (&param_2));
+    let _e226 = out_ray;
+    let _e227 = n2_;
+    let _e230 = f0_1;
+    param_3 = _e230;
+    param_4 = abs(dot(_e226, _e227));
+    let _e231 = Schlick_u0028_f1_u003b_f1_u003b((&param_3), (&param_4));
+    (*energy) = ((_e216.xyz * (1f - _e223)) * (1f - _e231));
+    let _e236 = caustic_info.optics[2u];
+    fading = _e236;
+    let _e237 = fading;
+    if (_e237 > 0f) {
+        let _e240 = caustic_info.attenuation;
+        let _e243 = exit;
+        let _e244 = entry;
+        let _e247 = fading;
+        let _e251 = (*energy);
+        (*energy) = (_e251 * pow(max(_e240.xyz, vec3<f32>(0.0001f, 0.0001f, 0.0001f)), vec3((length((_e243 - _e244)) / _e247))));
     }
-    let _e252 = exit;
-    p_1 = _e252;
-    let _e253 = out_ray;
-    let _e254 = l;
-    down = max(dot(_e253, _e254), 0.05f);
+    let _e253 = exit;
+    p_1 = _e253;
+    let _e254 = out_ray;
+    let _e255 = l;
+    down = max(dot(_e254, _e255), 0.05f);
     k = 0i;
     loop {
-        let _e257 = k;
-        if (_e257 < 4i) {
-            let _e260 = caustic_info.world_to_tile;
-            let _e261 = p_1;
-            q = (_e260 * vec4<f32>(_e261.x, _e261.y, _e261.z, 1f));
-            let _e267 = q;
-            param_5 = _e267;
-            let _e268 = MapUv_u0028_vf4_u003b((&param_5));
-            let _e272 = textureSampleLevel(caustic_depth_tex, caustic_depth_smp, clamp(_e268, vec2(0f), vec2(1f)), 0f);
-            receiver = _e272.x;
-            let _e274 = receiver;
-            let _e276 = q[2u];
-            let _e278 = range;
-            let _e280 = down;
-            advance = (((_e274 - _e276) * _e278) / _e280);
-            let _e282 = k;
-            if (_e282 == 0i) {
-                let _e284 = advance;
-                advance = max(_e284, 0f);
+        let _e258 = k;
+        if (_e258 < 4i) {
+            let _e261 = caustic_info.world_to_tile;
+            let _e262 = p_1;
+            q = (_e261 * vec4<f32>(_e262.x, _e262.y, _e262.z, 1f));
+            let _e268 = q;
+            param_5 = _e268;
+            let _e269 = MapUv_u0028_vf4_u003b((&param_5));
+            let _e273 = textureSampleLevel(caustic_depth_tex, caustic_depth_smp, clamp(_e269, vec2(0f), vec2(1f)), 0f);
+            receiver = _e273.x;
+            let _e275 = receiver;
+            let _e277 = q[2u];
+            let _e279 = range;
+            let _e281 = down;
+            advance = (((_e275 - _e277) * _e279) / _e281);
+            let _e283 = k;
+            if (_e283 == 0i) {
+                let _e285 = advance;
+                advance = max(_e285, 0f);
             }
-            let _e286 = out_ray;
-            let _e287 = advance;
-            let _e289 = p_1;
-            p_1 = (_e289 + (_e286 * _e287));
+            let _e287 = out_ray;
+            let _e288 = advance;
+            let _e290 = p_1;
+            p_1 = (_e290 + (_e287 * _e288));
             continue;
         } else {
             break;
         }
         continuing {
-            let _e291 = k;
-            k = (_e291 + 1i);
+            let _e292 = k;
+            k = (_e292 + 1i);
         }
     }
-    let _e294 = caustic_info.world_to_tile;
-    let _e295 = p_1;
-    landed = (_e294 * vec4<f32>(_e295.x, _e295.y, _e295.z, 1f));
-    let _e301 = landed;
-    param_6 = _e301;
-    let _e302 = MapUv_u0028_vf4_u003b((&param_6));
-    let _e306 = textureSampleLevel(caustic_depth_tex, caustic_depth_smp, clamp(_e302, vec2(0f), vec2(1f)), 0f);
-    under = _e306.x;
-    let _e308 = under;
-    let _e310 = landed[2u];
-    let _e313 = range;
-    if ((abs((_e308 - _e310)) * _e313) > 0.02f) {
+    let _e295 = caustic_info.world_to_tile;
+    let _e296 = p_1;
+    landed = (_e295 * vec4<f32>(_e296.x, _e296.y, _e296.z, 1f));
+    let _e302 = landed;
+    param_6 = _e302;
+    let _e303 = MapUv_u0028_vf4_u003b((&param_6));
+    let _e307 = textureSampleLevel(caustic_depth_tex, caustic_depth_smp, clamp(_e303, vec2(0f), vec2(1f)), 0f);
+    under = _e307.x;
+    let _e309 = under;
+    let _e311 = landed[2u];
+    let _e314 = range;
+    if ((abs((_e309 - _e311)) * _e314) > 0.02f) {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }
-    let _e317 = caustic_info.world_to_clip;
-    let _e318 = p_1;
-    clip = (_e317 * vec4<f32>(_e318.x, _e318.y, _e318.z, 1f));
-    let _e324 = clip;
-    let _e327 = clip[3u];
-    let _e329 = (_e324.xy / vec2(_e327));
-    return vec4<f32>(_e329.x, _e329.y, 0f, 1f);
+    let _e318 = caustic_info.world_to_clip;
+    let _e319 = p_1;
+    clip = (_e318 * vec4<f32>(_e319.x, _e319.y, _e319.z, 1f));
+    let _e325 = clip;
+    let _e328 = clip[3u];
+    let _e330 = (_e325.xy / vec2(_e328));
+    return vec4<f32>(_e330.x, _e330.y, 0f, 1f);
 }
 
 fn main_1() {
@@ -3842,150 +3842,164 @@ fn main_1() {
     var param_22: f32;
     var area: f32;
     var share: f32;
+    var phi_654_: bool;
 
-    let _e83 = corner_1;
-    v_uv = _e83;
+    let _e84 = corner_1;
+    v_uv = _e84;
     v_color = vec4<f32>(0f, 0f, 0f, 0f);
     unnamed.gl_Position = vec4<f32>(4f, 4f, 0.5f, 1f);
-    let _e87 = caustic_info.grid[0u];
-    n = _e87;
-    let _e88 = gl_InstanceIndex_1;
-    id = f32(_e88);
-    let _e90 = id;
-    let _e91 = n;
-    column = (_e90 - (floor((_e90 / _e91)) * _e91));
-    let _e96 = id;
-    let _e97 = n;
-    row = floor((_e96 / _e97));
-    let _e100 = column;
-    let _e102 = n;
-    let _e104 = row;
-    let _e106 = n;
-    uv_1 = vec2<f32>(((_e100 + 0.5f) / _e102), ((_e104 + 0.5f) / _e106));
-    let _e109 = n;
-    texel = (1f / _e109);
-    let _e111 = uv_1;
-    param_7 = _e111;
-    let _e112 = Follow_u0028_vf2_u003b_vf3_u003b((&param_7), (&param_8));
-    let _e113 = param_8;
-    energy_1 = _e113;
-    here = _e112;
-    let _e115 = here[3u];
-    if (_e115 < 0.5f) {
+    let _e88 = caustic_info.grid[0u];
+    n = _e88;
+    let _e89 = gl_InstanceIndex_1;
+    id = f32(_e89);
+    let _e91 = id;
+    let _e92 = n;
+    column = (_e91 - (floor((_e91 / _e92)) * _e92));
+    let _e97 = id;
+    let _e98 = n;
+    row = floor((_e97 / _e98));
+    let _e101 = column;
+    let _e103 = n;
+    let _e105 = row;
+    let _e107 = n;
+    uv_1 = vec2<f32>(((_e101 + 0.5f) / _e103), ((_e105 + 0.5f) / _e107));
+    let _e110 = n;
+    texel = (1f / _e110);
+    let _e112 = uv_1;
+    param_7 = _e112;
+    let _e113 = Follow_u0028_vf2_u003b_vf3_u003b((&param_7), (&param_8));
+    let _e114 = param_8;
+    energy_1 = _e114;
+    here = _e113;
+    let _e116 = here[3u];
+    if (_e116 < 0.5f) {
         return;
     }
-    let _e119 = caustic_info.grid[2u];
-    spacing_x = vec2<f32>(_e119, 0f);
-    let _e123 = caustic_info.grid[3u];
-    spacing_y = vec2<f32>(0f, _e123);
-    let _e125 = uv_1;
-    let _e126 = texel;
-    param_9 = (_e125 + vec2<f32>(_e126, 0f));
-    let _e129 = Follow_u0028_vf2_u003b_vf3_u003b((&param_9), (&param_10));
-    let _e130 = param_10;
-    unused = _e130;
-    next_x = _e129;
-    let _e132 = next_x[3u];
-    if (_e132 > 0.5f) {
-        let _e134 = next_x;
-        let _e136 = here;
-        local_2 = (_e134.xy - _e136.xy);
+    let _e120 = caustic_info.grid[2u];
+    spacing_x = vec2<f32>(_e120, 0f);
+    let _e124 = caustic_info.grid[3u];
+    spacing_y = vec2<f32>(0f, _e124);
+    let _e126 = uv_1;
+    let _e127 = texel;
+    param_9 = (_e126 + vec2<f32>(_e127, 0f));
+    let _e130 = Follow_u0028_vf2_u003b_vf3_u003b((&param_9), (&param_10));
+    let _e131 = param_10;
+    unused = _e131;
+    next_x = _e130;
+    let _e133 = next_x[3u];
+    if (_e133 > 0.5f) {
+        let _e135 = next_x;
+        let _e137 = here;
+        local_2 = (_e135.xy - _e137.xy);
     } else {
-        let _e139 = spacing_x;
-        local_2 = _e139;
+        let _e140 = spacing_x;
+        local_2 = _e140;
     }
-    let _e140 = local_2;
-    a_1 = _e140;
-    let _e142 = next_x[3u];
-    if (_e142 < 0.5f) {
-        let _e144 = uv_1;
-        let _e145 = texel;
-        param_11 = (_e144 - vec2<f32>(_e145, 0f));
-        let _e148 = Follow_u0028_vf2_u003b_vf3_u003b((&param_11), (&param_12));
-        let _e149 = param_12;
-        unused = _e149;
-        prev_x = _e148;
-        let _e151 = prev_x[3u];
-        if (_e151 > 0.5f) {
-            let _e153 = here;
-            let _e155 = prev_x;
-            a_1 = (_e153.xy - _e155.xy);
+    let _e141 = local_2;
+    a_1 = _e141;
+    let _e143 = next_x[3u];
+    if (_e143 < 0.5f) {
+        let _e145 = uv_1;
+        let _e146 = texel;
+        param_11 = (_e145 - vec2<f32>(_e146, 0f));
+        let _e149 = Follow_u0028_vf2_u003b_vf3_u003b((&param_11), (&param_12));
+        let _e150 = param_12;
+        unused = _e150;
+        prev_x = _e149;
+        let _e152 = prev_x[3u];
+        if (_e152 > 0.5f) {
+            let _e154 = here;
+            let _e156 = prev_x;
+            a_1 = (_e154.xy - _e156.xy);
         }
     }
-    let _e158 = uv_1;
-    let _e159 = texel;
-    param_13 = (_e158 + vec2<f32>(0f, _e159));
-    let _e162 = Follow_u0028_vf2_u003b_vf3_u003b((&param_13), (&param_14));
-    let _e163 = param_14;
-    unused = _e163;
-    next_y = _e162;
-    let _e165 = next_y[3u];
-    if (_e165 > 0.5f) {
-        let _e167 = next_y;
-        let _e169 = here;
-        local_3 = (_e167.xy - _e169.xy);
+    let _e159 = uv_1;
+    let _e160 = texel;
+    param_13 = (_e159 + vec2<f32>(0f, _e160));
+    let _e163 = Follow_u0028_vf2_u003b_vf3_u003b((&param_13), (&param_14));
+    let _e164 = param_14;
+    unused = _e164;
+    next_y = _e163;
+    let _e166 = next_y[3u];
+    if (_e166 > 0.5f) {
+        let _e168 = next_y;
+        let _e170 = here;
+        local_3 = (_e168.xy - _e170.xy);
     } else {
-        let _e172 = spacing_y;
-        local_3 = _e172;
+        let _e173 = spacing_y;
+        local_3 = _e173;
     }
-    let _e173 = local_3;
-    b = _e173;
-    let _e175 = next_y[3u];
-    if (_e175 < 0.5f) {
-        let _e177 = uv_1;
-        let _e178 = texel;
-        param_15 = (_e177 - vec2<f32>(0f, _e178));
-        let _e181 = Follow_u0028_vf2_u003b_vf3_u003b((&param_15), (&param_16));
-        let _e182 = param_16;
-        unused = _e182;
-        prev_y = _e181;
-        let _e184 = prev_y[3u];
-        if (_e184 > 0.5f) {
-            let _e186 = here;
-            let _e188 = prev_y;
-            b = (_e186.xy - _e188.xy);
+    let _e174 = local_3;
+    b = _e174;
+    let _e176 = next_y[3u];
+    if (_e176 < 0.5f) {
+        let _e178 = uv_1;
+        let _e179 = texel;
+        param_15 = (_e178 - vec2<f32>(0f, _e179));
+        let _e182 = Follow_u0028_vf2_u003b_vf3_u003b((&param_15), (&param_16));
+        let _e183 = param_16;
+        unused = _e183;
+        prev_y = _e182;
+        let _e185 = prev_y[3u];
+        if (_e185 > 0.5f) {
+            let _e187 = here;
+            let _e189 = prev_y;
+            b = (_e187.xy - _e189.xy);
         }
     }
-    let _e193 = caustic_info.grid[1u];
-    least_1 = _e193;
-    let _e194 = a_1;
-    param_17 = (_e194 * 1.5f);
-    let _e196 = spacing_x;
-    param_18 = _e196;
-    let _e197 = least_1;
-    param_19 = _e197;
-    let _e198 = AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19));
-    a_1 = _e198;
-    let _e199 = b;
-    param_20 = (_e199 * 1.5f);
-    let _e201 = spacing_y;
-    param_21 = _e201;
-    let _e202 = least_1;
-    param_22 = _e202;
-    let _e203 = AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b((&param_20), (&param_21), (&param_22));
-    b = _e203;
-    let _e205 = a_1[0u];
-    let _e207 = b[1u];
-    let _e210 = a_1[1u];
-    let _e212 = b[0u];
-    let _e216 = least_1;
-    let _e217 = least_1;
-    area = max(abs(((_e205 * _e207) - (_e210 * _e212))), (_e216 * _e217));
-    let _e220 = here;
-    let _e223 = corner_1[0u];
-    let _e224 = a_1;
-    let _e228 = corner_1[1u];
-    let _e229 = b;
-    let _e231 = ((_e220.xy + (_e224 * _e223)) + (_e229 * _e228));
-    unnamed.gl_Position = vec4<f32>(_e231.x, _e231.y, 0.5f, 1f);
-    let _e238 = caustic_info.grid[2u];
-    let _e241 = caustic_info.grid[3u];
-    share = (_e238 * _e241);
-    let _e243 = energy_1;
-    let _e244 = share;
-    let _e246 = area;
-    let _e249 = ((_e243 * _e244) / vec3((1.0471976f * _e246)));
-    v_color = vec4<f32>(_e249.x, _e249.y, _e249.z, 0f);
+    let _e192 = a_1;
+    let _e196 = caustic_info.grid[2u];
+    let _e198 = (length(_e192) > (16f * _e196));
+    phi_654_ = _e198;
+    if !(_e198) {
+        let _e200 = b;
+        let _e204 = caustic_info.grid[3u];
+        phi_654_ = (length(_e200) > (16f * _e204));
+    }
+    let _e208 = phi_654_;
+    if _e208 {
+        return;
+    }
+    let _e211 = caustic_info.grid[1u];
+    least_1 = _e211;
+    let _e212 = a_1;
+    param_17 = (_e212 * 1.5f);
+    let _e214 = spacing_x;
+    param_18 = _e214;
+    let _e215 = least_1;
+    param_19 = _e215;
+    let _e216 = AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19));
+    a_1 = _e216;
+    let _e217 = b;
+    param_20 = (_e217 * 1.5f);
+    let _e219 = spacing_y;
+    param_21 = _e219;
+    let _e220 = least_1;
+    param_22 = _e220;
+    let _e221 = AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b((&param_20), (&param_21), (&param_22));
+    b = _e221;
+    let _e223 = a_1[0u];
+    let _e225 = b[1u];
+    let _e228 = a_1[1u];
+    let _e230 = b[0u];
+    let _e234 = least_1;
+    let _e235 = least_1;
+    area = max(abs(((_e223 * _e225) - (_e228 * _e230))), (_e234 * _e235));
+    let _e238 = here;
+    let _e241 = corner_1[0u];
+    let _e242 = a_1;
+    let _e246 = corner_1[1u];
+    let _e247 = b;
+    let _e249 = ((_e238.xy + (_e242 * _e241)) + (_e247 * _e246));
+    unnamed.gl_Position = vec4<f32>(_e249.x, _e249.y, 0.5f, 1f);
+    let _e256 = caustic_info.grid[2u];
+    let _e259 = caustic_info.grid[3u];
+    share = (_e256 * _e259);
+    let _e261 = energy_1;
+    let _e262 = share;
+    let _e264 = area;
+    let _e267 = ((_e261 * _e262) / vec3((1.0471976f * _e264)));
+    v_color = vec4<f32>(_e267.x, _e267.y, _e267.z, 0f);
     return;
 }
 
