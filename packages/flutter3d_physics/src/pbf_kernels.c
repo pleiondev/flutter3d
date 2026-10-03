@@ -127,48 +127,71 @@ static int compare_entries(const void* a, const void* b) {
 // are: called again with room for that when it is more. [scratch] holds
 // 5·n int64s, the caller's own: nothing here is shared between calls, so
 // two isolates may step two fluids at once.
+//
+// **Read in the cells' order, not the particles'.** Of the 27 cells' worth
+// of candidates around a particle only one in six or seven is within h,
+// and each was read through its index from wherever it lay in [x]: nearly
+// every read missed the cache, and the search cost twice all the loops
+// over pairs together. The positions are copied out in the sorted order,
+// so a cell's candidates are read one after the other.
 F3D_EXPORT int32_t f3d_pbf_neighbours(const double* x, int32_t n,
                                       double radius, int32_t* start,
                                       int32_t* list, int32_t capacity,
                                       int64_t* scratch) {
   const double h = radius;
   const double reach2 = h * h;
-  int64_t* cx = scratch;
-  int64_t* cy = scratch + n;
-  int64_t* cz = scratch + 2 * n;
-  // Two words an entry, in the scratch's last 2·n.
-  f3d_cell_entry* entries = (f3d_cell_entry*)(scratch + 3 * n);
+  // Two words an entry in the scratch's first 2·n, the positions in sorted
+  // order in its last 3·n.
+  f3d_cell_entry* entries = (f3d_cell_entry*)scratch;
+  double* sorted = (double*)(scratch + 2 * n);
   for (int32_t i = 0; i < n; i++) {
-    cx[i] = (int64_t)floor(x[3 * i] / h);
-    cy[i] = (int64_t)floor(x[3 * i + 1] / h);
-    cz[i] = (int64_t)floor(x[3 * i + 2] / h);
-    entries[i].key = pack_cell(cx[i], cy[i], cz[i]);
+    entries[i].key = pack_cell((int64_t)floor(x[3 * i] / h),
+                               (int64_t)floor(x[3 * i + 1] / h),
+                               (int64_t)floor(x[3 * i + 2] / h));
     entries[i].index = i;
   }
   qsort(entries, (size_t)n, sizeof(f3d_cell_entry), compare_entries);
+  for (int32_t q = 0; q < n; q++) {
+    const int64_t j = entries[q].index;
+    sorted[3 * q] = x[3 * j];
+    sorted[3 * q + 1] = x[3 * j + 1];
+    sorted[3 * q + 2] = x[3 * j + 2];
+  }
   int32_t count = 0;
   start[0] = 0;
   for (int32_t i = 0; i < n; i++) {
     const double xi = x[3 * i], yi = x[3 * i + 1], zi = x[3 * i + 2];
+    const int64_t cx = (int64_t)floor(xi / h), cy = (int64_t)floor(yi / h),
+                  cz = (int64_t)floor(zi / h);
     for (int64_t dx = -1; dx <= 1; dx++) {
       for (int64_t dy = -1; dy <= 1; dy++) {
-        for (int64_t dz = -1; dz <= 1; dz++) {
-          const int64_t key = pack_cell(cx[i] + dx, cy[i] + dy, cz[i] + dz);
+        // The three cells from z − 1 to z + 1 are three keys in a row, z
+        // being the key's last part: one search finds the first, and the
+        // rest follow it in the sorted entries, in the order three searches
+        // gave. Where z wraps round they are not in a row, and each is
+        // searched for.
+        const int64_t first = pack_cell(cx + dx, cy + dy, cz - 1);
+        const int64_t last = pack_cell(cx + dx, cy + dy, cz + 1);
+        const int32_t runs = last == first + 2 ? 1 : 3;
+        for (int32_t run = 0; run < runs; run++) {
+          const int64_t from =
+              runs == 1 ? first : pack_cell(cx + dx, cy + dy, cz - 1 + run);
+          const int64_t to = runs == 1 ? last : from;
           int32_t lo = 0, hi = n;
           while (lo < hi) {
             const int32_t mid = (lo + hi) >> 1;
-            if (entries[mid].key < key) {
+            if (entries[mid].key < from) {
               lo = mid + 1;
             } else {
               hi = mid;
             }
           }
-          for (int32_t q = lo; q < n && entries[q].key == key; q++) {
+          for (int32_t q = lo; q < n && entries[q].key <= to; q++) {
+            const double ex = sorted[3 * q] - xi, ey = sorted[3 * q + 1] - yi,
+                         ez = sorted[3 * q + 2] - zi;
+            if (ex * ex + ey * ey + ez * ez >= reach2) continue;
             const int32_t j = (int32_t)entries[q].index;
             if (j == i) continue;
-            const double ex = x[3 * j] - xi, ey = x[3 * j + 1] - yi,
-                         ez = x[3 * j + 2] - zi;
-            if (ex * ex + ey * ey + ez * ez >= reach2) continue;
             if (count < capacity) list[count] = j;
             count++;
           }
