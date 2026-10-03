@@ -237,4 +237,55 @@ void main() {
     expect(body.volume, lessThanOrEqualTo(holds * 1.001));
     expect(body.volume, greaterThan(holds * 0.9));
   });
+
+  test('what lands hard sets the surface moving, and dips it', () {
+    // A drop landing at a metre a second strikes: an impulsive pressure,
+    // whose potential sets every mode moving at k·tanh(kh) times its share.
+    // The same drop laid down still only heaps. Mutation: drop the strike,
+    // and a stream poured into a glass leaves its surface as flat as a lid.
+    LiquidBody glass() => LiquidBody(
+      shape: _cylinder(0.008, 0.09),
+      medium: FluidMedium.water,
+      volume: math.pi * 0.008 * 0.008 * 0.03,
+      modes: 8,
+    )..place(Matrix3.identity(), Vector3.zero());
+    double ring(double speed) {
+      final body = glass()..step(1 / 240, gravity: Vector3(0, -9.81, 0));
+      for (var i = 0; i < 40; i++) {
+        body
+          ..receive(
+            5e-9,
+            Vector3(0.003, 0.03, 0),
+            Vector3(0, -speed, 0),
+            FluidMedium.water,
+            const {},
+          )
+          ..place(Matrix3.identity(), Vector3.zero())
+          ..step(1 / 240, gravity: Vector3(0, -9.81, 0));
+      }
+      return body.surface.reach;
+    }
+
+    final still = ring(0.0);
+    final struck = ring(1.0);
+    expect(struck, greaterThan(3.0 * still));
+    // And under where it lands the surface is lower than elsewhere.
+    final body = glass()..step(1 / 240, gravity: Vector3(0, -9.81, 0));
+    for (var i = 0; i < 12; i++) {
+      body
+        ..receive(
+          5e-9,
+          Vector3(0.004, 0.03, 0),
+          Vector3(0, -1.0, 0),
+          FluidMedium.water,
+          const {},
+        )
+        ..place(Matrix3.identity(), Vector3.zero())
+        ..step(1 / 240, gravity: Vector3(0, -9.81, 0));
+    }
+    expect(
+      body.surface.displacement(Vector3(0.004, body.height, 0)),
+      lessThan(body.surface.displacement(Vector3(-0.004, body.height, 0))),
+    );
+  });
 }

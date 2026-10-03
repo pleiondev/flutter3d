@@ -272,4 +272,33 @@ void main() {
     expect(from.liquid.volume, closeTo(total / 2, total * 0.05));
     expect(to.liquid.volume, closeTo(total / 2, total * 0.05));
   });
+
+  test('a pour never asks the device for a buffer of no bytes', () {
+    // Metal makes none, and a stream with no parcels yet threw on every
+    // frame of a pour in the macOS app. The software device takes one, so
+    // this looks at the meshes rather than waiting for a throw. Mutation:
+    // upload the empty stream as it is.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[1];
+    bench.share(from);
+    void check(SceneNode node) {
+      if (node is MeshNode && node.mesh is DeviceMesh) {
+        expect(
+          (node.mesh as DeviceMesh).vertexCount,
+          greaterThan(0),
+          reason: node.name,
+        );
+      }
+      node.children.forEach(check);
+    }
+
+    var seconds = 0.0;
+    while (bench.world.jets.isEmpty) {
+      bench.step(1 / 60);
+      seconds += 1 / 60;
+      expect(seconds, lessThan(10));
+    }
+    check(bench.scene.root);
+  });
 }

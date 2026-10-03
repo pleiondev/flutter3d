@@ -224,7 +224,12 @@ class _BenchScreenState extends State<BenchScreen>
                 _stir();
               },
               onShare: () {
-                setState(() => bench.share(bench.vessels[_selected]));
+                setState(
+                  () => bench.share(
+                    bench.vessels[_selected],
+                    across: _lookingAlong(),
+                  ),
+                );
                 _stir();
               },
             ),

@@ -311,6 +311,13 @@ base class SceneNode implements AnimationTarget {
   void _recomputeLocal() {
     _localMatrix.setFromTranslationRotationScale(_position, _rotation, _scale);
     _localDirty = false;
+    // **The world matrix is built from this one, so it is stale now too.**
+    // [worldMatrix] recomputes when the local matrix is dirty or the parent
+    // has moved, and a read of [localMatrix] between a move and the next
+    // read of [worldMatrix] cleared the first without the second: the node
+    // moved for whoever asked its local matrix and stayed where it was on
+    // screen. [worldMatrix] sets the stamp again after it calls this.
+    _seenParentVersion = -1;
   }
 
   void _bumpWorld() {
