@@ -18,7 +18,10 @@
   map. Now the depths where the view box meets the casters' bounds, capped at
   `ShadowSettings.viewDistance`, are cut into equal slabs, one per near
   cascade, each fitted to its own share of the box; the last cascade is still
-  the whole scene, and the reach back towards the light is kept.
+  the whole scene, and the reach back towards the light is kept. The slab
+  ends and the radii are rounded onto a grid a sixteenth of their power of
+  two, so a pan or a caster that moves leaves the maps' texels, and the
+  scroll of a still tile, where they were.
   `Renderer.debugCascadeSplits` reports where they ended.
   `orthographic-shadow` is in all four golden sets.
 

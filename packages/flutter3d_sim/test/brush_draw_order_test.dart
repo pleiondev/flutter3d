@@ -131,6 +131,26 @@ void main() {
     );
   });
 
+  test('a brush cut by a breach keeps its order in every piece', () {
+    // Mutation: leave `drawOrder` out of the pieces `subtractBox` builds. A
+    // stripe with a hole knocked through it comes back at nought and fights
+    // the floor it lies on.
+    final stripe = Brush(
+      centre: Vector3(0.0, 0.01, 0.0),
+      size: Vector3(1.0, 0.02, 20.0),
+      solid: false,
+      drawOrder: 3,
+    );
+    final hole = Aabb3.minMax(
+      Vector3(-2.0, -1.0, -1.0),
+      Vector3(2.0, 1.0, 1.0),
+    );
+    final pieces = subtractBox(stripe, hole);
+
+    expect(pieces, hasLength(2));
+    expect(<int>[for (final piece in pieces) piece.drawOrder], <int>[3, 3]);
+  });
+
   group('an edit of the order alone', () {
     final before = Level.fromJson(_document(_stripe()));
     final after = Level.fromJson(_document(_stripe(const {'drawOrder': 2})));

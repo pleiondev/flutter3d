@@ -34,6 +34,10 @@ typedef OrthographicCascade = ({double end, Vector3 centre, double radius});
 /// convention, depth nought to one; the view box is read off its rows, so a
 /// projection with an offset or a tilt is handled the same as a centred one.
 ///
+/// The slab ends and every radius are rounded onto a grid of their own size,
+/// so that a camera panning by less than a step, or a caster that moves,
+/// leaves the maps' texels where they were — see [_quantum].
+///
 /// When the view sees none of the bounds, the slabs are cut from the view box
 /// alone: nothing in it casts, and any fit is as good as another.
 List<OrthographicCascade> orthographicCascades({
@@ -65,6 +69,11 @@ List<OrthographicCascade> orthographicCascades({
   // A sliver at least, so a view that meets the bounds in a plane still has
   // slabs with an inside.
   final end = math.max(math.min(far, start + reach), start + 1e-3);
+  // Both ends on a grid, so a pan or a caster that moves a little leaves the
+  // slabs where they were — see [_quantum].
+  final step = _quantum(end - start);
+  final from = (start / step).floorToDouble() * step;
+  final to = (end / step).ceilToDouble() * step;
 
   return <OrthographicCascade>[
     for (var i = 0; i < slabs; i++)
@@ -72,10 +81,32 @@ List<OrthographicCascade> orthographicCascades({
         volume,
         eye: eye,
         forward: forward,
-        from: start + (end - start) * i / slabs,
-        to: start + (end - start) * (i + 1) / slabs,
+        from: from + (to - from) * i / slabs,
+        to: from + (to - from) * (i + 1) / slabs,
       ),
   ];
+}
+
+/// A step for rounding a length of about [length]: a sixteenth of the power of
+/// two at or above it.
+///
+/// **Rounded, because the fit moves with everything.** The corners a slab is
+/// fitted to are where the view box meets the casters' bounds, so they slide
+/// with every pan of the camera and every caster that rises or falls — a
+/// character jumping is enough. The shadow pass snaps each map to whole
+/// texels of its radius, and a radius that changes every frame is a texel
+/// grid that rescales every frame: shadow edges crawl, and the scroll that
+/// keeps a still tile from being redrawn refuses a map whose scale changed.
+/// On steps a sixteenth of the length's power of two the radius and the slab
+/// ends stay put until the fit has moved by a whole step, and a radius
+/// rounded up wastes at most an eighth of the map.
+double _quantum(double length) =>
+    math.pow(2.0, (math.log(math.max(length, 1e-3)) / math.ln2).ceil()) / 16.0;
+
+/// [length] rounded up to its [_quantum].
+double _roundUp(double length) {
+  final step = _quantum(length);
+  return (length / step).ceilToDouble() * step;
 }
 
 /// `normal · p + offset ≥ 0` for every point p inside.
@@ -140,7 +171,7 @@ OrthographicCascade _fit(
     0.0,
     (r, corner) => math.max(r, corner.distanceTo(centre)),
   );
-  return (end: to, centre: centre, radius: math.max(radius, 1e-3));
+  return (end: to, centre: centre, radius: _roundUp(math.max(radius, 1e-3)));
 }
 
 /// The corners of the convex volume [planes] bound: every point where three
