@@ -178,9 +178,17 @@ Material glass() => Material(
   // what it does not reflect (see `g_pane` in the engine), so its alpha
   // weighs what it reflects and adds. At 0.22 an empty tube was a ghost; at
   // one, with every reflection whole, the glass read heavier than the
-  // liquids in it. Halfway is what the bench is lit with. The tint is
-  // laboratory glass's faint green-grey.
-  baseColor: Vector4(0.96, 0.985, 0.975, 0.55),
+  // liquids in it. Halfway is what the bench is lit with.
+  //
+  // **The tint is what one surface lets through, so it is nearly white.**
+  // Light crossing a tube meets four surfaces, in and out of each wall, and
+  // a shadow takes this colour at each; at a green-grey 0.96 that made an
+  // empty tube's shadow let through seven tenths of the sun, where a
+  // millimetre of laboratory glass absorbs next to nothing and loses about
+  // four percent to reflection at each surface, which the Fresnel term
+  // already counts: some 0.85 in all, and darker only at its edges, where
+  // the sun meets the glass edge-on.
+  baseColor: Vector4(0.995, 0.999, 0.997, 0.55),
   roughness: 0.03,
   alphaMode: MaterialAlphaMode.blend,
   doubleSided: true,

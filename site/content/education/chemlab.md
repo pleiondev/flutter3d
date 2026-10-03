@@ -134,7 +134,7 @@ Everything that lands carries what was dissolved in it. Each solution is a dye a
 
 **The caustics come from the optics** described above: the bright line the liquid focuses is where the traced beams pile up on the bench. An earlier version put a small coloured spot light in each shadow instead, which looked right from a distance and was wrong in every detail, and cost a light per vessel out of the eight the engine gives an object.
 
-**The reflections in the tabletop are geometry.** Screen-space reflections were the first try, and they reflected only the labels: the pass reads what the opaque pass drew, and the glass and the liquids come after it. A flat mirror, though, has an exact answer. Each liquid and label is drawn again, scaled by -1 in height so it hangs under the tabletop, flat and a little darker. The copies used to show through a top a twelfth transparent; now the top is opaque, for the refraction above, and the copies are laid over it at a twelfth of their strength with `CompareFunction.greater`, which draws them only where they are behind the top. That is where a mirror shows them, and nowhere else.
+**The reflections in the tabletop are geometry.** Screen-space reflections were the first try, and they reflected only the labels: the pass reads what the opaque pass drew, and the glass and the liquids come after it. A flat mirror, though, has an exact answer. Each liquid, label and glass is drawn again, scaled by -1 in height so it hangs under the tabletop, flat and a little darker. The copies used to show through a top a twelfth transparent; now the top is opaque, for the refraction above, and the copies are laid over it at a twelfth of their strength with `CompareFunction.greater`, which draws them only where they are behind the top. That is where a mirror shows them, and nowhere else.
 
 ## Labels without a decal
 
@@ -159,7 +159,6 @@ The camera is the engine's `OrbitController`, with tighter limits than its defau
 ## What it does not do yet
 
 - **Shadows of everything else.** The optics are worked out for surfaces of revolution under one sun. A vessel's light passing through another vessel is not followed, and a lamp casts ordinary shadows.
-- **The glass in the mirror.** The reflections carry the liquids and the labels; the glass itself is left out, since a copy of something nearly invisible is nearly invisible.
 - **Waves that break.** The modes are linear, so a hard enough jerk makes a surface that would in reality splash simply rock harder.
 - **Speed.** The drops are worked out on the CPU, a few dozen at a time, and the slowest part of a pour is stepping them as finely as surface tension at this size needs: a third of a millisecond at most.
 
