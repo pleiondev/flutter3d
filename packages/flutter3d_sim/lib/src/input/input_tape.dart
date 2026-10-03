@@ -173,6 +173,19 @@ final class InputTapeRecorder {
 
   final InputTape tape;
 
+  /// Forgets every entry from step [steps] on, keeping the first [steps].
+  ///
+  /// For a run rewound and gone on from an earlier step: the entries after
+  /// it describe a future that is not going to happen, and the next [record]
+  /// writes the step the run takes instead. Truncating to nothing makes the
+  /// next entry a first one again, carrying what is held as presses. Asking
+  /// to keep more than the tape has keeps it whole.
+  void truncate(int steps) {
+    RangeError.checkNotNegative(steps, 'steps');
+    final frames = tape.frames;
+    if (steps < frames.length) frames.removeRange(steps, frames.length);
+  }
+
   void record(InputState input) {
     // The first entry carries what was already held, as presses. A recording
     // that begins while the player is walking forward begins after the press
