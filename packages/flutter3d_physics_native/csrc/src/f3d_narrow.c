@@ -629,7 +629,7 @@ uint32_t f3d_collide(const F3dPlaced *a, const F3dPlaced *b, f3d_real margin,
   }
   out->count = count;
   for (uint32_t i = 0; i < count; i++) {
-    if (out->points[i].depth >= F3D_R(0.0)) out->touching = 1;
+    if (out->points[i].depth >= -F3D_LINEAR_SLOP) out->touching = 1;
   }
   return count;
 }

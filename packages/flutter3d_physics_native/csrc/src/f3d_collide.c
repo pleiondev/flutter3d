@@ -71,7 +71,7 @@ uint32_t f3d_world_read_contacts(const F3dWorld *world, f3d_real *contacts,
 
 /* [bytes] of the world's scratch, grown when it is not enough; null when
  * it cannot grow. */
-static void *scratch(F3dWorld *world, size_t bytes) {
+void *f3d_scratch(F3dWorld *world, size_t bytes) {
   if (bytes <= world->scratch_bytes) return world->scratch;
   size_t grown = world->scratch_bytes == 0 ? 4096u : world->scratch_bytes;
   while (grown < bytes) grown *= 2u;
@@ -296,7 +296,7 @@ void f3d_step_collide(F3dWorld *world) {
   const size_t island_bytes = (size_t)used * sizeof(uint32_t) * 2u;
   size_t fixed = bounds_bytes + order_bytes + island_bytes;
   fixed = (fixed + 15u) & ~(size_t)15u;
-  uint8_t *base = (uint8_t *)scratch(world, fixed + 64u * sizeof(Keyed) * 2u);
+  uint8_t *base = (uint8_t *)f3d_scratch(world, fixed + 64u * sizeof(Keyed) * 2u);
   if (base == NULL) return;
   Bounds *bounds = (Bounds *)base;
   Keyed *order = (Keyed *)(base + bounds_bytes);
@@ -330,7 +330,7 @@ void f3d_step_collide(F3dWorld *world) {
       if (!(sa->layer & sb->mask) || !(sb->layer & sa->mask)) continue;
       if (pair_count == pair_capacity) {
         pair_capacity *= 2u;
-        base = (uint8_t *)scratch(world,
+        base = (uint8_t *)f3d_scratch(world,
                                   fixed + (size_t)pair_capacity * sizeof(Keyed) * 2u);
         if (base == NULL) return;
         bounds = (Bounds *)base;
@@ -370,6 +370,20 @@ void f3d_step_collide(F3dWorld *world) {
     if (f3d_collide(&pa, &pb, margin, m) == 0) continue;
     m->a = ha;
     m->b = hb;
+    /* Warm start: a point made by the same features as one last step
+     * starts from what that one pushed with. */
+    const F3dManifold *old = previous(world, ha, hb);
+    if (old != NULL) {
+      for (uint32_t k = 0; k < m->count; k++) {
+        for (uint32_t o = 0; o < old->count; o++) {
+          if (old->points[o].id != m->points[k].id) continue;
+          m->points[k].normal_impulse = old->points[o].normal_impulse;
+          m->points[k].tangent_impulse[0] = old->points[o].tangent_impulse[0];
+          m->points[k].tangent_impulse[1] = old->points[o].tangent_impulse[1];
+          break;
+        }
+      }
+    }
     found++;
   }
   /* What began and ended touching: the two sorted arrays side by side. */

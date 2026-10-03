@@ -1,5 +1,29 @@
 ## Unreleased
 
+- **The solver, phase 3: bodies stand on what they touch.** Soft contacts
+  solved in substeps (four by default, `f3d_world_set_substeps`): each
+  substep integrates the velocities, warm-starts every contact from what its
+  points pushed with last step — matched by the features that made them —
+  solves with a soft bias, moves the bodies and solves again without the
+  bias, so pushing overlap out does not leave it as speed; restitution after
+  the last. The contact is a heavily damped spring at a quarter of the
+  substep rate, at most thirty hertz, pushing overlap out no faster than
+  three metres a second and leaving five millimetres of it alone. Friction
+  inside Coulomb's circle on the geometric mean of the pair's coefficients,
+  restitution the larger of the two, nothing bouncing below a metre a
+  second (`f3d_body_set_friction`, `f3d_body_set_restitution`). A crate comes
+  to rest and sleeps where `flutter3d_physics` rests it; ten stand stacked;
+  a ball bounces back with its restitution's share; a crate slides down a
+  slope at g(sin θ − μ cos θ) and holds when μ > tan θ; a ball rolls down it
+  at 5/7 g sin θ with its spin matching its speed; collisions keep their
+  momentum; a crate stood on its edge falls flat.
+- **The step's order changed:** contacts where the bodies stand first, then
+  the solver, then heat, so a body placed between steps is in the contacts
+  the solver uses. Sleep is decided there too, a step after the sleep time
+  is up. Touching now means within the solver's five millimetres, which is
+  as close as it holds a body: a speculative contact that stopped a ball at
+  the surface is a contact that began.
+
 - **Contacts, phase 2.** Every pair of sphere, box and capsule, turned
   however they are turned, answers with a manifold: one normal and up to four
   points halfway between the surfaces, each with its depth and the features

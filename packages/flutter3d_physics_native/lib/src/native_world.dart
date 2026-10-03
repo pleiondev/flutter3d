@@ -494,6 +494,15 @@ final class NativeWorld implements Finalizable {
     }
   }
 
+  /// How many substeps a step is solved in, one to sixty-four; four for a
+  /// new world. More holds tall stacks and fast bodies better and costs that
+  /// many times the solver. A step of n substeps is n steps of dt / n.
+  set substeps(int count) {
+    if (c.f3d_world_set_substeps(_live, count) == 0) {
+      throw ArgumentError.value(count, 'substeps', 'not between 1 and 64');
+    }
+  }
+
   /// How near two shapes must come to make a contact, m; 0.02 for a new
   /// world. A contact inside it but not touching has a negative depth.
   set contactMargin(double margin) {
@@ -784,6 +793,23 @@ final class NativeWorld implements Finalizable {
   }) => _check(
     c.f3d_body_set_collision_filter(_live, body.raw, layer, mask),
     body,
+  );
+
+  /// Coulomb's coefficient, nought up; 0.6 for a new body. A pair slides on
+  /// the geometric mean of its two.
+  void setFriction(NativeBody body, double friction) => _check(
+    c.f3d_body_set_friction(_live, body.raw, friction),
+    body,
+    friction,
+  );
+
+  /// The share of the approach speed that comes back, nought to one; nought
+  /// for a new body. A pair bounces with the larger of its two, and nothing
+  /// bounces that met slower than a metre a second.
+  void setRestitution(NativeBody body, double restitution) => _check(
+    c.f3d_body_set_restitution(_live, body.raw, restitution),
+    body,
+    restitution,
   );
 
   /// Whether [body] sleeps. Bodies sleep and wake by islands: those joined

@@ -2,8 +2,9 @@
  * The physics core of flutter3d, in C11 — P9.
  *
  * One world owns everything it steps: bodies, the contacts between their
- * shapes and the islands those make, their heat and fire, the wind they
- * move through, and the solver and joints as they arrive. Nothing here calls back into the caller during a step; what a step
+ * shapes and the islands those make, the solver that keeps them apart,
+ * their heat and fire, the wind they move through, and joints as they
+ * arrive. Nothing here calls back into the caller during a step; what a step
  * produces is read afterwards, in flat buffers, which is what a Dart FFI
  * call or a WebAssembly import wants.
  *
@@ -45,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 4u
+#define F3D_ABI_VERSION 5u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -116,8 +117,9 @@ typedef enum F3dEventKind {
   F3D_EVENT_IGNITED = 2,
   F3D_EVENT_EXTINGUISHED = 3,
   F3D_EVENT_BURNT_OUT = 4,
-  /* Two bodies came to touch, or stopped: the second is the other. A
-   * contact within the margin but not touching is neither. */
+  /* Two bodies came to touch, or stopped: the second is the other.
+   * Touching is within five millimetres, the overlap the solver leaves a
+   * resting body; a contact further out in the margin is neither. */
   F3D_EVENT_CONTACT_BEGAN = 5,
   F3D_EVENT_CONTACT_ENDED = 6,
 } F3dEventKind;
@@ -215,19 +217,24 @@ F3D_API uint32_t f3d_world_body_count(const F3dWorld *world);
 /* Advances the world by [dt] seconds. Nothing happens for a dt that is not
  * finite and positive.
  *
- * For each awake dynamic body, semi-implicit Euler, as flutter3d_physics
- * steps: the velocity gains gravity, the wind's drag and the forces added
+ * First the contacts where the bodies stand, what began and ended touching,
+ * and the islands that sleep and wake. Then the solver, in substeps of
+ * dt / substeps, each as Box2D v3 takes it: every awake dynamic body's
+ * velocity integrated, the contacts warm-started from what they pushed
+ * with last, solved with a soft bias that pushes overlap out, the bodies
+ * moved, and the contacts solved again with no bias; restitution after the
+ * last. Then heat.
+ *
+ * Within a substep, a body moves as before:
+ * semi-implicit Euler, as flutter3d_physics steps: the velocity gains gravity, the wind's drag and the forces added
  * since the last step, all times dt, and the spin the torques; then the
  * position gains the new velocity times dt and the orientation turns by the
- * spin, its angular momentum carried through. Then the contacts where the
- * bodies now stand, what began and ended touching, and the islands that
- * sleep and wake. Then every body's heat: what crossed each contact, what
+ * spin, its angular momentum carried through. Every body's heat: what
+ * crossed each contact, what
  * the bus brought, the fire's share, convection to the moving air and
  * radiation to it, the water on it boiling off at 373.15 K first. Forces,
- * torques and heat added through the bus are spent by the step.
- *
- * Nothing yet pushes touching bodies apart: the solver is the next phase.
- * The contacts are found and reported, and heat crosses them. */
+ * torques and heat added through the bus are held over every substep and
+ * spent by the step. */
 F3D_API void f3d_world_step(F3dWorld *world, f3d_real dt);
 
 /* Writes every body's transform, F3D_TRANSFORM_FLOATS reals apiece, into
@@ -253,6 +260,11 @@ F3D_API uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
 F3D_API uint32_t f3d_world_read_events(F3dWorld *world, F3dBody *bodies,
                                        F3dBody *others, uint32_t *kinds,
                                        uint32_t capacity);
+
+/* How many substeps a step is solved in, one to sixty-four; default 4.
+ * More holds tall stacks and fast bodies better and costs that many times
+ * the solver. 0 for a count out of range. */
+F3D_API int f3d_world_set_substeps(F3dWorld *world, uint32_t substeps);
 
 /* How near two shapes must come to make a contact, m; a contact inside it
  * but not touching has a negative depth. 0 for a margin that is negative
@@ -379,6 +391,17 @@ F3D_API int f3d_body_add_force(F3dWorld *world, F3dBody body, f3d_real x,
                                f3d_real y, f3d_real z);
 F3D_API int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x,
                                 f3d_real y, f3d_real z);
+
+/* Coulomb's coefficient, nought up; default 0.6. A pair slides on the
+ * geometric mean of its two, so either can make it slippery. */
+F3D_API int f3d_body_set_friction(F3dWorld *world, F3dBody body,
+                                  f3d_real friction);
+
+/* The share of the approach speed that comes back, nought to one; default
+ * nought. A pair bounces with the larger of its two, and nothing bounces
+ * that met slower than a metre a second. */
+F3D_API int f3d_body_set_restitution(F3dWorld *world, F3dBody body,
+                                     f3d_real restitution);
 
 /* What the body is, [layer], and what it meets, [mask]: two bodies collide
  * when each one's layer has a bit in the other's mask. Defaults 1 and every

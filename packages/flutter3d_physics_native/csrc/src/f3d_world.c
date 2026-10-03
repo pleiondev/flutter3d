@@ -27,6 +27,7 @@ F3dWorld *f3d_world_create(void) {
   world->s.sleep_speed = F3D_R(0.05);
   world->s.sleep_time = F3D_R(0.5);
   world->s.contact_margin = F3D_R(0.02);
+  world->s.substeps = 4u;
   return world;
 }
 
@@ -318,6 +319,7 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
   s->mass = mass;
   f3d_material_preset(F3D_MATERIAL_INERT, &s->material);
   s->temperature = world->s.air_temperature;
+  s->friction = F3D_R(0.6);
   s->layer = 1u;
   s->mask = UINT32_MAX;
   f3d_refresh_mass(s);
@@ -656,7 +658,7 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
 
 void f3d_world_step(F3dWorld *world, f3d_real dt) {
   if (!(f3d_finite(dt) && dt > F3D_R(0.0))) return;
-  f3d_step_motion(world, dt);
   f3d_step_collide(world);
+  f3d_step_solve(world, dt);
   f3d_step_heat(world, dt);
 }

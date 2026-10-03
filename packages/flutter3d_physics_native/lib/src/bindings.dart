@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 4;
+const int abiVersion = 5;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -249,6 +249,23 @@ external int f3d_world_set_contact_margin(
 
 @Native<Uint32 Function(Pointer<F3dWorld>)>(isLeaf: true)
 external int f3d_world_contact_count(Pointer<F3dWorld> world);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
+external int f3d_world_set_substeps(Pointer<F3dWorld> world, int substeps);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Float)>(isLeaf: true)
+external int f3d_body_set_friction(
+  Pointer<F3dWorld> world,
+  int body,
+  double friction,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Float)>(isLeaf: true)
+external int f3d_body_set_restitution(
+  Pointer<F3dWorld> world,
+  int body,
+  double restitution,
+);
 
 @Native<
   Uint32 Function(Pointer<F3dWorld>, Pointer<Float>, Pointer<Uint64>, Uint32)

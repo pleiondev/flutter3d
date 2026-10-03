@@ -172,6 +172,7 @@ static void test_impulses_and_forces(void) {
 
 static void test_damping(void) {
   F3dWorld *w = f3d_world_create();
+  f3d_world_set_substeps(w, 1);
   f3d_world_set_gravity(w, 0, 0, 0);
   vacuum(w);
   const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 0, 0, 1);
@@ -266,7 +267,9 @@ static void test_sleep(void) {
   /* Just short of half a second still: awake. */
   for (int i = 0; i < 29; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
   CHECK(!f3d_body_is_asleep(w, b));
-  for (int i = 0; i < 2; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
+  /* Asleep at the start of the step after the half second is up: sleep is
+   * its island's to decide, where the contacts are. */
+  for (int i = 0; i < 3; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
   CHECK(f3d_body_is_asleep(w, b));
   CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 4) == 1);
   CHECK(bodies[0] == b && kinds[0] == F3D_EVENT_SLEPT);

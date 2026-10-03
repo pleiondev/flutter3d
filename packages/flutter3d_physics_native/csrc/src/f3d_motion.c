@@ -149,83 +149,75 @@ static void turn(F3dSlot *s, f3d_real dt) {
   s->spin.z = o.z * keep;
 }
 
-void f3d_step_motion(F3dWorld *world, f3d_real dt) {
+int f3d_turns(const F3dSlot *s) {
+  return s->inverse_inertia.x != F3D_R(0.0) ||
+         s->inverse_inertia.y != F3D_R(0.0) ||
+         s->inverse_inertia.z != F3D_R(0.0);
+}
+
+void f3d_integrate_velocity(const F3dWorld *world, F3dSlot *s, f3d_real h) {
   const F3dVec3 g = world->s.gravity;
-  const f3d_real rho = world->s.air_density;
+  const f3d_real im = s->inverse_mass;
+  /* The wind's drag, ½ ρ C A |u| u against the velocity u through the
+   * air, with A a quarter of the surface: a convex body's projected area
+   * averaged over every way it can face, so a tumbling box needs no
+   * orientation to say how much wind it catches. Taken implicitly with
+   * |u| as the substep found it: u' = (u + a h) / (1 + k h). Stable for a
+   * leaf in a gale at any step, and its fixed point is k u = a exactly, so
+   * a falling body settles at its terminal speed and not beside it. */
+  f3d_real keep = F3D_R(1.0);
+  f3d_real wind[3] = {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0)};
+  if (s->surface > F3D_R(0.0) && s->shape_drag > F3D_R(0.0)) {
+    f3d_world_sample_wind(world, s->position.x, s->position.y, s->position.z,
+                          wind);
+    const f3d_real ux = s->velocity.x - wind[0];
+    const f3d_real uy = s->velocity.y - wind[1];
+    const f3d_real uz = s->velocity.z - wind[2];
+    const f3d_real speed = f3d_sqrt(ux * ux + uy * uy + uz * uz);
+    const f3d_real k = F3D_R(0.5) * world->s.air_density * s->shape_drag *
+                       (F3D_R(0.25) * s->surface) * speed * im;
+    keep = F3D_R(1.0) / (F3D_R(1.0) + k * h);
+  }
+  s->velocity.x =
+      wind[0] + (s->velocity.x - wind[0] + (g.x + s->force.x * im) * h) * keep;
+  s->velocity.y =
+      wind[1] + (s->velocity.y - wind[1] + (g.y + s->force.y * im) * h) * keep;
+  s->velocity.z =
+      wind[2] + (s->velocity.z - wind[2] + (g.z + s->force.z * im) * h) * keep;
+  if (s->linear_damping > F3D_R(0.0)) {
+    const f3d_real damp = F3D_R(1.0) / (F3D_R(1.0) + h * s->linear_damping);
+    s->velocity.x *= damp;
+    s->velocity.y *= damp;
+    s->velocity.z *= damp;
+  }
+  if (f3d_turns(s)) {
+    const F3dVec3 dw = f3d_sym_times(
+        f3d_sym_turned(s->orientation, s->inverse_inertia),
+        f3d_scale(s->torque, h));
+    s->spin = f3d_add(s->spin, dw);
+  }
+}
+
+void f3d_integrate_position(F3dSlot *s, f3d_real h) {
+  s->position.x += s->velocity.x * h;
+  s->position.y += s->velocity.y * h;
+  s->position.z += s->velocity.z * h;
+  if (f3d_turns(s)) turn(s, h);
+}
+
+void f3d_finish_motion(const F3dWorld *world, F3dSlot *s, f3d_real dt) {
+  s->force = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  s->torque = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  if (s->type != F3D_BODY_DYNAMIC || (s->flags & F3D_FLAG_ASLEEP)) return;
+  /* How long it has been still: slower than the sleep speed, in m/s and in
+   * rad/s alike. Spin counts: a body turning on the spot is not at rest.
+   * Whether it sleeps is its island's to say, in the collision stage. */
   const f3d_real sleep2 = world->s.sleep_speed * world->s.sleep_speed;
-  for (uint32_t i = 0; i < world->s.used; i++) {
-    F3dSlot *s = &world->slots[i];
-    if (!s->live) continue;
-    if (s->type != F3D_BODY_DYNAMIC || (s->flags & F3D_FLAG_ASLEEP)) {
-      s->force.x = s->force.y = s->force.z = F3D_R(0.0);
-      s->torque.x = s->torque.y = s->torque.z = F3D_R(0.0);
-      continue;
-    }
-    const f3d_real im = s->inverse_mass;
-    /* The wind's drag, ½ ρ C A |u| u against the velocity u through the
-     * air, with A a quarter of the surface: a convex body's projected area
-     * averaged over every way it can face, so a tumbling box needs no
-     * orientation to say how much wind it catches. Taken implicitly with
-     * |u| as the step found it: u' = (u + a dt) / (1 + k dt). Stable for a
-     * leaf in a gale at any step, and its fixed point is k u = a exactly,
-     * so a falling body settles at its terminal speed and not beside it. */
-    f3d_real keep = F3D_R(1.0);
-    f3d_real wind[3] = {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0)};
-    if (s->surface > F3D_R(0.0) && s->shape_drag > F3D_R(0.0)) {
-      f3d_world_sample_wind(world, s->position.x, s->position.y,
-                            s->position.z, wind);
-      const f3d_real ux = s->velocity.x - wind[0];
-      const f3d_real uy = s->velocity.y - wind[1];
-      const f3d_real uz = s->velocity.z - wind[2];
-      const f3d_real speed = f3d_sqrt(ux * ux + uy * uy + uz * uz);
-      const f3d_real k = F3D_R(0.5) * rho * s->shape_drag *
-                         (F3D_R(0.25) * s->surface) * speed * im;
-      keep = F3D_R(1.0) / (F3D_R(1.0) + k * dt);
-    }
-    s->velocity.x =
-        wind[0] + (s->velocity.x - wind[0] + (g.x + s->force.x * im) * dt) * keep;
-    s->velocity.y =
-        wind[1] + (s->velocity.y - wind[1] + (g.y + s->force.y * im) * dt) * keep;
-    s->velocity.z =
-        wind[2] + (s->velocity.z - wind[2] + (g.z + s->force.z * im) * dt) * keep;
-    if (s->linear_damping > F3D_R(0.0)) {
-      const f3d_real damp = F3D_R(1.0) / (F3D_R(1.0) + dt * s->linear_damping);
-      s->velocity.x *= damp;
-      s->velocity.y *= damp;
-      s->velocity.z *= damp;
-    }
-    s->position.x += s->velocity.x * dt;
-    s->position.y += s->velocity.y * dt;
-    s->position.z += s->velocity.z * dt;
-    if (s->inverse_inertia.x != F3D_R(0.0) ||
-        s->inverse_inertia.y != F3D_R(0.0) ||
-        s->inverse_inertia.z != F3D_R(0.0)) {
-      F3dVec3 l = s->torque;
-      l.x *= dt;
-      l.y *= dt;
-      l.z *= dt;
-      const F3dVec3 dw = f3d_sym_times(
-          f3d_sym_turned(s->orientation, s->inverse_inertia), l);
-      s->spin.x += dw.x;
-      s->spin.y += dw.y;
-      s->spin.z += dw.z;
-      turn(s, dt);
-    }
-    s->force.x = s->force.y = s->force.z = F3D_R(0.0);
-    s->torque.x = s->torque.y = s->torque.z = F3D_R(0.0);
-    /* How long it has been still: slower than the sleep speed, in m/s and
-     * in rad/s alike. Spin counts: a body turning on the spot is not at
-     * rest. Whether it sleeps is its island's to say, in the collision
-     * stage. */
-    const f3d_real v2 = s->velocity.x * s->velocity.x +
-                        s->velocity.y * s->velocity.y +
-                        s->velocity.z * s->velocity.z;
-    const f3d_real w2 =
-        s->spin.x * s->spin.x + s->spin.y * s->spin.y + s->spin.z * s->spin.z;
-    if (v2 > sleep2 || w2 > sleep2) {
-      s->still = F3D_R(0.0);
-    } else {
-      s->still += dt;
-    }
+  const f3d_real v2 = f3d_dot(s->velocity, s->velocity);
+  const f3d_real w2 = f3d_dot(s->spin, s->spin);
+  if (v2 > sleep2 || w2 > sleep2) {
+    s->still = F3D_R(0.0);
+  } else {
+    s->still += dt;
   }
 }

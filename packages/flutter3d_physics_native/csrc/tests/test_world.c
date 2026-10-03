@@ -177,6 +177,10 @@ static void test_growth(void) {
 
 static void test_step(void) {
   F3dWorld *w = f3d_world_create();
+  /* One substep: the step's own algebra, checked to the bit. */
+  CHECK(f3d_world_set_substeps(w, 0) == 0);
+  CHECK(f3d_world_set_substeps(w, 65) == 0);
+  CHECK(f3d_world_set_substeps(w, 1) == 1);
   f3d_world_set_gravity(w, 0, -10, 0);
   const F3dBody falling = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 10, 0, 1);
   const F3dBody pinned = f3d_body_create(w, F3D_BODY_FIXED, 0, 10, 0, 0);
@@ -204,6 +208,28 @@ static void test_step(void) {
   f3d_body_get_position(w, falling, p);
   CHECK(p[1] == F3D_R(7.5));
   f3d_world_destroy(w);
+}
+
+static void test_substeps(void) {
+  /* A step of n substeps is n steps of dt / n, to the bit. */
+  F3dWorld *a = f3d_world_create();
+  F3dWorld *b = f3d_world_create();
+  f3d_world_set_substeps(a, 4);
+  f3d_world_set_substeps(b, 1);
+  const F3dBody ba = f3d_body_create(a, F3D_BODY_DYNAMIC, 0, 10, 0, 1);
+  const F3dBody bb = f3d_body_create(b, F3D_BODY_DYNAMIC, 0, 10, 0, 1);
+  f3d_body_set_velocity(a, ba, 3, 1, 0);
+  f3d_body_set_velocity(b, bb, 3, 1, 0);
+  for (int i = 0; i < 30; i++) {
+    f3d_world_step(a, F3D_R(0.25));
+    for (int k = 0; k < 4; k++) f3d_world_step(b, F3D_R(0.25) / 4);
+  }
+  f3d_real pa[3], pb[3];
+  f3d_body_get_position(a, ba, pa);
+  f3d_body_get_position(b, bb, pb);
+  CHECK(pa[0] == pb[0] && pa[1] == pb[1]);
+  f3d_world_destroy(a);
+  f3d_world_destroy(b);
 }
 
 static void test_read_transforms(void) {
@@ -346,6 +372,7 @@ int main(void) {
   test_generation_wraps_past_nought();
   test_growth();
   test_step();
+  test_substeps();
   test_read_transforms();
   test_origin();
   test_wind_grid();

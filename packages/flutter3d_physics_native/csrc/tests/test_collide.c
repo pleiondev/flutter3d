@@ -66,6 +66,9 @@ static void test_balls(void) {
   CHECK(collide(&near, &b, &m) == 1);
   CHECK_NEAR(m.points[0].depth, -0.01, TIGHT);
   CHECK(!m.touching);
+  /* Within the solver's slop is touching: as close as it holds a body. */
+  const F3dPlaced held = ball(1, f3d_v3(0, F3D_R(2.004), 0));
+  CHECK(collide(&held, &b, &m) == 1 && m.touching);
   const F3dPlaced far = ball(1, f3d_v3(0, F3D_R(2.03), 0));
   CHECK(collide(&far, &b, &m) == 0);
   /* Concentric: up, as flutter3d_physics parts them. */
@@ -343,8 +346,10 @@ static void test_contact_events(void) {
   const F3dBody bullet = add_shape(w, F3D_BODY_DYNAMIC, 1, f3d_v3(-2, 0, 0), identity, 0.1);
   F3dBody bodies[16], others[16];
   uint32_t kinds[16];
-  /* Through the wall at a metre a second, a hundredth at a time. */
-  f3d_body_set_velocity(w, bullet, 1, 0, 0);
+  /* At the wall at two metres a second, a hundredth at a time: it bounces
+   * off, beginning one contact and ending it. */
+  f3d_body_set_restitution(w, bullet, 1);
+  f3d_body_set_velocity(w, bullet, 2, 0, 0);
   uint32_t began = 0, ended = 0;
   for (int i = 0; i < 400; i++) {
     f3d_world_step(w, F3D_R(0.01));
@@ -358,6 +363,7 @@ static void test_contact_events(void) {
   CHECK(began == 1 && ended == 1);
   /* A filter that leaves the wall out: nothing at all. */
   f3d_body_set_position(w, bullet, -2, 0, 0);
+  f3d_body_set_velocity(w, bullet, 2, 0, 0);
   f3d_body_set_collision_filter(w, bullet, 2, ~1u);
   for (int i = 0; i < 400; i++) f3d_world_step(w, F3D_R(0.01));
   CHECK(events(w, bodies, others, kinds) == 0);
@@ -394,7 +400,7 @@ static void test_islands(void) {
   /* The lone crate is still from the start; the stack's top only after a
    * while, so the stack sleeps later, as one. */
   f3d_body_set_velocity(w, high, F3D_R(0.1), 0, 0);
-  for (int i = 0; i < 31; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
+  for (int i = 0; i < 33; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
   CHECK(f3d_body_is_asleep(w, alone));
   CHECK(!f3d_body_is_asleep(w, low) && !f3d_body_is_asleep(w, high));
   f3d_body_set_velocity(w, high, 0, 0, 0);

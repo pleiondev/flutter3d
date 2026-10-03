@@ -93,7 +93,7 @@ void main() {
     }
   });
 
-  test('a ball through a wall begins and ends one contact', () {
+  test('a ball bounced off a wall begins and ends one contact', () {
     // Mutation: compare the touching flags the wrong way round in the merge
     // of `f3d_step_collide` — no contact begins.
     world.setAir(temperature: 293.15, density: 1e-30);
@@ -105,7 +105,8 @@ void main() {
     world
       ..setShape(wall, NativeShape.box(Vector3(0.1, 1.0, 1.0)))
       ..setShape(ball, const NativeShape.sphere(0.1))
-      ..setVelocity(ball, Vector3(1.0, 0.0, 0.0));
+      ..setRestitution(ball, 1.0)
+      ..setVelocity(ball, Vector3(2.0, 0.0, 0.0));
     final seen = <NativeEvent>[];
     var deepest = -1.0;
     for (var i = 0; i < 400; i++) {
@@ -119,8 +120,10 @@ void main() {
       (body: wall, other: ball, kind: NativeEventKind.contactBegan),
       (body: wall, other: ball, kind: NativeEventKind.contactEnded),
     ]);
-    // Nothing pushes them apart yet: it went right through.
-    expect(deepest, greaterThan(0.1));
+    // It never got into the wall past the slop, and came back at the speed
+    // it arrived with.
+    expect(deepest, lessThan(0.005));
+    expect(world.velocityOf(ball).x, closeTo(-2.0, 0.05));
     expect(world.readContacts(), isEmpty);
   });
 

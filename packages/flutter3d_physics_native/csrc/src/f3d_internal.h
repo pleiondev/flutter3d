@@ -29,6 +29,12 @@ void f3d_copy(void *to, const void *from, size_t bytes);
 
 #define F3D_PI F3D_R(3.14159265358979323846)
 
+/* Overlap the solver leaves alone, m: pushing a resting box out to the last
+ * micrometre would have it lose contact, fall a substep and land again. A
+ * contact this close or closer counts as touching, since this is as close
+ * as the solver brings a body it holds. */
+#define F3D_LINEAR_SLOP F3D_R(0.005)
+
 /* Stefan–Boltzmann, W / (m² K⁴). */
 #define F3D_STEFAN_BOLTZMANN F3D_R(5.670374419e-8)
 
@@ -139,6 +145,10 @@ typedef struct F3dContactPoint {
   /* Which features made it, so a solver can carry its impulse to the next
    * step's point from the same features. */
   uint32_t id;
+  /* What the solver pushed with, along the normal and the two tangents, per
+   * substep: where the next step starts from. */
+  f3d_real normal_impulse;
+  f3d_real tangent_impulse[2];
 } F3dContactPoint;
 
 /* Everything two bodies' shapes touch at. Plain data: a snapshot copies it
@@ -150,8 +160,8 @@ typedef struct F3dManifold {
   /* Out of b, into a: the way a moves to come apart. */
   F3dVec3 normal;
   uint32_t count;
-  /* 1 while some point is at or past touching, not only within the
-   * margin. */
+  /* 1 while some point is within the solver's slop of touching, or past
+   * it: not only within the margin. */
   uint32_t touching;
   F3dContactPoint points[F3D_MANIFOLD_POINTS];
 } F3dManifold;
@@ -222,6 +232,10 @@ typedef struct F3dSlot {
   f3d_real fuel;
   /* W given off as gas over the last step. */
   f3d_real heat_release;
+  /* Coulomb's coefficient, and the share of the approach speed that comes
+   * back. */
+  f3d_real friction;
+  f3d_real restitution;
   /* What it is, and what it meets: a pair collides when each one's layer is
    * in the other's mask. */
   uint32_t layer;
@@ -263,6 +277,8 @@ typedef struct F3dWorldState {
   f3d_real contact_margin;
   /* Manifolds the last step found, in order of their pair. */
   uint32_t manifold_count;
+  /* How many substeps a step is solved in. */
+  uint32_t substeps;
 } F3dWorldState;
 
 struct F3dWorld {
@@ -304,9 +320,26 @@ void f3d_wake(F3dWorld *world, F3dSlot *slot);
 /* A shape's placement, from its slot. */
 F3dPlaced f3d_placed_of(const F3dSlot *slot);
 
-/* The step's stages: motion, collision, heat. */
-void f3d_step_motion(F3dWorld *world, f3d_real dt);
+/* Whether anything can turn the body: a shape with inertia, dynamic, not
+ * locked. */
+int f3d_turns(const F3dSlot *slot);
+
+/* One substep of [h] seconds of a dynamic body's velocity — gravity, the
+ * bus's forces and torques, the wind's drag, damping — and of its position
+ * and orientation; and the end of a step for any body — the bus spent and
+ * the sleep clock run. */
+void f3d_integrate_velocity(const F3dWorld *world, F3dSlot *slot, f3d_real h);
+void f3d_integrate_position(F3dSlot *slot, f3d_real h);
+void f3d_finish_motion(const F3dWorld *world, F3dSlot *slot, f3d_real dt);
+
+/* [bytes] of the world's scratch, kept between steps and grown when it is
+ * not enough; null when it cannot grow. One stage's at a time. */
+void *f3d_scratch(F3dWorld *world, size_t bytes);
+
+/* The step's stages: contacts where the bodies stand, the solver's
+ * substeps, heat. */
 void f3d_step_collide(F3dWorld *world);
+void f3d_step_solve(F3dWorld *world, f3d_real dt);
 void f3d_step_heat(F3dWorld *world, f3d_real dt);
 
 #endif /* F3D_INTERNAL_H_ */

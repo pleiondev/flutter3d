@@ -66,6 +66,8 @@ void main() {
   });
 
   test('a step is semi-implicit Euler: velocity, then position with it', () {
+    // One substep: the step's own algebra.
+    world.substeps = 1;
     // Mutation: integrate the position before the velocity in
     // `f3d_world_step` — y would stay at 10 after the first step.
     world.gravity = Vector3(0.0, -10.0, 0.0);
@@ -114,6 +116,8 @@ void main() {
     // Mutation: integrate with the old velocity (explicit Euler) in the core
     // — two seconds of it is 0.33 m off.
     const dt = 1.0 / 60.0;
+    // The reference steps once a step; so does the core, given one substep.
+    world.substeps = 1;
     final reference = Dynamics(
       world: CollisionWorld(),
       gravity: Vector3(0.0, -9.81, 0.0),
@@ -172,6 +176,7 @@ void main() {
     dart.angularVelocity.setValues(2.0, 0.5, 0.25);
     world
       ..gravity = Vector3.zero()
+      ..substeps = 1
       ..setSleep(speed: 0.0, time: 0.0);
     final native = world.addBody(position: Vector3.zero(), mass: 2.0);
     world
@@ -230,6 +235,7 @@ void main() {
   test('forces, torques and damping, and what cannot turn does not', () {
     world
       ..gravity = Vector3.zero()
+      ..substeps = 1
       ..setAir(temperature: 293.15, density: 1e-30);
     final b = world.addBody(position: Vector3.zero(), mass: 2.0);
     world
@@ -265,7 +271,8 @@ void main() {
     world.gravity = Vector3.zero();
     final b = world.addBody(position: Vector3.zero());
     world.setVelocity(b, Vector3(0.01, 0.0, 0.0));
-    for (var i = 0; i < 31; i++) {
+    // Asleep at the start of the step after the half second is up.
+    for (var i = 0; i < 32; i++) {
       world.step(1.0 / 60.0);
     }
     expect(world.isAsleep(b), isTrue);
