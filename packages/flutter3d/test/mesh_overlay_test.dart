@@ -8,6 +8,7 @@
 /// edge sit on its own face, which is `mesh-overlay` in the golden set.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
@@ -75,6 +76,41 @@ double widthOf(List<Vector3> points) {
 }
 
 void main() {
+  group('lookThrough — P7', () {
+    MeshOverlay through(Projection projection) {
+      final camera = CameraNode(projection: projection)
+        ..setPosition(0.0, 0.0, 10.0);
+      return MeshOverlay(
+        vertexShader: const ShaderHandle(backend: 0, name: 'DebugLineVertex'),
+        fragmentShader: const ShaderHandle(backend: 1, name: 'DebugLine'),
+      )..lookThrough(camera, 400.0, 300.0);
+    }
+
+    test('through a perspective lens, the pixel a field of view gives', () {
+      const fov = 0.9;
+      final overlay = through(const PerspectiveProjection(fovYRadians: fov));
+      final expected = 2 * math.tan(fov / 2) / 300.0;
+      // Ten units away, so ten of the pixel at one unit.
+      expect(
+        overlay.worldSize(1.0, Vector3.zero()),
+        closeTo(expected * 10.0, 1e-6),
+      );
+    });
+
+    test('through an orthographic lens, the height over the viewport, at '
+        'every distance', () {
+      // Mutation: work the pixel out from a field of view, as the example
+      // did — the size grows with distance and is a quarter turn's at one.
+      final overlay = through(const OrthographicProjection(height: 6.0));
+      for (final z in <double>[0.0, -40.0]) {
+        expect(
+          overlay.worldSize(1.0, Vector3(0.0, 0.0, z)),
+          closeTo(6.0 / 300.0, 1e-6),
+        );
+      }
+    });
+  });
+
   group('the three batches', () {
     test('an empty overlay has nothing to draw', () {
       final overlay = looking();

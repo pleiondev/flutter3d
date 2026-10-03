@@ -5,6 +5,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../scene/camera_node.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
 
@@ -162,6 +163,29 @@ final class MeshOverlay extends PassContributor {
     _up = up.normalized();
     _pixel = pixel;
     _perspective = perspective;
+  }
+
+  /// [lookFrom] for [camera], drawn into a viewport [width] by [height]
+  /// logical pixels — `P7`.
+  ///
+  /// What a caller should use rather than working the pixel out itself: the
+  /// example's overlay did, from a field of view it took from the projection
+  /// when there was one and from a quarter turn when there was not, so through
+  /// an orthographic camera every handle and line was sized as if seen in
+  /// perspective. Read off the projection's own matrix instead, which answers
+  /// for every kind of lens: its vertical scale is `1 / tan(f / 2)` through a
+  /// perspective one and `2 / H` through an orthographic one, so `2 / (scale ×
+  /// height)` is the pixel either way, and its bottom row says which.
+  void lookThrough(CameraNode camera, double width, double height) {
+    final world = camera.worldMatrix.storage;
+    final projection = camera.projection.toMatrix(width / height).storage;
+    lookFrom(
+      eye: camera.readWorldPosition(),
+      right: Vector3(world[0], world[1], world[2]),
+      up: Vector3(world[4], world[5], world[6]),
+      pixel: 2.0 / (projection[5].abs() * height),
+      perspective: projection[11] != 0.0,
+    );
   }
 
   /// How far from the eye a point is, in the units [lookFrom]'s pixel scales by.

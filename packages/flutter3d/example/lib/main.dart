@@ -879,19 +879,10 @@ class _SpikePageState extends State<SpikePage>
     if (overlay == null || golden == null) return;
     if (!bounds.min.x.isFinite) return;
 
-    final world = _camera.worldMatrix.storage;
-    final eye = Vector3(world[12], world[13], world[14]);
-    final right = Vector3(world[0], world[1], world[2]);
-    final up = Vector3(world[4], world[5], world[6]);
-    final projection = _camera.projection;
-    final fovY = projection is PerspectiveProjection
-        ? projection.fovYRadians
-        : math.pi / 4;
-    overlay.lookFrom(
-      eye: eye,
-      right: right,
-      up: up,
-      pixel: 2 * math.tan(fovY / 2) / golden.height,
+    overlay.lookThrough(
+      _camera,
+      golden.width.toDouble(),
+      golden.height.toDouble(),
     );
 
     // Drawn on the model's own bounds rather than an assumed unit cube: the
