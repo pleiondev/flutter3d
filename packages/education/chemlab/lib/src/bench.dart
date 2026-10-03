@@ -401,6 +401,11 @@ final class Bench {
         solid: SolidSurface.laminate,
       ),
     ],
+    // A lesson, not a replay: what would stop a frame is worked out on
+    // another isolate, and drops run their pair loops natively where that
+    // was built. Neither changes what happens, only when and how fast.
+    background: true,
+    nativeKernels: true,
   );
 
   /// Whether the shadows come from the engine's caustics

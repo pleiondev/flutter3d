@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
 import 'atmosphere.dart';
+import 'background/fluid_background.dart';
 import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
@@ -580,7 +581,58 @@ final class LiquidBody implements JetReceiver {
       _menisciG = _g;
     }
     final key = (Portable.log(radius) / 0.01).round();
-    return _menisci[key] ??= _sharedMeniscus(medium, key, _menisciG);
+    final have = _menisci[key];
+    if (have != null) return have;
+    final bg = background;
+    if (bg != null) {
+      final shared = _menisciShared[_meniscusId(medium, key, _menisciG)];
+      if (shared != null) return _menisci[key] = shared;
+      // **Asked of the background, not waited for**: until it comes, the
+      // nearest radius's meniscus stands in, or none.
+      _askMeniscus(bg, medium, key, _menisciG);
+      TubeMeniscus? nearest;
+      var gap = 1 << 30;
+      _menisci.forEach((k, m) {
+        if ((k - key).abs() < gap) {
+          gap = (k - key).abs();
+          nearest = m;
+        }
+      });
+      return nearest;
+    }
+    return _menisci[key] = _sharedMeniscus(medium, key, _menisciG);
+  }
+
+  /// Where a meniscus not yet worked out is worked out instead of waited
+  /// for; set by a world that may be stepped so (`FluidWorld.background`).
+  FluidBackground? background;
+
+  static final Set<(double, double, double, double, int)> _menisciAsked = {};
+
+  static (double, double, double, double, int) _meniscusId(
+    FluidMedium medium,
+    int key,
+    double g,
+  ) => (
+    medium.density,
+    medium.surfaceTension,
+    medium.contactAngle,
+    (g * 1000).roundToDouble(),
+    key,
+  );
+
+  static void _askMeniscus(
+    FluidBackground bg,
+    FluidMedium medium,
+    int key,
+    double g,
+  ) {
+    final id = _meniscusId(medium, key, g);
+    if (!_menisciAsked.add(id)) return;
+    bg.meniscus(medium, Portable.exp(key * 0.01), id.$4 / 1000, (m) {
+      _menisciAsked.remove(id);
+      _menisciShared[id] = m;
+    });
   }
 
   /// **One meniscus for every vessel of the liquid and gravity**: the
@@ -592,14 +644,8 @@ final class LiquidBody implements JetReceiver {
 
   static TubeMeniscus _sharedMeniscus(FluidMedium medium, int key, double g) {
     // Gravity to a part in a thousand, as a vessel's own cache keeps it.
-    final gKey = (g * 1000).roundToDouble();
-    final id = (
-      medium.density,
-      medium.surfaceTension,
-      medium.contactAngle,
-      gKey,
-      key,
-    );
+    final id = _meniscusId(medium, key, g);
+    final gKey = id.$4;
     if (_menisciShared.length > 4096) _menisciShared.clear();
     return _menisciShared[id] ??= TubeMeniscus(
       medium: medium,

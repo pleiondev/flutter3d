@@ -2,6 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../rigid_body.dart';
 import 'atmosphere.dart';
+import 'background/fluid_background.dart';
 import 'buoyancy.dart';
 import 'gravity_field.dart';
 import 'jet.dart';
@@ -31,6 +32,7 @@ final class FluidWorld {
     Atmosphere? atmosphere,
     this.field,
     this.nativeKernels = false,
+    this.background = false,
   }) : atmosphere = atmosphere ?? Atmosphere.standard();
 
   /// Gravity that differs from place to place, when there is some: then
@@ -42,6 +44,14 @@ final class FluidWorld {
   /// see [ParticleFluid.native]. Off, the world steps the same to the bit
   /// on every machine.
   final bool nativeKernels;
+
+  /// Whether what would stop a frame — a cross-section's modes, a
+  /// meniscus not met before — is worked out on another isolate where
+  /// there are isolates, the vessel carrying on as it was until it comes.
+  /// The same numbers, at another time: on, a run is not the same to the
+  /// bit twice; off, it is. On the web, where there are no isolates, it is
+  /// all worked out at once either way.
+  final bool background;
 
   /// The gravity at [point].
   Vector3 gravityAt(Vector3 point) => field?.at(point) ?? gravity;
@@ -125,6 +135,12 @@ final class FluidWorld {
   }
 
   void _stepOnce(double dt) {
+    final helper = background ? fluidBackground : null;
+    for (final body in bodies) {
+      body
+        ..background = helper
+        ..surface.solver = helper;
+    }
     for (final liquid in bodies) {
       var displaced = 0.0;
       for (final f in floating) {

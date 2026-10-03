@@ -40,6 +40,7 @@ export 'src/collision_world.dart';
 export 'src/contact.dart';
 export 'src/dynamics.dart';
 export 'src/fluid/atmosphere.dart';
+export 'src/fluid/background/fluid_background.dart';
 export 'src/fluid/buoyancy.dart';
 export 'src/fluid/capillary.dart';
 export 'src/fluid/fluid_medium.dart';
