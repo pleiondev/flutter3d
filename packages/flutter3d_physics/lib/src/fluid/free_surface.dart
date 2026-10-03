@@ -228,6 +228,7 @@ final class FreeSurface {
   /// of what the pour cost; the waves cannot tell, since they move only when
   /// stepped.
   void land(Vector3 point, {double heap = 0.0, double flux = 0.0}) {
+    disturbances++;
     final grid = _grid;
     if (grid == null || _modes.isEmpty) return;
     if (heap != 0.0) {
@@ -283,6 +284,7 @@ final class FreeSurface {
   /// over a patch two cells across: what is not a wave — the patch's mean —
   /// is not kept, so no liquid is added.
   void knock(Vector3 point, double strength) {
+    disturbances++;
     final grid = _grid;
     if (grid == null || _modes.isEmpty) return;
     final spread = knockSpread;
@@ -315,6 +317,22 @@ final class FreeSurface {
     for (var n = 0; n < _amplitude.length; n++) {
       if (_amplitude[n].abs() * _norm(n) > 1e-4) return false;
       if (_rate[n].abs() * _norm(n) > 1e-3) return false;
+    }
+    return true;
+  }
+
+  /// How many times the surface has been knocked or landed on: a body that
+  /// sleeps while nothing happens to it wakes when this moves.
+  int disturbances = 0;
+
+  /// Whether the waves are too small to see or to matter: no mode stands a
+  /// tenth of a micrometre off the plane or moves a micrometre a second,
+  /// and nothing waits to land.
+  bool get quiet {
+    if (_pendingHeap != null || _pendingPhi != null) return false;
+    for (var n = 0; n < _amplitude.length; n++) {
+      if (_amplitude[n].abs() * _norm(n) > 1e-7) return false;
+      if (_rate[n].abs() * _norm(n) > 1e-6) return false;
     }
     return true;
   }
