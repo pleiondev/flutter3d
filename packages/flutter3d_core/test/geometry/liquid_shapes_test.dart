@@ -124,6 +124,20 @@ void main() {
     expect(_enclosed(dots), greaterThan(0));
   });
 
+  test('a puddle is drawn as a cap of its radius and height', () {
+    final cap = capMesh([Vector3(0.1, 0, 0)], [0.02], [0.001]);
+    final ys = [for (var i = 0; i < cap.vertexCount; i++) cap.positionAt(i).y];
+    // Its top as high as asked, its rim on the bench.
+    expect(ys.reduce(math.max), closeTo(0.001, 1e-7));
+    expect(ys.reduce(math.min), closeTo(0.0, 1e-7));
+    var widest = 0.0;
+    for (var i = 0; i < cap.vertexCount; i++) {
+      final p = cap.positionAt(i);
+      widest = math.max(widest, math.sqrt(math.pow(p.x - 0.1, 2) + p.z * p.z));
+    }
+    expect(widest, closeTo(0.02, 1e-7));
+  });
+
   test('a tipped tube keeps its liquid inside its glass, meniscus and all', () {
     // Mutation: lift the surface along up with the meniscus of the radius,
     // as for a tube standing, and the long sides of a tipped tube's liquid

@@ -6,6 +6,7 @@ import 'jet.dart';
 import 'liquid_body.dart';
 import 'particle_fluid.dart';
 import 'pipe.dart';
+import 'puddle.dart';
 
 /// Liquids in a world: the vessels, the pipes between them, and the streams
 /// running from one to another, stepped together at a fixed step.
@@ -56,12 +57,20 @@ final class FluidWorld {
   /// medium: what streams broke into, what splashed, what lies spilt.
   final Map<String, ParticleFluid> particles = {};
 
+  /// The puddles on each flat [floor]: what lands there lies there, as a
+  /// drop or a puddle, not as particles.
+  late final List<PuddleSurface> spills = [
+    for (final o in floor ?? const <JetObstacle>[])
+      if (o is PlaneObstacle) PuddleSurface(o),
+  ];
+
   /// Every cubic metre the world holds: in vessels, in the air, as
-  /// particles.
+  /// particles, in puddles.
   double get volume =>
       bodies.fold(0.0, (s, b) => s + b.volume) +
       jets.values.fold(0.0, (s, j) => s + j.inFlight) +
-      particles.values.fold(0.0, (s, p) => s + p.volume);
+      particles.values.fold(0.0, (s, p) => s + p.volume) +
+      spills.fold(0.0, (s, p) => s + p.volume);
 
   double _carried = 0.0;
   int _ran = 0;
@@ -131,7 +140,7 @@ final class FluidWorld {
         dt,
         gravity: gravity,
         obstacles: walls,
-        receivers: bodies,
+        receivers: [...bodies, ...spills],
       )) {
         particles
             .putIfAbsent(
@@ -161,8 +170,11 @@ final class FluidWorld {
         dt,
         gravity: gravity,
         obstacles: everywhere,
-        receivers: bodies,
+        receivers: [...bodies, ...spills],
       );
+    }
+    for (final spill in spills) {
+      spill.step(dt, gravity: gravity);
     }
   }
 }
