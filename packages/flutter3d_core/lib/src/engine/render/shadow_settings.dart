@@ -247,6 +247,10 @@ final class ShadowSettings {
   /// which is what perspective actually wants, since a texel's world size grows
   /// with distance. The usual practical answer is most of the way towards
   /// logarithmic, and that is the default.
+  ///
+  /// **Not read under an orthographic camera** — `P7`. There a texel covers
+  /// the same world at every depth, so the near cascades split the camera's
+  /// box evenly whatever this says.
   final double cascadeSplit;
 
   /// How far from the camera the cascades are fitted for, in metres.
@@ -265,6 +269,11 @@ final class ShadowSettings {
   /// unshadowed past it** — the last cascade is still fitted to the whole scene
   /// and every fragment falls through to it, so this trades sharpness near the
   /// camera against sharpness far from it, and never against coverage.
+  ///
+  /// **Under an orthographic camera it is measured from the nearest point of
+  /// the casters' bounds inside the box** rather than from the eye, which
+  /// there is only where the camera was put along its axis — `P7`. The near cascades share the depth
+  /// the box and the casters have in common, up to this much of it.
   final double viewDistance;
 
   /// Distance bias for a point light's cube map, in **metres**.

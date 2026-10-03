@@ -1256,6 +1256,18 @@ final class Renderer implements RenderServices {
   /// snapping's whole job is that this value *quantises* as the camera creeps,
   /// and a picture at any single moment cannot show the difference between a
   /// number that jumps and one that slides.
+  /// Where the near cascades end, in metres from the camera, as of the last
+  /// shadow pass: the distances the shading picks a cascade by. Nought past
+  /// the last cascade there is.
+  ///
+  /// For tests: under an orthographic camera the question worth asking is
+  /// whether these land inside the box the camera sees or in the air in front
+  /// of it, and the picture cannot say which cascade drew a shadow.
+  List<double> get debugCascadeSplits => List<double>.unmodifiable(<double>[
+    _shadowCascades[0],
+    _shadowCascades[1],
+  ]);
+
   List<vm.Vector3> get debugCascadeCentres =>
       List<vm.Vector3>.unmodifiable(_shadowCascadeCentres);
   final List<vm.Vector3> _shadowCascadeCentres = <vm.Vector3>[];
@@ -4282,6 +4294,16 @@ final class Renderer implements RenderServices {
         // splits and one map cannot serve both; the primary view wins, which
         // is the same answer reflections give.
         camera: ordered.isEmpty ? null : ordered.first.camera,
+        aspect: switch (ordered) {
+          [final first, ...] => switch (_viewportPixels(
+            first.viewportFraction,
+            width,
+            height,
+          )) {
+            final rect => rect.width / rect.height,
+          },
+          _ => 1.0,
+        },
       );
       // One node per probe the scene holds, in scene order, so the name the
       // scene reads for the i-th probe is the name the i-th node provides. A

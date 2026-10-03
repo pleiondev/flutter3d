@@ -650,6 +650,7 @@ extension _ShadowPasses on Renderer {
     required ShadowSettings settings,
     required int casterIndex,
     CameraNode? camera,
+    double aspect = 1.0,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
@@ -749,7 +750,31 @@ extension _ShadowPasses on Renderer {
     final radii = <double>[];
     final splits = <double>[0.0, 0.0];
 
-    if (count > 1 && camera != null) {
+    final cameraViewProjection = camera?.viewProjection(aspect);
+    final orthographic =
+        count > 1 &&
+            cameraViewProjection != null &&
+            isOrthographic(cameraViewProjection)
+        ? _orthographicCascades(
+            viewProjection: cameraViewProjection,
+            eye: camera!.readWorldPosition(),
+            bounds: bounds,
+            count: count,
+            viewDistance: math.max(settings.viewDistance, 1.0),
+          )
+        : null;
+    if (orthographic != null) {
+      splits
+        ..[0] = orthographic.splits[0]
+        ..[1] = orthographic.splits[1];
+      for (var i = 0; i < orthographic.radii.length; i++) {
+        // Never wider than the whole scene: a small board in a big box is
+        // better served by the map that fits the board.
+        final fits = orthographic.radii[i] < sceneRadius;
+        centres.add(fits ? orthographic.centres[i] : sceneCentre.clone());
+        radii.add(fits ? orthographic.radii[i] : sceneRadius);
+      }
+    } else if (count > 1 && camera != null) {
       final eyeAt = camera.readWorldPosition();
       final forward = camera.readForward();
       final near = 1.0;
@@ -1993,6 +2018,210 @@ extension _ShadowPasses on Renderer {
     }
     return _Scroll(du: du, dv: dv, dz: d[14], strips: strips);
   }
+}
+
+/// The near cascades under an orthographic camera — `P7`: where they end and
+/// the spheres they cover, or null when the camera's box holds no caster.
+///
+/// [viewProjection] is the camera's own, in the engine's `[0, 1]` depth range
+/// and before any backend adjustment; [eye] is the camera's position, which is
+/// what the shading measures a fragment's distance from; [bounds] are the
+/// casters'. [count] cascades in all, of which the last stays the whole scene
+/// and is not returned.
+///
+/// **Why perspective's split is wrong here.** It divides a distance from the
+/// eye between the cascades, mostly logarithmically, because through a
+/// perspective lens a texel covers more world the further away it is. Through
+/// an orthographic lens it does not — every pixel is the same size at every
+/// depth — and the eye is only where the camera was put along its axis, often
+/// tens of metres short of anything. Split from there, the near cascades
+/// covered air in front of the board and every fragment fell through to the
+/// last, which is the whole level and the softest map there is.
+///
+/// So the box is split instead, evenly, and only the part of it the casters
+/// occupy: the depth range of the box clipped to their bounds, which on an
+/// isometric board is where the box's four long edges meet the ground rather
+/// than wherever its near and far planes were left. The near cascades share
+/// that range between them and the last is left as a net for what a mirror
+/// or a probe sees outside the box.
+///
+/// The shading still picks a cascade by distance from [eye], which through an
+/// orthographic lens is depth plus a sideways offset. So the thresholds are
+/// distances and each sphere is fitted to every point of the box that its
+/// threshold can send to it: the last near one ends at the farthest corner's
+/// distance, and a cascade past the first starts no nearer than the depth at
+/// which a point at the box's rim reaches the previous threshold.
+({List<double> splits, List<vm.Vector3> centres, List<double> radii})?
+_orthographicCascades({
+  required vm.Matrix4 viewProjection,
+  required vm.Vector3 eye,
+  required vm.Aabb3 bounds,
+  required int count,
+  required double viewDistance,
+}) {
+  final near = count - 1;
+  if (near < 1) return null;
+  final inverse = vm.Matrix4.copy(viewProjection);
+  if (inverse.invert() == 0.0) return null;
+  final forward = viewAxisOf(viewProjection);
+
+  vm.Vector3 unproject(double x, double y, double z) {
+    final p = inverse * vm.Vector4(x, y, z, 1.0) as vm.Vector4;
+    return vm.Vector3(p.x / p.w, p.y / p.w, p.z / p.w);
+  }
+
+  // The box's corners: index bit 0 is x, bit 1 is y, bit 2 is depth.
+  final corners = <vm.Vector3>[
+    for (var i = 0; i < 8; i++)
+      unproject(
+        i & 1 == 0 ? -1.0 : 1.0,
+        i & 2 == 0 ? -1.0 : 1.0,
+        i & 4 == 0 ? 0.0 : 1.0,
+      ),
+  ];
+  double depthOf(vm.Vector3 p) => (p - eye).dot(forward);
+  final boxNear = depthOf(corners[0]);
+  final boxFar = depthOf(corners[4]);
+  if (!(boxFar > boxNear)) return null;
+
+  // The box and the bounds as half-spaces, each a function that is not
+  // negative inside. The box's are linear in the point because an
+  // orthographic matrix leaves w alone.
+  final m = viewProjection.storage;
+  double row(int r, vm.Vector3 p) =>
+      (m[r] * p.x + m[4 + r] * p.y + m[8 + r] * p.z + m[12 + r]) / m[15];
+  final inBox = <double Function(vm.Vector3)>[
+    (p) => 1.0 - row(0, p),
+    (p) => 1.0 + row(0, p),
+    (p) => 1.0 - row(1, p),
+    (p) => 1.0 + row(1, p),
+    (p) => row(2, p),
+    (p) => 1.0 - row(2, p),
+  ];
+  final inBounds = <double Function(vm.Vector3)>[
+    (p) => p.x - bounds.min.x,
+    (p) => bounds.max.x - p.x,
+    (p) => p.y - bounds.min.y,
+    (p) => bounds.max.y - p.y,
+    (p) => p.z - bounds.min.z,
+    (p) => bounds.max.z - p.z,
+  ];
+  final boundsCorners = <vm.Vector3>[
+    for (var i = 0; i < 8; i++)
+      vm.Vector3(
+        i & 1 == 0 ? bounds.min.x : bounds.max.x,
+        i & 2 == 0 ? bounds.min.y : bounds.max.y,
+        i & 4 == 0 ? bounds.min.z : bounds.max.z,
+      ),
+  ];
+  const edges = <(int, int)>[
+    (0, 1), (2, 3), (4, 5), (6, 7), //
+    (0, 2), (1, 3), (4, 6), (5, 7), //
+    (0, 4), (1, 5), (2, 6), (3, 7),
+  ];
+
+  // The depths the box and the bounds share. A vertex of their intersection
+  // is a corner of one inside the other or where an edge of one crosses a
+  // face of the other, and clipping every edge of each by the other's
+  // half-spaces finds all of those as the clipped segments' ends.
+  var from = double.infinity;
+  var to = double.negativeInfinity;
+  void clip(List<vm.Vector3> points, List<double Function(vm.Vector3)> planes) {
+    for (final (i, j) in edges) {
+      final a = points[i];
+      final b = points[j];
+      var t0 = 0.0;
+      var t1 = 1.0;
+      for (final plane in planes) {
+        final fa = plane(a);
+        final fb = plane(b);
+        if (fa < 0.0 && fb < 0.0) {
+          t0 = 1.0;
+          t1 = 0.0;
+          break;
+        }
+        if (fa < 0.0) t0 = math.max(t0, fa / (fa - fb));
+        if (fb < 0.0) t1 = math.min(t1, fa / (fa - fb));
+      }
+      if (t0 > t1) continue;
+      final da = depthOf(a);
+      final db = depthOf(b);
+      final d0 = da + (db - da) * t0;
+      final d1 = da + (db - da) * t1;
+      from = math.min(from, math.min(d0, d1));
+      to = math.max(to, math.max(d0, d1));
+    }
+  }
+
+  clip(boundsCorners, inBox);
+  clip(corners, inBounds);
+  if (!(to >= from)) return null;
+  from = math.max(from, boxNear);
+  to = math.max(from + 1e-3, math.min(to, from + viewDistance));
+
+  // How far a point at the box's rim lies off the axis through the eye: what
+  // the distance the shading measures adds to the depth.
+  var offAxis = 0.0;
+  for (var i = 0; i < 4; i++) {
+    final across = corners[i] - eye;
+    across.sub(forward.scaled(across.dot(forward)));
+    offAxis = math.max(offAxis, across.length);
+  }
+
+  // Even in depth, because the texel a pixel needs is the same at every depth.
+  final depthSplits = <double>[
+    for (var k = 1; k <= near; k++) from + (to - from) * k / near,
+  ];
+  final thresholds = <double>[
+    for (var k = 0; k < near; k++)
+      k == near - 1
+          ? math.sqrt(math.max(to * to, from * from) + offAxis * offAxis)
+          : depthSplits[k],
+  ];
+
+  vm.Vector3 cornerAt(int i, double depth) {
+    final t = (depth - boxNear) / (boxFar - boxNear);
+    return corners[i & 3] + (corners[(i & 3) + 4] - corners[i & 3]).scaled(t);
+  }
+
+  final centres = <vm.Vector3>[];
+  final radii = <double>[];
+  for (var k = 0; k < near; k++) {
+    final reach = thresholds[k];
+    final zHigh = math.min(to, reach);
+    final lowest = math.max(from, -reach);
+    final previous = k > 0 ? thresholds[k - 1] : 0.0;
+    final square = previous * previous - offAxis * offAxis;
+    final zLow = math.min(
+      zHigh,
+      lowest >= 0.0 && square > 0.0
+          ? math.max(lowest, math.sqrt(square))
+          : lowest,
+    );
+    final slab = <vm.Vector3>[
+      for (var i = 0; i < 8; i++) cornerAt(i, i & 4 == 0 ? zLow : zHigh),
+    ];
+    final centre = slab.fold(vm.Vector3.zero(), (sum, p) => sum..add(p))
+      ..scale(1.0 / 8.0);
+    final fitted = slab.fold(
+      1e-3,
+      (widest, p) => math.max(widest, (p - centre).length),
+    );
+    // Rounded up an eighth of an octave at a time, so a camera panning over
+    // uneven ground does not change a texel's size, and with it every shadow
+    // edge, a little each frame.
+    centres.add(centre);
+    radii.add(
+      math
+          .pow(2.0, (math.log(fitted) / math.ln2 * 8.0).ceil() / 8.0)
+          .toDouble(),
+    );
+  }
+  return (
+    splits: <double>[thresholds[0], near > 1 ? thresholds[1] : 0.0],
+    centres: centres,
+    radii: radii,
+  );
 }
 
 /// What a static cascade tile does in a frame — `S1`.
