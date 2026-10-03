@@ -62,6 +62,7 @@ final class Brush {
     String? surface,
     this.layer,
     this.ramp,
+    this.drawOrder = 0,
     Map<String, Object?> source = const <String, Object?>{},
   }) : centre = centre.clone(),
        size = size.clone(),
@@ -164,6 +165,29 @@ final class Brush {
   /// Whether this brush is a ramp rather than a block.
   bool get isRamp => ramp != null;
 
+  /// Where this brush is drawn among the others — `P7`, the engine's
+  /// `MeshNode.drawOrder`, which the loader sets on the draws built from it.
+  ///
+  /// **What a level needs when two surfaces sit in one plane.** A painted
+  /// stripe laid on a floor of the same stone, a puddle's sheet on the
+  /// cobbles: drawn in whatever order the batching gives, the two fight
+  /// pixel by pixel, and the only fix from Dart was to patch the node after
+  /// loading. Lower first. Nought, the default, is left out of the document,
+  /// so every level ever saved keeps its bytes and its digest.
+  ///
+  /// **Between [minDrawOrder] and [maxDrawOrder]**, the range the engine's
+  /// sort key holds — the validator refuses a number beyond it rather than
+  /// let the engine clamp it into a tie nobody asked for. Only the picture
+  /// reads it: a change to it alone is a look-only edit (`LevelDiff`).
+  final int drawOrder;
+
+  /// The lowest [drawOrder] a document may give: the engine's sort key keeps
+  /// the order in a signed byte.
+  static const int minDrawOrder = -128;
+
+  /// The highest [drawOrder] a document may give. See [minDrawOrder].
+  static const int maxDrawOrder = 127;
+
   Vector3 get halfExtents => size / 2.0;
   Vector3 get min => centre - halfExtents;
   Vector3 get max => centre + halfExtents;
@@ -203,6 +227,7 @@ final class Brush {
     surface: json.textOrNull('surface'),
     layer: json.integerOrNull('layer'),
     ramp: _rampFromName(json.textOrNull('ramp')),
+    drawOrder: json.integerOrNull('drawOrder') ?? 0,
     source: json,
   );
 
@@ -264,6 +289,7 @@ final class Brush {
         ramp == null ? null : _rampName(ramp!),
         whenAbsent: ramp != null,
       ),
+      WriteThroughField('drawOrder', drawOrder, whenAbsent: drawOrder != 0),
     ]);
   }
 }

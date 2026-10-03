@@ -442,6 +442,43 @@ void main() {
       );
     });
   });
+
+  group('the draw order a document asks for', () {
+    test('reaches the node, and splits a batch of one material', () async {
+      // `P7`: a stripe painted on a floor of the same stone is drawn after
+      // it. The two share a material, so without the order in the batch key
+      // they would be one node with one place in the order.
+      //
+      // Mutation: drop `..drawOrder = surface.drawOrder` from `LevelScene` —
+      // both nodes load at nought and the stripe fights the floor.
+      final loaded = await const LevelLoader().build(
+        Level.fromJson(<String, Object?>{
+          ..._levelJson(),
+          'brushes': <Object?>[
+            <String, Object?>{
+              'material': 'wall',
+              'at': <double>[0.0, -0.5, 0.0],
+              'size': <double>[8.0, 1.0, 8.0],
+            },
+            <String, Object?>{
+              'material': 'wall',
+              'at': <double>[0.0, 0.0, 0.0],
+              'size': <double>[1.0, 0.02, 8.0],
+              'solid': false,
+              'drawOrder': 2,
+            },
+          ],
+        }),
+        device: device,
+        registry: registry,
+      );
+
+      expect(
+        <int>[for (final node in loaded.brushNodes) node.drawOrder]..sort(),
+        <int>[0, 2],
+      );
+    });
+  });
 }
 
 /// Two walls twelve metres apart: one for a blast to cut, one for it to miss.

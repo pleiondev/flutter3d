@@ -28,6 +28,7 @@ final class LevelDiff {
     this.materials = const <String>[],
     this.fog = false,
     this.music = false,
+    this.brushOrder = const <int>[],
     this.simulation = const <String>[],
   });
 
@@ -47,6 +48,16 @@ final class LevelDiff {
   /// The music changed.
   final bool music;
 
+  /// Brushes whose draw order changed and nothing else, by index — `P7`.
+  ///
+  /// **The one change to a brush the simulation cannot feel.** Nothing that
+  /// collides, walks or steps reads `Brush.drawOrder`; it only says which of
+  /// two surfaces in one plane is drawn over the other. So a brush edited in
+  /// that alone is patched into the running scene like a material, and stays
+  /// out of [simulation] — any other change to the same brush puts the whole
+  /// list back there, and this is empty.
+  final List<int> brushOrder;
+
   /// Which parts the simulation reads changed: `brushes`, `entities`,
   /// `heightfield`, `recipes`, `next`. Empty when the change can be patched
   /// into a running scene without touching the run.
@@ -59,6 +70,7 @@ final class LevelDiff {
       materials.isEmpty &&
       !fog &&
       !music &&
+      brushOrder.isEmpty &&
       simulation.isEmpty;
 
   /// Whether the change can be patched in without a timeline branch.
@@ -70,6 +82,7 @@ final class LevelDiff {
     'materials': materials,
     'fog': fog,
     'music': music,
+    'brushOrder': brushOrder,
     'simulation': simulation,
   };
 }
@@ -90,6 +103,12 @@ LevelDiff diffLevel(Level before, Level after) {
       : newLights.length;
 
   final names = <String>{...before.materials.keys, ...after.materials.keys};
+  // `P7`: the brushes as the simulation sees them, without the one field it
+  // never reads. Equal so, and any difference left is the draw order alone.
+  final brushesMoved = differs(
+    <Object?>[for (final b in before.brushes) brushWithoutOrder(b)],
+    <Object?>[for (final b in after.brushes) brushWithoutOrder(b)],
+  );
   return LevelDiff(
     lights: <int>[
       for (var i = 0; i < shared; i++)
@@ -108,12 +127,14 @@ LevelDiff diffLevel(Level before, Level after) {
         before.fogColor != after.fogColor ||
         before.fogDensity != after.fogDensity,
     music: before.music != after.music,
+    brushOrder: brushesMoved
+        ? const <int>[]
+        : <int>[
+            for (var i = 0; i < after.brushes.length; i++)
+              if (before.brushes[i].drawOrder != after.brushes[i].drawOrder) i,
+          ],
     simulation: <String>[
-      if (differs(
-        <Object?>[for (final b in before.brushes) b.toJson()],
-        <Object?>[for (final b in after.brushes) b.toJson()],
-      ))
-        'brushes',
+      if (brushesMoved) 'brushes',
       if (differs(
         <Object?>[for (final e in before.entities) e.toJson()],
         <Object?>[for (final e in after.entities) e.toJson()],
@@ -130,3 +151,9 @@ LevelDiff diffLevel(Level before, Level after) {
     ],
   );
 }
+
+/// [brush]'s document without its draw order — what the simulation reads of
+/// it, for telling an edit of the order alone from one it would feel. See
+/// [LevelDiff.brushOrder].
+Map<String, Object?> brushWithoutOrder(Brush brush) =>
+    brush.toJson()..remove('drawOrder');

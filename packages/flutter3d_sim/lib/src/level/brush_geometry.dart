@@ -120,12 +120,17 @@ final class BrushGeometry {
       final brush = level.brushes[index];
       final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
       final own = perBrush ? '|#$index' : '';
-      final key = '${brush.material}|${brush.shadowCasting.name}|$slot$own';
+      // `P7`: and by the draw order, since a batch is drawn as one node and
+      // a node has one place in the order.
+      final key =
+          '${brush.material}|${brush.shadowCasting.name}|'
+          '${brush.drawOrder}|$slot$own';
       return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(
           brush.material,
           shadowCasting: brush.shadowCasting,
+          drawOrder: brush.drawOrder,
           lightmapped: lightmap != null,
           brush: perBrush ? index : null,
         ),
