@@ -228,8 +228,12 @@ final class RunTimeline {
     required this.input,
     required this.stepSim,
     required this.restore,
+    List<InputTapeRecorder>? recorders,
+    this.capture,
+    this.onStepped,
+    this.onBranched,
     this.stepSeconds = 1.0 / 60.0,
-  });
+  }) : recorders = recorders ?? <InputTapeRecorder>[rewind.recorder];
 
   /// Where the recent past is kept, and what [releaseAt] cuts.
   final RewindBuffer rewind;
@@ -243,6 +247,31 @@ final class RunTimeline {
 
   /// Puts a snapshot back into the live objects.
   final void Function(Snapshot snapshot) restore;
+
+  /// Where [stepOnce] at the present writes the step's input, as the loop
+  /// writes a step it runs itself.
+  ///
+  /// **The loop's own list, where there is a loop** — `GameLoop.recorders`,
+  /// passed as the same object, so a demo's recorder added to the loop after
+  /// this timeline was made is written to by a paused step too. Without one,
+  /// [rewind]'s recorder alone.
+  final List<InputTapeRecorder> recorders;
+
+  /// The live state, for the keyframe [stepOnce] at the present takes when
+  /// one falls due — the snapshot a game's step hands [RewindBuffer.keyframe]
+  /// before it simulates. Null takes none: the tape still gets the step, and
+  /// a rewind past it plays from the keyframe before.
+  final Snapshot Function()? capture;
+
+  /// Runs after [stepOnce] at the present has stepped: whatever a game does
+  /// once a step after the simulation, such as `DemoRecording.observe`.
+  final void Function()? onStepped;
+
+  /// Told when [releaseAt] or [branchHere] has cut the future: the step the
+  /// run now goes on from, and how many steps before the old present that
+  /// was — the count `DemoRecording.branched` takes, since the demo's tape
+  /// and this buffer do not start at the same step. Called after the cut.
+  final void Function(int step, {required int stepsAgo})? onBranched;
 
   /// The fixed step, in seconds, [stepOnce] and [releaseAt] advance by.
   final double stepSeconds;
@@ -282,6 +311,14 @@ final class RunTimeline {
   /// From a scrub this moves the scrub one step along the tape rather than
   /// stepping the simulation off it, so "step" in a debugger walks the
   /// recorded run; at the present the scrub ends.
+  ///
+  /// **At the present, a step the run keeps.** The input is written to every
+  /// one of [recorders] before the step, a keyframe is taken through
+  /// [capture] when [RewindBuffer.keyframeDue] says so, and [onStepped] runs
+  /// after — the moments `GameLoop` and a game's step keep for a step they
+  /// run. A step taken here and not written down would leave the tape short
+  /// of the state, and a rewind or branch afterwards would replay to
+  /// somewhere the run never was.
   void stepOnce() {
     if (!_paused) {
       throw StateError('stepOnce is only valid while the timeline is paused');
@@ -292,8 +329,14 @@ final class RunTimeline {
       _history.add(const TimelineStepped());
       return;
     }
+    for (var r = 0; r < recorders.length; r++) {
+      recorders[r].record(input);
+    }
     input.beginStep();
+    final live = capture;
+    if (live != null && rewind.keyframeDue) rewind.keyframe(live());
     stepSim(stepSeconds);
+    onStepped?.call();
     input.endStep();
     _history.add(const TimelineStepped());
   }
@@ -312,7 +355,10 @@ final class RunTimeline {
   /// the buffer at [point]. The timeline is left running (not paused): a
   /// release is asking to keep playing from here, not to pause on arrival —
   /// call [pause] afterwards for that.
+  ///
+  /// [onBranched] hears the step cut to, after the cut.
   void releaseAt(RewindPoint point) {
+    final from = rewind.step;
     _forgetScrub();
     restore(point.snapshot);
     final toPoint = InputTapePlayback(point.tapeToPoint);
@@ -331,6 +377,7 @@ final class RunTimeline {
     rewind.cut(point);
     _paused = false;
     _history.add(TimelineBranched(point.step));
+    onBranched?.call(point.step, stepsAgo: from - point.step);
   }
 
   /// Replaces the level under the run without the run jumping: [swap] puts
@@ -533,7 +580,7 @@ final class RunTimeline {
   ///
   /// **Stays paused**, unlike [releaseAt]: the person branching is looking
   /// at the moment they chose, and the first step of the new branch is
-  /// theirs to take.
+  /// theirs to take. [onBranched] hears the step, as from [releaseAt].
   ScrubAnswer branchHere() {
     final at = _scrubbedAt;
     final point = at == null ? null : rewind.rewindTo(at);
@@ -543,9 +590,11 @@ final class RunTimeline {
         'from; scrub to a step first',
       );
     }
+    final from = rewind.step;
     rewind.cut(point);
     _forgetScrub();
     _history.add(TimelineBranched(at));
+    onBranched?.call(at, stepsAgo: from - at);
     return ScrubMoved(at);
   }
 
