@@ -108,6 +108,9 @@ const Map<String, double> _budgets = <String, double>{
   // does not multisample as Impeller does; the highlights, the fog and the
   // sky agree.
   'orthographic-metal': 0.5,
+  // 0.433% measured, on the posts' and the blocks' edges, which WebGL2
+  // does not multisample as Impeller does; the shadows agree.
+  'orthographic-shadow': 0.5,
   // 0.359% measured, on the silhouette: `shadow-teapot`'s edge between
   // WebGL2 and Impeller, and the normals' half shows it in brighter colours
   // than the lit half's.

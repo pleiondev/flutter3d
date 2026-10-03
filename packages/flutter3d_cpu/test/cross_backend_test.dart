@@ -63,6 +63,10 @@ const Map<String, double> _budgets = <String, double>{
   // multisamples and this set does not; the highlights, fog and sky agree.
   // Recorded first from an Impeller build by mistake, which read 0%.
   'orthographic-metal': 0.65,
+  // 1.117% measured, on the edges and nowhere in a shadow: the posts are a
+  // tenth of a metre wide and almost all edge, which Impeller multisamples
+  // and this set does not. The shadows, near and far, agree.
+  'orthographic-shadow': 1.2,
   // 0.567% measured, on the silhouette and the floor's far edge, which
   // Impeller multisamples; both halves of the wipe agree inside.
   'debug-view-split': 0.65,

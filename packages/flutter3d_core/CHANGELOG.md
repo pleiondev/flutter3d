@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Shadow cascades under an orthographic camera.** They were split by
+  distance from the eye, mostly logarithmically, as a perspective camera
+  wants; through an orthographic lens the eye is only where the camera was
+  put along its axis, so the near cascades covered the air in front of the
+  board and every shadow fell to the last, the whole level. Now the near
+  cascades share the depth the camera's box and the casters have in common,
+  evenly, since a pixel needs the same texel at every depth, and each is a
+  sphere fitted to the slab of the box its threshold can send to it. The
+  last stays the whole scene, for mirrors and probes. Perspective cameras
+  split as before. `Renderer.debugCascadeSplits` reads where the near
+  cascades end. `orthographic-shadow` is in all four golden sets.
+
 - **Caustics.** `ShadowSettings.caustics` (with `translucentCasters`, off by
   default) follows the sun's light through every caster with a volume — a
   transmission and a thickness. Each is drawn from the sun into two small
