@@ -72,6 +72,16 @@
   shafts march from the eye's plane, as the volumetric fog already did.
   `orthographic-metal` is in all four golden sets.
 
+- **Shadow cascades through an orthographic camera cover what it shows.**
+  The near cascades were spheres sized by distance from the eye, which
+  suits a perspective view that widens as it goes; an orthographic one is
+  as wide at every depth, so they covered the air in front of the camera
+  and every shadow fell to the cascade fitted to the whole level. They are
+  now slabs along the view axis, as wide as the frame and spanning the
+  depth the casters take up inside it, and the shader picks one by depth
+  along the axis, so stepping the camera back along it changes nothing.
+  `orthographic-shadows` is in all four golden sets.
+
 - **A material channel in place of the light, over all or part of the
   frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
   `DebugView` — albedo, the shading normal, roughness, metalness,

@@ -1462,7 +1462,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the ninety goldens keep the frame
+  /// nothing headless can run them. So the ninety-one goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -2246,7 +2246,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Ninety goldens depend on that being exact, and the composite
+/// existed. Ninety-one goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

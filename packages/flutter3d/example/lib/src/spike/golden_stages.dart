@@ -1269,6 +1269,50 @@ abstract final class GoldenStages {
         fog: FogSettings(color: Vector3(0.7, 0.75, 0.8), density: 0.03),
       );
 
+  /// `orthographic-shadows`: a level far longer than the view — a floor a
+  /// hundred and sixty metres long with posts down all of it — seen from
+  /// above through an orthographic camera zoomed in on its middle, under
+  /// three shadow cascades. Through this lens the near cascades are slabs of
+  /// what the frame shows; when they were spheres sized by distance from the
+  /// eye they covered the air before it, every shadow fell to the cascade
+  /// fitted to the whole level, and the posts' shadows went to mush.
+  static Future<GoldenStaged> orthographicShadows(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.6, 0.5).normalized());
+    final floor = Material(
+      baseColor: Vector4(0.42, 0.42, 0.4, 1.0),
+      roughness: 0.9,
+    );
+    final post = Material(
+      baseColor: Vector4(0.8, 0.45, 0.3, 1.0),
+      roughness: 0.6,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(12.0, 0.2, 160.0),
+          Vector3(0.0, -0.1, 0.0),
+          floor,
+        ),
+        for (var i = 0; i < 32; i++)
+          _slab(
+            device,
+            Vector3(0.6, 2.4, 0.6),
+            Vector3(i.isEven ? -2.0 : 2.0, 1.2, -77.5 + i * 5.0),
+            post,
+          ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 17.0, far: 400.0)
+        ..setPosition(9.0, 14.0, -26.0)
+        ..lookAt(Vector3(0.0, 0.0, 1.0)),
+    );
+  }
+
+  static RenderSettings orthographicShadowsSettings(RenderSettings settings) =>
+      settings.copyWith(shadows: settings.shadows.copyWith(cascades: 3));
+
   // ------------------------------------------------------------------ P6
 
   /// `debug-view-split`: the lit teapot left of the middle and its shading
@@ -1276,10 +1320,7 @@ abstract final class GoldenStages {
   /// makes, and the composite leaving the right half out of the tone curve.
   static RenderSettings debugViewSplit(RenderSettings settings) =>
       settings.copyWith(
-        debugView: const DebugViewSettings(
-          view: DebugView.normal,
-          split: 0.5,
-        ),
+        debugView: const DebugViewSettings(view: DebugView.normal, split: 0.5),
       );
 
   // ------------------------------------------------------------------ R6

@@ -749,7 +749,79 @@ extension _ShadowPasses on Renderer {
     final radii = <double>[];
     final splits = <double>[0.0, 0.0];
 
-    if (count > 1 && camera != null) {
+    final orthographic = switch (camera?.projection) {
+      final OrthographicProjection projection => projection,
+      _ => null,
+    };
+    if (count > 1 && camera != null && orthographic != null) {
+      // `P7`: **slabs along the view axis, for a lens whose rays are
+      // parallel.** The spheres below grow with distance from the eye because
+      // a perspective view widens with it; an orthographic one is as wide at
+      // every depth, so a near cascade sized by distance covered the air in
+      // front of the camera and everything fell to the last, softest one.
+      // Here each cascade is a slab of the view's box, from where the casters
+      // begin: even in depth — a texel covers the same world at every depth,
+      // so there is nothing for a logarithm to follow — and as wide as the
+      // frame's half-diagonal, from the frame's own aspect. `shadow.glsl` picks one by depth along
+      // the axis to match.
+      final eyeAt = camera.readWorldPosition();
+      final forward = camera.readForward();
+      final aspect = resources.frameHeight > 0
+          ? resources.frameWidth / resources.frameHeight
+          : 1.0;
+      final halfHeight = orthographic.height * 0.5;
+      final across = halfHeight * math.sqrt(1.0 + aspect * aspect);
+      // The depth the casters span *within the frame*, not the scene's: an
+      // orthographic camera is usually stood well back from a level far
+      // larger than its view, and slabs from its near plane, or across the
+      // whole level, spend the near cascades on air and on ground nobody can
+      // see. Read off five rays down the view's axis — through its middle
+      // and its four corners — each clipped by the casters' box. Something
+      // standing between the rays and outside their depths still falls
+      // through to the last cascade, so this costs sharpness, never coverage.
+      final m = camera.worldMatrix.storage;
+      final right = vm.Vector3(m[0], m[1], m[2])..normalize();
+      final up = vm.Vector3(m[4], m[5], m[6])..normalize();
+      final halfWidth = halfHeight * aspect;
+      final seen = <(double, double)>[
+        for (final (x, y) in const <(double, double)>[
+          (0.0, 0.0),
+          (-1.0, -1.0),
+          (1.0, -1.0),
+          (-1.0, 1.0),
+          (1.0, 1.0),
+        ])
+          ?_rayThroughBox(
+            eyeAt + right.scaled(x * halfWidth) + up.scaled(y * halfHeight),
+            forward,
+            bounds.min,
+            bounds.max,
+          ),
+      ];
+      final centreDepth = (sceneCentre - eyeAt).dot(forward);
+      final (nearest, furthest) = seen.isEmpty
+          ? (centreDepth - sceneRadius, centreDepth + sceneRadius)
+          : seen.reduce((a, b) => (math.min(a.$1, b.$1), math.max(a.$2, b.$2)));
+      final start = math.max(orthographic.near, nearest);
+      final end = math.max(
+        math.min(
+          math.min(orthographic.far, furthest),
+          start + math.max(settings.viewDistance, 1.0),
+        ),
+        start + 1.0,
+      );
+      // All of it to the near slabs: the last cascade is the whole scene
+      // either way, and a fragment the frame shows should not need it.
+      final slabs = count - 1;
+      for (var i = 0; i < slabs; i++) {
+        final from = start + (end - start) * i / slabs;
+        final to = start + (end - start) * (i + 1) / slabs;
+        splits[i] = to;
+        final half = (to - from) * 0.5;
+        centres.add(eyeAt + forward.scaled(from + half));
+        radii.add(math.sqrt(across * across + half * half));
+      }
+    } else if (count > 1 && camera != null) {
       final eyeAt = camera.readWorldPosition();
       final forward = camera.readForward();
       final near = 1.0;
@@ -1251,7 +1323,7 @@ extension _ShadowPasses on Renderer {
         final skinned = skeleton != null;
         // `gfx-60n`. A cut-out caster goes through a stage with a sampler in
         // it; everything else keeps the stage it has always had, which is why
-        // the masked half costs the common path nothing and why ninety
+        // the masked half costs the common path nothing and why ninety-one
         // goldens recorded against the plain stage cannot move.
         final masked = maskedShadowShader != shadowShader && _castsMasked(node);
         final kind =
@@ -2013,4 +2085,30 @@ final class _Scroll {
   final double dv;
   final double dz;
   final List<vm.Frustum> strips;
+}
+
+/// Where the ray from [origin] along [direction] (unit length) is inside the
+/// box [min]–[max], as distances along it — or null when it misses. The slab
+/// test, clamped to what lies ahead of [origin].
+(double, double)? _rayThroughBox(
+  vm.Vector3 origin,
+  vm.Vector3 direction,
+  vm.Vector3 min,
+  vm.Vector3 max,
+) {
+  var enter = 0.0;
+  var leave = double.infinity;
+  for (var axis = 0; axis < 3; axis++) {
+    final o = origin[axis];
+    final d = direction[axis];
+    if (d.abs() < 1e-12) {
+      if (o < min[axis] || o > max[axis]) return null;
+      continue;
+    }
+    final a = (min[axis] - o) / d;
+    final b = (max[axis] - o) / d;
+    enter = math.max(enter, math.min(a, b));
+    leave = math.min(leave, math.max(a, b));
+  }
+  return enter <= leave ? (enter, leave) : null;
 }

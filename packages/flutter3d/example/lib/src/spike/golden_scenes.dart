@@ -1264,6 +1264,17 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.orthographicMetalSettings,
   ),
 
+  // P7. Shadow cascades through an orthographic camera: slabs of the view
+  // along its axis rather than spheres round the eye.
+  const GoldenScene(
+    name: 'orthographic-shadows',
+    source: 'Cube',
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicShadows,
+    configure: GoldenStages.orthographicShadowsSettings,
+  ),
+
   // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
   // normal on the right.
   const GoldenScene(

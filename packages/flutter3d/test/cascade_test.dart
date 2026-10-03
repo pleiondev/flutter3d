@@ -18,6 +18,8 @@
 ///   * nothing is left unshadowed by a gap between volumes.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
@@ -122,6 +124,33 @@ Set<int> _shadowed(List<int> grid) => <int>{
   for (var i = 0; i < grid.length; i++)
     if (grid[i] > 20 && grid[i] < 170) i,
 };
+
+/// A floor two hundred metres square — a level far larger than any frame
+/// that looks down on part of it — with a post every six metres round the
+/// middle, so there is a shadow in every corner of such a frame.
+Scene _postYard() {
+  final scene = Scene();
+  final device = CpuDevice(
+    width: 4,
+    height: 4,
+    shaders: CpuShaderLibrary(builtinCpuShaders()),
+  );
+  MeshNode block(Vector3 size, Vector3 at) => MeshNode(
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+  )..setPositionFrom(at);
+  scene.add(block(Vector3(200.0, 1.0, 200.0), Vector3(0.0, -0.5, 0.0)));
+  for (var x = -24.0; x <= 24.0; x += 6.0) {
+    for (var z = -24.0; z <= 24.0; z += 6.0) {
+      scene.add(block(Vector3(0.8, 3.0, 0.8), Vector3(x, 1.5, z)));
+    }
+  }
+  scene.add(
+    LightNode(type: LightType.directional, intensity: 1.1, castsShadow: true)
+      ..setLocalForward(Vector3(-0.5, -0.8, 0.3)),
+  );
+  return scene;
+}
 
 void main() {
   test('the default is three tiles of a thousand, not one of two', () {
@@ -511,5 +540,120 @@ void main() {
     for (var i = 0; i < 3; i++) {
       expect(bias[i], greaterThanOrEqualTo(1.0 / 2048.0), reason: 'cascade $i');
     }
+  });
+
+  group('through an orthographic lens — P7', () {
+    ({Scene scene, CameraNode camera}) orthoRoom() {
+      final room = _longRoom(length: 400.0);
+      room.camera.projection = const OrthographicProjection(height: 14.0);
+      return room;
+    }
+
+    test(
+      'the cascades are slabs of the view, not of the air before it',
+      () async {
+        // Mutation: size the orthographic cascades by distance from the eye, as
+        // the perspective ones are, and the near ones shrink to a few metres
+        // round a point the view is far wider than: the frame's corners fall
+        // through to the scene's whole map.
+        final room = orthoRoom();
+        final engine = _engine();
+        await _grid(engine, room, const ShadowSettings(cascades: 3));
+        final radii = engine.renderer.debugCascadeRadii;
+        final centres = engine.renderer.debugCascadeCentres;
+        expect(radii, hasLength(3));
+
+        // Every near slab is at least as wide as the frame's half-diagonal,
+        // seven metres high at this aspect, and far narrower than the scene.
+        final across = 7.0 * math.sqrt(1.0 + math.pow(_width / _height, 2));
+        for (final radius in radii.take(2)) {
+          expect(radius, greaterThanOrEqualTo(across - 1e-6));
+          expect(radius, lessThan(radii.last));
+        }
+
+        // And they stand one after the other along the view axis.
+        final forward = room.camera.readForward();
+        final eye = room.camera.readWorldPosition();
+        final depth0 = (centres[0] - eye).dot(forward);
+        final depth1 = (centres[1] - eye).dot(forward);
+        expect(depth0, greaterThan(0.0));
+        expect(depth1, greaterThan(depth0));
+      },
+    );
+
+    test('stepping the camera back along its axis changes nothing', () async {
+      // The property that makes a lens orthographic, held to under cascades:
+      // the slabs are cut from what the frame shows and the shader picks one
+      // by depth along the axis, so where the eye stands on that axis moves
+      // nothing in the world. Picked by distance from the eye instead, a
+      // fragment towards a corner of the frame counts as further away the
+      // nearer the camera stands, and crosses into the next cascade.
+      //
+      // Mutation: pick by distance in `cpu_shaders_shadow_directional.dart`
+      // (and `shadow.glsl`) through an orthographic lens.
+      final scene = _postYard();
+      const shadows = ShadowSettings(cascades: 3, viewDistance: 24.0);
+      // Looking almost straight down on the middle of the yard from six
+      // metres up: the frame is twenty-five metres to a corner and the posts'
+      // tops three metres away, so distance from the eye and depth along the
+      // axis part company at the corners — and the floor is near enough
+      // square to the axis that nothing in the frame is behind the near
+      // plane at either stand.
+      final axis = Vector3(0.1, -1.0, 0.1)..normalize();
+      final clear = Vector3(0.0, 6.0, 0.0);
+      final camera = CameraNode();
+      scene.add(camera);
+      Future<List<int>> from(double back) async {
+        final eye = clear - axis.scaled(back);
+        camera
+          ..projection = const OrthographicProjection(height: 30.0, far: 400.0)
+          ..setPositionFrom(eye)
+          ..lookAt(eye + axis);
+        final engine = _engine();
+        final frame = engine.renderer.render(
+          width: _width,
+          height: _height,
+          scene: scene,
+          views: <RenderView>[RenderView(camera: camera)],
+          settings: const RenderSettings(
+            shadows: shadows,
+            bloom: BloomSettings(enabled: false),
+          ),
+        );
+        return (await engine.device.readPixels(
+          frame.frame,
+        ))!.buffer.asUint8List();
+      }
+
+      final near = await from(0.0);
+      final far = await from(40.0);
+      var moved = 0;
+      for (var i = 0; i < near.length; i++) {
+        if ((near[i] - far[i]).abs() > 8) moved++;
+      }
+      expect(moved, lessThanOrEqualTo(4));
+    });
+
+    test('three cascades shadow the same things as one', () async {
+      // Mutation: give the orthographic cascades the perspective path's
+      // spheres, and the slab a fragment stands in is not one any cascade
+      // covers but the last: the shadow moves or goes.
+      final room = orthoRoom();
+      final single = await _grid(
+        _engine(),
+        room,
+        const ShadowSettings(cascades: 1),
+      );
+      final many = await _grid(
+        _engine(),
+        room,
+        const ShadowSettings(cascades: 3),
+      );
+      final wasDark = _shadowed(single);
+      final isDark = _shadowed(many);
+      expect(wasDark, isNotEmpty, reason: 'there was no shadow to compare');
+      expect(isDark.difference(wasDark).length, lessThanOrEqualTo(2));
+      expect(wasDark.difference(isDark).length, lessThanOrEqualTo(2));
+    });
   });
 }

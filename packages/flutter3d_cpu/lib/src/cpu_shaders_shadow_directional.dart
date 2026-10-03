@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
+import 'cpu_shaders_color.dart' show orthographic;
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_surface.dart';
 
@@ -62,7 +63,18 @@ double shadowFactor(
   final cascades = b.vec4('FragInfo', 'shadow_cascades', Vector4(0, 0, 1, 0));
   final count = (cascades.z + 0.5).floor().clamp(1, 3);
   final camera = b.vec4('FragInfo', 'camera_position', Vector4.zero());
-  final viewDistance = (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  // `P7`: by depth along the axis through an orthographic lens.
+  final double viewDistance;
+  if (orthographic(b)) {
+    final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    viewDistance =
+        (s.world.x - eye.x) * forward.x +
+        (s.world.y - eye.y) * forward.y +
+        (s.world.z - eye.z) * forward.z;
+  } else {
+    viewDistance = (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  }
   var cascade = 0;
   if (count > 1 && viewDistance > cascades.x) cascade = 1;
   if (count > 2 && viewDistance > cascades.y) cascade = 2;
