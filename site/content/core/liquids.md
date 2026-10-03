@@ -117,7 +117,7 @@ A body turning in the liquid is held back too, by Stokes's torque 8πμR³ω on 
 
 Two switches on `FluidWorld` trade the bit-for-bit replay for speed, and change nothing that happens otherwise.
 
-- `nativeKernels: true` runs the particles' pair loops and neighbour search in C, built by the package's own hook with the machine's C compiler and vectorised. Each kernel matches the Dart one to a part in 10¹². Where no compiler was found, and on the web, the Dart kernels run.
+- `nativeKernels: true` runs the particles' pair loops and neighbour search in C, built by the package's own hook with the machine's C compiler and vectorised. Each kernel matches the Dart one to a part in 10¹². The same switch moves the heavy half of a surface's mode solve (a millisecond against three or four in Dart) and the meniscus solve into C. Where no compiler was found, and on the web, the Dart code runs.
 - `background: true` works out what would stop a frame, a cross-section's modes or a meniscus not met before, on another isolate. The vessel carries on as it was until the answer comes. On the web there are no isolates, and it is all worked out at once.
 
 ## Being honest about it
