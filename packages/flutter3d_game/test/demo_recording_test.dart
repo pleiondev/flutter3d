@@ -142,6 +142,95 @@ void main() {
     expect(live.demo.checkpoints.steps, <int>[10, 20, 30, 40, 60]);
   });
 
+  test('a run branched K steps back and recorded on replays to where the '
+      'branch went', () {
+    // The game's wiring: the loop's recorders handed to the timeline, the
+    // checkpoint after each step, and the branch written into the demo.
+    final toy = _Toy();
+    final input = InputState();
+    final rewind = RewindBuffer(stepsPerSecond: 60, keyframeEvery: 20);
+    final demo = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: toy.save(),
+      seed: 0,
+      checkpointEvery: 10,
+    );
+    final recorders = <InputTapeRecorder>[rewind.recorder, demo.recorder];
+    final timeline = RunTimeline(
+      rewind: rewind,
+      input: input,
+      stepSim: (dt) => toy.step(input),
+      restore: toy.restore,
+      recorders: recorders,
+      capture: toy.save,
+      onStepped: () => demo.observe(toy.save),
+      onBranched: (step, {required stepsAgo}) =>
+          expect(demo.branched(stepsAgo: stepsAgo), isTrue),
+    );
+    void live(int from, int to, void Function(InputState, int) play) {
+      for (var step = from; step < to; step++) {
+        play(input, step);
+        for (final recorder in recorders) {
+          recorder.record(input);
+        }
+        input.beginStep();
+        if (rewind.keyframeDue) rewind.keyframe(toy.save());
+        toy.step(input);
+        demo.observe(toy.save);
+        input.endStep();
+      }
+    }
+
+    live(0, 100, _play);
+    // Paused and stepped, as a debugger would: these steps are the run's.
+    timeline.pause();
+    for (var step = 100; step < 110; step++) {
+      _play(input, step);
+      timeline.stepOnce();
+    }
+    expect(demo.steps, 110);
+    expect(timeline.releaseAtStep(73), isTrue);
+    // Mutation: make `branched` a no-op — the tape keeps the 37 steps of
+    // the old future, and the branch's are written after them.
+    expect(demo.steps, 73, reason: 'the old future is cut from the tape');
+    // The branch goes elsewhere: the stick the other way.
+    live(73, 130, (input, step) => input.setStickAxis(-1.0, 0.0));
+
+    final file = _sent(demo);
+    expect(file.steps, 130);
+    expect(file.checkpoints.steps, <int>[
+      for (var s = 10; s <= 130; s += 10) s,
+    ], reason: 'the checkpoints up to 70 kept, the branch writing the rest');
+    final replayed = _replay(file);
+    // The independent check: the file, read back, plays to the live run.
+    expect(replayed.replay.divergence, isNull);
+    expect(replayed.replay.steps, 130);
+    expect(replayed.toy.x, toy.x);
+  });
+
+  test('a branch keeps a swap at the branch step and drops one after it', () {
+    final demo = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: _Toy().save(),
+      seed: 0,
+    );
+    for (var step = 0; step < 30; step++) {
+      demo.recorder.record(InputState());
+    }
+    expect(demo.levelSwapped(_level(2.0), stepsAgo: 20), isTrue);
+    expect(demo.levelSwapped(_level(3.0), stepsAgo: 5), isTrue);
+
+    // Mutation: drop swaps at the step too — the level that is still on
+    // screen would go missing from the file.
+    expect(demo.branched(stepsAgo: 20), isTrue);
+    expect(demo.steps, 10);
+    expect(demo.levelSwaps.map((swap) => swap.step), <int>[10]);
+    expect(demo.branched(stepsAgo: 11), isFalse, reason: 'before the start');
+    expect(demo.steps, 10);
+  });
+
   test('a swap from before the recording began is not written into it', () {
     final demo = DemoRecording(
       level: 'assets/levels/toy.json',

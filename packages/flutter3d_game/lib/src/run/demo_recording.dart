@@ -73,6 +73,37 @@ final class DemoRecording {
     return true;
   }
 
+  /// Writes down that the run was rewound [stepsAgo] steps and goes on from
+  /// there — `RunTimeline.onBranched`'s count, as [levelSwapped] takes its
+  /// own.
+  ///
+  /// The tape is cut at that step ([InputTapeRecorder.truncate]) and the
+  /// checkpoints after it forgotten: both describe the future the branch
+  /// left. A checkpoint at the step itself stays, since the state after
+  /// that many steps is the state the run goes on from. So does a swap at
+  /// that step, which took effect before it and is still the level on
+  /// screen; a swap after it belonged to the future and goes. (A timeline
+  /// cannot branch back past a swap it made, since `RunTimeline.swapLevel`
+  /// rebases its buffer there; the rule is for a caller that can.)
+  ///
+  /// False, and nothing changed, when the branch went back before this
+  /// recording began: the start it holds is then a state the run no longer
+  /// passes through. The caller begins a new recording from the present, as
+  /// for [levelSwapped].
+  bool branched({required int stepsAgo}) {
+    RangeError.checkNotNegative(stepsAgo, 'stepsAgo');
+    final at = recorder.tape.steps - stepsAgo;
+    if (at < 0) return false;
+    recorder.truncate(at);
+    _swaps.removeWhere((swap) => swap.step > at);
+    checkpoints.forgetAfter(at);
+    return true;
+  }
+
+  /// The levels swapped in under the run so far, oldest first.
+  List<DemoLevelSwap> get levelSwaps =>
+      List<DemoLevelSwap>.unmodifiable(_swaps);
+
   /// The run so far, as a file.
   Demo demo({
     required String buildStamp,
@@ -87,7 +118,7 @@ final class DemoRecording {
     checkpoints: checkpoints,
     platform: platform,
     recordedBy: recordedBy,
-    levelSwaps: List<DemoLevelSwap>.unmodifiable(_swaps),
+    levelSwaps: levelSwaps,
   );
 }
 

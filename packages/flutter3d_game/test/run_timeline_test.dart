@@ -118,6 +118,111 @@ void main() {
     });
   });
 
+  group('stepOnce at the present', () {
+    /// Two seconds live, then paused and stepped one step at a time to
+    /// [to], each paused step driven by `_play` the way a person holding a
+    /// key would.
+    ({_Toy toy, RewindBuffer rewind, RunTimeline timeline, InputState input})
+    stepped({
+      required int to,
+      List<InputTapeRecorder>? recorders,
+      void Function(int step, {required int stepsAgo})? onBranched,
+    }) {
+      final toy = _Toy(11);
+      final input = InputState();
+      final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+      final timeline = RunTimeline(
+        rewind: rewind,
+        input: input,
+        stepSim: (dt) => toy.step(input),
+        restore: toy.restore,
+        recorders: recorders,
+        capture: toy.save,
+        onBranched: onBranched,
+      );
+      for (var step = 0; step < 120; step++) {
+        _play(input, step);
+        rewind.recorder.record(input);
+        input.beginStep();
+        if (rewind.keyframeDue) rewind.keyframe(toy.save());
+        toy.step(input);
+        input.endStep();
+      }
+      timeline.pause();
+      for (var step = 120; step < to; step++) {
+        _play(input, step);
+        timeline.stepOnce();
+      }
+      return (toy: toy, rewind: rewind, timeline: timeline, input: input);
+    }
+
+    String freshTo(int steps) {
+      final toy = _Toy(11);
+      final input = InputState();
+      for (var step = 0; step < steps; step++) {
+        _play(input, step);
+        input.beginStep();
+        toy.step(input);
+        input.endStep();
+      }
+      return toy.state;
+    }
+
+    test('writes the step into the tape, so a rewind and release afterwards '
+        'lands where the stepped run was', () {
+      // Mutation: drop the recorders loop in `stepOnce` — the buffer stays
+      // at step 120, the release to 150 is refused, and the run is not
+      // where a fresh run to 150 is.
+      final run = stepped(to: 180);
+      expect(run.rewind.step, 180, reason: 'every paused step is on tape');
+      expect(run.toy.state, freshTo(180));
+
+      expect(run.timeline.releaseAtStep(150), isTrue);
+      expect(run.toy.state, freshTo(150));
+    });
+
+    test('takes the keyframe that falls due on a paused step', () {
+      // Mutation: drop the keyframe from `stepOnce` — the rewind to 170
+      // plays from the keyframe at 60, 110 steps, not 50.
+      final run = stepped(to: 180);
+      final point = run.rewind.rewindTo(170)!;
+      expect(point.replayed, 50, reason: 'the keyframe at 120 is held');
+      expect(run.rewind.keyframesAfter(60).keys, <int>[120]);
+    });
+
+    test("writes to every one of the loop's recorders, not only the "
+        "buffer's", () {
+      final demo = InputTapeRecorder(seed: 11);
+      final recorders = <InputTapeRecorder>[];
+      final run = stepped(to: 130, recorders: recorders);
+      // An empty list handed over, so the paused steps went to no recorder
+      // at all — the list is used as given, not added to.
+      expect(run.rewind.step, 120);
+      expect(demo.tape.steps, 0);
+
+      recorders
+        ..add(run.rewind.recorder)
+        ..add(demo);
+      _play(run.input, 130);
+      run.timeline.stepOnce();
+      expect(run.rewind.step, 121);
+      expect(demo.tape.steps, 1, reason: 'a recorder added later is written');
+    });
+
+    test('a branch says where it went and how far back that was', () {
+      final heard = <(int, int)>[];
+      final run = stepped(
+        to: 180,
+        onBranched: (step, {required stepsAgo}) => heard.add((step, stepsAgo)),
+      );
+      run.timeline.scrubTo(160, capture: run.toy.save);
+      run.timeline.branchHere();
+      run.timeline.releaseAtStep(140);
+      // Mutation: count from after the cut — both are reported as 0.
+      expect(heard, <(int, int)>[(160, 20), (140, 20)]);
+    });
+  });
+
   group('releaseAt', () {
     test('rewinding three seconds back and releasing lands the live state '
         'exactly where a fresh replay to that step would', () {
