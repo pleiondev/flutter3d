@@ -1,3 +1,8 @@
+// The native kernels are reached through dart:ffi, which the web has not:
+// there the Dart kernels run, and nothing here applies.
+@TestOn('vm')
+library;
+
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -56,7 +61,7 @@ void main() {
 
   for (final lanes in const [1, 2, 4, 8]) {
     test('each native kernel matches the Dart one to a part in 10¹², '
-        '\$lanes at a time', () {
+        '$lanes at a time', () {
       // Each width this processor has: the wider are only the running
       // processor's (AVX2, AVX-512F) on x86-64, and all of them on arm64.
       if (setNativePbfLanes(lanes) != lanes) {
