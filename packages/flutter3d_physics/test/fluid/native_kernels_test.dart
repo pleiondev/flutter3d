@@ -69,7 +69,7 @@ void main() {
   }
 
   test('the processor chooses how many at a time', () {
-    expect(const [2, 4, 8], contains(nativePbfLanes));
+    expect(const [2, 4], contains(nativePbfLanes));
   });
 
   test('both find the same neighbours, in the same order', () {
