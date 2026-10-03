@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics/src/fluid/native/pbf_backend.dart'
+    show nativePbfLanes, setNativePbfLanes;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -52,57 +54,22 @@ void main() {
     expect(nativePbfAvailable, isTrue);
   });
 
-  test('each native kernel matches the Dart one to a part in 10¹²', () {
-    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.001);
-    final native = ParticleFluid(
-      medium: FluidMedium.water,
-      spacing: 0.001,
-      native: true,
-    );
-    final dart = fluid.kernels;
-    final c = native.kernels;
-    expect(c, isNot(isA<DartPbfKernels>()));
-    const n = 200;
-    final (x, start, list) = _cloud(n, fluid.h);
-    expect(list.length, greaterThan(n));
+  for (final lanes in const [1, 2, 4, 8]) {
+    test('each native kernel matches the Dart one to a part in 10¹², '
+        '\$lanes at a time', () {
+      // Each width this processor has: the wider are only the running
+      // processor's (AVX2, AVX-512F) on x86-64, and all of them on arm64.
+      if (setNativePbfLanes(lanes) != lanes) {
+        markTestSkipped('not on this processor');
+        return;
+      }
+      addTearDown(() => setNativePbfLanes(0));
+      _matches();
+    });
+  }
 
-    final d1 = Float64List(n);
-    final d2 = Float64List(n);
-    dart.densities(x, start, list, n, d1);
-    c.densities(x, start, list, n, d2);
-    _close(d1, d2);
-
-    final n1 = Float64List(3 * n);
-    final n2 = Float64List(3 * n);
-    dart.normals(x, start, list, n, d1, n1);
-    c.normals(x, start, list, n, d1, n2);
-    _close(n1, n2);
-
-    final before = Float64List(3 * n)..fillRange(0, 3 * n, -9.81);
-    final after = Float64List(3 * n)..fillRange(0, 3 * n, 0.1);
-    final v1 = Float64List(3 * n);
-    final v2 = Float64List(3 * n);
-    dart.forces(x, start, list, n, d1, n1, before, after, v1, 1e-4);
-    c.forces(x, start, list, n, d1, n1, before, after, v2, 1e-4);
-    _close(v1, v2);
-
-    final l1 = Float64List(n);
-    final l2 = Float64List(n);
-    dart.lambdas(x, start, list, n, l1);
-    c.lambdas(x, start, list, n, l2);
-    _close(l1, l2);
-
-    final p1 = Float64List(3 * n);
-    final p2 = Float64List(3 * n);
-    dart.deltas(x, start, list, n, l1, p1);
-    c.deltas(x, start, list, n, l1, p2);
-    _close(p1, p2);
-
-    final s1 = Float64List(3 * n);
-    final s2 = Float64List(3 * n);
-    dart.viscosity(x, v1, start, list, n, 0.05, s1);
-    c.viscosity(x, v1, start, list, n, 0.05, s2);
-    _close(s1, s2);
+  test('the processor chooses how many at a time', () {
+    expect(const [2, 4, 8], contains(nativePbfLanes));
   });
 
   test('both find the same neighbours, in the same order', () {
@@ -250,4 +217,58 @@ void main() {
       }
     }
   });
+}
+
+/// Each native kernel against the Dart one, at the width set.
+void _matches() {
+  final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.001);
+  final native = ParticleFluid(
+    medium: FluidMedium.water,
+    spacing: 0.001,
+    native: true,
+  );
+  final dart = fluid.kernels;
+  final c = native.kernels;
+  expect(c, isNot(isA<DartPbfKernels>()));
+  const n = 200;
+  final (x, start, list) = _cloud(n, fluid.h);
+  expect(list.length, greaterThan(n));
+
+  final d1 = Float64List(n);
+  final d2 = Float64List(n);
+  dart.densities(x, start, list, n, d1);
+  c.densities(x, start, list, n, d2);
+  _close(d1, d2);
+
+  final n1 = Float64List(3 * n);
+  final n2 = Float64List(3 * n);
+  dart.normals(x, start, list, n, d1, n1);
+  c.normals(x, start, list, n, d1, n2);
+  _close(n1, n2);
+
+  final before = Float64List(3 * n)..fillRange(0, 3 * n, -9.81);
+  final after = Float64List(3 * n)..fillRange(0, 3 * n, 0.1);
+  final v1 = Float64List(3 * n);
+  final v2 = Float64List(3 * n);
+  dart.forces(x, start, list, n, d1, n1, before, after, v1, 1e-4);
+  c.forces(x, start, list, n, d1, n1, before, after, v2, 1e-4);
+  _close(v1, v2);
+
+  final l1 = Float64List(n);
+  final l2 = Float64List(n);
+  dart.lambdas(x, start, list, n, l1);
+  c.lambdas(x, start, list, n, l2);
+  _close(l1, l2);
+
+  final p1 = Float64List(3 * n);
+  final p2 = Float64List(3 * n);
+  dart.deltas(x, start, list, n, l1, p1);
+  c.deltas(x, start, list, n, l1, p2);
+  _close(p1, p2);
+
+  final s1 = Float64List(3 * n);
+  final s2 = Float64List(3 * n);
+  dart.viscosity(x, v1, start, list, n, 0.05, s1);
+  c.viscosity(x, v1, start, list, n, 0.05, s2);
+  _close(s1, s2);
 }

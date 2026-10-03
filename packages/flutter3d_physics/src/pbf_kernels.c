@@ -3,11 +3,20 @@
 // `NativePbfKernels` to call through `@Native`.
 //
 // **Held to the Dart reference within a tolerance, not to the bit.** The
-// neighbours of a particle are summed two at a time where the compiler has
-// vector extensions (clang and gcc, on NEON and SSE2 alike), which adds in
-// another order than Dart's one at a time; a run is the same run to about a
-// part in 10¹², not exactly. Where the world must replay to the bit, the
-// Dart kernels are the ones to step it with.
+// neighbours of a particle are summed several at a time where the compiler
+// has vector extensions (clang and gcc), which adds in another order than
+// Dart's one at a time; a run is the same run to about a part in 10¹², not
+// exactly. Where the world must replay to the bit, the Dart kernels are the
+// ones to step it with.
+//
+// **How many at a time is the running processor's, chosen when first
+// asked**, not the building machine's: the hook builds on whatever machine
+// builds the app, and code for its processor would stop on an older one
+// with an illegal instruction. Two lanes everywhere (SSE2 and NEON are
+// in every x86-64 and arm64); on x86-64 also four, built for AVX2, and
+// eight, built for AVX-512F, each taken only where the processor says it
+// has them. Without fused multiply-adds, so that each lane rounds as the
+// scalar loop does.
 //
 // The constants come as one array, in this order:
 //   0 h, 1 h², 2 ρ₀, 3 m, 4 norm, 5 γ, 6 rest stiffness,
@@ -19,9 +28,19 @@
 
 #if defined(__clang__) || defined(__GNUC__)
 #define F3D_VECTOR 1
-typedef double f3d_d2 __attribute__((vector_size(16)));
 #else
 #define F3D_VECTOR 0
+#endif
+
+#if F3D_VECTOR && (defined(__x86_64__) || defined(_M_X64))
+#define F3D_X86 1
+#else
+#define F3D_X86 0
+#endif
+
+// The lanes arm64 takes unless a test sets others: what measured fastest.
+#ifndef F3D_ARM_LANES
+#define F3D_ARM_LANES 2
 #endif
 
 #if defined(_WIN32)
@@ -65,18 +84,7 @@ static inline double cohesion(const double* k, double r) {
   return k[K_COHESION] * (2.0 * a - k[K_H6] / 64.0);
 }
 
-#if F3D_VECTOR
-// The kernel weight of two squared distances at once, a lane each.
-static inline f3d_d2 poly6_2(const double* k, f3d_d2 r2) {
-  const f3d_d2 h2 = {k[K_H2], k[K_H2]};
-  f3d_d2 d = h2 - r2;
-  d = (f3d_d2){d[0] > 0.0 ? d[0] : 0.0, d[1] > 0.0 ? d[1] : 0.0};
-  const f3d_d2 c = {k[K_POLY6], k[K_POLY6]};
-  return c * d * d * d;
-}
-#endif
-
-F3D_EXPORT int32_t f3d_pbf_version(void) { return 5; }
+F3D_EXPORT int32_t f3d_pbf_version(void) { return 6; }
 
 // Of the rows [start] and [list], those within [radius] at [x], in order,
 // into [out_start] and [out] (room for as many as [list] has).
@@ -203,7 +211,7 @@ F3D_EXPORT int32_t f3d_pbf_neighbours(const double* x, int32_t n,
   return count;
 }
 
-F3D_EXPORT void f3d_pbf_densities(const double* x, const int32_t* start,
+static void scalar_densities(const double* x, const int32_t* start,
                                   const int32_t* list, int32_t n,
                                   const double* k, double* density) {
   const double self = poly6(k, 0.0);
@@ -212,17 +220,6 @@ F3D_EXPORT void f3d_pbf_densities(const double* x, const int32_t* start,
     int32_t q = start[i];
     const int32_t end = start[i + 1];
     double w = self;
-#if F3D_VECTOR
-    f3d_d2 acc = {0.0, 0.0};
-    for (; q + 2 <= end; q += 2) {
-      const int32_t a = list[q], b = list[q + 1];
-      const f3d_d2 dx = {xi - x[3 * a], xi - x[3 * b]};
-      const f3d_d2 dy = {yi - x[3 * a + 1], yi - x[3 * b + 1]};
-      const f3d_d2 dz = {zi - x[3 * a + 2], zi - x[3 * b + 2]};
-      acc += poly6_2(k, dx * dx + dy * dy + dz * dz);
-    }
-    w += acc[0] + acc[1];
-#endif
     for (; q < end; q++) {
       const int32_t j = list[q];
       const double dx = xi - x[3 * j], dy = yi - x[3 * j + 1],
@@ -233,7 +230,7 @@ F3D_EXPORT void f3d_pbf_densities(const double* x, const int32_t* start,
   }
 }
 
-F3D_EXPORT void f3d_pbf_normals(const double* x, const int32_t* start,
+static void scalar_normals(const double* x, const int32_t* start,
                                 const int32_t* list, int32_t n,
                                 const double* k, const double* density,
                                 double* normal) {
@@ -256,7 +253,7 @@ F3D_EXPORT void f3d_pbf_normals(const double* x, const int32_t* start,
   }
 }
 
-F3D_EXPORT void f3d_pbf_forces(const double* x, const int32_t* start,
+static void scalar_forces(const double* x, const int32_t* start,
                                const int32_t* list, int32_t n,
                                const double* k, const double* density,
                                const double* normal, const double* before,
@@ -287,7 +284,7 @@ F3D_EXPORT void f3d_pbf_forces(const double* x, const int32_t* start,
   }
 }
 
-F3D_EXPORT void f3d_pbf_lambdas(const double* p, const int32_t* start,
+static void scalar_lambdas(const double* p, const int32_t* start,
                                 const int32_t* list, int32_t n,
                                 const double* k, double* lambda) {
   const double norm = k[K_NORM];
@@ -314,7 +311,7 @@ F3D_EXPORT void f3d_pbf_lambdas(const double* p, const int32_t* start,
   }
 }
 
-F3D_EXPORT void f3d_pbf_deltas(const double* p, const int32_t* start,
+static void scalar_deltas(const double* p, const int32_t* start,
                                const int32_t* list, int32_t n,
                                const double* k, const double* lambda,
                                double* delta) {
@@ -342,7 +339,7 @@ F3D_EXPORT void f3d_pbf_deltas(const double* p, const int32_t* start,
   }
 }
 
-F3D_EXPORT void f3d_pbf_viscosity(const double* p, const double* v,
+static void scalar_viscosity(const double* p, const double* v,
                                   const int32_t* start, const int32_t* list,
                                   int32_t n, const double* k, double share,
                                   double* smoothed) {
@@ -364,4 +361,174 @@ F3D_EXPORT void f3d_pbf_viscosity(const double* p, const double* v,
     smoothed[3 * i + 1] = sy;
     smoothed[3 * i + 2] = sz;
   }
+}
+
+// ------------------------------------------------------------ the widths
+
+#if F3D_VECTOR
+#define F3D_W 2
+#define F3D_NAME(name) name##_w2
+#include "pbf_lanes.h"
+#undef F3D_W
+#undef F3D_NAME
+
+#if F3D_X86
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2"))), apply_to = function)
+#else
+#pragma GCC push_options
+#pragma GCC target("avx2")
+#endif
+#define F3D_W 4
+#define F3D_NAME(name) name##_w4
+#include "pbf_lanes.h"
+#undef F3D_W
+#undef F3D_NAME
+#if defined(__clang__)
+#pragma clang attribute pop
+#else
+#pragma GCC pop_options
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx512f"))), apply_to = function)
+#else
+#pragma GCC push_options
+#pragma GCC target("avx512f")
+#endif
+#define F3D_W 8
+#define F3D_NAME(name) name##_w8
+#include "pbf_lanes.h"
+#undef F3D_W
+#undef F3D_NAME
+#if defined(__clang__)
+#pragma clang attribute pop
+#else
+#pragma GCC pop_options
+#endif
+#else
+// Off x86-64 the wider widths are built for the baseline: four lanes are
+// two NEON registers an operation, eight are four. Built so that a test
+// can hold them to the Dart kernels on any machine; which one runs by
+// default is [f3d_pbf_lanes]'s choice.
+#define F3D_W 4
+#define F3D_NAME(name) name##_w4
+#include "pbf_lanes.h"
+#undef F3D_W
+#undef F3D_NAME
+#define F3D_W 8
+#define F3D_NAME(name) name##_w8
+#include "pbf_lanes.h"
+#undef F3D_W
+#undef F3D_NAME
+#endif
+#endif
+
+// The widest the running processor can take: 1 without vector extensions.
+static int32_t f3d_widest(void) {
+#if !F3D_VECTOR
+  return 1;
+#elif F3D_X86
+  __builtin_cpu_init();
+  if (__builtin_cpu_supports("avx512f")) return 8;
+  if (__builtin_cpu_supports("avx2")) return 4;
+  return 2;
+#else
+  return 8;
+#endif
+}
+
+// The lanes in use: 0 until first asked. Written once with the same value
+// by whichever isolate asks first, or set by a test.
+static int32_t f3d_lanes = 0;
+
+static int32_t f3d_default_lanes(void) {
+#if F3D_X86
+  return f3d_widest();
+#elif F3D_VECTOR
+  return F3D_ARM_LANES;
+#else
+  return 1;
+#endif
+}
+
+// How many neighbours each pair loop takes at a time: 1, 2, 4 or 8.
+F3D_EXPORT int32_t f3d_pbf_lanes(void) {
+  if (f3d_lanes == 0) f3d_lanes = f3d_default_lanes();
+  return f3d_lanes;
+}
+
+// Sets the lanes to [lanes] where the processor has them, and returns the
+// lanes now in use: for a test to hold each width to the Dart kernels.
+// 0 goes back to the running processor's default.
+F3D_EXPORT int32_t f3d_pbf_set_lanes(int32_t lanes) {
+  if (lanes == 0) {
+    f3d_lanes = f3d_default_lanes();
+  } else if ((lanes == 1 || lanes == 2 || lanes == 4 || lanes == 8) &&
+             lanes <= f3d_widest()) {
+    f3d_lanes = lanes;
+  }
+  return f3d_pbf_lanes();
+}
+
+#if F3D_VECTOR
+#define F3D_DISPATCH(name, ...)              \
+  switch (f3d_pbf_lanes()) {                 \
+    case 8:                                  \
+      name##_w8(__VA_ARGS__);                \
+      return;                                \
+    case 4:                                  \
+      name##_w4(__VA_ARGS__);                \
+      return;                                \
+    case 2:                                  \
+      name##_w2(__VA_ARGS__);                \
+      return;                                \
+    default:                                 \
+      scalar_##name(__VA_ARGS__);            \
+      return;                                \
+  }
+#else
+#define F3D_DISPATCH(name, ...) scalar_##name(__VA_ARGS__);
+#endif
+
+F3D_EXPORT void f3d_pbf_densities(const double* x, const int32_t* start,
+                                  const int32_t* list, int32_t n,
+                                  const double* k, double* density) {
+  F3D_DISPATCH(densities, x, start, list, n, k, density)
+}
+
+F3D_EXPORT void f3d_pbf_normals(const double* x, const int32_t* start,
+                                const int32_t* list, int32_t n,
+                                const double* k, const double* density,
+                                double* normal) {
+  F3D_DISPATCH(normals, x, start, list, n, k, density, normal)
+}
+
+F3D_EXPORT void f3d_pbf_forces(const double* x, const int32_t* start,
+                               const int32_t* list, int32_t n,
+                               const double* k, const double* density,
+                               const double* normal, const double* before,
+                               const double* after, double* v, double dt) {
+  F3D_DISPATCH(forces, x, start, list, n, k, density, normal, before, after,
+               v, dt)
+}
+
+F3D_EXPORT void f3d_pbf_lambdas(const double* p, const int32_t* start,
+                                const int32_t* list, int32_t n,
+                                const double* k, double* lambda) {
+  F3D_DISPATCH(lambdas, p, start, list, n, k, lambda)
+}
+
+F3D_EXPORT void f3d_pbf_deltas(const double* p, const int32_t* start,
+                               const int32_t* list, int32_t n,
+                               const double* k, const double* lambda,
+                               double* delta) {
+  F3D_DISPATCH(deltas, p, start, list, n, k, lambda, delta)
+}
+
+F3D_EXPORT void f3d_pbf_viscosity(const double* p, const double* v,
+                                  const int32_t* start, const int32_t* list,
+                                  int32_t n, const double* k, double share,
+                                  double* smoothed) {
+  F3D_DISPATCH(viscosity, p, v, start, list, n, k, share, smoothed)
 }
