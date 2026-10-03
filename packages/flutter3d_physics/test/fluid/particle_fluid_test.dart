@@ -48,28 +48,46 @@ void main() {
 
   test('what is less than a particle waits in the bank, and is counted', () {
     final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
-    fluid.inject(2.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    fluid.inject(
+      2.5 * fluid.particleVolume,
+      Vector3.zero(),
+      Vector3.zero(),
+      asParticles: true,
+    );
     expect(fluid.count, 2);
     expect(fluid.volume, closeTo(2.5 * fluid.particleVolume, 1e-18));
-    fluid.inject(0.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    fluid.inject(
+      0.5 * fluid.particleVolume,
+      Vector3.zero(),
+      Vector3.zero(),
+      asParticles: true,
+    );
     expect(fluid.count, 3);
   });
 
   test('what is left in the bank is let go once no more comes', () {
     // Mutation: keep it banked, and a third of a particle stays counted
     // and nowhere, however long the world runs.
+    // Particles on a pane of glass, which keeps them particles.
     final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
+    final pane = [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0.098)];
     final at = Vector3(0, 0.1, 0);
     fluid
-      ..inject(1.3 * fluid.particleVolume, at, Vector3.zero())
+      ..inject(
+        3.3 * fluid.particleVolume,
+        at,
+        Vector3.zero(),
+        asParticles: true,
+      )
       // The step it came in on, more may still come.
-      ..step(1 / 240, gravity: Vector3(0, -9.81, 0));
-    expect(fluid.count, 1);
-    fluid.step(1 / 240, gravity: Vector3(0, -9.81, 0));
-    expect(fluid.count, 2);
+      ..step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: pane);
+    expect(fluid.count, 3);
+    fluid.step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: pane);
+    expect(fluid.count, 4);
+    expect(fluid.dropCount, 0);
     expect(fluid.volumes.last, closeTo(0.3 * fluid.particleVolume, 1e-18));
-    expect(fluid.volume, closeTo(1.3 * fluid.particleVolume, 1e-18));
-    // And it lands as what it is.
+    expect(fluid.volume, closeTo(3.3 * fluid.particleVolume, 1e-18));
+    // And off the pane, it falls and lands as what it is.
     final glass = LiquidBody(
       shape: RevolvedVessel([
         Vector2(0, 0),
@@ -89,7 +107,7 @@ void main() {
       );
     }
     expect(fluid.count, 0);
-    expect(glass.volume, closeTo(1e-6 + 1.3 * fluid.particleVolume, 1e-18));
+    expect(glass.volume, closeTo(1e-6 + 3.3 * fluid.particleVolume, 1e-18));
   });
 
   test(
