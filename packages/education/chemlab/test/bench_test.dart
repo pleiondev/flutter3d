@@ -373,4 +373,42 @@ void main() {
     expect(lying.volume, greaterThan(held * 0.9));
     expect(lying.puddles.first.volume, greaterThan(held * 0.8));
   });
+
+  test('what is poured into the clean tube is as deep a colour as is left', () {
+    // Mutation: take the depth of the liquid's material at the level, and
+    // the clean tube's, made with the first drops near its round bottom,
+    // is a hair thick: the half poured in shows a fraction of the colour.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[1];
+    final to = bench.clean;
+    bench.share(from);
+    while (bench.busy || bench.world.jets.isNotEmpty) {
+      bench.step(1 / 60);
+    }
+    double depth(Vessel v) =>
+        v.layers.single.node.material.extensions!.thickness;
+    expect(depth(to), closeTo(depth(from), 1e-9));
+  });
+
+  test('the clean tube emptied and filled again holds what it held', () {
+    // Mutation: fill it from empty with what its label says, and with none
+    // it comes back as plain water.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[1];
+    final to = bench.clean;
+    bench.share(from);
+    while (bench.busy || bench.world.jets.isNotEmpty) {
+      bench.step(1 / 60);
+    }
+    bench
+      ..pour(to, to.lowest)
+      ..step(1 / 60);
+    expect(to.liquid.volume, 0.0);
+    bench
+      ..pour(to, 0.5 * (to.lowest + to.highest))
+      ..step(1 / 60);
+    expect(bench.colour(to), bench.colour(from));
+  });
 }

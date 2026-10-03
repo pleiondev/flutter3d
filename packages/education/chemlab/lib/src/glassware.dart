@@ -260,10 +260,17 @@ Material paper([TextureHandle? label]) =>
 /// is most of a tube. The map is twice the default's edge: at a metre and
 /// 1024 texels a tube's shadow edge stepped by most of a millimetre, which a
 /// close look at a sixteen-millimetre tube shows as stairs.
+///
+/// **The sun has a size**, a quarter of a degree across, and a tube ten
+/// centimetres tall throws a penumbra about a millimetre wide with it,
+/// several texels of the map. Drawn as a point, the edge was a hard line
+/// that the map's texels, stretched along the bench where the shadow falls
+/// long, drew as stairs.
 final RenderSettings benchSettings = RenderSettings(
   sky: labSky,
   shadows: const ShadowSettings(
     translucentCasters: true,
+    directionalLightRadius: ShadowSettings.sunAngularRadius,
     resolution: 2048,
     viewDistance: 0.6,
     normalOffset: 0.002,
@@ -276,6 +283,7 @@ final RenderSettings photonSettings = RenderSettings(
   sky: labSky,
   shadows: const ShadowSettings(
     translucentCasters: true,
+    directionalLightRadius: ShadowSettings.sunAngularRadius,
     caustics: true,
     causticPhotons: 128,
     resolution: 2048,
