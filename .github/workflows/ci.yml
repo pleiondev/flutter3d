@@ -195,6 +195,30 @@ jobs:
           sdk: '3.13.0'
       - run: tool/flat_dart_check.sh
 
+  # **The native pair loops at every width this processor has** — x86-64, so
+  # the AVX2 and AVX-512 widths, which `src/pbf_kernels.c` picks at run time
+  # by what the processor says, are real here and on no developer's arm64
+  # machine. Each width is held to the scalar loop, and timed: which width a
+  # processor should take by default is a measurement, and this is where it
+  # can be made. Built with gcc and with clang, which reach the wider widths
+  # through different pragmas. Seconds; no Dart, no Flutter.
+  native-lanes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: grep -o -m1 -w -E 'avx512f|avx2|sse2' /proc/cpuinfo | sort -u
+      - name: gcc
+        working-directory: packages/flutter3d_physics
+        run: |
+          gcc -O3 -fno-math-errno -Wall -Werror -Isrc src/pbf_kernels.c test/native/lanes_check.c -lm -o lanes-gcc
+          ./lanes-gcc
+      - name: clang
+        working-directory: packages/flutter3d_physics
+        run: |
+          clang -O3 -fno-math-errno -Wall -Werror -Isrc src/pbf_kernels.c test/native/lanes_check.c -lm -o lanes-clang
+          ./lanes-clang
+
   # **A second engine opens the files this one writes, which nothing here had
   # ever checked.** The design plan's line is "the exported file opens in Godot
   # and Unity", and K2 closed on 2026-09-09 with: headless Godot in CI —

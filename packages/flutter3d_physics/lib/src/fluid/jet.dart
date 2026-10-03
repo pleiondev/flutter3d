@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
+import 'atmosphere.dart';
 import 'fluid_medium.dart';
+import 'wetting.dart';
 
 /// When something thrown at [velocity] from [height] reaches [floor] under
 /// gravity [g] pointing down: the later root of height + v_y·t − g t²/2 =
@@ -23,6 +25,17 @@ abstract interface class JetReceiver {
   /// Whether a parcel of [radius] at [point] (world) has reached this
   /// receiver's surface: whether its underside has.
   bool catches(Vector3 point, double radius);
+
+  /// Whether anything within [distance] of [centre] (world) could be
+  /// caught: false only when it certainly cannot. What a parcel asks
+  /// first, so the receivers far from it are not asked at every point of
+  /// its way.
+  bool reaches(Vector3 centre, double distance);
+
+  /// Whether a drop of [radius] at [point] (world) touches this receiver's
+  /// glass from inside it: water wets glass, and a drop held there by the
+  /// wall runs down into the liquid as a film.
+  bool wets(Vector3 point, double radius);
 
   /// Takes [volume] cubic metres of [medium] carrying [concentrations],
   /// arriving at [point] moving at [velocity].
@@ -46,6 +59,10 @@ abstract interface class JetObstacle {
   /// for everything in flight together, so the walls far from it are not
   /// asked again for each parcel, piece and pass.
   bool reaches(Vector3 centre, double distance);
+
+  /// What it is made of: how a liquid wets it, and how hard its edge holds
+  /// a drop.
+  SolidSurface get solid;
 }
 
 /// [obstacles] that something within [distance] of [centre] could touch.
@@ -192,10 +209,29 @@ final class Jet {
       return;
     }
     _emitted += volume;
+    _fresh = true;
     final speed = math.max(velocity.length, 1e-6);
     final w = math.max(width, 1e-6);
+    // **Laminar or turbulent, from how it leaves.** Under a Reynolds number
+    // of 2300 the stream is smooth, and parts where its own ripples have
+    // grown e¹² times, as [breakupGrowth] counts. Past 4000 it leaves the
+    // lip already disturbed, and parts sooner, at L/D = 8.51·We^0.32
+    // (Grant and Middleman, 1966, for turbulent jets). Between the two the
+    // length runs from one correlation to the other with Re.
+    final m = medium ?? this.medium;
+    final d = 2.0 * math.sqrt(flow / (speed * math.pi));
+    final re = m.density * speed * d / m.viscosity;
+    var intact = double.infinity;
+    if (re > 2300.0 && m.surfaceTension > 0.0) {
+      final we = m.density * speed * speed * d / m.surfaceTension;
+      final laminar = 12.0 * d * (math.sqrt(we) + 3.0 * we / re);
+      final turbulent = 8.51 * d * Portable.pow(we, 0.32);
+      final t = ((re - 2300.0) / 1700.0).clamp(0.0, 1.0);
+      intact = laminar + t * (turbulent - laminar);
+    }
     _parcels.add(
       _Parcel(
+        intact: intact,
         position: point.clone(),
         velocity: velocity.clone(),
         volume: volume,
@@ -216,8 +252,11 @@ final class Jet {
     required Vector3 gravity,
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
+    Atmosphere? air,
+    Vector3 Function(Vector3 point)? gravityAt,
   }) {
     final drops = <JetDrop>[];
+    _retract(dt);
     var walls = obstacles;
     if (_parcels.isNotEmpty) {
       // Every parcel, and as far as any moves this step, in one ball.
@@ -241,12 +280,46 @@ final class Jet {
       final rho = p.medium.density;
       final sigma = p.medium.surfaceTension;
       final mu = p.medium.viscosity;
-      p.velocity.addScaled(gravity, dt);
+      // Its own gravity, where it is, when gravity is not one vector.
+      p.velocity.addScaled(gravityAt?.call(p.position) ?? gravity, dt);
       p.previous.setFrom(p.position);
       p.age += dt;
+      p.travelled += p.velocity.length * dt;
       final section = p.section;
       final radius = math.sqrt(section / math.pi);
       var touched = false;
+      // **The air across it**, as on a long cylinder: what blows across a
+      // stream bends it, at ½·C_d·ρ_a·u⊥²·d a metre over its ρ·πd²/4,
+      // White's C_d for a cylinder. Along it the air only rubs, a skin
+      // friction that over the centimetres of a pour comes to nothing.
+      if (air != null && !p.onWall && radius > 0.0) {
+        final speed = p.velocity.length;
+        final u = p.velocity - air.windAt(p.position);
+        if (speed > 0.0) {
+          u.addScaled(p.velocity, -u.dot(p.velocity) / (speed * speed));
+        }
+        final across = u.length;
+        if (across > 0.0) {
+          final d = 2.0 * radius;
+          final re = air.density * across * d / air.viscosity;
+          final k =
+              -2.0 *
+              Atmosphere.cylinderDrag(re) *
+              air.density *
+              across /
+              (math.pi * rho * d);
+          p.velocity.addScaled(u, k * dt);
+        }
+      }
+      // Its own walls: within what it moves this step and the three radii a
+      // clinging parcel is looked for by. Every wall near the whole stream,
+      // asked for every piece of every parcel, cost the tail of a pour a
+      // third of a frame.
+      final near = obstaclesNear(
+        walls,
+        p.position,
+        p.velocity.length * dt + 3.0 * radius,
+      );
       // **In pieces no longer than its own radius**, held by the walls after
       // each. A stream falls five millimetres a step into a test tube whose
       // glass is half a millimetre: moved in one go, a parcel above the
@@ -255,7 +328,7 @@ final class Jet {
       final pieces = (p.velocity.length * dt / radius).ceil().clamp(1, 16);
       for (var k = 0; k < pieces; k++) {
         p.position.addScaled(p.velocity, dt / pieces);
-        for (final wall in walls) {
+        for (final wall in near) {
           final hit = wall.touch(p.position, radius);
           if (hit == null) continue;
           p.position.addScaled(hit.normal, hit.depth);
@@ -273,7 +346,7 @@ final class Jet {
         final contact = 0.1 * radius;
         final reach = 2.0 * radius;
         var held = false;
-        for (final wall in walls) {
+        for (final wall in near) {
           final near = wall.touch(p.position, radius + contact);
           if (near != null) {
             held = true;
@@ -281,7 +354,7 @@ final class Jet {
           }
         }
         if (!held && p.velocity.length < clingSpeed(2.0 * radius)) {
-          for (final wall in walls) {
+          for (final wall in near) {
             final hit = wall.touch(p.position, radius + reach);
             if (hit == null) continue;
             p.position.addScaled(hit.normal, hit.depth - reach);
@@ -310,10 +383,22 @@ final class Jet {
       final radius = math.sqrt(p.section / math.pi);
       final way = p.position - p.previous;
       final looks = (way.length / radius).ceil().clamp(1, 16);
+      // Only the receivers its way passes near: every point of every
+      // parcel's way asked of every glass on the bench was a third of a
+      // pour's cost.
+      final middle = (p.position + p.previous)..scale(0.5);
+      final near = [
+        for (final r in receivers)
+          if (r.reaches(middle, 0.5 * way.length + radius)) r,
+      ];
       search:
-      for (var k = 1; k <= looks; k++) {
-        final at = p.previous + way * (k / looks);
-        for (final r in receivers) {
+      for (var k = 1; k <= looks && near.isNotEmpty; k++) {
+        // One point moved along, not one made per look.
+        final at = _look
+          ..setFrom(way)
+          ..scale(k / looks)
+          ..add(p.previous);
+        for (final r in near) {
           if (r.catches(at, radius)) {
             into = r;
             break search;
@@ -355,7 +440,7 @@ final class Jet {
         continue;
       }
       // A rivulet on a wall does not part: the wall holds it.
-      if (!p.onWall && p.growth >= breakupGrowth) {
+      if (!p.onWall && (p.growth >= breakupGrowth || p.travelled >= p.intact)) {
         // Drops of 1.89 diameters, as many as its volume makes.
         final d = 2.0 * math.sqrt(p.section / math.pi) * 1.89;
         final one = math.pi * d * d * d / 6.0;
@@ -379,6 +464,85 @@ final class Jet {
       ..clear()
       ..addAll(kept);
     return drops;
+  }
+
+  final Vector3 _look = Vector3.zero();
+
+  /// Whether anything left the lip since the last step: the newest parcel
+  /// is held to the lip while it does, and its end is free once it stops.
+  bool _fresh = false;
+
+  /// **A free end draws back into the stream** (Keller, 1983): surface
+  /// tension pulls a thread's end in at √(σ/ρr), gathering what it passes
+  /// into a bulb. The upper end of a stretch held neither by the lip nor by
+  /// a wall gives as much of its liquid to its neighbour as that speed
+  /// covers of its length in the step, and goes once it has given it all.
+  /// Without it the tail of a pour, cut off as the glass came back up, fell
+  /// whole, as wide at its end as anywhere, like a bent rod of glass.
+  void _retract(double dt) {
+    final fresh = _fresh;
+    _fresh = false;
+    bool newerFree(int i) =>
+        (i == _parcels.length - 1 && !fresh) || _parcels[i].endsRun;
+    bool olderFree(int i) => i == 0 || _parcels[i - 1].endsRun;
+    var i = _parcels.length - 1;
+    while (i >= 1) {
+      final bulb = _parcels[i];
+      if (bulb.onWall || !newerFree(i)) {
+        i--;
+        continue;
+      }
+      // The bulb eats the thread ahead of it at the speed the thread's own
+      // radius gives, a parcel at a time, for as long as the step lasts.
+      var left = dt;
+      while (left > 0.0 && !olderFree(i)) {
+        final thread = _parcels[i - 1];
+        // The thread's far end is an end too: what is left is a drop.
+        if (thread.onWall || olderFree(i - 1)) break;
+        final radius = math.sqrt(thread.section / math.pi);
+        if (radius <= 0.0) break;
+        final speed = math.sqrt(
+          thread.medium.surfaceTension / (thread.medium.density * radius),
+        );
+        final length = math.max(thread.velocity.length, 1e-6) * thread.dt;
+        final whole = length / speed;
+        final eaten = whole <= left ? 1.0 : left / whole;
+        _gather(bulb, thread, thread.volume * eaten);
+        left -= whole * eaten;
+        if (eaten < 1.0) {
+          thread.dt *= 1.0 - eaten;
+          break;
+        }
+        // All of it: the bulb is where it was.
+        bulb.position.setFrom(thread.position);
+        bulb.previous.setFrom(thread.previous);
+        _parcels.removeAt(i - 1);
+        i--;
+      }
+      i--;
+    }
+  }
+
+  /// [amount] of [from]'s liquid into [into], with its momentum and what is
+  /// dissolved in it.
+  static void _gather(_Parcel into, _Parcel from, double amount) {
+    if (amount <= 0.0) return;
+    final total = into.volume + amount;
+    into.velocity
+      ..scale(into.volume / total)
+      ..addScaled(from.velocity, amount / total);
+    into.concentrations = {
+      for (final k in {
+        ...into.concentrations.keys,
+        ...from.concentrations.keys,
+      })
+        k:
+            ((into.concentrations[k] ?? 0.0) * into.volume +
+                (from.concentrations[k] ?? 0.0) * amount) /
+            total,
+    };
+    into.volume = total;
+    from.volume -= amount;
   }
 
   /// The stream as runs of samples, lip first: each run is a stretch with
@@ -418,6 +582,7 @@ final class Jet {
 
 final class _Parcel {
   _Parcel({
+    required this.intact,
     required this.position,
     required this.velocity,
     required this.volume,
@@ -431,15 +596,16 @@ final class _Parcel {
 
   /// What it is: which liquid, and what is dissolved in it.
   final FluidMedium medium;
-  final Map<String, double> concentrations;
+  Map<String, double> concentrations;
 
   final Vector3 position;
   final Vector3 velocity;
-  final double volume;
+  double volume;
 
   /// The step it left in: its length along the stream is its speed times
-  /// this, so its section is its volume over that.
-  final double dt;
+  /// this, so its section is its volume over that. Shortened as a bulb
+  /// eats into it, which leaves its section as it was.
+  double dt;
 
   /// How wide and thick a sheet it left as, and which way across.
   final double width;
@@ -448,6 +614,12 @@ final class _Parcel {
 
   double age = 0.0;
   double growth = 0.0;
+
+  /// How far it has come from the lip, and how far a stream that left as
+  /// it did goes before it parts: infinite for a laminar one, which parts
+  /// by [growth] instead.
+  double travelled = 0.0;
+  final double intact;
   bool onWall = false;
 
   /// Where it was at the start of the step.

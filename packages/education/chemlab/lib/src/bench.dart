@@ -10,9 +10,11 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
         LiquidLayer,
         PlaneObstacle,
         RevolvedVessel,
+        SolidSurface,
         VesselVolumes,
         fallTime,
-        overCircularLip;
+        overCircularLip,
+        circularWeir;
 import 'package:vector_math/vector_math.dart';
 
 import 'glassware.dart';
@@ -60,8 +62,24 @@ final class Vessel {
   /// What its label says; null for glass that wears none.
   final Solution? solution;
 
+  /// What it last held, as concentrations: what filling it again from
+  /// empty fills it with. Null until it has held anything.
+  Map<String, double>? _held;
+
   /// How far it leans, in radians, and about which horizontal axis. State.
   double tilt = 0.0;
+
+  /// How far it is asked to lean, and how fast it is turning towards that:
+  /// [Bench.step] brings [tilt] round to it as a hand would.
+  double leanTo = 0.0;
+  double _turning = 0.0;
+  double _aim = 0.0;
+
+  /// How high the hand holds it out of the row, and how fast that is
+  /// changing.
+  double _raised = 0.0;
+  double _rising = 0.0;
+  double _raiseAim = 0.0;
   Vector3 leanAxis = Vector3(1, 0, 0);
 
   /// How far it is lifted out of the row to lean, from nought, standing in
@@ -256,7 +274,9 @@ final class Bench {
         surfaceCells: 24,
         wallThickness: glassThickness,
       );
-      if (!white) _dyes[vessel.name] = _absorbance(vessel.dye);
+      if (!white) {
+        _dyes[vessel.name] = _measured(vessel) ?? _absorbance(vessel.dye);
+      }
       world.bodies.add(vessel.liquid);
       vessel.shadow =
           MeshNode(
@@ -283,6 +303,16 @@ final class Bench {
               ..castsShadow = photons
               ..receivesTranslucentShadows = false
               ..lightChannels = _vesselChannel,
+      );
+      // The glass in the tabletop too: it was left out while it was nearly
+      // invisible, and once it was not, the liquids stood in the mirror
+      // with nothing round them.
+      vessel.mirror.add(
+        _mirrored(
+          vessel.glassNode.mesh,
+          _reflection(albedo: null, colour: Vector3(0.995, 0.999, 0.997)),
+          vessel,
+        ),
       );
       final foot = vessel.foot;
       if (foot != null) {
@@ -331,8 +361,12 @@ final class Bench {
             name: 'bench',
           )
           ..setPosition(0, -0.002, 0.06)
-          // A floor casts nothing.
-          ..castsShadow = false
+          // **In the shadow map, though it shades nothing below it.** The
+          // engine's photons, bent through a liquid, land on whatever the
+          // map holds under them; with the tabletop left out they found
+          // nothing, were lost, and every solution threw the same grey
+          // shadow, clear acid as dark as permanganate.
+          ..castsShadow = true
           // Its own channel: the sun reaches every channel, and the fill
           // only the glass.
           ..lightChannels = _benchChannel,
@@ -358,7 +392,20 @@ final class Bench {
   final FluidWorld world = FluidWorld(
     gravity: Vector3(0, -9.81, 0),
     particleSpacing: 0.001,
-    floor: [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0.0)],
+    // The bench top is lacquered: water beads on it rather than spreading
+    // as it would on glass.
+    floor: [
+      PlaneObstacle(
+        normal: Vector3(0, 1, 0),
+        offset: 0.0,
+        solid: SolidSurface.laminate,
+      ),
+    ],
+    // A lesson, not a replay: what would stop a frame is worked out on
+    // another isolate, and drops run their pair loops natively where that
+    // was built. Neither changes what happens, only when and how fast.
+    background: true,
+    nativeKernels: true,
   );
 
   /// Whether the shadows come from the engine's caustics
@@ -428,10 +475,42 @@ final class Bench {
 
   // --------------------------------------------------------------- colour
 
-  /// Each dye's absorbance per metre at unit concentration: what makes it
-  /// its colour over [fade] of it.
+  /// Each dye's absorbance per metre at unit concentration — the strength
+  /// on its label.
   final Map<String, Vector3> _dyes = {};
 
+  /// Molar absorption coefficients, L·mol⁻¹·cm⁻¹, of what the labelled
+  /// tubes hold, at about 610, 550 and 465 nm, where the eye's red, green
+  /// and blue lie: read off published spectra of the aqueous ions, good to
+  /// a few tens of percent, and enough to tell which solutions light goes
+  /// through and which it does not. Copper(II) absorbs the red end weakly
+  /// (its band peaks near 810 nm), permanganate the green very strongly
+  /// (peaks at 525 and 545 nm), dichromate the blue (450 nm), nickel(II)
+  /// little anywhere (395 and 720 nm), and hydrochloric acid nothing.
+  static const Map<String, (double, double, double)> molarAbsorption = {
+    'HCl': (0.0, 0.0, 0.0),
+    'CuSO4': (4.5, 1.2, 0.2),
+    'KMnO4': (150.0, 2300.0, 450.0),
+    'K2Cr2O7': (0.2, 2.0, 250.0),
+    'NiCl2': (1.1, 0.6, 0.8),
+  };
+
+  /// [vessel]'s absorbance per metre from [molarAbsorption] and the
+  /// strength on its label, A = εcl in base ten: null for glass with no
+  /// label or a solution not in the table.
+  static Vector3? _measured(Vessel vessel) {
+    final solution = vessel.solution;
+    final eps = molarAbsorption[vessel.name];
+    if (solution == null || eps == null) return null;
+    final molar = double.tryParse(solution.note.split(' ').first);
+    if (molar == null) return null;
+    // ln 10 for base e, a hundred centimetres to the metre.
+    final k = math.ln10 * molar * 100.0;
+    return Vector3(eps.$1 * k, eps.$2 * k, eps.$3 * k);
+  }
+
+  /// What makes [colour] the colour of [fade] of a liquid: for the glass
+  /// with no label, whose solution is only a colour.
   static Vector3 _absorbance(Color colour) {
     double mu(double c) => -math.log(c.clamp(1e-3, 1.0)) / fade;
     return Vector3(mu(colour.r), mu(colour.g), mu(colour.b));
@@ -439,9 +518,11 @@ final class Bench {
 
   /// The colour of [layer]: light through [fade] of it, every dye in it
   /// taking its share by Beer and Lambert.
-  Color colourOf(LiquidLayer layer) {
+  Color colourOf(LiquidLayer layer) => _colourOf(layer.concentrations);
+
+  Color _colourOf(Map<String, double> concentrations) {
     final absorb = Vector3.zero();
-    layer.concentrations.forEach((dye, c) {
+    concentrations.forEach((dye, c) {
       final mu = _dyes[dye];
       if (mu != null) absorb.addScaled(mu, c);
     });
@@ -472,27 +553,32 @@ final class Bench {
     final now = vessel.liquid.volume;
     if (target > now) {
       final layers = vessel.liquid.layers;
+      // From empty: what it last held. The clean tube, emptied of what was
+      // poured into it and filled again, came back as plain water, its
+      // label being none.
       vessel.liquid.pour(
         target - now,
-        concentrations: layers.isEmpty
-            ? (vessel.dye.toARGB32() == 0xFFFFFFFF
-                  ? const {}
-                  : {vessel.name: 1.0})
-            : layers.last.concentrations,
+        concentrations: layers.isNotEmpty
+            ? layers.last.concentrations
+            : vessel._held ??
+                  (vessel.dye.toARGB32() == 0xFFFFFFFF
+                      ? const {}
+                      : {vessel.name: 1.0}),
       );
     } else if (target < now) {
+      final layers = vessel.liquid.layers;
+      if (layers.isNotEmpty) vessel._held = layers.last.concentrations;
       vessel.liquid.drain(now - target);
     }
     _redraw(vessel);
     if (!photons && vessel.tilt == 0.0) _repaint(vessel);
   }
 
-  /// The furthest [vessel] may lean either way: a little short of where what
-  /// it holds reaches the lip and would run out on the bench.
-  double maxLean(Vessel vessel) => math.max(
-    0.05,
-    math.min(1.45, _tiltHolding(vessel, vessel.liquid.volume) - 0.08),
-  );
+  /// The furthest [vessel] may lean either way: a half turn, mouth down.
+  /// Past the lean it holds its liquid at, what it holds runs out over the
+  /// lip, onto the bench or into whatever is under it, as it would from a
+  /// glass in a hand; stopped short of that, nothing could be spilled.
+  double maxLean(Vessel vessel) => math.pi;
 
   /// How far [vessel] must be lifted to lean as it does without passing
   /// through the glass standing round it.
@@ -501,14 +587,13 @@ final class Bench {
   /// footprint, its underside there has to clear that vessel's top by a
   /// millimetre. A vessel leaning away from its neighbours is hardly lifted;
   /// one leaning over a row of tubes goes over their mouths.
-  double _clearance(Vessel vessel) {
-    if (vessel.tilt == 0.0) return 0.0;
+  double _clearance(Vessel vessel, [double? at]) {
+    final tilt = at ?? vessel.tilt;
+    if (tilt == 0.0) return 0.0;
     final turn = Matrix3.zero()
-      ..setFrom(
-        Quaternion.axisAngle(vessel.leanAxis, vessel.tilt).asRotationMatrix(),
-      );
+      ..setFrom(Quaternion.axisAngle(vessel.leanAxis, tilt).asRotationMatrix());
     final top = vessel.glass.map((p) => p.y).reduce(math.max);
-    final sideways = math.sin(vessel.tilt).abs();
+    final sideways = math.sin(tilt).abs();
     var lowest = double.infinity;
     for (final p in [...vessel.glass, ...?vessel.foot]) {
       for (var k = 0; k < 24; k++) {
@@ -549,25 +634,94 @@ final class Bench {
   /// the way the camera looks, so it leans in the picture — after lifting
   /// it out of the row ([step] lifts and lowers it). The glass turns at
   /// once; the liquid keeps level and follows late, as liquid does.
+  ///
+  /// **Asked, not set.** [step] turns the glass to [angle] as a hand would,
+  /// smoothly. Set at once, the glass jumped a frame's worth of lean and
+  /// lift, the liquid felt a jolt of several g, its surface turned over, and
+  /// a tube tipped by ten degrees emptied itself in one step.
   void lean(Vessel vessel, double angle, {Vector3? across}) {
     if (busy) return;
     final limit = maxLean(vessel);
-    vessel.tilt = angle.clamp(-limit, limit);
-    if (across != null) {
+    vessel.leanTo = angle.clamp(-limit, limit);
+    if (across != null && vessel.tilt == 0.0) {
       final flat = Vector3(across.x, 0, across.z);
       if (flat.length2 > 1e-9) vessel.leanAxis = flat..normalize();
     }
     // One vessel in the hand: leaning this one puts the last one back.
-    if (vessel.tilt != 0.0) {
+    if (vessel.leanTo != 0.0) {
       for (final other in vessels) {
-        if (identical(other, vessel) || other.tilt == 0.0) continue;
-        other.tilt = 0.0;
-        _place(other);
-        _castBy(other);
+        if (!identical(other, vessel)) other.leanTo = 0.0;
       }
     }
+  }
+
+  /// How quickly a hand brings a glass round to the lean asked of it: the
+  /// lean asked is first eased ([_aimRate]), and the glass turns towards
+  /// the eased aim critically damped ([_handRate]), so it gathers speed
+  /// from nothing and sheds it to nothing, a third of a second or so.
+  /// Turning straight at the lean asked, critically damped alone, it took
+  /// all its angular acceleration in the first instant; a tube asked for
+  /// 0.8 rad felt three metres a second squared at once and threw a third
+  /// of what it held over its lip.
+  static const double _aimRate = 6.0;
+  static const double _handRate = 8.0;
+
+  /// Raises or lowers [vessel] towards [height] for [seconds], eased as a
+  /// turn is; says whether it moved.
+  bool _ease2(Vessel vessel, double height, double seconds) {
+    if (vessel._raised == height &&
+        vessel._raiseAim == height &&
+        vessel._rising == 0.0) {
+      return false;
+    }
+    final pieces = (seconds * 240).ceil().clamp(1, 32);
+    final dt = seconds / pieces;
+    for (var k = 0; k < pieces; k++) {
+      vessel._raiseAim += _aimRate * (height - vessel._raiseAim) * dt;
+      final pull =
+          _handRate * _handRate * (vessel._raiseAim - vessel._raised) -
+          2.0 * _handRate * vessel._rising;
+      vessel._rising += pull * dt;
+      vessel._raised += vessel._rising * dt;
+    }
+    if ((height - vessel._raised).abs() < 1e-6 && vessel._rising.abs() < 1e-5) {
+      vessel
+        .._raised = height
+        .._raiseAim = height
+        .._rising = 0.0;
+    }
+    return true;
+  }
+
+  /// Turns [vessel] towards [Vessel.leanTo] for [seconds]; says whether it
+  /// moved.
+  bool _turn(Vessel vessel, double seconds) {
+    if (vessel.tilt == vessel.leanTo &&
+        vessel._aim == vessel.leanTo &&
+        vessel._turning == 0.0) {
+      return false;
+    }
+    final wasUpright = vessel.tilt == 0.0;
+    final pieces = (seconds * 240).ceil().clamp(1, 32);
+    final dt = seconds / pieces;
+    for (var k = 0; k < pieces; k++) {
+      vessel._aim += _aimRate * (vessel.leanTo - vessel._aim) * dt;
+      final pull =
+          _handRate * _handRate * (vessel._aim - vessel.tilt) -
+          2.0 * _handRate * vessel._turning;
+      vessel._turning += pull * dt;
+      vessel.tilt += vessel._turning * dt;
+    }
+    if ((vessel.leanTo - vessel.tilt).abs() < 1e-5 &&
+        vessel._turning.abs() < 1e-4) {
+      vessel
+        ..tilt = vessel.leanTo
+        .._aim = vessel.leanTo
+        .._turning = 0.0;
+    }
     _place(vessel);
-    _castBy(vessel);
+    if (wasUpright != (vessel.tilt == 0.0)) _castBy(vessel);
+    return true;
   }
 
   /// Puts [vessel]'s glass where its lean and lift say: turned about its
@@ -586,7 +740,7 @@ final class Bench {
         lowest = math.min(lowest, turned.y);
       }
     }
-    final lift = _ease(vessel.lift) * _clearance(vessel);
+    final lift = vessel._raised;
     final y = vessel.at.y - lowest + lift;
     vessel.body
       ..setRotation(turn)
@@ -658,6 +812,9 @@ final class Bench {
         : Vector3(1, 0, 0);
     from
       ..tilt = 0.0
+      ..leanTo = 0.0
+      .._aim = 0.0
+      .._turning = 0.0
       ..lift = 0.0
       ..leanAxis = axis;
     _transfer = _Transfer(
@@ -671,10 +828,17 @@ final class Bench {
   }
 
   /// How long each part of a pour takes: up, over, and back; the pour
-  /// itself is as long as the hand takes, about two seconds.
+  /// itself is as long as the hand takes, about a second.
+  ///
+  /// **Briskly, as a chemist pours half a tube.** Over two seconds the
+  /// stream ran a millimetre across, and a thread that thin parts into
+  /// drops some forty widths down, about five centimetres: the clean tube
+  /// filled by dripping. At four times the flow the stream is twice as
+  /// wide, and since how far a stream falls before it parts grows as its
+  /// width to the power one and a half, it reaches the surface whole.
   static const double _rise = 0.45;
   static const double _over = 1.2;
-  static const double _pourTime = 2.0;
+  static const double _pourTime = 0.8;
   static const double _back = 1.4;
 
   /// The world's up seen from glass leaning [tilt] towards its local +z:
@@ -690,6 +854,46 @@ final class Bench {
     for (var i = 0; i < 36; i++) {
       final mid = 0.5 * (lo + hi);
       if (vessel.shape.holds(_upAt(mid)) > volume) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return 0.5 * (lo + hi);
+  }
+
+  /// The lean at which [vessel], holding [volume], runs [flow] over its lip:
+  /// where the surface stands over the lip by the head a circular weir
+  /// needs for it. Found by halving, from the lean where it starts to run.
+  static double _tiltPouring(Vessel vessel, double volume, double flow) {
+    final lowest = _tiltHolding(vessel, volume);
+    if (flow <= 0.0) return lowest;
+    final radius = vessel.lip.z;
+    double short(double tilt) {
+      final up = _upAt(tilt);
+      final lip = vessel.shape.lip(up);
+      if (lip == null) return 0.0;
+      // By secants from the lip, which the surface is a little over.
+      final head =
+          vessel.shape.surfaceNear(up, volume, lip.height + 1e-4) - lip.height;
+      // The flow that head passes, straight from the weir, rather than the
+      // head that flow needs, which is a search of its own inside this one.
+      final passes = circularWeir(
+        head: head,
+        radius: radius,
+        tilt: tilt,
+        g: 9.81,
+        steps: 90,
+      ).flow;
+      return flow - passes;
+    }
+
+    var lo = lowest;
+    var hi = math.min(lowest + 0.8, 2.6);
+    if (short(hi) > 0.0) return hi;
+    for (var i = 0; i < 14; i++) {
+      final mid = 0.5 * (lo + hi);
+      if (short(mid) > 0.0) {
         lo = mid;
       } else {
         hi = mid;
@@ -777,18 +981,19 @@ final class Bench {
           most *
           _ease((time - start) / 0.6) *
           math.min(1.0, math.sqrt(remaining / (0.8 * most)));
-      // Ahead of the liquid, not behind it: tipped to where what the glass
-      // holds below its lip is what is in it less the next eighth of a
-      // second's worth, so that much stands over the lip to run. A hand
-      // that answered the flow it saw was always late, and a glass this
-      // small, nearly on its side, empties in the time it takes to notice.
+      // Ahead of the liquid, not behind it: tipped to where the lip runs
+      // what the hand wants, by the same weir the liquid runs by. A hand
+      // that answered the flow it saw was always late; one that tipped to
+      // hold the next eighth of a second's worth less stood the surface a
+      // fraction of a millimetre over the lip of a tube on its side, where
+      // its whole length spreads it, and the clean tube filled drop by drop.
       final target = math.max(
-        _tiltHolding(from, from.liquid.volume - wanted * 0.12),
+        _tiltPouring(from, from.liquid.volume, wanted),
         t.spill,
       );
       t.hand += (target - t.hand).clamp(-2.0 * seconds, 2.0 * seconds);
       tilt = t.hand;
-      if (remaining <= 1e-10 || time - start > 3.0 * _pourTime) {
+      if (remaining <= 1e-10 || time - start > 3.0 * _pourTime + 2.0) {
         t
           ..poured = time
           ..end = tilt;
@@ -833,20 +1038,53 @@ final class Bench {
   /// The streams drawn, one per pouring vessel, and the drops.
   final Map<LiquidBody, MeshNode> _streams = {};
   final Map<String, MeshNode> _drops = {};
+  final Map<String, Color> _dropColours = {};
+
+  /// What is out of the glasses (streams, drops, puddles) hung upside down
+  /// under the tabletop, as each vessel's liquid is in its own mirror: one
+  /// reflection per node, sharing its mesh.
+  late final SceneNode _spiltMirror = () {
+    final made = SceneNode(name: 'spilt reflection')..setScale(1, -1, 1);
+    scene.add(made);
+    return made;
+  }();
+  final Map<MeshNode, MeshNode> _spiltReflections = {};
+
+  /// The puddles on the bench drawn, one node each, reused in order.
+  final List<MeshNode> _puddles = [];
+  final List<Color?> _puddleColours = [];
 
   /// Moves everything on by [seconds], and says whether anything still
   /// moves, so the caller knows to ask for another frame.
   bool step(double seconds) {
     var moving = false;
     for (final vessel in vessels) {
+      final layers = vessel.liquid.layers;
+      if (layers.isNotEmpty) vessel._held = layers.last.concentrations;
+    }
+    for (final vessel in vessels) {
       if (identical(vessel, _transfer?.from)) continue;
-      // Lifted out of the row while it leans, put back when it does not.
-      final wanted = vessel.tilt != 0.0 ? 1.0 : 0.0;
-      if (vessel.lift != wanted) {
-        final change = seconds / 0.6;
-        vessel.lift = wanted > vessel.lift
-            ? math.min(vessel.lift + change, wanted)
-            : math.max(vessel.lift - change, wanted);
+      // **Lifted out of the row before it leans, and put back after.** The
+      // height it must clear its neighbours by is taken for the lean it is
+      // going to as well as the one it has, so the hand rises first; and
+      // the rise is eased as the turn is. Taken for the lean it had, the
+      // height jumped by centimetres the frame the tipping glass first came
+      // over a neighbour, and the jolt threw nearly all it held out.
+      //
+      // **Either way, the same height.** A hand takes a glass up out of the
+      // row whichever way it then tips it: lifted only as far as the side it
+      // leaned to needed, a tube at the end of the row leaning off it was
+      // not lifted at all and lay down on the bench, and leaning one way
+      // and the other looked like two different hands.
+      final need = [
+        vessel.tilt,
+        -vessel.tilt,
+        vessel.leanTo,
+        -vessel.leanTo,
+      ].map((at) => _clearance(vessel, at)).reduce(math.max);
+      final rose = _ease2(vessel, need, seconds);
+      vessel.lift = need > 0.0 ? 1.0 : 0.0;
+      if (_turn(vessel, seconds) | rose) {
         _place(vessel);
         moving = true;
       }
@@ -895,7 +1133,15 @@ final class Bench {
       .._drawnTilt = vessel.tilt
       .._drawnLift = vessel.lift;
     final meshes = vessel.liquid.volume > 0.0
-        ? liquidMeshes(vessel.liquid)
+        ? (() {
+            final m = liquidMeshes(
+              vessel.liquid,
+              segments: 32,
+              rows: 24,
+              rings: 8,
+            );
+            return m;
+          })()
         : const <LiquidLayerMesh>[];
     // As many nodes as layers.
     while (vessel.layers.length > meshes.length) {
@@ -929,7 +1175,13 @@ final class Bench {
       final layer = vessel.layers[i];
       _swap(layer.node, meshes[i].mesh);
       layer.reflection.mesh = layer.node.mesh;
-      if (layer.colour != colour) {
+      // Made again when the colour changes, and when the width across the
+      // glass at the level does: the clean tube's first layer was made with
+      // the first drops, a hair up its round bottom where the glass is
+      // nearly no width, and kept so, the half poured into it showed a
+      // fraction of the colour of the half left behind.
+      final thickness = layer.node.material.extensions?.thickness ?? 0.0;
+      if (layer.colour != colour || (thickness - depth).abs() > 0.02 * depth) {
         layer.node.material = liquid(_rgb(colour), depth: depth);
         layer.reflection.material = _reflection(
           albedo: null,
@@ -974,20 +1226,149 @@ final class Bench {
       node.visible = mesh.triangleCount > 0;
     });
     world.particles.forEach((medium, fluid) {
+      // The colour of what is in them, as a solution's is: the drops off
+      // a pour of copper sulphate are blue, not the near white they were.
+      final colour = _colourOf(fluid.concentrations);
       final node = _drops.putIfAbsent(medium, () {
         final made = MeshNode(
           _upload(particleMesh(const [], 0.0005)),
-          liquid(Vector3(0.9, 0.95, 1.0), depth: 0.001),
+          liquid(_rgb(colour), depth: 2.0 * fluid.spacing),
           name: 'drops',
         )..castsShadow = false;
         scene.add(made);
         return made;
       });
+      if (_dropColours[medium] != colour) {
+        _dropColours[medium] = colour;
+        node.material = liquid(_rgb(colour), depth: 2.0 * fluid.spacing);
+      }
       if (fluid.count > 0) any = true;
-      _swap(node, particleMesh(fluid.positions, 0.5 * fluid.spacing));
+      final drops = _clusters(fluid.positions, fluid.volumes, fluid.spacing);
+      _swap(
+        node,
+        particleMesh(
+          [for (final d in drops) d.centre],
+          0.0,
+          radii: [
+            for (final d in drops)
+              math.pow(3.0 * d.volume / (4.0 * math.pi), 1.0 / 3.0).toDouble(),
+          ],
+        ),
+      );
       node.visible = fluid.count > 0;
     });
+    // What lies on the bench: a cap of each drop or puddle's own radius and
+    // height, the colour of what is in it.
+    final g = world.gravity.length;
+    final lying = [for (final s in world.spills) ...s.puddles];
+    for (var i = 0; i < math.max(lying.length, _puddles.length); i++) {
+      if (i >= lying.length) {
+        _puddles[i].visible = false;
+        continue;
+      }
+      final puddle = lying[i];
+      final colour = _colourOf(puddle.concentrations);
+      if (i >= _puddles.length) {
+        final made = MeshNode(
+          _upload(capMesh(const [], const [], const [])),
+          liquid(_rgb(colour), depth: 0.001),
+          name: 'puddle',
+        )..castsShadow = false;
+        scene.add(made);
+        _puddles.add(made);
+        _puddleColours.add(colour);
+      }
+      final node = _puddles[i];
+      if (_puddleColours[i] != colour) {
+        _puddleColours[i] = colour;
+        node.material = liquid(_rgb(colour), depth: 0.001);
+      }
+      final r = puddle.radius(g);
+      if (r < puddle.restRadius(g)) any = true;
+      _swap(node, capMesh([puddle.centre], [r], [puddle.capHeight(r)]));
+      node.visible = true;
+    }
+    _reflectSpilt();
     return any;
+  }
+
+  /// Every stream, drop and puddle node given its reflection, or brought
+  /// up to date with it: the same mesh, shown when it is, the colour of
+  /// its liquid. Left out, a stream poured over the bench stood in the
+  /// mirror nowhere, under glasses whose liquids all did.
+  void _reflectSpilt() {
+    final nodes = [..._streams.values, ..._drops.values, ..._puddles];
+    for (final gone
+        in _spiltReflections.keys.where((n) => !nodes.contains(n)).toList()) {
+      _spiltReflections.remove(gone)!.removeFromParent();
+    }
+    for (final node in nodes) {
+      final c = node.material.baseColor;
+      final colour = Vector3(c.x, c.y, c.z);
+      final reflection = _spiltReflections.putIfAbsent(node, () {
+        final made =
+            MeshNode(
+                node.mesh,
+                _reflection(albedo: null, colour: colour),
+                name: '${node.name} reflection',
+              )
+              ..castsShadow = false
+              ..lightChannels = LightChannels.none;
+        _spiltMirror.add(made);
+        return made;
+      });
+      reflection
+        ..mesh = node.mesh
+        ..visible = node.visible;
+      final was = reflection.material.baseColor;
+      if ((was.x - colour.x * 0.7).abs() > 1e-6 ||
+          (was.y - colour.y * 0.7).abs() > 1e-6 ||
+          (was.z - colour.z * 0.7).abs() > 1e-6) {
+        reflection.material = _reflection(albedo: null, colour: colour);
+      }
+    }
+  }
+
+  /// [positions] gathered into drops: particles nearer each other than
+  /// one and a half spacings are one drop, drawn as one sphere of all their
+  /// liquid. A stream that breaks into drops two and a third of its width
+  /// across was drawn as a scatter of millimetre dots, each a particle.
+  static List<({Vector3 centre, double volume})> _clusters(
+    List<Vector3> positions,
+    List<double> volumes,
+    double spacing,
+  ) {
+    final n = positions.length;
+    final parent = List<int>.generate(n, (i) => i);
+    int root(int i) {
+      var r = i;
+      while (parent[r] != r) {
+        r = parent[r];
+      }
+      return parent[i] = r;
+    }
+
+    final reach2 = 2.25 * spacing * spacing;
+    for (var i = 0; i < n; i++) {
+      for (var j = i + 1; j < n; j++) {
+        if (positions[i].distanceToSquared(positions[j]) < reach2) {
+          parent[root(i)] = root(j);
+        }
+      }
+    }
+    // Each drop's middle is the middle of its liquid, weighed by volume.
+    final sums = <int, ({Vector3 sum, double volume})>{};
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      final s = sums[r];
+      final v = volumes[i];
+      sums[r] = s == null
+          ? (sum: positions[i] * v, volume: v)
+          : (sum: s.sum..addScaled(positions[i], v), volume: s.volume + v);
+    }
+    return [
+      for (final s in sums.values) (centre: s.sum / s.volume, volume: s.volume),
+    ];
   }
 
   // -------------------------------------------------------------- shadows

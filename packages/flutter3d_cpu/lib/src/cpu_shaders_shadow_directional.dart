@@ -182,9 +182,20 @@ double shadowFactor(
 
   // What the see-through casters let through, before the filter, whose soft
   // path leaves early — `ShadowSettings.translucentCasters`; `shadow.glsl`
-  // has the layout.
+  // has the layout. Averaged over the 3×3 texels the opaque edge is, as there.
   if (biases.w > 0.5) {
-    final stored = map.sample(u.clamp(loU, hiU), vv.clamp(loV, hiV));
+    final stored = Vector4.zero();
+    for (var y = -1; y <= 1; y++) {
+      for (var x = -1; x <= 1; x++) {
+        stored.add(
+          map.sample(
+            (u + x * texelU).clamp(loU, hiU),
+            (vv + y * texelV).clamp(loV, hiV),
+          ),
+        );
+      }
+    }
+    stored.scale(1.0 / 9.0);
     final k = strength.clamp(0.0, 1.0);
     double through(double value) => 1.0 + (value.clamp(0.0, 4.0) - 1.0) * k;
     shadowTransmittance.setValues(

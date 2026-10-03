@@ -24,13 +24,90 @@ void main() {
     expect(1 - y, closeTo(0.5 * 1.62 * 0.25, 0.5 * 1.62 * 0.25 * 0.01));
   });
 
+  test('a drop thrown along the bench stops where it lands', () {
+    // Mutation: drop the no-slip at walls, and a drop that came down
+    // moving five centimetres a second sideways is half a metre off after
+    // ten seconds, sliding still.
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.001);
+    final bench = [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0)];
+    fluid.inject(
+      3 * fluid.particleVolume,
+      Vector3(0, 0.01, 0),
+      Vector3(0.05, 0, 0),
+    );
+    for (var i = 0; i < 2400; i++) {
+      fluid.step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: bench);
+    }
+    for (final p in fluid.positions) {
+      // A fall of a centimetre takes 45 ms, and five centimetres a second
+      // carries it two and a quarter millimetres in that.
+      expect(p.x, lessThan(0.005));
+      expect(p.y, lessThan(0.002));
+    }
+  });
+
   test('what is less than a particle waits in the bank, and is counted', () {
     final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
-    fluid.inject(2.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    fluid.inject(
+      2.5 * fluid.particleVolume,
+      Vector3.zero(),
+      Vector3.zero(),
+      asParticles: true,
+    );
     expect(fluid.count, 2);
     expect(fluid.volume, closeTo(2.5 * fluid.particleVolume, 1e-18));
-    fluid.inject(0.5 * fluid.particleVolume, Vector3.zero(), Vector3.zero());
+    fluid.inject(
+      0.5 * fluid.particleVolume,
+      Vector3.zero(),
+      Vector3.zero(),
+      asParticles: true,
+    );
     expect(fluid.count, 3);
+  });
+
+  test('what is left in the bank is let go once no more comes', () {
+    // Mutation: keep it banked, and a third of a particle stays counted
+    // and nowhere, however long the world runs.
+    // Particles on a pane of glass, which keeps them particles.
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
+    final pane = [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0.098)];
+    final at = Vector3(0, 0.1, 0);
+    fluid
+      ..inject(
+        3.3 * fluid.particleVolume,
+        at,
+        Vector3.zero(),
+        asParticles: true,
+      )
+      // The step it came in on, more may still come.
+      ..step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: pane);
+    expect(fluid.count, 3);
+    fluid.step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: pane);
+    expect(fluid.count, 4);
+    expect(fluid.dropCount, 0);
+    expect(fluid.volumes.last, closeTo(0.3 * fluid.particleVolume, 1e-18));
+    expect(fluid.volume, closeTo(3.3 * fluid.particleVolume, 1e-18));
+    // And off the pane, it falls and lands as what it is.
+    final glass = LiquidBody(
+      shape: RevolvedVessel([
+        Vector2(0, 0),
+        Vector2(0.02, 0),
+        Vector2(0.02, 0.2),
+      ]),
+      medium: FluidMedium.water,
+      volume: 1e-6,
+      modes: 2,
+    )..place(Matrix3.identity(), Vector3(0, -0.15, 0));
+    for (var i = 0; i < 240; i++) {
+      fluid.step(
+        1 / 240,
+        gravity: Vector3(0, -9.81, 0),
+        obstacles: [InsideWalls(glass)],
+        receivers: [glass],
+      );
+    }
+    expect(fluid.count, 0);
+    expect(glass.volume, closeTo(1e-6 + 3.3 * fluid.particleVolume, 1e-18));
   });
 
   test(

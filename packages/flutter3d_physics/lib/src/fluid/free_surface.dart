@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
 import 'fluid_medium.dart';
+import 'native/pbf_backend.dart';
 import 'vessel_shape.dart';
 
 /// The waves on a liquid's free surface in a vessel of any shape: how far
@@ -64,6 +65,22 @@ final class FreeSurface {
   /// The surface's area, square metres.
   double get area => _grid == null ? 0.0 : _grid!.count * _grid!.cell2;
 
+  /// [f] averaged over the surface as it is laid out, by its cells, and the
+  /// layout it was averaged over: what a caller keeps it by.
+  ({double mean, Object? layout}) meanOf(double Function(Vector3 point) f) {
+    final grid = _grid;
+    if (grid == null || grid.count == 0) return (mean: 0.0, layout: null);
+    var sum = 0.0;
+    for (var i = 0; i < grid.count; i++) {
+      sum += f(grid.point(i));
+    }
+    return (mean: sum / grid.count, layout: grid);
+  }
+
+  /// The layout the surface has now: a new object whenever it is laid out
+  /// again.
+  Object? get layout => _grid;
+
   /// How much liquid the waves hold above the plane, cubic metres: nought,
   /// since no mode but the flat one has any, and that one is never kept.
   /// For a test to hold the surface to.
@@ -92,23 +109,39 @@ final class FreeSurface {
         _modes.isNotEmpty &&
         1.0 - old.up.dot(up.normalized()) < 0.5 * reuseTurn * reuseTurn &&
         (height - old.height).abs() < 0.5 * old.cell) {
-      final moved = old.movedTo(up, height);
-      final behind = Float64List(moved.count);
-      for (var i = 0; i < moved.count; i++) {
-        final p = moved.point(i);
-        behind[i] = -(old.up.dot(p) - old.height);
-      }
-      _grid = moved;
-      final added = _project(behind);
-      for (var n = 0; n < added.length; n++) {
-        _amplitude[n] += added[n];
-      }
-      _field = null;
+      _carryOn(old, up, height);
       return;
     }
+    final grid = _Grid.cut(shape, up, height, cells);
+    // **Not waited for, where it may be put off.** A cross-section whose
+    // modes are not worked out yet is handed to [solver] to work out
+    // elsewhere, and the surface carries on its old grid moved to where it
+    // is now, as it does for a small turn, until they come: then it is
+    // laid out again ([step]). Waited for, a tube tipped to an angle it had
+    // not been at cost a frame a tenth of a second.
+    final defer = solver;
+    if (defer != null &&
+        old != null &&
+        _modes.isNotEmpty &&
+        grid.count >= 6 &&
+        _cachedModes(grid, modeCount, nativeModes) == null) {
+      _wanted = (shape: shape, up: up.clone(), height: height, grid: grid);
+      final count = modeCount;
+      final native = nativeModes;
+      // Asked once, however many steps go by before it comes.
+      final key = _keyOf(grid, count, native);
+      if (_asked.add(key)) {
+        defer.solve(grid.count, grid.neighbours, grid.cell2, count, (modes) {
+          _asked.remove(key);
+          _remember(grid, count, native, modes);
+        }, native: native);
+      }
+      _carryOn(old, up, height);
+      return;
+    }
+    _wanted = null;
     final oldHeights = old == null ? null : _heights();
     final oldRates = old == null ? null : _sumModes(_rate);
-    final grid = _Grid.cut(shape, up, height, cells);
     _grid = grid;
     _field = null;
     if (grid.count < 6) {
@@ -118,7 +151,7 @@ final class FreeSurface {
       _rate = Float64List(0);
       return;
     }
-    final (shapes, k2) = _lowestModes(grid, modeCount);
+    final (shapes, k2) = _modesOf(grid, modeCount, nativeModes);
     _modes = shapes;
     _k2 = k2;
     // The liquid stays: what stood off the old plane stands off the new one
@@ -136,11 +169,55 @@ final class FreeSurface {
     _rate = _project(rates);
   }
 
+  /// The old grid moved to the plane at [height] across [up], its modes
+  /// kept: what the liquid stood off the old plane it stands off the new.
+  void _carryOn(_Grid old, Vector3 up, double height) {
+    final moved = old.movedTo(up, height);
+    final behind = Float64List(moved.count);
+    for (var i = 0; i < moved.count; i++) {
+      final p = moved.point(i);
+      behind[i] = -(old.up.dot(p) - old.height);
+    }
+    _grid = moved;
+    final added = _project(behind);
+    for (var n = 0; n < added.length; n++) {
+      _amplitude[n] += added[n];
+    }
+    _field = null;
+  }
+
+  /// Whether its cross-sections' modes are worked out natively where that
+  /// was built; set by a world that may be stepped so
+  /// (`FluidWorld.nativeKernels`).
+  bool nativeModes = false;
+
+  /// Where cross-sections not yet worked out are worked out instead of
+  /// waited for: another isolate, set by a world that may be stepped so
+  /// (`FluidWorld.background`). Null, they are worked out at once.
+  ModeSolver? solver;
+
+  /// Whether it is carrying on its old grid while its new cross-section's
+  /// modes are worked out elsewhere.
+  bool get waitingForModes => _wanted != null;
+
+  /// The cross-sections asked for and not come yet, by key.
+  static final Set<int> _asked = {};
+
+  /// The layout put off until its modes come.
+  ({VesselShape shape, Vector3 up, double height, _Grid grid})? _wanted;
+
   /// Moves the waves on by [dt] seconds under gravity [g], over a liquid
   /// [depth] deep on average: each mode exactly, as the damped oscillator it
   /// is, so any step is stable.
   void step(double dt, {required double g, required double depth}) {
     _depth = depth;
+    // The modes put off for have come: laid out now, as it would have been.
+    final wanted = _wanted;
+    if (wanted != null &&
+        _cachedModes(wanted.grid, modeCount, nativeModes) != null) {
+      _wanted = null;
+      layOut(wanted.shape, wanted.up, wanted.height);
+    }
     if (_modes.isEmpty) return;
     _applyLandings();
     // Still water stays still: nothing to ring.
@@ -424,47 +501,189 @@ final class FreeSurface {
 
   /// The lowest [count] non-flat modes of [grid]'s Laplacian with the wall's
   /// condition, orthonormal under the area, and their k².
-  static (List<Float64List>, Float64List) _lowestModes(_Grid grid, int count) {
-    final n = grid.count;
-    final inv = 1.0 / grid.cell2;
+  /// [_lowestModes], solved once for each cross-section there is.
+  ///
+  /// **They depend on which cells are inside and on nothing else**: the grid
+  /// is laid on the same lattice at every height, so a straight-sided glass
+  /// has the one cross-section all the way up, and every tube on the bench
+  /// the same one. Solved again each time the level rose half a cell, a
+  /// tube being poured into worked out its modes every other step, fifty
+  /// milliseconds each, and that was most of a pour's cost. Read only, so
+  /// shared between surfaces.
+  ///
+  /// Kept apart by [native]: a world that must replay to the bit never
+  /// reads modes the native solve worked out for another.
+  static (List<Float64List>, Float64List) _modesOf(
+    _Grid grid,
+    int count,
+    bool native,
+  ) {
+    final cached = _cachedModes(grid, count, native);
+    if (cached != null) return cached;
+    final modes = _lowestModes(grid, count, native: native);
+    _remember(grid, count, native, modes);
+    return modes;
+  }
+
+  static int _keyOf(_Grid grid, int count, bool native) => Object.hash(
+    count,
+    native,
+    grid.columns,
+    grid.rows,
+    grid.cell,
+    Object.hashAll(grid.index),
+  );
+
+  static (List<Float64List>, Float64List)? _cachedModes(
+    _Grid grid,
+    int count,
+    bool native,
+  ) {
+    final hits = _solved[_keyOf(grid, count, native)];
+    if (hits == null) return null;
+    for (final hit in hits) {
+      if (hit.count == count &&
+          hit.native == native &&
+          hit.columns == grid.columns &&
+          hit.rows == grid.rows &&
+          hit.cell == grid.cell &&
+          _same(hit.index, grid.index)) {
+        return hit.modes;
+      }
+    }
+    return null;
+  }
+
+  static void _remember(
+    _Grid grid,
+    int count,
+    bool native,
+    (List<Float64List>, Float64List) modes,
+  ) {
+    if (_cachedModes(grid, count, native) != null) return;
+    if (_solved.length >= 256) _solved.remove(_solved.keys.first);
+    (_solved[_keyOf(grid, count, native)] ??= []).add((
+      count: count,
+      native: native,
+      columns: grid.columns,
+      rows: grid.rows,
+      cell: grid.cell,
+      index: Int32List.fromList(grid.index),
+      modes: modes,
+    ));
+  }
+
+  static bool _same(Int32List a, Int32List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static final Map<
+    int,
+    List<
+      ({
+        int count,
+        bool native,
+        int columns,
+        int rows,
+        double cell,
+        Int32List index,
+        (List<Float64List>, Float64List) modes,
+      })
+    >
+  >
+  _solved = {};
+
+  static (List<Float64List>, Float64List) _lowestModes(
+    _Grid grid,
+    int count, {
+    bool native = false,
+  }) => solveModes(
+    grid.count,
+    grid.neighbours,
+    grid.cell2,
+    count,
+    native: native,
+  );
+
+  /// The lowest [count] non-flat modes of the graph Laplacian of [n] cells
+  /// [cell2] square metres each, with [neighbours] inside, and their k²:
+  /// all the solve needs, so another isolate can do it from these alone.
+  ///
+  /// [native] runs the Lanczos steps in C where that was built: the same
+  /// steps, to within a tolerance rather than to the bit.
+  static (List<Float64List>, Float64List) solveModes(
+    int n,
+    List<List<int>> neighbours,
+    double cell2,
+    int count, {
+    bool native = false,
+  }) {
+    final inv = 1.0 / cell2;
     // The graph Laplacian: each cell against the neighbours it has inside.
     // A neighbour outside is the wall, and leaving it out is ∂φ/∂n = 0.
-    Float64List apply(Float64List x) {
-      final y = Float64List(n);
-      for (var i = 0; i < n; i++) {
-        var sum = 0.0;
-        for (final j in grid.neighbours[i]) {
-          sum += x[i] - x[j];
-        }
-        y[i] = sum * inv;
-      }
-      return y;
-    }
-
+    //
     // The lowest of L are the highest of L⁻¹, and well apart there, where
     // near nought they crowd together and Lanczos on L itself would take
-    // hundreds of steps to tell them apart. L⁻¹ is applied by conjugate
-    // gradients, on the flat-free part where L can be inverted.
+    // hundreds of steps to tell them apart.
+    //
+    // **L + σ factored once, as a band, and each solve two sweeps along
+    // it.** The cells are numbered row by row, so a cell's neighbours are
+    // within a row's worth of it and L is a band that wide. The Lanczos
+    // steps all solve against the same L; conjugate gradients went at it
+    // afresh each time, some hundreds of passes over the grid each, and a
+    // cross-section's modes cost seventy milliseconds where the factor
+    // costs a few. L is singular, the flat mode being free, so σ, a
+    // millionth of its scale, makes it definite; the modes are the same and
+    // their values come out σ higher, which is taken off below.
+    final sigma = 1e-6 * inv;
+    var band = 0;
+    for (var i = 0; i < n; i++) {
+      for (final k in neighbours[i]) {
+        band = math.max(band, (i - k).abs());
+      }
+    }
+    final w1 = band + 1;
+    // Lower band: L(i, j) at i·w1 + (i − j).
+    final factor = Float64List(n * w1);
+    for (var i = 0; i < n; i++) {
+      factor[i * w1] = neighbours[i].length * inv + sigma;
+      for (final k in neighbours[i]) {
+        if (k < i) factor[i * w1 + (i - k)] = -inv;
+      }
+    }
+    for (var i = 0; i < n; i++) {
+      final lo = math.max(0, i - band);
+      for (var j = lo; j <= i; j++) {
+        var sum = factor[i * w1 + (i - j)];
+        final from = math.max(lo, j - band);
+        for (var k = from; k < j; k++) {
+          sum -= factor[i * w1 + (i - k)] * factor[j * w1 + (j - k)];
+        }
+        factor[i * w1 + (i - j)] = i == j
+            ? math.sqrt(math.max(sum, 1e-300))
+            : sum / factor[j * w1];
+      }
+    }
     Float64List solve(Float64List b) {
-      final x = Float64List(n);
-      final r = Float64List.fromList(b);
-      _removeMean(r);
-      final p = Float64List.fromList(r);
-      var rr = _dot(r, r);
-      final stop = 1e-24 * math.max(rr, 1e-300);
-      for (var it = 0; it < 4 * n && rr > stop; it++) {
-        final ap = apply(p);
-        final step = rr / _dot(p, ap);
-        for (var i = 0; i < n; i++) {
-          x[i] += step * p[i];
-          r[i] -= step * ap[i];
+      final x = Float64List.fromList(b);
+      _removeMean(x);
+      for (var i = 0; i < n; i++) {
+        var sum = x[i];
+        for (var k = math.max(0, i - band); k < i; k++) {
+          sum -= factor[i * w1 + (i - k)] * x[k];
         }
-        final next = _dot(r, r);
-        final ratio = next / rr;
-        rr = next;
-        for (var i = 0; i < n; i++) {
-          p[i] = r[i] + ratio * p[i];
+        x[i] = sum / factor[i * w1];
+      }
+      for (var i = n - 1; i >= 0; i--) {
+        var sum = x[i];
+        for (var k = i + 1; k <= math.min(n - 1, i + band); k++) {
+          sum -= factor[k * w1 + (k - i)] * x[k];
         }
+        x[i] = sum / factor[i * w1];
       }
       _removeMean(x);
       return x;
@@ -482,6 +701,45 @@ final class FreeSurface {
     }
     _removeMean(q);
     _normalise(q);
+    if (native) {
+      final start = Int32List(n + 1);
+      for (var i = 0; i < n; i++) {
+        start[i + 1] = start[i] + neighbours[i].length;
+      }
+      final adjacent = Int32List(start[n]);
+      for (var i = 0; i < n; i++) {
+        adjacent.setAll(start[i], neighbours[i]);
+      }
+      final rows = Float64List(steps * n);
+      final a = Float64List(steps);
+      final bs = Float64List(steps);
+      final size = nativeSurfaceLanczos(
+        n,
+        start,
+        adjacent,
+        cell2,
+        band,
+        steps,
+        q,
+        rows,
+        a,
+        bs,
+      );
+      if (size > 0) {
+        return _finishModes(
+          n,
+          cell2,
+          count,
+          sigma,
+          [
+            for (var m = 0; m < size; m++)
+              Float64List.sublistView(rows, m * n, (m + 1) * n),
+          ],
+          [for (var m = 0; m < size; m++) a[m]],
+          [for (var m = 0; m < size - 1; m++) bs[m]],
+        );
+      }
+    }
     var previous = Float64List(n);
     var b = 0.0;
     for (var m = 0; m < steps; m++) {
@@ -515,6 +773,21 @@ final class FreeSurface {
         q[i] = w[i] / b;
       }
     }
+    return _finishModes(n, cell2, count, sigma, basis, alpha, beta);
+  }
+
+  /// The modes from the Lanczos [basis] and its tridiagonal [alpha] and
+  /// [beta]: its eigenvectors, the highest of (L + σ)⁻¹ first, carried back
+  /// into the cells.
+  static (List<Float64List>, Float64List) _finishModes(
+    int n,
+    double cell2,
+    int count,
+    double sigma,
+    List<Float64List> basis,
+    List<double> alpha,
+    List<double> beta,
+  ) {
     final size = alpha.length;
     final (values, vectors) = _tridiagonalEigen(alpha, beta, size);
     // Highest of L⁻¹ first, which is lowest of L.
@@ -522,10 +795,10 @@ final class FreeSurface {
       ..sort((x, y) => values[y].compareTo(values[x]));
     final modes = <Float64List>[];
     final k2 = <double>[];
-    final scale = 1.0 / math.sqrt(grid.cell2);
+    final scale = 1.0 / math.sqrt(cell2);
     for (final r in order) {
       if (values[r] <= 0.0) continue;
-      final lambda = 1.0 / values[r];
+      final lambda = 1.0 / values[r] - sigma;
       final shape = Float64List(n);
       for (var j = 0; j < size; j++) {
         final weight = vectors[j * size + r];
@@ -806,4 +1079,19 @@ final class _Grid {
     }
     return best < 0 ? 0.0 : values[best];
   }
+}
+
+/// Something that works out a cross-section's modes elsewhere and calls back
+/// with them: see [FreeSurface.solver].
+abstract interface class ModeSolver {
+  /// Works out [FreeSurface.solveModes] for these and calls [done] with the
+  /// result, later, on this isolate.
+  void solve(
+    int n,
+    List<List<int>> neighbours,
+    double cell2,
+    int count,
+    void Function((List<Float64List>, Float64List) modes) done, {
+    bool native = false,
+  });
 }

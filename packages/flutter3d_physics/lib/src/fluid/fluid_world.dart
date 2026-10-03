@@ -1,11 +1,15 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../rigid_body.dart';
+import 'atmosphere.dart';
+import 'background/fluid_background.dart';
 import 'buoyancy.dart';
+import 'gravity_field.dart';
 import 'jet.dart';
 import 'liquid_body.dart';
 import 'particle_fluid.dart';
 import 'pipe.dart';
+import 'puddle.dart';
 
 /// Liquids in a world: the vessels, the pipes between them, and the streams
 /// running from one to another, stepped together at a fixed step.
@@ -25,7 +29,42 @@ final class FluidWorld {
     this.step = 1.0 / 240.0,
     this.particleSpacing = 0.002,
     this.floor,
-  });
+    Atmosphere? atmosphere,
+    this.field,
+    this.nativeKernels = false,
+    this.background = false,
+  }) : atmosphere = atmosphere ?? Atmosphere.standard();
+
+  /// Gravity that differs from place to place, when there is some: then
+  /// each vessel, drop and parcel of a stream feels [GravityField.at] where
+  /// it is, and [gravity] is not read. Null, every one feels [gravity].
+  final GravityField? field;
+
+  /// Whether drops run their loops over pairs natively where that was built:
+  /// see [ParticleFluid.native]. Off, the world steps the same to the bit
+  /// on every machine.
+  final bool nativeKernels;
+
+  /// Whether what would stop a frame — a cross-section's modes, a
+  /// meniscus not met before — is worked out on another isolate where
+  /// there are isolates, the vessel carrying on as it was until it comes.
+  /// The same numbers, at another time: on, a run is not the same to the
+  /// bit twice; off, it is. On the web, where there are no isolates, it is
+  /// all worked out at once either way.
+  final bool background;
+
+  /// The gravity at [point].
+  Vector3 gravityAt(Vector3 point) => field?.at(point) ?? gravity;
+
+  /// The air: what drops and streams fall through and what open liquid
+  /// evaporates into. Room air by default, as a bench stands in.
+  final Atmosphere atmosphere;
+
+  /// Cubic metres of liquid gone to vapour, from vessels, puddles and
+  /// drops: counted, so that every cubic metre poured in is still found.
+  double get evaporated =>
+      _evaporated + particles.values.fold(0.0, (s, p) => s + p.evaporated);
+  double _evaporated = 0.0;
 
   /// Metres per second squared, shared with whoever else falls.
   final Vector3 gravity;
@@ -56,12 +95,21 @@ final class FluidWorld {
   /// medium: what streams broke into, what splashed, what lies spilt.
   final Map<String, ParticleFluid> particles = {};
 
+  /// The puddles on each flat [floor]: what lands there lies there, as a
+  /// drop or a puddle, not as particles.
+  late final List<PuddleSurface> spills = [
+    for (final o in floor ?? const <JetObstacle>[])
+      if (o is PlaneObstacle) PuddleSurface(o),
+  ];
+
   /// Every cubic metre the world holds: in vessels, in the air, as
-  /// particles.
+  /// particles, in puddles, and gone to vapour as the liquid it was.
   double get volume =>
       bodies.fold(0.0, (s, b) => s + b.volume) +
       jets.values.fold(0.0, (s, j) => s + j.inFlight) +
-      particles.values.fold(0.0, (s, p) => s + p.volume);
+      particles.values.fold(0.0, (s, p) => s + p.volume) +
+      spills.fold(0.0, (s, p) => s + p.volume) +
+      evaporated;
 
   double _carried = 0.0;
   int _ran = 0;
@@ -87,22 +135,31 @@ final class FluidWorld {
   }
 
   void _stepOnce(double dt) {
+    final helper = background ? fluidBackground : null;
+    for (final body in bodies) {
+      body
+        ..background = helper
+        ..surface.solver = helper
+        ..nativeMeniscus = nativeKernels
+        ..surface.nativeModes = nativeKernels;
+    }
     for (final liquid in bodies) {
       var displaced = 0.0;
       for (final f in floating) {
-        displaced += f.push(liquid, dt, gravity);
+        displaced += f.push(liquid, dt, gravityAt(f.body.position));
       }
       liquid.displaced = displaced;
     }
     for (final pipe in pipes) {
-      pipe.step(dt, gravity: gravity);
+      pipe.step(dt, gravity: gravityAt(pipe.from.position));
     }
     for (final body in bodies) {
-      final spill = body.step(dt, gravity: gravity);
+      final here = gravityAt(body.position);
+      final spill = body.step(dt, gravity: here);
       final jet = jets[body];
       if (spill.flow > 0.0 || jet != null) {
         final stream = jets.putIfAbsent(body, () => Jet(medium: body.medium));
-        final across = gravity.cross(spill.velocity);
+        final across = here.cross(spill.velocity);
         stream.emit(
           flow: spill.flow,
           dt: dt,
@@ -129,15 +186,20 @@ final class FluidWorld {
       ];
       for (final drop in jet.step(
         dt,
-        gravity: gravity,
+        gravity: gravityAt(source.position),
+        gravityAt: field?.at,
         obstacles: walls,
-        receivers: bodies,
+        receivers: [...bodies, ...spills],
+        air: atmosphere,
       )) {
         particles
             .putIfAbsent(
               drop.medium.name,
-              () =>
-                  ParticleFluid(medium: drop.medium, spacing: particleSpacing),
+              () => ParticleFluid(
+                medium: drop.medium,
+                spacing: particleSpacing,
+                native: nativeKernels,
+              ),
             )
             .inject(
               drop.volume,
@@ -159,9 +221,25 @@ final class FluidWorld {
     for (final fluid in particles.values) {
       fluid.step(
         dt,
-        gravity: gravity,
+        gravity: field == null || fluid.count == 0
+            ? gravity
+            : gravityAt(fluid.positions.first),
+        gravityAt: field?.at,
         obstacles: everywhere,
-        receivers: bodies,
+        receivers: [...bodies, ...spills],
+        air: atmosphere,
+      );
+    }
+    for (final body in bodies) {
+      _evaporated += body.evaporate(dt, atmosphere);
+    }
+    for (final spill in spills) {
+      _evaporated += spill.evaporate(dt, atmosphere);
+    }
+    for (final spill in spills) {
+      spill.step(
+        dt,
+        gravity: gravityAt(spill.surface.normal * spill.surface.offset),
       );
     }
   }

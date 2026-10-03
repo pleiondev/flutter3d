@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
+import 'atmosphere.dart';
+import 'background/fluid_background.dart';
 import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
@@ -10,6 +12,7 @@ import 'jet.dart';
 import 'liquid_layer.dart';
 import 'outflow.dart';
 import 'vessel_shape.dart';
+import 'wetting.dart';
 
 /// What ran over a vessel's lip in one step, in the world.
 final class Spill {
@@ -178,6 +181,18 @@ final class LiquidBody implements JetReceiver {
     return _up.dot(q) - radius <= surface + 0.25 * radius;
   }
 
+  @override
+  bool wets(Vector3 point, double radius) {
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return false;
+    final q = _near(point, radius);
+    if (q == null || !shape.contains(q)) return false;
+    final at = shape.wallDistance(q);
+    // Held a radius off the glass, and so touching it within a radius and
+    // a quarter.
+    return at != null && at.distance > -1.25 * radius;
+  }
+
   /// Liquid arriving from a stream: added, first heaped where it lands —
   /// its own volume over the patch it strikes — and striking the surface
   /// with the momentum it comes down with, from where both spread as waves.
@@ -229,6 +244,9 @@ final class LiquidBody implements JetReceiver {
 
   /// Whether anything within [distance] of [centre] (world) could be at
   /// this vessel's walls: by the ball round its inside.
+  @override
+  bool reaches(Vector3 centre, double distance) => _reaches(centre, distance);
+
   bool _reaches(Vector3 centre, double distance) {
     final shape = this.shape;
     if (shape is! RevolvedVessel) return true;
@@ -356,6 +374,50 @@ final class LiquidBody implements JetReceiver {
     return spill;
   }
 
+  /// **What evaporates from its open surface in [dt]** into [air],
+  /// cubic metres of liquid, taken from the top layer's solvent: what is
+  /// dissolved stays, and grows stronger.
+  ///
+  /// Vapour leaves the surface by diffusing up the air standing over it to
+  /// the mouth, and from the mouth out into the room: Stefan's tube, a
+  /// column L tall over the surface's area A, then the mouth as a disc of
+  /// radius r, whose diffusive conductance is 4·D·r. In series, the rate
+  /// is Δc / (L/(D·A) + 1/(4·D·r)): about three microlitres an hour from
+  /// a test tube in room air. Applied a nanolitre at a time, about once a
+  /// second there, a few nanometres off the level; each step would wake a
+  /// sleeping glass to lower it by a fraction of that.
+  double evaporate(double dt, Atmosphere air) {
+    if (_layers.isEmpty) return 0.0;
+    final top = _layers.last;
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return 0.0;
+    final deficit = air.vapourDeficit(top.medium);
+    if (deficit <= 0.0) return 0.0;
+    final d = air.vapourDiffusivity;
+    final surfaceRadius = shape.radiusAt(height);
+    final mouth = shape.radiusAt(shape.top);
+    if (surfaceRadius <= 0.0 || mouth <= 0.0) return 0.0;
+    final edge = shape.lip(_up);
+    final column = math.max((edge?.height ?? shape.top) - height, 0.0);
+    final area = math.pi * surfaceRadius * surfaceRadius;
+    final resistance = column / (d * area) + 1.0 / (4.0 * d * mouth);
+    _evaporating += deficit / resistance / top.medium.density * dt;
+    if (_evaporating < 1e-12) return 0.0;
+    final gone = math.min(_evaporating, top.volume);
+    _evaporating = 0.0;
+    top.volume -= gone;
+    if (top.volume <= 0.0) _layers.removeLast();
+    if (_asleep) {
+      // A few nanometres lower and still asleep.
+      _sleptVolume = volume;
+    } else {
+      _relayIfMoved();
+    }
+    return gone;
+  }
+
+  double _evaporating = 0.0;
+
   bool _asleep = false;
   double _sleptVolume = double.nan;
   double _sleptDisplaced = double.nan;
@@ -432,10 +494,19 @@ final class LiquidBody implements JetReceiver {
 
   /// How far the meniscus stands over [point] (vessel frame) above the flat
   /// surface of the same volume — up at a wall the liquid wets, down at one
-  /// it does not, nought on average. For a round vessel, the exact
-  /// Young–Laplace surface for its radius at the surface ([TubeMeniscus]);
-  /// for another, the flat wall's ([wallMeniscus]) by distance from it.
+  /// it does not. For a round vessel standing upright, the exact
+  /// Young–Laplace surface for its radius at the surface ([TubeMeniscus]),
+  /// nought on average. Tipped, the surface cuts the glass in a long oval
+  /// and is no longer a surface of revolution about anything: the flat
+  /// wall's ([wallMeniscus]) by how far [point] is from the glass. Measured
+  /// by the distance from the axis there, it climbed the long sides of a
+  /// tipped tube by the radius's meniscus and stood out through the glass.
   double meniscusAt(Vector3 point) {
+    final shape = this.shape;
+    if (shape is RevolvedVessel && _up.y < 0.999) {
+      if (volume <= 0.0) return 0.0;
+      return _wallRise(shape, point) - _tippedMean(shape);
+    }
     final m = _meniscus();
     if (m == null) return 0.0;
     final r = math.sqrt(point.x * point.x + point.z * point.z);
@@ -451,6 +522,38 @@ final class LiquidBody implements JetReceiver {
 
   /// How deep [point] (vessel frame) is under the surface.
   double depthAbove(Vector3 point) => height - _up.dot(point);
+
+  double _wallRise(RevolvedVessel shape, Vector3 point) {
+    final at = shape.wallDistance(point);
+    if (at == null) return 0.0;
+    return wallMeniscus(medium, math.max(-at.distance, 0.0), _g);
+  }
+
+  /// The wall's meniscus averaged over a tipped surface, taken out of it so
+  /// that, like the upright one, it moves liquid about and adds none: left
+  /// in, a tube tipped half a radian drew a fortieth more than it held.
+  /// Kept until the surface is laid out again.
+  double _tippedMean(RevolvedVessel shape) {
+    final layout = surface.layout;
+    if (!identical(layout, _tippedFor) || _tippedG != _g) {
+      _tippedFor = layout;
+      _tippedG = _g;
+      _tipped = surface.meanOf((p) => _wallRise(shape, p)).mean;
+    }
+    return _tipped;
+  }
+
+  Object? _tippedFor;
+  double _tippedG = double.nan;
+  double _tipped = 0.0;
+
+  /// The most the meniscus stands above the flat surface anywhere.
+  double _meniscusPeak() => shape is RevolvedVessel && _up.y < 0.999
+      ? math.max(
+          wallMeniscus(medium, 0.0, _g) - _tippedMean(shape as RevolvedVessel),
+          0.0,
+        )
+      : (_meniscus()?.peak ?? 0.0);
 
   /// Menisci already solved, by the radius they were solved for, in steps of
   /// a hundredth of it; and the medium and gravity they were solved under.
@@ -472,16 +575,105 @@ final class LiquidBody implements JetReceiver {
     final radius = shape.radiusAt(height.clamp(shape.floor, shape.top));
     if (radius <= 0.0) return null;
     if (!identical(_menisciMedium, medium) ||
-        !((_menisciG - _g).abs() < 1e-3 * _g)) {
+        !((_menisciG - _g).abs() < 1e-3 * _g) ||
+        _menisciNative != nativeMeniscus) {
       _menisci.clear();
       _menisciMedium = medium;
       _menisciG = _g;
+      _menisciNative = nativeMeniscus;
     }
+    final native = nativeMeniscus;
     final key = (Portable.log(radius) / 0.01).round();
-    return _menisci[key] ??= TubeMeniscus(
+    final have = _menisci[key];
+    if (have != null) return have;
+    final bg = background;
+    if (bg != null) {
+      final shared =
+          _menisciShared[_meniscusId(medium, key, _menisciG, native)];
+      if (shared != null) return _menisci[key] = shared;
+      // **Asked of the background, not waited for**: until it comes, the
+      // nearest radius's meniscus stands in, or none.
+      _askMeniscus(bg, medium, key, _menisciG, native);
+      TubeMeniscus? nearest;
+      var gap = 1 << 30;
+      _menisci.forEach((k, m) {
+        if ((k - key).abs() < gap) {
+          gap = (k - key).abs();
+          nearest = m;
+        }
+      });
+      return nearest;
+    }
+    return _menisci[key] = _sharedMeniscus(medium, key, _menisciG, native);
+  }
+
+  bool _menisciNative = false;
+
+  /// Whether its menisci are solved natively where that was built: on the
+  /// platform's own sine, to within a tolerance of the Dart solve rather
+  /// than to the bit. Set by a world that may be stepped so
+  /// (`FluidWorld.nativeKernels`).
+  bool nativeMeniscus = false;
+
+  /// Where a meniscus not yet worked out is worked out instead of waited
+  /// for; set by a world that may be stepped so (`FluidWorld.background`).
+  FluidBackground? background;
+
+  static final Set<_MeniscusId> _menisciAsked = {};
+
+  static _MeniscusId _meniscusId(
+    FluidMedium medium,
+    int key,
+    double g,
+    bool native,
+  ) => (
+    medium.density,
+    medium.surfaceTension,
+    medium.contactAngle,
+    (g * 1000).roundToDouble(),
+    key,
+    native,
+  );
+
+  static void _askMeniscus(
+    FluidBackground bg,
+    FluidMedium medium,
+    int key,
+    double g,
+    bool native,
+  ) {
+    final id = _meniscusId(medium, key, g, native);
+    if (!_menisciAsked.add(id)) return;
+    bg.meniscus(medium, Portable.exp(key * 0.01), id.$4 / 1000, (m) {
+      _menisciAsked.remove(id);
+      _menisciShared[id] = m;
+    }, native: native);
+  }
+
+  /// **One meniscus for every vessel of the liquid and gravity**: the
+  /// shape depends on nothing else, and a bench's six tubes worked out the
+  /// same ones six times over, seven at the first frame, a tenth of a
+  /// second.
+  ///
+  /// Kept apart by whether they were solved natively: a world that must
+  /// replay to the bit never reads one solved for another.
+  static final Map<_MeniscusId, TubeMeniscus> _menisciShared = {};
+
+  static TubeMeniscus _sharedMeniscus(
+    FluidMedium medium,
+    int key,
+    double g,
+    bool native,
+  ) {
+    // Gravity to a part in a thousand, as a vessel's own cache keeps it.
+    final id = _meniscusId(medium, key, g, native);
+    final gKey = id.$4;
+    if (_menisciShared.length > 4096) _menisciShared.clear();
+    return _menisciShared[id] ??= TubeMeniscus(
       medium: medium,
       radius: Portable.exp(key * 0.01),
-      g: _menisciG,
+      g: gKey / 1000,
+      native: native,
     );
   }
 
@@ -520,7 +712,7 @@ final class LiquidBody implements JetReceiver {
     // nothing to ask the rim.
     final edge = shape.lip(_up);
     if (edge != null &&
-        height + surface.reach + (_meniscus()?.peak ?? 0.0) < edge.height) {
+        height + surface.reach + _meniscusPeak() < edge.height) {
       return Spill.none;
     }
     var flow = 0.0;
@@ -588,6 +780,9 @@ final class InsideWalls implements JetObstacle {
   final LiquidBody body;
 
   @override
+  SolidSurface get solid => SolidSurface.glass;
+
+  @override
   bool reaches(Vector3 centre, double distance) =>
       body._reaches(centre, distance + body.wallThickness);
 
@@ -630,6 +825,9 @@ final class OutsideWalls implements JetObstacle {
   final double thickness;
 
   @override
+  SolidSurface get solid => SolidSurface.glass;
+
+  @override
   bool reaches(Vector3 centre, double distance) =>
       body._reaches(centre, distance + thickness);
 
@@ -663,3 +861,8 @@ final class OutsideWalls implements JetObstacle {
     );
   }
 }
+
+/// What a meniscus is kept by: the liquid's density, surface tension and
+/// contact angle, gravity to a part in a thousand, the radius's key, and
+/// whether it was solved natively.
+typedef _MeniscusId = (double, double, double, double, int, bool);

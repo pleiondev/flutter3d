@@ -209,7 +209,9 @@ void main() {
       bench.step(1 / 60);
       seconds += 1 / 60;
       expect(seconds, lessThan(30));
-      if (from.liquid.volume < before - 1e-12) {
+      // Pouring, not evaporating: a step's pour is a tenth of a millilitre,
+      // what evaporates is let go a nanolitre at a time.
+      if (from.liquid.volume < before - 1e-10) {
         poured = true;
         // While it runs, its lip is over the clean tube's mouth.
         // Its own matrix: it hangs off the root, and the world's is only
@@ -231,7 +233,7 @@ void main() {
     expect(theirs, closeTo(total / 2, total * 0.05));
     expect(bench.world.volume, closeTo(everything, everything * 1e-9));
     // And the clean tube holds the colour poured into it.
-    expect(bench.colour(to), bench.colour(from));
+    _expectSameColour(bench.colour(to), bench.colour(from));
   });
 
   test('two dyes poured together are the colour light through both is', () {
@@ -244,8 +246,23 @@ void main() {
     to.liquid.pour(1e-6, concentrations: {orange.name: 1.0});
     final mixed = bench.colour(to);
     // Half of each: each dye's absorbance at half strength, added.
-    final expected = math.sqrt(blue.dye.r * orange.dye.r);
+    final expected = math.sqrt(bench.colour(blue).r * bench.colour(orange).r);
     expect(mixed.r, closeTo(expected, 0.01));
+  });
+
+  test('a solution lets light through as its strength and absorption say', () {
+    // A = εcl: 0.02 mol/L permanganate takes nearly all the green out of
+    // three centimetres, 0.5 mol/L copper sulphate only half of the blue,
+    // and hydrochloric acid nothing. Mutation: colour them by the label's
+    // swatch instead, and every solution is equally see-through.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    Vessel named(String n) => bench.vessels.firstWhere((v) => v.name == n);
+    expect(bench.colour(named('KMnO4')).g, lessThan(1e-3));
+    expect(bench.colour(named('CuSO4')).b, greaterThan(0.4));
+    expect(bench.colour(named('CuSO4')).r, lessThan(0.05));
+    expect(bench.colour(named('K2Cr2O7')).b, lessThan(1e-3));
+    expect(bench.colour(named('HCl')).r, closeTo(1.0, 1e-9));
   });
 
   test('a pour drawn at uneven frames still pours half', () {
@@ -301,4 +318,111 @@ void main() {
     }
     check(bench.scene.root);
   });
+
+  test('leaning a tube within its limit spills none of it', () {
+    // The hand turns and lifts it smoothly to the lean asked. Mutation: set
+    // the lean at once, or lift it by the height the lean it had needed,
+    // and the jolt turns the surface over: a tube asked for a tenth of a
+    // radian more emptied itself in one step.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels[1];
+    final start = tube.liquid.volume;
+    for (final lean in [0.05, 0.1, 0.2, 0.0, 0.8, 1.2, 0.0]) {
+      bench.lean(tube, lean, across: Vector3(0.35, 0, -0.94));
+      for (var i = 0; i < 150; i++) {
+        bench.step(1 / 60);
+      }
+      expect(tube.tilt, closeTo(lean.clamp(0.0, bench.maxLean(tube)), 1e-3));
+    }
+    // None of it ran out: not as a stream, drops or a puddle. Only what
+    // evaporated in the twenty seconds is gone, a few millionths of it.
+    expect(bench.world.jets, isEmpty);
+    expect(bench.world.particles.values.fold(0, (s, p) => s + p.count), 0);
+    expect(bench.world.spills.fold(0.0, (s, p) => s + p.volume), 0.0);
+    expect(tube.liquid.volume, closeTo(start, start * 1e-5));
+  });
+
+  test('a tube leaned either way is lifted out of the row alike', () {
+    // Mutation: lift it only as far as the side it leans to needs, and the
+    // tube at the end of the row, leaning off it, lies down on the bench.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    double height(double lean) {
+      final bench = Bench(kit.device);
+      final tube = bench.vessels.first;
+      bench.lean(tube, lean, across: Vector3(0, 0, -1));
+      for (var i = 0; i < 120; i++) {
+        bench.step(1 / 60);
+      }
+      return tube.body.localMatrix.getTranslation().y;
+    }
+
+    expect(height(-1.0), closeTo(height(1.0), 1e-6));
+    expect(height(-1.0), greaterThan(0.05));
+  });
+
+  test('a tube turned mouth down empties into a puddle on the bench', () {
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final tube = bench.vessels[2];
+    final everything = bench.world.volume;
+    final held = tube.liquid.volume;
+    bench.lean(tube, bench.maxLean(tube), across: Vector3(0, 0, -1));
+    for (var i = 0; i < 600; i++) {
+      bench.step(1 / 60);
+    }
+    expect(tube.liquid.volume, lessThan(held * 0.02));
+    // Every drop of it is somewhere: in the glasses, in the air, or lying
+    // on the bench, nearly all of it as one puddle.
+    expect(bench.world.volume, closeTo(everything, everything * 1e-9));
+    final lying = bench.world.spills.single;
+    expect(lying.volume, greaterThan(held * 0.9));
+    expect(lying.puddles.first.volume, greaterThan(held * 0.8));
+  });
+
+  test('what is poured into the clean tube is as deep a colour as is left', () {
+    // Mutation: take the depth of the liquid's material at the level, and
+    // the clean tube's, made with the first drops near its round bottom,
+    // is a hair thick: the half poured in shows a fraction of the colour.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[1];
+    final to = bench.clean;
+    bench.share(from);
+    while (bench.busy || bench.world.jets.isNotEmpty) {
+      bench.step(1 / 60);
+    }
+    double depth(Vessel v) =>
+        v.layers.single.node.material.extensions!.thickness;
+    expect(depth(to), closeTo(depth(from), 1e-9));
+  });
+
+  test('the clean tube emptied and filled again holds what it held', () {
+    // Mutation: fill it from empty with what its label says, and with none
+    // it comes back as plain water.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    final from = bench.vessels[1];
+    final to = bench.clean;
+    bench.share(from);
+    while (bench.busy || bench.world.jets.isNotEmpty) {
+      bench.step(1 / 60);
+    }
+    bench
+      ..pour(to, to.lowest)
+      ..step(1 / 60);
+    expect(to.liquid.volume, 0.0);
+    bench
+      ..pour(to, 0.5 * (to.lowest + to.highest))
+      ..step(1 / 60);
+    _expectSameColour(bench.colour(to), bench.colour(from));
+  });
+}
+
+/// [a] and [b] the same colour but for the nanolitres of water each lost to
+/// the air while the test ran, which leave a solution a hair stronger.
+void _expectSameColour(Color a, Color b) {
+  expect(a.r, closeTo(b.r, 1e-3));
+  expect(a.g, closeTo(b.g, 1e-3));
+  expect(a.b, closeTo(b.b, 1e-3));
 }

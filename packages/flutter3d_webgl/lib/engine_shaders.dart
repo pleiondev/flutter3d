@@ -2364,6 +2364,16 @@ void main() {
     vec4 prev_y = Follow(uv - vec2(0.0, texel), unused);
     if (prev_y.w > 0.5) b = here.xy - prev_y.xy;
   }
+  // **Stretched past sixteen times its own spacing either way, left out.**
+  // Its light is spread a two-hundred-and-fiftieth as thin as where it set
+  // out, so it shows nothing; drawn, a photon whose neighbour landed across
+  // the tile was a quad over most of it, and the hundreds of them at a
+  // liquid's rim, where the light leaves edge-on, cost more than the rest
+  // of the frame together once the bench was in the map for them to land.
+  if (length(a) > 16.0 * caustic_info.grid.z ||
+      length(b) > 16.0 * caustic_info.grid.w) {
+    return;
+  }
   // Half again, so neighbouring quads overlap, and never under the least.
   float least = caustic_info.grid.y;
   a = AtLeast(1.5 * a, spacing_x, least);
@@ -9674,13 +9684,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
   // **What the see-through casters let through** — before the filter, whose
-  // soft path leaves early where it finds no blocker. One bilinear tap: a
-  // translucent caster's shadow is light shaded rather than light stopped,
-  // and its edge is softened by the filtering the tap already gets. Green
-  // and blue hold what was taken from red and green, alpha what was left of
-  // blue — the layout `shadow_transmittance.frag` explains.
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
-    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
     // Up to four: light a caster gathered, not only light it stopped.
     vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
@@ -12328,13 +12348,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
   // **What the see-through casters let through** — before the filter, whose
-  // soft path leaves early where it finds no blocker. One bilinear tap: a
-  // translucent caster's shadow is light shaded rather than light stopped,
-  // and its edge is softened by the filtering the tap already gets. Green
-  // and blue hold what was taken from red and green, alpha what was left of
-  // blue — the layout `shadow_transmittance.frag` explains.
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
-    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
     // Up to four: light a caster gathered, not only light it stopped.
     vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
@@ -15017,13 +15047,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
   // **What the see-through casters let through** — before the filter, whose
-  // soft path leaves early where it finds no blocker. One bilinear tap: a
-  // translucent caster's shadow is light shaded rather than light stopped,
-  // and its edge is softened by the filtering the tap already gets. Green
-  // and blue hold what was taken from red and green, alpha what was left of
-  // blue — the layout `shadow_transmittance.frag` explains.
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
-    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
     // Up to four: light a caster gathered, not only light it stopped.
     vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
@@ -18562,13 +18602,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
   // **What the see-through casters let through** — before the filter, whose
-  // soft path leaves early where it finds no blocker. One bilinear tap: a
-  // translucent caster's shadow is light shaded rather than light stopped,
-  // and its edge is softened by the filtering the tap already gets. Green
-  // and blue hold what was taken from red and green, alpha what was left of
-  // blue — the layout `shadow_transmittance.frag` explains.
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
-    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
     // Up to four: light a caster gathered, not only light it stopped.
     vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
@@ -22075,13 +22125,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
   // **What the see-through casters let through** — before the filter, whose
-  // soft path leaves early where it finds no blocker. One bilinear tap: a
-  // translucent caster's shadow is light shaded rather than light stopped,
-  // and its edge is softened by the filtering the tap already gets. Green
-  // and blue hold what was taken from red and green, alpha what was left of
-  // blue — the layout `shadow_transmittance.frag` explains.
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
-    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
     // Up to four: light a caster gathered, not only light it stopped.
     vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));
@@ -37895,13 +37955,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cut. A sign rather than another uniform, for the reason the softness
   // itself rides here.
   // **What the see-through casters let through** — before the filter, whose
-  // soft path leaves early where it finds no blocker. One bilinear tap: a
-  // translucent caster's shadow is light shaded rather than light stopped,
-  // and its edge is softened by the filtering the tap already gets. Green
-  // and blue hold what was taken from red and green, alpha what was left of
-  // blue — the layout `shadow_transmittance.frag` explains.
+  // soft path leaves early where it finds no blocker. Averaged over the same
+  // 3×3 texels the opaque edge is: the atlas is read without filtering, and
+  // one tap, which once relied on the sampler's bilinear step, drew a glass
+  // or a liquid's shadow edge as stairs a texel high. Green and blue hold
+  // what was taken from red and green, alpha what was left of blue — the
+  // layout `shadow_transmittance.frag` explains.
   if (frag_info.shadow_bias.w > 0.5) {
-    vec4 stored = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    vec4 stored = vec4(0.0);
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        stored += textureLod(
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0);
+      }
+    }
+    stored *= 1.0 / 9.0;
     // Up to four: light a caster gathered, not only light it stopped.
     vec3 through = clamp(vec3(1.0 - stored.g, 1.0 - stored.b, stored.a), 0.0, 4.0);
     light_transmittance = mix(vec3(1.0), through, clamp(strength, 0.0, 1.0));

@@ -43,12 +43,18 @@ MeshVessel _box(Vector3 size) {
         Vector3(xx, yy, zz),
   ];
   const quads = <List<int>>[
-    [0, 1, 2, 3], [4, 7, 6, 5],
-    [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0],
+    [0, 1, 2, 3],
+    [4, 7, 6, 5],
+    [0, 4, 5, 1],
+    [1, 5, 6, 2],
+    [2, 6, 7, 3],
+    [3, 7, 4, 0],
   ];
   return MeshVessel(
     positions: p,
-    indices: [for (final q in quads) ...[q[0], q[1], q[2], q[0], q[2], q[3]]],
+    indices: [
+      for (final q in quads) ...[q[0], q[1], q[2], q[0], q[2], q[3]],
+    ],
     rim: [p[4], p[5], p[6], p[7]],
   );
 }
@@ -79,7 +85,10 @@ void main() {
   test('so does liquid in a vessel that is any mesh', () {
     final box = _box(Vector3(0.04, 0.05, 0.03));
     final body = _body(box, 2e-5, turn: Matrix3.rotationZ(0.4));
-    expect(_enclosed(liquidMeshes(body).single.mesh), closeTo(2e-5, 2e-5 * 0.01));
+    expect(
+      _enclosed(liquidMeshes(body).single.mesh),
+      closeTo(2e-5, 2e-5 * 0.01),
+    );
   });
 
   test('oil on water is two meshes, each its own volume', () {
@@ -110,7 +119,50 @@ void main() {
     }
     expect(jetMesh(jet).triangleCount, greaterThan(0));
     final dots = particleMesh([Vector3.zero(), Vector3(1, 0, 0)], 0.001);
-    expect(dots.vertexCount, 24);
+    // Two spheres of forty-two points.
+    expect(dots.vertexCount, 84);
     expect(_enclosed(dots), greaterThan(0));
+  });
+
+  test('a puddle is drawn as a cap of its radius and height', () {
+    final cap = capMesh([Vector3(0.1, 0, 0)], [0.02], [0.001]);
+    final ys = [for (var i = 0; i < cap.vertexCount; i++) cap.positionAt(i).y];
+    // Its top as high as asked, its rim on the bench.
+    expect(ys.reduce(math.max), closeTo(0.001, 1e-7));
+    expect(ys.reduce(math.min), closeTo(0.0, 1e-7));
+    var widest = 0.0;
+    for (var i = 0; i < cap.vertexCount; i++) {
+      final p = cap.positionAt(i);
+      widest = math.max(widest, math.sqrt(math.pow(p.x - 0.1, 2) + p.z * p.z));
+    }
+    expect(widest, closeTo(0.02, 1e-7));
+  });
+
+  test('a tipped tube keeps its liquid inside its glass, meniscus and all', () {
+    // Mutation: lift the surface along up with the meniscus of the radius,
+    // as for a tube standing, and the long sides of a tipped tube's liquid
+    // stand out through the glass.
+    final tube = RevolvedVessel([
+      for (var i = 0; i <= 8; i++)
+        Vector2(
+          0.0075 * math.sin(i / 8 * math.pi / 2),
+          0.0005 + 0.0075 * (1 - math.cos(i / 8 * math.pi / 2)),
+        ),
+      Vector2(0.0075, 0.09),
+    ]);
+    final body = _body(tube, 6e-6, turn: Matrix3.rotationX(1.2));
+    for (final layer in liquidMeshes(body)) {
+      final mesh = layer.mesh;
+      final stride = mesh.layout.floatsPerVertex;
+      for (var i = 0; i < mesh.vertexCount; i++) {
+        final p = Vector3(
+          mesh.vertices[i * stride],
+          mesh.vertices[i * stride + 1],
+          mesh.vertices[i * stride + 2],
+        );
+        final at = tube.wallDistance(p);
+        if (at != null) expect(at.distance, lessThan(2e-5), reason: '$p');
+      }
+    }
   });
 }
