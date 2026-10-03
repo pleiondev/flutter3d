@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`kVInstance`**: a mesh stage's varyings carry an instance's own four
+  numbers, from slot 1 in `MeshInstancedVertexShader` and nought from every
+  other; `kMeshVaryings` is twenty-two.
+
 - The software caustic stages: a refracting caster's faces, the photon
   vertex stage with its ray differentials, and the photon quad.
 - The software `ShadowTransmittance` reads the base colour map and lets the

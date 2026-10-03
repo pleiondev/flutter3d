@@ -199,6 +199,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 void main() {
   // Morphed first and in the mesh's own space, which is the order glTF
@@ -230,6 +233,7 @@ void main() {
                    mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }
@@ -483,6 +487,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 /// [joint] as an index into `joint_matrices`, kept inside the array.
 ///
@@ -547,6 +554,7 @@ void main() {
   v_texcoord = texcoord;
   v_color = color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * (skin * vec4(morphed_position, 1.0));
 }
@@ -823,6 +831,8 @@ in vec4 i_row1;
 in vec4 i_row2;
 /// Multiplied into the vertex colour, so a batch of one mesh can vary its tint.
 in vec4 i_color;
+/// The instance's own four numbers — `P8`, `InstancedMeshNode.setInstanceData`.
+in vec4 i_data;
 
 layout(std140) uniform FrameInfo {
   mat4 mvp;
@@ -837,6 +847,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 void main() {
   // Columns from rows: GLSL matrices are column-major, so the constructor is
@@ -877,6 +890,7 @@ void main() {
       mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color * i_color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = i_data;
   gl_Position = frame_info.mvp * local;
 }
 
@@ -1059,6 +1073,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 void main() {
   vec3 morphed_position = position;
@@ -1076,6 +1093,7 @@ void main() {
                    mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = vec4(1.0);
   v_lightmap_uv = color.xy;
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }
@@ -1996,6 +2014,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 // The w below which a point is treated as at the eye. Dividing by a w near zero
 // sends a neighbour to infinity, and dividing by a negative one mirrors it
@@ -2067,6 +2088,7 @@ void main() {
   v_tangent = vec4(1.0, 0.0, 0.0, 1.0);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 }
 
 ''',
@@ -2739,6 +2761,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 vec4 MvpRow(int r) {
   return vec4(frame_info.mvp[0][r], frame_info.mvp[1][r],
@@ -2775,6 +2800,7 @@ void main() {
   v_texcoord = texcoord;
   v_color = vec4(d, color.a);
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * vec4(corner, 1.0);
 }

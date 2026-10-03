@@ -491,7 +491,7 @@ material Toon {
     test('a light input outside the block is refused', () {
       refuses(
         'material M { light { return albedo; } '
-        'fragment { return vec4(lit * nDotL, 1.0); } }',
+            'fragment { return vec4(lit * nDotL, 1.0); } }',
         'is read of one light',
       );
     });
@@ -499,7 +499,7 @@ material Toon {
     test('lit inside the block is refused', () {
       refuses(
         'material M { light { return lit; } '
-        'fragment { return vec4(lit, 1.0); } }',
+            'fragment { return vec4(lit, 1.0); } }',
         'cannot read it',
       );
     });
@@ -514,7 +514,7 @@ material Toon {
     test('a block nothing reads is refused', () {
       refuses(
         'material M { light { return albedo; } '
-        'fragment { return vec4(albedo, 1.0); } }',
+            'fragment { return vec4(albedo, 1.0); } }',
         'the light block is never read',
       );
     });
@@ -522,7 +522,7 @@ material Toon {
     test('the block returns a vec3', () {
       refuses(
         'material M { light { return vec4(albedo, 1.0); } '
-        'fragment { return vec4(lit, 1.0); } }',
+            'fragment { return vec4(lit, 1.0); } }',
         'a light block returns a vec3',
       );
     });
@@ -534,5 +534,18 @@ material Toon {
       );
       expect(program.light, isNotNull);
     });
+  });
+
+  test('an instance\'s numbers are a varying declared only when read — P8', () {
+    // A fragment input no vertex stage writes is a link error, so a stage
+    // that does not read `instance` must not declare it.
+    String emitted(String body) => emitMaterialFragment(
+      specialiseMaterial(
+        parseMaterial('material M { fragment { return $body; } }'),
+        const MaterialVariant('M'),
+      ),
+    );
+    expect(emitted('vec4(instance.rgb, 1.0)'), contains('in vec4 v_instance;'));
+    expect(emitted('vec4(albedo, 1.0)'), isNot(contains('v_instance')));
   });
 }

@@ -22,6 +22,7 @@ void main() {
     ('shaders/rim_glow.f3dmat', GoldenExtras.rimGlow),
     // `P8`: the lighting hook, a lit model by its `light` block.
     ('shaders/toon_hook.f3dmat', GoldenExtras.toonHook),
+    ('shaders/instance_tint.f3dmat', GoldenExtras.instanceTint),
   ]) {
     test('the golden binds what $file reads', () {
       final program = parseMaterial(File(file).readAsStringSync());

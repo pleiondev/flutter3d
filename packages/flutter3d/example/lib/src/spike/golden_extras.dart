@@ -85,6 +85,24 @@ abstract final class GoldenExtras {
     usesMaterialParameters: true,
   );
 
+  /// The example's instance attributes — `P8`: `shaders/instance_tint.f3dmat`,
+  /// a material reading each copy's own numbers as `instance`.
+  static const String instanceTintBundle =
+      'assets/shaders/instance_tint.f3dshaders';
+
+  /// [instanceTintBundle]'s lighting model, held to the source by the
+  /// example's `material_language_test.dart`.
+  static const LightingModel instanceTint = LightingModel(
+    'InstanceTint',
+    'InstanceTint',
+    usesAlbedoTexture: true,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMetallic: false,
+    usesLightList: false,
+    usesMaterialParameters: false,
+  );
+
   /// Simulated seconds before the frame is drawn.
   ///
   /// Chosen so the burst is mid-flight: at zero every particle sits on the

@@ -14,6 +14,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'golden_extras.dart';
 import 'golden_scene.dart';
 
 /// The arrangements the golden scenes 0.8 added draw, and the settings they draw
@@ -1390,6 +1391,41 @@ abstract final class GoldenStages {
   ) => settings.copyWith(
     fog: FogSettings(color: Vector3(0.35, 0.4, 0.5), density: 0.12),
   );
+
+  /// `material-instance-data`: five spheres, one instanced batch drawn with
+  /// `shaders/instance_tint.f3dmat`, each copy given its own four numbers —
+  /// a colour round the hue circle and a rim growing left to right. One draw;
+  /// what differs between the copies is only what the game handed each.
+  static Future<GoldenStaged> materialInstanceData(GoldenStage stage) async {
+    final device = stage.device;
+    final batch = InstancedMeshNode(
+      DeviceMesh.upload(
+        device,
+        SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
+      ),
+      Material(lighting: GoldenExtras.instanceTint),
+      capacity: 5,
+      name: 'copies',
+    );
+    const colours = <(double, double, double)>[
+      (0.95, 0.3, 0.25),
+      (0.95, 0.75, 0.2),
+      (0.35, 0.85, 0.35),
+      (0.25, 0.6, 0.95),
+      (0.7, 0.35, 0.9),
+    ];
+    for (final (i, (r, g, b)) in colours.indexed) {
+      batch.addInstance(
+        Matrix4.translationValues(-2.4 + i * 1.2, 0.0, 0.0),
+        data: Vector4(r, g, b, i / 4.0),
+      );
+    }
+    return GoldenStaged(
+      nodes: <SceneNode>[batch],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.8, 6.8), Vector3.zero()),
+    );
+  }
 
   // ------------------------------------------------------------------ P6
 

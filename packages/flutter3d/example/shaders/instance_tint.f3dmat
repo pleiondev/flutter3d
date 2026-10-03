@@ -1,0 +1,15 @@
+// The example's instance attributes — `P8`: a material written in the
+// engine's material language that reads each copy's own four numbers, as
+// `InstancedMeshNode.setInstanceData` gave them. `tool/build_material.dart`
+// compiles it beside the others, and the `material-instance-data` golden
+// draws one batch of it on all four backends.
+//
+// The rgb is the copy's colour and the w how strongly its rim glows, so the
+// one draw shows two things only the game knew about each copy.
+material InstanceTint {
+  fragment {
+    let facing = clamp(nDotV, 0.0, 1.0);
+    let rim = pow(1.0 - facing, 3.0) * instance.w;
+    return vec4(instance.rgb * (0.25 + 0.75 * facing) + vec3(rim), 1.0);
+  }
+}

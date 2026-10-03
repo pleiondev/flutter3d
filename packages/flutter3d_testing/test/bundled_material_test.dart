@@ -305,4 +305,61 @@ material Tinted {
       expect(renderer.removeMaterials(green), isFalse);
     });
   });
+
+  test('each copy of a batch reads its own numbers as instance — P8', () async {
+    // Two instances of one cube, the left given red and the right green as
+    // their own four numbers; the material paints what it reads.
+    //
+    // Mutation: write nought for `kVInstance` in the software backend's
+    // instanced vertex stage — both copies draw black.
+    const source = '''
+material Painted {
+  fragment {
+    return vec4(instance.rgb, 1.0);
+  }
+}
+''';
+    final device = _device(compiler: materialLanguageCompiler);
+    final bytes = _bundle(<String, String>{'Painted': source});
+    final library = await device.loadShaders(bytes);
+    final batch =
+        InstancedMeshNode(
+            DeviceMesh.upload(device, CuboidShape().build()),
+            Material(lighting: BundledMaterials.read(bytes)['Painted']),
+            capacity: 2,
+          )
+          ..addInstance(
+            Matrix4.translationValues(-0.8, 0.0, 0.0)
+              ..scaleByDouble(0.6, 0.6, 0.6, 1.0),
+            data: Vector4(1.0, 0.0, 0.0, 0.0),
+          )
+          ..addInstance(
+            Matrix4.translationValues(0.8, 0.0, 0.0)
+              ..scaleByDouble(0.6, 0.6, 0.6, 1.0),
+            data: Vector4(0.0, 1.0, 0.0, 0.0),
+          );
+    final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
+    final scene = Scene()
+      ..add(camera)
+      ..add(batch);
+    final result = Renderer.create(device: device, materials: library).render(
+      width: _size,
+      height: _size,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: camera)],
+      settings: const RenderSettings(
+        bloom: BloomSettings(enabled: false),
+        tonemap: false,
+        look: LookSettings(dither: 0.0),
+      ),
+    );
+    final pixels = (await device.readPixels(result.frame))!;
+    List<int> at(int x) {
+      final i = ((_size ~/ 2) * _size + x) * 4;
+      return <int>[pixels.getUint8(i), pixels.getUint8(i + 1)];
+    }
+
+    expect(at(_size ~/ 2 - 8), <int>[255, 0]);
+    expect(at(_size ~/ 2 + 8), <int>[0, 255]);
+  });
 }

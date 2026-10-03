@@ -99,3 +99,4 @@ flutter:
     # script compiles from shaders/rim_glow.f3dmat — `P8`.
     - assets/shaders/rim_glow.f3dshaders
     - assets/shaders/toon_hook.f3dshaders
+    - assets/shaders/instance_tint.f3dshaders

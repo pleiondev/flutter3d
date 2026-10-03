@@ -68,6 +68,12 @@ final class MaterialProgramStage implements CpuFragmentShader {
       'ambient': <double>[s.ambient.x, s.ambient.y, s.ambient.z],
       'uv': <double>[v[kVUv], v[kVUv + 1]],
       'world': <double>[s.world.x, s.world.y, s.world.z],
+      'instance': <double>[
+        v[kVInstance],
+        v[kVInstance + 1],
+        v[kVInstance + 2],
+        v[kVInstance + 3],
+      ],
     };
     // `P8`: the draw's `MaterialParams`, which is `Material.parameters`,
     // member by member as the GLSL reads its block.

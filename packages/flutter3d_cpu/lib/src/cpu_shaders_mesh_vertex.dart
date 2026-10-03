@@ -94,6 +94,9 @@ final class MeshVertexShader implements CpuVertexShaderByIndex {
     }
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
+    for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = 0.0;
+    }
 
     // The tangent transforms with the model matrix, not the normal matrix: it
     // lies *in* the surface, so it stretches with the geometry rather than
@@ -151,6 +154,9 @@ final class MeshLightmappedVertexShader implements CpuVertexShaderByIndex {
     out[kVLightmap] = a[kColour];
     out[kVLightmap + 1] = a[kColour + 1];
     for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = 0.0;
+    }
+    for (var i = 0; i < 4; i++) {
       out[kVColour + i] = 1.0;
     }
     return clip;
@@ -176,6 +182,7 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
   static const int _row1 = 20;
   static const int _row2 = 24;
   static const int _colour = 28;
+  static const int _data = 32;
 
   @override
   int get varyingCount => kMeshVaryings;
@@ -265,6 +272,9 @@ final class MeshInstancedVertexShader implements CpuVertexShaderByIndex {
     }
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
+    for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = a[_data + i];
+    }
 
     final Vector3 t =
         model.getRotation() *
@@ -395,6 +405,9 @@ final class MeshSkinnedVertexShader implements CpuVertexShaderByIndex {
     }
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
+    for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = 0.0;
+    }
 
     final Vector3 t =
         model.getRotation() *

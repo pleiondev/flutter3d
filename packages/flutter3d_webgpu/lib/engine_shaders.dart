@@ -34,12 +34,13 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(6) member: vec3<f32>,
-    @location(2) member_1: vec3<f32>,
-    @location(4) member_2: vec2<f32>,
-    @location(3) member_3: vec4<f32>,
+    @location(7) member: vec3<f32>,
+    @location(3) member_1: vec3<f32>,
+    @location(5) member_2: vec2<f32>,
+    @location(4) member_3: vec4<f32>,
     @location(0) member_4: vec4<f32>,
-    @location(1) member_5: vec2<f32>,
+    @location(2) member_5: vec2<f32>,
+    @location(1) member_6: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -63,49 +64,50 @@ var<private> v_tangent: vec4<f32>;
 var<private> v_color: vec4<f32>;
 var<private> color_1: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
+var<private> v_instance: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
 
 fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, tangent_1: ptr<function, vec4<f32>>) {
     var row: f32;
 
-    let _e40 = (*t);
-    let _e44 = (*rowStep);
-    row = ((f32((_e40 * 3i)) + 0.5f) * _e44);
-    let _e46 = (*column);
-    let _e47 = row;
-    let _e49 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e46, _e47), 0f);
-    let _e51 = (*weight);
-    let _e53 = (*position_1);
-    (*position_1) = (_e53 + (_e49.xyz * _e51));
-    let _e55 = (*column);
-    let _e56 = row;
-    let _e57 = (*rowStep);
-    let _e60 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e55, (_e56 + _e57)), 0f);
-    let _e62 = (*weight);
-    let _e64 = (*normal_1);
-    (*normal_1) = (_e64 + (_e60.xyz * _e62));
-    let _e66 = (*column);
-    let _e67 = row;
-    let _e68 = (*rowStep);
-    let _e72 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e66, (_e67 + (_e68 * 2f))), 0f);
-    let _e74 = (*weight);
-    let _e76 = (*tangent_1);
-    let _e78 = (_e76.xyz + (_e72.xyz * _e74));
-    (*tangent_1)[0u] = _e78.x;
-    (*tangent_1)[1u] = _e78.y;
-    (*tangent_1)[2u] = _e78.z;
+    let _e42 = (*t);
+    let _e46 = (*rowStep);
+    row = ((f32((_e42 * 3i)) + 0.5f) * _e46);
+    let _e48 = (*column);
+    let _e49 = row;
+    let _e51 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e48, _e49), 0f);
+    let _e53 = (*weight);
+    let _e55 = (*position_1);
+    (*position_1) = (_e55 + (_e51.xyz * _e53));
+    let _e57 = (*column);
+    let _e58 = row;
+    let _e59 = (*rowStep);
+    let _e62 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e57, (_e58 + _e59)), 0f);
+    let _e64 = (*weight);
+    let _e66 = (*normal_1);
+    (*normal_1) = (_e66 + (_e62.xyz * _e64));
+    let _e68 = (*column);
+    let _e69 = row;
+    let _e70 = (*rowStep);
+    let _e74 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e68, (_e69 + (_e70 * 2f))), 0f);
+    let _e76 = (*weight);
+    let _e78 = (*tangent_1);
+    let _e80 = (_e78.xyz + (_e74.xyz * _e76));
+    (*tangent_1)[0u] = _e80.x;
+    (*tangent_1)[1u] = _e80.y;
+    (*tangent_1)[2u] = _e80.z;
     return;
 }
 
 fn MorphColumn_u0028_() -> f32 {
-    let _e32 = gl_VertexIndex_1;
-    let _e37 = morph_info.morph_params[1u];
-    return ((f32(_e32) + 0.5f) * _e37);
+    let _e34 = gl_VertexIndex_1;
+    let _e39 = morph_info.morph_params[1u];
+    return ((f32(_e34) + 0.5f) * _e39);
 }
 
 fn MorphCount_u0028_() -> i32 {
-    let _e34 = morph_info.morph_params[0u];
-    return i32((_e34 + 0.5f));
+    let _e36 = morph_info.morph_params[0u];
+    return i32((_e36 + 0.5f));
 }
 
 fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, normal_2: ptr<function, vec3<f32>>, tangent_2: ptr<function, vec4<f32>>) {
@@ -122,61 +124,61 @@ fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3
     var param_5: vec3<f32>;
     var param_6: vec4<f32>;
 
-    let _e47 = MorphCount_u0028_();
-    count = _e47;
-    let _e48 = count;
-    if (_e48 <= 0i) {
+    let _e49 = MorphCount_u0028_();
+    count = _e49;
+    let _e50 = count;
+    if (_e50 <= 0i) {
         return;
     }
-    let _e50 = MorphColumn_u0028_();
-    column_1 = _e50;
-    let _e53 = morph_info.morph_params[2u];
-    rowStep_1 = _e53;
+    let _e52 = MorphColumn_u0028_();
+    column_1 = _e52;
+    let _e55 = morph_info.morph_params[2u];
+    rowStep_1 = _e55;
     i = 0i;
     loop {
-        let _e54 = i;
-        if (_e54 < 8i) {
-            let _e56 = i;
-            let _e57 = count;
-            if (_e56 >= _e57) {
+        let _e56 = i;
+        if (_e56 < 8i) {
+            let _e58 = i;
+            let _e59 = count;
+            if (_e58 >= _e59) {
                 break;
             }
-            let _e59 = i;
             let _e61 = i;
-            let _e72 = morph_info.morph_weights[(_e59 / 4i)][(_e61 - (i32(floor((f32(_e61) / f32(4i)))) * 4i))];
-            weight_1 = _e72;
-            let _e73 = weight_1;
-            if (_e73 == 0f) {
+            let _e63 = i;
+            let _e74 = morph_info.morph_weights[(_e61 / 4i)][(_e63 - (i32(floor((f32(_e63) / f32(4i)))) * 4i))];
+            weight_1 = _e74;
+            let _e75 = weight_1;
+            if (_e75 == 0f) {
                 continue;
             }
-            let _e75 = i;
-            param = _e75;
-            let _e76 = weight_1;
-            param_1 = _e76;
-            let _e77 = column_1;
-            param_2 = _e77;
-            let _e78 = rowStep_1;
-            param_3 = _e78;
-            let _e79 = (*position_2);
-            param_4 = _e79;
-            let _e80 = (*normal_2);
-            param_5 = _e80;
-            let _e81 = (*tangent_2);
-            param_6 = _e81;
+            let _e77 = i;
+            param = _e77;
+            let _e78 = weight_1;
+            param_1 = _e78;
+            let _e79 = column_1;
+            param_2 = _e79;
+            let _e80 = rowStep_1;
+            param_3 = _e80;
+            let _e81 = (*position_2);
+            param_4 = _e81;
+            let _e82 = (*normal_2);
+            param_5 = _e82;
+            let _e83 = (*tangent_2);
+            param_6 = _e83;
             AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
-            let _e82 = param_4;
-            (*position_2) = _e82;
-            let _e83 = param_5;
-            (*normal_2) = _e83;
-            let _e84 = param_6;
-            (*tangent_2) = _e84;
+            let _e84 = param_4;
+            (*position_2) = _e84;
+            let _e85 = param_5;
+            (*normal_2) = _e85;
+            let _e86 = param_6;
+            (*tangent_2) = _e86;
             continue;
         } else {
             break;
         }
         continuing {
-            let _e85 = i;
-            i = (_e85 + 1i);
+            let _e87 = i;
+            i = (_e87 + 1i);
         }
     }
     return;
@@ -193,56 +195,57 @@ fn main_1() {
     var mirrored: bool;
     var local: f32;
 
-    let _e41 = position_3;
-    morphed_position = _e41;
-    let _e42 = normal_3;
-    morphed_normal = _e42;
-    let _e43 = tangent_3;
-    morphed_tangent = _e43;
-    let _e44 = morphed_position;
-    param_7 = _e44;
-    let _e45 = morphed_normal;
-    param_8 = _e45;
-    let _e46 = morphed_tangent;
-    param_9 = _e46;
+    let _e43 = position_3;
+    morphed_position = _e43;
+    let _e44 = normal_3;
+    morphed_normal = _e44;
+    let _e45 = tangent_3;
+    morphed_tangent = _e45;
+    let _e46 = morphed_position;
+    param_7 = _e46;
+    let _e47 = morphed_normal;
+    param_8 = _e47;
+    let _e48 = morphed_tangent;
+    param_9 = _e48;
     ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b((&param_7), (&param_8), (&param_9));
-    let _e47 = param_7;
-    morphed_position = _e47;
-    let _e48 = param_8;
-    morphed_normal = _e48;
-    let _e49 = param_9;
-    morphed_tangent = _e49;
-    let _e51 = frame_info.model;
-    let _e52 = morphed_position;
-    world = (_e51 * vec4<f32>(_e52.x, _e52.y, _e52.z, 1f));
-    let _e58 = world;
-    v_world_position = _e58.xyz;
-    let _e61 = frame_info.normal_matrix;
-    let _e69 = morphed_normal;
-    v_normal = (mat3x3<f32>(_e61[0].xyz, _e61[1].xyz, _e61[2].xyz) * _e69);
-    let _e71 = texcoord_1;
-    v_texcoord = _e71;
-    let _e73 = frame_info.model;
-    mirrored = (determinant(mat3x3<f32>(_e73[0].xyz, _e73[1].xyz, _e73[2].xyz)) < 0f);
-    let _e84 = frame_info.model;
-    let _e92 = morphed_tangent;
-    let _e94 = (mat3x3<f32>(_e84[0].xyz, _e84[1].xyz, _e84[2].xyz) * _e92.xyz);
-    let _e95 = mirrored;
-    if _e95 {
-        let _e97 = morphed_tangent[3u];
-        local = -(_e97);
+    let _e49 = param_7;
+    morphed_position = _e49;
+    let _e50 = param_8;
+    morphed_normal = _e50;
+    let _e51 = param_9;
+    morphed_tangent = _e51;
+    let _e53 = frame_info.model;
+    let _e54 = morphed_position;
+    world = (_e53 * vec4<f32>(_e54.x, _e54.y, _e54.z, 1f));
+    let _e60 = world;
+    v_world_position = _e60.xyz;
+    let _e63 = frame_info.normal_matrix;
+    let _e71 = morphed_normal;
+    v_normal = (mat3x3<f32>(_e63[0].xyz, _e63[1].xyz, _e63[2].xyz) * _e71);
+    let _e73 = texcoord_1;
+    v_texcoord = _e73;
+    let _e75 = frame_info.model;
+    mirrored = (determinant(mat3x3<f32>(_e75[0].xyz, _e75[1].xyz, _e75[2].xyz)) < 0f);
+    let _e86 = frame_info.model;
+    let _e94 = morphed_tangent;
+    let _e96 = (mat3x3<f32>(_e86[0].xyz, _e86[1].xyz, _e86[2].xyz) * _e94.xyz);
+    let _e97 = mirrored;
+    if _e97 {
+        let _e99 = morphed_tangent[3u];
+        local = -(_e99);
     } else {
-        let _e100 = morphed_tangent[3u];
-        local = _e100;
+        let _e102 = morphed_tangent[3u];
+        local = _e102;
     }
-    let _e101 = local;
-    v_tangent = vec4<f32>(_e94.x, _e94.y, _e94.z, _e101);
-    let _e106 = color_1;
-    v_color = _e106;
+    let _e103 = local;
+    v_tangent = vec4<f32>(_e96.x, _e96.y, _e96.z, _e103);
+    let _e108 = color_1;
+    v_color = _e108;
     v_lightmap_uv = vec2<f32>(0f, 0f);
-    let _e108 = frame_info.mvp;
-    let _e109 = morphed_position;
-    unnamed.gl_Position = (_e108 * vec4<f32>(_e109.x, _e109.y, _e109.z, 1f));
+    v_instance = vec4<f32>(0f, 0f, 0f, 0f);
+    let _e110 = frame_info.mvp;
+    let _e111 = morphed_position;
+    unnamed.gl_Position = (_e110 * vec4<f32>(_e111.x, _e111.y, _e111.z, 1f));
     return;
 }
 
@@ -255,14 +258,15 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(0) position: vec3<
     texcoord_1 = texcoord;
     color_1 = color;
     main_1();
-    let _e21 = v_world_position;
-    let _e22 = v_normal;
-    let _e23 = v_texcoord;
-    let _e24 = v_tangent;
-    let _e25 = v_color;
-    let _e26 = v_lightmap_uv;
-    let _e27 = unnamed.gl_Position;
-    return VertexOutput(_e21, _e22, _e23, _e24, _e25, _e26, _e27);
+    let _e22 = v_world_position;
+    let _e23 = v_normal;
+    let _e24 = v_texcoord;
+    let _e25 = v_tangent;
+    let _e26 = v_color;
+    let _e27 = v_lightmap_uv;
+    let _e28 = v_instance;
+    let _e29 = unnamed.gl_Position;
+    return VertexOutput(_e22, _e23, _e24, _e25, _e26, _e27, _e28, _e29);
 }
 ''',
       attributes: <WebGpuAttribute>[
@@ -424,7 +428,7 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(5) member: vec2<f32>,
+    @location(6) member: vec2<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -491,12 +495,13 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(6) member: vec3<f32>,
-    @location(2) member_1: vec3<f32>,
-    @location(3) member_2: vec4<f32>,
-    @location(4) member_3: vec2<f32>,
+    @location(7) member: vec3<f32>,
+    @location(3) member_1: vec3<f32>,
+    @location(4) member_2: vec4<f32>,
+    @location(5) member_3: vec2<f32>,
     @location(0) member_4: vec4<f32>,
-    @location(1) member_5: vec2<f32>,
+    @location(2) member_5: vec2<f32>,
+    @location(1) member_6: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -524,49 +529,50 @@ var<private> texcoord_1: vec2<f32>;
 var<private> v_color: vec4<f32>;
 var<private> color_1: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
+var<private> v_instance: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
 
 fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, tangent_1: ptr<function, vec4<f32>>) {
     var row: f32;
 
-    let _e47 = (*t);
-    let _e51 = (*rowStep);
-    row = ((f32((_e47 * 3i)) + 0.5f) * _e51);
-    let _e53 = (*column);
-    let _e54 = row;
-    let _e56 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e53, _e54), 0f);
-    let _e58 = (*weight);
-    let _e60 = (*position_1);
-    (*position_1) = (_e60 + (_e56.xyz * _e58));
-    let _e62 = (*column);
-    let _e63 = row;
-    let _e64 = (*rowStep);
-    let _e67 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e62, (_e63 + _e64)), 0f);
-    let _e69 = (*weight);
-    let _e71 = (*normal_1);
-    (*normal_1) = (_e71 + (_e67.xyz * _e69));
-    let _e73 = (*column);
-    let _e74 = row;
-    let _e75 = (*rowStep);
-    let _e79 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e73, (_e74 + (_e75 * 2f))), 0f);
-    let _e81 = (*weight);
-    let _e83 = (*tangent_1);
-    let _e85 = (_e83.xyz + (_e79.xyz * _e81));
-    (*tangent_1)[0u] = _e85.x;
-    (*tangent_1)[1u] = _e85.y;
-    (*tangent_1)[2u] = _e85.z;
+    let _e49 = (*t);
+    let _e53 = (*rowStep);
+    row = ((f32((_e49 * 3i)) + 0.5f) * _e53);
+    let _e55 = (*column);
+    let _e56 = row;
+    let _e58 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e55, _e56), 0f);
+    let _e60 = (*weight);
+    let _e62 = (*position_1);
+    (*position_1) = (_e62 + (_e58.xyz * _e60));
+    let _e64 = (*column);
+    let _e65 = row;
+    let _e66 = (*rowStep);
+    let _e69 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e64, (_e65 + _e66)), 0f);
+    let _e71 = (*weight);
+    let _e73 = (*normal_1);
+    (*normal_1) = (_e73 + (_e69.xyz * _e71));
+    let _e75 = (*column);
+    let _e76 = row;
+    let _e77 = (*rowStep);
+    let _e81 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e75, (_e76 + (_e77 * 2f))), 0f);
+    let _e83 = (*weight);
+    let _e85 = (*tangent_1);
+    let _e87 = (_e85.xyz + (_e81.xyz * _e83));
+    (*tangent_1)[0u] = _e87.x;
+    (*tangent_1)[1u] = _e87.y;
+    (*tangent_1)[2u] = _e87.z;
     return;
 }
 
 fn MorphColumn_u0028_() -> f32 {
-    let _e39 = gl_VertexIndex_1;
-    let _e44 = morph_info.morph_params[1u];
-    return ((f32(_e39) + 0.5f) * _e44);
+    let _e41 = gl_VertexIndex_1;
+    let _e46 = morph_info.morph_params[1u];
+    return ((f32(_e41) + 0.5f) * _e46);
 }
 
 fn MorphCount_u0028_() -> i32 {
-    let _e41 = morph_info.morph_params[0u];
-    return i32((_e41 + 0.5f));
+    let _e43 = morph_info.morph_params[0u];
+    return i32((_e43 + 0.5f));
 }
 
 fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, normal_2: ptr<function, vec3<f32>>, tangent_2: ptr<function, vec4<f32>>) {
@@ -583,69 +589,69 @@ fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3
     var param_5: vec3<f32>;
     var param_6: vec4<f32>;
 
-    let _e54 = MorphCount_u0028_();
-    count = _e54;
-    let _e55 = count;
-    if (_e55 <= 0i) {
+    let _e56 = MorphCount_u0028_();
+    count = _e56;
+    let _e57 = count;
+    if (_e57 <= 0i) {
         return;
     }
-    let _e57 = MorphColumn_u0028_();
-    column_1 = _e57;
-    let _e60 = morph_info.morph_params[2u];
-    rowStep_1 = _e60;
+    let _e59 = MorphColumn_u0028_();
+    column_1 = _e59;
+    let _e62 = morph_info.morph_params[2u];
+    rowStep_1 = _e62;
     i = 0i;
     loop {
-        let _e61 = i;
-        if (_e61 < 8i) {
-            let _e63 = i;
-            let _e64 = count;
-            if (_e63 >= _e64) {
+        let _e63 = i;
+        if (_e63 < 8i) {
+            let _e65 = i;
+            let _e66 = count;
+            if (_e65 >= _e66) {
                 break;
             }
-            let _e66 = i;
             let _e68 = i;
-            let _e79 = morph_info.morph_weights[(_e66 / 4i)][(_e68 - (i32(floor((f32(_e68) / f32(4i)))) * 4i))];
-            weight_1 = _e79;
-            let _e80 = weight_1;
-            if (_e80 == 0f) {
+            let _e70 = i;
+            let _e81 = morph_info.morph_weights[(_e68 / 4i)][(_e70 - (i32(floor((f32(_e70) / f32(4i)))) * 4i))];
+            weight_1 = _e81;
+            let _e82 = weight_1;
+            if (_e82 == 0f) {
                 continue;
             }
-            let _e82 = i;
-            param = _e82;
-            let _e83 = weight_1;
-            param_1 = _e83;
-            let _e84 = column_1;
-            param_2 = _e84;
-            let _e85 = rowStep_1;
-            param_3 = _e85;
-            let _e86 = (*position_2);
-            param_4 = _e86;
-            let _e87 = (*normal_2);
-            param_5 = _e87;
-            let _e88 = (*tangent_2);
-            param_6 = _e88;
+            let _e84 = i;
+            param = _e84;
+            let _e85 = weight_1;
+            param_1 = _e85;
+            let _e86 = column_1;
+            param_2 = _e86;
+            let _e87 = rowStep_1;
+            param_3 = _e87;
+            let _e88 = (*position_2);
+            param_4 = _e88;
+            let _e89 = (*normal_2);
+            param_5 = _e89;
+            let _e90 = (*tangent_2);
+            param_6 = _e90;
             AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
-            let _e89 = param_4;
-            (*position_2) = _e89;
-            let _e90 = param_5;
-            (*normal_2) = _e90;
-            let _e91 = param_6;
-            (*tangent_2) = _e91;
+            let _e91 = param_4;
+            (*position_2) = _e91;
+            let _e92 = param_5;
+            (*normal_2) = _e92;
+            let _e93 = param_6;
+            (*tangent_2) = _e93;
             continue;
         } else {
             break;
         }
         continuing {
-            let _e92 = i;
-            i = (_e92 + 1i);
+            let _e94 = i;
+            i = (_e94 + 1i);
         }
     }
     return;
 }
 
 fn JointIndex_u0028_f1_u003b(joint: ptr<function, f32>) -> i32 {
-    let _e40 = (*joint);
-    return clamp(i32(_e40), 0i, 63i);
+    let _e42 = (*joint);
+    return clamp(i32(_e42), 0i, 63i);
 }
 
 fn SkinMatrix_u0028_() -> mat4x4<f32> {
@@ -657,48 +663,48 @@ fn SkinMatrix_u0028_() -> mat4x4<f32> {
     var param_9: f32;
     var param_10: f32;
 
-    let _e47 = weights_1[0u];
-    let _e49 = weights_1[1u];
-    let _e52 = weights_1[2u];
-    let _e55 = weights_1[3u];
-    total = (((_e47 + _e49) + _e52) + _e55);
-    let _e57 = total;
-    if (_e57 > 0.00001f) {
-        let _e59 = weights_1;
-        let _e60 = total;
-        local = (_e59 / vec4(_e60));
+    let _e49 = weights_1[0u];
+    let _e51 = weights_1[1u];
+    let _e54 = weights_1[2u];
+    let _e57 = weights_1[3u];
+    total = (((_e49 + _e51) + _e54) + _e57);
+    let _e59 = total;
+    if (_e59 > 0.00001f) {
+        let _e61 = weights_1;
+        let _e62 = total;
+        local = (_e61 / vec4(_e62));
     } else {
         local = vec4<f32>(1f, 0f, 0f, 0f);
     }
-    let _e63 = local;
-    w = _e63;
-    let _e65 = w[0u];
-    let _e67 = joints_1[0u];
-    param_7 = _e67;
-    let _e68 = JointIndex_u0028_f1_u003b((&param_7));
-    let _e71 = skin_info.joint_matrices[_e68];
-    let _e72 = (_e71 * _e65);
-    let _e74 = w[1u];
-    let _e76 = joints_1[1u];
-    param_8 = _e76;
-    let _e77 = JointIndex_u0028_f1_u003b((&param_8));
-    let _e80 = skin_info.joint_matrices[_e77];
-    let _e81 = (_e80 * _e74);
-    let _e94 = mat4x4<f32>((_e72[0] + _e81[0]), (_e72[1] + _e81[1]), (_e72[2] + _e81[2]), (_e72[3] + _e81[3]));
-    let _e96 = w[2u];
-    let _e98 = joints_1[2u];
-    param_9 = _e98;
-    let _e99 = JointIndex_u0028_f1_u003b((&param_9));
-    let _e102 = skin_info.joint_matrices[_e99];
-    let _e103 = (_e102 * _e96);
-    let _e116 = mat4x4<f32>((_e94[0] + _e103[0]), (_e94[1] + _e103[1]), (_e94[2] + _e103[2]), (_e94[3] + _e103[3]));
-    let _e118 = w[3u];
-    let _e120 = joints_1[3u];
-    param_10 = _e120;
-    let _e121 = JointIndex_u0028_f1_u003b((&param_10));
-    let _e124 = skin_info.joint_matrices[_e121];
-    let _e125 = (_e124 * _e118);
-    return mat4x4<f32>((_e116[0] + _e125[0]), (_e116[1] + _e125[1]), (_e116[2] + _e125[2]), (_e116[3] + _e125[3]));
+    let _e65 = local;
+    w = _e65;
+    let _e67 = w[0u];
+    let _e69 = joints_1[0u];
+    param_7 = _e69;
+    let _e70 = JointIndex_u0028_f1_u003b((&param_7));
+    let _e73 = skin_info.joint_matrices[_e70];
+    let _e74 = (_e73 * _e67);
+    let _e76 = w[1u];
+    let _e78 = joints_1[1u];
+    param_8 = _e78;
+    let _e79 = JointIndex_u0028_f1_u003b((&param_8));
+    let _e82 = skin_info.joint_matrices[_e79];
+    let _e83 = (_e82 * _e76);
+    let _e96 = mat4x4<f32>((_e74[0] + _e83[0]), (_e74[1] + _e83[1]), (_e74[2] + _e83[2]), (_e74[3] + _e83[3]));
+    let _e98 = w[2u];
+    let _e100 = joints_1[2u];
+    param_9 = _e100;
+    let _e101 = JointIndex_u0028_f1_u003b((&param_9));
+    let _e104 = skin_info.joint_matrices[_e101];
+    let _e105 = (_e104 * _e98);
+    let _e118 = mat4x4<f32>((_e96[0] + _e105[0]), (_e96[1] + _e105[1]), (_e96[2] + _e105[2]), (_e96[3] + _e105[3]));
+    let _e120 = w[3u];
+    let _e122 = joints_1[3u];
+    param_10 = _e122;
+    let _e123 = JointIndex_u0028_f1_u003b((&param_10));
+    let _e126 = skin_info.joint_matrices[_e123];
+    let _e127 = (_e126 * _e120);
+    return mat4x4<f32>((_e118[0] + _e127[0]), (_e118[1] + _e127[1]), (_e118[2] + _e127[2]), (_e118[3] + _e127[3]));
 }
 
 fn main_1() {
@@ -715,67 +721,68 @@ fn main_1() {
     var mirrored: bool;
     var local_1: f32;
 
-    let _e51 = SkinMatrix_u0028_();
-    skin = _e51;
-    let _e52 = position_3;
-    morphed_position = _e52;
-    let _e53 = normal_3;
-    morphed_normal = _e53;
-    let _e54 = tangent_3;
-    morphed_tangent = _e54;
-    let _e55 = morphed_position;
-    param_11 = _e55;
-    let _e56 = morphed_normal;
-    param_12 = _e56;
-    let _e57 = morphed_tangent;
-    param_13 = _e57;
+    let _e53 = SkinMatrix_u0028_();
+    skin = _e53;
+    let _e54 = position_3;
+    morphed_position = _e54;
+    let _e55 = normal_3;
+    morphed_normal = _e55;
+    let _e56 = tangent_3;
+    morphed_tangent = _e56;
+    let _e57 = morphed_position;
+    param_11 = _e57;
+    let _e58 = morphed_normal;
+    param_12 = _e58;
+    let _e59 = morphed_tangent;
+    param_13 = _e59;
     ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b((&param_11), (&param_12), (&param_13));
-    let _e58 = param_11;
-    morphed_position = _e58;
-    let _e59 = param_12;
-    morphed_normal = _e59;
-    let _e60 = param_13;
-    morphed_tangent = _e60;
-    let _e62 = frame_info.model;
-    let _e63 = skin;
-    skinnedModel = (_e62 * _e63);
-    let _e65 = skinnedModel;
-    let _e66 = morphed_position;
-    world = (_e65 * vec4<f32>(_e66.x, _e66.y, _e66.z, 1f));
-    let _e72 = world;
-    v_world_position = _e72.xyz;
-    let _e74 = skin;
-    skinRotation = mat3x3<f32>(_e74[0].xyz, _e74[1].xyz, _e74[2].xyz);
-    let _e83 = frame_info.normal_matrix;
-    let _e91 = skinRotation;
-    let _e92 = morphed_normal;
-    v_normal = (mat3x3<f32>(_e83[0].xyz, _e83[1].xyz, _e83[2].xyz) * (_e91 * _e92));
-    let _e96 = frame_info.model;
-    let _e106 = skinRotation;
-    mirrored = ((determinant(mat3x3<f32>(_e96[0].xyz, _e96[1].xyz, _e96[2].xyz)) < 0f) != (determinant(_e106) < 0f));
-    let _e111 = frame_info.model;
-    let _e119 = skinRotation;
-    let _e120 = morphed_tangent;
-    let _e123 = (mat3x3<f32>(_e111[0].xyz, _e111[1].xyz, _e111[2].xyz) * (_e119 * _e120.xyz));
-    let _e124 = mirrored;
-    if _e124 {
-        let _e126 = morphed_tangent[3u];
-        local_1 = -(_e126);
+    let _e60 = param_11;
+    morphed_position = _e60;
+    let _e61 = param_12;
+    morphed_normal = _e61;
+    let _e62 = param_13;
+    morphed_tangent = _e62;
+    let _e64 = frame_info.model;
+    let _e65 = skin;
+    skinnedModel = (_e64 * _e65);
+    let _e67 = skinnedModel;
+    let _e68 = morphed_position;
+    world = (_e67 * vec4<f32>(_e68.x, _e68.y, _e68.z, 1f));
+    let _e74 = world;
+    v_world_position = _e74.xyz;
+    let _e76 = skin;
+    skinRotation = mat3x3<f32>(_e76[0].xyz, _e76[1].xyz, _e76[2].xyz);
+    let _e85 = frame_info.normal_matrix;
+    let _e93 = skinRotation;
+    let _e94 = morphed_normal;
+    v_normal = (mat3x3<f32>(_e85[0].xyz, _e85[1].xyz, _e85[2].xyz) * (_e93 * _e94));
+    let _e98 = frame_info.model;
+    let _e108 = skinRotation;
+    mirrored = ((determinant(mat3x3<f32>(_e98[0].xyz, _e98[1].xyz, _e98[2].xyz)) < 0f) != (determinant(_e108) < 0f));
+    let _e113 = frame_info.model;
+    let _e121 = skinRotation;
+    let _e122 = morphed_tangent;
+    let _e125 = (mat3x3<f32>(_e113[0].xyz, _e113[1].xyz, _e113[2].xyz) * (_e121 * _e122.xyz));
+    let _e126 = mirrored;
+    if _e126 {
+        let _e128 = morphed_tangent[3u];
+        local_1 = -(_e128);
     } else {
-        let _e129 = morphed_tangent[3u];
-        local_1 = _e129;
+        let _e131 = morphed_tangent[3u];
+        local_1 = _e131;
     }
-    let _e130 = local_1;
-    v_tangent = vec4<f32>(_e123.x, _e123.y, _e123.z, _e130);
-    let _e135 = texcoord_1;
-    v_texcoord = _e135;
-    let _e136 = color_1;
-    v_color = _e136;
+    let _e132 = local_1;
+    v_tangent = vec4<f32>(_e125.x, _e125.y, _e125.z, _e132);
+    let _e137 = texcoord_1;
+    v_texcoord = _e137;
+    let _e138 = color_1;
+    v_color = _e138;
     v_lightmap_uv = vec2<f32>(0f, 0f);
-    let _e138 = frame_info.mvp;
-    let _e139 = skin;
-    let _e140 = morphed_position;
-    unnamed.gl_Position = (_e138 * (_e139 * vec4<f32>(_e140.x, _e140.y, _e140.z, 1f)));
+    v_instance = vec4<f32>(0f, 0f, 0f, 0f);
+    let _e140 = frame_info.mvp;
+    let _e141 = skin;
+    let _e142 = morphed_position;
+    unnamed.gl_Position = (_e140 * (_e141 * vec4<f32>(_e142.x, _e142.y, _e142.z, 1f)));
     return;
 }
 
@@ -790,14 +797,15 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(6) weights: vec4<f
     texcoord_1 = texcoord;
     color_1 = color;
     main_1();
-    let _e25 = v_world_position;
-    let _e26 = v_normal;
-    let _e27 = v_tangent;
-    let _e28 = v_texcoord;
-    let _e29 = v_color;
-    let _e30 = v_lightmap_uv;
-    let _e31 = unnamed.gl_Position;
-    return VertexOutput(_e25, _e26, _e27, _e28, _e29, _e30, _e31);
+    let _e26 = v_world_position;
+    let _e27 = v_normal;
+    let _e28 = v_tangent;
+    let _e29 = v_texcoord;
+    let _e30 = v_color;
+    let _e31 = v_lightmap_uv;
+    let _e32 = v_instance;
+    let _e33 = unnamed.gl_Position;
+    return VertexOutput(_e26, _e27, _e28, _e29, _e30, _e31, _e32, _e33);
 }
 ''',
       attributes: <WebGpuAttribute>[
@@ -924,12 +932,13 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(6) member: vec3<f32>,
-    @location(2) member_1: vec3<f32>,
-    @location(4) member_2: vec2<f32>,
-    @location(3) member_3: vec4<f32>,
+    @location(7) member: vec3<f32>,
+    @location(3) member_1: vec3<f32>,
+    @location(5) member_2: vec2<f32>,
+    @location(4) member_3: vec4<f32>,
     @location(0) member_4: vec4<f32>,
-    @location(1) member_5: vec2<f32>,
+    @location(2) member_5: vec2<f32>,
+    @location(1) member_6: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -964,49 +973,51 @@ var<private> v_color: vec4<f32>;
 var<private> color_1: vec4<f32>;
 var<private> i_color_1: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
+var<private> v_instance: vec4<f32>;
+var<private> i_data_1: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
 
 fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, tangent_1: ptr<function, vec4<f32>>) {
     var row: f32;
 
-    let _e48 = (*t);
-    let _e52 = (*rowStep);
-    row = ((f32((_e48 * 3i)) + 0.5f) * _e52);
-    let _e54 = (*column);
-    let _e55 = row;
-    let _e57 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e54, _e55), 0f);
-    let _e59 = (*weight);
-    let _e61 = (*position_1);
-    (*position_1) = (_e61 + (_e57.xyz * _e59));
-    let _e63 = (*column);
-    let _e64 = row;
-    let _e65 = (*rowStep);
-    let _e68 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e63, (_e64 + _e65)), 0f);
-    let _e70 = (*weight);
-    let _e72 = (*normal_1);
-    (*normal_1) = (_e72 + (_e68.xyz * _e70));
-    let _e74 = (*column);
-    let _e75 = row;
-    let _e76 = (*rowStep);
-    let _e80 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e74, (_e75 + (_e76 * 2f))), 0f);
-    let _e82 = (*weight);
-    let _e84 = (*tangent_1);
-    let _e86 = (_e84.xyz + (_e80.xyz * _e82));
-    (*tangent_1)[0u] = _e86.x;
-    (*tangent_1)[1u] = _e86.y;
-    (*tangent_1)[2u] = _e86.z;
+    let _e50 = (*t);
+    let _e54 = (*rowStep);
+    row = ((f32((_e50 * 3i)) + 0.5f) * _e54);
+    let _e56 = (*column);
+    let _e57 = row;
+    let _e59 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e56, _e57), 0f);
+    let _e61 = (*weight);
+    let _e63 = (*position_1);
+    (*position_1) = (_e63 + (_e59.xyz * _e61));
+    let _e65 = (*column);
+    let _e66 = row;
+    let _e67 = (*rowStep);
+    let _e70 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e65, (_e66 + _e67)), 0f);
+    let _e72 = (*weight);
+    let _e74 = (*normal_1);
+    (*normal_1) = (_e74 + (_e70.xyz * _e72));
+    let _e76 = (*column);
+    let _e77 = row;
+    let _e78 = (*rowStep);
+    let _e82 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e76, (_e77 + (_e78 * 2f))), 0f);
+    let _e84 = (*weight);
+    let _e86 = (*tangent_1);
+    let _e88 = (_e86.xyz + (_e82.xyz * _e84));
+    (*tangent_1)[0u] = _e88.x;
+    (*tangent_1)[1u] = _e88.y;
+    (*tangent_1)[2u] = _e88.z;
     return;
 }
 
 fn MorphColumn_u0028_() -> f32 {
-    let _e40 = gl_VertexIndex_1;
-    let _e45 = morph_info.morph_params[1u];
-    return ((f32(_e40) + 0.5f) * _e45);
+    let _e42 = gl_VertexIndex_1;
+    let _e47 = morph_info.morph_params[1u];
+    return ((f32(_e42) + 0.5f) * _e47);
 }
 
 fn MorphCount_u0028_() -> i32 {
-    let _e42 = morph_info.morph_params[0u];
-    return i32((_e42 + 0.5f));
+    let _e44 = morph_info.morph_params[0u];
+    return i32((_e44 + 0.5f));
 }
 
 fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, normal_2: ptr<function, vec3<f32>>, tangent_2: ptr<function, vec4<f32>>) {
@@ -1023,61 +1034,61 @@ fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3
     var param_5: vec3<f32>;
     var param_6: vec4<f32>;
 
-    let _e55 = MorphCount_u0028_();
-    count = _e55;
-    let _e56 = count;
-    if (_e56 <= 0i) {
+    let _e57 = MorphCount_u0028_();
+    count = _e57;
+    let _e58 = count;
+    if (_e58 <= 0i) {
         return;
     }
-    let _e58 = MorphColumn_u0028_();
-    column_1 = _e58;
-    let _e61 = morph_info.morph_params[2u];
-    rowStep_1 = _e61;
+    let _e60 = MorphColumn_u0028_();
+    column_1 = _e60;
+    let _e63 = morph_info.morph_params[2u];
+    rowStep_1 = _e63;
     i = 0i;
     loop {
-        let _e62 = i;
-        if (_e62 < 8i) {
-            let _e64 = i;
-            let _e65 = count;
-            if (_e64 >= _e65) {
+        let _e64 = i;
+        if (_e64 < 8i) {
+            let _e66 = i;
+            let _e67 = count;
+            if (_e66 >= _e67) {
                 break;
             }
-            let _e67 = i;
             let _e69 = i;
-            let _e80 = morph_info.morph_weights[(_e67 / 4i)][(_e69 - (i32(floor((f32(_e69) / f32(4i)))) * 4i))];
-            weight_1 = _e80;
-            let _e81 = weight_1;
-            if (_e81 == 0f) {
+            let _e71 = i;
+            let _e82 = morph_info.morph_weights[(_e69 / 4i)][(_e71 - (i32(floor((f32(_e71) / f32(4i)))) * 4i))];
+            weight_1 = _e82;
+            let _e83 = weight_1;
+            if (_e83 == 0f) {
                 continue;
             }
-            let _e83 = i;
-            param = _e83;
-            let _e84 = weight_1;
-            param_1 = _e84;
-            let _e85 = column_1;
-            param_2 = _e85;
-            let _e86 = rowStep_1;
-            param_3 = _e86;
-            let _e87 = (*position_2);
-            param_4 = _e87;
-            let _e88 = (*normal_2);
-            param_5 = _e88;
-            let _e89 = (*tangent_2);
-            param_6 = _e89;
+            let _e85 = i;
+            param = _e85;
+            let _e86 = weight_1;
+            param_1 = _e86;
+            let _e87 = column_1;
+            param_2 = _e87;
+            let _e88 = rowStep_1;
+            param_3 = _e88;
+            let _e89 = (*position_2);
+            param_4 = _e89;
+            let _e90 = (*normal_2);
+            param_5 = _e90;
+            let _e91 = (*tangent_2);
+            param_6 = _e91;
             AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
-            let _e90 = param_4;
-            (*position_2) = _e90;
-            let _e91 = param_5;
-            (*normal_2) = _e91;
-            let _e92 = param_6;
-            (*tangent_2) = _e92;
+            let _e92 = param_4;
+            (*position_2) = _e92;
+            let _e93 = param_5;
+            (*normal_2) = _e93;
+            let _e94 = param_6;
+            (*tangent_2) = _e94;
             continue;
         } else {
             break;
         }
         continuing {
-            let _e93 = i;
-            i = (_e93 + 1i);
+            let _e95 = i;
+            i = (_e95 + 1i);
         }
     }
     return;
@@ -1102,86 +1113,86 @@ fn ApplyMorphInstanced_u0028_i1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(instance: pt
     var param_15: vec3<f32>;
     var param_16: vec4<f32>;
 
-    let _e63 = morph_instance_info.instance_params[0u];
-    if (_e63 < 0.5f) {
-        let _e65 = (*position_3);
-        param_7 = _e65;
-        let _e66 = (*normal_3);
-        param_8 = _e66;
-        let _e67 = (*tangent_3);
-        param_9 = _e67;
+    let _e65 = morph_instance_info.instance_params[0u];
+    if (_e65 < 0.5f) {
+        let _e67 = (*position_3);
+        param_7 = _e67;
+        let _e68 = (*normal_3);
+        param_8 = _e68;
+        let _e69 = (*tangent_3);
+        param_9 = _e69;
         ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b((&param_7), (&param_8), (&param_9));
-        let _e68 = param_7;
-        (*position_3) = _e68;
-        let _e69 = param_8;
-        (*normal_3) = _e69;
-        let _e70 = param_9;
-        (*tangent_3) = _e70;
+        let _e70 = param_7;
+        (*position_3) = _e70;
+        let _e71 = param_8;
+        (*normal_3) = _e71;
+        let _e72 = param_9;
+        (*tangent_3) = _e72;
         return;
     }
-    let _e71 = MorphCount_u0028_();
-    count_1 = _e71;
-    let _e72 = count_1;
-    if (_e72 <= 0i) {
+    let _e73 = MorphCount_u0028_();
+    count_1 = _e73;
+    let _e74 = count_1;
+    if (_e74 <= 0i) {
         return;
     }
-    let _e74 = MorphColumn_u0028_();
-    deltaColumn = _e74;
-    let _e77 = morph_info.morph_params[2u];
-    deltaRowStep = _e77;
-    let _e78 = (*instance);
-    let _e83 = morph_instance_info.instance_params[2u];
-    row_1 = ((f32(_e78) + 0.5f) * _e83);
+    let _e76 = MorphColumn_u0028_();
+    deltaColumn = _e76;
+    let _e79 = morph_info.morph_params[2u];
+    deltaRowStep = _e79;
+    let _e80 = (*instance);
+    let _e85 = morph_instance_info.instance_params[2u];
+    row_1 = ((f32(_e80) + 0.5f) * _e85);
     i_1 = 0i;
     loop {
-        let _e85 = i_1;
-        if (_e85 < 8i) {
-            let _e87 = i_1;
-            let _e88 = count_1;
-            if (_e87 >= _e88) {
+        let _e87 = i_1;
+        if (_e87 < 8i) {
+            let _e89 = i_1;
+            let _e90 = count_1;
+            if (_e89 >= _e90) {
                 break;
             }
-            let _e90 = i_1;
-            let _e96 = morph_instance_info.instance_params[1u];
-            column_2 = ((f32((_e90 / 4i)) + 0.5f) * _e96);
-            let _e98 = column_2;
-            let _e99 = row_1;
-            let _e101 = textureSampleLevel(morph_instance_weights_tex, morph_instance_weights_smp, vec2<f32>(_e98, _e99), 0f);
-            let _e102 = i_1;
-            let _e109 = (_e102 - (i32(floor((f32(_e102) / f32(4i)))) * 4i));
-            weight_2 = select(select(select(_e101[0i], _e101[1i], (1i == _e109)), _e101[2i], (2i == _e109)), _e101[3i], (3i == _e109));
-            let _e124 = weight_2;
-            if (_e124 == 0f) {
+            let _e92 = i_1;
+            let _e98 = morph_instance_info.instance_params[1u];
+            column_2 = ((f32((_e92 / 4i)) + 0.5f) * _e98);
+            let _e100 = column_2;
+            let _e101 = row_1;
+            let _e103 = textureSampleLevel(morph_instance_weights_tex, morph_instance_weights_smp, vec2<f32>(_e100, _e101), 0f);
+            let _e104 = i_1;
+            let _e111 = (_e104 - (i32(floor((f32(_e104) / f32(4i)))) * 4i));
+            weight_2 = select(select(select(_e103[0i], _e103[1i], (1i == _e111)), _e103[2i], (2i == _e111)), _e103[3i], (3i == _e111));
+            let _e126 = weight_2;
+            if (_e126 == 0f) {
                 continue;
             }
-            let _e126 = i_1;
-            param_10 = _e126;
-            let _e127 = weight_2;
-            param_11 = _e127;
-            let _e128 = deltaColumn;
-            param_12 = _e128;
-            let _e129 = deltaRowStep;
-            param_13 = _e129;
-            let _e130 = (*position_3);
-            param_14 = _e130;
-            let _e131 = (*normal_3);
-            param_15 = _e131;
-            let _e132 = (*tangent_3);
-            param_16 = _e132;
+            let _e128 = i_1;
+            param_10 = _e128;
+            let _e129 = weight_2;
+            param_11 = _e129;
+            let _e130 = deltaColumn;
+            param_12 = _e130;
+            let _e131 = deltaRowStep;
+            param_13 = _e131;
+            let _e132 = (*position_3);
+            param_14 = _e132;
+            let _e133 = (*normal_3);
+            param_15 = _e133;
+            let _e134 = (*tangent_3);
+            param_16 = _e134;
             AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param_10), (&param_11), (&param_12), (&param_13), (&param_14), (&param_15), (&param_16));
-            let _e133 = param_14;
-            (*position_3) = _e133;
-            let _e134 = param_15;
-            (*normal_3) = _e134;
-            let _e135 = param_16;
-            (*tangent_3) = _e135;
+            let _e135 = param_14;
+            (*position_3) = _e135;
+            let _e136 = param_15;
+            (*normal_3) = _e136;
+            let _e137 = param_16;
+            (*tangent_3) = _e137;
             continue;
         } else {
             break;
         }
         continuing {
-            let _e136 = i_1;
-            i_1 = (_e136 + 1i);
+            let _e138 = i_1;
+            i_1 = (_e138 + 1i);
         }
     }
     return;
@@ -1202,89 +1213,91 @@ fn main_1() {
     var mirrored: bool;
     var local_1: f32;
 
-    let _e54 = i_row0_1[0u];
-    let _e56 = i_row1_1[0u];
-    let _e58 = i_row2_1[0u];
-    let _e59 = vec4<f32>(_e54, _e56, _e58, 0f);
-    let _e61 = i_row0_1[1u];
-    let _e63 = i_row1_1[1u];
-    let _e65 = i_row2_1[1u];
-    let _e66 = vec4<f32>(_e61, _e63, _e65, 0f);
-    let _e68 = i_row0_1[2u];
-    let _e70 = i_row1_1[2u];
-    let _e72 = i_row2_1[2u];
-    let _e73 = vec4<f32>(_e68, _e70, _e72, 0f);
-    let _e75 = i_row0_1[3u];
-    let _e77 = i_row1_1[3u];
-    let _e79 = i_row2_1[3u];
-    let _e80 = vec4<f32>(_e75, _e77, _e79, 1f);
-    instance_1 = mat4x4<f32>(vec4<f32>(_e59.x, _e59.y, _e59.z, _e59.w), vec4<f32>(_e66.x, _e66.y, _e66.z, _e66.w), vec4<f32>(_e73.x, _e73.y, _e73.z, _e73.w), vec4<f32>(_e80.x, _e80.y, _e80.z, _e80.w));
-    let _e102 = position_4;
-    morphed_position = _e102;
-    let _e103 = normal_4;
-    morphed_normal = _e103;
-    let _e104 = tangent_4;
-    morphed_tangent = _e104;
-    let _e105 = gl_InstanceIndex_1;
-    param_17 = _e105;
-    let _e106 = morphed_position;
-    param_18 = _e106;
-    let _e107 = morphed_normal;
-    param_19 = _e107;
-    let _e108 = morphed_tangent;
-    param_20 = _e108;
+    let _e56 = i_row0_1[0u];
+    let _e58 = i_row1_1[0u];
+    let _e60 = i_row2_1[0u];
+    let _e61 = vec4<f32>(_e56, _e58, _e60, 0f);
+    let _e63 = i_row0_1[1u];
+    let _e65 = i_row1_1[1u];
+    let _e67 = i_row2_1[1u];
+    let _e68 = vec4<f32>(_e63, _e65, _e67, 0f);
+    let _e70 = i_row0_1[2u];
+    let _e72 = i_row1_1[2u];
+    let _e74 = i_row2_1[2u];
+    let _e75 = vec4<f32>(_e70, _e72, _e74, 0f);
+    let _e77 = i_row0_1[3u];
+    let _e79 = i_row1_1[3u];
+    let _e81 = i_row2_1[3u];
+    let _e82 = vec4<f32>(_e77, _e79, _e81, 1f);
+    instance_1 = mat4x4<f32>(vec4<f32>(_e61.x, _e61.y, _e61.z, _e61.w), vec4<f32>(_e68.x, _e68.y, _e68.z, _e68.w), vec4<f32>(_e75.x, _e75.y, _e75.z, _e75.w), vec4<f32>(_e82.x, _e82.y, _e82.z, _e82.w));
+    let _e104 = position_4;
+    morphed_position = _e104;
+    let _e105 = normal_4;
+    morphed_normal = _e105;
+    let _e106 = tangent_4;
+    morphed_tangent = _e106;
+    let _e107 = gl_InstanceIndex_1;
+    param_17 = _e107;
+    let _e108 = morphed_position;
+    param_18 = _e108;
+    let _e109 = morphed_normal;
+    param_19 = _e109;
+    let _e110 = morphed_tangent;
+    param_20 = _e110;
     ApplyMorphInstanced_u0028_i1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param_17), (&param_18), (&param_19), (&param_20));
-    let _e109 = param_18;
-    morphed_position = _e109;
-    let _e110 = param_19;
-    morphed_normal = _e110;
-    let _e111 = param_20;
-    morphed_tangent = _e111;
-    let _e112 = instance_1;
-    let _e113 = morphed_position;
-    local = (_e112 * vec4<f32>(_e113.x, _e113.y, _e113.z, 1f));
-    let _e120 = frame_info.model;
-    let _e121 = local;
-    world = (_e120 * _e121);
-    let _e123 = world;
-    v_world_position = _e123.xyz;
-    let _e125 = instance_1;
-    rotation = mat3x3<f32>(_e125[0].xyz, _e125[1].xyz, _e125[2].xyz);
-    let _e134 = frame_info.normal_matrix;
-    let _e142 = rotation;
-    let _e143 = morphed_normal;
-    v_normal = (mat3x3<f32>(_e134[0].xyz, _e134[1].xyz, _e134[2].xyz) * normalize((_e142 * _e143)));
-    let _e147 = texcoord_1;
-    v_texcoord = _e147;
-    let _e149 = frame_info.model;
-    let _e159 = rotation;
-    mirrored = ((determinant(mat3x3<f32>(_e149[0].xyz, _e149[1].xyz, _e149[2].xyz)) < 0f) != (determinant(_e159) < 0f));
-    let _e164 = frame_info.model;
-    let _e172 = rotation;
-    let _e173 = morphed_tangent;
-    let _e176 = (mat3x3<f32>(_e164[0].xyz, _e164[1].xyz, _e164[2].xyz) * (_e172 * _e173.xyz));
-    let _e177 = mirrored;
-    if _e177 {
-        let _e179 = morphed_tangent[3u];
-        local_1 = -(_e179);
+    let _e111 = param_18;
+    morphed_position = _e111;
+    let _e112 = param_19;
+    morphed_normal = _e112;
+    let _e113 = param_20;
+    morphed_tangent = _e113;
+    let _e114 = instance_1;
+    let _e115 = morphed_position;
+    local = (_e114 * vec4<f32>(_e115.x, _e115.y, _e115.z, 1f));
+    let _e122 = frame_info.model;
+    let _e123 = local;
+    world = (_e122 * _e123);
+    let _e125 = world;
+    v_world_position = _e125.xyz;
+    let _e127 = instance_1;
+    rotation = mat3x3<f32>(_e127[0].xyz, _e127[1].xyz, _e127[2].xyz);
+    let _e136 = frame_info.normal_matrix;
+    let _e144 = rotation;
+    let _e145 = morphed_normal;
+    v_normal = (mat3x3<f32>(_e136[0].xyz, _e136[1].xyz, _e136[2].xyz) * normalize((_e144 * _e145)));
+    let _e149 = texcoord_1;
+    v_texcoord = _e149;
+    let _e151 = frame_info.model;
+    let _e161 = rotation;
+    mirrored = ((determinant(mat3x3<f32>(_e151[0].xyz, _e151[1].xyz, _e151[2].xyz)) < 0f) != (determinant(_e161) < 0f));
+    let _e166 = frame_info.model;
+    let _e174 = rotation;
+    let _e175 = morphed_tangent;
+    let _e178 = (mat3x3<f32>(_e166[0].xyz, _e166[1].xyz, _e166[2].xyz) * (_e174 * _e175.xyz));
+    let _e179 = mirrored;
+    if _e179 {
+        let _e181 = morphed_tangent[3u];
+        local_1 = -(_e181);
     } else {
-        let _e182 = morphed_tangent[3u];
-        local_1 = _e182;
+        let _e184 = morphed_tangent[3u];
+        local_1 = _e184;
     }
-    let _e183 = local_1;
-    v_tangent = vec4<f32>(_e176.x, _e176.y, _e176.z, _e183);
-    let _e188 = color_1;
-    let _e189 = i_color_1;
-    v_color = (_e188 * _e189);
+    let _e185 = local_1;
+    v_tangent = vec4<f32>(_e178.x, _e178.y, _e178.z, _e185);
+    let _e190 = color_1;
+    let _e191 = i_color_1;
+    v_color = (_e190 * _e191);
     v_lightmap_uv = vec2<f32>(0f, 0f);
-    let _e192 = frame_info.mvp;
-    let _e193 = local;
-    unnamed.gl_Position = (_e192 * _e193);
+    let _e193 = i_data_1;
+    v_instance = _e193;
+    let _e195 = frame_info.mvp;
+    let _e196 = local;
+    unnamed.gl_Position = (_e195 * _e196);
     return;
 }
 
 @vertex 
-fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(5) i_row0_: vec4<f32>, @location(6) i_row1_: vec4<f32>, @location(7) i_row2_: vec4<f32>, @location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(3) tangent: vec4<f32>, @builtin(instance_index) gl_InstanceIndex: u32, @location(2) texcoord: vec2<f32>, @location(4) color: vec4<f32>, @location(8) i_color: vec4<f32>) -> VertexOutput {
+fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(5) i_row0_: vec4<f32>, @location(6) i_row1_: vec4<f32>, @location(7) i_row2_: vec4<f32>, @location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(3) tangent: vec4<f32>, @builtin(instance_index) gl_InstanceIndex: u32, @location(2) texcoord: vec2<f32>, @location(4) color: vec4<f32>, @location(8) i_color: vec4<f32>, @location(9) i_data: vec4<f32>) -> VertexOutput {
     gl_VertexIndex_1 = i32(gl_VertexIndex);
     i_row0_1 = i_row0_;
     i_row1_1 = i_row1_;
@@ -1296,15 +1309,17 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(5) i_row0_: vec4<f
     texcoord_1 = texcoord;
     color_1 = color;
     i_color_1 = i_color;
+    i_data_1 = i_data;
     main_1();
-    let _e32 = v_world_position;
-    let _e33 = v_normal;
-    let _e34 = v_texcoord;
-    let _e35 = v_tangent;
-    let _e36 = v_color;
-    let _e37 = v_lightmap_uv;
-    let _e38 = unnamed.gl_Position;
-    return VertexOutput(_e32, _e33, _e34, _e35, _e36, _e37, _e38);
+    let _e35 = v_world_position;
+    let _e36 = v_normal;
+    let _e37 = v_texcoord;
+    let _e38 = v_tangent;
+    let _e39 = v_color;
+    let _e40 = v_lightmap_uv;
+    let _e41 = v_instance;
+    let _e42 = unnamed.gl_Position;
+    return VertexOutput(_e35, _e36, _e37, _e38, _e39, _e40, _e41, _e42);
 }
 ''',
       attributes: <WebGpuAttribute>[
@@ -1351,6 +1366,11 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(5) i_row0_: vec4<f
         WebGpuAttribute(
           name: 'i_color',
           location: 8,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'i_data',
+          location: 9,
           format: VertexFormat.float32x4,
         ),
       ],
@@ -1444,12 +1464,13 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(6) member: vec3<f32>,
-    @location(2) member_1: vec3<f32>,
-    @location(4) member_2: vec2<f32>,
-    @location(3) member_3: vec4<f32>,
+    @location(7) member: vec3<f32>,
+    @location(3) member_1: vec3<f32>,
+    @location(5) member_2: vec2<f32>,
+    @location(4) member_3: vec4<f32>,
     @location(0) member_4: vec4<f32>,
-    @location(1) member_5: vec2<f32>,
+    @location(2) member_5: vec2<f32>,
+    @location(1) member_6: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -1473,49 +1494,50 @@ var<private> v_tangent: vec4<f32>;
 var<private> v_color: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
 var<private> color_1: vec4<f32>;
+var<private> v_instance: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
 
 fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, tangent_1: ptr<function, vec4<f32>>) {
     var row: f32;
 
-    let _e40 = (*t);
-    let _e44 = (*rowStep);
-    row = ((f32((_e40 * 3i)) + 0.5f) * _e44);
-    let _e46 = (*column);
-    let _e47 = row;
-    let _e49 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e46, _e47), 0f);
-    let _e51 = (*weight);
-    let _e53 = (*position_1);
-    (*position_1) = (_e53 + (_e49.xyz * _e51));
-    let _e55 = (*column);
-    let _e56 = row;
-    let _e57 = (*rowStep);
-    let _e60 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e55, (_e56 + _e57)), 0f);
-    let _e62 = (*weight);
-    let _e64 = (*normal_1);
-    (*normal_1) = (_e64 + (_e60.xyz * _e62));
-    let _e66 = (*column);
-    let _e67 = row;
-    let _e68 = (*rowStep);
-    let _e72 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e66, (_e67 + (_e68 * 2f))), 0f);
-    let _e74 = (*weight);
-    let _e76 = (*tangent_1);
-    let _e78 = (_e76.xyz + (_e72.xyz * _e74));
-    (*tangent_1)[0u] = _e78.x;
-    (*tangent_1)[1u] = _e78.y;
-    (*tangent_1)[2u] = _e78.z;
+    let _e42 = (*t);
+    let _e46 = (*rowStep);
+    row = ((f32((_e42 * 3i)) + 0.5f) * _e46);
+    let _e48 = (*column);
+    let _e49 = row;
+    let _e51 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e48, _e49), 0f);
+    let _e53 = (*weight);
+    let _e55 = (*position_1);
+    (*position_1) = (_e55 + (_e51.xyz * _e53));
+    let _e57 = (*column);
+    let _e58 = row;
+    let _e59 = (*rowStep);
+    let _e62 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e57, (_e58 + _e59)), 0f);
+    let _e64 = (*weight);
+    let _e66 = (*normal_1);
+    (*normal_1) = (_e66 + (_e62.xyz * _e64));
+    let _e68 = (*column);
+    let _e69 = row;
+    let _e70 = (*rowStep);
+    let _e74 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e68, (_e69 + (_e70 * 2f))), 0f);
+    let _e76 = (*weight);
+    let _e78 = (*tangent_1);
+    let _e80 = (_e78.xyz + (_e74.xyz * _e76));
+    (*tangent_1)[0u] = _e80.x;
+    (*tangent_1)[1u] = _e80.y;
+    (*tangent_1)[2u] = _e80.z;
     return;
 }
 
 fn MorphColumn_u0028_() -> f32 {
-    let _e32 = gl_VertexIndex_1;
-    let _e37 = morph_info.morph_params[1u];
-    return ((f32(_e32) + 0.5f) * _e37);
+    let _e34 = gl_VertexIndex_1;
+    let _e39 = morph_info.morph_params[1u];
+    return ((f32(_e34) + 0.5f) * _e39);
 }
 
 fn MorphCount_u0028_() -> i32 {
-    let _e34 = morph_info.morph_params[0u];
-    return i32((_e34 + 0.5f));
+    let _e36 = morph_info.morph_params[0u];
+    return i32((_e36 + 0.5f));
 }
 
 fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, normal_2: ptr<function, vec3<f32>>, tangent_2: ptr<function, vec4<f32>>) {
@@ -1532,61 +1554,61 @@ fn ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b(position_2: ptr<function, vec3
     var param_5: vec3<f32>;
     var param_6: vec4<f32>;
 
-    let _e47 = MorphCount_u0028_();
-    count = _e47;
-    let _e48 = count;
-    if (_e48 <= 0i) {
+    let _e49 = MorphCount_u0028_();
+    count = _e49;
+    let _e50 = count;
+    if (_e50 <= 0i) {
         return;
     }
-    let _e50 = MorphColumn_u0028_();
-    column_1 = _e50;
-    let _e53 = morph_info.morph_params[2u];
-    rowStep_1 = _e53;
+    let _e52 = MorphColumn_u0028_();
+    column_1 = _e52;
+    let _e55 = morph_info.morph_params[2u];
+    rowStep_1 = _e55;
     i = 0i;
     loop {
-        let _e54 = i;
-        if (_e54 < 8i) {
-            let _e56 = i;
-            let _e57 = count;
-            if (_e56 >= _e57) {
+        let _e56 = i;
+        if (_e56 < 8i) {
+            let _e58 = i;
+            let _e59 = count;
+            if (_e58 >= _e59) {
                 break;
             }
-            let _e59 = i;
             let _e61 = i;
-            let _e72 = morph_info.morph_weights[(_e59 / 4i)][(_e61 - (i32(floor((f32(_e61) / f32(4i)))) * 4i))];
-            weight_1 = _e72;
-            let _e73 = weight_1;
-            if (_e73 == 0f) {
+            let _e63 = i;
+            let _e74 = morph_info.morph_weights[(_e61 / 4i)][(_e63 - (i32(floor((f32(_e63) / f32(4i)))) * 4i))];
+            weight_1 = _e74;
+            let _e75 = weight_1;
+            if (_e75 == 0f) {
                 continue;
             }
-            let _e75 = i;
-            param = _e75;
-            let _e76 = weight_1;
-            param_1 = _e76;
-            let _e77 = column_1;
-            param_2 = _e77;
-            let _e78 = rowStep_1;
-            param_3 = _e78;
-            let _e79 = (*position_2);
-            param_4 = _e79;
-            let _e80 = (*normal_2);
-            param_5 = _e80;
-            let _e81 = (*tangent_2);
-            param_6 = _e81;
+            let _e77 = i;
+            param = _e77;
+            let _e78 = weight_1;
+            param_1 = _e78;
+            let _e79 = column_1;
+            param_2 = _e79;
+            let _e80 = rowStep_1;
+            param_3 = _e80;
+            let _e81 = (*position_2);
+            param_4 = _e81;
+            let _e82 = (*normal_2);
+            param_5 = _e82;
+            let _e83 = (*tangent_2);
+            param_6 = _e83;
             AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
-            let _e82 = param_4;
-            (*position_2) = _e82;
-            let _e83 = param_5;
-            (*normal_2) = _e83;
-            let _e84 = param_6;
-            (*tangent_2) = _e84;
+            let _e84 = param_4;
+            (*position_2) = _e84;
+            let _e85 = param_5;
+            (*normal_2) = _e85;
+            let _e86 = param_6;
+            (*tangent_2) = _e86;
             continue;
         } else {
             break;
         }
         continuing {
-            let _e85 = i;
-            i = (_e85 + 1i);
+            let _e87 = i;
+            i = (_e87 + 1i);
         }
     }
     return;
@@ -1603,56 +1625,57 @@ fn main_1() {
     var mirrored: bool;
     var local: f32;
 
-    let _e41 = position_3;
-    morphed_position = _e41;
-    let _e42 = normal_3;
-    morphed_normal = _e42;
-    let _e43 = tangent_3;
-    morphed_tangent = _e43;
-    let _e44 = morphed_position;
-    param_7 = _e44;
-    let _e45 = morphed_normal;
-    param_8 = _e45;
-    let _e46 = morphed_tangent;
-    param_9 = _e46;
+    let _e43 = position_3;
+    morphed_position = _e43;
+    let _e44 = normal_3;
+    morphed_normal = _e44;
+    let _e45 = tangent_3;
+    morphed_tangent = _e45;
+    let _e46 = morphed_position;
+    param_7 = _e46;
+    let _e47 = morphed_normal;
+    param_8 = _e47;
+    let _e48 = morphed_tangent;
+    param_9 = _e48;
     ApplyMorph_u0028_vf3_u003b_vf3_u003b_vf4_u003b((&param_7), (&param_8), (&param_9));
-    let _e47 = param_7;
-    morphed_position = _e47;
-    let _e48 = param_8;
-    morphed_normal = _e48;
-    let _e49 = param_9;
-    morphed_tangent = _e49;
-    let _e51 = frame_info.model;
-    let _e52 = morphed_position;
-    world = (_e51 * vec4<f32>(_e52.x, _e52.y, _e52.z, 1f));
-    let _e58 = world;
-    v_world_position = _e58.xyz;
-    let _e61 = frame_info.normal_matrix;
-    let _e69 = morphed_normal;
-    v_normal = (mat3x3<f32>(_e61[0].xyz, _e61[1].xyz, _e61[2].xyz) * _e69);
-    let _e71 = texcoord_1;
-    v_texcoord = _e71;
-    let _e73 = frame_info.model;
-    mirrored = (determinant(mat3x3<f32>(_e73[0].xyz, _e73[1].xyz, _e73[2].xyz)) < 0f);
-    let _e84 = frame_info.model;
-    let _e92 = morphed_tangent;
-    let _e94 = (mat3x3<f32>(_e84[0].xyz, _e84[1].xyz, _e84[2].xyz) * _e92.xyz);
-    let _e95 = mirrored;
-    if _e95 {
-        let _e97 = morphed_tangent[3u];
-        local = -(_e97);
+    let _e49 = param_7;
+    morphed_position = _e49;
+    let _e50 = param_8;
+    morphed_normal = _e50;
+    let _e51 = param_9;
+    morphed_tangent = _e51;
+    let _e53 = frame_info.model;
+    let _e54 = morphed_position;
+    world = (_e53 * vec4<f32>(_e54.x, _e54.y, _e54.z, 1f));
+    let _e60 = world;
+    v_world_position = _e60.xyz;
+    let _e63 = frame_info.normal_matrix;
+    let _e71 = morphed_normal;
+    v_normal = (mat3x3<f32>(_e63[0].xyz, _e63[1].xyz, _e63[2].xyz) * _e71);
+    let _e73 = texcoord_1;
+    v_texcoord = _e73;
+    let _e75 = frame_info.model;
+    mirrored = (determinant(mat3x3<f32>(_e75[0].xyz, _e75[1].xyz, _e75[2].xyz)) < 0f);
+    let _e86 = frame_info.model;
+    let _e94 = morphed_tangent;
+    let _e96 = (mat3x3<f32>(_e86[0].xyz, _e86[1].xyz, _e86[2].xyz) * _e94.xyz);
+    let _e97 = mirrored;
+    if _e97 {
+        let _e99 = morphed_tangent[3u];
+        local = -(_e99);
     } else {
-        let _e100 = morphed_tangent[3u];
-        local = _e100;
+        let _e102 = morphed_tangent[3u];
+        local = _e102;
     }
-    let _e101 = local;
-    v_tangent = vec4<f32>(_e94.x, _e94.y, _e94.z, _e101);
+    let _e103 = local;
+    v_tangent = vec4<f32>(_e96.x, _e96.y, _e96.z, _e103);
     v_color = vec4<f32>(1f, 1f, 1f, 1f);
-    let _e106 = color_1;
-    v_lightmap_uv = _e106.xy;
-    let _e109 = frame_info.mvp;
-    let _e110 = morphed_position;
-    unnamed.gl_Position = (_e109 * vec4<f32>(_e110.x, _e110.y, _e110.z, 1f));
+    let _e108 = color_1;
+    v_lightmap_uv = _e108.xy;
+    v_instance = vec4<f32>(0f, 0f, 0f, 0f);
+    let _e111 = frame_info.mvp;
+    let _e112 = morphed_position;
+    unnamed.gl_Position = (_e111 * vec4<f32>(_e112.x, _e112.y, _e112.z, 1f));
     return;
 }
 
@@ -1665,14 +1688,15 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(0) position: vec3<
     texcoord_1 = texcoord;
     color_1 = color;
     main_1();
-    let _e21 = v_world_position;
-    let _e22 = v_normal;
-    let _e23 = v_texcoord;
-    let _e24 = v_tangent;
-    let _e25 = v_color;
-    let _e26 = v_lightmap_uv;
-    let _e27 = unnamed.gl_Position;
-    return VertexOutput(_e21, _e22, _e23, _e24, _e25, _e26, _e27);
+    let _e22 = v_world_position;
+    let _e23 = v_normal;
+    let _e24 = v_texcoord;
+    let _e25 = v_tangent;
+    let _e26 = v_color;
+    let _e27 = v_lightmap_uv;
+    let _e28 = v_instance;
+    let _e29 = unnamed.gl_Position;
+    return VertexOutput(_e22, _e23, _e24, _e25, _e26, _e27, _e28, _e29);
 }
 ''',
       attributes: <WebGpuAttribute>[
@@ -3028,12 +3052,13 @@ struct gl_PerVertex {
 
 struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
-    @location(6) member: vec3<f32>,
-    @location(2) member_1: vec3<f32>,
-    @location(4) member_2: vec2<f32>,
-    @location(3) member_3: vec4<f32>,
+    @location(7) member: vec3<f32>,
+    @location(3) member_1: vec3<f32>,
+    @location(5) member_2: vec2<f32>,
+    @location(4) member_3: vec4<f32>,
     @location(0) member_4: vec4<f32>,
-    @location(1) member_5: vec2<f32>,
+    @location(2) member_5: vec2<f32>,
+    @location(1) member_6: vec4<f32>,
 }
 
 @group(0) @binding(1) 
@@ -3052,30 +3077,31 @@ var<private> v_tangent: vec4<f32>;
 var<private> v_color: vec4<f32>;
 var<private> color_1: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
+var<private> v_instance: vec4<f32>;
 
 fn ToPixels_u0028_vf4_u003b_vf2_u003b(clip: ptr<function, vec4<f32>>, viewport: ptr<function, vec2<f32>>) -> vec2<f32> {
-    let _e32 = (*clip);
-    let _e35 = (*clip)[3u];
-    let _e38 = (*viewport);
-    return (((_e32.xy / vec2(_e35)) * _e38) * 0.5f);
+    let _e34 = (*clip);
+    let _e37 = (*clip)[3u];
+    let _e40 = (*viewport);
+    return (((_e34.xy / vec2(_e37)) * _e40) * 0.5f);
 }
 
 fn InFront_u0028_vf4_u003b_vf4_u003b(from_: ptr<function, vec4<f32>>, to: ptr<function, vec4<f32>>) -> vec4<f32> {
     var t: f32;
 
-    let _e34 = (*from_)[3u];
-    if (_e34 >= 0.0001f) {
-        let _e36 = (*from_);
-        return _e36;
+    let _e36 = (*from_)[3u];
+    if (_e36 >= 0.0001f) {
+        let _e38 = (*from_);
+        return _e38;
     }
-    let _e38 = (*from_)[3u];
-    let _e41 = (*to)[3u];
-    let _e43 = (*from_)[3u];
-    t = ((0.0001f - _e38) / (_e41 - _e43));
-    let _e46 = (*from_);
-    let _e47 = (*to);
-    let _e48 = t;
-    return mix(_e46, _e47, vec4(clamp(_e48, 0f, 1f)));
+    let _e40 = (*from_)[3u];
+    let _e43 = (*to)[3u];
+    let _e45 = (*from_)[3u];
+    t = ((0.0001f - _e40) / (_e43 - _e45));
+    let _e48 = (*from_);
+    let _e49 = (*to);
+    let _e50 = t;
+    return mix(_e48, _e49, vec4(clamp(_e50, 0f, 1f)));
 }
 
 fn main_1() {
@@ -3104,102 +3130,103 @@ fn main_1() {
     var local_1: vec2<f32>;
     var offset: vec2<f32>;
 
-    let _e55 = params.viewport;
-    viewport_1 = _e55.xy;
-    let _e58 = tangent_1[3u];
-    halfWidth = abs(_e58);
-    let _e61 = tangent_1[3u];
-    side = select(1f, -1f, (_e61 < 0f));
-    let _e65 = frame_info.mvp;
-    let _e66 = position_1;
-    here = (_e65 * vec4<f32>(_e66.x, _e66.y, _e66.z, 1f));
-    let _e73 = frame_info.mvp;
-    let _e74 = normal_1;
-    before = (_e73 * vec4<f32>(_e74.x, _e74.y, _e74.z, 1f));
-    let _e81 = frame_info.mvp;
-    let _e82 = tangent_1;
-    let _e83 = _e82.xyz;
-    after = (_e81 * vec4<f32>(_e83.x, _e83.y, _e83.z, 1f));
-    let _e90 = here[3u];
-    if (_e90 < 0.0001f) {
-        let _e93 = after[3u];
-        if (_e93 >= 0.0001f) {
-            let _e95 = here;
-            param = _e95;
-            let _e96 = after;
-            param_1 = _e96;
-            let _e97 = InFront_u0028_vf4_u003b_vf4_u003b((&param), (&param_1));
-            local = _e97;
+    let _e57 = params.viewport;
+    viewport_1 = _e57.xy;
+    let _e60 = tangent_1[3u];
+    halfWidth = abs(_e60);
+    let _e63 = tangent_1[3u];
+    side = select(1f, -1f, (_e63 < 0f));
+    let _e67 = frame_info.mvp;
+    let _e68 = position_1;
+    here = (_e67 * vec4<f32>(_e68.x, _e68.y, _e68.z, 1f));
+    let _e75 = frame_info.mvp;
+    let _e76 = normal_1;
+    before = (_e75 * vec4<f32>(_e76.x, _e76.y, _e76.z, 1f));
+    let _e83 = frame_info.mvp;
+    let _e84 = tangent_1;
+    let _e85 = _e84.xyz;
+    after = (_e83 * vec4<f32>(_e85.x, _e85.y, _e85.z, 1f));
+    let _e92 = here[3u];
+    if (_e92 < 0.0001f) {
+        let _e95 = after[3u];
+        if (_e95 >= 0.0001f) {
+            let _e97 = here;
+            param = _e97;
+            let _e98 = after;
+            param_1 = _e98;
+            let _e99 = InFront_u0028_vf4_u003b_vf4_u003b((&param), (&param_1));
+            local = _e99;
         } else {
-            let _e98 = here;
-            param_2 = _e98;
-            let _e99 = before;
-            param_3 = _e99;
-            let _e100 = InFront_u0028_vf4_u003b_vf4_u003b((&param_2), (&param_3));
-            local = _e100;
+            let _e100 = here;
+            param_2 = _e100;
+            let _e101 = before;
+            param_3 = _e101;
+            let _e102 = InFront_u0028_vf4_u003b_vf4_u003b((&param_2), (&param_3));
+            local = _e102;
         }
-        let _e101 = local;
-        here = _e101;
+        let _e103 = local;
+        here = _e103;
     }
-    let _e102 = before;
-    param_4 = _e102;
-    let _e103 = here;
-    param_5 = _e103;
-    let _e104 = InFront_u0028_vf4_u003b_vf4_u003b((&param_4), (&param_5));
-    before = _e104;
-    let _e105 = after;
-    param_6 = _e105;
-    let _e106 = here;
-    param_7 = _e106;
-    let _e107 = InFront_u0028_vf4_u003b_vf4_u003b((&param_6), (&param_7));
-    after = _e107;
-    let _e108 = after;
-    param_8 = _e108;
-    let _e109 = viewport_1;
-    param_9 = _e109;
-    let _e110 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_8), (&param_9));
-    let _e111 = before;
-    param_10 = _e111;
-    let _e112 = viewport_1;
-    param_11 = _e112;
-    let _e113 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_10), (&param_11));
-    dir = (_e110 - _e113);
-    let _e115 = dir;
-    dirLength = length(_e115);
-    let _e117 = dirLength;
-    if (_e117 > 0.000000001f) {
-        let _e120 = dir[1u];
-        let _e123 = dir[0u];
-        let _e125 = dirLength;
-        local_1 = (vec2<f32>(-(_e120), _e123) / vec2(_e125));
+    let _e104 = before;
+    param_4 = _e104;
+    let _e105 = here;
+    param_5 = _e105;
+    let _e106 = InFront_u0028_vf4_u003b_vf4_u003b((&param_4), (&param_5));
+    before = _e106;
+    let _e107 = after;
+    param_6 = _e107;
+    let _e108 = here;
+    param_7 = _e108;
+    let _e109 = InFront_u0028_vf4_u003b_vf4_u003b((&param_6), (&param_7));
+    after = _e109;
+    let _e110 = after;
+    param_8 = _e110;
+    let _e111 = viewport_1;
+    param_9 = _e111;
+    let _e112 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_8), (&param_9));
+    let _e113 = before;
+    param_10 = _e113;
+    let _e114 = viewport_1;
+    param_11 = _e114;
+    let _e115 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_10), (&param_11));
+    dir = (_e112 - _e115);
+    let _e117 = dir;
+    dirLength = length(_e117);
+    let _e119 = dirLength;
+    if (_e119 > 0.000000001f) {
+        let _e122 = dir[1u];
+        let _e125 = dir[0u];
+        let _e127 = dirLength;
+        local_1 = (vec2<f32>(-(_e122), _e125) / vec2(_e127));
     } else {
         local_1 = vec2<f32>(1f, 0f);
     }
-    let _e128 = local_1;
-    segmentNormal = _e128;
-    let _e129 = segmentNormal;
-    let _e130 = halfWidth;
-    let _e132 = side;
-    offset = ((_e129 * _e130) * _e132);
-    let _e134 = here;
-    let _e136 = offset;
-    let _e137 = viewport_1;
-    let _e141 = here[3u];
-    let _e143 = (_e134.xy + ((_e136 / (_e137 * 0.5f)) * _e141));
-    let _e144 = here;
-    let _e145 = _e144.zw;
-    unnamed.gl_Position = vec4<f32>(_e143.x, _e143.y, _e145.x, _e145.y);
-    let _e153 = frame_info.model;
-    let _e154 = position_1;
-    v_world_position = (_e153 * vec4<f32>(_e154.x, _e154.y, _e154.z, 1f)).xyz;
-    let _e162 = frame_info.normal_matrix;
-    v_normal = normalize((mat3x3<f32>(_e162[0].xyz, _e162[1].xyz, _e162[2].xyz) * vec3<f32>(0f, 1f, 0f)));
-    let _e172 = texcoord_1;
-    v_texcoord = _e172;
+    let _e130 = local_1;
+    segmentNormal = _e130;
+    let _e131 = segmentNormal;
+    let _e132 = halfWidth;
+    let _e134 = side;
+    offset = ((_e131 * _e132) * _e134);
+    let _e136 = here;
+    let _e138 = offset;
+    let _e139 = viewport_1;
+    let _e143 = here[3u];
+    let _e145 = (_e136.xy + ((_e138 / (_e139 * 0.5f)) * _e143));
+    let _e146 = here;
+    let _e147 = _e146.zw;
+    unnamed.gl_Position = vec4<f32>(_e145.x, _e145.y, _e147.x, _e147.y);
+    let _e155 = frame_info.model;
+    let _e156 = position_1;
+    v_world_position = (_e155 * vec4<f32>(_e156.x, _e156.y, _e156.z, 1f)).xyz;
+    let _e164 = frame_info.normal_matrix;
+    v_normal = normalize((mat3x3<f32>(_e164[0].xyz, _e164[1].xyz, _e164[2].xyz) * vec3<f32>(0f, 1f, 0f)));
+    let _e174 = texcoord_1;
+    v_texcoord = _e174;
     v_tangent = vec4<f32>(1f, 0f, 0f, 1f);
-    let _e173 = color_1;
-    v_color = _e173;
+    let _e175 = color_1;
+    v_color = _e175;
     v_lightmap_uv = vec2<f32>(0f, 0f);
+    v_instance = vec4<f32>(0f, 0f, 0f, 0f);
     return;
 }
 
@@ -3211,14 +3238,15 @@ fn main(@location(3) tangent: vec4<f32>, @location(0) position: vec3<f32>, @loca
     texcoord_1 = texcoord;
     color_1 = color;
     main_1();
-    let _e18 = unnamed.gl_Position;
-    let _e19 = v_world_position;
-    let _e20 = v_normal;
-    let _e21 = v_texcoord;
-    let _e22 = v_tangent;
-    let _e23 = v_color;
-    let _e24 = v_lightmap_uv;
-    return VertexOutput(_e18, _e19, _e20, _e21, _e22, _e23, _e24);
+    let _e19 = unnamed.gl_Position;
+    let _e20 = v_world_position;
+    let _e21 = v_normal;
+    let _e22 = v_texcoord;
+    let _e23 = v_tangent;
+    let _e24 = v_color;
+    let _e25 = v_lightmap_uv;
+    let _e26 = v_instance;
+    return VertexOutput(_e19, _e20, _e21, _e22, _e23, _e24, _e25, _e26);
 }
 ''',
       attributes: <WebGpuAttribute>[
@@ -3299,8 +3327,8 @@ struct ParticleInfo {
 
 struct VertexOutput {
     @location(0) member: vec4<f32>,
-    @location(5) member_1: vec2<f32>,
-    @location(6) member_2: vec3<f32>,
+    @location(6) member_1: vec2<f32>,
+    @location(7) member_2: vec3<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -3389,8 +3417,8 @@ struct ParticleMeshInfo {
 
 struct VertexOutput {
     @location(0) member: vec4<f32>,
-    @location(6) member_1: vec3<f32>,
-    @location(2) member_2: vec3<f32>,
+    @location(7) member_1: vec3<f32>,
+    @location(3) member_2: vec3<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -3506,7 +3534,7 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(5) member: vec2<f32>,
+    @location(6) member: vec2<f32>,
     @location(0) member_1: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
@@ -4096,7 +4124,7 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(5) member: vec2<f32>,
+    @location(6) member: vec2<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -4540,12 +4568,13 @@ struct gl_PerVertex {
 }
 
 struct VertexOutput {
-    @location(6) member: vec3<f32>,
-    @location(2) member_1: vec3<f32>,
-    @location(3) member_2: vec4<f32>,
-    @location(4) member_3: vec2<f32>,
+    @location(7) member: vec3<f32>,
+    @location(3) member_1: vec3<f32>,
+    @location(4) member_2: vec4<f32>,
+    @location(5) member_3: vec2<f32>,
     @location(0) member_4: vec4<f32>,
-    @location(1) member_5: vec2<f32>,
+    @location(2) member_5: vec2<f32>,
+    @location(1) member_6: vec4<f32>,
     @builtin(position) gl_Position: vec4<f32>,
 }
 
@@ -4562,28 +4591,29 @@ var<private> v_texcoord: vec2<f32>;
 var<private> v_color: vec4<f32>;
 var<private> color_1: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
+var<private> v_instance: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
 
 fn ImpostorRight_u0028_vf3_u003b(d: ptr<function, vec3<f32>>) -> vec3<f32> {
     var up: vec3<f32>;
 
-    let _e32 = (*d)[1u];
-    up = select(vec3<f32>(0f, 1f, 0f), vec3<f32>(0f, 0f, -1f), vec3((abs(_e32) > 0.999f)));
-    let _e37 = up;
-    let _e38 = (*d);
-    return normalize(cross(_e37, _e38));
+    let _e34 = (*d)[1u];
+    up = select(vec3<f32>(0f, 1f, 0f), vec3<f32>(0f, 0f, -1f), vec3((abs(_e34) > 0.999f)));
+    let _e39 = up;
+    let _e40 = (*d);
+    return normalize(cross(_e39, _e40));
 }
 
 fn MvpRow_u0028_i1_u003b(r: ptr<function, i32>) -> vec4<f32> {
-    let _e30 = (*r);
-    let _e34 = frame_info.mvp[0][_e30];
-    let _e35 = (*r);
-    let _e39 = frame_info.mvp[1][_e35];
-    let _e40 = (*r);
-    let _e44 = frame_info.mvp[2][_e40];
-    let _e45 = (*r);
-    let _e49 = frame_info.mvp[3][_e45];
-    return vec4<f32>(_e34, _e39, _e44, _e49);
+    let _e32 = (*r);
+    let _e36 = frame_info.mvp[0][_e32];
+    let _e37 = (*r);
+    let _e41 = frame_info.mvp[1][_e37];
+    let _e42 = (*r);
+    let _e46 = frame_info.mvp[2][_e42];
+    let _e47 = (*r);
+    let _e51 = frame_info.mvp[3][_e47];
+    return vec4<f32>(_e36, _e41, _e46, _e51);
 }
 
 fn main_1() {
@@ -4610,95 +4640,96 @@ fn main_1() {
     var up_1: vec3<f32>;
     var corner: vec3<f32>;
 
-    let _e52 = tangent_1[3u];
-    radius = _e52;
-    let _e53 = position_1;
-    let _e55 = texcoord_1[0u];
-    let _e59 = texcoord_1[1u];
-    let _e63 = radius;
-    centre = (_e53 - (vec3<f32>(((_e55 * 2f) - 1f), (1f - (_e59 * 2f)), 0f) * _e63));
+    let _e54 = tangent_1[3u];
+    radius = _e54;
+    let _e55 = position_1;
+    let _e57 = texcoord_1[0u];
+    let _e61 = texcoord_1[1u];
+    let _e65 = radius;
+    centre = (_e55 - (vec3<f32>(((_e57 * 2f) - 1f), (1f - (_e61 * 2f)), 0f) * _e65));
     param = 0i;
-    let _e66 = MvpRow_u0028_i1_u003b((&param));
-    rx = _e66;
+    let _e68 = MvpRow_u0028_i1_u003b((&param));
+    rx = _e68;
     param_1 = 1i;
-    let _e67 = MvpRow_u0028_i1_u003b((&param_1));
-    ry = _e67;
+    let _e69 = MvpRow_u0028_i1_u003b((&param_1));
+    ry = _e69;
     param_2 = 2i;
-    let _e68 = MvpRow_u0028_i1_u003b((&param_2));
-    rz = _e68;
+    let _e70 = MvpRow_u0028_i1_u003b((&param_2));
+    rz = _e70;
     param_3 = 3i;
-    let _e69 = MvpRow_u0028_i1_u003b((&param_3));
-    rw = _e69;
-    let _e70 = ry;
-    let _e72 = rw;
-    yw = cross(_e70.xyz, _e72.xyz);
-    let _e75 = rw;
-    let _e77 = rx;
-    wx = cross(_e75.xyz, _e77.xyz);
-    let _e80 = rx;
-    let _e82 = ry;
-    xy = cross(_e80.xyz, _e82.xyz);
-    let _e85 = rx;
-    let _e87 = yw;
-    det = dot(_e85.xyz, _e87);
-    let _e90 = rx[3u];
-    let _e91 = yw;
-    let _e94 = ry[3u];
-    let _e95 = wx;
-    let _e99 = rw[3u];
-    let _e100 = xy;
-    let _e104 = det;
-    let _e107 = det;
-    eye = (-((((_e91 * _e90) + (_e95 * _e94)) + (_e100 * _e99))) / vec3(select(1f, _e107, (abs(_e104) > 0.00000000000000000001f))));
-    let _e111 = det;
-    if (abs(_e111) > 0.00000000000000000001f) {
-        let _e114 = eye;
-        let _e115 = centre;
-        local = (_e114 - _e115);
+    let _e71 = MvpRow_u0028_i1_u003b((&param_3));
+    rw = _e71;
+    let _e72 = ry;
+    let _e74 = rw;
+    yw = cross(_e72.xyz, _e74.xyz);
+    let _e77 = rw;
+    let _e79 = rx;
+    wx = cross(_e77.xyz, _e79.xyz);
+    let _e82 = rx;
+    let _e84 = ry;
+    xy = cross(_e82.xyz, _e84.xyz);
+    let _e87 = rx;
+    let _e89 = yw;
+    det = dot(_e87.xyz, _e89);
+    let _e92 = rx[3u];
+    let _e93 = yw;
+    let _e96 = ry[3u];
+    let _e97 = wx;
+    let _e101 = rw[3u];
+    let _e102 = xy;
+    let _e106 = det;
+    let _e109 = det;
+    eye = (-((((_e93 * _e92) + (_e97 * _e96)) + (_e102 * _e101))) / vec3(select(1f, _e109, (abs(_e106) > 0.00000000000000000001f))));
+    let _e113 = det;
+    if (abs(_e113) > 0.00000000000000000001f) {
+        let _e116 = eye;
+        let _e117 = centre;
+        local = (_e116 - _e117);
     } else {
-        let _e117 = rz;
-        local = -(_e117.xyz);
+        let _e119 = rz;
+        local = -(_e119.xyz);
     }
-    let _e120 = local;
-    toEye = _e120;
-    let _e121 = toEye;
-    let _e122 = toEye;
-    let _e125 = toEye;
-    let _e126 = normal_1;
-    d_1 = normalize(select(_e126, _e125, vec3((dot(_e121, _e122) > 0.00000000000000000001f))));
-    let _e130 = d_1;
-    param_4 = _e130;
-    let _e131 = ImpostorRight_u0028_vf3_u003b((&param_4));
-    right = _e131;
+    let _e122 = local;
+    toEye = _e122;
+    let _e123 = toEye;
+    let _e124 = toEye;
+    let _e127 = toEye;
+    let _e128 = normal_1;
+    d_1 = normalize(select(_e128, _e127, vec3((dot(_e123, _e124) > 0.00000000000000000001f))));
     let _e132 = d_1;
-    let _e133 = right;
-    up_1 = cross(_e132, _e133);
-    let _e135 = centre;
-    let _e136 = right;
-    let _e138 = texcoord_1[0u];
-    let _e142 = up_1;
-    let _e144 = texcoord_1[1u];
-    let _e149 = radius;
-    corner = (_e135 + (((_e136 * ((_e138 * 2f) - 1f)) + (_e142 * (1f - (_e144 * 2f)))) * _e149));
-    let _e153 = frame_info.model;
-    let _e154 = corner;
-    v_world_position = (_e153 * vec4<f32>(_e154.x, _e154.y, _e154.z, 1f)).xyz;
-    let _e162 = frame_info.normal_matrix;
-    let _e170 = d_1;
-    v_normal = normalize((mat3x3<f32>(_e162[0].xyz, _e162[1].xyz, _e162[2].xyz) * _e170));
-    let _e174 = frame_info.model;
-    let _e182 = right;
-    let _e184 = normalize((mat3x3<f32>(_e174[0].xyz, _e174[1].xyz, _e174[2].xyz) * _e182));
-    v_tangent = vec4<f32>(_e184.x, _e184.y, _e184.z, 1f);
-    let _e189 = texcoord_1;
-    v_texcoord = _e189;
-    let _e190 = d_1;
-    let _e192 = color_1[3u];
-    v_color = vec4<f32>(_e190.x, _e190.y, _e190.z, _e192);
+    param_4 = _e132;
+    let _e133 = ImpostorRight_u0028_vf3_u003b((&param_4));
+    right = _e133;
+    let _e134 = d_1;
+    let _e135 = right;
+    up_1 = cross(_e134, _e135);
+    let _e137 = centre;
+    let _e138 = right;
+    let _e140 = texcoord_1[0u];
+    let _e144 = up_1;
+    let _e146 = texcoord_1[1u];
+    let _e151 = radius;
+    corner = (_e137 + (((_e138 * ((_e140 * 2f) - 1f)) + (_e144 * (1f - (_e146 * 2f)))) * _e151));
+    let _e155 = frame_info.model;
+    let _e156 = corner;
+    v_world_position = (_e155 * vec4<f32>(_e156.x, _e156.y, _e156.z, 1f)).xyz;
+    let _e164 = frame_info.normal_matrix;
+    let _e172 = d_1;
+    v_normal = normalize((mat3x3<f32>(_e164[0].xyz, _e164[1].xyz, _e164[2].xyz) * _e172));
+    let _e176 = frame_info.model;
+    let _e184 = right;
+    let _e186 = normalize((mat3x3<f32>(_e176[0].xyz, _e176[1].xyz, _e176[2].xyz) * _e184));
+    v_tangent = vec4<f32>(_e186.x, _e186.y, _e186.z, 1f);
+    let _e191 = texcoord_1;
+    v_texcoord = _e191;
+    let _e192 = d_1;
+    let _e194 = color_1[3u];
+    v_color = vec4<f32>(_e192.x, _e192.y, _e192.z, _e194);
     v_lightmap_uv = vec2<f32>(0f, 0f);
-    let _e198 = frame_info.mvp;
-    let _e199 = corner;
-    unnamed.gl_Position = (_e198 * vec4<f32>(_e199.x, _e199.y, _e199.z, 1f));
+    v_instance = vec4<f32>(0f, 0f, 0f, 0f);
+    let _e200 = frame_info.mvp;
+    let _e201 = corner;
+    unnamed.gl_Position = (_e200 * vec4<f32>(_e201.x, _e201.y, _e201.z, 1f));
     return;
 }
 
@@ -4710,14 +4741,15 @@ fn main(@location(3) tangent: vec4<f32>, @location(0) position: vec3<f32>, @loca
     normal_1 = normal;
     color_1 = color;
     main_1();
-    let _e18 = v_world_position;
-    let _e19 = v_normal;
-    let _e20 = v_tangent;
-    let _e21 = v_texcoord;
-    let _e22 = v_color;
-    let _e23 = v_lightmap_uv;
-    let _e24 = unnamed.gl_Position;
-    return VertexOutput(_e18, _e19, _e20, _e21, _e22, _e23, _e24);
+    let _e19 = v_world_position;
+    let _e20 = v_normal;
+    let _e21 = v_tangent;
+    let _e22 = v_texcoord;
+    let _e23 = v_color;
+    let _e24 = v_lightmap_uv;
+    let _e25 = v_instance;
+    let _e26 = unnamed.gl_Position;
+    return VertexOutput(_e19, _e20, _e21, _e22, _e23, _e24, _e25, _e26);
 }
 ''',
       attributes: <WebGpuAttribute>[
@@ -5379,7 +5411,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(3) v_tangent: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(4) v_tangent: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -5929,7 +5961,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(3) v_tangent: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(7) v_world_position: vec3<f32>, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(4) v_tangent: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_world_position_1 = v_world_position;
     v_texcoord_1 = v_texcoord;
     v_color_1 = v_color;
@@ -6305,7 +6337,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(7) v_world_position: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(5) v_texcoord: vec2<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_world_position_1 = v_world_position;
     gl_FragCoord_1 = gl_FragCoord;
     v_normal_1 = v_normal;
@@ -9586,7 +9618,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>, @location(3) v_tangent: vec4<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>, @location(4) v_tangent: vec4<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -13174,7 +13206,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>, @location(3) v_tangent: vec4<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>, @location(4) v_tangent: vec4<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -17399,7 +17431,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>, @location(3) v_tangent: vec4<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>, @location(4) v_tangent: vec4<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -22951,7 +22983,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(4) v_texcoord: vec2<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>, @location(4) v_tangent: vec4<f32>, @location(5) v_texcoord: vec2<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -26655,7 +26687,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>, @location(3) v_tangent: vec4<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>, @location(4) v_tangent: vec4<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -27133,7 +27165,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @location(5) v_texcoord: vec2<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;
@@ -27315,7 +27347,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -27468,7 +27500,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -27589,7 +27621,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -28461,7 +28493,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -29387,7 +29419,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -29537,7 +29569,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -29649,7 +29681,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -30320,7 +30352,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -30475,7 +30507,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -30827,7 +30859,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -30976,7 +31008,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -31177,7 +31209,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -31229,7 +31261,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> FragmentOutput {
+fn main(@location(6) v_uv: vec2<f32>) -> FragmentOutput {
     v_uv_1 = v_uv;
     main_1();
     let _e4 = out_first;
@@ -31269,7 +31301,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @location(5) v_texcoord: vec2<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
@@ -31356,7 +31388,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     v_world_position_1 = v_world_position;
     v_color_1 = v_color;
@@ -31459,7 +31491,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     v_world_position_1 = v_world_position;
     v_color_1 = v_color;
@@ -32158,7 +32190,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     v_world_position_1 = v_world_position;
     v_color_1 = v_color;
@@ -32445,7 +32477,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     v_world_position_1 = v_world_position;
@@ -32640,7 +32672,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     v_world_position_1 = v_world_position;
@@ -33430,7 +33462,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     v_world_position_1 = v_world_position;
@@ -33688,7 +33720,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(6) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(7) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     v_color_1 = v_color;
     v_world_position_1 = v_world_position;
@@ -33882,7 +33914,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(6) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(7) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     v_color_1 = v_color;
@@ -34049,7 +34081,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     v_color_1 = v_color;
@@ -34798,7 +34830,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -36262,7 +36294,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -36479,7 +36511,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -36984,7 +37016,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -37177,7 +37209,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -37309,7 +37341,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -37746,7 +37778,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(6) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(7) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     v_color_1 = v_color;
@@ -38563,7 +38595,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -38766,7 +38798,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -39380,7 +39412,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -40528,7 +40560,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -40988,7 +41020,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -41440,7 +41472,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -41627,7 +41659,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -41787,7 +41819,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -41907,7 +41939,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -42426,7 +42458,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     gl_FragCoord_1 = gl_FragCoord;
     v_uv_1 = v_uv;
     main_1();
@@ -42773,7 +42805,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -43347,7 +43379,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -43673,7 +43705,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -43752,7 +43784,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -43827,7 +43859,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @location(5) v_texcoord: vec2<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     v_texcoord_1 = v_texcoord;
@@ -43902,7 +43934,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(4) v_texcoord: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(5) v_texcoord: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_texcoord_1 = v_texcoord;
     gl_FragCoord_1 = gl_FragCoord;
     v_world_position_1 = v_world_position;
@@ -43999,7 +44031,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(5) v_texcoord: vec2<f32>, @location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_texcoord_1 = v_texcoord;
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
@@ -44072,7 +44104,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(2) v_normal: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_world_position: vec3<f32>, @location(4) v_texcoord: vec2<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(3) v_normal: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(7) v_world_position: vec3<f32>, @location(5) v_texcoord: vec2<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_normal_1 = v_normal;
     gl_FragCoord_1 = gl_FragCoord;
     v_world_position_1 = v_world_position;
@@ -44121,7 +44153,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     v_color_1 = v_color;
     main_1();
@@ -44217,7 +44249,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(4) v_texcoord: vec2<f32>, @location(2) v_normal: vec3<f32>, @location(6) v_world_position: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(5) v_texcoord: vec2<f32>, @location(3) v_normal: vec3<f32>, @location(7) v_world_position: vec3<f32>, @location(4) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_texcoord_1 = v_texcoord;
     v_normal_1 = v_normal;
     v_world_position_1 = v_world_position;
@@ -44327,7 +44359,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> FragmentOutput {
+fn main(@location(6) v_uv: vec2<f32>) -> FragmentOutput {
     v_uv_1 = v_uv;
     main_1();
     let _e4 = frag_color;
@@ -44508,7 +44540,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -44549,7 +44581,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -45299,7 +45331,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -45484,7 +45516,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -45575,7 +45607,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @location(4) v_tangent: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_texcoord_1 = v_texcoord;
     v_color_1 = v_color;
     v_world_position_1 = v_world_position;
@@ -45658,7 +45690,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -46176,7 +46208,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -46272,7 +46304,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -46385,7 +46417,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
     v_uv_1 = v_uv;
     main_1();
     let _e3 = frag_color;
@@ -49430,7 +49462,7 @@ fn main_1() {
 }
 
 @fragment 
-fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(3) v_tangent: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> FragmentOutput {
+fn main(@location(7) v_world_position: vec3<f32>, @location(3) v_normal: vec3<f32>, @builtin(front_facing) gl_FrontFacing: bool, @builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @location(4) v_tangent: vec4<f32>, @location(2) v_lightmap_uv: vec2<f32>) -> FragmentOutput {
     v_world_position_1 = v_world_position;
     v_normal_1 = v_normal;
     gl_FrontFacing_1 = gl_FrontFacing;

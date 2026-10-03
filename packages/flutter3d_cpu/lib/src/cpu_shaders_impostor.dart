@@ -126,6 +126,9 @@ final class ImpostorVertexShader implements CpuVertexShaderByIndex {
     out[kVColour + 3] = a[kColour + 3];
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
+    for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = 0.0;
+    }
 
     return mvp * Vector4(corner.x, corner.y, corner.z, 1.0);
   }

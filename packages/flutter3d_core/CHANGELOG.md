@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **Instance attributes.** `InstancedMeshNode.setInstanceData` (and `data`
+  on `addInstance` and `acquire`, `InstanceHandle.setData`) gives each copy
+  of a batch four numbers of the game's own, after its colour in a record
+  now twenty floats long. The instanced vertex stage hands them on as
+  `v_instance`, the other mesh stages as nought, and a material written in
+  the language reads them as `instance` — a colour, a team, a phase only the
+  game knows. The emitted stage declares the varying only when it reads it.
+  `material-instance-data` is in all four golden sets.
+
 - **Lighting hooks in the material language.** A `light { … }` block runs
   once per light inside the engine's light loop and returns how the surface
   answers it — a toon ramp, a BRDF of the author's — which the engine

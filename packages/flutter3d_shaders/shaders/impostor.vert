@@ -58,6 +58,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 vec4 MvpRow(int r) {
   return vec4(frame_info.mvp[0][r], frame_info.mvp[1][r],
@@ -94,6 +97,7 @@ void main() {
   v_texcoord = texcoord;
   v_color = vec4(d, color.a);
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * vec4(corner, 1.0);
 }

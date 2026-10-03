@@ -135,13 +135,14 @@ void main() {
           );
         });
       }
-      // The twenty-four names the manifest has today: `R1`'s velocity stages
+      // The twenty-five names the manifest has today: `R1`'s velocity stages
       // brought v_current, v_previous and v_depth, a family of their own, and
       // the physical sky brought v_rayleigh, v_mie, v_planet and v_stars into
       // the sky's family, through the v_ray, v_sun and v_disc it shares.
-      // Stated so that a shader adding a twenty-fifth has to come back and
-      // read the family rule.
-      expect(seen.length, 24);
+      // `P8` brought v_instance into the mesh family. Stated so that a
+      // shader adding a twenty-sixth has to come back and read the family
+      // rule.
+      expect(seen.length, 25);
     });
 
     test('keeps every family inside WebGPU\'s sixteen locations', () {
@@ -152,8 +153,8 @@ void main() {
         isTrue,
       );
       // Five families and a widest of twelve, the sky's. One flat numbering
-      // would have needed twenty-four.
-      expect(locations.length, 24);
+      // would have needed twenty-five.
+      expect(locations.length, 25);
       expect(locations.values.toSet().length, 12);
     });
 

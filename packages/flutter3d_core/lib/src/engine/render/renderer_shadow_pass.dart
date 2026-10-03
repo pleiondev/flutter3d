@@ -1323,7 +1323,7 @@ extension _ShadowPasses on Renderer {
         final skinned = skeleton != null;
         // `gfx-60n`. A cut-out caster goes through a stage with a sampler in
         // it; everything else keeps the stage it has always had, which is why
-        // the masked half costs the common path nothing and why ninety-three
+        // the masked half costs the common path nothing and why ninety-four
         // goldens recorded against the plain stage cannot move.
         final masked = maskedShadowShader != shadowShader && _castsMasked(node);
         final kind =

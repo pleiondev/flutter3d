@@ -57,6 +57,16 @@ String emitMaterialFragment(MaterialProgram program) {
       ..writeln();
   }
 
+  // `P8`: an instance's own numbers, declared after every header's inputs so
+  // it takes the location the engine's vertex stages give it, after
+  // `v_lightmap_uv` — and only when read, since a varying no stage writes is
+  // a link error on a stage that writes it not.
+  if (program.inputsUsed.contains('instance')) {
+    out
+      ..writeln('in vec4 v_instance;')
+      ..writeln();
+  }
+
   // `P8`: the uniforms, as the block the engine binds `Material.parameters`
   // to. Declaration order, as std140 lays it out and every backend's
   // reflection reports it.

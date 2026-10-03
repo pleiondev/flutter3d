@@ -119,6 +119,9 @@ final class PolylineVertexShader implements CpuVertexShaderByIndex {
     out[kVTangent + 3] = 1.0;
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
+    for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = 0.0;
+    }
 
     return Vector4(
       here.x + offsetX / (viewportX * 0.5) * here.w,

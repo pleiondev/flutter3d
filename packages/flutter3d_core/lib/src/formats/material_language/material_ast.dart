@@ -148,6 +148,10 @@ const List<MaterialInput> kMaterialInputs = <MaterialInput>[
   MaterialInput('ambient', MaterialType.vec3, 's.ambient'),
   MaterialInput('uv', MaterialType.vec2, 'v_texcoord'),
   MaterialInput('world', MaterialType.vec3, 'v_world_position'),
+  // `P8`: an instance's own four numbers, `InstancedMeshNode.setInstanceData`
+  // — nought for a draw that is not instanced. The emitted stage declares
+  // the varying only when the source reads it.
+  MaterialInput('instance', MaterialType.vec4, 'v_instance'),
 ];
 
 /// What the `light` block reads about the one light it is shading for, on

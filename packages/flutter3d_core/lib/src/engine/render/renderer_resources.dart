@@ -187,6 +187,12 @@ final VertexLayoutSpec _kInstancedLayout = VertexLayoutSpec(<BufferLayout>[
         format: VertexFormat.float32x4,
         offsetInBytes: 48,
       ),
+      // `P8`: the instance's own four numbers, a material's `instance`.
+      InputAttribute(
+        name: 'i_data',
+        format: VertexFormat.float32x4,
+        offsetInBytes: 64,
+      ),
     ],
   ),
 ]);

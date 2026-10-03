@@ -61,7 +61,53 @@ void main() {
       node.readTransform(2, read);
 
       expect(read, Matrix4.identity());
-      expect(node.instanceData.sublist(44, 48), <double>[1.0, 1.0, 1.0, 1.0]);
+      const at = 2 * InstancedMeshNode.floatsPerInstance;
+      expect(node.instanceData.sublist(at + 12, at + 16), <double>[
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+      ]);
+      expect(node.instanceData.sublist(at + 16, at + 20), <double>[
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+      ], reason: 'an instance\'s own numbers start at nought');
+    });
+
+    test('holds four numbers of the game\'s own after the colour — P8', () {
+      // What `i_data` reads, at byte 64 of the record: a material's
+      // `instance`. Mutation: write them at the colour's offset.
+      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 2);
+      node.addInstance(
+        Matrix4.identity(),
+        color: Vector4(0.5, 0.5, 0.5, 1.0),
+        data: Vector4(0.1, 0.2, 0.3, 0.4),
+      );
+      expect(node.instanceData.sublist(12, 16), <double>[0.5, 0.5, 0.5, 1.0]);
+      final data = node.instanceData.sublist(16, 20);
+      for (final (i, value) in <double>[0.1, 0.2, 0.3, 0.4].indexed) {
+        expect(data[i], closeTo(value, 1e-6));
+      }
+      final read = Vector4.zero();
+      node.readInstanceData(0, read);
+      expect(read.y, closeTo(0.2, 1e-6));
+      expect(InstancedMeshNode.strideInBytes, 80);
+    });
+
+    test('a slot taken again starts from nought, and a released one carries '
+        'its numbers to where it moved', () {
+      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 2);
+      final first = node.acquire(data: Vector4(1.0, 0.0, 0.0, 0.0));
+      final second = node.acquire(data: Vector4(0.0, 2.0, 0.0, 0.0));
+      node.release(first);
+      final read = Vector4.zero();
+      node.readInstanceData(second.index, read);
+      expect(read.y, 2.0, reason: 'the moved slot kept its numbers');
+      final third = node.acquire();
+      node.readInstanceData(third.index, read);
+      expect(read, Vector4.zero(), reason: 'a fresh slot starts at nought');
     });
 
     test('refuses what it cannot hold', () {

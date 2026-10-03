@@ -1240,6 +1240,19 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
   ),
 
+  // P8. Instance attributes: one batch of five spheres, each copy coloured and
+  // rimmed by the four numbers the game gave it, through a `.f3dmat` that
+  // reads them as `instance`.
+  const GoldenScene(
+    name: 'material-instance-data',
+    source: 'Cube',
+    shaderBundle: GoldenExtras.instanceTintBundle,
+    stage: GoldenStages.materialInstanceData,
+    shadows: false,
+    bloom: false,
+    ground: false,
+  ),
+
   // P8. A lighting hook: the teapot in a `.f3dmat` whose `light` block cuts
   // n·l into three bands inside the engine's light loop, the sun's shadow on
   // the ground beside it, and a rim the fragment body adds to `lit`. The

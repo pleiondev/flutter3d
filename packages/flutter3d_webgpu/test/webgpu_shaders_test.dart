@@ -541,7 +541,7 @@ void main() {
                     ],
                   ),
                   const BufferLayout(
-                    strideInBytes: 64,
+                    strideInBytes: 80,
                     stepMode: VertexStepMode.instance,
                     attributes: <InputAttribute>[
                       InputAttribute(
@@ -563,6 +563,11 @@ void main() {
                         format: VertexFormat.float32x4,
                         offsetInBytes: 48,
                       ),
+                      InputAttribute(
+                        name: 'i_data',
+                        format: VertexFormat.float32x4,
+                        offsetInBytes: 64,
+                      ),
                     ],
                   ),
                 ]),
@@ -574,7 +579,7 @@ void main() {
         pipeline.buffers.last.attributes
             .map((WebGpuVertexAttribute a) => a.shaderLocation)
             .toList(),
-        <int>[5, 6, 7, 8],
+        <int>[5, 6, 7, 8, 9],
       );
     });
 
