@@ -186,9 +186,19 @@ mesh particles. Rendering into a mip level came with them. `ColorTarget.mipLevel
 names a face and a level, and the environment map is prefiltered through it.
 Compressed pixel formats are here too: the BC, ETC2 and ASTC families are in
 `TextureFormat`, every backend answers `supportsTextureFormat` for itself, and
-a KTX2 that arrives is read. No asset in this repository ships a compressed
-texture, though, because `dart run flutter3d_build:convert` has no encoder to
-make one. That gap is upstream of the engine, not in it.
+a KTX2 that arrives is read. The converter writes them as well:
+`dart run flutter3d_build:convert --textures bc` encodes BC1 for an opaque
+image and BC3 for one with alpha, `--textures etc2` encodes ETC2 RGB, and
+`--textures universal` writes one file of 4×4 blocks that the load turns into
+BC, ASTC, ETC2 or RGBA8, whichever the device samples. Each gets a mip chain
+unless `--no-mips` asks otherwise. Two gaps are left. ETC2 leaves an image with
+alpha as it arrived, because the EAC alpha block is not written yet, and ASTC
+is reachable only through `universal`, with no `--textures astc` of its own.
+The build hook picks the family from its target: BC on desktop, ETC2 on
+Android and iOS, nothing on the web, where a browser can be any machine. So a
+native build of the dungeon, platformer or racing demo carries its models'
+textures compressed. A web build carries them as PNG, and the images the demos
+load from `assets/textures/` still go through `dart:ui` as RGBA8.
 
 One entry is left on the list: compute passes, and with them GPU particles,
 GPU skinning, GPU culling and indirect draw. It is recorded in
