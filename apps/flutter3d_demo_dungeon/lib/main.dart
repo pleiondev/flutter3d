@@ -719,6 +719,9 @@ class _GameScreenState extends State<GameScreen>
     input: _input,
     stepSim: (double dt) => _sim?.step(dt),
     restore: (Snapshot snapshot) => _sim?.restore(snapshot),
+    // A paused step goes on the loop's tapes and keyframes like a loop step.
+    recorders: _loop.recorders,
+    capture: () => _sim?.save() ?? const Snapshot(<String, Object?>{}),
   );
 
   /// `rp-06`: how long each step of `sim.step` cost, read back over the same
