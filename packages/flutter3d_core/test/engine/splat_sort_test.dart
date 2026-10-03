@@ -177,4 +177,61 @@ void main() {
     sorter.sort(_randomCloud(1, 1), Vector3.zero());
     expect(sorter.order[0], 0);
   });
+
+  group('through an orthographic lens — P7', () {
+    // Two splats at one depth along the axis, one on it and one far to its
+    // side, and a third half a metre nearer, on the side. Looking down −z
+    // from an eye ten metres back.
+    SplatCloud cloud() => SplatCloud(
+      centres: Float32List.fromList(<double>[
+        0.0, 0.0, 0.0, //
+        8.0, 0.0, 0.0,
+        8.0, 0.0, 0.5,
+      ]),
+      colours: Float32List(12),
+      scales: Float32List(9),
+      rotations: Float32List.fromList(<double>[
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+      ]),
+    );
+    final eye = Vector3(0.0, 0.0, 10.0);
+    final axis = Vector3(0.0, 0.0, -1.0);
+
+    test('back to front is by depth along the axis', () {
+      // Mutation: order by distance from the eye whatever `axis` says. The
+      // splat on the side half a metre nearer is further from the eye's
+      // point than the one on the axis, and is drawn under it.
+      final sorter = SplatSorter()..sort(cloud(), eye, axis: axis);
+      final order = sorter.order.sublist(0, 3);
+      expect(order.indexOf(2), greaterThan(order.indexOf(0)));
+      expect(order.indexOf(2), greaterThan(order.indexOf(1)));
+    });
+
+    test('a turn of the axis sorts again, the eye standing still', () {
+      // Mutation: drop the axis from `SplatQuads._needsSort` — a turned
+      // orthographic camera keeps the order of the old axis.
+      final quads = SplatQuads(cloud());
+      void build(Vector3 at, Vector3 towards) => quads.build(
+        eye: at,
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+        axis: towards,
+      );
+      build(eye, axis);
+      final sorts = quads.sorts;
+      build(eye, Vector3(0.6, 0.0, -0.8));
+      expect(quads.sorts, sorts + 1);
+    });
+  });
 }

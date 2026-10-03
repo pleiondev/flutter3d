@@ -1,5 +1,8 @@
 ## Unreleased
 
+- The shader table regenerated for the particles' and splats' whole fog
+  block.
+
 - The shader table regenerated for the orthographic camera's cascade pick;
   `orthographic-shadow` is in the WebGPU reference set.
 

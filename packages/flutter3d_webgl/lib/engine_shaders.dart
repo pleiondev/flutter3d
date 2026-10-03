@@ -25202,23 +25202,83 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The lit shaders' block, declared again because this shader shares none of
-/// their headers — it has a different vertex layout and none of their varyings.
-///
-/// **The first two members of it, not all three.** `color.glsl` carries a
-/// `forward` beside these, for the view axis the surface buffer measures its
-/// depths along; a particle writes no surface buffer, so it neither declares
-/// that member nor is bound one. The two blocks share a name and not a shape,
-/// which is fine — they belong to different programs — and a check that binds
-/// this one has to bind what it declares.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 void main() {
   // Distance from the middle of the quad, where the corners sit at 1.
@@ -25236,13 +25296,7 @@ void main() {
   // and come out brighter than the wall it is supposed to be fading into;
   // multiplying toward zero is what "further away contributes less" means when
   // the destination is only ever added to.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
 
 #ifdef F3D_SOFT_PARTICLE
   intensity *= SoftParticleFade(v_world_position);
@@ -25388,16 +25442,83 @@ layout(location = 0) out vec4 frag_color;
 
 uniform sampler2D particle_texture;
 
-/// Declared again for the same reason the other particle stages declare it:
-/// this shader shares none of the lit path's headers.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 void main() {
   // `texture`, not `textureLod`. The level is chosen from the derivative the
@@ -25410,13 +25531,7 @@ void main() {
   // Attenuation rather than a mix. Blending an additive particle toward the
   // fog colour makes a distant one *add* fog to the wall behind it — the same
   // note as the other two particle stages, kept because each is read alone.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
 
   // The texture's alpha is coverage and the particle's is brightness, so the
   // two multiply rather than one replacing the other: a faded spark of a
@@ -25866,16 +25981,83 @@ layout(location = 0) out vec4 frag_color;
 uniform sampler2D six_way_positive;
 uniform sampler2D six_way_negative;
 
-/// Declared again, as in the other particle stages, since this shares none of
-/// the lit path's headers.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 layout(std140) uniform SixWayInfo {
   /// xyz: the quad's right, which is the camera's, in world space.
@@ -25935,13 +26117,7 @@ void main() {
 
   // A mix toward the fog, unlike the additive stages: this one covers what is
   // behind it, and covered smoke far away should read as the fog does.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
   color = mix(fog_info.fog.rgb, color, fogged);
 
   float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);
@@ -26091,23 +26267,83 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The lit shaders' block, declared again because this shader shares none of
-/// their headers — it has a different vertex layout and none of their varyings.
-///
-/// **The first two members of it, not all three.** `color.glsl` carries a
-/// `forward` beside these, for the view axis the surface buffer measures its
-/// depths along; a particle writes no surface buffer, so it neither declares
-/// that member nor is bound one. The two blocks share a name and not a shape,
-/// which is fine — they belong to different programs — and a check that binds
-/// this one has to bind what it declares.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 void main() {
   // Distance from the middle of the quad, where the corners sit at 1.
@@ -26125,13 +26361,7 @@ void main() {
   // and come out brighter than the wall it is supposed to be fading into;
   // multiplying toward zero is what "further away contributes less" means when
   // the destination is only ever added to.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
 
 #ifdef F3D_SOFT_PARTICLE
   intensity *= SoftParticleFade(v_world_position);
@@ -26277,16 +26507,83 @@ layout(location = 0) out vec4 frag_color;
 
 uniform sampler2D particle_texture;
 
-/// Declared again for the same reason the other particle stages declare it:
-/// this shader shares none of the lit path's headers.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 void main() {
   // `texture`, not `textureLod`. The level is chosen from the derivative the
@@ -26299,13 +26596,7 @@ void main() {
   // Attenuation rather than a mix. Blending an additive particle toward the
   // fog colour makes a distant one *add* fog to the wall behind it — the same
   // note as the other two particle stages, kept because each is read alone.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
 
   // The texture's alpha is coverage and the particle's is brightness, so the
   // two multiply rather than one replacing the other: a faded spark of a
@@ -26756,16 +27047,83 @@ layout(location = 0) out vec4 frag_color;
 uniform sampler2D six_way_positive;
 uniform sampler2D six_way_negative;
 
-/// Declared again, as in the other particle stages, since this shares none of
-/// the lit path's headers.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 layout(std140) uniform SixWayInfo {
   /// xyz: the quad's right, which is the camera's, in world space.
@@ -26825,13 +27183,7 @@ void main() {
 
   // A mix toward the fog, unlike the additive stages: this one covers what is
   // behind it, and covered smoke far away should read as the fog does.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-  }
+  float fogged = ParticleFogTransmittance();
   color = mix(fog_info.fog.rgb, color, fogged);
 
   float coverage = clamp(v_color.a * positive.a, 0.0, 1.0);
@@ -26881,18 +27233,83 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The same block the particle stage declares, for the same reason it declares
-/// it: a different vertex layout and none of the lit shaders' varyings, so none
-/// of their headers apply. Two members, not three — nothing here writes a
-/// surface buffer, so there is no view axis to measure a depth along.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 void main() {
   // `exp(-½ dᵀd)` with d already in standard deviations, which is what the
@@ -26918,11 +27335,7 @@ void main() {
   // fading into the air.
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
-    float visibility = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-    colour = mix(fog_info.fog.rgb, colour, visibility);
+    colour = mix(fog_info.fog.rgb, colour, ParticleFogTransmittance());
   }
 
   // Premultiplied, because that is what the blend state this is drawn under
@@ -27019,15 +27432,83 @@ in vec3 v_world_position;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The block `splat.frag` declares, for the fog mix it makes.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
+
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
+
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
 
 /// `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4 atlas.
 uniform sampler2D blue_noise_texture;
@@ -27097,11 +27578,7 @@ void main() {
 
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
-    float visibility = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-    colour = mix(fog_info.fog.rgb, colour, visibility);
+    colour = mix(fog_info.fog.rgb, colour, ParticleFogTransmittance());
   }
 
   // Opaque: whether the splat is here was decided above, and how much of it
@@ -27143,28 +27620,95 @@ in vec3 v_normal;
 
 layout(location = 0) out vec4 frag_color;
 
-/// The same block the other particle stage declares, for the same reason: this
-/// shader shares none of the lit shaders' headers.
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+// --- lib/particle_fog.glsl ---
+// The fog, for the stages that share none of the lit shaders' headers:
+// particles and splats — `P7`, `P5`.
+//
+// **The lit block's whole shape, where these stages used to declare its first
+// two members.** With only the fog and the eye, a particle could not tell an
+// orthographic camera from a perspective one, so it fogged in rings round a
+// point nobody sees and faced a mesh particle towards it; and with the eye's
+// `w` undeclared it could not thin upwards with a height fog, so it fogged at
+// the camera's density whatever its height. The four members and their
+// meanings are `color.glsl`'s, and the engine fills them the same way.
+//
+// Include after declaring `v_world_position`.
+
+#ifndef PARTICLE_FOG_GLSL_
+#define PARTICLE_FOG_GLSL_
+
 layout(std140) uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  /// rgb: linear fog colour. w: density per metre at the eye, zero for no
+  /// fog.
   vec4 fog;
 
-  /// xyz: camera position in world space.
+  /// xyz: camera position in world space. w: how fast the fog thins
+  /// upwards, per metre; nought is flat fog.
   vec4 eye;
+
+  /// xyz: the direction the camera looks, a unit vector in world space.
+  /// w: unused here.
+  vec4 forward;
+
+  /// x: one when the camera's projection is orthographic, nought when it is
+  /// perspective. y, z, w unused.
+  vec4 projection;
 }
 fog_info;
 
-void main() {
-  vec3 to_eye = fog_info.eye.xyz - v_world_position;
-  float distance_to_eye = length(to_eye);
+/// Whether the camera is orthographic. See `Orthographic` in `color.glsl`.
+bool ParticleOrthographic() { return fog_info.projection.x > 0.5; }
 
+/// The air between the eye and this fragment, in metres: the distance from
+/// the eye through a perspective lens, the depth from the eye's plane
+/// through an orthographic one — `EyeDistance` in `color.glsl`.
+float ParticleEyeDistance() {
+  return ParticleOrthographic()
+             ? max(dot(v_world_position - fog_info.eye.xyz,
+                       fog_info.forward.xyz),
+                   0.0)
+             : distance(v_world_position, fog_info.eye.xyz);
+}
+
+/// The unit direction back along the ray that reached this fragment: to the
+/// eye through a perspective lens, against the view axis through an
+/// orthographic one. `TowardsEye` in `color.glsl`.
+vec3 ParticleTowardsEye() {
+  vec3 to_eye = fog_info.eye.xyz - v_world_position;
+  float length_to_eye = length(to_eye);
+  if (ParticleOrthographic()) return -fog_info.forward.xyz;
+  return length_to_eye > 0.0 ? to_eye / length_to_eye : vec3(0.0);
+}
+
+/// How much of this fragment the fog leaves, from nought to one: `ApplyFog`'s
+/// share in `color.glsl`, height fog and all, so a puff of smoke in a valley
+/// fogs as the ground beside it does. One with no fog.
+float ParticleFogTransmittance() {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return 1.0;
+  float falloff = fog_info.eye.w;
+  if (falloff > 0.0) {
+    float k = falloff * (v_world_position.y - fog_info.eye.y);
+    density *= abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+  }
+  return clamp(exp(-density * ParticleEyeDistance()), 0.0, 1.0);
+}
+
+#endif  // PARTICLE_FOG_GLSL_
+
+
+void main() {
   // `abs`, not `max(dot, 0)`. Nothing here is culled — a particle mesh is seen
   // from every side as it tumbles — so a back face is as visible as a front
   // one, and clamping would make half of every shard go black rather than dim.
+  //
+  // `P7`: faced against the view axis through an orthographic lens, where
+  // the eye's point is only where the camera was put — a shard turning past
+  // it would otherwise brighten and dim with where the camera stands.
   vec3 n = normalize(v_normal);
-  float facing = distance_to_eye > 0.0
-      ? abs(dot(n, to_eye / distance_to_eye))
-      : 1.0;
+  vec3 towards = ParticleTowardsEye();
+  float facing = dot(towards, towards) > 0.0 ? abs(dot(n, towards)) : 1.0;
 
   // Never all the way to zero. A silhouette edge is exactly perpendicular to
   // the eye, and a face that vanished there would carve a dark seam across the
@@ -27174,10 +27718,7 @@ void main() {
   // Attenuation rather than a mix, for the reason spelled out in
   // lighting/particle.frag: blending toward the fog colour makes a distant
   // additive particle *add* fog to the wall behind it.
-  float fogged = 1.0;
-  if (fog_info.fog.w > 0.0) {
-    fogged = clamp(exp(-fog_info.fog.w * distance_to_eye), 0.0, 1.0);
-  }
+  float fogged = ParticleFogTransmittance();
 
   frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);
 }

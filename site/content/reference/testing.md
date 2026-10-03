@@ -1,10 +1,10 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 11355 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 11362 tests need a GPU.
 ---
 
 # Testing
 
-11355 tests across 43 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+11362 tests across 43 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -12,7 +12,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | | | | `flutter3d_mesh` | 599 |
 | | | | `apps/flutter3d_modeler` | 1750 |
 | `flutter3d_sim` | 700 | | `pad_input` | 67 |
-| `flutter3d_lab` | 15 | | `flutter3d_core` | 771 |
+| `flutter3d_lab` | 15 | | `flutter3d_core` | 773 |
 | `flutter3d_lti` | 26 | | `apps/flutter3d_lab_pendulum` | 7 |
 | | | | `apps/flutter3d_lab_incident` | 13 |
 | `flutter3d_game_shooter` | 340 | | `flutter3d_audio_core` | 55 |
@@ -20,7 +20,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 62 |
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 70 |
 | `apps/flutter3d_demo_platformer` | 208 | | `flutter3d_impeller` | 64 |
-| `flutter3d_cpu` | 382 | | `apps/flutter3d_demo_strategy` | 50 |
+| `flutter3d_cpu` | 385 | | `apps/flutter3d_demo_strategy` | 50 |
 | `apps/flutter3d_editor` | 234 | | `apps/flutter3d_demo_arcade` | 20 |
 | `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 269 | | `flutter3d_webgpu` | 193 |
@@ -29,7 +29,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_editor_core` | 141 | | `flutter3d_editor_widgets` | 91 |
 | `apps/flutter3d_demo_dungeon` | 115 | | `flutter3d_app` | 170 |
 | `flutter3d_game` | 325 | | `flutter3d_shaders` | 5 |
-| `flutter3d_particles` | 97 | | `flutter3d_stereo` | 50 |
+| `flutter3d_particles` | 99 | | `flutter3d_stereo` | 50 |
 | `flutter3d_model_core` | 1172 | | `flutter3d_model_mcp` | 196 |
 | `flutter3d_editor_play` | 28 | | `flutter3d_net` | 15 |
 | | | | `flutter3d_net_webrtc` | 2 |
@@ -40,7 +40,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 88 |
 | `flame_multiplayer` | 9 | | `flame_multiplayer_dashwire` | 3 |
 
-The rows sum to 11328 rather than 11355: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 11335 rather than 11362: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 

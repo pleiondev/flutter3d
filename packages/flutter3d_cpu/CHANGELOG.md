@@ -1,5 +1,9 @@
 ## Unreleased
 
+- The software particle and splat stages fog as `lib/particle_fog.glsl`
+  does — by depth through an orthographic lens, height fog integrated — and
+  the mesh particle faces the view axis there (`P7`, `P5`).
+
 - The software `ShadowFactor`, light shafts and volumetric fog pick a
   cascade as the GLSL now does under an orthographic camera (`P7`);
   `orthographic-shadow` is in the software reference set.

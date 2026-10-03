@@ -30,18 +30,8 @@ in vec3 v_world_position;
 
 out vec4 frag_color;
 
-/// The same block the particle stage declares, for the same reason it declares
-/// it: a different vertex layout and none of the lit shaders' varyings, so none
-/// of their headers apply. Two members, not three — nothing here writes a
-/// surface buffer, so there is no view axis to measure a depth along.
-uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
-  vec4 fog;
-
-  /// xyz: camera position in world space.
-  vec4 eye;
-}
-fog_info;
+// The fog's block, whole — see `lib/particle_fog.glsl`.
+#include <lib/particle_fog.glsl>
 
 void main() {
   // `exp(-½ dᵀd)` with d already in standard deviations, which is what the
@@ -67,11 +57,7 @@ void main() {
   // fading into the air.
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
-    float visibility = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
-        0.0,
-        1.0);
-    colour = mix(fog_info.fog.rgb, colour, visibility);
+    colour = mix(fog_info.fog.rgb, colour, ParticleFogTransmittance());
   }
 
   // Premultiplied, because that is what the blend state this is drawn under
