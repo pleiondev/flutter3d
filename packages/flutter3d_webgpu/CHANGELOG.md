@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `orthographic-shadow` in the WebGPU reference set, at 0 pixels from
+  Impeller.
+
 - The shader table regenerated for the caustic stages.
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured

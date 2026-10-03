@@ -1269,6 +1269,68 @@ abstract final class GoldenStages {
         fog: FogSettings(color: Vector3(0.7, 0.75, 0.8), density: 0.03),
       );
 
+  /// `orthographic-shadow`: a strategy board seen isometrically — a floor a
+  /// hundred and twenty metres on a side, a level far larger than the box
+  /// the camera sees, with blocks for buildings and thin posts for units in
+  /// rows from the near edge of the view to the far one, under the sun,
+  /// through an orthographic camera standing sixty metres back along its
+  /// axis.
+  ///
+  /// What it holds is `P7`'s cascade split: the near cascades fitted to the
+  /// box and shared evenly through its depth, so the posts at the top of the
+  /// frame cast as sharp a shadow as the ones at the bottom. Split from the
+  /// eye as a perspective camera's are, every shadow here fell to the last
+  /// cascade, the whole floor, and the posts cast none that could be seen.
+  static Future<GoldenStaged> orthographicShadow(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-1.0, -1.1, -0.45).normalized());
+    final stone = Material(baseColor: Vector4(0.78, 0.74, 0.68, 1.0));
+    final roof = Material(baseColor: Vector4(0.62, 0.34, 0.26, 1.0));
+    final unit = Material(baseColor: Vector4(0.25, 0.4, 0.7, 1.0));
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(120.0, 0.2, 120.0),
+          Vector3(0.0, -0.1, 0.0),
+          Material(baseColor: Vector4(0.5, 0.6, 0.42, 1.0), roughness: 0.95),
+        ),
+        for (final (x, z, height) in <(double, double, double)>[
+          (-4.0, -4.0, 2.5),
+          (3.0, -5.0, 1.5),
+          (-5.0, 3.0, 1.8),
+          (4.5, 4.0, 3.0),
+          (0.0, 0.0, 1.2),
+        ]) ...<SceneNode>[
+          _slab(
+            device,
+            Vector3(1.8, height, 1.8),
+            Vector3(x, height * 0.5, z),
+            stone,
+          ),
+          _slab(
+            device,
+            Vector3(2.0, 0.3, 2.0),
+            Vector3(x, height + 0.15, z),
+            roof,
+          ),
+        ],
+        for (var row = -3; row <= 3; row++)
+          for (var column = -1; column <= 1; column++)
+            _slab(
+              device,
+              Vector3(0.12, 1.0, 0.12),
+              Vector3(column * 2.4 + row * 0.6, 0.5, row * 2.6),
+              unit,
+            ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 14.0, far: 200.0)
+        ..setPosition(34.6, 34.6, 34.6)
+        ..lookAt(Vector3.zero()),
+    );
+  }
+
   // ------------------------------------------------------------------ P6
 
   /// `debug-view-split`: the lit teapot left of the middle and its shading
@@ -1276,10 +1338,7 @@ abstract final class GoldenStages {
   /// makes, and the composite leaving the right half out of the tone curve.
   static RenderSettings debugViewSplit(RenderSettings settings) =>
       settings.copyWith(
-        debugView: const DebugViewSettings(
-          view: DebugView.normal,
-          split: 0.5,
-        ),
+        debugView: const DebugViewSettings(view: DebugView.normal, split: 0.5),
       );
 
   // ------------------------------------------------------------------ R6

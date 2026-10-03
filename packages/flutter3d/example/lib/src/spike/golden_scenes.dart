@@ -1264,6 +1264,16 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.orthographicMetalSettings,
   ),
 
+  // P7. A strategy board through an isometric orthographic camera, its
+  // shadows from cascades split through the box rather than from the eye.
+  const GoldenScene(
+    name: 'orthographic-shadow',
+    source: 'Cube',
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicShadow,
+  ),
+
   // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
   // normal on the right.
   const GoldenScene(

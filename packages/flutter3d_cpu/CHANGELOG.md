@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `orthographic-shadow` in the software reference set, at 1.117% from
+  Impeller on the edges.
+
 - The software caustic stages: a refracting caster's faces, the photon
   vertex stage with its ray differentials, and the photon quad.
 - The software `ShadowTransmittance` reads the base colour map and lets the

@@ -1,5 +1,9 @@
 ## Unreleased
 
+- `orthographic-shadow` in the reference set: a strategy board through an
+  isometric orthographic camera, its posts' shadows as sharp at the top of
+  the frame as at the bottom.
+
 - **`generatedMaterialPathFor`**: where the build hook writes a `.f3dmat`'s
   compiled bundle, `flutter3d_generated/<same path>.f3dshaders`.
 
