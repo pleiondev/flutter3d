@@ -1,3 +1,8 @@
+// The background is another isolate, which the web has not: there what
+// would be put off is worked out at once, and nothing here applies.
+@TestOn('vm')
+library;
+
 import 'dart:math' as math;
 import 'dart:typed_data';
 
