@@ -201,9 +201,9 @@ a KTX2 that arrives is read. The converter writes them as well:
 image and BC3 for one with alpha, `--textures etc2` encodes ETC2 RGB, and
 `--textures universal` writes one file of 4×4 blocks that the load turns into
 BC, ASTC, ETC2 or RGBA8, whichever the device samples. Each gets a mip chain
-unless `--no-mips` asks otherwise. Two gaps are left. ETC2 leaves an image with
-alpha as it arrived, because the EAC alpha block is not written yet, and ASTC
-is reachable only through `universal`, with no `--textures astc` of its own.
+unless `--no-mips` asks otherwise. ETC2 still leaves an image with alpha as it
+arrived, because the EAC alpha block is not written yet, and ASTC comes only
+out of a `universal` file at load, since there is no `--textures astc`.
 The build hook picks the family from its target: BC on desktop, ETC2 on
 Android and iOS, nothing on the web, where a browser can be any machine. So a
 native build of the dungeon, platformer or racing demo carries its models'
