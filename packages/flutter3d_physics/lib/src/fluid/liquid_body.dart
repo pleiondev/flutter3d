@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
+import 'atmosphere.dart';
 import 'capillary.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
@@ -367,6 +368,50 @@ final class LiquidBody implements JetReceiver {
     _maybeSleep(gravity, spill);
     return spill;
   }
+
+  /// **What evaporates from its open surface in [dt]** into [air],
+  /// cubic metres of liquid, taken from the top layer's solvent: what is
+  /// dissolved stays, and grows stronger.
+  ///
+  /// Vapour leaves the surface by diffusing up the air standing over it to
+  /// the mouth, and from the mouth out into the room: Stefan's tube, a
+  /// column L tall over the surface's area A, then the mouth as a disc of
+  /// radius r, whose diffusive conductance is 4·D·r. In series, the rate
+  /// is Δc / (L/(D·A) + 1/(4·D·r)): about three microlitres an hour from
+  /// a test tube in room air. Applied a nanolitre at a time, about once a
+  /// second there, a few nanometres off the level; each step would wake a
+  /// sleeping glass to lower it by a fraction of that.
+  double evaporate(double dt, Atmosphere air) {
+    if (_layers.isEmpty) return 0.0;
+    final top = _layers.last;
+    final shape = this.shape;
+    if (shape is! RevolvedVessel) return 0.0;
+    final deficit = air.vapourDeficit(top.medium);
+    if (deficit <= 0.0) return 0.0;
+    final d = air.vapourDiffusivity;
+    final surfaceRadius = shape.radiusAt(height);
+    final mouth = shape.radiusAt(shape.top);
+    if (surfaceRadius <= 0.0 || mouth <= 0.0) return 0.0;
+    final edge = shape.lip(_up);
+    final column = math.max((edge?.height ?? shape.top) - height, 0.0);
+    final area = math.pi * surfaceRadius * surfaceRadius;
+    final resistance = column / (d * area) + 1.0 / (4.0 * d * mouth);
+    _evaporating += deficit / resistance / top.medium.density * dt;
+    if (_evaporating < 1e-12) return 0.0;
+    final gone = math.min(_evaporating, top.volume);
+    _evaporating = 0.0;
+    top.volume -= gone;
+    if (top.volume <= 0.0) _layers.removeLast();
+    if (_asleep) {
+      // A few nanometres lower and still asleep.
+      _sleptVolume = volume;
+    } else {
+      _relayIfMoved();
+    }
+    return gone;
+  }
+
+  double _evaporating = 0.0;
 
   bool _asleep = false;
   double _sleptVolume = double.nan;

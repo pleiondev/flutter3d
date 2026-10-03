@@ -71,6 +71,16 @@ A drop is stopped by the wall it touches: a viscous liquid has no velocity along
 
 What reaches a floor given to the world becomes a `Puddle` on its `PuddleSurface`, one body with a volume and what is dissolved in it, not particles. A spread puddle is 2ℓc·sin(θ/2) deep, under a millimetre for water on glass; a smaller one is a spherical cap meeting the surface at the contact angle. It spreads there as a viscous gravity current, R ∝ (ρgV³/μ)^⅛·t^⅛ (Huppert), which water finishes in milliseconds. Puddles that meet run together. Draw them with `capMesh(...)`.
 
+## Air
+
+A `FluidWorld` has an `Atmosphere`: temperature, pressure, humidity and wind, room air unless told otherwise. Its density is moist air's as an ideal gas, its viscosity Sutherland's, and water vapour diffuses through it at Marrero and Mason's rate.
+
+- A drop falls against Schiller and Naumann's drag on a sphere of the drop's own size, so a millimetre drop settles at 3.8 m/s. Gunn and Kinzer measured 4.03: a drop's inside circulates, and a rigid sphere's drag does not know that.
+- A stream bends in a crosswind, with White's drag on a cylinder across it.
+- Open liquid evaporates. A tube does so up the air standing over its liquid and out of its mouth, Stefan's tube, about three microlitres an hour. A puddle follows Hu and Larson in still air and a flat plate's boundary layer in a wind, and a drop follows Ranz and Marshall. Only the solvent leaves, so what is dissolved grows stronger, and `FluidWorld.evaporated` keeps the vapour in the accounts.
+
+Only water has a vapour curve so far; the other media do not evaporate yet.
+
 ## Capillarity
 
 `TubeMeniscus` solves the Young–Laplace equation for a tube's radius and the liquid's contact angle by shooting, so a narrow tube's meniscus is the right curve, not a fillet. `jurinHeight` is the rise in a thin tube, and the tests check one against the other. A `LiquidBody` lifts its drawn surface by the meniscus and adds the capillary pressure where it matters, in pipes.
