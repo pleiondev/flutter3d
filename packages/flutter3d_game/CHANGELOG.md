@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **`RunTimeline.stepOnce` at the present is a step the run keeps.** It
+  writes the input to `recorders` (pass `GameLoop.recorders`; the rewind
+  buffer's recorder alone by default), takes the keyframe that falls due
+  through `capture`, and runs `onStepped` after, so a rewind or branch past
+  paused steps no longer replays without them.
+- **A branch cuts the demo too.** `RunTimeline(onBranched:)` hears the step
+  `releaseAt` or `branchHere` cut to and how far back that was;
+  `DemoRecording.branched(stepsAgo:)` truncates the tape there, forgets the
+  checkpoints after it and drops a level swap after it.
+  `DemoRecording.levelSwaps` lists the swaps so far.
 - **An edit made under a running game goes into its demo.**
   `DemoRecording` is the run being written down: start, recorder,
   checkpoints and the levels swapped in, with `levelSwapped` turning the

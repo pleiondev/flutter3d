@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **`InputTapeRecorder.truncate`** keeps the first so many entries, for a
+  run rewound and gone on from an earlier step.
 - **A `.f3drun` carries the levels edited under the run.**
   `Demo.levelSwaps` holds each one as a `DemoLevelSwap`: the step it took
   effect before and the whole document, since the edited level exists in no

@@ -75,9 +75,10 @@ void _live(
   DemoRecording demo, {
   required int from,
   required int to,
+  void Function(InputState input, int step) play = _play,
 }) {
   for (var step = from; step < to; step++) {
-    _play(input, step);
+    play(input, step);
     rewind.recorder.record(input);
     demo.recorder.record(input);
     input.beginStep();
@@ -198,6 +199,72 @@ void main() {
     expect(_bytes(control.level!.sim.save()), isNot(arrived));
     expect(parted.divergence, isNotNull);
     expect(parted.divergence!.step, greaterThan(file.levelSwaps.single.step));
+  });
+
+  test('a run paused, stepped, branched back and played on, saved and '
+      'replayed, arrives where the branch went', () async {
+    const paused = 200;
+    const stepped = 212;
+    const branch = 170;
+    const end = 300;
+    final input = InputState();
+    final run = _game(input);
+    await run.begin();
+    final start = run.level!.sim.save();
+    final demo = DemoRecording(
+      level: _first,
+      levelHash: run.level!.loaded.level.digestHex,
+      start: start,
+      seed: start.data.integer('random'),
+    );
+    final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+    // `main.dart`'s wiring: the loop's recorders, the keyframe, the
+    // checkpoint after a paused step, and the branch into the demo.
+    final timeline = RunTimeline(
+      rewind: rewind,
+      input: input,
+      stepSim: (double dt) => run.level!.sim.step(dt),
+      restore: (Snapshot snapshot) => run.level!.sim.restore(snapshot),
+      recorders: <InputTapeRecorder>[rewind.recorder, demo.recorder],
+      capture: () => run.level!.sim.save(),
+      onStepped: () => demo.observe(run.level!.sim.save),
+      onBranched: (int step, {required int stepsAgo}) =>
+          expect(demo.branched(stepsAgo: stepsAgo), isTrue),
+    );
+
+    _live(run, input, rewind, demo, from: 0, to: paused);
+    timeline.pause();
+    for (var step = paused; step < stepped; step++) {
+      _play(input, step);
+      timeline.stepOnce();
+    }
+    expect(timeline.releaseAtStep(branch), isTrue);
+    // The branch stands still where the first run ran on.
+    _live(
+      run,
+      input,
+      rewind,
+      demo,
+      from: branch,
+      to: end,
+      play: (InputState input, int step) =>
+          input.release(GameAction.moveForward),
+    );
+    final arrived = _bytes(run.level!.sim.save());
+
+    final sent = jsonEncode(demo.demo(buildStamp: 'test-build').toJson());
+    final file = Demo.fromJson(jsonDecode(sent) as Map<String, Object?>);
+    // Mutation: make `DemoRecording.branched` a no-op — the file holds the
+    // 42 steps of the old future too, and replays somewhere else.
+    expect(file.steps, end);
+
+    final replayInput = InputState();
+    final replayRun = _game(replayInput);
+    await replayRun.begin();
+    final replayed = await replayRun.replay(file);
+    expect(replayed.steps, end);
+    expect(replayed.divergence, isNull);
+    expect(_bytes(replayRun.level!.sim.save()), arrived);
   });
 
   test('a demo recorded in another level is refused before a step', () async {
