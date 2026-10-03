@@ -106,7 +106,7 @@ extension _VelocityPass on Renderer {
     final eye = vm.Vector3.zero();
     final forward = vm.Vector3.zero();
     camera
-      ..readWorldPosition(eye)
+      ..readViewOrigin(eye)
       ..readForward(forward);
     _prevFrameInfo.camera
       ..[0] = eye.x

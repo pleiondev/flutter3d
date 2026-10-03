@@ -764,7 +764,7 @@ extension _ShadowPasses on Renderer {
       // so there is nothing for a logarithm to follow — and as wide as the
       // frame's half-diagonal, from the frame's own aspect. `shadow.glsl` picks one by depth along
       // the axis to match.
-      final eyeAt = camera.readWorldPosition();
+      final eyeAt = camera.readViewOrigin();
       final forward = camera.readForward();
       final aspect = resources.frameHeight > 0
           ? resources.frameWidth / resources.frameHeight
@@ -822,7 +822,7 @@ extension _ShadowPasses on Renderer {
         radii.add(math.sqrt(across * across + half * half));
       }
     } else if (count > 1 && camera != null) {
-      final eyeAt = camera.readWorldPosition();
+      final eyeAt = camera.readViewOrigin();
       final forward = camera.readForward();
       final near = 1.0;
       final far = math.min(

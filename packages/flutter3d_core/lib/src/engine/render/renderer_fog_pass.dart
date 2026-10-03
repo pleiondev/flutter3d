@@ -69,7 +69,7 @@ extension _FogPass on Renderer {
     info.inverseViewProjection.setAll(0, inverse.storage);
 
     final eye = vm.Vector3.zero();
-    view.camera.readWorldPosition(eye);
+    view.camera.readViewOrigin(eye);
     info.camera
       ..[0] = eye.x
       ..[1] = eye.y

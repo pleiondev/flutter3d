@@ -110,7 +110,7 @@ final class ViewModelNode extends RenderNode {
     frame.state.invalidatePipeline();
 
     final aspect = height == 0 ? 1.0 : width / height;
-    camera.readWorldPosition(_cameraPosition);
+    camera.readViewOrigin(_cameraPosition);
 
     frame.services.encodeScene(
       frame: frame,

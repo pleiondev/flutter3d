@@ -160,6 +160,44 @@ void main() {
     expect(_spread(fogged), lessThan(0.01));
   });
 
+  test('what stands behind the camera, ahead of its near plane, is measured '
+      'from that plane', () {
+    // Through an orthographic lens the rays begin on the near plane, so a
+    // camera at the origin with its near plane ten metres behind it and one
+    // stood on that plane draw the same picture of a wall three metres
+    // behind the first — fog and all.
+    //
+    // Mutation: measure from the camera's own position in `readViewOrigin`,
+    // and the wall behind it has a depth below nought: no fog at all, and a
+    // surface buffer that reads it as sky.
+    final settings = RenderSettings(
+      bloom: const BloomSettings(enabled: false),
+      look: const LookSettings(dither: 0.0),
+      fog: FogSettings(color: Vector3.zero(), density: 0.1),
+    );
+    final material = Material(
+      lighting: LightingModel.unlit,
+      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+    );
+    final behind = _render(
+      const OrthographicProjection(height: 6.0, near: -10.0),
+      distance: -3.0,
+      settings: settings,
+      material: material,
+    );
+    final onThePlane = _render(
+      const OrthographicProjection(height: 6.0, near: 0.0),
+      distance: 7.0,
+      settings: settings,
+      material: material,
+    );
+    for (final (x, y) in <(int, int)>[(_width ~/ 2, _height ~/ 2), (8, 8)]) {
+      final a = _at(behind, x, y);
+      expect(a.x, lessThan(0.9), reason: 'the wall is not fogged');
+      expect((a - _at(onThePlane, x, y)).length, lessThan(0.005));
+    }
+  });
+
   test('the sky is a gradient, not one colour', () {
     // Mutation: hand the sky the orthographic matrix's own corner rays, which
     // are all the view axis, and the frame is a single colour.

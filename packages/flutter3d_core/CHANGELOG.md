@@ -89,6 +89,13 @@
   particle stages share. `orthographic-particles` — billboards, splats and
   mesh particles, five columns alike — is in all four golden sets.
 
+- **An orthographic near plane can stand behind the camera.**
+  `CameraNode.readViewOrigin` is where the rays begin — the camera's
+  position, or its near plane where that is behind it — and the renderer
+  measures depths, the fog's air and the shadow cascades from it. What
+  stood between that plane and the camera used to have a depth of nought
+  or less, which the surface buffer reads as sky, and took no fog.
+
 - **A material channel in place of the light, over all or part of the
   frame.** `RenderSettings.debugView` takes a `DebugViewSettings`: a
   `DebugView` — albedo, the shading normal, roughness, metalness,

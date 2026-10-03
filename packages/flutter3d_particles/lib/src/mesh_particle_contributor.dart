@@ -205,7 +205,7 @@ final class MeshParticleContributor extends PassContributor {
     _fog[0] = colour.x;
     _fog[1] = colour.y;
     _fog[2] = colour.z;
-    view.camera.readWorldPosition(_eye);
+    view.camera.readViewOrigin(_eye);
     // The air as thick as it is at the camera: a height fog's falloff is not
     // integrated here — `FogSettings.densityAt` says what that costs.
     _fog[3] = fog.densityAt(_eye.y);

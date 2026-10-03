@@ -574,7 +574,7 @@ extension _PostPasses on Renderer {
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
 
-    view.camera.readWorldPosition(_ssaoCamera);
+    view.camera.readViewOrigin(_ssaoCamera);
     _contactCamera[0] = _ssaoCamera.x;
     _contactCamera[1] = _ssaoCamera.y;
     _contactCamera[2] = _ssaoCamera.z;
@@ -646,7 +646,7 @@ extension _PostPasses on Renderer {
     final inverse = vm.Matrix4.copy(toFramebufferOrigin(current, origin))
       ..invert();
 
-    view.camera.readWorldPosition(_ssaoCamera);
+    view.camera.readViewOrigin(_ssaoCamera);
     view.camera.readForward(_ssaoForward);
     _cameraVelocityInfo.inverseViewProjection.setAll(0, inverse.storage);
     _cameraVelocityInfo.previousViewProjection.setAll(
@@ -726,7 +726,7 @@ extension _PostPasses on Renderer {
     // The other half of the reconstruction: the buffer holds how far along the
     // view axis the surface is, in metres, so the pass needs to know where that
     // axis starts and which way it points. See `WorldAtDepth`.
-    view.camera.readWorldPosition(_ssaoCamera);
+    view.camera.readViewOrigin(_ssaoCamera);
     _ssaoCameraData[0] = _ssaoCamera.x;
     _ssaoCameraData[1] = _ssaoCamera.y;
     _ssaoCameraData[2] = _ssaoCamera.z;
@@ -820,7 +820,7 @@ extension _PostPasses on Renderer {
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
 
-    view.camera.readWorldPosition(_shaftCameraVec);
+    view.camera.readViewOrigin(_shaftCameraVec);
     _shaftCamera[0] = _shaftCameraVec.x;
     _shaftCamera[1] = _shaftCameraVec.y;
     _shaftCamera[2] = _shaftCameraVec.z;
@@ -1379,7 +1379,7 @@ extension _PostPasses on Renderer {
       device.framebufferOrigin,
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
-    view.camera.readWorldPosition(_reflectionCamera);
+    view.camera.readViewOrigin(_reflectionCamera);
 
     final options = settings.reflections;
     _reflectionParams[0] = options.steps.toDouble();
@@ -1600,7 +1600,7 @@ extension _PostPasses on Renderer {
     _pyramidInFlight = true;
     final epoch = _hiZEpoch;
     final viewProjection = camera.viewProjection(aspect);
-    final eye = camera.readWorldPosition();
+    final eye = camera.readViewOrigin();
     final forward = camera.readForward();
     final far = camera.projection.far;
     Future<ByteData>.sync(() => device.readback(target))

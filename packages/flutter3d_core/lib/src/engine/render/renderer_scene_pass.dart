@@ -294,7 +294,7 @@ extension _ScenePasses on Renderer {
         occlusion: occlusion,
       );
 
-      camera.readWorldPosition(cameraPosition);
+      camera.readViewOrigin(cameraPosition);
 
       lightOverflow = lightOverflowCount;
 
@@ -579,7 +579,7 @@ extension _ScenePasses on Renderer {
           meshes: scene.meshes,
           viewProjection: camera.viewProjection(aspect),
           frustum: frustum,
-          eye: camera.readWorldPosition(),
+          eye: camera.readViewOrigin(),
           layerMask: view.layerMask,
           cullBackFaces: settings.backfaceCulling,
         );
@@ -590,7 +590,7 @@ extension _ScenePasses on Renderer {
         if (views != 1) return null;
         return hiZ.prepare(
           camera.viewProjection(aspect),
-          eye: camera.readWorldPosition(),
+          eye: camera.readViewOrigin(),
           forward: camera.readForward(),
           camera: camera,
         );

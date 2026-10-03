@@ -167,7 +167,7 @@ extension _DecalPass on Renderer {
         toFramebufferOrigin(viewProjection, device.framebufferOrigin),
       )..invert();
       info.inverseViewProjection.setAll(0, inverse.storage);
-      final eye = view.camera.readWorldPosition();
+      final eye = view.camera.readViewOrigin();
       final forward = vm.Vector3.zero();
       view.camera.readForward(forward);
       info.camera

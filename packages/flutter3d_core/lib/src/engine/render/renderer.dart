@@ -2384,7 +2384,7 @@ final class Renderer implements RenderServices {
     for (final view in views) {
       if (view.priority < primary.priority) primary = view;
     }
-    primary.camera.readWorldPosition(_shadowEye);
+    primary.camera.readViewOrigin(_shadowEye);
 
     for (final light in scene.lights) {
       final spot = light.type == LightType.spot;

@@ -178,7 +178,7 @@ extension _PlanarPasses on Renderer {
       ),
     );
     final camera = texture.camera;
-    final eye = camera.readWorldPosition();
+    final eye = camera.readViewOrigin();
     final viewProjection = _viewProjection(
       camera,
       texture.width / texture.height,
@@ -259,7 +259,7 @@ extension _PlanarPasses on Renderer {
       state.drawn[i] = false;
       final view = views[i];
       final camera = view.camera;
-      final eye = camera.readWorldPosition();
+      final eye = camera.readViewOrigin();
       // From behind, or level with it: no reflection to see.
       if (normal.dot(eye - point) <= 0.0) continue;
 

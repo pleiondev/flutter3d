@@ -554,7 +554,7 @@ final class SplatContributor extends PassContributor {
     final m = camera.worldMatrix.storage;
     final right = Vector3(m[0], m[1], m[2])..normalize();
     final up = Vector3(m[4], m[5], m[6])..normalize();
-    final eye = camera.readWorldPosition();
+    final eye = camera.readViewOrigin();
     final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
 
     // The projection the frame draws with, recovered from the matrix it was
