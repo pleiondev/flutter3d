@@ -312,7 +312,10 @@ class _Controls extends StatelessWidget {
                 const Text('Tilt'),
                 Expanded(
                   child: Slider(
-                    value: vessel.tilt.clamp(
+                    // Where the hand is going, not where the glass is yet:
+                    // it turns at a hand's pace, and a slider that followed
+                    // it would pull back under the finger.
+                    value: vessel.aimTilt.clamp(
                       -bench.maxLean(vessel),
                       bench.maxLean(vessel),
                     ),

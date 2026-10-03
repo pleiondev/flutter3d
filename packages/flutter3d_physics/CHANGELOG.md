@@ -1,5 +1,27 @@
 ## Unreleased
 
+- **Drops let go on top of each other spread instead of flying apart.**
+  A stream lets go of its drops at one point step after step, so
+  `ParticleFluid` laid each lump exactly on the last. A coincident pair
+  counts whole in each other's density, but the kernel has no gradient at
+  nought, so the constraint read heavily compressed with nothing to part
+  along and λ = −C / |∇C|² ran away: the chemistry bench's overflowing flask
+  threw thirty thousand particles eleven metres up. Coincident particles now
+  part along a direction set by the pair, and each substep first takes the
+  compression it starts with out of the positions alone (pre-stabilisation),
+  so overlap is never turned into speed. `velocities` reads each particle's.
+
+- **No wave stands steeper than Stokes' limit.** `FreeSurface` breaks a
+  mode higher than a fourteenth of its wavelength: the linear modes knew no
+  bound, and a vessel turned sixty-seven degrees in a step laid its old
+  level out as a thirty-four millimetre wave that threw most of it over the
+  lip.
+
+- **An upright, overfull vessel runs over its edge, outwards.** Over every
+  part of a level lip at once, the outward pulls cancelled: the spill left
+  from the middle of the mouth with no speed and fell back in, round and
+  round. It leaves over the stretch passing most, no wider than the mouth.
+
 - **A body can turn, if it is built to.** `RigidBody` has an `orientation`,
   an `angularVelocity`, an inertia tensor in its own axes
   (`inertiaLocal`, `inverseInertiaLocal`) and one in the world's

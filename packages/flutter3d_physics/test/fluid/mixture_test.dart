@@ -49,7 +49,10 @@ void main() {
     body.pour(2e-6, medium: FluidMedium.oil);
     var oil = 0.0, water = 0.0;
     for (var i = 0; i < 3000; i++) {
-      body.place(Matrix3.rotationX(1.2), Vector3.zero());
+      // Tipped far enough that the still surface lets more than the oil
+      // go: at 1.2 rad it was a sloshing wave larger than any liquid makes
+      // that threw the rest over, and that wave now breaks.
+      body.place(Matrix3.rotationX(1.45), Vector3.zero());
       final spill = body.step(1e-3, gravity: Vector3(0, -9.81, 0));
       if (spill.medium.name == 'oil') oil += spill.flow * 1e-3;
       if (spill.medium.name == 'water') water += spill.flow * 1e-3;

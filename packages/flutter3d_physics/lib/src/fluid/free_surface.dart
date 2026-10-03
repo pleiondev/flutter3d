@@ -177,7 +177,30 @@ final class FreeSurface {
       _amplitude[n] = e * (a * c + b * s);
       _rate[n] = e * (v * c - (decay * b + a * wd) * s);
     }
+    _breakSteep();
     _field = null;
+  }
+
+  /// Breaks every mode steeper than Stokes' limit: a wave whose height is
+  /// more than about a seventh of its length cannot stand, and spills its
+  /// crest. So a mode stands no higher than a fourteenth of its wavelength
+  /// anywhere, and what was more is lost to the break, its motion with it.
+  ///
+  /// **A linear model's own bound, imposed.** The modes are small waves on
+  /// a plane, and nothing in them stops one growing past what water does: a
+  /// flask turned sixty-seven degrees in one frame was laid out with the old
+  /// level as a thirty-four millimetre wave, which no liquid makes, and it
+  /// threw four fifths of what the flask held over the lip in ten frames.
+  void _breakSteep() {
+    for (var n = 0; n < _amplitude.length; n++) {
+      final k = math.sqrt(_k2[n]);
+      final peak = _amplitude[n].abs() * _norm(n);
+      final most = 2.0 * math.pi / (14.0 * math.max(k, 1e-9));
+      if (peak <= most) continue;
+      final keep = most / peak;
+      _amplitude[n] *= keep;
+      _rate[n] *= keep;
+    }
   }
 
   Float64List _omega2 = Float64List(0);

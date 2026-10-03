@@ -193,6 +193,63 @@ void main() {
     }
   });
 
+  group('leaning and topping up — what the overflowing flask did', () {
+    // Reported from the bench: a flask leant to its furthest and topped up
+    // threw a stream, thirty thousand drops eleven metres up and a frame of
+    // three and a half seconds. Three causes, each held here; the drops
+    // themselves are held in `flutter3d_physics`.
+
+    test('leant to its furthest, a glass spills nothing', () {
+      // Mutation: turn the glass at once in `lean` — its old level is laid
+      // out as a wave no water makes, and four fifths go over the lip.
+      final kit = cpuTestDevice(width: 8, height: 8);
+      final bench = Bench(kit.device);
+      final flask = bench.vessels.firstWhere((v) => v.name == 'Flask');
+      final held = flask.liquid.volume;
+      bench.lean(flask, bench.maxLean(flask));
+      for (var i = 0; i < 120; i++) {
+        bench.step(1 / 60);
+        expect(bench.world.jets, isEmpty, reason: 'it ran at frame $i');
+      }
+      expect(flask.tilt, closeTo(bench.maxLean(flask), 1e-9));
+      expect(flask.liquid.volume, closeTo(held, held * 1e-9));
+    });
+
+    test('a lean is turned at a hand\'s pace, not at once', () {
+      final kit = cpuTestDevice(width: 8, height: 8);
+      final bench = Bench(kit.device);
+      final flask = bench.vessels.firstWhere((v) => v.name == 'Flask');
+      bench.lean(flask, 1.0);
+      expect(flask.tilt, 0.0);
+      expect(flask.aimTilt, 1.0);
+      bench.step(0.1);
+      expect(flask.tilt, closeTo(0.2, 1e-9));
+    });
+
+    test('topped up while it leans, a glass fills only to what it holds', () {
+      // Mutation: fill to the upright level in `pour` — the rest runs
+      // straight over the lip.
+      final kit = cpuTestDevice(width: 8, height: 8);
+      final bench = Bench(kit.device);
+      final flask = bench.vessels.firstWhere((v) => v.name == 'Flask');
+      bench.lean(flask, bench.maxLean(flask));
+      for (var i = 0; i < 90; i++) {
+        bench.step(1 / 60);
+      }
+      final everything = bench.world.volume;
+      bench.pour(flask, flask.highest);
+      final added = bench.world.volume - everything;
+      expect(added, greaterThan(0.0), reason: 'it was topped up');
+      for (var i = 0; i < 120; i++) {
+        bench.step(1 / 60);
+        expect(bench.world.jets, isEmpty, reason: 'it ran at frame $i');
+      }
+      var drops = 0;
+      bench.world.particles.forEach((_, f) => drops += f.count);
+      expect(drops, 0);
+    });
+  });
+
   test('sharing pours half into the clean tube, lip over the rim', () {
     final kit = cpuTestDevice(width: 8, height: 8);
     final bench = Bench(kit.device);

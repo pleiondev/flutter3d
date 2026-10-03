@@ -64,6 +64,10 @@ final class Vessel {
   double tilt = 0.0;
   Vector3 leanAxis = Vector3(1, 0, 0);
 
+  /// How far it was asked to lean: [Bench.step] turns [tilt] towards it at
+  /// a hand's pace rather than at once.
+  double aimTilt = 0.0;
+
   /// How far it is lifted out of the row to lean, from nought, standing in
   /// its place, to one, clear of the other glass. State: [Bench.step] moves
   /// it.
@@ -466,9 +470,16 @@ final class Bench {
   /// solution it holds.
   void pour(Vessel vessel, double level) {
     if (busy) return;
-    final target = vessel.shape.volumeUpTo(
+    // A leaning glass holds less than it does upright: filled to its upright
+    // level, the rest ran straight over its lip — a flask tipped to its
+    // furthest and then topped up poured a stream on the bench, and the
+    // drops it broke into flew. Never more than it holds as it leans.
+    final upright = vessel.shape.volumeUpTo(
       level.clamp(vessel.lowest, vessel.highest),
     );
+    final target = vessel.tilt == 0.0
+        ? upright
+        : math.min(upright, 0.98 * vessel.shape.holds(_upAt(vessel.tilt)));
     final now = vessel.liquid.volume;
     if (target > now) {
       final layers = vessel.liquid.layers;
@@ -552,23 +563,28 @@ final class Bench {
   void lean(Vessel vessel, double angle, {Vector3? across}) {
     if (busy) return;
     final limit = maxLean(vessel);
-    vessel.tilt = angle.clamp(-limit, limit);
-    if (across != null) {
+    vessel.aimTilt = angle.clamp(-limit, limit);
+    if (across != null && vessel.tilt == 0.0) {
       final flat = Vector3(across.x, 0, across.z);
       if (flat.length2 > 1e-9) vessel.leanAxis = flat..normalize();
     }
     // One vessel in the hand: leaning this one puts the last one back.
-    if (vessel.tilt != 0.0) {
+    if (vessel.aimTilt != 0.0) {
       for (final other in vessels) {
-        if (identical(other, vessel) || other.tilt == 0.0) continue;
-        other.tilt = 0.0;
-        _place(other);
-        _castBy(other);
+        if (identical(other, vessel)) continue;
+        other.aimTilt = 0.0;
       }
     }
-    _place(vessel);
-    _castBy(vessel);
   }
+
+  /// How fast a hand turns a glass, radians a second: the pour's own pace.
+  ///
+  /// **Never at once.** Turned sixty-seven degrees in a frame, a flask's
+  /// liquid was laid out with its old level as a wave far past any water
+  /// makes, and most of it went over the lip at a lean that holds all of it
+  /// standing still. Turned at a hand's pace, the level follows the felt
+  /// gravity, and only the turn's own acceleration sets it rocking.
+  static const double _turnRate = 2.0;
 
   /// Puts [vessel]'s glass where its lean and lift say: turned about its
   /// lean axis, raised by its lift, its lowest point on the bench when the
@@ -658,6 +674,7 @@ final class Bench {
         : Vector3(1, 0, 0);
     from
       ..tilt = 0.0
+      ..aimTilt = 0.0
       ..lift = 0.0
       ..leanAxis = axis;
     _transfer = _Transfer(
@@ -821,7 +838,9 @@ final class Bench {
     final from = t.from;
     _transfer = null;
     _pose(from, from.at, 0.0);
-    from.tilt = 0.0;
+    from
+      ..tilt = 0.0
+      ..aimTilt = 0.0;
     for (final vessel in [from, t.to]) {
       _castBy(vessel);
       if (!photons) _repaint(vessel);
@@ -840,6 +859,13 @@ final class Bench {
     var moving = false;
     for (final vessel in vessels) {
       if (identical(vessel, _transfer?.from)) continue;
+      if (vessel.tilt != vessel.aimTilt) {
+        final most = _turnRate * seconds;
+        vessel.tilt += (vessel.aimTilt - vessel.tilt).clamp(-most, most);
+        _place(vessel);
+        _castBy(vessel);
+        moving = true;
+      }
       // Lifted out of the row while it leans, put back when it does not.
       final wanted = vessel.tilt != 0.0 ? 1.0 : 0.0;
       if (vessel.lift != wanted) {

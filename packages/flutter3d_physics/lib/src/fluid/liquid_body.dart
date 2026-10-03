@@ -528,6 +528,12 @@ final class LiquidBody implements JetReceiver {
     var crest = 0.0;
     final at = Vector3.zero();
     final along = Vector3.zero();
+    // The stretch passing most, and its own way out: where an overfull
+    // upright glass runs over, since there the weighed mean is the middle of
+    // the mouth.
+    var most = 0.0;
+    final mostAt = Vector3.zero();
+    final mostOut = Vector3.zero();
     for (var i = 0; i < rim.length; i++) {
       final a = rim[i];
       final b = rim[(i + 1) % rim.length];
@@ -548,14 +554,30 @@ final class LiquidBody implements JetReceiver {
       at.addScaled(mid, q);
       // Out over the edge: away from the vessel's middle, in the plane.
       final out = mid - _up * _up.dot(mid);
-      if (out.length2 > 0.0) along.addScaled(out.normalized(), q);
+      if (out.length2 > 0.0) {
+        along.addScaled(out.normalized(), q);
+        if (q > most) {
+          most = q;
+          mostAt.setFrom(mid);
+          mostOut.setFrom(out.normalized());
+        }
+      }
     }
     if (flow <= 0.0) return Spill.none;
-    // Where and which way, weighed by what each stretch passed.
-    final point = rotation.transformed(at / flow);
-    final direction = along.length2 > 0.0
-        ? rotation.transformed(along.normalized())
-        : Vector3.zero();
+    // Where and which way, weighed by what each stretch passed — while
+    // there is a way: tipped, the low side passes nearly all of it. Over
+    // every part of a level lip at once the stretches pull against each
+    // other, the mean is the middle of the mouth with no way out at all,
+    // and what left there fell straight back in, round and round; it goes
+    // over the stretch passing most instead, as an overfull glass first
+    // runs down the side whose rim is a hair lower.
+    final spread = along.length < 0.5 * flow;
+    final point = rotation.transformed(spread ? mostAt : at / flow);
+    final direction = spread
+        ? rotation.transformed(mostOut)
+        : (along.length2 > 0.0
+              ? rotation.transformed(along.normalized())
+              : Vector3.zero());
     final speed = flow / crest;
     // The top layer runs out, and no more of it than there is: in the step
     // it is used up, the one under it takes its place at the lip.
@@ -572,7 +594,11 @@ final class LiquidBody implements JetReceiver {
       flow: flow,
       point: point + position,
       velocity: direction * speed,
-      width: width,
+      // Over the whole lip, the whole lip's length would be a sheet three
+      // times as wide as the mouth it came from: no wider than across it.
+      width: spread
+          ? math.min(width, 2.0 * (mostAt - _up * _up.dot(mostAt)).length)
+          : width,
       medium: what,
       concentrations: concentrations,
     );

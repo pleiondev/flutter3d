@@ -238,6 +238,81 @@ void main() {
     expect(body.volume, greaterThan(holds * 0.9));
   });
 
+  test('no wave stands steeper than Stokes\' limit: past it, it breaks', () {
+    // A wave higher than a seventh of its length spills its crest. The
+    // modes are linear and knew no such bound: turned sixty-seven degrees
+    // in a frame, the chemistry bench's flask laid its old level out as a
+    // thirty-four millimetre wave and threw most of what it held over the
+    // lip.
+    //
+    // Mutation: drop `_breakSteep` from `FreeSurface.step`.
+    const r = 0.02;
+    final body = LiquidBody(
+      shape: _cylinder(r, 0.1),
+      medium: FluidMedium.water,
+      volume: math.pi * r * r * 0.05,
+      modes: 4,
+    )..place(_tilt(0.0), Vector3.zero());
+    body.step(1 / 1000, gravity: Vector3(0, -9.81, 0));
+    // Turned a radian in one step: the old level, laid out on the new
+    // plane, is a wave far past anything that stands.
+    body
+      ..place(_tilt(1.0), Vector3.zero())
+      ..step(1 / 1000, gravity: Vector3(0, -9.81, 0));
+    final bound = body.surface.wavenumbers.fold(
+      0.0,
+      (double sum, double k) => sum + 2 * math.pi / (14 * k),
+    );
+    expect(body.surface.reach, lessThanOrEqualTo(bound * 1.0001));
+    // And small waves are left alone: a knock of a tenth of a millimetre
+    // rings as it always did.
+    final calm = LiquidBody(
+      shape: _cylinder(r, 0.1),
+      medium: FluidMedium.water,
+      volume: math.pi * r * r * 0.05,
+      modes: 4,
+    )..place(_tilt(0.0), Vector3.zero());
+    calm.step(1 / 1000, gravity: Vector3(0, -9.81, 0));
+    calm.surface.knock(Vector3(0.5 * r, calm.height, 0), 1e-4);
+    final before = calm.surface.reach;
+    calm.step(1e-9, gravity: Vector3(0, -9.81, 0));
+    expect(calm.surface.reach, closeTo(before, before * 1e-3));
+  });
+
+  test('upright and overfull, it runs over the edge, out, not in', () {
+    // Over every part of a level lip at once, the outward pull of each
+    // stretch cancels the one across from it: the spill left from the middle
+    // of the mouth with no speed at all, and fell back into the glass it came
+    // from — round and round, every step. Overfilling the chemistry bench's
+    // tube did that. It leaves over the stretch that passes most instead,
+    // and outwards.
+    //
+    // Mutation: go back to the weighed mean in `_spill`.
+    const r = 0.02;
+    final body = LiquidBody(
+      shape: _cylinder(r, 0.1),
+      medium: FluidMedium.water,
+      volume: math.pi * r * r * 0.1,
+      modes: 4,
+    );
+    body.pour(math.pi * r * r * 0.005);
+    Spill? first;
+    for (var i = 0; i < 200 && first == null; i++) {
+      body.place(_tilt(0.0), Vector3.zero());
+      final spill = body.step(1 / 1000, gravity: Vector3(0, -9.81, 0));
+      if (spill.flow > 0) first = spill;
+    }
+    expect(first, isNotNull, reason: 'an overfull glass spills');
+    final out = Vector3(first!.point.x, 0.0, first.point.z);
+    // At the lip, not the middle of the mouth.
+    expect(out.length, closeTo(r, r * 0.05));
+    // Moving outwards, away from the axis.
+    expect(first.velocity.length, greaterThan(0.0));
+    expect(first.velocity.dot(out.normalized()), greaterThan(0.0));
+    // A sheet no wider than the mouth.
+    expect(first.width, lessThanOrEqualTo(2 * r * 1.001));
+  });
+
   test('what lands hard sets the surface moving, and dips it', () {
     // A drop landing at a metre a second strikes: an impulsive pressure,
     // whose potential sets every mode moving at k·tanh(kh) times its share.

@@ -14,6 +14,45 @@ List<JetObstacle> _box(double size) => [
 ];
 
 void main() {
+  test('lumps let go on top of each other spread rather than fly apart', () {
+    // A stream breaking up lets go of its drops at nearly the same point
+    // step after step, so each lump is laid out exactly on the last: the
+    // chemistry bench's overflowing flask threw thirty thousand particles
+    // eleven metres up.
+    //
+    // Mutations: in `_between`, return pᵢ − pⱼ even where it is nought —
+    // coincident pairs read compressed with no gradient, and the drops fly
+    // kilometres; or drop the pre-stabilising `_holdDensity` in `_substep`
+    // — the overlap is taken out by the solve, becomes velocity, and they
+    // leap a metre.
+    final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
+    for (var i = 0; i < 8; i++) {
+      fluid.inject(
+        64 * fluid.particleVolume,
+        Vector3(0.01, 0.02, 0.01),
+        Vector3.zero(),
+      );
+    }
+    final box = _box(0.02);
+    var highest = 0.0;
+    var fastest = 0.0;
+    for (var i = 0; i < 120; i++) {
+      fluid.step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: box);
+      for (final p in fluid.positions) {
+        highest = math.max(highest, p.y);
+      }
+    }
+    fastest = fluid.velocities.fold(
+      0.0,
+      (double m, Vector3 v) => math.max(m, v.length),
+    );
+    // Let go from rest two centimetres up, eight lumps deep in a box two
+    // centimetres across: the crowd has to make room for itself, and rises
+    // a few centimetres doing it — not metres, which is what it did.
+    expect(highest, lessThan(0.02 + 0.05));
+    expect(fastest, lessThan(math.sqrt(2 * 9.81 * 0.05)));
+  });
+
   test('a single drop falls as the world falls', () {
     final fluid = ParticleFluid(medium: FluidMedium.water, spacing: 0.002);
     fluid.inject(fluid.particleVolume, Vector3(0, 1, 0), Vector3.zero());

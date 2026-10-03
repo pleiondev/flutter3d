@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import '../portable_math.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
 
@@ -132,6 +133,9 @@ final class ParticleFluid {
 
   /// The particles' places.
   List<Vector3> get positions => [for (final p in _x) p.toVector3()];
+
+  /// Every particle's velocity, in the order of [positions].
+  List<Vector3> get velocities => [for (final v in _v) v.toVector3()];
   int get count => _x.length;
 
   /// Cubic metres here: every particle and the bank.
@@ -259,6 +263,17 @@ final class ParticleFluid {
     for (var i = 0; i < n; i++) {
       _collide(_x[i], obstacles);
     }
+    // **Pre-stabilisation** (Macklin, Müller, Chentanez and Kim, "Unified
+    // Particle Physics for Real-Time Applications", 2014): the compression
+    // there already is when the substep starts is taken out of where the
+    // particles are, and not out of how fast they go — the same as a
+    // particle started in a wall, above, for the same reason. A stream lets
+    // go of its drops at nearly one point step after step and lays each
+    // lump over the last; corrected only in the solve below, that overlap
+    // became velocity, and the chemistry bench's overflowing flask threw
+    // thirty thousand particles eleven metres up. Taken out here, the crowd
+    // makes room for itself and keeps the speed it had.
+    _holdDensity(_x, obstacles, artificialPressure: false, until: 1e-3);
     final rho0 = medium.density;
     final m = _mass;
     final norm = 1.0 / _latticeSum;
@@ -296,54 +311,7 @@ final class ParticleFluid {
     final p = [
       for (var i = 0; i < n; i++) _advance(_x[i], _v[i], dt, obstacles),
     ];
-    final lambda = List<double>.filled(n, 0.0);
-    final grid2 = _Grid(h, p);
-    final near = [for (var i = 0; i < n; i++) grid2.near(i, p)];
-    final dq = 0.3 * h;
-    final wq = _poly6(dq * dq);
-    for (var it = 0; it < iterations; it++) {
-      for (var i = 0; i < n; i++) {
-        // C = ρ/ρ₀ − 1 with ρ/ρ₀ the kernel sum over the lattice's: only
-        // where it is compressed. Both ways, a surface particle with half
-        // its neighbours missing is pulled in by half a spacing a pass and
-        // the liquid flies apart; a stretched surface is held by cohesion
-        // instead.
-        var w = _poly6(0.0);
-        var sum2 = 0.0;
-        final gi = _V(0, 0, 0);
-        for (final j in near[i]) {
-          final d = p[i] - p[j];
-          w += _poly6(d.length2);
-          final g = _spikyGradient(d) * norm;
-          sum2 += g.length2;
-          gi.add(g);
-        }
-        sum2 += gi.length2;
-        final c = math.max(w * norm - 1.0, 0.0);
-        lambda[i] = -c / (sum2 + 1e-6 * norm * norm / (h * h));
-      }
-      final delta = List<_V>.generate(n, (_) => _V(0, 0, 0));
-      for (var i = 0; i < n; i++) {
-        for (final j in near[i]) {
-          final d = p[i] - p[j];
-          final ratio = _poly6(d.length2) / wq;
-          // Macklin's artificial pressure, which keeps neighbours from
-          // clumping: a fiftieth of a constraint's worth. At his tenth it
-          // held still water a sixth thinner than its rest density.
-          final corr = -0.02 * ratio * ratio * ratio * ratio / _restStiffness;
-          // Δpᵢ = Σⱼ (λᵢ + λⱼ + s_corr) ∇W(pᵢ − pⱼ), in the same
-          // normalisation as the constraint.
-          delta[i].addScaled(
-            _spikyGradient(d),
-            (lambda[i] + lambda[j] + corr) * norm,
-          );
-        }
-      }
-      for (var i = 0; i < n; i++) {
-        p[i].add(delta[i]);
-        _collide(p[i], obstacles);
-      }
-    }
+    final near = _holdDensity(p, obstacles, artificialPressure: true);
     // Velocities from the move, then XSPH's viscosity.
     for (var i = 0; i < n; i++) {
       _v[i] = (p[i] - _x[i]) * (1.0 / dt);
@@ -363,6 +331,79 @@ final class ParticleFluid {
       _v[i] = smoothed[i];
       _x[i] = p[i];
     }
+  }
+
+  /// Moves [p] until no particle is compressed past the rest density, for
+  /// [iterations] passes at most, or fewer once none is compressed by more
+  /// than [until] of it; returns each particle's neighbours, found where
+  /// [p] stood at the start.
+  ///
+  /// [artificialPressure] adds Macklin's term against clumping, which the
+  /// solve wants and pre-stabilisation does not: there it would push still
+  /// water apart every substep with nothing to answer it.
+  List<List<int>> _holdDensity(
+    List<_V> p,
+    List<JetObstacle> obstacles, {
+    required bool artificialPressure,
+    double until = 0.0,
+  }) {
+    final n = p.length;
+    final norm = 1.0 / _latticeSum;
+    final lambda = List<double>.filled(n, 0.0);
+    final grid = _Grid(h, p);
+    final near = [for (var i = 0; i < n; i++) grid.near(i, p)];
+    final dq = 0.3 * h;
+    final wq = _poly6(dq * dq);
+    for (var it = 0; it < iterations; it++) {
+      var worst = 0.0;
+      for (var i = 0; i < n; i++) {
+        // C = ρ/ρ₀ − 1 with ρ/ρ₀ the kernel sum over the lattice's: only
+        // where it is compressed. Both ways, a surface particle with half
+        // its neighbours missing is pulled in by half a spacing a pass and
+        // the liquid flies apart; a stretched surface is held by cohesion
+        // instead.
+        var w = _poly6(0.0);
+        var sum2 = 0.0;
+        final gi = _V(0, 0, 0);
+        for (final j in near[i]) {
+          final d = _between(p, i, j);
+          w += _poly6(d.length2);
+          final g = _spikyGradient(d) * norm;
+          sum2 += g.length2;
+          gi.add(g);
+        }
+        sum2 += gi.length2;
+        final c = math.max(w * norm - 1.0, 0.0);
+        worst = math.max(worst, c);
+        lambda[i] = -c / (sum2 + 1e-6 * norm * norm / (h * h));
+      }
+      if (worst <= until) break;
+      final delta = List<_V>.generate(n, (_) => _V(0, 0, 0));
+      for (var i = 0; i < n; i++) {
+        for (final j in near[i]) {
+          final d = _between(p, i, j);
+          var corr = 0.0;
+          if (artificialPressure) {
+            final ratio = _poly6(d.length2) / wq;
+            // Macklin's artificial pressure, which keeps neighbours from
+            // clumping: a fiftieth of a constraint's worth. At his tenth it
+            // held still water a sixth thinner than its rest density.
+            corr = -0.02 * ratio * ratio * ratio * ratio / _restStiffness;
+          }
+          // Δpᵢ = Σⱼ (λᵢ + λⱼ + s_corr) ∇W(pᵢ − pⱼ), in the same
+          // normalisation as the constraint.
+          delta[i].addScaled(
+            _spikyGradient(d),
+            (lambda[i] + lambda[j] + corr) * norm,
+          );
+        }
+      }
+      for (var i = 0; i < n; i++) {
+        p[i].add(delta[i]);
+        _collide(p[i], obstacles);
+      }
+    }
+    return near;
   }
 
   /// Where [x] moving at [v] is after [dt]: moved in pieces of two fifths
@@ -398,6 +439,34 @@ final class ParticleFluid {
     if (r2 >= h2) return 0.0;
     final d = h2 - r2;
     return 315.0 / (64.0 * math.pi * _pow9(h)) * d * d * d;
+  }
+
+  /// pᵢ − pⱼ, or, where the two stand on the same point, a hair of it in a
+  /// direction set by the pair alone — opposite for j and i.
+  ///
+  /// **Coincident particles have no gradient to part along.** Each counts
+  /// whole in the other's density, and the kernel's gradient at nought is
+  /// nought: the constraint read heavily compressed with nothing to move it
+  /// by, λ = −C / |∇C|² ran away, and the particles round the pair were
+  /// thrown kilometres. A stream's lumps let go at the same point land
+  /// exactly on each other's lattice, so this is the ordinary case, not a
+  /// corner.
+  _V _between(List<_V> p, int i, int j) {
+    final d = p[i] - p[j];
+    if (d.length2 > 1e-24 * h * h) return d;
+    final low = math.min(i, j);
+    final high = math.max(i, j);
+    // A point on the sphere from the pair's indices, by the golden angle.
+    final t = (low * 0.6180339887498949 + high * 0.4142135623730951) % 1.0;
+    final z = 1.0 - 2.0 * t;
+    final ring = math.sqrt(math.max(1.0 - z * z, 0.0));
+    final phi = 2.399963229728653 * (low + 7 * high);
+    final away = 1e-6 * h * (i < j ? 1.0 : -1.0);
+    return _V(
+      ring * Portable.cos(phi) * away,
+      ring * Portable.sin(phi) * away,
+      z * away,
+    );
   }
 
   _V _spikyGradient(_V d) {
