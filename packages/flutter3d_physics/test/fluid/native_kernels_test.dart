@@ -224,4 +224,30 @@ void main() {
       expect(projected / dot(mode, mode), closeTo(1.0, 1e-9));
     }
   });
+
+  test('the native meniscus is the Dart one, to within a tolerance', () {
+    for (final medium in [
+      FluidMedium.water,
+      FluidMedium.ethanol,
+      FluidMedium.mercury,
+    ]) {
+      for (final radius in [0.0005, 0.0075, 0.02]) {
+        final dart = TubeMeniscus(medium: medium, radius: radius, g: 9.81);
+        final native = TubeMeniscus(
+          medium: medium,
+          radius: radius,
+          g: 9.81,
+          native: true,
+        );
+        final scale = dart.apexCurvature.abs() + 1.0 / radius * 1e-6;
+        expect(
+          native.apexCurvature,
+          closeTo(dart.apexCurvature, scale * 1e-9),
+          reason: '\${medium.name} in \$radius m',
+        );
+        expect(native.wallRise, closeTo(dart.wallRise, radius * 1e-9));
+        expect(native.meanHeight, closeTo(dart.meanHeight, radius * 1e-9));
+      }
+    }
+  });
 }

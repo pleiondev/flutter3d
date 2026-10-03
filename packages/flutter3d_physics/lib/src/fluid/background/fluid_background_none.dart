@@ -14,8 +14,9 @@ abstract final class FluidBackground implements ModeSolver {
     FluidMedium medium,
     double radius,
     double g,
-    void Function(TubeMeniscus meniscus) done,
-  );
+    void Function(TubeMeniscus meniscus) done, {
+    bool native = false,
+  });
 }
 
 /// None here: what would be put off is worked out at once.

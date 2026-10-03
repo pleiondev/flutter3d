@@ -243,11 +243,69 @@ int nativeSurfaceLanczos(
   );
 }
 
+@Native<
+  Int32 Function(
+    Double,
+    Double,
+    Double,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+    Int32,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_meniscus', isLeaf: true)
+external int _meniscus(
+  double radius,
+  double bond,
+  double contactAngle,
+  int samples,
+  Pointer<Double> rs,
+  Pointer<Double> zs,
+  int capacity,
+  Pointer<Double> apex,
+);
+
+/// `TubeMeniscus`'s solve in C: the apex curvature and the surface's
+/// points, or null where there is no native code.
+({double apexCurvature, List<double> r, List<double> z})? nativeMeniscus(
+  double radius,
+  double bond,
+  double contactAngle,
+  int samples,
+) {
+  if (!nativePbfAvailable) return null;
+  var capacity = samples * 4;
+  final apex = Float64List(1);
+  while (true) {
+    final rs = Float64List(capacity);
+    final zs = Float64List(capacity);
+    final count = _meniscus(
+      radius,
+      bond,
+      contactAngle,
+      samples,
+      rs.address,
+      zs.address,
+      capacity,
+      apex.address,
+    );
+    if (count <= capacity) {
+      return (
+        apexCurvature: apex[0],
+        r: List<double>.of(Float64List.sublistView(rs, 0, count)),
+        z: List<double>.of(Float64List.sublistView(zs, 0, count)),
+      );
+    }
+    capacity = count;
+  }
+}
+
 /// Whether the native kernels were built and load: false where the build
 /// had no C compiler, and asked once.
 final bool nativePbfAvailable = () {
   try {
-    return _version() == 4;
+    return _version() == 5;
   } on Object {
     return false;
   }

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../portable_math.dart';
 import 'fluid_medium.dart';
+import 'native/pbf_backend.dart';
 
 /// Surface tension at a wall: how high liquid climbs it, and the shape of
 /// the surface it leaves.
@@ -38,8 +39,24 @@ final class TubeMeniscus {
     required this.radius,
     required this.g,
     this.samples = 64,
+    bool native = false,
   }) {
-    _solve();
+    final solved = native
+        ? nativeMeniscus(
+            radius,
+            medium.density * g / medium.surfaceTension,
+            medium.contactAngle,
+            samples,
+          )
+        : null;
+    if (solved == null) {
+      _solve();
+    } else {
+      apexCurvature = solved.apexCurvature;
+      _r = solved.r;
+      _z = solved.z;
+      wallRise = _z.last;
+    }
   }
 
   /// A meniscus already solved, from what [solution] gave: for one worked

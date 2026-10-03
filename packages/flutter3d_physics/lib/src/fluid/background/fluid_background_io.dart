@@ -82,8 +82,9 @@ final class FluidBackground implements ModeSolver {
     FluidMedium medium,
     double radius,
     double g,
-    void Function(TubeMeniscus meniscus) done,
-  ) {
+    void Function(TubeMeniscus meniscus) done, {
+    bool native = false,
+  }) {
     _post(
       [
         'meniscus',
@@ -95,6 +96,7 @@ final class FluidBackground implements ModeSolver {
         medium.contactAngle,
         radius,
         g,
+        native,
       ],
       (reply) {
         done(
@@ -143,6 +145,7 @@ void _work(SendPort back) {
           medium: medium,
           radius: request[7]! as double,
           g: request[8]! as double,
+          native: request[9]! as bool,
         ).solution;
         back.send([id, m.apexCurvature, m.r, m.z]);
     }
