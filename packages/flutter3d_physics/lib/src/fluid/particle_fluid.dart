@@ -7,6 +7,7 @@ import '../portable_math.dart';
 import 'atmosphere.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
+import 'pbf_kernels.dart';
 import 'wetting.dart';
 
 /// A flat surface particles rest on — a bench, a floor: the points with
@@ -311,6 +312,58 @@ final class ParticleFluid {
     }
   }
 
+  /// What runs the loops over pairs: the Dart reference unless something
+  /// faster is put in its place.
+  late PbfKernels kernels = DartPbfKernels(
+    PbfConstants(
+      h: h,
+      restDensity: medium.density,
+      mass: _mass,
+      norm: 1.0 / _latticeSum,
+      gamma: _gamma,
+      restStiffness: _restStiffness,
+    ),
+  );
+
+  /// [points] as one flat buffer of x, y, z in turn.
+  static Float64List _flat(List<_V> points) {
+    final out = Float64List(3 * points.length);
+    for (var i = 0; i < points.length; i++) {
+      final p = points[i];
+      out[3 * i] = p.x;
+      out[3 * i + 1] = p.y;
+      out[3 * i + 2] = p.z;
+    }
+    return out;
+  }
+
+  /// [flat] back into [points].
+  static void _unflat(Float64List flat, List<_V> points) {
+    for (var i = 0; i < points.length; i++) {
+      points[i]
+        ..x = flat[3 * i]
+        ..y = flat[3 * i + 1]
+        ..z = flat[3 * i + 2];
+    }
+  }
+
+  /// The neighbours of each of [points] within the kernel's reach, as
+  /// compressed rows: [PbfKernels]' layout.
+  (Int32List, Int32List) _rows(List<_V> points) {
+    final grid = _Grid(h, points);
+    final n = points.length;
+    final lists = [for (var i = 0; i < n; i++) grid.near(i, points)];
+    final start = Int32List(n + 1);
+    for (var i = 0; i < n; i++) {
+      start[i + 1] = start[i] + lists[i].length;
+    }
+    final list = Int32List(start[n]);
+    for (var i = 0; i < n; i++) {
+      list.setAll(start[i], lists[i]);
+    }
+    return (start, list);
+  }
+
   /// The air the particles are being stepped through, and each particle's
   /// drop's diameter: set at the start of a step, read by its substeps.
   Atmosphere? _air;
@@ -453,83 +506,44 @@ final class ParticleFluid {
     // vector made for each difference, gradient and product, thirty drops
     // made hundreds of thousands of objects a frame, and the collector's
     // pauses were most of what a pour with drops cost.
+    // **The loops over pairs, by [kernels]**, over flat buffers: positions
+    // and velocities copied out of the particles before each call and back
+    // after, a few hundred numbers against the tens of thousands of pair
+    // terms the call works through.
     final rho0 = medium.density;
-    final m = _mass;
-    final norm = 1.0 / _latticeSum;
+    final ker = kernels;
     // Forces first: gravity, cohesion and curvature, on the velocities.
-    final grid = _Grid(h, _x);
-    final neighbours = [for (var i = 0; i < n; i++) grid.near(i, _x)];
+    final xs = _flat(_x);
+    final vs = _flat(_v);
+    final (start, list) = _rows(_x);
     final density = Float64List(n);
-    for (var i = 0; i < n; i++) {
-      var w = _poly6(0.0);
-      for (final j in neighbours[i]) {
-        w += _poly6(_x[i].distance2(_x[j]));
-      }
-      density[i] = rho0 * w * norm;
-    }
+    ker.densities(xs, start, list, n, density);
     final normal = Float64List(3 * n);
+    ker.normals(xs, start, list, n, density, normal);
+    final before = Float64List(3 * n);
+    final after = Float64List(3 * n);
+    final air = _air;
     for (var i = 0; i < n; i++) {
-      final xi = _x[i];
-      var nx = 0.0;
-      var ny = 0.0;
-      var nz = 0.0;
-      for (final j in neighbours[i]) {
-        final xj = _x[j];
-        final dx = xi.x - xj.x;
-        final dy = xi.y - xj.y;
-        final dz = xi.z - xj.z;
-        final f =
-            _spikyScale(math.sqrt(dx * dx + dy * dy + dz * dz)) *
-            h *
-            m /
-            density[j];
-        nx += dx * f;
-        ny += dy * f;
-        nz += dz * f;
-      }
-      normal[3 * i] = nx;
-      normal[3 * i + 1] = ny;
-      normal[3 * i + 2] = nz;
-    }
-    for (var i = 0; i < n; i++) {
-      final xi = _x[i];
-      final here = _gravityAt?.call(xi.toVector3());
-      var ax = here?.x ?? gravity.x;
-      var ay = here?.y ?? gravity.y;
-      var az = here?.z ?? gravity.z;
-      for (final j in neighbours[i]) {
-        final xj = _x[j];
-        final dx = xi.x - xj.x;
-        final dy = xi.y - xj.y;
-        final dz = xi.z - xj.z;
-        final r = math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (r < 1e-12) continue;
-        final k = 2.0 * rho0 / (density[i] + density[j]);
-        final c = -k * _gamma * m * _cohesion(r) / r;
-        final t = -k * _gamma;
-        ax += dx * c + (normal[3 * i] - normal[3 * j]) * t;
-        ay += dy * c + (normal[3 * i + 1] - normal[3 * j + 1]) * t;
-        az += dz * c + (normal[3 * i + 2] - normal[3 * j + 2]) * t;
-      }
+      final here = _gravityAt?.call(_x[i].toVector3());
+      before[3 * i] = here?.x ?? gravity.x;
+      before[3 * i + 1] = here?.y ?? gravity.y;
+      before[3 * i + 2] = here?.z ?? gravity.z;
       // The air, on the drop it is in: its drag over the drop's mass,
       // which every particle of it feels alike.
-      final air = _air;
       if (air != null && i < _drop.length && _drop[i] > 0.0) {
         final drag = air.dragOnSphere(
           _v[i].toVector3(),
-          xi.toVector3(),
+          _x[i].toVector3(),
           _drop[i],
           rho0,
         );
-        ax += drag.x;
-        ay += drag.y;
-        az += drag.z;
+        after[3 * i] = drag.x;
+        after[3 * i + 1] = drag.y;
+        after[3 * i + 2] = drag.z;
       }
-      _v[i]
-        ..x += ax * dt
-        ..y += ay * dt
-        ..z += az * dt;
     }
+    ker.forces(xs, start, list, n, density, normal, before, after, vs, dt);
+    _unflat(vs, _v);
     // Predict, then hold the density to the rest density.
     final p = [
       for (var i = 0; i < n; i++)
@@ -539,66 +553,14 @@ final class ParticleFluid {
           _advance(_x[i], _v[i], dt, walls[i]),
     ];
     final lambda = Float64List(n);
-    final grid2 = _Grid(h, p);
-    final near = [for (var i = 0; i < n; i++) grid2.near(i, p)];
-    final dq = 0.3 * h;
-    final wq = _poly6(dq * dq);
+    final (near, rows) = _rows(p);
     final delta = Float64List(3 * n);
     for (var it = 0; it < iterations; it++) {
-      for (var i = 0; i < n; i++) {
-        // C = ρ/ρ₀ − 1 with ρ/ρ₀ the kernel sum over the lattice's: only
-        // where it is compressed. Both ways, a surface particle with half
-        // its neighbours missing is pulled in by half a spacing a pass and
-        // the liquid flies apart; a stretched surface is held by cohesion
-        // instead.
-        final pi = p[i];
-        var w = _poly6(0.0);
-        var sum2 = 0.0;
-        var gx = 0.0;
-        var gy = 0.0;
-        var gz = 0.0;
-        for (final j in near[i]) {
-          final pj = p[j];
-          final dx = pi.x - pj.x;
-          final dy = pi.y - pj.y;
-          final dz = pi.z - pj.z;
-          final r2 = dx * dx + dy * dy + dz * dz;
-          w += _poly6(r2);
-          final f = _spikyScale(math.sqrt(r2)) * norm;
-          sum2 += r2 * f * f;
-          gx += dx * f;
-          gy += dy * f;
-          gz += dz * f;
-        }
-        sum2 += gx * gx + gy * gy + gz * gz;
-        final c = math.max(w * norm - 1.0, 0.0);
-        lambda[i] = -c / (sum2 + 1e-6 * norm * norm / (h * h));
-      }
-      delta.fillRange(0, 3 * n, 0.0);
-      for (var i = 0; i < n; i++) {
-        final pi = p[i];
-        for (final j in near[i]) {
-          final pj = p[j];
-          final dx = pi.x - pj.x;
-          final dy = pi.y - pj.y;
-          final dz = pi.z - pj.z;
-          final r2 = dx * dx + dy * dy + dz * dz;
-          final ratio = _poly6(r2) / wq;
-          // Macklin's artificial pressure, which keeps neighbours from
-          // clumping: a fiftieth of a constraint's worth. At his tenth it
-          // held still water a sixth thinner than its rest density.
-          final corr = -0.02 * ratio * ratio * ratio * ratio / _restStiffness;
-          // Δpᵢ = Σⱼ (λᵢ + λⱼ + s_corr) ∇W(pᵢ − pⱼ), in the same
-          // normalisation as the constraint.
-          final f =
-              _spikyScale(math.sqrt(r2)) *
-              (lambda[i] + lambda[j] + corr) *
-              norm;
-          delta[3 * i] += dx * f;
-          delta[3 * i + 1] += dy * f;
-          delta[3 * i + 2] += dz * f;
-        }
-      }
+      // C = ρ/ρ₀ − 1, only where it is compressed: see [PbfKernels].
+      final ps = _flat(p);
+      ker
+        ..lambdas(ps, near, rows, n, lambda)
+        ..deltas(ps, near, rows, n, lambda, delta);
       for (var i = 0; i < n; i++) {
         p[i]
           ..x += delta[3 * i]
@@ -621,22 +583,7 @@ final class ParticleFluid {
       medium.kinematicViscosity * dt / (spacing * spacing) * 50.0 + 0.01,
     );
     final smoothed = Float64List(3 * n);
-    for (var i = 0; i < n; i++) {
-      final vi = _v[i];
-      var sx = vi.x;
-      var sy = vi.y;
-      var sz = vi.z;
-      for (final j in near[i]) {
-        final w = _poly6(p[i].distance2(p[j])) * norm * share;
-        final vj = _v[j];
-        sx += (vj.x - vi.x) * w;
-        sy += (vj.y - vi.y) * w;
-        sz += (vj.z - vi.z) * w;
-      }
-      smoothed[3 * i] = sx;
-      smoothed[3 * i + 1] = sy;
-      smoothed[3 * i + 2] = sz;
-    }
+    ker.viscosity(_flat(p), _flat(_v), near, rows, n, share, smoothed);
     // A viscous liquid's velocity at a wall at rest is nil along it, and
     // nothing goes on into it: what touches one keeps only the part of its
     // velocity that leaves. Left its speed along the wall, a drop that fell
@@ -809,13 +756,6 @@ final class ParticleFluid {
     if (r2 >= h2) return 0.0;
     final d = h2 - r2;
     return 315.0 / (64.0 * math.pi * _pow9(h)) * d * d * d;
-  }
-
-  /// What a difference d of length [r] is scaled by to be the spiky
-  /// kernel's gradient: ∇W = d·f(r).
-  double _spikyScale(double r) {
-    if (r <= 1e-12 || r >= h) return 0.0;
-    return -45.0 / (math.pi * _pow6(h)) * (h - r) * (h - r) / r;
   }
 
   _V _spikyGradient(_V d) {
