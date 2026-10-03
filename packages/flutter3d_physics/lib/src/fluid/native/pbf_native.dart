@@ -1,0 +1,393 @@
+// The native Position Based Fluids kernels, `src/pbf_kernels.c`, as built by
+// `hook/build.dart`, bound through `@Native` and passed the fluid's own
+// buffers by address: nothing is copied in or out.
+import 'dart:ffi';
+import 'dart:typed_data';
+
+import '../pbf_kernels.dart';
+
+@Native<Int32 Function()>(symbol: 'f3d_pbf_version', isLeaf: true)
+external int _version();
+
+@Native<
+  Void Function(
+    Pointer<Double>,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_pbf_densities', isLeaf: true)
+external void _densities(
+  Pointer<Double> x,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int n,
+  Pointer<Double> k,
+  Pointer<Double> density,
+);
+
+@Native<
+  Void Function(
+    Pointer<Double>,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_pbf_normals', isLeaf: true)
+external void _normals(
+  Pointer<Double> x,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int n,
+  Pointer<Double> k,
+  Pointer<Double> density,
+  Pointer<Double> normal,
+);
+
+@Native<
+  Void Function(
+    Pointer<Double>,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+    Double,
+  )
+>(symbol: 'f3d_pbf_forces', isLeaf: true)
+external void _forces(
+  Pointer<Double> x,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int n,
+  Pointer<Double> k,
+  Pointer<Double> density,
+  Pointer<Double> normal,
+  Pointer<Double> before,
+  Pointer<Double> after,
+  Pointer<Double> v,
+  double dt,
+);
+
+@Native<
+  Void Function(
+    Pointer<Double>,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_pbf_lambdas', isLeaf: true)
+external void _lambdas(
+  Pointer<Double> p,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int n,
+  Pointer<Double> k,
+  Pointer<Double> lambda,
+);
+
+@Native<
+  Void Function(
+    Pointer<Double>,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_pbf_deltas', isLeaf: true)
+external void _deltas(
+  Pointer<Double> p,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int n,
+  Pointer<Double> k,
+  Pointer<Double> lambda,
+  Pointer<Double> delta,
+);
+
+@Native<
+  Void Function(
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Double>,
+    Double,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_pbf_viscosity', isLeaf: true)
+external void _viscosity(
+  Pointer<Double> p,
+  Pointer<Double> v,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int n,
+  Pointer<Double> k,
+  double share,
+  Pointer<Double> smoothed,
+);
+
+@Native<
+  Int32 Function(
+    Pointer<Double>,
+    Int32,
+    Double,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Int32,
+    Pointer<Int64>,
+  )
+>(symbol: 'f3d_pbf_neighbours', isLeaf: true)
+external int _neighbours(
+  Pointer<Double> x,
+  int n,
+  double radius,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  int capacity,
+  Pointer<Int64> scratch,
+);
+
+@Native<
+  Int32 Function(
+    Pointer<Double>,
+    Int32,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Double,
+    Pointer<Int32>,
+    Pointer<Int32>,
+  )
+>(symbol: 'f3d_pbf_within', isLeaf: true)
+external int _within(
+  Pointer<Double> x,
+  int n,
+  Pointer<Int32> start,
+  Pointer<Int32> list,
+  double radius,
+  Pointer<Int32> outStart,
+  Pointer<Int32> out,
+);
+
+/// Whether the native kernels were built and load: false where the build
+/// had no C compiler, and asked once.
+final bool nativePbfAvailable = () {
+  try {
+    return _version() == 3;
+  } on Object {
+    return false;
+  }
+}();
+
+/// [PbfKernels] in C, vectorised: [DartPbfKernels]' results to within a
+/// tolerance, several times as fast.
+final class NativePbfKernels implements PbfKernels {
+  NativePbfKernels(PbfConstants k)
+    : _k = Float64List.fromList([
+        k.h,
+        k.h2,
+        k.restDensity,
+        k.mass,
+        k.norm,
+        k.gamma,
+        k.restStiffness,
+        k.poly6,
+        k.spiky,
+        k.cohesion,
+        k.h6,
+        k.wq,
+      ]);
+
+  final Float64List _k;
+
+  // Kept between calls, grown as the fluid does.
+  Int32List _list = Int32List(1024);
+  Int64List _scratch = Int64List(5);
+
+  @override
+  (Int32List, Int32List) within(
+    Float64List x,
+    int n,
+    Int32List start,
+    Int32List list,
+    double radius,
+  ) {
+    final outStart = Int32List(n + 1);
+    final out = Int32List(list.length + 1);
+    final count = _within(
+      x.address,
+      n,
+      start.address,
+      _rows(list).address,
+      radius,
+      outStart.address,
+      out.address,
+    );
+    return (outStart, Int32List.sublistView(out, 0, count));
+  }
+
+  @override
+  (Int32List, Int32List) neighbours(Float64List x, int n, double radius) {
+    final start = Int32List(n + 1);
+    if (n == 0) return (start, Int32List(0));
+    if (_scratch.length < 5 * n) _scratch = Int64List(5 * n);
+    var count = _neighbours(
+      x.address,
+      n,
+      radius,
+      start.address,
+      _list.address,
+      _list.length,
+      _scratch.address,
+    );
+    if (count > _list.length) {
+      _list = Int32List(count * 2);
+      count = _neighbours(
+        x.address,
+        n,
+        radius,
+        start.address,
+        _list.address,
+        _list.length,
+        _scratch.address,
+      );
+    }
+    return (start, Int32List.fromList(Int32List.sublistView(_list, 0, count)));
+  }
+
+  // A list with nothing in it has no address to give; one element stands in.
+  static final Int32List _none = Int32List(1);
+  static Int32List _rows(Int32List list) => list.isEmpty ? _none : list;
+
+  @override
+  void densities(
+    Float64List x,
+    Int32List start,
+    Int32List list,
+    int n,
+    Float64List density,
+  ) => _densities(
+    x.address,
+    start.address,
+    _rows(list).address,
+    n,
+    _k.address,
+    density.address,
+  );
+
+  @override
+  void normals(
+    Float64List x,
+    Int32List start,
+    Int32List list,
+    int n,
+    Float64List density,
+    Float64List normal,
+  ) => _normals(
+    x.address,
+    start.address,
+    _rows(list).address,
+    n,
+    _k.address,
+    density.address,
+    normal.address,
+  );
+
+  @override
+  void forces(
+    Float64List x,
+    Int32List start,
+    Int32List list,
+    int n,
+    Float64List density,
+    Float64List normal,
+    Float64List before,
+    Float64List after,
+    Float64List v,
+    double dt,
+  ) => _forces(
+    x.address,
+    start.address,
+    _rows(list).address,
+    n,
+    _k.address,
+    density.address,
+    normal.address,
+    before.address,
+    after.address,
+    v.address,
+    dt,
+  );
+
+  @override
+  void lambdas(
+    Float64List p,
+    Int32List start,
+    Int32List list,
+    int n,
+    Float64List lambda,
+  ) => _lambdas(
+    p.address,
+    start.address,
+    _rows(list).address,
+    n,
+    _k.address,
+    lambda.address,
+  );
+
+  @override
+  void deltas(
+    Float64List p,
+    Int32List start,
+    Int32List list,
+    int n,
+    Float64List lambda,
+    Float64List delta,
+  ) => _deltas(
+    p.address,
+    start.address,
+    _rows(list).address,
+    n,
+    _k.address,
+    lambda.address,
+    delta.address,
+  );
+
+  @override
+  void viscosity(
+    Float64List p,
+    Float64List v,
+    Int32List start,
+    Int32List list,
+    int n,
+    double share,
+    Float64List smoothed,
+  ) => _viscosity(
+    p.address,
+    v.address,
+    start.address,
+    _rows(list).address,
+    n,
+    _k.address,
+    share,
+    smoothed.address,
+  );
+}
+
+/// The native kernels for [k], or null where there are none.
+PbfKernels? nativePbfKernels(PbfConstants k) =>
+    nativePbfAvailable ? NativePbfKernels(k) : null;

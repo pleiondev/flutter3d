@@ -30,12 +30,18 @@ final class FluidWorld {
     this.floor,
     Atmosphere? atmosphere,
     this.field,
+    this.nativeKernels = false,
   }) : atmosphere = atmosphere ?? Atmosphere.standard();
 
   /// Gravity that differs from place to place, when there is some: then
   /// each vessel, drop and parcel of a stream feels [GravityField.at] where
   /// it is, and [gravity] is not read. Null, every one feels [gravity].
   final GravityField? field;
+
+  /// Whether drops run their loops over pairs natively where that was built:
+  /// see [ParticleFluid.native]. Off, the world steps the same to the bit
+  /// on every machine.
+  final bool nativeKernels;
 
   /// The gravity at [point].
   Vector3 gravityAt(Vector3 point) => field?.at(point) ?? gravity;
@@ -171,8 +177,11 @@ final class FluidWorld {
         particles
             .putIfAbsent(
               drop.medium.name,
-              () =>
-                  ParticleFluid(medium: drop.medium, spacing: particleSpacing),
+              () => ParticleFluid(
+                medium: drop.medium,
+                spacing: particleSpacing,
+                native: nativeKernels,
+              ),
             )
             .inject(
               drop.volume,
