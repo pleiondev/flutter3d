@@ -17,6 +17,26 @@ import 'dart:typed_data';
 /// the last bit. A native one, free to vectorise, is held to it within a
 /// tolerance instead.
 abstract interface class PbfKernels {
+  /// The neighbours of each of the [n] particles at [x] within [radius], at
+  /// least the kernel's reach, as compressed rows: in each row the cells
+  /// about the particle, cells [radius] wide, in x, then y, then z order
+  /// from −1 to 1, and within a cell by index.
+  (Int32List start, Int32List list) neighbours(
+    Float64List x,
+    int n,
+    double radius,
+  );
+
+  /// Of the rows [start] and [list], those within [radius] of each other at
+  /// [x], in the order they are in.
+  (Int32List start, Int32List list) within(
+    Float64List x,
+    int n,
+    Int32List start,
+    Int32List list,
+    double radius,
+  );
+
   /// Each particle's density, from its neighbours at [x]: ρ₀·ΣW/ΣW_rest.
   void densities(
     Float64List x,
@@ -143,6 +163,119 @@ final class DartPbfKernels implements PbfKernels {
   DartPbfKernels(this.k);
 
   final PbfConstants k;
+
+  /// A cell's three indices as one key, by multiplication rather than by
+  /// shifting into high bits: on the web an int's bitwise operations are 32
+  /// bits wide. Each index is held to ±2¹⁶ cells and the key under 2⁵¹,
+  /// which a double holds exactly.
+  static double _pack(int x, int y, int z) {
+    const span = 1 << 17;
+    const half = 1 << 16;
+    int wrap(int v) => (v + half) % span;
+    return ((wrap(x) * span + wrap(y)) * span + wrap(z)).toDouble();
+  }
+
+  /// **Sorted by cell, then searched.** Each particle's cell key, the
+  /// particles ordered by key and then index, and for each particle the
+  /// run of every one of its 27 cells found by halving: no map of cells,
+  /// and no list made per particle. A map of lists, built and asked three
+  /// times a substep, was two thirds of what a cloud of drops cost.
+  @override
+  (Int32List, Int32List) within(
+    Float64List x,
+    int n,
+    Int32List start,
+    Int32List list,
+    double radius,
+  ) {
+    final reach2 = radius * radius;
+    final outStart = Int32List(n + 1);
+    final out = Int32List(list.length);
+    var count = 0;
+    for (var i = 0; i < n; i++) {
+      final xi = x[3 * i];
+      final yi = x[3 * i + 1];
+      final zi = x[3 * i + 2];
+      for (var q = start[i]; q < start[i + 1]; q++) {
+        final j = list[q];
+        final ex = x[3 * j] - xi;
+        final ey = x[3 * j + 1] - yi;
+        final ez = x[3 * j + 2] - zi;
+        if (ex * ex + ey * ey + ez * ez < reach2) out[count++] = j;
+      }
+      outStart[i + 1] = count;
+    }
+    return (outStart, Int32List.sublistView(out, 0, count));
+  }
+
+  @override
+  (Int32List, Int32List) neighbours(Float64List x, int n, double radius) {
+    final h = radius;
+    final cx = Int32List(n);
+    final cy = Int32List(n);
+    final cz = Int32List(n);
+    final keys = Float64List(n);
+    for (var i = 0; i < n; i++) {
+      cx[i] = (x[3 * i] / h).floor();
+      cy[i] = (x[3 * i + 1] / h).floor();
+      cz[i] = (x[3 * i + 2] / h).floor();
+      keys[i] = _pack(cx[i], cy[i], cz[i]);
+    }
+    final order = List<int>.generate(n, (i) => i)
+      ..sort((a, b) {
+        final c = keys[a].compareTo(keys[b]);
+        return c != 0 ? c : a - b;
+      });
+    final sorted = Float64List(n);
+    for (var q = 0; q < n; q++) {
+      sorted[q] = keys[order[q]];
+    }
+    int first(double key) {
+      var lo = 0;
+      var hi = n;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (sorted[mid] < key) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      return lo;
+    }
+
+    final start = Int32List(n + 1);
+    var list = Int32List(n * 16 + 16);
+    var count = 0;
+    final reach2 = h * h;
+    for (var i = 0; i < n; i++) {
+      final xi = x[3 * i];
+      final yi = x[3 * i + 1];
+      final zi = x[3 * i + 2];
+      for (var dx = -1; dx <= 1; dx++) {
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dz = -1; dz <= 1; dz++) {
+            final key = _pack(cx[i] + dx, cy[i] + dy, cz[i] + dz);
+            for (var q = first(key); q < n && sorted[q] == key; q++) {
+              final j = order[q];
+              if (j == i) continue;
+              final ex = x[3 * j] - xi;
+              final ey = x[3 * j + 1] - yi;
+              final ez = x[3 * j + 2] - zi;
+              // As `_V.distance2` reads it: the other point less this one.
+              if (ex * ex + ey * ey + ez * ez >= reach2) continue;
+              if (count == list.length) {
+                list = Int32List(list.length * 2)..setAll(0, list);
+              }
+              list[count++] = j;
+            }
+          }
+        }
+      }
+      start[i + 1] = count;
+    }
+    return (start, Int32List.sublistView(list, 0, count));
+  }
 
   double _poly6(double r2) {
     if (r2 >= k.h2) return 0.0;

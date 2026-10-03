@@ -7,6 +7,7 @@ import '../portable_math.dart';
 import 'atmosphere.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
+import 'native/pbf_backend.dart';
 import 'pbf_kernels.dart';
 import 'wetting.dart';
 
@@ -69,6 +70,7 @@ final class ParticleFluid {
     required this.spacing,
     this.iterations = 4,
     this.substeps = 2,
+    this.native = false,
   }) : h = 2.0 * spacing {
     _gamma = _cohesionForWorkOfCohesion();
     // The kernel summed over the lattice at rest: what a particle's density
@@ -312,18 +314,25 @@ final class ParticleFluid {
     }
   }
 
-  /// What runs the loops over pairs: the Dart reference unless something
-  /// faster is put in its place.
-  late PbfKernels kernels = DartPbfKernels(
-    PbfConstants(
+  /// Whether to run the loops over pairs natively where that was built
+  /// ([nativePbfAvailable]): several times as fast, and the same to within
+  /// a tolerance rather than to the bit, so not for a world that must
+  /// replay exactly.
+  final bool native;
+
+  /// What runs the loops over pairs: the Dart reference, or the native
+  /// kernels when [native] asks for them and they are there.
+  late PbfKernels kernels = () {
+    final k = PbfConstants(
       h: h,
       restDensity: medium.density,
       mass: _mass,
       norm: 1.0 / _latticeSum,
       gamma: _gamma,
       restStiffness: _restStiffness,
-    ),
-  );
+    );
+    return (native ? nativePbfKernels(k) : null) ?? DartPbfKernels(k);
+  }();
 
   /// [points] as one flat buffer of x, y, z in turn.
   static Float64List _flat(List<_V> points) {
@@ -349,20 +358,13 @@ final class ParticleFluid {
 
   /// The neighbours of each of [points] within the kernel's reach, as
   /// compressed rows: [PbfKernels]' layout.
-  (Int32List, Int32List) _rows(List<_V> points) {
-    final grid = _Grid(h, points);
-    final n = points.length;
-    final lists = [for (var i = 0; i < n; i++) grid.near(i, points)];
-    final start = Int32List(n + 1);
-    for (var i = 0; i < n; i++) {
-      start[i + 1] = start[i] + lists[i].length;
-    }
-    final list = Int32List(start[n]);
-    for (var i = 0; i < n; i++) {
-      list.setAll(start[i], lists[i]);
-    }
-    return (start, list);
-  }
+  ///
+  /// Searched afresh each time. Candidates kept from one search to the next
+  /// (Verlet's list, half the reach again) were measured and cost more
+  /// here: drops landing while others still fall move apart faster than
+  /// any skin outlasts, and the wider search came round nearly every time.
+  (Int32List, Int32List) _rows(List<_V> points) =>
+      kernels.neighbours(_flat(points), points.length, h);
 
   /// The air the particles are being stepped through, and each particle's
   /// drop's diameter: set at the start of a step, read by its substeps.
@@ -396,10 +398,11 @@ final class ParticleFluid {
       return parent[i] = r;
     }
 
-    final grid = _Grid(h, _x);
+    final (start, list) = _rows(_x);
     final touching = 2.25 * spacing * spacing;
     for (var i = 0; i < n; i++) {
-      for (final j in grid.near(i, _x)) {
+      for (var q = start[i]; q < start[i + 1]; q++) {
+        final j = list[q];
         if (_x[i].distance2(_x[j]) < touching) parent[root(i)] = root(j);
       }
     }
@@ -496,8 +499,11 @@ final class ParticleFluid {
     // **Unless the drop's weight along the wall is more than its edge can
     // hold**, by Furmidge's σ·w·(cos θr − cos θa): then it slides, its
     // particles kept out of the wall and free along it.
+    // The neighbours at these places, found once: for which drop each
+    // particle is in, and for the forces.
+    final (start, list) = _rows(_x);
     final touching = [for (var i = 0; i < n; i++) _touching(_x[i], walls[i])];
-    final held = _held(touching, gravity);
+    final held = _held(touching, gravity, start, list);
     final pinned = [
       for (var i = 0; i < n; i++) held[i] ? touching[i]?.normal : null,
     ];
@@ -515,7 +521,6 @@ final class ParticleFluid {
     // Forces first: gravity, cohesion and curvature, on the velocities.
     final xs = _flat(_x);
     final vs = _flat(_v);
-    final (start, list) = _rows(_x);
     final density = Float64List(n);
     ker.densities(xs, start, list, n, density);
     final normal = Float64List(3 * n);
@@ -645,6 +650,8 @@ final class ParticleFluid {
   List<bool> _held(
     List<({_V normal, JetObstacle wall})?> touching,
     _V gravity,
+    Int32List start,
+    Int32List list,
   ) {
     final n = _x.length;
     final out = List<bool>.filled(n, false);
@@ -659,10 +666,10 @@ final class ParticleFluid {
     }
 
     // One drop: particles nearer each other than a spacing and a half.
-    final grid = _Grid(h, _x);
     final close = 2.25 * spacing * spacing;
     for (var i = 0; i < n; i++) {
-      for (final j in grid.near(i, _x)) {
+      for (var q = start[i]; q < start[i + 1]; q++) {
+        final j = list[q];
         if (_x[i].distance2(_x[j]) < close) parent[root(i)] = root(j);
       }
     }
@@ -819,56 +826,6 @@ final class ParticleFluid {
 
   static double _pow6(double x) => x * x * x * x * x * x;
   static double _pow9(double x) => _pow6(x) * x * x * x;
-}
-
-/// A uniform grid of cells as wide as the kernel, for finding neighbours.
-final class _Grid {
-  _Grid(this.cell, List<_V> points) {
-    for (var i = 0; i < points.length; i++) {
-      _cells.putIfAbsent(_key(points[i]), () => []).add(i);
-    }
-  }
-
-  final double cell;
-  final Map<int, List<int>> _cells = {};
-
-  int _key(_V p) =>
-      _pack((p.x / cell).floor(), (p.y / cell).floor(), (p.z / cell).floor());
-
-  /// By multiplication, as `spatial_grid.dart` does, and not by shifting
-  /// into the high bits: on the web an int's bitwise operations are 32 bits
-  /// wide, `x << 42` kept almost nothing of `x`, cells far apart shared a
-  /// key, a particle met the same neighbour several times over, and the
-  /// liquid read as many times its density and flew apart. Each index is
-  /// held to ±2¹⁶ cells and the key under 2⁵¹, which a double holds exactly.
-  static int _pack(int x, int y, int z) {
-    const span = 1 << 17;
-    const half = 1 << 16;
-    int wrap(int v) => (v + half) % span;
-    return (wrap(x) * span + wrap(y)) * span + wrap(z);
-  }
-
-  /// The points within [cell] of point [i], itself left out.
-  List<int> near(int i, List<_V> points) {
-    final p = points[i];
-    final cx = (p.x / cell).floor();
-    final cy = (p.y / cell).floor();
-    final cz = (p.z / cell).floor();
-    final out = <int>[];
-    final reach2 = cell * cell;
-    for (var dx = -1; dx <= 1; dx++) {
-      for (var dy = -1; dy <= 1; dy++) {
-        for (var dz = -1; dz <= 1; dz++) {
-          final list = _cells[_pack(cx + dx, cy + dy, cz + dz)];
-          if (list == null) continue;
-          for (final j in list) {
-            if (j != i && points[j].distance2(p) < reach2) out.add(j);
-          }
-        }
-      }
-    }
-    return out;
-  }
 }
 
 /// A vector in double precision, for the solver's own arithmetic.
