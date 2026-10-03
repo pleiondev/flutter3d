@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A scene written as widgets** — `P10`. `Scene3D` opens a device, makes a
+  renderer and a scene and draws them; `Mesh3D`, `Model3D` (loaded
+  asynchronously, with a placeholder, its animation clip, speed and pause as
+  properties), `Light3D`, `Camera3D` and `Node3D` below it each own one node
+  of that scene. Reconciled by Flutter's own keys, so a rebuild keeps each
+  node and what a game set on it; a shape made fresh in `build` is uploaded
+  again only when its vertices change. Suffixed `3D` because `SceneNode` is
+  the engine's own class.
+
 - **`HotSwap.loadMaterial`** loads the bundle the build hook compiled a
   `.f3dmat` into and watches it — `P8`: the library for the renderer, the
   materials' lighting models and parameters, and an edit drawn by the next
