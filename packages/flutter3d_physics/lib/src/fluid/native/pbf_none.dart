@@ -30,3 +30,9 @@ int nativeSurfaceLanczos(
   double contactAngle,
   int samples,
 ) => null;
+
+/// No native code here: 0.
+int get nativePbfLanes => 0;
+
+/// No native code here: 0.
+int setNativePbfLanes(int lanes) => 0;

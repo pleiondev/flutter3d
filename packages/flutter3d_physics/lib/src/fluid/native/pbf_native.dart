@@ -301,11 +301,27 @@ external int _meniscus(
   }
 }
 
+@Native<Int32 Function()>(symbol: 'f3d_pbf_lanes', isLeaf: true)
+external int _lanes();
+
+@Native<Int32 Function(Int32)>(symbol: 'f3d_pbf_set_lanes', isLeaf: true)
+external int _setLanes(int lanes);
+
+/// How many neighbours the native pair loops take at a time: chosen by the
+/// running processor (eight with AVX-512F, four with AVX2, two with SSE2 or
+/// NEON), or 0 where there is no native code.
+int get nativePbfLanes => nativePbfAvailable ? _lanes() : 0;
+
+/// Sets [nativePbfLanes] to [lanes] where the processor has them, 0 for its
+/// own choice, and returns what is now in use: for a test to hold each
+/// width to the Dart kernels. One setting for the whole process.
+int setNativePbfLanes(int lanes) => nativePbfAvailable ? _setLanes(lanes) : 0;
+
 /// Whether the native kernels were built and load: false where the build
 /// had no C compiler, and asked once.
 final bool nativePbfAvailable = () {
   try {
-    return _version() == 5;
+    return _version() == 6;
   } on Object {
     return false;
   }
