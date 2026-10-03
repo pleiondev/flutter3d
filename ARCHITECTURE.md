@@ -2691,7 +2691,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **11391 tests** across 43 packages and 10 applications |
+| Unit tests | **11406 tests** across 44 packages and 10 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3709,7 +3709,7 @@ what went out at 0.4.2.
    `flutter3d_audio_core`, `flutter3d_physics`, `flutter3d_mcp_kit`,
    `flutter3d_lti`, `pad_input`, `pointer_lock`, `flame_multiplayer`
 2. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_audio`,
-   `flame_multiplayer_dashwire`
+   `flame_multiplayer_dashwire`, `flutter3d_physics_native`
 3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`,
    `flutter3d_editor_widgets`
 4. `flutter3d`, `flutter3d_model_core`

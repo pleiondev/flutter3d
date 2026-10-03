@@ -1,0 +1,36 @@
+name: flutter3d_physics_native
+description: "The physics core in C11: rigid bodies stepped natively through dart:ffi, and in the browser as WebAssembly. flutter3d_physics is its reference."
+version: 0.1.0
+publish_to: none
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  # The build hook: `native_toolchain_c` compiles `csrc/` with the C compiler
+  # a Flutter developer already has — Xcode's, the NDK's, MSVC — so a game
+  # depending on this package needs no other toolchain. `code_assets` and
+  # `hooks` are what the hook speaks; `logging` is what the builder reports
+  # through.
+  code_assets: ^2.1.0
+  # `malloc` for the few floats a call writes back.
+  ffi: ^2.2.0
+  hooks: ^2.0.0
+  logging: ^1.3.0
+  native_toolchain_c: ^0.19.5
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  # The reference: what a native world steps is held to what the pure-Dart
+  # world steps, with a tolerance, since that one is in doubles.
+  flutter3d_physics: ^0.8.0
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **Unpublished while P9 builds it.** The native core grows phase by phase —
+# bodies first, then contacts, a solver, shapes, joints, CCD and the GPU
+# passes — and it is published once it can stand under `CollisionWorld`.
