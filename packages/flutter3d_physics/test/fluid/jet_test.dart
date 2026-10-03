@@ -84,6 +84,36 @@ void main() {
     expect((oldest - expected).length, lessThan(1e-3));
   });
 
+  test('the tail of a stream cut off draws back into a bulb', () {
+    // Mutation: leave its end where it was, and the tail falls as wide at
+    // its end as along it, like a rod, for as long as it falls.
+    final jet = Jet(medium: FluidMedium.water, breakupGrowth: 1e9);
+    const dt = 1 / 1000;
+    final g = Vector3(0, -9.81, 0);
+    for (var k = 0; k < 100; k++) {
+      jet.emit(
+        flow: 4e-6,
+        dt: dt,
+        point: Vector3(0, 1, 0),
+        velocity: Vector3(0.3, 0, 0),
+        width: 0.004,
+        across: Vector3(0, 0, 1),
+      );
+      jet.step(dt, gravity: g);
+    }
+    final before = jet.runs.single.length;
+    for (var k = 0; k < 30; k++) {
+      jet.step(dt, gravity: g);
+    }
+    final run = jet.runs.single;
+    // Its end, the lip's side, has gathered what it drew back past.
+    double section(JetSample s) => math.pi * s.wide * s.thick;
+    final middle = run[run.length ~/ 2];
+    expect(section(run.first), greaterThan(1.5 * section(middle)));
+    expect(run.length, lessThan(before));
+    expect(jet.inFlight, closeTo(jet.emitted, jet.emitted * 1e-12));
+  });
+
   test('every drop of it is somewhere', () {
     final body = LiquidBody(
       shape: RevolvedVessel([
