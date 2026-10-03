@@ -600,21 +600,26 @@ final class ParticleFluid {
     d.volume = kept;
   }
 
-  /// Particles gathered into a drop, a spacing and a half apart at most,
-  /// that touch no wall, become that drop: one body again, in flight.
-  void _clustersToDrops(List<JetObstacle> walls) {
+  /// For each particle, the drop it is in, by the particle that stands for
+  /// the drop: particles nearer each other than a spacing and a half are
+  /// one, through any chain of them.
+  ///
+  /// **Each step on the way halved.** Which particle stands for a drop is
+  /// set by the joins alone, so shortcuts taken on the way change none;
+  /// walked to the end each time, a block of five hundred on a pane made
+  /// chains hundreds long, and finding the drops was a sixth of a step.
+  Int32List _dropRoots(Int32List start, Int32List list) {
     final n = _x.length;
-    if (n == 0 || medium.surfaceTension <= 0.0) return;
-    final parent = List<int>.generate(n, (i) => i);
+    final parent = Int32List.fromList([for (var i = 0; i < n; i++) i]);
     int root(int i) {
       var r = i;
       while (parent[r] != r) {
+        parent[r] = parent[parent[r]];
         r = parent[r];
       }
-      return parent[i] = r;
+      return r;
     }
 
-    final (start, list) = _rows(_x);
     final close = 2.25 * spacing * spacing;
     for (var i = 0; i < n; i++) {
       for (var q = start[i]; q < start[i + 1]; q++) {
@@ -622,11 +627,21 @@ final class ParticleFluid {
         if (_x[i].distance2(_x[j]) < close) parent[root(i)] = root(j);
       }
     }
+    return Int32List.fromList([for (var i = 0; i < n; i++) root(i)]);
+  }
+
+  /// Particles gathered into a drop, a spacing and a half apart at most,
+  /// that touch no wall, become that drop: one body again, in flight.
+  void _clustersToDrops(List<JetObstacle> walls) {
+    final n = _x.length;
+    if (n == 0 || medium.surfaceTension <= 0.0) return;
+    final (start, list) = _rows(_x);
+    final roots = _dropRoots(start, list);
     final volume = <int, double>{};
     final speed = <int, _V>{};
     final onWall = <int>{};
     for (var i = 0; i < n; i++) {
-      final r = root(i);
+      final r = roots[i];
       volume[r] = (volume[r] ?? 0.0) + _vol[i];
       (speed[r] ??= _V(0, 0, 0)).addScaled(_v[i], _vol[i]);
       final near = obstaclesNear(walls, _x[i].toVector3(), spacing);
@@ -642,7 +657,7 @@ final class ParticleFluid {
     }
     if (into.isEmpty) return;
     for (var i = n - 1; i >= 0; i--) {
-      final d = into[root(i)];
+      final d = into[roots[i]];
       if (d == null) continue;
       final w = _vol[i];
       final total = d.volume + w;
@@ -744,27 +759,12 @@ final class ParticleFluid {
   /// particles by their share, what is dissolved in them left behind.
   void _measureDrops(double dt, Atmosphere air) {
     final n = _x.length;
-    final parent = List<int>.generate(n, (i) => i);
-    int root(int i) {
-      var r = i;
-      while (parent[r] != r) {
-        r = parent[r];
-      }
-      return parent[i] = r;
-    }
-
     final (start, list) = _rows(_x);
-    final touching = 2.25 * spacing * spacing;
-    for (var i = 0; i < n; i++) {
-      for (var q = start[i]; q < start[i + 1]; q++) {
-        final j = list[q];
-        if (_x[i].distance2(_x[j]) < touching) parent[root(i)] = root(j);
-      }
-    }
+    final roots = _dropRoots(start, list);
     final volume = <int, double>{};
     final speed = <int, _V>{};
     for (var i = 0; i < n; i++) {
-      final r = root(i);
+      final r = roots[i];
       volume[r] = (volume[r] ?? 0.0) + _vol[i];
       (speed[r] ??= _V(0, 0, 0)).addScaled(_v[i], _vol[i]);
     }
@@ -788,7 +788,7 @@ final class ParticleFluid {
       volume[r] = diameter;
     }
     for (var i = 0; i < n; i++) {
-      final r = root(i);
+      final r = roots[i];
       _drop[i] = volume[r]!;
       final share = lost[r];
       if (share != null && share > 0.0) {
@@ -1011,36 +1011,26 @@ final class ParticleFluid {
     final n = _x.length;
     final out = List<bool>.filled(n, false);
     if (n == 0 || medium.surfaceTension <= 0.0) return out;
-    final parent = List<int>.generate(n, (i) => i);
-    int root(int i) {
-      var r = i;
-      while (parent[r] != r) {
-        r = parent[r];
-      }
-      return parent[i] = r;
-    }
-
-    // One drop: particles nearer each other than a spacing and a half.
-    final close = 2.25 * spacing * spacing;
+    final dropOf = _dropRoots(start, list);
+    // By root, in arrays: summed in the particles' order, as before.
+    final volume = Float64List(n);
+    final normal = Float64List(3 * n);
+    final solid = List<SolidSurface?>.filled(n, null);
     for (var i = 0; i < n; i++) {
-      for (var q = start[i]; q < start[i + 1]; q++) {
-        final j = list[q];
-        if (_x[i].distance2(_x[j]) < close) parent[root(i)] = root(j);
-      }
-    }
-    final volume = <int, double>{};
-    final normal = <int, _V>{};
-    final solid = <int, SolidSurface>{};
-    for (var i = 0; i < n; i++) {
-      final r = root(i);
-      volume[r] = (volume[r] ?? 0.0) + _vol[i];
+      final r = dropOf[i];
+      volume[r] += _vol[i];
       final t = touching[i];
       if (t == null) continue;
-      (normal[r] ??= _V(0, 0, 0)).add(t.normal);
+      normal[3 * r] += t.normal.x;
+      normal[3 * r + 1] += t.normal.y;
+      normal[3 * r + 2] += t.normal.z;
       solid[r] ??= t.wall.solid;
     }
-    final holds = <int>{};
-    for (final MapEntry(key: r, value: sum) in normal.entries) {
+    final holds = List<bool>.filled(n, false);
+    for (var r = 0; r < n; r++) {
+      final surface = solid[r];
+      if (surface == null) continue;
+      final sum = _V(normal[3 * r], normal[3 * r + 1], normal[3 * r + 2]);
       final length = sum.length;
       if (length <= 0.0) continue;
       final nx = sum.x / length;
@@ -1050,13 +1040,13 @@ final class ParticleFluid {
       final g = at == null ? gravity : _V(at.x, at.y, at.z);
       final into = g.x * nx + g.y * ny + g.z * nz;
       final along = math.sqrt(math.max(g.length2 - into * into, 0.0));
-      final v = volume[r]!;
+      final v = volume[r];
       final weight = medium.density * v * along;
-      final width = 2.0 * solid[r]!.baseRadius(medium, v);
-      if (weight <= solid[r]!.retention(medium, width)) holds.add(r);
+      final width = 2.0 * surface.baseRadius(medium, v);
+      if (weight <= surface.retention(medium, width)) holds[r] = true;
     }
     for (var i = 0; i < n; i++) {
-      out[i] = holds.contains(root(i));
+      out[i] = holds[dropOf[i]];
     }
     return out;
   }
