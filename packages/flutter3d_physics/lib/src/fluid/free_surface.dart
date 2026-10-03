@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
 import 'fluid_medium.dart';
+import 'native/pbf_backend.dart';
 import 'vessel_shape.dart';
 
 /// The waves on a liquid's free surface in a vessel of any shape: how far
@@ -123,16 +124,17 @@ final class FreeSurface {
         old != null &&
         _modes.isNotEmpty &&
         grid.count >= 6 &&
-        _cachedModes(grid, modeCount) == null) {
+        _cachedModes(grid, modeCount, nativeModes) == null) {
       _wanted = (shape: shape, up: up.clone(), height: height, grid: grid);
       final count = modeCount;
+      final native = nativeModes;
       // Asked once, however many steps go by before it comes.
-      final key = _keyOf(grid, count);
+      final key = _keyOf(grid, count, native);
       if (_asked.add(key)) {
         defer.solve(grid.count, grid.neighbours, grid.cell2, count, (modes) {
           _asked.remove(key);
-          _remember(grid, count, modes);
-        });
+          _remember(grid, count, native, modes);
+        }, native: native);
       }
       _carryOn(old, up, height);
       return;
@@ -149,7 +151,7 @@ final class FreeSurface {
       _rate = Float64List(0);
       return;
     }
-    final (shapes, k2) = _modesOf(grid, modeCount);
+    final (shapes, k2) = _modesOf(grid, modeCount, nativeModes);
     _modes = shapes;
     _k2 = k2;
     // The liquid stays: what stood off the old plane stands off the new one
@@ -184,6 +186,11 @@ final class FreeSurface {
     _field = null;
   }
 
+  /// Whether its cross-sections' modes are worked out natively where that
+  /// was built; set by a world that may be stepped so
+  /// (`FluidWorld.nativeKernels`).
+  bool nativeModes = false;
+
   /// Where cross-sections not yet worked out are worked out instead of
   /// waited for: another isolate, set by a world that may be stepped so
   /// (`FluidWorld.background`). Null, they are worked out at once.
@@ -206,7 +213,8 @@ final class FreeSurface {
     _depth = depth;
     // The modes put off for have come: laid out now, as it would have been.
     final wanted = _wanted;
-    if (wanted != null && _cachedModes(wanted.grid, modeCount) != null) {
+    if (wanted != null &&
+        _cachedModes(wanted.grid, modeCount, nativeModes) != null) {
       _wanted = null;
       layOut(wanted.shape, wanted.up, wanted.height);
     }
@@ -502,27 +510,40 @@ final class FreeSurface {
   /// tube being poured into worked out its modes every other step, fifty
   /// milliseconds each, and that was most of a pour's cost. Read only, so
   /// shared between surfaces.
-  static (List<Float64List>, Float64List) _modesOf(_Grid grid, int count) {
-    final cached = _cachedModes(grid, count);
+  ///
+  /// Kept apart by [native]: a world that must replay to the bit never
+  /// reads modes the native solve worked out for another.
+  static (List<Float64List>, Float64List) _modesOf(
+    _Grid grid,
+    int count,
+    bool native,
+  ) {
+    final cached = _cachedModes(grid, count, native);
     if (cached != null) return cached;
-    final modes = _lowestModes(grid, count);
-    _remember(grid, count, modes);
+    final modes = _lowestModes(grid, count, native: native);
+    _remember(grid, count, native, modes);
     return modes;
   }
 
-  static int _keyOf(_Grid grid, int count) => Object.hash(
+  static int _keyOf(_Grid grid, int count, bool native) => Object.hash(
     count,
+    native,
     grid.columns,
     grid.rows,
     grid.cell,
     Object.hashAll(grid.index),
   );
 
-  static (List<Float64List>, Float64List)? _cachedModes(_Grid grid, int count) {
-    final hits = _solved[_keyOf(grid, count)];
+  static (List<Float64List>, Float64List)? _cachedModes(
+    _Grid grid,
+    int count,
+    bool native,
+  ) {
+    final hits = _solved[_keyOf(grid, count, native)];
     if (hits == null) return null;
     for (final hit in hits) {
       if (hit.count == count &&
+          hit.native == native &&
           hit.columns == grid.columns &&
           hit.rows == grid.rows &&
           hit.cell == grid.cell &&
@@ -536,12 +557,14 @@ final class FreeSurface {
   static void _remember(
     _Grid grid,
     int count,
+    bool native,
     (List<Float64List>, Float64List) modes,
   ) {
-    if (_cachedModes(grid, count) != null) return;
+    if (_cachedModes(grid, count, native) != null) return;
     if (_solved.length >= 256) _solved.remove(_solved.keys.first);
-    (_solved[_keyOf(grid, count)] ??= []).add((
+    (_solved[_keyOf(grid, count, native)] ??= []).add((
       count: count,
+      native: native,
       columns: grid.columns,
       rows: grid.rows,
       cell: grid.cell,
@@ -563,6 +586,7 @@ final class FreeSurface {
     List<
       ({
         int count,
+        bool native,
         int columns,
         int rows,
         double cell,
@@ -573,18 +597,31 @@ final class FreeSurface {
   >
   _solved = {};
 
-  static (List<Float64List>, Float64List) _lowestModes(_Grid grid, int count) =>
-      solveModes(grid.count, grid.neighbours, grid.cell2, count);
+  static (List<Float64List>, Float64List) _lowestModes(
+    _Grid grid,
+    int count, {
+    bool native = false,
+  }) => solveModes(
+    grid.count,
+    grid.neighbours,
+    grid.cell2,
+    count,
+    native: native,
+  );
 
   /// The lowest [count] non-flat modes of the graph Laplacian of [n] cells
   /// [cell2] square metres each, with [neighbours] inside, and their k²:
   /// all the solve needs, so another isolate can do it from these alone.
+  ///
+  /// [native] runs the Lanczos steps in C where that was built: the same
+  /// steps, to within a tolerance rather than to the bit.
   static (List<Float64List>, Float64List) solveModes(
     int n,
     List<List<int>> neighbours,
     double cell2,
-    int count,
-  ) {
+    int count, {
+    bool native = false,
+  }) {
     final inv = 1.0 / cell2;
     // The graph Laplacian: each cell against the neighbours it has inside.
     // A neighbour outside is the wall, and leaving it out is ∂φ/∂n = 0.
@@ -664,6 +701,45 @@ final class FreeSurface {
     }
     _removeMean(q);
     _normalise(q);
+    if (native) {
+      final start = Int32List(n + 1);
+      for (var i = 0; i < n; i++) {
+        start[i + 1] = start[i] + neighbours[i].length;
+      }
+      final adjacent = Int32List(start[n]);
+      for (var i = 0; i < n; i++) {
+        adjacent.setAll(start[i], neighbours[i]);
+      }
+      final rows = Float64List(steps * n);
+      final a = Float64List(steps);
+      final bs = Float64List(steps);
+      final size = nativeSurfaceLanczos(
+        n,
+        start,
+        adjacent,
+        cell2,
+        band,
+        steps,
+        q,
+        rows,
+        a,
+        bs,
+      );
+      if (size > 0) {
+        return _finishModes(
+          n,
+          cell2,
+          count,
+          sigma,
+          [
+            for (var m = 0; m < size; m++)
+              Float64List.sublistView(rows, m * n, (m + 1) * n),
+          ],
+          [for (var m = 0; m < size; m++) a[m]],
+          [for (var m = 0; m < size - 1; m++) bs[m]],
+        );
+      }
+    }
     var previous = Float64List(n);
     var b = 0.0;
     for (var m = 0; m < steps; m++) {
@@ -697,6 +773,21 @@ final class FreeSurface {
         q[i] = w[i] / b;
       }
     }
+    return _finishModes(n, cell2, count, sigma, basis, alpha, beta);
+  }
+
+  /// The modes from the Lanczos [basis] and its tridiagonal [alpha] and
+  /// [beta]: its eigenvectors, the highest of (L + σ)⁻¹ first, carried back
+  /// into the cells.
+  static (List<Float64List>, Float64List) _finishModes(
+    int n,
+    double cell2,
+    int count,
+    double sigma,
+    List<Float64List> basis,
+    List<double> alpha,
+    List<double> beta,
+  ) {
     final size = alpha.length;
     final (values, vectors) = _tridiagonalEigen(alpha, beta, size);
     // Highest of L⁻¹ first, which is lowest of L.
@@ -1000,6 +1091,7 @@ abstract interface class ModeSolver {
     List<List<int>> neighbours,
     double cell2,
     int count,
-    void Function((List<Float64List>, Float64List) modes) done,
-  );
+    void Function((List<Float64List>, Float64List) modes) done, {
+    bool native = false,
+  });
 }

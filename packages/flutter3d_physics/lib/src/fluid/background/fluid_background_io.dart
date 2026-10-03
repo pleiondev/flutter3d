@@ -65,9 +65,10 @@ final class FluidBackground implements ModeSolver {
     List<List<int>> neighbours,
     double cell2,
     int count,
-    void Function((List<Float64List>, Float64List) modes) done,
-  ) {
-    _post(['modes', _next++, n, neighbours, cell2, count], (reply) {
+    void Function((List<Float64List>, Float64List) modes) done, {
+    bool native = false,
+  }) {
+    _post(['modes', _next++, n, neighbours, cell2, count, native], (reply) {
       done((
         [for (final m in reply[1]! as List<Object?>) m! as Float64List],
         reply[2]! as Float64List,
@@ -127,6 +128,7 @@ void _work(SendPort back) {
           (request[3]! as List<Object?>).cast<List<int>>(),
           request[4]! as double,
           request[5]! as int,
+          native: request[6]! as bool,
         );
         back.send([id, modes, k2]);
       case 'meniscus':

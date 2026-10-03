@@ -183,11 +183,71 @@ external int _within(
   Pointer<Int32> out,
 );
 
+@Native<
+  Int32 Function(
+    Int32,
+    Pointer<Int32>,
+    Pointer<Int32>,
+    Double,
+    Int32,
+    Int32,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+    Pointer<Double>,
+  )
+>(symbol: 'f3d_surface_lanczos', isLeaf: true)
+external int _surfaceLanczos(
+  int n,
+  Pointer<Int32> start,
+  Pointer<Int32> adjacent,
+  double cell2,
+  int band,
+  int steps,
+  Pointer<Double> q0,
+  Pointer<Double> basis,
+  Pointer<Double> alpha,
+  Pointer<Double> beta,
+  Pointer<Double> scratch,
+);
+
+/// The Lanczos steps of `FreeSurface.solveModes` in C, into [basis],
+/// [alpha] and [beta]: how many ran, or -1 where there is no native code.
+int nativeSurfaceLanczos(
+  int n,
+  Int32List start,
+  Int32List adjacent,
+  double cell2,
+  int band,
+  int steps,
+  Float64List q0,
+  Float64List basis,
+  Float64List alpha,
+  Float64List beta,
+) {
+  if (!nativePbfAvailable) return -1;
+  final scratch = Float64List(n * (band + 1) + 2 * n);
+  return _surfaceLanczos(
+    n,
+    start.address,
+    (adjacent.isEmpty ? Int32List(1) : adjacent).address,
+    cell2,
+    band,
+    steps,
+    q0.address,
+    basis.address,
+    alpha.address,
+    (beta.isEmpty ? Float64List(1) : beta).address,
+    scratch.address,
+  );
+}
+
 /// Whether the native kernels were built and load: false where the build
 /// had no C compiler, and asked once.
 final bool nativePbfAvailable = () {
   try {
-    return _version() == 3;
+    return _version() == 4;
   } on Object {
     return false;
   }
