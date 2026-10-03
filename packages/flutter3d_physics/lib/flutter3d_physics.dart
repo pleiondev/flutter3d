@@ -45,6 +45,7 @@ export 'src/fluid/capillary.dart';
 export 'src/fluid/fluid_medium.dart';
 export 'src/fluid/fluid_world.dart';
 export 'src/fluid/free_surface.dart';
+export 'src/fluid/gravity_field.dart';
 export 'src/fluid/jet.dart';
 export 'src/fluid/liquid_body.dart';
 export 'src/fluid/liquid_layer.dart';

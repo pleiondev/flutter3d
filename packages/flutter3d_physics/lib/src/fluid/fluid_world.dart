@@ -3,6 +3,7 @@ import 'package:vector_math/vector_math.dart';
 import '../rigid_body.dart';
 import 'atmosphere.dart';
 import 'buoyancy.dart';
+import 'gravity_field.dart';
 import 'jet.dart';
 import 'liquid_body.dart';
 import 'particle_fluid.dart';
@@ -28,7 +29,16 @@ final class FluidWorld {
     this.particleSpacing = 0.002,
     this.floor,
     Atmosphere? atmosphere,
+    this.field,
   }) : atmosphere = atmosphere ?? Atmosphere.standard();
+
+  /// Gravity that differs from place to place, when there is some: then
+  /// each vessel, drop and parcel of a stream feels [GravityField.at] where
+  /// it is, and [gravity] is not read. Null, every one feels [gravity].
+  final GravityField? field;
+
+  /// The gravity at [point].
+  Vector3 gravityAt(Vector3 point) => field?.at(point) ?? gravity;
 
   /// The air: what drops and streams fall through and what open liquid
   /// evaporates into. Room air by default, as a bench stands in.
@@ -112,19 +122,20 @@ final class FluidWorld {
     for (final liquid in bodies) {
       var displaced = 0.0;
       for (final f in floating) {
-        displaced += f.push(liquid, dt, gravity);
+        displaced += f.push(liquid, dt, gravityAt(f.body.position));
       }
       liquid.displaced = displaced;
     }
     for (final pipe in pipes) {
-      pipe.step(dt, gravity: gravity);
+      pipe.step(dt, gravity: gravityAt(pipe.from.position));
     }
     for (final body in bodies) {
-      final spill = body.step(dt, gravity: gravity);
+      final here = gravityAt(body.position);
+      final spill = body.step(dt, gravity: here);
       final jet = jets[body];
       if (spill.flow > 0.0 || jet != null) {
         final stream = jets.putIfAbsent(body, () => Jet(medium: body.medium));
-        final across = gravity.cross(spill.velocity);
+        final across = here.cross(spill.velocity);
         stream.emit(
           flow: spill.flow,
           dt: dt,
@@ -151,7 +162,8 @@ final class FluidWorld {
       ];
       for (final drop in jet.step(
         dt,
-        gravity: gravity,
+        gravity: gravityAt(source.position),
+        gravityAt: field?.at,
         obstacles: walls,
         receivers: [...bodies, ...spills],
         air: atmosphere,
@@ -182,7 +194,10 @@ final class FluidWorld {
     for (final fluid in particles.values) {
       fluid.step(
         dt,
-        gravity: gravity,
+        gravity: field == null || fluid.count == 0
+            ? gravity
+            : gravityAt(fluid.positions.first),
+        gravityAt: field?.at,
         obstacles: everywhere,
         receivers: [...bodies, ...spills],
         air: atmosphere,
@@ -195,7 +210,10 @@ final class FluidWorld {
       _evaporated += spill.evaporate(dt, atmosphere);
     }
     for (final spill in spills) {
-      spill.step(dt, gravity: gravity);
+      spill.step(
+        dt,
+        gravity: gravityAt(spill.surface.normal * spill.surface.offset),
+      );
     }
   }
 }

@@ -240,6 +240,7 @@ final class ParticleFluid {
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
     Atmosphere? air,
+    Vector3 Function(Vector3 point)? gravityAt,
   }) {
     // **What is less than a particle is let go too**, once no more liquid
     // comes to make it one: as a particle of its own amount, where the last
@@ -287,6 +288,7 @@ final class ParticleFluid {
           spacing,
     );
     _air = air;
+    _gravityAt = gravityAt;
     if (air != null) _measureDrops(dt, air);
     for (var s = 0; s < count; s++) {
       _substep(sub, g, walls);
@@ -313,6 +315,9 @@ final class ParticleFluid {
   /// drop's diameter: set at the start of a step, read by its substeps.
   Atmosphere? _air;
   Float64List _drop = Float64List(0);
+
+  /// The gravity at a point, when it is not one vector everywhere.
+  Vector3 Function(Vector3 point)? _gravityAt;
 
   /// Cubic metres evaporated from the drops so far.
   double get evaporated => _evaporated;
@@ -488,9 +493,10 @@ final class ParticleFluid {
     }
     for (var i = 0; i < n; i++) {
       final xi = _x[i];
-      var ax = gravity.x;
-      var ay = gravity.y;
-      var az = gravity.z;
+      final here = _gravityAt?.call(xi.toVector3());
+      var ax = here?.x ?? gravity.x;
+      var ay = here?.y ?? gravity.y;
+      var az = here?.z ?? gravity.z;
       for (final j in neighbours[i]) {
         final xj = _x[j];
         final dx = xi.x - xj.x;
@@ -731,8 +737,10 @@ final class ParticleFluid {
       final nx = sum.x / length;
       final ny = sum.y / length;
       final nz = sum.z / length;
-      final into = gravity.x * nx + gravity.y * ny + gravity.z * nz;
-      final along = math.sqrt(math.max(gravity.length2 - into * into, 0.0));
+      final at = _gravityAt?.call(_x[r].toVector3());
+      final g = at == null ? gravity : _V(at.x, at.y, at.z);
+      final into = g.x * nx + g.y * ny + g.z * nz;
+      final along = math.sqrt(math.max(g.length2 - into * into, 0.0));
       final v = volume[r]!;
       final weight = medium.density * v * along;
       final width = 2.0 * solid[r]!.baseRadius(medium, v);
