@@ -148,6 +148,23 @@ final class WebGpuStage {
   final List<WebGpuAttribute> attributes;
   final List<WebGpuBlock> blocks;
   final List<WebGpuSampler> samplers;
+
+  /// What this stage declares, as the renderer asks a handle's `kept` —
+  /// `P8`.
+  ///
+  /// **Its own lists, because on this backend they are the binding.** The
+  /// pipeline's layout is built from them, so every block and sampler they
+  /// name has to be bound at a draw whether or not the WGSL reads it. The
+  /// engine's library has the same answer from its generated table; a loaded
+  /// one had none, and the renderer fell back to the lighting model's flags —
+  /// which say what a model reads, not what its WGSL declares. A lit material
+  /// from the material language declares the metal-rough map through
+  /// `material_maps.glsl` and reads nothing of it, so the map went unbound
+  /// and the draw was refused.
+  StageBindings get declared => (
+    blocks: <String>{for (final block in blocks) block.name},
+    samplers: <String>{for (final sampler in samplers) sampler.name},
+  );
 }
 
 /// What the section decodes to.

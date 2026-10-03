@@ -107,6 +107,46 @@ ByteData _withVersion(ByteData section, int? version) {
 ByteData _bytes(List<int> raw) => Uint8List.fromList(raw).buffer.asByteData();
 
 void main() {
+  test(
+    'a loaded stage says what it declares, so the renderer binds it — P8',
+    () {
+      // A lit material from the material language declares the metal-rough
+      // map through `material_maps.glsl` and reads nothing of it. On this
+      // backend the layout is built from the section's lists, so the map must
+      // be bound; without `kept` the renderer asked the lighting model, which
+      // said no, and the draw was refused.
+      //
+      // Mutation: drop `kept: stage.declared` from the loaded library.
+      final section = encodeWebGpuSection(
+        vertex: const <String, WebGpuStage>{},
+        fragment: <String, WebGpuStage>{
+          'ToonHook': WebGpuStage(
+            wgsl: 'f0',
+            attributes: const <WebGpuAttribute>[],
+            blocks: const <WebGpuBlock>[],
+            samplers: const <WebGpuSampler>[
+              WebGpuSampler(
+                name: 'metallic_roughness_texture',
+                group: 1,
+                textureBinding: 0,
+                samplerBinding: 1,
+                dimension: WebGpuTextureDimension.twoDimensional,
+              ),
+            ],
+          ),
+        },
+      );
+      final library = WebGpuLoadedShaderLibrary.load(
+        _Compiler(),
+        _bundle(section: section, claims: <String>['ToonHook']),
+      );
+      expect(
+        library['ToonHook']!.kept?.samplers,
+        contains('metallic_roughness_texture'),
+      );
+    },
+  );
+
   group('loading', () {
     test('answers the names the section carries', () {
       final library = WebGpuLoadedShaderLibrary.load(

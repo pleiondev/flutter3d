@@ -155,7 +155,13 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     final isVertex = _stages.vertex.containsKey(name);
     final stage = isVertex ? _stages.vertex[name] : _stages.fragment[name];
     if (stage == null) return null;
-    return compileWebGpuStage(_compiler, name, stage, isVertex: isVertex);
+    return compileWebGpuStage(
+      _compiler,
+      name,
+      stage,
+      isVertex: isVertex,
+      kept: stage.declared,
+    );
   }
 
   @override

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A stage loaded from a bundle says what it declares.**
+  `WebGpuStage.declared` is the section's own blocks and samplers, which on
+  this backend are the pipeline's layout, and a loaded library hands it to
+  the renderer as the handle's `kept`. Without it the renderer asked the
+  lighting model what to bind, and a lit material that declares a map it
+  never reads had the draw refused.
+
 - The shader table regenerated for the caustic stages.
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured
