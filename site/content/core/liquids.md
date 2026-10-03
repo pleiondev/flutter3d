@@ -71,6 +71,14 @@ A drop is stopped by the wall it touches: a viscous liquid has no velocity along
 
 What reaches a floor given to the world becomes a `Puddle` on its `PuddleSurface`, one body with a volume and what is dissolved in it, not particles. A spread puddle is 2ℓc·sin(θ/2) deep, under a millimetre for water on glass; a smaller one is a spherical cap meeting the surface at the contact angle. It spreads there as a viscous gravity current, R ∝ (ρgV³/μ)^⅛·t^⅛ (Huppert), which water finishes in milliseconds. Puddles that meet run together. Draw them with `capMesh(...)`.
 
+## Laminar and turbulent
+
+Where it matters, the Reynolds number decides the law.
+
+- In a `Pipe`, friction is Darcy's, with 64/Re under 2300 and Haaland's form of Colebrook over 4000, for the bore's `roughness`. In between the flow is neither, and the factor goes from one to the other along a straight line, which claims no law it does not have. `Pipe.reynolds` says where a flow is.
+- A stream that leaves the lip under 2300 is smooth and parts by its own ripples. Past 4000 it leaves already disturbed and parts at Grant and Middleman's turbulent L/D = 8.51·We^0.32, a quarter of the laminar length for a brisk five-millimetre stream. A pour from a test tube is usually in between.
+- Waves in a vessel are damped in the laminar boundary layer at the wall, which is what they have at a bench's sizes.
+
 ## Air
 
 A `FluidWorld` has an `Atmosphere`: temperature, pressure, humidity and wind, room air unless told otherwise. Its density is moist air's as an ideal gas, its viscosity Sutherland's, and water vapour diffuses through it at Marrero and Mason's rate.
