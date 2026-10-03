@@ -244,8 +244,23 @@ void main() {
     to.liquid.pour(1e-6, concentrations: {orange.name: 1.0});
     final mixed = bench.colour(to);
     // Half of each: each dye's absorbance at half strength, added.
-    final expected = math.sqrt(blue.dye.r * orange.dye.r);
+    final expected = math.sqrt(bench.colour(blue).r * bench.colour(orange).r);
     expect(mixed.r, closeTo(expected, 0.01));
+  });
+
+  test('a solution lets light through as its strength and absorption say', () {
+    // A = εcl: 0.02 mol/L permanganate takes nearly all the green out of
+    // three centimetres, 0.5 mol/L copper sulphate only half of the blue,
+    // and hydrochloric acid nothing. Mutation: colour them by the label's
+    // swatch instead, and every solution is equally see-through.
+    final kit = cpuTestDevice(width: 8, height: 8);
+    final bench = Bench(kit.device);
+    Vessel named(String n) => bench.vessels.firstWhere((v) => v.name == n);
+    expect(bench.colour(named('KMnO4')).g, lessThan(1e-3));
+    expect(bench.colour(named('CuSO4')).b, greaterThan(0.4));
+    expect(bench.colour(named('CuSO4')).r, lessThan(0.05));
+    expect(bench.colour(named('K2Cr2O7')).b, lessThan(1e-3));
+    expect(bench.colour(named('HCl')).r, closeTo(1.0, 1e-9));
   });
 
   test('a pour drawn at uneven frames still pours half', () {
