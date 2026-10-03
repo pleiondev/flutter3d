@@ -119,6 +119,12 @@ class _BenchScreenState extends State<BenchScreen>
   @override
   void initState() {
     super.initState();
+    // The frame the bench draws, pass by pass, for a tool attached to it
+    // (`ext.flutter3d.render.*`), as the games have it.
+    registerRenderExtensions(
+      () => _ready?.renderer,
+      timeout: const Duration(seconds: 20),
+    );
     _open();
   }
 
@@ -312,7 +318,7 @@ class _Controls extends StatelessWidget {
                 const Text('Tilt'),
                 Expanded(
                   child: Slider(
-                    value: vessel.tilt.clamp(
+                    value: vessel.leanTo.clamp(
                       -bench.maxLean(vessel),
                       bench.maxLean(vessel),
                     ),
