@@ -432,10 +432,19 @@ final class LiquidBody implements JetReceiver {
 
   /// How far the meniscus stands over [point] (vessel frame) above the flat
   /// surface of the same volume — up at a wall the liquid wets, down at one
-  /// it does not, nought on average. For a round vessel, the exact
-  /// Young–Laplace surface for its radius at the surface ([TubeMeniscus]);
-  /// for another, the flat wall's ([wallMeniscus]) by distance from it.
+  /// it does not. For a round vessel standing upright, the exact
+  /// Young–Laplace surface for its radius at the surface ([TubeMeniscus]),
+  /// nought on average. Tipped, the surface cuts the glass in a long oval
+  /// and is no longer a surface of revolution about anything: the flat
+  /// wall's ([wallMeniscus]) by how far [point] is from the glass. Measured
+  /// by the distance from the axis there, it climbed the long sides of a
+  /// tipped tube by the radius's meniscus and stood out through the glass.
   double meniscusAt(Vector3 point) {
+    final shape = this.shape;
+    if (shape is RevolvedVessel && _up.y < 0.999) {
+      if (volume <= 0.0) return 0.0;
+      return _wallRise(shape, point) - _tippedMean(shape);
+    }
     final m = _meniscus();
     if (m == null) return 0.0;
     final r = math.sqrt(point.x * point.x + point.z * point.z);
@@ -451,6 +460,38 @@ final class LiquidBody implements JetReceiver {
 
   /// How deep [point] (vessel frame) is under the surface.
   double depthAbove(Vector3 point) => height - _up.dot(point);
+
+  double _wallRise(RevolvedVessel shape, Vector3 point) {
+    final at = shape.wallDistance(point);
+    if (at == null) return 0.0;
+    return wallMeniscus(medium, math.max(-at.distance, 0.0), _g);
+  }
+
+  /// The wall's meniscus averaged over a tipped surface, taken out of it so
+  /// that, like the upright one, it moves liquid about and adds none: left
+  /// in, a tube tipped half a radian drew a fortieth more than it held.
+  /// Kept until the surface is laid out again.
+  double _tippedMean(RevolvedVessel shape) {
+    final layout = surface.layout;
+    if (!identical(layout, _tippedFor) || _tippedG != _g) {
+      _tippedFor = layout;
+      _tippedG = _g;
+      _tipped = surface.meanOf((p) => _wallRise(shape, p)).mean;
+    }
+    return _tipped;
+  }
+
+  Object? _tippedFor;
+  double _tippedG = double.nan;
+  double _tipped = 0.0;
+
+  /// The most the meniscus stands above the flat surface anywhere.
+  double _meniscusPeak() => shape is RevolvedVessel && _up.y < 0.999
+      ? math.max(
+          wallMeniscus(medium, 0.0, _g) - _tippedMean(shape as RevolvedVessel),
+          0.0,
+        )
+      : (_meniscus()?.peak ?? 0.0);
 
   /// Menisci already solved, by the radius they were solved for, in steps of
   /// a hundredth of it; and the medium and gravity they were solved under.
@@ -520,7 +561,7 @@ final class LiquidBody implements JetReceiver {
     // nothing to ask the rim.
     final edge = shape.lip(_up);
     if (edge != null &&
-        height + surface.reach + (_meniscus()?.peak ?? 0.0) < edge.height) {
+        height + surface.reach + _meniscusPeak() < edge.height) {
       return Spill.none;
     }
     var flow = 0.0;

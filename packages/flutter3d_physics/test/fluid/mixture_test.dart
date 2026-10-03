@@ -48,8 +48,12 @@ void main() {
     final body = _tube(FluidMedium.water, 5e-5);
     body.pour(2e-6, medium: FluidMedium.oil);
     var oil = 0.0, water = 0.0;
+    // Tipped well past where it starts to run: at 1.2 rad the glass came to
+    // rest at its lip with a film of oil still in it once the meniscus of a
+    // tipped surface was the wall's, so neither the order nor the amounts
+    // were what was being tested.
     for (var i = 0; i < 3000; i++) {
-      body.place(Matrix3.rotationX(1.2), Vector3.zero());
+      body.place(Matrix3.rotationX(1.3), Vector3.zero());
       final spill = body.step(1e-3, gravity: Vector3(0, -9.81, 0));
       if (spill.medium.name == 'oil') oil += spill.flow * 1e-3;
       if (spill.medium.name == 'water') water += spill.flow * 1e-3;

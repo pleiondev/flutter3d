@@ -151,6 +151,15 @@ MeshData _layer({
   final bottomCut = <List<Vector3>>[];
   // How far the surface stands off the top plane over a point on it.
   double lift(Vector3 p) => surface ? body.surfaceAt(p) - upper : 0.0;
+  // Lifted along up, a point on a wall that leans is lifted off it: kept a
+  // hair inside the glass instead.
+  Vector3 within(Vector3 p) {
+    final shape = body.shape;
+    if (shape is! RevolvedVessel) return p;
+    final at = shape.wallDistance(p);
+    if (at == null || at.distance < -1e-5) return p;
+    return p - at.normal * (at.distance + 1e-5);
+  }
 
   List<_P> clip(
     List<_P> polygon,
@@ -190,7 +199,7 @@ MeshData _layer({
         // four nanometres out at six centimetres, and a test tighter than
         // that left the wall's edge behind the cap it should meet.
         (up.dot(v.p) - upper).abs() < 1e-6
-            ? (p: v.p + up * lift(v.p), n: v.n)
+            ? (p: within(v.p + up * lift(v.p)), n: v.n)
             : v,
     ];
     final first = builder.addVertex(position: lifted[0].p, normal: lifted[0].n);
@@ -207,7 +216,16 @@ MeshData _layer({
       previous = next;
     }
   }
-  _cap(builder, topCut, up, surface ? lift : null, body, upper, rings);
+  _cap(
+    builder,
+    topCut,
+    up,
+    surface ? lift : null,
+    body,
+    upper,
+    rings,
+    within: within,
+  );
   if (lower.isFinite) {
     _cap(builder, bottomCut, -up, null, body, lower, 1);
   }
@@ -223,14 +241,19 @@ void _cap(
   double Function(Vector3)? lift,
   LiquidBody body,
   double height,
-  int rings,
-) {
+  int rings, {
+  Vector3 Function(Vector3)? within,
+}) {
   if (segments.length < 3) return;
   final loops = _loops(segments);
   final helper = normal.x.abs() < 0.9 ? Vector3(1, 0, 0) : Vector3(0, 0, 1);
   final e1 = normal.cross(helper)..normalize();
   final e2 = normal.cross(e1);
-  Vector3 raise(Vector3 p) => lift == null ? p : p + normal * lift(p);
+  Vector3 raise(Vector3 p) {
+    final up = lift == null ? p : p + normal * lift(p);
+    return within == null ? up : within(up);
+  }
+
   Vector3 shade(Vector3 p) {
     if (lift == null) return normal;
     // The surface's slope, by central differences in the plane.
@@ -471,11 +494,30 @@ MeshData jetMesh(Jet jet, {int sides = 14}) {
   return builder.build();
 }
 
-/// Particles drawn as small icosahedra of [radius] round [positions], in
-/// the world.
+/// Particles drawn as small spheres of [radius] round [positions], in the
+/// world: an icosahedron split once, forty-two points, round enough at the
+/// size of a drop that its outline does not show its faces as the twelve
+/// points of a bare icosahedron did.
 MeshData particleMesh(List<Vector3> positions, double radius) {
+  final (points, faces) = _sphere;
+  final builder = MeshBuilder(VertexLayout.standard);
+  for (final centre in positions) {
+    final base = builder.vertexCount;
+    for (final v in points) {
+      builder.addVertex(position: centre + v * radius, normal: v);
+    }
+    for (final f in faces) {
+      builder.addTriangle(base + f.$1, base + f.$2, base + f.$3);
+    }
+  }
+  return builder.build();
+}
+
+/// A unit icosahedron split once: each face into four, the new points
+/// pushed out onto the sphere.
+final (List<Vector3>, List<(int, int, int)>) _sphere = () {
   const t = 1.618033988749895;
-  final ico = [
+  final points = [
     Vector3(-1, t, 0),
     Vector3(1, t, 0),
     Vector3(-1, -t, 0),
@@ -489,37 +531,23 @@ MeshData particleMesh(List<Vector3> positions, double radius) {
     Vector3(-t, 0, -1),
     Vector3(-t, 0, 1),
   ].map((v) => v.normalized()).toList();
-  const faces = <List<int>>[
-    [0, 11, 5],
-    [0, 5, 1],
-    [0, 1, 7],
-    [0, 7, 10],
-    [0, 10, 11],
-    [1, 5, 9],
-    [5, 11, 4],
-    [11, 10, 2],
-    [10, 7, 6],
-    [7, 1, 8],
-    [3, 9, 4],
-    [3, 4, 2],
-    [3, 2, 6],
-    [3, 6, 8],
-    [3, 8, 9],
-    [4, 9, 5],
-    [2, 4, 11],
-    [6, 2, 10],
-    [8, 6, 7],
-    [9, 8, 1],
+  const faces = <(int, int, int)>[
+    (0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), //
+    (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8), //
+    (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), //
+    (4, 9, 5), (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1),
   ];
-  final builder = MeshBuilder(VertexLayout.standard);
-  for (final centre in positions) {
-    final base = builder.vertexCount;
-    for (final v in ico) {
-      builder.addVertex(position: centre + v * radius, normal: v);
-    }
-    for (final f in faces) {
-      builder.addTriangle(base + f[0], base + f[1], base + f[2]);
-    }
-  }
-  return builder.build();
-}
+  final middles = <(int, int), int>{};
+  int middle(int a, int b) => middles.putIfAbsent(a < b ? (a, b) : (b, a), () {
+    points.add((points[a] + points[b])..normalize());
+    return points.length - 1;
+  });
+  final split = [
+    for (final (a, b, c) in faces)
+      ...() {
+        final ab = middle(a, b), bc = middle(b, c), ca = middle(c, a);
+        return [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)];
+      }(),
+  ];
+  return (points, split);
+}();

@@ -439,9 +439,11 @@ final class Bench {
 
   /// The colour of [layer]: light through [fade] of it, every dye in it
   /// taking its share by Beer and Lambert.
-  Color colourOf(LiquidLayer layer) {
+  Color colourOf(LiquidLayer layer) => _colourOf(layer.concentrations);
+
+  Color _colourOf(Map<String, double> concentrations) {
     final absorb = Vector3.zero();
-    layer.concentrations.forEach((dye, c) {
+    concentrations.forEach((dye, c) {
       final mu = _dyes[dye];
       if (mu != null) absorb.addScaled(mu, c);
     });
@@ -833,6 +835,7 @@ final class Bench {
   /// The streams drawn, one per pouring vessel, and the drops.
   final Map<LiquidBody, MeshNode> _streams = {};
   final Map<String, MeshNode> _drops = {};
+  final Map<String, Color> _dropColours = {};
 
   /// Moves everything on by [seconds], and says whether anything still
   /// moves, so the caller knows to ask for another frame.
@@ -974,15 +977,22 @@ final class Bench {
       node.visible = mesh.triangleCount > 0;
     });
     world.particles.forEach((medium, fluid) {
+      // The colour of what is in them, as a solution's is: the drops off
+      // a pour of copper sulphate are blue, not the near white they were.
+      final colour = _colourOf(fluid.concentrations);
       final node = _drops.putIfAbsent(medium, () {
         final made = MeshNode(
           _upload(particleMesh(const [], 0.0005)),
-          liquid(Vector3(0.9, 0.95, 1.0), depth: 0.001),
+          liquid(_rgb(colour), depth: 2.0 * fluid.spacing),
           name: 'drops',
         )..castsShadow = false;
         scene.add(made);
         return made;
       });
+      if (_dropColours[medium] != colour) {
+        _dropColours[medium] = colour;
+        node.material = liquid(_rgb(colour), depth: 2.0 * fluid.spacing);
+      }
       if (fluid.count > 0) any = true;
       _swap(node, particleMesh(fluid.positions, 0.5 * fluid.spacing));
       node.visible = fluid.count > 0;
