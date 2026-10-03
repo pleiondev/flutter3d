@@ -550,12 +550,11 @@ final class Bench {
     if (!photons && vessel.tilt == 0.0) _repaint(vessel);
   }
 
-  /// The furthest [vessel] may lean either way: a little short of where what
-  /// it holds reaches the lip and would run out on the bench.
-  double maxLean(Vessel vessel) => math.max(
-    0.05,
-    math.min(1.45, _tiltHolding(vessel, vessel.liquid.volume) - 0.08),
-  );
+  /// The furthest [vessel] may lean either way: a half turn, mouth down.
+  /// Past the lean it holds its liquid at, what it holds runs out over the
+  /// lip, onto the bench or into whatever is under it, as it would from a
+  /// glass in a hand; stopped short of that, nothing could be spilled.
+  double maxLean(Vessel vessel) => math.pi;
 
   /// How far [vessel] must be lifted to lean as it does without passing
   /// through the glass standing round it.
@@ -1017,6 +1016,10 @@ final class Bench {
   final Map<String, MeshNode> _drops = {};
   final Map<String, Color> _dropColours = {};
 
+  /// The puddles on the bench drawn, one node each, reused in order.
+  final List<MeshNode> _puddles = [];
+  final List<Color?> _puddleColours = [];
+
   /// Moves everything on by [seconds], and says whether anything still
   /// moves, so the caller knows to ask for another frame.
   bool step(double seconds) {
@@ -1029,10 +1032,18 @@ final class Bench {
       // the rise is eased as the turn is. Taken for the lean it had, the
       // height jumped by centimetres the frame the tipping glass first came
       // over a neighbour, and the jolt threw nearly all it held out.
-      final need = math.max(
-        _clearance(vessel),
-        _clearance(vessel, vessel.leanTo),
-      );
+      //
+      // **Either way, the same height.** A hand takes a glass up out of the
+      // row whichever way it then tips it: lifted only as far as the side it
+      // leaned to needed, a tube at the end of the row leaning off it was
+      // not lifted at all and lay down on the bench, and leaning one way
+      // and the other looked like two different hands.
+      final need = [
+        vessel.tilt,
+        -vessel.tilt,
+        vessel.leanTo,
+        -vessel.leanTo,
+      ].map((at) => _clearance(vessel, at)).reduce(math.max);
       final rose = _ease2(vessel, need, seconds);
       vessel.lift = need > 0.0 ? 1.0 : 0.0;
       if (_turn(vessel, seconds) | rose) {
@@ -1207,6 +1218,40 @@ final class Bench {
       );
       node.visible = fluid.count > 0;
     });
+    // What lies on the bench: a cap of each drop or puddle's own radius and
+    // height, the colour of what is in it.
+    final g = world.gravity.length;
+    final lying = [for (final s in world.spills) ...s.puddles];
+    for (var i = 0; i < math.max(lying.length, _puddles.length); i++) {
+      if (i >= lying.length) {
+        _puddles[i].visible = false;
+        continue;
+      }
+      final puddle = lying[i];
+      final colour = _colourOf(puddle.concentrations);
+      if (i >= _puddles.length) {
+        final made = MeshNode(
+          _upload(capMesh(const [], const [], const [])),
+          liquid(_rgb(colour), depth: 0.001),
+          name: 'puddle',
+        )..castsShadow = false;
+        scene.add(made);
+        _puddles.add(made);
+        _puddleColours.add(colour);
+      }
+      final node = _puddles[i];
+      if (_puddleColours[i] != colour) {
+        _puddleColours[i] = colour;
+        node.material = liquid(_rgb(colour), depth: 0.001);
+      }
+      final r = puddle.radius(g);
+      if (r < puddle.restRadius(g)) any = true;
+      _swap(
+        node,
+        capMesh([puddle.centre], [r], [puddle.capHeight(r)]),
+      );
+      node.visible = true;
+    }
     return any;
   }
 
