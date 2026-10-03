@@ -53,6 +53,9 @@ dependencies:
   # Plain Dart, so an application that loads no level pays a resolve for it
   # and nothing else.
   flutter3d_sim: ^0.8.0
+  # `P10`: `Particles3D` owns a ParticleSystem and draws it through the
+  # package's contributor.
+  flutter3d_particles: ^0.8.0
 
   # `LevelScene`: the part of loading a level that needs no Flutter — brushes
   # into meshes, materials, lights and probes — which `LevelLoader` hands the

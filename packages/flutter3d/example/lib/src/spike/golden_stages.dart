@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/widgets.dart' show Widget;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Decal3D, Material3D, Mesh3D, Mirror3D, Particles3D, SceneWidgets;
 // The two bakes are plain Dart and reach a browser build, but the package's
 // barrel also exports the converter, which does not; importing the two
 // libraries alone is what keeps the web build of this demo compiling.
@@ -1426,6 +1429,104 @@ abstract final class GoldenStages {
           _look(stage.camera, Vector3(0.0, 0.8, 6.8), Vector3.zero()),
     );
   }
+
+  // ----------------------------------------------------------------- P10
+
+  /// `widget-scene`: `planar-mirror`'s room written as widgets and mounted
+  /// into the runner's own scene through `SceneWidgets.mount` — a floor and
+  /// two boxes under shared `Material3D`s, a mirror whose surface is the
+  /// `Mesh3D` below its `Mirror3D`, a ball with a material of its own, an
+  /// orange `Decal3D` on the floor and a `Particles3D` plume over the post,
+  /// advanced a sixtieth of a second a frame from a fixed seed. Every widget
+  /// `P10` adds draws in it, through the graph the imperative scenes use.
+  static Future<GoldenStaged> widgetScene(GoldenStage stage) async {
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2;
+    final mount = SceneWidgets.mount(
+      scene: stage.scene,
+      renderer: stage.renderer,
+      device: stage.device,
+      children: <Widget>[
+        Material3D(
+          lighting: LightingModel.lambert,
+          baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+          children: <Widget>[
+            Mesh3D(
+              shape: CuboidShape(size: Vector3(14.0, 0.2, 14.0)),
+              position: Vector3(0.0, -0.1, 0.0),
+              name: 'floor',
+            ),
+          ],
+        ),
+        Mirror3D(
+          position: Vector3(0.0, 0.005, 0.3),
+          tint: Vector3(0.85, 0.9, 1.0),
+          children: <Widget>[
+            Material3D(
+              lighting: LightingModel.unlit,
+              baseColor: Vector4(0.02, 0.02, 0.03, 1.0),
+              children: <Widget>[
+                Mesh3D(
+                  shape: const PlaneShape(width: 3.2, depth: 2.4),
+                  name: 'mirror',
+                ),
+              ],
+            ),
+          ],
+        ),
+        // Two boxes, one material: the batch the widget shares.
+        Material3D(
+          baseColor: Vector4(0.8, 0.15, 0.1, 1.0),
+          children: <Widget>[
+            Mesh3D(
+              shape: CuboidShape(size: Vector3(0.8, 0.8, 0.8)),
+              position: Vector3(-0.7, 0.4, -0.3),
+            ),
+            Mesh3D(
+              shape: CuboidShape(size: Vector3(0.25, 1.6, 0.25)),
+              position: Vector3(0.2, 0.8, -1.2),
+            ),
+          ],
+        ),
+        Mesh3D(
+          shape: SphereShape(radius: 0.45, segments: 48, rings: 24),
+          material: Material(baseColor: Vector4(0.15, 0.3, 0.85, 1.0)),
+          position: Vector3(0.6, 0.45, 0.2),
+        ),
+        // Stamped down its y axis, so with no rotation it lies on the floor.
+        Decal3D(
+          position: Vector3(1.6, 0.0, 1.2),
+          scale: Vector3(0.9, 0.6, 0.9),
+          color: Vector4(1.0, 0.5, 0.1, 1.0),
+        ),
+        Particles3D(
+          position: Vector3(0.2, 1.7, -1.2),
+          effect: ParticleEffect(
+            count: 1,
+            emitter: const SphereEmitter(speed: Range(0.3, 0.6)),
+            lifetime: const Range.exact(1.2),
+            size: const Range.exact(0.18),
+            color: Vector4(1.0, 0.7, 0.3, 1.0),
+          ),
+          perSecond: 40.0,
+          seed: 7,
+        ),
+      ],
+    );
+    return GoldenStaged(
+      nodes: const <SceneNode>[],
+      everyFrame: (_, _) {
+        mount.advance(1.0 / 60.0);
+        _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2));
+      },
+    );
+  }
+
+  static RenderSettings widgetSceneSettings(RenderSettings settings) =>
+      settings.copyWith(
+        planarReflections: const PlanarReflectionSettings(enabled: true),
+        decals: const DecalSettings(enabled: true),
+      );
 
   // ------------------------------------------------------------------ P6
 

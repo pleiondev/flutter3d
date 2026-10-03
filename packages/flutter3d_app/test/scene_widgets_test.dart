@@ -16,6 +16,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -337,5 +338,244 @@ void main() {
       () => frame(Renderer.create(device: device), scene, camera),
     );
     expect(fromWidgets, byHand);
+  });
+
+  group('materials, probes, decals, mirrors and particles as widgets', () {
+    testWidgets('the meshes under one Material3D share its one material, '
+        'changed in place', (tester) async {
+      // Mutation: make a new engine material in `_Material3DState._apply` —
+      // the meshes keep the old one and the rebuild's colour reaches neither.
+      final device = _device();
+      Widget scene(Vector4 colour) => _scene(device, <Widget>[
+        Material3D(
+          key: const ValueKey<String>('paint'),
+          baseColor: colour,
+          roughness: 0.3,
+          children: <Widget>[
+            Mesh3D(shape: CuboidShape(), name: 'a'),
+            Mesh3D(shape: CuboidShape(), name: 'b'),
+          ],
+        ),
+      ]);
+      Scene3DController? controller;
+      await tester.pumpWidget(
+        _scene(device, const <Widget>[], onCreated: (c) => controller = c),
+      );
+      await tester.pump();
+      await tester.pumpWidget(scene(Vector4(1.0, 0.0, 0.0, 1.0)));
+      final meshes = controller!.scene.meshes.toList();
+      expect(meshes, hasLength(2));
+      final shared = meshes.first.material;
+      expect(identical(meshes.last.material, shared), isTrue);
+      expect(shared.roughness, 0.3);
+
+      await tester.pumpWidget(scene(Vector4(0.0, 0.0, 1.0, 1.0)));
+      expect(
+        identical(controller!.scene.meshes.first.material, shared),
+        isTrue,
+      );
+      expect(shared.baseColor.z, 1.0);
+      expect(shared.baseColor.x, 0.0);
+    });
+
+    testWidgets('a mesh with no material and none above is refused', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_scene(_device(), const <Widget>[]));
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpWidget(
+        _scene(_device(), <Widget>[Mesh3D(shape: CuboidShape())]),
+      );
+      expect(tester.takeException(), isA<FlutterError>());
+    });
+
+    testWidgets('a mesh directly below a Mirror3D is one of its surfaces, '
+        'while it is there', (tester) async {
+      // Mutation: drop `_joinMirror` from `_Mesh3DState.apply` — the mirror
+      // has no surface to be seen in.
+      final device = _device();
+      final controller = await _pump(tester, device, <Widget>[
+        Mirror3D(
+          reflectance: 0.8,
+          children: <Widget>[
+            Mesh3D(
+              key: const ValueKey<String>('floor'),
+              shape: CuboidShape(),
+              material: _grey,
+              name: 'floor',
+            ),
+          ],
+        ),
+      ]);
+      final mirror = controller.scene.root.children
+          .whereType<PlanarReflectorNode>()
+          .single;
+      expect(mirror.reflectance, 0.8);
+      expect(mirror.surfaces.map((m) => m.name), <String?>['floor']);
+
+      await tester.pumpWidget(
+        _scene(device, <Widget>[Mirror3D(reflectance: 0.8)]),
+      );
+      expect(mirror.surfaces, isEmpty);
+    });
+
+    testWidgets('a probe and a decal are nodes with what the widgets say', (
+      tester,
+    ) async {
+      final controller = await _pump(tester, _device(), <Widget>[
+        ReflectionProbe3D(position: Vector3(0.0, 1.0, 0.0), radius: 6.0),
+        Decal3D(
+          scale: Vector3(2.0, 2.0, 0.5),
+          color: Vector4(1.0, 0.0, 0.0, 1.0),
+          order: 3,
+        ),
+      ]);
+      final probe = controller.scene.root.children
+          .whereType<ReflectionProbeNode>()
+          .single;
+      expect(probe.radius, 6.0);
+      final decal = controller.scene.root.children
+          .whereType<DecalNode>()
+          .single;
+      expect(decal.order, 3);
+      expect(decal.color.x, 1.0);
+    });
+
+    testWidgets('particles are drawn while the widget is there and emitted '
+        'as the scene advances', (tester) async {
+      // Mutation: leave `host.animated.add(this)` out of
+      // `_Particles3DState.createNode` — nothing is ever emitted.
+      final device = _device();
+      final effect = ParticleEffect(
+        count: 1,
+        emitter: const SphereEmitter(speed: Range.exact(0.0)),
+        lifetime: const Range.exact(5.0),
+        size: const Range.exact(0.2),
+        color: Vector4(1.0, 0.5, 0.2, 1.0),
+      );
+      final system = ParticleSystem(capacity: 64);
+      Scene3DController? controller;
+      Widget torch() => _scene(
+        device,
+        <Widget>[
+          Particles3D(
+            key: const ValueKey<String>('torch'),
+            effect: effect,
+            perSecond: 40.0,
+            system: system,
+          ),
+        ],
+        onCreated: (c) => controller = c,
+        continuous: true,
+      );
+      await tester.pumpWidget(torch());
+      await tester.pump();
+      await tester.pump();
+      expect(
+        controller!.renderer.contributors.all.whereType<ParticleContributor>(),
+        hasLength(1),
+      );
+      // A second of frames through the scene's own loop.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(system.aliveCount, greaterThan(10));
+
+      await tester.pumpWidget(_scene(device, const <Widget>[]));
+      expect(
+        controller!.renderer.contributors.all.whereType<ParticleContributor>(),
+        isEmpty,
+      );
+    });
+  });
+
+  group('SceneWidgets.mount — widgets in a scene somebody else draws', () {
+    test('builds into the scene given, keeps a keyed node, and takes it all '
+        'out when disposed', () {
+      final device = _device();
+      final scene = Scene();
+      final renderer = Renderer.create(device: device);
+      Widget mesh(Vector3 at) => Mesh3D(
+        key: const ValueKey<String>('crate'),
+        shape: CuboidShape(),
+        material: _grey,
+        position: at,
+        name: 'crate',
+      );
+      final mount = SceneWidgets.mount(
+        scene: scene,
+        renderer: renderer,
+        device: device,
+        children: <Widget>[
+          Camera3D(position: Vector3(0.0, 2.0, 4.0), target: Vector3.zero()),
+          mesh(Vector3.zero()),
+        ],
+      );
+      final node = scene.meshes.single;
+      expect(mount.camera, isNotNull);
+
+      mount.update(<Widget>[mesh(Vector3(1.0, 0.0, 0.0))]);
+      expect(identical(scene.meshes.single, node), isTrue);
+      expect(node.worldMatrix.getTranslation().x, 1.0);
+      expect(mount.camera, isNull, reason: 'the camera widget went');
+
+      mount.dispose();
+      expect(scene.meshes, isEmpty);
+    });
+
+    test('a frame drawn from a mount is the frame built by hand', () async {
+      // The golden runner's way in: the same scene as the imperative API's,
+      // to the byte, on the same backend.
+      final device = _device();
+      const settings = RenderSettings(
+        bloom: BloomSettings(enabled: false),
+        look: LookSettings(dither: 0.0),
+      );
+      Future<Uint8List> frame(Scene scene, CameraNode camera) async {
+        final result = Renderer.create(device: device).render(
+          width: _width,
+          height: _height,
+          scene: scene,
+          views: <RenderView>[RenderView(camera: camera)],
+          settings: settings,
+        );
+        return (await device.readPixels(result.frame))!.buffer.asUint8List();
+      }
+
+      final mounted = Scene();
+      final mount = SceneWidgets.mount(
+        scene: mounted,
+        renderer: Renderer.create(device: device),
+        device: device,
+        children: <Widget>[
+          Camera3D(position: Vector3(2.0, 2.0, 4.0), target: Vector3.zero()),
+          Light3D.directional(
+            direction: Vector3(-1.0, -2.0, -1.5),
+            intensity: 3.0,
+          ),
+          Material3D(
+            baseColor: Vector4(0.6, 0.6, 0.6, 1.0),
+            children: <Widget>[Mesh3D(shape: CuboidShape())],
+          ),
+        ],
+      );
+      final fromWidgets = await frame(mounted, mount.camera!);
+
+      final scene = Scene();
+      final camera = CameraNode()
+        ..setPosition(2.0, 2.0, 4.0)
+        ..lookAt(Vector3.zero());
+      scene
+        ..add(camera)
+        ..add(
+          LightNode(intensity: 3.0)
+            ..setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized()),
+        )
+        ..add(
+          MeshNode(DeviceMesh.upload(device, CuboidShape().build()), _grey),
+        );
+      expect(fromWidgets, await frame(scene, camera));
+    });
   });
 }

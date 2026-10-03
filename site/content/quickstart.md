@@ -91,7 +91,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 11383 tests across 43 packages and twelve applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so ninety-four scenes stay checkable in a headless run.
+There are 11391 tests across 43 packages and twelve applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so ninety-five scenes stay checkable in a headless run.
 
 ## Your own application
 
@@ -166,6 +166,36 @@ Scene buildScene(GraphicsDevice device) {
   return scene;
 }
 ```
+
+### Or write the scene as widgets
+
+`flutter3d_app` has the same scene as widgets. `Scene3D` opens the device, makes the renderer and draws a frame, and its children become nodes of an ordinary `Scene`. A rebuild that keeps a widget's key keeps its node, so anything you set on the node imperatively survives it.
+
+```dart
+import 'package:flutter/material.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
+
+Widget ball({required bool polished}) => Scene3D(
+  children: <Widget>[
+    Camera3D(position: Vector3(0.0, 1.2, 3.5), target: Vector3.zero()),
+    Light3D.point(position: Vector3(2.0, 2.5, 2.0), intensity: 16.0, range: 20.0),
+    // Every Mesh3D below without a material of its own is drawn with this
+    // one. A rebuild writes the new values into the same material object.
+    Material3D(
+      key: const ValueKey<String>('ball'),
+      baseColor: polished ? Vector4(0.25, 0.45, 0.9, 1.0) : Vector4(0.9, 0.42, 0.28, 1.0),
+      roughness: polished ? 0.1 : 0.35,
+      children: const <Widget>[Mesh3D(shape: SphereShape(radius: 1.0))],
+    ),
+  ],
+);
+```
+
+There are widgets for groups (`Node3D`), models with their animation (`Model3D`), lights, cameras, reflection probes (`ReflectionProbe3D`), decals (`Decal3D`), mirrors (`Mirror3D`, whose child meshes are its surfaces) and particles (`Particles3D`). `Contributor3D` adds any pass contributor for as long as it is in the tree. `example/lib/widgets_main.dart` is the runnable version of the snippet above.
+
+If your game already has its own loop and renderer, `SceneWidgets.mount` builds the same widgets into a scene you draw yourself, without a screen. The golden runner draws the `widget-scene` reference that way, on all four backends.
 
 <div class="note">
 <p>None of the shipped games open a device this way. This page hand-rolls <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> because that is what happens underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> covers the pattern the games use instead: <code>flutter3d_app</code> and <code>flutter3d_game</code>.</p>

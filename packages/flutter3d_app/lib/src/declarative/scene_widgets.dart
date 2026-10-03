@@ -31,18 +31,37 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/rendering.dart' show RenderPositionedBox;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../backend_native.dart'
     if (dart.library.js_interop) '../backend_web.dart'
     show openDevice, presentFrame;
 import '../surface/scene_surface.dart';
+
+part 'scene_widgets_features.dart';
+part 'scene_widgets_mount.dart';
+
+/// What the widgets of one scene share, whoever is drawing it: a [Scene3D],
+/// or a [SceneWidgetsMount] over a scene a game draws itself.
+abstract interface class _SceneHost {
+  Scene get scene;
+  Renderer get renderer;
+
+  /// The [Camera3D]s built, in order; the last is the one drawn through.
+  List<CameraNode> get cameras;
+
+  /// What advances between frames: models' animations, particles.
+  Set<_Animated> get animated;
+}
 
 /// What a [Scene3D] has made, for a game that wants the graph underneath.
 final class Scene3DController {
@@ -118,7 +137,9 @@ class Scene3D extends StatefulWidget {
   State<Scene3D> createState() => _Scene3DState();
 }
 
-class _Scene3DState extends State<Scene3D> with SingleTickerProviderStateMixin {
+class _Scene3DState extends State<Scene3D>
+    with SingleTickerProviderStateMixin
+    implements _SceneHost {
   Scene3DController? _controller;
   late final Scene _scene = Scene();
   late final CameraNode _defaultCamera = CameraNode()
@@ -132,6 +153,18 @@ class _Scene3DState extends State<Scene3D> with SingleTickerProviderStateMixin {
   Object? _error;
 
   CameraNode get _camera => _cameras.isEmpty ? _defaultCamera : _cameras.last;
+
+  @override
+  Scene get scene => _scene;
+
+  @override
+  Renderer get renderer => _controller!.renderer;
+
+  @override
+  List<CameraNode> get cameras => _cameras;
+
+  @override
+  Set<_Animated> get animated => _animated;
 
   @override
   void initState() {
@@ -181,6 +214,12 @@ class _Scene3DState extends State<Scene3D> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _ticker?.dispose();
+    // What this widget made, it gives back: the renderer always, the device
+    // only when it opened it — one handed in belongs to whoever handed it.
+    if (_controller case final controller?) {
+      controller.renderer.dispose();
+      if (widget.device == null) controller.device.dispose();
+    }
     super.dispose();
   }
 
@@ -211,7 +250,7 @@ class _Scene3DState extends State<Scene3D> with SingleTickerProviderStateMixin {
         // every one of them has been built for this frame.
         Offstage(
           child: _Scene3DScope(
-            owner: this,
+            host: this,
             device: controller.device,
             parent: _scene.root,
             child: _Children(widget.children),
@@ -243,17 +282,17 @@ class _Children extends StatelessWidget {
   };
 }
 
-/// What a widget below a [Scene3D] needs: the scene's owner, the device its
+/// What a widget below a [Scene3D] needs: the scene's host, the device its
 /// meshes upload to, and the node it hangs its own from.
 class _Scene3DScope extends InheritedWidget {
   const _Scene3DScope({
-    required this.owner,
+    required this.host,
     required this.device,
     required this.parent,
     required super.child,
   });
 
-  final _Scene3DState owner;
+  final _SceneHost host;
   final GraphicsDevice device;
   final SceneNode parent;
 
@@ -311,6 +350,9 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
   /// transform. Called on every build.
   void apply(N node, _Scene3DScope scope) {}
 
+  /// Told the node now hangs from another parent, after a keyed reparent.
+  void reparented(N node) {}
+
   void _applyAll() {
     final node = _node!;
     final widget = this.widget;
@@ -337,6 +379,7 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
       _node!.removeFromParent();
       scope.parent.add(_node!);
       _parent = scope.parent;
+      reparented(_node!);
     }
   }
 
@@ -354,7 +397,7 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
 
   @override
   Widget build(BuildContext context) => _Scene3DScope(
-    owner: _scope!.owner,
+    host: _scope!.host,
     device: _scope!.device,
     parent: node,
     child: _Children(widget.children),
@@ -391,13 +434,16 @@ class _Node3DState extends _SpatialState<Node3D, SceneNode> {
 /// uploads it only when its vertices or indices differ, so a shape made
 /// fresh in `build` costs a build, not an upload. [geometry], when given, is
 /// used as it is and [shape] is not read. [material] is the engine's own, so a game that
-/// keeps it may change it in place between frames.
+/// keeps it may change it in place between frames; with none, the mesh is
+/// drawn with the nearest [Material3D] above it — `P10`.
+///
+/// Directly below a [Mirror3D], the mesh is one of its reflecting surfaces.
 class Mesh3D extends Spatial3D {
   const Mesh3D({
     super.key,
     this.shape,
     this.geometry,
-    required this.material,
+    this.material,
     super.position,
     super.rotation,
     super.scale,
@@ -413,7 +459,7 @@ class Mesh3D extends Spatial3D {
 
   final Shape? shape;
   final MeshGeometry? geometry;
-  final engine.Material material;
+  final engine.Material? material;
   final bool castsShadow;
 
   /// See `MeshNode.drawOrder`.
@@ -441,9 +487,39 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
     return DeviceMesh.upload(scope.device, data);
   }
 
+  /// The mirror this mesh is a surface of, while it hangs directly from one.
+  PlanarReflectorNode? _reflector;
+
+  engine.Material _material() =>
+      widget.material ??
+      _MaterialScope.maybeOf(context) ??
+      (throw FlutterError(
+        'A Mesh3D was given no material and has no Material3D above it.',
+      ));
+
   @override
   MeshNode createNode(_Scene3DScope scope) =>
-      MeshNode(_geometry(scope), widget.material, name: widget.name);
+      MeshNode(_geometry(scope), _material(), name: widget.name);
+
+  void _joinMirror(MeshNode node) {
+    final now = switch (node.parent) {
+      final PlanarReflectorNode mirror => mirror,
+      _ => null,
+    };
+    if (identical(now, _reflector)) return;
+    _reflector?.surfaces.remove(node);
+    now?.surfaces.add(node);
+    _reflector = now;
+  }
+
+  @override
+  void reparented(MeshNode node) => _joinMirror(node);
+
+  @override
+  void dispose() {
+    if (_node case final node?) _reflector?.surfaces.remove(node);
+    super.dispose();
+  }
 
   @override
   void apply(MeshNode node, _Scene3DScope scope) {
@@ -464,9 +540,10 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
       }
     }
     node
-      ..material = widget.material
+      ..material = _material()
       ..castsShadow = widget.castsShadow
       ..drawOrder = widget.drawOrder;
+    _joinMirror(node);
   }
 }
 
@@ -575,7 +652,7 @@ class _Camera3DState extends _SpatialState<Camera3D, CameraNode> {
   @override
   CameraNode createNode(_Scene3DScope scope) {
     final camera = CameraNode(projection: widget.projection);
-    scope.owner._cameras.add(camera);
+    scope.host.cameras.add(camera);
     return camera;
   }
 
@@ -587,7 +664,7 @@ class _Camera3DState extends _SpatialState<Camera3D, CameraNode> {
 
   @override
   void dispose() {
-    _scope?.owner._cameras.remove(_node);
+    _scope?.host.cameras.remove(_node);
     super.dispose();
   }
 }
@@ -650,7 +727,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
   @override
   SceneNode createNode(_Scene3DScope scope) {
     unawaited(_loadInto(scope));
-    scope.owner._animated.add(this);
+    scope.host.animated.add(this);
     return SceneNode(name: widget.source ?? 'model');
   }
 
@@ -663,7 +740,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
       ),
     };
     if (!mounted) return;
-    final instance = asset.instantiate(scope.owner._scene, parent: node);
+    final instance = asset.instantiate(scope.host.scene, parent: node);
     setState(() => _instance = instance);
     _applyAnimation();
     widget.onLoaded?.call(instance);
@@ -705,13 +782,13 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
 
   @override
   void dispose() {
-    _scope?.owner._animated.remove(this);
+    _scope?.host.animated.remove(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => _Scene3DScope(
-    owner: _scope!.owner,
+    host: _scope!.host,
     device: _scope!.device,
     parent: node,
     child: _Children(<Widget>[

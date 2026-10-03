@@ -1253,6 +1253,17 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
   ),
 
+  // P10. A scene written as widgets and mounted into the runner's scene:
+  // Material3D, Mirror3D, Decal3D and Particles3D beside Mesh3D.
+  const GoldenScene(
+    name: 'widget-scene',
+    source: 'Cube',
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.widgetScene,
+    configure: GoldenStages.widgetSceneSettings,
+  ),
+
   // P8. A lighting hook: the teapot in a `.f3dmat` whose `light` block cuts
   // n·l into three bands inside the engine's light loop, the sun's shadow on
   // the ground beside it, and a rim the fragment body adds to `lit`. The

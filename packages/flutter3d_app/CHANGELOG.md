@@ -1,5 +1,20 @@
 ## Unreleased
 
+- **The rest of the scene as widgets** — `P10`. `Material3D` is a material
+  as a widget: the `Mesh3D`s below it without a material of their own are
+  drawn with the one engine material it makes, changed in place on a
+  rebuild so they keep it and the batching keeps seeing one.
+  `ReflectionProbe3D`, `Decal3D`, `Mirror3D` (the meshes directly below it
+  are its surfaces, joining and leaving with their widgets) and
+  `Particles3D` (an effect at a rate, emitted at the node and advanced with
+  the scene) join `Mesh3D`, `Light3D`, `Camera3D` and `Model3D`;
+  `Contributor3D` adds any pass contributor while it is in the tree.
+  `SceneWidgets.mount` builds the same widgets into a scene somebody else
+  draws, with no screen — a golden runner, a test, a game with its own loop.
+  `Scene3D` now disposes the renderer it made and the device it opened.
+  `example/lib/widgets_main.dart` is `minimal_main.dart` written this way,
+  and `widget-scene` is drawn from widgets in all four golden sets.
+
 - **The software backend draws a material's lighting hook.**
   `MaterialProgramStage` applies the maps and gathers the lights through
   the material's `light` block with `accumulateLights`, then hands the

@@ -59,6 +59,7 @@ const Map<String, double> _budgets = <String, double>{
   'material-language': 0.35,
   'material-light-hook': 0.6,
   'material-instance-data': 0.5,
+  'widget-scene': 0.05,
   // 0.005% measured: both draw the hard cutoff, Impeller and this set alike.
   'alpha-to-coverage': 0.01,
   // 0.575% measured, on the spheres' and the floor's edges, which Impeller
