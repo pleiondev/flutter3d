@@ -190,6 +190,50 @@ void main() {
     },
   );
 
+  group('the near cascades hold still', () {
+    // The fit follows where the view box meets the casters' bounds, which
+    // slides with every pan and every caster that moves. The shadow pass
+    // snaps each map to whole texels of its radius and scrolls a still tile
+    // only while its scale holds, so a radius or a slab end that follows the
+    // fit continuously is a texel grid that rescales every frame.
+    //
+    // Mutation: drop the rounding in `orthographicCascades`. A centimetre's
+    // pan moves the near radii by a couple of millimetres and a canopy rising
+    // five centimetres moves them and the slab ends by centimetres.
+    Future<({List<double> radii, List<double> splits})> cascades(
+      ({Scene scene, CameraNode camera}) room,
+    ) async {
+      final engine = _engine();
+      await _grid(engine, room, const ShadowSettings(cascades: 3));
+      final radii = engine.renderer.debugCascadeRadii;
+      final splits = engine.renderer.debugCascadeSplits;
+      return (
+        radii: <double>[radii[0], radii[1]],
+        splits: <double>[splits[0], splits[1]],
+      );
+    }
+
+    test('under a pan of a centimetre', () async {
+      final room = _isometricRoom();
+      final before = await cascades(room);
+      room.camera.setPosition(0.01, 40.0, -40.0);
+      final after = await cascades(room);
+      expect(after.radii, before.radii, reason: 'a near radius moved');
+      expect(after.splits, before.splits, reason: 'a slab end moved');
+    });
+
+    test('under a caster rising five centimetres', () async {
+      final room = _isometricRoom();
+      final before = await cascades(room);
+      room.scene.root
+          .findByName('near')!
+          .setPosition(_nearCanopy.x, _nearCanopy.y + 0.05, _nearCanopy.z);
+      final after = await cascades(room);
+      expect(after.radii, before.radii, reason: 'a near radius moved');
+      expect(after.splits, before.splits, reason: 'a slab end moved');
+    });
+  });
+
   test('three cascades shadow the same things as one', () async {
     // A fitted cascade must move nothing, only sharpen it.
     //

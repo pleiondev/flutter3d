@@ -4302,7 +4302,10 @@ final class Renderer implements RenderServices {
                 width,
                 height,
               )) {
-                final rect => rect.width / rect.height,
+                // A viewport with no height has no aspect; a square one
+                // keeps the projection and the corner solver finite.
+                final rect when rect.height > 0 => rect.width / rect.height,
+                _ => 1.0,
               },
       );
       // One node per probe the scene holds, in scene order, so the name the
