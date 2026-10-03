@@ -105,6 +105,8 @@ A body holds layers. Liquids that mix are one layer, keeping amounts of solutes,
 
 `FloatingBody` wraps a rigid body. The liquid pushes up with ρgV of what it displaces, exactly for spheres, boxes and capsules, and drags with White's coefficient for the part that is under. The displaced volume raises the level. A small ball sinking in glycerol settles at Stokes's speed; the tests check it within three percent.
 
+A body turning in the liquid is held back too, by Stokes's torque 8πμR³ω on the sphere of its volume, for the part of it that is under: a ball spun in glycerol slows by e in ρR²/15μ.
+
 ## Being honest about it
 
 - The surface is linear, so it rocks harder where real water would break.
