@@ -101,6 +101,7 @@ const Map<String, double> _budgets = <String, double>{
   // 0.199% measured, on the silhouette; the stage the bundle's WebGL2
   // section carries agrees with Impeller's inside it.
   'material-language': 0.25,
+  'material-light-hook': 0.4,
   // 0.595% measured, on the discs' rims and nowhere else: coverage here,
   // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.7,

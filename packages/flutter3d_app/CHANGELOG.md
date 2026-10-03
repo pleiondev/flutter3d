@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **The software backend draws a material's lighting hook.**
+  `MaterialProgramStage` applies the maps and gathers the lights through
+  the material's `light` block with `accumulateLights`, then hands the
+  fragment body `lit` — the same sum the emitted shader makes. A `light`
+  block returning the albedo draws pixel for pixel what the built-in
+  Lambert does.
+
 - **`HotMaterials.bind(material, name)`** keeps a material drawn with a
   bundled `.f3dmat` across hot reloads — `P8`. After an edit the hook
   compiled, a bound material gets the lighting model the new source

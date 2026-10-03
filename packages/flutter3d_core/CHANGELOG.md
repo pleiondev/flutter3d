@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **Lighting hooks in the material language.** A `light { … }` block runs
+  once per light inside the engine's light loop and returns how the surface
+  answers it — a toon ramp, a BRDF of the author's — which the engine
+  multiplies by the light's radiance, `n·l` and shadow, as it does
+  `ShadeLight` of every lit model. It reads `lightDir`, `halfDir`, `nDotL`,
+  `nDotH` and `vDotH`; the fragment body reads `lit`, the surface lit
+  through the block with the ambient, the lightmap and the emissive added
+  as Lambert adds them. A material with a block binds as a lit model — the
+  maps, the shadows, the light list — and the parser refuses a block the
+  fragment body never reads, since the compiled shader would drop it and
+  everything bound for it. `evaluateMaterialLight` runs the block on the
+  software backend. `material-light-hook` is in all four golden sets.
+
 - **`Renderer.addMaterials` and `removeMaterials`**: more than one bundle of
   materials, added after the renderer was made — `P8`. Each `.f3dmat` the
   build hook compiles is a bundle of its own. Added later is consulted

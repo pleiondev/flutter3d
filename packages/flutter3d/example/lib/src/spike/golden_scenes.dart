@@ -1240,6 +1240,25 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
   ),
 
+  // P8. A lighting hook: the teapot in a `.f3dmat` whose `light` block cuts
+  // n·l into three bands inside the engine's light loop, the sun's shadow on
+  // the ground beside it, and a rim the fragment body adds to `lit`. The
+  // bands, the shadow across the spout and the rim each show a part of the
+  // hook reached the backend.
+  const GoldenScene(
+    name: 'material-light-hook',
+    source: 'obj: Teapot',
+    lighting: GoldenExtras.toonHook,
+    shaderBundle: GoldenExtras.toonHookBundle,
+    materialParameters: <String, List<double>>{
+      'paint': <double>[0.25, 0.45, 0.85],
+      'rimColor': <double>[1.0, 0.85, 0.6],
+    },
+    // The sun alone, so the bands are one light's.
+    lights: <String>{'sun'},
+    bloom: false,
+  ),
+
   // P7. Leaf cards cut from a soft alpha: a hard cutoff on Impeller and the
   // software set, multisample coverage on WebGL2 and WebGPU.
   const GoldenScene(

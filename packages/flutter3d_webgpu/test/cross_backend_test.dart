@@ -128,6 +128,7 @@ const int _channel = 8;
 /// siblings grew every explanation they carry.
 const Map<String, double> _budgets = <String, double>{
   'material-language': 0.01,
+  'material-light-hook': 0.01,
   // 0.565% measured, on the discs' rims and nowhere else: coverage here,
   // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.65,

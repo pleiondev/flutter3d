@@ -60,9 +60,31 @@ final class MaterialSurfaceValues {
 List<double> evaluateMaterial(
   MaterialProgram program,
   MaterialSurfaceValues surface,
+) => _run(program.name, program.body, surface);
+
+/// How the surface answers one light, from [program]'s `light` block —
+/// `P8`: three numbers, which the caller multiplies by the light's radiance,
+/// `n·l` and shadow, as `AccumulateLights` does with `ShadeLight`.
+///
+/// [surface]'s inputs carry [kMaterialLightInputs] for the light as well as
+/// the surface's own. Throws a [StateError] for a program with no block.
+List<double> evaluateMaterialLight(
+  MaterialProgram program,
+  MaterialSurfaceValues surface,
+) => _run(
+  program.name,
+  program.light ??
+      (throw StateError('"${program.name}" has no light block.')),
+  surface,
+);
+
+List<double> _run(
+  String name,
+  List<MaterialStatement> body,
+  MaterialSurfaceValues surface,
 ) {
   final scope = <String, List<double>>{};
-  for (final statement in program.body) {
+  for (final statement in body) {
     switch (statement) {
       case MaterialLet(:final name, :final value):
         scope[name] = _evaluate(value, surface, scope);
@@ -72,7 +94,7 @@ List<double> evaluateMaterial(
   }
   // The parser refuses a body whose last statement is not a return, so this is
   // a program nobody parsed rather than a case with a sensible answer.
-  throw StateError('"${program.name}" has no return.');
+  throw StateError('"$name" has no return.');
 }
 
 /// Throws [ArgumentError] unless [inputs] answers every name in

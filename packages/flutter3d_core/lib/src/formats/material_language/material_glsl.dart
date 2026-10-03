@@ -29,6 +29,7 @@ import 'material_ast.dart';
 ///
 /// [describeMaterial] answers the other half — what the engine may bind to it.
 String emitMaterialFragment(MaterialProgram program) {
+  final light = program.light;
   final out = StringBuffer()
     ..writeln('#version 460 core')
     ..writeln()
@@ -36,15 +37,25 @@ String emitMaterialFragment(MaterialProgram program) {
     ..writeln('// — gfx-84n. The source is the thing to edit; this file is')
     ..writeln('// what the shader build compiles and what the three GPU')
     ..writeln('// backends translate. The software backend evaluates the same')
-    ..writeln('// tree instead of reading this.')
+    ..writeln('// tree instead of reading this.');
+  if (light == null) {
     // It gathers no lights, so it keeps no light list — see
     // `LightingModel.usesLightList` — and no point-shadow block either, as
     // `unlit.frag` keeps none: a block declared and never bound is a
     // refused draw on WebGL2.
-    ..writeln('#define F3D_NO_POINT_SHADOW')
-    ..writeln('#define F3D_NO_LIGHT_LIST')
-    ..writeln('#include <lib/surface.glsl>')
-    ..writeln();
+    out
+      ..writeln('#define F3D_NO_POINT_SHADOW')
+      ..writeln('#define F3D_NO_LIGHT_LIST')
+      ..writeln('#include <lib/surface.glsl>')
+      ..writeln();
+  } else {
+    // `P8`: a material with a lighting hook is a lit model, and includes
+    // what `lambert.frag` does — the maps, the shadows, the light list.
+    out
+      ..writeln('#include <lib/material_maps.glsl>')
+      ..writeln('#include <lib/shadow.glsl>')
+      ..writeln();
+  }
 
   // `P8`: the uniforms, as the block the engine binds `Material.parameters`
   // to. Declaration order, as std140 lays it out and every backend's
@@ -64,38 +75,78 @@ String emitMaterialFragment(MaterialProgram program) {
       ..writeln();
   }
 
-  // Both prototypes have to be satisfied whether or not anything calls them,
-  // which is what `unlit.frag` says about its own pair. A material in this
-  // language never accumulates lights — it returns the light the surface
-  // emits — so these are the same honest stubs.
+  if (light == null) {
+    // Both prototypes have to be satisfied whether or not anything calls
+    // them, which is what `unlit.frag` says about its own pair. A material
+    // without a `light` block never accumulates lights — it returns the light
+    // the surface emits — so these are the same honest stubs.
+    out
+      ..writeln('// Never called: this material returns the light its surface')
+      ..writeln('// emits rather than gathering any. The prototypes in')
+      ..writeln('// surface.glsl still have to be satisfied.')
+      ..writeln('vec3 ShadeLight(Surface s, LightSample light) {')
+      ..writeln('  return s.albedo;')
+      ..writeln('}')
+      ..writeln()
+      ..writeln('float LightVisibility(Surface s, LightSample light, int i) {')
+      ..writeln('  return 1.0;')
+      ..writeln('}')
+      ..writeln();
+  } else {
+    // The `light` block is `ShadeLight`, which `AccumulateLights` multiplies
+    // by the light's radiance, n·l and visibility; the visibility is the
+    // shadow, as every lit model of the engine's has it.
+    out
+      ..writeln('// The material\'s light block, run once per light.')
+      ..writeln('vec3 ShadeLight(Surface s, LightSample light) {');
+    _statements(out, light, (value) => '  return ${_glsl(value)};');
+    out
+      ..writeln('}')
+      ..writeln()
+      ..writeln('float LightVisibility(Surface s, LightSample light, int i) {')
+      ..writeln('  return ShadowFactor(s, light, i);')
+      ..writeln('}')
+      ..writeln();
+  }
+
   out
-    ..writeln('// Never called: a material in this language returns the light')
-    ..writeln('// its surface emits rather than gathering any. The prototypes')
-    ..writeln('// in surface.glsl still have to be satisfied.')
-    ..writeln('vec3 ShadeLight(Surface s, LightSample light) {')
-    ..writeln('  return s.albedo;')
-    ..writeln('}')
-    ..writeln()
-    ..writeln('float LightVisibility(Surface s, LightSample light, int i) {')
-    ..writeln('  return 1.0;')
-    ..writeln('}')
-    ..writeln()
     ..writeln('void main() {')
     ..writeln('  Surface s = ReadSurface();');
+  if (light != null) {
+    // `lit` as `lambert.frag` adds it up — see `kMaterialLitInput`.
+    out
+      ..writeln('  ApplyCommonMaps(s);')
+      ..writeln(
+        '  vec3 lit = AccumulateLights(s) * s.occlusion + '
+        's.albedo * (s.ambient + SampleLightmap()) * s.occlusion + '
+        's.emissive;',
+      );
+  }
+  _statements(
+    out,
+    program.body,
+    (value) =>
+        '  vec4 result = ${_glsl(value)};\n'
+        '  WriteSurface(result.rgb, result.a);',
+  );
+  out.writeln('}');
+  return out.toString();
+}
 
-  for (final statement in program.body) {
+/// Writes [body]'s bindings, and its return as [returns] spells it.
+void _statements(
+  StringBuffer out,
+  List<MaterialStatement> body,
+  String Function(MaterialExpression value) returns,
+) {
+  for (final statement in body) {
     switch (statement) {
       case MaterialLet(:final name, :final value):
         out.writeln('  ${value.type.name} $name = ${_glsl(value)};');
       case MaterialReturn(:final value):
-        out
-          ..writeln('  vec4 result = ${_glsl(value)};')
-          ..writeln('  WriteSurface(result.rgb, result.a);');
+        out.writeln(returns(value));
     }
   }
-
-  out.writeln('}');
-  return out.toString();
 }
 
 /// What the engine may bind to [program]'s compiled shader.
@@ -116,6 +167,11 @@ MaterialBindings describeMaterial(MaterialProgram program) {
     for (final slot in program.textures) slot.bindingName,
   };
   final reads = program.inputsUsed;
+  // `P8`: a lighting hook makes it a lit model, which applies the normal,
+  // occlusion and emissive maps and reads the shadows and the light list —
+  // all of it live, because the parser holds the fragment body to reading
+  // `lit`, which adds every one of them up.
+  final lit = program.light != null;
 
   // A material that reads nothing off the lit surface still goes through
   // `ReadSurface`, which is what applies the base colour tint and the mask
@@ -130,12 +186,14 @@ MaterialBindings describeMaterial(MaterialProgram program) {
     // the first time one was drawn on a GPU (`P8`, `material-language`).
     usesAlbedoTexture: true,
     usesMaterialMaps:
+        lit ||
         samples.contains('normal_texture') ||
         samples.contains('occlusion_texture') ||
         samples.contains('emissive_texture') ||
         samples.contains('metallic_roughness_texture'),
     usesMetallicRoughnessMap: samples.contains('metallic_roughness_texture'),
     usesMetallic: reads.contains('metallic'),
+    usesLightList: lit,
     uniforms: <String, List<double>>{
       for (final parameter in program.parameters)
         if (parameter.uniform) parameter.name: parameter.defaultValue,
@@ -156,6 +214,7 @@ final class MaterialBindings {
     required this.usesMaterialMaps,
     required this.usesMetallicRoughnessMap,
     required this.usesMetallic,
+    this.usesLightList = false,
     this.uniforms = const <String, List<double>>{},
   });
 
@@ -174,9 +233,10 @@ final class MaterialBindings {
   /// program has a uniform.
   bool get usesMaterialParameters => uniforms.isNotEmpty;
 
-  /// Always false: a material in this language returns the light its surface
-  /// emits and gathers none, so the emitted stage declares no light list.
-  bool get usesLightList => false;
+  /// Whether the stage gathers lights: true for a material with a `light`
+  /// block — `P8` — and false for one that returns the light its surface
+  /// emits, whose stage declares no light list.
+  final bool usesLightList;
 
   /// The [LightingModel] these bindings describe, with the label and entry
   /// point the application chose.

@@ -427,4 +427,112 @@ material Tint {
       );
     });
   });
+
+  group('a lighting hook — P8', () {
+    const toon = '''
+material Toon {
+  light {
+    let banded = floor(nDotL * 3.0) / 3.0;
+    return albedo * banded / max(nDotL, 0.001);
+  }
+  fragment {
+    return vec4(lit, alpha);
+  }
+}
+''';
+
+    void refuses(String source, String says) {
+      expect(
+        () => parseMaterial(source),
+        throwsA(
+          isA<MaterialSyntaxError>().having(
+            (e) => e.message,
+            'message',
+            contains(says),
+          ),
+        ),
+        reason: source,
+      );
+    }
+
+    test('parses into a light block beside the fragment body', () {
+      final program = parseMaterial(toon);
+      expect(program.light, hasLength(2));
+      expect(program.inputsUsed, containsAll(<String>['nDotL', 'lit']));
+    });
+
+    test('emits the block as ShadeLight, shadowed, and lit as Lambert adds '
+        'it up', () {
+      // Mutation: keep the unlit stubs for a material with a light block —
+      // the engine's loop calls a ShadeLight that ignores the block.
+      final glsl = emitMaterialFragment(
+        specialiseMaterial(parseMaterial(toon), const MaterialVariant('Toon')),
+      );
+      expect(glsl, isNot(contains('F3D_NO_LIGHT_LIST')));
+      expect(glsl, contains('#include <lib/shadow.glsl>'));
+      expect(glsl, contains('vec3 ShadeLight(Surface s, LightSample light) {'));
+      expect(glsl, contains('light.n_dot_l'));
+      expect(glsl, contains('return ShadowFactor(s, light, i);'));
+      expect(glsl, contains('ApplyCommonMaps(s);'));
+      expect(glsl, contains('vec3 lit = AccumulateLights(s) * s.occlusion'));
+    });
+
+    test('binds as a lit model: the maps, the shadows, the light list', () {
+      // Mutation: leave `usesLightList: lit` out of `describeMaterial` — the
+      // stage gathers lights from a list nothing bound.
+      final model = describeMaterial(
+        parseMaterial(toon),
+      ).lightingModel(label: 'Toon', shaderName: 'Toon');
+      expect(model.usesMaterialMaps, isTrue);
+      expect(model.usesShadowMap, isTrue);
+      expect(model.usesLightList, isTrue);
+    });
+
+    test('a light input outside the block is refused', () {
+      refuses(
+        'material M { light { return albedo; } '
+        'fragment { return vec4(lit * nDotL, 1.0); } }',
+        'is read of one light',
+      );
+    });
+
+    test('lit inside the block is refused', () {
+      refuses(
+        'material M { light { return lit; } '
+        'fragment { return vec4(lit, 1.0); } }',
+        'cannot read it',
+      );
+    });
+
+    test('lit without a block is refused, where it was read', () {
+      refuses(
+        'material M { fragment { return vec4(lit, 1.0); } }',
+        'this material has none',
+      );
+    });
+
+    test('a block nothing reads is refused', () {
+      refuses(
+        'material M { light { return albedo; } '
+        'fragment { return vec4(albedo, 1.0); } }',
+        'the light block is never read',
+      );
+    });
+
+    test('the block returns a vec3', () {
+      refuses(
+        'material M { light { return vec4(albedo, 1.0); } '
+        'fragment { return vec4(lit, 1.0); } }',
+        'a light block returns a vec3',
+      );
+    });
+
+    test('a let in each body may share a name', () {
+      final program = parseMaterial(
+        'material M { light { let k = nDotL; return albedo * k; } '
+        'fragment { let k = 0.5; return vec4(lit * k, 1.0); } }',
+      );
+      expect(program.light, isNotNull);
+    });
+  });
 }

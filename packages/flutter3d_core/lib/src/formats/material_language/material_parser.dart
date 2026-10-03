@@ -14,7 +14,27 @@
 /// }
 /// ```
 ///
-/// **The vocabulary is GLSL's, and that is the whole design.** `clamp`, `mix`,
+/// A material may also answer each light itself — `P8`, the lighting hook:
+///
+/// ```text
+/// material Toon {
+///   light {
+///     let banded = floor(nDotL * 3.0) / 3.0;
+///     return albedo * banded / max(nDotL, 0.001);
+///   }
+///   fragment {
+///     return vec4(lit, alpha);
+///   }
+/// }
+/// ```
+///
+/// The `light` block runs once per light inside the engine's light loop and
+/// returns how the surface answers it, which the engine multiplies by the
+/// light's radiance, its `n·l` and its shadow; it reads the light through
+/// `lightDir`, `halfDir`, `nDotL`, `nDotH` and `vDotH`. The fragment body
+/// reads the result as `lit` — see `kMaterialLitInput` for what that adds up.
+///
+/// /// **The vocabulary is GLSL's, and that is the whole design.** `clamp`, `mix`,
 /// `pow`, the swizzles and the broadcasting rules all mean what they mean in
 /// GLSL, because the emitted shader has to read like the source for anybody
 /// debugging the pair — and because a language that invented its own `mix`
@@ -180,10 +200,11 @@ List<_Token> _lex(String source) {
 /// and the rest are GLSL words a declaration cannot take.
 const Set<String> _reservedNames = <String>{
   // The emitter's own, `P8`'s uniform block among them.
-  's', 'result', 'main', 'material_params', 'MaterialParams',
+  's', 'result', 'main', 'material_params', 'MaterialParams', 'light', 'lit',
   // `surface.glsl`'s, as the emitted shader spells them.
   'Surface', 'LightSample', 'ReadSurface', 'WriteSurface', 'ShadeLight',
-  'LightVisibility', 'v_texcoord', 'v_world_position',
+  'LightVisibility', 'v_texcoord', 'v_world_position', 'AccumulateLights',
+  'ShadowFactor', 'ApplyCommonMaps', 'SampleLightmap',
   ...kMaterialTextureBindings,
   // GLSL: the one builtin the emitter calls that is not a [MaterialBuiltin],
   // and the keywords and type names a declaration cannot reuse.
@@ -218,6 +239,13 @@ final class _Parser {
   final List<MaterialParameter> parameters = <MaterialParameter>[];
   final List<MaterialTextureSlot> textures = <MaterialTextureSlot>[];
   final Map<String, MaterialType> locals = <String, MaterialType>{};
+
+  /// Whether the body being read is the `light` block — `P8`.
+  bool inLight = false;
+
+  /// Where the fragment body first read `lit`, to point at when the material
+  /// turns out to have no `light` block to gather it.
+  _Token? litAt;
   final Set<String> inputsUsed = <String>{};
 
   _Token get current => tokens[at];
@@ -259,6 +287,8 @@ final class _Parser {
     take('{', '"{" after the material\'s name');
 
     List<MaterialStatement>? body;
+    List<MaterialStatement>? light;
+    _Token? lightAt;
     while (!takeIf('}')) {
       if (current.kind == 'end') fail('the material is never closed with "}".');
       if (takeWordIf('param')) {
@@ -270,20 +300,41 @@ final class _Parser {
       } else if (takeWordIf('fragment')) {
         if (body != null) fail('a material has one fragment body.');
         body = parseBody();
+      } else if (current.kind == 'name' && current.text == 'light') {
+        lightAt = current;
+        at++;
+        if (light != null) fail('a material has one light block.', lightAt);
+        light = parseBody(light: true);
       } else {
         fail(
           '"${current.text}" is not a declaration: a material holds "param", '
-          '"uniform", "texture" and one "fragment".',
+          '"uniform", "texture", one "fragment" and at most one "light".',
         );
       }
     }
     if (body == null) fail('the material has no fragment body.');
+    if (litAt case final where? when light == null) {
+      fail(
+        '"lit" is the light a "light" block gathers, and this material has '
+        'none: add one, or return the colour without it.',
+        where,
+      );
+    }
+    if (light != null && litAt == null) {
+      fail(
+        'the light block is never read: a fragment body that does not read '
+        '"lit" gathers no lights, and the compiled shader would drop the '
+        'block and everything the engine binds for it.',
+        lightAt,
+      );
+    }
 
     return MaterialProgram(
       name: name,
       parameters: parameters,
       textures: textures,
       body: body,
+      light: light,
       inputsUsed: inputsUsed,
     );
   }
@@ -347,7 +398,11 @@ final class _Parser {
   /// variable — a bug that looks like the lighting being wrong.
   void checkFreeName(_Token token) {
     final name = token.text;
-    for (final input in kMaterialInputs) {
+    for (final input in <MaterialInput>[
+      ...kMaterialInputs,
+      ...kMaterialLightInputs,
+      kMaterialLitInput,
+    ]) {
       if (input.name == name) {
         fail('"$name" is one of the surface inputs.', token);
       }
@@ -394,11 +449,17 @@ final class _Parser {
     return expression.value;
   }
 
-  List<MaterialStatement> parseBody() {
-    take('{', '"{" after "fragment"');
+  /// A body: the fragment's, or with [light] the `light` block's — `P8`.
+  ///
+  /// Each has its own locals: the two are two functions in the shader.
+  List<MaterialStatement> parseBody({bool light = false}) {
+    final what = light ? 'light block' : 'fragment body';
+    take('{', light ? '"{" after "light"' : '"{" after "fragment"');
+    locals.clear();
+    inLight = light;
     final body = <MaterialStatement>[];
     while (!takeIf('}')) {
-      if (current.kind == 'end') fail('the fragment body is never closed.');
+      if (current.kind == 'end') fail('the $what is never closed.');
       if (takeWordIf('let')) {
         final nameToken = take('name', 'the name being bound');
         checkFreeName(nameToken);
@@ -423,7 +484,14 @@ final class _Parser {
         body.add(MaterialLet(nameToken.text, value));
       } else if (takeWordIf('return')) {
         final value = parseExpression();
-        if (value.type != MaterialType.vec4) {
+        if (light && value.type != MaterialType.vec3) {
+          fail(
+            'a light block returns a vec3 — how the surface answers this one '
+            'light, which the engine multiplies by its radiance, n·l and '
+            'shadow — and this one returns a ${value.type}.',
+          );
+        }
+        if (!light && value.type != MaterialType.vec4) {
           fail(
             'a fragment body returns a vec4 — rgb the light the surface '
             'emits, a its opacity — and this one returns a ${value.type}.',
@@ -432,18 +500,19 @@ final class _Parser {
         take(';', '";" after the returned value');
         body.add(MaterialReturn(value));
         if (current.kind != '}') {
-          fail('nothing follows the return in a fragment body.');
+          fail('nothing follows the return in a $what.');
         }
       } else {
         fail(
-          '"${current.text}" is not a statement: a fragment body is "let" '
+          '"${current.text}" is not a statement: a $what is "let" '
           'bindings and one "return".',
         );
       }
     }
     if (body.isEmpty || body.last is! MaterialReturn) {
-      fail('the fragment body has no "return".');
+      fail('the $what has no "return".');
     }
+    inLight = false;
     return body;
   }
 
@@ -531,6 +600,31 @@ final class _Parser {
         inputsUsed.add(name);
         return MaterialInputRef(input);
       }
+    }
+    for (final input in kMaterialLightInputs) {
+      if (input.name == name) {
+        if (!inLight) {
+          fail(
+            '"$name" is read of one light, in the "light" block; the '
+            'fragment body sees them gathered, as "lit".',
+            token,
+          );
+        }
+        inputsUsed.add(name);
+        return MaterialInputRef(input);
+      }
+    }
+    if (name == kMaterialLitInput.name) {
+      if (inLight) {
+        fail(
+          '"lit" is every light gathered through this block, so the block '
+          'cannot read it; the fragment body does.',
+          token,
+        );
+      }
+      litAt ??= token;
+      inputsUsed.add(name);
+      return MaterialInputRef(kMaterialLitInput);
     }
     if (textureNamed(name) != null) {
       fail('"$name" is a texture; it is read with sample($name, uv).', token);

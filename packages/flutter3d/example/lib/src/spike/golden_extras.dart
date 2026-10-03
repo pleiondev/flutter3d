@@ -66,6 +66,25 @@ abstract final class GoldenExtras {
     usesMaterialParameters: true,
   );
 
+  /// The example's lighting hook — `P8`: `shaders/toon_hook.f3dmat`, a
+  /// material whose `light` block answers each light inside the engine's
+  /// light loop, compiled beside [rimGlowBundle].
+  static const String toonHookBundle = 'assets/shaders/toon_hook.f3dshaders';
+
+  /// [toonHookBundle]'s lighting model, held to the source by the example's
+  /// `material_language_test.dart` as [rimGlow] is: a lit model, so the maps,
+  /// the shadows and the light list, which the `light` block makes it.
+  static const LightingModel toonHook = LightingModel(
+    'ToonHook',
+    'ToonHook',
+    usesAlbedoTexture: true,
+    usesMaterialMaps: true,
+    usesMetallicRoughnessMap: false,
+    usesMetallic: false,
+    usesLightList: true,
+    usesMaterialParameters: true,
+  );
+
   /// Simulated seconds before the frame is drawn.
   ///
   /// Chosen so the burst is mid-flight: at zero every particle sits on the

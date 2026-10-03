@@ -150,6 +150,38 @@ const List<MaterialInput> kMaterialInputs = <MaterialInput>[
   MaterialInput('world', MaterialType.vec3, 'v_world_position'),
 ];
 
+/// What the `light` block reads about the one light it is shading for, on
+/// top of [kMaterialInputs] — `P8`, the lighting hook.
+///
+/// `surface.glsl`'s `LightSample` and `cpu_shaders_lighting.dart`'s, the same
+/// struct written twice, as the surface inputs are. Read only inside the
+/// block: outside it there is no one light to read them of.
+const List<MaterialInput> kMaterialLightInputs = <MaterialInput>[
+  MaterialInput('lightDir', MaterialType.vec3, 'light.l'),
+  MaterialInput('halfDir', MaterialType.vec3, 'light.h'),
+  MaterialInput('nDotL', MaterialType.float, 'light.n_dot_l'),
+  MaterialInput('nDotH', MaterialType.float, 'light.n_dot_h'),
+  MaterialInput('vDotH', MaterialType.float, 'light.v_dot_h'),
+];
+
+/// The surface lit as the engine lights it, through the material's own
+/// `light` block — `P8`. Read in the fragment body of a material that has
+/// one.
+///
+/// **Everything a lit model of the engine's adds up, not the lights alone**:
+/// every light through the block, by its radiance, `n·l` and shadow, then the
+/// ambient and the lightmap, then the emissive, with the occlusion over the
+/// first two — what `lambert.frag` writes. Whole, because a compiled shader
+/// keeps a sampler only if something reads it, and the engine binds the maps
+/// and the shadow atlases to a lit model: a material whose output skipped
+/// the emissive would leave its map unread and the bind refused. A material
+/// adds to it what is not lighting — a rim, a glow.
+const MaterialInput kMaterialLitInput = MaterialInput(
+  'lit',
+  MaterialType.vec3,
+  'lit',
+);
+
 /// A function the language knows, its type rule and how to compute it.
 ///
 /// **One table, read by the emitter and by the evaluator.** A builtin that
@@ -455,12 +487,20 @@ final class MaterialProgram {
     required this.textures,
     required this.body,
     required this.inputsUsed,
+    this.light,
   });
 
   final String name;
   final List<MaterialParameter> parameters;
   final List<MaterialTextureSlot> textures;
   final List<MaterialStatement> body;
+
+  /// The `light` block, or null for a material that gathers no lights —
+  /// `P8`. Run once per light, its return a `vec3`: how the surface responds
+  /// to that light, which the engine multiplies by the light's radiance, its
+  /// `n·l` and its shadow, as it does `ShadeLight` of every lit model. The
+  /// sum reaches the fragment body as [kMaterialLitInput].
+  final List<MaterialStatement>? light;
 
   /// Which of [kMaterialInputs] the body actually reads.
   ///
@@ -539,20 +579,29 @@ MaterialProgram specialiseMaterial(
     }
   }
 
+  List<MaterialStatement> fold(List<MaterialStatement> body) =>
+      <MaterialStatement>[
+        for (final statement in body)
+          switch (statement) {
+            MaterialLet(:final name, :final value) => MaterialLet(
+              name,
+              _fold(value, variant),
+            ),
+            MaterialReturn(:final value) => MaterialReturn(
+              _fold(value, variant),
+            ),
+          },
+      ];
+
   return MaterialProgram(
     name: variant.name,
     parameters: program.parameters,
     textures: program.textures,
-    body: <MaterialStatement>[
-      for (final statement in program.body)
-        switch (statement) {
-          MaterialLet(:final name, :final value) => MaterialLet(
-            name,
-            _fold(value, variant),
-          ),
-          MaterialReturn(:final value) => MaterialReturn(_fold(value, variant)),
-        },
-    ],
+    body: fold(program.body),
+    light: switch (program.light) {
+      final light? => fold(light),
+      null => null,
+    },
     inputsUsed: program.inputsUsed,
   );
 }

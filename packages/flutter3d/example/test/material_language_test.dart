@@ -18,26 +18,29 @@ import 'package:flutter3d_example/src/spike/golden_extras.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('the golden binds what the source reads', () {
-    final program = parseMaterial(
-      File('shaders/rim_glow.f3dmat').readAsStringSync(),
-    );
-    final built = describeMaterial(
-      program,
-    ).lightingModel(label: program.name, shaderName: program.name);
-    const written = GoldenExtras.rimGlow;
+  for (final (file, written) in <(String, LightingModel)>[
+    ('shaders/rim_glow.f3dmat', GoldenExtras.rimGlow),
+    // `P8`: the lighting hook, a lit model by its `light` block.
+    ('shaders/toon_hook.f3dmat', GoldenExtras.toonHook),
+  ]) {
+    test('the golden binds what $file reads', () {
+      final program = parseMaterial(File(file).readAsStringSync());
+      final built = describeMaterial(
+        program,
+      ).lightingModel(label: program.name, shaderName: program.name);
 
-    expect(written.shaderName, built.shaderName);
-    expect(written.vertexShaderName, built.vertexShaderName);
-    expect(written.usesFragInfo, built.usesFragInfo);
-    expect(written.usesFogInfo, built.usesFogInfo);
-    expect(written.usesAlbedoTexture, built.usesAlbedoTexture);
-    expect(written.usesMaterialMaps, built.usesMaterialMaps);
-    expect(written.usesMetallicRoughnessMap, built.usesMetallicRoughnessMap);
-    expect(written.usesMetallic, built.usesMetallic);
-    expect(written.usesLightList, built.usesLightList);
-    expect(written.usesMaterialParameters, built.usesMaterialParameters);
-    expect(written.usesEnvironment, built.usesEnvironment);
-    expect(written.vertexStageMorphs, built.vertexStageMorphs);
-  });
+      expect(written.shaderName, built.shaderName);
+      expect(written.vertexShaderName, built.vertexShaderName);
+      expect(written.usesFragInfo, built.usesFragInfo);
+      expect(written.usesFogInfo, built.usesFogInfo);
+      expect(written.usesAlbedoTexture, built.usesAlbedoTexture);
+      expect(written.usesMaterialMaps, built.usesMaterialMaps);
+      expect(written.usesMetallicRoughnessMap, built.usesMetallicRoughnessMap);
+      expect(written.usesMetallic, built.usesMetallic);
+      expect(written.usesLightList, built.usesLightList);
+      expect(written.usesMaterialParameters, built.usesMaterialParameters);
+      expect(written.usesEnvironment, built.usesEnvironment);
+      expect(written.vertexStageMorphs, built.vertexStageMorphs);
+    });
+  }
 }

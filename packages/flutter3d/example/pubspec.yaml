@@ -98,3 +98,4 @@ flutter:
     # And the material written in the engine's language, which the same
     # script compiles from shaders/rim_glow.f3dmat — `P8`.
     - assets/shaders/rim_glow.f3dshaders
+    - assets/shaders/toon_hook.f3dshaders

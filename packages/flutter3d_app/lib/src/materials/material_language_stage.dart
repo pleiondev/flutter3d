@@ -51,45 +51,85 @@ final class MaterialProgramStage implements CpuFragmentShader {
     if (s == null) return null;
 
     final footprint = uvFootprint(c);
+    // `P8`: a lighting hook makes this a lit model — the maps applied, the
+    // lights gathered through the block — as the emitted shader does.
+    final light = program.light;
+    if (light != null) applyCommonMaps(s, v, bindings, c);
+    final inputs = <String, List<double>>{
+      'albedo': <double>[s.albedo.x, s.albedo.y, s.albedo.z],
+      'alpha': <double>[s.alpha],
+      'normal': <double>[s.normal.x, s.normal.y, s.normal.z],
+      'view': <double>[s.view.x, s.view.y, s.view.z],
+      'nDotV': <double>[s.nDotV],
+      'metallic': <double>[s.metallic],
+      'roughness': <double>[s.roughness],
+      'occlusion': <double>[s.occlusion],
+      'emissive': <double>[s.emissive.x, s.emissive.y, s.emissive.z],
+      'ambient': <double>[s.ambient.x, s.ambient.y, s.ambient.z],
+      'uv': <double>[v[kVUv], v[kVUv + 1]],
+      'world': <double>[s.world.x, s.world.y, s.world.z],
+    };
+    // `P8`: the draw's `MaterialParams`, which is `Material.parameters`,
+    // member by member as the GLSL reads its block.
+    final uniforms = <String, List<double>>{
+      for (final parameter in program.parameters)
+        if (parameter.uniform)
+          parameter.name: ?bindings.read('MaterialParams', parameter.name),
+    };
+    List<double> sample(MaterialTextureSlot slot, double u, double w) {
+      final texture = bindings.textures[slot.bindingName];
+      // White is what `surface.glsl` falls back to for an unbound base
+      // colour, so a material sampling a slot this draw did not fill
+      // looks the same on both sides.
+      if (texture == null) return const <double>[1, 1, 1, 1];
+      final texel = texture.sample(u, w, du: footprint.du, dv: footprint.dv);
+      return <double>[texel.x, texel.y, texel.z, texel.w];
+    }
+
+    if (light != null) {
+      // `lit` as the emitted `main` adds it up: the lights through the
+      // block, by radiance, n·l and shadow, then ambient and lightmap under
+      // the occlusion, then the emissive — `kMaterialLitInput`.
+      final gathered = accumulateLights(
+        s,
+        bindings,
+        c,
+        shade: (s, light) {
+          final half = (light.direction + s.view)..normalize();
+          final answer = evaluateMaterialLight(
+            program,
+            MaterialSurfaceValues(
+              inputs: <String, List<double>>{
+                ...inputs,
+                'lightDir': <double>[
+                  light.direction.x,
+                  light.direction.y,
+                  light.direction.z,
+                ],
+                'halfDir': <double>[half.x, half.y, half.z],
+                'nDotL': <double>[light.nDotL],
+                'nDotH': <double>[light.nDotH],
+                'vDotH': <double>[light.vDotH],
+              },
+              uniforms: uniforms,
+              sample: sample,
+            ),
+          );
+          return Vector3(answer[0], answer[1], answer[2]);
+        },
+        shadowed: true,
+      ).scaled(s.occlusion);
+      final ambient =
+          (s.albedo.clone()
+                ..multiply(s.ambient + sampleLightmap(v, bindings, c)))
+              .scaled(s.occlusion);
+      final lit = gathered + ambient + s.emissive;
+      inputs['lit'] = <double>[lit.x, lit.y, lit.z];
+    }
+
     final result = evaluateMaterial(
       program,
-      MaterialSurfaceValues(
-        inputs: <String, List<double>>{
-          'albedo': <double>[s.albedo.x, s.albedo.y, s.albedo.z],
-          'alpha': <double>[s.alpha],
-          'normal': <double>[s.normal.x, s.normal.y, s.normal.z],
-          'view': <double>[s.view.x, s.view.y, s.view.z],
-          'nDotV': <double>[s.nDotV],
-          'metallic': <double>[s.metallic],
-          'roughness': <double>[s.roughness],
-          'occlusion': <double>[s.occlusion],
-          'emissive': <double>[s.emissive.x, s.emissive.y, s.emissive.z],
-          'ambient': <double>[s.ambient.x, s.ambient.y, s.ambient.z],
-          'uv': <double>[v[kVUv], v[kVUv + 1]],
-          'world': <double>[s.world.x, s.world.y, s.world.z],
-        },
-        // `P8`: the draw's `MaterialParams`, which is `Material.parameters`,
-        // member by member as the GLSL reads its block.
-        uniforms: <String, List<double>>{
-          for (final parameter in program.parameters)
-            if (parameter.uniform)
-              parameter.name: ?bindings.read('MaterialParams', parameter.name),
-        },
-        sample: (slot, u, w) {
-          final texture = bindings.textures[slot.bindingName];
-          // White is what `surface.glsl` falls back to for an unbound base
-          // colour, so a material sampling a slot this draw did not fill
-          // looks the same on both sides.
-          if (texture == null) return const <double>[1, 1, 1, 1];
-          final texel = texture.sample(
-            u,
-            w,
-            du: footprint.du,
-            dv: footprint.dv,
-          );
-          return <double>[texel.x, texel.y, texel.z, texel.w];
-        },
-      ),
+      MaterialSurfaceValues(inputs: inputs, uniforms: uniforms, sample: sample),
     );
 
     // `WriteSurface(rgb, a)` in `color.glsl`, which is the one-argument form:
