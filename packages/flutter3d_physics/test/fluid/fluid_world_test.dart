@@ -82,4 +82,43 @@ void main() {
       expect(worst, lessThan(1e-5));
     },
   );
+
+  test('a glass left alone sleeps, and anything done to it wakes it', () {
+    // Asleep it costs nothing a step. Mutation: let a knock, a pour or a
+    // move leave it asleep, and a tapped glass on the bench never rings.
+    final glass = LiquidBody(
+      shape: _tube(0.008, 0.1),
+      medium: FluidMedium.water,
+      volume: math.pi * 0.008 * 0.008 * 0.05,
+      modes: 4,
+    );
+    final g = Vector3(0, -9.81, 0);
+    void run(int steps, {Vector3? at}) {
+      for (var i = 0; i < steps; i++) {
+        glass
+          ..place(Matrix3.identity(), at ?? Vector3.zero())
+          ..step(1 / 240, gravity: g);
+      }
+    }
+
+    run(10);
+    // Knocked: it rings.
+    glass.surface.knock(Vector3(0.004, glass.height, 0), 0.001);
+    run(1);
+    expect(glass.surface.reach, greaterThan(1e-5));
+    // Left long enough, the rings die and it sleeps flat.
+    run(240 * 20);
+    expect(glass.surface.reach, 0.0);
+    final volume = glass.volume;
+    // Poured into: wakes, and the level rises.
+    final height = glass.height;
+    glass.pour(1e-7);
+    run(1);
+    expect(glass.height, greaterThan(height));
+    expect(glass.volume, closeTo(volume + 1e-7, 1e-18));
+    // Moved: it feels the jolt.
+    run(240 * 20);
+    run(3, at: Vector3(0.01, 0, 0));
+    expect(glass.surface.reach, greaterThan(0.0));
+  });
 }

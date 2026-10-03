@@ -341,6 +341,56 @@ final class LiquidBody implements JetReceiver {
   /// Moves the liquid on by [dt] under the world's [gravity], and returns
   /// what ran over the lip in that time, already taken out of [volume].
   Spill step(double dt, {required Vector3 gravity}) {
+    // **Asleep while nothing happens to it.** A glass standing on a bench,
+    // its surface still, has nothing to step: the same place, the same
+    // volume, the same gravity, nothing knocked or landed. Eight of a
+    // bench's nine glasses are that, and stepping them two hundred and
+    // forty times a second was most of what a frame cost in a browser.
+    if (_asleep && _sameAsAsleep(gravity)) {
+      _clock += dt;
+      return Spill.none;
+    }
+    _asleep = false;
+    final spill = _stepAwake(dt, gravity: gravity);
+    _maybeSleep(gravity, spill);
+    return spill;
+  }
+
+  bool _asleep = false;
+  double _sleptVolume = double.nan;
+  double _sleptDisplaced = double.nan;
+  int _sleptDisturbances = -1;
+  final Vector3 _sleptAt = Vector3.zero();
+  final Matrix3 _sleptTurn = Matrix3.zero();
+  final Vector3 _sleptGravity = Vector3.zero();
+
+  bool _sameAsAsleep(Vector3 gravity) =>
+      volume == _sleptVolume &&
+      displaced == _sleptDisplaced &&
+      surface.disturbances == _sleptDisturbances &&
+      position == _sleptAt &&
+      rotation == _sleptTurn &&
+      gravity == _sleptGravity;
+
+  /// Falls asleep after a step in which it was still: placed where it was
+  /// placed the last two times, running nothing over, its waves gone.
+  void _maybeSleep(Vector3 gravity, Spill spill) {
+    if (spill.flow > 0.0 || !surface.quiet) return;
+    if (_history.length < 2) return;
+    for (final h in _history) {
+      if (h.at != position) return;
+    }
+    surface.calm();
+    _asleep = true;
+    _sleptVolume = volume;
+    _sleptDisplaced = displaced;
+    _sleptDisturbances = surface.disturbances;
+    _sleptAt.setFrom(position);
+    _sleptTurn.setFrom(rotation);
+    _sleptGravity.setFrom(gravity);
+  }
+
+  Spill _stepAwake(double dt, {required Vector3 gravity}) {
     // The gravity felt: the world's, less the vessel's acceleration.
     final felt = gravity.clone();
     if (_history.length == 3) {
