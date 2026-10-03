@@ -68,10 +68,16 @@ List<OrthographicCascade> orthographicCascades({
   final far = depths.fold(double.negativeInfinity, math.max);
   // A sliver at least, so a view that meets the bounds in a plane still has
   // slabs with an inside.
-  final end = math.max(math.min(far, start + reach), start + 1e-3);
+  final length = math.max(math.min(far - start, reach), 1e-3);
+  final end = start + length;
   // Both ends on a grid, so a pan or a caster that moves a little leaves the
-  // slabs where they were — see [_quantum].
-  final step = _quantum(end - start);
+  // slabs where they were — see [_quantum]. The step is taken from the length
+  // itself, not from `end - start`, which in doubles can come back a bit
+  // either side of [reach] as `start` moves; at a reach that is a power of two
+  // that is a step twice as long. The corners come from `Vector3`'s floats,
+  // whose sums are exact in a double, so nothing measured here did it; taken
+  // from the length, it cannot.
+  final step = _quantum(length);
   final from = (start / step).floorToDouble() * step;
   final to = (end / step).ceilToDouble() * step;
 
@@ -99,9 +105,21 @@ List<OrthographicCascade> orthographicCascades({
 /// keeps a still tile from being redrawn refuses a map whose scale changed.
 /// On steps a sixteenth of the length's power of two the radius and the slab
 /// ends stay put until the fit has moved by a whole step, and a radius
-/// rounded up wastes at most an eighth of the map.
-double _quantum(double length) =>
-    math.pow(2.0, (math.log(math.max(length, 1e-3)) / math.ln2).ceil()) / 16.0;
+/// rounded up is at most an eighth longer than it needs to be.
+///
+/// The power of two found by doubling and halving, exactly, rather than by a
+/// logarithm, whose last bit at a power of two is the platform's to choose.
+double _quantum(double length) {
+  final target = math.max(length, 1e-3);
+  var power = 1.0;
+  while (power < target) {
+    power *= 2.0;
+  }
+  while (power * 0.5 >= target) {
+    power *= 0.5;
+  }
+  return power / 16.0;
+}
 
 /// [length] rounded up to its [_quantum].
 double _roundUp(double length) {
