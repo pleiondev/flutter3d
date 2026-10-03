@@ -64,6 +64,22 @@ final class FreeSurface {
   /// The surface's area, square metres.
   double get area => _grid == null ? 0.0 : _grid!.count * _grid!.cell2;
 
+  /// [f] averaged over the surface as it is laid out, by its cells, and the
+  /// layout it was averaged over: what a caller keeps it by.
+  ({double mean, Object? layout}) meanOf(double Function(Vector3 point) f) {
+    final grid = _grid;
+    if (grid == null || grid.count == 0) return (mean: 0.0, layout: null);
+    var sum = 0.0;
+    for (var i = 0; i < grid.count; i++) {
+      sum += f(grid.point(i));
+    }
+    return (mean: sum / grid.count, layout: grid);
+  }
+
+  /// The layout the surface has now: a new object whenever it is laid out
+  /// again.
+  Object? get layout => _grid;
+
   /// How much liquid the waves hold above the plane, cubic metres: nought,
   /// since no mode but the flat one has any, and that one is never kept.
   /// For a test to hold the surface to.

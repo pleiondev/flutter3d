@@ -137,6 +137,17 @@ final class ParticleFluid {
   /// Cubic metres here: every particle and the bank.
   double get volume => _x.length * particleVolume + _bank;
 
+  /// What is dissolved in the particles, as concentrations over all of
+  /// them: for drawing them the colour of what they are.
+  Map<String, double> get concentrations {
+    if (_c.isEmpty) return const {};
+    final sum = <String, double>{};
+    for (final c in _c) {
+      c.forEach((k, v) => sum[k] = (sum[k] ?? 0.0) + v);
+    }
+    return {for (final e in sum.entries) e.key: e.value / _c.length};
+  }
+
   /// Cubic metres handed to receivers so far.
   double get received => _received;
 
