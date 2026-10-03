@@ -24,33 +24,38 @@ void main() {
 
   test('there are C tests to run', () => expect(tests, isNotEmpty));
 
+  // Each in both precisions: the doubles build is one a simulation can
+  // choose, so it is held to the same tests rather than only compiled.
   for (final source in tests) {
-    final name = source.uri.pathSegments.last;
-    test(name, () {
-      final scratch = Directory.systemTemp.createTempSync('f3d_ctest');
-      addTearDown(() => scratch.deleteSync(recursive: true));
-      final binary = '${scratch.path}/${name.replaceAll('.c', '')}';
-      final built = Process.runSync('cc', <String>[
-        '-std=c11',
-        '-Wall',
-        '-Wextra',
-        '-Werror',
-        '-pedantic',
-        '-ffp-contract=off',
-        '-fsanitize=address,undefined',
-        '-fno-sanitize-recover=all',
-        '-g',
-        '-Icsrc/include',
-        '-Icsrc/src',
-        ...coreSources,
-        source.path,
-        '-o',
-        binary,
-      ]);
-      expect(built.exitCode, 0, reason: '${built.stderr}');
-      final ran = Process.runSync(binary, const <String>[]);
-      expect(ran.exitCode, 0, reason: '${ran.stdout}${ran.stderr}');
-      expect('${ran.stdout}', contains('checks passed'));
-    });
+    for (final precision in const <String>['f32', 'f64']) {
+      final name = '${source.uri.pathSegments.last} ($precision)';
+      test(name, () {
+        final scratch = Directory.systemTemp.createTempSync('f3d_ctest');
+        addTearDown(() => scratch.deleteSync(recursive: true));
+        final binary = '${scratch.path}/test';
+        final built = Process.runSync('cc', <String>[
+          '-std=c11',
+          '-Wall',
+          '-Wextra',
+          '-Werror',
+          '-pedantic',
+          '-ffp-contract=off',
+          '-fsanitize=address,undefined',
+          '-fno-sanitize-recover=all',
+          '-g',
+          if (precision == 'f64') '-DF3D_REAL_DOUBLE',
+          '-Icsrc/include',
+          '-Icsrc/src',
+          ...coreSources,
+          source.path,
+          '-o',
+          binary,
+        ]);
+        expect(built.exitCode, 0, reason: '${built.stderr}');
+        final ran = Process.runSync(binary, const <String>[]);
+        expect(ran.exitCode, 0, reason: '${ran.stdout}${ran.stderr}');
+        expect('${ran.stdout}', contains('checks passed'));
+      });
+    }
   }
 }

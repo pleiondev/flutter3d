@@ -20,6 +20,9 @@ import 'dart:io';
 /// allocator in place of the C library's.
 const List<String> wasmSources = <String>[
   'csrc/src/f3d_world.c',
+  'csrc/src/f3d_motion.c',
+  'csrc/src/f3d_heat.c',
+  'csrc/src/f3d_snapshot.c',
   'csrc/src/f3d_memory_wasm.c',
 ];
 

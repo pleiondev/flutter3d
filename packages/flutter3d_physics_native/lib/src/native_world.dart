@@ -27,13 +27,13 @@ extension type const NativeBody(int raw) {
 final class NativeBodyType {
   const NativeBodyType._(this.code, this.name);
 
-  /// Moved by gravity, forces and contacts.
+  /// Moved by gravity, forces, wind and contacts.
   static const NativeBodyType dynamic = NativeBodyType._(
     c.BodyType.dynamic,
     'dynamic',
   );
 
-  /// Never moves.
+  /// Never moves. It still heats, cools and burns.
   static const NativeBodyType fixed = NativeBodyType._(
     c.BodyType.fixed,
     'fixed',
@@ -47,11 +47,171 @@ final class NativeBodyType {
   String toString() => 'NativeBodyType.$name';
 }
 
+/// What a body is shaped like, for its inertia, its surface and its drag —
+/// `F3dShapeKind` and its three numbers. Collision arrives with the
+/// contacts, over the same shapes.
+final class NativeShape {
+  const NativeShape._(this.kind, this.first, this.second, this.third);
+
+  /// No extent: it does not turn, has no surface and feels no wind. What a
+  /// new body is.
+  static const NativeShape point = NativeShape._(c.ShapeKind.point, 0, 0, 0);
+
+  const NativeShape.sphere(double radius)
+    : this._(c.ShapeKind.sphere, radius, 0, 0);
+
+  /// Half extents along the body's own axes.
+  NativeShape.box(Vector3 halfExtents)
+    : this._(c.ShapeKind.box, halfExtents.x, halfExtents.y, halfExtents.z);
+
+  /// Upright along the body's y: a cylinder [halfLength] each way from the
+  /// centre, capped by hemispheres of [radius].
+  const NativeShape.capsule(double radius, double halfLength)
+    : this._(c.ShapeKind.capsule, radius, halfLength, 0);
+
+  /// `F3dShapeKind`.
+  final int kind;
+
+  /// The three numbers the kind reads, as the constructors name them.
+  final double first, second, third;
+}
+
+/// What a body is made of, as heat and fire see it — `F3dMaterial`.
+final class NativeMaterial {
+  const NativeMaterial({
+    required this.specificHeat,
+    this.emissivity = 0.9,
+    this.ignitionTemperature = 0.0,
+    this.heatOfCombustion = 0.0,
+    this.burnRate = 0.0,
+    this.fuelFraction = 0.0,
+    this.flameFeedback = 0.0,
+  });
+
+  /// The core's typical values for a material: one place they live, so the
+  /// browser's module and the native library agree on them too.
+  static NativeMaterial inert() => _preset(c.MaterialKind.inert);
+  static NativeMaterial wood() => _preset(c.MaterialKind.wood);
+  static NativeMaterial paper() => _preset(c.MaterialKind.paper);
+  static NativeMaterial rubber() => _preset(c.MaterialKind.rubber);
+  static NativeMaterial steel() => _preset(c.MaterialKind.steel);
+  static NativeMaterial stone() => _preset(c.MaterialKind.stone);
+
+  static NativeMaterial _preset(int kind) {
+    final out = calloc<c.F3dMaterial>();
+    try {
+      c.f3d_material_preset(kind, out);
+      final m = out.ref;
+      return NativeMaterial(
+        specificHeat: m.specific_heat,
+        emissivity: m.emissivity,
+        ignitionTemperature: m.ignition_temperature,
+        heatOfCombustion: m.heat_of_combustion,
+        burnRate: m.burn_rate,
+        fuelFraction: m.fuel_fraction,
+        flameFeedback: m.flame_feedback,
+      );
+    } finally {
+      calloc.free(out);
+    }
+  }
+
+  /// J / (kg K).
+  final double specificHeat;
+
+  /// Of the surface, nought to one.
+  final double emissivity;
+
+  /// K at which it catches and below which it goes out; nought for a
+  /// material that never burns.
+  final double ignitionTemperature;
+
+  /// J released per kilogram burnt.
+  final double heatOfCombustion;
+
+  /// kg burnt per second per square metre of surface while alight.
+  final double burnRate;
+
+  /// The share of the mass that can burn, nought up to but not one.
+  final double fuelFraction;
+
+  /// The share of the fire's heat that goes back into the body; the rest
+  /// leaves as the hot gas a smoke grid takes.
+  final double flameFeedback;
+}
+
+/// What a step said happened to a body — `F3dEventKind`. Constants rather
+/// than an enum, for the reason [NativeBodyType] gives: contact events
+/// arrive with the contacts.
+final class NativeEventKind {
+  const NativeEventKind._(this.code, this.name);
+
+  static const NativeEventKind slept = NativeEventKind._(
+    c.EventKind.slept,
+    'slept',
+  );
+  static const NativeEventKind woke = NativeEventKind._(
+    c.EventKind.woke,
+    'woke',
+  );
+  static const NativeEventKind ignited = NativeEventKind._(
+    c.EventKind.ignited,
+    'ignited',
+  );
+  static const NativeEventKind extinguished = NativeEventKind._(
+    c.EventKind.extinguished,
+    'extinguished',
+  );
+  static const NativeEventKind burntOut = NativeEventKind._(
+    c.EventKind.burntOut,
+    'burntOut',
+  );
+
+  static const List<NativeEventKind> _all = <NativeEventKind>[
+    slept,
+    woke,
+    ignited,
+    extinguished,
+    burntOut,
+  ];
+
+  /// The kind the core's [code] names; one this binding does not know yet
+  /// keeps its number.
+  static NativeEventKind of(int code) => _all.firstWhere(
+    (k) => k.code == code,
+    orElse: () => NativeEventKind._(code, 'unknown($code)'),
+  );
+
+  final int code;
+  final String name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeEventKind && other.code == code;
+
+  @override
+  int get hashCode => code;
+
+  @override
+  String toString() => 'NativeEventKind.$name';
+}
+
+/// One event, in the order the step raised it.
+typedef NativeEvent = ({NativeBody body, NativeEventKind kind});
+
+/// A point in doubles: the world's origin, or a body's place in the world's
+/// own coordinates. Not a [Vector3], which holds single precision and
+/// would round away what the origin is for.
+typedef WorldPoint = ({double x, double y, double z});
+
 /// A world of bodies owned and stepped by the C core.
 ///
 /// **Numbers cross as f32.** The core is single precision throughout, which
 /// is what makes its deterministic mode the same bits on every platform, so a
-/// value set here is rounded to the nearest float on the way in.
+/// value set here is rounded to the nearest float on the way in. Positions
+/// are relative to the world's [origin], held in doubles; a world far
+/// larger than f32 can hold to a millimetre moves its origin to the play
+/// with [shiftOrigin].
 ///
 /// Freed by [dispose], or by the garbage collector when a world is dropped
 /// without it. Every call after [dispose] throws a [StateError], so a world
@@ -61,11 +221,12 @@ final class NativeWorld implements Finalizable {
     if (_world == nullptr) {
       throw StateError('the physics core could not allocate a world');
     }
-    if (c.f3d_abi_version() != c.abiVersion) {
+    if (c.f3d_abi_version() != c.abiVersion || c.f3d_real_bytes() != 4) {
       c.f3d_world_destroy(_world);
       throw StateError(
-        'the physics core is ABI ${c.f3d_abi_version()} and these bindings '
-        'were written for ${c.abiVersion}',
+        'the physics core is ABI ${c.f3d_abi_version()} with '
+        '${c.f3d_real_bytes()}-byte reals, and these bindings were written '
+        'for ABI ${c.abiVersion} with 4',
       );
     }
     _finalizer.attach(this, _world.cast(), detach: this);
@@ -79,8 +240,10 @@ final class NativeWorld implements Finalizable {
 
   Pointer<c.F3dWorld> _world;
 
-  /// Three floats a getter writes into; the world's own, freed with it.
-  final Pointer<Float> _out = malloc<Float>(3);
+  /// Scratch the getters write into: the world's own, freed with it.
+  final Pointer<Float> _out = malloc<Float>(4);
+  final Pointer<Double> _outDouble = malloc<Double>(3);
+  final Pointer<Int32> _outInt = malloc<Int32>(1);
 
   Pointer<c.F3dWorld> get _live {
     if (_world == nullptr) throw StateError('this world was disposed');
@@ -92,26 +255,242 @@ final class NativeWorld implements Finalizable {
     if (_world == nullptr) return;
     _finalizer.detach(this);
     c.f3d_world_destroy(_world);
-    malloc.free(_out);
+    malloc
+      ..free(_out)
+      ..free(_outDouble)
+      ..free(_outInt);
     _world = nullptr;
   }
 
   /// Whether [dispose] has run.
   bool get isDisposed => _world == nullptr;
 
+  Vector3 _read3() => Vector3(_out[0], _out[1], _out[2]);
+
+  // ---------------------------------------------------------------- world
+
   /// Metres per second squared; (0, −9.81, 0) for a new world.
   Vector3 get gravity {
     c.f3d_world_get_gravity(_live, _out);
-    return Vector3(_out[0], _out[1], _out[2]);
+    return _read3();
   }
 
   set gravity(Vector3 value) =>
       c.f3d_world_set_gravity(_live, value.x, value.y, value.z);
 
+  /// The air's temperature, K; 293.15 for a new world.
+  double get airTemperature {
+    c.f3d_world_get_air(_live, _out);
+    return _out[0];
+  }
+
+  /// The air's density, kg/m³; 1.204 for a new world.
+  double get airDensity {
+    c.f3d_world_get_air(_live, _out);
+    return _out[1];
+  }
+
+  /// Sets both. Throws an [ArgumentError] for a value that is not finite
+  /// and positive.
+  void setAir({required double temperature, required double density}) {
+    if (c.f3d_world_set_air(_live, temperature, density) == 0) {
+      throw ArgumentError('air of $temperature K and $density kg/m³');
+    }
+  }
+
+  /// The wind everywhere, m/s, added to the grid's where there is one.
+  /// Changing it wakes every body that feels it.
+  set wind(Vector3 value) =>
+      c.f3d_world_set_wind(_live, value.x, value.y, value.z);
+
+  /// A wind field of [nx] × [ny] × [nz] samples, three floats each, x
+  /// fastest, the first at [origin] (relative to the world's origin) and
+  /// [cell] metres apart; read trilinearly and held at its edge. Throws an
+  /// [ArgumentError] for a size or spacing that is not positive or a list
+  /// of the wrong length.
+  void setWindGrid({
+    required Vector3 origin,
+    required double cell,
+    required int nx,
+    required int ny,
+    required int nz,
+    required Float32List velocities,
+  }) {
+    if (velocities.length != nx * ny * nz * 3) {
+      throw ArgumentError.value(
+        velocities.length,
+        'velocities',
+        'not 3 × $nx × $ny × $nz',
+      );
+    }
+    final buffer = malloc<Float>(velocities.isEmpty ? 1 : velocities.length);
+    try {
+      buffer.asTypedList(velocities.length).setAll(0, velocities);
+      final done = c.f3d_world_set_wind_grid(
+        _live,
+        origin.x,
+        origin.y,
+        origin.z,
+        cell,
+        nx,
+        ny,
+        nz,
+        buffer,
+      );
+      if (done == 0) {
+        throw ArgumentError('a wind grid of $nx × $ny × $nz, $cell m apart');
+      }
+    } finally {
+      malloc.free(buffer);
+    }
+  }
+
+  /// Takes the wind grid away, leaving the uniform wind.
+  void clearWindGrid() =>
+      c.f3d_world_set_wind_grid(_live, 0, 0, 0, 1, 0, 0, 0, nullptr);
+
+  /// The wind at [at], relative to the origin.
+  Vector3 windAt(Vector3 at) {
+    c.f3d_world_sample_wind(_live, at.x, at.y, at.z, _out);
+    return _read3();
+  }
+
+  /// How long, s, a body must stay slower than [speed] (m/s and rad/s) to
+  /// fall asleep; a [time] of nought turns sleep off. Defaults 0.05 and 0.5.
+  void setSleep({required double speed, required double time}) {
+    if (c.f3d_world_set_sleep(_live, speed, time) == 0) {
+      throw ArgumentError('sleep after $time s under $speed');
+    }
+  }
+
+  /// Where the world's origin is, in doubles.
+  WorldPoint get origin {
+    c.f3d_world_get_origin(_live, _outDouble);
+    return (x: _outDouble[0], y: _outDouble[1], z: _outDouble[2]);
+  }
+
+  /// Moves the origin by (dx, dy, dz), and every body and the wind grid
+  /// the other way, so that nothing moves in the world and what is near
+  /// the new origin gets f32's full precision back.
+  void shiftOrigin(double dx, double dy, double dz) =>
+      c.f3d_world_shift_origin(_live, dx, dy, dz);
+
   /// How many bodies the world holds.
   int get bodyCount => c.f3d_world_body_count(_live);
 
-  /// Adds a body at [position] and returns it.
+  /// Advances the world by [dt] seconds; nothing for a [dt] that is not
+  /// finite and positive.
+  void step(double dt) => c.f3d_world_step(_live, dt);
+
+  /// Every body's transform, seven floats apiece — position xyz relative to
+  /// the origin, then the orientation quaternion xyzw — and its handle, in
+  /// the world's slot order: what the renderer uploads as instance
+  /// transforms.
+  ({Float32List transforms, List<NativeBody> bodies}) readTransforms() =>
+      _readPer(bodyCount, c.transformFloats, c.f3d_world_read_transforms);
+
+  /// Every burning body: its position and the watts it gives off as hot gas,
+  /// four floats apiece — what a smoke grid takes its sources from.
+  ({Float32List fires, List<NativeBody> bodies}) readFires() {
+    final read = _readPer(bodyCount, c.fireFloats, c.f3d_world_read_fires);
+    return (fires: read.transforms, bodies: read.bodies);
+  }
+
+  ({Float32List transforms, List<NativeBody> bodies}) _readPer(
+    int count,
+    int floats,
+    int Function(Pointer<c.F3dWorld>, Pointer<Float>, Pointer<Uint64>, int)
+    read,
+  ) {
+    if (count == 0) {
+      return (transforms: Float32List(0), bodies: const <NativeBody>[]);
+    }
+    final values = malloc<Float>(count * floats);
+    final handles = malloc<Uint64>(count);
+    try {
+      final written = read(_live, values, handles, count);
+      return (
+        transforms: Float32List.fromList(values.asTypedList(written * floats)),
+        bodies: <NativeBody>[
+          for (var i = 0; i < written; i++) NativeBody(handles[i]),
+        ],
+      );
+    } finally {
+      malloc
+        ..free(values)
+        ..free(handles);
+    }
+  }
+
+  /// The events the steps raised since the last call, oldest first.
+  List<NativeEvent> readEvents() {
+    const batch = 256;
+    final bodies = malloc<Uint64>(batch);
+    final kinds = malloc<Uint32>(batch);
+    try {
+      final events = <NativeEvent>[];
+      while (true) {
+        final read = c.f3d_world_read_events(_live, bodies, kinds, batch);
+        for (var i = 0; i < read; i++) {
+          events.add((
+            body: NativeBody(bodies[i]),
+            kind: NativeEventKind.of(kinds[i]),
+          ));
+        }
+        if (read < batch) return events;
+      }
+    } finally {
+      malloc
+        ..free(bodies)
+        ..free(kinds);
+    }
+  }
+
+  /// Events dropped because 65 536 were waiting unread.
+  int get eventsDropped => c.f3d_world_events_dropped(_live);
+
+  // ------------------------------------------------------------ snapshots
+
+  /// The world's whole state. A world [restore]d from it steps to the same
+  /// bits this one does.
+  Uint8List snapshot() {
+    final size = c.f3d_world_snapshot_size(_live);
+    final buffer = malloc<Uint8>(size);
+    try {
+      final written = c.f3d_world_snapshot_write(_live, buffer, size);
+      if (written != size) {
+        throw StateError('the physics core wrote $written of $size bytes');
+      }
+      return Uint8List.fromList(buffer.asTypedList(size));
+    } finally {
+      malloc.free(buffer);
+    }
+  }
+
+  /// Puts the world back as [snapshot] says. Throws an [ArgumentError] for
+  /// bytes that are not a snapshot from this build of the core, and leaves
+  /// the world as it was.
+  void restore(Uint8List snapshot) {
+    final buffer = malloc<Uint8>(snapshot.isEmpty ? 1 : snapshot.length);
+    try {
+      buffer.asTypedList(snapshot.length).setAll(0, snapshot);
+      if (c.f3d_world_restore(_live, buffer, snapshot.length) == 0) {
+        throw ArgumentError.value(
+          snapshot.length,
+          'snapshot',
+          'not a snapshot from this build of the physics core',
+        );
+      }
+    } finally {
+      malloc.free(buffer);
+    }
+  }
+
+  // --------------------------------------------------------------- bodies
+
+  /// Adds a body at [position] and returns it: at rest, unrotated, a point
+  /// of inert material at the air's temperature. A fixed body's [mass] is
+  /// its thermal mass only.
   ///
   /// Throws an [ArgumentError] for a dynamic body whose [mass] is not
   /// finite and positive, or a [position] that is not finite — the core
@@ -149,67 +528,242 @@ final class NativeWorld implements Finalizable {
   /// Whether [body] names a body in this world.
   bool contains(NativeBody body) => c.f3d_body_is_valid(_live, body.raw) == 1;
 
-  /// [body]'s position. Throws an [ArgumentError] for a body not in the world.
+  /// [body]'s position, relative to the origin. Throws an [ArgumentError]
+  /// for a body not in the world.
   Vector3 positionOf(NativeBody body) {
     _check(c.f3d_body_get_position(_live, body.raw, _out), body);
-    return Vector3(_out[0], _out[1], _out[2]);
+    return _read3();
   }
 
   void setPosition(NativeBody body, Vector3 value) => _check(
     c.f3d_body_set_position(_live, body.raw, value.x, value.y, value.z),
     body,
+    value,
   );
+
+  /// [body]'s position in the world's own coordinates, origin added.
+  WorldPoint worldPositionOf(NativeBody body) {
+    _check(c.f3d_body_get_world_position(_live, body.raw, _outDouble), body);
+    return (x: _outDouble[0], y: _outDouble[1], z: _outDouble[2]);
+  }
 
   /// [body]'s velocity, metres per second.
   Vector3 velocityOf(NativeBody body) {
     _check(c.f3d_body_get_velocity(_live, body.raw, _out), body);
-    return Vector3(_out[0], _out[1], _out[2]);
+    return _read3();
   }
 
   void setVelocity(NativeBody body, Vector3 value) => _check(
     c.f3d_body_set_velocity(_live, body.raw, value.x, value.y, value.z),
     body,
+    value,
   );
 
-  /// Advances the world by [dt] seconds; nothing for a [dt] that is not
-  /// finite and positive.
-  void step(double dt) => c.f3d_world_step(_live, dt);
+  /// Radians per second about the world's axes. Nothing turns a body that
+  /// cannot: a point, a fixed body, or one whose rotation is locked.
+  Vector3 angularVelocityOf(NativeBody body) {
+    _check(c.f3d_body_get_angular_velocity(_live, body.raw, _out), body);
+    return _read3();
+  }
 
-  /// Every body's transform, seven floats apiece — position xyz, then the
-  /// orientation quaternion xyzw — and its handle, in the world's slot
-  /// order: what the renderer uploads as instance transforms.
-  ({Float32List transforms, List<NativeBody> bodies}) readTransforms() {
-    final count = bodyCount;
-    if (count == 0) {
-      return (transforms: Float32List(0), bodies: const <NativeBody>[]);
-    }
-    final transforms = malloc<Float>(count * c.transformFloats);
-    final handles = malloc<Uint64>(count);
-    try {
-      final written = c.f3d_world_read_transforms(
-        _live,
-        transforms,
-        handles,
-        count,
-      );
-      return (
-        transforms: Float32List.fromList(
-          transforms.asTypedList(written * c.transformFloats),
+  void setAngularVelocity(NativeBody body, Vector3 value) => _check(
+    c.f3d_body_set_angular_velocity(_live, body.raw, value.x, value.y, value.z),
+    body,
+    value,
+  );
+
+  /// How [body] is turned, from its own axes into the world's.
+  Quaternion orientationOf(NativeBody body) {
+    _check(c.f3d_body_get_orientation(_live, body.raw, _out), body);
+    return Quaternion(_out[0], _out[1], _out[2], _out[3]);
+  }
+
+  /// Normalised on the way in; a zero quaternion is the identity.
+  void setOrientation(NativeBody body, Quaternion value) => _check(
+    c.f3d_body_set_orientation(
+      _live,
+      body.raw,
+      value.x,
+      value.y,
+      value.z,
+      value.w,
+    ),
+    body,
+    value,
+  );
+
+  /// Gives [body] a shape: its inertia follows from its mass, its surface
+  /// and drag from its size.
+  void setShape(NativeBody body, NativeShape shape) => _check(
+    c.f3d_body_set_shape(
+      _live,
+      body.raw,
+      shape.kind,
+      shape.first,
+      shape.second,
+      shape.third,
+    ),
+    body,
+    shape,
+  );
+
+  /// The principal moments of inertia, kg m², in the body's own axes.
+  Vector3 inertiaOf(NativeBody body) {
+    _check(c.f3d_body_get_inertia(_live, body.raw, _out), body);
+    return _read3();
+  }
+
+  /// Kilograms: less, once it has burnt.
+  double massOf(NativeBody body) {
+    _check(c.f3d_body_get_mass(_live, body.raw, _out), body);
+    return _out[0];
+  }
+
+  /// Keeps [body] from turning, whatever its shape, or lets it again.
+  void lockRotation(NativeBody body, {bool locked = true}) =>
+      _check(c.f3d_body_lock_rotation(_live, body.raw, locked ? 1 : 0), body);
+
+  /// Per second, the share of velocity and of spin taken away, each as
+  /// `1 / (1 + dt · damping)`.
+  void setDamping(NativeBody body, {double linear = 0, double angular = 0}) =>
+      _check(c.f3d_body_set_damping(_live, body.raw, linear, angular), body, (
+        linear,
+        angular,
+      ));
+
+  /// The drag coefficient against the wind; nought takes the shape's own.
+  void setDrag(NativeBody body, double coefficient) => _check(
+    c.f3d_body_set_drag(_live, body.raw, coefficient),
+    body,
+    coefficient,
+  );
+
+  /// An impulse, N s, through the centre, or at [at] (relative to the
+  /// origin), which spins the body as well.
+  void applyImpulse(NativeBody body, Vector3 impulse, {Vector3? at}) {
+    if (at == null) {
+      _check(
+        c.f3d_body_apply_impulse(
+          _live,
+          body.raw,
+          impulse.x,
+          impulse.y,
+          impulse.z,
         ),
-        bodies: <NativeBody>[
-          for (var i = 0; i < written; i++) NativeBody(handles[i]),
-        ],
+        body,
+        impulse,
       );
+      return;
+    }
+    _check(
+      c.f3d_body_apply_impulse_at(
+        _live,
+        body.raw,
+        impulse.x,
+        impulse.y,
+        impulse.z,
+        at.x,
+        at.y,
+        at.z,
+      ),
+      body,
+      (impulse, at),
+    );
+  }
+
+  /// A force, N, held over the next step and spent by it.
+  void addForce(NativeBody body, Vector3 force) => _check(
+    c.f3d_body_add_force(_live, body.raw, force.x, force.y, force.z),
+    body,
+    force,
+  );
+
+  /// A torque, N m about the world's axes, held over the next step.
+  void addTorque(NativeBody body, Vector3 torque) => _check(
+    c.f3d_body_add_torque(_live, body.raw, torque.x, torque.y, torque.z),
+    body,
+    torque,
+  );
+
+  bool isAsleep(NativeBody body) {
+    _check(c.f3d_body_is_valid(_live, body.raw), body);
+    return c.f3d_body_is_asleep(_live, body.raw) == 1;
+  }
+
+  /// Wakes [body] and starts its sleep clock again.
+  void wake(NativeBody body) => _check(c.f3d_body_wake(_live, body.raw), body);
+
+  // ------------------------------------------------------ heat and fire
+
+  /// What [body] is made of. Its fuel is its mass times the material's fuel
+  /// fraction, counted from now.
+  void setMaterial(NativeBody body, NativeMaterial material) {
+    final m = calloc<c.F3dMaterial>();
+    try {
+      m.ref
+        ..specific_heat = material.specificHeat
+        ..emissivity = material.emissivity
+        ..ignition_temperature = material.ignitionTemperature
+        ..heat_of_combustion = material.heatOfCombustion
+        ..burn_rate = material.burnRate
+        ..fuel_fraction = material.fuelFraction
+        ..flame_feedback = material.flameFeedback;
+      _check(c.f3d_body_set_material(_live, body.raw, m), body, material);
     } finally {
-      malloc
-        ..free(transforms)
-        ..free(handles);
+      calloc.free(m);
     }
   }
 
-  void _check(int answer, NativeBody body) {
-    if (answer == 0) {
+  /// Kelvin.
+  double temperatureOf(NativeBody body) {
+    _check(c.f3d_body_get_temperature(_live, body.raw, _out), body);
+    return _out[0];
+  }
+
+  /// Sets it; the next step decides whether that lights a fire or puts one
+  /// out.
+  void setTemperature(NativeBody body, double kelvin) =>
+      _check(c.f3d_body_set_temperature(_live, body.raw, kelvin), body, kelvin);
+
+  /// Joules into [body] over the next step, or out of it.
+  void addHeat(NativeBody body, double joules) =>
+      _check(c.f3d_body_add_heat(_live, body.raw, joules), body, joules);
+
+  /// Kilograms of water onto [body] at the air's temperature, or off it.
+  /// Water holds the body at its boiling point until it has boiled away.
+  void addWater(NativeBody body, double kilograms) =>
+      _check(c.f3d_body_add_water(_live, body.raw, kilograms), body, kilograms);
+
+  /// Kilograms of water on [body].
+  double waterOf(NativeBody body) {
+    _check(c.f3d_body_get_water(_live, body.raw, _out), body);
+    return _out[0];
+  }
+
+  /// Kilograms that can still burn.
+  double fuelOf(NativeBody body) {
+    _check(c.f3d_body_get_fuel(_live, body.raw, _out), body);
+    return _out[0];
+  }
+
+  bool isBurning(NativeBody body) {
+    _check(c.f3d_body_is_burning(_live, body.raw, _outInt), body);
+    return _outInt[0] == 1;
+  }
+
+  /// Watts the fire gave off as hot gas over the last step.
+  double heatReleaseOf(NativeBody body) {
+    _check(c.f3d_body_get_heat_release(_live, body.raw, _out), body);
+    return _out[0];
+  }
+
+  /// A refusal, said: a body that is not in the world, or a value the core
+  /// would not take.
+  void _check(int answer, NativeBody body, [Object? value]) {
+    if (answer != 0) return;
+    if (c.f3d_body_is_valid(_live, body.raw) == 0) {
       throw ArgumentError.value(body.raw, 'body', 'not in this world');
     }
+    throw ArgumentError.value(value, 'value', 'not finite, or out of range');
   }
 }

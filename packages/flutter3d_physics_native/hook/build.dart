@@ -16,6 +16,9 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 /// The core's sources, as `tool/build_wasm.dart` and the C tests list them.
 const List<String> coreSources = <String>[
   'csrc/src/f3d_world.c',
+  'csrc/src/f3d_motion.c',
+  'csrc/src/f3d_heat.c',
+  'csrc/src/f3d_snapshot.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 

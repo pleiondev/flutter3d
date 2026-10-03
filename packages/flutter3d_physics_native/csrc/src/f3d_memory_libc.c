@@ -17,6 +17,10 @@ void f3d_free(void *block) { free(block); }
 
 void f3d_zero(void *block, size_t bytes) { memset(block, 0, bytes); }
 
+void f3d_copy(void *to, const void *from, size_t bytes) {
+  memcpy(to, from, bytes);
+}
+
 #else
 /* Not this build; ISO C wants the file to declare something. */
 typedef int f3d_memory_libc_not_this_build;
