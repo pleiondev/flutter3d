@@ -6,7 +6,7 @@ description: Incompressible liquid in vessels of any shape, in SI units under th
 
 The liquid part of `flutter3d_physics` lives in `lib/src/fluid/` and knows nothing about any particular game. It is in metres, kilograms and seconds, and gravity is whatever the world says, so the same tube on the Moon pours six times slower and its meniscus stands six times taller.
 
-It is a hybrid, because no single method is right everywhere. Liquid standing in a vessel is a volume with a free surface on it, and the surface moves by its modes. Liquid leaving a vessel is a stream of parcels. A stream that breaks becomes drops, and drops are particles. Each part hands volume to the next one exactly, and the world can tell you where every cubic millimetre is.
+It is a hybrid, because no single method is right everywhere. Liquid standing in a vessel is a volume with a free surface on it, and the surface moves by its modes. Liquid leaving a vessel is a stream of parcels. A stream that breaks becomes drops, and drops are particles. What reaches the bench lies there as a puddle. Each part hands volume to the next one exactly, and the world can tell you where every cubic millimetre is.
 
 ```dart
 final world = FluidWorld(
@@ -63,6 +63,12 @@ The world keeps the accounts: every jet's `emitted` is `inFlight + landed + drop
 ## Drops
 
 Drops are `ParticleFluid`, position-based fluids on the CPU, in double precision. Particles are held to the rest density only where they are compressed, so a surface does not pull itself inward. Cohesion follows Akinci, with the coefficient worked out so that pulling a slab of particles apart costs 2σ per square metre, which is what surface tension is. A particle is stepped in substeps short against the capillary time √(ρs³/σ), a third of a millisecond for millimetre water, and short enough that nothing passes through glass between one look and the next. Drops that land in a vessel become its liquid, with what was dissolved in them.
+
+A drop is stopped by the wall it touches: a viscous liquid has no velocity along a wall at rest, and a drop smaller than the capillary length √(σ/ρg), 2.7 mm for water, is held whole by its pinned edge. A drop that touches a vessel's glass from inside runs down into its liquid.
+
+## Puddles
+
+What reaches a floor given to the world becomes a `Puddle` on its `PuddleSurface`, one body with a volume and what is dissolved in it, not particles. A spread puddle is 2ℓc·sin(θ/2) deep, under a millimetre for water on glass; a smaller one is a spherical cap meeting the surface at the contact angle. It spreads there as a viscous gravity current, R ∝ (ρgV³/μ)^⅛·t^⅛ (Huppert), which water finishes in milliseconds. Puddles that meet run together. Draw them with `capMesh(...)`.
 
 ## Capillarity
 

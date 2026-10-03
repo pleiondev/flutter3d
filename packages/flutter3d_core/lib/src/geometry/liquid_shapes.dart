@@ -521,6 +521,60 @@ MeshData particleMesh(
   return builder.build();
 }
 
+/// Liquid lying on a level surface: for each, a spherical cap of base
+/// [radii] and height [heights] standing on the surface at [centres], up
+/// being +y. What a drop or a puddle on the bench is drawn as: its top as
+/// a cap, its underside, on the surface, left out.
+MeshData capMesh(
+  List<Vector3> centres,
+  List<double> radii,
+  List<double> heights, {
+  int segments = 32,
+  int rings = 6,
+}) {
+  final builder = MeshBuilder(VertexLayout.standard);
+  for (var i = 0; i < centres.length; i++) {
+    final c = centres[i];
+    final r = radii[i];
+    final h = heights[i];
+    if (r <= 0.0 || h <= 0.0) continue;
+    // The sphere the cap is cut from: its radius and how far its middle is
+    // under the surface.
+    final sphere = (r * r + h * h) / (2.0 * h);
+    final below = sphere - h;
+    final rim = math.asin((r / sphere).clamp(0.0, 1.0));
+    final base = builder.vertexCount;
+    for (var k = 0; k <= rings; k++) {
+      // From the top (k = 0) to the rim.
+      final a = rim * k / rings;
+      for (var j = 0; j < segments; j++) {
+        final b = 2.0 * math.pi * j / segments;
+        final n = Vector3(
+          math.sin(a) * math.cos(b),
+          math.cos(a),
+          math.sin(a) * math.sin(b),
+        );
+        builder.addVertex(
+          position: c + Vector3(0, -below, 0) + n * sphere,
+          normal: n,
+        );
+      }
+    }
+    for (var k = 0; k < rings; k++) {
+      for (var j = 0; j < segments; j++) {
+        final a0 = base + k * segments + j;
+        final a1 = base + k * segments + (j + 1) % segments;
+        final b0 = a0 + segments;
+        final b1 = a1 + segments;
+        builder
+          ..addTriangle(a0, a1, b1)
+          ..addTriangle(a0, b1, b0);
+      }
+    }
+  }
+  return builder.build();
+}
+
 /// A unit icosahedron split once: each face into four, the new points
 /// pushed out onto the sphere.
 final (List<Vector3>, List<(int, int, int)>) _sphere = () {

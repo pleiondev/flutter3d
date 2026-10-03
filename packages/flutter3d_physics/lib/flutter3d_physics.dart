@@ -50,6 +50,7 @@ export 'src/fluid/liquid_layer.dart';
 export 'src/fluid/outflow.dart';
 export 'src/fluid/particle_fluid.dart';
 export 'src/fluid/pipe.dart';
+export 'src/fluid/puddle.dart';
 export 'src/fluid/vessel_shape.dart';
 export 'src/inertia.dart';
 export 'src/portable_math.dart';
