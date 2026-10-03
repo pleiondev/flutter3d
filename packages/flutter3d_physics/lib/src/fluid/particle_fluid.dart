@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
@@ -296,8 +297,24 @@ final class ParticleFluid {
     }
   }
 
-  void _substep(double dt, _V gravity, List<JetObstacle> obstacles) {
+  void _substep(double dt, _V gravity, List<JetObstacle> all) {
     final n = _x.length;
+    // **Each particle's own walls**, found once a substep: those within what
+    // it moves in one and two spacings more, which the density passes never
+    // carry it past. Asked of every wall for every particle at every pass,
+    // the profile of every glass on the bench was walked for drops that had
+    // scattered across it, and thirty of them took most of a frame.
+    final g = gravity.length;
+    final walls = [
+      for (var i = 0; i < n; i++)
+        all.isEmpty
+            ? all
+            : obstaclesNear(
+                all,
+                _x[i].toVector3(),
+                (_v[i].length + g * dt) * dt + 2.0 * spacing,
+              ),
+    ];
     // Where a particle starts inside a wall or under the floor, it is put
     // out first, its velocity left alone. A drop let go near the bottom of a
     // glass is laid out as a little block round where it parted, and a
@@ -306,7 +323,7 @@ final class ParticleFluid {
     // over a fifth of a millisecond, and it left at eighteen metres a
     // second.
     for (var i = 0; i < n; i++) {
-      _collide(_x[i], obstacles);
+      _collide(_x[i], walls[i]);
     }
     // **What touches a wall is pinned to it.** A drop's edge on glass or
     // the bench holds where it is until something pushes harder than the
@@ -315,14 +332,19 @@ final class ParticleFluid {
     // moves only off it, or not at all. Left free along it, three
     // particles that came down on the bench rolled away over each other as
     // a wheel does, faster with every turn.
-    final pinned = [for (var i = 0; i < n; i++) _contact(_x[i], obstacles)];
+    final pinned = [for (var i = 0; i < n; i++) _contact(_x[i], walls[i])];
+    // **Component by component, into buffers made once a substep.** The
+    // loops over pairs below run tens of thousands of times a frame; with a
+    // vector made for each difference, gradient and product, thirty drops
+    // made hundreds of thousands of objects a frame, and the collector's
+    // pauses were most of what a pour with drops cost.
     final rho0 = medium.density;
     final m = _mass;
     final norm = 1.0 / _latticeSum;
     // Forces first: gravity, cohesion and curvature, on the velocities.
     final grid = _Grid(h, _x);
     final neighbours = [for (var i = 0; i < n; i++) grid.near(i, _x)];
-    final density = List<double>.filled(n, 0.0);
+    final density = Float64List(n);
     for (var i = 0; i < n; i++) {
       var w = _poly6(0.0);
       for (final j in neighbours[i]) {
@@ -330,38 +352,68 @@ final class ParticleFluid {
       }
       density[i] = rho0 * w * norm;
     }
-    final normal = List<_V>.generate(n, (_) => _V(0, 0, 0));
+    final normal = Float64List(3 * n);
     for (var i = 0; i < n; i++) {
+      final xi = _x[i];
+      var nx = 0.0;
+      var ny = 0.0;
+      var nz = 0.0;
       for (final j in neighbours[i]) {
-        normal[i].addScaled(_spikyGradient(_x[i] - _x[j]), h * m / density[j]);
+        final xj = _x[j];
+        final dx = xi.x - xj.x;
+        final dy = xi.y - xj.y;
+        final dz = xi.z - xj.z;
+        final f =
+            _spikyScale(math.sqrt(dx * dx + dy * dy + dz * dz)) *
+            h *
+            m /
+            density[j];
+        nx += dx * f;
+        ny += dy * f;
+        nz += dz * f;
       }
+      normal[3 * i] = nx;
+      normal[3 * i + 1] = ny;
+      normal[3 * i + 2] = nz;
     }
     for (var i = 0; i < n; i++) {
-      final a = gravity.copy();
+      final xi = _x[i];
+      var ax = gravity.x;
+      var ay = gravity.y;
+      var az = gravity.z;
       for (final j in neighbours[i]) {
-        final d = _x[i] - _x[j];
-        final r = d.length;
+        final xj = _x[j];
+        final dx = xi.x - xj.x;
+        final dy = xi.y - xj.y;
+        final dz = xi.z - xj.z;
+        final r = math.sqrt(dx * dx + dy * dy + dz * dz);
         if (r < 1e-12) continue;
         final k = 2.0 * rho0 / (density[i] + density[j]);
-        a
-          ..addScaled(d, -k * _gamma * m * _cohesion(r) / r)
-          ..addScaled(normal[i] - normal[j], -k * _gamma);
+        final c = -k * _gamma * m * _cohesion(r) / r;
+        final t = -k * _gamma;
+        ax += dx * c + (normal[3 * i] - normal[3 * j]) * t;
+        ay += dy * c + (normal[3 * i + 1] - normal[3 * j + 1]) * t;
+        az += dz * c + (normal[3 * i + 2] - normal[3 * j + 2]) * t;
       }
-      _v[i].addScaled(a, dt);
+      _v[i]
+        ..x += ax * dt
+        ..y += ay * dt
+        ..z += az * dt;
     }
     // Predict, then hold the density to the rest density.
     final p = [
       for (var i = 0; i < n; i++)
         if (pinned[i] case final wall?)
-          _pin(_advance(_x[i], _v[i], dt, obstacles), _x[i], wall)
+          _pin(_advance(_x[i], _v[i], dt, walls[i]), _x[i], wall)
         else
-          _advance(_x[i], _v[i], dt, obstacles),
+          _advance(_x[i], _v[i], dt, walls[i]),
     ];
-    final lambda = List<double>.filled(n, 0.0);
+    final lambda = Float64List(n);
     final grid2 = _Grid(h, p);
     final near = [for (var i = 0; i < n; i++) grid2.near(i, p)];
     final dq = 0.3 * h;
     final wq = _poly6(dq * dq);
+    final delta = Float64List(3 * n);
     for (var it = 0; it < iterations; it++) {
       for (var i = 0; i < n; i++) {
         // C = ρ/ρ₀ − 1 with ρ/ρ₀ the kernel sum over the lattice's: only
@@ -369,57 +421,91 @@ final class ParticleFluid {
         // its neighbours missing is pulled in by half a spacing a pass and
         // the liquid flies apart; a stretched surface is held by cohesion
         // instead.
+        final pi = p[i];
         var w = _poly6(0.0);
         var sum2 = 0.0;
-        final gi = _V(0, 0, 0);
+        var gx = 0.0;
+        var gy = 0.0;
+        var gz = 0.0;
         for (final j in near[i]) {
-          final d = p[i] - p[j];
-          w += _poly6(d.length2);
-          final g = _spikyGradient(d) * norm;
-          sum2 += g.length2;
-          gi.add(g);
+          final pj = p[j];
+          final dx = pi.x - pj.x;
+          final dy = pi.y - pj.y;
+          final dz = pi.z - pj.z;
+          final r2 = dx * dx + dy * dy + dz * dz;
+          w += _poly6(r2);
+          final f = _spikyScale(math.sqrt(r2)) * norm;
+          sum2 += r2 * f * f;
+          gx += dx * f;
+          gy += dy * f;
+          gz += dz * f;
         }
-        sum2 += gi.length2;
+        sum2 += gx * gx + gy * gy + gz * gz;
         final c = math.max(w * norm - 1.0, 0.0);
         lambda[i] = -c / (sum2 + 1e-6 * norm * norm / (h * h));
       }
-      final delta = List<_V>.generate(n, (_) => _V(0, 0, 0));
+      delta.fillRange(0, 3 * n, 0.0);
       for (var i = 0; i < n; i++) {
+        final pi = p[i];
         for (final j in near[i]) {
-          final d = p[i] - p[j];
-          final ratio = _poly6(d.length2) / wq;
+          final pj = p[j];
+          final dx = pi.x - pj.x;
+          final dy = pi.y - pj.y;
+          final dz = pi.z - pj.z;
+          final r2 = dx * dx + dy * dy + dz * dz;
+          final ratio = _poly6(r2) / wq;
           // Macklin's artificial pressure, which keeps neighbours from
           // clumping: a fiftieth of a constraint's worth. At his tenth it
           // held still water a sixth thinner than its rest density.
           final corr = -0.02 * ratio * ratio * ratio * ratio / _restStiffness;
           // Δpᵢ = Σⱼ (λᵢ + λⱼ + s_corr) ∇W(pᵢ − pⱼ), in the same
           // normalisation as the constraint.
-          delta[i].addScaled(
-            _spikyGradient(d),
-            (lambda[i] + lambda[j] + corr) * norm,
-          );
+          final f =
+              _spikyScale(math.sqrt(r2)) *
+              (lambda[i] + lambda[j] + corr) *
+              norm;
+          delta[3 * i] += dx * f;
+          delta[3 * i + 1] += dy * f;
+          delta[3 * i + 2] += dz * f;
         }
       }
       for (var i = 0; i < n; i++) {
-        p[i].add(delta[i]);
-        _collide(p[i], obstacles);
+        p[i]
+          ..x += delta[3 * i]
+          ..y += delta[3 * i + 1]
+          ..z += delta[3 * i + 2];
+        _collide(p[i], walls[i]);
         if (pinned[i] case final wall?) _pin(p[i], _x[i], wall);
       }
     }
     // Velocities from the move, then XSPH's viscosity.
+    final inverse = 1.0 / dt;
     for (var i = 0; i < n; i++) {
-      _v[i] = (p[i] - _x[i]) * (1.0 / dt);
+      _v[i]
+        ..x = (p[i].x - _x[i].x) * inverse
+        ..y = (p[i].y - _x[i].y) * inverse
+        ..z = (p[i].z - _x[i].z) * inverse;
     }
     final share = math.min(
       0.5,
       medium.kinematicViscosity * dt / (spacing * spacing) * 50.0 + 0.01,
     );
-    final smoothed = [for (final v in _v) v.copy()];
+    final smoothed = Float64List(3 * n);
     for (var i = 0; i < n; i++) {
+      final vi = _v[i];
+      var sx = vi.x;
+      var sy = vi.y;
+      var sz = vi.z;
       for (final j in near[i]) {
-        final w = _poly6(p[i].distance2(p[j])) * norm;
-        smoothed[i].addScaled(_v[j] - _v[i], share * w);
+        final w = _poly6(p[i].distance2(p[j])) * norm * share;
+        final vj = _v[j];
+        sx += (vj.x - vi.x) * w;
+        sy += (vj.y - vi.y) * w;
+        sz += (vj.z - vi.z) * w;
       }
+      smoothed[3 * i] = sx;
+      smoothed[3 * i + 1] = sy;
+      smoothed[3 * i + 2] = sz;
     }
     // A viscous liquid's velocity at a wall at rest is nil along it, and
     // nothing goes on into it: what touches one keeps only the part of its
@@ -429,11 +515,19 @@ final class ParticleFluid {
     // were inside.
     final onWall = List<bool>.filled(n, false);
     for (var i = 0; i < n; i++) {
-      final wall = _contact(p[i], obstacles);
+      final v = _v[i]
+        ..x = smoothed[3 * i]
+        ..y = smoothed[3 * i + 1]
+        ..z = smoothed[3 * i + 2];
+      final wall = _contact(p[i], walls[i]);
       onWall[i] = wall != null;
-      _v[i] = wall == null
-          ? smoothed[i]
-          : wall * math.max(_dot(smoothed[i], wall), 0.0);
+      if (wall != null) {
+        final off = math.max(_dot(v, wall), 0.0);
+        v
+          ..x = wall.x * off
+          ..y = wall.y * off
+          ..z = wall.z * off;
+      }
       _x[i] = p[i];
     }
     _holdSmallDrops(near, onWall, gravity);
@@ -551,6 +645,13 @@ final class ParticleFluid {
     if (r2 >= h2) return 0.0;
     final d = h2 - r2;
     return 315.0 / (64.0 * math.pi * _pow9(h)) * d * d * d;
+  }
+
+  /// What a difference d of length [r] is scaled by to be the spiky
+  /// kernel's gradient: ∇W = d·f(r).
+  double _spikyScale(double r) {
+    if (r <= 1e-12 || r >= h) return 0.0;
+    return -45.0 / (math.pi * _pow6(h)) * (h - r) * (h - r) / r;
   }
 
   _V _spikyGradient(_V d) {
