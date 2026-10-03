@@ -7,6 +7,7 @@ import 'atmosphere.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
 import 'particle_fluid.dart';
+import 'wetting.dart';
 
 /// Liquid lying on a flat surface: a drop or a puddle, as one body.
 ///
@@ -24,9 +25,19 @@ import 'particle_fluid.dart';
 /// where it reaches its shape. Water reaches it in milliseconds; honey
 /// takes its time.
 final class Puddle {
-  Puddle({required this.medium, required this.centre, required this.normal});
+  Puddle({
+    required this.medium,
+    required this.centre,
+    required this.normal,
+    double? angle,
+  }) : angle = angle ?? medium.contactAngle;
 
   final FluidMedium medium;
+
+  /// The angle it meets the surface at, radians: the surface's for this
+  /// liquid ([SolidSurface.angleFor]). Water beads on a lacquered bench
+  /// and spreads on glass.
+  final double angle;
 
   /// Its middle, on the surface.
   final Vector3 centre;
@@ -89,7 +100,7 @@ final class Puddle {
     final r = radius(g);
     if (r <= 0.0) return 0.0;
     final d = air.vapourDiffusivity;
-    final theta = medium.contactAngle.clamp(0.0, math.pi / 2);
+    final theta = angle.clamp(0.0, math.pi / 2);
     final still = math.pi * r * d * deficit * (0.27 * theta * theta + 1.30);
     final across = air.windAt(centre)
       ..addScaled(normal, -air.windAt(centre).dot(normal));
@@ -130,7 +141,7 @@ final class Puddle {
   /// whichever is wider.
   double restRadius(double g) {
     if (_volume <= 0.0) return 0.0;
-    final theta = medium.contactAngle.clamp(0.05, math.pi - 0.05);
+    final theta = angle.clamp(0.05, math.pi - 0.05);
     final s = Portable.sin(theta);
     final c = Portable.cos(theta);
     // A spherical cap of base R meeting the plane at θ holds
@@ -218,6 +229,7 @@ final class PuddleSurface implements JetReceiver {
         medium: medium,
         centre: onPlane.clone(),
         normal: surface.normal.clone(),
+        angle: surface.solid.angleFor(medium),
       );
       puddles.add(made);
       return made;

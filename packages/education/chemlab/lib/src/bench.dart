@@ -10,6 +10,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
         LiquidLayer,
         PlaneObstacle,
         RevolvedVessel,
+        SolidSurface,
         VesselVolumes,
         fallTime,
         overCircularLip,
@@ -391,7 +392,15 @@ final class Bench {
   final FluidWorld world = FluidWorld(
     gravity: Vector3(0, -9.81, 0),
     particleSpacing: 0.001,
-    floor: [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0.0)],
+    // The bench top is lacquered: water beads on it rather than spreading
+    // as it would on glass.
+    floor: [
+      PlaneObstacle(
+        normal: Vector3(0, 1, 0),
+        offset: 0.0,
+        solid: SolidSurface.laminate,
+      ),
+    ],
   );
 
   /// Whether the shadows come from the engine's caustics

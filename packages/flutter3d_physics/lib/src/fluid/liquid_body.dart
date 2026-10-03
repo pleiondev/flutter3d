@@ -11,6 +11,7 @@ import 'jet.dart';
 import 'liquid_layer.dart';
 import 'outflow.dart';
 import 'vessel_shape.dart';
+import 'wetting.dart';
 
 /// What ran over a vessel's lip in one step, in the world.
 final class Spill {
@@ -686,6 +687,9 @@ final class InsideWalls implements JetObstacle {
   final LiquidBody body;
 
   @override
+  SolidSurface get solid => SolidSurface.glass;
+
+  @override
   bool reaches(Vector3 centre, double distance) =>
       body._reaches(centre, distance + body.wallThickness);
 
@@ -726,6 +730,9 @@ final class OutsideWalls implements JetObstacle {
 
   final LiquidBody body;
   final double thickness;
+
+  @override
+  SolidSurface get solid => SolidSurface.glass;
 
   @override
   bool reaches(Vector3 centre, double distance) =>

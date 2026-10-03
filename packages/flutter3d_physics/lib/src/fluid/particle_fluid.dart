@@ -7,12 +7,19 @@ import '../portable_math.dart';
 import 'atmosphere.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
+import 'wetting.dart';
 
 /// A flat surface particles rest on — a bench, a floor: the points with
 /// `normal · p ≥ offset` are clear of it.
 final class PlaneObstacle implements JetObstacle {
-  PlaneObstacle({required Vector3 normal, required this.offset})
-    : normal = normal.normalized();
+  PlaneObstacle({
+    required Vector3 normal,
+    required this.offset,
+    this.solid = SolidSurface.glass,
+  }) : normal = normal.normalized();
+
+  @override
+  final SolidSurface solid;
 
   final Vector3 normal;
   final double offset;
@@ -427,7 +434,15 @@ final class ParticleFluid {
     // moves only off it, or not at all. Left free along it, three
     // particles that came down on the bench rolled away over each other as
     // a wheel does, faster with every turn.
-    final pinned = [for (var i = 0; i < n; i++) _contact(_x[i], walls[i])];
+    //
+    // **Unless the drop's weight along the wall is more than its edge can
+    // hold**, by Furmidge's σ·w·(cos θr − cos θa): then it slides, its
+    // particles kept out of the wall and free along it.
+    final touching = [for (var i = 0; i < n; i++) _touching(_x[i], walls[i])];
+    final held = _held(touching, gravity);
+    final pinned = [
+      for (var i = 0; i < n; i++) held[i] ? touching[i]?.normal : null,
+    ];
     // **Component by component, into buffers made once a substep.** The
     // loops over pairs below run tens of thousands of times a frame; with a
     // vector made for each difference, gradient and product, thirty drops
@@ -622,37 +637,65 @@ final class ParticleFluid {
     // on the bench slid off at five centimetres a second and never
     // stopped, and ended up under another glass's foot, looking as if it
     // were inside.
-    final onWall = List<bool>.filled(n, false);
+    // A drop that slides keeps only out of the wall.
     for (var i = 0; i < n; i++) {
       final v = _v[i]
         ..x = smoothed[3 * i]
         ..y = smoothed[3 * i + 1]
         ..z = smoothed[3 * i + 2];
       final wall = _contact(p[i], walls[i]);
-      onWall[i] = wall != null;
       if (wall != null) {
-        final off = math.max(_dot(v, wall), 0.0);
+        final into = _dot(v, wall);
+        if (held[i]) {
+          final off = math.max(into, 0.0);
+          v
+            ..x = wall.x * off
+            ..y = wall.y * off
+            ..z = wall.z * off;
+        } else if (into < 0.0) {
+          v
+            ..x -= wall.x * into
+            ..y -= wall.y * into
+            ..z -= wall.z * into;
+        }
+      }
+      // A drop its edge holds stands still, as a whole: pinning only the
+      // particles that touch let the others turn over them, and a drop of
+      // three on the bench rolled away.
+      if (held[i]) {
         v
-          ..x = wall.x * off
-          ..y = wall.y * off
-          ..z = wall.z * off;
+          ..x = 0.0
+          ..y = 0.0
+          ..z = 0.0;
       }
       _x[i] = p[i];
     }
-    _holdSmallDrops(near, onWall, gravity);
   }
 
-  /// **A drop smaller than the capillary length, pinned, stands still.**
-  /// Under ℓc = √(σ/ρg), 2.7 mm for water, surface tension holds a drop's
-  /// shape against its weight, and what of it touches a wall is pinned:
-  /// it stays as a whole where it is. Pinning only the particles that touch
-  /// let the others turn over them, and a three-particle drop on the bench
-  /// rolled away; a puddle wider than ℓc still spreads.
-  void _holdSmallDrops(List<List<int>> near, List<bool> onWall, _V gravity) {
+  /// The wall [p] touches and its normal there, if it touches one.
+  ({_V normal, JetObstacle wall})? _touching(_V p, List<JetObstacle> walls) {
+    final reach = 0.55 * spacing;
+    for (final o in walls) {
+      final hit = o.touch(p.toVector3(), reach);
+      if (hit != null) {
+        return (normal: _V(hit.normal.x, hit.normal.y, hit.normal.z), wall: o);
+      }
+    }
+    return null;
+  }
+
+  /// For each particle, whether the drop it is in is held where it is by
+  /// the wall it touches: its weight along the wall, ρ·V·g∥, no more than
+  /// the wall's [SolidSurface.retention] across the circle a drop of its
+  /// volume wets. Held, a drop stands still; on a level bench every drop
+  /// is, its weight being all into the bench.
+  List<bool> _held(
+    List<({_V normal, JetObstacle wall})?> touching,
+    _V gravity,
+  ) {
     final n = _x.length;
-    final g = gravity.length;
-    if (n == 0 || g <= 0.0 || medium.surfaceTension <= 0.0) return;
-    final capillary = math.sqrt(medium.surfaceTension / (medium.density * g));
+    final out = List<bool>.filled(n, false);
+    if (n == 0 || medium.surfaceTension <= 0.0) return out;
     final parent = List<int>.generate(n, (i) => i);
     int root(int i) {
       var r = i;
@@ -663,38 +706,42 @@ final class ParticleFluid {
     }
 
     // One drop: particles nearer each other than a spacing and a half.
-    final touching = 2.25 * spacing * spacing;
+    final grid = _Grid(h, _x);
+    final close = 2.25 * spacing * spacing;
     for (var i = 0; i < n; i++) {
-      for (final j in near[i]) {
-        if (_x[i].distance2(_x[j]) < touching) parent[root(i)] = root(j);
+      for (final j in grid.near(i, _x)) {
+        if (_x[i].distance2(_x[j]) < close) parent[root(i)] = root(j);
       }
     }
-    final low = <int, _V>{};
-    final high = <int, _V>{};
-    final held = <int>{};
+    final volume = <int, double>{};
+    final normal = <int, _V>{};
+    final solid = <int, SolidSurface>{};
     for (var i = 0; i < n; i++) {
       final r = root(i);
-      final p = _x[i];
-      final lo = low[r] ??= p.copy();
-      final hi = high[r] ??= p.copy();
-      lo
-        ..x = math.min(lo.x, p.x)
-        ..y = math.min(lo.y, p.y)
-        ..z = math.min(lo.z, p.z);
-      hi
-        ..x = math.max(hi.x, p.x)
-        ..y = math.max(hi.y, p.y)
-        ..z = math.max(hi.z, p.z);
-      if (onWall[i]) held.add(r);
+      volume[r] = (volume[r] ?? 0.0) + _vol[i];
+      final t = touching[i];
+      if (t == null) continue;
+      (normal[r] ??= _V(0, 0, 0)).add(t.normal);
+      solid[r] ??= t.wall.solid;
+    }
+    final holds = <int>{};
+    for (final MapEntry(key: r, value: sum) in normal.entries) {
+      final length = sum.length;
+      if (length <= 0.0) continue;
+      final nx = sum.x / length;
+      final ny = sum.y / length;
+      final nz = sum.z / length;
+      final into = gravity.x * nx + gravity.y * ny + gravity.z * nz;
+      final along = math.sqrt(math.max(gravity.length2 - into * into, 0.0));
+      final v = volume[r]!;
+      final weight = medium.density * v * along;
+      final width = 2.0 * solid[r]!.baseRadius(medium, v);
+      if (weight <= solid[r]!.retention(medium, width)) holds.add(r);
     }
     for (var i = 0; i < n; i++) {
-      final r = root(i);
-      if (!held.contains(r)) continue;
-      // Across it, a particle's width beyond the centres.
-      if ((high[r]! - low[r]!).length + spacing < capillary) {
-        _v[i] = _V(0, 0, 0);
-      }
+      out[i] = holds.contains(root(i));
     }
+    return out;
   }
 
   /// The normal of the wall [p] touches, if it touches one. Put out a

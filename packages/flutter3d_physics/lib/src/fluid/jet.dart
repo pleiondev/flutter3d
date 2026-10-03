@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../portable_math.dart';
 import 'atmosphere.dart';
 import 'fluid_medium.dart';
+import 'wetting.dart';
 
 /// When something thrown at [velocity] from [height] reaches [floor] under
 /// gravity [g] pointing down: the later root of height + v_y·t − g t²/2 =
@@ -52,6 +53,10 @@ abstract interface class JetObstacle {
   /// for everything in flight together, so the walls far from it are not
   /// asked again for each parcel, piece and pass.
   bool reaches(Vector3 centre, double distance);
+
+  /// What it is made of: how a liquid wets it, and how hard its edge holds
+  /// a drop.
+  SolidSurface get solid;
 }
 
 /// [obstacles] that something within [distance] of [centre] could touch.
