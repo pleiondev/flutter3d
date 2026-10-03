@@ -227,8 +227,15 @@ final class DartPbfKernels implements PbfKernels {
         return c != 0 ? c : a - b;
       });
     final sorted = Float64List(n);
+    // The positions in the same order: a cell's candidates are then read
+    // one after another, not from wherever each lies in [x].
+    final at = Float64List(3 * n);
     for (var q = 0; q < n; q++) {
-      sorted[q] = keys[order[q]];
+      final j = order[q];
+      sorted[q] = keys[j];
+      at[3 * q] = x[3 * j];
+      at[3 * q + 1] = x[3 * j + 1];
+      at[3 * q + 2] = x[3 * j + 2];
     }
     int first(double key) {
       var lo = 0;
@@ -254,16 +261,27 @@ final class DartPbfKernels implements PbfKernels {
       final zi = x[3 * i + 2];
       for (var dx = -1; dx <= 1; dx++) {
         for (var dy = -1; dy <= 1; dy++) {
-          for (var dz = -1; dz <= 1; dz++) {
-            final key = _pack(cx[i] + dx, cy[i] + dy, cz[i] + dz);
-            for (var q = first(key); q < n && sorted[q] == key; q++) {
-              final j = order[q];
-              if (j == i) continue;
-              final ex = x[3 * j] - xi;
-              final ey = x[3 * j + 1] - yi;
-              final ez = x[3 * j + 2] - zi;
+          // **The three cells from z − 1 to z + 1 are three keys in a
+          // row**, z being the key's last part: one search finds the first
+          // and the rest follow it in the sorted keys, in the order three
+          // searches gave. Where z wraps round they are not in a row, and
+          // each is searched for.
+          final from = _pack(cx[i] + dx, cy[i] + dy, cz[i] - 1);
+          final to = _pack(cx[i] + dx, cy[i] + dy, cz[i] + 1);
+          final runs = to == from + 2 ? 1 : 3;
+          for (var run = 0; run < runs; run++) {
+            final lo = runs == 1
+                ? from
+                : _pack(cx[i] + dx, cy[i] + dy, cz[i] - 1 + run);
+            final hi = runs == 1 ? to : lo;
+            for (var q = first(lo); q < n && sorted[q] <= hi; q++) {
+              final ex = at[3 * q] - xi;
+              final ey = at[3 * q + 1] - yi;
+              final ez = at[3 * q + 2] - zi;
               // As `_V.distance2` reads it: the other point less this one.
               if (ex * ex + ey * ey + ez * ez >= reach2) continue;
+              final j = order[q];
+              if (j == i) continue;
               if (count == list.length) {
                 list = Int32List(list.length * 2)..setAll(0, list);
               }
