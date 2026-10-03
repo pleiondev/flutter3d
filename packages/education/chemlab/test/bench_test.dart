@@ -209,7 +209,9 @@ void main() {
       bench.step(1 / 60);
       seconds += 1 / 60;
       expect(seconds, lessThan(30));
-      if (from.liquid.volume < before - 1e-12) {
+      // Pouring, not evaporating: a step's pour is a tenth of a millilitre,
+      // what evaporates is let go a nanolitre at a time.
+      if (from.liquid.volume < before - 1e-10) {
         poured = true;
         // While it runs, its lip is over the clean tube's mouth.
         // Its own matrix: it hangs off the root, and the world's is only
@@ -231,7 +233,7 @@ void main() {
     expect(theirs, closeTo(total / 2, total * 0.05));
     expect(bench.world.volume, closeTo(everything, everything * 1e-9));
     // And the clean tube holds the colour poured into it.
-    expect(bench.colour(to), bench.colour(from));
+    _expectSameColour(bench.colour(to), bench.colour(from));
   });
 
   test('two dyes poured together are the colour light through both is', () {
@@ -333,8 +335,12 @@ void main() {
       }
       expect(tube.tilt, closeTo(lean.clamp(0.0, bench.maxLean(tube)), 1e-3));
     }
-    expect(tube.liquid.volume, closeTo(start, start * 1e-9));
+    // None of it ran out: not as a stream, drops or a puddle. Only what
+    // evaporated in the twenty seconds is gone, a few millionths of it.
     expect(bench.world.jets, isEmpty);
+    expect(bench.world.particles.values.fold(0, (s, p) => s + p.count), 0);
+    expect(bench.world.spills.fold(0.0, (s, p) => s + p.volume), 0.0);
+    expect(tube.liquid.volume, closeTo(start, start * 1e-5));
   });
 
   test('a tube leaned either way is lifted out of the row alike', () {
@@ -409,6 +415,14 @@ void main() {
     bench
       ..pour(to, 0.5 * (to.lowest + to.highest))
       ..step(1 / 60);
-    expect(bench.colour(to), bench.colour(from));
+    _expectSameColour(bench.colour(to), bench.colour(from));
   });
+}
+
+/// [a] and [b] the same colour but for the nanolitres of water each lost to
+/// the air while the test ran, which leave a solution a hair stronger.
+void _expectSameColour(Color a, Color b) {
+  expect(a.r, closeTo(b.r, 1e-3));
+  expect(a.g, closeTo(b.g, 1e-3));
+  expect(a.b, closeTo(b.b, 1e-3));
 }

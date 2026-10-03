@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
+import 'atmosphere.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
 import 'particle_fluid.dart';
@@ -70,6 +71,39 @@ final class Puddle {
     _volume = total;
     other._amounts.forEach((k, a) => _amounts[k] = (_amounts[k] ?? 0.0) + a);
     age = math.max(age, other.age);
+  }
+
+  /// **What evaporates from it in [dt]** into [air], cubic metres, taken
+  /// from its solvent: what is dissolved stays behind in less liquid.
+  ///
+  /// In still air vapour diffuses away from a sessile drop at
+  /// π·R·D·Δc·(0.27θ² + 1.30) kilograms a second, R its radius and θ its
+  /// contact angle (Hu and Larson, 2002); at θ → 0 that is the flat disc's
+  /// 4·R·D·Δc. In a wind the vapour is carried off over it as from a flat
+  /// plate 2R long: a laminar boundary layer's mean Sherwood number
+  /// 0.664·Re^½·Sc^⅓. Whichever takes it faster does.
+  double evaporate(double dt, Atmosphere air, double g) {
+    if (_volume <= 0.0) return 0.0;
+    final deficit = air.vapourDeficit(medium);
+    if (deficit <= 0.0) return 0.0;
+    final r = radius(g);
+    if (r <= 0.0) return 0.0;
+    final d = air.vapourDiffusivity;
+    final theta = medium.contactAngle.clamp(0.0, math.pi / 2);
+    final still = math.pi * r * d * deficit * (0.27 * theta * theta + 1.30);
+    final across = air.windAt(centre)
+      ..addScaled(normal, -air.windAt(centre).dot(normal));
+    final length = 2.0 * r;
+    final re = air.density * across.length * length / air.viscosity;
+    final sc = air.viscosity / (air.density * d);
+    final sherwood = 0.664 * math.sqrt(re) * Portable.pow(sc, 1.0 / 3.0);
+    final carried = sherwood * d / length * deficit * math.pi * r * r;
+    final gone = math.min(
+      math.max(still, carried) / medium.density * dt,
+      _volume,
+    );
+    _volume -= gone;
+    return gone;
   }
 
   /// How far it reaches across the surface, metres.
@@ -190,6 +224,17 @@ final class PuddleSurface implements JetReceiver {
     }();
     into.add(volume, onPlane, concentrations);
     _join();
+  }
+
+  /// What evaporates from every puddle in [dt] into [air], cubic metres;
+  /// a puddle dried out is gone.
+  double evaporate(double dt, Atmosphere air) {
+    var gone = 0.0;
+    for (final p in puddles) {
+      gone += p.evaporate(dt, air, _g);
+    }
+    puddles.removeWhere((p) => p.volume <= 0.0);
+    return gone;
   }
 
   /// Spreads every puddle on by [dt] under [gravity], and runs together

@@ -1,6 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../rigid_body.dart';
+import 'atmosphere.dart';
 import 'buoyancy.dart';
 import 'jet.dart';
 import 'liquid_body.dart';
@@ -26,7 +27,18 @@ final class FluidWorld {
     this.step = 1.0 / 240.0,
     this.particleSpacing = 0.002,
     this.floor,
-  });
+    Atmosphere? atmosphere,
+  }) : atmosphere = atmosphere ?? Atmosphere.standard();
+
+  /// The air: what drops and streams fall through and what open liquid
+  /// evaporates into. Room air by default, as a bench stands in.
+  final Atmosphere atmosphere;
+
+  /// Cubic metres of liquid gone to vapour, from vessels, puddles and
+  /// drops: counted, so that every cubic metre poured in is still found.
+  double get evaporated =>
+      _evaporated + particles.values.fold(0.0, (s, p) => s + p.evaporated);
+  double _evaporated = 0.0;
 
   /// Metres per second squared, shared with whoever else falls.
   final Vector3 gravity;
@@ -65,12 +77,13 @@ final class FluidWorld {
   ];
 
   /// Every cubic metre the world holds: in vessels, in the air, as
-  /// particles, in puddles.
+  /// particles, in puddles, and gone to vapour as the liquid it was.
   double get volume =>
       bodies.fold(0.0, (s, b) => s + b.volume) +
       jets.values.fold(0.0, (s, j) => s + j.inFlight) +
       particles.values.fold(0.0, (s, p) => s + p.volume) +
-      spills.fold(0.0, (s, p) => s + p.volume);
+      spills.fold(0.0, (s, p) => s + p.volume) +
+      evaporated;
 
   double _carried = 0.0;
   int _ran = 0;
@@ -141,6 +154,7 @@ final class FluidWorld {
         gravity: gravity,
         obstacles: walls,
         receivers: [...bodies, ...spills],
+        air: atmosphere,
       )) {
         particles
             .putIfAbsent(
@@ -171,7 +185,14 @@ final class FluidWorld {
         gravity: gravity,
         obstacles: everywhere,
         receivers: [...bodies, ...spills],
+        air: atmosphere,
       );
+    }
+    for (final body in bodies) {
+      _evaporated += body.evaporate(dt, atmosphere);
+    }
+    for (final spill in spills) {
+      _evaporated += spill.evaporate(dt, atmosphere);
     }
     for (final spill in spills) {
       spill.step(dt, gravity: gravity);

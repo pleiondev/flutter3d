@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../portable_math.dart';
+import 'atmosphere.dart';
 import 'fluid_medium.dart';
 import 'jet.dart';
 
@@ -224,12 +226,13 @@ final class ParticleFluid {
   }
 
   /// Moves the particles on by [dt] under [gravity], against [obstacles],
-  /// into [receivers].
+  /// into [receivers], through [air] when there is any.
   void step(
     double dt, {
     required Vector3 gravity,
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
+    Atmosphere? air,
   }) {
     // **What is less than a particle is let go too**, once no more liquid
     // comes to make it one: as a particle of its own amount, where the last
@@ -276,6 +279,8 @@ final class ParticleFluid {
           (fastest + gravity.length * dt) * dt +
           spacing,
     );
+    _air = air;
+    if (air != null) _measureDrops(dt, air);
     for (var s = 0; s < count; s++) {
       _substep(sub, g, walls);
     }
@@ -295,6 +300,96 @@ final class ParticleFluid {
         break;
       }
     }
+  }
+
+  /// The air the particles are being stepped through, and each particle's
+  /// drop's diameter: set at the start of a step, read by its substeps.
+  Atmosphere? _air;
+  Float64List _drop = Float64List(0);
+
+  /// Cubic metres evaporated from the drops so far.
+  double get evaporated => _evaporated;
+  double _evaporated = 0.0;
+
+  /// **The drops, as drops**: particles nearer each other than a spacing
+  /// and a half are one, of their summed volume. A drop's drag goes with
+  /// its own size, d² against a mass of d³; worked out per particle, a
+  /// drop of thirty would be slowed as thirty drops each a third its size.
+  ///
+  /// And what each drop loses to the air in [dt]: a sphere's evaporation,
+  /// π·d·D·Δc·Sh, with Ranz and Marshall's Sherwood number
+  /// 2 + 0.6·Re^½·Sc^⅓ for its speed through the air. Taken from its
+  /// particles by their share, what is dissolved in them left behind.
+  void _measureDrops(double dt, Atmosphere air) {
+    final n = _x.length;
+    final parent = List<int>.generate(n, (i) => i);
+    int root(int i) {
+      var r = i;
+      while (parent[r] != r) {
+        r = parent[r];
+      }
+      return parent[i] = r;
+    }
+
+    final grid = _Grid(h, _x);
+    final touching = 2.25 * spacing * spacing;
+    for (var i = 0; i < n; i++) {
+      for (final j in grid.near(i, _x)) {
+        if (_x[i].distance2(_x[j]) < touching) parent[root(i)] = root(j);
+      }
+    }
+    final volume = <int, double>{};
+    final speed = <int, _V>{};
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      volume[r] = (volume[r] ?? 0.0) + _vol[i];
+      (speed[r] ??= _V(0, 0, 0)).addScaled(_v[i], _vol[i]);
+    }
+    _drop = Float64List(n);
+    final deficit = air.vapourDeficit(medium);
+    final d = air.vapourDiffusivity;
+    final sc = air.viscosity / (air.density * d);
+    final lost = <int, double>{};
+    for (final MapEntry(key: r, value: v) in volume.entries) {
+      final diameter = Portable.pow(6.0 * v / math.pi, 1.0 / 3.0);
+      if (deficit > 0.0) {
+        final u = speed[r]! * (1.0 / v);
+        final wind = air.windAt(Vector3.zero());
+        final through = _V(u.x - wind.x, u.y - wind.y, u.z - wind.z).length;
+        final re = air.density * through * diameter / air.viscosity;
+        final sherwood =
+            2.0 + 0.6 * math.sqrt(re) * Portable.pow(sc, 1.0 / 3.0);
+        final rate = math.pi * diameter * d * deficit * sherwood;
+        lost[r] = math.min(rate / medium.density * dt, v) / v;
+      }
+      volume[r] = diameter;
+    }
+    for (var i = 0; i < n; i++) {
+      final r = root(i);
+      _drop[i] = volume[r]!;
+      final share = lost[r];
+      if (share != null && share > 0.0) {
+        final gone = _vol[i] * share;
+        _evaporated += gone;
+        // What is dissolved stays: the same amount in less liquid.
+        final kept = _vol[i] - gone;
+        if (kept > 0.0) {
+          _c[i] = {
+            for (final e in _c[i].entries) e.key: e.value * _vol[i] / kept,
+          };
+        }
+        _vol[i] = kept;
+      }
+    }
+    // A drop dried away is gone.
+    for (var i = n - 1; i >= 0; i--) {
+      if (_vol[i] > 0.0) continue;
+      _x.removeAt(i);
+      _v.removeAt(i);
+      _vol.removeAt(i);
+      _c.removeAt(i);
+    }
+    if (_x.length != n) _drop = Float64List(0);
   }
 
   void _substep(double dt, _V gravity, List<JetObstacle> all) {
@@ -394,6 +489,20 @@ final class ParticleFluid {
         ax += dx * c + (normal[3 * i] - normal[3 * j]) * t;
         ay += dy * c + (normal[3 * i + 1] - normal[3 * j + 1]) * t;
         az += dz * c + (normal[3 * i + 2] - normal[3 * j + 2]) * t;
+      }
+      // The air, on the drop it is in: its drag over the drop's mass,
+      // which every particle of it feels alike.
+      final air = _air;
+      if (air != null && i < _drop.length && _drop[i] > 0.0) {
+        final drag = air.dragOnSphere(
+          _v[i].toVector3(),
+          xi.toVector3(),
+          _drop[i],
+          rho0,
+        );
+        ax += drag.x;
+        ay += drag.y;
+        az += drag.z;
       }
       _v[i]
         ..x += ax * dt

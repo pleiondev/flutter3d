@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'atmosphere.dart';
+
 /// A liquid, by the properties that decide how it moves: how heavy it is,
 /// how thick, how strongly its surface pulls, and how it meets a wall.
 ///
@@ -14,6 +16,7 @@ final class FluidMedium {
     required this.viscosity,
     required this.surfaceTension,
     this.contactAngle = 0.0,
+    this.vapour,
   });
 
   /// Water: 998 kg/m³, 1.0 mPa·s, 72.8 mN/m, wetting glass at about 20°.
@@ -23,6 +26,7 @@ final class FluidMedium {
     viscosity: 1.002e-3,
     surfaceTension: 0.0728,
     contactAngle: 0.35,
+    vapour: VapourCurve.water,
   );
 
   /// Glycerol: heavy and fourteen hundred times as viscous as water.
@@ -76,6 +80,11 @@ final class FluidMedium {
   /// nought wets completely, past a quarter turn does not wet.
   final double contactAngle;
 
+  /// How much vapour it gives off, for evaporating into an [Atmosphere];
+  /// null for a liquid that is taken not to. Only water has one so far: the
+  /// others' curves are not here yet, not nought.
+  final VapourCurve? vapour;
+
   /// Kinematic viscosity, square metres per second: what the damping of
   /// waves and the thickness of a boundary layer go by, which
   /// [FreeSurface] reads.
@@ -91,12 +100,14 @@ final class FluidMedium {
     double? viscosity,
     double? surfaceTension,
     double? contactAngle,
+    VapourCurve? vapour,
   }) => FluidMedium(
     name: name ?? this.name,
     density: density ?? this.density,
     viscosity: viscosity ?? this.viscosity,
     surfaceTension: surfaceTension ?? this.surfaceTension,
     contactAngle: contactAngle ?? this.contactAngle,
+    vapour: vapour ?? this.vapour,
   );
 
   @override

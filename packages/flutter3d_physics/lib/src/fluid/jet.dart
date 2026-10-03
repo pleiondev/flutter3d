@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
+import 'atmosphere.dart';
 import 'fluid_medium.dart';
 
 /// When something thrown at [velocity] from [height] reaches [floor] under
@@ -222,6 +223,7 @@ final class Jet {
     required Vector3 gravity,
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
+    Atmosphere? air,
   }) {
     final drops = <JetDrop>[];
     _retract(dt);
@@ -254,6 +256,29 @@ final class Jet {
       final section = p.section;
       final radius = math.sqrt(section / math.pi);
       var touched = false;
+      // **The air across it**, as on a long cylinder: what blows across a
+      // stream bends it, at ½·C_d·ρ_a·u⊥²·d a metre over its ρ·πd²/4,
+      // White's C_d for a cylinder. Along it the air only rubs, a skin
+      // friction that over the centimetres of a pour comes to nothing.
+      if (air != null && !p.onWall && radius > 0.0) {
+        final speed = p.velocity.length;
+        final u = p.velocity - air.windAt(p.position);
+        if (speed > 0.0) {
+          u.addScaled(p.velocity, -u.dot(p.velocity) / (speed * speed));
+        }
+        final across = u.length;
+        if (across > 0.0) {
+          final d = 2.0 * radius;
+          final re = air.density * across * d / air.viscosity;
+          final k =
+              -2.0 *
+              Atmosphere.cylinderDrag(re) *
+              air.density *
+              across /
+              (math.pi * rho * d);
+          p.velocity.addScaled(u, k * dt);
+        }
+      }
       // Its own walls: within what it moves this step and the three radii a
       // clinging parcel is looked for by. Every wall near the whole stream,
       // asked for every piece of every parcel, cost the tail of a pour a
