@@ -286,6 +286,16 @@ final class Bench {
               ..receivesTranslucentShadows = false
               ..lightChannels = _vesselChannel,
       );
+      // The glass in the tabletop too: it was left out while it was nearly
+      // invisible, and once it was not, the liquids stood in the mirror
+      // with nothing round them.
+      vessel.mirror.add(
+        _mirrored(
+          vessel.glassNode.mesh,
+          _reflection(albedo: null, colour: Vector3(0.995, 0.999, 0.997)),
+          vessel,
+        ),
+      );
       final foot = vessel.foot;
       if (foot != null) {
         final hexagon = DeviceMesh.upload(
