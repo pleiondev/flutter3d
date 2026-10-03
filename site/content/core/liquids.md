@@ -29,6 +29,10 @@ world.advance(dt);
 
 Draw it with `liquidMeshes(tube)`, `jetMesh(jet)` and `particleMesh(...)` from `flutter3d_core`'s geometry. The chemistry bench is built this way; its [article](/education/chemlab/) shows what that looks like.
 
+## Gravity that varies
+
+`FluidWorld.gravity` is one vector for everything. Give the world a `GravityField` instead, a uniform part and any number of `Attractor`s, and each vessel, drop and parcel of a stream feels the gravity where it is. Each attractor pulls as μ·r̂/r², μ = G·M, and inside its radius it pulls as a uniform ball does, less the deeper in. A glass beside an attractor levels across its own pull, and a drop between two falls to the nearer.
+
 ## Volume first
 
 A vessel is a `VesselShape`: something that can say how much of it lies under a plane. `RevolvedVessel` does it exactly upright, as a sum of frustums, and tilted as a sum of circular segments. `MeshVessel` takes any closed mesh and does it with the divergence theorem over the triangles the plane cuts. Everything else is built on that one question. The surface's height is the plane that leaves the liquid's volume under it, and the most a tipped glass holds is the volume under its lowest point of rim.

@@ -247,6 +247,7 @@ final class Jet {
     List<JetObstacle> obstacles = const [],
     List<JetReceiver> receivers = const [],
     Atmosphere? air,
+    Vector3 Function(Vector3 point)? gravityAt,
   }) {
     final drops = <JetDrop>[];
     _retract(dt);
@@ -273,7 +274,8 @@ final class Jet {
       final rho = p.medium.density;
       final sigma = p.medium.surfaceTension;
       final mu = p.medium.viscosity;
-      p.velocity.addScaled(gravity, dt);
+      // Its own gravity, where it is, when gravity is not one vector.
+      p.velocity.addScaled(gravityAt?.call(p.position) ?? gravity, dt);
       p.previous.setFrom(p.position);
       p.age += dt;
       p.travelled += p.velocity.length * dt;
