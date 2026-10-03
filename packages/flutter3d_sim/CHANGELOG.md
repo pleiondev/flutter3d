@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **`Brush.drawOrder`**, the engine's `MeshNode.drawOrder` in the level
+  format — `P7`: where a brush is drawn among the others, for a stripe laid
+  on a floor of the same stone. Optional and left out of the document at
+  nought, so every level keeps its bytes and its digest; the validator
+  refuses a number outside −128 to 127, the range the renderer can order by.
+  Brush surfaces are batched by it, `Breaches` keeps it on the pieces of a
+  cut brush, and an edit of it alone is look-only: `LevelDiff.brushOrder`
+  names the brushes, from `diffLevel` and from a `LevelPatch` alike, and
+  `simulation` stays empty.
+
 - **A `.f3drun` carries the levels edited under the run.**
   `Demo.levelSwaps` holds each one as a `DemoLevelSwap`: the step it took
   effect before and the whole document, since the edited level exists in no

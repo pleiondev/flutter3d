@@ -266,18 +266,39 @@ final class LevelPatch {
     final whole = fields.keys.any(
       (String key) => patchedLists.contains(key) || key == 'materials',
     );
-    return LevelPatched(next, whole ? diffLevel(level, next) : _diff());
+    return LevelPatched(
+      next,
+      whole ? diffLevel(level, next) : _diff(level, next),
+    );
   }
 
-  /// What the edits change, read off the edits themselves.
-  LevelDiff _diff() {
+  /// What the edits change, read off the edits themselves — and, for a brush
+  /// replaced in place, off the two rows, which is the one place the edit
+  /// cannot say whether the simulation would feel it.
+  LevelDiff _diff(Level before, Level after) {
     Iterable<RowEdit> of(String list) =>
         rows.where((RowEdit edit) => edit.list == list);
     final lights = of('lights');
     final lightCountChanged = lights.any(
       (RowEdit edit) => edit.inserts || edit.removes,
     );
+    // `P7`: brushes replaced in place whose rows differ only in the draw
+    // order are a look-only edit. With no row put in or taken out, an edit's
+    // place is the brush's place in both levels.
+    final brushes = of('brushes');
+    final orderOnly =
+        brushes.isNotEmpty &&
+        brushes.every(
+          (RowEdit edit) =>
+              !edit.inserts &&
+              !edit.removes &&
+              _digest(brushWithoutOrder(before.brushes[edit.at])) ==
+                  _digest(brushWithoutOrder(after.brushes[edit.at])),
+        );
     return LevelDiff(
+      brushOrder: orderOnly
+          ? <int>[for (final edit in brushes) edit.at]
+          : const <int>[],
       // With no row put in or taken out, a row's place in the patch is its
       // place in both levels.
       lights: lightCountChanged
@@ -288,7 +309,7 @@ final class LevelPatch {
       fog: fields.containsKey('fogColor') || fields.containsKey('fogDensity'),
       music: fields.containsKey('music'),
       simulation: <String>[
-        if (of('brushes').isNotEmpty) 'brushes',
+        if (brushes.isNotEmpty && !orderOnly) 'brushes',
         if (of('entities').isNotEmpty) 'entities',
         for (final key in const <String>['heightfield', 'recipes', 'next'])
           if (fields.containsKey(key)) key,

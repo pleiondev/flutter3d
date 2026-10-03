@@ -106,7 +106,7 @@ A level is JSON: brushes, materials, lights, entities, fog, and where to go next
 
 | Concept | What it is |
 |---|---|
-| `Brush` | An axis-aligned box: centre, size, material, optional `surface` name, optional layer, `solid` |
+| `Brush` | An axis-aligned box: centre, size, material, optional `surface` name, optional layer, `solid`, an optional `drawOrder` from −128 to 127 for two surfaces in one plane |
 | `LevelMaterial` | Base colour, roughness, metallic, emissive, `texelsPerMetre`, and albedo/normal/ORM paths |
 | `LevelLight` | Type, position, direction, colour, intensity, range, `castsShadow` |
 | `EntityDef` | A `type`, a position, a yaw, a name, and free-form `properties` |

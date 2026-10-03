@@ -165,6 +165,21 @@ final class LevelValidator {
         );
       }
 
+      // `P7`: the engine keeps the order in a signed byte and clamps past
+      // it, so 200 and 127 would draw as one — a tie the author never wrote.
+      if (brush.drawOrder < Brush.minDrawOrder ||
+          brush.drawOrder > Brush.maxDrawOrder) {
+        issues.add(
+          LevelIssue(
+            LevelIssueSeverity.error,
+            'drawOrder ${brush.drawOrder} is outside '
+            '${Brush.minDrawOrder} to ${Brush.maxDrawOrder}, the range the '
+            'renderer can order by',
+            where: where,
+          ),
+        );
+      }
+
       _checkRamp(brush, where, issues);
     }
 

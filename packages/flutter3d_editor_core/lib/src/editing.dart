@@ -253,6 +253,7 @@ final class Editing {
             shadowCasting: brush.shadowCasting,
             layer: brush.layer,
             ramp: brush.ramp,
+            drawOrder: brush.drawOrder,
           ),
         );
         selected = level.brushes.length - 1;
