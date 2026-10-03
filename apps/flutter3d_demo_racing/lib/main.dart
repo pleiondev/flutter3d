@@ -395,6 +395,9 @@ class _RaceScreenState extends State<RaceScreen>
     input: _input,
     stepSim: (double dt) => _simulation?.step(dt),
     restore: (Snapshot snapshot) => _simulation?.restore(snapshot),
+    // A paused step goes on the loop's tapes and keyframes like a loop step.
+    recorders: _loop.recorders,
+    capture: () => _simulation?.save() ?? const Snapshot(<String, Object?>{}),
   );
 
   /// `rp-04`'s "send this run", called remotely rather than from a button

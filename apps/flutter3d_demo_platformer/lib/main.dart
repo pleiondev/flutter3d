@@ -159,11 +159,23 @@ class _GameScreenState extends State<GameScreen>
   /// `rp-02`'s door onto this run, over the VM service. Reads `_sim` fresh on
   /// every call rather than capturing it, since which simulation that getter
   /// answers changes every time a level does.
+  ///
+  /// A step taken while paused is the run's like any other: written to the
+  /// loop's recorders (the buffer's and the demo's), keyframed, and
+  /// checkpointed into the demo. A branch cuts the demo's tape with the
+  /// buffer's ([_recordBranch]).
   late final RunTimeline _timeline = RunTimeline(
     rewind: _rewind,
     input: _input,
     stepSim: (double dt) => _sim?.step(dt),
     restore: (Snapshot snapshot) => _sim?.restore(snapshot),
+    recorders: _loop.recorders,
+    capture: _present,
+    onStepped: () {
+      final sim = _sim;
+      if (sim != null) _demo?.observe(sim.save);
+    },
+    onBranched: _recordBranch,
   );
 
   /// `rp-04`'s "send this run", called remotely rather than from a button
@@ -402,6 +414,23 @@ class _GameScreenState extends State<GameScreen>
     if (demo.levelSwapped(next, stepsAgo: _rewind.step - step)) return;
     _record(asset: demo.level, levelHash: demo.levelHash, start: sim.save());
     _demo?.levelSwapped(next, stepsAgo: 0);
+  }
+
+  /// A branch through [_timeline] — a release on the scrubber, or "branch
+  /// here" — cuts the demo's tape where it cut the buffer's, so the
+  /// `.f3drun` holds the run that went on and not the future it left.
+  ///
+  /// A branch back before this demo began starts it again from now, in the
+  /// level it was loaded as and with the level on screen swapped in at its
+  /// first step, as [_recordSwap] does.
+  void _recordBranch(int step, {required int stepsAgo}) {
+    final demo = _demo;
+    final sim = _sim;
+    if (demo == null || sim == null) return;
+    if (demo.branched(stepsAgo: stepsAgo)) return;
+    final swaps = demo.levelSwaps;
+    _record(asset: demo.level, levelHash: demo.levelHash, start: sim.save());
+    if (swaps.isNotEmpty) _demo?.levelSwapped(swaps.last.level, stepsAgo: 0);
   }
 
   /// Writes the run down when it ends, either way.
