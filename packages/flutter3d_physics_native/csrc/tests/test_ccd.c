@@ -104,6 +104,52 @@ static void test_bullets(void) {
   f3d_world_destroy(w);
 }
 
+/* The most either end of a bar a metre either side of its centre along its
+ * own x reaches past the plane x = 0.5. */
+static double past_wall(F3dWorld *w, F3dBody bar) {
+  f3d_real q[4], p[3];
+  f3d_body_get_orientation(w, bar, q);
+  f3d_body_get_position(w, bar, p);
+  const F3dQuat qq = {q[0], q[1], q[2], q[3]};
+  const F3dMat3 m = f3d_mat_of(qq);
+  const double a = (double)p[0] + m.c[0].x, b = (double)p[0] - m.c[0].x;
+  return fmax(a, b) - 0.5;
+}
+
+static void test_spinning_bullet(void) {
+  /* A bar two metres long spun at three hundred radians a second about
+   * its middle — five radians a step, which its first and last turns would
+   * read the short way round, backwards — beside a wall half a metre off:
+   * its ends would turn through the wall in a step. Swept along its path,
+   * place and turn, it never reaches past the wall; it strikes it with its
+   * end and is thrown back, as a spun bar is. Not a bullet, it turns
+   * through. */
+  for (int bullet = 0; bullet < 2; bullet++) {
+    F3dWorld *w = quiet(0);
+    const F3dBody screen = f3d_body_create(w, F3D_BODY_FIXED, F3D_R(0.5), 0, 0, 0);
+    f3d_body_set_shape(w, screen, F3D_SHAPE_BOX, F3D_R(0.005), 2, 2);
+    const F3dBody bar = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 0, 0, 1);
+    f3d_body_set_shape(w, bar, F3D_SHAPE_BOX, 1, F3D_R(0.1), F3D_R(0.1));
+    /* Lying along z, clear of the wall, turning about y. */
+    const f3d_real c = F3D_R(0.70710678), q = F3D_R(0.70710678);
+    f3d_body_set_orientation(w, bar, 0, q, 0, c);
+    f3d_body_set_angular_velocity(w, bar, 0, 300, 0);
+    f3d_body_set_bullet(w, bar, bullet);
+    double most = -1;
+    for (int i = 0; i < 20; i++) {
+      f3d_world_step(w, F3D_R(1.0 / 60.0));
+      const double past = past_wall(w, bar);
+      if (past > most) most = past;
+    }
+    if (bullet) {
+      CHECK(most < 0.02);
+    } else {
+      CHECK(most > 0.1);
+    }
+    f3d_world_destroy(w);
+  }
+}
+
 static void test_no_ghosts(void) {
   /* A hundred metres a second, half a metre beside a box, parallel to its
    * face: the contact soft collision makes there pushes nothing, and the
@@ -201,6 +247,7 @@ static void test_fast_bounce(void) {
 int main(void) {
   test_thin_wall();
   test_bullets();
+  test_spinning_bullet();
   test_no_ghosts();
   test_head_on();
   test_bullet_rolls();

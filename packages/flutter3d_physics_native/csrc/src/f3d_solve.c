@@ -289,6 +289,7 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     if (!s->live) continue;
     sb->start = s->position;
     sb->turn = s->orientation;
+    sb->bullet = -1;
     if (moves(s)) {
       sb->inverse_mass = s->inverse_mass;
       sb->inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
@@ -334,6 +335,36 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
   /* A quarter of the substep rate, and no more than thirty hertz. */
   const f3d_real hertz = f3d_min(F3D_R(30.0), F3D_R(0.25) / h);
   const Softness softness = soft(hertz, F3D_CONTACT_DAMPING, h);
+  /* The bullets' paths: where each stands before the first substep and
+   * after every one, so the sweep follows a turn of more than half a
+   * revolution in a step, which its two ends alone would read the short
+   * way round. */
+  uint32_t bullets = 0;
+  for (uint32_t i = 0; i < used; i++) {
+    const F3dSlot *s = &world->slots[i];
+    if (moves(s) && (s->flags & F3D_FLAG_BULLET)) bodies[i].bullet = (int32_t)bullets++;
+  }
+  const uint32_t row = substeps + 1u;
+  if (bullets * row > world->bullet_capacity) {
+    F3dVec3 *at = (F3dVec3 *)f3d_realloc(world->bullet_at,
+                                         (size_t)bullets * row * sizeof(F3dVec3));
+    if (at != NULL) world->bullet_at = at;
+    F3dQuat *turn = (F3dQuat *)f3d_realloc(
+        world->bullet_turn, (size_t)bullets * row * sizeof(F3dQuat));
+    if (turn != NULL) world->bullet_turn = turn;
+    if (at != NULL && turn != NULL) {
+      world->bullet_capacity = bullets * row;
+    } else {
+      for (uint32_t i = 0; i < used; i++) bodies[i].bullet = -1;
+      bullets = 0;
+    }
+  }
+  for (uint32_t i = 0; i < used && bullets > 0; i++) {
+    if (bodies[i].bullet < 0) continue;
+    const size_t at = (size_t)bodies[i].bullet * row;
+    world->bullet_at[at] = world->slots[i].position;
+    world->bullet_turn[at] = world->slots[i].orientation;
+  }
   for (uint32_t step = 0; step < substeps; step++) {
     for (uint32_t i = 0; i < used; i++) {
       F3dSlot *s = &world->slots[i];
@@ -345,7 +376,13 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     solve(world, contacts, count, bodies, softness, h, 1);
     for (uint32_t i = 0; i < used; i++) {
       F3dSlot *s = &world->slots[i];
-      if (moves(s)) f3d_integrate_position(s, h);
+      if (!moves(s)) continue;
+      f3d_integrate_position(s, h);
+      if (bodies[i].bullet >= 0) {
+        const size_t at = (size_t)bodies[i].bullet * row + step + 1u;
+        world->bullet_at[at] = s->position;
+        world->bullet_turn[at] = s->orientation;
+      }
     }
     f3d_solve_joints(world, bodies, h, 0);
     solve(world, contacts, count, bodies, softness, h, 0);

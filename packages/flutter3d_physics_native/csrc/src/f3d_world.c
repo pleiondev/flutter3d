@@ -54,6 +54,8 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_clear_mesh_trees(world);
   f3d_free(world->joints);
   f3d_free(world->joined);
+  f3d_free(world->bullet_at);
+  f3d_free(world->bullet_turn);
   f3d_free(world);
 }
 

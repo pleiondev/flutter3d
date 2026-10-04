@@ -567,7 +567,8 @@ F3D_API int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x,
  * where the step began to where it ended against every body but another
  * bullet, and put back at its first time of impact, its velocity kept. For
  * what is small and fast — a bullet, a puck — and what soft collision might
- * still let through. Its turn during the step is not swept. */
+ * still let through, and what spins fast enough to turn through a wall in
+ * one step. Its turn is swept with it. */
 F3D_API int f3d_body_set_bullet(F3dWorld *world, F3dBody body, int bullet);
 
 /* Coulomb's coefficient, nought up; default 0.6. A pair slides on the

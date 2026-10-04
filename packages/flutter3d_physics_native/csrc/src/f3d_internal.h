@@ -496,6 +496,11 @@ struct F3dWorld {
   F3dTree tree;
   int32_t *proxies;
   uint32_t proxy_capacity;
+  /* Where each bullet stood after each substep of the last step: its
+   * path, for the sweep. Rows of substeps + 1 poses. Not in a snapshot. */
+  F3dVec3 *bullet_at;
+  F3dQuat *bullet_turn;
+  uint32_t bullet_capacity;
   /* Scratch the collision stage grows and keeps, so a step allocates only
    * when the world grows. None of it outlives a step. */
   void *scratch;
@@ -591,6 +596,9 @@ void f3d_unjoin(F3dWorld *world, uint32_t slot);
 typedef struct F3dSolverBody {
   F3dVec3 start;
   F3dQuat turn;
+  /* A bullet's row in the world's record of where it stood at each
+   * substep; -1 for any other body. */
+  int32_t bullet;
   f3d_real inverse_mass;
   F3dSym3 inverse_inertia;
 } F3dSolverBody;

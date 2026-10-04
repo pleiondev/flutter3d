@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A bullet's turn is swept too.** The path a bullet took through the
+  step is recorded substep by substep, and the sweep follows it, place and
+  turn, bounding how fast its turn closes a gap by its fastest point; so a
+  bar two metres long spun at three hundred radians a second — five a step,
+  which the step's first and last turns would read the short way round,
+  backwards — stops at a wall beside it and is thrown back, instead of
+  turning through. A turn of more than half a revolution in one substep is
+  past what it follows.
+
 - **Continuous collision, phase 8.** Soft, by default: a body's leaf in the
   tree covers where it will be after the step, and a pair's contact reaches
   as far as the two can close in it by their speeds and spins, so a ball at
