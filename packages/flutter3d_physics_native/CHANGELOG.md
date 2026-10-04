@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **Continuous collision, phase 8.** Soft, by default: a body's leaf in the
+  tree covers where it will be after the step, and a pair's contact reaches
+  as far as the two can close in it by their speeds and spins, so a ball at
+  three hundred metres a second stops at a wall a centimetre thick instead
+  of being past it before any contact sees it — and one going by close to a
+  box at a hundred is not slowed. Hard, for a body made a bullet
+  (`f3d_body_set_bullet`): after the solve it is swept along its path by
+  conservative advancement against every body but another bullet and put
+  back at its first impact; a bullet touching something where the step
+  began, or moving away from it, is the contact solver's and not held.
+  `f3d_world_set_speculative` turns the soft kind off.
+- **A rolling ball stays on the floor.** The solver measured a contact's
+  gap by carrying the point it touched round with the body; a ball rolling
+  at ten metres a second turns a radian and a half a step, read a gap where
+  it rested and sank two centimetres. The point's motion is taken to first
+  order now, the body's turn crossed with its lever.
+
 - **Joints, phase 7.** Fixed, spherical, revolute (a hinge), prismatic (a
   slider) and distance joints, in their own arena of generational handles,
   solved in the same soft substeps as the contacts and warm-started from

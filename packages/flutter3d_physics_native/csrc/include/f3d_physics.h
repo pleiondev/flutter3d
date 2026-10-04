@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 9u
+#define F3D_ABI_VERSION 10u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -337,6 +337,11 @@ F3D_API uint32_t f3d_world_read_events(F3dWorld *world, F3dBody *bodies,
  * the solver. 0 for a count out of range. */
 F3D_API int f3d_world_set_substeps(F3dWorld *world, uint32_t substeps);
 
+/* Soft continuous collision, on by default: a contact reaches as far as
+ * its two bodies can close in a step, so a body stops at a wall it would
+ * cross in one. 0 turns it off. */
+F3D_API int f3d_world_set_speculative(F3dWorld *world, int enabled);
+
 /* How near two shapes must come to make a contact, m; a contact inside it
  * but not touching has a negative depth. 0 for a margin that is negative
  * or not finite. Default 0.02. */
@@ -557,6 +562,13 @@ F3D_API int f3d_body_add_force(F3dWorld *world, F3dBody body, f3d_real x,
                                f3d_real y, f3d_real z);
 F3D_API int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x,
                                 f3d_real y, f3d_real z);
+
+/* Hard continuous collision for [body]: after the solve it is swept from
+ * where the step began to where it ended against every body but another
+ * bullet, and put back at its first time of impact, its velocity kept. For
+ * what is small and fast — a bullet, a puck — and what soft collision might
+ * still let through. Its turn during the step is not swept. */
+F3D_API int f3d_body_set_bullet(F3dWorld *world, F3dBody body, int bullet);
 
 /* Coulomb's coefficient, nought up; default 0.6. A pair slides on the
  * geometric mean of its two, so either can make it slippery. */

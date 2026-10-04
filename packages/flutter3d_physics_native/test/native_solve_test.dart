@@ -186,4 +186,34 @@ void main() {
       expect(touching(), isTrue);
     },
   );
+
+  test('a fast ball stops at a thin wall, softly or as a bullet', () {
+    // Mutation: drop the speculative reach from the pair's margin in
+    // `f3d_step_collide` — the soft ball goes through.
+    world.gravity = Vector3.zero();
+    final wall = world.addBody(
+      position: Vector3(0.0, 5.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world.setShape(wall, NativeShape.box(Vector3(0.005, 2.0, 2.0)));
+    final soft = world.addBody(position: Vector3(-2.0, 5.0, 0.0));
+    world
+      ..setShape(soft, const NativeShape.sphere(0.05))
+      ..setVelocity(soft, Vector3(300.0, 0.0, 0.0));
+    for (var i = 0; i < 10; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(world.positionOf(soft).x, lessThan(0.0));
+    world.speculative = false;
+    final bullet = world.addBody(position: Vector3(-2.0, 6.0, 0.0));
+    world
+      ..setShape(bullet, const NativeShape.sphere(0.05))
+      ..setBullet(bullet)
+      ..setVelocity(bullet, Vector3(500.0, 0.0, 0.0));
+    for (var i = 0; i < 10; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(world.positionOf(bullet).x, lessThan(0.0));
+  });
 }

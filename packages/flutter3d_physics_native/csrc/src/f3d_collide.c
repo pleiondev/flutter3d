@@ -278,6 +278,7 @@ typedef struct Gather {
   size_t fixed;
   uint32_t self;
   F3dBox box;
+  f3d_real dt;
   uint32_t count, capacity;
   int failed;
 } Gather;
@@ -314,18 +315,55 @@ static int near_leaf(void *context, int32_t leaf) {
   if (active(so) && other < g->self) return 1;
   if (!(ss->layer & so->mask) || !(so->layer & ss->mask)) return 1;
   if (f3d_joined(g->world, g->self, other)) return 1;
-  if (!f3d_box_overlap(
-          f3d_box_of(g->world, so, F3D_R(0.5) * g->world->s.contact_margin), g->box)) {
+  if (!f3d_box_overlap(f3d_swept_box(g->world, so,
+                                     F3D_R(0.5) * g->world->s.contact_margin,
+                                     g->dt),
+                       g->box)) {
     return 1;
   }
   return add_pair(g, g->self, other);
+}
+
+/* Soft CCD: how far past the margin a pair's contact reaches this step —
+ * as far as the two can close in it, by their speeds and spins. The
+ * contact's solver lets them close a gap and no more, so a wall a body
+ * would cross in one step is a wall it stops at. Held to ten metres, past
+ * which a contact would stop bodies that were only going to pass close. */
+static f3d_real speculative(const F3dWorld *world, const F3dSlot *a,
+                            const F3dSlot *b, f3d_real dt) {
+  if (!world->s.speculative) return F3D_R(0.0);
+  f3d_real reach = F3D_R(0.0);
+  const F3dSlot *both[2] = {a, b};
+  for (int k = 0; k < 2; k++) {
+    const F3dSlot *s = both[k];
+    if (s->type != F3D_BODY_DYNAMIC || (s->flags & F3D_FLAG_ASLEEP)) continue;
+    reach += f3d_sqrt(f3d_dot(s->velocity, s->velocity)) * dt +
+             f3d_sqrt(f3d_dot(s->spin, s->spin)) * dt * f3d_reach_of(world, s);
+  }
+  return f3d_min(reach, F3D_R(10.0));
+}
+
+int f3d_world_set_speculative(F3dWorld *world, int enabled) {
+  world->s.speculative = enabled ? 1u : 0u;
+  return 1;
+}
+
+int f3d_body_set_bullet(F3dWorld *world, F3dBody body, int bullet) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL) return 0;
+  if (bullet) {
+    s->flags |= F3D_FLAG_BULLET;
+  } else {
+    s->flags &= (uint8_t)~F3D_FLAG_BULLET;
+  }
+  return 1;
 }
 
 static int moved(const F3dSlot *s) {
   return s != NULL && (s->flags & F3D_FLAG_MOVED) != 0;
 }
 
-void f3d_step_collide(F3dWorld *world) {
+void f3d_step_collide(F3dWorld *world, f3d_real dt) {
   const uint32_t used = world->s.used;
   const f3d_real margin = world->s.contact_margin;
   /* A body placed, turned or reshaped by hand wakes what slept against it:
@@ -337,7 +375,7 @@ void f3d_step_collide(F3dWorld *world) {
     if (sa != NULL) f3d_wake(world, sa);
     if (sb != NULL) f3d_wake(world, sb);
   }
-  f3d_update_proxies(world);
+  f3d_update_proxies(world, dt);
   f3d_build_mesh_trees(world);
   /* The scratch: the islands' two arrays, then the pairs and their spare,
    * which grow as the queries find them. */
@@ -350,13 +388,14 @@ void f3d_step_collide(F3dWorld *world) {
   g.count = 0;
   g.capacity = 64u;
   g.failed = 0;
+  g.dt = dt;
   /* Each awake body asks the tree what is near it. Two bodies neither of
    * which can move are not asked about: they keep last step's contact. */
   for (uint32_t i = 0; i < used && !g.failed; i++) {
     const F3dSlot *s = &world->slots[i];
     if (!active(s) || world->proxies[i] == -1) continue;
     g.self = i;
-    g.box = f3d_box_of(world, s, F3D_R(0.5) * margin);
+    g.box = f3d_swept_box(world, s, F3D_R(0.5) * margin, dt);
     f3d_tree_query(&world->tree, g.box, near_leaf, &g);
   }
   for (uint32_t i = 0; i < world->s.manifold_count && !g.failed; i++) {
@@ -402,7 +441,9 @@ void f3d_step_collide(F3dWorld *world) {
     }
     f3d_zero(m, sizeof *m);
     const F3dPlaced pa = f3d_placed_of(world, sa), pb = f3d_placed_of(world, sb);
-    if (f3d_collide(&pa, &pb, margin, m) == 0) continue;
+    if (f3d_collide(&pa, &pb, margin + speculative(world, sa, sb, dt), m) == 0) {
+      continue;
+    }
     m->a = ha;
     m->b = hb;
     /* Warm start: a point made by the same features as one last step

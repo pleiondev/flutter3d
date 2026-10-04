@@ -219,6 +219,9 @@ enum {
   /* Placed, turned or reshaped by the caller since the last step: whatever
    * it slept against has to look again. */
   F3D_FLAG_MOVED = 1u << 3,
+  /* Swept for its time of impact after the solve: a bullet does not pass
+   * through a wall however thin, at any speed. */
+  F3D_FLAG_BULLET = 1u << 4,
 };
 
 /* ----------------------------------------------------------------- tree */
@@ -430,6 +433,8 @@ typedef struct F3dWorldState {
   uint32_t events_dropped;
   /* How near counts as a contact. */
   f3d_real contact_margin;
+  /* 1 while contacts reach as far as a body moves in a step. */
+  uint32_t speculative;
   /* Manifolds the last step found, in order of their pair. */
   uint32_t manifold_count;
   /* How many substeps a step is solved in. */
@@ -519,7 +524,16 @@ F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *slot, f3d_real margin);
 /* Brings every body's leaf up to date: made for a body that has a shape,
  * moved for one that left its fat box, taken out for one that is gone or
  * has none. */
-void f3d_update_proxies(F3dWorld *world);
+void f3d_update_proxies(F3dWorld *world, f3d_real dt);
+
+/* A body's box grown by [margin], and for an awake body with speculative
+ * contacts on, joined to where it will be after [dt] at its velocity: what
+ * it can touch this step. */
+F3dBox f3d_swept_box(const F3dWorld *world, const F3dSlot *slot,
+                     f3d_real margin, f3d_real dt);
+
+/* How far a body reaches from its centre: the half diagonal of its box. */
+f3d_real f3d_reach_of(const F3dWorld *world, const F3dSlot *slot);
 
 /* A shape's placement, from its slot. */
 F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *slot);
@@ -576,6 +590,7 @@ void f3d_unjoin(F3dWorld *world, uint32_t slot);
  * hard it is to move — nothing, for a body the solver may not move. */
 typedef struct F3dSolverBody {
   F3dVec3 start;
+  F3dQuat turn;
   f3d_real inverse_mass;
   F3dSym3 inverse_inertia;
 } F3dSolverBody;
@@ -590,7 +605,11 @@ void f3d_solve_joints(F3dWorld *world, const F3dSolverBody *bodies,
 
 /* The step's stages: contacts where the bodies stand, the solver's
  * substeps, heat. */
-void f3d_step_collide(F3dWorld *world);
+void f3d_step_collide(F3dWorld *world, f3d_real dt);
+
+/* Hard CCD, after the solve: each bullet swept from where the step began to
+ * where it ended, and put back at its first time of impact. */
+void f3d_step_continuous(F3dWorld *world, const F3dSolverBody *bodies);
 void f3d_step_solve(F3dWorld *world, f3d_real dt);
 void f3d_step_heat(F3dWorld *world, f3d_real dt);
 

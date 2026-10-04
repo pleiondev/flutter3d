@@ -28,6 +28,7 @@ F3dWorld *f3d_world_create(void) {
   world->s.sleep_time = F3D_R(0.5);
   world->s.contact_margin = F3D_R(0.02);
   world->s.substeps = 4u;
+  world->s.speculative = 1u;
   world->tree.root = -1;
   world->tree.free_list = -1;
   return world;
@@ -716,7 +717,7 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
 
 void f3d_world_step(F3dWorld *world, f3d_real dt) {
   if (!(f3d_finite(dt) && dt > F3D_R(0.0))) return;
-  f3d_step_collide(world);
+  f3d_step_collide(world, dt);
   f3d_step_solve(world, dt);
   f3d_step_heat(world, dt);
 }

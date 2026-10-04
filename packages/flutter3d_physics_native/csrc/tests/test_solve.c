@@ -194,6 +194,29 @@ static void test_rolling(void) {
   f3d_world_destroy(w);
 }
 
+static void test_fast_roll_stays_up(void) {
+  /* A ball rolling at ten metres a second turns a radian and a half a
+   * step. It stays on the floor within the slop: the contact follows the
+   * point it touches at, not a point of the ball carried round, which
+   * read a gap under a resting ball and let it sink two centimetres. */
+  F3dBody floor;
+  F3dWorld *w = with_floor(identity, &floor);
+  f3d_world_set_sleep(w, 0, 0);
+  const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(0.1), 0, 1);
+  f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, F3D_R(0.1), 0, 0);
+  run(w, 0.5);
+  f3d_body_set_velocity(w, b, 10, 0, 0);
+  double lowest = 1;
+  for (int i = 0; i < 60; i++) {
+    f3d_world_step(w, F3D_R(1.0 / 60.0));
+    f3d_real p[3];
+    f3d_body_get_position(w, b, p);
+    if ((double)p[1] < lowest) lowest = p[1];
+  }
+  CHECK(lowest > 0.1 - 0.006);
+  f3d_world_destroy(w);
+}
+
 static void test_collision_keeps_momentum(void) {
   /* Two balls of a kilogram head on, no gravity. Elastic, they trade
    * velocities; inelastic, they go on together; either way the momentum is
@@ -293,6 +316,7 @@ int main(void) {
   test_bounce();
   test_slope();
   test_rolling();
+  test_fast_roll_stays_up();
   test_collision_keeps_momentum();
   test_tips_over();
   test_pushed_out_gently();

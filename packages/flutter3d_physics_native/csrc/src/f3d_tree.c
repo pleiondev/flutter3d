@@ -389,7 +389,7 @@ static int reserve_proxies(F3dWorld *world) {
   return 1;
 }
 
-void f3d_update_proxies(F3dWorld *world) {
+void f3d_update_proxies(F3dWorld *world, f3d_real dt) {
   if (!reserve_proxies(world)) return;
   F3dTree *tree = &world->tree;
   if (tree->capacity == 0 && tree->root == 0 && tree->free_list == 0) {
@@ -410,7 +410,7 @@ void f3d_update_proxies(F3dWorld *world) {
       }
       continue;
     }
-    const F3dBox tight = f3d_box_of(world, s, half);
+    const F3dBox tight = f3d_swept_box(world, s, half, dt);
     if (*leaf != -1) {
       /* A slot taken by a new body keeps its old leaf only if the box still
        * fits: the leaf holds no handle, so it cannot go stale otherwise. */
@@ -453,10 +453,31 @@ static int found_one(void *context, int32_t leaf) {
   return 1;
 }
 
+F3dBox f3d_swept_box(const F3dWorld *world, const F3dSlot *s, f3d_real margin,
+                     f3d_real dt) {
+  F3dBox b = f3d_box_of(world, s, margin);
+  if (!world->s.speculative || s->type != F3D_BODY_DYNAMIC ||
+      (s->flags & F3D_FLAG_ASLEEP)) {
+    return b;
+  }
+  const F3dVec3 move = f3d_scale(s->velocity, dt);
+  b.lo = f3d_v3(f3d_min(b.lo.x, b.lo.x + move.x), f3d_min(b.lo.y, b.lo.y + move.y),
+                f3d_min(b.lo.z, b.lo.z + move.z));
+  b.hi = f3d_v3(f3d_max(b.hi.x, b.hi.x + move.x), f3d_max(b.hi.y, b.hi.y + move.y),
+                f3d_max(b.hi.z, b.hi.z + move.z));
+  return b;
+}
+
+f3d_real f3d_reach_of(const F3dWorld *world, const F3dSlot *s) {
+  const F3dBox b = f3d_box_of(world, s, F3D_R(0.0));
+  const F3dVec3 half = f3d_scale(f3d_sub(b.hi, b.lo), F3D_R(0.5));
+  return f3d_sqrt(f3d_dot(half, half));
+}
+
 uint32_t f3d_world_query_box(F3dWorld *world, f3d_real lx, f3d_real ly,
                              f3d_real lz, f3d_real hx, f3d_real hy,
                              f3d_real hz, F3dBody *out, uint32_t capacity) {
-  f3d_update_proxies(world);
+  f3d_update_proxies(world, F3D_R(0.0));
   Found f;
   f.world = world;
   f.box.lo = f3d_v3(lx, ly, lz);

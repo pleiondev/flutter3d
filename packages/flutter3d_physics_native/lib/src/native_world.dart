@@ -811,6 +811,12 @@ final class NativeWorld implements Finalizable {
     }
   }
 
+  /// Soft continuous collision, on for a new world: a contact reaches as
+  /// far as its two bodies can close in a step, so a body stops at a wall
+  /// it would cross in one.
+  set speculative(bool enabled) =>
+      c.f3d_world_set_speculative(_live, enabled ? 1 : 0);
+
   /// How near two shapes must come to make a contact, m; 0.02 for a new
   /// world. A contact inside it but not touching has a negative depth.
   set contactMargin(double margin) {
@@ -1170,6 +1176,12 @@ final class NativeWorld implements Finalizable {
     c.f3d_body_set_collision_filter(_live, body.raw, layer, mask),
     body,
   );
+
+  /// Hard continuous collision for [body]: swept after the solve from where
+  /// the step began to where it ended, and put back at its first impact.
+  /// For what is small and fast.
+  void setBullet(NativeBody body, {bool bullet = true}) =>
+      _check(c.f3d_body_set_bullet(_live, body.raw, bullet ? 1 : 0), body);
 
   /// Coulomb's coefficient, nought up; 0.6 for a new body. A pair slides on
   /// the geometric mean of its two.

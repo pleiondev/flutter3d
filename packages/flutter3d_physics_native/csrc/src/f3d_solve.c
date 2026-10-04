@@ -55,8 +55,6 @@ int f3d_body_set_restitution(F3dWorld *world, F3dBody body,
 typedef struct SolverPoint {
   /* From each centre to the point at the step's start, in the world. */
   F3dVec3 ra, rb;
-  /* The same in each body's own frame, to follow the bodies as they turn. */
-  F3dVec3 local_a, local_b;
   /* Separation at the step's start: minus the depth. */
   f3d_real base;
   f3d_real normal_mass;
@@ -76,6 +74,17 @@ typedef struct SolverContact {
 } SolverContact;
 
 typedef F3dSolverBody SolverBody;
+
+/* A body's turn since the step began, as a small rotation vector: twice the
+ * vector part of q · q₀⁻¹. */
+static F3dVec3 turned_since(F3dQuat q, F3dQuat q0) {
+  const f3d_real x = q.w * -q0.x + q.x * q0.w + q.y * -q0.z - q.z * -q0.y;
+  const f3d_real y = q.w * -q0.y - q.x * -q0.z + q.y * q0.w + q.z * -q0.x;
+  const f3d_real z = q.w * -q0.z + q.x * -q0.y - q.y * -q0.x + q.z * q0.w;
+  const f3d_real w = q.w * q0.w + q.x * q0.x + q.y * q0.y + q.z * q0.z;
+  const f3d_real k = w < F3D_R(0.0) ? F3D_R(-2.0) : F3D_R(2.0);
+  return f3d_v3(x * k, y * k, z * k);
+}
 
 static int moves(const F3dSlot *s) {
   return s->live && s->type == F3D_BODY_DYNAMIC &&
@@ -149,8 +158,8 @@ static void solve(F3dWorld *world, SolverContact *contacts, uint32_t count,
     F3dSlot *a = &world->slots[sc->a];
     F3dSlot *b = &world->slots[sc->b];
     const SolverBody *ba = &bodies[sc->a], *bb = &bodies[sc->b];
-    const F3dMat3 qa = f3d_mat_of(a->orientation);
-    const F3dMat3 qb = f3d_mat_of(b->orientation);
+    const F3dVec3 turned_a = turned_since(a->orientation, ba->turn);
+    const F3dVec3 turned_b = turned_since(b->orientation, bb->turn);
     const F3dVec3 n = sc->normal;
     const F3dVec3 da = f3d_sub(a->position, ba->start);
     const F3dVec3 db = f3d_sub(b->position, bb->start);
@@ -158,16 +167,15 @@ static void solve(F3dWorld *world, SolverContact *contacts, uint32_t count,
       SolverPoint *p = &sc->p[k];
       F3dContactPoint *mp = &m->points[k];
       /* Where the two points are now, against where they started. */
-      const F3dVec3 ra_now =
-          f3d_add(f3d_add(f3d_scale(qa.c[0], p->local_a.x),
-                          f3d_scale(qa.c[1], p->local_a.y)),
-                  f3d_scale(qa.c[2], p->local_a.z));
-      const F3dVec3 rb_now =
-          f3d_add(f3d_add(f3d_scale(qb.c[0], p->local_b.x),
-                          f3d_scale(qb.c[1], p->local_b.y)),
-                  f3d_scale(qb.c[2], p->local_b.z));
-      const F3dVec3 moved = f3d_sub(f3d_add(da, f3d_sub(ra_now, p->ra)),
-                                    f3d_add(db, f3d_sub(rb_now, p->rb)));
+      /* How the two points have moved since the step began: each body's
+       * shift, and its turn taken to first order, Δφ × r. Not the anchor
+       * turned whole with the body: a rolling ball touches the floor at a
+       * new point of itself each moment, and the old point carried round
+       * would read a gap where it rests — a ball rolling at ten metres a
+       * second sank two centimetres. */
+      const F3dVec3 moved =
+          f3d_sub(f3d_add(da, f3d_cross(turned_a, p->ra)),
+                  f3d_add(db, f3d_cross(turned_b, p->rb)));
       const f3d_real s = p->base + f3d_dot(moved, n);
       f3d_real bias = F3D_R(0.0), mass_scale = F3D_R(1.0);
       f3d_real impulse_scale = F3D_R(0.0);
@@ -280,6 +288,7 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     f3d_zero(sb, sizeof *sb);
     if (!s->live) continue;
     sb->start = s->position;
+    sb->turn = s->orientation;
     if (moves(s)) {
       sb->inverse_mass = s->inverse_mass;
       sb->inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
@@ -306,17 +315,11 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
      * restitution the larger, so either can make it bounce. */
     sc->friction = f3d_sqrt(sa->friction * sb->friction);
     sc->restitution = f3d_max(sa->restitution, sb->restitution);
-    const F3dMat3 qa = f3d_mat_of(sa->orientation);
-    const F3dMat3 qb = f3d_mat_of(sb->orientation);
     for (uint32_t k = 0; k < m->count; k++) {
       SolverPoint *p = &sc->p[k];
       const F3dContactPoint *mp = &m->points[k];
       p->ra = f3d_sub(mp->point, sa->position);
       p->rb = f3d_sub(mp->point, sb->position);
-      p->local_a = f3d_v3(f3d_dot(qa.c[0], p->ra), f3d_dot(qa.c[1], p->ra),
-                          f3d_dot(qa.c[2], p->ra));
-      p->local_b = f3d_v3(f3d_dot(qb.c[0], p->rb), f3d_dot(qb.c[1], p->rb),
-                          f3d_dot(qb.c[2], p->rb));
       p->base = -mp->depth;
       p->normal_mass =
           mass_along(&bodies[a], &bodies[b], p->ra, p->rb, m->normal);
@@ -348,6 +351,7 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     solve(world, contacts, count, bodies, softness, h, 0);
   }
   restitute(world, contacts, count, bodies);
+  f3d_step_continuous(world, bodies);
   for (uint32_t i = 0; i < used; i++) {
     F3dSlot *s = &world->slots[i];
     if (s->live) f3d_finish_motion(world, s, dt);
