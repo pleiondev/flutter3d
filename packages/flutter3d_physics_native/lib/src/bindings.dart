@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 11;
+const int abiVersion = 12;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -1004,4 +1004,63 @@ external int f3d_body_get_heat_release(
   Pointer<F3dWorld> world,
   int body,
   Pointer<Float> out,
+);
+
+// -------------------------------------------------------------- particles
+
+final class F3dParticles extends Opaque {}
+
+/// `F3D_PARTICLE_FLOATS`.
+const int particleFloats = 4;
+
+/// `F3dParticleForces`, field for field.
+final class F3dParticleForces extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Array(3)
+  external Array<Float> wind;
+  @Float()
+  external double drag;
+  @Float()
+  external double floor_y;
+  @Float()
+  external double restitution;
+  @Float()
+  external double friction;
+}
+
+@Native<Pointer<F3dParticles> Function(Uint32)>()
+external Pointer<F3dParticles> f3d_particles_create(int capacity);
+
+@Native<Void Function(Pointer<F3dParticles>)>()
+external void f3d_particles_destroy(Pointer<F3dParticles> particles);
+
+@Native<Uint32 Function(Pointer<F3dParticles>)>(isLeaf: true)
+external int f3d_particles_capacity(Pointer<F3dParticles> particles);
+
+@Native<Uint32 Function(Pointer<F3dParticles>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_particles_emit(
+  Pointer<F3dParticles> particles,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<
+  Void Function(Pointer<F3dParticles>, Pointer<F3dParticleForces>, Float)
+>(isLeaf: true)
+external void f3d_particles_step(
+  Pointer<F3dParticles> particles,
+  Pointer<F3dParticleForces> forces,
+  double dt,
+);
+
+@Native<Uint32 Function(Pointer<F3dParticles>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_particles_read(
+  Pointer<F3dParticles> particles,
+  Pointer<Float> out,
+  int capacity,
 );

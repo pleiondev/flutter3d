@@ -6,4 +6,5 @@
 /// fallback where it cannot run.
 library;
 
+export 'src/native_particles.dart';
 export 'src/native_world.dart';

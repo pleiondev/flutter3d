@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 11u
+#define F3D_ABI_VERSION 12u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -508,6 +508,56 @@ F3D_API uint32_t f3d_world_move_character(
     f3d_real dx, f3d_real dy, f3d_real dz, f3d_real max_slope_cos,
     f3d_real step_height, uint32_t mask, F3dBody ignore, F3dBody *ground_body,
     f3d_real *ground);
+
+/* -------------------------------------------------------------- particles */
+
+/* Particles: sparks, spray, dust, smoke — many points that fall, drift in
+ * the wind, bounce off a floor and die. Visual, not part of the game's
+ * state: the GPU steps the same system in f3d_gpu.h, and this one is its
+ * reference and the fallback where there is none. A fixed number of slots,
+ * filled round and round: a new particle takes the next slot, the oldest
+ * first; a slot whose life has run out is still and waits. */
+typedef struct F3dParticles F3dParticles;
+
+/* Reals one particle takes in f3d_particles_read: position xyz, then the
+ * life it has left, s, nought or less when dead. */
+#define F3D_PARTICLE_FLOATS 4u
+
+/* How particles move: gravity, the wind they drift towards at [drag] per
+ * second, and a floor at height [floor_y] they bounce off with
+ * [restitution] and lose [friction] of their sliding speed on. */
+typedef struct F3dParticleForces {
+  f3d_real gravity[3];
+  f3d_real wind[3];
+  f3d_real drag;
+  f3d_real floor_y;
+  f3d_real restitution;
+  f3d_real friction;
+} F3dParticleForces;
+
+/* [capacity] slots, all dead; null for none or no memory. */
+F3D_API F3dParticles *f3d_particles_create(uint32_t capacity);
+F3D_API void f3d_particles_destroy(F3dParticles *particles);
+F3D_API uint32_t f3d_particles_capacity(const F3dParticles *particles);
+
+/* [count] particles into the next slots: each its position xyz, velocity
+ * xyz, and life, seven reals. Returns the slot the first went into. */
+F3D_API uint32_t f3d_particles_emit(F3dParticles *particles,
+                                    const f3d_real *particles_data,
+                                    uint32_t count);
+
+/* Steps every living particle by [dt]: its velocity gains gravity, drifts
+ * towards the wind as v' = w + (v + g dt − w) / (1 + drag dt), its
+ * position gains the velocity, and below the floor it is put back on it,
+ * its fall turned back by the restitution and its slide slowed by the
+ * friction; its life loses dt. */
+F3D_API void f3d_particles_step(F3dParticles *particles,
+                                const F3dParticleForces *forces, f3d_real dt);
+
+/* Every slot, F3D_PARTICLE_FLOATS reals apiece, into [out]: up to
+ * [capacity]; returns how many. */
+F3D_API uint32_t f3d_particles_read(const F3dParticles *particles,
+                                    f3d_real *out, uint32_t capacity);
 
 /* -------------------------------------------------------------- snapshots */
 

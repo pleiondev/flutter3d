@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Particles, and the first GPU pass, phase 10.** `f3d_particles` in the
+  core steps sparks, spray and dust: gravity, a drift towards the wind,
+  a floor they bounce off and slide on, a life that runs out, slots filled
+  round and round with the oldest going first. The same step runs as a
+  WGSL compute shader in `f3d_gpu`, a second library linked with
+  wgpu-native; the build hook downloads a pinned release (v29.0.1.1) for
+  the target, checks its sha256, and keeps it cached. Two seconds of a
+  thousand bouncing particles on an M3 Pro come out within 3·10⁻⁵ m of the
+  CPU's. No release, no network or a bad checksum builds the core alone,
+  and `NativeGpu.open()` returns null; particles are visual, so the CPU
+  ones stand in. ABI 12.
+
 - **A body turns no more than an eighth of a turn a substep**, as Box2D v3
   holds it: π/4, 188 rad/s at four substeps of a sixtieth. A rod two metres
   by two centimetres struck at its end spins about its length — five

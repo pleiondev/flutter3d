@@ -16,13 +16,16 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - the air and its wind, uniform or from a grid, and the drag it puts on a body;
 - heat on every body, by convection, radiation and across its contacts, and fire: wood, paper and rubber catch, burn their fuel, lose mass and give off hot gas, and water puts them out;
 - an origin held in doubles that the world can move to where the play is;
-- events, and snapshots a world restores from to the byte.
+- events, and snapshots a world restores from to the byte;
+- particles that fall, drift in the wind, bounce off a floor and die, on the CPU and, through wgpu-native, on the GPU.
 
-The compute passes, a fast mode, multibody chains and the remaining platforms follow, each with its tests.
+A fast mode, multibody chains, more GPU passes and the remaining platforms follow, each with its tests.
 
 ## Building
 
 There is nothing to build by hand. The package's hook compiles `csrc/` with the C compiler the target already uses: Xcode's clang on Apple platforms, the NDK's on Android, MSVC or clang on Windows, the system's on Linux. A game that depends on this package needs no other toolchain.
+
+The GPU passes are a second library, `f3d_gpu`, built from `csrc/gpu/` and linked with wgpu-native. The hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `hook/wgpu_native.dart`, and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then returns null and particles run on the CPU.
 
 The WebAssembly module is built separately, because hooks build for native targets only:
 
@@ -51,4 +54,5 @@ The suite does four things:
 - drives the world through `dart:ffi` and compares a free fall, a box spun off its axes and an impulse off the centre with `flutter3d_physics`. Those comparisons use a tolerance, because the reference works in doubles;
 - burns, wets and blows on bodies through the binding, and holds unturned contacts against `flutter3d_physics`;
 - drops a crate on a floor and holds where it comes to rest against `flutter3d_physics`;
+- steps a thousand particles on the GPU and on the CPU and compares them. A GPU rounds its own way, so this is a tolerance too. The test is skipped where there is no adapter;
 - builds the WebAssembly module and runs it in node, so the byte-for-byte comparison above actually happens. This test is skipped where node, clang or a wasm linker is missing.

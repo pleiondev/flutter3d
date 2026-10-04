@@ -8,10 +8,16 @@
 // every platform. The WebAssembly module is not built here — hooks build
 // for the native targets — but by `tool/build_wasm.dart`, from the same
 // sources with the same flags.
+//
+// Then the GPU passes, `csrc/gpu/`, as a library of their own, linked with
+// wgpu-native, which `wgpu_native.dart` fetches for the target; without it,
+// the core alone.
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
+
+import 'wgpu_native.dart';
 
 /// The core's sources, as `tool/build_wasm.dart` and the C tests list them.
 const List<String> coreSources = <String>[
@@ -29,6 +35,7 @@ const List<String> coreSources = <String>[
   'csrc/src/f3d_joint.c',
   'csrc/src/f3d_ccd.c',
   'csrc/src/f3d_query.c',
+  'csrc/src/f3d_particles.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 
@@ -46,12 +53,28 @@ void main(List<String> args) async {
           // MSVC contracts nothing without /fp:fast; /fp:precise says so.
           ? const <String>['/fp:precise']
           : const <String>['-ffp-contract=off', '-fno-fast-math'],
-    ).run(
-      input: input,
-      output: output,
-      // The builder's own messages, which a hook can only print.
-      // ignore: avoid_print
-      logger: Logger('')..onRecord.listen((record) => print(record.message)),
-    );
+    ).run(input: input, output: output, logger: logger);
+    final code = input.config.code;
+    final target = wgpuNativeTarget(code);
+    if (target == null) {
+      logger.info('no wgpu-native for ${code.targetOS}: no GPU passes');
+      return;
+    }
+    final wgpu = await fetchWgpuNative(target, input.outputDirectoryShared, logger.warning);
+    if (wgpu == null) return;
+    await CBuilder.library(
+      name: 'f3d_gpu',
+      assetName: 'src/gpu_bindings.dart',
+      sources: const <String>['csrc/gpu/f3d_gpu.c'],
+      includes: <String>['csrc/gpu', '${wgpu.path}/include'],
+      std: 'c11',
+      libraries: const <String>['wgpu_native'],
+      libraryDirectories: <String>['${wgpu.path}/lib'],
+      flags: wgpuNativeSystemLibraries(code.targetOS),
+    ).run(input: input, output: output, logger: logger);
   });
 }
+
+/// The builders' own messages, which a hook can only print.
+// ignore: avoid_print
+final Logger logger = Logger('')..onRecord.listen((record) => print(record.message));
