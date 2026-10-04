@@ -1,5 +1,19 @@
 ## Unreleased
 
+- **A world steps on threads, to the same bits — phase 11.**
+  `f3d_world_set_threads` (Dart: `NativeWorld.threads`) gives a world a
+  pool of up to 64 threads, POSIX or Windows', the caller one of them; the
+  WebAssembly build has none and steps on the caller. The tree's queries
+  and the narrow phase are shared out: each worker gathers its pairs in a
+  lane of its own and the lanes are sorted together after, and each
+  pair's manifold is made in a slot of its own and the slots closed up in
+  key order, so a world of meshes, hulls, boxes, balls, capsules,
+  cylinders and a hinged chain snapshots to the same bytes, every step,
+  on one thread, two, three or eight. On four thousand bodies in a heap
+  the collision stage fell from 13.3 ms to 3.8 ms on six threads; the
+  solver, 8 ms, is still on one. The joined pairs' table is now built
+  before the queries, not lazily inside one. ABI 16.
+
 - **Water, phase 10.** `f3d_fluid` steps water as particles,
   position-based (PBF): each held near the density a lattice of its
   spacing has, a kernel twice the spacing wide, in a tank; only ever

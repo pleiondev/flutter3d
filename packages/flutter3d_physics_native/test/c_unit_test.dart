@@ -47,6 +47,8 @@ void main() {
           '-fno-sanitize-recover=all',
           '-g',
           if (precision == 'f64') '-DF3D_REAL_DOUBLE',
+          // The pool's threads: in libc everywhere but older glibc.
+          if (Platform.isLinux) '-pthread',
           '-Icsrc/include',
           '-Icsrc/src',
           ...coreSources,

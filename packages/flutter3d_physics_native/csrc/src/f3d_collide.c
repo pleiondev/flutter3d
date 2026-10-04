@@ -271,36 +271,33 @@ static void islands(F3dWorld *world, uint32_t *parent) {
   }
 }
 
-/* What a query of the tree gathers: the pairs, in the world's scratch past
- * the islands' arrays, grown as they come. */
+/* What one worker's queries of the tree gather: the pairs, in its own lane,
+ * grown as they come. The lanes are put together and sorted after, so how
+ * the bodies were shared out changes nothing. */
 typedef struct Gather {
   F3dWorld *world;
-  size_t fixed;
+  F3dLane *lane;
   uint32_t self;
   F3dBox box;
   f3d_real dt;
-  uint32_t count, capacity;
-  int failed;
 } Gather;
 
-static Keyed *gathered(const Gather *g) {
-  return (Keyed *)((uint8_t *)g->world->scratch + g->fixed);
-}
-
 static int add_pair(Gather *g, uint32_t a, uint32_t b) {
-  if (g->count == g->capacity) {
-    const uint32_t grown = g->capacity * 2u;
-    if (f3d_scratch(g->world, g->fixed + (size_t)grown * sizeof(Keyed) * 2u) ==
-        NULL) {
-      g->failed = 1;
+  F3dLane *lane = g->lane;
+  if ((size_t)(lane->count + 1u) * sizeof(Keyed) > lane->capacity) {
+    const size_t grown = lane->capacity == 0 ? 64u * sizeof(Keyed) : lane->capacity * 2u;
+    void *items = f3d_realloc(lane->items, grown);
+    if (items == NULL) {
+      lane->failed = 1;
       return 0;
     }
-    /* The spare half moves up with the capacity; nothing is in it yet. */
-    g->capacity = grown;
+    lane->items = items;
+    lane->capacity = grown;
   }
-  gathered(g)[g->count].key = a < b ? pair_key(a, b) : pair_key(b, a);
-  gathered(g)[g->count].value = 0;
-  g->count++;
+  Keyed *k = &((Keyed *)lane->items)[lane->count++];
+  k->key = a < b ? pair_key(a, b) : pair_key(b, a);
+  k->value = 0;
+  k->reserved = 0;
   return 1;
 }
 
@@ -343,6 +340,39 @@ static f3d_real speculative(const F3dWorld *world, const F3dSlot *a,
   return f3d_min(reach, F3D_R(10.0));
 }
 
+/* A worker's share of the awake bodies, each asking the tree what is near
+ * it. */
+typedef struct QueryPass {
+  F3dWorld *world;
+  f3d_real margin, dt;
+} QueryPass;
+
+static void query_share(void *context, uint32_t worker, uint32_t begin, uint32_t end) {
+  const QueryPass *q = (const QueryPass *)context;
+  Gather g;
+  g.world = q->world;
+  g.lane = &q->world->lanes[worker];
+  g.dt = q->dt;
+  for (uint32_t i = begin; i < end && !g.lane->failed; i++) {
+    const F3dSlot *s = &q->world->slots[i];
+    if (!active(s) || q->world->proxies[i] == -1) continue;
+    g.self = i;
+    g.box = f3d_swept_box(q->world, s, F3D_R(0.5) * q->margin, q->dt);
+    f3d_tree_query(&q->world->tree, g.box, near_leaf, &g);
+  }
+}
+
+/* A worker's share of the narrow phase: pair i's manifold made in the next
+ * array's slot i, and whether there is one in made[i]. */
+typedef struct NarrowPass {
+  F3dWorld *world;
+  const Keyed *pairs;
+  uint8_t *made;
+  f3d_real margin, dt;
+} NarrowPass;
+
+static void narrow_share(void *context, uint32_t worker, uint32_t begin, uint32_t end);
+
 int f3d_world_set_speculative(F3dWorld *world, int enabled) {
   world->s.speculative = enabled ? 1u : 0u;
   return 1;
@@ -377,88 +407,77 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
   }
   f3d_update_proxies(world, dt);
   f3d_build_mesh_trees(world);
-  /* The scratch: the islands' two arrays, then the pairs and their spare,
-   * which grow as the queries find them. */
-  const size_t fixed =
-      ((size_t)used * sizeof(uint32_t) * 2u + 15u) & ~(size_t)15u;
-  if (f3d_scratch(world, fixed + 64u * sizeof(Keyed) * 2u) == NULL) return;
-  Gather g;
-  g.world = world;
-  g.fixed = fixed;
-  g.count = 0;
-  g.capacity = 64u;
-  g.failed = 0;
-  g.dt = dt;
-  /* Each awake body asks the tree what is near it. Two bodies neither of
-   * which can move are not asked about: they keep last step's contact. */
-  for (uint32_t i = 0; i < used && !g.failed; i++) {
-    const F3dSlot *s = &world->slots[i];
-    if (!active(s) || world->proxies[i] == -1) continue;
-    g.self = i;
-    g.box = f3d_swept_box(world, s, F3D_R(0.5) * margin, dt);
-    f3d_tree_query(&world->tree, g.box, near_leaf, &g);
+  /* Each awake body asks the tree what is near it, the bodies shared out
+   * among the workers. Two bodies neither of which can move are not asked
+   * about: they keep last step's contact. */
+  f3d_joined_ready(world);
+  const uint32_t workers = f3d_pool_size(world->pool);
+  for (uint32_t w = 0; w < workers; w++) {
+    world->lanes[w].count = 0;
+    world->lanes[w].failed = 0;
   }
-  for (uint32_t i = 0; i < world->s.manifold_count && !g.failed; i++) {
+  QueryPass query;
+  query.world = world;
+  query.margin = margin;
+  query.dt = dt;
+  f3d_pool_run(world->pool, used, query_share, &query);
+  /* And the pairs that keep their contact, on the caller's lane. */
+  Gather kept;
+  kept.world = world;
+  kept.lane = &world->lanes[0];
+  for (uint32_t i = 0; i < world->s.manifold_count && !kept.lane->failed; i++) {
     const F3dManifold *m = &world->manifolds[i];
     const F3dSlot *sa = f3d_slot_of(world, m->a);
     const F3dSlot *sb = f3d_slot_of(world, m->b);
     if (sa == NULL || sb == NULL || active(sa) || active(sb)) continue;
     if (sa->shape == F3D_SHAPE_POINT || sb->shape == F3D_SHAPE_POINT) continue;
-    add_pair(&g, (uint32_t)(m->a & 0xffffffffu), (uint32_t)(m->b & 0xffffffffu));
+    add_pair(&kept, (uint32_t)(m->a & 0xffffffffu), (uint32_t)(m->b & 0xffffffffu));
   }
   for (uint32_t i = 0; i < used; i++) {
     world->slots[i].flags &= (uint8_t)~F3D_FLAG_MOVED;
   }
-  if (g.failed) return;
-  Keyed *pairs = gathered(&g);
-  sort_keyed(pairs, pairs + g.capacity, g.count);
+  /* The scratch: the islands' two arrays, then the pairs and their spare,
+   * then a byte a pair for the narrow phase. */
+  uint32_t total = 0;
+  for (uint32_t w = 0; w < workers; w++) {
+    if (world->lanes[w].failed) return;
+    total += world->lanes[w].count;
+  }
+  const size_t fixed =
+      ((size_t)used * sizeof(uint32_t) * 2u + 15u) & ~(size_t)15u;
+  if (f3d_scratch(world, fixed + (size_t)total * (sizeof(Keyed) * 2u + 1u) + 16u) == NULL) {
+    return;
+  }
+  Keyed *pairs = (Keyed *)((uint8_t *)world->scratch + fixed);
+  uint32_t filled = 0;
+  for (uint32_t w = 0; w < workers; w++) {
+    f3d_copy(pairs + filled, world->lanes[w].items, (size_t)world->lanes[w].count * sizeof(Keyed));
+    filled += world->lanes[w].count;
+  }
+  sort_keyed(pairs, pairs + total, total);
   uint32_t pair_count = 0;
-  for (uint32_t i = 0; i < g.count; i++) {
+  for (uint32_t i = 0; i < total; i++) {
     if (pair_count == 0 || pairs[pair_count - 1].key != pairs[i].key) {
       pairs[pair_count++] = pairs[i];
     }
   }
   if (!reserve_next(world, pair_count)) return;
-  /* The narrow phase, pair by pair in key order. Two bodies that are both
-   * asleep or fixed keep last step's manifold: nothing between them has
-   * moved, and dropping it would end a contact nobody broke. */
+  /* The narrow phase, pair by pair, shared out among the workers, each
+   * pair's manifold made in its own slot; then the slots with one are
+   * closed up in key order. */
+  uint8_t *made = (uint8_t *)(pairs + 2u * (size_t)total);
+  NarrowPass narrow;
+  narrow.world = world;
+  narrow.pairs = pairs;
+  narrow.made = made;
+  narrow.margin = margin;
+  narrow.dt = dt;
+  f3d_pool_run(world->pool, pair_count, narrow_share, &narrow);
   uint32_t found = 0;
   for (uint32_t i = 0; i < pair_count; i++) {
-    const uint32_t a = (uint32_t)(pairs[i].key >> 32);
-    const uint32_t b = (uint32_t)(pairs[i].key & 0xffffffffu);
-    const F3dSlot *sa = &world->slots[a];
-    const F3dSlot *sb = &world->slots[b];
-    const F3dBody ha = f3d_handle_of(world, sa), hb = f3d_handle_of(world, sb);
-    F3dManifold *m = &world->next_manifolds[found];
-    if (!active(sa) && !active(sb)) {
-      const F3dManifold *kept = previous(world, ha, hb);
-      if (kept != NULL) {
-        /* By bytes: the padding is part of what a snapshot compares. */
-        f3d_copy(m, kept, sizeof *m);
-        found++;
-      }
-      continue;
-    }
-    f3d_zero(m, sizeof *m);
-    const F3dPlaced pa = f3d_placed_of(world, sa), pb = f3d_placed_of(world, sb);
-    if (f3d_collide(&pa, &pb, margin + speculative(world, sa, sb, dt), m) == 0) {
-      continue;
-    }
-    m->a = ha;
-    m->b = hb;
-    /* Warm start: a point made by the same features as one last step
-     * starts from what that one pushed with. */
-    const F3dManifold *old = previous(world, ha, hb);
-    if (old != NULL) {
-      for (uint32_t k = 0; k < m->count; k++) {
-        for (uint32_t o = 0; o < old->count; o++) {
-          if (old->points[o].id != m->points[k].id) continue;
-          m->points[k].normal_impulse = old->points[o].normal_impulse;
-          m->points[k].tangent_impulse[0] = old->points[o].tangent_impulse[0];
-          m->points[k].tangent_impulse[1] = old->points[o].tangent_impulse[1];
-          break;
-        }
-      }
+    if (!made[i]) continue;
+    if (found != i) {
+      f3d_copy(&world->next_manifolds[found], &world->next_manifolds[i], sizeof(F3dManifold));
     }
     found++;
   }
@@ -502,4 +521,53 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
   /* A body woken by a contact is woken here, after the contacts are set:
    * an awake, moving body touching a sleeping one wakes its whole island. */
   islands(world, (uint32_t *)world->scratch);
+}
+
+/* Two bodies that are both asleep or fixed keep last step's manifold:
+ * nothing between them has moved, and dropping it would end a contact
+ * nobody broke. */
+static void narrow_share(void *context, uint32_t worker, uint32_t begin, uint32_t end) {
+  (void)worker;
+  const NarrowPass *n = (const NarrowPass *)context;
+  F3dWorld *world = n->world;
+  for (uint32_t i = begin; i < end; i++) {
+    n->made[i] = 0;
+    const uint32_t a = (uint32_t)(n->pairs[i].key >> 32);
+    const uint32_t b = (uint32_t)(n->pairs[i].key & 0xffffffffu);
+    const F3dSlot *sa = &world->slots[a];
+    const F3dSlot *sb = &world->slots[b];
+    const F3dBody ha = f3d_handle_of(world, sa), hb = f3d_handle_of(world, sb);
+    F3dManifold *m = &world->next_manifolds[i];
+    if (!active(sa) && !active(sb)) {
+      const F3dManifold *kept = previous(world, ha, hb);
+      if (kept != NULL) {
+        /* By bytes: the padding is part of what a snapshot compares. */
+        f3d_copy(m, kept, sizeof *m);
+        n->made[i] = 1;
+      }
+      continue;
+    }
+    f3d_zero(m, sizeof *m);
+    const F3dPlaced pa = f3d_placed_of(world, sa), pb = f3d_placed_of(world, sb);
+    if (f3d_collide(&pa, &pb, n->margin + speculative(world, sa, sb, n->dt), m) == 0) {
+      continue;
+    }
+    m->a = ha;
+    m->b = hb;
+    /* Warm start: a point made by the same features as one last step
+     * starts from what that one pushed with. */
+    const F3dManifold *old = previous(world, ha, hb);
+    if (old != NULL) {
+      for (uint32_t k = 0; k < m->count; k++) {
+        for (uint32_t o = 0; o < old->count; o++) {
+          if (old->points[o].id != m->points[k].id) continue;
+          m->points[k].normal_impulse = old->points[o].normal_impulse;
+          m->points[k].tangent_impulse[0] = old->points[o].tangent_impulse[0];
+          m->points[k].tangent_impulse[1] = old->points[o].tangent_impulse[1];
+          break;
+        }
+      }
+    }
+    n->made[i] = 1;
+  }
 }

@@ -351,29 +351,33 @@ static void sort_keys(uint64_t *a, uint64_t *spare, uint32_t n) {
   }
 }
 
+void f3d_joined_ready(F3dWorld *world) {
+  if (world->s.joint_live == 0 || !world->joined_stale) return;
+  f3d_free(world->joined);
+  world->joined = NULL;
+  world->joined_count = 0;
+  const uint32_t n = world->s.joint_used;
+  uint64_t *keys = (uint64_t *)f3d_alloc((size_t)n * 2u * sizeof(uint64_t) + 8u);
+  if (keys == NULL) return;
+  uint32_t count = 0;
+  for (uint32_t i = 0; i < n; i++) {
+    const F3dJointSlot *j = &world->joints[i];
+    if (!j->live || (j->flags & F3D_JOINT_COLLIDE)) continue;
+    const uint32_t sa = (uint32_t)(j->a & 0xffffffffu);
+    const uint32_t sb = (uint32_t)(j->b & 0xffffffffu);
+    keys[count++] = sa < sb ? ((uint64_t)sa << 32) | sb
+                            : ((uint64_t)sb << 32) | sa;
+  }
+  sort_keys(keys, keys + n, count);
+  world->joined = keys;
+  world->joined_count = count;
+  world->joined_stale = 0;
+}
+
 int f3d_joined(F3dWorld *world, uint32_t a, uint32_t b) {
   if (world->s.joint_live == 0) return 0;
-  if (world->joined_stale) {
-    f3d_free(world->joined);
-    world->joined = NULL;
-    world->joined_count = 0;
-    const uint32_t n = world->s.joint_used;
-    uint64_t *keys = (uint64_t *)f3d_alloc((size_t)n * 2u * sizeof(uint64_t) + 8u);
-    if (keys == NULL) return 0;
-    uint32_t count = 0;
-    for (uint32_t i = 0; i < n; i++) {
-      const F3dJointSlot *j = &world->joints[i];
-      if (!j->live || (j->flags & F3D_JOINT_COLLIDE)) continue;
-      const uint32_t sa = (uint32_t)(j->a & 0xffffffffu);
-      const uint32_t sb = (uint32_t)(j->b & 0xffffffffu);
-      keys[count++] = sa < sb ? ((uint64_t)sa << 32) | sb
-                              : ((uint64_t)sb << 32) | sa;
-    }
-    sort_keys(keys, keys + n, count);
-    world->joined = keys;
-    world->joined_count = count;
-    world->joined_stale = 0;
-  }
+  f3d_joined_ready(world);
+  if (world->joined_stale) return 0;
   const uint64_t key =
       a < b ? ((uint64_t)a << 32) | b : ((uint64_t)b << 32) | a;
   uint32_t lo = 0, hi = world->joined_count;

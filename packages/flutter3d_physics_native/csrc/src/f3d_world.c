@@ -56,8 +56,22 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->joined);
   f3d_free(world->bullet_at);
   f3d_free(world->bullet_turn);
+  f3d_pool_destroy(world->pool);
+  for (uint32_t i = 0; i < F3D_MAX_THREADS; i++) f3d_free(world->lanes[i].items);
   f3d_free(world);
 }
+
+int f3d_world_set_threads(F3dWorld *world, uint32_t threads) {
+  if (threads == 0 || threads > F3D_MAX_THREADS) return 0;
+  if (threads == f3d_pool_size(world->pool)) return 1;
+  F3dPool *pool = threads > 1u ? f3d_pool_create(threads) : NULL;
+  if (threads > 1u && pool == NULL) return 0;
+  f3d_pool_destroy(world->pool);
+  world->pool = pool;
+  return 1;
+}
+
+uint32_t f3d_world_threads(const F3dWorld *world) { return f3d_pool_size(world->pool); }
 
 void f3d_world_set_gravity(F3dWorld *world, f3d_real x, f3d_real y,
                            f3d_real z) {

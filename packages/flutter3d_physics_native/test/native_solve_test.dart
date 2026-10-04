@@ -216,4 +216,62 @@ void main() {
     }
     expect(world.positionOf(bullet).x, lessThan(0.0));
   });
+
+  test('a heap steps to the same bits on four threads as on one', () {
+    // The C tests hold every shape and every thread count to the byte; this
+    // holds the binding.
+    final other = NativeWorld()..setAir(temperature: 293.15, density: 1e-30);
+    addTearDown(other.dispose);
+    expect(other.threads, 1);
+    other.threads = 4;
+    expect(other.threads, 4);
+    final heaps = <(NativeWorld, List<NativeBody>)>[];
+    for (final w in <NativeWorld>[world, other]) {
+      if (w != world) {
+        final ground = w.addBody(
+          position: Vector3(0.0, -0.5, 0.0),
+          type: NativeBodyType.fixed,
+          mass: 0.0,
+        );
+        w.setShape(ground, NativeShape.box(Vector3(20.0, 0.5, 20.0)));
+      }
+      final bodies = <NativeBody>[
+        for (var i = 0; i < 60; i++)
+          w.addBody(
+            position: Vector3(
+              (i % 5) * 0.6 + (i % 3) * 0.02,
+              0.5 + (i ~/ 25) * 0.6,
+              ((i ~/ 5) % 5) * 0.6,
+            ),
+          ),
+      ];
+      for (var i = 0; i < bodies.length; i++) {
+        w.setShape(
+          bodies[i],
+          i.isEven
+              ? NativeShape.box(Vector3(0.25, 0.25, 0.25))
+              : const NativeShape.sphere(0.27),
+        );
+      }
+      heaps.add((w, bodies));
+    }
+    for (var step = 0; step < 120; step++) {
+      world.step(1.0 / 60.0);
+      other.step(1.0 / 60.0);
+    }
+    for (var i = 0; i < heaps[0].$2.length; i++) {
+      expect(
+        other.positionOf(heaps[1].$2[i]),
+        world.positionOf(heaps[0].$2[i]),
+      );
+      expect(
+        other.orientationOf(heaps[1].$2[i]),
+        world.orientationOf(heaps[0].$2[i]),
+      );
+    }
+    expect(() => other.threads = 0, throwsArgumentError);
+    expect(() => other.threads = 65, throwsArgumentError);
+    other.threads = 1;
+    expect(other.threads, 1);
+  });
 }

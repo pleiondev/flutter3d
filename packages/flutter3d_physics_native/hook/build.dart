@@ -39,6 +39,7 @@ const List<String> coreSources = <String>[
   'csrc/src/f3d_debris.c',
   'csrc/src/f3d_cloth.c',
   'csrc/src/f3d_fluid.c',
+  'csrc/src/f3d_pool.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 
@@ -55,7 +56,12 @@ void main(List<String> args) async {
       flags: msvc
           // MSVC contracts nothing without /fp:fast; /fp:precise says so.
           ? const <String>['/fp:precise']
-          : const <String>['-ffp-contract=off', '-fno-fast-math'],
+          : <String>[
+              '-ffp-contract=off',
+              '-fno-fast-math',
+              // The pool's threads: in libc everywhere but older glibc.
+              if (input.config.code.targetOS == OS.linux) '-pthread',
+            ],
     ).run(input: input, output: output, logger: logger);
     final code = input.config.code;
     final target = wgpuNativeTarget(code);

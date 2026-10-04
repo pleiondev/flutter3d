@@ -836,6 +836,24 @@ final class NativeWorld implements Finalizable {
     }
   }
 
+  /// How many threads a step runs on, the caller one of them; one for a
+  /// new world. The tree's queries and the narrow phase are shared out
+  /// among them, and the world steps to the same bits on any number.
+  int get threads => c.f3d_world_threads(_live);
+
+  /// Asks for [count] threads, one to sixty-four, from the next step on.
+  /// Throws for a count out of range, threads that would not start, or —
+  /// on the web — more than one.
+  set threads(int count) {
+    if (c.f3d_world_set_threads(_live, count) == 0) {
+      throw ArgumentError.value(
+        count,
+        'threads',
+        'not between 1 and 64, or the threads would not start',
+      );
+    }
+  }
+
   /// Soft continuous collision, on for a new world: a contact reaches as
   /// far as its two bodies can close in a step, so a body stops at a wall
   /// it would cross in one.

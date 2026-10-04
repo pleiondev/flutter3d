@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 15u
+#define F3D_ABI_VERSION 16u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -307,6 +307,14 @@ F3D_API uint32_t f3d_world_body_count(const F3dWorld *world);
  * torques and heat added through the bus are held over every substep and
  * spent by the step. */
 F3D_API void f3d_world_step(F3dWorld *world, f3d_real dt);
+
+/* Steps the world on [threads] threads, the caller one of them, from the
+ * next step on: the tree's queries and the narrow phase split among them.
+ * The world steps to the same bits on any number. 0 for none, more than
+ * 64, or threads that would not start, leaving it as it was; in the
+ * WebAssembly build, 0 for more than one. Not in a snapshot. */
+F3D_API int f3d_world_set_threads(F3dWorld *world, uint32_t threads);
+F3D_API uint32_t f3d_world_threads(const F3dWorld *world);
 
 /* Writes every body's transform, F3D_TRANSFORM_FLOATS reals apiece, into
  * [transforms], and its handle into [handles] when that is not null, in the

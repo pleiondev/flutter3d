@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 15;
+const int abiVersion = 16;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -279,6 +279,12 @@ external int f3d_world_set_substeps(Pointer<F3dWorld> world, int substeps);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Int32)>(isLeaf: true)
 external int f3d_world_set_speculative(Pointer<F3dWorld> world, int enabled);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint32)>()
+external int f3d_world_set_threads(Pointer<F3dWorld> world, int threads);
+
+@Native<Uint32 Function(Pointer<F3dWorld>)>(isLeaf: true)
+external int f3d_world_threads(Pointer<F3dWorld> world);
 
 // ---------------------------------------------------------------- queries
 

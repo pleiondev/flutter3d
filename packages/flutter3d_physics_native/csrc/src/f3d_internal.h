@@ -463,6 +463,39 @@ typedef struct F3dWorldState {
   f3d_real last_substep;
 } F3dWorldState;
 
+/* ------------------------------------------------------------------- pool */
+
+/* The most threads a world steps on. */
+#define F3D_MAX_THREADS 64u
+
+typedef struct F3dPool F3dPool;
+
+/* A pass's share of [begin, end), run by worker [worker]. */
+typedef void (*F3dTask)(void *context, uint32_t worker, uint32_t begin, uint32_t end);
+
+/* [threads] workers, the caller one of them: null for fewer than two, more
+ * than F3D_MAX_THREADS, no memory, threads that would not start, or the
+ * WebAssembly build. */
+F3dPool *f3d_pool_create(uint32_t threads);
+void f3d_pool_destroy(F3dPool *pool);
+
+/* How many workers [pool] has; one for none. */
+uint32_t f3d_pool_size(const F3dPool *pool);
+
+/* Runs [task] over [count] items, split evenly among the workers, and
+ * returns once every share is done; on the caller alone when [pool] is
+ * null. */
+void f3d_pool_run(F3dPool *pool, uint32_t count, F3dTask task, void *context);
+
+/* What one worker gathers in a pass, kept between steps so it need not
+ * grow again. */
+typedef struct F3dLane {
+  void *items;
+  size_t capacity;
+  uint32_t count;
+  int failed;
+} F3dLane;
+
 struct F3dWorld {
   F3dWorldState s;
   F3dSlot *slots;
@@ -498,6 +531,10 @@ struct F3dWorld {
   uint64_t *joined;
   uint32_t joined_count;
   int joined_stale;
+  /* The threads the world steps on, null for the caller alone, and what
+   * each gathers. Not in a snapshot: a restored world steps on one. */
+  F3dPool *pool;
+  F3dLane lanes[F3D_MAX_THREADS];
   /* The broadphase, and each slot's leaf in it (-1 for none), as long as
    * the arena. Neither is in a snapshot. */
   F3dTree tree;
@@ -594,6 +631,10 @@ f3d_real f3d_atan2(f3d_real y, f3d_real x);
 /* Whether a joint joins the slots [a] and [b] and keeps them from
  * colliding. */
 int f3d_joined(F3dWorld *world, uint32_t a, uint32_t b);
+
+/* Builds the joined pairs' table if it is out of date, so that f3d_joined
+ * only reads after this: what threads asking at once need. */
+void f3d_joined_ready(F3dWorld *world);
 
 /* Takes out every joint on the body in [slot]: called as it goes. */
 void f3d_unjoin(F3dWorld *world, uint32_t slot);
