@@ -36,7 +36,7 @@ The Dart side reaches the core the same way natively and in the browser: through
 dart run tool/gen_core.dart
 ```
 
-and `test/bindings_test.dart` fails until you do. In the browser there are no GPU passes: `NativeGpu.open()` returns null there, and the CPU systems run instead. Call `await loadPhysicsCore()` before making the first world; natively it does nothing. In the browser it fetches `web/f3d_physics.wasm`, which this package ships as an asset; after changing the core, rebuild it with `dart run tool/build_wasm.dart`, or `test/wasm_test.dart` fails.
+and `test/bindings_test.dart` fails until you do. In the browser there are no GPU passes: `NativeGpu.open()` returns null there, and the CPU systems run instead. Call `await loadPhysicsCore()` before making the first world; natively it does nothing. With `threads:` above one, on a page served cross-origin isolated (COOP and COEP headers), it loads `web/f3d_physics_threads.wasm` instead and starts that many Web Workers less one from `web/f3d_worker.js`; `physicsCoreThreads` then says how many threads a world can ask for. In the browser it fetches `web/f3d_physics.wasm`, which this package ships as an asset; after changing the core, rebuild it with `dart run tool/build_wasm.dart`, or `test/wasm_test.dart` fails.
 
 The WebAssembly module is built separately, because hooks build for native targets only:
 
@@ -75,5 +75,7 @@ The browser has its own test, run in Chrome with both web compilers:
 
 ```sh
 dart test -p chrome test/web_core_test.dart
-dart test -p chrome -c dart2wasm test/web_core_test.dart
+dart test -p chrome -c dart2wasm test/web_core_test.dartdart test -p chrome_sab test/web_threads_test.dart
 ```
+
+The last runs on Chrome asked for SharedArrayBuffer outright (`dart_test.yaml`), since the test runner's pages are not isolated.

@@ -3,4 +3,10 @@ library;
 
 export 'load_native.dart'
     if (dart.library.js_interop) 'module_web.dart'
-    show defaultPhysicsCoreUrl, loadPhysicsCore, physicsCoreLoaded;
+    show
+        defaultPhysicsCoreThreadsUrl,
+        defaultPhysicsCoreUrl,
+        defaultPhysicsWorkerUrl,
+        loadPhysicsCore,
+        physicsCoreLoaded,
+        physicsCoreThreads;

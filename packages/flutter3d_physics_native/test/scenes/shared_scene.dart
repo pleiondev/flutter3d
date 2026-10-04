@@ -17,9 +17,11 @@ import 'package:vector_math/vector_math.dart';
 const String sharedSceneHash = '0fd233dd';
 
 /// A floor, a heap of boxes, balls, capsules and a hull, a hinged pair,
-/// materials and wind, stepped two seconds; its snapshot.
-Uint8List sharedSceneSnapshot() {
+/// materials and wind, stepped two seconds on [threads]; its snapshot —
+/// the same on any number.
+Uint8List sharedSceneSnapshot({int threads = 1}) {
   final world = NativeWorld()..wind = Vector3(1.0, 0.0, 0.5);
+  if (threads > 1) world.threads = threads;
   try {
     final floor = world.addBody(
       position: Vector3(0.0, -0.5, 0.0),

@@ -110,16 +110,43 @@ const double _dt = 1.0 / 60.0;
 
 const String _runner = r'''
 const fs = require('fs');
+const { Worker, isMainThread, workerData } = require('worker_threads');
+if (!isMainThread) {
+  // A worker: an instance of the threads module on the main one's memory,
+  // with a stack of its own, waiting in the core for its share of a pass.
+  const { module, memory, index, top } = workerData;
+  const w = new WebAssembly.Instance(module, { env: { memory } });
+  w.exports.__stack_pointer.value = top;
+  w.exports.f3d_worker_main(index);
+  return;
+}
+(async () => {
 const [wasmPath, scenarioJson] = process.argv.slice(2);
-const { bodies, gravity, wind, grid, steps, dt } = JSON.parse(scenarioJson);
-const instance = new WebAssembly.Instance(
-  new WebAssembly.Module(fs.readFileSync(wasmPath)), {});
+const { bodies, gravity, wind, grid, steps, dt, threads } = JSON.parse(scenarioJson);
+const module = new WebAssembly.Module(fs.readFileSync(wasmPath));
+let memory = null;
+let instance;
+if (threads > 1) {
+  memory = new WebAssembly.Memory({ initial: 256, maximum: 32768, shared: true });
+  instance = new WebAssembly.Instance(module, { env: { memory } });
+  for (let i = 0; i < threads - 1; i++) {
+    const stack = instance.exports.f3d_buffer_alloc(1 << 20);
+    new Worker(__filename, { workerData: { module, memory, index: i, top: stack + (1 << 20) } });
+  }
+  while (instance.exports.f3d_wasm_workers_ready() < threads - 1) {
+    await new Promise((r) => setTimeout(r, 5));
+  }
+} else {
+  instance = new WebAssembly.Instance(module, {});
+}
 const f = instance.exports;
+const heap = () => (memory || f.memory).buffer;
 const world = f.f3d_world_create();
+if (threads > 1 && f.f3d_world_set_threads(world, threads) !== 1) throw new Error('no threads');
 f.f3d_world_set_gravity(world, gravity[0], gravity[1], gravity[2]);
 f.f3d_world_set_wind(world, wind[0], wind[1], wind[2]);
 const gridPtr = f.f3d_buffer_alloc(grid.length * 4);
-new Float32Array(f.memory.buffer, gridPtr, grid.length).set(grid);
+new Float32Array(heap(), gridPtr, grid.length).set(grid);
 f.f3d_world_set_wind_grid(world, -5, 0, -5, 5, 2, 1, 2, gridPtr);
 f.f3d_buffer_free(gridPtr);
 const material = f.f3d_buffer_alloc(8 * 4);
@@ -139,9 +166,9 @@ f.f3d_body_set_shape(world, floor, 2, 200, 1, 200);
 const meshVerts = [-20, 0, -20, 20, 0, -20, 20, 0, 20, -20, 0, 20, 0, 3, 0];
 const meshTris = [0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0];
 const vp = f.f3d_buffer_alloc(meshVerts.length * 4);
-new Float32Array(f.memory.buffer, vp, meshVerts.length).set(meshVerts);
+new Float32Array(heap(), vp, meshVerts.length).set(meshVerts);
 const tp = f.f3d_buffer_alloc(meshTris.length * 4);
-new Uint32Array(f.memory.buffer, tp, meshTris.length).set(meshTris);
+new Uint32Array(heap(), tp, meshTris.length).set(meshTris);
 const mesh = f.f3d_world_create_mesh(world, vp, 5, tp, 4);
 f.f3d_buffer_free(vp);
 f.f3d_buffer_free(tp);
@@ -156,10 +183,12 @@ for (let i = 0; i < steps; i++) f.f3d_world_step(world, dt);
 const size = f.f3d_world_snapshot_size(world);
 const ptr = f.f3d_buffer_alloc(size);
 f.f3d_world_snapshot_write(world, ptr, size);
-const bytes = new Uint8Array(f.memory.buffer, ptr, size);
+const bytes = new Uint8Array(heap(), ptr, size);
 console.log(Buffer.from(bytes).toString('base64'));
 f.f3d_buffer_free(ptr);
 f.f3d_world_destroy(world);
+process.exit(0);
+})();
 ''';
 
 bool _available(String executable, List<String> args) {
@@ -210,6 +239,15 @@ void main() {
     _sameBits('web/f3d_physics.wasm', scratch);
   }, skip: _available('node', <String>['--version']) ? false : 'no node');
 
+  test('the threads module steps to the same bits on four workers', () {
+    // Its workers are node's, each an instance of the module on the one
+    // shared memory; the world shares its passes among them, and lands on
+    // the native library's bytes as on one thread.
+    final scratch = Directory.systemTemp.createTempSync('f3d_wasm_test');
+    addTearDown(() => scratch.deleteSync(recursive: true));
+    _sameBits('web/f3d_physics_threads.wasm', scratch, threads: 4);
+  }, skip: _available('node', <String>['--version']) ? false : 'no node');
+
   test('the module imports nothing and exports the API and the shim', () {
     final scratch = Directory.systemTemp.createTempSync('f3d_wasm_test');
     addTearDown(() => scratch.deleteSync(recursive: true));
@@ -246,7 +284,7 @@ void main() {
 
 /// Steps the scenario in the module at [wasm], run in node, and in the
 /// native library, and holds the two snapshots to the same bytes.
-void _sameBits(String wasm, Directory scratch) {
+void _sameBits(String wasm, Directory scratch, {int threads = 1}) {
   final module = File(wasm).readAsBytesSync();
   expect(module, isNotEmpty);
 
@@ -261,6 +299,7 @@ void _sameBits(String wasm, Directory scratch) {
       'grid': _grid,
       'steps': _steps,
       'dt': _dt,
+      'threads': threads,
     }),
   ]);
   expect(ran.exitCode, 0, reason: '${ran.stderr}');

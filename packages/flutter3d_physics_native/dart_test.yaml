@@ -1,0 +1,9 @@
+# Chrome with SharedArrayBuffer, which a page has only when served
+# cross-origin isolated; the test runner's pages are not, so this asks
+# Chrome for it outright: what test/web_threads_test.dart runs on.
+define_platforms:
+  chrome_sab:
+    name: Chrome with SharedArrayBuffer
+    extends: chrome
+    settings:
+      arguments: --enable-features=SharedArrayBuffer

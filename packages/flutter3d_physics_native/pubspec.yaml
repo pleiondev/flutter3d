@@ -42,3 +42,5 @@ dev_dependencies:
 flutter:
   assets:
     - web/f3d_physics.wasm
+    - web/f3d_physics_threads.wasm
+    - web/f3d_worker.js

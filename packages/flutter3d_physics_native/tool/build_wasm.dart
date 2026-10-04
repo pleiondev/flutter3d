@@ -84,9 +84,28 @@ List<String>? findWasmLinker() {
   return null;
 }
 
-/// Builds the module into [out], from the package root [root]. Throws a
+/// What the threads build adds: atomics and bulk memory to compile, and a
+/// shared memory the host makes and hands every instance — the main one
+/// and each worker's — with the stack pointer exported for the host to
+/// give each worker a stack of its own.
+const List<String> wasmThreadFlags = <String>[
+  '-matomics',
+  '-mbulk-memory',
+  '-DF3D_WASM_THREADS',
+];
+
+const List<String> wasmThreadLinkFlags = <String>[
+  '--shared-memory',
+  '--import-memory',
+  '--initial-memory=16777216',
+  '--max-memory=2147483648',
+  '--export=__stack_pointer',
+];
+
+/// Builds the module into [out], from the package root [root]: with
+/// [threads], the threads build. Throws a
 /// [StateError] naming what is missing or what failed.
-void buildWasm({required String root, required String out}) {
+void buildWasm({required String root, required String out, bool threads = false}) {
   final linker = findWasmLinker();
   if (linker == null) {
     throw StateError(
@@ -102,6 +121,7 @@ void buildWasm({required String root, required String out}) {
           '${scratch.path}/${source.split('/').last.replaceAll('.c', '.o')}';
       final compiled = Process.runSync('clang', <String>[
         ...wasmFlags,
+        if (threads) ...wasmThreadFlags,
         '-c',
         source,
         '-o',
@@ -117,6 +137,7 @@ void buildWasm({required String root, required String out}) {
       '--no-entry',
       '--export-dynamic',
       '--strip-debug',
+      if (threads) ...wasmThreadLinkFlags,
       '-o',
       out,
       ...objects,
@@ -129,9 +150,19 @@ void buildWasm({required String root, required String out}) {
   }
 }
 
+/// Both modules by default, the single-threaded one and the threads one;
+/// or the one at the path given (`--threads` for the threads build).
 void main(List<String> args) {
-  final out = args.isEmpty ? 'web/f3d_physics.wasm' : args.first;
-  File(out).parent.createSync(recursive: true);
-  buildWasm(root: Directory.current.path, out: out);
-  stdout.writeln('wrote $out (${File(out).lengthSync()} bytes)');
+  final paths = args.where((a) => !a.startsWith('--')).toList();
+  final builds = paths.isEmpty
+      ? <(String, bool)>[
+          ('web/f3d_physics.wasm', false),
+          ('web/f3d_physics_threads.wasm', true),
+        ]
+      : <(String, bool)>[(paths.first, args.contains('--threads'))];
+  for (final (out, threads) in builds) {
+    File(out).parent.createSync(recursive: true);
+    buildWasm(root: Directory.current.path, out: out, threads: threads);
+    stdout.writeln('wrote $out (${File(out).lengthSync()} bytes)');
+  }
 }

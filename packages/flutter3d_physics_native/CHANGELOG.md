@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **Threads in the browser — phase 12 done.** A second module,
+  `web/f3d_physics_threads.wasm`, is the core built with atomics on a
+  shared memory its host makes. `loadPhysicsCore(threads: n)` on a page
+  that can share memory — served cross-origin isolated, with COOP and
+  COEP — loads it and starts n − 1 Web Workers from `web/f3d_worker.js`,
+  each an instance of the module on that memory with a stack of its own,
+  waiting in the core's `f3d_worker_main`; `physicsCoreThreads` says how
+  many a world can then ask for. Elsewhere it loads the single-threaded
+  module, and a world asked for more threads says no. The module cannot
+  start a thread itself, so its pool takes workers its host started; they
+  wait with `memory.atomic.wait`, and the page, which may not block, spins.
+  The module's allocator is held by a spin lock, since workers allocate in
+  the middle of a step. On four threads — four of node's workers, and in
+  Chrome four Web Workers — the module steps a scene to the native
+  library's bytes. Memory is read through a JavaScript DataView, which
+  takes a SharedArrayBuffer as an ArrayBuffer.
+
 - **The core runs in the browser.** `loadPhysicsCore()` fetches the
   WebAssembly module — shipped in the package as `web/f3d_physics.wasm`,
   an asset a Flutter web app serves — and the same `NativeWorld`, debris,

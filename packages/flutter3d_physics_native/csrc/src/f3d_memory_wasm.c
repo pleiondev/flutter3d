@@ -10,6 +10,10 @@
  *
  * memset and memcpy are here too, because clang emits calls to them for
  * struct copies and zeroing whatever the source says.
+ *
+ * In the threads build (F3D_WASM_THREADS) the workers allocate too — a
+ * worker's lane of pairs grows in the middle of a step — so the list is
+ * held by a spin lock.
  */
 #ifdef __wasm__
 
@@ -61,7 +65,21 @@ static int reserve(size_t bytes) {
   return 1;
 }
 
-void *f3d_alloc(size_t bytes) {
+#ifdef F3D_WASM_THREADS
+static volatile int g_lock;
+
+static void lock(void) {
+  while (__atomic_exchange_n(&g_lock, 1, __ATOMIC_ACQUIRE) != 0) {
+  }
+}
+
+static void unlock(void) { __atomic_store_n(&g_lock, 0, __ATOMIC_RELEASE); }
+#else
+static void lock(void) {}
+static void unlock(void) {}
+#endif
+
+static void *alloc_held(size_t bytes) {
   const size_t size = round_up(bytes == 0 ? 1 : bytes);
   Block **link = &g_free;
   for (Block *b = g_free; b != NULL; link = &b->next_free, b = b->next_free) {
@@ -85,21 +103,37 @@ void *f3d_alloc(size_t bytes) {
   return (unsigned char *)b + HEADER;
 }
 
-void f3d_free(void *block) {
+static void free_held(void *block) {
   if (block == NULL) return;
   Block *b = (Block *)((unsigned char *)block - HEADER);
   b->next_free = g_free;
   g_free = b;
 }
 
+void *f3d_alloc(size_t bytes) {
+  lock();
+  void *block = alloc_held(bytes);
+  unlock();
+  return block;
+}
+
+void f3d_free(void *block) {
+  lock();
+  free_held(block);
+  unlock();
+}
+
 void *f3d_realloc(void *block, size_t bytes) {
   if (block == NULL) return f3d_alloc(bytes);
   Block *b = (Block *)((unsigned char *)block - HEADER);
   if (b->size >= bytes) return block;
-  void *grown = f3d_alloc(bytes);
-  if (grown == NULL) return NULL;
-  memcpy(grown, block, b->size);
-  f3d_free(block);
+  lock();
+  void *grown = alloc_held(bytes);
+  if (grown != NULL) {
+    memcpy(grown, block, b->size);
+    free_held(block);
+  }
+  unlock();
   return grown;
 }
 
