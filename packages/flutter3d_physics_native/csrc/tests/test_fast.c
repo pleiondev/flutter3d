@@ -1,6 +1,8 @@
 /*
  * The fast mode, tested in C — P9, phase 11: a world of every shape steps
  * to the same snapshot on one thread, two, three and eight, every step —
+ * and on vectors as on the scalar fallback (c_unit_test builds it both
+ * ways) —
  * other bits than the deterministic mode's, its contacts solved in colour
  * order — and still rests a crate where it should, holds a stack of ten
  * up until it sleeps, keeps the mode through a snapshot, rests a hundred
@@ -8,6 +10,7 @@
  * a bob on a hinge.
  */
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -47,6 +50,12 @@ static void test_same_bits(void) {
   CHECK(differing == 0);
   /* Solved in another order, the deterministic mode lands elsewhere. */
   CHECK(unlike > 0);
+  /* What the vectors and the scalar fallback must agree on: c_unit_test
+   * builds this file both ways and compares the line. */
+  const uint32_t na = f3d_world_snapshot_write(one, a, size);
+  uint64_t hash = 1469598103934665603ull;
+  for (uint32_t i = 0; i < na; i++) hash = (hash ^ a[i]) * 1099511628211ull;
+  printf("fast snapshot %016llx\n", (unsigned long long)hash);
   free(a);
   free(b);
   for (int k = 0; k < 3; k++) f3d_world_destroy(many[k]);
@@ -140,7 +149,9 @@ static void test_overflow(void) {
   f3d_world_destroy(four);
 }
 
-static f3d_real bounce(int fast) {
+/* The ball's highest speed upwards, and where it is, turned how and going
+ * how fast at the end, in [end]. */
+static f3d_real bounce(int fast, f3d_real *end) {
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
   f3d_world_set_fast(w, fast);
@@ -155,18 +166,58 @@ static f3d_real bounce(int fast) {
     f3d_body_get_velocity(w, ball, v);
     if (v[1] > up) up = v[1];
   }
+  f3d_body_get_position(w, ball, end);
+  f3d_body_get_orientation(w, ball, end + 3);
+  f3d_body_get_velocity(w, ball, end + 7);
   f3d_world_destroy(w);
   return up;
 }
 
 static void test_bounce(void) {
   /* Dropped from two metres at restitution 0.8, through the air: one
-   * contact is one colour, solved as the deterministic mode solves it, so
-   * it comes back up at the same speed to the bit — some 0.74 of what it
-   * struck at, the air having taken the rest. */
-  const f3d_real fast = bounce(1);
-  CHECK(fast == bounce(0));
+   * contact is one colour, solved in a lane as the deterministic mode
+   * solves it, so it comes back up at the same speed to the bit — some
+   * 0.74 of what it struck at, the air having taken the rest — and comes
+   * to rest where it does, to the bit. */
+  f3d_real a[10], b[10];
+  const f3d_real fast = bounce(1, a);
+  CHECK(fast == bounce(0, b));
+  CHECK(memcmp(a, b, sizeof a) == 0);
   CHECK(fast > F3D_R(4.5) && fast < F3D_R(4.8));
+}
+
+/* A box at [height] — 0.45 is five centimetres into the floor — turned a
+ * little, and where it is after a second: position, orientation and
+ * velocity. */
+static void sunk(int fast, f3d_real height, f3d_real *end) {
+  F3dWorld *w = f3d_world_create();
+  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_fast(w, fast);
+  const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
+  f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 20, F3D_R(0.5), 20);
+  const F3dBody box = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, height, 0, 1);
+  f3d_body_set_shape(w, box, F3D_SHAPE_BOX, F3D_R(0.5), F3D_R(0.5), F3D_R(0.5));
+  f3d_body_set_orientation(w, box, 0, F3D_R(0.1), 0, 1);
+  for (int i = 0; i < 60; i++) f3d_world_step(w, F3D_R(1.0 / 60.0));
+  f3d_body_get_position(w, box, end);
+  f3d_body_get_orientation(w, box, end + 3);
+  f3d_body_get_velocity(w, box, end + 7);
+  f3d_world_destroy(w);
+}
+
+static void test_sunk(void) {
+  /* Pushed out by the soft contact through four points of one manifold —
+   * one colour, one lane — and dropped from two metres onto the floor
+   * with no restitution, a hard landing that must not bounce: both to the
+   * deterministic mode's bits. */
+  const f3d_real heights[2] = {F3D_R(0.45), F3D_R(2.5)};
+  for (int k = 0; k < 2; k++) {
+    f3d_real a[10], b[10];
+    sunk(1, heights[k], a);
+    sunk(0, heights[k], b);
+    CHECK(memcmp(a, b, sizeof a) == 0);
+    CHECK(a[1] > F3D_R(0.49) && a[1] < F3D_R(0.501));
+  }
 }
 
 static void test_hinge(void) {
@@ -199,5 +250,6 @@ int main(void) {
   test_overflow();
   test_bounce();
   test_hinge();
+  test_sunk();
   return finish();
 }

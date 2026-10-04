@@ -1,5 +1,25 @@
 ## Unreleased
 
+- **The fast mode solves contacts four at a time — phase 11 done.** A
+  colour's contacts go in batches of four, a contact a lane of a vector
+  (GCC's and Clang's vector types, NEON or SSE beneath; MSVC the same
+  operations a lane at a time), every lane doing what one contact solved
+  alone does, operation for operation: what a contact decides with a
+  branch, a lane decides with a mask, and a lane with fewer points or a
+  body that does not move is masked out, not skipped. So the fast mode
+  lands on the bits it landed on before, with vectors or without, and a
+  single contact still on the deterministic mode's. A colour's contacts
+  are batched by how many points they have, which changes nothing. The
+  contacts now read the bodies from a tight array of velocity, spin and
+  how far each has moved and turned since the step began — the turn
+  worked out once a body instead of once a contact — gathered from the
+  slots before each stage and scattered back after; every bit of both
+  modes is unchanged. On the heap of four thousand, the fast mode's solver
+  on one thread went from 7.7 ms to 4.5. On several threads the numbers
+  swung from 3.3 ms to 20 with the machine at load 8 to 49: a step meets
+  at some 130 barriers, and a thread the system has set aside holds the
+  rest there. One thread stays the default.
+
 - **The pairs of overlapping leaves are kept from step to step.** Every
   awake body used to ask the tree what was near it every step; now the
   world keeps the pairs whose leaves overlap, drops those whose leaves
