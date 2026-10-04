@@ -300,11 +300,33 @@ void f3d_integrate_velocity(const F3dWorld *world, F3dSlot *s, f3d_real h) {
   }
 }
 
+/* The most a body turns in one substep, radians: an eighth of a turn, as
+ * Box2D v3 holds it (B2_MAX_ROTATION). */
+#define F3D_MAX_TURN (F3D_R(0.25) * F3D_PI)
+
 void f3d_integrate_position(F3dSlot *s, f3d_real h) {
   s->position.x += s->velocity.x * h;
   s->position.y += s->velocity.y * h;
   s->position.z += s->velocity.z * h;
-  if (f3d_turns(s)) turn(s, h);
+  if (!f3d_turns(s)) return;
+  /* **No more than an eighth of a turn a substep.** A rod two metres long
+   * and two centimetres thick is five thousand times easier to turn about
+   * its length than across it, and a contact at its end with friction spins
+   * it about its length at thousands of radians a second — which a real
+   * pencil also does. Turned tens of radians in a substep, the first-order
+   * turn is no turn at all, the momentum read back through that tiny
+   * inertia grows, and the rod flew off at hundreds of millions of radians
+   * a second. Held to π/4 a substep — 188 rad/s at four substeps of a
+   * sixtieth — the turn stays a turn and the spin stays bounded. */
+  const f3d_real most = F3D_MAX_TURN / h;
+  f3d_real w2 = f3d_dot(s->spin, s->spin);
+  if (w2 > most * most) s->spin = f3d_scale(s->spin, most / f3d_sqrt(w2));
+  turn(s, h);
+  /* And after: the turn reads the spin back out of the momentum through
+   * the new orientation, and through a tiny inertia that can be far past
+   * what went in. */
+  w2 = f3d_dot(s->spin, s->spin);
+  if (w2 > most * most) s->spin = f3d_scale(s->spin, most / f3d_sqrt(w2));
 }
 
 void f3d_finish_motion(const F3dWorld *world, F3dSlot *s, f3d_real dt) {

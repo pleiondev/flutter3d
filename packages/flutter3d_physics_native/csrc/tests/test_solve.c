@@ -217,6 +217,40 @@ static void test_fast_roll_stays_up(void) {
   f3d_world_destroy(w);
 }
 
+static void test_thin_rod_stays_sane(void) {
+  /* A rod two metres by two centimetres spun at three hundred radians a
+   * second into a wall with its end: friction at its end spins it about its
+   * length, where it is five thousand times easier to turn. It is thrown
+   * back and spins, and nothing blows up: its spin stays within an eighth of
+   * a turn a substep and its speed within reason. Before the bound it flew
+   * off at hundreds of millions of radians a second. */
+  F3dWorld *w = f3d_world_create();
+  f3d_world_set_gravity(w, 0, 0, 0);
+  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  f3d_world_set_sleep(w, 0, 0);
+  const F3dBody wall = f3d_body_create(w, F3D_BODY_FIXED, F3D_R(0.5), 0, 0, 0);
+  f3d_body_set_shape(w, wall, F3D_SHAPE_BOX, F3D_R(0.05), 2, 2);
+  const F3dBody rod = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 0, 0, 1);
+  f3d_body_set_shape(w, rod, F3D_SHAPE_BOX, 1, F3D_R(0.01), F3D_R(0.01));
+  f3d_body_set_orientation(w, rod, 0, F3D_R(0.70710678), 0, F3D_R(0.70710678));
+  f3d_body_set_angular_velocity(w, rod, 0, 300, 0);
+  f3d_body_set_bullet(w, rod, 1);
+  double fastest = 0, spin = 0;
+  for (int i = 0; i < 120; i++) {
+    f3d_world_step(w, F3D_R(1.0 / 60.0));
+    f3d_real v[3], o[3];
+    f3d_body_get_velocity(w, rod, v);
+    f3d_body_get_angular_velocity(w, rod, o);
+    const double sv = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+    const double so = sqrt((double)o[0] * o[0] + (double)o[1] * o[1] + (double)o[2] * o[2]);
+    if (sv > fastest) fastest = sv;
+    if (so > spin) spin = so;
+  }
+  CHECK(fastest < 200);
+  CHECK(spin <= 0.25 * M_PI * 240.0 * (1 + 1e-5));
+  f3d_world_destroy(w);
+}
+
 static void test_collision_keeps_momentum(void) {
   /* Two balls of a kilogram head on, no gravity. Elastic, they trade
    * velocities; inelastic, they go on together; either way the momentum is
@@ -317,6 +351,7 @@ int main(void) {
   test_slope();
   test_rolling();
   test_fast_roll_stays_up();
+  test_thin_rod_stays_sane();
   test_collision_keeps_momentum();
   test_tips_over();
   test_pushed_out_gently();

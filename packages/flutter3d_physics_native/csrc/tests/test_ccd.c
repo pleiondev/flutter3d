@@ -118,7 +118,8 @@ static double past_wall(F3dWorld *w, F3dBody bar) {
 
 static void test_spinning_bullet(void) {
   /* A bar two metres long spun at three hundred radians a second about
-   * its middle — five radians a step, which its first and last turns would
+   * its middle — held to 188 by the bound on a substep's turn, three radians
+   * a step, more than the half turn its first and last turns would
    * read the short way round, backwards — beside a wall half a metre off:
    * its ends would turn through the wall in a step. Swept along its path,
    * place and turn, it never reaches past the wall; it strikes it with its

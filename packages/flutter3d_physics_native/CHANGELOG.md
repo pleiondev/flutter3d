@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A body turns no more than an eighth of a turn a substep**, as Box2D v3
+  holds it: π/4, 188 rad/s at four substeps of a sixtieth. A rod two metres
+  by two centimetres struck at its end spins about its length — five
+  thousand times easier to turn — at thousands of radians a second; turned
+  tens of radians in a substep, the first-order turn read its momentum back
+  through that tiny inertia and the rod flew off at hundreds of millions.
+  Bounded before the turn and after it, it is thrown back and spins, and
+  nothing blows up.
+
 - **Queries and a character, phase 9.** Rays (`f3d_world_ray_cast`, the
   nearest; `f3d_world_ray_cast_all`, every one in order) walk the tree
   nearest box first and cut it at each hit; a ball and an unrounded box are

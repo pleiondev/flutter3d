@@ -179,13 +179,14 @@ static void test_damping(void) {
   f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, 1, 0, 0);
   f3d_body_set_damping(w, b, 1, 3);
   f3d_body_set_velocity(w, b, 2, 0, 0);
-  f3d_body_set_angular_velocity(w, b, 0, 0, 4);
+  /* Under the bound on a substep's turn, π/4 in a step of a second. */
+  f3d_body_set_angular_velocity(w, b, 0, 0, F3D_R(0.4));
   f3d_world_step(w, 1);
   f3d_real v[3], spin[3];
   f3d_body_get_velocity(w, b, v);
   f3d_body_get_angular_velocity(w, b, spin);
   CHECK(v[0] == 1);
-  CHECK(spin[2] == 1);
+  CHECK_NEAR(spin[2], 0.1, 1e-6);
   f3d_world_destroy(w);
 }
 
