@@ -75,13 +75,7 @@ typedef struct SolverContact {
   SolverPoint p[F3D_MANIFOLD_POINTS];
 } SolverContact;
 
-/* What the solver holds of each body for a step: where it started, and how
- * hard it is to move — nothing, for a body the solver may not move. */
-typedef struct SolverBody {
-  F3dVec3 start;
-  f3d_real inverse_mass;
-  F3dSym3 inverse_inertia;
-} SolverBody;
+typedef F3dSolverBody SolverBody;
 
 static int moves(const F3dSlot *s) {
   return s->live && s->type == F3D_BODY_DYNAMIC &&
@@ -342,12 +336,15 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
       F3dSlot *s = &world->slots[i];
       if (moves(s)) f3d_integrate_velocity(world, s, h);
     }
+    f3d_warm_joints(world, bodies);
     warm_start(world, contacts, count, bodies);
+    f3d_solve_joints(world, bodies, h, 1);
     solve(world, contacts, count, bodies, softness, h, 1);
     for (uint32_t i = 0; i < used; i++) {
       F3dSlot *s = &world->slots[i];
       if (moves(s)) f3d_integrate_position(s, h);
     }
+    f3d_solve_joints(world, bodies, h, 0);
     solve(world, contacts, count, bodies, softness, h, 0);
   }
   restitute(world, contacts, count, bodies);

@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 8;
+const int abiVersion = 9;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -48,6 +48,15 @@ abstract final class ShapeKind {
   static const int cone = 5;
   static const int hull = 6;
   static const int mesh = 7;
+}
+
+/// `F3dJointType`.
+abstract final class JointType {
+  static const int fixed = 0;
+  static const int spherical = 1;
+  static const int revolute = 2;
+  static const int prismatic = 3;
+  static const int distance = 4;
 }
 
 /// `F3dMaterialKind`.
@@ -299,6 +308,134 @@ external int f3d_world_mesh_internal_edges(Pointer<F3dWorld> world, int mesh);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint64, Uint32)>(isLeaf: true)
 external int f3d_body_set_mesh(Pointer<F3dWorld> world, int body, int mesh);
+
+// ----------------------------------------------------------------- joints
+
+@Native<
+  Uint64 Function(
+    Pointer<F3dWorld>,
+    Int32,
+    Uint64,
+    Uint64,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>()
+external int f3d_joint_create(
+  Pointer<F3dWorld> world,
+  int type,
+  int a,
+  int b,
+  double ax,
+  double ay,
+  double az,
+  double ux,
+  double uy,
+  double uz,
+);
+
+@Native<
+  Uint64 Function(
+    Pointer<F3dWorld>,
+    Uint64,
+    Uint64,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>()
+external int f3d_joint_create_distance(
+  Pointer<F3dWorld> world,
+  int a,
+  int b,
+  double ax,
+  double ay,
+  double az,
+  double bx,
+  double by,
+  double bz,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64)>()
+external int f3d_joint_destroy(Pointer<F3dWorld> world, int joint);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64)>(isLeaf: true)
+external int f3d_joint_is_valid(Pointer<F3dWorld> world, int joint);
+
+@Native<Uint32 Function(Pointer<F3dWorld>)>(isLeaf: true)
+external int f3d_world_joint_count(Pointer<F3dWorld> world);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Int32, Float, Float)>(
+  isLeaf: true,
+)
+external int f3d_joint_set_limits(
+  Pointer<F3dWorld> world,
+  int joint,
+  int enabled,
+  double lower,
+  double upper,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Int32, Float, Float)>(
+  isLeaf: true,
+)
+external int f3d_joint_set_motor(
+  Pointer<F3dWorld> world,
+  int joint,
+  int enabled,
+  double speed,
+  double maxForce,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Int32, Float, Float)>(
+  isLeaf: true,
+)
+external int f3d_joint_set_spring(
+  Pointer<F3dWorld> world,
+  int joint,
+  int enabled,
+  double hertz,
+  double damping,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Float, Float, Float)>(
+  isLeaf: true,
+)
+external int f3d_joint_set_length(
+  Pointer<F3dWorld> world,
+  int joint,
+  double length,
+  double least,
+  double most,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Int32)>(isLeaf: true)
+external int f3d_joint_set_collide(
+  Pointer<F3dWorld> world,
+  int joint,
+  int collide,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Pointer<Float>)>(isLeaf: true)
+external int f3d_joint_get_value(
+  Pointer<F3dWorld> world,
+  int joint,
+  Pointer<Float> out,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Pointer<Float>)>(isLeaf: true)
+external int f3d_joint_get_force(
+  Pointer<F3dWorld> world,
+  int joint,
+  Pointer<Float> out,
+);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint64, Pointer<Float>)>(isLeaf: true)
 external int f3d_body_get_inertia_tensor(

@@ -147,6 +147,11 @@ f.f3d_buffer_free(vp);
 f.f3d_buffer_free(tp);
 const hill = f.f3d_body_create(world, 1, 0, 0, 0, 0);
 f.f3d_body_set_mesh(world, hill, mesh);
+const pivot = f.f3d_body_create(world, 1, -6, 4, 0, 0);
+const bob = f.f3d_body_create(world, 0, -5, 4, 0, 1);
+f.f3d_body_set_shape(world, bob, 1, 0.2, 0, 0);
+const swing = f.f3d_joint_create(world, 2, pivot, bob, -6, 4, 0, 0, 0, 1);
+f.f3d_joint_set_limits(world, swing, 1, -1.2, 1.2);
 for (let i = 0; i < steps; i++) f.f3d_world_step(world, dt);
 const size = f.f3d_world_snapshot_size(world);
 const ptr = f.f3d_buffer_alloc(size);
@@ -264,6 +269,22 @@ void main() {
         <int>[0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0],
       ),
     );
+    // And a hinged pendulum with limits, for the joints.
+    final pivot = world.addBody(
+      position: Vector3(-6.0, 4.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final bob = world.addBody(position: Vector3(-5.0, 4.0, 0.0));
+    world.setShape(bob, const NativeShape.sphere(0.2));
+    final swing = world.createJoint(
+      NativeJointType.revolute,
+      pivot,
+      bob,
+      anchor: Vector3(-6.0, 4.0, 0.0),
+      axis: Vector3(0.0, 0.0, 1.0),
+    );
+    world.setJointLimits(swing, (lower: -1.2, upper: 1.2));
     for (var i = 0; i < _steps; i++) {
       world.step(_dt);
     }

@@ -51,6 +51,8 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->mesh_triangles);
   f3d_free(world->mesh_edges);
   f3d_clear_mesh_trees(world);
+  f3d_free(world->joints);
+  f3d_free(world->joined);
   f3d_free(world);
 }
 
@@ -342,6 +344,7 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
 int f3d_body_destroy(F3dWorld *world, F3dBody body) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL) return 0;
+  f3d_unjoin(world, (uint32_t)(s - world->slots));
   s->live = 0;
   s->next_free = world->s.free_head;
   world->s.free_head = (uint32_t)(s - world->slots) + 1u;

@@ -230,6 +230,18 @@ static void islands(F3dWorld *world, uint32_t *parent) {
       join(parent, a, b);
     }
   }
+  /* A joint joins its bodies' islands as a contact does: a chain sleeps as
+   * a chain, and a pull on one end wakes the other. */
+  for (uint32_t i = 0; i < world->s.joint_used; i++) {
+    const F3dJointSlot *j = &world->joints[i];
+    if (!j->live) continue;
+    const F3dSlot *sa = f3d_slot_of(world, j->a);
+    const F3dSlot *sb = f3d_slot_of(world, j->b);
+    if (sa == NULL || sb == NULL) continue;
+    if (sa->type == F3D_BODY_DYNAMIC && sb->type == F3D_BODY_DYNAMIC) {
+      join(parent, (uint32_t)(sa - world->slots), (uint32_t)(sb - world->slots));
+    }
+  }
   if (!(world->s.sleep_time > F3D_R(0.0))) return;
   /* Per root: bit 0, a body awake and moving; bit 1, a body asleep; bit 2,
    * a body awake. Kept in the slots' spare high bits of a second pass's
@@ -301,6 +313,7 @@ static int near_leaf(void *context, int32_t leaf) {
   const F3dSlot *ss = &g->world->slots[g->self];
   if (active(so) && other < g->self) return 1;
   if (!(ss->layer & so->mask) || !(so->layer & ss->mask)) return 1;
+  if (f3d_joined(g->world, g->self, other)) return 1;
   if (!f3d_box_overlap(
           f3d_box_of(g->world, so, F3D_R(0.5) * g->world->s.contact_margin), g->box)) {
     return 1;

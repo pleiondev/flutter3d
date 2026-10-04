@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 8u
+#define F3D_ABI_VERSION 9u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -58,6 +58,26 @@ typedef struct F3dWorld F3dWorld;
 
 /* A body: (generation << 32) | slot. Nought is never one. */
 typedef uint64_t F3dBody;
+
+/* A joint, named as a body is. */
+typedef uint64_t F3dJoint;
+
+typedef enum F3dJointType {
+  /* Holds B where it was against A, place and turn. */
+  F3D_JOINT_FIXED = 0,
+  /* Holds a point of each together; they turn freely about it. */
+  F3D_JOINT_SPHERICAL = 1,
+  /* A hinge: a point together, turning only about the axis. Limits,
+   * motor and spring act on the angle. */
+  F3D_JOINT_REVOLUTE = 2,
+  /* A slider: no turning, moving only along the axis. Limits, motor and
+   * spring act on the travel. */
+  F3D_JOINT_PRISMATIC = 3,
+  /* Two points held a length apart: a rod, or with its spring on, a
+   * spring, or with a spring of nought hertz and a least of nought, a
+   * rope. */
+  F3D_JOINT_DISTANCE = 4,
+} F3dJointType;
 
 typedef enum F3dBodyType {
   /* Moved by gravity, forces, wind and contacts. */
@@ -344,6 +364,71 @@ F3D_API uint32_t f3d_world_read_contacts(const F3dWorld *world,
 
 /* Events dropped because F3D_EVENT_CAPACITY were waiting unread. */
 F3D_API uint32_t f3d_world_events_dropped(const F3dWorld *world);
+
+/* ----------------------------------------------------------------- joints */
+
+/* A joint of [type] between [a] and [b], at the anchor (ax, ay, az) and
+ * along the axis (ux, uy, uz), both relative to the origin and taken where
+ * the bodies are now: what it holds them to is how they stand. The axis is
+ * read by the revolute and prismatic joints only. Wakes both. Nought for a
+ * body not in the world, a body joined to itself, a value not finite, a
+ * revolute or prismatic joint with no axis, or a distance joint, which is
+ * f3d_joint_create_distance's. Joined bodies do not collide with each
+ * other unless f3d_joint_set_collide says so. */
+F3D_API F3dJoint f3d_joint_create(F3dWorld *world, F3dJointType type,
+                                  F3dBody a, F3dBody b, f3d_real ax,
+                                  f3d_real ay, f3d_real az, f3d_real ux,
+                                  f3d_real uy, f3d_real uz);
+
+/* A distance joint from (ax, ay, az) on [a] to (bx, by, bz) on [b], held at
+ * the length between them now. */
+F3D_API F3dJoint f3d_joint_create_distance(F3dWorld *world, F3dBody a,
+                                           F3dBody b, f3d_real ax, f3d_real ay,
+                                           f3d_real az, f3d_real bx,
+                                           f3d_real by, f3d_real bz);
+
+/* Takes the joint out, waking its bodies. A body's joints go with it. */
+F3D_API int f3d_joint_destroy(F3dWorld *world, F3dJoint joint);
+F3D_API int f3d_joint_is_valid(const F3dWorld *world, F3dJoint joint);
+F3D_API uint32_t f3d_world_joint_count(const F3dWorld *world);
+
+/* Limits on a revolute joint's angle, radians, or a prismatic joint's
+ * travel, m: lower no more than upper; [enabled] nought takes them off. */
+F3D_API int f3d_joint_set_limits(F3dWorld *world, F3dJoint joint, int enabled,
+                                 f3d_real lower, f3d_real upper);
+
+/* A motor driving a revolute or prismatic joint at [speed], rad/s or m/s,
+ * with at most [max_force], N m or N. */
+F3D_API int f3d_joint_set_motor(F3dWorld *world, F3dJoint joint, int enabled,
+                                f3d_real speed, f3d_real max_force);
+
+/* A spring pulling a revolute joint to its starting angle, a prismatic one
+ * to its starting place, or a distance joint to its length, at [hertz] and
+ * damping ratio [damping]. On a distance joint the spring is what makes it
+ * not a rod: at nought hertz it pulls not at all, and only the least and
+ * most lengths hold. */
+F3D_API int f3d_joint_set_spring(F3dWorld *world, F3dJoint joint, int enabled,
+                                 f3d_real hertz, f3d_real damping);
+
+/* A distance joint's rest [length] and the [least] and [most] its spring
+ * may stretch it to. */
+F3D_API int f3d_joint_set_length(F3dWorld *world, F3dJoint joint,
+                                 f3d_real length, f3d_real least,
+                                 f3d_real most);
+
+/* Whether the joined bodies collide with each other. */
+F3D_API int f3d_joint_set_collide(F3dWorld *world, F3dJoint joint,
+                                  int collide);
+
+/* A revolute joint's angle from where it started, radians in (−π, π]; a
+ * prismatic joint's travel, m; a distance joint's length, m. 0 for the
+ * others. */
+F3D_API int f3d_joint_get_value(const F3dWorld *world, F3dJoint joint,
+                                f3d_real *out);
+
+/* The force it held B with over the last substep, N, into out[0..2]. */
+F3D_API int f3d_joint_get_force(const F3dWorld *world, F3dJoint joint,
+                                f3d_real *out);
 
 /* -------------------------------------------------------------- snapshots */
 

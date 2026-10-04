@@ -367,6 +367,44 @@ typedef struct F3dMesh {
   f3d_real surface;
 } F3dMesh;
 
+/* Bits of F3dJointSlot.flags. */
+enum {
+  F3D_JOINT_LIMIT = 1u << 0,
+  F3D_JOINT_MOTOR = 1u << 1,
+  F3D_JOINT_SPRING = 1u << 2,
+  F3D_JOINT_COLLIDE = 1u << 3,
+};
+
+/* One joint's arena slot. Plain data, zeroed when taken: a snapshot copies
+ * it whole, warm-start impulses and all. */
+typedef struct F3dJointSlot {
+  uint32_t generation;
+  uint32_t next_free;
+  uint8_t live;
+  uint8_t type;
+  uint8_t flags;
+  uint8_t reserved;
+  F3dBody a, b;
+  /* Where it holds each body, in that body's frame. */
+  F3dVec3 local_a, local_b;
+  /* Its axis in A's frame, and the same axis in B's. */
+  F3dVec3 axis_a, axis_b;
+  /* B's turn relative to A's when it was made: what "no angle" is. */
+  F3dQuat reference;
+  f3d_real lower, upper;
+  f3d_real motor_speed, motor_force;
+  f3d_real spring_hertz, spring_damping;
+  /* A distance joint's rest, least and most length. */
+  f3d_real length, least, most;
+  /* What it pushed with, per substep: its locked directions, solved as
+   * one block — up to three of the point and three of the turn — then the
+   * limits, the motor, the spring. */
+  f3d_real impulse[6];
+  f3d_real lower_impulse, upper_impulse, motor_impulse, spring_impulse;
+  /* The linear impulse it put on B over the last substep, in the world. */
+  F3dVec3 pushed;
+} F3dJointSlot;
+
 /* Everything in a world that is not behind a pointer: what a snapshot
  * copies in one piece. */
 typedef struct F3dWorldState {
@@ -404,6 +442,13 @@ typedef struct F3dWorldState {
   uint32_t mesh_count;
   uint32_t mesh_vertex_count;
   uint32_t mesh_triangle_count;
+  /* The joints' arena, as the bodies'. */
+  uint32_t joint_used;
+  uint32_t joint_live;
+  uint32_t joint_free_head;
+  /* The last substep's length, s: what a joint's impulse is divided by to
+   * say its force. */
+  f3d_real last_substep;
 } F3dWorldState;
 
 struct F3dWorld {
@@ -433,6 +478,14 @@ struct F3dWorld {
   uint8_t *mesh_edges;
   F3dTree *mesh_trees;
   uint32_t mesh_tree_count;
+  /* The joints, and the pairs of slots joined by a joint that keeps them
+   * from colliding, sorted: built from the joints when they change, not in
+   * a snapshot. */
+  F3dJointSlot *joints;
+  uint32_t joint_capacity;
+  uint64_t *joined;
+  uint32_t joined_count;
+  int joined_stale;
   /* The broadphase, and each slot's leaf in it (-1 for none), as long as
    * the arena. Neither is in a snapshot. */
   F3dTree tree;
@@ -507,6 +560,33 @@ void f3d_finish_motion(const F3dWorld *world, F3dSlot *slot, f3d_real dt);
 /* [bytes] of the world's scratch, kept between steps and grown when it is
  * not enough; null when it cannot grow. One stage's at a time. */
 void *f3d_scratch(F3dWorld *world, size_t bytes);
+
+/* The angle of (x, y), in (−π, π], from a series: the core's own, the same
+ * bits everywhere. */
+f3d_real f3d_atan2(f3d_real y, f3d_real x);
+
+/* Whether a joint joins the slots [a] and [b] and keeps them from
+ * colliding. */
+int f3d_joined(F3dWorld *world, uint32_t a, uint32_t b);
+
+/* Takes out every joint on the body in [slot]: called as it goes. */
+void f3d_unjoin(F3dWorld *world, uint32_t slot);
+
+/* What the solver holds of each body for a step: where it started, and how
+ * hard it is to move — nothing, for a body the solver may not move. */
+typedef struct F3dSolverBody {
+  F3dVec3 start;
+  f3d_real inverse_mass;
+  F3dSym3 inverse_inertia;
+} F3dSolverBody;
+
+/* The joints' part of the solver, in each substep: warm-started, then
+ * solved with the soft bias or without it. Their anchors and masses are
+ * worked out from where the bodies are each time. */
+void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies);
+void f3d_solve_joints(F3dWorld *world, const F3dSolverBody *bodies,
+                      f3d_real h, int use_bias);
+
 
 /* The step's stages: contacts where the bodies stand, the solver's
  * substeps, heat. */

@@ -93,6 +93,44 @@ extension type const NativeHull(int id) {}
 /// ([NativeWorld.setMesh]). Numbered from one.
 extension type const NativeMesh(int id) {}
 
+/// A joint in a [NativeWorld], named as a body is.
+extension type const NativeJoint(int raw) {}
+
+/// What kind of joint — `F3dJointType`.
+final class NativeJointType {
+  const NativeJointType._(this.code, this.name);
+
+  /// Holds B where it was against A, place and turn.
+  static const NativeJointType fixed = NativeJointType._(
+    c.JointType.fixed,
+    'fixed',
+  );
+
+  /// Holds a point of each together; they turn freely about it.
+  static const NativeJointType spherical = NativeJointType._(
+    c.JointType.spherical,
+    'spherical',
+  );
+
+  /// A hinge about the axis.
+  static const NativeJointType revolute = NativeJointType._(
+    c.JointType.revolute,
+    'revolute',
+  );
+
+  /// A slider along the axis.
+  static const NativeJointType prismatic = NativeJointType._(
+    c.JointType.prismatic,
+    'prismatic',
+  );
+
+  final int code;
+  final String name;
+
+  @override
+  String toString() => 'NativeJointType.$name';
+}
+
 /// What a body is made of, as heat and fire see it — `F3dMaterial`.
 final class NativeMaterial {
   const NativeMaterial({
@@ -608,6 +646,161 @@ final class NativeWorld implements Finalizable {
   /// across a flat or hollow fold.
   int meshInternalEdges(NativeMesh mesh) =>
       c.f3d_world_mesh_internal_edges(_live, mesh.id);
+
+  /// A joint of [type] between [a] and [b] at [anchor], along [axis] for a
+  /// hinge or a slider, taken where the bodies stand now. Joined bodies do
+  /// not collide with each other unless [setJointCollide] says so. Throws an
+  /// [ArgumentError] for a body not in the world, a body joined to itself,
+  /// or a hinge or slider with no axis.
+  NativeJoint createJoint(
+    NativeJointType type,
+    NativeBody a,
+    NativeBody b, {
+    required Vector3 anchor,
+    Vector3? axis,
+  }) {
+    final u = axis ?? Vector3.zero();
+    final raw = c.f3d_joint_create(
+      _live,
+      type.code,
+      a.raw,
+      b.raw,
+      anchor.x,
+      anchor.y,
+      anchor.z,
+      u.x,
+      u.y,
+      u.z,
+    );
+    if (raw == 0) {
+      throw ArgumentError('a ${type.name} joint the core would not make');
+    }
+    return NativeJoint(raw);
+  }
+
+  /// A distance joint from [anchorA] on [a] to [anchorB] on [b], held at
+  /// the length between them now: a rod, until [setJointSpring] makes it a
+  /// spring, or with nought hertz and a least of nought, a rope.
+  NativeJoint createDistanceJoint(
+    NativeBody a,
+    NativeBody b, {
+    required Vector3 anchorA,
+    required Vector3 anchorB,
+  }) {
+    final raw = c.f3d_joint_create_distance(
+      _live,
+      a.raw,
+      b.raw,
+      anchorA.x,
+      anchorA.y,
+      anchorA.z,
+      anchorB.x,
+      anchorB.y,
+      anchorB.z,
+    );
+    if (raw == 0) {
+      throw ArgumentError('a distance joint the core would not make');
+    }
+    return NativeJoint(raw);
+  }
+
+  /// Takes [joint] out, and says whether it was there. A body's joints go
+  /// with it.
+  bool removeJoint(NativeJoint joint) =>
+      c.f3d_joint_destroy(_live, joint.raw) == 1;
+
+  bool containsJoint(NativeJoint joint) =>
+      c.f3d_joint_is_valid(_live, joint.raw) == 1;
+
+  int get jointCount => c.f3d_world_joint_count(_live);
+
+  void _checkJoint(int answer, NativeJoint joint) {
+    if (answer != 0) return;
+    if (c.f3d_joint_is_valid(_live, joint.raw) == 0) {
+      throw ArgumentError.value(joint.raw, 'joint', 'not in this world');
+    }
+    throw ArgumentError('not a setting this joint takes, or out of range');
+  }
+
+  /// Limits on a hinge's angle, radians, or a slider's travel, m; null
+  /// takes them off.
+  void setJointLimits(
+    NativeJoint joint,
+    ({double lower, double upper})? limits,
+  ) => _checkJoint(
+    c.f3d_joint_set_limits(
+      _live,
+      joint.raw,
+      limits == null ? 0 : 1,
+      limits?.lower ?? 0.0,
+      limits?.upper ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// A motor driving a hinge or slider at [speed] with at most [maxForce];
+  /// null takes it off.
+  void setJointMotor(
+    NativeJoint joint,
+    ({double speed, double maxForce})? motor,
+  ) => _checkJoint(
+    c.f3d_joint_set_motor(
+      _live,
+      joint.raw,
+      motor == null ? 0 : 1,
+      motor?.speed ?? 0.0,
+      motor?.maxForce ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// A spring pulling a hinge or slider back to where it started, or a
+  /// distance joint to its length; null takes it off.
+  void setJointSpring(
+    NativeJoint joint,
+    ({double hertz, double damping})? spring,
+  ) => _checkJoint(
+    c.f3d_joint_set_spring(
+      _live,
+      joint.raw,
+      spring == null ? 0 : 1,
+      spring?.hertz ?? 0.0,
+      spring?.damping ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// A distance joint's rest [length] and the [least] and [most] its
+  /// spring may stretch it to.
+  void setJointLength(
+    NativeJoint joint, {
+    required double length,
+    required double least,
+    required double most,
+  }) => _checkJoint(
+    c.f3d_joint_set_length(_live, joint.raw, length, least, most),
+    joint,
+  );
+
+  /// Whether [joint]'s bodies collide with each other.
+  void setJointCollide(NativeJoint joint, {required bool collide}) =>
+      _checkJoint(
+        c.f3d_joint_set_collide(_live, joint.raw, collide ? 1 : 0),
+        joint,
+      );
+
+  /// A hinge's angle from where it started, a slider's travel, a distance
+  /// joint's length; nought for the others.
+  double jointValue(NativeJoint joint) {
+    _checkJoint(c.f3d_joint_get_value(_live, joint.raw, _out), joint);
+    return _out[0];
+  }
+
+  /// The force [joint] held its second body with over the last substep, N.
+  Vector3 jointForce(NativeJoint joint) {
+    _checkJoint(c.f3d_joint_get_force(_live, joint.raw, _out), joint);
+    return _read3();
+  }
 
   /// How many substeps a step is solved in, one to sixty-four; four for a
   /// new world. More holds tall stacks and fast bodies better and costs that

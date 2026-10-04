@@ -11,7 +11,7 @@
 #include "f3d_internal.h"
 
 #define F3D_SNAPSHOT_MAGIC 0x53443346u /* "F3DS", little-endian. */
-#define F3D_SNAPSHOT_VERSION 5u
+#define F3D_SNAPSHOT_VERSION 6u
 
 typedef struct F3dSnapshotHeader {
   uint32_t magic;
@@ -23,7 +23,7 @@ typedef struct F3dSnapshotHeader {
   uint32_t manifold_bytes;
   uint32_t hull_bytes;
   uint32_t mesh_bytes;
-  uint32_t reserved;
+  uint32_t joint_bytes;
 } F3dSnapshotHeader;
 
 static uint64_t grid_reals(const F3dWorldState *s) {
@@ -41,7 +41,8 @@ static uint64_t size_of(const F3dWorldState *s) {
          (uint64_t)s->hull_triangle_count * 3u * sizeof(uint32_t) +
          (uint64_t)s->mesh_count * sizeof(F3dMesh) +
          (uint64_t)s->mesh_vertex_count * 3u * sizeof(f3d_real) +
-         (uint64_t)s->mesh_triangle_count * (3u * sizeof(uint32_t) + 1u);
+         (uint64_t)s->mesh_triangle_count * (3u * sizeof(uint32_t) + 1u) +
+         (uint64_t)s->joint_used * sizeof(F3dJointSlot);
 }
 
 uint32_t f3d_world_snapshot_size(const F3dWorld *world) {
@@ -64,6 +65,7 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   header.manifold_bytes = (uint32_t)sizeof(F3dManifold);
   header.hull_bytes = (uint32_t)sizeof(F3dHull);
   header.mesh_bytes = (uint32_t)sizeof(F3dMesh);
+  header.joint_bytes = (uint32_t)sizeof(F3dJointSlot);
   uint8_t *at = buffer;
   f3d_copy(at, &header, sizeof header);
   at += sizeof header;
@@ -120,6 +122,12 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
              (size_t)world->s.mesh_triangle_count * 3u * sizeof(uint32_t));
     at += (size_t)world->s.mesh_triangle_count * 3u * sizeof(uint32_t);
     f3d_copy(at, world->mesh_edges, world->s.mesh_triangle_count);
+    at += world->s.mesh_triangle_count;
+  }
+  /* The joints, warm-start impulses and all. */
+  if (world->s.joint_used > 0) {
+    f3d_copy(at, world->joints,
+             (size_t)world->s.joint_used * sizeof(F3dJointSlot));
   }
   return needed;
 }
@@ -136,7 +144,8 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       header.event_bytes != sizeof(F3dEventRecord) ||
       header.manifold_bytes != sizeof(F3dManifold) ||
       header.hull_bytes != sizeof(F3dHull) ||
-      header.mesh_bytes != sizeof(F3dMesh)) {
+      header.mesh_bytes != sizeof(F3dMesh) ||
+      header.joint_bytes != sizeof(F3dJointSlot)) {
     return 0;
   }
   if (size < sizeof header + sizeof(F3dWorldState)) return 0;
@@ -242,6 +251,25 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       return 0;
     }
   }
+  F3dJointSlot *joints = NULL;
+  if (state.joint_used > 0) {
+    joints = (F3dJointSlot *)f3d_alloc((size_t)state.joint_used *
+                                       sizeof(F3dJointSlot));
+    if (joints == NULL) {
+      f3d_free(meshes);
+      f3d_free(mesh_vertices);
+      f3d_free(mesh_triangles);
+      f3d_free(mesh_edges);
+      f3d_free(hulls);
+      f3d_free(hull_vertices);
+      f3d_free(hull_triangles);
+      f3d_free(slots);
+      f3d_free(grid);
+      f3d_free(events);
+      f3d_free(manifolds);
+      return 0;
+    }
+  }
   if (events != NULL) {
     f3d_copy(events, at, (size_t)state.events_count * sizeof(F3dEventRecord));
     at += (size_t)state.events_count * sizeof(F3dEventRecord);
@@ -271,6 +299,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
              (size_t)state.mesh_triangle_count * 3u * sizeof(uint32_t));
     at += (size_t)state.mesh_triangle_count * 3u * sizeof(uint32_t);
     f3d_copy(mesh_edges, at, state.mesh_triangle_count);
+    at += state.mesh_triangle_count;
+  }
+  if (joints != NULL) {
+    f3d_copy(joints, at, (size_t)state.joint_used * sizeof(F3dJointSlot));
   }
   f3d_free(world->slots);
   f3d_free(world->manifolds);
@@ -293,6 +325,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->mesh_edges = mesh_edges;
   /* The meshes' trees are built again from them by the next step. */
   f3d_clear_mesh_trees(world);
+  f3d_free(world->joints);
+  world->joints = joints;
+  world->joint_capacity = state.joint_used;
+  world->joined_stale = 1;
   world->slots = slots;
   world->capacity = capacity;
   world->grid = grid;

@@ -8,6 +8,8 @@
 /// in the same place — and what a game sets through the binding.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -97,4 +99,91 @@ void main() {
     expect(() => world.substeps = 0, throwsArgumentError);
     world.substeps = 8;
   });
+
+  test(
+    'a pendulum on a hinge swings at 2π √(L / g), and a rod holds a weight',
+    () {
+      // The C tests hold every joint against its physics; this holds the
+      // binding: a joint made, read and taken away.
+      world
+        ..setSleep(speed: 0.0, time: 0.0)
+        ..substeps = 4;
+      final pivot = world.addBody(
+        position: Vector3(0.0, 3.0, 0.0),
+        type: NativeBodyType.fixed,
+        mass: 0.0,
+      );
+      const start = 0.05;
+      final bob = world.addBody(
+        position: Vector3(math.sin(start), 3.0 - math.cos(start), 0.0),
+      );
+      world.setShape(bob, const NativeShape.sphere(0.01));
+      final hinge = world.createJoint(
+        NativeJointType.revolute,
+        pivot,
+        bob,
+        anchor: Vector3(0.0, 3.0, 0.0),
+        axis: Vector3(0.0, 0.0, 1.0),
+      );
+      // A quarter period later it is at the bottom: the angle back to nought.
+      final quarter = 0.5 * math.pi * math.sqrt(1.0 / 9.81);
+      var t = 0.0;
+      while (t < quarter - 1e-9) {
+        world.step(1.0 / 240.0);
+        t += 1.0 / 240.0;
+      }
+      expect(world.jointValue(hinge), closeTo(-start, 2e-3));
+      world.setJointLimits(hinge, (lower: -0.1, upper: 0.1));
+      world.setJointMotor(hinge, (speed: 1.0, maxForce: 100.0));
+      expect(
+        () => world.setJointLength(hinge, length: 1, least: 0, most: 1),
+        throwsArgumentError,
+      );
+      expect(world.jointCount, 1);
+      expect(world.removeJoint(hinge), isTrue);
+      expect(world.containsJoint(hinge), isFalse);
+      // A rod holding a kilogram still: the force on it is its weight, up.
+      final weight = world.addBody(position: Vector3(5.0, 1.0, 0.0));
+      world.setShape(weight, const NativeShape.sphere(0.1));
+      final hook = world.addBody(
+        position: Vector3(5.0, 3.0, 0.0),
+        type: NativeBodyType.fixed,
+        mass: 0.0,
+      );
+      final rod = world.createDistanceJoint(
+        hook,
+        weight,
+        anchorA: Vector3(5.0, 3.0, 0.0),
+        anchorB: Vector3(5.0, 1.0, 0.0),
+      );
+      for (var i = 0; i < 120; i++) {
+        world.step(1.0 / 60.0);
+      }
+      expect(world.jointForce(rod).y, closeTo(9.81, 0.02));
+      expect(world.jointValue(rod), closeTo(2.0, 1e-3));
+      // Made a rope two and a half metres long: slack, the weight falls half
+      // a metre and hangs there, the rope taut, clear of the floor.
+      world
+        ..setJointLength(rod, length: 2.5, least: 0.0, most: 2.5)
+        ..setJointSpring(rod, (hertz: 0.0, damping: 0.0));
+      for (var i = 0; i < 240; i++) {
+        world.step(1.0 / 60.0);
+      }
+      expect(world.jointValue(rod), closeTo(2.5, 2e-3));
+      expect(world.positionOf(weight).y, closeTo(0.5, 2e-3));
+      // Joined bodies pass through each other until told to collide.
+      world.setShape(hook, const NativeShape.sphere(0.5));
+      world.setPosition(weight, Vector3(5.0, 3.2, 0.0));
+      world.setVelocity(weight, Vector3.zero());
+      bool touching() => world.readContacts().any(
+        (c) => <NativeBody>{c.a, c.b}.containsAll(<NativeBody>[hook, weight]),
+      );
+      world.step(1.0 / 60.0);
+      expect(touching(), isFalse);
+      world
+        ..setJointCollide(rod, collide: true)
+        ..step(1.0 / 60.0);
+      expect(touching(), isTrue);
+    },
+  );
 }

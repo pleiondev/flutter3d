@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **Joints, phase 7.** Fixed, spherical, revolute (a hinge), prismatic (a
+  slider) and distance joints, in their own arena of generational handles,
+  solved in the same soft substeps as the contacts and warm-started from
+  step to step. A joint's locked directions — its point, its turns, its
+  slide across the axis — are solved together as one block by Cholesky's
+  factoring, so a light ball on a long lever holds its hinge's plane, which
+  solving them one after another did not. Hinges and sliders take limits, a
+  motor with a most force, and a spring; a distance joint is a rod, a spring
+  between a least and a most length, or with no spring force a rope that is
+  slack until it is taut. Joined bodies do not collide unless told to, and a
+  joint joins its bodies' islands. A pendulum swings at its period, a spring
+  at its, a rod holds a weight with m g; the core has its own arctangent for
+  a hinge's angle. Joints are in snapshots. A distance joint changed from
+  rod to rope or spring starts its impulses afresh, or what it held as a rod
+  would hold on.
+
 - **Triangle meshes, phase 6.** Level geometry, terrain and walls as
   indexed triangle meshes the world keeps (`f3d_world_create_mesh`) for
   fixed bodies (`f3d_body_set_mesh`), one sided, each with a tree of its
