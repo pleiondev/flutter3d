@@ -295,4 +295,138 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test(
+    'rays meet what flutter3d_physics\' rays meet, at the same distance',
+    () {
+      // Unturned balls and boxes, the shapes both worlds hold alike, and two
+      // hundred rays: the same nearest body, a hundredth of a millimetre
+      // apart.
+      final reference = CollisionWorld();
+      final pairs = <NativeBody, Collider>{};
+      var seed = 7;
+      double next() {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
+      }
+
+      for (var i = 0; i < 60; i++) {
+        final at = Vector3(
+          next() * 20 - 10,
+          next() * 20 - 10,
+          next() * 20 - 10,
+        );
+        final CollisionShape shape = i.isEven
+            ? CollisionSphere(0.3 + next())
+            : CollisionBox(Vector3(0.3 + next(), 0.3 + next(), 0.3 + next()));
+        final body = world.addBody(position: at, type: NativeBodyType.fixed);
+        world.setShape(body, native(shape));
+        pairs[body] = reference.add(
+          Collider(
+            shape: shape,
+            position: at.clone(),
+            kind: ColliderKind.static,
+          ),
+        );
+      }
+      final hit = RayHit();
+      var met = 0;
+      for (var q = 0; q < 200; q++) {
+        final origin = Vector3(
+          next() * 30 - 15,
+          next() * 30 - 15,
+          next() * 30 - 15,
+        );
+        final direction = Vector3(next() - 0.5, next() - 0.5, next() - 0.5)
+          ..normalize();
+        final mine = world.rayCast(origin, direction, 40.0);
+        final theirs = reference.raycast(origin, direction, 40.0, hit);
+        // Neither sees a shape its ray starts inside, alike; a ray starting
+        // inside one is left out of the comparison.
+        if (world
+            .overlapShape(const NativeShape.sphere(1e-4), origin)
+            .isNotEmpty) {
+          continue;
+        }
+        expect(mine != null, theirs, reason: 'ray $q');
+        if (mine == null) continue;
+        met++;
+        expect(pairs[mine.body], same(hit.collider), reason: 'ray $q');
+        expect(mine.at, closeTo(hit.distance, 1e-5), reason: 'ray $q');
+        expect((mine.normal - hit.normal).length, lessThan(1e-4));
+      }
+      expect(met, greaterThan(10));
+      // A cast and an overlap through the binding.
+      final first = pairs.keys.first;
+      final at = world.positionOf(first);
+      expect(
+        world.overlapShape(const NativeShape.sphere(0.01), at),
+        contains(first),
+      );
+      final cast = world.castShape(
+        const NativeShape.sphere(0.1),
+        at + Vector3(0.0, 30.0, 0.0),
+        Vector3(0.0, -40.0, 0.0),
+      );
+      expect(cast, isNotNull);
+      expect(
+        world.rayCastAll(
+          at + Vector3(0.0, 30.0, 0.0),
+          Vector3(0.0, -1.0, 0.0),
+          60.0,
+        ),
+        isNotEmpty,
+      );
+    },
+  );
+
+  test('a character walks, slides along a wall and climbs a step', () {
+    world.gravity = Vector3(0.0, -9.81, 0.0);
+    final floor = world.addBody(
+      position: Vector3(0.0, -0.5, 0.0),
+      type: NativeBodyType.fixed,
+    );
+    final wall = world.addBody(
+      position: Vector3(3.5, 5.0, 0.0),
+      type: NativeBodyType.fixed,
+    );
+    final step = world.addBody(
+      position: Vector3(0.0, 0.15, 5.0),
+      type: NativeBodyType.fixed,
+    );
+    world
+      ..setShape(floor, NativeShape.box(Vector3(50.0, 0.5, 50.0)))
+      ..setShape(wall, NativeShape.box(Vector3(0.5, 5.0, 50.0)))
+      ..setShape(step, NativeShape.box(Vector3(2.0, 0.15, 2.0)));
+    var at = Vector3(0.0, 3.0, 0.0);
+    var move = world.moveCharacter(
+      radius: 0.3,
+      halfHeight: 0.6,
+      position: at,
+      move: Vector3(0.0, -5.0, 0.0),
+    );
+    expect(move.grounded, isTrue);
+    expect(move.ground, floor);
+    expect(move.position.y, closeTo(0.91, 2e-3));
+    move = world.moveCharacter(
+      radius: 0.3,
+      halfHeight: 0.6,
+      position: move.position,
+      move: Vector3(4.0, 0.0, 1.0),
+    );
+    expect(move.hitWall, isTrue);
+    expect(move.position.x, closeTo(2.69, 2e-3));
+    at = Vector3(0.0, move.position.y, 2.0);
+    move = world.moveCharacter(
+      radius: 0.3,
+      halfHeight: 0.6,
+      position: at,
+      move: Vector3(0.0, 0.0, 2.0),
+    );
+    expect(move.stepped, isTrue);
+    expect(move.ground, step);
+    expect(move.position.y, closeTo(1.21, 3e-3));
+    expect(move.hitCeiling, isFalse);
+    expect(move.groundNormal.y, closeTo(1.0, 1e-4));
+  });
 }

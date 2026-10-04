@@ -287,6 +287,70 @@ void f3d_tree_query(const F3dTree *tree, F3dBox box,
   }
 }
 
+/* Where the segment enters [b], as a fraction of [dir], or −1 when it
+ * misses it within [limit]: the slab test, an axis at a time. */
+static f3d_real ray_box(F3dBox b, F3dVec3 o, F3dVec3 inv, int parallel[3],
+                        f3d_real limit) {
+  f3d_real lo = F3D_R(0.0), hi = limit;
+  const f3d_real os[3] = {o.x, o.y, o.z};
+  const f3d_real is[3] = {inv.x, inv.y, inv.z};
+  const f3d_real bl[3] = {b.lo.x, b.lo.y, b.lo.z};
+  const f3d_real bh[3] = {b.hi.x, b.hi.y, b.hi.z};
+  for (int k = 0; k < 3; k++) {
+    if (parallel[k]) {
+      if (os[k] < bl[k] || os[k] > bh[k]) return F3D_R(-1.0);
+      continue;
+    }
+    f3d_real t0 = (bl[k] - os[k]) * is[k], t1 = (bh[k] - os[k]) * is[k];
+    if (t0 > t1) {
+      const f3d_real t = t0;
+      t0 = t1;
+      t1 = t;
+    }
+    lo = f3d_max(lo, t0);
+    hi = f3d_min(hi, t1);
+    if (lo > hi) return F3D_R(-1.0);
+  }
+  return lo;
+}
+
+void f3d_tree_ray(const F3dTree *tree, F3dVec3 origin, F3dVec3 dir,
+                  f3d_real *limit,
+                  int (*visit)(void *context, int32_t leaf), void *context) {
+  if (tree->root == -1) return;
+  int parallel[3] = {dir.x == F3D_R(0.0), dir.y == F3D_R(0.0),
+                     dir.z == F3D_R(0.0)};
+  const F3dVec3 inv = f3d_v3(parallel[0] ? F3D_R(0.0) : F3D_R(1.0) / dir.x,
+                             parallel[1] ? F3D_R(0.0) : F3D_R(1.0) / dir.y,
+                             parallel[2] ? F3D_R(0.0) : F3D_R(1.0) / dir.z);
+  int32_t stack[256];
+  int top = 0;
+  stack[top++] = tree->root;
+  while (top > 0) {
+    const int32_t id = stack[--top];
+    const F3dTreeNode *n = &tree->nodes[id];
+    if (ray_box(n->box, origin, inv, parallel, *limit) < F3D_R(0.0)) continue;
+    if (n->child1 == -1) {
+      if (!visit(context, id)) return;
+      continue;
+    }
+    if (top + 2 > 256) continue;
+    /* The nearer child last onto the stack, so it is walked first and a
+     * near hit cuts the far one short. */
+    const f3d_real t1 = ray_box(tree->nodes[n->child1].box, origin, inv,
+                                parallel, *limit);
+    const f3d_real t2 = ray_box(tree->nodes[n->child2].box, origin, inv,
+                                parallel, *limit);
+    if (t1 >= F3D_R(0.0) && t2 >= F3D_R(0.0) && t2 < t1) {
+      stack[top++] = n->child1;
+      stack[top++] = n->child2;
+    } else {
+      stack[top++] = n->child2;
+      stack[top++] = n->child1;
+    }
+  }
+}
+
 F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *s, f3d_real margin) {
   const F3dMat3 m = f3d_mat_of(s->orientation);
   F3dVec3 reach;

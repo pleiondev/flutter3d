@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 10u
+#define F3D_ABI_VERSION 11u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -434,6 +434,80 @@ F3D_API int f3d_joint_get_value(const F3dWorld *world, F3dJoint joint,
 /* The force it held B with over the last substep, N, into out[0..2]. */
 F3D_API int f3d_joint_get_force(const F3dWorld *world, F3dJoint joint,
                                 f3d_real *out);
+
+/* ---------------------------------------------------------------- queries */
+
+/* Reals one hit takes: the point xyz and the normal xyz there, out of what
+ * was hit, both relative to the origin, then the distance along the ray or
+ * the fraction of the cast. */
+#define F3D_HIT_FLOATS 7u
+
+/* What a query sees: bodies whose layer has a bit in [mask], all but
+ * [ignore] (nought ignores nothing). A body with no shape is never seen. A
+ * ray or cast that starts inside a shape does not see it; a cast does, at
+ * nought, when it starts overlapping. */
+
+/* The nearest body a ray meets from (ox, oy, oz) along (dx, dy, dz) within
+ * [max_distance] — the direction need not be a unit — into [body] and
+ * [hit]; 1 when it meets one. Meshes are seen from their front only. */
+F3D_API int f3d_world_ray_cast(F3dWorld *world, f3d_real ox, f3d_real oy,
+                               f3d_real oz, f3d_real dx, f3d_real dy,
+                               f3d_real dz, f3d_real max_distance,
+                               uint32_t mask, F3dBody ignore, F3dBody *body,
+                               f3d_real *hit);
+
+/* Every body the ray meets, nearest first, up to [capacity] of them into
+ * [bodies] and [hits]; returns how many it meets. */
+F3D_API uint32_t f3d_world_ray_cast_all(F3dWorld *world, f3d_real ox,
+                                        f3d_real oy, f3d_real oz, f3d_real dx,
+                                        f3d_real dy, f3d_real dz,
+                                        f3d_real max_distance, uint32_t mask,
+                                        F3dBody ignore, F3dBody *bodies,
+                                        f3d_real *hits, uint32_t capacity);
+
+/* Every body overlapping a shape of [kind] — a sphere, box, capsule,
+ * cylinder or cone, a, b, c as for a body — rounded by [rounding], at
+ * (px, py, pz) turned by the quaternion (qx, qy, qz, qw): up to [capacity]
+ * of them, in slot order; returns how many. */
+F3D_API uint32_t f3d_world_overlap_shape(
+    F3dWorld *world, F3dShapeKind kind, f3d_real a, f3d_real b, f3d_real c,
+    f3d_real rounding, f3d_real px, f3d_real py, f3d_real pz, f3d_real qx,
+    f3d_real qy, f3d_real qz, f3d_real qw, uint32_t mask, F3dBody ignore,
+    F3dBody *out, uint32_t capacity);
+
+/* The first body that shape meets moved by (tx, ty, tz) without turning,
+ * into [body] and [hit] with the fraction of the move it got; 1 when it
+ * meets one. */
+F3D_API int f3d_world_cast_shape(F3dWorld *world, F3dShapeKind kind,
+                                 f3d_real a, f3d_real b, f3d_real c,
+                                 f3d_real rounding, f3d_real px, f3d_real py,
+                                 f3d_real pz, f3d_real qx, f3d_real qy,
+                                 f3d_real qz, f3d_real qw, f3d_real tx,
+                                 f3d_real ty, f3d_real tz, uint32_t mask,
+                                 F3dBody ignore, F3dBody *body, f3d_real *hit);
+
+/* ------------------------------------------------------------- characters */
+
+/* Bits of what f3d_world_move_character returns. */
+#define F3D_CHARACTER_GROUNDED 1u
+#define F3D_CHARACTER_WALL 2u
+#define F3D_CHARACTER_CEILING 4u
+#define F3D_CHARACTER_STEPPED 8u
+
+/* Moves an upright capsule of [radius] and straight [half_height] — a
+ * character — from position[0..2] by (dx, dy, dz), sliding along what it
+ * meets, and writes where it ends into position. Ground is what it stands
+ * on whose normal's height is at least [max_slope_cos]; steeper is wall,
+ * which it slides along and does not climb. A step up to [step_height] it
+ * climbs, and it keeps to ground it is walking down within that height.
+ * The ground's normal goes into ground[0..2] and its body into
+ * [ground_body] (nought when in the air). Returns F3D_CHARACTER_ bits.
+ * Kinematic: nothing pushes it, and it moves nothing. */
+F3D_API uint32_t f3d_world_move_character(
+    F3dWorld *world, f3d_real radius, f3d_real half_height, f3d_real *position,
+    f3d_real dx, f3d_real dy, f3d_real dz, f3d_real max_slope_cos,
+    f3d_real step_height, uint32_t mask, F3dBody ignore, F3dBody *ground_body,
+    f3d_real *ground);
 
 /* -------------------------------------------------------------- snapshots */
 

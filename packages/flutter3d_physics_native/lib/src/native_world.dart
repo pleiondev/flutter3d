@@ -294,6 +294,31 @@ typedef NativeContact = ({
   double depth,
 });
 
+/// Where a query met a body: the point and the normal there, out of the
+/// body, relative to the origin, and the distance along a ray or the
+/// fraction of a cast.
+typedef NativeHit = ({
+  NativeBody body,
+  Vector3 point,
+  Vector3 normal,
+  double at,
+});
+
+/// Where a character ended up, and what it stood on.
+typedef NativeCharacterMove = ({
+  Vector3 position,
+  bool grounded,
+  bool hitWall,
+  bool hitCeiling,
+  bool stepped,
+
+  /// The ground's normal, or zero in the air.
+  Vector3 groundNormal,
+
+  /// What it stands on, or null in the air.
+  NativeBody? ground,
+});
+
 /// A point in doubles: the world's origin, or a body's place in the world's
 /// own coordinates. Not a [Vector3], which holds single precision and
 /// would round away what the origin is for.
@@ -854,6 +879,245 @@ final class NativeWorld implements Finalizable {
       } finally {
         malloc.free(out);
       }
+    }
+  }
+
+  NativeHit _hitAt(int body, Pointer<Float> h) => (
+    body: NativeBody(body),
+    point: Vector3(h[0], h[1], h[2]),
+    normal: Vector3(h[3], h[4], h[5]),
+    at: h[6],
+  );
+
+  /// The nearest body a ray from [origin] along [direction] meets within
+  /// [maxDistance], or null. Bodies whose layer has no bit in [mask], and
+  /// [ignore], are not seen; nor is a shape the ray starts inside; meshes
+  /// only from their front.
+  NativeHit? rayCast(
+    Vector3 origin,
+    Vector3 direction,
+    double maxDistance, {
+    int mask = 0xffffffff,
+    NativeBody? ignore,
+  }) {
+    final body = malloc<Uint64>(1);
+    final hit = malloc<Float>(c.hitFloats);
+    try {
+      final found = c.f3d_world_ray_cast(
+        _live,
+        origin.x,
+        origin.y,
+        origin.z,
+        direction.x,
+        direction.y,
+        direction.z,
+        maxDistance,
+        mask,
+        ignore?.raw ?? 0,
+        body,
+        hit,
+      );
+      return found == 0 ? null : _hitAt(body[0], hit);
+    } finally {
+      malloc
+        ..free(body)
+        ..free(hit);
+    }
+  }
+
+  /// Every body the ray meets, nearest first.
+  List<NativeHit> rayCastAll(
+    Vector3 origin,
+    Vector3 direction,
+    double maxDistance, {
+    int mask = 0xffffffff,
+    NativeBody? ignore,
+  }) {
+    var capacity = 16;
+    while (true) {
+      final bodies = malloc<Uint64>(capacity);
+      final hits = malloc<Float>(capacity * c.hitFloats);
+      try {
+        final count = c.f3d_world_ray_cast_all(
+          _live,
+          origin.x,
+          origin.y,
+          origin.z,
+          direction.x,
+          direction.y,
+          direction.z,
+          maxDistance,
+          mask,
+          ignore?.raw ?? 0,
+          bodies,
+          hits,
+          capacity,
+        );
+        if (count <= capacity) {
+          return <NativeHit>[
+            for (var i = 0; i < count; i++)
+              _hitAt(bodies[i], hits + i * c.hitFloats),
+          ];
+        }
+        capacity = count;
+      } finally {
+        malloc
+          ..free(bodies)
+          ..free(hits);
+      }
+    }
+  }
+
+  /// Every body overlapping [shape] (not a point, a hull or a mesh),
+  /// rounded by [rounding], at [position] turned by [orientation], in slot
+  /// order.
+  List<NativeBody> overlapShape(
+    NativeShape shape,
+    Vector3 position, {
+    Quaternion? orientation,
+    double rounding = 0.0,
+    int mask = 0xffffffff,
+    NativeBody? ignore,
+  }) {
+    final q = orientation ?? Quaternion.identity();
+    var capacity = 32;
+    while (true) {
+      final out = malloc<Uint64>(capacity);
+      try {
+        final count = c.f3d_world_overlap_shape(
+          _live,
+          shape.kind,
+          shape.first,
+          shape.second,
+          shape.third,
+          rounding,
+          position.x,
+          position.y,
+          position.z,
+          q.x,
+          q.y,
+          q.z,
+          q.w,
+          mask,
+          ignore?.raw ?? 0,
+          out,
+          capacity,
+        );
+        if (count <= capacity) {
+          return <NativeBody>[
+            for (var i = 0; i < count; i++) NativeBody(out[i]),
+          ];
+        }
+        capacity = count;
+      } finally {
+        malloc.free(out);
+      }
+    }
+  }
+
+  /// The first body [shape] meets moved from [position] by [translation]
+  /// without turning, and the fraction of the move it got; nought when it
+  /// starts overlapping.
+  NativeHit? castShape(
+    NativeShape shape,
+    Vector3 position,
+    Vector3 translation, {
+    Quaternion? orientation,
+    double rounding = 0.0,
+    int mask = 0xffffffff,
+    NativeBody? ignore,
+  }) {
+    final q = orientation ?? Quaternion.identity();
+    final body = malloc<Uint64>(1);
+    final hit = malloc<Float>(c.hitFloats);
+    try {
+      final found = c.f3d_world_cast_shape(
+        _live,
+        shape.kind,
+        shape.first,
+        shape.second,
+        shape.third,
+        rounding,
+        position.x,
+        position.y,
+        position.z,
+        q.x,
+        q.y,
+        q.z,
+        q.w,
+        translation.x,
+        translation.y,
+        translation.z,
+        mask,
+        ignore?.raw ?? 0,
+        body,
+        hit,
+      );
+      return found == 0 ? null : _hitAt(body[0], hit);
+    } finally {
+      malloc
+        ..free(body)
+        ..free(hit);
+    }
+  }
+
+  /// Moves an upright capsule — a character — of [radius] and straight
+  /// [halfHeight] from [position] by [move], sliding along what it meets:
+  /// ground whose normal's height is at least [maxSlopeCos] — the cosine of
+  /// the steepest slope it stands on, forty-five degrees by default — it
+  /// stands on, steeper it slides along as a wall, a step up to
+  /// [stepHeight] it climbs, and walking down it keeps to the ground.
+  /// Kinematic: nothing pushes it, and it moves nothing.
+  ///
+  /// **A cosine, not an angle.** Turning an angle into one here would ask
+  /// the platform's library, whose last bit differs from machine to
+  /// machine, and a character's step must not.
+  NativeCharacterMove moveCharacter({
+    required double radius,
+    required double halfHeight,
+    required Vector3 position,
+    required Vector3 move,
+    double maxSlopeCos = 0.7071067811865476,
+    double stepHeight = 0.35,
+    int mask = 0xffffffff,
+    NativeBody? ignore,
+  }) {
+    final p = malloc<Float>(3);
+    final ground = malloc<Float>(3);
+    final body = malloc<Uint64>(1);
+    try {
+      p[0] = position.x;
+      p[1] = position.y;
+      p[2] = position.z;
+      final flags = c.f3d_world_move_character(
+        _live,
+        radius,
+        halfHeight,
+        p,
+        move.x,
+        move.y,
+        move.z,
+        maxSlopeCos,
+        stepHeight,
+        mask,
+        ignore?.raw ?? 0,
+        body,
+        ground,
+      );
+      return (
+        position: Vector3(p[0], p[1], p[2]),
+        grounded: flags & c.CharacterFlags.grounded != 0,
+        hitWall: flags & c.CharacterFlags.wall != 0,
+        hitCeiling: flags & c.CharacterFlags.ceiling != 0,
+        stepped: flags & c.CharacterFlags.stepped != 0,
+        groundNormal: Vector3(ground[0], ground[1], ground[2]),
+        ground: body[0] == 0 ? null : NativeBody(body[0]),
+      );
+    } finally {
+      malloc
+        ..free(p)
+        ..free(ground)
+        ..free(body);
     }
   }
 

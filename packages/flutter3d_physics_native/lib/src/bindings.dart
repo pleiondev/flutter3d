@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 10;
+const int abiVersion = 11;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -28,6 +28,17 @@ const int fireFloats = 4;
 
 /// `F3D_CONTACT_FLOATS`.
 const int contactFloats = 7;
+
+/// `F3D_HIT_FLOATS`.
+const int hitFloats = 7;
+
+/// `F3D_CHARACTER_*`.
+abstract final class CharacterFlags {
+  static const int grounded = 1;
+  static const int wall = 2;
+  static const int ceiling = 4;
+  static const int stepped = 8;
+}
 
 /// `F3D_EVENT_CAPACITY`.
 const int eventCapacity = 65536;
@@ -268,6 +279,193 @@ external int f3d_world_set_substeps(Pointer<F3dWorld> world, int substeps);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Int32)>(isLeaf: true)
 external int f3d_world_set_speculative(Pointer<F3dWorld> world, int enabled);
+
+// ---------------------------------------------------------------- queries
+
+@Native<
+  Int32 Function(
+    Pointer<F3dWorld>,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Uint32,
+    Uint64,
+    Pointer<Uint64>,
+    Pointer<Float>,
+  )
+>()
+external int f3d_world_ray_cast(
+  Pointer<F3dWorld> world,
+  double ox,
+  double oy,
+  double oz,
+  double dx,
+  double dy,
+  double dz,
+  double maxDistance,
+  int mask,
+  int ignore,
+  Pointer<Uint64> body,
+  Pointer<Float> hit,
+);
+
+@Native<
+  Uint32 Function(
+    Pointer<F3dWorld>,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Uint32,
+    Uint64,
+    Pointer<Uint64>,
+    Pointer<Float>,
+    Uint32,
+  )
+>()
+external int f3d_world_ray_cast_all(
+  Pointer<F3dWorld> world,
+  double ox,
+  double oy,
+  double oz,
+  double dx,
+  double dy,
+  double dz,
+  double maxDistance,
+  int mask,
+  int ignore,
+  Pointer<Uint64> bodies,
+  Pointer<Float> hits,
+  int capacity,
+);
+
+@Native<
+  Uint32 Function(
+    Pointer<F3dWorld>,
+    Int32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Uint32,
+    Uint64,
+    Pointer<Uint64>,
+    Uint32,
+  )
+>()
+external int f3d_world_overlap_shape(
+  Pointer<F3dWorld> world,
+  int kind,
+  double a,
+  double b,
+  double c,
+  double rounding,
+  double px,
+  double py,
+  double pz,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  int mask,
+  int ignore,
+  Pointer<Uint64> out,
+  int capacity,
+);
+
+@Native<
+  Int32 Function(
+    Pointer<F3dWorld>,
+    Int32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Uint32,
+    Uint64,
+    Pointer<Uint64>,
+    Pointer<Float>,
+  )
+>()
+external int f3d_world_cast_shape(
+  Pointer<F3dWorld> world,
+  int kind,
+  double a,
+  double b,
+  double c,
+  double rounding,
+  double px,
+  double py,
+  double pz,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double tx,
+  double ty,
+  double tz,
+  int mask,
+  int ignore,
+  Pointer<Uint64> body,
+  Pointer<Float> hit,
+);
+
+@Native<
+  Uint32 Function(
+    Pointer<F3dWorld>,
+    Float,
+    Float,
+    Pointer<Float>,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Uint32,
+    Uint64,
+    Pointer<Uint64>,
+    Pointer<Float>,
+  )
+>()
+external int f3d_world_move_character(
+  Pointer<F3dWorld> world,
+  double radius,
+  double halfHeight,
+  Pointer<Float> position,
+  double dx,
+  double dy,
+  double dz,
+  double maxSlopeCos,
+  double stepHeight,
+  int mask,
+  int ignore,
+  Pointer<Uint64> groundBody,
+  Pointer<Float> ground,
+);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint64, Int32)>(isLeaf: true)
 external int f3d_body_set_bullet(Pointer<F3dWorld> world, int body, int bullet);

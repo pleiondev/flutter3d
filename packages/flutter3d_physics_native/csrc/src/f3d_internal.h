@@ -263,6 +263,13 @@ int32_t f3d_tree_insert(F3dTree *tree, F3dBox box, uint32_t slot);
 void f3d_tree_remove(F3dTree *tree, int32_t leaf);
 void f3d_tree_clear(F3dTree *tree);
 
+/* Calls [visit] for every leaf whose box the segment from [origin] along
+ * [dir] for up to *[limit] crosses, nearest box first where it can; [visit]
+ * may shorten *[limit] to cut what is left. */
+void f3d_tree_ray(const F3dTree *tree, F3dVec3 origin, F3dVec3 dir,
+                  f3d_real *limit,
+                  int (*visit)(void *context, int32_t leaf), void *context);
+
 /* Calls [visit] for every leaf whose box overlaps [box]; stops early when
  * it returns nought. */
 void f3d_tree_query(const F3dTree *tree, F3dBox box,

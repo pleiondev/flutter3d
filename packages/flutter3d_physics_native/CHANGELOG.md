@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **Queries and a character, phase 9.** Rays (`f3d_world_ray_cast`, the
+  nearest; `f3d_world_ray_cast_all`, every one in order) walk the tree
+  nearest box first and cut it at each hit; a ball and an unrounded box are
+  met in closed form, a mesh triangle by triangle from its front, every
+  other shape by conservative advancement of a point. Shape overlaps and
+  shape casts ask the narrow phase, a cast by conservative advancement; a
+  cast starting overlapping meets at nought. Every query takes a layer mask
+  and a body to ignore, and none sees a shape its ray starts inside. A ray
+  meets what `flutter3d_physics`' does, at the same distance.
+  `f3d_world_move_character` moves a kinematic capsule by casting and
+  sliding: ground no steeper than its slope is stood on, steeper is slid
+  along and not climbed, a step up to its height is climbed by lifting,
+  moving and setting down, and walking down a slope it keeps to the
+  ground. A ball's ray is found by the ray's nearest distance to its
+  centre, not b² − c, which cost two millimetres at thirty metres in
+  floats.
+
 - **A bullet's turn is swept too.** The path a bullet took through the
   step is recorded substep by substep, and the sweep follows it, place and
   turn, bounding how fast its turn closes a gap by its fastest point; so a
