@@ -1,5 +1,26 @@
 ## Unreleased
 
+- **Water, phase 10.** `f3d_fluid` steps water as particles,
+  position-based (PBF): each held near the density a lattice of its
+  spacing has, a kernel twice the spacing wide, in a tank; only ever
+  pushed apart, so nothing clumps (and there is no surface tension),
+  with XSPH viscosity. A tank wall counts as the water going on past it:
+  layers of still particles beyond it add to a particle's density and push
+  it straight off. Without them the bottom layer had no neighbours below
+  and the water pressed it flat: 325 particles where a layer holds 200,
+  and the water too shallow; with them, 210, and a dam of a thousand
+  settles with its centre of mass at half its 25 cm depth. The GPU runs
+  the same passes, read a frame late; it agrees particle for particle
+  until the dam splashes, then holds the same water.
+
+- **A GPU pass that does not compile is refused, not fatal.** Kernels are
+  built inside a validation error scope, so a WGSL module wgpu will not
+  take makes the system's constructor throw instead of the device's
+  default handler ending the process. Three tests passed a tolerance
+  already scaled by its value, so they checked a kernel's rest density to
+  8%, a pendulum's speed to 22% and a rolling ball to 2.2%; they now check
+  to a part in 10⁵, 5% and 2%. ABI 15, GPU ABI 4.
+
 - **Cloth, phase 10.** `f3d_cloth` holds points at their distances by
   constraints, each with its own compliance — XPBD in small steps, one
   pass a substep, so a compliance α is a spring of stiffness 1/α and a

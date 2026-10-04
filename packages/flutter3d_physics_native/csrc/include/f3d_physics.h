@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 14u
+#define F3D_ABI_VERSION 15u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -699,6 +699,56 @@ F3D_API void f3d_cloth_step(F3dCloth *cloth, const F3dClothSettings *settings,
 /* Every point, F3D_CLOTH_FLOATS reals apiece, into [out]: up to
  * [capacity]; returns how many. */
 F3D_API uint32_t f3d_cloth_read(const F3dCloth *cloth, f3d_real *out, uint32_t capacity);
+
+/* ------------------------------------------------------------------ fluid */
+
+/* Fluid: water as particles, position-based (PBF) — each held near the
+ * density at rest of a cubic lattice of [spacing], with a kernel twice the
+ * spacing wide, inside a tank. The GPU steps the same fluid in f3d_gpu.h;
+ * this one is its reference and the fallback where there is none. Only
+ * ever pushed apart, never pulled together: no clumping, and no surface
+ * tension either. */
+typedef struct F3dFluid F3dFluid;
+
+/* Reals one particle takes in f3d_fluid_add: position xyz, velocity xyz. */
+#define F3D_FLUID_INPUT_FLOATS 6u
+/* Reals one particle takes in f3d_fluid_read: position xyz, and its
+ * density over the density at rest. */
+#define F3D_FLUID_FLOATS 4u
+
+typedef struct F3dFluidSettings {
+  f3d_real gravity[3];
+  /* The tank's corners: no particle centre comes nearer its walls than
+   * half the spacing. */
+  f3d_real tank_min[3];
+  f3d_real tank_max[3];
+  /* XSPH: how far a particle's velocity goes to its neighbours' a substep. */
+  f3d_real viscosity;
+  /* Softens the density constraint; larger is softer and steadier. */
+  f3d_real relaxation;
+  /* At least one each: substeps a step, density passes a substep. */
+  uint32_t substeps;
+  uint32_t iterations;
+} F3dFluidSettings;
+
+/* Room for [capacity] particles [spacing] apart at rest; null for none, a
+ * spacing not above nought, or no memory. */
+F3D_API F3dFluid *f3d_fluid_create(uint32_t capacity, f3d_real spacing);
+F3D_API void f3d_fluid_destroy(F3dFluid *fluid);
+F3D_API uint32_t f3d_fluid_capacity(const F3dFluid *fluid);
+
+/* The density at rest, in particles of mass one per cubic metre. */
+F3D_API f3d_real f3d_fluid_rest_density(const F3dFluid *fluid);
+
+/* [count] particles, F3D_FLUID_INPUT_FLOATS reals apiece, into the next
+ * slots, round and round once full. Returns the slot the first went in. */
+F3D_API uint32_t f3d_fluid_add(F3dFluid *fluid, const f3d_real *data, uint32_t count);
+
+F3D_API void f3d_fluid_step(F3dFluid *fluid, const F3dFluidSettings *settings, f3d_real dt);
+
+/* Every particle added, F3D_FLUID_FLOATS reals apiece, into [out]: up to
+ * [capacity]; returns how many. */
+F3D_API uint32_t f3d_fluid_read(const F3dFluid *fluid, f3d_real *out, uint32_t capacity);
 
 /* -------------------------------------------------------------- snapshots */
 

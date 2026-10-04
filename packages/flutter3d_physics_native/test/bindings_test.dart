@@ -51,19 +51,26 @@ void main() {
     expect(bound, declared);
   });
 
-  test('particles, debris and cloth are as many floats as the header says', () {
-    expect(c.particleFloats, define('F3D_PARTICLE_FLOATS'));
-    expect(c.debrisInputFloats, define('F3D_DEBRIS_INPUT_FLOATS'));
-    expect(c.debrisFloats, define('F3D_DEBRIS_FLOATS'));
-    expect(c.debrisStaticFloats, define('F3D_DEBRIS_STATIC_FLOATS'));
-    expect(c.debrisMaxStatics, define('F3D_DEBRIS_MAX_STATICS'));
-    expect(c.clothFloats, define('F3D_CLOTH_FLOATS'));
-    expect(c.clothMaxBalls, define('F3D_CLOTH_MAX_BALLS'));
-  });
+  test(
+    'particles, debris, cloth and fluid are as many floats as the header says',
+    () {
+      expect(c.particleFloats, define('F3D_PARTICLE_FLOATS'));
+      expect(c.debrisInputFloats, define('F3D_DEBRIS_INPUT_FLOATS'));
+      expect(c.debrisFloats, define('F3D_DEBRIS_FLOATS'));
+      expect(c.debrisStaticFloats, define('F3D_DEBRIS_STATIC_FLOATS'));
+      expect(c.debrisMaxStatics, define('F3D_DEBRIS_MAX_STATICS'));
+      expect(c.clothFloats, define('F3D_CLOTH_FLOATS'));
+      expect(c.clothMaxBalls, define('F3D_CLOTH_MAX_BALLS'));
+      expect(c.fluidInputFloats, define('F3D_FLUID_INPUT_FLOATS'));
+      expect(c.fluidFloats, define('F3D_FLUID_FLOATS'));
+    },
+  );
 
   test('the GPU library\'s header and bindings agree', () {
     final gpu = File('csrc/gpu/f3d_gpu.h').readAsStringSync();
-    final version = RegExp(r'#define F3D_GPU_ABI_VERSION (\d+)u').firstMatch(gpu);
+    final version = RegExp(
+      r'#define F3D_GPU_ABI_VERSION (\d+)u',
+    ).firstMatch(gpu);
     expect(int.parse(version!.group(1)!), g.gpuAbiVersion);
     final declared = RegExp(
       r'F3D_GPU_API [^;(]*?\b(f3d_\w+)\(',

@@ -38,6 +38,7 @@ const List<String> coreSources = <String>[
   'csrc/src/f3d_particles.c',
   'csrc/src/f3d_debris.c',
   'csrc/src/f3d_cloth.c',
+  'csrc/src/f3d_fluid.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 
@@ -72,6 +73,7 @@ void main(List<String> args) async {
         'csrc/gpu/f3d_gpu_particles.c',
         'csrc/gpu/f3d_gpu_debris.c',
         'csrc/gpu/f3d_gpu_cloth.c',
+        'csrc/gpu/f3d_gpu_fluid.c',
       ],
       includes: <String>['csrc/gpu', '${wgpu.path}/include'],
       std: 'c11',

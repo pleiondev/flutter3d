@@ -109,7 +109,8 @@ static void test_pendulum(void) {
     memcpy(last, out, sizeof out);
   }
   CHECK(worst_length < 1e-3);
-  CHECK_NEAR(fastest, sqrt(2 * 9.81), 0.05 * sqrt(2 * 9.81));
+  /* Five per cent: CHECK_NEAR scales its tolerance by values past one. */
+  CHECK_NEAR(fastest, sqrt(2 * 9.81), 0.05);
   f3d_cloth_destroy(c);
 }
 

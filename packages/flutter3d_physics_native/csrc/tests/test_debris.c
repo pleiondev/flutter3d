@@ -99,7 +99,8 @@ static void test_slope(void) {
     run(d, &s, 60);
     f3d_debris_read(d, out, 1);
     const double a = rolls ? 5.0 / 7.0 * g * sin(theta) : g * sin(theta);
-    CHECK_NEAR(out[0], 0.5 * a, 0.5 * a * 0.02);
+    /* Two per cent: CHECK_NEAR scales its tolerance past one. */
+    CHECK_NEAR(out[0], 0.5 * a, 0.02);
     CHECK_NEAR(out[1], 0.1, 1e-3);
     if (rolls) {
       /* Turned about z the way it rolls, by x / r radians. */

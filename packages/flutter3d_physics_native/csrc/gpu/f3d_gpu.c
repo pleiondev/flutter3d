@@ -132,7 +132,53 @@ WGPUBuffer f3d_gpu_buffer(const F3dGpu *gpu, WGPUBufferUsage usage, uint64_t siz
 
 void f3d_gpu_finish(const F3dGpu *gpu) { wgpuDevicePoll(gpu->device, 1, NULL); }
 
+typedef struct Scope {
+  int done;
+  int failed;
+} Scope;
+
+static void scope_popped(WGPUPopErrorScopeStatus status, WGPUErrorType type,
+                         WGPUStringView message, void *userdata1, void *userdata2) {
+  (void)message;
+  (void)userdata2;
+  Scope *scope = (Scope *)userdata1;
+  scope->failed = status != WGPUPopErrorScopeStatus_Success || type != WGPUErrorType_NoError;
+  scope->done = 1;
+}
+
+/* Whether anything since the matching push failed validation: so a WGSL
+ * module that does not compile makes a kernel set that is not, instead of
+ * a device error that ends the process. */
+static int scope_failed(const F3dGpu *gpu) {
+  Scope scope = {0, 0};
+  WGPUPopErrorScopeCallbackInfo info;
+  memset(&info, 0, sizeof info);
+  info.mode = WGPUCallbackMode_AllowProcessEvents;
+  info.callback = scope_popped;
+  info.userdata1 = &scope;
+  wgpuDevicePopErrorScope(gpu->device, info);
+  wait_for(gpu->instance, &scope.done);
+  return !scope.done || scope.failed;
+}
+
+static int kernels_build(F3dGpuKernels *k, const F3dGpu *gpu, const char *source,
+                         const char *const *entries, uint32_t entry_count,
+                         const F3dGpuBinding *kinds, const WGPUBuffer *buffers,
+                         const uint64_t *sizes, uint32_t binding_count);
+
 int f3d_gpu_kernels_create(F3dGpuKernels *k, const F3dGpu *gpu, const char *source,
+                           const char *const *entries, uint32_t entry_count,
+                           const F3dGpuBinding *kinds, const WGPUBuffer *buffers,
+                           const uint64_t *sizes, uint32_t binding_count) {
+  wgpuDevicePushErrorScope(gpu->device, WGPUErrorFilter_Validation);
+  const int built =
+      kernels_build(k, gpu, source, entries, entry_count, kinds, buffers, sizes, binding_count);
+  const int failed = scope_failed(gpu);
+  if (built && failed) f3d_gpu_kernels_release(k);
+  return built && !failed;
+}
+
+static int kernels_build(F3dGpuKernels *k, const F3dGpu *gpu, const char *source,
                            const char *const *entries, uint32_t entry_count,
                            const F3dGpuBinding *kinds, const WGPUBuffer *buffers,
                            const uint64_t *sizes, uint32_t binding_count) {

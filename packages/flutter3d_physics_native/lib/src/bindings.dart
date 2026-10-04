@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 14;
+const int abiVersion = 15;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -1243,6 +1243,69 @@ external void f3d_cloth_step(
 )
 external int f3d_cloth_read(
   Pointer<F3dCloth> cloth,
+  Pointer<Float> out,
+  int capacity,
+);
+
+// ------------------------------------------------------------------ fluid
+
+final class F3dFluid extends Opaque {}
+
+/// `F3D_FLUID_INPUT_FLOATS` and `F3D_FLUID_FLOATS`.
+const int fluidInputFloats = 6;
+const int fluidFloats = 4;
+
+/// `F3dFluidSettings`, field for field.
+final class F3dFluidSettings extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Array(3)
+  external Array<Float> tank_min;
+  @Array(3)
+  external Array<Float> tank_max;
+  @Float()
+  external double viscosity;
+  @Float()
+  external double relaxation;
+  @Uint32()
+  external int substeps;
+  @Uint32()
+  external int iterations;
+}
+
+@Native<Pointer<F3dFluid> Function(Uint32, Float)>()
+external Pointer<F3dFluid> f3d_fluid_create(int capacity, double spacing);
+
+@Native<Void Function(Pointer<F3dFluid>)>()
+external void f3d_fluid_destroy(Pointer<F3dFluid> fluid);
+
+@Native<Uint32 Function(Pointer<F3dFluid>)>(isLeaf: true)
+external int f3d_fluid_capacity(Pointer<F3dFluid> fluid);
+
+@Native<Float Function(Pointer<F3dFluid>)>(isLeaf: true)
+external double f3d_fluid_rest_density(Pointer<F3dFluid> fluid);
+
+@Native<Uint32 Function(Pointer<F3dFluid>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_fluid_add(
+  Pointer<F3dFluid> fluid,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<Void Function(Pointer<F3dFluid>, Pointer<F3dFluidSettings>, Float)>()
+external void f3d_fluid_step(
+  Pointer<F3dFluid> fluid,
+  Pointer<F3dFluidSettings> settings,
+  double dt,
+);
+
+@Native<Uint32 Function(Pointer<F3dFluid>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_fluid_read(
+  Pointer<F3dFluid> fluid,
   Pointer<Float> out,
   int capacity,
 );

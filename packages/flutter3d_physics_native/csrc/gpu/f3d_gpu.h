@@ -27,12 +27,13 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_GPU_ABI_VERSION 3u
+#define F3D_GPU_ABI_VERSION 4u
 
 typedef struct F3dGpu F3dGpu;
 typedef struct F3dGpuParticles F3dGpuParticles;
 typedef struct F3dGpuDebris F3dGpuDebris;
 typedef struct F3dGpuCloth F3dGpuCloth;
+typedef struct F3dGpuFluid F3dGpuFluid;
 
 /* How particles move, as f3d_particles_step reads F3dParticleForces. */
 typedef struct F3dGpuParticleForces {
@@ -150,6 +151,35 @@ F3D_GPU_API void f3d_gpu_cloth_step(F3dGpuCloth *cloth, const F3dGpuClothSetting
 /* The points as f3d_cloth_read writes them, read as f3d_gpu_debris_read
  * reads: the step they are from, nought for none new. */
 F3D_GPU_API uint64_t f3d_gpu_cloth_read(F3dGpuCloth *cloth, float *out, uint32_t capacity,
+                                        int wait);
+
+/* Fluid, as f3d_fluid steps it: F3dFluidSettings, in floats. */
+typedef struct F3dGpuFluidSettings {
+  float gravity[3];
+  float tank_min[3];
+  float tank_max[3];
+  float viscosity;
+  float relaxation;
+  uint32_t substeps;
+  uint32_t iterations;
+} F3dGpuFluidSettings;
+
+/* As f3d_fluid_create: room for [capacity] particles [spacing] apart at
+ * rest, and the same density at rest, worked out the same way. */
+F3D_GPU_API F3dGpuFluid *f3d_gpu_fluid_create(F3dGpu *gpu, uint32_t capacity, float spacing);
+F3D_GPU_API void f3d_gpu_fluid_destroy(F3dGpuFluid *fluid);
+F3D_GPU_API float f3d_gpu_fluid_rest_density(const F3dGpuFluid *fluid);
+
+/* As f3d_fluid_add. */
+F3D_GPU_API uint32_t f3d_gpu_fluid_add(F3dGpuFluid *fluid, const float *data, uint32_t count);
+
+/* Queues a step of [dt] and, after it, the particles' copy back. */
+F3D_GPU_API void f3d_gpu_fluid_step(F3dGpuFluid *fluid, const F3dGpuFluidSettings *settings,
+                                    float dt);
+
+/* The particles as f3d_fluid_read writes them, read as f3d_gpu_debris_read
+ * reads: the step they are from, nought for none new. */
+F3D_GPU_API uint64_t f3d_gpu_fluid_read(F3dGpuFluid *fluid, float *out, uint32_t capacity,
                                         int wait);
 
 #ifdef __cplusplus

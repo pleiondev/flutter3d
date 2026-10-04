@@ -209,7 +209,11 @@ final class GpuParticles implements ParticleSystem {
     : _capacity = capacity,
       _p = g.f3d_gpu_particles_create(_gpu._live, capacity) {
     if (_p == nullptr) {
-      throw ArgumentError.value(capacity, 'capacity', 'none, or no memory');
+      throw ArgumentError.value(
+        capacity,
+        'capacity',
+        'none, too many, no memory, or a pass the GPU would not build',
+      );
     }
   }
 

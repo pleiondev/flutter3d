@@ -12,7 +12,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_GPU_ABI_VERSION` this file was written against.
-const int gpuAbiVersion = 3;
+const int gpuAbiVersion = 4;
 
 final class F3dGpu extends Opaque {}
 
@@ -228,6 +228,63 @@ external void f3d_gpu_cloth_step(
 @Native<Uint64 Function(Pointer<F3dGpuCloth>, Pointer<Float>, Uint32, Int32)>()
 external int f3d_gpu_cloth_read(
   Pointer<F3dGpuCloth> cloth,
+  Pointer<Float> out,
+  int capacity,
+  int wait,
+);
+
+final class F3dGpuFluid extends Opaque {}
+
+/// `F3dGpuFluidSettings`, field for field.
+final class F3dGpuFluidSettings extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Array(3)
+  external Array<Float> tank_min;
+  @Array(3)
+  external Array<Float> tank_max;
+  @Float()
+  external double viscosity;
+  @Float()
+  external double relaxation;
+  @Uint32()
+  external int substeps;
+  @Uint32()
+  external int iterations;
+}
+
+@Native<Pointer<F3dGpuFluid> Function(Pointer<F3dGpu>, Uint32, Float)>()
+external Pointer<F3dGpuFluid> f3d_gpu_fluid_create(
+  Pointer<F3dGpu> gpu,
+  int capacity,
+  double spacing,
+);
+
+@Native<Void Function(Pointer<F3dGpuFluid>)>()
+external void f3d_gpu_fluid_destroy(Pointer<F3dGpuFluid> fluid);
+
+@Native<Float Function(Pointer<F3dGpuFluid>)>()
+external double f3d_gpu_fluid_rest_density(Pointer<F3dGpuFluid> fluid);
+
+@Native<Uint32 Function(Pointer<F3dGpuFluid>, Pointer<Float>, Uint32)>()
+external int f3d_gpu_fluid_add(
+  Pointer<F3dGpuFluid> fluid,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<
+  Void Function(Pointer<F3dGpuFluid>, Pointer<F3dGpuFluidSettings>, Float)
+>()
+external void f3d_gpu_fluid_step(
+  Pointer<F3dGpuFluid> fluid,
+  Pointer<F3dGpuFluidSettings> settings,
+  double dt,
+);
+
+@Native<Uint64 Function(Pointer<F3dGpuFluid>, Pointer<Float>, Uint32, Int32)>()
+external int f3d_gpu_fluid_read(
+  Pointer<F3dGpuFluid> fluid,
   Pointer<Float> out,
   int capacity,
   int wait,

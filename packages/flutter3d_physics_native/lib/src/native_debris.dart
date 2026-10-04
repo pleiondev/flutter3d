@@ -245,7 +245,11 @@ final class GpuDebris implements DebrisSystem {
       _capacity = capacity,
       _d = g.f3d_gpu_debris_create(nativeGpuPointer(gpu), capacity) {
     if (_d == nullptr) {
-      throw ArgumentError.value(capacity, 'capacity', 'none, or no memory');
+      throw ArgumentError.value(
+        capacity,
+        'capacity',
+        'none, too many, no memory, or a pass the GPU would not build',
+      );
     }
   }
 

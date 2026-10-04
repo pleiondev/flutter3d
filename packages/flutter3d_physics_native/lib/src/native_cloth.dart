@@ -348,7 +348,11 @@ final class GpuCloth implements ClothSystem {
         colours,
       );
       if (cloth == nullptr) {
-        throw ArgumentError.value(mesh, 'mesh', 'too large, or no memory');
+        throw ArgumentError.value(
+          mesh,
+          'mesh',
+          'too large, no memory, or a pass the GPU would not build',
+        );
       }
       return cloth;
     } finally {
