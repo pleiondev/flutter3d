@@ -81,8 +81,22 @@ typedef struct F3dSym3 {
   f3d_real xx, yy, zz, xy, xz, yz;
 } F3dSym3;
 
-/* R · diag(d) · Rᵀ, with R the rotation of the unit quaternion [q]. */
-F3dSym3 f3d_sym_turned(F3dQuat q, F3dVec3 d);
+/* R · M · Rᵀ, with R the rotation of the unit quaternion [q]: a tensor in
+ * a body's own axes, in the world's. */
+F3dSym3 f3d_sym_turned(F3dQuat q, F3dSym3 m);
+
+static inline F3dSym3 f3d_sym_diag(f3d_real x, f3d_real y, f3d_real z) {
+  F3dSym3 m;
+  m.xx = x;
+  m.yy = y;
+  m.zz = z;
+  m.xy = m.xz = m.yz = 0;
+  return m;
+}
+
+/* The inverse of a symmetric matrix by its cofactors, or nought for one
+ * that has none. */
+F3dSym3 f3d_sym_inverse(F3dSym3 m);
 
 static inline F3dVec3 f3d_sym_times(F3dSym3 m, F3dVec3 v) {
   F3dVec3 out;
@@ -172,6 +186,12 @@ typedef struct F3dPlaced {
   F3dVec3 size;
   F3dVec3 at;
   F3dMat3 axes;
+  /* How far the shape is rounded out. */
+  f3d_real rounding;
+  /* A hull's vertices and triangles, and their counts; null for the rest. */
+  const struct F3dHull *hull;
+  const f3d_real *vertices;
+  const uint32_t *triangles;
 } F3dPlaced;
 
 /* Fills [out]'s normal and points for [a] against [b], within [margin],
@@ -267,10 +287,16 @@ typedef struct F3dSlot {
   F3dVec3 size;
   f3d_real mass;
   f3d_real inverse_mass;
-  /* Principal moments in the body's axes, and their inverses — nought
-   * where the body does not turn. */
-  F3dVec3 inertia;
-  F3dVec3 inverse_inertia;
+  /* The inertia tensor in the body's own axes, and its inverse — nought
+   * where the body does not turn. Diagonal for every shape but a hull. */
+  F3dSym3 inertia;
+  F3dSym3 inverse_inertia;
+  /* The hull it is shaped as, one past its index in the world's table;
+   * nought for none. */
+  uint32_t hull;
+  /* How far its shape is rounded out, m: the shape grown by a ball of this
+   * radius. */
+  f3d_real rounding;
   f3d_real linear_damping;
   f3d_real angular_damping;
   /* As set; nought takes the shape's. */
@@ -305,6 +331,22 @@ typedef struct F3dEventRecord {
   uint32_t reserved;
 } F3dEventRecord;
 
+/* A convex hull: its vertices and triangles in the world's two arrays,
+ * what one kilogram of it weighs into its inertia, and how it was moved to
+ * put its centre of mass at the body's origin. Plain data. */
+typedef struct F3dHull {
+  uint32_t first_vertex, vertex_count;
+  uint32_t first_triangle, triangle_count;
+  /* Subtracted from every point it was made from. */
+  F3dVec3 offset;
+  /* Its box in its own frame. */
+  F3dVec3 lo, hi;
+  f3d_real volume;
+  f3d_real surface;
+  /* The inertia tensor of a kilogram of it, about its centre. */
+  F3dSym3 unit_inertia;
+} F3dHull;
+
 /* Everything in a world that is not behind a pointer: what a snapshot
  * copies in one piece. */
 typedef struct F3dWorldState {
@@ -334,6 +376,10 @@ typedef struct F3dWorldState {
   uint32_t manifold_count;
   /* How many substeps a step is solved in. */
   uint32_t substeps;
+  /* The hulls, and the vertices and triangles they hold. */
+  uint32_t hull_count;
+  uint32_t hull_vertex_count;
+  uint32_t hull_triangle_count;
 } F3dWorldState;
 
 struct F3dWorld {
@@ -350,6 +396,11 @@ struct F3dWorld {
   F3dManifold *next_manifolds;
   uint32_t manifold_capacity;
   uint32_t next_capacity;
+  /* The hulls: headers, vertices three reals each, triangles three indices
+   * into their hull's vertices each. In a snapshot. */
+  F3dHull *hulls;
+  f3d_real *hull_vertices;
+  uint32_t *hull_triangles;
   /* The broadphase, and each slot's leaf in it (-1 for none), as long as
    * the arena. Neither is in a snapshot. */
   F3dTree tree;
@@ -368,7 +419,7 @@ F3dBody f3d_handle_of(const F3dWorld *world, const F3dSlot *slot);
 
 /* Brings a body's inertia, surface and drag up to date with its shape and
  * mass. */
-void f3d_refresh_mass(F3dSlot *slot);
+void f3d_refresh_mass(const F3dWorld *world, F3dSlot *slot);
 
 void f3d_push_event(F3dWorld *world, F3dBody body, uint32_t kind);
 void f3d_push_pair_event(F3dWorld *world, F3dBody body, F3dBody other,
@@ -378,7 +429,7 @@ void f3d_push_pair_event(F3dWorld *world, F3dBody body, F3dBody other,
 void f3d_wake(F3dWorld *world, F3dSlot *slot);
 
 /* A body's box, as tight as its shape, grown by [margin] on every side. */
-F3dBox f3d_box_of(const F3dSlot *slot, f3d_real margin);
+F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *slot, f3d_real margin);
 
 /* Brings every body's leaf up to date: made for a body that has a shape,
  * moved for one that left its fat box, taken out for one that is gone or
@@ -386,7 +437,12 @@ F3dBox f3d_box_of(const F3dSlot *slot, f3d_real margin);
 void f3d_update_proxies(F3dWorld *world);
 
 /* A shape's placement, from its slot. */
-F3dPlaced f3d_placed_of(const F3dSlot *slot);
+F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *slot);
+
+/* The general narrow phase, for any two shapes: GJK between their cores,
+ * EPA where the cores overlap, and the manifold from their faces. */
+uint32_t f3d_collide_convex(const F3dPlaced *a, const F3dPlaced *b,
+                            f3d_real margin, F3dManifold *out);
 
 /* Whether anything can turn the body: a shape with inertia, dynamic, not
  * locked. */

@@ -287,7 +287,7 @@ void f3d_tree_query(const F3dTree *tree, F3dBox box,
   }
 }
 
-F3dBox f3d_box_of(const F3dSlot *s, f3d_real margin) {
+F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *s, f3d_real margin) {
   const F3dMat3 m = f3d_mat_of(s->orientation);
   F3dVec3 reach;
   switch (s->shape) {
@@ -301,6 +301,53 @@ F3dBox f3d_box_of(const F3dSlot *s, f3d_real margin) {
                      f3d_abs(axis.z) * s->size.y + s->size.x);
       break;
     }
+    case F3D_SHAPE_CYLINDER:
+    case F3D_SHAPE_CONE: {
+      /* A disc of radius r reaches r √(1 − a²) along a world axis whose
+       * share of its own axis is a; the cylinder's and the cone's ends are
+       * discs. Bounded here by the box round the shape's own box, which is
+       * at most a few per cent larger and needs no root per axis. */
+      const f3d_real r = s->size.x;
+      const f3d_real h = s->shape == F3D_SHAPE_CYLINDER
+                             ? s->size.y
+                             : F3D_R(0.75) * s->size.y;
+      const f3d_real hl[3] = {r, h, r};
+      reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+      for (int k = 0; k < 3; k++) {
+        reach.x += f3d_abs(m.c[k].x) * hl[k];
+        reach.y += f3d_abs(m.c[k].y) * hl[k];
+        reach.z += f3d_abs(m.c[k].z) * hl[k];
+      }
+      break;
+    }
+    case F3D_SHAPE_HULL: {
+      /* The hull's own box, turned: its centre may sit off the origin. */
+      const F3dHull *hull = s->hull != 0 && s->hull <= world->s.hull_count
+                                ? &world->hulls[s->hull - 1u]
+                                : NULL;
+      if (hull == NULL) {
+        reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+        break;
+      }
+      const F3dVec3 c = f3d_scale(f3d_add(hull->lo, hull->hi), F3D_R(0.5));
+      const F3dVec3 hh = f3d_scale(f3d_sub(hull->hi, hull->lo), F3D_R(0.5));
+      const f3d_real hl[3] = {hh.x, hh.y, hh.z};
+      const F3dVec3 shift = f3d_add(
+          f3d_add(f3d_scale(m.c[0], c.x), f3d_scale(m.c[1], c.y)),
+          f3d_scale(m.c[2], c.z));
+      reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+      for (int k = 0; k < 3; k++) {
+        reach.x += f3d_abs(m.c[k].x) * hl[k];
+        reach.y += f3d_abs(m.c[k].y) * hl[k];
+        reach.z += f3d_abs(m.c[k].z) * hl[k];
+      }
+      const f3d_real grow = margin + s->rounding;
+      reach = f3d_add(reach, f3d_v3(grow, grow, grow));
+      F3dBox b;
+      b.lo = f3d_sub(f3d_add(s->position, shift), reach);
+      b.hi = f3d_add(f3d_add(s->position, shift), reach);
+      return b;
+    }
     default: {
       const f3d_real h[3] = {s->size.x, s->size.y, s->size.z};
       reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
@@ -312,7 +359,8 @@ F3dBox f3d_box_of(const F3dSlot *s, f3d_real margin) {
       break;
     }
   }
-  reach = f3d_add(reach, f3d_v3(margin, margin, margin));
+  const f3d_real grow = margin + s->rounding;
+  reach = f3d_add(reach, f3d_v3(grow, grow, grow));
   F3dBox b;
   b.lo = f3d_sub(s->position, reach);
   b.hi = f3d_add(s->position, reach);
@@ -354,7 +402,7 @@ void f3d_update_proxies(F3dWorld *world) {
       }
       continue;
     }
-    const F3dBox tight = f3d_box_of(s, half);
+    const F3dBox tight = f3d_box_of(world, s, half);
     if (*leaf != -1) {
       /* A slot taken by a new body keeps its old leaf only if the box still
        * fits: the leaf holds no handle, so it cannot go stale otherwise. */
@@ -382,7 +430,7 @@ static int found_one(void *context, int32_t leaf) {
   Found *f = (Found *)context;
   const uint32_t slot = f->world->tree.nodes[leaf].slot;
   const F3dSlot *s = &f->world->slots[slot];
-  if (!f3d_box_overlap(f3d_box_of(s, F3D_R(0.0)), f->box)) return 1;
+  if (!f3d_box_overlap(f3d_box_of(f->world, s, F3D_R(0.0)), f->box)) return 1;
   /* Kept in slot order as they come, so the answer does not depend on the
    * tree's shape: an insertion into the sorted part found so far. */
   const F3dBody handle = f3d_handle_of(f->world, s);

@@ -27,6 +27,7 @@ static const F3dQuat identity = {0, 0, 0, 1};
 
 static F3dPlaced placed(uint32_t kind, F3dVec3 size, F3dVec3 at, F3dQuat q) {
   F3dPlaced p;
+  memset(&p, 0, sizeof p);
   p.kind = kind;
   p.size = size;
   p.at = at;
@@ -304,7 +305,7 @@ static void test_sweep_finds_every_pair(void) {
       const F3dSlot *a = f3d_slot_of(w, bodies[i]);
       const F3dSlot *b = f3d_slot_of(w, bodies[j]);
       if (a->type == F3D_BODY_FIXED && b->type == F3D_BODY_FIXED) continue;
-      const F3dPlaced pa = f3d_placed_of(a), pb = f3d_placed_of(b);
+      const F3dPlaced pa = f3d_placed_of(w, a), pb = f3d_placed_of(w, b);
       F3dManifold m;
       memset(&m, 0, sizeof m);
       if (f3d_collide(&pa, &pb, w->s.contact_margin, &m) > 0) expected++;

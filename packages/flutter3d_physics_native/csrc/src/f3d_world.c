@@ -43,6 +43,9 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->scratch);
   f3d_tree_clear(&world->tree);
   f3d_free(world->proxies);
+  f3d_free(world->hulls);
+  f3d_free(world->hull_vertices);
+  f3d_free(world->hull_triangles);
   f3d_free(world);
 }
 
@@ -326,7 +329,7 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
   s->friction = F3D_R(0.6);
   s->layer = 1u;
   s->mask = UINT32_MAX;
-  f3d_refresh_mass(s);
+  f3d_refresh_mass(world, s);
   world->s.live++;
   return handle_of(slot, generation);
 }
@@ -368,11 +371,6 @@ void f3d_wake(F3dWorld *world, F3dSlot *s) {
   f3d_push_event(world, f3d_handle_of(world, s), F3D_EVENT_WOKE);
 }
 
-static int turns(const F3dSlot *s) {
-  return s->inverse_inertia.x != F3D_R(0.0) ||
-         s->inverse_inertia.y != F3D_R(0.0) ||
-         s->inverse_inertia.z != F3D_R(0.0);
-}
 
 int f3d_body_set_velocity(F3dWorld *world, F3dBody body, f3d_real x,
                           f3d_real y, f3d_real z) {
@@ -421,7 +419,7 @@ int f3d_body_set_angular_velocity(F3dWorld *world, F3dBody body, f3d_real x,
                                   f3d_real y, f3d_real z) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !finite3(x, y, z)) return 0;
-  if (!turns(s)) return 1;
+  if (!f3d_turns(s)) return 1;
   set3(&s->spin, x, y, z);
   f3d_wake(world, s);
   return 1;
@@ -487,13 +485,20 @@ int f3d_body_set_shape(F3dWorld *world, F3dBody body, F3dShapeKind kind,
       if (!POSITIVE(a) || !(f3d_finite(b) && b >= F3D_R(0.0))) return 0;
       set3(&s->size, a, b, F3D_R(0.0));
       break;
+    case F3D_SHAPE_CYLINDER:
+    case F3D_SHAPE_CONE:
+      if (!POSITIVE(a) || !POSITIVE(b)) return 0;
+      set3(&s->size, a, b, F3D_R(0.0));
+      break;
     default:
       return 0;
   }
 #undef POSITIVE
   s->shape = (uint8_t)kind;
-  f3d_refresh_mass(s);
-  if (!turns(s)) set3(&s->spin, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  s->hull = 0;
+  if (kind == F3D_SHAPE_POINT) s->rounding = F3D_R(0.0);
+  f3d_refresh_mass(world, s);
+  if (!f3d_turns(s)) set3(&s->spin, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   s->flags |= F3D_FLAG_MOVED;
   f3d_wake(world, s);
   return 1;
@@ -502,7 +507,45 @@ int f3d_body_set_shape(F3dWorld *world, F3dBody body, F3dShapeKind kind,
 int f3d_body_get_inertia(const F3dWorld *world, F3dBody body, f3d_real *out) {
   const F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL) return 0;
-  get3(&s->inertia, out);
+  out[0] = s->inertia.xx;
+  out[1] = s->inertia.yy;
+  out[2] = s->inertia.zz;
+  return 1;
+}
+
+int f3d_body_get_inertia_tensor(const F3dWorld *world, F3dBody body,
+                                f3d_real *out) {
+  const F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL) return 0;
+  out[0] = s->inertia.xx;
+  out[1] = s->inertia.yy;
+  out[2] = s->inertia.zz;
+  out[3] = s->inertia.xy;
+  out[4] = s->inertia.xz;
+  out[5] = s->inertia.yz;
+  return 1;
+}
+
+int f3d_body_set_rounding(F3dWorld *world, F3dBody body, f3d_real radius) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || !(f3d_finite(radius) && radius >= F3D_R(0.0))) return 0;
+  if (s->shape == F3D_SHAPE_POINT && radius > F3D_R(0.0)) return 0;
+  s->rounding = radius;
+  f3d_refresh_mass(world, s);
+  s->flags |= F3D_FLAG_MOVED;
+  f3d_wake(world, s);
+  return 1;
+}
+
+int f3d_body_set_hull(F3dWorld *world, F3dBody body, uint32_t hull) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || hull == 0 || hull > world->s.hull_count) return 0;
+  s->shape = F3D_SHAPE_HULL;
+  s->hull = hull;
+  set3(&s->size, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  f3d_refresh_mass(world, s);
+  s->flags |= F3D_FLAG_MOVED;
+  f3d_wake(world, s);
   return 1;
 }
 
@@ -521,8 +564,8 @@ int f3d_body_lock_rotation(F3dWorld *world, F3dBody body, int locked) {
   } else {
     s->flags &= (uint8_t)~F3D_FLAG_LOCKED;
   }
-  f3d_refresh_mass(s);
-  if (!turns(s)) set3(&s->spin, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  f3d_refresh_mass(world, s);
+  if (!f3d_turns(s)) set3(&s->spin, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   return 1;
 }
 
@@ -543,7 +586,7 @@ int f3d_body_set_drag(F3dWorld *world, F3dBody body, f3d_real coefficient) {
     return 0;
   }
   s->drag = coefficient;
-  f3d_refresh_mass(s);
+  f3d_refresh_mass(world, s);
   return 1;
 }
 
@@ -578,7 +621,7 @@ int f3d_body_apply_impulse_at(F3dWorld *world, F3dBody body, f3d_real x,
   s->velocity.x += x * s->inverse_mass;
   s->velocity.y += y * s->inverse_mass;
   s->velocity.z += z * s->inverse_mass;
-  if (turns(s)) {
+  if (f3d_turns(s)) {
     const f3d_real rx = px - s->position.x;
     const f3d_real ry = py - s->position.y;
     const f3d_real rz = pz - s->position.z;
@@ -610,7 +653,7 @@ int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x, f3d_real y,
   s->torque.x += x;
   s->torque.y += y;
   s->torque.z += z;
-  if (turns(s)) f3d_wake(world, s);
+  if (f3d_turns(s)) f3d_wake(world, s);
   return 1;
 }
 

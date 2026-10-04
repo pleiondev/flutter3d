@@ -64,8 +64,8 @@ static void momentum(F3dWorld *w, F3dBody b, double *l) {
   f3d_body_get_angular_velocity(w, b, spin);
   f3d_body_get_inertia(w, b, inertia);
   F3dQuat qq = {q[0], q[1], q[2], q[3]};
-  F3dVec3 d = {inertia[0], inertia[1], inertia[2]};
-  const F3dSym3 m = f3d_sym_turned(qq, d);
+  const F3dSym3 m =
+      f3d_sym_turned(qq, f3d_sym_diag(inertia[0], inertia[1], inertia[2]));
   l[0] = (double)m.xx * spin[0] + (double)m.xy * spin[1] + (double)m.xz * spin[2];
   l[1] = (double)m.xy * spin[0] + (double)m.yy * spin[1] + (double)m.yz * spin[2];
   l[2] = (double)m.xz * spin[0] + (double)m.yz * spin[1] + (double)m.zz * spin[2];

@@ -591,11 +591,32 @@ static uint32_t flipped(uint32_t count, F3dManifold *out) {
   return count;
 }
 
-uint32_t f3d_collide(const F3dPlaced *a, const F3dPlaced *b, f3d_real margin,
+/* Whether the pair has a closed form here: balls, unrounded boxes and
+ * capsules. Anything else goes to the general narrow phase. */
+static int classic(const F3dPlaced *p) {
+  return p->kind == F3D_SHAPE_SPHERE || p->kind == F3D_SHAPE_CAPSULE ||
+         (p->kind == F3D_SHAPE_BOX && p->rounding == F3D_R(0.0));
+}
+
+uint32_t f3d_collide(const F3dPlaced *pa, const F3dPlaced *pb, f3d_real margin,
                      F3dManifold *out) {
   out->count = 0;
   out->touching = 0;
   uint32_t count = 0;
+  if (pa->kind == F3D_SHAPE_POINT || pb->kind == F3D_SHAPE_POINT) return 0;
+  if (!classic(pa) || !classic(pb)) {
+    count = f3d_collide_convex(pa, pb, margin, out);
+    out->count = count;
+    for (uint32_t i = 0; i < count; i++) {
+      if (out->points[i].depth >= -F3D_LINEAR_SLOP) out->touching = 1;
+    }
+    return count;
+  }
+  /* A ball's or a capsule's rounding is more radius. */
+  F3dPlaced ra = *pa, rb = *pb;
+  if (ra.kind != F3D_SHAPE_BOX) ra.size.x += ra.rounding;
+  if (rb.kind != F3D_SHAPE_BOX) rb.size.x += rb.rounding;
+  const F3dPlaced *a = &ra, *b = &rb;
   switch (a->kind * 4u + b->kind) {
     case F3D_SHAPE_SPHERE * 4u + F3D_SHAPE_SPHERE:
       count = sphere_sphere(a, b, margin, out);

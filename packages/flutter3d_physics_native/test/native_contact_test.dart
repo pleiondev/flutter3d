@@ -196,4 +196,56 @@ void main() {
     );
     expect(world.queryBox(Vector3.all(50.0), Vector3.all(51.0)), isEmpty);
   });
+
+  test('cylinders, cones and hulls stand on a floor, through the binding', () {
+    // The C tests hold GJK, EPA and the manifolds against the closed forms;
+    // this holds what a game reads: each shape at rest at its own height.
+    final floor = world.addBody(
+      position: Vector3(0.0, -0.5, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world
+      ..setShape(floor, NativeShape.box(Vector3(20.0, 0.5, 20.0)))
+      ..setSleep(speed: 0.05, time: 0.5)
+      ..gravity = Vector3(0.0, -9.81, 0.0);
+    final hull = world.createHull(<Vector3>[
+      for (var i = 0; i < 8; i++)
+        Vector3(
+          5.0 + ((i & 1) != 0 ? 0.5 : -0.5),
+          (i & 2) != 0 ? 0.5 : -0.5,
+          (i & 4) != 0 ? 0.5 : -0.5,
+        ),
+      Vector3(5.0, 0.0, 0.0), // Inside: not a corner.
+    ]);
+    expect(world.hullVertexCount(hull), 8);
+    expect(world.hullOffset(hull).x, closeTo(5.0, 1e-6));
+    final cylinder = world.addBody(position: Vector3(0.0, 1.01, 0.0));
+    final cone = world.addBody(position: Vector3(3.0, 0.26, 0.0));
+    final cube = world.addBody(position: Vector3(-3.0, 0.51, 0.0));
+    final rounded = world.addBody(position: Vector3(6.0, 0.51, 0.0));
+    world
+      ..setShape(cylinder, const NativeShape.cylinder(0.3, 1.0))
+      ..setShape(cone, const NativeShape.cone(0.4, 1.0))
+      ..setHull(cube, hull)
+      ..setShape(rounded, NativeShape.box(Vector3.all(0.4)))
+      ..setRounding(rounded, 0.1);
+    for (var i = 0; i < 240; i++) {
+      world.step(1.0 / 60.0);
+    }
+    for (final (body, height) in <(NativeBody, double)>[
+      (cylinder, 1.0),
+      (cone, 0.25),
+      (cube, 0.5),
+      (rounded, 0.5),
+    ]) {
+      expect(world.positionOf(body).y, closeTo(height, 0.01));
+      expect(world.isAsleep(body), isTrue);
+    }
+    expect(world.inertiaTensorOf(cube).entry(0, 1), closeTo(0.0, 1e-6));
+    expect(
+      () => world.createHull(<Vector3>[Vector3.zero(), Vector3(1.0, 0.0, 0.0)]),
+      throwsArgumentError,
+    );
+  });
 }

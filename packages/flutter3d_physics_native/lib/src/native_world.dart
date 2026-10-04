@@ -68,12 +68,26 @@ final class NativeShape {
   const NativeShape.capsule(double radius, double halfLength)
     : this._(c.ShapeKind.capsule, radius, halfLength, 0);
 
+  /// Upright along the body's y, [halfHeight] each way from the centre.
+  const NativeShape.cylinder(double radius, double halfHeight)
+    : this._(c.ShapeKind.cylinder, radius, halfHeight, 0);
+
+  /// Its apex up along the body's y, [height] tall over a base of
+  /// [radius]; its origin at its centre of mass, a quarter of the height
+  /// above the base.
+  const NativeShape.cone(double radius, double height)
+    : this._(c.ShapeKind.cone, radius, height, 0);
+
   /// `F3dShapeKind`.
   final int kind;
 
   /// The three numbers the kind reads, as the constructors name them.
   final double first, second, third;
 }
+
+/// A convex hull the world holds, for bodies to be shaped as
+/// ([NativeWorld.setHull]). Numbered from one.
+extension type const NativeHull(int id) {}
 
 /// What a body is made of, as heat and fire see it — `F3dMaterial`.
 final class NativeMaterial {
@@ -494,6 +508,45 @@ final class NativeWorld implements Finalizable {
     }
   }
 
+  /// A convex hull of [points], built and kept by the world: moved so its
+  /// centre of mass, taken as solid, is at the origin of the bodies shaped
+  /// as it — [hullOffset] says by how much. Throws an [ArgumentError] for
+  /// fewer than four points not all in a plane, more than 4096, or a point
+  /// not finite.
+  NativeHull createHull(List<Vector3> points) {
+    final buffer = malloc<Float>(points.isEmpty ? 3 : points.length * 3);
+    try {
+      for (var i = 0; i < points.length; i++) {
+        buffer[i * 3] = points[i].x;
+        buffer[i * 3 + 1] = points[i].y;
+        buffer[i * 3 + 2] = points[i].z;
+      }
+      final id = c.f3d_world_create_hull(_live, buffer, points.length);
+      if (id == 0) {
+        throw ArgumentError.value(
+          points.length,
+          'points',
+          'not four or more points, finite, not all in one plane',
+        );
+      }
+      return NativeHull(id);
+    } finally {
+      malloc.free(buffer);
+    }
+  }
+
+  /// What was subtracted from every point [hull] was made from.
+  Vector3 hullOffset(NativeHull hull) {
+    if (c.f3d_world_get_hull_offset(_live, hull.id, _out) == 0) {
+      throw ArgumentError.value(hull.id, 'hull', 'not in this world');
+    }
+    return _read3();
+  }
+
+  /// How many of the points [hull] was made from are its corners.
+  int hullVertexCount(NativeHull hull) =>
+      c.f3d_world_hull_vertex_count(_live, hull.id);
+
   /// How many substeps a step is solved in, one to sixty-four; four for a
   /// new world. More holds tall stacks and fast bodies better and costs that
   /// many times the solver. A step of n substeps is n steps of dt / n.
@@ -742,6 +795,37 @@ final class NativeWorld implements Finalizable {
     _check(c.f3d_body_get_inertia(_live, body.raw, _out), body);
     return _read3();
   }
+
+  /// The whole inertia tensor in the body's axes, kg m²: a hull's has
+  /// products of inertia off the diagonal.
+  Matrix3 inertiaTensorOf(NativeBody body) {
+    final out = malloc<Float>(6);
+    try {
+      _check(c.f3d_body_get_inertia_tensor(_live, body.raw, out), body);
+      return Matrix3(
+        out[0],
+        out[3],
+        out[4], //
+        out[3],
+        out[1],
+        out[5], //
+        out[4],
+        out[5],
+        out[2],
+      );
+    } finally {
+      malloc.free(out);
+    }
+  }
+
+  /// Rounds [body]'s shape out by [radius]: the shape grown by a ball, so a
+  /// box gets rounded edges and corners.
+  void setRounding(NativeBody body, double radius) =>
+      _check(c.f3d_body_set_rounding(_live, body.raw, radius), body, radius);
+
+  /// Shapes [body] as [hull].
+  void setHull(NativeBody body, NativeHull hull) =>
+      _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
 
   /// Kilograms: less, once it has burnt.
   double massOf(NativeBody body) {

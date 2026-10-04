@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 6u
+#define F3D_ABI_VERSION 7u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -77,6 +77,14 @@ typedef enum F3dShapeKind {
   F3D_SHAPE_BOX = 2,
   /* a = radius, b = half the length of the straight part, along y. */
   F3D_SHAPE_CAPSULE = 3,
+  /* a = radius, b = half its height, along y. */
+  F3D_SHAPE_CYLINDER = 4,
+  /* a = the base's radius, b = its height, along y, its apex up; its
+   * origin at its centre of mass, a quarter of the height above the
+   * base. */
+  F3D_SHAPE_CONE = 5,
+  /* A convex hull the world holds: set with f3d_body_set_hull. */
+  F3D_SHAPE_HULL = 6,
 } F3dShapeKind;
 
 /* What a body is made of, as heat and fire see it. */
@@ -210,6 +218,24 @@ F3D_API void f3d_world_get_origin(const F3dWorld *world, double *out);
  * get back the precision their distance from the old one cost. */
 F3D_API void f3d_world_shift_origin(F3dWorld *world, double dx, double dy,
                                     double dz);
+
+/* A convex hull of [count] points, three reals each, for bodies to be
+ * shaped as: built here, and moved so its centre of mass, taken as solid,
+ * is at the origin — f3d_world_get_hull_offset says by how much. Many
+ * bodies can share one; a world keeps its hulls as long as it lives, and
+ * they are in its snapshots. Returns the hull, numbered from one; nought
+ * for fewer than four points not all in one plane, a point not finite,
+ * more than 4096 points, or no memory. */
+F3D_API uint32_t f3d_world_create_hull(F3dWorld *world, const f3d_real *points,
+                                       uint32_t count);
+
+/* What was subtracted from every point of [hull], into out[0..2]. */
+F3D_API int f3d_world_get_hull_offset(const F3dWorld *world, uint32_t hull,
+                                      f3d_real *out);
+
+/* How many of the points [hull] was made from are its corners. */
+F3D_API uint32_t f3d_world_hull_vertex_count(const F3dWorld *world,
+                                             uint32_t hull);
 
 /* How many bodies the world holds. */
 F3D_API uint32_t f3d_world_body_count(const F3dWorld *world);
@@ -365,10 +391,26 @@ F3D_API int f3d_body_set_shape(F3dWorld *world, F3dBody body,
                                F3dShapeKind kind, f3d_real a, f3d_real b,
                                f3d_real c);
 
-/* The principal moments of inertia, kg m², in the body's axes, into
- * out[0..2]. */
+/* The moments of inertia about the body's own axes, kg m², into
+ * out[0..2]: the whole tensor for every shape but a hull, which also has
+ * products of inertia. */
 F3D_API int f3d_body_get_inertia(const F3dWorld *world, F3dBody body,
                                  f3d_real *out);
+
+/* The whole inertia tensor in the body's axes: xx, yy, zz, xy, xz, yz. */
+F3D_API int f3d_body_get_inertia_tensor(const F3dWorld *world, F3dBody body,
+                                        f3d_real *out);
+
+/* Rounds the body's shape out by [radius]: the shape grown by a ball, so a
+ * box gets rounded edges and corners and rolls off them as a real crate
+ * does. Its inertia, surface and drag are the shape it rounds out to. 0
+ * for a radius negative or not finite, or for a point. */
+F3D_API int f3d_body_set_rounding(F3dWorld *world, F3dBody body,
+                                  f3d_real radius);
+
+/* Shapes the body as [hull], one f3d_world_create_hull returned. 0 for a
+ * hull the world does not hold. */
+F3D_API int f3d_body_set_hull(F3dWorld *world, F3dBody body, uint32_t hull);
 
 /* Kilograms: less, once it has burnt. */
 F3D_API int f3d_body_get_mass(const F3dWorld *world, F3dBody body,

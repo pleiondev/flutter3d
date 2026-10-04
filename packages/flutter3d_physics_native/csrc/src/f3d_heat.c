@@ -294,7 +294,7 @@ void f3d_step_heat(F3dWorld *world, f3d_real dt) {
       s->heat_release = (F3D_R(1.0) - m->flame_feedback) * released;
       s->fuel -= burnt;
       s->mass -= burnt;
-      f3d_refresh_mass(s);
+      f3d_refresh_mass(world, s);
       if (s->fuel <= F3D_R(0.0)) {
         s->fuel = F3D_R(0.0);
         s->flags &= (uint8_t)~F3D_FLAG_BURNING;

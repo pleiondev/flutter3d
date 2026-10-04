@@ -89,11 +89,11 @@ const List<List<double>> _bodies = <List<double>>[
     1e-3,
     -2e-4,
     3e-5,
+    4,
+    0.2,
+    0.3,
     0,
-    0,
-    0,
-    0,
-    0,
+    0.5,
     0,
     0,
     293.15,
@@ -158,6 +158,7 @@ NativeShape _shape(List<double> b) => switch (b[6].toInt()) {
   1 => NativeShape.sphere(b[7]),
   2 => NativeShape.box(Vector3(b[7], b[8], b[9])),
   3 => NativeShape.capsule(b[7], b[8]),
+  4 => NativeShape.cylinder(b[7], b[8]),
   _ => NativeShape.point,
 };
 

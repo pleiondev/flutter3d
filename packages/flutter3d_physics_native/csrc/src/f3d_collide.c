@@ -10,12 +10,22 @@
  */
 #include "f3d_internal.h"
 
-F3dPlaced f3d_placed_of(const F3dSlot *s) {
+F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *s) {
   F3dPlaced p;
   p.kind = s->shape;
   p.size = s->size;
   p.at = s->position;
   p.axes = f3d_mat_of(s->orientation);
+  p.rounding = s->rounding;
+  p.hull = NULL;
+  p.vertices = NULL;
+  p.triangles = NULL;
+  if (s->shape == F3D_SHAPE_HULL && s->hull != 0 &&
+      s->hull <= world->s.hull_count) {
+    p.hull = &world->hulls[s->hull - 1u];
+    p.vertices = world->hull_vertices + (size_t)p.hull->first_vertex * 3u;
+    p.triangles = world->hull_triangles + (size_t)p.hull->first_triangle * 3u;
+  }
   return p;
 }
 
@@ -278,7 +288,7 @@ static int near_leaf(void *context, int32_t leaf) {
   if (active(so) && other < g->self) return 1;
   if (!(ss->layer & so->mask) || !(so->layer & ss->mask)) return 1;
   if (!f3d_box_overlap(
-          f3d_box_of(so, F3D_R(0.5) * g->world->s.contact_margin), g->box)) {
+          f3d_box_of(g->world, so, F3D_R(0.5) * g->world->s.contact_margin), g->box)) {
     return 1;
   }
   return add_pair(g, g->self, other);
@@ -318,7 +328,7 @@ void f3d_step_collide(F3dWorld *world) {
     const F3dSlot *s = &world->slots[i];
     if (!active(s) || world->proxies[i] == -1) continue;
     g.self = i;
-    g.box = f3d_box_of(s, F3D_R(0.5) * margin);
+    g.box = f3d_box_of(world, s, F3D_R(0.5) * margin);
     f3d_tree_query(&world->tree, g.box, near_leaf, &g);
   }
   for (uint32_t i = 0; i < world->s.manifold_count && !g.failed; i++) {
@@ -363,7 +373,7 @@ void f3d_step_collide(F3dWorld *world) {
       continue;
     }
     f3d_zero(m, sizeof *m);
-    const F3dPlaced pa = f3d_placed_of(sa), pb = f3d_placed_of(sb);
+    const F3dPlaced pa = f3d_placed_of(world, sa), pb = f3d_placed_of(world, sb);
     if (f3d_collide(&pa, &pb, margin, m) == 0) continue;
     m->a = ha;
     m->b = hb;

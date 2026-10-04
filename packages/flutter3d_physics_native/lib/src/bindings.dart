@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 6;
+const int abiVersion = 7;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -44,6 +44,9 @@ abstract final class ShapeKind {
   static const int sphere = 1;
   static const int box = 2;
   static const int capsule = 3;
+  static const int cylinder = 4;
+  static const int cone = 5;
+  static const int hull = 6;
 }
 
 /// `F3dMaterialKind`.
@@ -252,6 +255,40 @@ external int f3d_world_contact_count(Pointer<F3dWorld> world);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
 external int f3d_world_set_substeps(Pointer<F3dWorld> world, int substeps);
+
+@Native<Uint32 Function(Pointer<F3dWorld>, Pointer<Float>, Uint32)>()
+external int f3d_world_create_hull(
+  Pointer<F3dWorld> world,
+  Pointer<Float> points,
+  int count,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint32, Pointer<Float>)>(isLeaf: true)
+external int f3d_world_get_hull_offset(
+  Pointer<F3dWorld> world,
+  int hull,
+  Pointer<Float> out,
+);
+
+@Native<Uint32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
+external int f3d_world_hull_vertex_count(Pointer<F3dWorld> world, int hull);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Pointer<Float>)>(isLeaf: true)
+external int f3d_body_get_inertia_tensor(
+  Pointer<F3dWorld> world,
+  int body,
+  Pointer<Float> out,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Float)>(isLeaf: true)
+external int f3d_body_set_rounding(
+  Pointer<F3dWorld> world,
+  int body,
+  double radius,
+);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Uint32)>(isLeaf: true)
+external int f3d_body_set_hull(Pointer<F3dWorld> world, int body, int hull);
 
 @Native<
   Uint32 Function(

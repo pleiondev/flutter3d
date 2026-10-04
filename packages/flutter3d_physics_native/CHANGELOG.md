@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **Convex shapes, phase 5.** Cylinders, cones and convex hulls, and any
+  shape rounded by a radius (`f3d_body_set_rounding`). A hull is built from
+  points in the order given (`f3d_world_create_hull`), weighed as a solid
+  from its tetrahedra and moved so its centre of mass is the body's origin;
+  the world keeps its hulls in snapshots. Inertia is a full tensor now, so a
+  hull's products of inertia turn with it and a hull spun off its axes keeps
+  its angular momentum. Every pair without a closed form goes through GJK
+  between the shapes' cores and EPA where the cores overlap, touching
+  judged by the difference's own size, and its manifold comes from the
+  features facing each other: a cylinder on its end rests on four points of
+  its rim and on its side along its length, a cone on its base or its
+  slant, a hull on its face, a rounded box on the flat of its face. Depth is
+  measured from the reference face's own plane, so a slightly tilted normal
+  over a wide floor does not invent five centimetres of overlap. A cylinder
+  rolls down a slope at 2/3 g sin θ.
+
 - **The broadphase tree, phase 4.** A dynamic tree of boxes, as Box2D's:
   each body with a shape has a leaf holding its box grown by ten
   centimetres, moved only when the body leaves it; a leaf goes in beside the
