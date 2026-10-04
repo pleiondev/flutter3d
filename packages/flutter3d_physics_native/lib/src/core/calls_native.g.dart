@@ -621,6 +621,32 @@ int f3d_joint_set_limits(
   upper,
 );
 
+@Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float)>(
+  symbol: 'f3d_joint_set_cone',
+  isLeaf: true,
+)
+external int _f3d_joint_set_cone(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double angle,
+);
+int f3d_joint_set_cone(int world, int joint, int enabled, double angle) =>
+    _f3d_joint_set_cone(Pointer.fromAddress(world), joint, enabled, angle);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float)>(
+  symbol: 'f3d_joint_set_friction',
+  isLeaf: true,
+)
+external int _f3d_joint_set_friction(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double torque,
+);
+int f3d_joint_set_friction(int world, int joint, int enabled, double torque) =>
+    _f3d_joint_set_friction(Pointer.fromAddress(world), joint, enabled, torque);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float, Float)>(
   symbol: 'f3d_joint_set_motor',
   isLeaf: true,
@@ -718,6 +744,21 @@ external int _f3d_joint_get_value(
   Pointer<Void> out,
 );
 int f3d_joint_get_value(int world, int joint, int out) => _f3d_joint_get_value(
+  Pointer.fromAddress(world),
+  joint,
+  Pointer.fromAddress(out),
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>)>(
+  symbol: 'f3d_joint_get_swing',
+  isLeaf: true,
+)
+external int _f3d_joint_get_swing(
+  Pointer<Void> world,
+  int joint,
+  Pointer<Void> out,
+);
+int f3d_joint_get_swing(int world, int joint, int out) => _f3d_joint_get_swing(
   Pointer.fromAddress(world),
   joint,
   Pointer.fromAddress(out),

@@ -33,6 +33,14 @@ F3D_API int f3d_joint_set_limits__w(void * world, uint32_t joint_low, uint32_t j
   return f3d_joint_set_limits((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, lower, upper);
 }
 
+F3D_API int f3d_joint_set_cone__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real angle) {
+  return f3d_joint_set_cone((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, angle);
+}
+
+F3D_API int f3d_joint_set_friction__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real torque) {
+  return f3d_joint_set_friction((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, torque);
+}
+
 F3D_API int f3d_joint_set_motor__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real speed, f3d_real max_force) {
   return f3d_joint_set_motor((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, speed, max_force);
 }
@@ -51,6 +59,10 @@ F3D_API int f3d_joint_set_collide__w(void * world, uint32_t joint_low, uint32_t 
 
 F3D_API int f3d_joint_get_value__w(void * world, uint32_t joint_low, uint32_t joint_high, void * out) {
   return f3d_joint_get_value((void *)world, ((uint64_t)joint_high << 32) | joint_low, (void *)out);
+}
+
+F3D_API int f3d_joint_get_swing__w(void * world, uint32_t joint_low, uint32_t joint_high, void * out) {
+  return f3d_joint_get_swing((void *)world, ((uint64_t)joint_high << 32) | joint_low, (void *)out);
 }
 
 F3D_API int f3d_joint_get_force__w(void * world, uint32_t joint_low, uint32_t joint_high, void * out) {

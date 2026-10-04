@@ -233,7 +233,10 @@ int f3d_joint_set_limits(F3dWorld *world, F3dJoint joint, int enabled,
                          f3d_real lower, f3d_real upper) {
   F3dJointSlot *j = joint_of(world, joint);
   if (j == NULL) return 0;
-  if (j->type != F3D_JOINT_REVOLUTE && j->type != F3D_JOINT_PRISMATIC) return 0;
+  if (j->type != F3D_JOINT_REVOLUTE && j->type != F3D_JOINT_PRISMATIC &&
+      j->type != F3D_JOINT_SPHERICAL) {
+    return 0;
+  }
   if (enabled && !(f3d_finite(lower) && f3d_finite(upper) && lower <= upper)) {
     return 0;
   }
@@ -245,6 +248,36 @@ int f3d_joint_set_limits(F3dWorld *world, F3dJoint joint, int enabled,
     j->flags &= (uint8_t)~F3D_JOINT_LIMIT;
   }
   j->lower_impulse = j->upper_impulse = F3D_R(0.0);
+  wake_both(world, j);
+  return 1;
+}
+
+int f3d_joint_set_cone(F3dWorld *world, F3dJoint joint, int enabled, f3d_real angle) {
+  F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL || j->type != F3D_JOINT_SPHERICAL) return 0;
+  if (enabled && !(f3d_finite(angle) && angle > F3D_R(0.0) && angle <= F3D_PI)) return 0;
+  if (enabled) {
+    j->flags |= F3D_JOINT_CONE;
+    j->cone = angle;
+  } else {
+    j->flags &= (uint8_t)~F3D_JOINT_CONE;
+  }
+  j->cone_impulse = F3D_R(0.0);
+  wake_both(world, j);
+  return 1;
+}
+
+int f3d_joint_set_friction(F3dWorld *world, F3dJoint joint, int enabled, f3d_real torque) {
+  F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL || j->type != F3D_JOINT_SPHERICAL) return 0;
+  if (enabled && !(f3d_finite(torque) && torque >= F3D_R(0.0))) return 0;
+  if (enabled) {
+    j->flags |= F3D_JOINT_FRICTION;
+    j->friction = torque;
+  } else {
+    j->flags &= (uint8_t)~F3D_JOINT_FRICTION;
+  }
+  j->friction_impulse = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   wake_both(world, j);
   return 1;
 }
@@ -740,6 +773,70 @@ static void solve_axis(F3dJointSlot *j, Frame *f, Axis *x, f3d_real target,
   }
 }
 
+/* A spherical joint's swing: the angle from A's axis to B's, and the
+ * direction to turn B about to open it — nought when the two are as good
+ * as one, and no direction is the way out. */
+static f3d_real swing_of(const F3dJointSlot *j, const Frame *f, F3dVec3 *n) {
+  const F3dVec3 a1 = f->axis, a2 = turn(&f->rb, j->axis_b);
+  const F3dVec3 c = f3d_cross(a1, a2);
+  const f3d_real s = f3d_sqrt(f3d_dot(c, c));
+  *n = s > F3D_R(1e-9) ? f3d_scale(c, F3D_R(1.0) / s) : f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  return f3d_atan2(s, f3d_dot(a1, a2));
+}
+
+/* How a spherical joint's twist answers B's turn against A: about the
+ * axes' sum over one and their cosine. Its swing does not change it, but
+ * swung far the twist turns faster than the turn about A's axis — on a
+ * shoulder swung a radian and a half, by nearly half again — and a limit
+ * pushing about A's axis alone would push on the swing instead. */
+static F3dVec3 twist_axis(const F3dJointSlot *j, const Frame *f) {
+  const F3dVec3 a1 = f->axis, a2 = turn(&f->rb, j->axis_b);
+  const f3d_real c = f3d_max(F3D_R(1.0) + f3d_dot(a1, a2), F3D_R(1e-3));
+  return f3d_scale(f3d_add(a1, a2), F3D_R(1.0) / c);
+}
+
+/* The cone: the swing held at most j->cone, as a limit is — apart, it may
+ * close this substep and no more; past, the soft spring takes it back. */
+static void solve_cone(F3dJointSlot *j, Frame *f, f3d_real h, Soft s, int use_bias) {
+  if (!(j->flags & F3D_JOINT_CONE)) return;
+  F3dVec3 n;
+  const f3d_real swing = swing_of(j, f, &n);
+  if (n.x == F3D_R(0.0) && n.y == F3D_R(0.0) && n.z == F3D_R(0.0)) return;
+  const f3d_real c = j->cone - swing;
+  f3d_real bias = F3D_R(0.0), ms = F3D_R(1.0), is = F3D_R(0.0);
+  if (c > F3D_R(0.0)) {
+    bias = c / h;
+  } else if (use_bias) {
+    bias = s.bias_rate * c;
+    ms = s.mass_scale;
+    is = s.impulse_scale;
+  }
+  const f3d_real cdot = -f3d_dot(f3d_sub(f->b->spin, f->a->spin), n);
+  const f3d_real lambda = -angular_mass(f, n) * ms * (cdot + bias) - is * j->cone_impulse;
+  const f3d_real total = f3d_max(j->cone_impulse + lambda, F3D_R(0.0));
+  const f3d_real delta = total - j->cone_impulse;
+  j->cone_impulse = total;
+  twist(f, f3d_scale(n, -delta));
+}
+
+/* Friction: B's turn against A's resisted about each of the world's axes
+ * with at most the joint's torque over the substep. */
+static void solve_friction(F3dJointSlot *j, Frame *f, f3d_real h) {
+  if (!(j->flags & F3D_JOINT_FRICTION)) return;
+  const f3d_real most = j->friction * h;
+  f3d_real *held[3] = {&j->friction_impulse.x, &j->friction_impulse.y, &j->friction_impulse.z};
+  for (int k = 0; k < 3; k++) {
+    const F3dVec3 n = f3d_v3(k == 0 ? F3D_R(1.0) : F3D_R(0.0), k == 1 ? F3D_R(1.0) : F3D_R(0.0),
+                             k == 2 ? F3D_R(1.0) : F3D_R(0.0));
+    const f3d_real turning = f3d_dot(f3d_sub(f->b->spin, f->a->spin), n);
+    const f3d_real lambda = -angular_mass(f, n) * turning;
+    const f3d_real total = f3d_clamp(*held[k] + lambda, -most, most);
+    const f3d_real delta = total - *held[k];
+    *held[k] = total;
+    twist(f, f3d_scale(n, delta));
+  }
+}
+
 static Soft joint_softness(f3d_real h) {
   return soft(f3d_min(F3D_R(60.0), F3D_R(0.25) / h), F3D_JOINT_DAMPING, h);
 }
@@ -757,7 +854,20 @@ void f3d_solve_joints(F3dWorld *world, const F3dSolverBody *bodies, f3d_real h,
     Axis x;
     switch (j->type) {
       case F3D_JOINT_FIXED:
+        solve_block(j, &f, s, use_bias);
+        break;
       case F3D_JOINT_SPHERICAL:
+        /* Its friction, its twist about the axis, limited as a hinge's
+         * angle is, then its swing inside the cone, then its point. */
+        solve_friction(j, &f, h);
+        if (j->flags & F3D_JOINT_LIMIT) {
+          x.angular = 1;
+          x.n = twist_axis(j, &f);
+          x.value = hinge_angle(j, &f);
+          x.mass = angular_mass(&f, x.n);
+          solve_axis(j, &f, &x, F3D_R(0.0), h, s, use_bias);
+        }
+        solve_cone(j, &f, h, s, use_bias);
         solve_block(j, &f, s, use_bias);
         break;
       case F3D_JOINT_REVOLUTE:
@@ -840,6 +950,14 @@ void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies) {
       case F3D_JOINT_REVOLUTE:
         twist(&f, f3d_scale(f.axis, axial));
         break;
+      case F3D_JOINT_SPHERICAL: {
+        twist(&f, f3d_scale(twist_axis(j, &f), axial));
+        F3dVec3 n;
+        swing_of(j, &f, &n);
+        twist(&f, f3d_scale(n, -j->cone_impulse));
+        twist(&f, j->friction_impulse);
+        break;
+      }
       case F3D_JOINT_PRISMATIC: {
         const F3dVec3 p = f3d_scale(f.axis, axial);
         push(&f, f3d_add(f.la, f.d), f.lb, p);
@@ -880,6 +998,7 @@ int f3d_joint_get_value(const F3dWorld *world, F3dJoint joint, f3d_real *out) {
   f.axis = turn(&f.ra, j->axis_a);
   switch (j->type) {
     case F3D_JOINT_REVOLUTE:
+    case F3D_JOINT_SPHERICAL:
       *out = hinge_angle(j, &f);
       break;
     case F3D_JOINT_PRISMATIC:
@@ -891,5 +1010,21 @@ int f3d_joint_get_value(const F3dWorld *world, F3dJoint joint, f3d_real *out) {
     default:
       break;
   }
+  return 1;
+}
+
+int f3d_joint_get_swing(const F3dWorld *world, F3dJoint joint, f3d_real *out) {
+  const F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL) return 0;
+  *out = F3D_R(0.0);
+  Frame f;
+  f.a = f3d_slot_of(world, j->a);
+  f.b = f3d_slot_of(world, j->b);
+  if (f.a == NULL || f.b == NULL || j->type != F3D_JOINT_SPHERICAL) return 1;
+  f.ra = f3d_mat_of(f.a->orientation);
+  f.rb = f3d_mat_of(f.b->orientation);
+  f.axis = turn(&f.ra, j->axis_a);
+  F3dVec3 n;
+  *out = swing_of(j, &f, &n);
   return 1;
 }

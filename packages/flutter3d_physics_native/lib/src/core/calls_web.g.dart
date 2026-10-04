@@ -231,6 +231,22 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber lower,
     JSNumber upper,
   );
+  @JS('f3d_joint_set_cone__w')
+  external JSNumber f3d_joint_set_cone(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber angle,
+  );
+  @JS('f3d_joint_set_friction__w')
+  external JSNumber f3d_joint_set_friction(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber torque,
+  );
   @JS('f3d_joint_set_motor__w')
   external JSNumber f3d_joint_set_motor(
     JSNumber world,
@@ -267,6 +283,13 @@ extension type _Exports(JSObject _) implements JSObject {
   );
   @JS('f3d_joint_get_value__w')
   external JSNumber f3d_joint_get_value(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber out,
+  );
+  @JS('f3d_joint_get_swing__w')
+  external JSNumber f3d_joint_get_swing(
     JSNumber world,
     JSNumber jointLow,
     JSNumber jointHigh,
@@ -1078,6 +1101,25 @@ int f3d_joint_set_limits(
       upper.toJS,
     )
     .toDartInt;
+int f3d_joint_set_cone(int world, int joint, int enabled, double angle) => _x
+    .f3d_joint_set_cone(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      enabled.toJS,
+      angle.toJS,
+    )
+    .toDartInt;
+int f3d_joint_set_friction(int world, int joint, int enabled, double torque) =>
+    _x
+        .f3d_joint_set_friction(
+          world.toJS,
+          lowHalf(joint).toJS,
+          highHalf(joint).toJS,
+          enabled.toJS,
+          torque.toJS,
+        )
+        .toDartInt;
 int f3d_joint_set_motor(
   int world,
   int joint,
@@ -1136,6 +1178,14 @@ int f3d_joint_set_collide(int world, int joint, int collide) => _x
     .toDartInt;
 int f3d_joint_get_value(int world, int joint, int out) => _x
     .f3d_joint_get_value(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      out.toJS,
+    )
+    .toDartInt;
+int f3d_joint_get_swing(int world, int joint, int out) => _x
+    .f3d_joint_get_swing(
       world.toJS,
       lowHalf(joint).toJS,
       highHalf(joint).toJS,

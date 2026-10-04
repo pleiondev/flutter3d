@@ -9,7 +9,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - a solver that keeps bodies apart: soft contacts in substeps with warm starting, friction and restitution, so crates rest, stack, slide, roll and bounce;
 - a dynamic tree of boxes for the broadphase, which also answers box queries;
 - triangle meshes for level geometry and terrain, one sided, that bodies slide across without catching on the seams;
-- joints: fixed, spherical, hinge, slider and distance (rod, spring, rope), with limits, motors and springs;
+- joints: fixed, spherical, hinge, slider and distance (rod, spring, rope), with limits, motors and springs, and the ball joint's cone, twist limits and friction a ragdoll is built from (give one eight substeps);
 - continuous collision: contacts that reach as far as a body moves in a step, and bullets swept to their time of impact, turn and all;
 - rays, shape overlaps and shape casts, and a kinematic character controller that slides, climbs steps and keeps to slopes;
 - shapes (sphere, box, capsule, cylinder, cone, convex hull, and any of them rounded) as inertia, surface and drag; the orientation stepped with the angular momentum kept, impulses, forces, torques, damping and sleep;
@@ -22,7 +22,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - cloth: sheets and ropes held by constraints of any stiffness, draped over balls and blown by the wind, on the CPU and on the GPU.
 - water as particles in a tank that slumps, splashes and settles, on the CPU and on the GPU.
 
-A fast mode, multibody chains and the remaining platforms follow, each with its tests.
+Multibody chains and the remaining platforms follow, each with its tests.
 
 ## Building
 

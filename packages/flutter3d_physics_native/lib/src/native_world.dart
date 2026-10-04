@@ -740,8 +740,8 @@ final class NativeWorld {
     throw ArgumentError('not a setting this joint takes, or out of range');
   }
 
-  /// Limits on a hinge's angle, radians, or a slider's travel, m; null
-  /// takes them off.
+  /// Limits on a hinge's angle or a ball joint's twist about its axis,
+  /// radians, or a slider's travel, m; null takes them off.
   void setJointLimits(
     NativeJoint joint,
     ({double lower, double upper})? limits,
@@ -752,6 +752,27 @@ final class NativeWorld {
       limits == null ? 0 : 1,
       limits?.lower ?? 0.0,
       limits?.upper ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// A ball joint's swing held within [angle] radians of its axis, above
+  /// nought and at most π — a shoulder, a hip, a neck; null takes it off.
+  void setJointCone(NativeJoint joint, double? angle) => _checkJoint(
+    c.f3d_joint_set_cone(_live, joint.raw, angle == null ? 0 : 1, angle ?? 0.0),
+    joint,
+  );
+
+  /// A ball joint's friction: its bodies' turn against each other
+  /// resisted with at most [torque], N m — what lets a ragdoll come to
+  /// rest; null takes it off. A hinge or slider has it as a motor of speed
+  /// nought.
+  void setJointFriction(NativeJoint joint, double? torque) => _checkJoint(
+    c.f3d_joint_set_friction(
+      _live,
+      joint.raw,
+      torque == null ? 0 : 1,
+      torque ?? 0.0,
     ),
     joint,
   );
@@ -807,10 +828,17 @@ final class NativeWorld {
         joint,
       );
 
-  /// A hinge's angle from where it started, a slider's travel, a distance
-  /// joint's length; nought for the others.
+  /// A hinge's angle from where it started, a ball joint's twist, a
+  /// slider's travel, a distance joint's length; nought for the others.
   double jointValue(NativeJoint joint) {
     _checkJoint(c.f3d_joint_get_value(_live, joint.raw, _out), joint);
+    return _out[0];
+  }
+
+  /// A ball joint's swing: the angle between its bodies' axes, radians;
+  /// nought for the others.
+  double jointSwing(NativeJoint joint) {
+    _checkJoint(c.f3d_joint_get_swing(_live, joint.raw, _out), joint);
     return _out[0];
   }
 

@@ -4,7 +4,9 @@
  * period, a rod holding its length, a rope that is slack until it is taut,
  * a spring's period, a welded cantilever, a hinge's limits and motor, a
  * slider on its axis, joined bodies that do not collide, a chain asleep as
- * one, the force a rod holds a weight with, and joints through a snapshot.
+ * one, the force a rod holds a weight with, joints through a snapshot, and
+ * a spherical joint's swing held in a cone and its twist between limits,
+ * and what its friction and cone refuse.
  */
 #include <math.h>
 #include <stdlib.h>
@@ -425,8 +427,91 @@ static void test_refusals(void) {
   f3d_world_destroy(w);
 }
 
+/* A limb a metre long hung by its end from a pivot on a spherical joint,
+ * its axis down, knocked sideways at 6 m/s — enough to swing it past level
+ * — and the most it swung over two seconds, with a cone of [cone] radians
+ * or none. */
+static double knocked(f3d_real cone) {
+  F3dWorld *w = still_world();
+  const F3dBody pivot = anchor(w, 0, 2, 0);
+  const F3dBody bob = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.5), 0, 1);
+  f3d_body_set_shape(w, bob, F3D_SHAPE_BOX, F3D_R(0.05), F3D_R(0.5), F3D_R(0.05));
+  const F3dJoint j = f3d_joint_create(w, F3D_JOINT_SPHERICAL, pivot, bob, 0, 2, 0, 0, -1, 0);
+  if (cone > 0) CHECK(f3d_joint_set_cone(w, j, 1, cone));
+  f3d_body_set_velocity(w, bob, 6, 0, F3D_R(1.5));
+  double most = 0;
+  f3d_real swing = 0, p[3];
+  for (int i = 0; i < 120; i++) {
+    run(w, 1);
+    CHECK(f3d_joint_get_swing(w, j, &swing));
+    if (swing > most) most = swing;
+  }
+  /* And the point held throughout. */
+  f3d_body_get_position(w, bob, p);
+  CHECK_NEAR(sqrt((double)p[0] * p[0] + (p[1] - 2.0) * (p[1] - 2.0) + (double)p[2] * p[2]), 0.5, 0.01);
+  f3d_world_destroy(w);
+  return most;
+}
+
+static void test_cone(void) {
+  /* Free, it swings past level; in a cone of 30 degrees it stops at the
+   * cone, give or take what the soft limit lets through. */
+  CHECK(knocked(0) > M_PI / 2);
+  const double held = knocked((f3d_real)(M_PI / 6));
+  CHECK(held < M_PI / 6 + 0.05);
+  CHECK(held > M_PI / 6 - 0.05);
+}
+
+static void test_twist(void) {
+  /* A plank hung on a spherical joint by its axis, spun about it at 8
+   * rad/s: its twist stops at the limits, ±0.5, and does not swing it. */
+  F3dWorld *w = still_world();
+  const F3dBody pivot = anchor(w, 0, 2, 0);
+  const F3dBody plank = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.5), 0, 1);
+  f3d_body_set_shape(w, plank, F3D_SHAPE_BOX, F3D_R(0.4), F3D_R(0.5), F3D_R(0.05));
+  const F3dJoint j = f3d_joint_create(w, F3D_JOINT_SPHERICAL, pivot, plank, 0, 2, 0, 0, -1, 0);
+  CHECK(f3d_joint_set_limits(w, j, 1, F3D_R(-0.5), F3D_R(0.5)));
+  CHECK(f3d_joint_set_cone(w, j, 1, F3D_R(0.2)));
+  f3d_body_set_angular_velocity(w, plank, 0, 8, 0);
+  double most = 0;
+  f3d_real twist = 0, swing = 0;
+  for (int i = 0; i < 120; i++) {
+    run(w, 1);
+    f3d_joint_get_value(w, j, &twist);
+    if (fabs((double)twist) > most) most = fabs((double)twist);
+  }
+  CHECK(most < 0.55);
+  CHECK(most > 0.45);
+  f3d_joint_get_swing(w, j, &swing);
+  CHECK(swing < F3D_R(0.25));
+  /* And off, it spins on through them. */
+  CHECK(f3d_joint_set_limits(w, j, 0, 0, 0));
+  f3d_body_set_angular_velocity(w, plank, 0, 8, 0);
+  most = 0;
+  for (int i = 0; i < 30; i++) {
+    run(w, 1);
+    f3d_joint_get_value(w, j, &twist);
+    if (fabs((double)twist) > most) most = fabs((double)twist);
+  }
+  CHECK(most > 1.0);
+  /* A cone is a spherical joint's alone, and between nought and π. */
+  const F3dBody other = ball(w, 3, 2, 0, F3D_R(0.1), 1);
+  const F3dJoint hinge = f3d_joint_create(w, F3D_JOINT_REVOLUTE, pivot, other, 0, 2, 0, 0, 0, 1);
+  CHECK(!f3d_joint_set_cone(w, hinge, 1, F3D_R(0.5)));
+  CHECK(!f3d_joint_set_cone(w, j, 1, 0));
+  CHECK(!f3d_joint_set_cone(w, j, 1, F3D_R(3.5)));
+  CHECK(f3d_joint_set_cone(w, j, 0, 0));
+  /* So is friction, nought or more; a hinge has a motor for it. */
+  CHECK(!f3d_joint_set_friction(w, hinge, 1, 1));
+  CHECK(!f3d_joint_set_friction(w, j, 1, -1));
+  CHECK(f3d_joint_set_friction(w, j, 1, 0));
+  f3d_world_destroy(w);
+}
+
 int main(void) {
   test_arctangent();
+  test_cone();
+  test_twist();
   test_pendulum();
   test_hinge_keeps_its_plane();
   test_rod_and_rope();

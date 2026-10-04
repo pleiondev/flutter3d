@@ -187,6 +187,59 @@ void main() {
     },
   );
 
+  test('a ball joint holds a limb in its cone, its twist in limits', () {
+    // The binding of what a ragdoll's shoulder is made of: a limb a metre
+    // long hung by its end and knocked past level, a spin about it.
+    world.setSleep(speed: 0.0, time: 0.0);
+    final pivot = world.addBody(
+      position: Vector3(0.0, 3.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final limb = world.addBody(position: Vector3(0.0, 2.5, 0.0));
+    world.setShape(limb, NativeShape.box(Vector3(0.05, 0.5, 0.05)));
+    final shoulder = world.createJoint(
+      NativeJointType.spherical,
+      pivot,
+      limb,
+      anchor: Vector3(0.0, 3.0, 0.0),
+      axis: Vector3(0.0, -1.0, 0.0),
+    );
+    world
+      ..setJointCone(shoulder, 0.5)
+      ..setJointLimits(shoulder, (lower: -0.3, upper: 0.3))
+      ..setVelocity(limb, Vector3(6.0, 0.0, 0.0))
+      ..setAngularVelocity(limb, Vector3(0.0, 6.0, 12.0));
+    var swing = 0.0;
+    var twist = 0.0;
+    for (var i = 0; i < 120; i++) {
+      world.step(1.0 / 60.0);
+      swing = math.max(swing, world.jointSwing(shoulder));
+      twist = math.max(twist, world.jointValue(shoulder).abs());
+    }
+    expect(swing, inInclusiveRange(0.45, 0.55));
+    expect(twist, inInclusiveRange(0.25, 0.35));
+    // Friction stops it swinging inside the cone.
+    world.setJointFriction(shoulder, 5.0);
+    for (var i = 0; i < 120; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(world.angularVelocityOf(limb).length, lessThan(1e-3));
+    // A cone, or friction, is a ball joint's alone.
+    final door = world.addBody(position: Vector3(3.0, 2.5, 0.0));
+    final hinge = world.createJoint(
+      NativeJointType.revolute,
+      pivot,
+      door,
+      anchor: Vector3(0.0, 3.0, 0.0),
+      axis: Vector3(0.0, 0.0, 1.0),
+    );
+    expect(() => world.setJointCone(hinge, 0.5), throwsArgumentError);
+    expect(() => world.setJointFriction(hinge, 1.0), throwsArgumentError);
+    expect(() => world.setJointCone(shoulder, 4.0), throwsArgumentError);
+    expect(world.jointSwing(hinge), 0.0);
+  });
+
   test('a fast ball stops at a thin wall, softly or as a bullet', () {
     // Mutation: drop the speculative reach from the pair's margin in
     // `f3d_step_collide` — the soft ball goes through.

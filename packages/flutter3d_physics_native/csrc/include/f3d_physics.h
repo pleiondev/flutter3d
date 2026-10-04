@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 17u
+#define F3D_ABI_VERSION 18u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -414,10 +414,23 @@ F3D_API int f3d_joint_destroy(F3dWorld *world, F3dJoint joint);
 F3D_API int f3d_joint_is_valid(const F3dWorld *world, F3dJoint joint);
 F3D_API uint32_t f3d_world_joint_count(const F3dWorld *world);
 
-/* Limits on a revolute joint's angle, radians, or a prismatic joint's
- * travel, m: lower no more than upper; [enabled] nought takes them off. */
+/* Limits on a revolute joint's angle, radians, a prismatic joint's travel,
+ * m, or a spherical joint's twist about its axis, radians: lower no more
+ * than upper; [enabled] nought takes them off. */
 F3D_API int f3d_joint_set_limits(F3dWorld *world, F3dJoint joint, int enabled,
                                  f3d_real lower, f3d_real upper);
+
+/* A spherical joint's swing held inside a cone: B's axis no more than
+ * [angle] radians, above nought and at most π, from A's — a shoulder, a
+ * hip, a neck. With twist limits it is a ragdoll's joint. */
+F3D_API int f3d_joint_set_cone(F3dWorld *world, F3dJoint joint, int enabled,
+                               f3d_real angle);
+
+/* A spherical joint's friction: B turning against A resisted with at most
+ * [torque], N m, nought or more — what lets a ragdoll come to rest. A
+ * revolute or prismatic joint has it as a motor of speed nought. */
+F3D_API int f3d_joint_set_friction(F3dWorld *world, F3dJoint joint,
+                                   int enabled, f3d_real torque);
 
 /* A motor driving a revolute or prismatic joint at [speed], rad/s or m/s,
  * with at most [max_force], N m or N. */
@@ -443,9 +456,14 @@ F3D_API int f3d_joint_set_collide(F3dWorld *world, F3dJoint joint,
                                   int collide);
 
 /* A revolute joint's angle from where it started, radians in (−π, π]; a
- * prismatic joint's travel, m; a distance joint's length, m. 0 for the
- * others. */
+ * spherical joint's twist about its axis, the same way; a prismatic
+ * joint's travel, m; a distance joint's length, m. 0 for the others. */
 F3D_API int f3d_joint_get_value(const F3dWorld *world, F3dJoint joint,
+                                f3d_real *out);
+
+/* A spherical joint's swing: the angle between B's axis and A's, radians
+ * from nought to π. 0 for the others. */
+F3D_API int f3d_joint_get_swing(const F3dWorld *world, F3dJoint joint,
                                 f3d_real *out);
 
 /* The force it held B with over the last substep, N, into out[0..2]. */

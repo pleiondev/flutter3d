@@ -383,6 +383,9 @@ enum {
   F3D_JOINT_MOTOR = 1u << 1,
   F3D_JOINT_SPRING = 1u << 2,
   F3D_JOINT_COLLIDE = 1u << 3,
+  /* A spherical joint's swing held inside a cone. */
+  F3D_JOINT_CONE = 1u << 4,
+  F3D_JOINT_FRICTION = 1u << 5,
 };
 
 /* One joint's arena slot. Plain data, zeroed when taken: a snapshot copies
@@ -413,6 +416,14 @@ typedef struct F3dJointSlot {
   f3d_real lower_impulse, upper_impulse, motor_impulse, spring_impulse;
   /* The linear impulse it put on B over the last substep, in the world. */
   F3dVec3 pushed;
+  /* A spherical joint's cone: the most B's axis may swing from A's, and
+   * what holding it pushed with. */
+  f3d_real cone;
+  f3d_real cone_impulse;
+  /* A spherical joint's friction: the most torque it resists turning
+   * with, N m, and what it pushed with about the world's axes. */
+  f3d_real friction;
+  F3dVec3 friction_impulse;
 } F3dJointSlot;
 
 /* Everything in a world that is not behind a pointer: what a snapshot

@@ -1,5 +1,27 @@
 ## Unreleased
 
+- **Ragdolls — the closing check of the native core.** A ball joint now
+  takes a cone (`f3d_joint_set_cone`, `setJointCone`), which holds the
+  swing of its second body's axis within an angle of the first's. Its
+  twist about that axis takes the same limits as a hinge's angle, and it
+  takes friction (`f3d_joint_set_friction`, `setJointFriction`): torque up
+  to a set bound resisting the turn between its bodies. Without friction
+  a ragdoll on the floor never sleeps, because a head rolls and a leg
+  turns about its own length with nothing to slow them. `jointSwing` reads
+  the swing, and `jointValue` now reads a ball joint's twist. The twist
+  limit pushes along the axes' sum over one plus their cosine, which is
+  how the twist actually changes. Pushed about the first axis alone, a
+  shoulder swung a radian and a half went nearly half a radian past its
+  limit on a flight of stairs; along the sum it goes 0.04 past. A ragdoll
+  of eleven bodies on ten joints falls to a floor and sleeps within two
+  seconds. A bullet of thirty grams at 300 m/s knocks it along, and it
+  sleeps again. It tumbles down eight stairs to their foot. Throughout,
+  the joints hold their points within 2.5 cm and their limits within five
+  degrees, and at rest within a fraction of a millimetre. It steps to the
+  same bits on four threads as on one, in either mode. It wants eight
+  substeps: at four, an arm struck on a stair edge swings a quarter of a
+  radian past its cone for a step. ABI 18, snapshot version 8.
+
 - **Threads in the browser — phase 12 done.** A second module,
   `web/f3d_physics_threads.wasm`, is the core built with atomics on a
   shared memory its host makes. `loadPhysicsCore(threads: n)` on a page
