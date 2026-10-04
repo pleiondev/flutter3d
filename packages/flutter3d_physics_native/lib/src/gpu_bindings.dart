@@ -12,7 +12,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_GPU_ABI_VERSION` this file was written against.
-const int gpuAbiVersion = 2;
+const int gpuAbiVersion = 3;
 
 final class F3dGpu extends Opaque {}
 
@@ -142,11 +142,92 @@ external void f3d_gpu_debris_step(
   double dt,
 );
 
-@Native<
-  Uint64 Function(Pointer<F3dGpuDebris>, Pointer<Float>, Uint32, Int32)
->()
+@Native<Uint64 Function(Pointer<F3dGpuDebris>, Pointer<Float>, Uint32, Int32)>()
 external int f3d_gpu_debris_read(
   Pointer<F3dGpuDebris> debris,
+  Pointer<Float> out,
+  int capacity,
+  int wait,
+);
+
+final class F3dGpuCloth extends Opaque {}
+
+/// `F3dGpuClothSettings`, field for field.
+final class F3dGpuClothSettings extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Array(3)
+  external Array<Float> wind;
+  @Float()
+  external double drag;
+  @Float()
+  external double damping;
+  @Float()
+  external double floor_y;
+  @Float()
+  external double thickness;
+  @Float()
+  external double friction;
+  @Uint32()
+  external int substeps;
+}
+
+@Native<
+  Pointer<F3dGpuCloth> Function(
+    Pointer<F3dGpu>,
+    Pointer<Float>,
+    Uint32,
+    Pointer<Uint32>,
+    Pointer<Float>,
+    Pointer<Float>,
+    Uint32,
+    Pointer<Uint32>,
+    Uint32,
+  )
+>()
+external Pointer<F3dGpuCloth> f3d_gpu_cloth_create(
+  Pointer<F3dGpu> gpu,
+  Pointer<Float> points,
+  int pointCount,
+  Pointer<Uint32> pairs,
+  Pointer<Float> rest,
+  Pointer<Float> compliance,
+  int edgeCount,
+  Pointer<Uint32> colourStart,
+  int colourCount,
+);
+
+@Native<Void Function(Pointer<F3dGpuCloth>)>()
+external void f3d_gpu_cloth_destroy(Pointer<F3dGpuCloth> cloth);
+
+@Native<Int32 Function(Pointer<F3dGpuCloth>, Pointer<Float>, Uint32)>()
+external int f3d_gpu_cloth_set_balls(
+  Pointer<F3dGpuCloth> cloth,
+  Pointer<Float> balls,
+  int count,
+);
+
+@Native<Void Function(Pointer<F3dGpuCloth>, Uint32, Float, Float, Float)>()
+external void f3d_gpu_cloth_move_point(
+  Pointer<F3dGpuCloth> cloth,
+  int index,
+  double x,
+  double y,
+  double z,
+);
+
+@Native<
+  Void Function(Pointer<F3dGpuCloth>, Pointer<F3dGpuClothSettings>, Float)
+>()
+external void f3d_gpu_cloth_step(
+  Pointer<F3dGpuCloth> cloth,
+  Pointer<F3dGpuClothSettings> settings,
+  double dt,
+);
+
+@Native<Uint64 Function(Pointer<F3dGpuCloth>, Pointer<Float>, Uint32, Int32)>()
+external int f3d_gpu_cloth_read(
+  Pointer<F3dGpuCloth> cloth,
   Pointer<Float> out,
   int capacity,
   int wait,

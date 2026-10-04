@@ -153,9 +153,12 @@ int f3d_gpu_kernels_create(F3dGpuKernels *k, const F3dGpu *gpu, const char *sour
   for (uint32_t i = 0; i < binding_count; i++) {
     layout_entries[i].binding = i;
     layout_entries[i].visibility = WGPUShaderStage_Compute;
-    layout_entries[i].buffer.type = kinds[i] == F3D_GPU_UNIFORM   ? WGPUBufferBindingType_Uniform
-                                    : kinds[i] == F3D_GPU_STORAGE ? WGPUBufferBindingType_Storage
-                                                                  : WGPUBufferBindingType_ReadOnlyStorage;
+    const int at = kinds[i] == F3D_GPU_UNIFORM_AT;
+    layout_entries[i].buffer.type = kinds[i] == F3D_GPU_UNIFORM || at ? WGPUBufferBindingType_Uniform
+                                    : kinds[i] == F3D_GPU_STORAGE     ? WGPUBufferBindingType_Storage
+                                                                      : WGPUBufferBindingType_ReadOnlyStorage;
+    layout_entries[i].buffer.hasDynamicOffset = at;
+    if (at) k->bound_at = 1;
     bind_entries[i].binding = i;
     bind_entries[i].buffer = buffers[i];
     bind_entries[i].size = sizes[i] < 16u ? 16u : (sizes[i] + 3u) & ~(uint64_t)3u;
@@ -213,8 +216,18 @@ void f3d_gpu_kernels_release(F3dGpuKernels *k) {
 
 void f3d_gpu_dispatch(WGPUComputePassEncoder pass, const F3dGpuKernels *k, uint32_t entry,
                       uint32_t threads) {
+  const uint32_t nought = 0;
   wgpuComputePassEncoderSetPipeline(pass, k->pipelines[entry]);
-  wgpuComputePassEncoderSetBindGroup(pass, 0, k->bind, 0, NULL);
+  wgpuComputePassEncoderSetBindGroup(pass, 0, k->bind, k->bound_at ? 1u : 0u,
+                                     k->bound_at ? &nought : NULL);
+  wgpuComputePassEncoderDispatchWorkgroups(pass, (threads + 63u) / 64u, 1, 1);
+}
+
+void f3d_gpu_dispatch_at(WGPUComputePassEncoder pass, const F3dGpuKernels *k, uint32_t entry,
+                         uint32_t threads, uint32_t offset) {
+  if (threads == 0) return;
+  wgpuComputePassEncoderSetPipeline(pass, k->pipelines[entry]);
+  wgpuComputePassEncoderSetBindGroup(pass, 0, k->bind, 1, &offset);
   wgpuComputePassEncoderDispatchWorkgroups(pass, (threads + 63u) / 64u, 1, 1);
 }
 

@@ -51,12 +51,14 @@ void main() {
     expect(bound, declared);
   });
 
-  test('particles and debris are as many floats as the header says', () {
+  test('particles, debris and cloth are as many floats as the header says', () {
     expect(c.particleFloats, define('F3D_PARTICLE_FLOATS'));
     expect(c.debrisInputFloats, define('F3D_DEBRIS_INPUT_FLOATS'));
     expect(c.debrisFloats, define('F3D_DEBRIS_FLOATS'));
     expect(c.debrisStaticFloats, define('F3D_DEBRIS_STATIC_FLOATS'));
     expect(c.debrisMaxStatics, define('F3D_DEBRIS_MAX_STATICS'));
+    expect(c.clothFloats, define('F3D_CLOTH_FLOATS'));
+    expect(c.clothMaxBalls, define('F3D_CLOTH_MAX_BALLS'));
   });
 
   test('the GPU library\'s header and bindings agree', () {

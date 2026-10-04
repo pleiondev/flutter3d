@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **Cloth, phase 10.** `f3d_cloth` holds points at their distances by
+  constraints, each with its own compliance — XPBD in small steps, one
+  pass a substep, so a compliance α is a spring of stiffness 1/α and a
+  kilogram hangs α m g lower. Points fall on balls and a floor, drift in
+  the wind and can be pinned and carried. The constraints are coloured
+  when the cloth is made, no two of a colour sharing a point, and solved
+  colour by colour; the GPU gets them from the core already coloured and
+  solves a colour a dispatch, the colour picked by a uniform bound at an
+  offset, so nothing is summed in an order it chooses. Where nothing folds
+  the two agree point for point; a sheet hanging from two corners agrees
+  to 2·10⁻⁵ m for half a second, until its wrinkles go their own ways,
+  and then hangs as low to a hundredth of a millimetre. ABI 14, GPU ABI 3.
+
 - **Debris, the visual bodies, read a frame late — phase 10.** Balls of
   any size and mass that fall, knock into each other, roll and settle on
   still planes and boxes: rubble and splinters nobody steers and the game

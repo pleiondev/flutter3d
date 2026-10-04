@@ -19,6 +19,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - events, and snapshots a world restores from to the byte;
 - particles that fall, drift in the wind, bounce off a floor and die, on the CPU and, through wgpu-native, on the GPU.
 - debris, the visual bodies: thousands of balls that tumble, heap and settle on still planes and boxes, on the CPU and on the GPU, where they are read a frame late.
+- cloth: sheets and ropes held by constraints of any stiffness, draped over balls and blown by the wind, on the CPU and on the GPU.
 
 A fast mode, multibody chains, more GPU passes and the remaining platforms follow, each with its tests.
 
@@ -57,4 +58,5 @@ The suite does four things:
 - drops a crate on a floor and holds where it comes to rest against `flutter3d_physics`;
 - steps a thousand particles on the GPU and on the CPU and compares them. A GPU rounds its own way, so this is a tolerance too. The test is skipped where there is no adapter;
 - pours debris on both and compares it: body for body where nothing chaotic happens, and as a heap where it does;
+- hangs cloth on both and compares it the same way: point for point until it wrinkles;
 - builds the WebAssembly module and runs it in node, so the byte-for-byte comparison above actually happens. This test is skipped where node, clang or a wasm linker is missing.

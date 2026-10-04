@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 13u
+#define F3D_ABI_VERSION 14u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -626,6 +626,79 @@ F3D_API void f3d_debris_step(F3dDebris *debris,
  * [capacity]; returns how many. */
 F3D_API uint32_t f3d_debris_read(const F3dDebris *debris, f3d_real *out,
                                  uint32_t capacity);
+
+/* ------------------------------------------------------------------ cloth */
+
+/* Cloth: points held at their distances by constraints — XPBD in small
+ * steps, one pass over the constraints a substep. The constraints are
+ * coloured when the cloth is made, so that no two of a colour share a
+ * point, and solved colour by colour: the GPU steps the same cloth in
+ * f3d_gpu.h a colour a dispatch, with nothing summed in any order, and
+ * this one is its reference and the fallback where there is none. Points
+ * collide with balls, a floor, and nothing else — not each other. */
+typedef struct F3dCloth F3dCloth;
+
+/* Reals one point takes, in f3d_cloth_create and f3d_cloth_read: position
+ * xyz and inverse mass, nought for a point pinned where it is. */
+#define F3D_CLOTH_FLOATS 4u
+#define F3D_CLOTH_MAX_BALLS 16u
+
+typedef struct F3dClothSettings {
+  f3d_real gravity[3];
+  /* The air's velocity, and how fast a point drifts to it, per second. */
+  f3d_real wind[3];
+  f3d_real drag;
+  /* Per second, as v / (1 + c dt). */
+  f3d_real damping;
+  f3d_real floor_y;
+  /* How far from a ball or the floor a point is held. */
+  f3d_real thickness;
+  /* The part of a touching point's slide taken away each substep. */
+  f3d_real friction;
+  /* At least one. */
+  uint32_t substeps;
+} F3dClothSettings;
+
+/* A cloth of [point_count] points, F3D_CLOTH_FLOATS reals apiece, held by
+ * [edge_count] constraints: the pairs of points in [edges], each held at
+ * the distance it starts at with its own compliance, m/N (nought: rigid).
+ * Null for no points, a point out of range, an edge from a point to
+ * itself, or no memory. */
+F3D_API F3dCloth *f3d_cloth_create(const f3d_real *points, uint32_t point_count,
+                                   const uint32_t *edges, const f3d_real *compliance,
+                                   uint32_t edge_count);
+F3D_API void f3d_cloth_destroy(F3dCloth *cloth);
+F3D_API uint32_t f3d_cloth_point_count(const F3dCloth *cloth);
+
+/* How many colours the constraints took. */
+F3D_API uint32_t f3d_cloth_colour_count(const F3dCloth *cloth);
+F3D_API uint32_t f3d_cloth_edge_count(const F3dCloth *cloth);
+
+/* The constraints as they are solved, colour by colour: each one's pair of
+ * points into [pairs], its length into [rest] and its compliance into
+ * [compliance], edge-count apiece; where each colour starts into
+ * [colour_start], colour-count and one. What the GPU's cloth is made
+ * from, so the colouring is done in one place. */
+F3D_API void f3d_cloth_edges(const F3dCloth *cloth, uint32_t *pairs, f3d_real *rest,
+                             f3d_real *compliance, uint32_t *colour_start);
+
+/* The balls, x y z radius apiece, replacing the last; 0 when more than
+ * F3D_CLOTH_MAX_BALLS. */
+F3D_API int f3d_cloth_set_balls(F3dCloth *cloth, const f3d_real *balls, uint32_t count);
+
+/* Puts point [index] at [x y z], still: how a pinned point is carried. */
+F3D_API void f3d_cloth_move_point(F3dCloth *cloth, uint32_t index, f3d_real x,
+                                  f3d_real y, f3d_real z);
+
+/* Each substep: gravity, damping and the wind into the velocity, the
+ * points moved by it, every constraint colour by colour, the balls and the
+ * floor, and the velocity from where the points went. */
+F3D_API void f3d_cloth_step(F3dCloth *cloth, const F3dClothSettings *settings,
+                            f3d_real dt);
+
+/* Every point, F3D_CLOTH_FLOATS reals apiece, into [out]: up to
+ * [capacity]; returns how many. */
+F3D_API uint32_t f3d_cloth_read(const F3dCloth *cloth, f3d_real *out, uint32_t capacity);
 
 /* -------------------------------------------------------------- snapshots */
 

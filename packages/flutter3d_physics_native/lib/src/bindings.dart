@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 13;
+const int abiVersion = 14;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -1135,6 +1135,114 @@ external void f3d_debris_step(
 )
 external int f3d_debris_read(
   Pointer<F3dDebris> debris,
+  Pointer<Float> out,
+  int capacity,
+);
+
+// ------------------------------------------------------------------ cloth
+
+final class F3dCloth extends Opaque {}
+
+/// `F3D_CLOTH_FLOATS` and `F3D_CLOTH_MAX_BALLS`.
+const int clothFloats = 4;
+const int clothMaxBalls = 16;
+
+/// `F3dClothSettings`, field for field.
+final class F3dClothSettings extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Array(3)
+  external Array<Float> wind;
+  @Float()
+  external double drag;
+  @Float()
+  external double damping;
+  @Float()
+  external double floor_y;
+  @Float()
+  external double thickness;
+  @Float()
+  external double friction;
+  @Uint32()
+  external int substeps;
+}
+
+@Native<
+  Pointer<F3dCloth> Function(
+    Pointer<Float>,
+    Uint32,
+    Pointer<Uint32>,
+    Pointer<Float>,
+    Uint32,
+  )
+>()
+external Pointer<F3dCloth> f3d_cloth_create(
+  Pointer<Float> points,
+  int pointCount,
+  Pointer<Uint32> edges,
+  Pointer<Float> compliance,
+  int edgeCount,
+);
+
+@Native<Void Function(Pointer<F3dCloth>)>()
+external void f3d_cloth_destroy(Pointer<F3dCloth> cloth);
+
+@Native<Uint32 Function(Pointer<F3dCloth>)>(isLeaf: true)
+external int f3d_cloth_point_count(Pointer<F3dCloth> cloth);
+
+@Native<Uint32 Function(Pointer<F3dCloth>)>(isLeaf: true)
+external int f3d_cloth_colour_count(Pointer<F3dCloth> cloth);
+
+@Native<Uint32 Function(Pointer<F3dCloth>)>(isLeaf: true)
+external int f3d_cloth_edge_count(Pointer<F3dCloth> cloth);
+
+@Native<
+  Void Function(
+    Pointer<F3dCloth>,
+    Pointer<Uint32>,
+    Pointer<Float>,
+    Pointer<Float>,
+    Pointer<Uint32>,
+  )
+>(isLeaf: true)
+external void f3d_cloth_edges(
+  Pointer<F3dCloth> cloth,
+  Pointer<Uint32> pairs,
+  Pointer<Float> rest,
+  Pointer<Float> compliance,
+  Pointer<Uint32> colourStart,
+);
+
+@Native<Int32 Function(Pointer<F3dCloth>, Pointer<Float>, Uint32)>(isLeaf: true)
+external int f3d_cloth_set_balls(
+  Pointer<F3dCloth> cloth,
+  Pointer<Float> balls,
+  int count,
+);
+
+@Native<Void Function(Pointer<F3dCloth>, Uint32, Float, Float, Float)>(
+  isLeaf: true,
+)
+external void f3d_cloth_move_point(
+  Pointer<F3dCloth> cloth,
+  int index,
+  double x,
+  double y,
+  double z,
+);
+
+@Native<Void Function(Pointer<F3dCloth>, Pointer<F3dClothSettings>, Float)>()
+external void f3d_cloth_step(
+  Pointer<F3dCloth> cloth,
+  Pointer<F3dClothSettings> settings,
+  double dt,
+);
+
+@Native<Uint32 Function(Pointer<F3dCloth>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_cloth_read(
+  Pointer<F3dCloth> cloth,
   Pointer<Float> out,
   int capacity,
 );

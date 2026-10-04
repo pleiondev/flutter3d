@@ -31,6 +31,9 @@ void f3d_gpu_finish(const F3dGpu *gpu);
 /* What a kernel binding is. */
 typedef enum F3dGpuBinding {
   F3D_GPU_UNIFORM,
+  /* A uniform of the given size, bound at an offset each dispatch gives:
+   * at most one in a set of kernels. */
+  F3D_GPU_UNIFORM_AT,
   F3D_GPU_STORAGE,
   F3D_GPU_READ_ONLY,
 } F3dGpuBinding;
@@ -46,6 +49,9 @@ typedef struct F3dGpuKernels {
   WGPUComputePipeline pipelines[F3D_GPU_MAX_KERNELS];
   uint32_t count;
   WGPUBindGroup bind;
+  /* Whether a binding is F3D_GPU_UNIFORM_AT: every dispatch then gives an
+   * offset, nought when it does not care. */
+  int bound_at;
 } F3dGpuKernels;
 
 /* Compiles [source] and makes a pipeline for each of [entries]; then binds
@@ -60,6 +66,11 @@ void f3d_gpu_kernels_release(F3dGpuKernels *k);
 /* Dispatches entry [entry] over [threads] threads, sixty-four a group. */
 void f3d_gpu_dispatch(WGPUComputePassEncoder pass, const F3dGpuKernels *k, uint32_t entry,
                       uint32_t threads);
+
+/* The same, with the kernels' F3D_GPU_UNIFORM_AT binding at [offset], a
+ * multiple of 256. */
+void f3d_gpu_dispatch_at(WGPUComputePassEncoder pass, const F3dGpuKernels *k, uint32_t entry,
+                         uint32_t threads, uint32_t offset);
 
 /* A buffer read back without waiting: each step copies it into one of two
  * staging buffers and maps that, and a read takes whichever has come back

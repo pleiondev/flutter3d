@@ -6,6 +6,7 @@
 /// fallback where it cannot run.
 library;
 
+export 'src/native_cloth.dart';
 export 'src/native_debris.dart';
 export 'src/native_particles.dart' hide nativeGpuPointer;
 export 'src/native_world.dart';
