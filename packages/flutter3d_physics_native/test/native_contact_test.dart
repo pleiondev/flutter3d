@@ -174,4 +174,26 @@ void main() {
     expect(world.temperatureOf(block), greaterThan(400.0));
     expect(steel.conductivity, 50.0);
   });
+
+  test('a box query finds what the tree holds, in slot order', () {
+    // Mutation: return the leaves in the order the tree walks them, in
+    // `found_one` — the answer depends on the tree's shape.
+    final balls = <NativeBody>[
+      for (var i = 0; i < 100; i++)
+        world.addBody(position: Vector3((i % 10) * 2.0, 0.0, (i ~/ 10) * 2.0)),
+    ];
+    for (final b in balls) {
+      world.setShape(b, const NativeShape.sphere(0.5));
+    }
+    world.addBody(position: Vector3.zero()); // A point: never found.
+    expect(
+      world.queryBox(Vector3(-1.0, -1.0, -1.0), Vector3(2.6, 1.0, 2.6)),
+      <NativeBody>[balls[0], balls[1], balls[10], balls[11]],
+    );
+    expect(
+      world.queryBox(Vector3(-100.0, -1.0, -100.0), Vector3(100.0, 1.0, 100.0)),
+      balls,
+    );
+    expect(world.queryBox(Vector3.all(50.0), Vector3.all(51.0)), isEmpty);
+  });
 }

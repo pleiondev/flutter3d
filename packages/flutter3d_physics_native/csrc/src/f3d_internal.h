@@ -187,7 +187,62 @@ enum {
   F3D_FLAG_ASLEEP = 1u << 0,
   F3D_FLAG_LOCKED = 1u << 1,
   F3D_FLAG_BURNING = 1u << 2,
+  /* Placed, turned or reshaped by the caller since the last step: whatever
+   * it slept against has to look again. */
+  F3D_FLAG_MOVED = 1u << 3,
 };
+
+/* ----------------------------------------------------------------- tree */
+
+typedef struct F3dBox {
+  F3dVec3 lo, hi;
+} F3dBox;
+
+/* A node of the broadphase tree: a leaf holds one body's fat box, an
+ * inner node the box round its two children. */
+typedef struct F3dTreeNode {
+  F3dBox box;
+  /* The parent, or the next free node while free; -1 for none. */
+  int32_t parent;
+  /* Children; child1 is -1 for a leaf. */
+  int32_t child1, child2;
+  /* A leaf's is nought; -1 while free. */
+  int32_t height;
+  /* A leaf's body slot. */
+  uint32_t slot;
+} F3dTreeNode;
+
+/* A dynamic tree of boxes, balanced by rotations, as Box2D's
+ * b2DynamicTree: what finds the pairs near each other, and what queries
+ * search. Derived state: not in a snapshot, built again after a restore. */
+typedef struct F3dTree {
+  F3dTreeNode *nodes;
+  uint32_t capacity;
+  int32_t root;
+  int32_t free_list;
+  uint32_t leaves;
+} F3dTree;
+
+/* How far past a body's box its leaf reaches, m: it moves inside that
+ * before the tree has to move it. */
+#define F3D_FAT_MARGIN F3D_R(0.1)
+
+int32_t f3d_tree_insert(F3dTree *tree, F3dBox box, uint32_t slot);
+void f3d_tree_remove(F3dTree *tree, int32_t leaf);
+void f3d_tree_clear(F3dTree *tree);
+
+/* Calls [visit] for every leaf whose box overlaps [box]; stops early when
+ * it returns nought. */
+void f3d_tree_query(const F3dTree *tree, F3dBox box,
+                    int (*visit)(void *context, int32_t leaf), void *context);
+
+
+static inline int f3d_box_overlap(F3dBox a, F3dBox b) {
+  return a.lo.x <= b.hi.x && b.lo.x <= a.hi.x && a.lo.y <= b.hi.y &&
+         b.lo.y <= a.hi.y && a.lo.z <= b.hi.z && b.lo.z <= a.hi.z;
+}
+
+
 
 /* One arena slot. A free slot keeps its generation, so the next body it
  * holds gets a new one, and links to the next free slot.
@@ -295,6 +350,11 @@ struct F3dWorld {
   F3dManifold *next_manifolds;
   uint32_t manifold_capacity;
   uint32_t next_capacity;
+  /* The broadphase, and each slot's leaf in it (-1 for none), as long as
+   * the arena. Neither is in a snapshot. */
+  F3dTree tree;
+  int32_t *proxies;
+  uint32_t proxy_capacity;
   /* Scratch the collision stage grows and keeps, so a step allocates only
    * when the world grows. None of it outlives a step. */
   void *scratch;
@@ -316,6 +376,14 @@ void f3d_push_pair_event(F3dWorld *world, F3dBody body, F3dBody other,
 
 /* Wakes a body, raising its event when it slept. */
 void f3d_wake(F3dWorld *world, F3dSlot *slot);
+
+/* A body's box, as tight as its shape, grown by [margin] on every side. */
+F3dBox f3d_box_of(const F3dSlot *slot, f3d_real margin);
+
+/* Brings every body's leaf up to date: made for a body that has a shape,
+ * moved for one that left its fat box, taken out for one that is gone or
+ * has none. */
+void f3d_update_proxies(F3dWorld *world);
 
 /* A shape's placement, from its slot. */
 F3dPlaced f3d_placed_of(const F3dSlot *slot);

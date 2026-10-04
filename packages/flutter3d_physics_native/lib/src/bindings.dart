@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 5;
+const int abiVersion = 6;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -252,6 +252,31 @@ external int f3d_world_contact_count(Pointer<F3dWorld> world);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
 external int f3d_world_set_substeps(Pointer<F3dWorld> world, int substeps);
+
+@Native<
+  Uint32 Function(
+    Pointer<F3dWorld>,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Pointer<Uint64>,
+    Uint32,
+  )
+>(isLeaf: true)
+external int f3d_world_query_box(
+  Pointer<F3dWorld> world,
+  double lx,
+  double ly,
+  double lz,
+  double hx,
+  double hy,
+  double hz,
+  Pointer<Uint64> out,
+  int capacity,
+);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint64, Float)>(isLeaf: true)
 external int f3d_body_set_friction(

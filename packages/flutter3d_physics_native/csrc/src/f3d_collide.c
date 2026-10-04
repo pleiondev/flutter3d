@@ -126,56 +126,6 @@ static void sort_keyed(Keyed *items, Keyed *spare, uint32_t count) {
   }
 }
 
-/* A real as a key that sorts as the real does: the sign bit flipped for a
- * positive number, every bit for a negative one. */
-static uint32_t ordered_bits(f3d_real x) {
-  const float f = (float)x;
-  uint32_t bits;
-  f3d_copy(&bits, &f, sizeof bits);
-  return (bits & 0x80000000u) ? ~bits : bits | 0x80000000u;
-}
-
-/* -------------------------------------------------------------- bounds */
-
-typedef struct Bounds {
-  F3dVec3 lo, hi;
-} Bounds;
-
-static Bounds bounds_of(const F3dSlot *s, f3d_real margin) {
-  const F3dMat3 m = f3d_mat_of(s->orientation);
-  F3dVec3 reach;
-  switch (s->shape) {
-    case F3D_SHAPE_SPHERE:
-      reach = f3d_v3(s->size.x, s->size.x, s->size.x);
-      break;
-    case F3D_SHAPE_CAPSULE: {
-      const F3dVec3 axis = m.c[1];
-      reach = f3d_v3(f3d_abs(axis.x) * s->size.y + s->size.x,
-                     f3d_abs(axis.y) * s->size.y + s->size.x,
-                     f3d_abs(axis.z) * s->size.y + s->size.x);
-      break;
-    }
-    default: {
-      const f3d_real h[3] = {s->size.x, s->size.y, s->size.z};
-      reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
-      for (int k = 0; k < 3; k++) {
-        reach.x += f3d_abs(m.c[k].x) * h[k];
-        reach.y += f3d_abs(m.c[k].y) * h[k];
-        reach.z += f3d_abs(m.c[k].z) * h[k];
-      }
-      break;
-    }
-  }
-  /* Half the margin on each side: two bounds that meet are a margin
-   * apart. */
-  const f3d_real half = F3D_R(0.5) * margin;
-  reach = f3d_add(reach, f3d_v3(half, half, half));
-  Bounds b;
-  b.lo = f3d_sub(s->position, reach);
-  b.hi = f3d_add(s->position, reach);
-  return b;
-}
-
 /* --------------------------------------------------------------- stage */
 
 static int active(const F3dSlot *s) {
@@ -285,65 +235,112 @@ static void islands(F3dWorld *world, uint32_t *parent) {
   }
 }
 
+/* What a query of the tree gathers: the pairs, in the world's scratch past
+ * the islands' arrays, grown as they come. */
+typedef struct Gather {
+  F3dWorld *world;
+  size_t fixed;
+  uint32_t self;
+  F3dBox box;
+  uint32_t count, capacity;
+  int failed;
+} Gather;
+
+static Keyed *gathered(const Gather *g) {
+  return (Keyed *)((uint8_t *)g->world->scratch + g->fixed);
+}
+
+static int add_pair(Gather *g, uint32_t a, uint32_t b) {
+  if (g->count == g->capacity) {
+    const uint32_t grown = g->capacity * 2u;
+    if (f3d_scratch(g->world, g->fixed + (size_t)grown * sizeof(Keyed) * 2u) ==
+        NULL) {
+      g->failed = 1;
+      return 0;
+    }
+    /* The spare half moves up with the capacity; nothing is in it yet. */
+    g->capacity = grown;
+  }
+  gathered(g)[g->count].key = a < b ? pair_key(a, b) : pair_key(b, a);
+  gathered(g)[g->count].value = 0;
+  g->count++;
+  return 1;
+}
+
+/* One leaf near the querying body: a pair, unless the other is awake too
+ * and comes first — then its own query found this pair already. */
+static int near_leaf(void *context, int32_t leaf) {
+  Gather *g = (Gather *)context;
+  const uint32_t other = g->world->tree.nodes[leaf].slot;
+  if (other == g->self) return 1;
+  const F3dSlot *so = &g->world->slots[other];
+  const F3dSlot *ss = &g->world->slots[g->self];
+  if (active(so) && other < g->self) return 1;
+  if (!(ss->layer & so->mask) || !(so->layer & ss->mask)) return 1;
+  if (!f3d_box_overlap(
+          f3d_box_of(so, F3D_R(0.5) * g->world->s.contact_margin), g->box)) {
+    return 1;
+  }
+  return add_pair(g, g->self, other);
+}
+
+static int moved(const F3dSlot *s) {
+  return s != NULL && (s->flags & F3D_FLAG_MOVED) != 0;
+}
+
 void f3d_step_collide(F3dWorld *world) {
   const uint32_t used = world->s.used;
   const f3d_real margin = world->s.contact_margin;
-  /* The scratch, laid out once: bounds per slot, the sweep's order and its
-   * spare, the pairs and their spare, and the islands' two arrays. The
-   * pairs are bounded by what the sweep finds, so they go last and grow. */
-  const size_t bounds_bytes = (size_t)used * sizeof(Bounds);
-  const size_t order_bytes = (size_t)used * sizeof(Keyed) * 2u;
-  const size_t island_bytes = (size_t)used * sizeof(uint32_t) * 2u;
-  size_t fixed = bounds_bytes + order_bytes + island_bytes;
-  fixed = (fixed + 15u) & ~(size_t)15u;
-  uint8_t *base = (uint8_t *)f3d_scratch(world, fixed + 64u * sizeof(Keyed) * 2u);
-  if (base == NULL) return;
-  Bounds *bounds = (Bounds *)base;
-  Keyed *order = (Keyed *)(base + bounds_bytes);
-  Keyed *order_spare = order + used;
-  uint32_t candidates = 0;
-  for (uint32_t i = 0; i < used; i++) {
-    const F3dSlot *s = &world->slots[i];
-    if (!s->live || s->shape == F3D_SHAPE_POINT) continue;
-    bounds[i] = bounds_of(s, margin);
-    order[candidates].key =
-        ((uint64_t)ordered_bits(bounds[i].lo.x) << 32) | i;
-    order[candidates].value = i;
-    candidates++;
+  /* A body placed, turned or reshaped by hand wakes what slept against it:
+   * the contact they kept is no longer where they are. */
+  for (uint32_t i = 0; i < world->s.manifold_count; i++) {
+    const F3dManifold *m = &world->manifolds[i];
+    F3dSlot *sa = f3d_slot_of(world, m->a), *sb = f3d_slot_of(world, m->b);
+    if (!moved(sa) && !moved(sb)) continue;
+    if (sa != NULL) f3d_wake(world, sa);
+    if (sb != NULL) f3d_wake(world, sb);
   }
-  sort_keyed(order, order_spare, candidates);
-  /* The sweep: each body against those whose bounds start before its own
-   * end along x. */
-  uint32_t pair_count = 0, pair_capacity = 64u;
-  for (uint32_t i = 0; i < candidates; i++) {
-    const uint32_t a = order[i].value;
-    const F3dSlot *sa = &world->slots[a];
-    for (uint32_t j = i + 1u; j < candidates; j++) {
-      const uint32_t b = order[j].value;
-      if (bounds[b].lo.x > bounds[a].hi.x) break;
-      if (bounds[b].lo.y > bounds[a].hi.y || bounds[a].lo.y > bounds[b].hi.y ||
-          bounds[b].lo.z > bounds[a].hi.z || bounds[a].lo.z > bounds[b].hi.z) {
-        continue;
-      }
-      const F3dSlot *sb = &world->slots[b];
-      if (sa->type == F3D_BODY_FIXED && sb->type == F3D_BODY_FIXED) continue;
-      if (!(sa->layer & sb->mask) || !(sb->layer & sa->mask)) continue;
-      if (pair_count == pair_capacity) {
-        pair_capacity *= 2u;
-        base = (uint8_t *)f3d_scratch(world,
-                                  fixed + (size_t)pair_capacity * sizeof(Keyed) * 2u);
-        if (base == NULL) return;
-        bounds = (Bounds *)base;
-        order = (Keyed *)(base + bounds_bytes);
-      }
-      Keyed *pairs = (Keyed *)(base + fixed);
-      pairs[pair_count].key = a < b ? pair_key(a, b) : pair_key(b, a);
-      pairs[pair_count].value = 0;
-      pair_count++;
+  f3d_update_proxies(world);
+  /* The scratch: the islands' two arrays, then the pairs and their spare,
+   * which grow as the queries find them. */
+  const size_t fixed =
+      ((size_t)used * sizeof(uint32_t) * 2u + 15u) & ~(size_t)15u;
+  if (f3d_scratch(world, fixed + 64u * sizeof(Keyed) * 2u) == NULL) return;
+  Gather g;
+  g.world = world;
+  g.fixed = fixed;
+  g.count = 0;
+  g.capacity = 64u;
+  g.failed = 0;
+  /* Each awake body asks the tree what is near it. Two bodies neither of
+   * which can move are not asked about: they keep last step's contact. */
+  for (uint32_t i = 0; i < used && !g.failed; i++) {
+    const F3dSlot *s = &world->slots[i];
+    if (!active(s) || world->proxies[i] == -1) continue;
+    g.self = i;
+    g.box = f3d_box_of(s, F3D_R(0.5) * margin);
+    f3d_tree_query(&world->tree, g.box, near_leaf, &g);
+  }
+  for (uint32_t i = 0; i < world->s.manifold_count && !g.failed; i++) {
+    const F3dManifold *m = &world->manifolds[i];
+    const F3dSlot *sa = f3d_slot_of(world, m->a);
+    const F3dSlot *sb = f3d_slot_of(world, m->b);
+    if (sa == NULL || sb == NULL || active(sa) || active(sb)) continue;
+    if (sa->shape == F3D_SHAPE_POINT || sb->shape == F3D_SHAPE_POINT) continue;
+    add_pair(&g, (uint32_t)(m->a & 0xffffffffu), (uint32_t)(m->b & 0xffffffffu));
+  }
+  for (uint32_t i = 0; i < used; i++) {
+    world->slots[i].flags &= (uint8_t)~F3D_FLAG_MOVED;
+  }
+  if (g.failed) return;
+  Keyed *pairs = gathered(&g);
+  sort_keyed(pairs, pairs + g.capacity, g.count);
+  uint32_t pair_count = 0;
+  for (uint32_t i = 0; i < g.count; i++) {
+    if (pair_count == 0 || pairs[pair_count - 1].key != pairs[i].key) {
+      pairs[pair_count++] = pairs[i];
     }
   }
-  Keyed *pairs = (Keyed *)(base + fixed);
-  sort_keyed(pairs, pairs + pair_capacity, pair_count);
   if (!reserve_next(world, pair_count)) return;
   /* The narrow phase, pair by pair in key order. Two bodies that are both
    * asleep or fixed keep last step's manifold: nothing between them has
@@ -425,5 +422,5 @@ void f3d_step_collide(F3dWorld *world) {
   world->s.manifold_count = found;
   /* A body woken by a contact is woken here, after the contacts are set:
    * an awake, moving body touching a sleeping one wakes its whole island. */
-  islands(world, (uint32_t *)(base + bounds_bytes + order_bytes));
+  islands(world, (uint32_t *)world->scratch);
 }

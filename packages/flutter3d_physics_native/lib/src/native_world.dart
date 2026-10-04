@@ -511,6 +511,38 @@ final class NativeWorld implements Finalizable {
     }
   }
 
+  /// Every body whose shape's box overlaps the box from [lo] to [hi],
+  /// relative to the origin, in slot order: what the broadphase tree finds,
+  /// checked against each body's own box. Bodies with no shape are never
+  /// found.
+  List<NativeBody> queryBox(Vector3 lo, Vector3 hi) {
+    var capacity = 64;
+    while (true) {
+      final out = malloc<Uint64>(capacity);
+      try {
+        final count = c.f3d_world_query_box(
+          _live,
+          lo.x,
+          lo.y,
+          lo.z,
+          hi.x,
+          hi.y,
+          hi.z,
+          out,
+          capacity,
+        );
+        if (count <= capacity) {
+          return <NativeBody>[
+            for (var i = 0; i < count; i++) NativeBody(out[i]),
+          ];
+        }
+        capacity = count;
+      } finally {
+        malloc.free(out);
+      }
+    }
+  }
+
   /// Every contact point the last step found, in order of the pair's slots.
   List<NativeContact> readContacts() {
     final count = c.f3d_world_contact_count(_live);

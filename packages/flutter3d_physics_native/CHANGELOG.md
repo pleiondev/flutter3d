@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **The broadphase tree, phase 4.** A dynamic tree of boxes, as Box2D's:
+  each body with a shape has a leaf holding its box grown by ten
+  centimetres, moved only when the body leaves it; a leaf goes in beside the
+  node that costs least by surface area, and rotations keep every node's two
+  sides within one level of each other, so a thousand boxes laid in a row
+  are a tree twenty deep and not a list. Only awake bodies ask it what is
+  near them; two bodies that cannot move keep last step's contact, and one
+  moved by hand wakes what slept against it, so a crate on a plank lifted
+  away falls. The tree is not in a snapshot — it is built again — and the
+  restored world steps to the same bytes, since the contacts come out in
+  slot order whatever shape the tree has. `f3d_world_query_box` finds the
+  bodies a box overlaps, in slot order.
+
 - **The solver, phase 3: bodies stand on what they touch.** Soft contacts
   solved in substeps (four by default, `f3d_world_set_substeps`): each
   substep integrates the velocities, warm-starts every contact from what its

@@ -178,5 +178,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->events = events;
   world->manifolds = manifolds;
   world->manifold_capacity = state.manifold_count;
+  /* The tree is not in a snapshot: built again by the next step. */
+  f3d_tree_clear(&world->tree);
+  f3d_free(world->proxies);
+  world->proxies = NULL;
+  world->proxy_capacity = 0;
   return 1;
 }

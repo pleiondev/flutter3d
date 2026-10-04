@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 5u
+#define F3D_ABI_VERSION 6u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -270,6 +270,16 @@ F3D_API int f3d_world_set_substeps(F3dWorld *world, uint32_t substeps);
  * but not touching has a negative depth. 0 for a margin that is negative
  * or not finite. Default 0.02. */
 F3D_API int f3d_world_set_contact_margin(F3dWorld *world, f3d_real margin);
+
+/* Every body whose shape's box overlaps the box from (lx, ly, lz) to
+ * (hx, hy, hz), relative to the origin: up to [capacity] of them, those of
+ * the lowest slots, written into [out] in slot order. Returns how many
+ * there are, which may be more than it wrote. Bodies with no shape are
+ * never found. */
+F3D_API uint32_t f3d_world_query_box(F3dWorld *world, f3d_real lx, f3d_real ly,
+                                     f3d_real lz, f3d_real hx, f3d_real hy,
+                                     f3d_real hz, F3dBody *out,
+                                     uint32_t capacity);
 
 /* Contact points the last step found, over every pair. */
 F3D_API uint32_t f3d_world_contact_count(const F3dWorld *world);

@@ -22,6 +22,7 @@ const List<String> coreSources = <String>[
   'csrc/src/f3d_collide.c',
   'csrc/src/f3d_narrow.c',
   'csrc/src/f3d_solve.c',
+  'csrc/src/f3d_tree.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 

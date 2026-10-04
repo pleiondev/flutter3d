@@ -28,6 +28,8 @@ F3dWorld *f3d_world_create(void) {
   world->s.sleep_time = F3D_R(0.5);
   world->s.contact_margin = F3D_R(0.02);
   world->s.substeps = 4u;
+  world->tree.root = -1;
+  world->tree.free_list = -1;
   return world;
 }
 
@@ -39,6 +41,8 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->manifolds);
   f3d_free(world->next_manifolds);
   f3d_free(world->scratch);
+  f3d_tree_clear(&world->tree);
+  f3d_free(world->proxies);
   f3d_free(world);
 }
 
@@ -391,6 +395,7 @@ int f3d_body_set_position(F3dWorld *world, F3dBody body, f3d_real x,
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !finite3(x, y, z)) return 0;
   set3(&s->position, x, y, z);
+  s->flags |= F3D_FLAG_MOVED;
   f3d_wake(world, s);
   return 1;
 }
@@ -444,6 +449,7 @@ int f3d_body_set_orientation(F3dWorld *world, F3dBody body, f3d_real x,
     s->orientation.z = z / length;
     s->orientation.w = w / length;
   }
+  s->flags |= F3D_FLAG_MOVED;
   f3d_wake(world, s);
   return 1;
 }
@@ -488,6 +494,7 @@ int f3d_body_set_shape(F3dWorld *world, F3dBody body, F3dShapeKind kind,
   s->shape = (uint8_t)kind;
   f3d_refresh_mass(s);
   if (!turns(s)) set3(&s->spin, F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  s->flags |= F3D_FLAG_MOVED;
   f3d_wake(world, s);
   return 1;
 }
