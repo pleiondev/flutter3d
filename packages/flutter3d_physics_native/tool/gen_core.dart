@@ -23,6 +23,7 @@ Map<String, String> generate(String header) {
     'lib/src/core/calls_native.g.dart': _native(functions),
     'lib/src/core/calls_web.g.dart': _web(functions),
     'lib/src/core/layout.g.dart': _layout(structs),
+    'csrc/wasm/f3d_wasm_shim.c': shim(header),
   };
 }
 
@@ -33,7 +34,12 @@ Map<String, String> _formatted(Map<String, String> files) {
   try {
     final paths = <String, File>{};
     var i = 0;
+    final kept = <String, String>{};
     for (final entry in files.entries) {
+      if (!entry.key.endsWith('.dart')) {
+        kept[entry.key] = entry.value;
+        continue;
+      }
       final f = File('${dir.path}/f${i++}.dart')..writeAsStringSync(entry.value);
       paths[entry.key] = f;
     }
@@ -41,6 +47,7 @@ Map<String, String> _formatted(Map<String, String> files) {
     if (result.exitCode != 0) throw StateError('dart format: ${result.stderr}');
     return <String, String>{
       for (final entry in paths.entries) entry.key: entry.value.readAsStringSync(),
+      ...kept,
     };
   } finally {
     dir.deleteSync(recursive: true);

@@ -2,6 +2,11 @@
 ///
 ///     dart run tool/build_wasm.dart [out.wasm]
 ///
+/// Into `web/f3d_physics.wasm` by default: the module the package ships, as
+/// an asset a Flutter web app serves and `loadPhysicsCore()` fetches. Hooks
+/// do not build for the browser, so it is built here and kept in the
+/// package; `test/wasm_test.dart` holds it to the core it was built from.
+///
 /// Hooks build code for the native targets only, so the browser's module is
 /// built here, from the same sources and with the same flags as
 /// `hook/build.dart`: no fused multiply-add contraction and no fast math, so
@@ -39,6 +44,7 @@ const List<String> wasmSources = <String>[
   'csrc/src/f3d_fluid.c',
   'csrc/src/f3d_pool.c',
   'csrc/src/f3d_memory_wasm.c',
+  'csrc/wasm/f3d_wasm_shim.c',
 ];
 
 /// The compiler flags the module is built with.
@@ -124,7 +130,7 @@ void buildWasm({required String root, required String out}) {
 }
 
 void main(List<String> args) {
-  final out = args.isEmpty ? 'build/f3d_physics.wasm' : args.first;
+  final out = args.isEmpty ? 'web/f3d_physics.wasm' : args.first;
   File(out).parent.createSync(recursive: true);
   buildWasm(root: Directory.current.path, out: out);
   stdout.writeln('wrote $out (${File(out).lengthSync()} bytes)');

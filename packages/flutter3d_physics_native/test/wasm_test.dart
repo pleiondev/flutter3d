@@ -198,111 +198,19 @@ void main() {
     addTearDown(() => scratch.deleteSync(recursive: true));
     final wasm = '${scratch.path}/f3d.wasm';
     buildWasm(root: Directory.current.path, out: wasm);
-    final module = File(wasm).readAsBytesSync();
-    expect(module, isNotEmpty);
-
-    final runner = File('${scratch.path}/run.js')..writeAsStringSync(_runner);
-    final ran = Process.runSync('node', <String>[
-      runner.path,
-      wasm,
-      jsonEncode(<String, Object>{
-        'bodies': _bodies,
-        'gravity': _gravity,
-        'wind': _wind,
-        'grid': _grid,
-        'steps': _steps,
-        'dt': _dt,
-      }),
-    ]);
-    expect(ran.exitCode, 0, reason: '${ran.stderr}');
-    final fromWasm = base64Decode('${ran.stdout}'.trim());
-
-    final world = NativeWorld();
-    addTearDown(world.dispose);
-    world
-      ..gravity = Vector3(_gravity[0], _gravity[1], _gravity[2])
-      ..wind = Vector3(_wind[0], _wind[1], _wind[2])
-      ..setWindGrid(
-        origin: Vector3(-5.0, 0.0, -5.0),
-        cell: 5.0,
-        nx: 2,
-        ny: 1,
-        nz: 2,
-        velocities: Float32List.fromList(_grid),
-      );
-    final wood = NativeMaterial.wood();
-    for (final b in _bodies) {
-      final body = world.addBody(position: Vector3(b[0], b[1], b[2]));
-      world
-        ..setVelocity(body, Vector3(b[3], b[4], b[5]))
-        ..setShape(body, _shape(b))
-        ..setAngularVelocity(body, Vector3(b[10], b[11], b[12]))
-        ..setMaterial(body, wood)
-        ..setTemperature(body, b[13])
-        ..addWater(body, b[14]);
-    }
-    // A floor they fall through, with no solver yet: contacts, events and
-    // heat across them, all in the comparison.
-    final floor = world.addBody(
-      position: Vector3(0.0, -1.0, 0.0),
-      type: NativeBodyType.fixed,
-      mass: 0.0,
-    );
-    world.setShape(floor, NativeShape.box(Vector3(200.0, 1.0, 200.0)));
-    // And a mesh hill on it, a pyramid of four triangles, for the bodies
-    // to land on and roll off.
-    final hill = world.addBody(
-      position: Vector3.zero(),
-      type: NativeBodyType.fixed,
-      mass: 0.0,
-    );
-    world.setMesh(
-      hill,
-      world.createMesh(
-        <Vector3>[
-          Vector3(-20.0, 0.0, -20.0),
-          Vector3(20.0, 0.0, -20.0),
-          Vector3(20.0, 0.0, 20.0),
-          Vector3(-20.0, 0.0, 20.0),
-          Vector3(0.0, 3.0, 0.0),
-        ],
-        <int>[0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0],
-      ),
-    );
-    // And a hinged pendulum with limits, for the joints.
-    final pivot = world.addBody(
-      position: Vector3(-6.0, 4.0, 0.0),
-      type: NativeBodyType.fixed,
-      mass: 0.0,
-    );
-    final bob = world.addBody(position: Vector3(-5.0, 4.0, 0.0));
-    world.setShape(bob, const NativeShape.sphere(0.2));
-    final swing = world.createJoint(
-      NativeJointType.revolute,
-      pivot,
-      bob,
-      anchor: Vector3(-6.0, 4.0, 0.0),
-      axis: Vector3(0.0, 0.0, 1.0),
-    );
-    world.setJointLimits(swing, (lower: -1.2, upper: 1.2));
-    for (var i = 0; i < _steps; i++) {
-      world.step(_dt);
-    }
-    final fromNative = world.snapshot();
-
-    expect(fromWasm.length, fromNative.length);
-    expect(fromWasm, orderedEquals(fromNative));
-    // And the scenario reached what it was built to: a fire, a turn.
-    expect(
-      world.readEvents().map((e) => e.kind),
-      containsAll(<NativeEventKind>[
-        NativeEventKind.ignited,
-        NativeEventKind.contactBegan,
-      ]),
-    );
+    _sameBits(wasm, scratch);
   }, skip: missing.isEmpty ? false : 'no ${missing.join(', ')}');
 
-  test('the module imports nothing and exports the API', () {
+  test('the module the package ships steps to the same bits', () {
+    // Hooks do not build for the browser, so `web/f3d_physics.wasm` is built
+    // by hand — `dart run tool/build_wasm.dart` — and kept in the package.
+    // Changing the core and not rebuilding it fails here.
+    final scratch = Directory.systemTemp.createTempSync('f3d_wasm_test');
+    addTearDown(() => scratch.deleteSync(recursive: true));
+    _sameBits('web/f3d_physics.wasm', scratch);
+  }, skip: _available('node', <String>['--version']) ? false : 'no node');
+
+  test('the module imports nothing and exports the API and the shim', () {
     final scratch = Directory.systemTemp.createTempSync('f3d_wasm_test');
     addTearDown(() => scratch.deleteSync(recursive: true));
     final wasm = '${scratch.path}/f3d.wasm';
@@ -321,9 +229,124 @@ void main() {
     final declared = RegExp(
       r'F3D_API [^;(]*?\b(f3d_\w+)\(',
     ).allMatches(header).map((m) => m.group(1)!).toSet();
+    // And the shim's: each call that takes or gives a 64-bit value again,
+    // in 32-bit halves, for the browser's numbers.
+    final shimmed = RegExp(r'F3D_API [^;(]*?\b(f3d_\w+)\(')
+        .allMatches(File('csrc/wasm/f3d_wasm_shim.c').readAsStringSync())
+        .map((m) => m.group(1)!)
+        .toSet();
+    expect(shimmed, contains('f3d_wasm_high'));
     expect((answer['exports'] as List<dynamic>).toSet(), <Object>{
       'memory',
       ...declared,
+      ...shimmed,
     });
   }, skip: missing.isEmpty ? false : 'no ${missing.join(', ')}');
+}
+
+/// Steps the scenario in the module at [wasm], run in node, and in the
+/// native library, and holds the two snapshots to the same bytes.
+void _sameBits(String wasm, Directory scratch) {
+  final module = File(wasm).readAsBytesSync();
+  expect(module, isNotEmpty);
+
+  final runner = File('${scratch.path}/run.js')..writeAsStringSync(_runner);
+  final ran = Process.runSync('node', <String>[
+    runner.path,
+    wasm,
+    jsonEncode(<String, Object>{
+      'bodies': _bodies,
+      'gravity': _gravity,
+      'wind': _wind,
+      'grid': _grid,
+      'steps': _steps,
+      'dt': _dt,
+    }),
+  ]);
+  expect(ran.exitCode, 0, reason: '${ran.stderr}');
+  final fromWasm = base64Decode('${ran.stdout}'.trim());
+
+  final world = NativeWorld();
+  addTearDown(world.dispose);
+  world
+    ..gravity = Vector3(_gravity[0], _gravity[1], _gravity[2])
+    ..wind = Vector3(_wind[0], _wind[1], _wind[2])
+    ..setWindGrid(
+      origin: Vector3(-5.0, 0.0, -5.0),
+      cell: 5.0,
+      nx: 2,
+      ny: 1,
+      nz: 2,
+      velocities: Float32List.fromList(_grid),
+    );
+  final wood = NativeMaterial.wood();
+  for (final b in _bodies) {
+    final body = world.addBody(position: Vector3(b[0], b[1], b[2]));
+    world
+      ..setVelocity(body, Vector3(b[3], b[4], b[5]))
+      ..setShape(body, _shape(b))
+      ..setAngularVelocity(body, Vector3(b[10], b[11], b[12]))
+      ..setMaterial(body, wood)
+      ..setTemperature(body, b[13])
+      ..addWater(body, b[14]);
+  }
+  // A floor they fall through, with no solver yet: contacts, events and
+  // heat across them, all in the comparison.
+  final floor = world.addBody(
+    position: Vector3(0.0, -1.0, 0.0),
+    type: NativeBodyType.fixed,
+    mass: 0.0,
+  );
+  world.setShape(floor, NativeShape.box(Vector3(200.0, 1.0, 200.0)));
+  // And a mesh hill on it, a pyramid of four triangles, for the bodies
+  // to land on and roll off.
+  final hill = world.addBody(
+    position: Vector3.zero(),
+    type: NativeBodyType.fixed,
+    mass: 0.0,
+  );
+  world.setMesh(
+    hill,
+    world.createMesh(
+      <Vector3>[
+        Vector3(-20.0, 0.0, -20.0),
+        Vector3(20.0, 0.0, -20.0),
+        Vector3(20.0, 0.0, 20.0),
+        Vector3(-20.0, 0.0, 20.0),
+        Vector3(0.0, 3.0, 0.0),
+      ],
+      <int>[0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0],
+    ),
+  );
+  // And a hinged pendulum with limits, for the joints.
+  final pivot = world.addBody(
+    position: Vector3(-6.0, 4.0, 0.0),
+    type: NativeBodyType.fixed,
+    mass: 0.0,
+  );
+  final bob = world.addBody(position: Vector3(-5.0, 4.0, 0.0));
+  world.setShape(bob, const NativeShape.sphere(0.2));
+  final swing = world.createJoint(
+    NativeJointType.revolute,
+    pivot,
+    bob,
+    anchor: Vector3(-6.0, 4.0, 0.0),
+    axis: Vector3(0.0, 0.0, 1.0),
+  );
+  world.setJointLimits(swing, (lower: -1.2, upper: 1.2));
+  for (var i = 0; i < _steps; i++) {
+    world.step(_dt);
+  }
+  final fromNative = world.snapshot();
+
+  expect(fromWasm.length, fromNative.length);
+  expect(fromWasm, orderedEquals(fromNative));
+  // And the scenario reached what it was built to: a fire, a turn.
+  expect(
+    world.readEvents().map((e) => e.kind),
+    containsAll(<NativeEventKind>[
+      NativeEventKind.ignited,
+      NativeEventKind.contactBegan,
+    ]),
+  );
 }

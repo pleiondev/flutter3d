@@ -1,5 +1,19 @@
 ## Unreleased
 
+- **The core runs in the browser.** `loadPhysicsCore()` fetches the
+  WebAssembly module — shipped in the package as `web/f3d_physics.wasm`,
+  an asset a Flutter web app serves — and the same `NativeWorld`, debris,
+  cloth, water and particles run on it through `dart:js_interop`, compiled
+  with dart2js or dart2wasm. A 64-bit handle crosses into the module as
+  two 32-bit halves, through a shim `tool/gen_core.dart` writes beside the
+  calls. In Chrome, a scene of boxes, balls, capsules, a hull, a hinge,
+  wood and wind steps to the snapshot the native library steps it to,
+  hash for hash; and `test/wasm_test.dart` holds the shipped module to the
+  native library byte for byte, so a core changed and not rebuilt fails.
+  A body's slot and generation are now taken from its handle by division:
+  under dart2js Dart's shifts see 32 bits, and every generation read as
+  nought.
+
 - **One API over the core, natively and in the browser — phase 12.** The
   wrappers no longer hold `dart:ffi` pointers: they reach the core through
   `lib/src/core/`, where a call is a function and every pointer an

@@ -11,10 +11,12 @@ import 'core/core.dart' as c;
 /// the C core packs them. Nought is never one.
 extension type const NativeBody(int raw) {
   /// The arena slot.
-  int get slot => raw & 0xffffffff;
+  int get slot => raw % 0x100000000;
 
-  /// How many times the slot had been used when this body took it.
-  int get generation => raw >>> 32;
+  /// How many times the slot had been used when this body took it. By
+  /// division, not a shift: compiled to JavaScript, Dart's shifts and masks
+  /// see 32 bits.
+  int get generation => raw ~/ 0x100000000;
 }
 
 /// What kind of body — `F3dBodyType`.

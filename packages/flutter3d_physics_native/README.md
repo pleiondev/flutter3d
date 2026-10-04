@@ -36,7 +36,7 @@ The Dart side reaches the core the same way natively and in the browser: through
 dart run tool/gen_core.dart
 ```
 
-and `test/bindings_test.dart` fails until you do. In the browser there are no GPU passes: `NativeGpu.open()` returns null there, and the CPU systems run instead. Call `await loadPhysicsCore()` before making the first world; natively it does nothing.
+and `test/bindings_test.dart` fails until you do. In the browser there are no GPU passes: `NativeGpu.open()` returns null there, and the CPU systems run instead. Call `await loadPhysicsCore()` before making the first world; natively it does nothing. In the browser it fetches `web/f3d_physics.wasm`, which this package ships as an asset; after changing the core, rebuild it with `dart run tool/build_wasm.dart`, or `test/wasm_test.dart` fails.
 
 The WebAssembly module is built separately, because hooks build for native targets only:
 
@@ -70,3 +70,10 @@ The suite does four things:
 - hangs cloth on both and compares it the same way: point for point until it wrinkles;
 - breaks a dam of water on both, particle for particle until it splashes;
 - builds the WebAssembly module and runs it in node, so the byte-for-byte comparison above actually happens. This test is skipped where node, clang or a wasm linker is missing.
+
+The browser has its own test, run in Chrome with both web compilers:
+
+```sh
+dart test -p chrome test/web_core_test.dart
+dart test -p chrome -c dart2wasm test/web_core_test.dart
+```

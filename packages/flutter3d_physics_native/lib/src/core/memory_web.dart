@@ -8,13 +8,18 @@ import 'calls_web.g.dart' as c;
 import 'module_web.dart';
 
 ByteData? _view;
+int _viewLength = -1;
 
-/// The memory as it is now; a view of a buffer the memory has since grown
-/// out of has no bytes left, and is made again.
+/// The memory as it is now. Growing, the memory hands over a new buffer
+/// and leaves the old one detached — whose length cannot even be asked —
+/// so the view is kept while the memory's buffer is as long as it was: a
+/// memory only grows.
 ByteData get _bytes {
+  final buffer = coreBuffer();
   final view = _view;
-  if (view != null && view.lengthInBytes != 0) return view;
-  return _view = coreBuffer().asByteData();
+  if (view != null && buffer.lengthInBytes == _viewLength) return view;
+  _viewLength = buffer.lengthInBytes;
+  return _view = buffer.asByteData();
 }
 
 /// [bytes] of the core's memory, zeroed; throws when there is none to give.
@@ -24,7 +29,6 @@ int coreAlloc(int bytes) {
   if (address == 0) {
     throw StateError('the physics core has no memory for $size bytes');
   }
-  _view = null;
   final b = _bytes;
   for (var i = 0; i < size; i++) {
     b.setUint8(address + i, 0);

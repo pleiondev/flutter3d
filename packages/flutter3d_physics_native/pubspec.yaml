@@ -36,3 +36,9 @@ dev_dependencies:
 # **Unpublished while P9 builds it.** The native core grows phase by phase —
 # bodies first, then contacts, a solver, shapes, joints, CCD and the GPU
 # passes — and it is published once it can stand under `CollisionWorld`.
+
+# The core as a WebAssembly module, for the browser: a Flutter web app
+# serves it from assets/packages/flutter3d_physics_native/web/.
+flutter:
+  assets:
+    - web/f3d_physics.wasm
