@@ -46,6 +46,11 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->hulls);
   f3d_free(world->hull_vertices);
   f3d_free(world->hull_triangles);
+  f3d_free(world->meshes);
+  f3d_free(world->mesh_vertices);
+  f3d_free(world->mesh_triangles);
+  f3d_free(world->mesh_edges);
+  f3d_clear_mesh_trees(world);
   f3d_free(world);
 }
 

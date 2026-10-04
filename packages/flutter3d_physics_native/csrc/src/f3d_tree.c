@@ -320,17 +320,25 @@ F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *s, f3d_real margin) {
       }
       break;
     }
-    case F3D_SHAPE_HULL: {
-      /* The hull's own box, turned: its centre may sit off the origin. */
-      const F3dHull *hull = s->hull != 0 && s->hull <= world->s.hull_count
-                                ? &world->hulls[s->hull - 1u]
-                                : NULL;
-      if (hull == NULL) {
+    case F3D_SHAPE_HULL:
+    case F3D_SHAPE_MESH: {
+      /* The hull's or mesh's own box, turned: its centre may sit off the
+       * origin. */
+      F3dVec3 blo, bhi;
+      if (s->shape == F3D_SHAPE_HULL && s->hull != 0 &&
+          s->hull <= world->s.hull_count) {
+        blo = world->hulls[s->hull - 1u].lo;
+        bhi = world->hulls[s->hull - 1u].hi;
+      } else if (s->shape == F3D_SHAPE_MESH && s->hull != 0 &&
+                 s->hull <= world->s.mesh_count) {
+        blo = world->meshes[s->hull - 1u].lo;
+        bhi = world->meshes[s->hull - 1u].hi;
+      } else {
         reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
         break;
       }
-      const F3dVec3 c = f3d_scale(f3d_add(hull->lo, hull->hi), F3D_R(0.5));
-      const F3dVec3 hh = f3d_scale(f3d_sub(hull->hi, hull->lo), F3D_R(0.5));
+      const F3dVec3 c = f3d_scale(f3d_add(blo, bhi), F3D_R(0.5));
+      const F3dVec3 hh = f3d_scale(f3d_sub(bhi, blo), F3D_R(0.5));
       const f3d_real hl[3] = {hh.x, hh.y, hh.z};
       const F3dVec3 shift = f3d_add(
           f3d_add(f3d_scale(m.c[0], c.x), f3d_scale(m.c[1], c.y)),

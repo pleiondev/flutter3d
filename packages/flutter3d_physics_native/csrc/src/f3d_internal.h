@@ -181,6 +181,10 @@ typedef struct F3dManifold {
 } F3dManifold;
 
 /* A shape where it stands, as the narrow phase reads it. */
+/* A shape no body has: one triangle of a mesh, as the narrow phase reads
+ * it, its three corners in the world in [vertices]. */
+#define F3D_SHAPE_TRIANGLE 15u
+
 typedef struct F3dPlaced {
   uint32_t kind;
   F3dVec3 size;
@@ -188,10 +192,15 @@ typedef struct F3dPlaced {
   F3dMat3 axes;
   /* How far the shape is rounded out. */
   f3d_real rounding;
-  /* A hull's vertices and triangles, and their counts; null for the rest. */
+  /* A hull's vertices and triangles, and their counts; null for the rest.
+   * A triangle's three corners. */
   const struct F3dHull *hull;
   const f3d_real *vertices;
   const uint32_t *triangles;
+  /* A mesh, its tree, and its edges' flags. */
+  const struct F3dMesh *mesh;
+  const struct F3dTree *mesh_tree;
+  const uint8_t *edge_flags;
 } F3dPlaced;
 
 /* Fills [out]'s normal and points for [a] against [b], within [margin],
@@ -291,8 +300,8 @@ typedef struct F3dSlot {
    * where the body does not turn. Diagonal for every shape but a hull. */
   F3dSym3 inertia;
   F3dSym3 inverse_inertia;
-  /* The hull it is shaped as, one past its index in the world's table;
-   * nought for none. */
+  /* The hull or mesh it is shaped as, one past its index in the world's
+   * table of them; nought for none. */
   uint32_t hull;
   /* How far its shape is rounded out, m: the shape grown by a ball of this
    * radius. */
@@ -347,6 +356,17 @@ typedef struct F3dHull {
   F3dSym3 unit_inertia;
 } F3dHull;
 
+/* A triangle mesh: its vertices and triangles in the world's arrays, a
+ * byte of flags a triangle — bit k set when its edge from corner k to the
+ * next is internal, shared with a neighbour across a flat or hollow fold —
+ * and its box. Plain data. */
+typedef struct F3dMesh {
+  uint32_t first_vertex, vertex_count;
+  uint32_t first_triangle, triangle_count;
+  F3dVec3 lo, hi;
+  f3d_real surface;
+} F3dMesh;
+
 /* Everything in a world that is not behind a pointer: what a snapshot
  * copies in one piece. */
 typedef struct F3dWorldState {
@@ -380,6 +400,10 @@ typedef struct F3dWorldState {
   uint32_t hull_count;
   uint32_t hull_vertex_count;
   uint32_t hull_triangle_count;
+  /* The meshes, and the vertices and triangles they hold. */
+  uint32_t mesh_count;
+  uint32_t mesh_vertex_count;
+  uint32_t mesh_triangle_count;
 } F3dWorldState;
 
 struct F3dWorld {
@@ -401,6 +425,14 @@ struct F3dWorld {
   F3dHull *hulls;
   f3d_real *hull_vertices;
   uint32_t *hull_triangles;
+  /* The meshes likewise, with a byte of edge flags a triangle; and a tree
+   * of each mesh's triangles, built from them, not in a snapshot. */
+  F3dMesh *meshes;
+  f3d_real *mesh_vertices;
+  uint32_t *mesh_triangles;
+  uint8_t *mesh_edges;
+  F3dTree *mesh_trees;
+  uint32_t mesh_tree_count;
   /* The broadphase, and each slot's leaf in it (-1 for none), as long as
    * the arena. Neither is in a snapshot. */
   F3dTree tree;
@@ -441,6 +473,22 @@ F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *slot);
 
 /* The general narrow phase, for any two shapes: GJK between their cores,
  * EPA where the cores overlap, and the manifold from their faces. */
+/* A convex shape against a mesh: the triangles near it from the mesh's
+ * tree, each against it, merged into one manifold whose normal points out
+ * of the mesh into the shape. */
+uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
+                          f3d_real margin, F3dManifold *out);
+
+/* Builds each mesh's tree that is missing: after a restore, or for a mesh
+ * just made. */
+void f3d_build_mesh_trees(F3dWorld *world);
+void f3d_clear_mesh_trees(F3dWorld *world);
+
+/* The nearest pair of points on p0→p1 and q0→q1, as fractions along each:
+ * Ericson's closest points of two segments. */
+void f3d_nearest_of_segments(F3dVec3 p0, F3dVec3 p1, F3dVec3 q0, F3dVec3 q1,
+                             f3d_real *s, f3d_real *t);
+
 uint32_t f3d_collide_convex(const F3dPlaced *a, const F3dPlaced *b,
                             f3d_real margin, F3dManifold *out);
 

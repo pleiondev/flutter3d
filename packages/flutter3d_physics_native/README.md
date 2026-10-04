@@ -8,13 +8,14 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - contacts between every pair of shapes, turned, with closed forms where there are some and GJK and EPA where there are not: manifolds of up to four points, events when a contact begins and ends, collision filters, and islands that sleep and wake together;
 - a solver that keeps bodies apart: soft contacts in substeps with warm starting, friction and restitution, so crates rest, stack, slide, roll and bounce;
 - a dynamic tree of boxes for the broadphase, which also answers box queries;
+- triangle meshes for level geometry and terrain, one sided, that bodies slide across without catching on the seams;
 - shapes (sphere, box, capsule, cylinder, cone, convex hull, and any of them rounded) as inertia, surface and drag; the orientation stepped with the angular momentum kept, impulses, forces, torques, damping and sleep;
 - the air and its wind, uniform or from a grid, and the drag it puts on a body;
 - heat on every body, by convection, radiation and across its contacts, and fire: wood, paper and rubber catch, burn their fuel, lose mass and give off hot gas, and water puts them out;
 - an origin held in doubles that the world can move to where the play is;
 - events, and snapshots a world restores from to the byte.
 
-Triangle meshes, joints, CCD, ray and shape queries and the compute passes follow, each with its tests.
+Joints, CCD, ray and shape queries, the character controller and the compute passes follow, each with its tests.
 
 ## Building
 

@@ -85,6 +85,18 @@ static F3dVec3 core_support(const F3dPlaced *p, F3dVec3 d) {
       const F3dVec3 rim = f3d_v3(d.x * k, F3D_R(-0.25) * s.y, d.z * k);
       return f3d_dot(apex, d) >= f3d_dot(rim, d) ? apex : rim;
     }
+    case F3D_SHAPE_TRIANGLE: {
+      uint32_t best = 0;
+      f3d_real most = f3d_dot(hull_vertex(p, 0), d);
+      for (uint32_t i = 1; i < 3u; i++) {
+        const f3d_real v = f3d_dot(hull_vertex(p, i), d);
+        if (v > most) {
+          most = v;
+          best = i;
+        }
+      }
+      return hull_vertex(p, best);
+    }
     case F3D_SHAPE_HULL: {
       if (p->hull == NULL) break;
       uint32_t best = 0;
@@ -588,6 +600,38 @@ static Feature feature(const F3dPlaced *p, F3dVec3 d) {
       }
       break;
     }
+    case F3D_SHAPE_TRIANGLE: {
+      /* Its face within five degrees of square to d; else the edge whose
+       * two ends reach as far along d, within five degrees; else a
+       * corner. */
+      const F3dVec3 a = hull_vertex(p, 0), b = hull_vertex(p, 1);
+      const F3dVec3 c = hull_vertex(p, 2);
+      F3dVec3 n = f3d_cross(f3d_sub(b, a), f3d_sub(c, a));
+      const f3d_real len = f3d_sqrt(f3d_dot(n, n));
+      if (!(len > F3D_R(0.0))) break;
+      n = f3d_scale(n, F3D_R(1.0) / len);
+      if (f3d_abs(f3d_dot(n, l)) > F3D_FACE_COS) {
+        push_point(&f, a);
+        push_point(&f, b);
+        push_point(&f, c);
+        break;
+      }
+      const F3dVec3 corner[3] = {a, b, c};
+      for (int k = 0; k < 3; k++) {
+        const F3dVec3 e = f3d_sub(corner[(k + 1) % 3], corner[k]);
+        const f3d_real el = f3d_sqrt(f3d_dot(e, e));
+        if (!(el > F3D_R(0.0))) continue;
+        const f3d_real across = f3d_abs(f3d_dot(e, l)) / el;
+        const f3d_real reach = f3d_dot(corner[k], l);
+        const f3d_real other = f3d_dot(corner[(k + 2) % 3], l);
+        if (across < F3D_FACE_SIN && reach >= other) {
+          push_point(&f, corner[k]);
+          push_point(&f, corner[(k + 1) % 3]);
+          break;
+        }
+      }
+      break;
+    }
     case F3D_SHAPE_HULL: {
       if (p->hull == NULL) break;
       /* The triangle facing most along d; if square enough, every
@@ -705,7 +749,8 @@ static uint32_t clip_to(const F3dVec3 *in, uint32_t count, const Feature *ref,
 
 /* Of many points, the four that hold the face: the deepest, the furthest
  * from it, and the widest either side of the line between them. */
-static void four(F3dVec3 *p, f3d_real *depth, uint32_t *count, F3dVec3 n) {
+static void four(F3dVec3 *p, f3d_real *depth, uint32_t *ids, uint32_t *count,
+                 F3dVec3 n) {
   if (*count <= F3D_MANIFOLD_POINTS) return;
   uint32_t pick[4] = {0, 0, 0, 0};
   for (uint32_t i = 1; i < *count; i++) {
@@ -737,6 +782,7 @@ static void four(F3dVec3 *p, f3d_real *depth, uint32_t *count, F3dVec3 n) {
   }
   F3dVec3 kp[4];
   f3d_real kd[4];
+  uint32_t ki[4];
   uint32_t nk = 0;
   for (uint32_t k = 0; k < 4; k++) {
     int seen = 0;
@@ -744,11 +790,13 @@ static void four(F3dVec3 *p, f3d_real *depth, uint32_t *count, F3dVec3 n) {
     if (seen) continue;
     kp[nk] = p[pick[k]];
     kd[nk] = depth[pick[k]];
+    ki[nk] = ids[pick[k]];
     nk++;
   }
   for (uint32_t k = 0; k < nk; k++) {
     p[k] = kp[k];
     depth[k] = kd[k];
+    ids[k] = ki[k];
   }
   *count = nk;
 }
@@ -851,8 +899,10 @@ static uint32_t from_features(const F3dPlaced *a, const F3dPlaced *b,
       }
     }
   }
-  four(pts, depth, &count, n);
-  for (uint32_t i = 0; i < count; i++) emit(out, pts[i], depth[i], 0x200u + i);
+  uint32_t ids[2 * F3D_FEATURE_POINTS + 8];
+  for (uint32_t i = 0; i < count; i++) ids[i] = 0x200u + i;
+  four(pts, depth, ids, &count, n);
+  for (uint32_t i = 0; i < count; i++) emit(out, pts[i], depth[i], ids[i]);
   return count;
 }
 
@@ -933,5 +983,266 @@ uint32_t f3d_collide_convex(const F3dPlaced *a, const F3dPlaced *b,
   const F3dVec3 on_a = f3d_madd(pa, n, -ra);
   const F3dVec3 on_b = f3d_madd(pb, n, rb);
   emit(out, f3d_scale(f3d_add(on_a, on_b), F3D_R(0.5)), depth, 0x100u);
+  return out->count;
+}
+
+/* -------------------------------------------------------------- meshes */
+
+/* The point of triangle a, b, c nearest [p]: Ericson's
+ * ClosestPtPointTriangle. */
+static F3dVec3 nearest_on_triangle(F3dVec3 p, F3dVec3 a, F3dVec3 b, F3dVec3 c) {
+  const F3dVec3 ab = f3d_sub(b, a), ac = f3d_sub(c, a), ap = f3d_sub(p, a);
+  const f3d_real d1 = f3d_dot(ab, ap), d2 = f3d_dot(ac, ap);
+  if (d1 <= F3D_R(0.0) && d2 <= F3D_R(0.0)) return a;
+  const F3dVec3 bp = f3d_sub(p, b);
+  const f3d_real d3 = f3d_dot(ab, bp), d4 = f3d_dot(ac, bp);
+  if (d3 >= F3D_R(0.0) && d4 <= d3) return b;
+  const f3d_real vc = d1 * d4 - d3 * d2;
+  if (vc <= F3D_R(0.0) && d1 >= F3D_R(0.0) && d3 <= F3D_R(0.0)) {
+    return f3d_madd(a, ab, d1 / (d1 - d3));
+  }
+  const F3dVec3 cp = f3d_sub(p, c);
+  const f3d_real d5 = f3d_dot(ab, cp), d6 = f3d_dot(ac, cp);
+  if (d6 >= F3D_R(0.0) && d5 <= d6) return c;
+  const f3d_real vb = d5 * d2 - d1 * d6;
+  if (vb <= F3D_R(0.0) && d2 >= F3D_R(0.0) && d6 <= F3D_R(0.0)) {
+    return f3d_madd(a, ac, d2 / (d2 - d6));
+  }
+  const f3d_real va = d3 * d6 - d5 * d4;
+  if (va <= F3D_R(0.0) && d4 - d3 >= F3D_R(0.0) && d5 - d6 >= F3D_R(0.0)) {
+    return f3d_madd(b, f3d_sub(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
+  }
+  const f3d_real denom = F3D_R(1.0) / (va + vb + vc);
+  return f3d_add(a, f3d_add(f3d_scale(ab, vb * denom), f3d_scale(ac, vc * denom)));
+}
+
+#define F3D_ROUND_CANDIDATES 8
+
+/* A ball or a capsule against one triangle: its axis's ends, and the
+ * points of its axis nearest each edge, each against the triangle as a
+ * ball — so a capsule lying on a triangle rests on both ends. The deepest
+ * gives the normal; the rest that agree with it are kept. */
+static uint32_t round_triangle(const F3dPlaced *body, F3dVec3 a, F3dVec3 b,
+                               F3dVec3 c, F3dVec3 face, f3d_real margin,
+                               F3dManifold *out) {
+  F3dVec3 p0 = body->at, p1 = body->at;
+  if (body->kind == F3D_SHAPE_CAPSULE) {
+    const F3dVec3 half = f3d_scale(body->axes.c[1], body->size.y);
+    p0 = f3d_sub(body->at, half);
+    p1 = f3d_add(body->at, half);
+  }
+  const f3d_real r = rounding_of(body);
+  F3dVec3 on[F3D_ROUND_CANDIDATES];
+  uint32_t n_on = 0;
+  on[n_on++] = p0;
+  if (body->kind == F3D_SHAPE_CAPSULE) {
+    on[n_on++] = p1;
+    const F3dVec3 corner[3] = {a, b, c};
+    for (int k = 0; k < 3; k++) {
+      f3d_real s, t;
+      f3d_nearest_of_segments(p0, p1, corner[k], corner[(k + 1) % 3], &s, &t);
+      on[n_on++] = f3d_madd(p0, f3d_sub(p1, p0), s);
+    }
+    /* Through the triangle's plane, the crossing too. */
+    const f3d_real d0 = f3d_dot(face, f3d_sub(p0, a));
+    const f3d_real d1 = f3d_dot(face, f3d_sub(p1, a));
+    if ((d0 < F3D_R(0.0)) != (d1 < F3D_R(0.0))) {
+      on[n_on++] = f3d_madd(p0, f3d_sub(p1, p0), d0 / (d0 - d1));
+    }
+  }
+  F3dVec3 pts[F3D_ROUND_CANDIDATES], normals[F3D_ROUND_CANDIDATES];
+  f3d_real depth[F3D_ROUND_CANDIDATES];
+  uint32_t found = 0;
+  for (uint32_t i = 0; i < n_on; i++) {
+    const F3dVec3 q = on[i];
+    const F3dVec3 near = nearest_on_triangle(q, a, b, c);
+    const F3dVec3 d = f3d_sub(q, near);
+    const f3d_real dist = f3d_sqrt(f3d_dot(d, d));
+    /* On or behind the plane: out along the face, as deep as it is in. */
+    const f3d_real above = f3d_dot(face, f3d_sub(q, a));
+    F3dVec3 nn;
+    f3d_real dd;
+    if (dist <= F3D_R(1e-9) || above < F3D_R(0.0)) {
+      nn = face;
+      dd = r - above;
+    } else {
+      nn = f3d_scale(d, F3D_R(1.0) / dist);
+      dd = r - dist;
+    }
+    if (dd <= -margin) continue;
+    int same = 0;
+    for (uint32_t k = 0; k < found; k++) {
+      const F3dVec3 e = f3d_sub(pts[k], q);
+      same |= f3d_dot(e, e) <= F3D_R(1e-12);
+    }
+    if (same) continue;
+    pts[found] = q;
+    normals[found] = nn;
+    depth[found] = dd;
+    found++;
+  }
+  if (found == 0) return 0;
+  uint32_t best = 0;
+  for (uint32_t i = 1; i < found; i++) {
+    if (depth[i] > depth[best]) best = i;
+  }
+  out->normal = normals[best];
+  for (uint32_t i = 0; i < found; i++) {
+    if (f3d_dot(normals[i], normals[best]) < F3D_R(0.95)) continue;
+    const F3dVec3 surface = f3d_madd(pts[i], normals[i], -r);
+    emit(out, f3d_madd(surface, normals[i], F3D_R(0.5) * depth[i]), depth[i], i);
+  }
+  return out->count;
+}
+
+/* Gathers the triangles a query finds. */
+#define F3D_MESH_NEAR 512
+
+typedef struct NearTriangles {
+  uint32_t t[F3D_MESH_NEAR];
+  uint32_t n;
+  const F3dTree *tree;
+} NearTriangles;
+
+static int near_triangle(void *context, int32_t leaf) {
+  NearTriangles *g = (NearTriangles *)context;
+  if (g->n < F3D_MESH_NEAR) g->t[g->n++] = g->tree->nodes[leaf].slot;
+  return g->n < F3D_MESH_NEAR;
+}
+
+uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
+                          f3d_real margin, F3dManifold *out) {
+  out->count = 0;
+  if (mesh->mesh == NULL || mesh->mesh_tree == NULL) return 0;
+  const f3d_real r = rounding_of(body);
+  /* The body's box in the mesh's frame, by its support along each of the
+   * mesh's axes. */
+  F3dBox box;
+  f3d_real lo[3], hi[3];
+  for (int k = 0; k < 3; k++) {
+    const F3dVec3 axis = mesh->axes.c[k];
+    const F3dVec3 up = world_of(body, core_support(body, local_of(body, axis)));
+    const F3dVec3 down = world_of(
+        body, core_support(body, local_of(body, f3d_scale(axis, F3D_R(-1.0)))));
+    hi[k] = f3d_dot(axis, f3d_sub(up, mesh->at)) + r + margin;
+    lo[k] = f3d_dot(axis, f3d_sub(down, mesh->at)) - r - margin;
+  }
+  box.lo = f3d_v3(lo[0], lo[1], lo[2]);
+  box.hi = f3d_v3(hi[0], hi[1], hi[2]);
+  NearTriangles near;
+  near.n = 0;
+  near.tree = mesh->mesh_tree;
+  f3d_tree_query(mesh->mesh_tree, box, near_triangle, &near);
+  /* In index order, whatever order the tree gave them: the answer must not
+   * depend on the tree's shape. */
+  for (uint32_t i = 1; i < near.n; i++) {
+    const uint32_t v = near.t[i];
+    uint32_t j = i;
+    while (j > 0 && near.t[j - 1] > v) {
+      near.t[j] = near.t[j - 1];
+      j--;
+    }
+    near.t[j] = v;
+  }
+  enum { ROOM = 64 };
+  F3dVec3 pts[ROOM], normals[ROOM];
+  f3d_real depth[ROOM];
+  uint32_t ids[ROOM];
+  uint32_t found = 0;
+  for (uint32_t q = 0; q < near.n; q++) {
+    const uint32_t t = near.t[q];
+    const uint32_t *tri = &mesh->triangles[t * 3u];
+    f3d_real corners[9];
+    F3dVec3 v[3];
+    for (int k = 0; k < 3; k++) {
+      v[k] = world_of(mesh, hull_vertex(mesh, tri[k]));
+      corners[k * 3] = v[k].x;
+      corners[k * 3 + 1] = v[k].y;
+      corners[k * 3 + 2] = v[k].z;
+    }
+    F3dVec3 face = f3d_cross(f3d_sub(v[1], v[0]), f3d_sub(v[2], v[0]));
+    const f3d_real len = f3d_sqrt(f3d_dot(face, face));
+    if (!(len > F3D_R(0.0))) continue;
+    face = f3d_scale(face, F3D_R(1.0) / len);
+    /* One sided: a body whose centre is behind the triangle does not see
+     * it. */
+    if (f3d_dot(face, f3d_sub(body->at, v[0])) < F3D_R(0.0)) continue;
+    F3dManifold tm;
+    f3d_zero(&tm, sizeof tm);
+    uint32_t n;
+    if (body->kind == F3D_SHAPE_SPHERE || body->kind == F3D_SHAPE_CAPSULE) {
+      n = round_triangle(body, v[0], v[1], v[2], face, margin, &tm);
+    } else {
+      F3dPlaced p;
+      f3d_zero(&p, sizeof p);
+      p.kind = F3D_SHAPE_TRIANGLE;
+      p.axes.c[0] = f3d_v3(F3D_R(1.0), F3D_R(0.0), F3D_R(0.0));
+      p.axes.c[1] = f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0));
+      p.axes.c[2] = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(1.0));
+      p.vertices = corners;
+      n = f3d_collide_convex(body, &p, margin, &tm);
+    }
+    if (n == 0) continue;
+    /* An edge or corner contact on an internal edge is the face's: the
+     * body is on the same surface across the seam, and the edge's normal
+     * would trip it. A contact whose normal is not the face's is taken back
+     * to the face only when every edge it lies on is internal. */
+    if (f3d_dot(tm.normal, face) < F3D_R(0.9999) && tm.count == 1) {
+      const F3dVec3 x = tm.points[0].point;
+      const F3dVec3 e0 = f3d_sub(v[1], v[0]), e1 = f3d_sub(v[2], v[0]);
+      const F3dVec3 e2 = f3d_sub(x, v[0]);
+      const f3d_real d00 = f3d_dot(e0, e0), d01 = f3d_dot(e0, e1);
+      const f3d_real d11 = f3d_dot(e1, e1), d20 = f3d_dot(e2, e0);
+      const f3d_real d21 = f3d_dot(e2, e1);
+      const f3d_real den = d00 * d11 - d01 * d01;
+      const f3d_real wb = den > F3D_R(0.0) ? (d11 * d20 - d01 * d21) / den : F3D_R(0.0);
+      const f3d_real wc = den > F3D_R(0.0) ? (d00 * d21 - d01 * d20) / den : F3D_R(0.0);
+      const f3d_real wa = F3D_R(1.0) - wb - wc;
+      const f3d_real tol = F3D_R(1e-3);
+      const uint8_t flags = mesh->edge_flags[t];
+      /* Edge k runs from corner k to the next; it is the one opposite the
+       * corner whose weight is nought. */
+      int internal = 1;
+      if (wc <= tol && !(flags & 1u)) internal = 0;
+      if (wa <= tol && !(flags & 2u)) internal = 0;
+      if (wb <= tol && !(flags & 4u)) internal = 0;
+      if (internal) {
+        const F3dVec3 s = world_of(
+            body, core_support(body, local_of(body, f3d_scale(face, F3D_R(-1.0)))));
+        const f3d_real d = f3d_dot(face, v[0]) - f3d_dot(face, s) + r;
+        if (d <= -margin) continue;
+        tm.normal = face;
+        const F3dVec3 deepest = f3d_madd(s, face, -r);
+        tm.points[0].point = f3d_madd(deepest, face, F3D_R(0.5) * d);
+        tm.points[0].depth = d;
+      }
+    }
+    for (uint32_t k = 0; k < tm.count && found < ROOM; k++) {
+      pts[found] = tm.points[k].point;
+      normals[found] = tm.normal;
+      depth[found] = tm.points[k].depth;
+      ids[found] = (t << 4) | (tm.points[k].id & 15u);
+      found++;
+    }
+  }
+  if (found == 0) return 0;
+  /* One manifold: the deepest point's normal, and every point whose
+   * triangle agrees with it to eighteen degrees. */
+  uint32_t best = 0;
+  for (uint32_t i = 1; i < found; i++) {
+    if (depth[i] > depth[best]) best = i;
+  }
+  const F3dVec3 n = normals[best];
+  uint32_t kept = 0;
+  for (uint32_t i = 0; i < found; i++) {
+    if (f3d_dot(normals[i], n) < F3D_R(0.95)) continue;
+    pts[kept] = pts[i];
+    depth[kept] = depth[i];
+    ids[kept] = ids[i];
+    kept++;
+  }
+  four(pts, depth, ids, &kept, n);
+  out->normal = n;
+  for (uint32_t i = 0; i < kept; i++) emit(out, pts[i], depth[i], ids[i]);
   return out->count;
 }

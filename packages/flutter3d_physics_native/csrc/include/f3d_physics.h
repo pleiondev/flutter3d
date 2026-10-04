@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 7u
+#define F3D_ABI_VERSION 8u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -85,6 +85,9 @@ typedef enum F3dShapeKind {
   F3D_SHAPE_CONE = 5,
   /* A convex hull the world holds: set with f3d_body_set_hull. */
   F3D_SHAPE_HULL = 6,
+  /* A triangle mesh the world holds, for fixed bodies: set with
+   * f3d_body_set_mesh. */
+  F3D_SHAPE_MESH = 7,
 } F3dShapeKind;
 
 /* What a body is made of, as heat and fire see it. */
@@ -228,6 +231,28 @@ F3D_API void f3d_world_shift_origin(F3dWorld *world, double dx, double dy,
  * more than 4096 points, or no memory. */
 F3D_API uint32_t f3d_world_create_hull(F3dWorld *world, const f3d_real *points,
                                        uint32_t count);
+
+/* A triangle mesh of [vertex_count] vertices, three reals each, and
+ * [triangle_count] triangles, three indices each, wound counter-clockwise
+ * seen from the side bodies touch: level geometry, terrain, walls. One
+ * sided — a body behind a triangle passes through it — and shared vertices
+ * make it whole: two triangles that share an edge by index slide a body
+ * across it without a bump, where two that only meet do not. Returns the
+ * mesh, numbered from one; nought for no triangles, an index past the
+ * vertices, a vertex not finite, more than a million triangles, or no
+ * memory. Kept by the world for as long as it lives, in its snapshots. */
+F3D_API uint32_t f3d_world_create_mesh(F3dWorld *world,
+                                       const f3d_real *vertices,
+                                       uint32_t vertex_count,
+                                       const uint32_t *indices,
+                                       uint32_t triangle_count);
+
+/* How many triangles [mesh] has, and how many of their edges it found
+ * internal: shared with a neighbour across a flat or hollow fold. */
+F3D_API uint32_t f3d_world_mesh_triangle_count(const F3dWorld *world,
+                                               uint32_t mesh);
+F3D_API uint32_t f3d_world_mesh_internal_edges(const F3dWorld *world,
+                                               uint32_t mesh);
 
 /* What was subtracted from every point of [hull], into out[0..2]. */
 F3D_API int f3d_world_get_hull_offset(const F3dWorld *world, uint32_t hull,
@@ -411,6 +436,10 @@ F3D_API int f3d_body_set_rounding(F3dWorld *world, F3dBody body,
 /* Shapes the body as [hull], one f3d_world_create_hull returned. 0 for a
  * hull the world does not hold. */
 F3D_API int f3d_body_set_hull(F3dWorld *world, F3dBody body, uint32_t hull);
+
+/* Shapes a fixed body as [mesh]. 0 for a mesh the world does not hold, or
+ * a body that is not fixed: an open mesh has no inside to weigh. */
+F3D_API int f3d_body_set_mesh(F3dWorld *world, F3dBody body, uint32_t mesh);
 
 /* Kilograms: less, once it has burnt. */
 F3D_API int f3d_body_get_mass(const F3dWorld *world, F3dBody body,

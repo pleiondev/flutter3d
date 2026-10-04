@@ -183,6 +183,9 @@ static f3d_real surface_of(const F3dWorld *world, const F3dSlot *s) {
     case F3D_SHAPE_HULL:
       if (s->hull == 0 || s->hull > world->s.hull_count) return F3D_R(0.0);
       return world->hulls[s->hull - 1u].surface;
+    case F3D_SHAPE_MESH:
+      if (s->hull == 0 || s->hull > world->s.mesh_count) return F3D_R(0.0);
+      return world->meshes[s->hull - 1u].surface;
     default:
       return F3D_R(0.0);
   }

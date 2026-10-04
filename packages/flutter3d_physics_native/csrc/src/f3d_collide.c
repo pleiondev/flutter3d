@@ -20,6 +20,20 @@ F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *s) {
   p.hull = NULL;
   p.vertices = NULL;
   p.triangles = NULL;
+  p.mesh = NULL;
+  p.mesh_tree = NULL;
+  p.edge_flags = NULL;
+  if (s->shape == F3D_SHAPE_MESH && s->hull != 0 &&
+      s->hull <= world->s.mesh_count) {
+    const F3dMesh *m = &world->meshes[s->hull - 1u];
+    p.mesh = m;
+    p.vertices = world->mesh_vertices + (size_t)m->first_vertex * 3u;
+    p.triangles = world->mesh_triangles + (size_t)m->first_triangle * 3u;
+    p.edge_flags = world->mesh_edges + m->first_triangle;
+    p.mesh_tree = s->hull <= world->mesh_tree_count
+                      ? &world->mesh_trees[s->hull - 1u]
+                      : NULL;
+  }
   if (s->shape == F3D_SHAPE_HULL && s->hull != 0 &&
       s->hull <= world->s.hull_count) {
     p.hull = &world->hulls[s->hull - 1u];
@@ -311,6 +325,7 @@ void f3d_step_collide(F3dWorld *world) {
     if (sb != NULL) f3d_wake(world, sb);
   }
   f3d_update_proxies(world);
+  f3d_build_mesh_trees(world);
   /* The scratch: the islands' two arrays, then the pairs and their spare,
    * which grow as the queries find them. */
   const size_t fixed =

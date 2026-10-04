@@ -72,8 +72,8 @@ static f3d_real nearest_on_segment(F3dVec3 p0, F3dVec3 p1, F3dVec3 q) {
 /* The nearest pair of points on p0→p1 and q0→q1, as fractions along each:
  * Ericson's closest points of two segments, in Real-Time Collision
  * Detection, §5.1.9. */
-static void nearest_of_segments(F3dVec3 p0, F3dVec3 p1, F3dVec3 q0, F3dVec3 q1,
-                                f3d_real *s, f3d_real *t) {
+void f3d_nearest_of_segments(F3dVec3 p0, F3dVec3 p1, F3dVec3 q0, F3dVec3 q1,
+                             f3d_real *s, f3d_real *t) {
   const F3dVec3 d1 = f3d_sub(p1, p0), d2 = f3d_sub(q1, q0);
   const F3dVec3 r = f3d_sub(p0, q0);
   const f3d_real a = f3d_dot(d1, d1), e = f3d_dot(d2, d2);
@@ -161,7 +161,7 @@ static uint32_t capsule_capsule(const F3dPlaced *a, const F3dPlaced *b,
   segment_of(a, &a0, &a1);
   segment_of(b, &b0, &b1);
   f3d_real s, t;
-  nearest_of_segments(a0, a1, b0, b1, &s, &t);
+  f3d_nearest_of_segments(a0, a1, b0, b1, &s, &t);
   const f3d_real ra = a->size.x, rb = b->size.x;
   if (!balls(along(a0, a1, s), ra, along(b0, b1, t), rb, margin, out, 0)) {
     return 0;
@@ -513,7 +513,7 @@ static uint32_t box_box(const F3dPlaced *a, const F3dPlaced *b,
     const F3dVec3 b0 = f3d_madd(cb, b->axes.c[j], -hb[j]);
     const F3dVec3 b1 = f3d_madd(cb, b->axes.c[j], hb[j]);
     f3d_real s, t;
-    nearest_of_segments(a0, a1, b0, b1, &s, &t);
+    f3d_nearest_of_segments(a0, a1, b0, b1, &s, &t);
     const F3dVec3 pa = along(a0, a1, s), pb = along(b0, b1, t);
     out->normal = n;
     emit(out, f3d_scale(f3d_add(pa, pb), F3D_R(0.5)), best_edge,
@@ -604,6 +604,20 @@ uint32_t f3d_collide(const F3dPlaced *pa, const F3dPlaced *pb, f3d_real margin,
   out->touching = 0;
   uint32_t count = 0;
   if (pa->kind == F3D_SHAPE_POINT || pb->kind == F3D_SHAPE_POINT) return 0;
+  if (pa->kind == F3D_SHAPE_MESH || pb->kind == F3D_SHAPE_MESH) {
+    if (pa->kind == F3D_SHAPE_MESH && pb->kind == F3D_SHAPE_MESH) return 0;
+    if (pb->kind == F3D_SHAPE_MESH) {
+      count = f3d_collide_mesh(pb, pa, margin, out);
+    } else {
+      count = f3d_collide_mesh(pa, pb, margin, out);
+      out->normal = f3d_scale(out->normal, F3D_R(-1.0));
+    }
+    out->count = count;
+    for (uint32_t i = 0; i < count; i++) {
+      if (out->points[i].depth >= -F3D_LINEAR_SLOP) out->touching = 1;
+    }
+    return count;
+  }
   if (!classic(pa) || !classic(pb)) {
     count = f3d_collide_convex(pa, pb, margin, out);
     out->count = count;

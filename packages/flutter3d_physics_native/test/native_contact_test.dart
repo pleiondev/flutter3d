@@ -248,4 +248,51 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('a crate and a ball rest on a mesh floor, through the binding', () {
+    world
+      ..gravity = Vector3(0.0, -9.81, 0.0)
+      ..setSleep(speed: 0.05, time: 0.5);
+    // Four by four squares, two triangles each, their vertices shared.
+    final vertices = <Vector3>[
+      for (var j = 0; j <= 4; j++)
+        for (var i = 0; i <= 4; i++) Vector3(i - 2.0, 0.0, j - 2.0),
+    ];
+    final indices = <int>[
+      for (var j = 0; j < 4; j++)
+        for (var i = 0; i < 4; i++) ...<int>[
+          j * 5 + i, (j + 1) * 5 + i + 1, j * 5 + i + 1, //
+          j * 5 + i, (j + 1) * 5 + i, (j + 1) * 5 + i + 1,
+        ],
+    ];
+    final mesh = world.createMesh(vertices, indices);
+    expect(world.meshTriangleCount(mesh), 32);
+    expect(world.meshInternalEdges(mesh), 40);
+    final ground = world.addBody(
+      position: Vector3.zero(),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world.setMesh(ground, mesh);
+    final crate = world.addBody(position: Vector3(0.5, 0.51, 0.5));
+    final ball = world.addBody(position: Vector3(-1.0, 0.31, -1.0));
+    world
+      ..setShape(crate, NativeShape.box(Vector3.all(0.5)))
+      ..setShape(ball, const NativeShape.sphere(0.3));
+    for (var i = 0; i < 180; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(world.positionOf(crate).y, closeTo(0.5, 0.01));
+    expect(world.positionOf(ball).y, closeTo(0.3, 0.01));
+    expect(world.isAsleep(crate) && world.isAsleep(ball), isTrue);
+    expect(
+      () => world.setMesh(crate, mesh),
+      throwsArgumentError,
+      reason: 'a dynamic body cannot be a mesh',
+    );
+    expect(
+      () => world.createMesh(vertices, <int>[0, 1, 99]),
+      throwsArgumentError,
+    );
+  });
 }

@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 7;
+const int abiVersion = 8;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -47,6 +47,7 @@ abstract final class ShapeKind {
   static const int cylinder = 4;
   static const int cone = 5;
   static const int hull = 6;
+  static const int mesh = 7;
 }
 
 /// `F3dMaterialKind`.
@@ -272,6 +273,32 @@ external int f3d_world_get_hull_offset(
 
 @Native<Uint32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
 external int f3d_world_hull_vertex_count(Pointer<F3dWorld> world, int hull);
+
+@Native<
+  Uint32 Function(
+    Pointer<F3dWorld>,
+    Pointer<Float>,
+    Uint32,
+    Pointer<Uint32>,
+    Uint32,
+  )
+>()
+external int f3d_world_create_mesh(
+  Pointer<F3dWorld> world,
+  Pointer<Float> vertices,
+  int vertexCount,
+  Pointer<Uint32> indices,
+  int triangleCount,
+);
+
+@Native<Uint32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
+external int f3d_world_mesh_triangle_count(Pointer<F3dWorld> world, int mesh);
+
+@Native<Uint32 Function(Pointer<F3dWorld>, Uint32)>(isLeaf: true)
+external int f3d_world_mesh_internal_edges(Pointer<F3dWorld> world, int mesh);
+
+@Native<Int32 Function(Pointer<F3dWorld>, Uint64, Uint32)>(isLeaf: true)
+external int f3d_body_set_mesh(Pointer<F3dWorld> world, int body, int mesh);
 
 @Native<Int32 Function(Pointer<F3dWorld>, Uint64, Pointer<Float>)>(isLeaf: true)
 external int f3d_body_get_inertia_tensor(

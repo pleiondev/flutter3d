@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Triangle meshes, phase 6.** Level geometry, terrain and walls as
+  indexed triangle meshes the world keeps (`f3d_world_create_mesh`) for
+  fixed bodies (`f3d_body_set_mesh`), one sided, each with a tree of its
+  triangles. A ball or capsule meets a triangle by its closest points — a
+  capsule lying down rests on both ends — and every other shape by GJK and
+  EPA against the triangle; the contacts of every triangle a body touches
+  are merged into one manifold. An edge two triangles share across a flat or
+  hollow fold is internal, and a contact on it takes the face's normal, so a
+  ball rolling down a mesh of a thousand triangles rolls at 5/7 g sin θ
+  instead of catching on their seams; a ridge keeps its edge. Meshes are in
+  snapshots; their trees are built again.
+
 - **Convex shapes, phase 5.** Cylinders, cones and convex hulls, and any
   shape rounded by a radius (`f3d_body_set_rounding`). A hull is built from
   points in the order given (`f3d_world_create_hull`), weighed as a solid

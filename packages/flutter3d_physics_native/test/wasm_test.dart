@@ -136,6 +136,17 @@ for (const b of bodies) {
 f.f3d_buffer_free(material);
 const floor = f.f3d_body_create(world, 1, 0, -1, 0, 0);
 f.f3d_body_set_shape(world, floor, 2, 200, 1, 200);
+const meshVerts = [-20, 0, -20, 20, 0, -20, 20, 0, 20, -20, 0, 20, 0, 3, 0];
+const meshTris = [0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0];
+const vp = f.f3d_buffer_alloc(meshVerts.length * 4);
+new Float32Array(f.memory.buffer, vp, meshVerts.length).set(meshVerts);
+const tp = f.f3d_buffer_alloc(meshTris.length * 4);
+new Uint32Array(f.memory.buffer, tp, meshTris.length).set(meshTris);
+const mesh = f.f3d_world_create_mesh(world, vp, 5, tp, 4);
+f.f3d_buffer_free(vp);
+f.f3d_buffer_free(tp);
+const hill = f.f3d_body_create(world, 1, 0, 0, 0, 0);
+f.f3d_body_set_mesh(world, hill, mesh);
 for (let i = 0; i < steps; i++) f.f3d_world_step(world, dt);
 const size = f.f3d_world_snapshot_size(world);
 const ptr = f.f3d_buffer_alloc(size);
@@ -233,6 +244,26 @@ void main() {
       mass: 0.0,
     );
     world.setShape(floor, NativeShape.box(Vector3(200.0, 1.0, 200.0)));
+    // And a mesh hill on it, a pyramid of four triangles, for the bodies
+    // to land on and roll off.
+    final hill = world.addBody(
+      position: Vector3.zero(),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world.setMesh(
+      hill,
+      world.createMesh(
+        <Vector3>[
+          Vector3(-20.0, 0.0, -20.0),
+          Vector3(20.0, 0.0, -20.0),
+          Vector3(20.0, 0.0, 20.0),
+          Vector3(-20.0, 0.0, 20.0),
+          Vector3(0.0, 3.0, 0.0),
+        ],
+        <int>[0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0],
+      ),
+    );
     for (var i = 0; i < _steps; i++) {
       world.step(_dt);
     }

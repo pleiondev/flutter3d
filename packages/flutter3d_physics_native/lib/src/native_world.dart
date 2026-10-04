@@ -89,6 +89,10 @@ final class NativeShape {
 /// ([NativeWorld.setHull]). Numbered from one.
 extension type const NativeHull(int id) {}
 
+/// A triangle mesh the world holds, for fixed bodies to be shaped as
+/// ([NativeWorld.setMesh]). Numbered from one.
+extension type const NativeMesh(int id) {}
+
 /// What a body is made of, as heat and fire see it — `F3dMaterial`.
 final class NativeMaterial {
   const NativeMaterial({
@@ -547,6 +551,64 @@ final class NativeWorld implements Finalizable {
   int hullVertexCount(NativeHull hull) =>
       c.f3d_world_hull_vertex_count(_live, hull.id);
 
+  /// A triangle mesh of [vertices] and [indices], three a triangle, wound
+  /// counter-clockwise seen from the side bodies touch: level geometry,
+  /// terrain, walls. One sided. Triangles that share an edge by index
+  /// slide a body across it without a bump. Throws an [ArgumentError] for
+  /// no triangles, an index past the vertices or a vertex not finite.
+  NativeMesh createMesh(List<Vector3> vertices, List<int> indices) {
+    if (indices.length % 3 != 0) {
+      throw ArgumentError.value(
+        indices.length,
+        'indices',
+        'not three a triangle',
+      );
+    }
+    final v = malloc<Float>(vertices.isEmpty ? 3 : vertices.length * 3);
+    final t = malloc<Uint32>(indices.isEmpty ? 3 : indices.length);
+    try {
+      for (var i = 0; i < vertices.length; i++) {
+        v[i * 3] = vertices[i].x;
+        v[i * 3 + 1] = vertices[i].y;
+        v[i * 3 + 2] = vertices[i].z;
+      }
+      for (var i = 0; i < indices.length; i++) {
+        if (indices[i] < 0) {
+          throw ArgumentError.value(indices[i], 'indices', 'negative');
+        }
+        t[i] = indices[i];
+      }
+      final id = c.f3d_world_create_mesh(
+        _live,
+        v,
+        vertices.length,
+        t,
+        indices.length ~/ 3,
+      );
+      if (id == 0) {
+        throw ArgumentError.value(
+          indices.length ~/ 3,
+          'indices',
+          'no triangles, an index past the vertices, or a vertex not finite',
+        );
+      }
+      return NativeMesh(id);
+    } finally {
+      malloc
+        ..free(v)
+        ..free(t);
+    }
+  }
+
+  /// How many triangles [mesh] has.
+  int meshTriangleCount(NativeMesh mesh) =>
+      c.f3d_world_mesh_triangle_count(_live, mesh.id);
+
+  /// How many of [mesh]'s edges are internal: shared with a neighbour
+  /// across a flat or hollow fold.
+  int meshInternalEdges(NativeMesh mesh) =>
+      c.f3d_world_mesh_internal_edges(_live, mesh.id);
+
   /// How many substeps a step is solved in, one to sixty-four; four for a
   /// new world. More holds tall stacks and fast bodies better and costs that
   /// many times the solver. A step of n substeps is n steps of dt / n.
@@ -826,6 +888,11 @@ final class NativeWorld implements Finalizable {
   /// Shapes [body] as [hull].
   void setHull(NativeBody body, NativeHull hull) =>
       _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
+
+  /// Shapes a fixed [body] as [mesh]; an [ArgumentError] for one that is
+  /// not fixed.
+  void setMesh(NativeBody body, NativeMesh mesh) =>
+      _check(c.f3d_body_set_mesh(_live, body.raw, mesh.id), body, mesh.id);
 
   /// Kilograms: less, once it has burnt.
   double massOf(NativeBody body) {

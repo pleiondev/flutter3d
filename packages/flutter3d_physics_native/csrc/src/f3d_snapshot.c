@@ -11,7 +11,7 @@
 #include "f3d_internal.h"
 
 #define F3D_SNAPSHOT_MAGIC 0x53443346u /* "F3DS", little-endian. */
-#define F3D_SNAPSHOT_VERSION 4u
+#define F3D_SNAPSHOT_VERSION 5u
 
 typedef struct F3dSnapshotHeader {
   uint32_t magic;
@@ -22,6 +22,8 @@ typedef struct F3dSnapshotHeader {
   uint32_t event_bytes;
   uint32_t manifold_bytes;
   uint32_t hull_bytes;
+  uint32_t mesh_bytes;
+  uint32_t reserved;
 } F3dSnapshotHeader;
 
 static uint64_t grid_reals(const F3dWorldState *s) {
@@ -36,7 +38,10 @@ static uint64_t size_of(const F3dWorldState *s) {
          (uint64_t)s->manifold_count * sizeof(F3dManifold) +
          (uint64_t)s->hull_count * sizeof(F3dHull) +
          (uint64_t)s->hull_vertex_count * 3u * sizeof(f3d_real) +
-         (uint64_t)s->hull_triangle_count * 3u * sizeof(uint32_t);
+         (uint64_t)s->hull_triangle_count * 3u * sizeof(uint32_t) +
+         (uint64_t)s->mesh_count * sizeof(F3dMesh) +
+         (uint64_t)s->mesh_vertex_count * 3u * sizeof(f3d_real) +
+         (uint64_t)s->mesh_triangle_count * (3u * sizeof(uint32_t) + 1u);
 }
 
 uint32_t f3d_world_snapshot_size(const F3dWorld *world) {
@@ -58,6 +63,7 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   header.event_bytes = (uint32_t)sizeof(F3dEventRecord);
   header.manifold_bytes = (uint32_t)sizeof(F3dManifold);
   header.hull_bytes = (uint32_t)sizeof(F3dHull);
+  header.mesh_bytes = (uint32_t)sizeof(F3dMesh);
   uint8_t *at = buffer;
   f3d_copy(at, &header, sizeof header);
   at += sizeof header;
@@ -101,6 +107,19 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
     at += (size_t)world->s.hull_vertex_count * 3u * sizeof(f3d_real);
     f3d_copy(at, world->hull_triangles,
              (size_t)world->s.hull_triangle_count * 3u * sizeof(uint32_t));
+    at += (size_t)world->s.hull_triangle_count * 3u * sizeof(uint32_t);
+  }
+  /* The meshes. */
+  if (world->s.mesh_count > 0) {
+    f3d_copy(at, world->meshes, (size_t)world->s.mesh_count * sizeof(F3dMesh));
+    at += (size_t)world->s.mesh_count * sizeof(F3dMesh);
+    f3d_copy(at, world->mesh_vertices,
+             (size_t)world->s.mesh_vertex_count * 3u * sizeof(f3d_real));
+    at += (size_t)world->s.mesh_vertex_count * 3u * sizeof(f3d_real);
+    f3d_copy(at, world->mesh_triangles,
+             (size_t)world->s.mesh_triangle_count * 3u * sizeof(uint32_t));
+    at += (size_t)world->s.mesh_triangle_count * 3u * sizeof(uint32_t);
+    f3d_copy(at, world->mesh_edges, world->s.mesh_triangle_count);
   }
   return needed;
 }
@@ -116,7 +135,8 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       header.slot_bytes != sizeof(F3dSlot) ||
       header.event_bytes != sizeof(F3dEventRecord) ||
       header.manifold_bytes != sizeof(F3dManifold) ||
-      header.hull_bytes != sizeof(F3dHull)) {
+      header.hull_bytes != sizeof(F3dHull) ||
+      header.mesh_bytes != sizeof(F3dMesh)) {
     return 0;
   }
   if (size < sizeof header + sizeof(F3dWorldState)) return 0;
@@ -195,6 +215,33 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       return 0;
     }
   }
+  F3dMesh *meshes = NULL;
+  f3d_real *mesh_vertices = NULL;
+  uint32_t *mesh_triangles = NULL;
+  uint8_t *mesh_edges = NULL;
+  if (state.mesh_count > 0) {
+    meshes = (F3dMesh *)f3d_alloc((size_t)state.mesh_count * sizeof(F3dMesh));
+    mesh_vertices = (f3d_real *)f3d_alloc(
+        (size_t)state.mesh_vertex_count * 3u * sizeof(f3d_real) + 1u);
+    mesh_triangles = (uint32_t *)f3d_alloc(
+        (size_t)state.mesh_triangle_count * 3u * sizeof(uint32_t) + 1u);
+    mesh_edges = (uint8_t *)f3d_alloc((size_t)state.mesh_triangle_count + 1u);
+    if (meshes == NULL || mesh_vertices == NULL || mesh_triangles == NULL ||
+        mesh_edges == NULL) {
+      f3d_free(meshes);
+      f3d_free(mesh_vertices);
+      f3d_free(mesh_triangles);
+      f3d_free(mesh_edges);
+      f3d_free(hulls);
+      f3d_free(hull_vertices);
+      f3d_free(hull_triangles);
+      f3d_free(slots);
+      f3d_free(grid);
+      f3d_free(events);
+      f3d_free(manifolds);
+      return 0;
+    }
+  }
   if (events != NULL) {
     f3d_copy(events, at, (size_t)state.events_count * sizeof(F3dEventRecord));
     at += (size_t)state.events_count * sizeof(F3dEventRecord);
@@ -212,6 +259,18 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
     at += (size_t)state.hull_vertex_count * 3u * sizeof(f3d_real);
     f3d_copy(hull_triangles, at,
              (size_t)state.hull_triangle_count * 3u * sizeof(uint32_t));
+    at += (size_t)state.hull_triangle_count * 3u * sizeof(uint32_t);
+  }
+  if (meshes != NULL) {
+    f3d_copy(meshes, at, (size_t)state.mesh_count * sizeof(F3dMesh));
+    at += (size_t)state.mesh_count * sizeof(F3dMesh);
+    f3d_copy(mesh_vertices, at,
+             (size_t)state.mesh_vertex_count * 3u * sizeof(f3d_real));
+    at += (size_t)state.mesh_vertex_count * 3u * sizeof(f3d_real);
+    f3d_copy(mesh_triangles, at,
+             (size_t)state.mesh_triangle_count * 3u * sizeof(uint32_t));
+    at += (size_t)state.mesh_triangle_count * 3u * sizeof(uint32_t);
+    f3d_copy(mesh_edges, at, state.mesh_triangle_count);
   }
   f3d_free(world->slots);
   f3d_free(world->manifolds);
@@ -224,6 +283,16 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->hulls = hulls;
   world->hull_vertices = hull_vertices;
   world->hull_triangles = hull_triangles;
+  f3d_free(world->meshes);
+  f3d_free(world->mesh_vertices);
+  f3d_free(world->mesh_triangles);
+  f3d_free(world->mesh_edges);
+  world->meshes = meshes;
+  world->mesh_vertices = mesh_vertices;
+  world->mesh_triangles = mesh_triangles;
+  world->mesh_edges = mesh_edges;
+  /* The meshes' trees are built again from them by the next step. */
+  f3d_clear_mesh_trees(world);
   world->slots = slots;
   world->capacity = capacity;
   world->grid = grid;
