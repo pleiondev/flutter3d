@@ -278,8 +278,7 @@ typedef struct Gather {
   F3dWorld *world;
   F3dLane *lane;
   uint32_t self;
-  F3dBox box;
-  f3d_real dt;
+  int later_only;
 } Gather;
 
 static int add_pair(Gather *g, uint32_t a, uint32_t b) {
@@ -301,23 +300,13 @@ static int add_pair(Gather *g, uint32_t a, uint32_t b) {
   return 1;
 }
 
-/* One leaf near the querying body: a pair, unless the other is awake too
- * and comes first — then its own query found this pair already. */
-static int near_leaf(void *context, int32_t leaf) {
+/* What a leaf's query of the tree finds: every other leaf it overlaps, as
+ * a pair — or, rebuilding every pair, only the leaves of later slots, so
+ * each pair is found once. */
+static int leaf_pair(void *context, int32_t leaf) {
   Gather *g = (Gather *)context;
   const uint32_t other = g->world->tree.nodes[leaf].slot;
-  if (other == g->self) return 1;
-  const F3dSlot *so = &g->world->slots[other];
-  const F3dSlot *ss = &g->world->slots[g->self];
-  if (active(so) && other < g->self) return 1;
-  if (!(ss->layer & so->mask) || !(so->layer & ss->mask)) return 1;
-  if (f3d_joined(g->world, g->self, other)) return 1;
-  if (!f3d_box_overlap(f3d_swept_box(g->world, so,
-                                     F3D_R(0.5) * g->world->s.contact_margin,
-                                     g->dt),
-                       g->box)) {
-    return 1;
-  }
+  if (other == g->self || (g->later_only && other < g->self)) return 1;
   return add_pair(g, g->self, other);
 }
 
@@ -340,25 +329,158 @@ static f3d_real speculative(const F3dWorld *world, const F3dSlot *a,
   return f3d_min(reach, F3D_R(10.0));
 }
 
-/* A worker's share of the awake bodies, each asking the tree what is near
- * it. */
-typedef struct QueryPass {
+/* A worker's share of the leaves whose pairs are to be found: every slot
+ * [0, count) when [slots] is null, or the slots it lists. */
+typedef struct FindPass {
+  F3dWorld *world;
+  const uint32_t *slots;
+  int later_only;
+} FindPass;
+
+static void find_share(void *context, uint32_t worker, uint32_t begin, uint32_t end) {
+  const FindPass *f = (const FindPass *)context;
+  Gather g;
+  g.world = f->world;
+  g.lane = &f->world->lanes[worker];
+  g.later_only = f->later_only;
+  for (uint32_t k = begin; k < end && !g.lane->failed; k++) {
+    const uint32_t i = f->slots != NULL ? f->slots[k] : k;
+    const int32_t leaf = f->world->proxies[i];
+    if (leaf == -1) continue;
+    g.self = i;
+    f3d_tree_query(&f->world->tree, f->world->tree.nodes[leaf].box, leaf_pair, &g);
+  }
+}
+
+static void clear_lanes(F3dWorld *world) {
+  for (uint32_t w = 0; w < f3d_pool_size(world->pool); w++) {
+    world->lanes[w].count = 0;
+    world->lanes[w].failed = 0;
+  }
+}
+
+/* The lanes' pairs put together in [out], sorted, each once; their count,
+ * or UINT32_MAX when a lane could not grow. [out] has room for all of them
+ * twice over, the second half a spare for the sort. */
+static uint32_t merge_lanes(F3dWorld *world, Keyed *out) {
+  uint32_t total = 0;
+  for (uint32_t w = 0; w < f3d_pool_size(world->pool); w++) {
+    if (world->lanes[w].failed) return UINT32_MAX;
+    f3d_copy(out + total, world->lanes[w].items, (size_t)world->lanes[w].count * sizeof(Keyed));
+    total += world->lanes[w].count;
+  }
+  sort_keyed(out, out + total, total);
+  uint32_t unique = 0;
+  for (uint32_t i = 0; i < total; i++) {
+    if (unique == 0 || out[unique - 1u].key != out[i].key) out[unique++] = out[i];
+  }
+  return unique;
+}
+
+static uint32_t lane_total(const F3dWorld *world) {
+  uint32_t total = 0;
+  for (uint32_t w = 0; w < f3d_pool_size(world->pool); w++) total += world->lanes[w].count;
+  return total;
+}
+
+static int reserve_pairs(F3dWorld *world, uint32_t count) {
+  if (count <= world->pair_capacity) return 1;
+  uint32_t grown = world->pair_capacity == 0 ? 256u : world->pair_capacity;
+  while (grown < count) grown *= 2u;
+  uint64_t *pairs = (uint64_t *)f3d_realloc(world->pairs, (size_t)grown * sizeof(uint64_t));
+  if (pairs == NULL) return 0;
+  world->pairs = pairs;
+  world->pair_capacity = grown;
+  return 1;
+}
+
+/* Brings the pairs of overlapping leaves up to date: every pair found
+ * again when they cannot be trusted, else those whose leaves parted
+ * dropped and those of the leaves that moved found and merged in. 0 when
+ * memory ran out, the pairs then to be found again next step. */
+static int update_pairs(F3dWorld *world) {
+  const int rebuild = !world->pairs_ready;
+  clear_lanes(world);
+  FindPass find;
+  find.world = world;
+  find.slots = rebuild ? NULL : world->moved;
+  find.later_only = rebuild;
+  f3d_pool_run(world->pool, rebuild ? world->s.used : world->moved_count, find_share, &find);
+  world->moved_count = 0;
+  world->pairs_ready = 0;
+  const uint32_t found = lane_total(world);
+  Keyed *fresh = (Keyed *)f3d_scratch(world, (size_t)found * 2u * sizeof(Keyed) + 16u);
+  if (fresh == NULL) return 0;
+  const uint32_t unique = merge_lanes(world, fresh);
+  if (unique == UINT32_MAX) return 0;
+  uint32_t kept = 0;
+  if (!rebuild) {
+    for (uint32_t k = 0; k < world->pair_count; k++) {
+      const uint32_t a = (uint32_t)(world->pairs[k] >> 32);
+      const uint32_t b = (uint32_t)(world->pairs[k] & 0xffffffffu);
+      const int32_t la = a < world->proxy_capacity ? world->proxies[a] : -1;
+      const int32_t lb = b < world->proxy_capacity ? world->proxies[b] : -1;
+      if (la == -1 || lb == -1) continue;
+      if (!f3d_box_overlap(world->tree.nodes[la].box, world->tree.nodes[lb].box)) continue;
+      world->pairs[kept++] = world->pairs[k];
+    }
+  }
+  /* The kept and the fresh, both in order, merged from the back. */
+  if (!reserve_pairs(world, kept + unique)) return 0;
+  uint32_t i = kept, j = unique, out = kept + unique;
+  while (j > 0) {
+    if (i > 0 && world->pairs[i - 1u] > fresh[j - 1u].key) {
+      world->pairs[--out] = world->pairs[--i];
+    } else {
+      world->pairs[--out] = fresh[--j].key;
+    }
+  }
+  /* A fresh pair already kept appears twice, side by side. */
+  uint32_t count = 0;
+  for (uint32_t k = 0; k < kept + unique; k++) {
+    if (count == 0 || world->pairs[count - 1u] != world->pairs[k]) {
+      world->pairs[count++] = world->pairs[k];
+    }
+  }
+  world->pair_count = count;
+  world->pairs_ready = 1;
+  return 1;
+}
+
+/* A worker's share of the slots, each one's box swept through the step. */
+typedef struct SweepPass {
   F3dWorld *world;
   f3d_real margin, dt;
-} QueryPass;
+} SweepPass;
 
-static void query_share(void *context, uint32_t worker, uint32_t begin, uint32_t end) {
-  const QueryPass *q = (const QueryPass *)context;
+static void sweep_share(void *context, uint32_t worker, uint32_t begin, uint32_t end) {
+  (void)worker;
+  const SweepPass *p = (const SweepPass *)context;
+  for (uint32_t i = begin; i < end; i++) {
+    if (p->world->proxies[i] == -1) continue;
+    p->world->swept[i] = f3d_swept_box(p->world, &p->world->slots[i], p->margin, p->dt);
+  }
+}
+
+/* A worker's share of the pairs of overlapping leaves, each kept as a pair
+ * for the narrow phase when one of the two is awake and dynamic, each
+ * collides with the other, no joint keeps them apart, and their boxes
+ * swept through the step overlap — what a query by the awake body's swept
+ * box would find. */
+static void candidate_share(void *context, uint32_t worker, uint32_t begin, uint32_t end) {
+  F3dWorld *world = (F3dWorld *)context;
   Gather g;
-  g.world = q->world;
-  g.lane = &q->world->lanes[worker];
-  g.dt = q->dt;
-  for (uint32_t i = begin; i < end && !g.lane->failed; i++) {
-    const F3dSlot *s = &q->world->slots[i];
-    if (!active(s) || q->world->proxies[i] == -1) continue;
-    g.self = i;
-    g.box = f3d_swept_box(q->world, s, F3D_R(0.5) * q->margin, q->dt);
-    f3d_tree_query(&q->world->tree, g.box, near_leaf, &g);
+  g.world = world;
+  g.lane = &world->lanes[worker];
+  for (uint32_t k = begin; k < end && !g.lane->failed; k++) {
+    const uint32_t a = (uint32_t)(world->pairs[k] >> 32);
+    const uint32_t b = (uint32_t)(world->pairs[k] & 0xffffffffu);
+    const F3dSlot *sa = &world->slots[a], *sb = &world->slots[b];
+    if (!active(sa) && !active(sb)) continue;
+    if (!(sa->layer & sb->mask) || !(sb->layer & sa->mask)) continue;
+    if (f3d_joined(world, a, b)) continue;
+    if (!f3d_box_overlap(world->swept[a], world->swept[b])) continue;
+    add_pair(&g, a, b);
   }
 }
 
@@ -412,15 +534,20 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
    * about: they keep last step's contact. */
   f3d_joined_ready(world);
   const uint32_t workers = f3d_pool_size(world->pool);
-  for (uint32_t w = 0; w < workers; w++) {
-    world->lanes[w].count = 0;
-    world->lanes[w].failed = 0;
+  if (!update_pairs(world)) return;
+  if (world->swept_capacity < used) {
+    F3dBox *swept = (F3dBox *)f3d_realloc(world->swept, (size_t)used * sizeof(F3dBox));
+    if (swept == NULL) return;
+    world->swept = swept;
+    world->swept_capacity = used;
   }
-  QueryPass query;
-  query.world = world;
-  query.margin = margin;
-  query.dt = dt;
-  f3d_pool_run(world->pool, used, query_share, &query);
+  SweepPass sweep;
+  sweep.world = world;
+  sweep.margin = F3D_R(0.5) * margin;
+  sweep.dt = dt;
+  f3d_pool_run(world->pool, used, sweep_share, &sweep);
+  clear_lanes(world);
+  f3d_pool_run(world->pool, world->pair_count, candidate_share, world);
   /* And the pairs that keep their contact, on the caller's lane. */
   Gather kept;
   kept.world = world;

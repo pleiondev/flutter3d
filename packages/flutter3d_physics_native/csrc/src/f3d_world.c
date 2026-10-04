@@ -56,6 +56,9 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->joined);
   f3d_free(world->bullet_at);
   f3d_free(world->bullet_turn);
+  f3d_free(world->pairs);
+  f3d_free(world->moved);
+  f3d_free(world->swept);
   f3d_pool_destroy(world->pool);
   for (uint32_t i = 0; i < F3D_MAX_THREADS; i++) f3d_free(world->lanes[i].items);
   f3d_free(world);

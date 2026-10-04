@@ -453,6 +453,23 @@ static int reserve_proxies(F3dWorld *world) {
   return 1;
 }
 
+/* Slot [i]'s leaf went in or came out: its pairs are to be found again.
+ * When the list cannot grow, every pair is. */
+static void note_moved(F3dWorld *world, uint32_t i) {
+  if (!world->pairs_ready) return;
+  if (world->moved_count == world->moved_capacity) {
+    const uint32_t grown = world->moved_capacity == 0 ? 64u : world->moved_capacity * 2u;
+    uint32_t *moved = (uint32_t *)f3d_realloc(world->moved, (size_t)grown * sizeof(uint32_t));
+    if (moved == NULL) {
+      world->pairs_ready = 0;
+      return;
+    }
+    world->moved = moved;
+    world->moved_capacity = grown;
+  }
+  world->moved[world->moved_count++] = i;
+}
+
 void f3d_update_proxies(F3dWorld *world, f3d_real dt) {
   if (!reserve_proxies(world)) return;
   F3dTree *tree = &world->tree;
@@ -471,6 +488,7 @@ void f3d_update_proxies(F3dWorld *world, f3d_real dt) {
       if (*leaf != -1) {
         f3d_tree_remove(tree, *leaf);
         *leaf = -1;
+        note_moved(world, i);
       }
       continue;
     }
@@ -487,6 +505,7 @@ void f3d_update_proxies(F3dWorld *world, f3d_real dt) {
     fat.lo = f3d_sub(fat.lo, grow);
     fat.hi = f3d_add(fat.hi, grow);
     *leaf = f3d_tree_insert(tree, fat, i);
+    note_moved(world, i);
   }
 }
 

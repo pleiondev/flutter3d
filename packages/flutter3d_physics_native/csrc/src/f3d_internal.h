@@ -556,6 +556,19 @@ struct F3dWorld {
   F3dTree tree;
   int32_t *proxies;
   uint32_t proxy_capacity;
+  /* Every two slots whose leaves overlap, as pair keys in order: what the
+   * pairs are found among, kept from step to step and changed only where
+   * a leaf moved. The slots whose leaves moved since, and whether the
+   * pairs are to be trusted at all — not after a restore, nor when the
+   * moved list could not grow. Neither is in a snapshot. */
+  uint64_t *pairs;
+  uint32_t pair_count, pair_capacity;
+  uint32_t *moved;
+  uint32_t moved_count, moved_capacity;
+  int pairs_ready;
+  /* Each slot's box swept through the step, worked out once a step. */
+  F3dBox *swept;
+  uint32_t swept_capacity;
   /* Where each bullet stood after each substep of the last step: its
    * path, for the sweep. Rows of substeps + 1 poses. Not in a snapshot. */
   F3dVec3 *bullet_at;

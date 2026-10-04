@@ -340,5 +340,6 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   f3d_free(world->proxies);
   world->proxies = NULL;
   world->proxy_capacity = 0;
+  world->pairs_ready = 0;
   return 1;
 }

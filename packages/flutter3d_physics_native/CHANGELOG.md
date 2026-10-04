@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **The pairs of overlapping leaves are kept from step to step.** Every
+  awake body used to ask the tree what was near it every step; now the
+  world keeps the pairs whose leaves overlap, drops those whose leaves
+  parted and asks the tree only for the leaves that moved, and finds the
+  step's pairs among them by the same tests the queries made — the boxes
+  swept through the step overlapping. A leaf holds its body's swept box,
+  so two swept boxes can only meet where two leaves do, and the pairs are
+  the same: every body of a test scene moves to the same bits as before.
+  Swept boxes are worked out once a step, not once a query. On the heap
+  of four thousand the collision stage fell from 13.3 ms to 2.2 ms on one
+  thread, and to 1.2 ms on six.
+
 - **The fast mode.** `f3d_world_set_fast` (Dart: `NativeWorld.fast`)
   colours the contacts each step — greedily, in contact order, the lowest
   of 64 colours neither of its moving bodies has, the rest to an overflow
