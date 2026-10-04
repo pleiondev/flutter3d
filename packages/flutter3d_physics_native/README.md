@@ -30,6 +30,14 @@ There is nothing to build by hand. The package's hook compiles `csrc/` with the 
 
 The GPU passes are a second library, `f3d_gpu`, built from `csrc/gpu/` and linked with wgpu-native. The hook downloads a pinned wgpu-native release for the target from GitHub, checks the archive against the sha256 written in `hook/wgpu_native.dart`, and keeps it in the hooks' shared output, so it is fetched once. Only the static library is used, so nothing extra has to be found at run time. If there is no release for the target, no network, or the checksum is wrong, the hook says so and builds the core alone; `NativeGpu.open()` then returns null and particles run on the CPU.
 
+The Dart side reaches the core the same way natively and in the browser: through `lib/src/core/`, where every call is a function and every pointer an address. The calls and the layouts of the structs the Dart side fills are generated from `csrc/include/f3d_physics.h`; after changing the header, run
+
+```sh
+dart run tool/gen_core.dart
+```
+
+and `test/bindings_test.dart` fails until you do. In the browser there are no GPU passes: `NativeGpu.open()` returns null there, and the CPU systems run instead. Call `await loadPhysicsCore()` before making the first world; natively it does nothing.
+
 The WebAssembly module is built separately, because hooks build for native targets only:
 
 ```sh

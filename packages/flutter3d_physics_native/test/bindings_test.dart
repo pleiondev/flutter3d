@@ -9,7 +9,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_physics_native/src/bindings.dart' as c;
+import 'package:flutter3d_physics_native/src/core/core.dart' as c;
 import 'package:flutter3d_physics_native/src/gpu_bindings.dart' as g;
 import 'package:test/test.dart';
 
@@ -37,19 +37,78 @@ void main() {
     expect(header, contains('F3D_BODY_FIXED = ${c.BodyType.fixed},'));
   });
 
-  test('every function the header exports is bound', () {
-    // A function added to the header and forgotten here is caught before
-    // anybody looks for it.
+  test('the generated calls and layouts are the header\'s', () {
+    // A function or a field added to the header and not generated is caught
+    // before anybody looks for it.
+    final check = Process.runSync('dart', <String>[
+      'run',
+      'tool/gen_core.dart',
+      '--check',
+    ]);
+    expect(check.exitCode, 0, reason: '${check.stdout}${check.stderr}');
     final declared = RegExp(
       r'F3D_API [^;(]*?\b(f3d_\w+)\(',
     ).allMatches(header).map((m) => m.group(1)!).toSet();
-    final bound = RegExp(r'external \S+ (f3d_\w+)\(')
-        .allMatches(File('lib/src/bindings.dart').readAsStringSync())
-        .map((m) => m.group(1)!)
-        .toSet();
-    expect(declared, isNotEmpty);
-    expect(bound, declared);
+    for (final file in <String>[
+      'lib/src/core/calls_native.g.dart',
+      'lib/src/core/calls_web.g.dart',
+    ]) {
+      final bound = RegExp(r'^\S+ (f3d_\w+)\(', multiLine: true)
+          .allMatches(File(file).readAsStringSync())
+          .map((m) => m.group(1)!)
+          .toSet();
+      expect(bound, declared, reason: file);
+    }
   });
+
+  test('the structs are laid out as the C compiler lays them out', () {
+    // The layouts are worked out in Dart for the float build; this asks
+    // cc for offsetof and sizeof of every field of every struct.
+    final layouts = RegExp(
+      r'abstract final class (F3d\w+)Layout \{(.*?)\}',
+      dotAll: true,
+    ).allMatches(File('lib/src/core/layout.g.dart').readAsStringSync());
+    final expected = <String, int>{};
+    final source = StringBuffer()
+      ..write('#include <stddef.h>\n#include <stdio.h>\n')
+      ..write('#include "f3d_physics.h"\nint main(void) {\n');
+    for (final l in layouts) {
+      final type = l.group(1)!;
+      for (final f in RegExp(
+        r'static const int (\w+) = (\d+);',
+      ).allMatches(l.group(2)!)) {
+        final name = f.group(1)!;
+        expected['$type.$name'] = int.parse(f.group(2)!);
+        final field = name.replaceAllMapped(
+          RegExp('[A-Z]'),
+          (m) => '_${m[0]!.toLowerCase()}',
+        );
+        final what = name == 'size'
+            ? 'sizeof($type)'
+            : 'offsetof($type, $field)';
+        source.write('  printf("$type.$name %zu\\n", $what);\n');
+      }
+    }
+    source.write('  return 0;\n}\n');
+    final dir = Directory.systemTemp.createTempSync('f3d_layout');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File('${dir.path}/layout.c').writeAsStringSync(source.toString());
+    final built = Process.runSync('cc', <String>[
+      '-std=c11',
+      '-Icsrc/include',
+      '${dir.path}/layout.c',
+      '-o',
+      '${dir.path}/layout',
+    ]);
+    expect(built.exitCode, 0, reason: '${built.stderr}');
+    final ran = Process.runSync('${dir.path}/layout', const <String>[]);
+    final actual = <String, int>{
+      for (final line in '${ran.stdout}'.trim().split('\n'))
+        line.split(' ')[0]: int.parse(line.split(' ')[1]),
+    };
+    expect(expected, isNotEmpty);
+    expect(actual, expected);
+  }, testOn: 'mac-os || linux');
 
   test(
     'particles, debris, cloth and fluid are as many floats as the header says',

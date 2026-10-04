@@ -1,15 +1,11 @@
 /// Debris — the visual bodies — on the CPU and on the GPU: P9, phase 10.
 library;
 
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'bindings.dart' as c;
-import 'gpu_bindings.dart' as g;
-import 'native_particles.dart';
+import 'core/core.dart' as c;
 
 /// How debris moves. Eight substeps of four impulse passes keep a heap of a
 /// thousand from sinking into itself by more than a tenth of a radius.
@@ -93,8 +89,8 @@ abstract interface class DebrisSystem {
   void dispose();
 }
 
-Pointer<Float> _packBodies(List<DebrisBody> bodies) {
-  final data = malloc<Float>(bodies.isEmpty ? 8 : bodies.length * 8);
+c.F32s packDebrisBodies(List<DebrisBody> bodies) {
+  final data = c.F32s.alloc(bodies.isEmpty ? 8 : bodies.length * 8);
   for (var i = 0; i < bodies.length; i++) {
     final b = bodies[i];
     data[i * 8] = b.position.x;
@@ -109,11 +105,11 @@ Pointer<Float> _packBodies(List<DebrisBody> bodies) {
   return data;
 }
 
-Pointer<Float> _packStatics(List<DebrisStatic> statics) {
+c.F32s packDebrisStatics(List<DebrisStatic> statics) {
   if (statics.length > c.debrisMaxStatics) {
     throw ArgumentError.value(statics.length, 'statics', 'more than 64');
   }
-  final data = calloc<Float>(statics.isEmpty ? 8 : statics.length * 8);
+  final data = c.F32s.alloc(statics.isEmpty ? 8 : statics.length * 8);
   for (var i = 0; i < statics.length; i++) {
     final o = i * 8;
     switch (statics[i]) {
@@ -135,28 +131,50 @@ Pointer<Float> _packStatics(List<DebrisStatic> statics) {
   return data;
 }
 
+/// [settings] as the core's `F3dDebrisSettings` — and the GPU's, laid out
+/// the same — in a block of the core's memory the caller frees.
+int writeDebrisSettings(DebrisSettings settings) {
+  final s = c.coreAlloc(c.F3dDebrisSettingsLayout.size);
+  for (var k = 0; k < 3; k++) {
+    c.writeF32(
+      s + c.F3dDebrisSettingsLayout.gravity + k * 4,
+      settings.gravity[k],
+    );
+  }
+  c.writeF32(s + c.F3dDebrisSettingsLayout.friction, settings.friction);
+  c.writeF32(s + c.F3dDebrisSettingsLayout.restitution, settings.restitution);
+  c.writeF32(
+    s + c.F3dDebrisSettingsLayout.linearDamping,
+    settings.linearDamping,
+  );
+  c.writeF32(
+    s + c.F3dDebrisSettingsLayout.angularDamping,
+    settings.angularDamping,
+  );
+  c.writeF32(s + c.F3dDebrisSettingsLayout.maxSpeed, settings.maxSpeed);
+  c.writeU32(s + c.F3dDebrisSettingsLayout.substeps, settings.substeps);
+  c.writeU32(s + c.F3dDebrisSettingsLayout.iterations, settings.iterations);
+  return s;
+}
+
 /// Debris stepped by the core on the CPU: the reference for the GPU's, and
 /// the fallback where there is none.
-final class NativeDebris implements DebrisSystem, Finalizable {
+final class NativeDebris implements DebrisSystem {
   NativeDebris(int capacity) : _d = c.f3d_debris_create(capacity) {
-    if (_d == nullptr) {
+    if (_d == 0) {
       throw ArgumentError.value(capacity, 'capacity', 'none, or no memory');
     }
-    _finalizer.attach(this, _d.cast(), detach: this);
+    _finalizer.attach(this, _d, detach: this);
   }
 
-  static final NativeFinalizer _finalizer = NativeFinalizer(
-    Native.addressOf<NativeFunction<Void Function(Pointer<c.F3dDebris>)>>(
-      c.f3d_debris_destroy,
-    ).cast(),
-  );
+  static final Finalizer<int> _finalizer = Finalizer<int>(c.f3d_debris_destroy);
 
-  Pointer<c.F3dDebris> _d;
+  int _d;
   int _steps = 0;
   int _read = 0;
 
-  Pointer<c.F3dDebris> get _live {
-    if (_d == nullptr) throw StateError('this debris was disposed');
+  int get _live {
+    if (_d == 0) throw StateError('this debris was disposed');
     return _d;
   }
 
@@ -165,43 +183,32 @@ final class NativeDebris implements DebrisSystem, Finalizable {
 
   @override
   void add(List<DebrisBody> bodies) {
-    final data = _packBodies(bodies);
+    final data = packDebrisBodies(bodies);
     try {
       c.f3d_debris_add(_live, data, bodies.length);
     } finally {
-      malloc.free(data);
+      data.free();
     }
   }
 
   @override
   void setStatics(List<DebrisStatic> statics) {
-    final data = _packStatics(statics);
+    final data = packDebrisStatics(statics);
     try {
       c.f3d_debris_set_statics(_live, data, statics.length);
     } finally {
-      calloc.free(data);
+      data.free();
     }
   }
 
   @override
   void step(DebrisSettings settings, double dt) {
-    final s = calloc<c.F3dDebrisSettings>();
+    final s = writeDebrisSettings(settings);
     try {
-      final r = s.ref
-        ..friction = settings.friction
-        ..restitution = settings.restitution
-        ..linear_damping = settings.linearDamping
-        ..angular_damping = settings.angularDamping
-        ..max_speed = settings.maxSpeed
-        ..substeps = settings.substeps
-        ..iterations = settings.iterations;
-      for (var k = 0; k < 3; k++) {
-        r.gravity[k] = settings.gravity[k];
-      }
       c.f3d_debris_step(_live, s, dt);
       _steps++;
     } finally {
-      calloc.free(s);
+      c.coreFree(s);
     }
   }
 
@@ -209,125 +216,21 @@ final class NativeDebris implements DebrisSystem, Finalizable {
   DebrisFrame? read({bool wait = true}) {
     final n = capacity;
     if (_steps == _read) return null;
-    final out = malloc<Float>(n * c.debrisFloats);
+    final out = c.F32s.alloc(n * c.debrisFloats);
     try {
       c.f3d_debris_read(_live, out, n);
       _read = _steps;
-      return (
-        step: _steps,
-        bodies: Float32List.fromList(out.asTypedList(n * c.debrisFloats)),
-      );
+      return (step: _steps, bodies: out.copy(n * c.debrisFloats));
     } finally {
-      malloc.free(out);
+      out.free();
     }
   }
 
   @override
   void dispose() {
-    if (_d == nullptr) return;
+    if (_d == 0) return;
     _finalizer.detach(this);
     c.f3d_debris_destroy(_d);
-    _d = nullptr;
-  }
-}
-
-/// [capacity] debris slots on a GPU.
-extension NativeGpuDebris on NativeGpu {
-  GpuDebris debris(int capacity) => GpuDebris.on(this, capacity);
-}
-
-/// Debris stepped on the GPU, read a frame late. The same passes as
-/// [NativeDebris]: the same to the GPU's rounding until bodies meet, and
-/// after that as a heap is — the same in what it does, not body for body.
-final class GpuDebris implements DebrisSystem {
-  GpuDebris.on(NativeGpu gpu, int capacity)
-    : _gpu = gpu,
-      _capacity = capacity,
-      _d = g.f3d_gpu_debris_create(nativeGpuPointer(gpu), capacity) {
-    if (_d == nullptr) {
-      throw ArgumentError.value(
-        capacity,
-        'capacity',
-        'none, too many, no memory, or a pass the GPU would not build',
-      );
-    }
-  }
-
-  final NativeGpu _gpu;
-  final int _capacity;
-  Pointer<g.F3dGpuDebris> _d;
-
-  Pointer<g.F3dGpuDebris> get _live {
-    if (_d == nullptr) throw StateError('this debris was disposed');
-    nativeGpuPointer(_gpu);
-    return _d;
-  }
-
-  @override
-  int get capacity => _capacity;
-
-  @override
-  void add(List<DebrisBody> bodies) {
-    final data = _packBodies(bodies);
-    try {
-      g.f3d_gpu_debris_add(_live, data, bodies.length);
-    } finally {
-      malloc.free(data);
-    }
-  }
-
-  @override
-  void setStatics(List<DebrisStatic> statics) {
-    final data = _packStatics(statics);
-    try {
-      g.f3d_gpu_debris_set_statics(_live, data, statics.length);
-    } finally {
-      calloc.free(data);
-    }
-  }
-
-  @override
-  void step(DebrisSettings settings, double dt) {
-    final s = calloc<g.F3dGpuDebrisSettings>();
-    try {
-      final r = s.ref
-        ..friction = settings.friction
-        ..restitution = settings.restitution
-        ..linear_damping = settings.linearDamping
-        ..angular_damping = settings.angularDamping
-        ..max_speed = settings.maxSpeed
-        ..substeps = settings.substeps
-        ..iterations = settings.iterations;
-      for (var k = 0; k < 3; k++) {
-        r.gravity[k] = settings.gravity[k];
-      }
-      g.f3d_gpu_debris_step(_live, s, dt);
-    } finally {
-      calloc.free(s);
-    }
-  }
-
-  @override
-  DebrisFrame? read({bool wait = true}) {
-    final out = malloc<Float>(_capacity * c.debrisFloats);
-    try {
-      final step = g.f3d_gpu_debris_read(_live, out, _capacity, wait ? 1 : 0);
-      if (step == 0) return null;
-      return (
-        step: step,
-        bodies: Float32List.fromList(
-          out.asTypedList(_capacity * c.debrisFloats),
-        ),
-      );
-    } finally {
-      malloc.free(out);
-    }
-  }
-
-  @override
-  void dispose() {
-    if (_d == nullptr) return;
-    g.f3d_gpu_debris_destroy(_d);
-    _d = nullptr;
+    _d = 0;
   }
 }

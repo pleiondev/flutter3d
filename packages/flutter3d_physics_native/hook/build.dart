@@ -1,5 +1,5 @@
-// Compiles the physics core in `csrc/` into the code asset the bindings in
-// `lib/src/bindings.dart` load — P9.
+// Compiles the physics core in `csrc/` into the code asset the calls in
+// `lib/src/core/calls_native.g.dart` load — P9.
 //
 // With the C compiler the target already uses: Xcode's clang on Apple
 // platforms, the NDK's on Android, MSVC or clang on Windows, the system's on
@@ -49,7 +49,7 @@ void main(List<String> args) async {
     final msvc = input.config.code.targetOS == OS.windows;
     await CBuilder.library(
       name: 'f3d_physics',
-      assetName: 'src/bindings.dart',
+      assetName: 'src/core/calls_native.g.dart',
       sources: coreSources,
       includes: const <String>['csrc/include', 'csrc/src'],
       std: 'c11',

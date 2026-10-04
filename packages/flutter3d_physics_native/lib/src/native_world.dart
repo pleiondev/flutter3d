@@ -1,13 +1,11 @@
 /// A physics world stepped by the C core — P9.
 library;
 
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'bindings.dart' as c;
+import 'core/core.dart' as c;
 
 /// A body in a [NativeWorld]: its slot and the slot's generation, packed as
 /// the C core packs them. Nought is never one.
@@ -154,22 +152,22 @@ final class NativeMaterial {
   static NativeMaterial stone() => _preset(c.MaterialKind.stone);
 
   static NativeMaterial _preset(int kind) {
-    final out = calloc<c.F3dMaterial>();
+    final out = c.coreAlloc(c.F3dMaterialLayout.size);
     try {
       c.f3d_material_preset(kind, out);
-      final m = out.ref;
+      double at(int offset) => c.readF32(out + offset);
       return NativeMaterial(
-        specificHeat: m.specific_heat,
-        emissivity: m.emissivity,
-        ignitionTemperature: m.ignition_temperature,
-        heatOfCombustion: m.heat_of_combustion,
-        burnRate: m.burn_rate,
-        fuelFraction: m.fuel_fraction,
-        flameFeedback: m.flame_feedback,
-        conductivity: m.conductivity,
+        specificHeat: at(c.F3dMaterialLayout.specificHeat),
+        emissivity: at(c.F3dMaterialLayout.emissivity),
+        ignitionTemperature: at(c.F3dMaterialLayout.ignitionTemperature),
+        heatOfCombustion: at(c.F3dMaterialLayout.heatOfCombustion),
+        burnRate: at(c.F3dMaterialLayout.burnRate),
+        fuelFraction: at(c.F3dMaterialLayout.fuelFraction),
+        flameFeedback: at(c.F3dMaterialLayout.flameFeedback),
+        conductivity: at(c.F3dMaterialLayout.conductivity),
       );
     } finally {
-      calloc.free(out);
+      c.coreFree(out);
     }
   }
 
@@ -336,9 +334,9 @@ typedef WorldPoint = ({double x, double y, double z});
 /// Freed by [dispose], or by the garbage collector when a world is dropped
 /// without it. Every call after [dispose] throws a [StateError], so a world
 /// used after it was freed is a Dart error rather than a native crash.
-final class NativeWorld implements Finalizable {
+final class NativeWorld {
   NativeWorld() : _world = c.f3d_world_create() {
-    if (_world == nullptr) {
+    if (_world == 0) {
       throw StateError('the physics core could not allocate a world');
     }
     if (c.f3d_abi_version() != c.abiVersion || c.f3d_real_bytes() != 4) {
@@ -349,41 +347,38 @@ final class NativeWorld implements Finalizable {
         'for ABI ${c.abiVersion} with 4',
       );
     }
-    _finalizer.attach(this, _world.cast(), detach: this);
+    _finalizer.attach(this, _world, detach: this);
   }
 
-  static final NativeFinalizer _finalizer = NativeFinalizer(
-    Native.addressOf<NativeFunction<Void Function(Pointer<c.F3dWorld>)>>(
-      c.f3d_world_destroy,
-    ).cast(),
-  );
+  /// Frees a world dropped without [dispose]. Its scratch goes with the
+  /// process: the core's few bytes a world.
+  static final Finalizer<int> _finalizer = Finalizer<int>(c.f3d_world_destroy);
 
-  Pointer<c.F3dWorld> _world;
+  int _world;
 
   /// Scratch the getters write into: the world's own, freed with it.
-  final Pointer<Float> _out = malloc<Float>(4);
-  final Pointer<Double> _outDouble = malloc<Double>(3);
-  final Pointer<Int32> _outInt = malloc<Int32>(1);
+  final c.F32s _out = c.F32s.alloc(4);
+  final c.F64s _outDouble = c.F64s.alloc(3);
+  final c.I32s _outInt = c.I32s.alloc(1);
 
-  Pointer<c.F3dWorld> get _live {
-    if (_world == nullptr) throw StateError('this world was disposed');
+  int get _live {
+    if (_world == 0) throw StateError('this world was disposed');
     return _world;
   }
 
   /// Frees the world and everything in it. Calling it again does nothing.
   void dispose() {
-    if (_world == nullptr) return;
+    if (_world == 0) return;
     _finalizer.detach(this);
     c.f3d_world_destroy(_world);
-    malloc
-      ..free(_out)
-      ..free(_outDouble)
-      ..free(_outInt);
-    _world = nullptr;
+    _out.free();
+    _outDouble.free();
+    _outInt.free();
+    _world = 0;
   }
 
   /// Whether [dispose] has run.
-  bool get isDisposed => _world == nullptr;
+  bool get isDisposed => _world == 0;
 
   Vector3 _read3() => Vector3(_out[0], _out[1], _out[2]);
 
@@ -443,9 +438,9 @@ final class NativeWorld implements Finalizable {
         'not 3 × $nx × $ny × $nz',
       );
     }
-    final buffer = malloc<Float>(velocities.isEmpty ? 1 : velocities.length);
+    final buffer = c.F32s.alloc(velocities.isEmpty ? 1 : velocities.length);
     try {
-      buffer.asTypedList(velocities.length).setAll(0, velocities);
+      buffer.setAll(velocities);
       final done = c.f3d_world_set_wind_grid(
         _live,
         origin.x,
@@ -461,13 +456,13 @@ final class NativeWorld implements Finalizable {
         throw ArgumentError('a wind grid of $nx × $ny × $nz, $cell m apart');
       }
     } finally {
-      malloc.free(buffer);
+      buffer.free();
     }
   }
 
   /// Takes the wind grid away, leaving the uniform wind.
   void clearWindGrid() =>
-      c.f3d_world_set_wind_grid(_live, 0, 0, 0, 1, 0, 0, 0, nullptr);
+      c.f3d_world_set_wind_grid(_live, 0, 0, 0, 1, 0, 0, 0, 0);
 
   /// The wind at [at], relative to the origin.
   Vector3 windAt(Vector3 at) {
@@ -519,35 +514,33 @@ final class NativeWorld implements Finalizable {
   ({Float32List transforms, List<NativeBody> bodies}) _readPer(
     int count,
     int floats,
-    int Function(Pointer<c.F3dWorld>, Pointer<Float>, Pointer<Uint64>, int)
-    read,
+    int Function(int, c.F32s, c.U64s, int) read,
   ) {
     if (count == 0) {
       return (transforms: Float32List(0), bodies: const <NativeBody>[]);
     }
-    final values = malloc<Float>(count * floats);
-    final handles = malloc<Uint64>(count);
+    final values = c.F32s.alloc(count * floats);
+    final handles = c.U64s.alloc(count);
     try {
       final written = read(_live, values, handles, count);
       return (
-        transforms: Float32List.fromList(values.asTypedList(written * floats)),
+        transforms: values.copy(written * floats),
         bodies: <NativeBody>[
           for (var i = 0; i < written; i++) NativeBody(handles[i]),
         ],
       );
     } finally {
-      malloc
-        ..free(values)
-        ..free(handles);
+      values.free();
+      handles.free();
     }
   }
 
   /// The events the steps raised since the last call, oldest first.
   List<NativeEvent> readEvents() {
     const batch = 256;
-    final bodies = malloc<Uint64>(batch);
-    final others = malloc<Uint64>(batch);
-    final kinds = malloc<Uint32>(batch);
+    final bodies = c.U64s.alloc(batch);
+    final others = c.U64s.alloc(batch);
+    final kinds = c.U32s.alloc(batch);
     try {
       final events = <NativeEvent>[];
       while (true) {
@@ -568,10 +561,9 @@ final class NativeWorld implements Finalizable {
         if (read < batch) return events;
       }
     } finally {
-      malloc
-        ..free(bodies)
-        ..free(others)
-        ..free(kinds);
+      bodies.free();
+      others.free();
+      kinds.free();
     }
   }
 
@@ -581,7 +573,7 @@ final class NativeWorld implements Finalizable {
   /// fewer than four points not all in a plane, more than 4096, or a point
   /// not finite.
   NativeHull createHull(List<Vector3> points) {
-    final buffer = malloc<Float>(points.isEmpty ? 3 : points.length * 3);
+    final buffer = c.F32s.alloc(points.isEmpty ? 3 : points.length * 3);
     try {
       for (var i = 0; i < points.length; i++) {
         buffer[i * 3] = points[i].x;
@@ -598,7 +590,7 @@ final class NativeWorld implements Finalizable {
       }
       return NativeHull(id);
     } finally {
-      malloc.free(buffer);
+      buffer.free();
     }
   }
 
@@ -627,8 +619,8 @@ final class NativeWorld implements Finalizable {
         'not three a triangle',
       );
     }
-    final v = malloc<Float>(vertices.isEmpty ? 3 : vertices.length * 3);
-    final t = malloc<Uint32>(indices.isEmpty ? 3 : indices.length);
+    final v = c.F32s.alloc(vertices.isEmpty ? 3 : vertices.length * 3);
+    final t = c.U32s.alloc(indices.isEmpty ? 3 : indices.length);
     try {
       for (var i = 0; i < vertices.length; i++) {
         v[i * 3] = vertices[i].x;
@@ -657,9 +649,8 @@ final class NativeWorld implements Finalizable {
       }
       return NativeMesh(id);
     } finally {
-      malloc
-        ..free(v)
-        ..free(t);
+      v.free();
+      t.free();
     }
   }
 
@@ -884,7 +875,7 @@ final class NativeWorld implements Finalizable {
   List<NativeBody> queryBox(Vector3 lo, Vector3 hi) {
     var capacity = 64;
     while (true) {
-      final out = malloc<Uint64>(capacity);
+      final out = c.U64s.alloc(capacity);
       try {
         final count = c.f3d_world_query_box(
           _live,
@@ -904,12 +895,12 @@ final class NativeWorld implements Finalizable {
         }
         capacity = count;
       } finally {
-        malloc.free(out);
+        out.free();
       }
     }
   }
 
-  NativeHit _hitAt(int body, Pointer<Float> h) => (
+  NativeHit _hitAt(int body, c.F32s h) => (
     body: NativeBody(body),
     point: Vector3(h[0], h[1], h[2]),
     normal: Vector3(h[3], h[4], h[5]),
@@ -927,8 +918,8 @@ final class NativeWorld implements Finalizable {
     int mask = 0xffffffff,
     NativeBody? ignore,
   }) {
-    final body = malloc<Uint64>(1);
-    final hit = malloc<Float>(c.hitFloats);
+    final body = c.U64s.alloc(1);
+    final hit = c.F32s.alloc(c.hitFloats);
     try {
       final found = c.f3d_world_ray_cast(
         _live,
@@ -946,9 +937,8 @@ final class NativeWorld implements Finalizable {
       );
       return found == 0 ? null : _hitAt(body[0], hit);
     } finally {
-      malloc
-        ..free(body)
-        ..free(hit);
+      body.free();
+      hit.free();
     }
   }
 
@@ -962,8 +952,8 @@ final class NativeWorld implements Finalizable {
   }) {
     var capacity = 16;
     while (true) {
-      final bodies = malloc<Uint64>(capacity);
-      final hits = malloc<Float>(capacity * c.hitFloats);
+      final bodies = c.U64s.alloc(capacity);
+      final hits = c.F32s.alloc(capacity * c.hitFloats);
       try {
         final count = c.f3d_world_ray_cast_all(
           _live,
@@ -983,14 +973,13 @@ final class NativeWorld implements Finalizable {
         if (count <= capacity) {
           return <NativeHit>[
             for (var i = 0; i < count; i++)
-              _hitAt(bodies[i], hits + i * c.hitFloats),
+              _hitAt(bodies[i], c.F32s(hits + i * c.hitFloats * 4)),
           ];
         }
         capacity = count;
       } finally {
-        malloc
-          ..free(bodies)
-          ..free(hits);
+        bodies.free();
+        hits.free();
       }
     }
   }
@@ -1009,7 +998,7 @@ final class NativeWorld implements Finalizable {
     final q = orientation ?? Quaternion.identity();
     var capacity = 32;
     while (true) {
-      final out = malloc<Uint64>(capacity);
+      final out = c.U64s.alloc(capacity);
       try {
         final count = c.f3d_world_overlap_shape(
           _live,
@@ -1037,7 +1026,7 @@ final class NativeWorld implements Finalizable {
         }
         capacity = count;
       } finally {
-        malloc.free(out);
+        out.free();
       }
     }
   }
@@ -1055,8 +1044,8 @@ final class NativeWorld implements Finalizable {
     NativeBody? ignore,
   }) {
     final q = orientation ?? Quaternion.identity();
-    final body = malloc<Uint64>(1);
-    final hit = malloc<Float>(c.hitFloats);
+    final body = c.U64s.alloc(1);
+    final hit = c.F32s.alloc(c.hitFloats);
     try {
       final found = c.f3d_world_cast_shape(
         _live,
@@ -1082,9 +1071,8 @@ final class NativeWorld implements Finalizable {
       );
       return found == 0 ? null : _hitAt(body[0], hit);
     } finally {
-      malloc
-        ..free(body)
-        ..free(hit);
+      body.free();
+      hit.free();
     }
   }
 
@@ -1109,9 +1097,9 @@ final class NativeWorld implements Finalizable {
     int mask = 0xffffffff,
     NativeBody? ignore,
   }) {
-    final p = malloc<Float>(3);
-    final ground = malloc<Float>(3);
-    final body = malloc<Uint64>(1);
+    final p = c.F32s.alloc(3);
+    final ground = c.F32s.alloc(3);
+    final body = c.U64s.alloc(1);
     try {
       p[0] = position.x;
       p[1] = position.y;
@@ -1141,10 +1129,9 @@ final class NativeWorld implements Finalizable {
         ground: body[0] == 0 ? null : NativeBody(body[0]),
       );
     } finally {
-      malloc
-        ..free(p)
-        ..free(ground)
-        ..free(body);
+      p.free();
+      ground.free();
+      body.free();
     }
   }
 
@@ -1152,8 +1139,8 @@ final class NativeWorld implements Finalizable {
   List<NativeContact> readContacts() {
     final count = c.f3d_world_contact_count(_live);
     if (count == 0) return const <NativeContact>[];
-    final values = malloc<Float>(count * c.contactFloats);
-    final pairs = malloc<Uint64>(count * 2);
+    final values = c.F32s.alloc(count * c.contactFloats);
+    final pairs = c.U64s.alloc(count * 2);
     try {
       final read = c.f3d_world_read_contacts(_live, values, pairs, count);
       return <NativeContact>[
@@ -1175,9 +1162,8 @@ final class NativeWorld implements Finalizable {
           ),
       ];
     } finally {
-      malloc
-        ..free(values)
-        ..free(pairs);
+      values.free();
+      pairs.free();
     }
   }
 
@@ -1190,15 +1176,15 @@ final class NativeWorld implements Finalizable {
   /// bits this one does.
   Uint8List snapshot() {
     final size = c.f3d_world_snapshot_size(_live);
-    final buffer = malloc<Uint8>(size);
+    final buffer = c.U8s.alloc(size);
     try {
       final written = c.f3d_world_snapshot_write(_live, buffer, size);
       if (written != size) {
         throw StateError('the physics core wrote $written of $size bytes');
       }
-      return Uint8List.fromList(buffer.asTypedList(size));
+      return buffer.copy(size);
     } finally {
-      malloc.free(buffer);
+      buffer.free();
     }
   }
 
@@ -1206,9 +1192,9 @@ final class NativeWorld implements Finalizable {
   /// bytes that are not a snapshot from this build of the core, and leaves
   /// the world as it was.
   void restore(Uint8List snapshot) {
-    final buffer = malloc<Uint8>(snapshot.isEmpty ? 1 : snapshot.length);
+    final buffer = c.U8s.alloc(snapshot.isEmpty ? 1 : snapshot.length);
     try {
-      buffer.asTypedList(snapshot.length).setAll(0, snapshot);
+      buffer.setAll(snapshot);
       if (c.f3d_world_restore(_live, buffer, snapshot.length) == 0) {
         throw ArgumentError.value(
           snapshot.length,
@@ -1217,7 +1203,7 @@ final class NativeWorld implements Finalizable {
         );
       }
     } finally {
-      malloc.free(buffer);
+      buffer.free();
     }
   }
 
@@ -1351,7 +1337,7 @@ final class NativeWorld implements Finalizable {
   /// The whole inertia tensor in the body's axes, kg m²: a hull's has
   /// products of inertia off the diagonal.
   Matrix3 inertiaTensorOf(NativeBody body) {
-    final out = malloc<Float>(6);
+    final out = c.F32s.alloc(6);
     try {
       _check(c.f3d_body_get_inertia_tensor(_live, body.raw, out), body);
       return Matrix3(
@@ -1366,7 +1352,7 @@ final class NativeWorld implements Finalizable {
         out[2],
       );
     } finally {
-      malloc.free(out);
+      out.free();
     }
   }
 
@@ -1507,20 +1493,25 @@ final class NativeWorld implements Finalizable {
   /// What [body] is made of. Its fuel is its mass times the material's fuel
   /// fraction, counted from now.
   void setMaterial(NativeBody body, NativeMaterial material) {
-    final m = calloc<c.F3dMaterial>();
+    final m = c.coreAlloc(c.F3dMaterialLayout.size);
     try {
-      m.ref
-        ..specific_heat = material.specificHeat
-        ..emissivity = material.emissivity
-        ..ignition_temperature = material.ignitionTemperature
-        ..heat_of_combustion = material.heatOfCombustion
-        ..burn_rate = material.burnRate
-        ..fuel_fraction = material.fuelFraction
-        ..flame_feedback = material.flameFeedback
-        ..conductivity = material.conductivity;
+      c.writeF32(m + c.F3dMaterialLayout.specificHeat, material.specificHeat);
+      c.writeF32(m + c.F3dMaterialLayout.emissivity, material.emissivity);
+      c.writeF32(
+        m + c.F3dMaterialLayout.ignitionTemperature,
+        material.ignitionTemperature,
+      );
+      c.writeF32(
+        m + c.F3dMaterialLayout.heatOfCombustion,
+        material.heatOfCombustion,
+      );
+      c.writeF32(m + c.F3dMaterialLayout.burnRate, material.burnRate);
+      c.writeF32(m + c.F3dMaterialLayout.fuelFraction, material.fuelFraction);
+      c.writeF32(m + c.F3dMaterialLayout.flameFeedback, material.flameFeedback);
+      c.writeF32(m + c.F3dMaterialLayout.conductivity, material.conductivity);
       _check(c.f3d_body_set_material(_live, body.raw, m), body, material);
     } finally {
-      calloc.free(m);
+      c.coreFree(m);
     }
   }
 

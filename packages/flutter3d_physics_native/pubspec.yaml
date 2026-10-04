@@ -21,8 +21,6 @@ dependencies:
   archive: ^4.2.0
   code_assets: ^2.1.0
   crypto: ^3.0.6
-  # `malloc` for the few floats a call writes back.
-  ffi: ^2.2.0
   hooks: ^2.0.0
   logging: ^1.3.0
   native_toolchain_c: ^0.19.5

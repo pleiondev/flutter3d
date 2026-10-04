@@ -1,15 +1,11 @@
 /// Cloth on the CPU and on the GPU — P9, phase 10.
 library;
 
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'bindings.dart' as c;
-import 'gpu_bindings.dart' as g;
-import 'native_particles.dart';
+import 'core/core.dart' as c;
 
 /// The points of a cloth and the constraints between them, each held at
 /// the distance it starts at.
@@ -151,11 +147,11 @@ abstract interface class ClothSystem {
 }
 
 /// The mesh's arrays in the core's layout, freed by [free].
-final class _Packed {
-  _Packed(ClothMesh mesh)
-    : points = malloc<Float>(mesh.points.length * 4),
-      edges = malloc<Uint32>(mesh.edges.isEmpty ? 2 : mesh.edges.length * 2),
-      compliance = malloc<Float>(mesh.edges.isEmpty ? 1 : mesh.edges.length) {
+final class ClothPacked {
+  ClothPacked(ClothMesh mesh)
+    : points = c.F32s.alloc(mesh.points.length * 4),
+      edges = c.U32s.alloc(mesh.edges.isEmpty ? 2 : mesh.edges.length * 2),
+      compliance = c.F32s.alloc(mesh.edges.isEmpty ? 1 : mesh.edges.length) {
     for (var i = 0; i < mesh.points.length; i++) {
       points[i * 4] = mesh.points[i].x;
       points[i * 4 + 1] = mesh.points[i].y;
@@ -169,20 +165,19 @@ final class _Packed {
     }
   }
 
-  final Pointer<Float> points;
-  final Pointer<Uint32> edges;
-  final Pointer<Float> compliance;
+  final c.F32s points;
+  final c.U32s edges;
+  final c.F32s compliance;
 
   void free() {
-    malloc
-      ..free(points)
-      ..free(edges)
-      ..free(compliance);
+    points.free();
+    edges.free();
+    compliance.free();
   }
 }
 
-Pointer<c.F3dCloth> _create(ClothMesh mesh) {
-  final packed = _Packed(mesh);
+int createCoreCloth(ClothMesh mesh) {
+  final packed = ClothPacked(mesh);
   try {
     final cloth = c.f3d_cloth_create(
       packed.points,
@@ -191,7 +186,7 @@ Pointer<c.F3dCloth> _create(ClothMesh mesh) {
       packed.compliance,
       mesh.edges.length,
     );
-    if (cloth == nullptr) {
+    if (cloth == 0) {
       throw ArgumentError.value(
         mesh,
         'mesh',
@@ -205,11 +200,11 @@ Pointer<c.F3dCloth> _create(ClothMesh mesh) {
   }
 }
 
-Pointer<Float> _packBalls(List<({Vector3 centre, double radius})> balls) {
+c.F32s packClothBalls(List<({Vector3 centre, double radius})> balls) {
   if (balls.length > c.clothMaxBalls) {
     throw ArgumentError.value(balls.length, 'balls', 'more than 16');
   }
-  final data = malloc<Float>(balls.isEmpty ? 4 : balls.length * 4);
+  final data = c.F32s.alloc(balls.isEmpty ? 4 : balls.length * 4);
   for (var i = 0; i < balls.length; i++) {
     data[i * 4] = balls[i].centre.x;
     data[i * 4 + 1] = balls[i].centre.y;
@@ -219,25 +214,41 @@ Pointer<Float> _packBalls(List<({Vector3 centre, double radius})> balls) {
   return data;
 }
 
+/// [settings] as the core's `F3dClothSettings` — and the GPU's, laid out
+/// the same — in a block of the core's memory the caller frees.
+int writeClothSettings(ClothSettings settings) {
+  final s = c.coreAlloc(c.F3dClothSettingsLayout.size);
+  for (var k = 0; k < 3; k++) {
+    c.writeF32(
+      s + c.F3dClothSettingsLayout.gravity + k * 4,
+      settings.gravity[k],
+    );
+    c.writeF32(s + c.F3dClothSettingsLayout.wind + k * 4, settings.wind[k]);
+  }
+  c.writeF32(s + c.F3dClothSettingsLayout.drag, settings.drag);
+  c.writeF32(s + c.F3dClothSettingsLayout.damping, settings.damping);
+  c.writeF32(s + c.F3dClothSettingsLayout.floorY, settings.floorY);
+  c.writeF32(s + c.F3dClothSettingsLayout.thickness, settings.thickness);
+  c.writeF32(s + c.F3dClothSettingsLayout.friction, settings.friction);
+  c.writeU32(s + c.F3dClothSettingsLayout.substeps, settings.substeps);
+  return s;
+}
+
 /// Cloth stepped by the core on the CPU: the reference for the GPU's, and
 /// the fallback where there is none.
-final class NativeCloth implements ClothSystem, Finalizable {
-  NativeCloth(ClothMesh mesh) : _c = _create(mesh) {
-    _finalizer.attach(this, _c.cast(), detach: this);
+final class NativeCloth implements ClothSystem {
+  NativeCloth(ClothMesh mesh) : _c = createCoreCloth(mesh) {
+    _finalizer.attach(this, _c, detach: this);
   }
 
-  static final NativeFinalizer _finalizer = NativeFinalizer(
-    Native.addressOf<NativeFunction<Void Function(Pointer<c.F3dCloth>)>>(
-      c.f3d_cloth_destroy,
-    ).cast(),
-  );
+  static final Finalizer<int> _finalizer = Finalizer<int>(c.f3d_cloth_destroy);
 
-  Pointer<c.F3dCloth> _c;
+  int _c;
   int _steps = 0;
   int _read = 0;
 
-  Pointer<c.F3dCloth> get _live {
-    if (_c == nullptr) throw StateError('this cloth was disposed');
+  int get _live {
+    if (_c == 0) throw StateError('this cloth was disposed');
     return _c;
   }
 
@@ -249,11 +260,11 @@ final class NativeCloth implements ClothSystem, Finalizable {
 
   @override
   void setBalls(List<({Vector3 centre, double radius})> balls) {
-    final data = _packBalls(balls);
+    final data = packClothBalls(balls);
     try {
       c.f3d_cloth_set_balls(_live, data, balls.length);
     } finally {
-      malloc.free(data);
+      data.free();
     }
   }
 
@@ -264,23 +275,12 @@ final class NativeCloth implements ClothSystem, Finalizable {
 
   @override
   void step(ClothSettings settings, double dt) {
-    final s = calloc<c.F3dClothSettings>();
+    final s = writeClothSettings(settings);
     try {
-      final r = s.ref
-        ..drag = settings.drag
-        ..damping = settings.damping
-        ..floor_y = settings.floorY
-        ..thickness = settings.thickness
-        ..friction = settings.friction
-        ..substeps = settings.substeps;
-      for (var k = 0; k < 3; k++) {
-        r.gravity[k] = settings.gravity[k];
-        r.wind[k] = settings.wind[k];
-      }
       c.f3d_cloth_step(_live, s, dt);
       _steps++;
     } finally {
-      calloc.free(s);
+      c.coreFree(s);
     }
   }
 
@@ -288,152 +288,21 @@ final class NativeCloth implements ClothSystem, Finalizable {
   ClothFrame? read({bool wait = true}) {
     final n = pointCount;
     if (_steps == _read) return null;
-    final out = malloc<Float>(n * c.clothFloats);
+    final out = c.F32s.alloc(n * c.clothFloats);
     try {
       c.f3d_cloth_read(_live, out, n);
       _read = _steps;
-      return (
-        step: _steps,
-        points: Float32List.fromList(out.asTypedList(n * c.clothFloats)),
-      );
+      return (step: _steps, points: out.copy(n * c.clothFloats));
     } finally {
-      malloc.free(out);
+      out.free();
     }
   }
 
   @override
   void dispose() {
-    if (_c == nullptr) return;
+    if (_c == 0) return;
     _finalizer.detach(this);
     c.f3d_cloth_destroy(_c);
-    _c = nullptr;
-  }
-}
-
-/// [mesh] as a cloth on a GPU.
-extension NativeGpuCloth on NativeGpu {
-  GpuCloth cloth(ClothMesh mesh) => GpuCloth.on(this, mesh);
-}
-
-/// Cloth stepped on the GPU, a dispatch a colour, read a frame late. The
-/// constraints are coloured by the core, so it solves what [NativeCloth]
-/// solves in the same order of colours: the same to the GPU's rounding,
-/// until folds and wrinkles take the two their own ways.
-final class GpuCloth implements ClothSystem {
-  GpuCloth.on(NativeGpu gpu, ClothMesh mesh)
-    : _gpu = gpu,
-      _points = mesh.points.length,
-      _c = _upload(gpu, mesh);
-
-  static Pointer<g.F3dGpuCloth> _upload(NativeGpu gpu, ClothMesh mesh) {
-    final core = _create(mesh);
-    final packed = _Packed(mesh);
-    final edges = c.f3d_cloth_edge_count(core);
-    final colours = c.f3d_cloth_colour_count(core);
-    final pairs = malloc<Uint32>(edges == 0 ? 2 : edges * 2);
-    final rest = malloc<Float>(edges == 0 ? 1 : edges);
-    final compliance = malloc<Float>(edges == 0 ? 1 : edges);
-    final start = malloc<Uint32>(colours + 1);
-    try {
-      c.f3d_cloth_edges(core, pairs, rest, compliance, start);
-      final cloth = g.f3d_gpu_cloth_create(
-        nativeGpuPointer(gpu),
-        packed.points,
-        mesh.points.length,
-        pairs,
-        rest,
-        compliance,
-        edges,
-        start,
-        colours,
-      );
-      if (cloth == nullptr) {
-        throw ArgumentError.value(
-          mesh,
-          'mesh',
-          'too large, no memory, or a pass the GPU would not build',
-        );
-      }
-      return cloth;
-    } finally {
-      c.f3d_cloth_destroy(core);
-      packed.free();
-      malloc
-        ..free(pairs)
-        ..free(rest)
-        ..free(compliance)
-        ..free(start);
-    }
-  }
-
-  final NativeGpu _gpu;
-  final int _points;
-  Pointer<g.F3dGpuCloth> _c;
-
-  Pointer<g.F3dGpuCloth> get _live {
-    if (_c == nullptr) throw StateError('this cloth was disposed');
-    nativeGpuPointer(_gpu);
-    return _c;
-  }
-
-  @override
-  int get pointCount => _points;
-
-  @override
-  void setBalls(List<({Vector3 centre, double radius})> balls) {
-    final data = _packBalls(balls);
-    try {
-      g.f3d_gpu_cloth_set_balls(_live, data, balls.length);
-    } finally {
-      malloc.free(data);
-    }
-  }
-
-  @override
-  void movePoint(int index, Vector3 at) {
-    g.f3d_gpu_cloth_move_point(_live, index, at.x, at.y, at.z);
-  }
-
-  @override
-  void step(ClothSettings settings, double dt) {
-    final s = calloc<g.F3dGpuClothSettings>();
-    try {
-      final r = s.ref
-        ..drag = settings.drag
-        ..damping = settings.damping
-        ..floor_y = settings.floorY
-        ..thickness = settings.thickness
-        ..friction = settings.friction
-        ..substeps = settings.substeps;
-      for (var k = 0; k < 3; k++) {
-        r.gravity[k] = settings.gravity[k];
-        r.wind[k] = settings.wind[k];
-      }
-      g.f3d_gpu_cloth_step(_live, s, dt);
-    } finally {
-      calloc.free(s);
-    }
-  }
-
-  @override
-  ClothFrame? read({bool wait = true}) {
-    final out = malloc<Float>(_points * 4);
-    try {
-      final step = g.f3d_gpu_cloth_read(_live, out, _points, wait ? 1 : 0);
-      if (step == 0) return null;
-      return (
-        step: step,
-        points: Float32List.fromList(out.asTypedList(_points * 4)),
-      );
-    } finally {
-      malloc.free(out);
-    }
-  }
-
-  @override
-  void dispose() {
-    if (_c == nullptr) return;
-    g.f3d_gpu_cloth_destroy(_c);
-    _c = nullptr;
+    _c = 0;
   }
 }

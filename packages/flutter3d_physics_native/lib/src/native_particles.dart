@@ -1,14 +1,11 @@
 /// Particles, on the CPU and on the GPU — P9, phase 10.
 library;
 
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'bindings.dart' as c;
-import 'gpu_bindings.dart' as g;
+import 'core/core.dart' as c;
 
 /// How particles move: gravity, the wind they drift towards at [drag] per
 /// second, and a floor at [floorY] they bounce off with [restitution] and
@@ -56,8 +53,8 @@ abstract interface class ParticleSystem {
   void dispose();
 }
 
-Pointer<Float> _pack(List<Particle> particles) {
-  final data = malloc<Float>(particles.isEmpty ? 7 : particles.length * 7);
+c.F32s packParticles(List<Particle> particles) {
+  final data = c.F32s.alloc(particles.isEmpty ? 7 : particles.length * 7);
   for (var i = 0; i < particles.length; i++) {
     final p = particles[i];
     data[i * 7] = p.position.x;
@@ -71,26 +68,45 @@ Pointer<Float> _pack(List<Particle> particles) {
   return data;
 }
 
+/// [forces] as the core's `F3dParticleForces` — and the GPU's, laid out
+/// the same — in a block of the core's memory the caller frees.
+int writeParticleForces(ParticleForces forces) {
+  final f = c.coreAlloc(c.F3dParticleForcesLayout.size);
+  for (var k = 0; k < 3; k++) {
+    c.writeF32(
+      f + c.F3dParticleForcesLayout.gravity + k * 4,
+      forces.gravity[k],
+    );
+    c.writeF32(f + c.F3dParticleForcesLayout.wind + k * 4, forces.wind[k]);
+  }
+  c.writeF32(f + c.F3dParticleForcesLayout.drag, forces.drag);
+  c.writeF32(
+    f + c.F3dParticleForcesLayout.floorY,
+    forces.floorY == double.negativeInfinity ? -3.4e38 : forces.floorY,
+  );
+  c.writeF32(f + c.F3dParticleForcesLayout.restitution, forces.restitution);
+  c.writeF32(f + c.F3dParticleForcesLayout.friction, forces.friction);
+  return f;
+}
+
 /// Particles stepped by the core on the CPU: the reference for the GPU's,
 /// and the fallback where there is none.
-final class NativeParticles implements ParticleSystem, Finalizable {
+final class NativeParticles implements ParticleSystem {
   NativeParticles(int capacity) : _p = c.f3d_particles_create(capacity) {
-    if (_p == nullptr) {
+    if (_p == 0) {
       throw ArgumentError.value(capacity, 'capacity', 'none, or no memory');
     }
-    _finalizer.attach(this, _p.cast(), detach: this);
+    _finalizer.attach(this, _p, detach: this);
   }
 
-  static final NativeFinalizer _finalizer = NativeFinalizer(
-    Native.addressOf<NativeFunction<Void Function(Pointer<c.F3dParticles>)>>(
-      c.f3d_particles_destroy,
-    ).cast(),
+  static final Finalizer<int> _finalizer = Finalizer<int>(
+    c.f3d_particles_destroy,
   );
 
-  Pointer<c.F3dParticles> _p;
+  int _p;
 
-  Pointer<c.F3dParticles> get _live {
-    if (_p == nullptr) throw StateError('these particles were disposed');
+  int get _live {
+    if (_p == 0) throw StateError('these particles were disposed');
     return _p;
   }
 
@@ -99,184 +115,43 @@ final class NativeParticles implements ParticleSystem, Finalizable {
 
   @override
   void emit(List<Particle> particles) {
-    final data = _pack(particles);
+    final data = packParticles(particles);
     try {
       c.f3d_particles_emit(_live, data, particles.length);
     } finally {
-      malloc.free(data);
+      data.free();
     }
   }
 
   @override
   void step(ParticleForces forces, double dt, {int steps = 1}) {
-    final f = calloc<c.F3dParticleForces>();
+    final f = writeParticleForces(forces);
     try {
-      final r = f.ref
-        ..drag = forces.drag
-        ..floor_y = forces.floorY == double.negativeInfinity
-            ? -3.4e38
-            : forces.floorY
-        ..restitution = forces.restitution
-        ..friction = forces.friction;
-      for (var k = 0; k < 3; k++) {
-        r.gravity[k] = forces.gravity[k];
-        r.wind[k] = forces.wind[k];
-      }
       for (var s = 0; s < steps; s++) {
         c.f3d_particles_step(_live, f, dt);
       }
     } finally {
-      calloc.free(f);
+      c.coreFree(f);
     }
   }
 
   @override
   Float32List read() {
     final n = capacity;
-    final out = malloc<Float>(n * c.particleFloats);
+    final out = c.F32s.alloc(n * c.particleFloats);
     try {
       c.f3d_particles_read(_live, out, n);
-      return Float32List.fromList(out.asTypedList(n * c.particleFloats));
+      return out.copy(n * c.particleFloats);
     } finally {
-      malloc.free(out);
+      out.free();
     }
   }
 
   @override
   void dispose() {
-    if (_p == nullptr) return;
+    if (_p == 0) return;
     _finalizer.detach(this);
     c.f3d_particles_destroy(_p);
-    _p = nullptr;
-  }
-}
-
-/// A GPU, through wgpu-native: what the visual passes run on.
-final class NativeGpu {
-  NativeGpu._(this._gpu);
-
-  /// The best adapter there is, or null: no GPU, a driver wgpu cannot use,
-  /// or no GPU library in this build — wgpu-native could not be fetched
-  /// for the target, or the platform has none.
-  static NativeGpu? open() {
-    try {
-      if (g.f3d_gpu_abi_version() != g.gpuAbiVersion) return null;
-      final gpu = g.f3d_gpu_create();
-      return gpu == nullptr ? null : NativeGpu._(gpu);
-    } on ArgumentError {
-      // The asset is not there: no GPU library in this build.
-      return null;
-    }
-  }
-
-  Pointer<g.F3dGpu> _gpu;
-
-  Pointer<g.F3dGpu> get _live {
-    if (_gpu == nullptr) throw StateError('this GPU was disposed');
-    return _gpu;
-  }
-
-  /// The adapter's name.
-  String get adapterName {
-    final out = malloc<Uint8>(256);
-    try {
-      final n = g.f3d_gpu_adapter_name(_live, out, 256);
-      return String.fromCharCodes(out.asTypedList(n < 255 ? n : 255));
-    } finally {
-      malloc.free(out);
-    }
-  }
-
-  /// [capacity] particle slots on this GPU.
-  GpuParticles particles(int capacity) => GpuParticles._(this, capacity);
-
-  /// Frees the device. Its particles go first.
-  void dispose() {
-    if (_gpu == nullptr) return;
-    g.f3d_gpu_destroy(_gpu);
-    _gpu = nullptr;
-  }
-}
-
-/// [gpu]'s device, for the GPU systems in this package's other files;
-/// hidden from its exports.
-Pointer<g.F3dGpu> nativeGpuPointer(NativeGpu gpu) => gpu._live;
-
-/// Particles stepped by a compute shader that does what [NativeParticles]
-/// does, step for step: the same to a GPU's own rounding.
-final class GpuParticles implements ParticleSystem {
-  GpuParticles._(this._gpu, int capacity)
-    : _capacity = capacity,
-      _p = g.f3d_gpu_particles_create(_gpu._live, capacity) {
-    if (_p == nullptr) {
-      throw ArgumentError.value(
-        capacity,
-        'capacity',
-        'none, too many, no memory, or a pass the GPU would not build',
-      );
-    }
-  }
-
-  final NativeGpu _gpu;
-  final int _capacity;
-  Pointer<g.F3dGpuParticles> _p;
-
-  Pointer<g.F3dGpuParticles> get _live {
-    if (_p == nullptr) throw StateError('these particles were disposed');
-    _gpu._live;
-    return _p;
-  }
-
-  @override
-  int get capacity => _capacity;
-
-  @override
-  void emit(List<Particle> particles) {
-    final data = _pack(particles);
-    try {
-      g.f3d_gpu_particles_emit(_live, data, particles.length);
-    } finally {
-      malloc.free(data);
-    }
-  }
-
-  @override
-  void step(ParticleForces forces, double dt, {int steps = 1}) {
-    final f = calloc<g.F3dGpuParticleForces>();
-    try {
-      final r = f.ref
-        ..drag = forces.drag
-        ..floor_y = forces.floorY == double.negativeInfinity
-            ? -3.4e38
-            : forces.floorY
-        ..restitution = forces.restitution
-        ..friction = forces.friction;
-      for (var k = 0; k < 3; k++) {
-        r.gravity[k] = forces.gravity[k];
-        r.wind[k] = forces.wind[k];
-      }
-      g.f3d_gpu_particles_step(_live, f, dt, steps);
-    } finally {
-      calloc.free(f);
-    }
-  }
-
-  @override
-  Float32List read() {
-    final out = malloc<Float>(_capacity * 4);
-    try {
-      final n = g.f3d_gpu_particles_read(_live, out, _capacity);
-      if (n == 0) throw StateError('the GPU could not be read');
-      return Float32List.fromList(out.asTypedList(_capacity * 4));
-    } finally {
-      malloc.free(out);
-    }
-  }
-
-  @override
-  void dispose() {
-    if (_p == nullptr) return;
-    g.f3d_gpu_particles_destroy(_p);
-    _p = nullptr;
+    _p = 0;
   }
 }

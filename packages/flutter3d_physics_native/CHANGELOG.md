@@ -1,5 +1,25 @@
 ## Unreleased
 
+- **One API over the core, natively and in the browser — phase 12.** The
+  wrappers no longer hold `dart:ffi` pointers: they reach the core through
+  `lib/src/core/`, where a call is a function and every pointer an
+  address — natively a pointer, in the browser an offset into the
+  WebAssembly module's memory — and blocks of the core's memory are read
+  and written by element (`F32s`, `U64s` and their kin) and the structs it
+  fills by offsets. The calls, both ways, and the structs' layouts are
+  written by `tool/gen_core.dart` from `f3d_physics.h`, the one place a
+  signature lives; a test runs it in check mode and holds every layout
+  against the C compiler's own `offsetof`. The GPU passes stay native
+  (`gpu_native.dart`); in the browser `NativeGpu.open()` is null and the
+  CPU systems stand in. The GPU's settings are written as the core's,
+  since they are laid out alike. `loadPhysicsCore()` fetches the module in
+  the browser and does nothing natively. A world dropped without
+  `dispose()` is freed by a `Finalizer`. Every native test passes as it
+  did; the package compiles with dart2js and dart2wasm. `package:ffi` is
+  no longer a dependency. Bodies' handles are 64-bit, and under dart2js an
+  int holds 53 bits exact: a slot reused more than two million times
+  would come out wrong there.
+
 - **The fast mode solves contacts four at a time — phase 11 done.** A
   colour's contacts go in batches of four, a contact a lane of a vector
   (GCC's and Clang's vector types, NEON or SSE beneath; MSVC the same
