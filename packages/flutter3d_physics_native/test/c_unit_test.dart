@@ -8,7 +8,11 @@
 /// undefined-behaviour sanitisers on, runs it, and fails on a failed check or
 /// on anything a sanitiser reports — a use after free or an overflow in the
 /// arena is caught here, not in a game.
-@TestOn('mac-os || linux')
+///
+/// On Windows with MSVC, the compiler the hook builds the core with there,
+/// run from a developer prompt so that `cl` is on the path: no sanitisers,
+/// but the same checks and the same digests, and the pool on Win32 threads.
+@TestOn('mac-os || linux || windows')
 library;
 
 import 'dart:io';
@@ -23,39 +27,74 @@ import '../hook/build.dart' show coreSources;
 String _buildAndRun(String source, List<String> defines) {
   final scratch = Directory.systemTemp.createTempSync('f3d_ctest');
   addTearDown(() => scratch.deleteSync(recursive: true));
-  final binary = '${scratch.path}/test';
-  final built = Process.runSync('cc', <String>[
-    '-std=c11',
-    // The sanitisers see as much at -O1, and the heaps of debris and
-    // cloth step in seconds instead of minutes.
-    '-O1',
-    '-Wall',
-    '-Wextra',
-    '-Werror',
-    '-pedantic',
-    '-ffp-contract=off',
-    '-fsanitize=address,undefined',
-    '-fno-sanitize-recover=all',
-    '-g',
-    ...defines,
-    // The pool's threads: in libc everywhere but older glibc.
-    if (Platform.isLinux) '-pthread',
-    '-Icsrc/include',
-    '-Icsrc/src',
-    ...coreSources,
-    source,
-    '-o',
-    binary,
-    // The tests' own sqrt and pow: in libSystem on Apple's, not in
-    // glibc's libc.
-    '-lm',
-  ]);
-  expect(built.exitCode, 0, reason: '${built.stderr}');
+  final binary = Platform.isWindows
+      ? '${scratch.path}\\test.exe'
+      : '${scratch.path}/test';
+  final built = Platform.isWindows
+      ? _buildWithMsvc(source, defines, scratch.path, binary)
+      : _buildWithCc(source, defines, binary);
+  expect(built.exitCode, 0, reason: '${built.stdout}${built.stderr}');
   final ran = Process.runSync(binary, const <String>[]);
   expect(ran.exitCode, 0, reason: '${ran.stdout}${ran.stderr}');
   expect('${ran.stdout}', contains('checks passed'));
   return '${ran.stdout}';
 }
+
+ProcessResult _buildWithMsvc(
+  String source,
+  List<String> defines,
+  String scratch,
+  String binary,
+) => Process.runSync('cl', <String>[
+  '/nologo',
+  '/std:c11',
+  '/O1',
+  '/W3',
+  // What the hook builds the core with: MSVC contracts nothing without
+  // /fp:fast.
+  '/fp:precise',
+  // M_PI, which MSVC's math.h hides without it.
+  '/D_USE_MATH_DEFINES',
+  '/D_CRT_SECURE_NO_WARNINGS',
+  ...defines,
+  '/Icsrc/include',
+  '/Icsrc/src',
+  ...coreSources,
+  source,
+  '/Fo$scratch\\',
+  '/Fe$binary',
+]);
+
+ProcessResult _buildWithCc(
+  String source,
+  List<String> defines,
+  String binary,
+) => Process.runSync('cc', <String>[
+  '-std=c11',
+  // The sanitisers see as much at -O1, and the heaps of debris and
+  // cloth step in seconds instead of minutes.
+  '-O1',
+  '-Wall',
+  '-Wextra',
+  '-Werror',
+  '-pedantic',
+  '-ffp-contract=off',
+  '-fsanitize=address,undefined',
+  '-fno-sanitize-recover=all',
+  '-g',
+  ...defines,
+  // The pool's threads: in libc everywhere but older glibc.
+  if (Platform.isLinux) '-pthread',
+  '-Icsrc/include',
+  '-Icsrc/src',
+  ...coreSources,
+  source,
+  '-o',
+  binary,
+  // The tests' own sqrt and pow: in libSystem on Apple's, not in
+  // glibc's libc.
+  '-lm',
+]);
 
 void main() {
   final tests = Directory(

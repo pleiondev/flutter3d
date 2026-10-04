@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **The same bits on every platform, and a test that says so.**
+  `csrc/tests/test_digest.c` steps seven scenes and fails unless each
+  hashes to the number written in it: a world of every shape, the same
+  world in the fast mode on three threads, the ragdoll down its stairs,
+  debris, cloth, water and particles, every real of them. The numbers were
+  taken on macOS arm64. They come out the same, in both precisions, on
+  Linux arm64, x86-64 and 32-bit ARM with gcc and with clang, on the iOS
+  simulator, and on Android arm64 in the emulator.
+  `tool/digest_platforms.sh` runs all of these from a Mac.
+  `test/c_unit_test.dart` now builds the C tests with MSVC on Windows too,
+  and a CI job runs the whole package there with the library the hook
+  builds. 32-bit x86 was the exception: gcc does its arithmetic on the x87
+  there, in wide registers, and all seven scenes landed elsewhere. In SSE2 they
+  match, under gcc and clang alike. The hook now asks for SSE2 on ia32,
+  and the core refuses to build on the x87.
+
 - **Ragdolls — the closing check of the native core.** A ball joint now
   takes a cone (`f3d_joint_set_cone`, `setJointCone`), which holds the
   swing of its second body's axis within an angle of the first's. Its

@@ -412,6 +412,31 @@ jobs:
       - name: build ${{ matrix.app }}
         run: cd apps/${{ matrix.app }} && flutter build ${{ matrix.target }} --debug
 
+  # The native physics core on Windows, built by MSVC as the hook builds it
+  # there: its C tests, its digests — the bits every other platform steps
+  # to, written in csrc/tests/test_digest.c — the pool on Win32 threads, and
+  # the Dart side over the library the hook made. The check job runs the
+  # same package on Linux; nothing else here compiles the core with MSVC.
+  physics-native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # `cl` on the path, for test/c_unit_test.dart; the hook finds MSVC
+      # itself.
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter test
+        working-directory: packages/flutter3d_physics_native
+
   godot:
     runs-on: ubuntu-latest
     timeout-minutes: 20

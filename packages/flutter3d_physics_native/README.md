@@ -50,6 +50,8 @@ That needs a clang with the wasm32 target, which Apple's has, and a wasm linker.
 
 The deterministic mode uses the same bits on every platform. Every number is an f32, and the build turns off fused multiply-add contraction and fast math. The core also avoids the C library's transcendental functions; the square root it does use is rounded exactly by IEEE 754 on every target. `test/wasm_test.dart` holds that promise to the byte: the WebAssembly module and the native library step the same scenario, and their snapshots of the whole world afterwards have to be identical.
 
+`csrc/tests/test_digest.c` holds the same promise across machines: it steps seven scenes and fails unless they hash to the numbers written in it. Those numbers were taken on macOS arm64, and the same numbers come out on Linux (arm64, x86-64 and 32-bit ARM, with gcc and with clang), on the iOS simulator and on Android arm64. CI runs the test on Windows with MSVC. `tool/digest_platforms.sh` repeats the Linux, Android and iOS runs from a Mac. 32-bit x86 qualifies only with its arithmetic in SSE2. There, gcc and clang both match. On the x87, which gcc (and Debian's clang) use there by default, the results come out different. So the core refuses to build that way, and the hook passes `-msse2 -mfpmath=sse`.
+
 Built with `-DF3D_REAL_DOUBLE`, the core uses doubles throughout instead. That build is for C callers who want the precision and do not need the browser to agree; the Dart bindings refuse it.
 
 ## Tests

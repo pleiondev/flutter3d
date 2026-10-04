@@ -43,6 +43,16 @@ void f3d_copy(void *to, const void *from, size_t bytes);
 #define F3D_WATER_LATENT F3D_R(2.257e6)
 #define F3D_WATER_BOILS F3D_R(373.15)
 
+/* 32-bit x86 does its arithmetic on the x87 by default, in registers
+ * wider than an f32 or an f64 and rounded when they are stored, so the
+ * same step lands on other bits than everywhere else (csrc/tests/
+ * test_digest.c caught all seven of its scenes). SSE2 rounds every
+ * operation as IEEE 754 says; without it this build refuses. */
+#if (defined(__i386__) && !defined(__SSE2_MATH__)) || \
+    (defined(_M_IX86) && (!defined(_M_IX86_FP) || _M_IX86_FP < 2))
+#error "32-bit x86 must do its arithmetic in SSE2: build with -msse2 -mfpmath=sse (MSVC: /arch:SSE2)"
+#endif
+
 /* Whether [x] is neither infinite nor NaN, without <math.h>: the
  * WebAssembly build has none, and isfinite may be a library call. */
 static inline int f3d_finite(f3d_real x) { return x - x == F3D_R(0.0); }

@@ -61,6 +61,10 @@ void main(List<String> args) async {
               '-fno-fast-math',
               // The pool's threads: in libc everywhere but older glibc.
               if (input.config.code.targetOS == OS.linux) '-pthread',
+              // 32-bit x86 rounds as everywhere else only in SSE2, not on
+              // the x87 it uses by default; f3d_internal.h refuses it.
+              if (input.config.code.targetArchitecture ==
+                  Architecture.ia32) ...<String>['-msse2', '-mfpmath=sse'],
             ],
     ).run(input: input, output: output, logger: logger);
     final code = input.config.code;
@@ -69,7 +73,11 @@ void main(List<String> args) async {
       logger.info('no wgpu-native for ${code.targetOS}: no GPU passes');
       return;
     }
-    final wgpu = await fetchWgpuNative(target, input.outputDirectoryShared, logger.warning);
+    final wgpu = await fetchWgpuNative(
+      target,
+      input.outputDirectoryShared,
+      logger.warning,
+    );
     if (wgpu == null) return;
     await CBuilder.library(
       name: 'f3d_gpu',
@@ -91,5 +99,6 @@ void main(List<String> args) async {
 }
 
 /// The builders' own messages, which a hook can only print.
-// ignore: avoid_print
-final Logger logger = Logger('')..onRecord.listen((record) => print(record.message));
+final Logger logger = Logger('')
+  // ignore: avoid_print
+  ..onRecord.listen((record) => print(record.message));

@@ -369,6 +369,17 @@ step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platf
 # the slower place to do that.
 step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
 step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
+# The native physics core as WebAssembly, under both web compilers: the
+# shared scene to the native library's hash, on one thread and on four Web
+# Workers. The second needs SharedArrayBuffer, which tool/chrome_sab.sh asks
+# Chrome for; the test runner's pages are not cross-origin isolated.
+for compiler in dart2js dart2wasm; do
+  step "test flutter3d_physics_native (browser, $compiler)" in_dir packages/flutter3d_physics_native \
+    dart test -p chrome -c "$compiler" test/web_core_test.dart
+  step "test flutter3d_physics_native (browser threads, $compiler)" in_dir packages/flutter3d_physics_native \
+    env CHROME_EXECUTABLE="$PWD/packages/flutter3d_physics_native/tool/chrome_sab.sh" \
+    dart test -p chrome -c "$compiler" test/web_threads_test.dart
+done
 # The game layer's input files, named for the reason the application layer's
 # are above: the saves, the settings document and the timeline's service
 # extensions beside them reach `dart:io`.
