@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **The fast mode.** `f3d_world_set_fast` (Dart: `NativeWorld.fast`)
+  colours the contacts each step — greedily, in contact order, the lowest
+  of 64 colours neither of its moving bodies has, the rest to an overflow
+  solved on one thread — and solves a colour's contacts at once on every
+  thread, the stages of a step met at a spinning barrier inside one pass
+  of the pool, joints on one thread between them. Solved in another order,
+  it lands on other bits than the deterministic mode, but on the same bits
+  on any number of threads; a single contact, one colour, solves to the
+  deterministic mode's bits exactly. Bodies that do not move are no longer
+  written with nothing by a contact, in either mode, which changes no bit.
+  A stack of ten walks 5.4 cm aside as it settles (1.4 cm deterministic)
+  and sleeps upright. Kept in a snapshot (version 7). On a heap of four
+  thousand, eight colours and some 124 barriers a step; the solver went
+  from 8.4 ms to 4.9 ms on six threads with the machine at load 29, where
+  a barrier waits on threads the system has put aside. ABI 17.
+
 - **A world steps on threads, to the same bits — phase 11.**
   `f3d_world_set_threads` (Dart: `NativeWorld.threads`) gives a world a
   pool of up to 64 threads, POSIX or Windows', the caller one of them; the

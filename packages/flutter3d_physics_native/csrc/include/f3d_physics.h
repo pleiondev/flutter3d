@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 16u
+#define F3D_ABI_VERSION 17u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -315,6 +315,15 @@ F3D_API void f3d_world_step(F3dWorld *world, f3d_real dt);
  * WebAssembly build, 0 for more than one. Not in a snapshot. */
 F3D_API int f3d_world_set_threads(F3dWorld *world, uint32_t threads);
 F3D_API uint32_t f3d_world_threads(const F3dWorld *world);
+
+/* The fast mode, off for a new world: the contacts coloured each step so
+ * that no two of a colour share a moving body, and solved a colour at a
+ * time, each colour's contacts at once on every thread, the stages of a
+ * step met at barriers. Solved in another order than the deterministic
+ * mode's, so to other bits — but to the same bits on any number of
+ * threads. In a snapshot. */
+F3D_API int f3d_world_set_fast(F3dWorld *world, int fast);
+F3D_API int f3d_world_fast(const F3dWorld *world);
 
 /* Writes every body's transform, F3D_TRANSFORM_FLOATS reals apiece, into
  * [transforms], and its handle into [handles] when that is not null, in the

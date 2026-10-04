@@ -854,6 +854,15 @@ final class NativeWorld implements Finalizable {
     }
   }
 
+  /// The fast mode, off for a new world: contacts coloured each step so
+  /// that no two of a colour share a moving body, and a colour's contacts
+  /// solved at once on every thread. Other bits than the deterministic
+  /// mode's, since the contacts are solved in another order — but the same
+  /// bits on any number of threads. Kept in a snapshot.
+  bool get fast => c.f3d_world_fast(_live) != 0;
+
+  set fast(bool enabled) => c.f3d_world_set_fast(_live, enabled ? 1 : 0);
+
   /// Soft continuous collision, on for a new world: a contact reaches as
   /// far as its two bodies can close in a step, so a body stops at a wall
   /// it would cross in one.

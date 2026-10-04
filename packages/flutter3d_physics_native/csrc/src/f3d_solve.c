@@ -119,15 +119,23 @@ static F3dVec3 relative(const F3dSlot *a, const F3dSlot *b, F3dVec3 ra,
   return f3d_sub(va, vb);
 }
 
-/* An impulse [p] at the point: into a, out of b. */
+/* An impulse [p] at the point: into a, out of b. With [still], a body
+ * that does not move is left untouched rather than given nothing: in the
+ * fast mode a fixed floor is in many contacts of one colour at once, and
+ * nothing may write it. */
 static void push(F3dSlot *a, F3dSlot *b, const SolverBody *ba,
-                 const SolverBody *bb, F3dVec3 ra, F3dVec3 rb, F3dVec3 p) {
-  a->velocity = f3d_madd(a->velocity, p, ba->inverse_mass);
-  a->spin = f3d_add(a->spin,
-                    f3d_sym_times(ba->inverse_inertia, f3d_cross(ra, p)));
-  b->velocity = f3d_madd(b->velocity, p, -bb->inverse_mass);
-  b->spin = f3d_sub(b->spin,
-                    f3d_sym_times(bb->inverse_inertia, f3d_cross(rb, p)));
+                 const SolverBody *bb, F3dVec3 ra, F3dVec3 rb, F3dVec3 p,
+                 int still) {
+  if (!still || ba->inverse_mass > F3D_R(0.0)) {
+    a->velocity = f3d_madd(a->velocity, p, ba->inverse_mass);
+    a->spin = f3d_add(a->spin,
+                      f3d_sym_times(ba->inverse_inertia, f3d_cross(ra, p)));
+  }
+  if (!still || bb->inverse_mass > F3D_R(0.0)) {
+    b->velocity = f3d_madd(b->velocity, p, -bb->inverse_mass);
+    b->spin = f3d_sub(b->spin,
+                      f3d_sym_times(bb->inverse_inertia, f3d_cross(rb, p)));
+  }
 }
 
 typedef struct Softness {
@@ -148,12 +156,9 @@ static Softness soft(f3d_real hertz, f3d_real zeta, f3d_real h) {
   return s;
 }
 
-static void solve(F3dWorld *world, SolverContact *contacts, uint32_t count,
-                  const SolverBody *bodies, Softness softness, f3d_real h,
-                  int use_bias) {
-  const f3d_real inv_h = F3D_R(1.0) / h;
-  for (uint32_t c = 0; c < count; c++) {
-    SolverContact *sc = &contacts[c];
+static void solve_contact(F3dWorld *world, SolverContact *sc, const SolverBody *bodies,
+                          Softness softness, f3d_real inv_h, int use_bias, int still) {
+  {
     F3dManifold *m = &world->manifolds[sc->manifold];
     F3dSlot *a = &world->slots[sc->a];
     F3dSlot *b = &world->slots[sc->b];
@@ -196,7 +201,7 @@ static void solve(F3dWorld *world, SolverContact *contacts, uint32_t count,
       const f3d_real delta = total - mp->normal_impulse;
       mp->normal_impulse = total;
       p->most = f3d_max(p->most, total);
-      push(a, b, ba, bb, p->ra, p->rb, f3d_scale(n, delta));
+      push(a, b, ba, bb, p->ra, p->rb, f3d_scale(n, delta), still);
     }
     /* Friction, inside Coulomb's circle of what the normal pushes with. */
     for (uint32_t k = 0; k < sc->count; k++) {
@@ -217,15 +222,23 @@ static void solve(F3dWorld *world, SolverContact *contacts, uint32_t count,
                   f3d_scale(sc->tangent[1], n1 - mp->tangent_impulse[1]));
       mp->tangent_impulse[0] = n0;
       mp->tangent_impulse[1] = n1;
-      push(a, b, ba, bb, p->ra, p->rb, dp);
+      push(a, b, ba, bb, p->ra, p->rb, dp, still);
     }
   }
 }
 
-static void warm_start(F3dWorld *world, const SolverContact *contacts,
-                       uint32_t count, const SolverBody *bodies) {
+static void solve(F3dWorld *world, SolverContact *contacts, uint32_t count,
+                  const SolverBody *bodies, Softness softness, f3d_real h,
+                  int use_bias) {
+  const f3d_real inv_h = F3D_R(1.0) / h;
   for (uint32_t c = 0; c < count; c++) {
-    const SolverContact *sc = &contacts[c];
+    solve_contact(world, &contacts[c], bodies, softness, inv_h, use_bias, 0);
+  }
+}
+
+static void warm_contact(F3dWorld *world, const SolverContact *sc, const SolverBody *bodies,
+                         int still) {
+  {
     const F3dManifold *m = &world->manifolds[sc->manifold];
     F3dSlot *a = &world->slots[sc->a];
     F3dSlot *b = &world->slots[sc->b];
@@ -235,19 +248,23 @@ static void warm_start(F3dWorld *world, const SolverContact *contacts,
           f3d_add(f3d_scale(sc->normal, mp->normal_impulse),
                   f3d_add(f3d_scale(sc->tangent[0], mp->tangent_impulse[0]),
                           f3d_scale(sc->tangent[1], mp->tangent_impulse[1])));
-      push(a, b, &bodies[sc->a], &bodies[sc->b], sc->p[k].ra, sc->p[k].rb, p);
+      push(a, b, &bodies[sc->a], &bodies[sc->b], sc->p[k].ra, sc->p[k].rb, p, still);
     }
   }
+}
+
+static void warm_start(F3dWorld *world, const SolverContact *contacts,
+                       uint32_t count, const SolverBody *bodies) {
+  for (uint32_t c = 0; c < count; c++) warm_contact(world, &contacts[c], bodies, 0);
 }
 
 /* Restitution, once the substeps are done: a contact that was closing
  * faster than the threshold, and was pushed on, gets back its share of the
  * approach speed. */
-static void restitute(F3dWorld *world, SolverContact *contacts,
-                      uint32_t count, const SolverBody *bodies) {
-  for (uint32_t c = 0; c < count; c++) {
-    SolverContact *sc = &contacts[c];
-    if (sc->restitution == F3D_R(0.0)) continue;
+static void restitute_contact(F3dWorld *world, SolverContact *sc, const SolverBody *bodies,
+                              int still) {
+  if (sc->restitution == F3D_R(0.0)) return;
+  {
     F3dManifold *m = &world->manifolds[sc->manifold];
     F3dSlot *a = &world->slots[sc->a];
     F3dSlot *b = &world->slots[sc->b];
@@ -264,9 +281,165 @@ static void restitute(F3dWorld *world, SolverContact *contacts,
       const f3d_real delta = total - mp->normal_impulse;
       mp->normal_impulse = total;
       push(a, b, &bodies[sc->a], &bodies[sc->b], p->ra, p->rb,
-           f3d_scale(sc->normal, delta));
+           f3d_scale(sc->normal, delta), still);
     }
   }
+}
+
+static void restitute(F3dWorld *world, SolverContact *contacts,
+                      uint32_t count, const SolverBody *bodies) {
+  for (uint32_t c = 0; c < count; c++) restitute_contact(world, &contacts[c], bodies, 0);
+}
+
+/* ------------------------------------------------------------ fast mode */
+
+/* Colours a contact may take; one that finds them all taken by its bodies
+ * goes to the overflow, solved on one thread after the colours. */
+#define F3D_COLOURS 64u
+
+/* A step of the fast mode: the contacts in colour order, and what every
+ * worker needs to walk the step's stages with the rest. */
+typedef struct FastStep {
+  F3dWorld *world;
+  const SolverBody *bodies;
+  SolverContact *contacts;
+  /* contacts[order[k]] for k from group_start[g] to group_start[g + 1] are
+   * group g's; the last group, F3D_COLOURS, is the overflow. */
+  const uint32_t *order;
+  uint32_t group_start[F3D_COLOURS + 2u];
+  Softness softness;
+  f3d_real h;
+  uint32_t substeps, used, row;
+  uint32_t workers;
+  F3dBarrier barrier;
+} FastStep;
+
+/* Worker [w]'s share of [n] items: [*begin, *end). */
+static void share_of(uint32_t n, uint32_t w, uint32_t workers, uint32_t *begin,
+                     uint32_t *end) {
+  *begin = (uint32_t)((uint64_t)n * w / workers);
+  *end = (uint32_t)((uint64_t)n * (w + 1u) / workers);
+}
+
+typedef enum ContactStage { WARM, SOLVE, RELAX, RESTITUTE } ContactStage;
+
+/* Every group of contacts through one stage: a colour shared out among the
+ * workers, the overflow on worker nought, a barrier after each. */
+static void contact_stage(FastStep *f, uint32_t w, uint32_t *sense, ContactStage stage) {
+  const f3d_real inv_h = F3D_R(1.0) / f->h;
+  for (uint32_t g = 0; g <= F3D_COLOURS; g++) {
+    const uint32_t first = f->group_start[g], n = f->group_start[g + 1u] - first;
+    if (n == 0) continue;
+    uint32_t begin = 0, end = n;
+    if (g < F3D_COLOURS) {
+      share_of(n, w, f->workers, &begin, &end);
+    } else if (w != 0) {
+      end = 0;
+    }
+    for (uint32_t k = begin; k < end; k++) {
+      SolverContact *sc = &f->contacts[f->order[first + k]];
+      switch (stage) {
+        case WARM: warm_contact(f->world, sc, f->bodies, 1); break;
+        case SOLVE: solve_contact(f->world, sc, f->bodies, f->softness, inv_h, 1, 1); break;
+        case RELAX: solve_contact(f->world, sc, f->bodies, f->softness, inv_h, 0, 1); break;
+        case RESTITUTE: restitute_contact(f->world, sc, f->bodies, 1); break;
+      }
+    }
+    f3d_barrier_wait(&f->barrier, sense);
+  }
+}
+
+/* One worker's walk through the step: the same stages in the same order as
+ * the deterministic mode's, each body's motion on whichever worker has it,
+ * joints on worker nought, contacts a colour at a time. */
+static void fast_walk(void *context, uint32_t w, uint32_t begin_unused, uint32_t end_unused) {
+  (void)begin_unused;
+  (void)end_unused;
+  FastStep *f = (FastStep *)context;
+  F3dWorld *world = f->world;
+  uint32_t sense = 0, begin = 0, end = 0;
+  share_of(f->used, w, f->workers, &begin, &end);
+  for (uint32_t step = 0; step < f->substeps; step++) {
+    for (uint32_t i = begin; i < end; i++) {
+      F3dSlot *s = &world->slots[i];
+      if (moves(s)) f3d_integrate_velocity(world, s, f->h);
+    }
+    f3d_barrier_wait(&f->barrier, &sense);
+    if (w == 0) f3d_warm_joints(world, f->bodies);
+    f3d_barrier_wait(&f->barrier, &sense);
+    contact_stage(f, w, &sense, WARM);
+    if (w == 0) f3d_solve_joints(world, f->bodies, f->h, 1);
+    f3d_barrier_wait(&f->barrier, &sense);
+    contact_stage(f, w, &sense, SOLVE);
+    for (uint32_t i = begin; i < end; i++) {
+      F3dSlot *s = &world->slots[i];
+      if (!moves(s)) continue;
+      f3d_integrate_position(s, f->h);
+      if (f->bodies[i].bullet >= 0) {
+        const size_t at = (size_t)f->bodies[i].bullet * f->row + step + 1u;
+        world->bullet_at[at] = s->position;
+        world->bullet_turn[at] = s->orientation;
+      }
+    }
+    f3d_barrier_wait(&f->barrier, &sense);
+    if (w == 0) f3d_solve_joints(world, f->bodies, f->h, 0);
+    f3d_barrier_wait(&f->barrier, &sense);
+    contact_stage(f, w, &sense, RELAX);
+  }
+  contact_stage(f, w, &sense, RESTITUTE);
+}
+
+/* The lowest bit not set in [taken], or F3D_COLOURS for none. */
+static uint32_t free_colour(uint64_t taken) {
+  for (uint32_t k = 0; k < F3D_COLOURS; k++) {
+    if (!((taken >> k) & 1u)) return k;
+  }
+  return F3D_COLOURS;
+}
+
+/* The fast mode's substeps and restitution, in place of the deterministic
+ * mode's. Colours greedily in contact order — a contact takes the lowest
+ * colour neither of its moving bodies has — so the colouring, and so the
+ * bits, depend on the world alone and not on the threads. */
+static int fast_solve(F3dWorld *world, const SolverBody *bodies, SolverContact *contacts,
+                      uint32_t count, Softness softness, f3d_real h, uint32_t row,
+                      uint8_t *room) {
+  const uint32_t used = world->s.used;
+  uint64_t *taken = (uint64_t *)room;
+  uint32_t *colour = (uint32_t *)(taken + used);
+  uint32_t *order = colour + count;
+  FastStep f;
+  f3d_zero(&f, sizeof f);
+  for (uint32_t i = 0; i < used; i++) taken[i] = 0;
+  for (uint32_t c = 0; c < count; c++) {
+    const uint32_t a = contacts[c].a, b = contacts[c].b;
+    const int ma = bodies[a].inverse_mass > F3D_R(0.0);
+    const int mb = bodies[b].inverse_mass > F3D_R(0.0);
+    const uint32_t k = free_colour((ma ? taken[a] : 0u) | (mb ? taken[b] : 0u));
+    if (k < F3D_COLOURS) {
+      if (ma) taken[a] |= (uint64_t)1 << k;
+      if (mb) taken[b] |= (uint64_t)1 << k;
+    }
+    colour[c] = k;
+    f.group_start[k + 1u]++;
+  }
+  for (uint32_t g = 0; g <= F3D_COLOURS; g++) f.group_start[g + 1u] += f.group_start[g];
+  uint32_t fill[F3D_COLOURS + 1u];
+  for (uint32_t g = 0; g <= F3D_COLOURS; g++) fill[g] = f.group_start[g];
+  for (uint32_t c = 0; c < count; c++) order[fill[colour[c]]++] = c;
+  f.world = world;
+  f.bodies = bodies;
+  f.contacts = contacts;
+  f.order = order;
+  f.softness = softness;
+  f.h = h;
+  f.substeps = world->s.substeps;
+  f.used = used;
+  f.row = row;
+  f.workers = f3d_pool_size(world->pool);
+  f3d_barrier_init(&f.barrier, f.workers);
+  f3d_pool_run(world->pool, f.workers, fast_walk, &f);
+  return 1;
 }
 
 void f3d_step_solve(F3dWorld *world, f3d_real dt) {
@@ -276,9 +449,14 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
   /* The bodies, then the contacts, in the world's scratch. */
   const size_t body_bytes = ((size_t)used * sizeof(SolverBody) + 15u) &
                             ~(size_t)15u;
-  uint8_t *base = (uint8_t *)f3d_scratch(
-      world, body_bytes + (size_t)world->s.manifold_count *
-                              sizeof(SolverContact));
+  const size_t contact_bytes = ((size_t)world->s.manifold_count * sizeof(SolverContact) + 15u) &
+                               ~(size_t)15u;
+  /* The fast mode's colouring after them: a mask a body, two words a
+   * contact. */
+  const size_t fast_bytes = world->s.fast ? (size_t)used * sizeof(uint64_t) +
+                                                (size_t)world->s.manifold_count * 8u
+                                          : 0u;
+  uint8_t *base = (uint8_t *)f3d_scratch(world, body_bytes + contact_bytes + fast_bytes);
   if (base == NULL && used > 0) return;
   SolverBody *bodies = (SolverBody *)base;
   SolverContact *contacts = (SolverContact *)(base + body_bytes);
@@ -365,7 +543,11 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     world->bullet_at[at] = world->slots[i].position;
     world->bullet_turn[at] = world->slots[i].orientation;
   }
-  for (uint32_t step = 0; step < substeps; step++) {
+  if (world->s.fast) {
+    fast_solve(world, bodies, contacts, count, softness, h, row,
+               base + body_bytes + contact_bytes);
+  }
+  for (uint32_t step = 0; step < substeps && !world->s.fast; step++) {
     for (uint32_t i = 0; i < used; i++) {
       F3dSlot *s = &world->slots[i];
       if (moves(s)) f3d_integrate_velocity(world, s, h);
@@ -387,7 +569,7 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     f3d_solve_joints(world, bodies, h, 0);
     solve(world, contacts, count, bodies, softness, h, 0);
   }
-  restitute(world, contacts, count, bodies);
+  if (!world->s.fast) restitute(world, contacts, count, bodies);
   f3d_step_continuous(world, bodies);
   for (uint32_t i = 0; i < used; i++) {
     F3dSlot *s = &world->slots[i];

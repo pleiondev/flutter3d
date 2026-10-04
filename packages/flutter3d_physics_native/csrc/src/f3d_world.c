@@ -73,6 +73,13 @@ int f3d_world_set_threads(F3dWorld *world, uint32_t threads) {
 
 uint32_t f3d_world_threads(const F3dWorld *world) { return f3d_pool_size(world->pool); }
 
+int f3d_world_set_fast(F3dWorld *world, int fast) {
+  world->s.fast = fast ? 1u : 0u;
+  return 1;
+}
+
+int f3d_world_fast(const F3dWorld *world) { return world->s.fast != 0; }
+
 void f3d_world_set_gravity(F3dWorld *world, f3d_real x, f3d_real y,
                            f3d_real z) {
   world->s.gravity.x = x;

@@ -55,6 +55,9 @@ void main() {
           source.path,
           '-o',
           binary,
+          // The tests' own sqrt and pow: in libSystem on Apple's, not in
+          // glibc's libc.
+          '-lm',
         ]);
         expect(built.exitCode, 0, reason: '${built.stderr}');
         final ran = Process.runSync(binary, const <String>[]);

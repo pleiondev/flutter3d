@@ -16,6 +16,17 @@
 
 #if defined(__wasm__)
 
+void f3d_barrier_init(F3dBarrier *b, uint32_t workers) {
+  b->arrived = 0;
+  b->sense = 0;
+  b->workers = workers;
+}
+
+void f3d_barrier_wait(F3dBarrier *b, uint32_t *sense) {
+  (void)b;
+  (void)sense;
+}
+
 F3dPool *f3d_pool_create(uint32_t threads) {
   (void)threads;
   return NULL;
@@ -41,6 +52,7 @@ typedef CONDITION_VARIABLE Signal;
 #define SIGNAL_FREE(c) ((void)(c))
 #else
 #include <pthread.h>
+#include <sched.h>
 typedef pthread_t Thread;
 typedef pthread_mutex_t Lock;
 typedef pthread_cond_t Signal;
@@ -54,6 +66,66 @@ typedef pthread_cond_t Signal;
 #define SIGNAL_ONE(c) pthread_cond_signal(c)
 #define SIGNAL_FREE(c) pthread_cond_destroy(c)
 #endif
+
+/* ---------------------------------------------------------------- barrier */
+
+/* Atomics as the compilers spell them: the GCC and Clang builtins, or the
+ * Interlocked functions and fences on MSVC. */
+#if defined(_MSC_VER) && !defined(__clang__)
+#include <intrin.h>
+static uint32_t f3d_atomic_add(volatile uint32_t *p, uint32_t v) {
+  return (uint32_t)_InterlockedExchangeAdd((volatile long *)p, (long)v);
+}
+static uint32_t f3d_atomic_load(const volatile uint32_t *p) {
+  const uint32_t v = *p;
+  _ReadWriteBarrier();
+  return v;
+}
+static void f3d_atomic_store(volatile uint32_t *p, uint32_t v) {
+  _ReadWriteBarrier();
+  _InterlockedExchange((volatile long *)p, (long)v);
+}
+#else
+static uint32_t f3d_atomic_add(volatile uint32_t *p, uint32_t v) {
+  return __atomic_fetch_add(p, v, __ATOMIC_ACQ_REL);
+}
+static uint32_t f3d_atomic_load(const volatile uint32_t *p) {
+  return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+}
+static void f3d_atomic_store(volatile uint32_t *p, uint32_t v) {
+  __atomic_store_n(p, v, __ATOMIC_RELEASE);
+}
+#endif
+
+/* Gives the core up a moment: after spinning this long a waiter is likely
+ * sharing it with a thread it waits for. */
+static void yield_core(void) {
+#if defined(_WIN32)
+  SwitchToThread();
+#else
+  sched_yield();
+#endif
+}
+
+void f3d_barrier_init(F3dBarrier *b, uint32_t workers) {
+  b->arrived = 0;
+  b->sense = 0;
+  b->workers = workers;
+}
+
+void f3d_barrier_wait(F3dBarrier *b, uint32_t *sense) {
+  if (b->workers < 2u) return;
+  const uint32_t mine = *sense ^ 1u;
+  *sense = mine;
+  if (f3d_atomic_add(&b->arrived, 1u) == b->workers - 1u) {
+    f3d_atomic_store(&b->arrived, 0);
+    f3d_atomic_store(&b->sense, mine);
+    return;
+  }
+  for (uint32_t spins = 0; f3d_atomic_load(&b->sense) != mine; spins++) {
+    if (spins > 4096u) yield_core();
+  }
+}
 
 typedef struct Worker {
   F3dPool *pool;

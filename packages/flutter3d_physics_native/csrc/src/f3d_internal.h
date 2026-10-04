@@ -461,6 +461,8 @@ typedef struct F3dWorldState {
   /* The last substep's length, s: what a joint's impulse is divided by to
    * say its force. */
   f3d_real last_substep;
+  /* 1 in the fast mode: contacts solved a colour at a time, in parallel. */
+  uint32_t fast;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -486,6 +488,20 @@ uint32_t f3d_pool_size(const F3dPool *pool);
  * returns once every share is done; on the caller alone when [pool] is
  * null. */
 void f3d_pool_run(F3dPool *pool, uint32_t count, F3dTask task, void *context);
+
+/* A barrier the workers of one pass meet at, spinning: the stages of a
+ * step that must each finish before the next begins, inside one pass. */
+typedef struct F3dBarrier {
+  volatile uint32_t arrived;
+  volatile uint32_t sense;
+  uint32_t workers;
+} F3dBarrier;
+
+void f3d_barrier_init(F3dBarrier *barrier, uint32_t workers);
+
+/* Waits until all the barrier's workers have come; [sense] is the caller's
+ * own, nought to begin with, and flips each time. */
+void f3d_barrier_wait(F3dBarrier *barrier, uint32_t *sense);
 
 /* What one worker gathers in a pass, kept between steps so it need not
  * grow again. */
