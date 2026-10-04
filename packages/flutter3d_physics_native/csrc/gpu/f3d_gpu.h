@@ -27,10 +27,11 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_GPU_ABI_VERSION 1u
+#define F3D_GPU_ABI_VERSION 2u
 
 typedef struct F3dGpu F3dGpu;
 typedef struct F3dGpuParticles F3dGpuParticles;
+typedef struct F3dGpuDebris F3dGpuDebris;
 
 /* How particles move, as f3d_particles_step reads F3dParticleForces. */
 typedef struct F3dGpuParticleForces {
@@ -76,6 +77,40 @@ F3D_GPU_API void f3d_gpu_particles_step(F3dGpuParticles *particles,
  * failed. */
 F3D_GPU_API uint32_t f3d_gpu_particles_read(F3dGpuParticles *particles,
                                             float *out, uint32_t capacity);
+
+/* Debris, as f3d_debris steps it: F3dDebrisSettings, in floats. */
+typedef struct F3dGpuDebrisSettings {
+  float gravity[3];
+  float friction;
+  float restitution;
+  float linear_damping;
+  float angular_damping;
+  float max_speed;
+  uint32_t substeps;
+  uint32_t iterations;
+} F3dGpuDebrisSettings;
+
+/* [capacity] empty debris slots on [gpu]; null for none or no memory. */
+F3D_GPU_API F3dGpuDebris *f3d_gpu_debris_create(F3dGpu *gpu, uint32_t capacity);
+F3D_GPU_API void f3d_gpu_debris_destroy(F3dGpuDebris *debris);
+
+/* As f3d_debris_add and f3d_debris_set_statics. */
+F3D_GPU_API uint32_t f3d_gpu_debris_add(F3dGpuDebris *debris, const float *data,
+                                        uint32_t count);
+F3D_GPU_API int f3d_gpu_debris_set_statics(F3dGpuDebris *debris, const float *data,
+                                           uint32_t count);
+
+/* Queues a step of [dt] and, after it, the bodies' copy back. */
+F3D_GPU_API void f3d_gpu_debris_step(F3dGpuDebris *debris,
+                                     const F3dGpuDebrisSettings *settings, float dt);
+
+/* The bodies as f3d_debris_read writes them, into [out], from the latest
+ * step whose copy has come back and was not read yet: returns that step,
+ * counted from one, and nought, leaving [out] alone, when there is none.
+ * A frame late, without [wait]: the step queued last is still on the GPU.
+ * With [wait], the last step's, waited for. */
+F3D_GPU_API uint64_t f3d_gpu_debris_read(F3dGpuDebris *debris, float *out,
+                                         uint32_t capacity, int wait);
 
 #ifdef __cplusplus
 }

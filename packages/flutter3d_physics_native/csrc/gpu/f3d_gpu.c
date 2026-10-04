@@ -1,71 +1,18 @@
 /*
- * The GPU passes — P9, phase 10: a wgpu device, and particles stepped by a
- * compute shader that does what f3d_particles.c does, line for line.
+ * The GPU passes — P9, phase 10: a wgpu device, and what every pass shares
+ * (f3d_gpu_internal.h). The passes are in their own files: particles,
+ * debris.
  *
  * Written against wgpu-native's webgpu.h of v29: string views, callbacks
  * given as info structs and fired from wgpuInstanceProcessEvents, and
  * wgpuDevicePoll to wait for the queue.
  */
-#include "f3d_gpu.h"
-
 #include <stdlib.h>
 #include <string.h>
 
-#include "webgpu/webgpu.h"
-#include "webgpu/wgpu.h"
+#include "f3d_gpu_internal.h"
 
-struct F3dGpu {
-  WGPUInstance instance;
-  WGPUAdapter adapter;
-  WGPUDevice device;
-  WGPUQueue queue;
-  char name[256];
-};
-
-struct F3dGpuParticles {
-  F3dGpu *gpu;
-  uint32_t capacity;
-  uint32_t next;
-  WGPUBuffer slots;
-  WGPUBuffer staging;
-  WGPUBuffer forces;
-  WGPUShaderModule module;
-  WGPUComputePipeline pipeline;
-  WGPUBindGroup bind;
-};
-
-/* The particles' step: f3d_particles_step, in WGSL. */
-static const char kParticleShader[] =
-    "struct Particle { pos_life : vec4<f32>, vel : vec4<f32> };\n"
-    "struct Forces {\n"
-    "  gravity : vec4<f32>, wind : vec4<f32>,\n"
-    "  params : vec4<f32>,  // drag, floor, restitution, friction\n"
-    "  dt : f32, count : u32, pad0 : u32, pad1 : u32,\n"
-    "};\n"
-    "@group(0) @binding(0) var<storage, read_write> slots : array<Particle>;\n"
-    "@group(0) @binding(1) var<uniform> forces : Forces;\n"
-    "@compute @workgroup_size(64)\n"
-    "fn step(@builtin(global_invocation_id) id : vec3<u32>) {\n"
-    "  let i = id.x;\n"
-    "  if (i >= forces.count) { return; }\n"
-    "  let p = slots[i];\n"
-    "  if (!(p.pos_life.w > 0.0)) { return; }\n"
-    "  let dt = forces.dt;\n"
-    "  var v = p.vel.xyz + forces.gravity.xyz * dt;\n"
-    "  let keep = 1.0 / (1.0 + forces.params.x * dt);\n"
-    "  v = forces.wind.xyz + (v - forces.wind.xyz) * keep;\n"
-    "  var x = p.pos_life.xyz + v * dt;\n"
-    "  if (x.y < forces.params.y) {\n"
-    "    x.y = forces.params.y;\n"
-    "    if (v.y < 0.0) { v.y = -v.y * forces.params.z; }\n"
-    "    let slide = 1.0 - forces.params.w;\n"
-    "    v.x = v.x * slide;\n"
-    "    v.z = v.z * slide;\n"
-    "  }\n"
-    "  slots[i] = Particle(vec4<f32>(x, p.pos_life.w - dt), vec4<f32>(v, 0.0));\n"
-    "}\n";
-
-static WGPUStringView view(const char *s) {
+WGPUStringView f3d_gpu_view(const char *s) {
   WGPUStringView v;
   v.data = s;
   v.length = WGPU_STRLEN;
@@ -80,8 +27,7 @@ typedef struct Waiting {
 } Waiting;
 
 static void got_adapter(WGPURequestAdapterStatus status, WGPUAdapter adapter,
-                        WGPUStringView message, void *userdata1,
-                        void *userdata2) {
+                        WGPUStringView message, void *userdata1, void *userdata2) {
   (void)message;
   (void)userdata2;
   Waiting *w = (Waiting *)userdata1;
@@ -90,8 +36,7 @@ static void got_adapter(WGPURequestAdapterStatus status, WGPUAdapter adapter,
 }
 
 static void got_device(WGPURequestDeviceStatus status, WGPUDevice device,
-                       WGPUStringView message, void *userdata1,
-                       void *userdata2) {
+                       WGPUStringView message, void *userdata1, void *userdata2) {
   (void)message;
   (void)userdata2;
   Waiting *w = (Waiting *)userdata1;
@@ -99,11 +44,9 @@ static void got_device(WGPURequestDeviceStatus status, WGPUDevice device,
   w->done = 1;
 }
 
-/* Turns the instance's events over until [w] is answered, or gives up. */
-static void wait_for(WGPUInstance instance, Waiting *w) {
-  for (int i = 0; i < 100000 && !w->done; i++) {
-    wgpuInstanceProcessEvents(instance);
-  }
+/* Turns the instance's events over until [done] is set, or gives up. */
+static void wait_for(WGPUInstance instance, const int *done) {
+  for (int i = 0; i < 100000 && !*done; i++) wgpuInstanceProcessEvents(instance);
 }
 
 F3dGpu *f3d_gpu_create(void) {
@@ -124,7 +67,7 @@ F3dGpu *f3d_gpu_create(void) {
   adapter_info.callback = got_adapter;
   adapter_info.userdata1 = &wa;
   wgpuInstanceRequestAdapter(gpu->instance, &options, adapter_info);
-  wait_for(gpu->instance, &wa);
+  wait_for(gpu->instance, &wa.done);
   gpu->adapter = (WGPUAdapter)wa.result;
   if (gpu->adapter == NULL) {
     f3d_gpu_destroy(gpu);
@@ -137,7 +80,7 @@ F3dGpu *f3d_gpu_create(void) {
   device_info.callback = got_device;
   device_info.userdata1 = &wd;
   wgpuAdapterRequestDevice(gpu->adapter, NULL, device_info);
-  wait_for(gpu->instance, &wd);
+  wait_for(gpu->instance, &wd.done);
   gpu->device = (WGPUDevice)wd.result;
   if (gpu->device == NULL) {
     f3d_gpu_destroy(gpu);
@@ -146,13 +89,14 @@ F3dGpu *f3d_gpu_create(void) {
   gpu->queue = wgpuDeviceGetQueue(gpu->device);
   WGPUAdapterInfo info;
   memset(&info, 0, sizeof info);
-  if (wgpuAdapterGetInfo(gpu->adapter, &info) == WGPUStatus_Success &&
-      info.device.data != NULL) {
-    size_t n = info.device.length == WGPU_STRLEN ? strlen(info.device.data)
-                                                 : info.device.length;
-    if (n >= sizeof gpu->name) n = sizeof gpu->name - 1u;
-    memcpy(gpu->name, info.device.data, n);
-    gpu->name[n] = '\0';
+  if (wgpuAdapterGetInfo(gpu->adapter, &info) == WGPUStatus_Success) {
+    if (info.device.data != NULL) {
+      size_t n = info.device.length == WGPU_STRLEN ? strlen(info.device.data)
+                                                   : info.device.length;
+      if (n >= sizeof gpu->name) n = sizeof gpu->name - 1u;
+      memcpy(gpu->name, info.device.data, n);
+      gpu->name[n] = '\0';
+    }
     wgpuAdapterInfoFreeMembers(info);
   }
   return gpu;
@@ -177,191 +121,219 @@ uint32_t f3d_gpu_adapter_name(const F3dGpu *gpu, char *out, uint32_t capacity) {
   return (uint32_t)n;
 }
 
-/* Thirty-two bytes a slot: position and life, velocity and a spare. */
-#define SLOT_BYTES 32u
-/* Sixty-four bytes of forces, as the shader's struct lays them out. */
-#define FORCES_BYTES 64u
-
-static WGPUBuffer buffer(WGPUDevice device, WGPUBufferUsage usage, uint64_t size) {
+WGPUBuffer f3d_gpu_buffer(const F3dGpu *gpu, WGPUBufferUsage usage, uint64_t size) {
   WGPUBufferDescriptor d;
   memset(&d, 0, sizeof d);
   d.usage = usage;
-  d.size = size;
-  return wgpuDeviceCreateBuffer(device, &d);
+  /* wgpu refuses a binding of nought bytes, and copies in fours. */
+  d.size = size < 16u ? 16u : (size + 3u) & ~(uint64_t)3u;
+  return wgpuDeviceCreateBuffer(gpu->device, &d);
 }
 
-F3dGpuParticles *f3d_gpu_particles_create(F3dGpu *gpu, uint32_t capacity) {
-  if (gpu == NULL || capacity == 0 || capacity > (1u << 24)) return NULL;
-  F3dGpuParticles *p = (F3dGpuParticles *)calloc(1, sizeof(F3dGpuParticles));
-  if (p == NULL) return NULL;
-  p->gpu = gpu;
-  p->capacity = capacity;
-  const uint64_t bytes = (uint64_t)capacity * SLOT_BYTES;
-  p->slots = buffer(gpu->device,
-                    WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst |
-                        WGPUBufferUsage_CopySrc,
-                    bytes);
-  p->staging = buffer(gpu->device, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst,
-                      bytes);
-  p->forces = buffer(gpu->device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst,
-                     FORCES_BYTES);
-  if (p->slots == NULL || p->staging == NULL || p->forces == NULL) {
-    f3d_gpu_particles_destroy(p);
-    return NULL;
-  }
-  /* All dead: zeroed, so every life is nought. */
-  void *zero = calloc(1, (size_t)bytes);
-  if (zero == NULL) {
-    f3d_gpu_particles_destroy(p);
-    return NULL;
-  }
-  wgpuQueueWriteBuffer(gpu->queue, p->slots, 0, zero, (size_t)bytes);
-  free(zero);
+void f3d_gpu_finish(const F3dGpu *gpu) { wgpuDevicePoll(gpu->device, 1, NULL); }
+
+int f3d_gpu_kernels_create(F3dGpuKernels *k, const F3dGpu *gpu, const char *source,
+                           const char *const *entries, uint32_t entry_count,
+                           const F3dGpuBinding *kinds, const WGPUBuffer *buffers,
+                           const uint64_t *sizes, uint32_t binding_count) {
+  memset(k, 0, sizeof *k);
+  if (entry_count > F3D_GPU_MAX_KERNELS || binding_count > 16u) return 0;
   WGPUShaderSourceWGSL wgsl;
   memset(&wgsl, 0, sizeof wgsl);
   wgsl.chain.sType = WGPUSType_ShaderSourceWGSL;
-  wgsl.code = view(kParticleShader);
+  wgsl.code = f3d_gpu_view(source);
   WGPUShaderModuleDescriptor md;
   memset(&md, 0, sizeof md);
   md.nextInChain = &wgsl.chain;
-  p->module = wgpuDeviceCreateShaderModule(gpu->device, &md);
-  WGPUComputePipelineDescriptor pd;
-  memset(&pd, 0, sizeof pd);
-  pd.compute.module = p->module;
-  pd.compute.entryPoint = view("step");
-  p->pipeline = wgpuDeviceCreateComputePipeline(gpu->device, &pd);
-  if (p->module == NULL || p->pipeline == NULL) {
-    f3d_gpu_particles_destroy(p);
-    return NULL;
+  k->module = wgpuDeviceCreateShaderModule(gpu->device, &md);
+  WGPUBindGroupLayoutEntry layout_entries[16];
+  WGPUBindGroupEntry bind_entries[16];
+  memset(layout_entries, 0, sizeof layout_entries);
+  memset(bind_entries, 0, sizeof bind_entries);
+  for (uint32_t i = 0; i < binding_count; i++) {
+    layout_entries[i].binding = i;
+    layout_entries[i].visibility = WGPUShaderStage_Compute;
+    layout_entries[i].buffer.type = kinds[i] == F3D_GPU_UNIFORM   ? WGPUBufferBindingType_Uniform
+                                    : kinds[i] == F3D_GPU_STORAGE ? WGPUBufferBindingType_Storage
+                                                                  : WGPUBufferBindingType_ReadOnlyStorage;
+    bind_entries[i].binding = i;
+    bind_entries[i].buffer = buffers[i];
+    bind_entries[i].size = sizes[i] < 16u ? 16u : (sizes[i] + 3u) & ~(uint64_t)3u;
   }
-  WGPUBindGroupEntry entries[2];
-  memset(entries, 0, sizeof entries);
-  entries[0].binding = 0;
-  entries[0].buffer = p->slots;
-  entries[0].size = bytes;
-  entries[1].binding = 1;
-  entries[1].buffer = p->forces;
-  entries[1].size = FORCES_BYTES;
-  WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(p->pipeline, 0);
+  WGPUBindGroupLayoutDescriptor ld;
+  memset(&ld, 0, sizeof ld);
+  ld.entryCount = binding_count;
+  ld.entries = layout_entries;
+  k->layout = wgpuDeviceCreateBindGroupLayout(gpu->device, &ld);
+  WGPUPipelineLayoutDescriptor pld;
+  memset(&pld, 0, sizeof pld);
+  pld.bindGroupLayoutCount = 1;
+  pld.bindGroupLayouts = &k->layout;
+  k->pipeline_layout = wgpuDeviceCreatePipelineLayout(gpu->device, &pld);
+  if (k->module == NULL || k->layout == NULL || k->pipeline_layout == NULL) {
+    f3d_gpu_kernels_release(k);
+    return 0;
+  }
+  for (uint32_t i = 0; i < entry_count; i++) {
+    WGPUComputePipelineDescriptor pd;
+    memset(&pd, 0, sizeof pd);
+    pd.layout = k->pipeline_layout;
+    pd.compute.module = k->module;
+    pd.compute.entryPoint = f3d_gpu_view(entries[i]);
+    k->pipelines[i] = wgpuDeviceCreateComputePipeline(gpu->device, &pd);
+    k->count = i + 1u;
+    if (k->pipelines[i] == NULL) {
+      f3d_gpu_kernels_release(k);
+      return 0;
+    }
+  }
   WGPUBindGroupDescriptor bd;
   memset(&bd, 0, sizeof bd);
-  bd.layout = layout;
-  bd.entryCount = 2;
-  bd.entries = entries;
-  p->bind = wgpuDeviceCreateBindGroup(gpu->device, &bd);
-  wgpuBindGroupLayoutRelease(layout);
-  if (p->bind == NULL) {
-    f3d_gpu_particles_destroy(p);
-    return NULL;
+  bd.layout = k->layout;
+  bd.entryCount = binding_count;
+  bd.entries = bind_entries;
+  k->bind = wgpuDeviceCreateBindGroup(gpu->device, &bd);
+  if (k->bind == NULL) {
+    f3d_gpu_kernels_release(k);
+    return 0;
   }
-  return p;
+  return 1;
 }
 
-void f3d_gpu_particles_destroy(F3dGpuParticles *p) {
-  if (p == NULL) return;
-  if (p->bind != NULL) wgpuBindGroupRelease(p->bind);
-  if (p->pipeline != NULL) wgpuComputePipelineRelease(p->pipeline);
-  if (p->module != NULL) wgpuShaderModuleRelease(p->module);
-  if (p->forces != NULL) wgpuBufferRelease(p->forces);
-  if (p->staging != NULL) wgpuBufferRelease(p->staging);
-  if (p->slots != NULL) wgpuBufferRelease(p->slots);
-  free(p);
-}
-
-uint32_t f3d_gpu_particles_emit(F3dGpuParticles *p, const float *data,
-                                uint32_t count) {
-  const uint32_t first = p->next;
-  float slot[8];
-  for (uint32_t i = 0; i < count; i++) {
-    const float *d = data + (size_t)i * 7u;
-    slot[0] = d[0];
-    slot[1] = d[1];
-    slot[2] = d[2];
-    slot[3] = d[6];
-    slot[4] = d[3];
-    slot[5] = d[4];
-    slot[6] = d[5];
-    slot[7] = 0.0f;
-    wgpuQueueWriteBuffer(p->gpu->queue, p->slots, (uint64_t)p->next * SLOT_BYTES,
-                         slot, sizeof slot);
-    p->next = (p->next + 1u) % p->capacity;
+void f3d_gpu_kernels_release(F3dGpuKernels *k) {
+  if (k->bind != NULL) wgpuBindGroupRelease(k->bind);
+  for (uint32_t i = 0; i < k->count; i++) {
+    if (k->pipelines[i] != NULL) wgpuComputePipelineRelease(k->pipelines[i]);
   }
-  return first;
+  if (k->pipeline_layout != NULL) wgpuPipelineLayoutRelease(k->pipeline_layout);
+  if (k->layout != NULL) wgpuBindGroupLayoutRelease(k->layout);
+  if (k->module != NULL) wgpuShaderModuleRelease(k->module);
+  memset(k, 0, sizeof *k);
 }
 
-void f3d_gpu_particles_step(F3dGpuParticles *p, const F3dGpuParticleForces *f,
-                            float dt, uint32_t steps) {
-  if (!(dt > 0.0f) || steps == 0) return;
-  float forces[16];
-  memset(forces, 0, sizeof forces);
-  forces[0] = f->gravity[0];
-  forces[1] = f->gravity[1];
-  forces[2] = f->gravity[2];
-  forces[4] = f->wind[0];
-  forces[5] = f->wind[1];
-  forces[6] = f->wind[2];
-  forces[8] = f->drag;
-  forces[9] = f->floor_y;
-  forces[10] = f->restitution;
-  forces[11] = f->friction;
-  forces[12] = dt;
-  memcpy(&forces[13], &p->capacity, sizeof(uint32_t));
-  wgpuQueueWriteBuffer(p->gpu->queue, p->forces, 0, forces, sizeof forces);
-  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(p->gpu->device, NULL);
-  WGPUComputePassEncoder pass = wgpuCommandEncoderBeginComputePass(encoder, NULL);
-  wgpuComputePassEncoderSetPipeline(pass, p->pipeline);
-  wgpuComputePassEncoderSetBindGroup(pass, 0, p->bind, 0, NULL);
-  const uint32_t groups = (p->capacity + 63u) / 64u;
-  /* One dispatch a step: each is its own usage scope, so a step sees the
-   * last one's writes. */
-  for (uint32_t s = 0; s < steps; s++) {
-    wgpuComputePassEncoderDispatchWorkgroups(pass, groups, 1, 1);
+void f3d_gpu_dispatch(WGPUComputePassEncoder pass, const F3dGpuKernels *k, uint32_t entry,
+                      uint32_t threads) {
+  wgpuComputePassEncoderSetPipeline(pass, k->pipelines[entry]);
+  wgpuComputePassEncoderSetBindGroup(pass, 0, k->bind, 0, NULL);
+  wgpuComputePassEncoderDispatchWorkgroups(pass, (threads + 63u) / 64u, 1, 1);
+}
+
+int f3d_gpu_readback_create(F3dGpuReadback *r, const F3dGpu *gpu, uint64_t bytes) {
+  memset(r, 0, sizeof *r);
+  r->bytes = bytes;
+  for (int i = 0; i < 2; i++) {
+    r->slots[i].owner = r;
+    r->slots[i].staging =
+        f3d_gpu_buffer(gpu, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst, bytes);
+    if (r->slots[i].staging == NULL) {
+      f3d_gpu_readback_release(r);
+      return 0;
+    }
   }
-  wgpuComputePassEncoderEnd(pass);
-  wgpuComputePassEncoderRelease(pass);
-  WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, NULL);
-  wgpuQueueSubmit(p->gpu->queue, 1, &commands);
-  wgpuCommandBufferRelease(commands);
-  wgpuCommandEncoderRelease(encoder);
+  return 1;
 }
 
-static void mapped(WGPUMapAsyncStatus status, WGPUStringView message,
-                   void *userdata1, void *userdata2) {
+void f3d_gpu_readback_release(F3dGpuReadback *r) {
+  for (int i = 0; i < 2; i++) {
+    if (r->slots[i].staging != NULL) wgpuBufferRelease(r->slots[i].staging);
+    r->slots[i].staging = NULL;
+  }
+}
+
+static void mapped(WGPUMapAsyncStatus status, WGPUStringView message, void *userdata1,
+                   void *userdata2) {
   (void)message;
   (void)userdata2;
-  Waiting *w = (Waiting *)userdata1;
-  w->result = status == WGPUMapAsyncStatus_Success ? (void *)1 : NULL;
-  w->done = 1;
+  F3dGpuReadbackSlot *slot = (F3dGpuReadbackSlot *)userdata1;
+  /* A map that failed leaves the slot free, its frame never returned. */
+  slot->state = status == WGPUMapAsyncStatus_Success ? 2 : 0;
 }
 
-uint32_t f3d_gpu_particles_read(F3dGpuParticles *p, float *out,
-                                uint32_t capacity) {
-  const uint64_t bytes = (uint64_t)p->capacity * SLOT_BYTES;
-  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(p->gpu->device, NULL);
-  wgpuCommandEncoderCopyBufferToBuffer(encoder, p->slots, 0, p->staging, 0, bytes);
+void f3d_gpu_readback_request(F3dGpuReadback *r, const F3dGpu *gpu, WGPUBuffer source,
+                              uint64_t frame) {
+  int pick = -1;
+  for (int i = 0; i < 2 && pick < 0; i++) {
+    if (r->slots[i].state == 0) pick = i;
+  }
+  if (pick < 0) {
+    /* Both taken: give up the older one that has come back. */
+    for (int i = 0; i < 2; i++) {
+      if (r->slots[i].state == 2 && (pick < 0 || r->slots[i].frame < r->slots[pick].frame)) {
+        pick = i;
+      }
+    }
+    if (pick < 0) return;
+    wgpuBufferUnmap(r->slots[pick].staging);
+    r->slots[pick].state = 0;
+  }
+  F3dGpuReadbackSlot *slot = &r->slots[pick];
+  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu->device, NULL);
+  wgpuCommandEncoderCopyBufferToBuffer(encoder, source, 0, slot->staging, 0, r->bytes);
   WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, NULL);
-  wgpuQueueSubmit(p->gpu->queue, 1, &commands);
+  wgpuQueueSubmit(gpu->queue, 1, &commands);
   wgpuCommandBufferRelease(commands);
   wgpuCommandEncoderRelease(encoder);
+  slot->state = 1;
+  slot->frame = frame;
   WGPUBufferMapCallbackInfo info;
   memset(&info, 0, sizeof info);
-  Waiting w = {0, NULL};
   info.mode = WGPUCallbackMode_AllowProcessEvents;
   info.callback = mapped;
-  info.userdata1 = &w;
-  wgpuBufferMapAsync(p->staging, WGPUMapMode_Read, 0, (size_t)bytes, info);
-  wgpuDevicePoll(p->gpu->device, 1, NULL);
-  wait_for(p->gpu->instance, &w);
-  if (w.result == NULL) return 0;
-  const float *slots =
-      (const float *)wgpuBufferGetConstMappedRange(p->staging, 0, (size_t)bytes);
-  const uint32_t n = capacity < p->capacity ? capacity : p->capacity;
-  for (uint32_t i = 0; slots != NULL && i < n; i++) {
-    out[i * 4u] = slots[i * 8u];
-    out[i * 4u + 1u] = slots[i * 8u + 1u];
-    out[i * 4u + 2u] = slots[i * 8u + 2u];
-    out[i * 4u + 3u] = slots[i * 8u + 3u];
+  info.userdata1 = slot;
+  wgpuBufferMapAsync(slot->staging, WGPUMapMode_Read, 0, (size_t)r->bytes, info);
+}
+
+static void pump(const F3dGpu *gpu, int wait) {
+  wgpuDevicePoll(gpu->device, wait, NULL);
+  wgpuInstanceProcessEvents(gpu->instance);
+}
+
+uint64_t f3d_gpu_readback_take(F3dGpuReadback *r, const F3dGpu *gpu, WGPUBuffer source,
+                               uint64_t frame, int wait,
+                               void (*copy)(const void *mapped, void *out, uint32_t n),
+                               void *out, uint32_t n) {
+  pump(gpu, 0);
+  if (wait && frame > r->taken) {
+    for (int tries = 0; tries < 1000; tries++) {
+      int asked = 0;
+      for (int i = 0; i < 2; i++) asked |= r->slots[i].state != 0 && r->slots[i].frame == frame;
+      if (asked) break;
+      f3d_gpu_readback_request(r, gpu, source, frame);
+      /* Both still on their way: let one come back first. */
+      pump(gpu, 1);
+    }
+    for (int tries = 0; tries < 1000; tries++) {
+      int back = 0;
+      for (int i = 0; i < 2; i++) back |= r->slots[i].state == 2 && r->slots[i].frame == frame;
+      if (back) break;
+      pump(gpu, 1);
+    }
   }
-  wgpuBufferUnmap(p->staging);
-  return slots != NULL ? n : 0;
+  int best = -1;
+  for (int i = 0; i < 2; i++) {
+    F3dGpuReadbackSlot *slot = &r->slots[i];
+    if (slot->state != 2) continue;
+    if (slot->frame <= r->taken) {
+      wgpuBufferUnmap(slot->staging);
+      slot->state = 0;
+      continue;
+    }
+    if (best < 0 || slot->frame > r->slots[best].frame) best = i;
+  }
+  if (best < 0) return 0;
+  F3dGpuReadbackSlot *slot = &r->slots[best];
+  const void *data = wgpuBufferGetConstMappedRange(slot->staging, 0, (size_t)r->bytes);
+  if (data == NULL) return 0;
+  copy(data, out, n);
+  wgpuBufferUnmap(slot->staging);
+  slot->state = 0;
+  r->taken = slot->frame;
+  /* The other, older and come back, is past. */
+  for (int i = 0; i < 2; i++) {
+    if (r->slots[i].state == 2 && r->slots[i].frame <= r->taken) {
+      wgpuBufferUnmap(r->slots[i].staging);
+      r->slots[i].state = 0;
+    }
+  }
+  return r->taken;
 }

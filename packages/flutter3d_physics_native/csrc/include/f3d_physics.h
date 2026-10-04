@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 12u
+#define F3D_ABI_VERSION 13u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -558,6 +558,74 @@ F3D_API void f3d_particles_step(F3dParticles *particles,
  * [capacity]; returns how many. */
 F3D_API uint32_t f3d_particles_read(const F3dParticles *particles,
                                     f3d_real *out, uint32_t capacity);
+
+/* ----------------------------------------------------------------- debris */
+
+/* Debris: the visual bodies — rubble, shards, crates' splinters, the
+ * thousands of things a blast throws that nobody steers and nothing in the
+ * game reads. Balls, each with its own size and mass, that fall, knock into
+ * each other, roll and come to rest on still planes and boxes. The GPU
+ * steps the same system in f3d_gpu.h and is read a frame late; this one is
+ * its reference and the fallback where there is none.
+ *
+ * Each substep finds contacts through a hashed grid of cells as wide as
+ * three of the largest radii, and solves them all at once from the same
+ * velocities — Jacobi, every body splitting its mass among its contacts so
+ * a heap does not blow up — then moves and turns the bodies. A fixed
+ * number of slots, filled round and round; a slot of radius nought is
+ * empty. */
+typedef struct F3dDebris F3dDebris;
+
+/* Reals one body takes in f3d_debris_add: position xyz, velocity xyz,
+ * radius, mass. */
+#define F3D_DEBRIS_INPUT_FLOATS 8u
+/* Reals one body takes in f3d_debris_read: position xyz, orientation
+ * xyzw, radius. */
+#define F3D_DEBRIS_FLOATS 8u
+/* Reals one still shape takes in f3d_debris_set_statics: a plane as its
+ * normal xyz and its offset along it, then 0, 0, 0, 0; a box, unturned, as
+ * its centre xyz and 0, then its half extents xyz and 1. */
+#define F3D_DEBRIS_STATIC_FLOATS 8u
+#define F3D_DEBRIS_MAX_STATICS 64u
+
+typedef struct F3dDebrisSettings {
+  f3d_real gravity[3];
+  f3d_real friction;
+  /* Applied when two close faster than 1 m/s. */
+  f3d_real restitution;
+  /* Per second, as v / (1 + c dt). */
+  f3d_real linear_damping;
+  f3d_real angular_damping;
+  /* No body is let faster than this. */
+  f3d_real max_speed;
+  /* At least one each: substeps a step, and impulse passes a substep. */
+  uint32_t substeps;
+  uint32_t iterations;
+} F3dDebrisSettings;
+
+/* [capacity] empty slots; null for none or no memory. */
+F3D_API F3dDebris *f3d_debris_create(uint32_t capacity);
+F3D_API void f3d_debris_destroy(F3dDebris *debris);
+F3D_API uint32_t f3d_debris_capacity(const F3dDebris *debris);
+
+/* [count] bodies into the next slots, F3D_DEBRIS_INPUT_FLOATS reals apiece,
+ * unturned; a radius or mass of nought or less empties the slot. Returns
+ * the slot the first went into. */
+F3D_API uint32_t f3d_debris_add(F3dDebris *debris, const f3d_real *data,
+                                uint32_t count);
+
+/* The still shapes, replacing the last; 0 when there are more than
+ * F3D_DEBRIS_MAX_STATICS. */
+F3D_API int f3d_debris_set_statics(F3dDebris *debris, const f3d_real *data,
+                                   uint32_t count);
+
+F3D_API void f3d_debris_step(F3dDebris *debris,
+                             const F3dDebrisSettings *settings, f3d_real dt);
+
+/* Every slot, F3D_DEBRIS_FLOATS reals apiece, into [out]: up to
+ * [capacity]; returns how many. */
+F3D_API uint32_t f3d_debris_read(const F3dDebris *debris, f3d_real *out,
+                                 uint32_t capacity);
 
 /* -------------------------------------------------------------- snapshots */
 

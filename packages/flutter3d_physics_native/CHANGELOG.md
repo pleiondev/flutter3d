@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **Debris, the visual bodies, read a frame late — phase 10.** Balls of
+  any size and mass that fall, knock into each other, roll and settle on
+  still planes and boxes: rubble and splinters nobody steers and the game
+  never reads. `f3d_debris` in the core finds contacts through a hashed
+  grid with a list per cell and solves them all at once from the same
+  velocities, each body splitting its mass among its contacts; without the
+  split a ball landing in a shallow groove is stopped twice over and hops
+  two centimetres. A pair's impulse is always worked out from its lower
+  slot, so both bodies get it to the bit and a free cluster keeps its
+  momentum. The GPU runs the same passes in WGSL, building the grid with
+  `atomicExchange`; a read without waiting gives the last step whose copy
+  has come back, a frame behind the one queued. Until bodies meet the GPU
+  agrees with the CPU to the bit; a poured heap of a thousand then goes
+  its own way body by body, and settles to the same mean height within a
+  part in a thousand. The GPU library is split into a file per pass, with
+  the device, kernels and readback shared. ABI 13, GPU ABI 2.
+
 - **Particles, and the first GPU pass, phase 10.** `f3d_particles` in the
   core steps sparks, spray and dust: gravity, a drift towards the wind,
   a floor they bounce off and slide on, a life that runs out, slots filled

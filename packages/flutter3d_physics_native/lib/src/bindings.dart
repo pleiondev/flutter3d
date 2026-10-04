@@ -18,7 +18,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 12;
+const int abiVersion = 13;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -1061,6 +1061,80 @@ external void f3d_particles_step(
 )
 external int f3d_particles_read(
   Pointer<F3dParticles> particles,
+  Pointer<Float> out,
+  int capacity,
+);
+
+// ----------------------------------------------------------------- debris
+
+final class F3dDebris extends Opaque {}
+
+/// `F3D_DEBRIS_INPUT_FLOATS`, `F3D_DEBRIS_FLOATS`, `F3D_DEBRIS_STATIC_FLOATS`
+/// and `F3D_DEBRIS_MAX_STATICS`.
+const int debrisInputFloats = 8;
+const int debrisFloats = 8;
+const int debrisStaticFloats = 8;
+const int debrisMaxStatics = 64;
+
+/// `F3dDebrisSettings`, field for field.
+final class F3dDebrisSettings extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Float()
+  external double friction;
+  @Float()
+  external double restitution;
+  @Float()
+  external double linear_damping;
+  @Float()
+  external double angular_damping;
+  @Float()
+  external double max_speed;
+  @Uint32()
+  external int substeps;
+  @Uint32()
+  external int iterations;
+}
+
+@Native<Pointer<F3dDebris> Function(Uint32)>()
+external Pointer<F3dDebris> f3d_debris_create(int capacity);
+
+@Native<Void Function(Pointer<F3dDebris>)>()
+external void f3d_debris_destroy(Pointer<F3dDebris> debris);
+
+@Native<Uint32 Function(Pointer<F3dDebris>)>(isLeaf: true)
+external int f3d_debris_capacity(Pointer<F3dDebris> debris);
+
+@Native<Uint32 Function(Pointer<F3dDebris>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_debris_add(
+  Pointer<F3dDebris> debris,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<Int32 Function(Pointer<F3dDebris>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_debris_set_statics(
+  Pointer<F3dDebris> debris,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<Void Function(Pointer<F3dDebris>, Pointer<F3dDebrisSettings>, Float)>()
+external void f3d_debris_step(
+  Pointer<F3dDebris> debris,
+  Pointer<F3dDebrisSettings> settings,
+  double dt,
+);
+
+@Native<Uint32 Function(Pointer<F3dDebris>, Pointer<Float>, Uint32)>(
+  isLeaf: true,
+)
+external int f3d_debris_read(
+  Pointer<F3dDebris> debris,
   Pointer<Float> out,
   int capacity,
 );

@@ -12,7 +12,7 @@ library;
 import 'dart:ffi';
 
 /// `F3D_GPU_ABI_VERSION` this file was written against.
-const int gpuAbiVersion = 1;
+const int gpuAbiVersion = 2;
 
 final class F3dGpu extends Opaque {}
 
@@ -86,4 +86,68 @@ external int f3d_gpu_particles_read(
   Pointer<F3dGpuParticles> particles,
   Pointer<Float> out,
   int capacity,
+);
+
+final class F3dGpuDebris extends Opaque {}
+
+/// `F3dGpuDebrisSettings`, field for field.
+final class F3dGpuDebrisSettings extends Struct {
+  @Array(3)
+  external Array<Float> gravity;
+  @Float()
+  external double friction;
+  @Float()
+  external double restitution;
+  @Float()
+  external double linear_damping;
+  @Float()
+  external double angular_damping;
+  @Float()
+  external double max_speed;
+  @Uint32()
+  external int substeps;
+  @Uint32()
+  external int iterations;
+}
+
+@Native<Pointer<F3dGpuDebris> Function(Pointer<F3dGpu>, Uint32)>()
+external Pointer<F3dGpuDebris> f3d_gpu_debris_create(
+  Pointer<F3dGpu> gpu,
+  int capacity,
+);
+
+@Native<Void Function(Pointer<F3dGpuDebris>)>()
+external void f3d_gpu_debris_destroy(Pointer<F3dGpuDebris> debris);
+
+@Native<Uint32 Function(Pointer<F3dGpuDebris>, Pointer<Float>, Uint32)>()
+external int f3d_gpu_debris_add(
+  Pointer<F3dGpuDebris> debris,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<Int32 Function(Pointer<F3dGpuDebris>, Pointer<Float>, Uint32)>()
+external int f3d_gpu_debris_set_statics(
+  Pointer<F3dGpuDebris> debris,
+  Pointer<Float> data,
+  int count,
+);
+
+@Native<
+  Void Function(Pointer<F3dGpuDebris>, Pointer<F3dGpuDebrisSettings>, Float)
+>()
+external void f3d_gpu_debris_step(
+  Pointer<F3dGpuDebris> debris,
+  Pointer<F3dGpuDebrisSettings> settings,
+  double dt,
+);
+
+@Native<
+  Uint64 Function(Pointer<F3dGpuDebris>, Pointer<Float>, Uint32, Int32)
+>()
+external int f3d_gpu_debris_read(
+  Pointer<F3dGpuDebris> debris,
+  Pointer<Float> out,
+  int capacity,
+  int wait,
 );

@@ -36,6 +36,7 @@ const List<String> coreSources = <String>[
   'csrc/src/f3d_ccd.c',
   'csrc/src/f3d_query.c',
   'csrc/src/f3d_particles.c',
+  'csrc/src/f3d_debris.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 
@@ -65,7 +66,11 @@ void main(List<String> args) async {
     await CBuilder.library(
       name: 'f3d_gpu',
       assetName: 'src/gpu_bindings.dart',
-      sources: const <String>['csrc/gpu/f3d_gpu.c'],
+      sources: const <String>[
+        'csrc/gpu/f3d_gpu.c',
+        'csrc/gpu/f3d_gpu_particles.c',
+        'csrc/gpu/f3d_gpu_debris.c',
+      ],
       includes: <String>['csrc/gpu', '${wgpu.path}/include'],
       std: 'c11',
       libraries: const <String>['wgpu_native'],

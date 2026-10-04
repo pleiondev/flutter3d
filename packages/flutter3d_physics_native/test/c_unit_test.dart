@@ -35,6 +35,9 @@ void main() {
         final binary = '${scratch.path}/test';
         final built = Process.runSync('cc', <String>[
           '-std=c11',
+          // The sanitisers see as much at -O1, and the heaps of debris and
+          // cloth step in seconds instead of minutes.
+          '-O1',
           '-Wall',
           '-Wextra',
           '-Werror',

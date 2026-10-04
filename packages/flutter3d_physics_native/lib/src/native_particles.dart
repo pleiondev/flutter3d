@@ -198,6 +198,10 @@ final class NativeGpu {
   }
 }
 
+/// [gpu]'s device, for the GPU systems in this package's other files;
+/// hidden from its exports.
+Pointer<g.F3dGpu> nativeGpuPointer(NativeGpu gpu) => gpu._live;
+
 /// Particles stepped by a compute shader that does what [NativeParticles]
 /// does, step for step: the same to a GPU's own rounding.
 final class GpuParticles implements ParticleSystem {
