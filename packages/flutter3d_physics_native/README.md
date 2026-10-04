@@ -75,7 +75,8 @@ The browser has its own test, run in Chrome with both web compilers:
 
 ```sh
 dart test -p chrome test/web_core_test.dart
-dart test -p chrome -c dart2wasm test/web_core_test.dartdart test -p chrome_sab test/web_threads_test.dart
+dart test -p chrome -c dart2wasm test/web_core_test.dart
+CHROME_EXECUTABLE=tool/chrome_sab.sh dart test -p chrome test/web_threads_test.dart
 ```
 
-The last runs on Chrome asked for SharedArrayBuffer outright (`dart_test.yaml`), since the test runner's pages are not isolated.
+The last runs on Chrome asked for SharedArrayBuffer outright by `tool/chrome_sab.sh`, since the test runner's pages are not isolated; without it the test is skipped.

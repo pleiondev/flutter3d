@@ -5,7 +5,8 @@
 // Needs SharedArrayBuffer, which a page has when served cross-origin
 // isolated; skipped where there is none. Chrome is asked for it:
 //
-//     <dart test> -p chrome_sab test/web_threads_test.dart
+//     CHROME_EXECUTABLE=tool/chrome_sab.sh <dart test> -p chrome \
+//         test/web_threads_test.dart
 @TestOn('browser')
 library;
 
