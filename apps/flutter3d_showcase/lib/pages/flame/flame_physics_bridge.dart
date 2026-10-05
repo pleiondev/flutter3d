@@ -202,11 +202,10 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     final world = CollisionWorld();
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
     // A thin trigger embedded just above the floor, so the crate's fall
-    // genuinely overlaps something: the dynamics stop a falling body exactly
-    // at the surface it lands on, never inside it, so the floor itself never
-    // reports an overlap to relay. The dynamics ignore triggers entirely
-    // (`includeTriggers: false` in its own contact queries), so this sensor
-    // never affects how or where the crate actually lands.
+    // overlaps something there is an overlap to relay for — the floor is not
+    // one: its contacts are the solver's, not the world's overlaps. Triggers
+    // stand nowhere in the core, so this sensor never affects how or where
+    // the crate actually lands.
     final landingSensor = world.add(
       Collider(
         shape: CollisionBox(Vector3(3.0, 0.05, 3.0)),

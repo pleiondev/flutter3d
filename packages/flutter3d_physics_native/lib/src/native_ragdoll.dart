@@ -107,6 +107,12 @@ final class NativeRagdoll {
   /// given. Every joint resists turning with [friction] N m, or the ragdoll
   /// never comes to rest. When the world is a [NativeDynamics]', [dynamics]
   /// keeps these bodies through its restores.
+  ///
+  /// [layer] and [mask] are its bodies' collision filter. A ragdoll in the
+  /// core a game's characters move and its rays are cast in is met by them
+  /// as a body nobody's collider stands for, unless it is on a layer their
+  /// masks leave out — or in a core of its own, as the dungeon's corpses
+  /// are.
   NativeRagdoll(
     this.world,
     List<RagdollBone> rest, {
@@ -115,6 +121,8 @@ final class NativeRagdoll {
     List<Vector3>? spin,
     double friction = 2.0,
     NativeDynamics? dynamics,
+    int layer = 1,
+    int mask = 0xffffffff,
   }) : bones = List<RagdollBone>.unmodifiable(rest),
        _dynamics = dynamics {
     for (var i = 0; i < rest.length; i++) {
@@ -139,7 +147,8 @@ final class NativeRagdoll {
             (length * 0.5 - bone.radius).clamp(0.01, double.infinity),
           ),
         )
-        ..setOrientation(body, turn);
+        ..setOrientation(body, turn)
+        ..setCollisionFilter(body, layer: layer, mask: mask);
       _bodies.add(body);
       // The bone's frame from the body's: inverse(body) · bone.
       final inverse = turn.conjugated();

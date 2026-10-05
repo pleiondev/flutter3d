@@ -85,8 +85,8 @@ F3D_API int f3d_world_cast_shape__w(void * world, int kind, f3d_real a, f3d_real
   return f3d_world_cast_shape((void *)world, kind, a, b, c, rounding, px, py, pz, qx, qy, qz, qw, tx, ty, tz, mask, ((uint64_t)ignore_high << 32) | ignore_low, (void *)body, (void *)hit);
 }
 
-F3D_API uint32_t f3d_world_move_character__w(void * world, f3d_real radius, f3d_real half_height, void * position, f3d_real dx, f3d_real dy, f3d_real dz, void * velocity, f3d_real max_slope_cos, f3d_real step_height, uint32_t mask, uint32_t from_above, uint32_t options, uint32_t ignore_low, uint32_t ignore_high, void * ground_body, void * ground) {
-  return f3d_world_move_character((void *)world, radius, half_height, (void *)position, dx, dy, dz, (void *)velocity, max_slope_cos, step_height, mask, from_above, options, ((uint64_t)ignore_high << 32) | ignore_low, (void *)ground_body, (void *)ground);
+F3D_API uint32_t f3d_world_move_character__w(void * world, f3d_real radius, f3d_real half_height, void * position, f3d_real dx, f3d_real dy, f3d_real dz, void * velocity, f3d_real max_slope_cos, f3d_real step_height, uint32_t mask, uint32_t from_above, uint32_t options, uint32_t ignore_low, uint32_t ignore_high, void * ground_body, void * ground, void * stepped_up) {
+  return f3d_world_move_character((void *)world, radius, half_height, (void *)position, dx, dy, dz, (void *)velocity, max_slope_cos, step_height, mask, from_above, options, ((uint64_t)ignore_high << 32) | ignore_low, (void *)ground_body, (void *)ground, (void *)stepped_up);
 }
 
 F3D_API uint32_t f3d_body_create__w(void * world, int type, f3d_real px, f3d_real py, f3d_real pz, f3d_real mass) {

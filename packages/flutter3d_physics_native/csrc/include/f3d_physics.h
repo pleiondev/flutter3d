@@ -544,19 +544,23 @@ F3D_API int f3d_world_cast_shape(F3dWorld *world, F3dShapeKind kind,
  * wall, which it slides along and does not climb. With
  * F3D_CHARACTER_MAY_STEP in [options], a move that met something tries a
  * step up to [step_height] and keeps it only if it got further along
- * (dx, dz) than sliding did; it keeps to ground it is walking down within
- * that height. The ground's normal goes into ground[0..2] and its body into
+ * (dx, dz) than sliding did — only when a wall stopped it, and not when
+ * something overhead stops the lift — writing how far it was lifted into
+ * [stepped_up]; it keeps to ground it is walking down within that height.
+ * It starts by moving out of anything it is inside, along the deepest
+ * overlap's normal, the speed into it taken out too. The ground's normal goes into ground[0..2] and its body into
  * [ground_body] (nought when in the air). Returns F3D_CHARACTER_ bits.
  * A body on a layer in [from_above] is a floor from above and nothing else:
- * met only with a normal whose height is at least [max_slope_cos], passed
- * through rising into it or walking into its side.
+ * met only with a normal whose height is at least [max_slope_cos], and not
+ * when it starts inside one — passed through jumping up into it, walking
+ * into its side, or falling on from inside it.
  * Kinematic: nothing pushes it, and it moves nothing. */
 F3D_API uint32_t f3d_world_move_character(
     F3dWorld *world, f3d_real radius, f3d_real half_height, f3d_real *position,
     f3d_real dx, f3d_real dy, f3d_real dz, f3d_real *velocity,
     f3d_real max_slope_cos, f3d_real step_height, uint32_t mask,
     uint32_t from_above, uint32_t options, F3dBody ignore, F3dBody *ground_body,
-    f3d_real *ground);
+    f3d_real *ground, f3d_real *stepped_up);
 
 /* -------------------------------------------------------------- particles */
 

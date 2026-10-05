@@ -399,6 +399,7 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber ignoreHigh,
     JSNumber groundBody,
     JSNumber ground,
+    JSNumber steppedUp,
   );
   @JS('f3d_particles_create')
   external JSNumber f3d_particles_create(JSNumber capacity);
@@ -1370,6 +1371,7 @@ int f3d_world_move_character(
   int ignore,
   int groundBody,
   int ground,
+  int steppedUp,
 ) => _x
     .f3d_world_move_character(
       world.toJS,
@@ -1389,6 +1391,7 @@ int f3d_world_move_character(
       highHalf(ignore).toJS,
       groundBody.toJS,
       ground.toJS,
+      steppedUp.toJS,
     )
     .toDartInt
     .toUnsigned(32);

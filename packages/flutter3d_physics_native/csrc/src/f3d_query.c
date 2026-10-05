@@ -497,8 +497,6 @@ static int cast_against(const F3dPlaced *q, F3dVec3 move, const F3dPlaced *other
   return 0;
 }
 
-/* The nearest cast hit of [q] moved by [move] against what the world holds:
- * 1 when there is one. */
 /* The nearest of what [q] moved by [move] meets. A body on a layer in
  * [from_above] is met only from above — with a normal whose height is at
  * least [from_above_cos] — and passed through every other way: a platform
@@ -518,7 +516,11 @@ static int cast_world(F3dWorld *world, const F3dPlaced *q, F3dVec3 move,
     f3d_real t;
     F3dVec3 nn, pp;
     if (!cast_against(q, move, &p, &t, &nn, &pp)) continue;
-    if ((s->layer & from_above) && nn.y < from_above_cos) continue;
+    /* Met from above or not at all; and not one it starts inside, which a
+     * body rising through it or standing in it passes out of. */
+    if ((s->layer & from_above) && (nn.y < from_above_cos || t <= F3D_R(0.0))) {
+      continue;
+    }
     if (found && t >= *fraction) continue;
     found = 1;
     *body = f3d_handle_of(world, s);
@@ -591,7 +593,6 @@ static int advance(Character *c, F3dVec3 move, F3dVec3 *normal, F3dBody *body,
 /* What one slide met: its F3D_CHARACTER_ bits and the ground it stood on. */
 typedef struct Slid {
   uint32_t flags;
-  int met;
   F3dBody ground_body;
   F3dVec3 ground;
 } Slid;
@@ -602,14 +603,13 @@ typedef struct Slid {
  * met as an upright wall, so sliding along it does not climb it. */
 static Slid slide(Character *c, F3dVec3 move, F3dVec3 *velocity,
                   f3d_real max_slope_cos) {
-  Slid out = {0u, 0, 0, {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0)}};
+  Slid out = {0u, 0, {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0)}};
   F3dVec3 left = move;
   for (int i = 0; i < 4 && f3d_dot(left, left) > F3D_R(1e-14); i++) {
     F3dVec3 n;
     F3dBody hit;
     f3d_real travelled;
     if (!advance(c, left, &n, &hit, &travelled)) break;
-    out.met = 1;
     /* What is left of the move, not of where the skin put it. */
     left = f3d_scale(left, F3D_R(1.0) - travelled);
     if (n.y >= max_slope_cos) {
@@ -633,6 +633,38 @@ static Slid slide(Character *c, F3dVec3 move, F3dVec3 *velocity,
   return out;
 }
 
+/* Out of whatever the character starts inside — something moved into it,
+ * a door, a lift's side, another character: up to four times the deepest
+ * overlap, along its normal by its depth and the skin, the speed into it
+ * taken out of [velocity]. Not out of a body on a from-above layer, which
+ * it passes through. */
+static void push_out(Character *c, F3dVec3 *velocity) {
+  for (int k = 0; k < 4; k++) {
+    Near n;
+    gather(c->world, around(c->shape.at, c->shape.at, reach_of(&c->shape)), &n);
+    f3d_real worst = F3D_R(0.0);
+    F3dVec3 away = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+    for (uint32_t i = 0; i < n.count; i++) {
+      const F3dSlot *s = &c->world->slots[n.slots[i]];
+      if (!sees(c->world, s, c->mask, c->ignore)) continue;
+      if (s->layer & c->from_above) continue;
+      const F3dPlaced p = f3d_placed_of(c->world, s);
+      F3dManifold m;
+      f3d_zero(&m, sizeof m);
+      if (f3d_collide(&c->shape, &p, F3D_R(0.0), &m) == 0) continue;
+      const f3d_real depth = deepest(&m, NULL);
+      if (depth > worst) {
+        worst = depth;
+        away = m.normal;
+      }
+    }
+    if (!(worst > F3D_QUERY_TOLERANCE)) return;
+    c->shape.at = f3d_madd(c->shape.at, away, worst + F3D_CHARACTER_SKIN);
+    const f3d_real speed = f3d_dot(*velocity, away);
+    if (speed < F3D_R(0.0)) *velocity = f3d_madd(*velocity, away, -speed);
+  }
+}
+
 /* How far [at] got from [from] along the level direction (dx, dz). */
 static f3d_real progress(F3dVec3 from, F3dVec3 at, f3d_real dx, f3d_real dz) {
   return (at.x - from.x) * dx + (at.z - from.z) * dz;
@@ -645,8 +677,9 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
                                   f3d_real step_height, uint32_t mask,
                                   uint32_t from_above, uint32_t options,
                                   F3dBody ignore, F3dBody *ground_body,
-                                  f3d_real *ground) {
+                                  f3d_real *ground, f3d_real *stepped_up) {
   *ground_body = 0;
+  *stepped_up = F3D_R(0.0);
   ground[0] = ground[1] = ground[2] = F3D_R(0.0);
   if (!(f3d_finite(radius) && radius > F3D_R(0.0))) return 0;
   if (!(f3d_finite(half_height) && half_height >= F3D_R(0.0))) return 0;
@@ -663,8 +696,10 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
   const F3dQuat upright = {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0), F3D_R(1.0)};
   query_shape(F3D_SHAPE_CAPSULE, radius, half_height, F3D_R(0.0), F3D_R(0.0),
               f3d_v3(position[0], position[1], position[2]), upright, &c.shape);
+  F3dVec3 pushed = f3d_v3(velocity[0], velocity[1], velocity[2]);
+  push_out(&c, &pushed);
   const F3dVec3 start = c.shape.at;
-  const F3dVec3 v0 = f3d_v3(velocity[0], velocity[1], velocity[2]);
+  const F3dVec3 v0 = pushed;
 
   /* The plain move: slide along whatever is in the way. */
   F3dVec3 v = v0;
@@ -673,37 +708,43 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
   *ground_body = plain.ground_body;
   F3dVec3 g = plain.ground;
 
-  /* Met something while standing: it might be a step rather than a wall.
-   * Up by the step's height, across, down onto ground — and taken only if
-   * it got further along the way asked than the plain move did, which is
-   * what tells a stair from a wall, and a ramp from either. */
+  /* Stopped by a wall while standing: it might be a step. Up by the step's
+   * height — given up if something overhead stops it there, there being no
+   * room to climb into — across, down onto ground; and taken only if it got
+   * further along the way asked than sliding did, which tells a stair from
+   * a wall. */
   const int level = dx * dx + dz * dz > F3D_R(1e-14);
-  if ((options & F3D_CHARACTER_MAY_STEP) && plain.met && level &&
-      step_height > F3D_R(0.0)) {
+  if ((options & F3D_CHARACTER_MAY_STEP) && (plain.flags & F3D_CHARACTER_WALL) &&
+      level && step_height > F3D_R(0.0)) {
     const F3dVec3 plain_at = c.shape.at;
     const F3dVec3 plain_v = v;
     c.shape.at = start;
     F3dVec3 n;
     F3dBody hit;
     f3d_real travelled;
-    advance(&c, f3d_v3(F3D_R(0.0), step_height, F3D_R(0.0)), &n, &hit,
-            &travelled);
-    const f3d_real lift = c.shape.at.y - start.y;
-    F3dVec3 sv = v0;
-    slide(&c, f3d_v3(dx, F3D_R(0.0), dz), &sv, max_slope_cos);
-    const int landed = advance(
-        &c, f3d_v3(F3D_R(0.0), -lift - F3D_CHARACTER_SKIN, F3D_R(0.0)), &n,
-        &hit, &travelled);
-    if (landed && n.y >= max_slope_cos &&
-        progress(start, c.shape.at, dx, dz) >
-            progress(start, plain_at, dx, dz) + F3D_R(1e-6)) {
-      flags = (flags & ~F3D_CHARACTER_WALL) | F3D_CHARACTER_STEPPED |
-              F3D_CHARACTER_GROUNDED;
-      *ground_body = hit;
-      g = n;
-      sv.y = F3D_R(0.0);
-      v = sv;
-    } else {
+    int kept = 0;
+    if (!advance(&c, f3d_v3(F3D_R(0.0), step_height, F3D_R(0.0)), &n, &hit,
+                 &travelled)) {
+      F3dVec3 sv = v0;
+      slide(&c, f3d_v3(dx, F3D_R(0.0), dz), &sv, max_slope_cos);
+      const int landed = advance(
+          &c,
+          f3d_v3(F3D_R(0.0), -step_height - F3D_CHARACTER_SKIN, F3D_R(0.0)),
+          &n, &hit, &travelled);
+      if (landed && n.y >= max_slope_cos &&
+          progress(start, c.shape.at, dx, dz) >
+              progress(start, plain_at, dx, dz) + F3D_R(1e-6)) {
+        kept = 1;
+        flags = (flags & ~F3D_CHARACTER_WALL) | F3D_CHARACTER_STEPPED |
+                F3D_CHARACTER_GROUNDED;
+        *ground_body = hit;
+        g = n;
+        *stepped_up = f3d_max(c.shape.at.y - start.y, F3D_R(0.0));
+        sv.y = F3D_R(0.0);
+        v = sv;
+      }
+    }
+    if (!kept) {
       c.shape.at = plain_at;
       v = plain_v;
     }

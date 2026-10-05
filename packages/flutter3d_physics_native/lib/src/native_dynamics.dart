@@ -135,7 +135,7 @@ final class NativeDynamics implements RigidDynamics {
         if (collider.kind == ColliderKind.trigger) return;
         if (_byCollider.containsKey(collider)) return;
         present.add(collider);
-        _standing[collider] ??= _standingFor(collider);
+        _standingNow(collider);
       }
 
       world.statics.forEach(stand);
@@ -148,7 +148,18 @@ final class NativeDynamics implements RigidDynamics {
       });
     }
     for (final collider in world.movers) {
-      _standing[collider]?.place(native, collider);
+      if (collider.kind == ColliderKind.trigger) {
+        // Turned into one since — a monster that died: it blocks nothing.
+        final gone = _standing.remove(collider);
+        if (gone != null) {
+          native.removeBody(gone.handle);
+          _owners.remove(gone.handle);
+        }
+        continue;
+      }
+      if (_byCollider.containsKey(collider)) continue;
+      // Made again if it changed shape — a body that crouched — since.
+      _standingNow(collider).place(native, collider);
     }
   }
 
@@ -297,7 +308,7 @@ final class NativeDynamics implements RigidDynamics {
     void consider(Collider collider) {
       if (collider.kind == ColliderKind.trigger) return;
       if (_byCollider.containsKey(collider)) return;
-      final standing = _standing[collider] ??= _standingFor(collider);
+      final standing = _standingNow(collider);
       standing.sweep = sweep;
       standing.follow(native, collider, dt);
     }
@@ -312,6 +323,20 @@ final class NativeDynamics implements RigidDynamics {
     });
   }
 
+  /// [collider]'s standing body, made if it has none and made again if it
+  /// has changed shape since.
+  _Standing _standingNow(Collider collider) {
+    final standing = _standing[collider];
+    if (standing != null && identical(standing.shape, collider.shape)) {
+      return standing;
+    }
+    if (standing != null) {
+      native.removeBody(standing.handle);
+      _owners.remove(standing.handle);
+    }
+    return _standing[collider] = _standingFor(collider);
+  }
+
   _Standing _standingFor(Collider collider) {
     final (shape, offset) = _shapeOf(collider.shape);
     final handle = native.addBody(
@@ -321,7 +346,7 @@ final class NativeDynamics implements RigidDynamics {
     );
     shape(handle);
     _owners[handle] = collider;
-    return _Standing(handle, offset)..placed(native, collider);
+    return _Standing(handle, offset, collider.shape)..placed(native, collider);
   }
 
   /// What shapes a core body as [shape], and where the core puts its origin
@@ -466,17 +491,32 @@ bool _same(Quaternion a, Quaternion b) =>
 
 /// A collider standing in the core as a fixed body, and where it was put.
 final class _Standing {
-  _Standing(this.handle, this.offset);
+  _Standing(this.handle, this.offset, this.shape);
 
   final NativeBody handle;
   final Vector3 offset;
+
+  /// The shape it was made as: a collider that changes shape — a crouch —
+  /// stands again as the new one.
+  final CollisionShape shape;
+
+  /// Where the collider was at the last step, for how fast it moved since.
   final Vector3 _at = Vector3.zero();
+
+  /// Where the core has it now.
+  final Vector3 _inCore = Vector3.zero();
   int _layer = 0, _mask = 0;
   bool _moving = false;
   int sweep = 0;
 
   void placed(NativeWorld native, Collider collider) {
     _at.setFrom(collider.position);
+    _inCore.setFrom(collider.position);
+    _filter(native, collider);
+  }
+
+  void _filter(NativeWorld native, Collider collider) {
+    if (_layer == collider.layer && _mask == collider.mask) return;
     _layer = collider.layer;
     _mask = collider.mask;
     native.setCollisionFilter(
@@ -486,10 +526,16 @@ final class _Standing {
     );
   }
 
-  /// Put where [collider] is now, between steps, for a query; [follow] at
-  /// the next step still moves it from where it stood and says how fast.
+  /// Put where [collider] is now, between steps, for a query — only if it is
+  /// not there already: writing a place wakes what lies against it, and a
+  /// simulation must not depend on how many rays were cast between two of
+  /// its steps. The next step's [follow] writes the same place, and how
+  /// fast it moved since [_at], whether or not this ran first.
   void place(NativeWorld native, Collider collider) {
+    _filter(native, collider);
+    if (_inCore == collider.position) return;
     native.setPosition(handle, collider.position + offset);
+    _inCore.setFrom(collider.position);
   }
 
   /// Where [collider] is now — put back by its owner's restore before the
@@ -498,6 +544,7 @@ final class _Standing {
   /// to f32 and would read as a move.
   void resume(NativeWorld native, Collider collider) {
     _at.setFrom(collider.position);
+    _inCore.setFrom(collider.position);
     _moving = native.velocityOf(handle).length2 != 0.0;
   }
 
@@ -512,13 +559,12 @@ final class _Standing {
         ..setPosition(handle, collider.position + offset)
         ..setVelocity(handle, (collider.position - _at) / dt);
       _at.setFrom(collider.position);
+      _inCore.setFrom(collider.position);
     } else if (_moving) {
       native.setVelocity(handle, Vector3.zero());
     }
     _moving = moved;
-    if (_layer != collider.layer || _mask != collider.mask) {
-      placed(native, collider);
-    }
+    _filter(native, collider);
   }
 }
 
@@ -566,6 +612,7 @@ final class NativeCharacterMover implements CharacterMover {
       hitWall: moved.hitWall,
       hitCeiling: moved.hitCeiling,
       stepped: moved.stepped,
+      steppedUp: moved.steppedUp,
       velocity: moved.velocity,
       groundNormal: moved.groundNormal,
       ground: switch (moved.ground) {

@@ -7,6 +7,8 @@
 //
 //     dart test test/native_world_rays_test.dart
 
+import 'dart:typed_data';
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -115,5 +117,107 @@ void main() {
     final solid = RayHit();
     world.raycast(Vector3(0.0, 1.0, 0.0), Vector3(-1.0, 0.0, 0.0), 2.0, solid);
     expect(solid.hit, isFalse, reason: 'the core holds no trigger');
+  });
+
+  test('rays between steps leave the simulation as it was, to the byte', () {
+    // A crate gone to sleep against a door that stands still, and rays cast
+    // between the steps or not. Writing the door's place for every query
+    // woke the crate against it, and the simulation came to depend on how
+    // many rays a frame had cast.
+    Uint8List run({required bool rays}) {
+      final w = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+      w.add(
+        Collider(
+          shape: CollisionBox(Vector3(0.1, 1.0, 1.0)),
+          position: Vector3(5.4, 1.0, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      final d = NativeDynamics(world: w, castsRays: true);
+      addTearDown(d.dispose);
+      final crate = d.add(
+        RigidBody(
+          world: w,
+          shape: CollisionBox(Vector3(0.3, 0.3, 0.3)),
+          position: Vector3(5.0, 0.3, 0.0),
+          mass: 1.0,
+        ),
+      );
+      w.update();
+      final hit = RayHit();
+      var slept = false;
+      for (var i = 0; i < 180; i++) {
+        if (rays) {
+          for (var k = 0; k < 5; k++) {
+            w.raycast(Vector3(4, 3, k * 0.2), Vector3(0, -1, 0), 5.0, hit);
+          }
+        }
+        d.step(1.0 / 60.0);
+        w.update();
+        slept = slept || d.native.isAsleep(d.handleOf(crate)!);
+      }
+      expect(slept, isTrue, reason: 'the crate slept against the door');
+      return d.snapshot();
+    }
+
+    expect(run(rays: true), run(rays: false));
+  });
+
+  test('a body that crouches is a crouched one to the core\'s rays', () {
+    final w = CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+    final d = NativeDynamics(world: w, castsRays: true, movesCharacters: true);
+    addTearDown(d.dispose);
+    final body = CharacterController(world: w, position: Vector3(0, 0.9, 0));
+    w.update();
+    final hit = RayHit();
+    bool atHead() =>
+        // Between the crouched body's top at 0.9 and the standing one's at
+        // 1.8 — and under the standing box's top had it only moved down.
+        w.raycast(Vector3(-3.0, 1.2, 0.0), Vector3(1.0, 0.0, 0.0), 6.0, hit);
+    expect(atHead(), isTrue, reason: 'standing, its head is met');
+    expect(body.tryResize(CollisionBox(Vector3(0.35, 0.45, 0.35))), isTrue);
+    expect(atHead(), isFalse, reason: 'crouched, the ray passes over');
+  });
+
+  test('a ragdoll in the same core is met as nobody\'s, or not at all on a '
+      'layer the ray leaves out', () {
+    // One bone across the ray's path, made in the core by hand.
+    NativeRagdoll bone({int layer = 1}) => NativeRagdoll(
+      dynamics.native,
+      <RagdollBone>[
+        RagdollBone(
+          name: 'Body',
+          parent: -1,
+          head: Vector3(-1.0, 0.5, -1.0),
+          tail: Vector3(-1.0, 0.5, 1.0),
+          orientation: Quaternion.identity(),
+          radius: 0.2,
+          mass: 10.0,
+        ),
+      ],
+      dynamics: dynamics,
+      layer: layer,
+    );
+    final hit = RayHit();
+    final ragdoll = bone();
+    expect(
+      world.raycast(Vector3(-4.0, 0.5, 0.0), Vector3(1.0, 0.0, 0.0), 5.0, hit),
+      isTrue,
+    );
+    expect(hit.collider, isNull, reason: 'nobody\'s collider stands for it');
+    ragdoll.dispose();
+    bone(layer: 1 << 7);
+    expect(
+      world.raycast(
+        Vector3(-4.0, 0.5, 0.0),
+        Vector3(1.0, 0.0, 0.0),
+        5.0,
+        hit,
+        mask: Layers.all & ~(1 << 7),
+      ),
+      isFalse,
+    );
   });
 }

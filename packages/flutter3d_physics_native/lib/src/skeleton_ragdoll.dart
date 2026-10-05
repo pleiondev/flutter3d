@@ -173,6 +173,8 @@ final class SkeletonRagdoll {
     double dt = 1.0 / 60.0,
     double friction = 2.0,
     NativeDynamics? dynamics,
+    int layer = 1,
+    int mask = 0xffffffff,
   }) {
     final joints = skeleton.joints;
     final byName = <String, int>{
@@ -268,6 +270,8 @@ final class SkeletonRagdoll {
       spin: spin,
       friction: friction,
       dynamics: dynamics,
+      layer: layer,
+      mask: mask,
     );
   }
 
@@ -292,12 +296,11 @@ final class SkeletonRagdoll {
   /// it gets up as.
   RagdollLying lying() {
     final pelvis = ragdoll.poseOf(0);
-    // As matrices, which turn the way `turnBy` does whatever order the
-    // quaternion product composes in: now, after undoing bind.
-    final turn = pelvis.orientation.asRotationMatrix()
-      ..multiply(_pelvisAtBind.asRotationMatrix()..transpose());
-    final forward = turn.transformed(_forwardAtBind);
-    final up = turn.transformed(_upAtBind);
+    // Bind undone, then now: `asRotationMatrix` of a product is the
+    // product of the two, so [turnBy] turns by the second then the first.
+    final turn = pelvis.orientation * _pelvisAtBind.conjugated();
+    final forward = turnBy(turn, _forwardAtBind);
+    final up = turnBy(turn, _upAtBind);
     final headward = Vector3(up.x, 0.0, up.z);
     return RagdollLying(
       faceUp: forward.y >= 0.0,

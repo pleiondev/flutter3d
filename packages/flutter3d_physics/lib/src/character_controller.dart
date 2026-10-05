@@ -424,9 +424,8 @@ final class CharacterController {
     // what it overlaps is not the shape a mover moves — the core moves the
     // capsule inside it — and the box's corners overlap a riser the
     // capsule's round foot stands on: pushed back out each step, a body
-    // never got onto a step lower than its radius. The core keeps its own
-    // capsule out of what it meets; what it does not yet do is push it out of
-    // something moved into it, which the box did.
+    // never got onto a step lower than its radius. A mover pushes its own
+    // volume out of what was moved into it.
     if (!moved) _resolveOverlap();
     if (drivenBy != null && dt > 0.0) {
       velocity
@@ -824,7 +823,6 @@ final class CharacterController {
     final leftDeliberately = _snapSuppressed;
     _snapSuppressed = false;
     _delta.setValues(velocity.x * dt, velocity.y * dt, velocity.z * dt);
-    final fromY = position.y;
     final moved = mover.move(
       this,
       _delta,
@@ -838,7 +836,7 @@ final class CharacterController {
         (moved.hitWall ? 1 : 0) +
         (moved.hitCeiling ? 1 : 0) +
         (moved.grounded ? 1 : 0);
-    if (moved.stepped) _steppedUp = math.max(0.0, position.y - fromY);
+    _steppedUp = moved.steppedUp;
     // Ground met on the way is ground — a slope climbed is stood on — unless
     // the body is leaving it on purpose: a jump rises off the floor it met.
     if (!moved.grounded || (velocity.y > 0.0 && leftDeliberately)) {

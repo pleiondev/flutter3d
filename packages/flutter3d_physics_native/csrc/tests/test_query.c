@@ -244,13 +244,15 @@ static F3dWorld *level(void) {
 #define STANDING (R + H + F3D_R(0.01))
 #define SLOPE_COS F3D_R(0.7071)
 
+static f3d_real su_[1];
+
 static uint32_t walk(F3dWorld *w, f3d_real *p, F3dVec3 d, f3d_real step,
                      f3d_real *ground) {
   F3dBody gb;
   f3d_real v[3] = {0, 0, 0};
   return f3d_world_move_character(w, R, H, p, d.x, d.y, d.z, v, SLOPE_COS,
                                   step, ~0u, 0u, F3D_CHARACTER_MAY_STEP, 0,
-                                  &gb, ground);
+                                  &gb, ground, su_);
 }
 
 static void test_character(void) {
@@ -315,7 +317,7 @@ static void test_character(void) {
   F3dBody gb;
   f3d_real v0[3] = {0, 0, 0};
   CHECK(f3d_world_move_character(w, 0, H, u, 0, 0, 0, v0, SLOPE_COS, 0, ~0u, 0u,
-                                 0u, 0, &gb, g) == 0);
+                                 0u, 0, &gb, g, su_) == 0);
   f3d_world_destroy(w);
 }
 
@@ -336,25 +338,25 @@ static void test_from_above(void) {
   f3d_real p[3] = {0, STANDING, 0};
   uint32_t flags = f3d_world_move_character(w, R, H, p, 0, 3, 0, still,
                                             SLOPE_COS, 0, ~0u, 2u, 0u, 0, &gb,
-                                            g);
+                                            g, su_);
   CHECK(!(flags & F3D_CHARACTER_CEILING));
   CHECK_NEAR(p[1], STANDING + 3, 1e-4);
   /* Falling onto it: it stands there, on the platform. */
   flags = f3d_world_move_character(w, R, H, p, 0, -2, 0, still, SLOPE_COS, 0,
-                                   ~0u, 2u, 0u, 0, &gb, g);
+                                   ~0u, 2u, 0u, 0, &gb, g, su_);
   CHECK(flags & F3D_CHARACTER_GROUNDED);
   CHECK(gb == platform);
   CHECK_NEAR(p[1], 2.1 + R + H + 0.01, 2e-3);
   /* Walking into its side from below its top: through. */
   f3d_real s[3] = {-4, F3D_R(2.0), 0};
   flags = f3d_world_move_character(w, R, H, s, 8, 0, 0, still, SLOPE_COS, 0,
-                                   ~0u, 2u, 0u, 0, &gb, g);
+                                   ~0u, 2u, 0u, 0, &gb, g, su_);
   CHECK(!(flags & F3D_CHARACTER_WALL));
   CHECK_NEAR(s[0], 4, 1e-4);
   /* Not one-way: the same rise stops under it. */
   f3d_real c[3] = {0, STANDING, 0};
   flags = f3d_world_move_character(w, R, H, c, 0, 3, 0, still, SLOPE_COS, 0,
-                                   ~0u, 0u, 0u, 0, &gb, g);
+                                   ~0u, 0u, 0u, 0, &gb, g, su_);
   CHECK(flags & F3D_CHARACTER_CEILING);
   CHECK(c[1] < 1.9 - R - H + 0.02);
   f3d_world_destroy(w);
@@ -382,7 +384,7 @@ static void test_step_and_speed(void) {
   for (int i = 0; i < 30; i++) {
     flags = f3d_world_move_character(w, R, H, p, 0, F3D_R(-0.0167), F3D_R(0.1),
                                      v, SLOPE_COS, F3D_R(0.35), ~0u, 0u,
-                                     F3D_CHARACTER_MAY_STEP, 0, &gb, g);
+                                     F3D_CHARACTER_MAY_STEP, 0, &gb, g, su_);
   }
   CHECK(flags & F3D_CHARACTER_GROUNDED);
   CHECK_NEAR(p[1], 0.2 + STANDING, 3e-3);
@@ -392,7 +394,7 @@ static void test_step_and_speed(void) {
   f3d_real va[3] = {0, 0, 6};
   for (int i = 0; i < 10; i++) {
     f3d_world_move_character(w, R, H, a, 0, 0, F3D_R(0.1), va, SLOPE_COS,
-                             F3D_R(0.35), ~0u, 0u, 0u, 0, &gb, g);
+                             F3D_R(0.35), ~0u, 0u, 0u, 0, &gb, g, su_);
   }
   CHECK(a[2] < 3.0);
   CHECK(a[1] < STANDING + 0.1);
@@ -401,10 +403,91 @@ static void test_step_and_speed(void) {
   f3d_real vq[3] = {3, 0, 4};
   flags = f3d_world_move_character(w, R, H, q, 1, 0, F3D_R(0.1), vq, SLOPE_COS,
                                    F3D_R(0.35), ~0u, 0u, F3D_CHARACTER_MAY_STEP,
-                                   0, &gb, g);
+                                   0, &gb, g, su_);
   CHECK(flags & F3D_CHARACTER_WALL);
   CHECK_NEAR(vq[0], 0, 1e-5);
   CHECK_NEAR(vq[2], 4, 1e-5);
+  f3d_world_destroy(w);
+}
+
+/* Out of a wall it was put into; up through a platform it starts inside,
+ * frame by frame, and down onto it; no step under a ceiling too low to
+ * climb into; and how far a step lifted it, said. */
+static void test_push_and_rise(void) {
+  F3dWorld *w = f3d_world_create();
+  const F3dQuat identity = {0, 0, 0, 1};
+  fixed_shape(w, F3D_SHAPE_BOX, 50, F3D_R(0.5), 50, f3d_v3(0, F3D_R(-0.5), 0),
+              identity);
+  /* A wall across x = 5. */
+  fixed_shape(w, F3D_SHAPE_BOX, F3D_R(0.5), 2, 4, f3d_v3(F3D_R(5.5), 2, 0),
+              identity);
+  F3dBody gb;
+  f3d_real g[3];
+  /* Put 0.1 into the wall, not moving: pushed out, its skin off it. */
+  f3d_real p[3] = {F3D_R(4.8), STANDING, 0};
+  f3d_real v[3] = {1, 0, 0};
+  f3d_world_move_character(w, R, H, p, 0, 0, 0, v, SLOPE_COS, 0, ~0u, 0u, 0u, 0,
+                           &gb, g, su_);
+  CHECK_NEAR(p[0], 5 - R - 0.01, 2e-3);
+  CHECK_NEAR(v[0], 0, 1e-5);
+  /* A from-above platform 0.2 thick at y 2: started inside it rising, it
+   * goes up through it frame by frame, and falling it lands on it. */
+  const F3dBody platform = fixed_shape(w, F3D_SHAPE_BOX, 2, F3D_R(0.1), 2,
+                                       f3d_v3(-10, 2, 0), identity);
+  CHECK(f3d_body_set_collision_filter(w, platform, 2u, ~0u));
+  f3d_real q[3] = {-10, F3D_R(2.0) - H, 0};
+  f3d_real vq[3] = {0, 6, 0};
+  for (int i = 0; i < 20; i++) {
+    f3d_world_move_character(w, R, H, q, 0, F3D_R(0.1), 0, vq, SLOPE_COS, 0,
+                             ~0u, 2u, 0u, 0, &gb, g, su_);
+  }
+  CHECK(q[1] > 2.1 + R + H);
+  CHECK_NEAR(vq[1], 6, 1e-5);
+  uint32_t flags = 0;
+  vq[1] = -3;
+  for (int i = 0; i < 40; i++) {
+    flags = f3d_world_move_character(w, R, H, q, 0, F3D_R(-0.05), 0, vq,
+                                     SLOPE_COS, 0, ~0u, 2u, 0u, 0, &gb, g,
+                                     su_);
+  }
+  CHECK(flags & F3D_CHARACTER_GROUNDED);
+  CHECK(gb == platform);
+  CHECK_NEAR(q[1], 2.1 + R + H + 0.01, 3e-3);
+  /* Falling with its foot inside the platform — let go of mid-drop — it
+   * falls on through, as the reference's sweep starting inside does. */
+  f3d_real d[3] = {-10, F3D_R(2.0) + R + H - F3D_R(0.15), 0};
+  f3d_real vd[3] = {0, -2, 0};
+  f3d_world_move_character(w, R, H, d, 0, F3D_R(-0.3), 0, vd, SLOPE_COS, 0,
+                           ~0u, 2u, 0u, 0, &gb, g, su_);
+  CHECK(d[1] < 2.0 + R + H - 0.4);
+  /* A riser of 0.3 at z 3, and a ceiling 0.4 over the floor in front of it
+   * — too low to lift into: no step. Without the ceiling, the step, and how
+   * far it lifted. */
+  fixed_shape(w, F3D_SHAPE_BOX, 2, F3D_R(0.15), 2, f3d_v3(20, F3D_R(0.15), 5),
+              identity);
+  /* 0.32 of room over its head: enough to clear the 0.3 riser, not the
+   * 0.35 a step lifts by, and a step wants room for all of it. */
+  const F3dBody low = fixed_shape(w, F3D_SHAPE_BOX, 2, F3D_R(0.5), 2,
+                                  f3d_v3(20, STANDING + R + H + 0.32 + 0.5, 1),
+                                  identity);
+  f3d_real s[3] = {20, STANDING, F3D_R(2.6)};
+  f3d_real vs[3] = {0, 0, 6};
+  /* Far enough that the capsule's centre ends over the riser: its round foot
+   * then stands on the top, not on the edge. */
+  flags = f3d_world_move_character(w, R, H, s, 0, 0, F3D_R(0.6), vs, SLOPE_COS,
+                                   F3D_R(0.35), ~0u, 0u, F3D_CHARACTER_MAY_STEP,
+                                   0, &gb, g, su_);
+  CHECK(!(flags & F3D_CHARACTER_STEPPED));
+  CHECK_NEAR(su_[0], 0, 1e-6);
+  f3d_body_destroy(w, low);
+  f3d_real t[3] = {20, STANDING, F3D_R(2.6)};
+  f3d_real vt[3] = {0, 0, 6};
+  flags = f3d_world_move_character(w, R, H, t, 0, 0, F3D_R(0.6), vt, SLOPE_COS,
+                                   F3D_R(0.35), ~0u, 0u, F3D_CHARACTER_MAY_STEP,
+                                   0, &gb, g, su_);
+  CHECK(flags & F3D_CHARACTER_STEPPED);
+  CHECK_NEAR(su_[0], 0.3, 3e-3);
+  CHECK_NEAR(t[1], 0.3 + STANDING, 3e-3);
   f3d_world_destroy(w);
 }
 
@@ -416,5 +499,6 @@ int main(void) {
   test_character();
   test_from_above();
   test_step_and_speed();
+  test_push_and_rise();
   return finish();
 }

@@ -1,5 +1,24 @@
 ## Unreleased
 
+- **The character, reviewed against the reference.**
+  - `f3d_world_move_character` first pushes the capsule out of whatever was
+    moved into it, along the deepest overlap's normal, with the speed into
+    it taken out.
+  - It tries a step only when a wall stopped it, and gives up when the lift
+    meets a ceiling. It says how far a step lifted it (`stepped_up`).
+  - A body on a from-above layer is not met when the character starts
+    inside it: a jump through a platform is no longer cut short there.
+    One case parts from the reference: a jump that does not clear the
+    platform falls back through it on the core, where the reference's box
+    is pushed up onto the top.
+  - The mirror writes a mover's place into the core only when it moved,
+    so rays cast between steps no longer wake what lies against it, and a
+    simulation's bytes no longer depend on how many there were. A collider
+    that changes shape stands again as the new one; one that turned into a
+    trigger stops standing at once.
+  - `NativeRagdoll` and `SkeletonRagdoll` take a collision `layer` and
+    `mask`.
+
 - **ABI 19: the character as the reference moves one.**
   `f3d_world_move_character` takes the character's velocity in and out,
   with the speed into everything met taken away. It tries a step only for

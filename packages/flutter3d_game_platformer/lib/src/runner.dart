@@ -54,10 +54,11 @@ final class Runner
     // that some platforms are floors from above and nothing at all from below.
     // The engine holds the mechanism and this holds the opinion.
     // One-way platforms, said to the body as a rule it keeps on either
-    // backend — the same three answers as [_countsAsSolid], which the
-    // runner's own probes still ask. Handed over as a predicate once, which
-    // the physics core cannot ask, and the runner kept to the reference's
-    // sweeps.
+    // backend: floors from above, passed through from below and the side,
+    // nothing while dropping. [_countsAsSolid] asks the same of the runner's
+    // own probes. The two backends part on one case — a jump that does not
+    // clear the platform: the core lets the body fall back through, the
+    // reference pushes it up out of the overlap onto the top.
     body.fromAboveLayers = PlatformerLayers.oneWay;
     _standing = body.shape;
     _crouching = CollisionBox(

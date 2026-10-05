@@ -312,6 +312,9 @@ typedef NativeCharacterMove = ({
   bool hitCeiling,
   bool stepped,
 
+  /// How far a step lifted it, m; nought when it did not step.
+  double steppedUp,
+
   /// The velocity it was moved with, less the speed into what it met.
   Vector3 velocity,
 
@@ -1139,6 +1142,7 @@ final class NativeWorld {
   }) {
     final p = c.F32s.alloc(3);
     final v = c.F32s.alloc(3);
+    final lifted = c.F32s.alloc(1);
     final ground = c.F32s.alloc(3);
     final body = c.U64s.alloc(1);
     try {
@@ -1165,6 +1169,7 @@ final class NativeWorld {
         ignore?.raw ?? 0,
         body,
         ground,
+        lifted,
       );
       return (
         position: Vector3(p[0], p[1], p[2]),
@@ -1172,6 +1177,7 @@ final class NativeWorld {
         hitWall: flags & c.CharacterFlags.wall != 0,
         hitCeiling: flags & c.CharacterFlags.ceiling != 0,
         stepped: flags & c.CharacterFlags.stepped != 0,
+        steppedUp: lifted[0],
         velocity: Vector3(v[0], v[1], v[2]),
         groundNormal: Vector3(ground[0], ground[1], ground[2]),
         ground: body[0] == 0 ? null : NativeBody(body[0]),
@@ -1179,6 +1185,7 @@ final class NativeWorld {
     } finally {
       p.free();
       v.free();
+      lifted.free();
       ground.free();
       body.free();
     }

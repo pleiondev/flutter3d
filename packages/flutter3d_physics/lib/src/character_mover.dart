@@ -13,6 +13,10 @@ typedef CharacterMoved = ({
   /// Climbed a step to get there.
   bool stepped,
 
+  /// How far the step lifted it, m — a rise not travelled through, for a
+  /// renderer to smooth; nought when it did not step.
+  double steppedUp,
+
   /// The velocity it moved with, less the speed into everything it met.
   Vector3 velocity,
 

@@ -1085,6 +1085,7 @@ int f3d_world_cast_shape(
     Uint64,
     Pointer<Void>,
     Pointer<Void>,
+    Pointer<Void>,
   )
 >(symbol: 'f3d_world_move_character')
 external int _f3d_world_move_character(
@@ -1104,6 +1105,7 @@ external int _f3d_world_move_character(
   int ignore,
   Pointer<Void> groundBody,
   Pointer<Void> ground,
+  Pointer<Void> steppedUp,
 );
 int f3d_world_move_character(
   int world,
@@ -1122,6 +1124,7 @@ int f3d_world_move_character(
   int ignore,
   int groundBody,
   int ground,
+  int steppedUp,
 ) => _f3d_world_move_character(
   Pointer.fromAddress(world),
   radius,
@@ -1139,6 +1142,7 @@ int f3d_world_move_character(
   ignore,
   Pointer.fromAddress(groundBody),
   Pointer.fromAddress(ground),
+  Pointer.fromAddress(steppedUp),
 );
 
 @Native<Pointer<Void> Function(Uint32)>(symbol: 'f3d_particles_create')

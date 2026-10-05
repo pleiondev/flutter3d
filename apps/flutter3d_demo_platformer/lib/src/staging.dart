@@ -16,8 +16,9 @@ const String physicsBackend = String.fromEnvironment(
 RigidDynamics platformerDynamics(CollisionWorld world) =>
     physicsBackend == 'dart'
     ? Dynamics(world: world)
-    // The walkers moved by the core too; the runner, whose one-way
-    // platforms ask about each contact, keeps its own sweeps.
+    // The characters moved by the core and the rays cast there too — the
+    // runner as well, its platforms solid from above said as a rule the
+    // core keeps.
     : NativeDynamics(world: world, movesCharacters: true, castsRays: true);
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
