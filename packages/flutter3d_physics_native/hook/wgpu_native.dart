@@ -75,6 +75,9 @@ String? wgpuNativeTarget(CodeConfig config) {
   }
 }
 
+/// When every unpacked file says it was last modified.
+final DateTime _unpackedAt = DateTime.utc(2000);
+
 /// Where wgpu-native for [target] is unpacked under [shared]: its `include`
 /// and `lib` directories. Fetches it the first time; null, after saying why
 /// through [say], when it cannot.
@@ -143,7 +146,13 @@ Future<Directory?> fetchWgpuNative(
     if (!keep) continue;
     File('${home.path}/$name')
       ..createSync(recursive: true)
-      ..writeAsBytesSync(entry.content as List<int>);
+      ..writeAsBytesSync(entry.content as List<int>)
+      // Dated long before this build: the headers are what the GPU library
+      // is compiled against, so they are among its dependencies, and a file
+      // dated now told the build runner it was modified during the build —
+      // "Build must be rerun", and `flutter test` exiting 1 on every fresh
+      // checkout, CI's every run.
+      ..setLastModifiedSync(_unpackedAt);
   }
   done.writeAsStringSync(expected);
   return home;

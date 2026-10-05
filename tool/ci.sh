@@ -371,11 +371,11 @@ step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart t
 step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
 # The native physics core as WebAssembly, under both web compilers: the
 # shared scene to the native library's hash, on one thread and on four Web
-# Workers. The second needs SharedArrayBuffer, which tool/chrome_sab.sh asks
+# Workers, and flutter3d_physics' bodies on it through NativeDynamics. The second needs SharedArrayBuffer, which tool/chrome_sab.sh asks
 # Chrome for; the test runner's pages are not cross-origin isolated.
 for compiler in dart2js dart2wasm; do
   step "test flutter3d_physics_native (browser, $compiler)" in_dir packages/flutter3d_physics_native \
-    dart test -p chrome -c "$compiler" test/web_core_test.dart
+    dart test -p chrome -c "$compiler" test/web_core_test.dart test/web_dynamics_test.dart
   step "test flutter3d_physics_native (browser threads, $compiler)" in_dir packages/flutter3d_physics_native \
     env CHROME_EXECUTABLE="$PWD/packages/flutter3d_physics_native/tool/chrome_sab.sh" \
     dart test -p chrome -c "$compiler" test/web_threads_test.dart

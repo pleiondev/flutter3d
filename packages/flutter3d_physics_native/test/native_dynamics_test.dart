@@ -11,6 +11,8 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'scenes/dynamics_scene.dart';
+
 typedef Backend = RigidDynamics Function(CollisionWorld world);
 
 final Map<String, Backend> backends = <String, Backend>{
@@ -133,6 +135,10 @@ void main() {
       });
     });
   }
+
+  test('the mirrored scene hashes to the number the browser must match', () {
+    expect(dynamicsSceneHash(), dynamicsSceneExpected);
+  });
 
   group('NativeDynamics alone', () {
     late CollisionWorld world;

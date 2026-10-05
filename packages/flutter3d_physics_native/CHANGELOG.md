@@ -19,7 +19,13 @@
   because the reference meets a wedge as its box, and only the core tips
   a crate off an edge. `snapshot()` and `restore()` carry the warm starts
   and sleep for a rollback, and a restored world steps on to the same
-  bits.
+  bits. In Chrome, under dart2js and dart2wasm, a scene of crates, a ball
+  down a wedge, a lift and a push steps through `NativeDynamics` to the
+  same hash as natively.
+- **A fresh checkout no longer reads "Build must be rerun".** The hook
+  unpacked wgpu-native's headers dated now, and since the GPU library is
+  compiled against them, they counted as files modified during the build.
+  They are now dated 2000.
 
 - **The same bits on every platform, and a test that says so.**
   `csrc/tests/test_digest.c` steps seven scenes and fails unless each
