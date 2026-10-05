@@ -204,7 +204,7 @@ void f3d_pool_run(F3dPool *pool, uint32_t count, F3dTask task, void *context) {
 typedef HANDLE Thread;
 typedef SRWLOCK Lock;
 typedef CONDITION_VARIABLE Signal;
-#define LOCK_INIT(l) InitializeSRWLockExclusive(l)
+#define LOCK_INIT(l) InitializeSRWLock(l)
 #define LOCK(l) AcquireSRWLockExclusive(l)
 #define UNLOCK(l) ReleaseSRWLockExclusive(l)
 #define LOCK_FREE(l) ((void)(l))
