@@ -37,6 +37,46 @@ typedef FadeKey = ({int step, double value});
 /// One signal: [name] fired, with [data], on [step].
 typedef SignalCue = ({int step, String name, Map<String, Object?> data});
 
+/// What a cutscene tells an actor to do.
+///
+/// **A class with constant instances, not an enum**, because the verbs a
+/// cutscene has will grow — play this, pick that up — and a value added to
+/// an enum breaks every exhaustive `switch` written against it. Compared by
+/// identity: [values] are the only instances there are.
+final class ActorCueKind {
+  const ActorCueKind._(this.name);
+
+  /// What a document calls it.
+  final String name;
+
+  /// Walk to [ActorCue.at], over the navigation mesh where there is one, and
+  /// stand there.
+  static const ActorCueKind goTo = ActorCueKind._('goTo');
+
+  /// Turn to look at [ActorCue.at], standing.
+  static const ActorCueKind face = ActorCueKind._('face');
+
+  /// Stand where it is.
+  static const ActorCueKind stand = ActorCueKind._('stand');
+
+  /// Back to its own brain.
+  static const ActorCueKind release = ActorCueKind._('release');
+
+  /// Every kind, in the order a refusal lists them.
+  static const List<ActorCueKind> values = <ActorCueKind>[
+    goTo,
+    face,
+    stand,
+    release,
+  ];
+
+  @override
+  String toString() => name;
+}
+
+/// One actor's direction from [step] until its next: who, what, and where.
+typedef ActorCue = ({int step, String actor, ActorCueKind kind, Vector3? at});
+
 /// What [Sequence.read] made of a document: the sequence, or every problem
 /// with it and where.
 typedef SequenceRead = ({Sequence? sequence, List<String> problems});
@@ -51,6 +91,7 @@ final class Sequence {
     required this.subtitles,
     required this.fades,
     required this.signals,
+    required this.actorCues,
   }) : _path = _curve(cameraKeys, (CameraKey k) => k.at),
        _looks = _curve(cameraKeys, (CameraKey k) => k.look);
 
@@ -74,6 +115,10 @@ final class Sequence {
   /// In step order, and in document order where two share a step.
   final List<SignalCue> signals;
 
+  /// In step order, and in document order where two share a step: an
+  /// actor's direction at a step is the last of its cues at or before it.
+  final List<ActorCue> actorCues;
+
   final CatmullRom? _path;
   final CatmullRom? _looks;
 
@@ -89,7 +134,8 @@ final class Sequence {
   ///
   /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fov"}],
   /// "ease": true}, "subtitles": [{"from", "to", "text"}], "fade": [{"t",
-  /// "value"}], "signals": [{"t", "name", "data"}]}` — every part but
+  /// "value"}], "signals": [{"t", "name", "data"}], "actors": [{"t",
+  /// "actor", "do", "at"}]}` — every part but
   /// `seconds` may be left out. A moment past the end is a problem: a
   /// cutscene that is skipped would never reach it.
   static SequenceRead read(Object? json, {required int stepsPerSecond}) {
@@ -241,6 +287,44 @@ final class Sequence {
         signal,
     ];
 
+    final cues = <ActorCue>[];
+    for (final (i, row) in rows(json['actors'], 'actors')) {
+      final where = 'actors[$i]';
+      final step = moment(row, 't', where);
+      final actor = row['actor'];
+      if (actor is! String || actor.isEmpty) {
+        problems.add('$where.actor: the name of an actor');
+      }
+      final kind = ActorCueKind.values
+          .where((k) => k.name == row['do'])
+          .firstOrNull;
+      if (kind == null) {
+        problems.add(
+          '$where.do: one of '
+          '${ActorCueKind.values.map((k) => k.name).join(', ')}',
+        );
+      }
+      final needsPlace = kind == ActorCueKind.goTo || kind == ActorCueKind.face;
+      final at = needsPlace ? vector(row, 'at', where) : null;
+      if (step == null ||
+          actor is! String ||
+          actor.isEmpty ||
+          kind == null ||
+          (needsPlace && at == null)) {
+        continue;
+      }
+      cues.add((step: step, actor: actor, kind: kind, at: at));
+    }
+    // Stable, as the signals are.
+    final orderedCues = <ActorCue>[
+      for (final (_, cue)
+          in (cues.indexed.toList()..sort(
+            (a, b) =>
+                a.$2.step != b.$2.step ? a.$2.step - b.$2.step : a.$1 - b.$1,
+          )))
+        cue,
+    ];
+
     if (problems.isNotEmpty) return (sequence: null, problems: problems);
     return (
       sequence: Sequence._(
@@ -251,9 +335,21 @@ final class Sequence {
         subtitles: List<SubtitleCue>.unmodifiable(subtitles),
         fades: List<FadeKey>.unmodifiable(fades),
         signals: List<SignalCue>.unmodifiable(ordered),
+        actorCues: List<ActorCue>.unmodifiable(orderedCues),
       ),
       problems: const <String>[],
     );
+  }
+
+  /// The direction [actor] is under at [step], or null when the cutscene
+  /// has not told it anything yet.
+  ActorCue? cueFor(String actor, int step) {
+    ActorCue? current;
+    for (final cue in actorCues) {
+      if (cue.step > step) break;
+      if (cue.actor == actor) current = cue;
+    }
+    return current;
   }
 
   /// Whether the cutscene says where the camera is.

@@ -144,6 +144,14 @@ final class ActorSystem {
   /// Read from the bodies as they stand, so nothing is kept between steps.
   Avoidance? avoidance;
 
+  /// Who is taking actors out of their brains' hands, or null for nobody: a
+  /// cutscene walking them to their marks. An actor it directs on a step
+  /// neither thinks nor acts that step — the director steers it through the
+  /// same [Mind] — and is back with its brain the step the director lets
+  /// go. Avoidance still applies, since the director only says where to go.
+  /// A dead actor is nobody's to direct; it falls as it always did.
+  ActorDirector? director;
+
   /// How often an actor far from the focus thinks.
   ///
   /// Sight tests are raycasts and they are the expensive part. Something
@@ -452,7 +460,9 @@ final class ActorSystem {
       }
 
       final brain = actor.brain;
-      if (brain != null) {
+      final directing = director;
+      final directed = directing != null && directing.directs(actor);
+      if (brain != null && !directed) {
         // Thinking is throttled; moving is not. An actor whose movement ran
         // every fourth step would visibly stutter.
         final thinks =
@@ -462,7 +472,11 @@ final class ActorSystem {
       }
 
       _wish.setZero();
-      brain?.act(_mind);
+      if (directed) {
+        directing.steer(_mind);
+      } else {
+        brain?.act(_mind);
+      }
       final avoid = avoidance;
       if (avoid != null && body != null && body.isGrounded) {
         _avoid(actor, body, avoid, dt);
@@ -1042,4 +1056,15 @@ final class ActorSystem {
       velocity.setZero();
     }
   }
+}
+
+/// Something that takes actors out of their brains' hands for a while — a
+/// cutscene's director. See [ActorSystem.director].
+abstract interface class ActorDirector {
+  /// Whether it directs [actor] this step. When it does, the actor's brain
+  /// is not asked, and [steer] is.
+  bool directs(Actor actor);
+
+  /// Steers a directed actor through [it], as a brain's `act` would.
+  void steer(Mind it);
 }

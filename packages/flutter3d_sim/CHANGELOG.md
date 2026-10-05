@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **A cutscene directs actors.** A sequence's `actors` cues tell an actor
+  by name to walk to a mark over the navigation mesh, look at a point,
+  stand, or go back to its brain. `ActorSystem.director` takes an
+  `ActorDirector`: an actor it directs neither thinks nor acts that step
+  and is steered instead, and `SequencePlayer` is one, directing until a
+  release or its end. Which cue an actor is under follows from the step,
+  so a cutscene restored mid-walk steps on to the same bits.
+
 - **A cutscene is a document played in the fixed step.**
   `Sequence.read` takes a camera's keys on a path, subtitles, a fade and
   signals, in seconds, and turns every moment into the step it falls on

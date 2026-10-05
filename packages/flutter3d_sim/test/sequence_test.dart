@@ -134,6 +134,33 @@ void main() {
     });
   });
 
+  test('an actor\'s cue says what and, where it walks or looks, where', () {
+    final read = Sequence.read(<String, Object?>{
+      'seconds': 2,
+      'actors': <Object?>[
+        <String, Object?>{'t': 0, 'actor': 'guard', 'do': 'dance'},
+        <String, Object?>{'t': 0, 'actor': 'guard', 'do': 'goTo'},
+        <String, Object?>{'t': 1, 'do': 'stand'},
+      ],
+    }, stepsPerSecond: _rate);
+    expect(read.problems, <Matcher>[
+      allOf(contains('actors[0].do'), contains('goTo, face, stand, release')),
+      contains('actors[1].at'),
+      contains('actors[2].actor'),
+    ]);
+    final cued = _read(<String, Object?>{
+      'seconds': 2,
+      'actors': <Object?>[
+        <String, Object?>{'t': 1, 'actor': 'guard', 'do': 'release'},
+        <String, Object?>{'t': 0, 'actor': 'guard', 'do': 'stand'},
+      ],
+    });
+    // In step order whatever the document's: the stand, then the release.
+    expect(cued.cueFor('guard', 30)!.kind, ActorCueKind.stand);
+    expect(cued.cueFor('guard', 60)!.kind, ActorCueKind.release);
+    expect(cued.cueFor('cook', 60), isNull);
+  });
+
   group('playing', () {
     test('fires every signal once, on the step its moment falls on', () {
       final events = GameEvents();

@@ -3,6 +3,9 @@ library;
 
 import 'package:vector_math/vector_math.dart';
 
+import '../actors/actor.dart';
+import '../actors/actor_system.dart';
+import '../actors/brain.dart';
 import '../loop/game_event.dart';
 import 'sequence.dart';
 
@@ -32,8 +35,17 @@ final class SequenceSignal extends GameEvent {
 /// of it, faster than it is drawn. [remaining] is how many steps that is; a
 /// skip that jumped the step to the end would leave the world where the
 /// cutscene started and the cutscene where it finished.
-final class SequencePlayer {
+///
+/// **And the actors' director**, given to `ActorSystem.director` for as long
+/// as it plays: an actor the cutscene has told something is walked to its
+/// mark, turned or held, and handed back to its brain when it is released
+/// or the cutscene ends. Which cue an actor is under follows from the step
+/// as everything else does, so the directing is saved by saving the step.
+final class SequencePlayer implements ActorDirector {
   SequencePlayer(this.sequence, {this.events});
+
+  /// How near its mark counts as on it, in metres, for an actor sent to one.
+  static const double onMark = 0.3;
 
   final Sequence sequence;
 
@@ -78,6 +90,40 @@ final class SequencePlayer {
 
   /// How dark the screen is to be drawn, nought to one.
   double fade({double alpha = 1.0}) => sequence.fadeAt(_drawn(alpha));
+
+  @override
+  bool directs(Actor actor) {
+    final name = actor.name;
+    if (name == null || finished || actor.position == null) return false;
+    final cue = sequence.cueFor(name, _step);
+    return cue != null && cue.kind != ActorCueKind.release;
+  }
+
+  @override
+  void steer(Mind it) {
+    final cue = sequence.cueFor(it.actor.name!, _step)!;
+    final here = it.actor.position;
+    final at = cue.at;
+    final kind = cue.kind;
+    if (kind == ActorCueKind.goTo) {
+      final dx = at!.x - here!.x;
+      final dz = at.z - here.z;
+      if (dx * dx + dz * dz <= onMark * onMark) {
+        it.halt();
+        return;
+      }
+      it.steerTowards(at);
+      final heading = it.system.heading;
+      it.turnTowards(heading.x, heading.z);
+    } else if (kind == ActorCueKind.face) {
+      it
+        ..halt()
+        ..turnTowards(at!.x - here!.x, at.z - here.z);
+    } else {
+      // Standing, and anything this build does not know how to do.
+      it.halt();
+    }
+  }
 
   Map<String, Object?> save() => <String, Object?>{'step': _step};
 
