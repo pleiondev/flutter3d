@@ -17,10 +17,10 @@
 /// *for* — an attack, a pickup, a conversation — is the game's, registered
 /// beside these.
 ///
-/// Walking to a point is straight, sliding off walls, because that is what
-/// [Mind.steerTowards] does; walking to the focus goes round corners on the
-/// level's flow field. A navigation mesh that routes to any point is a
-/// separate piece of work, and when it lands it replaces `goTo` here.
+/// Walking to a point is [Mind.steerTowards]: along a route over the
+/// system's navigation mesh when it has one, straight and sliding off walls
+/// when it does not; walking to the focus goes round corners on the level's
+/// flow field.
 library;
 
 import 'package:vector_math/vector_math.dart';

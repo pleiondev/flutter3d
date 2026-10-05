@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **An actor walks to a point over a navigation mesh.**
+  `ActorSystem.navMesh`, when set, is what `steerTowards`, and so the
+  `goTo` leaf, routes over: to the next corner, and at a link's take-off
+  a jump, asked for only once the body is running at the landing, since
+  air control adds speed only along the wish. The route is found again
+  every step from where the body is and nothing of it is kept, so a run
+  restored mid-walk steps on to the same bits. A body that overshoots onto
+  a floor's eroded rim routes back from `NavMesh.nearestPolygon`, and one
+  at the end of a route that cannot arrive stops there. Null, the
+  default, walks straight as before.
+
 - **A navigation mesh can be baked with jumps.** `NavMesh.bake(jumps:)`
   scans the bake's own floors, in whole voxels, for the gaps, ledges and
   drops of at most `maxFall` that reach jumps, and keeps the shortest

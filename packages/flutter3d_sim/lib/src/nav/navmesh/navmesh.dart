@@ -239,6 +239,29 @@ final class NavMesh {
     out.setValues(x, heightAt(polygon, x, z), z);
   }
 
+  /// The polygon nearest [at] within [within] metres, its nearest point
+  /// into [out]; −1, and [out] untouched, when there is none.
+  ///
+  /// For a body that is not over the mesh but is near it: on a floor's
+  /// eroded rim, where the mesh keeps its centre away from the edge and
+  /// the floor still holds it up. Every polygon is looked at, in order, so
+  /// the nearest of two equally near is the lower index.
+  int nearestPolygon(Vector3 at, Vector3 out, {required double within}) {
+    final near = Vector3.zero();
+    var best = -1;
+    var distance = within * within;
+    for (var p = 0; p < polygonCount; p++) {
+      closestPointOn(p, at, near);
+      final d = near.distanceToSquared(at);
+      if (d <= distance) {
+        if (best >= 0 && d == distance) continue;
+        (best, distance) = (p, d);
+        out.setFrom(near);
+      }
+    }
+    return best;
+  }
+
   /// The way from [from] to [to] — see [NavMeshRoute] — or null when [from]
   /// is over no polygon.
   ///

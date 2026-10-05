@@ -40,6 +40,8 @@
 /// it is the nearest by straight line.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -50,6 +52,7 @@ import '../math/motion.dart';
 import '../math/tolerances.dart';
 import '../nav/jump_links.dart';
 import '../nav/navigation.dart';
+import '../nav/navmesh/navmesh.dart';
 import '../physics/layers.dart';
 import '../save/game_random.dart';
 import 'actor.dart';
@@ -109,6 +112,12 @@ final class ActorSystem {
 
   /// How to get to the focus from anywhere, or null for "walk straight at it".
   Navigation? navigation;
+
+  /// How to get to any point, or null for "walk straight at it": what
+  /// [steerTowards] routes over. A flow field answers for the focus, which
+  /// every actor shares; a mesh answers for a point only one of them wants —
+  /// a post, a noise, cover.
+  NavMesh? navMesh;
 
   /// How often an actor far from the focus thinks.
   ///
@@ -633,14 +642,20 @@ final class ActorSystem {
 
   /// Walk towards a point that is not the focus.
   ///
-  /// Straight, and it slides off what it meets: the flow field is baked towards
-  /// the focus and cannot route anywhere else, which is why this is a separate
-  /// method rather than `steerTowardsFocus(point)`. A patrol between two posts
-  /// wants exactly this; an enemy that must cross a level to somewhere the
-  /// player is not wants navigation, and that is a bigger change than this one.
+  /// Over [navMesh] when there is one: towards the next corner of the route
+  /// there, and up into a jump at a link's take-off when the mesh has links
+  /// and the body's reach takes them. Straight, sliding off what it meets,
+  /// when there is no mesh or the body is over no part of it. The flow field
+  /// is baked towards the focus and cannot route anywhere else, which is why
+  /// this is a separate method rather than `steerTowardsFocus(point)`.
+  ///
+  /// [point] is at the height of a body's centre, like the body's own
+  /// position, and the route is found between the floors under the two.
   void steerTowards(Actor actor, Vector3 point) {
     final body = actor.body;
     if (body == null) return;
+    final mesh = navMesh;
+    if (mesh != null && _steerOnMesh(body, mesh, point)) return;
     _wish
       ..setFrom(point)
       ..sub(body.position)
@@ -648,6 +663,106 @@ final class ActorSystem {
     final length = _wish.length;
     if (length > Tolerance.zeroLength) _wish.scale(1.0 / length);
   }
+
+  /// Steers [body] along its route over [mesh] to [point], and says whether
+  /// there was one.
+  ///
+  /// **The route is found again every step, from where the body is.** Nothing
+  /// about it is kept, so nothing about it is in a snapshot: a run restored
+  /// mid-walk finds the same route from the same place and steps on to the
+  /// same bits. What that costs is a search per walking actor per step, over
+  /// a mesh of a few hundred polygons.
+  ///
+  /// In the air over a gap there is no polygon under the body and no route,
+  /// and the wish is straight at [point]; air control only adds speed along
+  /// it, so the jump goes where it was aimed.
+  bool _steerOnMesh(CharacterController body, NavMesh mesh, Vector3 point) {
+    final half = body.halfExtents.y;
+    _feet
+      ..setFrom(body.position)
+      ..y -= half;
+    _goalFeet
+      ..setFrom(point)
+      ..y -= half;
+    // On a floor's eroded rim — an overshoot at a route's end will put it
+    // there — the body is over no polygon and still on the floor: it routes
+    // from the nearest point of the mesh, which brings it back.
+    final start =
+        body.isGrounded &&
+            mesh.polygonAt(_feet) < 0 &&
+            mesh.nearestPolygon(
+                  _feet,
+                  _onMesh,
+                  within: mesh.config.agentRadius + mesh.config.cellSize,
+                ) >=
+                0
+        ? _onMesh
+        : _feet;
+    final reach = mesh.links.isEmpty ? null : JumpReach.of(body.tuning);
+    final route = mesh.route(start, _goalFeet, jumps: reach);
+    if (route == null) return false;
+    final within = mesh.config.cellSize * 0.5;
+    if (!route.complete) {
+      // As near as there is a way to: stop there rather than pace about it.
+      final dx = route.points.last.x - _feet.x;
+      final dz = route.points.last.z - _feet.z;
+      if (dx * dx + dz * dz <= within * within) {
+        _wish.setZero();
+        return true;
+      }
+    }
+    if (route.points.length < 2) {
+      // At the end; back onto the mesh if the body is off it.
+      _steerAt(route.points.first);
+      return true;
+    }
+    // A jump at the next corner, or here: points[jump] is the take-off and
+    // points[jump + 1] the landing.
+    final jump = route.jumps.isEmpty ? -1 : route.jumps.first;
+    if (jump == 0 || jump == 1) {
+      final takeOff = route.points[jump];
+      final landing = route.points[jump + 1];
+      final dx = takeOff.x - _feet.x;
+      final dz = takeOff.z - _feet.z;
+      if (dx * dx + dz * dz <= within * within) {
+        // At the take-off, within half a cell of where the bake measured the
+        // jump from: run at the landing, and go once running at it. **Air
+        // control only adds speed along the wish**, so a body that leaves
+        // going sideways lands sideways, off the far side.
+        _steerAt(landing);
+        final fx = landing.x - takeOff.x;
+        final fz = landing.z - takeOff.z;
+        final v = body.velocity;
+        final along = v.x * fx + v.z * fz;
+        final speeds = math.sqrt((v.x * v.x + v.z * v.z) * (fx * fx + fz * fz));
+        if (body.isGrounded && along > 0.0 && along >= _aligned * speeds) {
+          body.requestJump();
+        }
+        return true;
+      }
+    }
+    // Any other corner, or a take-off not reached yet: walk to it.
+    _steerAt(route.points[1]);
+    return true;
+  }
+
+  /// How straight at the landing a body has to be running to jump: the
+  /// cosine of about fourteen degrees.
+  static const double _aligned = 0.97;
+
+  /// Points the wish at [point] from the feet, flat.
+  void _steerAt(Vector3 point) {
+    _wish
+      ..setFrom(point)
+      ..sub(_feet)
+      ..y = 0.0;
+    final length = _wish.length;
+    if (length > Tolerance.zeroLength) _wish.scale(1.0 / length);
+  }
+
+  final Vector3 _feet = Vector3.zero();
+  final Vector3 _goalFeet = Vector3.zero();
+  final Vector3 _onMesh = Vector3.zero();
 
   /// Asks this actor's body to jump.
   ///

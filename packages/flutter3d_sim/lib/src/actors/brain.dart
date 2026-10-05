@@ -154,12 +154,14 @@ final class Mind {
   /// know what a flow field is.
   void steerTowardsFocus() => system.steerTowardsFocus(actor);
 
-  /// Walk towards a point that is not the focus. Straight, sliding off walls.
+  /// Walk towards a point that is not the focus: along a route over the
+  /// system's `navMesh` when it has one, straight and sliding off walls when
+  /// it has not.
   ///
   /// [steerTowardsFocus] is kept separate rather than being this with the focus
-  /// passed in, and the difference matters: that one follows the level's flow
-  /// field round corners and this one cannot, because the field is baked
-  /// towards the focus. A patrol wants this; a chase wants the other.
+  /// passed in: that one follows the level's flow field, swept once towards
+  /// the focus for every actor, and this one searches a route of its own. A
+  /// patrol wants this; a horde's chase wants the other.
   void steerTowards(Vector3 point) => system.steerTowards(actor, point);
 
   /// Ask to jump. Refused in mid-air, as it is for the player.
