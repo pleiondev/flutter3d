@@ -176,6 +176,15 @@ final class AnimationParameters {
   /// it fired on.
   void consumeTriggerAt(int index) => _values[index] = 0.0;
 
+  /// Every value at once, as [values] gave them: a snapshot put back. Extra
+  /// ones are ignored and missing ones keep their value, so a snapshot from
+  /// a schema that has since grown a parameter still loads.
+  void load(List<double> saved) {
+    for (var i = 0; i < _values.length && i < saved.length; i++) {
+      _values[i] = saved[i];
+    }
+  }
+
   /// Every parameter back to its schema's initial value.
   void reset() {
     for (final (i, p) in schema.parameters.indexed) {

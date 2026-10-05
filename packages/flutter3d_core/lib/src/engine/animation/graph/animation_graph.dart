@@ -236,14 +236,23 @@ final class AnimationGraph {
     }
     if (_previous >= 0 && _fadeElapsed >= _fadeDuration) _previous = -1;
     if (_previous < 0) _takeTransition();
+    _finish(step, stepping: true);
+    return pose;
+  }
+
+  /// The pose from the states as they stand: sampled, the root held, the
+  /// layers and goals laid on — each stepped by [step] first when
+  /// [stepping], or as they stand when a restore has just put them there.
+  void _finish(double step, {required bool stepping}) {
     _sample();
+    final root = rootNode;
     if (root != null) {
       pose.translations[root * 3] = _rest.translations[root * 3];
       pose.translations[root * 3 + 2] = _rest.translations[root * 3 + 2];
     }
     for (final layer in layers) {
-      layer._step(step);
-      final over = layer.graph.evaluate(step);
+      if (stepping) layer._step(step);
+      final over = stepping ? layer.graph.evaluate(step) : layer.graph.pose;
       if (over.nodeCount != pose.nodeCount) {
         throw ArgumentError(
           'A layer of ${over.nodeCount} nodes over a graph of '
@@ -253,11 +262,89 @@ final class AnimationGraph {
       if (layer.weight > 0.0) layer._layOnto(pose);
     }
     for (final goal in goals) {
-      goal
-        ..step(step)
-        ..apply(pose);
+      if (stepping) goal.step(step);
+      goal.apply(pose);
     }
-    return pose;
+  }
+
+  /// Everything a step changes, for a snapshot: the state and where its
+  /// playhead is, the crossfade, the parameters, each layer's graph and
+  /// weight and each goal's weight. Not the goals' targets, which the game
+  /// writes before every step; not [pose], which [restore] makes again.
+  ///
+  /// States by name, so a snapshot outlives a definition that reorders
+  /// them.
+  Map<String, Object?> save() => <String, Object?>{
+    'state': state,
+    'head': _head._save(),
+    if (_previous >= 0) ...<String, Object?>{
+      'previous': machine.states[_previous].name,
+      'previousHead': _previousHead._save(),
+      'fadeElapsed': _fadeElapsed,
+      'fadeDuration': _fadeDuration,
+    },
+    'parameters': List<double>.of(parameters.values),
+    'layers': <Object?>[
+      for (final layer in layers)
+        <String, Object?>{
+          'weight': layer._weight,
+          'target': layer._target,
+          'rate': layer._rate,
+          'graph': layer.graph.save(),
+        },
+    ],
+    'goals': <Object?>[for (final goal in goals) goal.saveWeight()],
+  };
+
+  /// Back to [from], as [save] wrote it, and [pose] made again from there —
+  /// without a step, which would take a transition the saved graph had not.
+  /// A state the machine no longer has leaves the graph in its entry.
+  void restore(Map<String, Object?> from) {
+    int indexOf(Object? name) {
+      final i = name is String ? machine.indexOfState(name) : -1;
+      return i >= 0 ? i : machine.indexOfState(machine.entry);
+    }
+
+    _current = indexOf(from['state']);
+    _head = _Playhead._restore(from['head']);
+    if (from['previous'] case final String previous) {
+      _previous = indexOf(previous);
+      _previousHead = _Playhead._restore(from['previousHead']);
+      _fadeElapsed = (from['fadeElapsed'] as num?)?.toDouble() ?? 0.0;
+      _fadeDuration = (from['fadeDuration'] as num?)?.toDouble() ?? 0.0;
+    } else {
+      _previous = -1;
+    }
+    if (from['parameters'] case final List<Object?> values) {
+      parameters.load(<double>[
+        for (final v in values) v is num ? v.toDouble() : 0.0,
+      ]);
+    }
+    final savedLayers = from['layers'];
+    if (savedLayers is List) {
+      for (var i = 0; i < layers.length && i < savedLayers.length; i++) {
+        final saved = savedLayers[i];
+        if (saved is! Map<String, Object?>) continue;
+        final layer = layers[i];
+        layer._weight = (saved['weight'] as num?)?.toDouble() ?? layer._weight;
+        layer._target = (saved['target'] as num?)?.toDouble() ?? layer._target;
+        layer._rate = (saved['rate'] as num?)?.toDouble() ?? 0.0;
+        if (saved['graph'] case final Map<String, Object?> graph) {
+          layer.graph.restore(graph);
+        }
+      }
+    }
+    final savedGoals = from['goals'];
+    if (savedGoals is List) {
+      for (var i = 0; i < goals.length && i < savedGoals.length; i++) {
+        if (savedGoals[i] case final Map<String, Object?> saved) {
+          goals[i].restoreWeight(saved);
+        }
+      }
+    }
+    rootDelta.setZero();
+    _passed.clear();
+    _finish(0.0, stepping: false);
   }
 
   void _takeTransition() {
@@ -714,6 +801,17 @@ final class _Plays {
 /// a loop that has gone round must not read as having just begun.
 final class _Playhead {
   const _Playhead(this.time, this.elapsed, this.reversing);
+
+  static _Playhead _restore(Object? from) {
+    if (from is! List || from.length != 3) return start;
+    return _Playhead(
+      (from[0] as num).toDouble(),
+      (from[1] as num).toDouble(),
+      from[2] == true,
+    );
+  }
+
+  List<Object?> _save() => <Object?>[time, elapsed, reversing];
 
   static const _Playhead start = _Playhead(0.0, 0.0, false);
 

@@ -54,6 +54,20 @@ sealed class AnimationGoal {
     }
   }
 
+  /// Its weight and where that is fading to, for a graph's snapshot.
+  Map<String, Object?> saveWeight() => <String, Object?>{
+    'weight': _weight,
+    'target': _target,
+    'rate': _rate,
+  };
+
+  /// Back to what [saveWeight] wrote.
+  void restoreWeight(Map<String, Object?> from) {
+    _weight = (from['weight'] as num?)?.toDouble() ?? _weight;
+    _target = (from['target'] as num?)?.toDouble() ?? _target;
+    _rate = (from['rate'] as num?)?.toDouble() ?? 0.0;
+  }
+
   /// Lays this goal on [pose] by [weight]; nothing at nought.
   void apply(Pose pose);
 }

@@ -7,6 +7,7 @@
 /// tests name are exact rather than close.
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -88,6 +89,126 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('a snapshot', () {
+    /// A graph with everything a step changes: a blend, a fade into a
+    /// stand, a layer fading in, a look, root motion and markers.
+    AnimationGraph busy() {
+      AnimationClip walking(String name, double metres, double length) =>
+          AnimationClip(
+            name: name,
+            tracks: <AnimationTrack>[
+              AnimationTrack(
+                nodeIndex: 0,
+                path: AnimationPath.translation,
+                interpolation: AnimationInterpolation.linear,
+                times: Float32List.fromList(<double>[0.0, length]),
+                values: Float32List.fromList(<double>[0, 0, 0, 0, 0.3, metres]),
+                componentCount: 3,
+              ),
+            ],
+          );
+      final clips = <AnimationClip>[
+        walking('walk', 1.5, 1.0),
+        walking('run', 3.0, 0.6),
+        _clip('stand', 0.0, yaw: 0.4),
+      ];
+      final graph = AnimationGraph(
+        machine: AnimationStateMachine(
+          parameters: AnimationParameterSchema(const <AnimationParameter>[
+            AnimationParameter.float('speed'),
+            AnimationParameter.trigger('stop'),
+          ]),
+          entry: 'move',
+          states: <AnimationState>[
+            AnimationState(
+              name: 'move',
+              blend: AnimationBlendSpace('speed', const <BlendPoint>[
+                BlendPoint(0.0, 'walk'),
+                BlendPoint(1.0, 'run'),
+              ]),
+              markers: const <AnimationMarker>[AnimationMarker(0.5, 'step')],
+            ),
+            const AnimationState(name: 'stand', clip: 'stand'),
+          ],
+          transitions: <AnimationTransition>[
+            AnimationTransition(
+              from: 'move',
+              to: 'stand',
+              conditions: const <AnimationCondition>[TriggerCondition('stop')],
+              duration: 0.4,
+            ),
+          ],
+        ),
+        clips: clips,
+        pose: _onePose(),
+      )..rootNode = 0;
+      graph.layers.add(
+        AnimationGraphLayer(
+          graph: AnimationGraph(
+            machine: AnimationStateMachine(
+              parameters: AnimationParameterSchema(
+                const <AnimationParameter>[],
+              ),
+              entry: 'lean',
+              states: const <AnimationState>[
+                AnimationState(name: 'lean', clip: 'stand'),
+              ],
+              transitions: const <AnimationTransition>[],
+            ),
+            clips: clips,
+            pose: _onePose(),
+          ),
+          blend: AnimationBlend.additive,
+          weight: 0.0,
+        )..fadeTo(1.0, 2.0),
+      );
+      graph.goals.add(
+        LookGoal(
+          joint: 0,
+          forward: Vector3(0, 0, 1),
+          target: Vector3(3, 0, 1),
+          weight: 0.0,
+        )..fadeTo(1.0, 0.5),
+      );
+      return graph;
+    }
+
+    /// Steps [graph] from step [from] to [to] of a fixed script, and what
+    /// each step gave.
+    List<String> play(AnimationGraph graph, int from, int to) => <String>[
+      for (var i = from; i < to; i++)
+        (() {
+          graph.parameters.setFloat('speed', (i % 50) / 50.0);
+          if (i == 70) graph.parameters.fire('stop');
+          graph.evaluate(1.0 / 60.0);
+          return '${graph.pose.translations.toList()}'
+              '${graph.pose.rotations.toList()}'
+              '${graph.rootDelta.storage.toList()}${graph.passed}';
+        })(),
+    ];
+
+    test('restored, a graph steps on to the same pose, travel and markers', () {
+      final live = busy();
+      play(live, 0, 80);
+      final saved = jsonDecode(jsonEncode(live.save())) as Map<String, Object?>;
+      expect(saved['previous'], 'move', reason: 'saved mid-fade');
+      final ahead = play(live, 80, 200);
+      // A fresh graph with nothing fading, so all of it has to come back
+      // from the snapshot.
+      final again = busy();
+      again.layers.first.weight = 0.0;
+      again.goals.first.weight = 0.0;
+      again.restore(saved);
+      expect(again.state, 'stand');
+      expect(play(again, 80, 200), ahead);
+    });
+
+    test('a state it no longer has leaves it in its entry', () {
+      final graph = busy()..restore(<String, Object?>{'state': 'gone'});
+      expect(graph.state, 'move');
+    });
+  });
+
   group('a blend across a plane', () {
     final cross = <BlendPoint>[
       const BlendPoint(0.0, 'forward', y: 1.0),

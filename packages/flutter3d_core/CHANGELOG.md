@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **An animation graph saves and restores.** `AnimationGraph.save()` is
+  everything a step changes, as JSON: the state by name and its playhead,
+  the crossfade, the parameters, each layer's graph and weight, and each
+  goal's weight. `restore` puts it back and makes the pose again without
+  a step, since a step would take a transition the saved graph had not. A
+  state the machine no longer has leaves the graph in its entry. Restored
+  mid-fade, mid-blend, with a layer and a look still fading in, a graph
+  steps on to the same pose, root travel and markers as the one it was
+  saved from. `AnimationParameters.load` puts every value back at once.
+
 - **Blend spaces across a plane.** `AnimationBlendSpace(across:)` names a
   second parameter, and each `BlendPoint` gets a `y`. This gives a walk
   forward, back and to each side by the two speeds along and across the
