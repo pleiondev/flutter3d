@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Actors walk past each other.** `Avoidance` is ORCA: each neighbour
+  rules out the velocities that meet it within a horizon, each body takes
+  half the turning, and the velocity picked is the one nearest the wanted
+  one that every neighbour allows, or the one that breaks them least.
+  `ActorSystem.avoidance`, when set, puts every living actor on the ground
+  through it against the living actors within reach, nearest first. The
+  wish it hands the controller points along the difference between the
+  velocity picked and the body's own, as long as the speed picked, which
+  is how the controller lands on a velocity rather than half turning
+  towards it. Nothing is kept between steps. Null, the default, changes
+  nothing.
+
 - **A navigation mesh knows how high its floors are between its
   corners.** A floor and the ramp up from it can be one polygon, and its
   corners alone made the flat before the ramp a slope. The mesh keeps the

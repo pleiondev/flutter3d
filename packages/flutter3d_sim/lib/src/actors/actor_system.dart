@@ -50,6 +50,7 @@ import '../ecs/entity.dart';
 import '../loop/game_event.dart';
 import '../math/motion.dart';
 import '../math/tolerances.dart';
+import '../nav/avoidance.dart';
 import '../nav/jump_links.dart';
 import '../nav/navigation.dart';
 import '../nav/navmesh/navmesh.dart';
@@ -118,6 +119,13 @@ final class ActorSystem {
   /// every actor shares; a mesh answers for a point only one of them wants —
   /// a post, a noise, cover.
   NavMesh? navMesh;
+
+  /// How actors walk past each other, or null for "into each other": see
+  /// [Avoidance]. Each living actor on the ground turns its brain's wish
+  /// into the velocity nearest it that meets no other living actor within
+  /// the horizon, taking half the turning and trusting the other with half.
+  /// Read from the bodies as they stand, so nothing is kept between steps.
+  Avoidance? avoidance;
 
   /// How often an actor far from the focus thinks.
   ///
@@ -438,6 +446,10 @@ final class ActorSystem {
 
       _wish.setZero();
       brain?.act(_mind);
+      final avoid = avoidance;
+      if (avoid != null && body != null && body.isGrounded) {
+        _avoid(actor, body, avoid, dt);
+      }
       final stride = strides?.strideOf(actor, _wish, dt);
       body?.step(dt, wishDirection: _wish, drivenBy: stride);
     }
@@ -763,6 +775,75 @@ final class ActorSystem {
   final Vector3 _feet = Vector3.zero();
   final Vector3 _goalFeet = Vector3.zero();
   final Vector3 _onMesh = Vector3.zero();
+
+  /// Turns [_wish] into the velocity [avoidance] picks for [actor].
+  ///
+  /// The neighbours are the living actors with bodies within
+  /// [Avoidance.neighbourDistance], nearest first and by spawn order where
+  /// two are as near, at most [Avoidance.maxNeighbours] of them.
+  void _avoid(
+    Actor actor,
+    CharacterController body,
+    Avoidance avoid,
+    double dt,
+  ) {
+    final here = body.position;
+    final reach = avoid.neighbourDistance * avoid.neighbourDistance;
+    final near = <(double, int, AvoidanceNeighbour)>[];
+    for (final other in actors) {
+      final them = other.body;
+      if (identical(other, actor) || them == null || !other.isAlive) continue;
+      final dx = them.position.x - here.x;
+      final dz = them.position.z - here.z;
+      final d = dx * dx + dz * dz;
+      if (d > reach) continue;
+      near.add((
+        d,
+        other.ordinal,
+        (
+          x: them.position.x,
+          z: them.position.z,
+          vx: them.velocity.x,
+          vz: them.velocity.z,
+          radius: them.halfExtents.x,
+        ),
+      ));
+    }
+    if (near.isEmpty) return;
+    near.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2 - b.$2);
+    final speed = body.tuning.walkSpeed;
+    final (vx, vz) = avoid.velocity(
+      x: here.x,
+      z: here.z,
+      vx: body.velocity.x,
+      vz: body.velocity.z,
+      radius: body.halfExtents.x,
+      maxSpeed: speed,
+      prefX: _wish.x * speed,
+      prefZ: _wish.z * speed,
+      neighbours: <AvoidanceNeighbour>[
+        for (final n in near.take(avoid.maxNeighbours)) n.$3,
+      ],
+      dt: dt,
+    );
+    // **Asked for as the controller will take it.** It adds speed along the
+    // wish and caps the total at the wish's share of its top speed, so a
+    // wish pointing at the velocity wanted only half turns a body already
+    // moving. Pointed along the difference between the velocity wanted and
+    // the one it has, and as long as the speed wanted, it lands on the
+    // velocity wanted whenever a step's acceleration covers the difference,
+    // and goes straight towards it when it does not.
+    final want = math.sqrt(vx * vx + vz * vz);
+    final dx = vx - body.velocity.x;
+    final dz = vz - body.velocity.z;
+    final gap = math.sqrt(dx * dx + dz * dz);
+    if (gap <= Tolerance.zeroLength) {
+      _wish.setValues(vx / speed, 0.0, vz / speed);
+    } else {
+      final share = want / speed;
+      _wish.setValues(dx / gap * share, 0.0, dz / gap * share);
+    }
+  }
 
   /// Asks this actor's body to jump.
   ///
