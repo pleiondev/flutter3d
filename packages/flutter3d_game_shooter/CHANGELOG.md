@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **Monsters learn the way through a broken wall.** The navigation meshes
+  are baked in four-metre tiles (`routeConfig`), and `followBreaches`
+  bakes again the part of every mesh a hole changed as the hole is blown,
+  in the step, and bakes the authored meshes again for every saved hole on
+  a restore. A guard whose post is behind a wall with no way round waits
+  until a rocket breaks it and then goes through; a restored breach gives
+  the meshes the digests the live ones had.
+
 - **Monsters walk to a point by a route, and round each other.**
   `stageRoutes` sets a navigation mesh per width in the roster on the
   actor system, on the grid's quarter-metre lattice, and avoidance; both

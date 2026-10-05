@@ -405,12 +405,68 @@ Staged stage(Level level, CollisionWorld world, {required InputState input}) {
 /// grid's quarter-metre lattice for the grid's reason — a one-metre corridor
 /// is a corridor — and avoidance.
 ///
+/// **In four-metre tiles**, so that a wall a rocket breaks is baked again
+/// where it broke and nowhere else — see [followBreaches].
+///
 /// One function, called by both stagings and by the test that holds the
 /// game to it, so that what is tested is what ships.
 void stageRoutes(ActorSystem actors, Level level) {
   actors
     ..navMeshes = NavMesh.bakeLevelFor(level, <(double, double)>[
       for (final def in Monsters.byName.values) (def.radius, def.height),
-    ], config: const NavMeshConfig(cellSize: 0.25))
+    ], config: routeConfig)
     ..avoidance = const Avoidance();
+}
+
+/// The lattice and tiles the game's navigation meshes are baked on.
+const NavMeshConfig routeConfig = NavMeshConfig(
+  cellSize: 0.25,
+  tileSize: 16,
+  maxEdgeError: 0.45,
+);
+
+/// Keeps [actors]' navigation meshes on the level as [breaches] leave it:
+/// each hole bakes again the part of every mesh it changed, and a restore
+/// bakes the meshes [actors] has now — the level as authored — again for
+/// every saved hole in turn, which is the level with all of them baked
+/// whole.
+///
+/// In the step, where the hole is blown, so a replay meets the same mesh at
+/// the same step.
+void followBreaches(ActorSystem actors, Level level, Breaches breaches) {
+  final authored = actors.navMeshes;
+  List<Brush> standing() => expandRecipes(
+    Level(
+      name: level.name,
+      brushes: breaches.brushes,
+      heightfield: level.heightfield,
+      recipes: level.recipes,
+    ),
+  ).brushes;
+  NavMesh bakedAgain(NavMesh mesh, Aabb3 hole, List<Brush> brushes) =>
+      mesh.rebake(
+        brushes,
+        ground: level.heightfield,
+        minX: hole.min.x,
+        minZ: hole.min.z,
+        maxX: hole.max.x,
+        maxZ: hole.max.z,
+      );
+  breaches
+    ..onHole = (Aabb3 hole) {
+      final brushes = standing();
+      actors.navMeshes = <NavMesh>[
+        for (final mesh in actors.navMeshes) bakedAgain(mesh, hole, brushes),
+      ];
+    }
+    ..onRestore = () {
+      final brushes = standing();
+      actors.navMeshes = <NavMesh>[
+        for (final mesh in authored)
+          breaches.holes.fold(
+            mesh,
+            (NavMesh baked, Aabb3 hole) => bakedAgain(baked, hole, brushes),
+          ),
+      ];
+    };
 }

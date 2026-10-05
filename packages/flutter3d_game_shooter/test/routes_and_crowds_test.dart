@@ -111,6 +111,83 @@ void main() {
     });
   });
 
+  group('a guard behind a wall a rocket breaks', () {
+    /// A wall right across the room, no way round it.
+    List<Brush> closed() => <Brush>[
+      _floor(),
+      Brush(
+        centre: Vector3(0.0, 1.5, 0.0),
+        size: Vector3(1.0, 3.0, 20.0),
+        material: 'wall',
+      ),
+    ];
+
+    ({ActorSystem system, Breaches breaches, Actor guard}) staged() {
+      final level = Level(name: 'closed', brushes: closed());
+      final world = CollisionWorld();
+      level.addTo(world);
+      world.update();
+      final random = GameRandom(1);
+      final system = ActorSystem(world: world, random: random);
+      stageRoutes(system, level);
+      final breaches = Breaches(level, world);
+      followBreaches(system, level, breaches);
+      final bestiary = Bestiary(
+        actors: system,
+        shot: WeaponShot(
+          world: world,
+          hitscan: Hitscan(world: world, random: random),
+          projectiles: ProjectileSystem(world: world),
+        ),
+        catalog: Monsters.byName,
+      );
+      final guard = _guard(
+        bestiary,
+        Vector3(-6.0, 0.9, 0.0),
+        Vector3(6.0, 0.9, 0.0),
+      );
+      return (system: system, breaches: breaches, guard: guard);
+    }
+
+    final hole = Aabb3.minMax(Vector3(-1.0, 0.0, -1.0), Vector3(1.0, 2.2, 1.0));
+
+    test('stays on its side until the wall is broken, then goes through', () {
+      final it = staged();
+      final brain = it.guard.brain! as PatrolBrain;
+      for (var i = 0; i < 300; i++) {
+        _step(it.system);
+      }
+      expect(brain.leg, 0, reason: 'it got through a wall with no hole');
+      expect(it.guard.position!.x, lessThan(0.0));
+
+      it.breaches.hole(hole);
+      // Mutation: not listening for the hole leaves the mesh as baked, and
+      // the guard stays where it stopped.
+      for (var i = 0; i < 300 && brain.leg == 0; i++) {
+        _step(it.system);
+      }
+      expect(brain.leg, 1);
+    });
+
+    test('a restored breach gives the meshes the hole baked in', () {
+      final broken = staged();
+      broken.breaches.hole(hole);
+      final saved = broken.breaches.save();
+
+      final restored = staged();
+      restored.breaches.restore(saved);
+      // Mutation: restoring the walls without baking the meshes again
+      // leaves them as the level was authored.
+      expect(
+        <int>[for (final m in restored.system.navMeshes) m.digest],
+        <int>[for (final m in broken.system.navMeshes) m.digest],
+      );
+      expect(<int>[
+        for (final m in restored.system.navMeshes) m.digest,
+      ], isNot(<int>[for (final m in staged().system.navMeshes) m.digest]));
+    });
+  });
+
   group('two guards walking a corridor towards each other', () {
     /// How near they came, centre to centre, and the step each first
     /// reached its post at, or null.

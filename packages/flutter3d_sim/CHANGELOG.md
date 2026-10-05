@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A breach says what it broke.** `Breaches.onHole` is told the box of
+  every hole as it is blown, after the brushes are cut, and
+  `Breaches.onRestore` when a restore has put the walls back and blown the
+  saved holes again — so whatever was baked from the brushes can follow.
+
 - **A navigation mesh can have a part of it baked again.**
   `NavMeshConfig.tileSize` cuts the lattice into tiles, a region never
   crosses a tile's edge, and `NavMesh.rebake` bakes again only the tiles

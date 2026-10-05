@@ -95,9 +95,9 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
 /// The visibility table was baked from walls without holes in them, and a
 /// hole is a new line of sight; the bridge drops the table when it rebuilds
 /// the batches, and the level draws everything from then on. The navigation
-/// grid keeps its walls: a monster does not learn a new route through a
-/// breach, which is a limit and not a bug — it was baked from the brushes,
-/// and it is baked once.
+/// grid keeps its walls: a flow field does not learn a new route through a
+/// breach. A tiled navigation mesh does — whoever holds one listens on
+/// [onHole] and [onRestore] and bakes the part a hole changed again.
 ///
 /// The baked light is kept, and [origins] is how. A lightmap is planned by
 /// brush index, and a cut replaces one brush with up to six in its place, so
@@ -142,6 +142,15 @@ final class Breaches {
 
   /// Every hole so far, in the order they were blown.
   final List<Aabb3> holes = <Aabb3>[];
+
+  /// Told of every hole as it is blown, after the brushes are cut: the box
+  /// it took out.
+  void Function(Aabb3 hole)? onHole;
+
+  /// Told when [restore] has put the level back and blown the saved holes
+  /// again — which [onHole] is not told of, since a listener that follows
+  /// holes one by one has its own state to put back first.
+  void Function()? onRestore;
 
   /// Bumped on every breach, so a renderer can tell the walls changed.
   int get version => _version;
@@ -214,6 +223,7 @@ final class Breaches {
     holes.add(Aabb3.copy(box));
     _apply(box);
     _version++;
+    onHole?.call(box);
   }
 
   void _apply(Aabb3 box) {
@@ -301,5 +311,6 @@ final class Breaches {
       }
     }
     _version++;
+    onRestore?.call();
   }
 }

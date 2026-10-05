@@ -224,6 +224,18 @@ Staged stage(
     lookSensitivity: lookSensitivity,
   )..yaw = spawn?.yaw ?? 0.0;
 
+  // Walls crumble; floors, ceilings and the stone of the crypt's fixtures do
+  // not. A rocket through the floor is a player out of the level, and a
+  // ceiling with a hole in it looks out on nothing. The monsters' meshes
+  // follow what crumbles.
+  final breaches = Breaches(
+    level,
+    world,
+    breakable: (Brush brush) =>
+        brush.solid && brush.ramp == null && brush.material == 'wall',
+  );
+  followBreaches(actors, level, breaches);
+
   return Staged(
     entities: entities,
     projectiles: projectiles,
@@ -248,15 +260,7 @@ Staged stage(
             levelNext: level.next,
           )
           ..automap = Automap(navigation.grid)
-          // Walls crumble; floors, ceilings and the stone of the crypt's
-          // fixtures do not. A rocket through the floor is a player out of the
-          // level, and a ceiling with a hole in it looks out on nothing.
-          ..breaches = Breaches(
-            level,
-            world,
-            breakable: (Brush brush) =>
-                brush.solid && brush.ramp == null && brush.material == 'wall',
-          ),
+          ..breaches = breaches,
   );
 }
 
