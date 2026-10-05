@@ -193,7 +193,8 @@ void main() {
     game.settle(3);
     expect(crate.isAsleep, isFalse);
     final mid = game.staged.sim.save();
-    expect(mid.data['dynamics'], isA<String>());
+    expect(mid.data['dynamics'], isA<Map<String, Object?>>());
+    expect((mid.data['dynamics']! as Map)['core'], isA<String>());
     // Every step's save, as a demo's checkpoints and a rewind's resim check
     // them: a crate that fell asleep a step later ends where it would have,
     // and only the steps between say so.
