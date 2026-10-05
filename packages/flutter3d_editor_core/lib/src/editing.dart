@@ -328,6 +328,79 @@ final class Editing {
     return const <String>[];
   }
 
+  /// The step rate a cutscene's moments are read for: the game's, sixty
+  /// unless the game the level is for says otherwise.
+  int cutsceneStepsPerSecond = 60;
+
+  /// The level's cutscenes, by name: the `cutscene` entities and their
+  /// `sequence` documents.
+  Map<String, Map<String, Object?>> get cutscenes =>
+      <String, Map<String, Object?>>{
+        for (final entity in level.ofType(EntityTypes.cutscene))
+          if ((entity.name, entity.properties['sequence']) case (
+            final String name,
+            final Map<Object?, Object?> document,
+          ))
+            name: document.cast<String, Object?>(),
+      };
+
+  /// Writes [sequence] as the cutscene called [name] — the `sequence` of the
+  /// `cutscene` entity of that name, made at [at] when there is none yet —
+  /// and says what is wrong with it: nothing, when it was written.
+  ///
+  /// Refused, with every problem and where it is, as [setBehaviour] is: the
+  /// document is read as the game will read it, at
+  /// [cutsceneStepsPerSecond], and a name another entity already answers
+  /// to is refused rather than given twice.
+  List<String> setCutscene(
+    String name,
+    Map<String, Object?> sequence, {
+    Vector3? at,
+  }) {
+    if (name.isEmpty) return <String>['a cutscene needs a name'];
+    final problems = Sequence.read(
+      sequence,
+      stepsPerSecond: cutsceneStepsPerSecond,
+    ).problems;
+    if (problems.isNotEmpty) return problems;
+    final index = level.entities.indexWhere(
+      (EntityDef e) => e.type == EntityTypes.cutscene && e.name == name,
+    );
+    if (index < 0 && level.named(name) != null) {
+      return <String>['"$name" is already the name of something else'];
+    }
+    _remember('set cutscene $name');
+    final old = index < 0 ? null : level.entities[index];
+    final entity = EntityDef(
+      type: EntityTypes.cutscene,
+      name: name,
+      position: old?.position ?? at ?? Vector3.zero(),
+      yaw: old?.yaw ?? 0.0,
+      properties: <String, Object?>{...?old?.properties, 'sequence': sequence},
+    );
+    if (index < 0) {
+      level.entities.add(entity);
+    } else {
+      level.entities[index] = entity;
+    }
+    return const <String>[];
+  }
+
+  /// Takes the cutscene called [name] out, and says whether there was one.
+  /// A trigger that started it is left naming it, which the validator
+  /// reports.
+  bool removeCutscene(String name) {
+    final index = level.entities.indexWhere(
+      (EntityDef e) => e.type == EntityTypes.cutscene && e.name == name,
+    );
+    if (index < 0) return false;
+    _remember('remove cutscene $name');
+    level.entities.removeAt(index);
+    // An entity selected by its index may now be the next one along.
+    if (piece == Piece.entity) select(null, null);
+    return true;
+  }
+
   /// Takes the behaviour tree called [name] out, and says whether there was
   /// one. An entity that ran it is left naming it, which `BehavioursRead`
   /// reports: the editor does not guess which tree it should run instead.

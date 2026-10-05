@@ -602,6 +602,52 @@ List<EditorTool> get editorTools => <EditorTool>[
   ),
   _told(
     Tool(
+      name: 'setCutscene',
+      description:
+          'Write a cutscene into the level under a name: a cutscene entity '
+          'holding the sequence, which a trigger, button or relay whose '
+          'target is the name starts. The sequence is {seconds, camera: '
+          '{keys: [{t, at, look, fov}], ease}, subtitles: [{from, to, text}], '
+          'fade: [{t, value}], signals: [{t, name, data}], actors: [{t, '
+          'actor, do, at, clip}]} — times in seconds, at and look three '
+          'numbers, fov vertical degrees (45 unless given); do is goTo or '
+          'face with at, stand, release, or play with clip. Every part but '
+          'seconds may be left out. A sequence that does not read is refused '
+          'with every problem and where it is. Undoable.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(description: 'what triggers name it by'),
+          'sequence': ObjectSchema(description: 'the cutscene'),
+          'at': _vector('where a new cutscene entity stands'),
+        },
+        required: <String>['name', 'sequence'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.setCutscene(
+          arguments['name']! as String,
+          (arguments['sequence']! as Map).cast<String, Object?>(),
+          _point(arguments, 'at'),
+        ),
+  ),
+  _told(
+    Tool(
+      name: 'removeCutscene',
+      description:
+          'Take a cutscene out of the level. A trigger that started it is '
+          'left naming it, and validate says so. Undoable.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(description: 'the cutscene to take out'),
+        },
+        required: <String>['name'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.removeCutscene(arguments['name']! as String),
+  ),
+  _told(
+    Tool(
       name: 'validate',
       description:
           'What is wrong with the level, as the game would see it: geometry '

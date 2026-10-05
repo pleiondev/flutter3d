@@ -8,9 +8,12 @@
 /// trusted.
 library;
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_editor_mcp/flutter3d_editor_mcp.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show expandRecipes;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef, expandRecipes;
 import 'package:test/test.dart';
 
 void main() {
@@ -48,6 +51,8 @@ void main() {
       'play_devices',
       'setBehaviour',
       'removeBehaviour',
+      'setCutscene',
+      'removeCutscene',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),
@@ -261,6 +266,148 @@ void main() {
         contains('there is no behaviour patrol'),
       );
     });
+  });
+
+  group('cutscenes', () {
+    Future<Answer> call(
+      EditorSession session,
+      String tool,
+      Map<String, Object?> arguments,
+    ) async {
+      final answer = await editorTools
+          .firstWhere((EditorTool it) => it.name == tool)
+          .run(session, arguments);
+      return (did: answer.did, says: answer.says);
+    }
+
+    const scene = <String, Object?>{
+      'seconds': 4,
+      'camera': <String, Object?>{
+        'ease': true,
+        'keys': <Object?>[
+          <String, Object?>{
+            't': 0,
+            'at': <double>[0, 2, 4],
+            'look': <double>[0, 1, 0],
+          },
+          <String, Object?>{
+            't': 4,
+            'at': <double>[4, 3, 0],
+            'look': <double>[0, 1, 0],
+          },
+        ],
+      },
+      'subtitles': <Object?>[
+        <String, Object?>{'from': 0.5, 'to': 3, 'text': 'Look.'},
+      ],
+    };
+
+    test('the sanctum\'s scene, taken out and written back by an agent, '
+        'leaves the level as it was', () async {
+      final text = File(
+        '../../apps/flutter3d_demo_dungeon/assets/levels/sanctum.json',
+      ).readAsStringSync();
+      final shipped = Editing.parse(text, path: 'sanctum.json');
+      final scene = shipped.cutscenes['the_altar']!;
+      final at = shipped.level.named('the_altar')!.position;
+      final before = EditorSession(shipped).validate();
+
+      final session = EditorSession(Editing.parse(text, path: 'sanctum.json'));
+      expect(session.editing.removeCutscene('the_altar'), isTrue);
+      expect(session.editing.level.named('the_altar'), isNull);
+      final wrote = await call(session, 'setCutscene', <String, Object?>{
+        'name': 'the_altar',
+        // Through JSON, as an agent's arguments arrive.
+        'sequence': jsonDecode(jsonEncode(scene)),
+        'at': <double>[at.x, at.y, at.z],
+      });
+      expect(wrote.did, isTrue, reason: wrote.says);
+      expect(session.validate(), before);
+      expect(
+        Editing.parse(session.editing.write(), path: 'a.json').cutscenes,
+        shipped.cutscenes,
+      );
+    });
+
+    test('an agent writes one from nothing, and the level validates', () async {
+      final session = EditorSession(
+        Editing.parse(_litLevel, path: 'nowhere.json'),
+      );
+      final wrote = await call(session, 'setCutscene', <String, Object?>{
+        'name': 'intro',
+        'sequence': scene,
+        'at': <double>[0, 0, 0],
+      });
+      expect(wrote.did, isTrue, reason: wrote.says);
+      expect(session.listing(), contains('cutscene'));
+      expect(session.validate(), 'no issues');
+      // Saved and read back, the scene is the entity's.
+      final again = Editing.parse(session.editing.write(), path: 'a.json');
+      expect(again.cutscenes['intro'], scene);
+      expect(session.undo().says, contains('set cutscene intro'));
+      expect(session.editing.cutscenes, isEmpty);
+    });
+
+    test('a scene that does not read is refused with where', () async {
+      final session = EditorSession(
+        Editing.parse(_bareLevel, path: 'nowhere.json'),
+      );
+      // Mutation: writing the sequence without reading it first.
+      final refused = await call(session, 'setCutscene', <String, Object?>{
+        'name': 'intro',
+        'sequence': <String, Object?>{
+          'seconds': 2,
+          'actors': <Object?>[
+            <String, Object?>{'t': 0, 'actor': 'guard', 'do': 'dance'},
+          ],
+        },
+      });
+      expect(refused.did, isFalse);
+      expect(refused.says, contains('actors[0].do'));
+      expect(session.editing.cutscenes, isEmpty);
+      expect(session.editing.canUndo, isFalse);
+    });
+
+    test(
+      'a name something else has is refused, and one can be removed',
+      () async {
+        final session = EditorSession(
+          Editing.parse(_guardedLevel, path: 'nowhere.json'),
+        );
+        session.editing.level.entities.add(
+          EntityDef(
+            type: 'monster',
+            name: 'gate',
+            properties: <String, Object?>{'kind': 'runner'},
+          ),
+        );
+        // Mutation: making a second entity under a name one already has.
+        final clash = await call(session, 'setCutscene', <String, Object?>{
+          'name': 'gate',
+          'sequence': scene,
+        });
+        expect(clash.did, isFalse);
+        expect(clash.says, contains('already the name'));
+        final wrote = await call(session, 'setCutscene', <String, Object?>{
+          'name': 'intro',
+          'sequence': scene,
+        });
+        expect(wrote.did, isTrue);
+        final replaced = await call(session, 'setCutscene', <String, Object?>{
+          'name': 'intro',
+          'sequence': <String, Object?>{'seconds': 1},
+        });
+        expect(replaced.says, startsWith('replaced'));
+        expect(session.editing.cutscenes['intro'], <String, Object?>{
+          'seconds': 1,
+        });
+        final removed = await call(session, 'removeCutscene', <String, Object?>{
+          'name': 'intro',
+        });
+        expect(removed.did, isTrue);
+        expect(session.editing.cutscenes, isEmpty);
+      },
+    );
   });
 
   test('optimizeLights keeps one of three lamps in one place, and undo '

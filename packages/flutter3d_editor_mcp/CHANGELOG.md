@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`setCutscene` and `removeCutscene`.** An agent writes a level's
+  cutscene from nothing — camera keys, subtitles, fades, signals and actor
+  cues in one document — and is told every problem with it, and where,
+  before anything changes.
+
 - **An agent writes behaviour trees.** `setBehaviour` and
   `removeBehaviour`, the first describing every composite, leaf and
   consideration a tree may use and refusing one that does not read with

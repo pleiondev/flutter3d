@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **Cutscenes are written like behaviours.** `Editing.cutscenes` lists the
+  level's scenes by name; `setCutscene` reads a scene at
+  `cutsceneStepsPerSecond` and writes it as a `cutscene` entity, refusing
+  one that does not read, with where, or a name something else has;
+  `removeCutscene` takes one out. Each is one step of undo.
+
 - **Behaviour trees are written in the editor.** `Editing.setBehaviour`
   writes a tree under a name and refuses one that does not read with every
   problem and where it is, writing nothing; `removeBehaviour` takes one

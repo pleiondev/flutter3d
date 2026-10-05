@@ -39,8 +39,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
-import 'src/behaviours_dialog.dart';
+import 'src/cutscene_preview.dart';
 import 'src/documents.dart';
+import 'src/documents_dialog.dart';
 import 'src/editor_bar.dart';
 import 'src/editor_chooser.dart';
 import 'src/editor_cubit.dart';
@@ -173,6 +174,11 @@ class _EditorScreenState extends State<EditorScreen>
 
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
+
+  /// The cutscene whose camera the viewport is playing, and how long it has
+  /// been playing; null when the fly camera has the view.
+  CutscenePreview? _preview;
+  double _previewed = 0.0;
 
   final InputState _input = InputState();
   late final DesktopInput _keys = DesktopInput(
@@ -644,6 +650,10 @@ class _EditorScreenState extends State<EditorScreen>
     // The ticker's argument is the frame's scheduled time, not the present;
     // `FrameClock` says why the wall is measured instead.
     final dt = _frames.tick();
+    if (_preview case final CutscenePreview preview) {
+      _previewed += dt;
+      if (_previewed >= preview.seconds) _endPreview();
+    }
 
     _fly.step(
       dt.clamp(0.0, 0.1),
@@ -967,7 +977,9 @@ class _EditorScreenState extends State<EditorScreen>
     // meanings for one key in the order somebody wants them: the thing you
     // most want to undo is the one you did last.
     if (key == LogicalKeyboardKey.escape) {
-      if (_ready?.placing != null) {
+      if (_preview != null) {
+        _endPreview();
+      } else if (_ready?.placing != null) {
         _cubit.setPlacing(null);
       } else {
         editing.select(null, null);
@@ -1325,6 +1337,43 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  /// The level's cutscenes, written through the history, and previewed in
+  /// the viewport from the dialog.
+  Future<void> _cutscenes() async {
+    final editing = _editing;
+    if (editing == null || !mounted) return;
+    final changed = await showCutscenes(
+      context,
+      editing,
+      preview: (Sequence scene) {
+        _projection = _camera.projection;
+        _preview = CutscenePreview(scene);
+        _previewed = 0.0;
+      },
+    );
+    if (!mounted) return;
+    if (changed) _changed('cutscenes written');
+    if (_preview case final CutscenePreview preview) {
+      _cubit.say(
+        'previewing ${preview.seconds.toStringAsFixed(1)} s of camera — '
+        'Esc stops it',
+      );
+    }
+  }
+
+  /// What the camera's projection was before a preview took it.
+  Projection? _projection;
+
+  /// Gives the view back to the fly camera, where it was before.
+  void _endPreview() {
+    _preview = null;
+    if (_projection case final Projection projection) {
+      _camera.projection = projection;
+    }
+    _projection = null;
+    _cubit.say('preview over');
+  }
+
   /// Asks what to do about unsaved work, and does it.
   ///
   /// Three answers rather than two, because "save" is the one a person
@@ -1447,6 +1496,11 @@ class _EditorScreenState extends State<EditorScreen>
                       shadows: const ShadowSettings(enabled: false),
                     ),
                     onBeforeFrame: () {
+                      // The tick ends a preview that is over; a frame only
+                      // reads it, so nothing is said from inside a paint.
+                      if (_preview?.placeOn(_camera, _previewed) ?? false) {
+                        return;
+                      }
                       _fly.placeOn(_camera);
                       // The lamp travels with the eye rather than hanging where
                       // the last rebuild happened to leave it.
@@ -1467,6 +1521,7 @@ class _EditorScreenState extends State<EditorScreen>
                     state: state,
                     onFewerLights: () => unawaited(_fewerLights()),
                     onBehaviours: () => unawaited(_behaviours()),
+                    onCutscenes: () => unawaited(_cutscenes()),
                   ),
                 ),
                 // Below the bar and above the legend, so nothing it covers is

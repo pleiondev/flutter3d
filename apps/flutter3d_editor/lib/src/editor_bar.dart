@@ -17,6 +17,7 @@ final class EditorBar extends StatelessWidget {
     required this.state,
     this.onFewerLights,
     this.onBehaviours,
+    this.onCutscenes,
   });
 
   final EditorReady state;
@@ -27,6 +28,9 @@ final class EditorBar extends StatelessWidget {
 
   /// Opens the level's behaviour trees; the button is left out when null.
   final VoidCallback? onBehaviours;
+
+  /// Opens the level's cutscenes; the button is left out when null.
+  final VoidCallback? onCutscenes;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +76,10 @@ final class EditorBar extends StatelessWidget {
             if (onBehaviours case final VoidCallback run) ...<Widget>[
               const SizedBox(width: 12),
               TextButton(onPressed: run, child: const Text('Behaviours')),
+            ],
+            if (onCutscenes case final VoidCallback run) ...<Widget>[
+              const SizedBox(width: 12),
+              TextButton(onPressed: run, child: const Text('Cutscenes')),
             ],
           ],
         ),

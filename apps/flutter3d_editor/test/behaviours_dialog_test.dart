@@ -1,12 +1,14 @@
-/// The level's behaviour trees in the editor: written as documents, refused
-/// with where they are wrong, and each write one step of undo.
+/// The level's behaviour trees and cutscenes in the editor: written as
+/// documents, refused with where they are wrong, and each write one step of
+/// undo.
 library;
 
 import 'dart:convert';
 
 import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d_editor/src/behaviours_dialog.dart';
+import 'package:flutter3d_editor/src/documents_dialog.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show Sequence;
 import 'package:flutter_test/flutter_test.dart';
 
 Editing _level() => Editing.parse(
@@ -34,6 +36,8 @@ Future<void> _open(
   WidgetTester tester,
   Editing editing, {
   void Function(bool changed)? closed,
+  Future<bool> Function(BuildContext context, Editing editing) show =
+      showBehaviours,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -42,7 +46,7 @@ Future<void> _open(
           onPressed: () async {
             // Two statements: `closed?.call(await …)` skips its argument,
             // dialog and all, when there is nobody to tell.
-            final changed = await showBehaviours(context, editing);
+            final changed = await show(context, editing);
             closed?.call(changed);
           },
           child: const Text('open'),
@@ -128,5 +132,87 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(changed, isTrue);
+  });
+
+  testWidgets('a cutscene is written as a cutscene entity, and refused '
+      'with where when it does not read', (WidgetTester tester) async {
+    final editing = _level();
+    var changed = false;
+    await _open(
+      tester,
+      editing,
+      show: showCutscenes,
+      closed: (bool it) => changed = it,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('cutscene:new-name')),
+      'intro',
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('cutscene:new')));
+    await tester.pumpAndSettle();
+    Future<void> write(String document) async {
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('cutscene:document')),
+        document,
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('cutscene:save')));
+      await tester.pumpAndSettle();
+    }
+
+    // Mutation: the dialog writing what it was given without reading it.
+    await write('{"seconds": 2, "fade": [{"t": 9, "value": 1}]}');
+    expect(find.textContaining('fade[0]'), findsOneWidget);
+    expect(editing.cutscenes, isEmpty);
+    await write(
+      '{"seconds": 2, "subtitles": [{"from": 0, "to": 2, "text": "Hush."}]}',
+    );
+    expect(editing.cutscenes.keys, <String>['intro']);
+    expect(editing.level.ofType('cutscene').single.name, 'intro');
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(changed, isTrue);
+    editing.undo();
+    expect(editing.cutscenes, isEmpty);
+  });
+
+  testWidgets('Preview hands the scene over unsaved, and refuses one '
+      'with no camera', (WidgetTester tester) async {
+    final editing = _level();
+    Sequence? shown;
+    await _open(
+      tester,
+      editing,
+      show: (BuildContext context, Editing editing) => showCutscenes(
+        context,
+        editing,
+        preview: (Sequence scene) => shown = scene,
+      ),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('cutscene:new-name')),
+      'intro',
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('cutscene:new')));
+    await tester.pumpAndSettle();
+    Future<void> preview(String document) async {
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('cutscene:document')),
+        document,
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('cutscene:preview')));
+      await tester.pumpAndSettle();
+    }
+
+    await preview('{"seconds": 2}');
+    expect(find.textContaining('nothing to show'), findsOneWidget);
+    expect(shown, isNull);
+    await preview(
+      '{"seconds": 2, "camera": {"keys": [{"t": 0, "at": [0, 2, 0], '
+      '"look": [0, 2, -5]}]}}',
+    );
+    expect(shown?.steps, 120);
+    // Shown, not written; and the dialog is out of the viewport's way.
+    expect(editing.cutscenes, isEmpty);
+    expect(find.text('Cutscenes'), findsNothing);
   });
 }

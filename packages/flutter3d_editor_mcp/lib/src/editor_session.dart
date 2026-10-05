@@ -95,6 +95,33 @@ final class EditorSession {
     );
   }
 
+  /// Writes [sequence] as the cutscene called [name], made at [at] when new,
+  /// or says every problem with it and writes nothing.
+  Answer setCutscene(String name, Map<String, Object?> sequence, Vector3? at) {
+    final had = editing.cutscenes.containsKey(name);
+    final problems = editing.setCutscene(name, sequence, at: at);
+    if (problems.isNotEmpty) {
+      return (
+        did: false,
+        says: <String>[
+          'cutscene $name was not written:',
+          for (final problem in problems) '  $problem',
+        ].join('\n'),
+      );
+    }
+    return (
+      did: true,
+      says:
+          '${had ? 'replaced' : 'wrote'} cutscene $name — a trigger, button '
+          'or relay whose target is $name starts it',
+    );
+  }
+
+  /// Takes the cutscene called [name] out.
+  Answer removeCutscene(String name) => editing.removeCutscene(name)
+      ? (did: true, says: 'removed cutscene $name')
+      : (did: false, says: 'there is no cutscene $name — call list');
+
   /// Takes the behaviour called [name] out.
   Answer removeBehaviour(String name) => editing.removeBehaviour(name)
       ? (did: true, says: 'removed behaviour $name')
