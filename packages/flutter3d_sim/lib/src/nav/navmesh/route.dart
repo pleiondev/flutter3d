@@ -89,7 +89,9 @@ NavMeshRoute? findRoute(
   // Each polygon is entered at one point — the midpoint of the portal it was
   // last reached through more cheaply — and priced from there.
   final entry = Float64List(count * 3);
-  final cost = Int64List(count)..fillRange(0, count, -1);
+  // Thirty-two bits, as the open list keeps them, and as the web has: two
+  // thousand kilometres of priced walking is past any level.
+  final cost = Int32List(count)..fillRange(0, count, -1);
   final parent = Int32List(count)..fillRange(0, count, -1);
   // The link a polygon was last reached by, or −1 for a walk.
   final via = Int32List(count)..fillRange(0, count, -1);

@@ -61,6 +61,10 @@ final class NavMesh {
     required this._polygons,
     required this._neighbours,
     required this._areas,
+    required this._columns,
+    required this._rows,
+    required this._columnStart,
+    required this._floors,
     this.links = const <NavMeshLink>[],
   });
 
@@ -76,6 +80,15 @@ final class NavMesh {
   final Int32List _polygons;
   final Int32List _neighbours;
   final Uint8List _areas;
+
+  /// The floors a body may stand on, column by column of the lattice, in
+  /// voxels: column `c`'s are `_floors[_columnStart[c]]` up to
+  /// `_floors[_columnStart[c + 1]]`, lowest first. The heights the polygons'
+  /// corners cannot carry — see [heightAt].
+  final int _columns;
+  final int _rows;
+  final Int32List _columnStart;
+  final Int32List _floors;
 
   /// The jumps the bake found between polygons the walk does not join —
   /// none unless it was given a reach. See [NavMeshLink].
@@ -163,13 +176,37 @@ final class NavMesh {
       if (containsPoint(p, x, z)) p,
   ];
 
-  /// The height of [polygon]'s surface over `(x, z)`, from the triangle of
-  /// its fan that the point is over — a ramp's polygon is not flat, and its
-  /// corners are the only heights the mesh has.
+  /// The height of [polygon]'s surface over `(x, z)`.
   ///
-  /// A point outside the polygon in plan gets the height of the triangle
-  /// nearest it, extended; [closestPointOn] keeps its points inside.
+  /// **A polygon's corners are not its surface.** A floor and the ramp up
+  /// from it are one region, and can be one polygon whose corners are at the
+  /// foot of the floor and the top of the ramp; between them the corners say
+  /// a slope where there is a flat. So the corners give a first guess, from
+  /// the triangle of the polygon's fan the point is over, and the floor of
+  /// the lattice column under the point nearest that guess is the answer —
+  /// floors stacked in one column are a body's height apart, far more than
+  /// the guess is ever out. Where the column has no floor a body may stand
+  /// on, an edge or a rim, the guess is the answer.
   double heightAt(int polygon, double x, double z) {
+    final guess = _cornerHeightAt(polygon, x, z);
+    final cx = ((x - originX) / config.cellSize).floor();
+    final cz = ((z - originZ) / config.cellSize).floor();
+    if (cx < 0 || cz < 0 || cx >= _columns || cz >= _rows) return guess;
+    final c = cz * _columns + cx;
+    final voxels = (guess - originY) / config.cellHeight;
+    var best = -1;
+    var distance = config.walkableHeight / 2;
+    for (var i = _columnStart[c]; i < _columnStart[c + 1]; i++) {
+      final d = (_floors[i] - voxels).abs();
+      if (d < distance) (best, distance) = (_floors[i], d);
+    }
+    return best < 0 ? guess : originY + best * config.cellHeight;
+  }
+
+  /// [heightAt]'s first guess: the height of the triangle of [polygon]'s fan
+  /// that `(x, z)` is over, or of the nearest one, extended, for a point
+  /// outside it in plan.
+  double _cornerHeightAt(int polygon, double x, double z) {
     final n = polygonVertexCount(polygon);
     final a = Vector3.zero();
     final b = Vector3.zero();
@@ -288,7 +325,9 @@ final class NavMesh {
       ..add(_vertices)
       ..add(_polygons)
       ..add(_neighbours)
-      ..add(_areas);
+      ..add(_areas)
+      ..add(_columnStart)
+      ..add(_floors);
     // Only when there are some, so a walked mesh keeps the digest it had
     // before links existed.
     if (links.isNotEmpty) {
@@ -386,6 +425,7 @@ final class NavMesh {
       maxCorners: config.maxVerticesPerPolygon,
     );
 
+    final floors = _standingFloors(open);
     NavMesh mesh({List<NavMeshLink> links = const <NavMeshLink>[]}) =>
         NavMesh._(
           config: config,
@@ -396,6 +436,10 @@ final class NavMesh {
           polygons: parts.polygons,
           neighbours: parts.neighbours,
           areas: parts.areas,
+          columns: open.columns,
+          rows: open.rows,
+          columnStart: floors.start,
+          floors: floors.floors,
           links: links,
         );
 
@@ -413,5 +457,22 @@ final class NavMesh {
         ),
       ),
     );
+  }
+
+  /// The floors of [open] a body may stand on, column by column.
+  static ({Int32List start, Int32List floors}) _standingFloors(
+    OpenField open,
+  ) {
+    final count = open.columns * open.rows;
+    final start = Int32List(count + 1);
+    final floors = <int>[];
+    for (var c = 0; c < count; c++) {
+      start[c] = floors.length;
+      for (var s = open.cellStart[c]; s < open.cellStart[c + 1]; s++) {
+        if (open.area[s] != nullArea) floors.add(open.floor[s]);
+      }
+    }
+    start[count] = floors.length;
+    return (start: start, floors: Int32List.fromList(floors));
   }
 }

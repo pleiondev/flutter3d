@@ -424,16 +424,16 @@ void main() {
     // platform — a libm `tan` for the ramp test, an `atan2` in the slope —
     // moves a span by a voxel and the digest with it, on that platform only.
     final golden = <(String, NavMesh Function(), String)>[
-      ('empty', () => NavMesh.bakeLevel(Level(name: 'empty')), '39326bec'),
-      ('floor', () => NavMesh.bake(_floor()), '2634bd3b'),
-      ('rooms', () => NavMesh.bake(_rooms()), '6fced5bb'),
-      ('tall steps', () => NavMesh.bake(_tallSteps()), '14aa4be5'),
-      ('pillar', () => NavMesh.bake(_pillar()), '1ca6d0b9'),
+      ('empty', () => NavMesh.bakeLevel(Level(name: 'empty')), 'fe276f3c'),
+      ('floor', () => NavMesh.bake(_floor()), '783ba6ce'),
+      ('rooms', () => NavMesh.bake(_rooms()), 'f144af84'),
+      ('tall steps', () => NavMesh.bake(_tallSteps()), 'f2789294'),
+      ('pillar', () => NavMesh.bake(_pillar()), 'cc1d04ae'),
       (
         'hillside',
         () =>
             NavMesh.bake(const <Brush>[], ground: _hillside(), config: _hills),
-        '999240fe',
+        '749064c4',
       ),
     ];
     for (final (name, bake, digest) in golden) {

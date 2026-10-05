@@ -219,15 +219,29 @@ void main() {
       _expectWalkable(mesh, route);
     });
 
+    test('the floor before it and the platform after it are flat', () {
+      // The floor, the ramp and the platform bake as one polygon whose
+      // corners are at the floor's far end and the platform's; read off the
+      // corners alone, the floor two metres from the ramp is a sixth of a
+      // metre up and the platform two short of its end is as much down.
+      // Mutation: answering with the corners' guess and not the column's
+      // floor.
+      final floor = mesh.polygonAt(Vector3(0, 0, -2));
+      final platform = mesh.polygonAt(Vector3(0, 1.5, 8));
+      expect(mesh.heightAt(floor, 0, -2), closeTo(0.0, 1e-9));
+      expect(mesh.heightAt(platform, 0, 8), closeTo(1.5, 1e-9));
+    });
+
     test('a point over it stands on the ramp at the ramp\'s height', () {
-      // Halfway up: three metres in, three quarters of a metre high. The
-      // mesh is a voxel coarse.
+      // Halfway up: three metres in, three quarters of a metre high. A
+      // column's floor is where the ramp is at the column's centre, rounded
+      // up to a voxel: out by a cell's rise and a voxel at most.
       final at = Vector3(0, 0.75, 3);
       final p = mesh.polygonAt(at);
       expect(p, isNonNegative);
       // Mutation: taking the first corner's height for the whole polygon
       // rather than the fan's triangle puts it at the foot or the top.
-      expect(mesh.heightAt(p, 0, 3), closeTo(0.75, 0.15));
+      expect(mesh.heightAt(p, 0, 3), closeTo(0.75, 0.125 + 0.1 + 1e-9));
     });
   });
 

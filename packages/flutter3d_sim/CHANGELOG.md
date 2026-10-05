@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **A navigation mesh knows how high its floors are between its
+  corners.** A floor and the ramp up from it can be one polygon, and its
+  corners alone made the flat before the ramp a slope. The mesh keeps the
+  floors a body may stand on, column by column, and `heightAt` answers
+  with the column's floor nearest what the corners say. The floors are in
+  `digest`, so every mesh's digest moved. A route's costs are 32-bit, as
+  the web has them.
+
 - **An actor walks to a point over a navigation mesh.**
   `ActorSystem.navMesh`, when set, is what `steerTowards`, and so the
   `goTo` leaf, routes over: to the next corner, and at a link's take-off
