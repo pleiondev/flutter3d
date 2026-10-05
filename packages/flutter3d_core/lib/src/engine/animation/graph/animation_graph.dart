@@ -1,4 +1,5 @@
 import 'package:flutter3d_core/formats.dart';
+import 'package:vector_math/vector_math.dart';
 
 import '../animation_layer.dart';
 import '../pose.dart';
@@ -91,6 +92,10 @@ final class AnimationGraph {
   /// What [evaluate] writes into and returns.
   final Pose pose;
 
+  /// Graphs laid over this one's pose, each over part of the skeleton, in
+  /// order: see [AnimationGraphLayer]. Added and taken away by the game.
+  final List<AnimationGraphLayer> layers = <AnimationGraphLayer>[];
+
   /// What each state plays, index-aligned with the machine's states.
   final List<_Plays> _clips;
 
@@ -147,6 +152,17 @@ final class AnimationGraph {
     }
     if (_previous < 0) _takeTransition();
     _sample();
+    for (final layer in layers) {
+      layer._step(step);
+      final over = layer.graph.evaluate(step);
+      if (over.nodeCount != pose.nodeCount) {
+        throw ArgumentError(
+          'A layer of ${over.nodeCount} nodes over a graph of '
+          '${pose.nodeCount}: a layer animates the same skeleton.',
+        );
+      }
+      if (layer.weight > 0.0) layer._layOnto(pose);
+    }
     return pose;
   }
 
@@ -310,6 +326,131 @@ final class AnimationGraph {
           ],
         ),
     ];
+  }
+}
+
+/// A graph of its own over part of a skeleton, laid on another's pose — the
+/// layers of N1: a reload over a run, a flinch over a walk, a look over
+/// whatever the body is doing.
+///
+/// Its own [graph], with its own states and parameters, is evaluated on the
+/// same steps as the one it is laid on, and where its [mask] covers a node
+/// it is mixed in by [weight]:
+///
+/// * [AnimationBlend.override] replaces the base's value, faded by [weight].
+///   The mask says where it writes, and it writes there whether or not its
+///   clip has a track for the node; a mask is chosen to match the clips.
+/// * [AnimationBlend.additive] lays the layer's distance from the
+///   skeleton's rest on top of the base: a breath, a recoil, a lean — clips
+///   authored as a difference from rest rather than as a pose.
+///
+/// [weight] moves when told to by [fadeTo], on the same steps, so a layer
+/// comes in and goes out without a pop.
+final class AnimationGraphLayer {
+  AnimationGraphLayer({
+    required this.graph,
+    AnimationMask? mask,
+    this.blend = AnimationBlend.override,
+    double weight = 1.0,
+  }) : mask = mask ?? AnimationMask.everything,
+       _weight = weight.clamp(0.0, 1.0),
+       _target = weight.clamp(0.0, 1.0);
+
+  final AnimationGraph graph;
+  AnimationMask mask;
+  AnimationBlend blend;
+
+  double _weight;
+  double _target;
+  double _rate = 0.0;
+  Pose? _rest;
+
+  /// How much of this layer is laid on, nought to one.
+  double get weight => _weight;
+
+  set weight(double value) {
+    _weight = value.clamp(0.0, 1.0);
+    _target = _weight;
+    _rate = 0.0;
+  }
+
+  /// Moves [weight] to [target] over [seconds] of steps; at once for none.
+  void fadeTo(double target, double seconds) {
+    _target = target.clamp(0.0, 1.0);
+    if (seconds <= 0.0) {
+      weight = _target;
+      return;
+    }
+    _rate = (_target - _weight).abs() / seconds;
+  }
+
+  void _step(double dt) {
+    if (_rate == 0.0) return;
+    final move = _rate * dt;
+    if ((_target - _weight).abs() <= move) {
+      _weight = _target;
+      _rate = 0.0;
+    } else {
+      _weight += _target > _weight ? move : -move;
+    }
+  }
+
+  /// This layer's pose into [base], where its mask covers, by [weight].
+  void _layOnto(Pose base) {
+    final over = graph.pose;
+    final w = _weight;
+    final additive = blend == AnimationBlend.additive;
+    final rest = additive ? (_rest ??= over.restCopy()) : null;
+    for (var node = 0; node < base.nodeCount; node++) {
+      if (!mask.covers(node)) continue;
+      final t = node * 3, r = node * 4;
+      for (var k = 0; k < 3; k++) {
+        if (rest == null) {
+          base.translations[t + k] +=
+              (over.translations[t + k] - base.translations[t + k]) * w;
+          base.scales[t + k] += (over.scales[t + k] - base.scales[t + k]) * w;
+        } else {
+          base.translations[t + k] +=
+              (over.translations[t + k] - rest.translations[t + k]) * w;
+          final from = rest.scales[t + k];
+          if (from != 0.0) {
+            base.scales[t + k] *= 1.0 + (over.scales[t + k] / from - 1.0) * w;
+          }
+        }
+      }
+      final mine = Quaternion(
+        base.rotations[r],
+        base.rotations[r + 1],
+        base.rotations[r + 2],
+        base.rotations[r + 3],
+      );
+      final theirs = Quaternion(
+        over.rotations[r],
+        over.rotations[r + 1],
+        over.rotations[r + 2],
+        over.rotations[r + 3],
+      );
+      final Quaternion mixed;
+      if (rest == null) {
+        mixed = shortestArcSlerp(mine, theirs, w);
+      } else {
+        // The layer's turn from rest, in the node's own frame, laid after
+        // the base's: base · slerp(1, rest⁻¹ · layer, w).
+        final at = Quaternion(
+          rest.rotations[r],
+          rest.rotations[r + 1],
+          rest.rotations[r + 2],
+          rest.rotations[r + 3],
+        );
+        final delta = at.conjugated() * theirs;
+        mixed = mine * shortestArcSlerp(Quaternion.identity(), delta, w)
+          ..normalize();
+      }
+      base.rotations[r] = mixed.x;
+      base.rotations[r + 1] = mixed.y;
+      base.rotations[r + 2] = mixed.z;
+      base.rotations[r + 3] = mixed.w;
+    }
   }
 }
 

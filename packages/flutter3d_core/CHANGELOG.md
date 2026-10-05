@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Layers in the animation graph.** `AnimationGraph.layers` holds
+  `AnimationGraphLayer`s. Each is a graph of its own, with its own states
+  and parameters, evaluated on the same steps and laid on the base pose
+  where its `AnimationMask` covers. Override replaces the base by
+  `weight`. Additive lays its distance from the skeleton's rest on top: a
+  translation added, a turn applied after the base's in the node's own
+  frame, a scale multiplied. `fadeTo` moves the weight over seconds of
+  steps, so a layer comes in without a pop. `AnimationMask.below` masks a
+  node and everything under it, such as an upper body from its spine. A
+  layer of another skeleton is refused.
+
 - **Blend spaces in the animation graph.** An `AnimationState` can blend
   instead of playing one clip. `AnimationBlendSpace` names a float or
   integer parameter and two or more `BlendPoint`s, a clip at each value,

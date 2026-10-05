@@ -88,6 +88,135 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('a layer', () {
+    /// Two nodes, the second the first's child, both at rest unturned.
+    Pose twoPose() => Pose(
+      parents: const <int>[-1, 0],
+      restTranslations: Float32List(6),
+      restRotations: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1]),
+      restScales: Float32List.fromList(<double>[1, 1, 1, 1, 1, 1]),
+    );
+
+    /// A clip holding node [node] at x = [x], turned [yaw] about y.
+    AnimationClip holding(String name, int node, double x, {double yaw = 0}) {
+      final h = yaw / 2.0;
+      return AnimationClip(
+        name: name,
+        tracks: <AnimationTrack>[
+          AnimationTrack(
+            nodeIndex: node,
+            path: AnimationPath.translation,
+            interpolation: AnimationInterpolation.linear,
+            times: Float32List.fromList(<double>[0.0, 1.0]),
+            values: Float32List.fromList(<double>[x, 0, 0, x, 0, 0]),
+            componentCount: 3,
+          ),
+          AnimationTrack(
+            nodeIndex: node,
+            path: AnimationPath.rotation,
+            interpolation: AnimationInterpolation.linear,
+            times: Float32List.fromList(<double>[0.0, 1.0]),
+            values: Float32List.fromList(<double>[
+              0,
+              math.sin(h),
+              0,
+              math.cos(h),
+              0,
+              math.sin(h),
+              0,
+              math.cos(h),
+            ]),
+            componentCount: 4,
+          ),
+        ],
+      );
+    }
+
+    AnimationGraph playing(AnimationClip clip, [Pose? pose]) => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[]),
+        entry: 'one',
+        states: <AnimationState>[AnimationState(name: 'one', clip: clip.name!)],
+        transitions: const <AnimationTransition>[],
+      ),
+      clips: <AnimationClip>[clip],
+      pose: pose ?? twoPose(),
+    );
+
+    double yawOf(Pose pose, int node) =>
+        2.0 *
+        math.atan2(pose.rotations[node * 4 + 1], pose.rotations[node * 4 + 3]);
+
+    test('overrides the nodes its mask covers, by its weight', () {
+      final base = playing(holding('walk', 1, 1.0, yaw: 0.0));
+      final layer = AnimationGraphLayer(
+        graph: playing(holding('wave', 1, 5.0, yaw: 1.0)),
+        mask: AnimationMask(const <int>[1]),
+      );
+      base.layers.add(layer);
+      var pose = base.evaluate(_dt);
+      expect(pose.translations[3], 5.0);
+      expect(yawOf(pose, 1), closeTo(1.0, 1e-6));
+      layer.weight = 0.5;
+      pose = base.evaluate(_dt);
+      expect(pose.translations[3], 3.0);
+      expect(yawOf(pose, 1), closeTo(0.5, 1e-6));
+      // Outside the mask the base stands.
+      layer.mask = AnimationMask(const <int>[0]);
+      pose = base.evaluate(_dt);
+      expect(pose.translations[3], 1.0);
+    });
+
+    test('adds its distance from rest on top of the base', () {
+      final base = playing(holding('walk', 1, 1.0, yaw: math.pi / 2));
+      base.layers.add(
+        AnimationGraphLayer(
+          graph: playing(holding('lean', 1, 2.0, yaw: math.pi / 4)),
+          blend: AnimationBlend.additive,
+        ),
+      );
+      final pose = base.evaluate(_dt);
+      expect(pose.translations[3], 3.0);
+      expect(yawOf(pose, 1), closeTo(3 * math.pi / 4, 1e-6));
+    });
+
+    test('comes in over the time it is given, on the steps', () {
+      final base = playing(holding('walk', 1, 0.0));
+      final layer = AnimationGraphLayer(
+        graph: playing(holding('wave', 1, 8.0)),
+        weight: 0.0,
+      )..fadeTo(1.0, 0.25);
+      base.layers.add(layer);
+      for (var i = 0; i < 8; i++) {
+        base.evaluate(_dt);
+      }
+      expect(layer.weight, 0.5);
+      expect(base.pose.translations[3], 4.0);
+      for (var i = 0; i < 20; i++) {
+        base.evaluate(_dt);
+      }
+      expect(layer.weight, 1.0);
+    });
+
+    test('masks a subtree, and refuses a skeleton not its own', () {
+      final mask = AnimationMask.below(const <int>[-1, 0, 1, 0], 1);
+      expect(
+        <int>[
+          for (var i = 0; i < 4; i++)
+            if (mask.covers(i)) i,
+        ],
+        <int>[1, 2],
+      );
+      final base = playing(holding('walk', 1, 0.0))
+        ..layers.add(
+          AnimationGraphLayer(
+            graph: playing(holding('one', 0, 0.0), _onePose()),
+          ),
+        );
+      expect(() => base.evaluate(_dt), throwsArgumentError);
+    });
+  });
+
   group('a blend space', () {
     /// x from [from] to [to] over [length] seconds.
     AnimationClip ramp(String name, double from, double to, double length) =>
