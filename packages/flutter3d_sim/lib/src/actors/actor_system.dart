@@ -55,6 +55,7 @@ import '../save/game_random.dart';
 import 'actor.dart';
 import 'actor_components.dart';
 import 'actor_hurt.dart';
+import 'actor_strides.dart';
 import 'brain.dart';
 import 'health.dart';
 
@@ -128,6 +129,15 @@ final class ActorSystem {
   /// handed down rather than a list collected up: a list says what happened, a
   /// shared buffer says what happened when.
   GameEvents? events;
+
+  /// What walks an actor's body in place of its brain's wish, or null for
+  /// a game whose bodies go where their brains want.
+  ///
+  /// Asked once a step for every actor, after its brain has acted and dead
+  /// or alive, so a game can step each actor's animation in the simulation
+  /// and let its root motion move the body: swept like any move, stopped by
+  /// a wall. Null from it is a body moved by the wish as before.
+  ActorStrides? strides;
 
   /// Actors that died this step.
   final List<Actor> died = <Actor>[];
@@ -399,7 +409,11 @@ final class ActorSystem {
       if (!actor.isAlive) {
         // A corpse still needs its body stepped, or it hangs in the air where
         // it died.
-        body?.step(dt, wishDirection: Vector3.zero());
+        body?.step(
+          dt,
+          wishDirection: Vector3.zero(),
+          drivenBy: strides?.strideOf(actor, dt),
+        );
         continue;
       }
 
@@ -415,7 +429,11 @@ final class ActorSystem {
 
       _wish.setZero();
       brain?.act(_mind);
-      body?.step(dt, wishDirection: _wish);
+      body?.step(
+        dt,
+        wishDirection: _wish,
+        drivenBy: strides?.strideOf(actor, dt),
+      );
     }
     _focusIndex = 0;
   }

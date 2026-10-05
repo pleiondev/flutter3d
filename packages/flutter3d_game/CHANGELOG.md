@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Animation graphs stepped by the simulation.** `ActorAnimations` is
+  an `ActorStrides`. It steps each attached actor's graph on the fixed
+  step, writing the brain's decisions into its parameters first. A graph
+  with a root node walks the body by its root motion, turned the way the
+  actor faces and scaled by the model's size, so a wall stops it. Each
+  marker it passes arrives as an `AnimationMarkerPassed` game event, in
+  order with that step's shots and deaths. `save` and `restore` carry
+  every graph by its actor's ordinal, and a run restored mid-walk steps on
+  to the same place and the same footfalls.
+
 - **`ActorGraphs.dress` and a richer `drive`.** `dress` gets each
   graph once it is built, with the model, to add goals or layers. `drive`
   gets the graph and the model every frame, so a goal's target can be put

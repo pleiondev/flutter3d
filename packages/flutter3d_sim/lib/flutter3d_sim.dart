@@ -44,6 +44,7 @@ export 'package:flutter3d_physics/flutter3d_physics.dart';
 export 'src/actors/actor.dart';
 export 'src/actors/actor_components.dart';
 export 'src/actors/actor_hurt.dart';
+export 'src/actors/actor_strides.dart';
 export 'src/actors/actor_system.dart';
 export 'src/actors/behaviour_brain.dart';
 export 'src/actors/behaviour_tree.dart';

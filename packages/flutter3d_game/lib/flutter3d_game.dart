@@ -46,6 +46,7 @@ export 'src/input/desktop_input.dart';
 export 'src/input/pad_actions.dart';
 export 'src/input/playing.dart';
 export 'src/input/touch_controls.dart';
+export 'src/run/actor_animations.dart';
 export 'src/run/autosave.dart';
 export 'src/run/bug_report.dart';
 export 'src/run/demo_recording.dart';

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **An actor's animation can walk its body.** `ActorSystem.strides`
+  takes an `ActorStrides`. Once a step, for every actor, after its brain
+  has acted, dead or alive, it is asked how far the actor's own stride
+  carried it. The body is swept that far in place of its brain's wish.
+  The simulation knows nothing of animation; a game answers through this.
+  Null, the default, changes nothing.
+
 - **A brush can say where it draws.** `Brush.drawOrder`, `drawOrder` in the
   document and written only when it is not nought, is the engine's
   `MeshNode.drawOrder` for level geometry: a water surface after the floor
