@@ -66,6 +66,10 @@ Staged stage(
   int deaths = 0,
   double elapsed = 0.0,
   GameRandom? random,
+
+  /// What steps the crates: the reference `Dynamics` unless a caller hands
+  /// over another, as the test that plays the level on the native core does.
+  RigidDynamics Function(CollisionWorld world)? dynamicsFor,
 }) {
   // One registry validates the document and then spawns it. Two could disagree
   // about what a document may contain, which is the failure this seam was built
@@ -73,7 +77,7 @@ Staged stage(
   // world, exactly as the shooter tells its monster kind where the bestiary is.
   final kinds = registry ?? platformerRegistry();
 
-  final dynamics = Dynamics(world: world);
+  final dynamics = dynamicsFor?.call(world) ?? Dynamics(world: world);
   (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
   // **One generator for the whole world, and it is the same object the
