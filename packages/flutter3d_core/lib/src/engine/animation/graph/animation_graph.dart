@@ -67,6 +67,10 @@ final class AnimationGraph {
               machine.parameters.indexOf(blend.parameter),
               <double>[for (final p in blend.points) p.at],
               <AnimationClip>[for (final p in blend.points) byName[p.clip]!],
+              parameterY: blend.across == null
+                  ? -1
+                  : machine.parameters.indexOf(blend.across!),
+              ys: <double>[for (final p in blend.points) p.y],
             )
           else
             _Plays.one(byName[state.clip]!),
@@ -315,10 +319,11 @@ final class AnimationGraph {
     _Playhead head,
     double step,
   ) {
-    final (:lower, :upper, :weight) = _mix(plays);
-    final length =
-        plays.clips[lower].duration +
-        (plays.clips[upper].duration - plays.clips[lower].duration) * weight;
+    final weights = _weightsOf(plays);
+    var length = 0.0;
+    for (var i = 0; i < weights.length; i++) {
+      length += plays.clips[i].duration * weights[i];
+    }
     final delta = step * machine.states[state].speed;
     if (length <= 0.0 || delta == 0.0) {
       return _Playhead(
@@ -338,24 +343,49 @@ final class AnimationGraph {
     return _Playhead(moved.time, head.elapsed + share, moved.reversing);
   }
 
-  /// Which two of a blend's clips its parameter falls between, and how far
-  /// towards the second.
-  ({int lower, int upper, double weight}) _mix(_Plays plays) {
+  /// How much of each of a blend's clips plays now, summing to one, into
+  /// the blend's own list: along a line, the two its parameter falls
+  /// between; across a plane, every point by the inverse square of its
+  /// distance — all of one standing on it, smoothly between.
+  List<double> _weightsOf(_Plays plays) {
+    final w = plays.weights..fillRange(0, plays.weights.length, 0.0);
     final value = parameters.valueAt(plays.parameter);
     final at = plays.at;
-    if (value <= at.first) return (lower: 0, upper: 0, weight: 0.0);
+    if (plays.parameterY >= 0) {
+      final across = parameters.valueAt(plays.parameterY);
+      var sum = 0.0;
+      for (var i = 0; i < at.length; i++) {
+        final dx = value - at[i], dy = across - plays.ys[i];
+        final d2 = dx * dx + dy * dy;
+        if (d2 < 1e-12) {
+          w.fillRange(0, w.length, 0.0);
+          w[i] = 1.0;
+          return w;
+        }
+        w[i] = 1.0 / d2;
+        sum += w[i];
+      }
+      for (var i = 0; i < w.length; i++) {
+        w[i] /= sum;
+      }
+      return w;
+    }
+    if (value <= at.first) {
+      w[0] = 1.0;
+      return w;
+    }
     if (value >= at.last) {
-      return (lower: at.length - 1, upper: at.length - 1, weight: 0.0);
+      w[at.length - 1] = 1.0;
+      return w;
     }
     var i = 0;
     while (value > at[i + 1]) {
       i++;
     }
-    return (
-      lower: i,
-      upper: i + 1,
-      weight: (value - at[i]) / (at[i + 1] - at[i]),
-    );
+    final t = (value - at[i]) / (at[i + 1] - at[i]);
+    w[i] = 1.0 - t;
+    w[i + 1] = t;
+    return w;
   }
 
   /// How far [root] has come since [state] was entered, by its clips'
@@ -376,15 +406,18 @@ final class AnimationGraph {
           : ((head.elapsed - head.time) / length).round();
       return _unwound(clip, root, head.time, turns);
     }
-    final (:lower, :upper, :weight) = _mix(plays);
+    final weights = _weightsOf(plays);
     final turns = machine.states[state].wrap == AnimationWrap.loop
         ? (head.elapsed - head.time).round()
         : 0;
-    final a = plays.clips[lower], b = plays.clips[upper];
-    final out = _unwound(a, root, head.time * a.duration, turns)
-      ..scale(1.0 - weight);
-    if (weight > 0.0) {
-      out.addScaled(_unwound(b, root, head.time * b.duration, turns), weight);
+    final out = Vector3.zero();
+    for (var i = 0; i < weights.length; i++) {
+      if (weights[i] == 0.0) continue;
+      final c = plays.clips[i];
+      out.addScaled(
+        _unwound(c, root, head.time * c.duration, turns),
+        weights[i],
+      );
     }
     return out;
   }
@@ -467,12 +500,22 @@ final class AnimationGraph {
       into.sampleClip(plays.clips.first, head.time);
       return;
     }
-    final (:lower, :upper, :weight) = _mix(plays);
-    final a = plays.clips[lower], b = plays.clips[upper];
-    into.sampleClip(b, head.time * b.duration);
-    if (lower == upper || weight >= 1.0) return;
-    _scratch.sampleClip(a, head.time * a.duration);
-    into.blendFrom(_scratch, weight);
+    // Each clip with a share, mixed into what came before by its share of
+    // the running total: an average of poses one at a time.
+    final weights = _weightsOf(plays);
+    var total = 0.0;
+    for (var i = 0; i < weights.length; i++) {
+      final w = weights[i];
+      if (w == 0.0) continue;
+      final c = plays.clips[i];
+      if (total == 0.0) {
+        into.sampleClip(c, head.time * c.duration);
+      } else {
+        _scratch.sampleClip(c, head.time * c.duration);
+        into.blendFrom(_scratch, total / (total + w));
+      }
+      total += w;
+    }
   }
 
   static List<_Transition> _outgoingFrom(
@@ -637,14 +680,31 @@ final class _Plays {
   _Plays.one(AnimationClip clip)
     : clips = <AnimationClip>[clip],
       at = const <double>[],
+      ys = const <double>[],
       parameter = -1,
+      parameterY = -1,
+      weights = <double>[1.0],
       blend = false;
 
-  _Plays.blend(this.parameter, this.at, this.clips) : blend = true;
+  _Plays.blend(
+    this.parameter,
+    this.at,
+    this.clips, {
+    this.parameterY = -1,
+    this.ys = const <double>[],
+  }) : weights = List<double>.filled(clips.length, 0.0),
+       blend = true;
 
   final List<AnimationClip> clips;
   final List<double> at;
+  final List<double> ys;
   final int parameter;
+
+  /// The second parameter of a blend across a plane; -1 along a line.
+  final int parameterY;
+
+  /// Each clip's share, rewritten by every reading.
+  final List<double> weights;
   final bool blend;
 }
 

@@ -82,9 +82,13 @@ final class TriggerCondition extends AnimationCondition {
 
 /// One clip of an [AnimationBlendSpace], played where its parameter reads [at].
 final class BlendPoint {
-  const BlendPoint(this.at, this.clip);
+  const BlendPoint(this.at, this.clip, {this.y = 0.0});
 
   final double at;
+
+  /// Where it stands along the blend's second parameter, for a blend across
+  /// a plane; unread along a line.
+  final double y;
 
   /// The [AnimationClip.name] played here.
   final String clip;
@@ -103,13 +107,22 @@ final class BlendPoint {
 /// Below the first point the first clip plays alone, above the last the
 /// last.
 final class AnimationBlendSpace {
-  AnimationBlendSpace(this.parameter, List<BlendPoint> points)
+  AnimationBlendSpace(this.parameter, List<BlendPoint> points, {this.across})
     : points = List<BlendPoint>.unmodifiable(points);
 
   /// The float or integer parameter that places the mix.
   final String parameter;
 
-  /// At least two, in increasing order of [BlendPoint.at].
+  /// A second parameter, for a blend across a plane — a walk forward, back
+  /// and to each side by the two speeds along and across the body — or
+  /// null for one along a line. Across a plane every point plays by the
+  /// inverse square of its distance, [BlendPoint.at] along [parameter] and
+  /// [BlendPoint.y] along this: all of a clip standing on its point, and
+  /// between them a mix no corner of which jumps.
+  final String? across;
+
+  /// At least two: in increasing order of [BlendPoint.at] along a line;
+  /// each at a place of its own across a plane.
   final List<BlendPoint> points;
 }
 
@@ -262,23 +275,30 @@ final class AnimationStateMachine {
 
   List<String> _blendProblems(AnimationState s, Set<String> clipNames) {
     final blend = s.blend!;
-    final parameter = parameters[blend.parameter];
     final label = 'State `${s.name}`';
+    final plane = blend.across != null;
+    String? numeric(String name) {
+      final parameter = parameters[name];
+      if (parameter == null) {
+        return '$label blends by `$name`, which is not a parameter.';
+      }
+      return _if(
+        parameter.type != AnimationParameterType.float &&
+            parameter.type != AnimationParameterType.integer,
+        '$label blends by ${parameter.type.name} `${parameter.name}`; a '
+        'blend needs a number, a float or an integer.',
+      );
+    }
+
+    final places = <String>{};
     return <String>[
       ?_if(
         s.clip.isNotEmpty,
         '$label names clip `${s.clip}` and blends as well; a blend state '
         'plays its points, so leave its clip empty.',
       ),
-      if (parameter == null)
-        '$label blends by `${blend.parameter}`, which is not a parameter.'
-      else
-        ?_if(
-          parameter.type != AnimationParameterType.float &&
-              parameter.type != AnimationParameterType.integer,
-          '$label blends by ${parameter.type.name} `${parameter.name}`; a '
-          'blend needs a number, a float or an integer.',
-        ),
+      ?numeric(blend.parameter),
+      if (blend.across case final across?) ?numeric(across),
       ?_if(
         blend.points.length < 2,
         '$label blends ${blend.points.length} point(s); a blend is between '
@@ -290,14 +310,25 @@ final class AnimationStateMachine {
           '$label blends clip `${p.clip}`, which is not among '
           '${_listed(clipNames, 'the clips (none is named)')}.',
         ),
-      for (var i = 1; i < blend.points.length; i++)
-        ?_if(
-          !(blend.points[i].at > blend.points[i - 1].at),
-          '$label has blend points at ${blend.points[i - 1].at} then '
-          '${blend.points[i].at}; they must rise, each above the last.',
-        ),
+      if (!plane)
+        for (var i = 1; i < blend.points.length; i++)
+          ?_if(
+            !(blend.points[i].at > blend.points[i - 1].at),
+            '$label has blend points at ${blend.points[i - 1].at} then '
+            '${blend.points[i].at}; they must rise, each above the last.',
+          )
+      else
+        for (final p in blend.points)
+          ?_if(
+            !places.add('${p.at},${p.y}'),
+            '$label has two blend points at (${p.at}, ${p.y}); each needs a '
+            'place of its own.',
+          ),
       for (final p in blend.points)
-        ?_if(!p.at.isFinite, '$label has a blend point at ${p.at}.'),
+        ?_if(
+          !p.at.isFinite || !p.y.isFinite,
+          '$label has a blend point at (${p.at}, ${p.y}).',
+        ),
     ];
   }
 

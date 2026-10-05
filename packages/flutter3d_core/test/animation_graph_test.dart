@@ -88,6 +88,88 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('a blend across a plane', () {
+    final cross = <BlendPoint>[
+      const BlendPoint(0.0, 'forward', y: 1.0),
+      const BlendPoint(0.0, 'back', y: -1.0),
+      const BlendPoint(1.0, 'right', y: 0.0),
+      const BlendPoint(-1.0, 'left', y: 0.0),
+    ];
+    final clips = <AnimationClip>[
+      _clip('forward', 10.0),
+      _clip('back', 20.0),
+      _clip('right', 30.0),
+      _clip('left', 40.0),
+    ];
+
+    AnimationGraph strafing() => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[
+          AnimationParameter.float('side'),
+          AnimationParameter.float('ahead'),
+        ]),
+        entry: 'move',
+        states: <AnimationState>[
+          AnimationState(
+            name: 'move',
+            blend: AnimationBlendSpace('side', cross, across: 'ahead'),
+          ),
+        ],
+        transitions: const <AnimationTransition>[],
+      ),
+      clips: clips,
+      pose: _onePose(),
+    );
+
+    double xAt(double side, double ahead) {
+      final graph = strafing();
+      graph.parameters
+        ..setFloat('side', side)
+        ..setFloat('ahead', ahead);
+      return graph.evaluate(_dt).translations[0];
+    }
+
+    test('plays one clip standing on its point', () {
+      expect(xAt(1.0, 0.0), closeTo(30.0, 1e-4));
+      expect(xAt(0.0, -1.0), closeTo(20.0, 1e-4));
+    });
+
+    test('mixes every point by the inverse square of its distance', () {
+      expect(xAt(0.0, 0.0), closeTo(25.0, 1e-4), reason: 'all four alike');
+      // At (0.5, 0.5): squared distances 0.5, 2.5, 0.5, 2.5.
+      expect(xAt(0.5, 0.5), closeTo(104.0 / 4.8, 1e-4));
+    });
+
+    test('says what stops one running', () {
+      List<String> problems(AnimationBlendSpace blend) => AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[
+          AnimationParameter.float('side'),
+          AnimationParameter.float('ahead'),
+        ]),
+        entry: 'move',
+        states: <AnimationState>[AnimationState(name: 'move', blend: blend)],
+        transitions: const <AnimationTransition>[],
+      ).problems(clips);
+      expect(
+        problems(AnimationBlendSpace('side', cross, across: 'ahead')),
+        isEmpty,
+      );
+      expect(
+        problems(AnimationBlendSpace('side', cross, across: 'up')).single,
+        contains('`up`, which is not a parameter'),
+      );
+      expect(
+        problems(
+          AnimationBlendSpace('side', const <BlendPoint>[
+            BlendPoint(0.0, 'forward', y: 1.0),
+            BlendPoint(0.0, 'back', y: 1.0),
+          ], across: 'ahead'),
+        ).single,
+        contains('a place of its own'),
+      );
+    });
+  });
+
   group('root motion', () {
     /// A one-node clip whose root walks [metres] along z over [length]
     /// seconds, at a height of 0.2.

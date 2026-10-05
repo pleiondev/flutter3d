@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **Blend spaces across a plane.** `AnimationBlendSpace(across:)` names a
+  second parameter, and each `BlendPoint` gets a `y`. This gives a walk
+  forward, back and to each side by the two speeds along and across the
+  body. Every point plays by the inverse square of its distance: all of
+  one clip standing on its point, smoothly between. One phase, root
+  motion and markers work as along a line. `problems` checks the second
+  parameter and that no two points share a place.
+
 - **Root motion from the animation graph.** With `rootNode` set, the
   graph takes that node's travel along the floor out of the pose and
   hands it over as `rootDelta`. The node's x and z are held at rest and
