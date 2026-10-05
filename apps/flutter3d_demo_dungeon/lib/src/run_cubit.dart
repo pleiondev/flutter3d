@@ -324,7 +324,13 @@ final class DungeonRun extends RunSession<LevelReady> {
   static Future<ModelDocument?> _documentOf(String path) async {
     try {
       return await loadModelByPath(path);
-    } on Object {
+    } on Object catch (error) {
+      printIssue(
+        Issue(
+          'dungeon: could not read $path for its clips ($error); its '
+          'monsters name their clips on screen instead of a graph',
+        ),
+      );
       return null;
     }
   }

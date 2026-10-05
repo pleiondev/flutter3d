@@ -16,9 +16,14 @@ import 'actor.dart';
 /// steps on to the same strides. Nothing to save by default.
 abstract class ActorStrides {
   /// [actor]'s travel along the floor for this step of [dt], or null for a
-  /// body moved by its brain's wish. Called once a step for every actor,
-  /// after its brain has acted, dead or alive.
-  Vector3? strideOf(Actor actor, double dt);
+  /// body moved by its brain's [wish]. Called once a step for every actor,
+  /// body or none, after its brain has acted, dead or alive.
+  ///
+  /// [wish] is where the brain asked to go — the answer to "how fast does it
+  /// mean to move", which a body driven by its own stride cannot give: its
+  /// velocity is last step's stride, and a graph asked to walk by that would
+  /// never leave its idle.
+  Vector3? strideOf(Actor actor, Vector3 wish, double dt);
 
   /// Whatever stepping changes, as plain JSON; null for nothing.
   Object? save() => null;

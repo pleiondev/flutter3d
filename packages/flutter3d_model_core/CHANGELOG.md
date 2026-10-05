@@ -12,7 +12,8 @@ does not read or has any of `AnimationStateMachine.problems` against the
 project's clips. `RemoveAnimationGraph` takes one away. The project file
 writes them when there are some, and every history step that changed them,
 so an undo after reopening puts them back. An export writes them into the
-model's root `extras`, and an import reads back those that parse.
+model's root `extras`, and an import keeps every one, as the project file
+does: one this build cannot read is refused only when somebody sets it.
 
 ## 0.8.0
 

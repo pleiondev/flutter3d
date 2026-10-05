@@ -33,19 +33,23 @@ import '../visuals/actor_visuals.dart';
 final class ActorAnimations implements ActorStrides {
   /// [write] is asked every step for each actor with a graph, before it
   /// moves; null leaves the parameters to whoever set them.
-  ActorAnimations({this.events, this.write, this.graphFor});
+  ActorAnimations({this.events, this.write, this.graphFor, this.scaleOf});
 
   /// Where markers are reported; the game's own buffer, as the actor
   /// system's is.
   GameEvents? events;
 
-  /// Puts what [actor]'s brain decided into its graph's parameters, and
-  /// where its goals look and stand.
-  final void Function(Actor actor, AnimationGraph graph)? write;
+  /// Puts what [actor]'s brain decided — and where it wished to go this
+  /// step — into its graph's parameters, and where its goals look and stand.
+  final void Function(Actor actor, AnimationGraph graph, Vector3 wish)? write;
 
   /// The graph [actor] is animated by, asked once on its first step; null
   /// for one that is not.
   final AnimationGraph? Function(Actor actor)? graphFor;
+
+  /// How large [graphFor]'s actor's model is drawn — its stride walks that
+  /// much further — or null for its own size.
+  final double Function(Actor actor)? scaleOf;
 
   final Map<Actor, _Animated> _animated = <Actor, _Animated>{};
 
@@ -67,11 +71,11 @@ final class ActorAnimations implements ActorStrides {
   AnimationGraph? graphOf(Actor actor) => _animated[actor]?.graph;
 
   @override
-  Vector3? strideOf(Actor actor, double dt) {
+  Vector3? strideOf(Actor actor, Vector3 wish, double dt) {
     final animated = _animated[actor] ?? _made(actor);
     if (animated == null) return null;
     final graph = animated.graph;
-    write?.call(actor, graph);
+    write?.call(actor, graph, wish);
     graph.evaluate(dt);
     for (final passed in graph.passed) {
       events?.add(AnimationMarkerPassed(actor, passed.state, passed.name));
@@ -94,7 +98,11 @@ final class ActorAnimations implements ActorStrides {
     if (graphFor == null || !_asked.add(actor)) return null;
     final graph = graphFor(actor);
     if (graph == null) return null;
-    return _animated[actor] = _Animated(graph, 1.0, made: true);
+    return _animated[actor] = _Animated(
+      graph,
+      scaleOf?.call(actor) ?? 1.0,
+      made: true,
+    );
   }
 
   /// Every graph's state, by the ordinal of the actor it animates — the

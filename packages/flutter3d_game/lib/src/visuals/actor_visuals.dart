@@ -66,7 +66,11 @@ final class ActorVisuals {
   /// the dungeon's monsters fall as ragdolls. Null plays the clip.
   final ActorCorpses? corpses;
 
-  /// What animates a modelled actor by a graph, when not its clip names.
+  /// What animates a modelled actor by a graph on the frame, when not its
+  /// clip names: for a game whose animation is display only — a graph
+  /// stepped with the frame's delta, its markers in [markersPassed]. A game
+  /// that animates in its simulation's step gives [simulated] instead, and
+  /// then this makes no graph; one actor is never animated both ways.
   final ActorGraphs? graphs;
 
   /// The graph the simulation steps for an actor, when a game animates in
@@ -313,6 +317,21 @@ final class ActorVisuals {
   static double yawFor(Actor actor, {required bool model}) =>
       model ? actor.yaw + math.pi : actor.yaw;
 
+  /// How far below its body's centre [actor]'s model has its feet: a model of
+  /// somebody standing has them at its origin, a body is a shape about its
+  /// middle.
+  static double feetBelowCentre(Actor actor) =>
+      actor.body?.halfExtents.y ?? 0.0;
+
+  /// Where [actor]'s model is when its body's centre is [centre]: feet under
+  /// it, turned by [yawFor] — what [sync] places a model by, for a
+  /// simulation that has no model to ask, such as one aiming a head.
+  static Matrix4 modelMatrixAt(Actor actor, Vector3 centre) => Matrix4.compose(
+    Vector3(centre.x, centre.y - feetBelowCentre(actor), centre.z),
+    Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), yawFor(actor, model: true)),
+    Vector3.all(1.0),
+  );
+
   /// How [actor]'s clip should behave when it runs off its end.
   ///
   /// **A corpse does not die twice.** [AnimationPlayer.wrap] defaults to
@@ -342,7 +361,7 @@ final class ActorVisuals {
       if (_taken.contains(actor)) continue;
       if (!actor.isAlive && _takeOver(actor)) continue;
       if (simulated?.call(actor) case final stepped?) {
-        stepped.pose.writeTo(entry.value.targets);
+        _drawnPose(actor, stepped).writeTo(entry.value.targets);
         if (corpses != null && actor.isAlive) _keepPose(actor);
         continue;
       }
@@ -441,6 +460,39 @@ final class ActorVisuals {
     // An actor that has gone stops being interpolated, or the map grows for
     // the life of the level with one entry per corpse.
     _smoothed.removeWhere((Actor actor, _) => !_nodes.containsKey(actor));
+    // The simulation's poses, the one this step left and the one before it,
+    // for [animate] to draw between as [sync] draws the body between.
+    for (final actor in _nodes.keys) {
+      final graph = simulated?.call(actor);
+      if (graph == null) continue;
+      final kept = _stepPoses[actor] ??= (
+        before: graph.pose.restCopy()..setFrom(graph.pose),
+        after: graph.pose.restCopy()..setFrom(graph.pose),
+        drawn: graph.pose.restCopy(),
+      );
+      kept.before.setFrom(kept.after);
+      kept.after.setFrom(graph.pose);
+    }
+    _stepPoses.removeWhere((Actor actor, _) => !_nodes.containsKey(actor));
+  }
+
+  /// Each simulated actor's pose after the last two steps, and the pose
+  /// drawn between them.
+  final Map<Actor, ({Pose before, Pose after, Pose drawn})> _stepPoses =
+      <Actor, ({Pose before, Pose after, Pose drawn})>{};
+
+  /// How far through the step the last [sync] drew: the poses are drawn as
+  /// far, so a planted foot stays under a body drawn between two steps.
+  double _alpha = 1.0;
+
+  /// [actor]'s pose to draw this frame: between the last two steps' as the
+  /// body is, when [recordStep] has kept them; the last step's when not.
+  Pose _drawnPose(Actor actor, AnimationGraph graph) {
+    final kept = _stepPoses[actor];
+    if (kept == null) return graph.pose;
+    return kept.drawn
+      ..setFrom(kept.after)
+      ..blendFrom(kept.before, _alpha);
   }
 
   final Map<Actor, InterpolatedVector3> _smoothed =
@@ -470,6 +522,7 @@ final class ActorVisuals {
   /// is exactly what this did before [recordStep] existed, so a game that has
   /// not wired the per-step call up draws what it always drew.
   void sync([double alpha = 1.0]) {
+    _alpha = alpha;
     for (final entry in _nodes.entries) {
       final actor = entry.key;
       final node = entry.value;
@@ -504,7 +557,7 @@ final class ActorVisuals {
       // rooted at the centre, a monster's model hovers half its height off
       // the floor from the moment it replaces its capsule.
       final isModel = node is! MeshNode;
-      final drop = isModel ? actor.body!.halfExtents.y : 0.0;
+      final drop = isModel ? feetBelowCentre(actor) : 0.0;
       node
         ..setPosition(position.x, position.y - drop, position.z)
         ..setRotation(

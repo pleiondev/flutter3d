@@ -125,6 +125,13 @@ final class Pose {
     scales.setAll(0, _restScales);
   }
 
+  /// This pose made [other]'s, joint for joint: the same hierarchy.
+  void setFrom(Pose other) {
+    translations.setAll(0, other.translations);
+    rotations.setAll(0, other.rotations);
+    scales.setAll(0, other.scales);
+  }
+
   /// A second pose over the same hierarchy and rest, at rest.
   ///
   /// What a crossfade needs: somewhere to sample the clip being left while

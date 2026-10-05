@@ -78,12 +78,15 @@ void main() {
     final visuals = level.actorVisuals;
     await visuals.settled;
     final corpses = visuals.corpses! as RagdollCorpses;
-    // The monsters' graphs step with the simulation: here their animation
-    // alone, so that no brain changes its mind while the test watches.
+    // The monsters' graphs step with the simulation. Here they are stepped
+    // through the stride seam alone, the brains left out, so no monster
+    // changes its mind while this watches heads, feet and corpses being
+    // drawn; the real order — brain, graph, body — is what
+    // `monster_animation_step_test.dart` runs, through `sim.step`.
     final strides = level.staged.actors.strides!;
     void animate() {
       for (final actor in level.staged.actors.actors) {
-        strides.strideOf(actor, 1.0 / 60.0);
+        strides.strideOf(actor, Vector3.zero(), 1.0 / 60.0);
       }
       visuals.animate(1.0 / 60.0);
     }
@@ -152,6 +155,9 @@ void main() {
     final player = level.staged.player.body.position.clone();
     final reach = <Actor, double>{};
     final standing = <Actor, double>{};
+    // Whether the level leaves room behind a runner to fall into, away from
+    // the player: a ray from its pelvis along the push, against the level.
+    final clear = <Actor, bool>{};
     for (final actor in monsters) {
       final ragdoll = corpses.ragdollOf(actor);
       if (!runners.contains(actor)) {
@@ -160,6 +166,16 @@ void main() {
       }
       expect(ragdoll, isNotNull, reason: 'a runner falls as a body');
       reach[actor] = _flat(_joint(ragdoll!, 'Body'), player);
+      final pelvis = _joint(ragdoll, 'Body');
+      final away = Vector3(pelvis.x - player.x, 0.0, pelvis.z - player.z)
+        ..normalize();
+      clear[actor] = !level.loaded.collision.raycast(
+        pelvis,
+        away,
+        1.5,
+        RayHit(),
+        mask: CollisionLayers.world,
+      );
       standing[actor] = _joint(ragdoll, 'Head').y;
       floors[actor] = ragdoll.skeleton.joints
           .firstWhere((j) => j.name == 'Foot.L')
@@ -182,26 +198,23 @@ void main() {
     for (final actor in monsters.where((a) => !runners.contains(a))) {
       expect(visuals.graphOf(actor)!.state, 'death', reason: _modelOf(actor));
     }
-    // Thrown back by the shot, on the whole: a wall behind one stops it.
-    final moved =
-        runners
-            .map(
-              (a) =>
-                  _flat(_joint(corpses.ragdollOf(a)!, 'Body'), player) -
-                  reach[a]!,
-            )
-            .reduce((x, y) => x + y) /
-        runners.length;
-    expect(moved, greaterThan(0.2), reason: 'pushed away from the player');
+    // Thrown back by the shot and down: where the level leaves it room, a
+    // runner goes back further than a fifth of a metre and lies, its head
+    // within half a metre of the floor; where a wall is behind it, it is
+    // stopped there and may slump against it, but never comes towards the
+    // player. At least one with room, or the first half says nothing.
+    expect(clear.values.where((c) => c), isNotEmpty, reason: 'a clear fall');
     for (final actor in runners) {
       final ragdoll = corpses.ragdollOf(actor)!;
-      final head = ragdoll.skeleton.joints.firstWhere((j) => j.name == 'Head');
-      // Down: its head below six tenths of the height it stood at — lying,
-      // or slumped against the wall the shot threw it into.
-      expect(
-        head.worldMatrix.getTranslation().y - floors[actor]!,
-        lessThan(0.6 * (standing[actor]! - floors[actor]!)),
-      );
+      final moved = _flat(_joint(ragdoll, 'Body'), player) - reach[actor]!;
+      final head = _joint(ragdoll, 'Head').y - floors[actor]!;
+      if (clear[actor]!) {
+        expect(moved, greaterThan(0.2), reason: 'thrown back, room behind');
+        expect(head, lessThan(0.5), reason: 'lying, room behind');
+      } else {
+        expect(moved, greaterThan(-0.05), reason: 'not towards the shot');
+        expect(head, lessThan(standing[actor]! - floors[actor]!));
+      }
       // Its bodies on the floor and not in it.
       for (final j in ragdoll.skeleton.joints) {
         if (ragdoll.bodyNamed(j.name!) == null) continue;

@@ -19,6 +19,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show Pose;
 import 'package:flutter3d_app/flutter3d_app.dart' show Issue;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
@@ -360,6 +361,74 @@ void main() {
       }
       expect(heard, isNotEmpty);
       expect(heard.first, (actor: actor, state: 'run', name: 'step'));
+    });
+  });
+
+  group('an actor the simulation animates', () {
+    test('is drawn in its graph\'s pose, between the last two steps as its '
+        'body is', () async {
+      // N1, the graph in the step. Mutations: evaluate the graph on the frame
+      // as well (it runs ahead of the step); draw `after` at every alpha (no
+      // interpolation); draw `before` at every alpha.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final doc = await decodeModel(
+        ModelLoadRequest(
+          source: const FileAssetSource('assets_src/models/hero.glb'),
+        ),
+      );
+      final actor = _actor();
+      final graph = AnimationGraph(
+        machine: _Graphs().machineFor(actor, doc.animations)!,
+        clips: doc.animations,
+        pose: engine.Pose.fromNodes(doc.nodes),
+      )..parameters.setBool('running', true);
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        simulated: (a) => identical(a, actor) ? graph : null,
+      );
+      visuals.add(actor);
+      await visuals.settled;
+      expect(visuals.graphOf(actor), same(graph));
+      List<Matrix4> drawn(double alpha) {
+        visuals
+          ..sync(alpha)
+          ..animate(1.0 / 60.0);
+        return <Matrix4>[
+          for (final j in _skeletonOf(visuals, actor).joints)
+            j.localMatrix.clone(),
+        ];
+      }
+
+      bool alike(List<Matrix4> a, List<Matrix4> b) => <int>[
+        for (var i = 0; i < a.length; i++)
+          if (!_near(a[i], b[i])) i,
+      ].isEmpty;
+
+      // Two steps of the simulation, each recorded.
+      for (var i = 0; i < 20; i++) {
+        graph.evaluate(1.0 / 60.0);
+        visuals.recordStep(dt: 1.0 / 60.0);
+      }
+      final time = graph.stateTime;
+      final afterFirst = drawn(1.0);
+      expect(graph.stateTime, time, reason: 'the frame does not step it');
+      graph.evaluate(0.1);
+      visuals.recordStep(dt: 0.1);
+      final atStart = drawn(0.0);
+      final atEnd = drawn(1.0);
+      final between = drawn(0.5);
+      expect(alike(atStart, afterFirst), isTrue, reason: 'the step before');
+      expect(alike(atEnd, afterFirst), isFalse, reason: 'the step after');
+      expect(alike(between, atStart), isFalse);
+      expect(alike(between, atEnd), isFalse);
     });
   });
 

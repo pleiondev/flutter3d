@@ -20,6 +20,29 @@ import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 
+/// A walk whose root strides 1.5 along +z a second.
+AnimationClip _walkClip() => AnimationClip(
+  name: 'walk',
+  tracks: <AnimationTrack>[
+    AnimationTrack(
+      nodeIndex: 0,
+      path: AnimationPath.translation,
+      interpolation: AnimationInterpolation.linear,
+      times: Float32List.fromList(<double>[0.0, 1.0]),
+      values: Float32List.fromList(<double>[0, 0, 0, 0, 0, 1.5]),
+      componentCount: 3,
+    ),
+  ],
+);
+
+/// One node at rest at the origin.
+Pose _pose() => Pose(
+  parents: const <int>[-1],
+  restTranslations: Float32List(3),
+  restRotations: Float32List.fromList(<double>[0, 0, 0, 1]),
+  restScales: Float32List.fromList(<double>[1, 1, 1]),
+);
+
 /// A walk whose root strides 1.5 along the model's +z a second, with a
 /// footfall at each half.
 AnimationGraph _walking() => AnimationGraph(
@@ -40,27 +63,8 @@ AnimationGraph _walking() => AnimationGraph(
     ],
     transitions: const <AnimationTransition>[],
   ),
-  clips: <AnimationClip>[
-    AnimationClip(
-      name: 'walk',
-      tracks: <AnimationTrack>[
-        AnimationTrack(
-          nodeIndex: 0,
-          path: AnimationPath.translation,
-          interpolation: AnimationInterpolation.linear,
-          times: Float32List.fromList(<double>[0.0, 1.0]),
-          values: Float32List.fromList(<double>[0, 0, 0, 0, 0, 1.5]),
-          componentCount: 3,
-        ),
-      ],
-    ),
-  ],
-  pose: Pose(
-    parents: const <int>[-1],
-    restTranslations: Float32List(3),
-    restRotations: Float32List.fromList(<double>[0, 0, 0, 1]),
-    restScales: Float32List.fromList(<double>[1, 1, 1]),
-  ),
+  clips: <AnimationClip>[_walkClip()],
+  pose: _pose(),
 )..rootNode = 0;
 
 /// A floor, perhaps a wall across +x at [wallAt], and one walker facing
@@ -85,7 +89,7 @@ _stage({double? wallAt, double scale = 1.0}) {
   );
   final animations = ActorAnimations(
     events: events,
-    write: (actor, graph) => graph.parameters.setFloat('speed', 1.0),
+    write: (actor, graph, wish) => graph.parameters.setFloat('speed', 1.0),
   )..attach(walker, _walking(), scale: scale);
   system.strides = animations;
   return (
@@ -182,7 +186,7 @@ void main() {
       'needs it', () {
     ActorAnimations made(GameEvents events) => ActorAnimations(
       events: events,
-      write: (actor, graph) => graph.parameters.setFloat('speed', 1.0),
+      write: (actor, graph, wish) => graph.parameters.setFloat('speed', 1.0),
       graphFor: (actor) => actor.yaw == 0.0 ? null : _walking(),
     );
     final live = _stage(wallAt: 2.5);
@@ -226,4 +230,75 @@ void main() {
     again.system.restore(<String, Object?>{'tick': 0});
     expect(restored.graphOf(again.walker), isNull);
   });
+
+  test('a body its stride moves leaves its idle when its brain asks', () {
+    // The graph stands until `speed` passes 0.3, then walks. Asked from the
+    // body's velocity, a body that only its walk moves would stand for ever:
+    // standing, its velocity is nought. Asked from the brain's wish, it goes.
+    AnimationGraph standThenWalk() {
+      return AnimationGraph(
+        machine: AnimationStateMachine(
+          parameters: AnimationParameterSchema(const <AnimationParameter>[
+            AnimationParameter.float('speed'),
+          ]),
+          entry: 'stand',
+          states: const <AnimationState>[
+            AnimationState(name: 'stand', clip: 'stand'),
+            AnimationState(name: 'walk', clip: 'walk'),
+          ],
+          transitions: <AnimationTransition>[
+            AnimationTransition(
+              from: 'stand',
+              to: 'walk',
+              conditions: const <AnimationCondition>[
+                CompareCondition('speed', AnimationComparison.greater, 0.3),
+              ],
+            ),
+          ],
+        ),
+        clips: <AnimationClip>[
+          AnimationClip(name: 'stand', tracks: const <AnimationTrack>[]),
+          _walkClip(),
+        ],
+        pose: _pose(),
+      )..rootNode = 0;
+    }
+
+    double walked(void Function(Actor, AnimationGraph, Vector3) write) {
+      final world = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+      final system = ActorSystem(world: world, random: GameRandom(1));
+      final walker = system.spawn(
+        body: CharacterController(world: world, position: Vector3(0, 0.9, 0)),
+        facing: Facing(yaw: -math.pi / 2),
+        brain: _Ahead(),
+      );
+      system.strides = ActorAnimations(write: write)
+        ..attach(walker, standThenWalk());
+      _step(system, 60);
+      return walker.body!.position.x;
+    }
+
+    expect(
+      walked((actor, graph, wish) {
+        final v = actor.body!.velocity;
+        graph.parameters.setFloat('speed', Vector2(v.x, v.z).length);
+      }),
+      closeTo(0.0, 1e-3),
+      reason: 'asked from its velocity, it never leaves its idle',
+    );
+    expect(
+      walked(
+        (actor, graph, wish) =>
+            graph.parameters.setFloat('speed', 1.5 * wish.length),
+      ),
+      greaterThan(1.0),
+    );
+  });
+}
+
+/// Asks to go along +x, always.
+final class _Ahead extends Brain {
+  @override
+  void act(Mind it) => it.steer(Vector3(1.0, 0.0, 0.0));
 }

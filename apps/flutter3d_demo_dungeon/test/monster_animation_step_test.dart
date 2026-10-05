@@ -20,6 +20,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// Saves kept in a map: nothing here saves.
 final class _Storage implements Storage {
@@ -62,7 +63,16 @@ List<String> _run(LevelReady level, int steps) => <String>[
   for (var i = 0; i < steps; i++)
     (() {
       level.staged.sim.step(1.0 / 60.0);
-      return '${jsonEncode(level.staged.actors.strides!.save())} '
+      final animations = level.staged.actors.strides! as ActorAnimations;
+      // The poses too, not only what is saved: a pose made again from a
+      // snapshot with last frame's goals would differ here and nowhere
+      // else.
+      final poses = <String>[
+        for (final actor in level.staged.actors.actors)
+          if (animations.graphOf(actor) case final graph?)
+            '${graph.pose.translations.toList()}${graph.pose.rotations.toList()}',
+      ];
+      return '${jsonEncode(animations.save())} $poses '
           '${level.staged.sim.events.drain().map((e) => e.name).toList()}';
     })(),
 ];
@@ -96,6 +106,14 @@ void main() {
 
   test('a run restored into a level opened afresh steps on the same', () async {
     final live = await _open();
+    // The player put in front of a runner, so the crypt does something: a
+    // crypt where every monster stood idle would agree with itself trivially.
+    final runner = live.staged.actors.actors.firstWhere(
+      (a) => const DungeonMonsters().modelFor(a)?.contains('runner') ?? false,
+    );
+    live.staged.player.body.teleport(
+      runner.body!.position + Vector3(2.0, 0.0, 0.0),
+    );
     _run(live, 90);
     // Through text, as a save file or a rewind buffer holds it.
     final saved = Snapshot.fromJson(
@@ -103,6 +121,11 @@ void main() {
           as Map<String, Object?>,
     );
     final ahead = _run(live, 120);
+    expect(
+      ahead.where((step) => step.contains('animation marker step')),
+      isNotEmpty,
+      reason: 'a monster walked, and was heard',
+    );
 
     final again = await _open();
     again.staged.sim.restore(saved);

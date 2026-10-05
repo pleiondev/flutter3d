@@ -100,9 +100,19 @@ void main() {
       count(MonsterState.idle, 0.0, 2.0);
       expect(steps, 0);
       count(MonsterState.chase, 5.4, 3.0);
-      // The run cycle, a little under a second: some five strides in three
-      // seconds after the fade in, two footfalls each.
-      expect(steps, greaterThan(4));
+      // All run at 5.4: two footfalls a cycle of the Run clip, over three
+      // seconds less a cycle for leaving the idle and the fade in.
+      final doc = await decodeModel(
+        ModelLoadRequest(
+          source: const FileAssetSource('assets_src/models/monster_runner.glb'),
+        ),
+      );
+      final run = doc.animations.firstWhere((c) => c.name == 'Run').duration;
+      final cycles = 3.0 / run;
+      expect(
+        steps,
+        inInclusiveRange((2 * (cycles - 1)).floor(), (2 * cycles).ceil()),
+      );
     },
   );
 

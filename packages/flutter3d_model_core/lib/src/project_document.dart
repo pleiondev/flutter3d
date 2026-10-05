@@ -816,9 +816,9 @@ List<ProjectSkeleton> _skeletonsOf(
 /// dropped rather than kept under a fabricated id — a track is one entry in
 /// a clip, not a positional slot anything else addresses, so dropping one
 /// costs nothing downstream the way dropping a skeleton would.
-/// The graphs [asset]'s root `extras` keeps, as JSON by name — only those
-/// that read as a graph, so a file a later build wrote opens with what this
-/// one can run.
+/// The graphs [asset]'s root `extras` keeps, as JSON by name — every one, as
+/// the project file keeps them: one this build cannot read is kept for the
+/// build that can and refused only when somebody sets it.
 Map<String, Map<String, Object?>> _graphsOf(DocumentAsset? asset) {
   final kept = asset?.extras?[AnimationGraphJson.extrasKey];
   if (kept is! Map<String, Object?>) {
@@ -826,17 +826,8 @@ Map<String, Map<String, Object?>> _graphsOf(DocumentAsset? asset) {
   }
   return <String, Map<String, Object?>>{
     for (final MapEntry(:key, :value) in kept.entries)
-      if (value is Map<String, Object?> && _reads(value)) key: value,
+      if (value is Map<String, Object?>) key: value,
   };
-}
-
-bool _reads(Map<String, Object?> graph) {
-  try {
-    AnimationGraphJson.decode(graph);
-    return true;
-  } on FormatException {
-    return false;
-  }
 }
 
 List<ProjectClip> _clipsOf(

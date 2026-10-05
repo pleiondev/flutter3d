@@ -59,19 +59,26 @@ sealed class AnimationGoal {
     }
   }
 
-  /// Its weight and where that is fading to, for a graph's snapshot.
-  Map<String, Object?> saveWeight() => <String, Object?>{
+  /// Its weight, where that is fading to, and what it reaches, looks at or
+  /// stands on, for a graph's snapshot: a pose made again from a snapshot
+  /// is made by these, and one made with last frame's would differ.
+  Map<String, Object?> save() => <String, Object?>{
     'weight': _weight,
-    'target': _target,
+    'fadingTo': _target,
     'rate': _rate,
+    ..._saveInputs(),
   };
 
-  /// Back to what [saveWeight] wrote.
-  void restoreWeight(Map<String, Object?> from) {
+  /// Back to what [save] wrote.
+  void restore(Map<String, Object?> from) {
     _weight = (from['weight'] as num?)?.toDouble() ?? _weight;
-    _target = (from['target'] as num?)?.toDouble() ?? _target;
+    _target = (from['fadingTo'] as num?)?.toDouble() ?? _target;
     _rate = (from['rate'] as num?)?.toDouble() ?? 0.0;
+    _restoreInputs(from);
   }
+
+  Map<String, Object?> _saveInputs();
+  void _restoreInputs(Map<String, Object?> from);
 
   /// Lays this goal on [pose] by [weight]; nothing at nought.
   void apply(Pose pose);
@@ -99,6 +106,18 @@ final class ReachGoal extends AnimationGoal {
 
   /// Which side the middle joint bends to, in the pose's space.
   final Vector3 pole;
+
+  @override
+  Map<String, Object?> _saveInputs() => <String, Object?>{
+    'reach': _xyz(target),
+    'pole': _xyz(pole),
+  };
+
+  @override
+  void _restoreInputs(Map<String, Object?> from) {
+    _readXyz(from['reach'], target);
+    _readXyz(from['pole'], pole);
+  }
 
   @override
   void apply(Pose pose) {
@@ -150,6 +169,18 @@ final class LookGoal extends AnimationGoal {
 
   /// [forward] in [joint]'s own frame, from the pose's rest; taken once.
   Vector3? _facing;
+
+  @override
+  Map<String, Object?> _saveInputs() => <String, Object?>{
+    'look': _xyz(target),
+    'limit': limit,
+  };
+
+  @override
+  void _restoreInputs(Map<String, Object?> from) {
+    _readXyz(from['look'], target);
+    limit = (from['limit'] as num?)?.toDouble() ?? limit;
+  }
 
   @override
   void apply(Pose pose) {
@@ -220,8 +251,8 @@ final class FootLeg {
 /// slope, a rubble heap the clip was not made on.
 ///
 /// Each foot moves up or down by its [FootLeg.ground], the leg bending to
-/// reach it. A foot that must go down further than the leg can reach
-/// lowers [hips] instead, by the most any foot must go down, so a
+/// reach it. Whenever a foot must go down, [hips] go down first by the most
+/// any foot must — a straight leg cannot reach lower than it hangs — so a
 /// character on a stair stands with one knee bent rather than one leg
 /// hanging in the air. Below a weight of one, every shift is that share.
 final class FootPlantGoal extends AnimationGoal {
@@ -230,6 +261,22 @@ final class FootPlantGoal extends AnimationGoal {
   /// The joint the legs hang from, lowered when a foot must go down.
   final int hips;
   final List<FootLeg> legs;
+
+  @override
+  Map<String, Object?> _saveInputs() => <String, Object?>{
+    'grounds': <double>[for (final leg in legs) leg.ground],
+  };
+
+  @override
+  void _restoreInputs(Map<String, Object?> from) {
+    if (from['grounds'] case final List<Object?> grounds) {
+      for (var i = 0; i < legs.length && i < grounds.length; i++) {
+        if (grounds[i] case final num ground) {
+          legs[i].ground = ground.toDouble();
+        }
+      }
+    }
+  }
 
   @override
   void apply(Pose pose) {
@@ -279,6 +326,14 @@ void _moveWorld(Pose pose, List<Matrix4> world, int joint, Vector3 by) {
   pose.translations[joint * 3] += local.x;
   pose.translations[joint * 3 + 1] += local.y;
   pose.translations[joint * 3 + 2] += local.z;
+}
+
+List<double> _xyz(Vector3 v) => <double>[v.x, v.y, v.z];
+
+void _readXyz(Object? from, Vector3 into) {
+  if (from case [final num x, final num y, final num z]) {
+    into.setValues(x.toDouble(), y.toDouble(), z.toDouble());
+  }
 }
 
 /// [v] turned by [q], as `asRotationMatrix` turns it — not

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -20,7 +22,8 @@ final class MonsterGraphs implements ActorGraphs {
   final double? Function(Vector3 at)? groundAt;
 
   /// The most a foot is put up or down, m: a stair's riser. Past it the
-  /// floor under a foot is a ledge it is not standing on.
+  /// floor under a foot is a ledge it is not standing on, and the foot is
+  /// left where the clip put it — as it is where there is no floor near.
   static const double mostStep = 0.4;
 
   /// How long feet take to plant or let go, s.
@@ -186,14 +189,32 @@ final class MonsterGraphs implements ActorGraphs {
 
   /// The brain's state and the body's speed along the floor. Dead is dead
   /// whatever the brain last said: health is the authority on that.
-  static void writeParameters(Actor actor, AnimationParameters parameters) {
+  ///
+  /// The speed is the body's along the floor — unless [wish] is given, for a
+  /// body its own stride moves: then its velocity is the last stride, and a
+  /// graph asked to walk by it would never leave its idle. How fast the
+  /// brain asked to go is the body's walking speed by the wish's length.
+  static void writeParameters(
+    Actor actor,
+    AnimationParameters parameters, {
+    Vector3? wish,
+  }) {
     final state = actor.isAlive
         ? DungeonMonsters.brainOf(actor)?.state ?? MonsterState.idle
         : MonsterState.dead;
     final code = stateCodes.indexOf(state);
     parameters.setInteger('state', code < 0 ? 0 : code);
-    final v = actor.body?.velocity;
-    parameters.setFloat('speed', v == null ? 0.0 : Vector2(v.x, v.z).length);
+    final body = actor.body;
+    final double speed;
+    if (body == null) {
+      speed = 0.0;
+    } else if (wish != null) {
+      speed =
+          body.tuning.walkSpeed * math.min(1.0, Vector2(wish.x, wish.z).length);
+    } else {
+      speed = Vector2(body.velocity.x, body.velocity.z).length;
+    }
+    parameters.setFloat('speed', speed);
   }
 
   /// A look on the head, where the model has one: what faced +Z at rest —
@@ -273,27 +294,18 @@ final class MonsterGraphs implements ActorGraphs {
   /// and where its head looks and its feet stand, before the step moves it
   /// — the model placed where `ActorVisuals` places it, from the actor
   /// alone, since the simulation has no model to ask.
-  void step(Actor actor, AnimationGraph graph) =>
-      _aim(actor, graph, modelOf(actor));
+  void step(Actor actor, AnimationGraph graph, Vector3 wish) => _aim(
+    actor,
+    graph,
+    modelOf(actor),
+    wish: graph.rootNode == null ? null : wish,
+  );
 
-  /// Where `ActorVisuals` draws [actor]'s model: its feet under the body's
-  /// centre, turned by `ActorVisuals.yawFor`.
-  static Matrix4 modelOf(Actor actor) {
-    final body = actor.body;
-    if (body == null) return Matrix4.identity();
-    return Matrix4.compose(
-      Vector3(
-        body.position.x,
-        body.position.y - body.halfExtents.y,
-        body.position.z,
-      ),
-      Quaternion.axisAngle(
-        Vector3(0.0, 1.0, 0.0),
-        ActorVisuals.yawFor(actor, model: true),
-      ),
-      Vector3.all(1.0),
-    );
-  }
+  /// Where `ActorVisuals` draws [actor]'s model, from the body alone.
+  static Matrix4 modelOf(Actor actor) => switch (actor.body) {
+    final body? => ActorVisuals.modelMatrixAt(actor, body.position),
+    null => Matrix4.identity(),
+  };
 
   /// Parameters, the look and the feet, for a model placed by [toWorld].
   ///
@@ -301,8 +313,13 @@ final class MonsterGraphs implements ActorGraphs {
   /// towards nought already — rather than from a flag kept beside them: the
   /// goals are in a snapshot and a flag is not, and a restored run must
   /// decide the same as the run it restores.
-  void _aim(Actor actor, AnimationGraph graph, Matrix4 toWorld) {
-    writeParameters(actor, graph.parameters);
+  void _aim(
+    Actor actor,
+    AnimationGraph graph,
+    Matrix4 toWorld, {
+    Vector3? wish,
+  }) {
+    writeParameters(actor, graph.parameters, wish: wish);
     final toPose = Matrix4.inverted(toWorld);
     _plant(actor, graph, toWorld, toPose);
     final look = graph.goals.whereType<LookGoal>().firstOrNull;
@@ -331,16 +348,16 @@ final class MonsterGraphs implements ActorGraphs {
     if (plant.fadingTo != (on ? 1.0 : 0.0)) {
       plant.fadeTo(on ? 1.0 : 0.0, plantSeconds);
     }
+    // Let go and fading no more: nothing to aim, so no rays.
+    if (!on && plant.weight == 0.0) return;
     final pose = graph.pose.worldMatrices();
     for (final leg in plant.legs) {
       final at = toWorld.transform3(pose[leg.tip].getTranslation());
       final floor = ground(at);
-      leg.ground = floor == null
+      final under = floor == null
           ? 0.0
-          : toPose
-                .transform3(Vector3(at.x, floor, at.z))
-                .y
-                .clamp(-mostStep, mostStep);
+          : toPose.transform3(Vector3(at.x, floor, at.z)).y;
+      leg.ground = under.abs() > mostStep ? 0.0 : under;
     }
   }
 

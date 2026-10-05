@@ -125,11 +125,18 @@ final class AnimationGraph {
   /// The node whose travel along the floor is taken out of the pose and
   /// handed over as [rootDelta] — root motion — or null for none.
   ///
-  /// **Along the floor, x and z of the pose's space.** The root keeps its
-  /// height from the clip — a hop is the clip's to draw — and its x and z
-  /// are held at rest, so the model stays over the body that carries it and
-  /// the body is moved by [rootDelta] instead: by a controller that sweeps,
-  /// so a walk cycle stops at a wall rather than walking through it.
+  /// **Along the floor, x and z of the pose's space** — not of the node's
+  /// own parent, which in an exported rig is often an armature turned to
+  /// stand a Z-up file upright, or scaled from centimetres: the clip's
+  /// translations are carried through the parent as it stands at rest. The
+  /// root keeps its height from the clip — a hop is the clip's to draw — and
+  /// its x and z are held where they are at rest, so the model stays over
+  /// the body that carries it and the body is moved by [rootDelta] instead:
+  /// by a controller that sweeps, so a walk cycle stops at a wall rather
+  /// than walking through it.
+  ///
+  /// **The parent at rest, not animated.** A rig whose clips move the
+  /// root's parents is not one this takes motion out of.
   int? rootNode;
 
   /// How far [rootNode] travelled along the floor in the last [evaluate], in
@@ -232,6 +239,8 @@ final class AnimationGraph {
           ..scale(w)
           ..addScaled(faded, 1.0 - w);
       }
+      // From the parent's space into the pose's, then along its floor.
+      _parentAtRest(root).rotate3(rootDelta);
       rootDelta.y = 0.0;
     }
     if (_previous >= 0 && _fadeElapsed >= _fadeDuration) _previous = -1;
@@ -246,10 +255,7 @@ final class AnimationGraph {
   void _finish(double step, {required bool stepping}) {
     _sample();
     final root = rootNode;
-    if (root != null) {
-      pose.translations[root * 3] = _rest.translations[root * 3];
-      pose.translations[root * 3 + 2] = _rest.translations[root * 3 + 2];
-    }
+    if (root != null) _holdOverRest(root);
     for (final layer in layers) {
       if (stepping) layer._step(step);
       final over = stepping ? layer.graph.evaluate(step) : layer.graph.pose;
@@ -267,10 +273,40 @@ final class AnimationGraph {
     }
   }
 
+  /// [root]'s parent's world matrix at rest — identity for a root with no
+  /// parent — and its inverse; made once, the rest not moving.
+  Matrix4 _parentAtRest(int root) =>
+      (_restParents[root] ??= _restParent(root)).$1;
+  final Map<int, (Matrix4, Matrix4)> _restParents = <int, (Matrix4, Matrix4)>{};
+
+  (Matrix4, Matrix4) _restParent(int root) {
+    final parent = pose.parents[root];
+    final at = parent < 0 ? Matrix4.identity() : _rest.worldMatrices()[parent];
+    return (at, Matrix4.inverted(at));
+  }
+
+  /// [root] held over where it stands at rest along the pose's floor, its
+  /// height in the pose's space as the clip put it.
+  void _holdOverRest(int root) {
+    final (parent, inverse) = _restParents[root] ??= _restParent(root);
+    final t = pose.translations, r = _rest.translations;
+    final now = parent.transform3(
+      Vector3(t[root * 3], t[root * 3 + 1], t[root * 3 + 2]),
+    );
+    final rest = parent.transform3(
+      Vector3(r[root * 3], r[root * 3 + 1], r[root * 3 + 2]),
+    );
+    final held = inverse.transform3(Vector3(rest.x, now.y, rest.z));
+    t[root * 3] = held.x;
+    t[root * 3 + 1] = held.y;
+    t[root * 3 + 2] = held.z;
+  }
+
   /// Everything a step changes, for a snapshot: the state and where its
   /// playhead is, the crossfade, the parameters, each layer's graph and
-  /// weight and each goal's weight. Not the goals' targets, which the game
-  /// writes before every step; not [pose], which [restore] makes again.
+  /// weight and each goal's weight and what it reaches, looks at or stands
+  /// on — which the game writes before every step, and which [restore]
+  /// needs to make [pose] again as it was; not [pose] itself.
   ///
   /// States by name, so a snapshot outlives a definition that reorders
   /// them.
@@ -283,7 +319,12 @@ final class AnimationGraph {
       'fadeElapsed': _fadeElapsed,
       'fadeDuration': _fadeDuration,
     },
-    'parameters': List<double>.of(parameters.values),
+    // By name, as the states are: a snapshot outlives a definition that
+    // reorders them.
+    'parameters': <String, Object?>{
+      for (final (i, p) in parameters.schema.parameters.indexed)
+        p.name: parameters.values[i],
+    },
     'layers': <Object?>[
       for (final layer in layers)
         <String, Object?>{
@@ -293,7 +334,7 @@ final class AnimationGraph {
           'graph': layer.graph.save(),
         },
     ],
-    'goals': <Object?>[for (final goal in goals) goal.saveWeight()],
+    'goals': <Object?>[for (final goal in goals) goal.save()],
   };
 
   /// Back to [from], as [save] wrote it, and [pose] made again from there —
@@ -315,10 +356,11 @@ final class AnimationGraph {
     } else {
       _previous = -1;
     }
-    if (from['parameters'] case final List<Object?> values) {
-      parameters.load(<double>[
-        for (final v in values) v is num ? v.toDouble() : 0.0,
-      ]);
+    if (from['parameters'] case final Map<String, Object?> values) {
+      parameters.loadByName(<String, double>{
+        for (final MapEntry(:key, :value) in values.entries)
+          if (value is num) key: value.toDouble(),
+      });
     }
     final savedLayers = from['layers'];
     if (savedLayers is List) {
@@ -338,7 +380,7 @@ final class AnimationGraph {
     if (savedGoals is List) {
       for (var i = 0; i < goals.length && i < savedGoals.length; i++) {
         if (savedGoals[i] case final Map<String, Object?> saved) {
-          goals[i].restoreWeight(saved);
+          goals[i].restore(saved);
         }
       }
     }

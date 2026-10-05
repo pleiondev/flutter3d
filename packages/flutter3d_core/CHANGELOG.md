@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **Root motion through the root's parent, and snapshots that pose again.**
+  `rootDelta` and holding the root over rest are in the pose's space,
+  through the root's parent at rest: a Z-up armature in centimetres walks
+  and bobs as it should. A graph's snapshot keeps each goal's inputs (what
+  it reaches, looks at, stands on) and the parameters by name, so
+  `restore` makes the pose as it was. `Pose.setFrom`;
+  `AnimationGoal.save`/`restore`; `AnimationParameters.loadByName`.
+
 - **`AnimationGoal.fadingTo`** says where a goal's weight is going, so a
   caller decides whether to fade again from the goal, which a snapshot
   keeps, rather than from a flag of its own.

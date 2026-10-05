@@ -192,14 +192,24 @@ void main() {
       play(live, 0, 80);
       final saved = jsonDecode(jsonEncode(live.save())) as Map<String, Object?>;
       expect(saved['previous'], 'move', reason: 'saved mid-fade');
+      final posed = (
+        live.pose.translations.toList(),
+        live.pose.rotations.toList(),
+      );
       final ahead = play(live, 80, 200);
-      // A fresh graph with nothing fading, so all of it has to come back
-      // from the snapshot.
+      // A fresh graph with nothing fading and its head looking elsewhere, so
+      // all of it has to come back from the snapshot: the pose made again
+      // at once, as it was saved, and the steps after it.
       final again = busy();
       again.layers.first.weight = 0.0;
       again.goals.first.weight = 0.0;
+      (again.goals.first as LookGoal).target.setValues(-5.0, 2.0, -5.0);
       again.restore(saved);
       expect(again.state, 'stand');
+      expect(again.pose.translations.toList(), posed.$1);
+      for (var i = 0; i < posed.$2.length; i++) {
+        expect(again.pose.rotations[i], closeTo(posed.$2[i], 1e-6));
+      }
       expect(play(again, 80, 200), ahead);
     });
 
@@ -292,6 +302,70 @@ void main() {
   });
 
   group('root motion', () {
+    test('under a turned, scaled armature, along the pose\'s floor', () {
+      // A Z-up rig in centimetres: the armature turned a quarter about x so
+      // its z stands up, and drawn at a hundredth. The root walks 150 cm a
+      // second along its own -y — the pose's +z — and bobs 10 cm along its
+      // own z — the pose's up. Read in the root's own parent's space, the
+      // stride was 150 along y and the bob was pinned away as floor.
+      final turn = Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), -math.pi / 2);
+      final graph = AnimationGraph(
+        machine: AnimationStateMachine(
+          parameters: AnimationParameterSchema(const <AnimationParameter>[]),
+          entry: 'walk',
+          states: const <AnimationState>[
+            AnimationState(name: 'walk', clip: 'walk'),
+          ],
+          transitions: const <AnimationTransition>[],
+        ),
+        clips: <AnimationClip>[
+          AnimationClip(
+            name: 'walk',
+            tracks: <AnimationTrack>[
+              AnimationTrack(
+                nodeIndex: 1,
+                path: AnimationPath.translation,
+                interpolation: AnimationInterpolation.linear,
+                times: Float32List.fromList(<double>[0.0, 0.5, 1.0]),
+                values: Float32List.fromList(<double>[
+                  20, 0, 90, //
+                  20, -75, 100, //
+                  20, -150, 90,
+                ]),
+                componentCount: 3,
+              ),
+            ],
+          ),
+        ],
+        pose: Pose(
+          parents: const <int>[-1, 0],
+          restTranslations: Float32List.fromList(<double>[0, 0, 0, 20, 0, 90]),
+          restRotations: Float32List.fromList(<double>[
+            turn.x, turn.y, turn.z, turn.w, //
+            0, 0, 0, 1,
+          ]),
+          restScales: Float32List.fromList(<double>[0.01, 0.01, 0.01, 1, 1, 1]),
+        ),
+      )..rootNode = 1;
+      final restAt = graph.pose.restCopy().worldMatrices()[1].getTranslation();
+      var travelled = Vector3.zero();
+      for (var i = 0; i < 30; i++) {
+        graph.evaluate(1.0 / 60.0);
+        travelled += graph.rootDelta;
+      }
+      expect(travelled.z, closeTo(0.75, 1e-4), reason: 'half a second');
+      expect(travelled.x.abs(), lessThan(1e-5));
+      expect(travelled.y, 0.0);
+      final at = graph.pose.worldMatrices()[1].getTranslation();
+      expect(at.x, closeTo(restAt.x, 1e-5), reason: 'held over rest');
+      expect(at.z, closeTo(restAt.z, 1e-5), reason: 'held over rest');
+      expect(
+        at.y,
+        closeTo(1.0, 1e-4),
+        reason: 'the bob, a metre up at mid-cycle',
+      );
+    });
+
     /// A one-node clip whose root walks [metres] along z over [length]
     /// seconds, at a height of 0.2.
     AnimationClip walking(String name, double metres, double length) =>

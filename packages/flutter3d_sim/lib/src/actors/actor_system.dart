@@ -409,11 +409,11 @@ final class ActorSystem {
       if (!actor.isAlive) {
         // A corpse still needs its body stepped, or it hangs in the air where
         // it died.
-        body?.step(
-          dt,
-          wishDirection: Vector3.zero(),
-          drivenBy: strides?.strideOf(actor, dt),
-        );
+        // Asked before the body steps and whether or not there is one: the
+        // animation of something with no body still runs, and its markers
+        // are still heard.
+        final stride = strides?.strideOf(actor, Vector3.zero(), dt);
+        body?.step(dt, wishDirection: Vector3.zero(), drivenBy: stride);
         continue;
       }
 
@@ -429,11 +429,8 @@ final class ActorSystem {
 
       _wish.setZero();
       brain?.act(_mind);
-      body?.step(
-        dt,
-        wishDirection: _wish,
-        drivenBy: strides?.strideOf(actor, dt),
-      );
+      final stride = strides?.strideOf(actor, _wish, dt);
+      body?.step(dt, wishDirection: _wish, drivenBy: stride);
     }
     _focusIndex = 0;
   }
