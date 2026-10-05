@@ -264,6 +264,8 @@ EntityRegistry sampleRegistry({
   // by torches and nothing else: a probe per room is what lets a key or
   // a barrel reflect the room it is in rather than a sky it cannot see.
   const ReflectionProbeKind(),
+  // Read for the dungeon's sixty steps a second.
+  const CutsceneKind(stepsPerSecond: 60),
   ...extra,
 ]);
 

@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A level has cutscenes.** A `cutscene` entity carries its sequence
+  document in its `sequence` property and `CutsceneKind` reads it for the
+  game's step rate, reporting a document that does not read as a
+  validation error with each problem. It spawns a `Cutscene` mechanism: a
+  trigger, a button or a relay that names it starts it, it plays in the
+  mechanisms' step, directs the actors while it plays and lets go at its
+  end, plays once unless told otherwise, and is saved by name — a run
+  restored mid-cutscene is the director again and steps on to the same
+  bits. Its signals are drained from `Cutscene.signals`.
+
 - **A cutscene directs actors.** A sequence's `actors` cues tell an actor
   by name to walk to a mark over the navigation mesh, look at a point,
   stand, or go back to its brain. `ActorSystem.director` takes an

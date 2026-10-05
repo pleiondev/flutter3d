@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **Cutscenes in the shooter.** `sampleRegistry` reads `cutscene`
+  entities for sixty steps a second, and `GameSimulation.cutscene` is the
+  one playing. While one plays the player's input moves, turns, fires and
+  uses nothing; the controls come back on the step it ends.
+
 - **Monsters learn the way through a broken wall.** The navigation meshes
   are baked in four-metre tiles (`routeConfig`), and `followBreaches`
   bakes again the part of every mesh a hole changed as the hole is blown,

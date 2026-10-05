@@ -26,4 +26,8 @@ abstract final class EntityTypes {
   /// format's word rather than a game's, because a reflection is a fact
   /// about a room and not about what happens in it.
   static const String reflectionProbe = 'reflection_probe';
+
+  /// A cutscene a trigger starts — see `CutsceneKind`. The format's word,
+  /// because a level telling its own story is not one genre's idea.
+  static const String cutscene = 'cutscene';
 }

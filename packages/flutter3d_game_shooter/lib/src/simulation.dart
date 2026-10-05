@@ -327,6 +327,15 @@ final class GameSimulation {
   final Vector3 _eye = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
+  /// The cutscene playing now, or null: what the application draws the
+  /// camera, the subtitles and the fade from, and what a skip steps through.
+  Cutscene? get cutscene {
+    for (final mechanism in mechanisms?.all ?? const <Mechanism>[]) {
+      if (mechanism is Cutscene && mechanism.isPlaying) return mechanism;
+    }
+    return null;
+  }
+
   /// Advances the world by one fixed step.
   void step(double dt) {
     _firedThisStep = null;
@@ -339,8 +348,14 @@ final class GameSimulation {
     systems.run(StepPhase.begin, dt);
 
     final playing = _state == GameState.playing;
+    // **A cutscene has the player's hands.** The world goes on round them —
+    // the cutscene itself is stepped with the mechanisms below — but nothing
+    // the player presses moves, turns, fires or uses anything until it ends
+    // or is skipped. Read before the mechanisms step, so the step a cutscene
+    // ends on is the step the controls come back.
+    final controlled = playing && cutscene == null;
 
-    if (playing) {
+    if (controlled) {
       player.look(input.lookDelta);
       player.moveWish(input.moveAxis, _wish);
       // Asked for every step rather than on an edge: standing up can be refused
@@ -364,7 +379,8 @@ final class GameSimulation {
     player.body.step(
       dt,
       wishDirection: _wish,
-      sprint: playing && !player.isCrouching && input.held(GameAction.sprint),
+      sprint:
+          controlled && !player.isCrouching && input.held(GameAction.sprint),
     );
 
     // After the player has moved, because what they shove depends on where
@@ -381,7 +397,7 @@ final class GameSimulation {
 
     final doors = mechanisms;
     if (doors != null) {
-      if (playing && input.pressed(GameAction.use)) _use(doors);
+      if (controlled && input.pressed(GameAction.use)) _use(doors);
       // Last, because the use key above can start a door: publishing before it
       // would report that door a step late, every time. It is why `WorldStep`
       // keeps this apart from `settle` instead of bundling the two.
@@ -394,7 +410,7 @@ final class GameSimulation {
     systems.run(ShooterPhases.afterWorld, dt);
 
     player.inventory.step(dt);
-    if (playing) _weapon(dt);
+    if (controlled) _weapon(dt);
 
     // **A shot is a noise, and until now nothing in the level could tell.** A
     // monster noticed being seen or being hit and nothing else, so a player
