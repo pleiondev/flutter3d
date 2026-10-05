@@ -9,9 +9,20 @@ import 'actor.dart';
 /// one for each actor answers here with how far its stride carried the
 /// body this step, along the floor in the world, and `ActorSystem` sweeps
 /// the body that far in place of accelerating it towards the brain's wish.
-abstract interface class ActorStrides {
+///
+/// **Saved with the actors.** What steps the animations is simulation
+/// state: `ActorSystem.save` writes [save] beside its own and `restore`
+/// hands it back with the actors as they now are, so a rewind or a replay
+/// steps on to the same strides. Nothing to save by default.
+abstract class ActorStrides {
   /// [actor]'s travel along the floor for this step of [dt], or null for a
   /// body moved by its brain's wish. Called once a step for every actor,
   /// after its brain has acted, dead or alive.
   Vector3? strideOf(Actor actor, double dt);
+
+  /// Whatever stepping changes, as plain JSON; null for nothing.
+  Object? save() => null;
+
+  /// Back to what [save] wrote, for [actors] as the restore left them.
+  void restore(Object? from, Iterable<Actor> actors) {}
 }

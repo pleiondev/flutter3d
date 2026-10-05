@@ -85,7 +85,7 @@ _stage({double? wallAt, double scale = 1.0}) {
   );
   final animations = ActorAnimations(
     events: events,
-    write: (actor, parameters) => parameters.setFloat('speed', 1.0),
+    write: (actor, graph) => graph.parameters.setFloat('speed', 1.0),
   )..attach(walker, _walking(), scale: scale);
   system.strides = animations;
   return (
@@ -165,7 +165,7 @@ void main() {
     final saved =
         jsonDecode(
               jsonEncode(<String, Object?>{
-                'animations': live.animations.save(),
+                'actors': live.system.save(),
                 'body': live.walker.body!.save(),
               }),
             )
@@ -174,7 +174,56 @@ void main() {
 
     final again = _stage(wallAt: 2.5);
     again.walker.body!.restore(saved['body']! as Map<String, Object?>);
-    again.animations.restore(saved['animations']);
+    again.system.restore(saved['actors']);
     expect(run(again, 100), ahead);
+  });
+
+  test('made on an actor\'s first step, and made again by a restore that '
+      'needs it', () {
+    ActorAnimations made(GameEvents events) => ActorAnimations(
+      events: events,
+      write: (actor, graph) => graph.parameters.setFloat('speed', 1.0),
+      graphFor: (actor) => actor.yaw == 0.0 ? null : _walking(),
+    );
+    final live = _stage(wallAt: 2.5);
+    final animations = made(live.events);
+    live.system.strides = animations;
+    expect(animations.graphOf(live.walker), isNull, reason: 'not stepped yet');
+    _step(live.system, 1);
+    expect(animations.graphOf(live.walker), isNotNull);
+    _step(live.system, 46);
+    final saved =
+        jsonDecode(
+              jsonEncode(<String, Object?>{
+                'actors': live.system.save(),
+                'body': live.walker.body!.save(),
+              }),
+            )
+            as Map<String, Object?>;
+    final ahead = <String>[
+      for (var i = 0; i < 60; i++)
+        (() {
+          _step(live.system, 1);
+          return '${live.walker.body!.position.storage.toList()}';
+        })(),
+    ];
+
+    final again = _stage(wallAt: 2.5);
+    final restored = made(again.events);
+    again.system.strides = restored;
+    again.walker.body!.restore(saved['body']! as Map<String, Object?>);
+    again.system.restore(saved['actors']);
+    expect(restored.graphOf(again.walker)!.stateTime, greaterThan(0.0));
+    expect(<String>[
+      for (var i = 0; i < 60; i++)
+        (() {
+          _step(again.system, 1);
+          return '${again.walker.body!.position.storage.toList()}';
+        })(),
+    ], ahead);
+
+    // Restored to before its first step, it has no graph until it takes it.
+    again.system.restore(<String, Object?>{'tick': 0});
+    expect(restored.graphOf(again.walker), isNull);
   });
 }

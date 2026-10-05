@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **What steps the animations is saved with the actors.** `ActorStrides`
+  is an abstract class now, with `save` and `restore` doing nothing by
+  default. `ActorSystem.save` writes its state beside the system's own,
+  and `restore` hands it back with the actors as they now are. A rewind or
+  a replay steps on to the same strides with no line in a game's save.
+
 - **An actor's animation can walk its body.** `ActorSystem.strides`
   takes an `ActorStrides`. Once a step, for every actor, after its brain
   has acted, dead or alive, it is asked how far the actor's own stride

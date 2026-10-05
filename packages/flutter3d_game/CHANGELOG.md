@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **Graphs made on an actor's first step.** `ActorAnimations(graphFor:)`
+  makes an actor's graph inside the step it first takes, so monsters
+  spawned as a level goes get one at the same step in every run. A
+  restore makes again the graphs a snapshot has and drops those it does
+  not. `write` now takes the graph, so a game sets its goals' targets as
+  well as its parameters. `ActorVisuals(simulated:)` draws such an actor
+  in the pose its graph was left in by the last step and makes no graph
+  of its own for it.
+
 - **Animation graphs stepped by the simulation.** `ActorAnimations` is
   an `ActorStrides`. It steps each attached actor's graph on the fixed
   step, writing the brain's decisions into its parameters first. A graph

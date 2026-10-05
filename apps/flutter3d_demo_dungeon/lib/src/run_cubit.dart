@@ -192,6 +192,51 @@ final class DungeonRun extends RunSession<LevelReady> {
     // the killing shot came from.
     Player? shooter;
     final watched = Vector3.zero();
+    // The monsters are animated by a graph over their own clips: idle,
+    // walking into running by speed, attacking, struck, dying — turning
+    // their heads to watch the player once they have seen them, and their
+    // feet on the floor under them.
+    final monsterGraphs = MonsterGraphs(
+      lookAt: () {
+        final player = shooter;
+        if (player == null) return null;
+        player.eye(watched);
+        return watched;
+      },
+      // The level's own floor under a foot: a ray from half a metre
+      // above it down through a metre, against the world and nothing
+      // that walks.
+      groundAt: (at) {
+        final from = Vector3(at.x, at.y + 0.5, at.z);
+        final hit = RayHit();
+        return loaded.collision.raycast(
+              from,
+              Vector3(0.0, -1.0, 0.0),
+              1.0,
+              hit,
+              mask: CollisionLayers.world,
+            )
+            ? hit.point.y
+            : null;
+      },
+    );
+    // **In the simulation's step, not on the frame**, so a footfall is a game
+    // event in order with the shots and a rewind or a replay steps the same
+    // strides: the clips are read here, from the models' documents, before
+    // the first step rather than whenever a model arrives on screen. Each
+    // monster's graph is made on its first step.
+    final documents = <String, ModelDocument?>{
+      for (final path in DungeonMonsters.modelsForKind.values)
+        path: await _documentOf(path),
+    };
+    final animations = ActorAnimations(
+      write: monsterGraphs.step,
+      graphFor: (actor) =>
+          switch (documents[const DungeonMonsters().modelFor(actor)]) {
+            final document? => monsterGraphs.graphOver(actor, document),
+            null => null,
+          },
+    );
     final scene = (
       actors: ActorVisuals(
         loaded.scene,
@@ -199,30 +244,9 @@ final class DungeonRun extends RunSession<LevelReady> {
         // The monsters are animated by a graph over their own clips: idle,
         // walking into running by speed, attacking, struck, dying — and
         // turning their heads to watch the player once they have seen them.
-        graphs: MonsterGraphs(
-          lookAt: () {
-            final player = shooter;
-            if (player == null) return null;
-            player.eye(watched);
-            return watched;
-          },
-          // The level's own floor under a foot: a ray from half a metre
-          // above it down through a metre, against the world and nothing
-          // that walks.
-          groundAt: (at) {
-            final from = Vector3(at.x, at.y + 0.5, at.z);
-            final hit = RayHit();
-            return loaded.collision.raycast(
-                  from,
-                  Vector3(0.0, -1.0, 0.0),
-                  1.0,
-                  hit,
-                  mask: CollisionLayers.world,
-                )
-                ? hit.point.y
-                : null;
-          },
-        ),
+        // Drawn in the pose the simulation's step left each monster's graph
+        // in; see `animations` below.
+        simulated: animations.graphOf,
         device: device,
         // On their own layer as well as the world's, which is what lets the
         // sensor draw their silhouettes and nothing else's.
@@ -266,6 +290,8 @@ final class DungeonRun extends RunSession<LevelReady> {
       lookSensitivity: lookSensitivity,
     );
     shooter = staged.player;
+    animations.events = staged.sim.events;
+    staged.actors.strides = animations;
 
     // `wg-02`: every `widget_surface` entity, resolved against
     // `widgetRegistry` — not fed through `SpawnContext` like a fixture or an
@@ -290,6 +316,16 @@ final class DungeonRun extends RunSession<LevelReady> {
       widgetSurfaces: widgets,
       exitModel: exitModel,
     );
+  }
+
+  /// [path]'s document for its clips and nodes, or null when it does not
+  /// load — that monster then names its clips on screen, as before graphs.
+  static Future<ModelDocument?> _documentOf(String path) async {
+    try {
+      return await loadModelByPath(path);
+    } on Object {
+      return null;
+    }
   }
 
   /// Gives a finished level's uploads back to the device.

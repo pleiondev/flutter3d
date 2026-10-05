@@ -992,19 +992,11 @@ class _GameScreenState extends State<GameScreen>
     // where the later one left it — which is what the player's own camera has
     // always done, and what every monster in the crypt was not doing.
     _actorVisuals?.sync(_loop.alpha);
-    // Once a frame with the frame's own delta, not once per simulation step:
-    // an animation is display, and playing it on the fixed step would make a
-    // monster's stride depend on how far behind the machine is.
+    // Once a frame: the monsters' graphs are stepped by the simulation and
+    // this draws the pose the last step left; what it still plays on the
+    // frame's own clock is a model with no graph, naming its clips, and the
+    // corpses falling.
     _actorVisuals?.animate(dt);
-    // A monster's foot down, as its animation graph marks it: a footstep
-    // where it is, so one coming down a corridor is heard before it is seen.
-    final passing = _actorVisuals?.markersPassed;
-    if (passing != null) {
-      for (final passed in passing) {
-        final at = passed.actor.position;
-        if (passed.name == 'step' && at != null) _audio.play(Sounds.step, at);
-      }
-    }
     _fixtureVisuals?.sync(_frames.elapsed);
     // `wg-02`: once a frame, fire-and-forget — `WidgetSurface.tick` uploads
     // a texture only when its own pipeline is actually dirty, the same
@@ -1065,6 +1057,13 @@ class _GameScreenState extends State<GameScreen>
       _weaponView.selectWeapon(_arsenal.current);
     }
 
+    // A monster's foot down, as its animation graph marks it in the step: a
+    // footstep where it is, so one coming down a corridor is heard before
+    // it is seen.
+    for (final passed in events.whereType<AnimationMarkerPassed>()) {
+      final at = passed.actor.position;
+      if (passed.marker == 'step' && at != null) _audio.play(Sounds.step, at);
+    }
     for (final MechanismUsed used in events.whereType<MechanismUsed>()) {
       final said = used.outcome.message;
       if (said != null) _effects.say(said);

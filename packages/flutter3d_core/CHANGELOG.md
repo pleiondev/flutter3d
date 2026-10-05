@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`AnimationGoal.fadingTo`** says where a goal's weight is going, so a
+  caller decides whether to fade again from the goal, which a snapshot
+  keeps, rather than from a flag of its own.
 - **Feet put on the ground under them.** `FootPlantGoal` takes a
   `FootLeg` per leg: hip, knee and ankle bent by `TwoBoneIk` towards a
   pole joint or direction. Each has a `ground` height the game writes from

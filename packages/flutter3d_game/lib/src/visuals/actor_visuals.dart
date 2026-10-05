@@ -34,6 +34,7 @@ final class ActorVisuals {
     this.layerMask = 1,
     this.corpses,
     this.graphs,
+    this.simulated,
   }) : _meshes = SharedMeshes(device),
        _device = device,
        onIssue = onIssue ?? printIssue;
@@ -68,6 +69,13 @@ final class ActorVisuals {
   /// What animates a modelled actor by a graph, when not its clip names.
   final ActorGraphs? graphs;
 
+  /// The graph the simulation steps for an actor, when a game animates in
+  /// its step — `ActorAnimations.graphOf`. Such an actor is drawn in the
+  /// pose its graph was left in by the last step, and [graphs] makes no
+  /// graph of its own for it; its markers arrive as game events rather than
+  /// in [markersPassed].
+  final AnimationGraph? Function(Actor actor)? simulated;
+
   /// Each actor [graphs] gave a machine, its graph.
   final Map<Actor, AnimationGraph> _graphs = <Actor, AnimationGraph>{};
 
@@ -80,7 +88,8 @@ final class ActorVisuals {
       <({Actor actor, String state, String name})>[];
 
   /// The graph animating [actor], if one does: to ask what state it is in.
-  AnimationGraph? graphOf(Actor actor) => _graphs[actor];
+  AnimationGraph? graphOf(Actor actor) =>
+      _graphs[actor] ?? simulated?.call(actor);
 
   /// The model [actor] is drawn as, once it has arrived: its joints, its
   /// player, its meshes. Null for an actor still, or only ever, a capsule.
@@ -254,7 +263,7 @@ final class ActorVisuals {
     _instances[actor] = instance;
     final player = instance.player;
     if (player != null) _players[actor] = player;
-    final machine = player == null
+    final machine = player == null || simulated != null
         ? null
         : graphs?.machineFor(actor, player.clips);
     if (machine != null) {
@@ -332,6 +341,11 @@ final class ActorVisuals {
       final actor = entry.key;
       if (_taken.contains(actor)) continue;
       if (!actor.isAlive && _takeOver(actor)) continue;
+      if (simulated?.call(actor) case final stepped?) {
+        stepped.pose.writeTo(entry.value.targets);
+        if (corpses != null && actor.isAlive) _keepPose(actor);
+        continue;
+      }
       final graph = _graphs[actor];
       if (graph != null) {
         graphs!.drive(actor, graph, _instances[actor]!);

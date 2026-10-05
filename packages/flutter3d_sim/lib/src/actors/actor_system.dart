@@ -800,6 +800,7 @@ final class ActorSystem {
   /// use.
   Map<String, Object?> save() => <String, Object?>{
     'tick': _tick,
+    'strides': ?strides?.save(),
     if (_lastFoci.length == 1)
       'lastFocus': <double>[_lastFoci[0].x, _lastFoci[0].y, _lastFoci[0].z],
     if (_lastFoci.length > 1)
@@ -812,6 +813,7 @@ final class ActorSystem {
     if (from is! Map) return;
     final tick = from['tick'];
     if (tick is num) _tick = tick.toInt();
+    strides?.restore(from['strides'], actors);
     _lastFoci.clear();
     final several = from['lastFoci'];
     final saved = several is List ? several : <Object?>[from['lastFocus']];

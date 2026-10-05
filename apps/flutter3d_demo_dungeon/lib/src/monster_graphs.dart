@@ -26,8 +26,6 @@ final class MonsterGraphs implements ActorGraphs {
   /// How long feet take to plant or let go, s.
   static const double plantSeconds = 0.2;
 
-  final Expando<bool> _planted = Expando<bool>('planted');
-
   /// The states a monster turns its head to watch in.
   static final Set<MonsterState> watching = <MonsterState>{
     MonsterState.alert,
@@ -39,8 +37,6 @@ final class MonsterGraphs implements ActorGraphs {
   /// how long it takes to turn to it and away.
   static const double lookLimit = 1.0;
   static const double lookSeconds = 0.3;
-
-  final Expando<bool> _watching = Expando<bool>('watching');
 
   /// What a monster is doing, as the graph's `state` parameter reads it.
   static const List<MonsterState> stateCodes = <MonsterState>[
@@ -207,8 +203,13 @@ final class MonsterGraphs implements ActorGraphs {
   /// knee and ankle under the body, and each foot a bone of its own on the
   /// root that the clips put where the ankle is.
   @override
-  void dress(Actor actor, AnimationGraph graph, ModelInstance model) {
-    int joint(String name) => model.nodes.indexWhere((n) => n.name == name);
+  void dress(Actor actor, AnimationGraph graph, ModelInstance model) =>
+      dressNamed(graph, <String?>[for (final n in model.nodes) n.name]);
+
+  /// [dress] by the nodes' [names], in the pose's order — from a model on
+  /// screen or from its document, read before there is one.
+  static void dressNamed(AnimationGraph graph, List<String?> names) {
+    int joint(String name) => names.indexOf(name);
     final head = joint('Head');
     if (head >= 0) {
       graph.goals.add(
@@ -250,38 +251,86 @@ final class MonsterGraphs implements ActorGraphs {
   }
 
   @override
-  void drive(Actor actor, AnimationGraph graph, ModelInstance model) {
+  void drive(Actor actor, AnimationGraph graph, ModelInstance model) =>
+      _aim(actor, graph, model.root.worldMatrix);
+
+  /// The graph [actor] is animated by in the simulation's step, over
+  /// [document]'s clips and nodes, dressed as [dress] dresses one on screen;
+  /// null for a model with no idle, which keeps naming its clips.
+  AnimationGraph? graphOver(Actor actor, ModelDocument document) {
+    final machine = machineFor(actor, document.animations);
+    if (machine == null) return null;
+    final graph = AnimationGraph(
+      machine: machine,
+      clips: document.animations,
+      pose: Pose.fromNodes(document.nodes),
+    );
+    dressNamed(graph, <String?>[for (final n in document.nodes) n.name]);
+    return graph;
+  }
+
+  /// `ActorAnimations.write`: what [actor]'s brain decided into its graph,
+  /// and where its head looks and its feet stand, before the step moves it
+  /// — the model placed where `ActorVisuals` places it, from the actor
+  /// alone, since the simulation has no model to ask.
+  void step(Actor actor, AnimationGraph graph) =>
+      _aim(actor, graph, modelOf(actor));
+
+  /// Where `ActorVisuals` draws [actor]'s model: its feet under the body's
+  /// centre, turned by `ActorVisuals.yawFor`.
+  static Matrix4 modelOf(Actor actor) {
+    final body = actor.body;
+    if (body == null) return Matrix4.identity();
+    return Matrix4.compose(
+      Vector3(
+        body.position.x,
+        body.position.y - body.halfExtents.y,
+        body.position.z,
+      ),
+      Quaternion.axisAngle(
+        Vector3(0.0, 1.0, 0.0),
+        ActorVisuals.yawFor(actor, model: true),
+      ),
+      Vector3.all(1.0),
+    );
+  }
+
+  /// Parameters, the look and the feet, for a model placed by [toWorld].
+  ///
+  /// **Fades decided from the goals themselves** — fading towards one or
+  /// towards nought already — rather than from a flag kept beside them: the
+  /// goals are in a snapshot and a flag is not, and a restored run must
+  /// decide the same as the run it restores.
+  void _aim(Actor actor, AnimationGraph graph, Matrix4 toWorld) {
     writeParameters(actor, graph.parameters);
-    _plant(actor, graph, model);
+    final toPose = Matrix4.inverted(toWorld);
+    _plant(actor, graph, toWorld, toPose);
     final look = graph.goals.whereType<LookGoal>().firstOrNull;
     if (look == null) return;
     final target = lookAt?.call();
     final watch = target != null && shouldWatch(actor);
-    if (_watching[actor] != watch) {
-      _watching[actor] = watch;
+    if (look.fadingTo != (watch ? 1.0 : 0.0)) {
       look.fadeTo(watch ? 1.0 : 0.0, lookSeconds);
     }
-    if (target != null) {
-      look.target.setFrom(
-        Matrix4.inverted(model.root.worldMatrix).transform3(target.clone()),
-      );
-    }
+    if (target != null) look.target.setFrom(toPose.transform3(target.clone()));
   }
 
-  /// Each foot's floor, from [groundAt] under where the last frame left the
+  /// Each foot's floor, from [groundAt] under where the last pose left the
   /// ankle, brought into the model's space; planted while the monster is
   /// alive and on the ground, let go in the air and when it dies.
-  void _plant(Actor actor, AnimationGraph graph, ModelInstance model) {
+  void _plant(
+    Actor actor,
+    AnimationGraph graph,
+    Matrix4 toWorld,
+    Matrix4 toPose,
+  ) {
     final plant = graph.goals.whereType<FootPlantGoal>().firstOrNull;
     final ground = groundAt;
     if (plant == null || ground == null) return;
     final on = actor.isAlive && (actor.body?.isGrounded ?? false);
-    if (_planted[actor] != on) {
-      _planted[actor] = on;
+    if (plant.fadingTo != (on ? 1.0 : 0.0)) {
       plant.fadeTo(on ? 1.0 : 0.0, plantSeconds);
     }
-    final toWorld = model.root.worldMatrix;
-    final toPose = Matrix4.inverted(toWorld);
     final pose = graph.pose.worldMatrices();
     for (final leg in plant.legs) {
       final at = toWorld.transform3(pose[leg.tip].getTranslation());

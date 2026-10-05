@@ -25,19 +25,32 @@ import '../visuals/actor_visuals.dart';
 ///
 /// **Drawing is still `ActorVisuals`' business**: it may draw [graphOf] an
 /// actor as it stands, rather than stepping a graph of its own on the frame.
+///
+/// **Made on an actor's first step, by [graphFor].** A level whose monsters
+/// spawn as it goes has no moment to attach theirs, and a graph made inside
+/// the step is made at the same step of every run, so a replay agrees with
+/// the run it records. [attach] is for a game that makes its own.
 final class ActorAnimations implements ActorStrides {
-  /// [write] is asked every step for each attached actor; null leaves the
-  /// parameters to whoever set them.
-  ActorAnimations({this.events, this.write});
+  /// [write] is asked every step for each actor with a graph, before it
+  /// moves; null leaves the parameters to whoever set them.
+  ActorAnimations({this.events, this.write, this.graphFor});
 
   /// Where markers are reported; the game's own buffer, as the actor
   /// system's is.
   GameEvents? events;
 
-  /// Puts what [actor]'s brain decided into its graph's [parameters].
-  final void Function(Actor actor, AnimationParameters parameters)? write;
+  /// Puts what [actor]'s brain decided into its graph's parameters, and
+  /// where its goals look and stand.
+  final void Function(Actor actor, AnimationGraph graph)? write;
+
+  /// The graph [actor] is animated by, asked once on its first step; null
+  /// for one that is not.
+  final AnimationGraph? Function(Actor actor)? graphFor;
 
   final Map<Actor, _Animated> _animated = <Actor, _Animated>{};
+
+  /// The actors [graphFor] has answered for, with a graph or without.
+  final Set<Actor> _asked = <Actor>{};
 
   /// Steps [graph] for [actor] from now on. [scale] is the model's size: a
   /// stride authored for a model drawn at half size walks half as far.
@@ -45,17 +58,20 @@ final class ActorAnimations implements ActorStrides {
       _animated[actor] = _Animated(graph, scale);
 
   /// Stops stepping [actor]'s graph — for an actor removed from the world.
-  void detach(Actor actor) => _animated.remove(actor);
+  void detach(Actor actor) {
+    _animated.remove(actor);
+    _asked.remove(actor);
+  }
 
   /// The graph stepped for [actor], posed as the last step left it.
   AnimationGraph? graphOf(Actor actor) => _animated[actor]?.graph;
 
   @override
   Vector3? strideOf(Actor actor, double dt) {
-    final animated = _animated[actor];
+    final animated = _animated[actor] ?? _made(actor);
     if (animated == null) return null;
     final graph = animated.graph;
-    write?.call(actor, graph.parameters);
+    write?.call(actor, graph);
     graph.evaluate(dt);
     for (final passed in graph.passed) {
       events?.add(AnimationMarkerPassed(actor, passed.state, passed.name));
@@ -73,20 +89,42 @@ final class ActorAnimations implements ActorStrides {
     );
   }
 
+  _Animated? _made(Actor actor) {
+    final graphFor = this.graphFor;
+    if (graphFor == null || !_asked.add(actor)) return null;
+    final graph = graphFor(actor);
+    if (graph == null) return null;
+    return _animated[actor] = _Animated(graph, 1.0, made: true);
+  }
+
   /// Every graph's state, by the ordinal of the actor it animates — the
   /// same actors are at the same ordinals when a level is loaded again.
+  @override
   Map<String, Object?> save() => <String, Object?>{
     for (final MapEntry(key: actor, value: animated) in _animated.entries)
       '${actor.ordinal}': animated.graph.save(),
   };
 
-  /// Back to what [save] wrote; an actor with nothing saved is left as it
-  /// stands.
-  void restore(Object? from) {
-    if (from is! Map) return;
-    for (final MapEntry(key: actor, value: animated) in _animated.entries) {
-      if (from['${actor.ordinal}'] case final Map<String, Object?> saved) {
-        animated.graph.restore(saved);
+  /// Back to what [save] wrote, for [actors] as they now are.
+  ///
+  /// An actor saved with a graph gets it back, made by [graphFor] if this
+  /// run has not made it yet; one saved without had not taken its first
+  /// step, and its graph is made again when it does — as it was in the run
+  /// that saved. An attached graph with nothing saved is left as it stands.
+  @override
+  void restore(Object? from, Iterable<Actor> actors) {
+    final saved = from is Map ? from : const <String, Object?>{};
+    final present = actors.toSet();
+    _animated.removeWhere((actor, animated) => !present.contains(actor));
+    _asked.removeWhere((actor) => !_animated.containsKey(actor));
+    for (final actor in present) {
+      final state = saved['${actor.ordinal}'];
+      final animated = _animated[actor];
+      if (state is Map<String, Object?>) {
+        (animated ?? _made(actor))?.graph.restore(state);
+      } else if (animated != null && animated.made) {
+        _animated.remove(actor);
+        _asked.remove(actor);
       }
     }
   }
@@ -109,10 +147,13 @@ final class AnimationMarkerPassed extends GameEvent {
 }
 
 final class _Animated {
-  _Animated(this.graph, this.scale);
+  _Animated(this.graph, this.scale, {this.made = false});
 
   final AnimationGraph graph;
   final double scale;
+
+  /// Made by [ActorAnimations.graphFor] rather than attached.
+  final bool made;
 
   /// The model's turn and size, written afresh each step.
   final Matrix4 facing = Matrix4.identity();

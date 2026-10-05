@@ -78,10 +78,19 @@ void main() {
     final visuals = level.actorVisuals;
     await visuals.settled;
     final corpses = visuals.corpses! as RagdollCorpses;
+    // The monsters' graphs step with the simulation: here their animation
+    // alone, so that no brain changes its mind while the test watches.
+    final strides = level.staged.actors.strides!;
+    void animate() {
+      for (final actor in level.staged.actors.actors) {
+        strides.strideOf(actor, 1.0 / 60.0);
+      }
+      visuals.animate(1.0 / 60.0);
+    }
+
     for (var i = 0; i < 10; i++) {
-      visuals
-        ..animate(1.0 / 60.0)
-        ..sync();
+      animate();
+      visuals.sync();
     }
 
     final monsters = <Actor>[
@@ -119,7 +128,7 @@ void main() {
     final watcher = runners.first;
     (watcher.brain! as ChaseBrain).state = MonsterState.chase;
     for (var i = 0; i < 30; i++) {
-      visuals.animate(1.0 / 60.0);
+      animate();
     }
     final look = visuals.graphOf(watcher)!.goals.whereType<LookGoal>().single;
     expect(look.weight, 1.0);
@@ -136,7 +145,7 @@ void main() {
     for (final actor in monsters) {
       level.staged.actors.hurt(actor, 1e6);
     }
-    visuals.animate(1.0 / 60.0);
+    animate();
     // Where each runner's feet stood when it died: the floor under it; and
     // how far its pelvis was from the player, whose shot pushes it away.
     final floors = <Actor, double>{};
@@ -164,9 +173,8 @@ void main() {
         runners.every((a) => corpses.ragdollOf(a)!.ragdoll.isAsleep);
     var frames = 0;
     while (!settled() && frames < 900) {
-      visuals
-        ..animate(1.0 / 60.0)
-        ..sync();
+      animate();
+      visuals.sync();
       frames++;
     }
     expect(settled(), isTrue, reason: 'still after $frames frames');

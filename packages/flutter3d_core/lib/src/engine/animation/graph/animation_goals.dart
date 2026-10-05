@@ -32,6 +32,11 @@ sealed class AnimationGoal {
     _rate = 0.0;
   }
 
+  /// Where [weight] is going: itself when still, else the [fadeTo] target —
+  /// what a caller asks before fading again, so the decision is read off
+  /// the goal, which a snapshot keeps, and not off a flag of its own.
+  double get fadingTo => _target;
+
   /// Moves [weight] to [target] over [seconds] of steps; at once for none.
   void fadeTo(double target, double seconds) {
     _target = target.clamp(0.0, 1.0);
