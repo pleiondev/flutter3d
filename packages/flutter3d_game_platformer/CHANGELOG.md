@@ -1,3 +1,12 @@
+## Unreleased
+
+- **A save carries what the dynamics need beyond the bodies.** The
+  simulation's snapshot holds `RigidDynamics.saveState()` under
+  `dynamics` and gives it back after the bodies are restored. For
+  `Dynamics` that is nothing, so a reference run's saves and digests are
+  unchanged. For the native core it is the core's own state, without which
+  a rewind stepped on from a keyframe would not repeat the run.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

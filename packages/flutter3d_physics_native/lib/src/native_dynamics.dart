@@ -28,6 +28,7 @@
 /// it was and moving as it was, and the core takes it from there.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -81,6 +82,14 @@ final class NativeDynamics implements RigidDynamics {
 
   @override
   RigidBody add(RigidBody body) {
+    bodies.add(body);
+    _byCollider[body.collider] = body;
+    _mirrors[body] = _mirrorFor(body);
+    return body;
+  }
+
+  /// [body] made in the core as it is now, and its mirror.
+  _Mirror _mirrorFor(RigidBody body) {
     final (shape, offset) = _shapeOf(body.collider.shape);
     final handle = native.addBody(
       position: body.position + _turned(body.orientation, offset),
@@ -100,10 +109,7 @@ final class NativeDynamics implements RigidDynamics {
         layer: body.collider.layer & Layers.all,
         mask: body.collider.mask & Layers.all,
       );
-    bodies.add(body);
-    _byCollider[body.collider] = body;
-    _mirrors[body] = _Mirror(handle, offset)..take(body);
-    return body;
+    return _Mirror(handle, offset)..take(body);
   }
 
   @override
@@ -142,9 +148,47 @@ final class NativeDynamics implements RigidDynamics {
   /// for a rollback.
   Uint8List snapshot() => native.snapshot();
 
+  /// The [snapshot], as text a simulation's save can hold.
+  @override
+  Object? saveState() => base64Encode(snapshot());
+
+  @override
+  void restoreState(Object? saved) {
+    if (saved is String) restore(base64Decode(saved));
+  }
+
   /// Back to [bytes], every body's mirror with it.
+  ///
+  /// What came and went since the snapshot is put right, as a simulation
+  /// restoring a save has already put its own world right: a body added
+  /// since is made again as it is now, a collider standing since stands
+  /// again next step, and whatever the snapshot holds that nothing here
+  /// names any more — a crate since broken, a wall since taken out — goes.
+  /// Handles carry a generation, so a slot used again since is told apart.
+  /// Hulls and meshes made since are gone with the snapshot, so they are
+  /// made again as they are needed.
   void restore(Uint8List bytes) {
     native.restore(bytes);
+    _hulls.clear();
+    _meshes.clear();
+    _standing.removeWhere((_, standing) => !native.contains(standing.handle));
+    // Where each stands, and whether it moves, as the snapshot has it: a
+    // lift restored to where it was is not a lift that jumped there.
+    _standing.forEach(
+      (collider, standing) => standing.resume(native, collider),
+    );
+    for (final body in bodies) {
+      if (!native.contains(_mirrors[body]!.handle)) {
+        _mirrors[body] = _mirrorFor(body);
+      }
+    }
+    final named = <NativeBody>{
+      for (final mirror in _mirrors.values) mirror.handle,
+      for (final standing in _standing.values) standing.handle,
+    };
+    for (final body in native.readTransforms().bodies) {
+      if (!named.contains(body)) native.removeBody(body);
+    }
     for (final body in bodies) {
       _mirrors[body]!.fetch(native, body);
     }
@@ -346,6 +390,15 @@ final class _Standing {
       layer: _layer & Layers.all,
       mask: _mask & Layers.all,
     );
+  }
+
+  /// Where [collider] is now — put back by its owner's restore before the
+  /// core's — and whether it was moving when the core's snapshot was taken.
+  /// The collider's own position rather than the core's, which is rounded
+  /// to f32 and would read as a move.
+  void resume(NativeWorld native, Collider collider) {
+    _at.setFrom(collider.position);
+    _moving = native.velocityOf(handle).length2 != 0.0;
   }
 
   /// Moved, or refiltered, as [collider] was. Moved, it is given the

@@ -1,6 +1,22 @@
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
+
+/// Which dynamics steps the crates: the native core, unless the build is
+/// made with `--dart-define=FLUTTER3D_PHYSICS=dart`, which is the reference
+/// in plain Dart — the same crates, and other bits.
+const String physicsBackend = String.fromEnvironment(
+  'FLUTTER3D_PHYSICS',
+  defaultValue: 'native',
+);
+
+/// The dynamics [physicsBackend] names, for [world]. In the browser the
+/// core must be loaded first, with `loadPhysicsCore`.
+RigidDynamics platformerDynamics(CollisionWorld world) =>
+    physicsBackend == 'dart'
+    ? Dynamics(world: world)
+    : NativeDynamics(world: world);
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {
@@ -67,8 +83,8 @@ Staged stage(
   double elapsed = 0.0,
   GameRandom? random,
 
-  /// What steps the crates: the reference `Dynamics` unless a caller hands
-  /// over another, as the test that plays the level on the native core does.
+  /// What steps the crates: [platformerDynamics] unless a caller hands over
+  /// another, as the test that compares the two does.
   RigidDynamics Function(CollisionWorld world)? dynamicsFor,
 }) {
   // One registry validates the document and then spawns it. Two could disagree
@@ -77,7 +93,7 @@ Staged stage(
   // world, exactly as the shooter tells its monster kind where the bestiary is.
   final kinds = registry ?? platformerRegistry();
 
-  final dynamics = dynamicsFor?.call(world) ?? Dynamics(world: world);
+  final dynamics = (dynamicsFor ?? platformerDynamics)(world);
   (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
   // **One generator for the whole world, and it is the same object the

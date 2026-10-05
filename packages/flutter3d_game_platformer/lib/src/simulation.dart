@@ -456,6 +456,10 @@ final class PlatformerSimulation {
     // the snapshot test in this package never mentioned actors.
     if (actors != null) 'entities': actors!.entities.save(),
     if (actors != null) 'actors': actors!.save(),
+    // What the dynamics carry beyond the bodies: nothing for the reference,
+    // the core's own state for the native one, without which a rewind
+    // stepped on from this snapshot would not repeat the run.
+    'dynamics': ?dynamics?.saveState(),
   });
 
   void restore(Snapshot from) {
@@ -488,6 +492,9 @@ final class PlatformerSimulation {
     // the collision world, and something has to put the two together. Without
     // it a restored corpse is a wall the runner cannot walk through.
     actors?.syncCorpses();
+
+    // After the bodies' own restore, which it puts the core's state over.
+    dynamics?.restoreState(data['dynamics']);
 
     _world.afterRestore();
   }

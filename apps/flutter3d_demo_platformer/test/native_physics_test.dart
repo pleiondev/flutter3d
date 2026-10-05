@@ -1,11 +1,11 @@
-/// The shipped level with its crates stepped by the native core.
+/// The shipped level on the native core, held against the reference.
 ///
-/// The game builds `Dynamics`; `stage` takes any `RigidDynamics`, and this
-/// hands it `NativeDynamics` and plays the level the way `playthrough_test`
-/// does. What is held: the level stages and steps on the core, every crate
-/// lands where the reference lands it and none falls out of the world, the
-/// runner crosses what it crosses with the reference, a crate pushed moves,
-/// and two runs on the core land on the same bits.
+/// The game steps its crates with `NativeDynamics`; `stage` takes any
+/// `RigidDynamics`, and this builds the level on both and plays it the way
+/// `playthrough_test` does. What is held: every crate lands where the
+/// reference lands it and none falls out of the world, the runner crosses
+/// what it crosses with the reference, a crate pushed moves, and two runs on
+/// the core land on the same bits.
 library;
 
 import 'dart:convert';
@@ -41,7 +41,7 @@ final class _Game {
               addTearDown(dynamics.dispose);
               return dynamics;
             }
-          : null,
+          : (world) => Dynamics(world: world),
     );
   }
 
@@ -166,6 +166,64 @@ void main() {
     game.world.remove(walker);
     game.settle(30);
     expect(crate.position.z, lessThan(before.z - 0.1));
+  });
+
+  test('a run restored from a save taken as a shoved crate comes to rest '
+      'steps on to the same bits, as a rewind needs', () {
+    final game = _Game(native: true)..settle(60);
+    // A crate shoved across the floor.
+    final crate = game.crates.first;
+    final half = (crate.collider.shape as CollisionBox).halfExtents;
+    final walker = game.world.add(
+      Collider(
+        shape: CollisionCapsule(radius: 0.3, halfHeight: 0.3),
+        position: crate.position + Vector3(0.0, 0.0, half.z + 0.3 + 0.005),
+        kind: ColliderKind.kinematic,
+      ),
+    );
+    game.staged.dynamics.push(walker, Vector3(0.0, 0.0, -6.0));
+    game.world.remove(walker);
+    // Saved as it comes to rest: slower than sleep's threshold, the core's
+    // clock counting towards sleep — which a body's own save cannot carry.
+    var steps = 0;
+    while (crate.velocity.length > 0.05 && steps < 120) {
+      game.settle(1);
+      steps++;
+    }
+    game.settle(3);
+    expect(crate.isAsleep, isFalse);
+    final mid = game.staged.sim.save();
+    expect(mid.data['dynamics'], isA<String>());
+    // Every step's save, as a demo's checkpoints and a rewind's resim check
+    // them: a crate that fell asleep a step later ends where it would have,
+    // and only the steps between say so.
+    List<String> rest() => <String>[
+      for (var i = 0; i < 90; i++)
+        (() {
+          game.settle(1);
+          return jsonEncode(game.staged.sim.save().toJson());
+        })(),
+    ];
+
+    final live = rest();
+    game.staged.sim.restore(mid);
+    final again = rest();
+    for (var i = 0; i < live.length; i++) {
+      if (live[i] == again[i]) continue;
+      final a = jsonDecode(live[i]), b = jsonDecode(again[i]);
+      void diff(Object? x, Object? y, String path) {
+        if (x is Map && y is Map) {
+          for (final k in {...x.keys, ...y.keys}) diff(x[k], y[k], '$path/$k');
+        } else if (x is List && y is List && x.length == y.length) {
+          for (var j = 0; j < x.length; j++) diff(x[j], y[j], '$path[$j]');
+        } else if (jsonEncode(x) != jsonEncode(y)) {
+          printOnFailure('step $i $path: live ${jsonEncode(x)} again ${jsonEncode(y)}');
+        }
+      }
+      diff(a, b, '');
+      break;
+    }
+    expect(again, live);
   });
 
   test('two runs on the core land on the same bits', () {

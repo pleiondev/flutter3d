@@ -1,3 +1,12 @@
+## Unreleased
+
+- **A save carries what the dynamics need beyond the bodies.** The
+  simulation's snapshot holds `RigidDynamics.saveState()` under
+  `dynamics` and gives it back after the bodies are restored. For
+  `Dynamics` that is nothing, so a reference run's saves and digests are
+  unchanged. For the native core it is the core's own state, without which
+  a rewind stepped on from a keyframe would not repeat the run.
+
 ## 0.8.1
 
 **A claw that catches the player beside the one it swung at has caught

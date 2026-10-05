@@ -253,6 +253,48 @@ void main() {
       },
     );
 
+    test('a restore puts right what came and went since the snapshot', () {
+      final wall = world.addBox(Vector3(3.0, 1.0, 0.0), Vector3(0.2, 2.0, 4.0));
+      final ball = dynamics.add(
+        RigidBody(
+          world: world,
+          shape: CollisionSphere(0.25),
+          position: Vector3(0.0, 0.25, 0.0),
+          friction: 0.0,
+        ),
+      );
+      run(dynamics, 2);
+      final saved = dynamics.saveState();
+      expect(saved, isA<String>());
+      // Since: a crate added, the wall taken out, a door put up aside.
+      final late = crate(dynamics, Vector3(-3.0, 0.5, 0.0));
+      world.remove(wall);
+      final door = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(0.5, 1.0, 0.1)),
+          position: Vector3(0.0, 1.0, 8.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      run(dynamics, 2);
+      dynamics.restoreState(saved);
+      // The core holds the floor, the ball and the late crate, and no wall.
+      expect(dynamics.native.bodyCount, 3);
+      expect(dynamics.handleOf(late), isNotNull);
+      ball
+        ..wake()
+        ..velocity.setValues(4.0, 0.0, 0.0);
+      run(dynamics, 60);
+      expect(ball.position.x, greaterThan(3.5));
+      expect(late.position.y, closeTo(0.5, 0.02));
+      // The door the snapshot never had stands again, and moves.
+      expect(dynamics.native.bodyCount, 4);
+      door.moveTo(Vector3(0.0, 1.0, 9.0));
+      run(dynamics, 1);
+      dynamics.restoreState(null);
+      expect(dynamics.native.bodyCount, 4);
+    });
+
     test('a snapshot restored steps on to the same bits', () {
       final boxes = <RigidBody>[
         for (var i = 0; i < 6; i++)

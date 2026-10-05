@@ -621,6 +621,10 @@ final class GameSimulation {
     'monsterCount': _monsterCount,
     'secretCount': _secretCount,
     'counted': _counted,
+    // What the dynamics carry beyond the bodies: nothing for the reference,
+    // the core's own state for the native one, without which a rewind
+    // stepped on from this snapshot would not repeat the run.
+    'dynamics': ?dynamics?.saveState(),
   });
 
   void restore(Snapshot snapshot) {
@@ -657,6 +661,9 @@ final class GameSimulation {
     // Health came back on a component; whether a body is solid is a fact about
     // the collision world, and something has to put the two together.
     actors?.syncCorpses();
+
+    // After the bodies' own restore, which it puts the core's state over.
+    dynamics?.restoreState(from['dynamics']);
 
     // The broadphase is holding every body where it was before the restore.
     _world.afterRestore();

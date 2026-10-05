@@ -1,3 +1,12 @@
+## Unreleased
+
+- **A save carries what the dynamics need beyond the bodies.** The
+  simulation's snapshot holds `RigidDynamics.saveState()` under
+  `dynamics` and gives it back after the bodies are restored. For
+  `Dynamics` that is nothing, so a reference run's saves and digests are
+  unchanged. For the native core it is the core's own state, without which
+  a rewind stepped on from a keyframe would not repeat the run.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

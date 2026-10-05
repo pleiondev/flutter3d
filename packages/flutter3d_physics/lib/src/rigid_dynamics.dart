@@ -47,4 +47,14 @@ abstract interface class RigidDynamics {
   /// Shoves whatever [by] is walking into, horizontally, at most at the speed
   /// it is walking into it: how a kinematic character pushes a crate.
   void push(Collider by, Vector3 velocity, {double strength = 1.0});
+
+  /// What a save must carry beyond the bodies' own `save()` for a run
+  /// restored from it to step on to the same bits: null when there is
+  /// nothing, as for [Dynamics], whose state is its bodies'. A value JSON
+  /// can hold, so a simulation puts it in its snapshot as it is.
+  Object? saveState();
+
+  /// Back to what [saveState] gave, after the bodies' own `restore`; null
+  /// changes nothing.
+  void restoreState(Object? saved);
 }

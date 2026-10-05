@@ -699,6 +699,10 @@ final class RacingSimulation {
     // to be here. A circuit's own machinery — a gate, a lamp, whatever a track
     // document names — came back at whatever state the level file starts in.
     if (mechanisms != null) 'mechanisms': mechanisms!.save(),
+    // What the dynamics carry beyond the bodies: nothing for the reference,
+    // the core's own state for the native one, without which a rewind
+    // stepped on from this snapshot would not repeat the run.
+    'dynamics': ?dynamics?.saveState(),
   });
 
   void restore(Snapshot snapshot) {
@@ -719,6 +723,9 @@ final class RacingSimulation {
     _restoreDoubles(from['offRoadFor'], _offRoadFor);
 
     mechanisms?.restore(from['mechanisms']);
+
+    // After the bodies' own restore, which it puts the core's state over.
+    dynamics?.restoreState(from['dynamics']);
 
     // **`reindex` alone was a third of the job.** The broadphase disagrees
     // with every car that moved, which that call fixes — but the overlap set

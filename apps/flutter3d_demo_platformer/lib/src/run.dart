@@ -3,6 +3,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'looks.dart';
@@ -153,6 +154,9 @@ final class PlatformerRun extends RunSession<LevelReady> {
     GraphicsDevice device, {
     Level? document,
   }) async {
+    // The physics core, which the browser fetches as WebAssembly once;
+    // natively it is in the app already and this returns at once.
+    if (physicsBackend != 'dart') await loadPhysicsCore();
     final (:kinds, :loaded, :fixtures) = await openLevel(
       asset,
       device: device,
@@ -333,6 +337,11 @@ final class PlatformerRun extends RunSession<LevelReady> {
   @override
   void close(LevelReady level) {
     level.fixtures.dispose();
+    // The core's world, which the collector would get to eventually, let go
+    // with the rest of the level.
+    if (level.staged.dynamics case final NativeDynamics native) {
+      native.dispose();
+    }
     final device = _device;
     if (device != null) level.loaded.dispose(device);
   }

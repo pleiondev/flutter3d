@@ -251,6 +251,15 @@ final class Dynamics implements RigidDynamics {
 
   late final Pusher _pusher = Pusher(this);
 
+  /// Nothing beyond the bodies: the warm starts held between steps were
+  /// never part of a save, and the runs' digests are what they are without
+  /// them.
+  @override
+  Object? saveState() => null;
+
+  @override
+  void restoreState(Object? saved) {}
+
   /// Everything overlapping, as pairs the solver can work on.
   void _collect() {
     _pairs.clear();

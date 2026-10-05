@@ -40,6 +40,12 @@ dependencies:
   flutter3d_audio:
     path: ../../packages/flutter3d_audio
 
+  # The physics core the crates are stepped by: C built by its hook for each
+  # target, WebAssembly in the browser. `FLUTTER3D_PHYSICS=dart` at build
+  # time steps them with flutter3d_physics' reference instead.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
+
   # Dust, sparks and the flame on a lamp. One pool, one draw call.
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
@@ -55,11 +61,6 @@ dependencies:
   flutter_bloc: ^9.1.1
 
 dev_dependencies:
-  # The native physics core, for the test that plays the shipped level with
-  # its crates stepped by it. Not a dependency of the game itself: that would
-  # compile the core and fetch wgpu-native into every build of it.
-  flutter3d_physics_native:
-    path: ../../packages/flutter3d_physics_native
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

@@ -1,5 +1,19 @@
 ## Unreleased
 
+- **The platformer runs on the core.** A rewind or a demo restored from a
+  save made mid-level now steps on to the same bits as the run it was
+  taken from. `NativeDynamics.saveState()` is the core's snapshot as
+  text, and its restore puts right what came and went since: a body added
+  since is made again, a collider standing since stands again, and a body
+  or wall since gone is taken out. Generational handles tell a slot used
+  again since apart from the old one. A save restored while a barge was
+  elsewhere also read as the barge having jumped there in one step, and
+  the mirror gave it that speed. Comparing every step's save after the
+  restore with the live run caught it. The final states had agreed,
+  since a crate stopped by friction ends in the same place whenever it
+  falls asleep. A collider that stands in the core now resumes at its own
+  position after a restore.
+
 - **The core under `flutter3d_physics`' bodies.** `NativeDynamics` is a
   `RigidDynamics`, so a game builds one where it built a `Dynamics`, and
   its crates, sweeps and character controller stay as they were. The core

@@ -6,7 +6,9 @@
   is the other implementation. A character's push is `Pusher`, the same
   code `Dynamics.push` ran, now shared, so a crate is shoved the same
   whichever steps it. `CollisionWorld.movers` lists the moving colliders,
-  as `statics` lists the still ones.
+  as `statics` lists the still ones. `saveState()` and `restoreState()`
+  carry what a backend holds beyond its bodies through a save: nothing
+  for `Dynamics`.
 
 - **Drops let go on top of each other spread instead of flying apart.**
   A stream lets go of its drops at one point step after step, so
