@@ -17,4 +17,6 @@ export 'src/native_debris.dart'
 export 'src/native_dynamics.dart';
 export 'src/native_fluid.dart' hide packFluidParticles, writeFluidSettings;
 export 'src/native_particles.dart' hide packParticles, writeParticleForces;
+export 'src/native_ragdoll.dart';
 export 'src/native_world.dart';
+export 'src/skeleton_ragdoll.dart';

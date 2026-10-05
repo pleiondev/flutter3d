@@ -34,6 +34,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'native_ragdoll.dart' show turnBy;
 import 'native_world.dart';
 
 final class NativeDynamics implements RigidDynamics {
@@ -74,6 +75,16 @@ final class NativeDynamics implements RigidDynamics {
       <CollisionShape, NativeMesh>{};
   late final Pusher _pusher = Pusher(this);
   int _sweep = 0;
+
+  /// Bodies made in [native] by hand — a ragdoll's — that a [restore] keeps
+  /// rather than taking out as nobody's.
+  final Set<NativeBody> _kept = <NativeBody>{};
+
+  /// Keeps [body], made in [native] by hand, through every [restore].
+  void keep(NativeBody body) => _kept.add(body);
+
+  /// Lets [body] go: a [restore] takes it out again if its snapshot has it.
+  void release(NativeBody body) => _kept.remove(body);
 
   /// The core's handle for [body]; null for a body not added. For a game
   /// that reaches past the bodies into [native]: joining two crates with a
@@ -185,6 +196,7 @@ final class NativeDynamics implements RigidDynamics {
     final named = <NativeBody>{
       for (final mirror in _mirrors.values) mirror.handle,
       for (final standing in _standing.values) standing.handle,
+      ..._kept,
     };
     for (final body in native.readTransforms().bodies) {
       if (!named.contains(body)) native.removeBody(body);
@@ -307,7 +319,7 @@ final class NativeDynamics implements RigidDynamics {
 
 /// [offset] turned by [q].
 Vector3 _turned(Quaternion q, Vector3 offset) =>
-    offset.length2 == 0.0 ? Vector3.zero() : q.rotated(offset);
+    offset.length2 == 0.0 ? Vector3.zero() : turnBy(q, offset);
 
 /// A body's mirror: its handle, the core's origin from the collider's, and
 /// what the body was left at after the last step, to tell what a game did

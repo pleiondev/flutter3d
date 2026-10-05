@@ -1,5 +1,29 @@
 ## Unreleased
 
+- **A skinned character can go limp.** `NativeRagdoll` makes a capsule
+  for each bone and a joint where each bone meets its parent, from bones
+  given in world space. It builds them at rest, so a joint's cone and
+  twist limits are the body's own and not those of the stride the
+  character was caught in, and then moves them to the pose with the
+  pose's velocities. `SkeletonRagdoll` makes one from a scene `Skeleton`
+  by a `RagdollProfile` of joint names. Joints the profile does not name
+  ride along with their animated local pose. Followers, such as the feet
+  an IK rig hangs from the root, are carried by the body they name. Sizes
+  are shares of the figure's measured height, so the hero, two
+  centimetres tall under a hundredfold scale, comes out 1.8 m of body.
+  `apply(weight:)` writes the bodies back into the joints, fully or
+  blended with the animation's pose, which is how a character gets up.
+  `RagdollProfile.quaternius` covers the dungeon's monsters, the hero
+  and the robot. On that rig, elbows and knees are wide balls rather than
+  hinges, because the rig does not promise the axes a hinge's sign would
+  need. `NativeDynamics.keep` keeps a ragdoll's bodies through restores.
+  *Found:* vector_math's `Quaternion.rotated` turns by the inverse of
+  what `asRotationMatrix` means, while the core and flutter3d_physics
+  mean the latter. A ragdoll placed with it had each body turned one way
+  and moved the other, and flew apart on its first step. `turnBy` is the
+  core's sense. The hull offset of a turned wedge in `NativeDynamics` had
+  the same mistake.
+
 - **The platformer runs on the core.** A rewind or a demo restored from a
   save made mid-level now steps on to the same bits as the run it was
   taken from. `NativeDynamics.saveState()` is the core's snapshot as

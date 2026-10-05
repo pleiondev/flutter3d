@@ -392,7 +392,8 @@ F3D_API uint32_t f3d_world_events_dropped(const F3dWorld *world);
 /* A joint of [type] between [a] and [b], at the anchor (ax, ay, az) and
  * along the axis (ux, uy, uz), both relative to the origin and taken where
  * the bodies are now: what it holds them to is how they stand. The axis is
- * read by the revolute and prismatic joints only. Wakes both. Nought for a
+ * the hinge's or the slider's, or the one a spherical joint's cone and twist
+ * are measured about; a fixed joint does not read it. Wakes both. Nought for a
  * body not in the world, a body joined to itself, a value not finite, a
  * revolute or prismatic joint with no axis, or a distance joint, which is
  * f3d_joint_create_distance's. Joined bodies do not collide with each

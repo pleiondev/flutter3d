@@ -29,6 +29,10 @@ dependencies:
   # the reference the tests hold a native world to, with a tolerance, since
   # that one is in doubles.
   flutter3d_physics: ^0.8.0
+  # The scene's skeletons, for the ragdoll a skinned character goes limp
+  # into: its joints are scene nodes, its bind pose the skeleton's. Plain
+  # Dart, so this package gains no Flutter by it.
+  flutter3d_core: ^0.8.3
 
 dev_dependencies:
   test: ^1.25.0

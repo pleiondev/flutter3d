@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`Skeleton.bindPoseOf`**: a joint's bind pose in the skinned mesh's
+  space, the inverse of its inverse bind matrix. A ragdoll takes its
+  joints' limits from it.
+
 - **Nothing in the browser's build imports `dart:io` or `dart:isolate`.**
   Decoding and encoding models and transcoding KTX2 off the main isolate go
   through `src/engine/platform/background.dart`: `Isolate.run` natively,
