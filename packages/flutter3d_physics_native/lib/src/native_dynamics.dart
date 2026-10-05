@@ -29,7 +29,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -38,7 +37,7 @@ import 'package:vector_math/vector_math.dart';
 import 'native_ragdoll.dart' show turnBy;
 import 'native_world.dart';
 
-final class NativeDynamics implements RigidDynamics {
+final class NativeDynamics implements RigidDynamics, WorldMirror {
   /// [gravity] as `Dynamics`' default, and its sleep: under 0.08 m/s for
   /// half a second. The air is all but taken away, as the reference has
   /// none; [native] can bring it back, with wind.
@@ -52,6 +51,9 @@ final class NativeDynamics implements RigidDynamics {
   }) : gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {
     if (movesCharacters) world.characterMover = NativeCharacterMover(this);
     if (castsRays) world.rays = NativeWorldRays(this);
+    // Queried between steps, the copy is brought up to date inside each step
+    // — see [WorldMirror] — so what is asked between steps changes nothing.
+    if (movesCharacters || castsRays) world.mirrors.add(this);
     native
       ..setAir(temperature: 293.15, density: 1e-30)
       ..setSleep(speed: 0.08, time: 0.5)
@@ -122,11 +124,19 @@ final class NativeDynamics implements RigidDynamics {
         null => _standing[collider]?.handle,
       };
 
-  /// The world as it is now, in the core, between steps — for a query that
-  /// must see this step's lifts and characters and a level made since the
-  /// last step, not the last step's: a collider that joined stands, one that
-  /// left is taken out, and every one that moves is put where it is. How fast
+  @override
+  void mirror() => mirrorWorld();
+
+  /// The world as it is now, in the core: a collider that joined stands, one
+  /// that left — or turned into a trigger, or changed shape — is taken out
+  /// or made again, and every one that moves is put where it is. How fast
   /// each moves is still the next [step]'s to say.
+  ///
+  /// **Made and taken out here only, at the end of a step** — [mirror], from
+  /// [CollisionWorld.update] — and in [step]: a body made or taken out takes
+  /// or frees a slot of the core, the slots are the order its pairs are found
+  /// in, and a query between steps that made one changed the simulation it
+  /// asked about. A query [placeMovers] only.
   void mirrorWorld() {
     if (world.revision != _revision) {
       _revision = world.revision;
@@ -160,6 +170,22 @@ final class NativeDynamics implements RigidDynamics {
       if (_byCollider.containsKey(collider)) continue;
       // Made again if it changed shape — a body that crouched — since.
       _standingNow(collider).place(native, collider);
+    }
+  }
+
+  /// Every mover that stands put where it is now, for a query between steps:
+  /// a lift moved this step, a character that moved before this one — and
+  /// nothing made or taken out, which [mirrorWorld] keeps to the step. The
+  /// world never stood yet — no step, no `update` — stands first, so a
+  /// query does not ask an empty core.
+  void placeMovers() {
+    if (_revision == -1) {
+      mirrorWorld();
+      return;
+    }
+    for (final collider in world.movers) {
+      if (collider.kind == ColliderKind.trigger) continue;
+      _standing[collider]?.place(native, collider);
     }
   }
 
@@ -230,13 +256,69 @@ final class NativeDynamics implements RigidDynamics {
   /// for a rollback.
   Uint8List snapshot() => native.snapshot();
 
-  /// The [snapshot], as text a simulation's save can hold.
+  /// The [snapshot], as text a simulation's save can hold — taken with every
+  /// mover put where it is first. A step that moved one and ended without
+  /// the core stepping — a runner put back at its checkpoint — left it where
+  /// the core last had it, unless a query between steps had put it in place:
+  /// a run that drew frames saved other bytes than one that did not, the
+  /// simulation itself the same.
   @override
-  Object? saveState() => base64Encode(snapshot());
+  ///
+  /// **With which core body stands for which collider.** The core's bodies
+  /// hold no collider, and a world staged afresh and restored did not know
+  /// which of the bodies the snapshot brought were its level's: it took them
+  /// out as nobody's and stood the level again in other slots, and every
+  /// save after differed from the run that was saved. Each is told by what
+  /// a world staged again has as well — its shape's kind and size, and where
+  /// it is, every mover having just been put in place: a collider's id is a
+  /// count of what was added, and a world built twice counts differently.
+  Object? saveState() {
+    placeMovers();
+    return <String, Object?>{
+      'core': base64Encode(snapshot()),
+      'standing': <Object?>[
+        for (final MapEntry(key: collider, value: standing)
+            in _standing.entries)
+          <Object?>[
+            _keyOf(collider.shape, standing._inCore),
+            standing.handle.raw,
+            standing.offset.x,
+            standing.offset.y,
+            standing.offset.z,
+            _hulls[collider.shape]?.$1.id ?? -1,
+            _meshes[collider.shape]?.id ?? -1,
+            // Where it was at the last step and whether it moved: what the
+            // next step's speed for it is reckoned from, whatever order a
+            // game puts its colliders and the core back in.
+            standing._at.x,
+            standing._at.y,
+            standing._at.z,
+            if (standing._moving) 1 else 0,
+          ],
+      ],
+    };
+  }
 
+  /// What tells a standing collider in a world staged again: its shape's
+  /// kind and size, and where it stands, to the float.
+  static String _keyOf(CollisionShape shape, Vector3 at) {
+    final half = shape.boundsHalfExtents;
+    return '${shape.runtimeType} ${half.x} ${half.y} ${half.z} '
+        '${at.x} ${at.y} ${at.z}';
+  }
+
+  /// Back to what [saveState] wrote. **The world's colliders first**: the
+  /// core's bodies are matched to them by where they stand, so a game puts
+  /// its own back — as a simulation's `restore` does, its player and actors
+  /// before its dynamics — and then this.
   @override
   void restoreState(Object? saved) {
-    if (saved is String) restore(base64Decode(saved));
+    switch (saved) {
+      case {'core': final String core, 'standing': final List<Object?> list}:
+        restore(base64Decode(core), standing: list);
+      case final String core:
+        restore(base64Decode(core));
+    }
   }
 
   /// Back to [bytes], every body's mirror with it.
@@ -249,10 +331,20 @@ final class NativeDynamics implements RigidDynamics {
   /// Handles carry a generation, so a slot used again since is told apart.
   /// Hulls and meshes made since are gone with the snapshot, so they are
   /// made again as they are needed.
-  void restore(Uint8List bytes) {
+  ///
+  /// [standing], as [saveState] wrote it, says which core body stood for
+  /// which collider: those are taken as they are, and nothing is made again
+  /// for them.
+  void restore(Uint8List bytes, {List<Object?>? standing}) {
     native.restore(bytes);
     _hulls.clear();
     _meshes.clear();
+    if (standing != null) _restand(standing);
+    // What stood since the snapshot is gone from the core with it: the next
+    // query stands the world again rather than trusting a revision counted
+    // before the restore — or a character moved before the next step walks
+    // a world with no floor.
+    _revision = -1;
     _standing.removeWhere((_, standing) => !native.contains(standing.handle));
     // Where each stands, and whether it moves, as the snapshot has it: a
     // lift restored to where it was is not a lift that jumped there.
@@ -287,6 +379,55 @@ final class NativeDynamics implements RigidDynamics {
     world.reindex();
   }
 
+  /// [_standing] as a save had it: each collider by its id, its body, its
+  /// offset and the hull or mesh it is shaped by, written into nothing of
+  /// the core.
+  void _restand(List<Object?> saved) {
+    // Every collider that could stand, by what tells it; two alike in one
+    // place are taken in the world's order.
+    final byKey = <String, List<Collider>>{};
+    for (final collider in <Collider>[...world.statics, ...world.movers]) {
+      if (collider.kind == ColliderKind.trigger) continue;
+      if (_byCollider.containsKey(collider)) continue;
+      (byKey[_keyOf(collider.shape, collider.position)] ??= <Collider>[]).add(
+        collider,
+      );
+    }
+    _standing.clear();
+    for (final entry in saved) {
+      if (entry case [
+        final String key,
+        final int raw,
+        final num ox,
+        final num oy,
+        final num oz,
+        final int hull,
+        final int mesh,
+        final num ax,
+        final num ay,
+        final num az,
+        final int moving,
+      ]) {
+        final handle = NativeBody(raw);
+        final alike = byKey[key];
+        if (alike == null || alike.isEmpty || !native.contains(handle)) {
+          continue;
+        }
+        final collider = alike.removeAt(0);
+        final offset = Vector3(ox.toDouble(), oy.toDouble(), oz.toDouble());
+        _standing[collider] = _Standing(handle, offset, collider.shape)
+          ..adopt(
+            native,
+            collider,
+            at: Vector3(ax.toDouble(), ay.toDouble(), az.toDouble()),
+            moving: moving != 0,
+          );
+        if (hull >= 0) _hulls[collider.shape] = (NativeHull(hull), offset);
+        if (mesh >= 0) _meshes[collider.shape] = NativeMesh(mesh);
+      }
+    }
+  }
+
   /// Lets the core go. Nothing can be stepped after, and the world's
   /// characters go back to their own sweeps.
   void dispose() {
@@ -298,6 +439,7 @@ final class NativeDynamics implements RigidDynamics {
         when identical(rays.dynamics, this)) {
       world.rays = null;
     }
+    world.mirrors.remove(this);
     native.dispose();
   }
 
@@ -538,13 +680,41 @@ final class _Standing {
     _inCore.setFrom(collider.position);
   }
 
+  /// Taken over as a save had it: the filter it was given then, which is
+  /// the collider's, and where the core holds it — read, not written. Where
+  /// the core holds it, not where the collider is: a collider put back after
+  /// this, its body restored, is put in place by the next query only if the
+  /// core does not have it there already.
+  void adopt(
+    NativeWorld native,
+    Collider collider, {
+    required Vector3 at,
+    required bool moving,
+  }) {
+    _layer = collider.layer;
+    _mask = collider.mask;
+    _at.setFrom(at);
+    _moving = moving;
+    _inCore.setFrom(native.positionOf(handle) - offset);
+    _adopted = true;
+  }
+
+  /// Taken over from a save by [adopt]: [resume] has nothing to add.
+  bool _adopted = false;
+
   /// Where [collider] is now — put back by its owner's restore before the
   /// core's — and whether it was moving when the core's snapshot was taken.
   /// The collider's own position rather than the core's, which is rounded
   /// to f32 and would read as a move.
   void resume(NativeWorld native, Collider collider) {
+    if (_adopted) {
+      _adopted = false;
+      return;
+    }
     _at.setFrom(collider.position);
-    _inCore.setFrom(collider.position);
+    // Where the core has it, which a query compares with the collider: the
+    // two differ when the collider was put back after the core was.
+    _inCore.setFrom(native.positionOf(handle) - offset);
     _moving = native.velocityOf(handle).length2 != 0.0;
   }
 
@@ -569,12 +739,14 @@ final class _Standing {
 }
 
 /// The core moving a world's characters — P9: `CharacterController`'s step
-/// geometry as `NativeWorld.moveCharacter`'s capsule through the world
-/// [dynamics] mirrors, the world mirrored as it is this step first.
+/// geometry through `NativeWorld.moveCharacter` in the world [dynamics]
+/// mirrors, the world mirrored as it is this step first.
 ///
-/// **A capsule.** A character's box becomes the capsule inside it: as wide
-/// as its narrower side, as tall. A corner meets the round of it a little
-/// later than it met the box, and a ledge lets go of it a little sooner.
+/// **The box the reference sweeps.** A character moves as its shape's
+/// bounding box, as the controller's own sweeps move it and as it stands in
+/// the core for everything else to meet: one volume. A capsule inside it
+/// rolled off a ledge's edge before the box would leave it, and a jump the
+/// platformer's route was built for fell short.
 final class NativeCharacterMover implements CharacterMover {
   NativeCharacterMover(this.dynamics);
 
@@ -588,12 +760,9 @@ final class NativeCharacterMover implements CharacterMover {
     required double walkableNormalY,
     required bool mayStep,
   }) {
-    dynamics.mirrorWorld();
-    final half = body.halfExtents;
-    final radius = math.min(half.x, half.z);
+    dynamics.placeMovers();
     final moved = dynamics.native.moveCharacter(
-      radius: radius,
-      halfHeight: math.max(0.0, half.y - radius),
+      shape: NativeShape.box(body.halfExtents),
       position: body.position,
       move: delta,
       velocity: body.velocity,
@@ -642,7 +811,7 @@ final class NativeWorldRays implements WorldRays {
     Collider? ignore,
   }) {
     out.reset();
-    dynamics.mirrorWorld();
+    dynamics.placeMovers();
     final hit = dynamics.native.rayCast(
       origin,
       direction,

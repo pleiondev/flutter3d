@@ -475,13 +475,26 @@ final class CharacterController {
     }
   }
 
+  /// What the body is pushed out of when it overlaps: what [_allow] counts
+  /// as solid, less the [fromAboveLayers] — a body inside a surface solid
+  /// only from above passes through it, up or down. Counted, the box of a
+  /// jump that did not clear such a platform was pushed up onto its top as
+  /// it began to fall, where the physics core lets it fall back down.
+  ContactFilter? get _allowOverlap =>
+      fromAboveLayers == 0 ? solidFilter : _overlapFilter;
+  late final ContactFilter _overlapFilter = _solidToOverlap;
+
+  bool _solidToOverlap(SweptContact contact) =>
+      contact.other.layer & fromAboveLayers == 0 &&
+      (solidFilter?.call(contact) ?? true);
+
   void _resolveOverlap() {
     if (world.depenetrate(
       position,
       halfExtents,
       _correction,
       ignore: collider,
-      allow: _allow,
+      allow: _allowOverlap,
     )) {
       position.add(_correction);
       // A ceiling pressing down should not leave upward speed, and a floor

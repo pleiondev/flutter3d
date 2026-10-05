@@ -7,6 +7,7 @@
 //
 //     dart test test/native_world_rays_test.dart
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -178,6 +179,9 @@ void main() {
         w.raycast(Vector3(-3.0, 1.2, 0.0), Vector3(1.0, 0.0, 0.0), 6.0, hit);
     expect(atHead(), isTrue, reason: 'standing, its head is met');
     expect(body.tryResize(CollisionBox(Vector3(0.35, 0.45, 0.35))), isTrue);
+    // As the step that crouched it ends: a body is made again in the core
+    // there, not by a query between steps.
+    w.update();
     expect(atHead(), isFalse, reason: 'crouched, the ray passes over');
   });
 
@@ -219,5 +223,181 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  test('a mover moved after the core stepped is in place before anything '
+      'asks, so a snapshot is the same with rays between steps or none', () {
+    // The lift moves after the core's step, as a game's lifts can, and the
+    // step ends in `update`. A ray between steps placed it in the core then;
+    // a run without rays placed it on the next step: two runs, two
+    // snapshots. Placed in `update`, it is in place in both.
+    Uint8List run({required bool rays}) {
+      final w = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+      final lift = w.add(
+        Collider(
+          shape: CollisionBox(Vector3(1.0, 0.25, 1.0)),
+          position: Vector3(5.0, 0.25, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      final d = NativeDynamics(world: w, castsRays: true);
+      addTearDown(d.dispose);
+      w.update();
+      final hit = RayHit();
+      for (var i = 0; i < 30; i++) {
+        d.step(1.0 / 60.0);
+        lift.moveTo(lift.position + Vector3(0.0, 1.0 / 60.0, 0.0));
+        w
+          ..update()
+          ..clearKinematicDeltas();
+        if (rays) w.raycast(Vector3(5, 5, 0), Vector3(0, -1, 0), 10.0, hit);
+      }
+      return d.snapshot();
+    }
+
+    expect(run(rays: true), run(rays: false));
+  });
+
+  test('queries leave the core\'s step as it was: a pile settles to the same '
+      'bytes whether rays and casts were asked of it between steps or not', () {
+    // A query brings the core's broadphase to where the bodies are, with no
+    // motion swept, and notes those it moved; the pairs the next step finds
+    // are kept in order of their slots, not of the tree, so that must change
+    // nothing the step does — and this holds it to that.
+    Uint8List pile({required bool asked}) {
+      final world = NativeWorld();
+      addTearDown(world.dispose);
+      final floor = world.addBody(
+        position: Vector3(0.0, -0.5, 0.0),
+        type: NativeBodyType.fixed,
+        mass: 0.0,
+      );
+      world.setShape(floor, NativeShape.box(Vector3(20.0, 0.5, 20.0)));
+      for (var i = 0; i < 12; i++) {
+        final crate = world.addBody(
+          position: Vector3((i % 3) * 0.3, 0.5 + i * 0.7, (i % 2) * 0.2),
+          mass: 1.0,
+        );
+        world.setShape(crate, NativeShape.box(Vector3.all(0.25)));
+      }
+      // Three lifts placed by hand between steps, as the mirror places a
+      // game's movers: what a query found out of its leaf and put back.
+      final lifts = <NativeBody>[
+        for (var k = 0; k < 3; k++)
+          world.addBody(
+            position: Vector3(-1.0 + k, 0.2, 1.0),
+            type: NativeBodyType.fixed,
+            mass: 0.0,
+          ),
+      ];
+      for (final lift in lifts) {
+        world.setShape(lift, NativeShape.box(Vector3(0.4, 0.1, 0.4)));
+      }
+      for (var step = 0; step < 240; step++) {
+        world.step(1.0 / 60.0);
+        for (final (k, lift) in lifts.indexed) {
+          world.setPosition(
+            lift,
+            Vector3(-1.0 + k, 0.2 + 0.4 * ((step + 20 * k) % 60) / 60.0, 1.0),
+          );
+        }
+        if (asked) {
+          world.rayCast(Vector3(-3.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0), 10.0);
+          world.moveCharacter(
+            shape: NativeShape.box(Vector3(0.3, 0.9, 0.3)),
+            position: Vector3(2.0, 1.0, 2.0),
+            move: Vector3(-0.1, -0.02, 0.0),
+          );
+        }
+      }
+      return world.snapshot();
+    }
+
+    expect(pile(asked: true), pile(asked: false));
+  });
+
+  test('a save after a mover moved with no step of the core is the same '
+      'whether a ray came between or not', () {
+    // A runner put back at its checkpoint: moved, and the step ends without
+    // the core stepping or the world updating. A ray then put it in place in
+    // the core; a save without one held it where it had been.
+    Object? saved({required bool ray}) {
+      final w = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+      final d = NativeDynamics(world: w, castsRays: true);
+      addTearDown(d.dispose);
+      final body = CharacterController(world: w, position: Vector3(0, 0.9, 0));
+      w.update();
+      d.step(1.0 / 60.0);
+      w.update();
+      body.teleport(Vector3(10.0, 0.9, 10.0));
+      if (ray) w.raycast(Vector3(0, 5, 0), Vector3(0, -1, 0), 10.0, RayHit());
+      return d.saveState();
+    }
+
+    expect(saved(ray: true), saved(ray: false));
+  });
+
+  test('a world staged afresh and restored from a save goes on as the run '
+      'that saved it, save for save', () {
+    // The core's bodies hold no collider: a fresh world restored took the
+    // snapshot's level bodies for nobody's, took them out and stood the
+    // level again in other slots — the same physics, other bytes, and a
+    // replay that checks its saves parted from the run it recorded.
+    ({CollisionWorld w, NativeDynamics d, CharacterController body}) staged() {
+      final w = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+        ..addBox(Vector3(5.5, 1.0, 0.0), Vector3(1.0, 2.0, 4.0))
+        ..add(
+          Collider(
+            shape: CollisionWedge(Vector3(2.0, 1.0, 2.0)),
+            position: Vector3(-4.0, 0.5, 0.0),
+          ),
+        );
+      final d = NativeDynamics(
+        world: w,
+        castsRays: true,
+        movesCharacters: true,
+      );
+      addTearDown(d.dispose);
+      final body = CharacterController(world: w, position: Vector3(0, 0.9, 0));
+      return (w: w, d: d, body: body);
+    }
+
+    void step(
+      ({CollisionWorld w, NativeDynamics d, CharacterController body}) s,
+    ) {
+      s.body.step(1.0 / 60.0, wishDirection: Vector3(1.0, 0.0, 0.3));
+      s.d.step(1.0 / 60.0);
+      s.w.update();
+    }
+
+    final live = staged();
+    for (var i = 0; i < 5; i++) {
+      step(live);
+    }
+    final saved = jsonDecode(jsonEncode(live.d.saveState()));
+    final body =
+        jsonDecode(jsonEncode(live.body.save())) as Map<String, Object?>;
+    final again = staged();
+    // The colliders first, as a simulation restores them: the core's bodies
+    // are matched to them by where they stand.
+    again.body.restore(body);
+    again.d.restoreState(saved);
+    expect(
+      jsonEncode(again.d.saveState()),
+      jsonEncode(live.d.saveState()),
+      reason: 'as restored',
+    );
+    for (var i = 0; i < 60; i++) {
+      step(live);
+      step(again);
+      expect(
+        jsonEncode(again.d.saveState()),
+        jsonEncode(live.d.saveState()),
+        reason: 'step $i',
+      );
+    }
   });
 }

@@ -7,6 +7,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -16,6 +17,13 @@ import 'package:vector_math/vector_math.dart';
 final class RigidBodiesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final RigidDynamics _dynamics;
+
+  /// The core's world, let go with the page; null until the page is built.
+  NativeDynamics? _native;
+
+  /// [_native], for a test that leaves the page.
+  @visibleForTesting
+  NativeDynamics? get core => _native;
   final List<RigidBody> _crates = <RigidBody>[];
   final List<double> _halves = <double>[];
   final List<MeshNode> _meshes = <MeshNode>[];
@@ -38,11 +46,14 @@ final class RigidBodiesDemo extends ShowcaseDemo {
   }
 
   @override
+  void dispose() => _native?.dispose();
+
+  @override
   Scene build(DemoContext context) {
     // #region world
     _world = CollisionWorld();
     _world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
-    _dynamics = NativeDynamics(world: _world);
+    _dynamics = _native = NativeDynamics(world: _world);
     // #endregion world
 
     final Scene scene = Scene()

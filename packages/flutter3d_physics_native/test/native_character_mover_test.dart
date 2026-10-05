@@ -1,9 +1,9 @@
 // Characters moved by the core — P9: `CharacterController` with the world's
 // `characterMover` set by a `NativeDynamics(movesCharacters: true)`, beside
 // the same controller on its own sweeps, the reference. What a step decides
-// stays the controller's; where it ends is the core's capsule's. They agree
-// to centimetres on a walk, a wall, a step, a jump and a lift, and where they
-// part is said: the round of the capsule.
+// stays the controller's; where it ends is the core's, which moves the same
+// box the reference sweeps. They agree to centimetres on a walk, a wall, a
+// step, a jump through a platform and a lift.
 //
 //     dart test test/native_character_mover_test.dart
 
@@ -109,19 +109,12 @@ void main() {
     expect(p.core.position.y, closeTo(0.9 + 0.2, 0.02), reason: 'on the step');
     expect(p.dart.position.y, closeTo(0.9 + 0.2, 0.02));
     expect(p.core.isGrounded, isTrue);
-    // Reported is the rise not travelled through, for a renderer to smooth,
-    // on the frames a step lifted the body, as much as it rose on them. The
-    // box was lifted the whole riser at once; the capsule's round foot may
-    // ride the riser's edge for part of it, as up a slope, and is lifted
-    // the rest — the frames add up to no more than the riser.
-    expect(lifts, isNotEmpty, reason: 'a step was taken');
-    for (final (rose, said) in lifts) {
-      expect(said, closeTo(rose, 1e-4));
-    }
-    expect(
-      lifts.fold<double>(0.0, (sum, l) => sum + l.$2),
-      lessThanOrEqualTo(0.2 + 0.01),
-    );
+    // Reported is the rise not travelled through, for a renderer to smooth:
+    // the box lifted the whole riser at once, in one step, as the reference
+    // lifts it, and said so.
+    expect(lifts, hasLength(1), reason: 'one step, the riser');
+    expect(lifts.single.$1, closeTo(0.2, 0.01), reason: 'rose by the riser');
+    expect(lifts.single.$2, closeTo(lifts.single.$1, 1e-4));
   });
 
   test('a jump leaves the floor and lands as the reference does', () {
@@ -209,8 +202,8 @@ void main() {
       dynamics.step(_dt);
       world.update();
     }
-    // One's capsule, 0.35 round, against the other's box, 0.35 half wide,
-    // with the core's centimetre of skin between, less a millimetre.
+    // Two boxes 0.35 half wide, with the core's centimetre of skin between,
+    // less a millimetre.
     expect(b.position.x - a.position.x, greaterThan(0.70 + 0.01 - 0.001));
   });
 
@@ -260,5 +253,73 @@ void main() {
     expect(top.$1 - 0.9, greaterThan(1.3), reason: 'feet over the platform');
     expect(core.position.y, closeTo(1.3 + 0.9, 0.02), reason: 'landed on it');
     expect(dart.position.y, closeTo(1.3 + 0.9, 0.02));
+  });
+
+  test('a jump that does not clear a platform solid from above falls back '
+      'through it, on the core as on the reference', () {
+    // The platform's top at 2.3, the jump's apex putting the feet at about
+    // 1.4: inside it at the top of the jump, the body falls back down
+    // through it to the floor. The reference's box was pushed up out of
+    // the overlap onto the top once it began to fall.
+    CollisionWorld platformed() => CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+      ..add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.1, 2.0)),
+          position: Vector3(0.0, 2.2, 0.0),
+          layer: 1 << 3,
+        ),
+      );
+    final world = platformed();
+    final dynamics = NativeDynamics(world: world, movesCharacters: true);
+    addTearDown(dynamics.dispose);
+    final core = CharacterController(world: world, position: Vector3(0, 0.9, 0))
+      ..fromAboveLayers = 1 << 3;
+    final dart = CharacterController(
+      world: platformed()..update(),
+      position: Vector3(0, 0.9, 0),
+    )..fromAboveLayers = 1 << 3;
+    world.update();
+    var top = (0.0, 0.0);
+    for (var i = 0; i < 150; i++) {
+      for (final body in <CharacterController>[core, dart]) {
+        if (i == 10) body.requestJump();
+        body.step(_dt, wishDirection: Vector3.zero());
+      }
+      dynamics.step(_dt);
+      top = (
+        core.position.y > top.$1 ? core.position.y : top.$1,
+        dart.position.y > top.$2 ? dart.position.y : top.$2,
+      );
+    }
+    expect(top.$1 - 0.9, lessThan(2.3), reason: 'the feet never cleared it');
+    expect(top.$1, closeTo(top.$2, 0.02));
+    expect(core.position.y, closeTo(0.9, 0.02), reason: 'back on the floor');
+    expect(dart.position.y, closeTo(0.9, 0.02), reason: 'back on the floor');
+  });
+
+  test('restored from a snapshot taken before anything stood, it still '
+      'stands on the floor', () {
+    // The snapshot holds no standing bodies; the mirror had stood the world
+    // before the restore and counted it done, so a character moved before
+    // the next step met no floor.
+    final world = _yard();
+    final dynamics = NativeDynamics(world: world, movesCharacters: true);
+    addTearDown(dynamics.dispose);
+    final body = CharacterController(
+      world: world,
+      position: Vector3(0, 0.9, 0),
+    );
+    world.update();
+    final start = dynamics.snapshot();
+    for (var i = 0; i < 5; i++) {
+      body.step(_dt, wishDirection: Vector3.zero());
+      dynamics.step(_dt);
+    }
+    dynamics.restore(start);
+    body.teleport(Vector3(0.0, 0.9, 0.0));
+    body.step(_dt, wishDirection: Vector3.zero());
+    expect(body.position.y, closeTo(0.9, 0.02), reason: 'not through it');
+    expect(body.isGrounded, isTrue);
   });
 }

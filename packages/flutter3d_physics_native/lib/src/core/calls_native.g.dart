@@ -1070,6 +1070,8 @@ int f3d_world_cast_shape(
 @Native<
   Uint32 Function(
     Pointer<Void>,
+    Int32,
+    Float,
     Float,
     Float,
     Pointer<Void>,
@@ -1090,8 +1092,10 @@ int f3d_world_cast_shape(
 >(symbol: 'f3d_world_move_character')
 external int _f3d_world_move_character(
   Pointer<Void> world,
-  double radius,
-  double halfHeight,
+  int kind,
+  double a,
+  double b,
+  double c,
   Pointer<Void> position,
   double dx,
   double dy,
@@ -1109,8 +1113,10 @@ external int _f3d_world_move_character(
 );
 int f3d_world_move_character(
   int world,
-  double radius,
-  double halfHeight,
+  int kind,
+  double a,
+  double b,
+  double c,
   int position,
   double dx,
   double dy,
@@ -1127,8 +1133,10 @@ int f3d_world_move_character(
   int steppedUp,
 ) => _f3d_world_move_character(
   Pointer.fromAddress(world),
-  radius,
-  halfHeight,
+  kind,
+  a,
+  b,
+  c,
   Pointer.fromAddress(position),
   dx,
   dy,

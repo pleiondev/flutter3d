@@ -18,16 +18,15 @@ import 'pose.dart';
 /// exactly the kind of bug an IK solver is hard to unit test into finding,
 /// since a wrong-but-plausible pose still *looks* like a bent limb.
 void _rotateJointWorld(Pose pose, int joint, Quaternion delta) {
-  final world = pose.worldMatrices();
   final parent = pose.parents[joint];
-  final currentWorld = _rotationOf(world[joint]);
+  final currentWorld = _rotationOf(pose.worldMatrixOf(joint));
   final newWorld = (delta * currentWorld)..normalize();
 
   final Quaternion newLocal;
   if (parent < 0 || parent >= pose.nodeCount) {
     newLocal = newWorld;
   } else {
-    final parentWorld = _rotationOf(world[parent]);
+    final parentWorld = _rotationOf(pose.worldMatrixOf(parent));
     newLocal = (parentWorld.inverted() * newWorld)..normalize();
   }
 
@@ -122,10 +121,12 @@ abstract final class TwoBoneIk {
     required Vector3 target,
     required Vector3 pole,
   }) {
-    var world = pose.worldMatrices();
-    final rootPos = world[root].getTranslation();
-    final midPos0 = world[mid].getTranslation();
-    final tipPos0 = world[tip].getTranslation();
+    // Each joint down its own chain, not every node of the pose: a solve
+    // runs per leg per step for every character that plants its feet.
+    Vector3 at(int joint) => pose.worldMatrixOf(joint).getTranslation();
+    final rootPos = at(root);
+    final midPos0 = at(mid);
+    final tipPos0 = at(tip);
 
     final upperLength = (midPos0 - rootPos).length;
     final lowerLength = (tipPos0 - midPos0).length;
@@ -174,8 +175,7 @@ abstract final class TwoBoneIk {
 
     // Step 2: aim the root so the now-correctly-bent chain points at the
     // (clamped-distance, true-direction) target.
-    world = pose.worldMatrices();
-    final tipAfterBend = world[tip].getTranslation();
+    final tipAfterBend = at(tip);
     final toTip = (tipAfterBend - rootPos).normalized();
     final toTarget = (target - rootPos).normalized();
     _rotateJointWorld(pose, root, Quaternion.fromTwoVectors(toTip, toTarget));
@@ -183,8 +183,7 @@ abstract final class TwoBoneIk {
     // Step 3: twist the chain around the root-target axis so the middle
     // joint sits on the side the pole names — the only step [pole] enters
     // into, and the whole answer to "which of the two ways to bend".
-    world = pose.worldMatrices();
-    final midPosFinal = world[mid].getTranslation();
+    final midPosFinal = at(mid);
     final twistAxis = toTarget; // unchanged in direction by aiming the root
     final currentPoleDir = _perpendicularComponent(
       midPosFinal - rootPos,
@@ -204,7 +203,7 @@ abstract final class TwoBoneIk {
       );
     }
 
-    final finalTip = pose.worldMatrices()[tip].getTranslation();
+    final finalTip = at(tip);
     return (finalTip - target).length;
   }
 }

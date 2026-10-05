@@ -50,6 +50,10 @@ final class CollisionWorld {
   /// [WorldRays]. Not asked for a ray that wants triggers.
   WorldRays? rays;
 
+  /// What keeps a copy of this world, brought up to date at the end of every
+  /// [update] — see [WorldMirror].
+  final List<WorldMirror> mirrors = <WorldMirror>[];
+
   final SpatialGrid _staticGrid;
   final SpatialGrid _moverGrid;
 
@@ -264,6 +268,9 @@ final class CollisionWorld {
         remove(collider);
       }
       _pendingRemoval.clear();
+    }
+    for (final mirror in mirrors) {
+      mirror.mirror();
     }
   }
 

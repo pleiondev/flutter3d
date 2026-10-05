@@ -670,8 +670,9 @@ static f3d_real progress(F3dVec3 from, F3dVec3 at, f3d_real dx, f3d_real dz) {
   return (at.x - from.x) * dx + (at.z - from.z) * dz;
 }
 
-uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
-                                  f3d_real half_height, f3d_real *position,
+uint32_t f3d_world_move_character(F3dWorld *world, F3dShapeKind kind,
+                                  f3d_real a, f3d_real b, f3d_real c3,
+                                  f3d_real *position,
                                   f3d_real dx, f3d_real dy, f3d_real dz,
                                   f3d_real *velocity, f3d_real max_slope_cos,
                                   f3d_real step_height, uint32_t mask,
@@ -681,8 +682,6 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
   *ground_body = 0;
   *stepped_up = F3D_R(0.0);
   ground[0] = ground[1] = ground[2] = F3D_R(0.0);
-  if (!(f3d_finite(radius) && radius > F3D_R(0.0))) return 0;
-  if (!(f3d_finite(half_height) && half_height >= F3D_R(0.0))) return 0;
   if (!(f3d_finite(dx) && f3d_finite(dy) && f3d_finite(dz))) return 0;
   if (!f3d_finite(step_height) || !f3d_finite(max_slope_cos)) return 0;
   f3d_update_proxies(world, F3D_R(0.0));
@@ -694,8 +693,11 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
   c.from_above_cos = max_slope_cos;
   c.ignore = ignore;
   const F3dQuat upright = {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0), F3D_R(1.0)};
-  query_shape(F3D_SHAPE_CAPSULE, radius, half_height, F3D_R(0.0), F3D_R(0.0),
-              f3d_v3(position[0], position[1], position[2]), upright, &c.shape);
+  if (!query_shape(kind, a, b, c3, F3D_R(0.0),
+                   f3d_v3(position[0], position[1], position[2]), upright,
+                   &c.shape)) {
+    return 0;
+  }
   F3dVec3 pushed = f3d_v3(velocity[0], velocity[1], velocity[2]);
   push_out(&c, &pushed);
   const F3dVec3 start = c.shape.at;

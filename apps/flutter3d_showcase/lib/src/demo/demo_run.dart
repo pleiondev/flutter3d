@@ -72,5 +72,8 @@ final class DemoRun {
   }
 
   /// Gives back what the renderer holds. The device stays open.
-  void dispose() => context.renderer.dispose();
+  void dispose() {
+    demo.dispose();
+    context.renderer.dispose();
+  }
 }

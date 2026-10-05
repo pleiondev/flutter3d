@@ -1112,8 +1112,8 @@ final class NativeWorld {
     }
   }
 
-  /// Moves an upright capsule — a character — of [radius] and straight
-  /// [halfHeight] from [position] by [move], sliding along what it meets:
+  /// Moves an upright [shape] — a character: a box or a capsule — from
+  /// [position] by [move], sliding along what it meets:
   /// ground whose normal's height is at least [maxSlopeCos] — the cosine of
   /// the steepest slope it stands on, forty-five degrees by default — it
   /// stands on, steeper it slides along as a wall, a step up to
@@ -1128,8 +1128,7 @@ final class NativeWorld {
   /// the platform's library, whose last bit differs from machine to
   /// machine, and a character's step must not.
   NativeCharacterMove moveCharacter({
-    required double radius,
-    required double halfHeight,
+    required NativeShape shape,
     required Vector3 position,
     required Vector3 move,
     Vector3? velocity,
@@ -1154,8 +1153,10 @@ final class NativeWorld {
       v[2] = velocity?.z ?? 0.0;
       final flags = c.f3d_world_move_character(
         _live,
-        radius,
-        halfHeight,
+        shape.kind,
+        shape.first,
+        shape.second,
+        shape.third,
         p,
         move.x,
         move.y,

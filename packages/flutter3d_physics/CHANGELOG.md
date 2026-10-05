@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **One rule for a jump that does not clear a platform solid from above:
+  it falls back through.** The controller no longer pushes the body out of
+  such a platform when it overlaps one, as the physics core does not.
+  `CollisionWorld.mirrors` keeps a world's copies, such as the physics
+  core's, up to date at the end of every `update`.
+
 - **One-way platforms as a rule, rays elsewhere.**
   `CharacterController.fromAboveLayers` and `dropThrough` say one-way
   platforms as a rule the body keeps on either backend. They are a floor

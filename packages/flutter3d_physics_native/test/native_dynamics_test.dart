@@ -265,7 +265,9 @@ void main() {
       );
       run(dynamics, 2);
       final saved = dynamics.saveState();
-      expect(saved, isA<String>());
+      // The core's bytes, and which of its bodies stands for which collider.
+      expect(saved, isA<Map<String, Object?>>());
+      expect((saved! as Map<String, Object?>)['core'], isA<String>());
       // Since: a crate added, the wall taken out, a door put up aside.
       final late = crate(dynamics, Vector3(-3.0, 0.5, 0.0));
       world.remove(wall);

@@ -3,6 +3,7 @@
 /// default to.
 library;
 
+import 'package:flutter3d_showcase/pages/physics_particles/rigid_bodies.dart';
 import 'package:flutter3d_showcase/pages/shadows/soft_shadows.dart';
 import 'package:flutter3d_showcase/src/demo/demo_run.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +40,19 @@ void main() {
       } finally {
         run.dispose();
       }
+    },
+  );
+
+  test(
+    'leaving a page lets go of the physics core its crates fell in',
+    () async {
+      // Mutation: drop `demo.dispose()` from `DemoRun.dispose`, or the page's
+      // own `dispose`: the core's world lives on until the collector finds it.
+      final demo = RigidBodiesDemo();
+      final DemoRun run = await DemoRun.start(cpuDevice(), demo);
+      expect(demo.core!.native.isDisposed, isFalse);
+      run.dispose();
+      expect(demo.core!.native.isDisposed, isTrue);
     },
   );
 }

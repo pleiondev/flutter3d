@@ -383,8 +383,10 @@ extension type _Exports(JSObject _) implements JSObject {
   @JS('f3d_world_move_character__w')
   external JSNumber f3d_world_move_character(
     JSNumber world,
-    JSNumber radius,
-    JSNumber halfHeight,
+    JSNumber kind,
+    JSNumber a,
+    JSNumber b,
+    JSNumber c,
     JSNumber position,
     JSNumber dx,
     JSNumber dy,
@@ -1356,8 +1358,10 @@ int f3d_world_cast_shape(
     .toDartInt;
 int f3d_world_move_character(
   int world,
-  double radius,
-  double halfHeight,
+  int kind,
+  double a,
+  double b,
+  double c,
   int position,
   double dx,
   double dy,
@@ -1375,8 +1379,10 @@ int f3d_world_move_character(
 ) => _x
     .f3d_world_move_character(
       world.toJS,
-      radius.toJS,
-      halfHeight.toJS,
+      kind.toJS,
+      a.toJS,
+      b.toJS,
+      c.toJS,
       position.toJS,
       dx.toJS,
       dy.toJS,

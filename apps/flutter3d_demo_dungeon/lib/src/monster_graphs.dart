@@ -29,6 +29,9 @@ final class MonsterGraphs implements ActorGraphs {
   /// How long feet take to plant or let go, s.
   static const double plantSeconds = 0.2;
 
+  /// Scratch for an ankle's place, asked twice a step per monster.
+  final Matrix4 _ankle = Matrix4.identity();
+
   /// The states a monster turns its head to watch in.
   static final Set<MonsterState> watching = <MonsterState>{
     MonsterState.alert,
@@ -350,9 +353,10 @@ final class MonsterGraphs implements ActorGraphs {
     }
     // Let go and fading no more: nothing to aim, so no rays.
     if (!on && plant.weight == 0.0) return;
-    final pose = graph.pose.worldMatrices();
     for (final leg in plant.legs) {
-      final at = toWorld.transform3(pose[leg.tip].getTranslation());
+      final at = toWorld.transform3(
+        graph.pose.worldMatrixOf(leg.tip, _ankle).getTranslation(),
+      );
       final floor = ground(at);
       final under = floor == null
           ? 0.0

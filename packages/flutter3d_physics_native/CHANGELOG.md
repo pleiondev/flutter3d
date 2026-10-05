@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **The character moves as the box the reference sweeps, and a run saves
+  the same bytes however it was watched.**
+  - `f3d_world_move_character` takes the character's shape. The core
+    moves each controller as its bounding box, the same volume its own
+    sweeps move and the one it stands as for everything else. A capsule
+    inside it rolled off a ledge's edge before the box would leave it, and
+    the platformer's route fell short of the blue key.
+  - The world is mirrored into the core at the end of each step, through
+    `CollisionWorld.update`. A query between steps only puts movers in
+    place and never makes or removes a body, since slots order a step's
+    pairs. A save puts every mover in place first.
+  - A save also holds which core body stands for which collider. It is
+    matched on restore by shape and place, so a world staged afresh and
+    restored goes on as the run that saved it, save for save. Without it a
+    replay that drew frames, or checked a fresh world against its own
+    recording, parted from the run it recorded.
+
 - **The character, reviewed against the reference.**
   - `f3d_world_move_character` first pushes the capsule out of whatever was
     moved into it, along the deepest overlap's normal, with the speed into

@@ -400,8 +400,7 @@ void main() {
       ..setShape(step, NativeShape.box(Vector3(2.0, 0.15, 2.0)));
     var at = Vector3(0.0, 3.0, 0.0);
     var move = world.moveCharacter(
-      radius: 0.3,
-      halfHeight: 0.6,
+      shape: const NativeShape.capsule(0.3, 0.6),
       position: at,
       move: Vector3(0.0, -5.0, 0.0),
     );
@@ -409,8 +408,7 @@ void main() {
     expect(move.ground, floor);
     expect(move.position.y, closeTo(0.91, 2e-3));
     move = world.moveCharacter(
-      radius: 0.3,
-      halfHeight: 0.6,
+      shape: const NativeShape.capsule(0.3, 0.6),
       position: move.position,
       move: Vector3(4.0, 0.0, 1.0),
     );
@@ -418,8 +416,7 @@ void main() {
     expect(move.position.x, closeTo(2.69, 2e-3));
     at = Vector3(0.0, move.position.y, 2.0);
     move = world.moveCharacter(
-      radius: 0.3,
-      halfHeight: 0.6,
+      shape: const NativeShape.capsule(0.3, 0.6),
       position: at,
       move: Vector3(0.0, 0.0, 2.0),
     );

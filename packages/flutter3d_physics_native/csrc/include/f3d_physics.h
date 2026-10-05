@@ -535,8 +535,9 @@ F3D_API int f3d_world_cast_shape(F3dWorld *world, F3dShapeKind kind,
  * air does not step up onto a ledge it brushes past. */
 #define F3D_CHARACTER_MAY_STEP 1u
 
-/* Moves an upright capsule of [radius] and straight [half_height] — a
- * character — from position[0..2] by (dx, dy, dz), sliding along what it
+/* Moves an upright shape — a character: [kind] and its sizes a, b, c as
+ * f3d_world_cast_shape takes them, a capsule's radius and straight half
+ * height or a box's half extents — from position[0..2] by (dx, dy, dz), sliding along what it
  * meets, and writes where it ends into position. velocity[0..2] is the
  * character's, in and out: the speed into everything it met is taken out
  * of it, as the speed into a wall is gone for good. Ground is what it
@@ -556,7 +557,8 @@ F3D_API int f3d_world_cast_shape(F3dWorld *world, F3dShapeKind kind,
  * into its side, or falling on from inside it.
  * Kinematic: nothing pushes it, and it moves nothing. */
 F3D_API uint32_t f3d_world_move_character(
-    F3dWorld *world, f3d_real radius, f3d_real half_height, f3d_real *position,
+    F3dWorld *world, F3dShapeKind kind, f3d_real a, f3d_real b, f3d_real c,
+    f3d_real *position,
     f3d_real dx, f3d_real dy, f3d_real dz, f3d_real *velocity,
     f3d_real max_slope_cos, f3d_real step_height, uint32_t mask,
     uint32_t from_above, uint32_t options, F3dBody ignore, F3dBody *ground_body,

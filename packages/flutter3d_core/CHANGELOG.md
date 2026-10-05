@@ -8,6 +8,12 @@
   `restore` makes the pose as it was. `Pose.setFrom`;
   `AnimationGoal.save`/`restore`; `AnimationParameters.loadByName`.
 
+- **Goals ask for the joints they need, not the whole pose.**
+  `Pose.worldMatrixOf` composes one joint's world matrix down its own
+  chain. `TwoBoneIk`, the look, the foot plant and the dungeon's foot rays
+  use it: a step's goals on the hero's rig take a quarter of the time the
+  full walks did. A look turns by `Portable.atan2`, since goals run in a
+  game's step now.
 - **`AnimationGoal.fadingTo`** says where a goal's weight is going, so a
   caller decides whether to fade again from the goal, which a snapshot
   keeps, rather than from a flag of its own.

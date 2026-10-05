@@ -58,6 +58,12 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
 
   late final DemoContext _context;
   late final Scene _scene;
+
+  /// The live fall's core, let go with the page.
+  NativeDynamics? _native;
+
+  @override
+  void dispose() => _native?.dispose();
   late final MeshNode _pad;
   late final TransparentFlameGame _game;
   late final Widget _body = flameOrbit(
@@ -131,7 +137,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final RigidDynamics dynamics = NativeDynamics(world: world);
+    final NativeDynamics dynamics = _native = NativeDynamics(world: world);
     final RigidBody body = dynamics.add(
       RigidBody(
         world: world,
@@ -269,10 +275,12 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     component.update(step);
     // #endregion fall
 
+    final settled = body.position.y;
+    dynamics.dispose();
     return (
-      'settled at y=${body.position.y.toStringAsFixed(2)}; the bridge heard '
+      'settled at y=${settled.toStringAsFixed(2)}; the bridge heard '
           'the landing: ${component.collided}',
-      body.position.y,
+      settled,
       component.collided,
     );
   }

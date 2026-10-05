@@ -106,15 +106,17 @@ void main() {
 
   test('a run restored into a level opened afresh steps on the same', () async {
     final live = await _open();
-    // The player put in front of a runner, so the crypt does something: a
-    // crypt where every monster stood idle would agree with itself trivially.
+    // The player put six metres from a runner, so the crypt does something:
+    // a crypt where every monster stood idle would agree with itself
+    // trivially. Saved as the runner sets off, so what follows is a chase
+    // run, footfalls and all, then the swing it ends in.
     final runner = live.staged.actors.actors.firstWhere(
       (a) => const DungeonMonsters().modelFor(a)?.contains('runner') ?? false,
     );
     live.staged.player.body.teleport(
-      runner.body!.position + Vector3(2.0, 0.0, 0.0),
+      runner.body!.position + Vector3(6.0, 0.0, 0.0),
     );
-    _run(live, 90);
+    _run(live, 15);
     // Through text, as a save file or a rewind buffer holds it.
     final saved = Snapshot.fromJson(
       jsonDecode(jsonEncode(live.staged.sim.save().toJson()))

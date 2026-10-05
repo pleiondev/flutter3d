@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
 import '../inverse_kinematics.dart';
@@ -170,6 +171,8 @@ final class LookGoal extends AnimationGoal {
   /// [forward] in [joint]'s own frame, from the pose's rest; taken once.
   Vector3? _facing;
 
+  final Matrix4 _world = Matrix4.identity();
+
   @override
   Map<String, Object?> _saveInputs() => <String, Object?>{
     'look': _xyz(target),
@@ -189,16 +192,18 @@ final class LookGoal extends AnimationGoal {
       _rotationOf(pose.restCopy().worldMatrices()[joint]).conjugated(),
       forward,
     );
-    final world = pose.worldMatrices();
-    final at = world[joint].getTranslation();
-    final turn = _rotationOf(world[joint]);
+    final world = pose.worldMatrixOf(joint, _world);
+    final at = world.getTranslation();
+    final turn = _rotationOf(world);
     final facing = _turn(turn, _facing!);
     final wanted = target - at;
     if (wanted.length2 < 1e-12) return;
     wanted.normalize();
     final axis = facing.cross(wanted);
     final sin = axis.length;
-    final angle = math.atan2(sin, facing.dot(wanted));
+    // Portable: a goal runs in a game's step now, and a step must turn the
+    // same on every machine.
+    final angle = Portable.atan2(sin, facing.dot(wanted));
     if (sin < 1e-9 || angle == 0.0) return;
     final by = math.min(angle, limit) * weight;
     final delta = Quaternion.axisAngle(axis..normalize(), by);
@@ -206,7 +211,8 @@ final class LookGoal extends AnimationGoal {
     final parent = pose.parents[joint];
     final local = parent < 0
         ? newWorld
-        : (_rotationOf(world[parent]).conjugated() * newWorld
+        : (_rotationOf(pose.worldMatrixOf(parent, _world)).conjugated() *
+                newWorld
             ..normalize());
     _setRotation(pose, joint, local);
   }
@@ -283,20 +289,17 @@ final class FootPlantGoal extends AnimationGoal {
     if (weight <= 0.0 || legs.isEmpty) return;
     final drop =
         legs.fold<double>(0.0, (d, l) => math.min(d, l.ground)) * weight;
-    var world = pose.worldMatrices();
+    // Only the joints asked about, each down its own chain: not every node
+    // of the pose, as many times as the legs are bent.
+    Vector3 at(int joint) => pose.worldMatrixOf(joint, _world).getTranslation();
     // Where the clip had each ankle, before the hips move them.
-    final ankles = <Vector3>[
-      for (final leg in legs) world[leg.tip].getTranslation(),
-    ];
-    if (drop < 0.0) {
-      _moveWorld(pose, world, hips, Vector3(0.0, drop, 0.0));
-      world = pose.worldMatrices();
-    }
+    final ankles = <Vector3>[for (final leg in legs) at(leg.tip)];
+    if (drop < 0.0) _moveWorld(pose, hips, Vector3(0.0, drop, 0.0), _world);
     for (final (i, leg) in legs.indexed) {
       final target = ankles[i]..y += leg.ground * weight;
       final pole = switch (leg.poleJoint) {
-        final int joint => world[joint].getTranslation(),
-        null => world[leg.mid].getTranslation() + leg.pole,
+        final int joint => at(joint),
+        null => at(leg.mid) + leg.pole,
       };
       TwoBoneIk.solve(
         pose,
@@ -307,21 +310,22 @@ final class FootPlantGoal extends AnimationGoal {
         pole: pole,
       );
       if (leg.foot case final int foot) {
-        final moved = target - world[foot].getTranslation();
-        _moveWorld(pose, world, foot, moved);
+        _moveWorld(pose, foot, target - at(foot), _world);
       }
-      world = pose.worldMatrices();
     }
   }
+
+  final Matrix4 _world = Matrix4.identity();
 }
 
-/// Moves [joint] by [by] in the pose's space, through its parent's frame.
-void _moveWorld(Pose pose, List<Matrix4> world, int joint, Vector3 by) {
+/// Moves [joint] by [by] in the pose's space, through its parent's frame;
+/// [scratch] holds the parent's world matrix on the way.
+void _moveWorld(Pose pose, int joint, Vector3 by, Matrix4 scratch) {
   final parent = pose.parents[joint];
   final local = parent < 0
       ? by
       : (Matrix4.inverted(
-          world[parent],
+          pose.worldMatrixOf(parent, scratch),
         )..setTranslationRaw(0.0, 0.0, 0.0)).transform3(by.clone());
   pose.translations[joint * 3] += local.x;
   pose.translations[joint * 3 + 1] += local.y;

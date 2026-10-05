@@ -278,6 +278,35 @@ final class Pose {
     ),
   );
 
+  /// [index]'s world matrix alone, into [into] when given: its ancestors'
+  /// local matrices composed down to it, and nothing else of the pose — what
+  /// a goal or a solver asking about three joints of sixty wants, rather
+  /// than [worldMatrices]' every node, allocated afresh each time.
+  ///
+  /// A cyclic hierarchy — a malformed rig — is cut where this walk comes
+  /// back round, which keeps it from hanging; not always where
+  /// [worldMatrices] cuts it, whose cut depends on which node it reached
+  /// first.
+  Matrix4 worldMatrixOf(int index, [Matrix4? into]) {
+    final out = into ?? Matrix4.identity();
+    _chain.clear();
+    for (
+      var at = index;
+      at >= 0 && at < nodeCount && _chain.length <= nodeCount;
+      at = parents[at]
+    ) {
+      if (_chain.contains(at)) break;
+      _chain.add(at);
+    }
+    out.setFrom(localMatrix(_chain.last));
+    for (var i = _chain.length - 2; i >= 0; i--) {
+      out.multiply(localMatrix(_chain[i]));
+    }
+    return out;
+  }
+
+  final List<int> _chain = <int>[];
+
   /// World matrices for every node, index-aligned with [parents].
   ///
   /// Composed parent before child regardless of array order: [parents] may
