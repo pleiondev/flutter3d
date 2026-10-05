@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **A fallen body gets up.** `SkeletonRagdoll.lying()` reads the pelvis
+  against how it was bound. It says whether the chest faces up, where the
+  pelvis is, and which way along the floor the head lies, with the yaw an
+  actor faces that way by. A game picks the get-up clip by it and places
+  the character there. `RagdollGetUp` then lays the ragdoll over the
+  pose the clip makes each frame, all of it at first and none of it after
+  its seconds. It takes the bodies out of the world when done.
+
 - **Knees bend the way they bend.** `RagdollBend` is a hinge whose axis
   and sense come from the rest pose. A knee a rig binds a little bent
   bends about the axis across its bone and its parent's, the way it is

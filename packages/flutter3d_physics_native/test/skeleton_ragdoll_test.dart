@@ -4,6 +4,8 @@
 // profile of names, dropped on a floor, and its bodies written back into
 // its joints — the pose kept at once, the figure held together lying down,
 // the feet carried by the shins, a blend halfway back to the animation.
+import 'dart:math' as math;
+
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
@@ -181,5 +183,156 @@ void main() {
     final half = hips.localMatrix.getTranslation();
     expect(half.distanceTo((animated + limp) * 0.5), lessThan(1e-4));
     expect(limp.distanceTo(animated), greaterThan(1e-4));
+  });
+
+  group('getting up', () {
+    /// The hero leant by [lean] about x and dropped until it lies still,
+    /// with the local matrix each joint stood with.
+    Future<
+      ({
+        ({
+          SceneNode root,
+          Skeleton skeleton,
+          SceneNode mesh,
+          List<SceneNode> nodes,
+        })
+        h,
+        SkeletonRagdoll ragdoll,
+        List<Matrix4> standing,
+        double headHeight,
+      })
+    >
+    fallen(double lean, {double yaw = 0.0}) async {
+      final h = await hero(at: Vector3(1.0, 0.5, -2.0));
+      final standing = <Matrix4>[
+        for (final j in h.skeleton.joints) j.localMatrix.clone(),
+      ];
+      final headHeight = worldOf(named(h.skeleton, 'Head')).y - 0.5;
+      // Turned by [yaw] first, then leant about the world's x.
+      h.root.setRotation(
+        Quaternion.fromRotation(
+          Matrix3.rotationX(lean)..multiply(Matrix3.rotationY(yaw)),
+        ),
+      );
+      final ragdoll = SkeletonRagdoll(
+        skeleton: h.skeleton,
+        meshWorld: h.mesh.worldMatrix,
+        world: dynamics.native,
+        dynamics: dynamics,
+      );
+      var steps = 0;
+      while (!ragdoll.ragdoll.isAsleep && steps < 600) {
+        dynamics.step(1.0 / 60.0);
+        ragdoll.apply();
+        steps++;
+      }
+      expect(ragdoll.ragdoll.isAsleep, isTrue);
+      return (
+        h: h,
+        ragdoll: ragdoll,
+        standing: standing,
+        headHeight: headHeight,
+      );
+    }
+
+    test('leant forward it lies on its front, its head ahead', () async {
+      final f = await fallen(0.6);
+      final lying = f.ragdoll.lying();
+      expect(lying.faceUp, isFalse);
+      // The model faced +z and fell that way: the head lies further along
+      // +z than the pelvis.
+      expect(lying.headward.z, greaterThan(0.8));
+      expect(lying.pelvis.y, lessThan(0.4));
+      expect(
+        Vector3(lying.pelvis.x - 1.0, 0.0, lying.pelvis.z + 2.0).length,
+        lessThan(1.0),
+        reason: 'where it fell',
+      );
+      // Facing +z is yaw π in an actor's terms, where nought looks along -z.
+      expect(lying.headingYaw.abs(), closeTo(math.pi, 0.7));
+      f.ragdoll.dispose();
+    });
+
+    test('turned round and leant its own way forward, it lies on its front, '
+        'its head along -z', () async {
+      final f = await fallen(-0.6, yaw: math.pi);
+      final lying = f.ragdoll.lying();
+      expect(lying.faceUp, isFalse);
+      expect(lying.headward.z, lessThan(-0.8));
+      expect(lying.headingYaw, closeTo(0.0, 0.7));
+      f.ragdoll.dispose();
+    });
+
+    test('leant back it lies on its back, its head behind', () async {
+      final f = await fallen(-0.6);
+      final lying = f.ragdoll.lying();
+      expect(lying.faceUp, isTrue);
+      expect(lying.headward.z, lessThan(-0.8));
+      f.ragdoll.dispose();
+    });
+
+    test('placed where it lies, it fades from the ragdoll to the animation '
+        'and lets the bodies go', () async {
+      final f = await fallen(0.6);
+      final joints = f.h.skeleton.joints;
+      final lyingAt = <Vector3>[for (final j in joints) worldOf(j)];
+      final lying = f.ragdoll.lying();
+      // The model stood up where the pelvis lies, facing where the head is;
+      // the "clip" here is the pose it stood in.
+      f.h.root
+        ..setPositionFrom(Vector3(lying.pelvis.x, 0.0, lying.pelvis.z))
+        ..setRotation(
+          Quaternion.axisAngle(
+            Vector3(0.0, 1.0, 0.0),
+            math.atan2(lying.headward.x, lying.headward.z),
+          ),
+        );
+      void animate() {
+        for (final (i, j) in joints.indexed) {
+          j.setLocalMatrix(f.standing[i]);
+        }
+      }
+
+      final getUp = RagdollGetUp(f.ragdoll, seconds: 0.5);
+      final bodies = dynamics.native.bodyCount;
+      animate();
+      getUp.step(1.0 / 60.0);
+      // At first, all ragdoll: every body's joint where it lay.
+      for (final i in <int>[
+        for (var i = 0; i < joints.length; i++)
+          if (f.ragdoll.bodyNamed(joints[i].name ?? '') != null) i,
+      ]) {
+        expect(
+          worldOf(joints[i]).distanceTo(lyingAt[i]),
+          lessThan(0.02),
+          reason: joints[i].name,
+        );
+      }
+      final head = named(f.h.skeleton, 'Head');
+      final heights = <double>[];
+      while (!getUp.isDone) {
+        animate();
+        getUp.step(1.0 / 60.0);
+        heights.add(worldOf(head).y);
+      }
+      // Rising all the way, and done a half second on, the bodies gone.
+      expect(heights.length, inInclusiveRange(29, 32));
+      for (var i = 1; i < heights.length; i++) {
+        expect(heights[i], greaterThanOrEqualTo(heights[i - 1] - 0.02));
+      }
+      expect(dynamics.native.bodyCount, lessThan(bodies));
+      animate();
+      expect(worldOf(head).y, closeTo(f.headHeight, 1e-3), reason: 'standing');
+      expect(heights.first, lessThan(0.5 * f.headHeight), reason: 'from lying');
+      expect(
+        Vector3(
+          worldOf(head).x - lying.pelvis.x,
+          0.0,
+          worldOf(head).z - lying.pelvis.z,
+        ).length,
+        lessThan(0.3),
+        reason: 'standing where it lay',
+      );
+    });
   });
 }

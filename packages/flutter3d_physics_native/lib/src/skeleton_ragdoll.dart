@@ -231,6 +231,13 @@ final class SkeletonRagdoll {
       );
     }
 
+    // The first body — the pelvis — at bind, and which way the character
+    // faced and stood up there: what [lying] reads the body against.
+    _pelvisAtBind = rest.first.orientation.clone();
+    final facing = _turnOf(meshWorld);
+    _forwardAtBind = turnBy(facing, Vector3(0.0, 0.0, 1.0));
+    _upAtBind = turnBy(facing, Vector3(0.0, 1.0, 0.0));
+
     final now = <BonePose>[
       for (final j in _jointOfBody)
         (
@@ -275,6 +282,31 @@ final class SkeletonRagdoll {
   final Map<int, int> _bodyOfJoint = <int, int>{};
   final Map<int, ({int body, Matrix4 offset})> _followers =
       <int, ({int body, Matrix4 offset})>{};
+
+  late final Quaternion _pelvisAtBind;
+  late final Vector3 _forwardAtBind, _upAtBind;
+
+  /// How the body lies now, read off its pelvis: whether the chest faces
+  /// up, where the pelvis is, and which way along the floor the head lies
+  /// from it — what a game picks a get-up clip by and places the character
+  /// it gets up as.
+  RagdollLying lying() {
+    final pelvis = ragdoll.poseOf(0);
+    // As matrices, which turn the way `turnBy` does whatever order the
+    // quaternion product composes in: now, after undoing bind.
+    final turn = pelvis.orientation.asRotationMatrix()
+      ..multiply(_pelvisAtBind.asRotationMatrix()..transpose());
+    final forward = turn.transformed(_forwardAtBind);
+    final up = turn.transformed(_upAtBind);
+    final headward = Vector3(up.x, 0.0, up.z);
+    return RagdollLying(
+      faceUp: forward.y >= 0.0,
+      pelvis: pelvis.position.clone(),
+      headward: headward.length2 < 1e-12
+          ? Vector3(0.0, 0.0, 1.0)
+          : headward.normalized(),
+    );
+  }
 
   /// The body standing for the joint called [name]; null for one that is
   /// not a body.
@@ -420,4 +452,66 @@ Vector3 _spinBetween(Quaternion from, Quaternion to, double dt) {
   if (s < 1e-9) return Vector3.zero();
   final angle = 2.0 * Portable.atan2(s, d.w);
   return Vector3(d.x, d.y, d.z) * (angle / (s * dt));
+}
+
+/// How a fallen body lies — see [SkeletonRagdoll.lying].
+final class RagdollLying {
+  const RagdollLying({
+    required this.faceUp,
+    required this.pelvis,
+    required this.headward,
+  });
+
+  /// Whether the chest faces up: a get-up from the back, else from the
+  /// front.
+  final bool faceUp;
+
+  /// Where the pelvis is.
+  final Vector3 pelvis;
+
+  /// Which way along the floor the head lies from the pelvis, unit length;
+  /// straight up reads as +z.
+  final Vector3 headward;
+
+  /// The yaw an actor faces [headward] by — yaw nought looking along -z, as
+  /// `Facing` has it: a character getting up from its front rises facing
+  /// where its head was.
+  double get headingYaw => Portable.atan2(-headward.x, -headward.z);
+}
+
+/// A fallen body getting up — N1: the animation poses the joints each
+/// frame, a get-up clip from the [RagdollLying] it fell into, and this lays
+/// the ragdoll over that pose, all of it at first and none of it after
+/// [seconds], then takes the bodies out of the world.
+///
+/// The game places the character first — its model where
+/// [RagdollLying.pelvis] is and turned by [RagdollLying.headingYaw] — so
+/// the clip's first frame lies about where the body does, and what the
+/// fade hides is the difference.
+final class RagdollGetUp {
+  RagdollGetUp(this.ragdoll, {this.seconds = 0.4});
+
+  final SkeletonRagdoll ragdoll;
+  final double seconds;
+  double _elapsed = 0.0;
+  bool _done = false;
+
+  /// How much of the ragdoll is still laid on, one to nought.
+  double get weight =>
+      seconds <= 0.0 ? 0.0 : (1.0 - _elapsed / seconds).clamp(0.0, 1.0);
+
+  /// Whether the animation has the body to itself.
+  bool get isDone => _done;
+
+  /// Advances by [dt] — after the animation has posed the joints this
+  /// frame — and lays the ragdoll on by what is left of it.
+  void step(double dt) {
+    if (_done) return;
+    ragdoll.apply(weight: weight);
+    _elapsed += dt;
+    if (weight <= 0.0) {
+      _done = true;
+      ragdoll.dispose();
+    }
+  }
 }
