@@ -168,6 +168,10 @@ Staged stage(
   final navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
   actors.navigation = navigation;
 
+  // Walking to a point — a guard's next post, a monster it has fallen out
+  // with — and round each other.
+  stageRoutes(actors, level);
+
   // One ray-caster and one shot for the whole world. The application already
   // shared the ray-caster and built the shot twice; sharing both is the same
   // statement made once.

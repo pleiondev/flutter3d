@@ -74,6 +74,20 @@ final class NavMeshConfig {
   /// a crate is a place to stand and only the game knows whether it matters.
   final double minIslandArea;
 
+  /// This config for a body of [radius] and [height].
+  NavMeshConfig withBody({required double radius, required double height}) =>
+      NavMeshConfig(
+        cellSize: cellSize,
+        cellHeight: cellHeight,
+        agentHeight: height,
+        stepHeight: stepHeight,
+        agentRadius: radius,
+        maxSlope: maxSlope,
+        maxEdgeError: maxEdgeError,
+        maxVerticesPerPolygon: maxVerticesPerPolygon,
+        minIslandArea: minIslandArea,
+      );
+
   /// [agentHeight] in voxels, rounded up: a ceiling one voxel short of the
   /// agent's head is a ceiling the agent does not fit under.
   int get walkableHeight => _up(agentHeight / cellHeight);

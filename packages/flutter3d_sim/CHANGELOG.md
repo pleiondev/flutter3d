@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **One navigation mesh per width of body.** `ActorSystem.navMeshes`
+  replaces the single mesh: a mesh is eroded by one radius, and a body
+  wider than it was baked for was routed through gaps it does not fit.
+  `navMeshFor` gives each body the narrowest mesh still as wide as it is,
+  and none to a body wider than all of them. `NavMesh.bakeLevelFor` bakes
+  a set from a roster's radii and heights, one per erosion, each for the
+  widest and tallest body that shares it.
+
 - **Finding which polygon a point is on no longer looks at all of them.**
   `NavMesh.polygonsAt` asks only the polygons indexed under the point's
   lattice column. On the platformer's ascent, 576 polygons, it went from

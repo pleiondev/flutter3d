@@ -351,6 +351,7 @@ Staged stage(Level level, CollisionWorld world, {required InputState input}) {
   final navIssues = <LevelIssue>[];
   final navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
   actors.navigation = navigation;
+  stageRoutes(actors, level);
 
   final hitscan = Hitscan(world: world, random: dice);
   final shot = WeaponShot(
@@ -397,4 +398,19 @@ Staged stage(Level level, CollisionWorld world, {required InputState input}) {
       levelNext: level.next,
     ),
   );
+}
+
+/// What the game sets on [actors] for walking to a point and round each
+/// other, for [level]: a navigation mesh per width in the roster, on the
+/// grid's quarter-metre lattice for the grid's reason — a one-metre corridor
+/// is a corridor — and avoidance.
+///
+/// One function, called by both stagings and by the test that holds the
+/// game to it, so that what is tested is what ships.
+void stageRoutes(ActorSystem actors, Level level) {
+  actors
+    ..navMeshes = NavMesh.bakeLevelFor(level, <(double, double)>[
+      for (final def in Monsters.byName.values) (def.radius, def.height),
+    ], config: const NavMeshConfig(cellSize: 0.25))
+    ..avoidance = const Avoidance();
 }

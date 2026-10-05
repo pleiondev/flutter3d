@@ -216,12 +216,7 @@ NavMeshRoute? findRoute(
   }
   points.addAll(_pullString(mesh, stretch, stretchStart, end));
 
-  return NavMeshRoute._(
-    polygons,
-    points,
-    jumps: jumpsAt,
-    complete: complete,
-  );
+  return NavMeshRoute._(polygons, points, jumps: jumpsAt, complete: complete);
 }
 
 /// Twice the signed area of `apex → a → b` in plan: positive when it turns

@@ -114,11 +114,28 @@ final class ActorSystem {
   /// How to get to the focus from anywhere, or null for "walk straight at it".
   Navigation? navigation;
 
-  /// How to get to any point, or null for "walk straight at it": what
-  /// [steerTowards] routes over. A flow field answers for the focus, which
-  /// every actor shares; a mesh answers for a point only one of them wants —
-  /// a post, a noise, cover.
-  NavMesh? navMesh;
+  /// How to get to any point, one mesh per width of body, or none for "walk
+  /// straight at it": what [steerTowards] routes over. A flow field answers
+  /// for the focus, which every actor shares; a mesh answers for a point only
+  /// one of them wants — a post, a noise, cover.
+  ///
+  /// **One per width**, because a mesh is eroded by one radius: a body wider
+  /// than the one it was baked for is routed through gaps it does not fit.
+  /// Each body walks on the mesh for the narrowest radius that is still at
+  /// least its own — see [navMeshFor] — and one wider than all of them walks
+  /// straight. `NavMesh.bakeLevelFor` bakes a set from a roster's bodies.
+  List<NavMesh> navMeshes = const <NavMesh>[];
+
+  /// The mesh of [navMeshes] a body of [radius] walks on, or null.
+  NavMesh? navMeshFor(double radius) {
+    NavMesh? best;
+    for (final mesh in navMeshes) {
+      final r = mesh.config.agentRadius;
+      if (r < radius) continue;
+      if (best == null || r < best.config.agentRadius) best = mesh;
+    }
+    return best;
+  }
 
   /// How actors walk past each other, or null for "into each other": see
   /// [Avoidance]. Each living actor on the ground turns its brain's wish
@@ -654,7 +671,7 @@ final class ActorSystem {
 
   /// Walk towards a point that is not the focus.
   ///
-  /// Over [navMesh] when there is one: towards the next corner of the route
+  /// Over the body's mesh — [navMeshFor] — when there is one: towards the next corner of the route
   /// there, and up into a jump at a link's take-off when the mesh has links
   /// and the body's reach takes them. Straight, sliding off what it meets,
   /// when there is no mesh or the body is over no part of it. The flow field
@@ -666,7 +683,7 @@ final class ActorSystem {
   void steerTowards(Actor actor, Vector3 point) {
     final body = actor.body;
     if (body == null) return;
-    final mesh = navMesh;
+    final mesh = navMeshFor(body.halfExtents.x);
     if (mesh != null && _steerOnMesh(body, mesh, point)) return;
     _wish
       ..setFrom(point)

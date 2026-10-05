@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **Monsters walk to a point by a route, and round each other.**
+  `stageRoutes` sets a navigation mesh per width in the roster on the
+  actor system, on the grid's quarter-metre lattice, and avoidance; both
+  stagings call it. A guard whose next post is behind a wall walks round
+  the wall's end, where it walked into the wall; two guards meeting in a
+  corridor step round each other, where they pushed against each other
+  and stayed. A monster fighting another routes to it the same way.
+
 - **`stage(dynamicsFor:)`** makes a level's dynamics before anybody is
   spawned and hands them to the simulation. None by default.
 

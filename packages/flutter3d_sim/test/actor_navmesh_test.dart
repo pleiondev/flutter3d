@@ -17,6 +17,10 @@ import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 
+/// Meshes baked for the width of the bodies here, a default controller's
+/// 0.35: a body is not given a mesh baked for anything narrower.
+const NavMeshConfig _body = NavMeshConfig(agentRadius: 0.35);
+
 Brush _box(double x0, double y0, double z0, double x1, double y1, double z1) =>
     Brush(
       centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
@@ -56,7 +60,7 @@ final class _Walk {
       world.addBox(brush.centre, brush.size);
     }
     world.update();
-    system.navMesh = mesh;
+    if (mesh != null) system.navMeshes = <NavMesh>[mesh];
     final actor = system.spawn(
       body: CharacterController(world: world, position: from),
       brain: BehaviourBrain(_toPost),
@@ -121,7 +125,7 @@ void main() {
         _rooms(),
         from: from,
         post: post,
-        mesh: NavMesh.bake(_rooms()),
+        mesh: NavMesh.bake(_rooms(), config: _body),
       )..steps(360);
       expect(_flat(walk.position, post), lessThan(0.5 * 0.5));
     });
@@ -133,7 +137,7 @@ void main() {
     });
 
     test('a run restored on the way steps on to the same bits', () {
-      final mesh = NavMesh.bake(_rooms());
+      final mesh = NavMesh.bake(_rooms(), config: _body);
       final original = _Walk(_rooms(), from: from, post: post, mesh: mesh)
         ..steps(90);
       final saved = jsonDecode(jsonEncode(original.state())) as Map;
@@ -151,6 +155,40 @@ void main() {
     });
   });
 
+  group('meshes by width', () {
+    test('one per erosion of the radii, each for the widest of its own', () {
+      // At a quarter-metre lattice 0.35 erodes two cells and 0.38 and 0.62
+      // erode three, so three bodies get two meshes. The 0.38 is listed
+      // after the 0.62, so the widest is not simply the last met.
+      final meshes = NavMesh.bakeLevelFor(
+        Level(name: 'rooms', brushes: _rooms()),
+        const <(double, double)>[(0.62, 2.4), (0.35, 1.7), (0.38, 1.8)],
+        config: const NavMeshConfig(cellSize: 0.25),
+      );
+      expect(meshes.map((m) => m.config.agentRadius), <double>[0.35, 0.62]);
+      // The 0.38 body is 1.8 tall and the 0.62 one 2.4: the mesh they share
+      // keeps the room the taller needs. Mutation: keeping the first height
+      // met for a class rather than the tallest.
+      expect(meshes.map((m) => m.config.agentHeight), <double>[1.7, 2.4]);
+    });
+
+    test('a body walks on the narrowest mesh still as wide as it is', () {
+      final system = ActorSystem(world: CollisionWorld(), random: GameRandom(1))
+        ..navMeshes = NavMesh.bakeLevelFor(
+          Level(name: 'rooms', brushes: _rooms()),
+          const <(double, double)>[(0.62, 2.4), (0.35, 1.7)],
+          config: const NavMeshConfig(cellSize: 0.25),
+        ).reversed.toList();
+      // Listed widest first. Mutation: taking the first mesh at least as
+      // wide, not the narrowest, or one narrower than the body, gives the
+      // wrong one here.
+      expect(system.navMeshFor(0.3)!.config.agentRadius, 0.35);
+      expect(system.navMeshFor(0.35)!.config.agentRadius, 0.35);
+      expect(system.navMeshFor(0.4)!.config.agentRadius, 0.62);
+      expect(system.navMeshFor(0.7), isNull);
+    });
+  });
+
   group('a post across a pit', () {
     final from = Vector3(-4, 0.9, 0);
     final post = Vector3(4, 0.9, 0);
@@ -161,7 +199,7 @@ void main() {
         _pit(),
         from: from,
         post: post,
-        mesh: NavMesh.bake(_pit(), jumps: JumpReach.of(tuning)),
+        mesh: NavMesh.bake(_pit(), config: _body, jumps: JumpReach.of(tuning)),
       )..steps(300);
       // Mutation: never asking for the jump walks the body off the edge.
       expect(walk.position.y, greaterThan(0.5));
@@ -173,7 +211,7 @@ void main() {
         _pit(),
         from: from,
         post: post,
-        mesh: NavMesh.bake(_pit()),
+        mesh: NavMesh.bake(_pit(), config: _body),
       )..steps(300);
       // The route ends at the near edge, and the body waits there.
       expect(walk.position.y, greaterThan(0.5));

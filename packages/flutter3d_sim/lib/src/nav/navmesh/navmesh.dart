@@ -419,6 +419,45 @@ final class NavMesh {
     maxFall: maxFall,
   );
 
+  /// Bakes one mesh per width of body among [bodies] — each a radius and a
+  /// height — narrowest first, for `ActorSystem.navMeshes`.
+  ///
+  /// Two radii the lattice erodes by the same number of cells bake the same
+  /// polygons, so their bodies share one mesh, baked for the widest radius
+  /// and the tallest height among them — which a body of any of them then
+  /// fits. Everything else is [config]'s, and as [bakeLevel].
+  static List<NavMesh> bakeLevelFor(
+    Level level,
+    Iterable<(double radius, double height)> bodies, {
+    NavMeshConfig config = const NavMeshConfig(),
+    int Function(Brush brush)? areaOf,
+    JumpReach? jumps,
+    double maxFall = 2.0,
+  }) {
+    // The widest radius and tallest height of each erosion, by erosion: a
+    // map only looked up and then read in sorted order.
+    final classes = <int, (double, double)>{};
+    for (final (radius, height) in bodies) {
+      final erosion = config.withBody(radius: radius, height: height).erosion;
+      final (r, h) = classes[erosion] ?? (radius, height);
+      classes[erosion] = (math.max(r, radius), math.max(h, height));
+    }
+    final order = classes.keys.toList()..sort();
+    return <NavMesh>[
+      for (final erosion in order)
+        bakeLevel(
+          level,
+          config: config.withBody(
+            radius: classes[erosion]!.$1,
+            height: classes[erosion]!.$2,
+          ),
+          areaOf: areaOf,
+          jumps: jumps,
+          maxFall: maxFall,
+        ),
+    ];
+  }
+
   /// Bakes [brushes] and, when given, [ground] into one mesh.
   ///
   /// [areaOf] names the surface of each brush's top, [NavArea.ground] unless
