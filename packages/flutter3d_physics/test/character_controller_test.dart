@@ -45,6 +45,52 @@ void _walk(
 }
 
 void main() {
+  group('driven by root motion', () {
+    // Mutation: drop the `drivenBy` branch in `step`. The body then
+    // accelerates towards a wish of nothing and does not move.
+    test('moves exactly as far as it is handed, not by its wish', () {
+      final player = _player(_room());
+      for (var i = 0; i < 10; i++) {
+        player.step(
+          1.0 / 60.0,
+          wishDirection: Vector3(-1.0, 0.0, 0.0),
+          drivenBy: Vector3(0.0, 0.0, 0.05),
+        );
+      }
+      expect(player.position.z, closeTo(0.5, 1e-5));
+      expect(player.position.x, 0.0);
+      expect(player.isGrounded, isTrue);
+    });
+
+    test('stops at a wall as any move does', () {
+      final player = _player(_room(size: 4.0));
+      for (var i = 0; i < 120; i++) {
+        player.step(
+          1.0 / 60.0,
+          wishDirection: Vector3.zero(),
+          drivenBy: Vector3(0.0, 0.0, 0.05),
+        );
+      }
+      // The wall's face is at z = 1.5; half the body is 0.35.
+      expect(player.position.z, closeTo(1.5 - 0.35, 0.01));
+    });
+
+    test('and falls while it walks off an edge', () {
+      final world = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(2.0, 1.0, 2.0));
+      final player = _player(world);
+      for (var i = 0; i < 60; i++) {
+        player.step(
+          1.0 / 60.0,
+          wishDirection: Vector3.zero(),
+          drivenBy: Vector3(0.0, 0.0, 0.05),
+        );
+      }
+      expect(player.position.z, closeTo(3.0, 1e-5));
+      expect(player.position.y, lessThan(0.0));
+    });
+  });
+
   group('walking', () {
     test('settles onto the floor and stays there', () {
       final world = _room();

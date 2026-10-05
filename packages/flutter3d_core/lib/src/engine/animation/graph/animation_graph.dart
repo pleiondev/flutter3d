@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -82,6 +84,7 @@ final class AnimationGraph {
     this.pose,
   ) : _from = pose.restCopy(),
       _scratch = pose.restCopy(),
+      _rest = pose.restCopy(),
       _marks = <List<(double, String)>>[
         for (final (i, state) in machine.states.indexed)
           <(double, String)>[
@@ -115,6 +118,30 @@ final class AnimationGraph {
   final List<({String state, String name})> _passed =
       <({String state, String name})>[];
 
+  /// The node whose travel along the floor is taken out of the pose and
+  /// handed over as [rootDelta] — root motion — or null for none.
+  ///
+  /// **Along the floor, x and z of the pose's space.** The root keeps its
+  /// height from the clip — a hop is the clip's to draw — and its x and z
+  /// are held at rest, so the model stays over the body that carries it and
+  /// the body is moved by [rootDelta] instead: by a controller that sweeps,
+  /// so a walk cycle stops at a wall rather than walking through it.
+  int? rootNode;
+
+  /// How far [rootNode] travelled along the floor in the last [evaluate], in
+  /// the pose's space: the clip's own travel between the playhead before
+  /// and after, across the loop's turn, mixed as the states were mixed —
+  /// by a blend's weights, and through a crossfade by the fade's.
+  final Vector3 rootDelta = Vector3.zero();
+
+  /// [rootDelta] in the world, for a model whose pose space [poseToWorld]
+  /// carries there — the model root's world matrix — turned and scaled by
+  /// it and laid flat: what a character controller is handed to move by.
+  Vector3 rootDeltaIn(Matrix4 poseToWorld) {
+    final out = poseToWorld.rotate3(rootDelta.clone());
+    return out..y = 0.0;
+  }
+
   /// Where joints are made to reach or look after the states and layers
   /// have posed them, in order: see [AnimationGoal]. Added by the game.
   final List<AnimationGoal> goals = <AnimationGoal>[];
@@ -134,6 +161,9 @@ final class AnimationGraph {
 
   /// Where a blend's second clip is sampled before it is mixed in.
   final Pose _scratch;
+
+  /// The pose at rest, never written: where a root's x and z are held.
+  final Pose _rest;
 
   /// Each state's markers, as shares of its cycle, earliest first: its own
   /// and, for a state that plays one clip, the clip's.
@@ -176,16 +206,37 @@ final class AnimationGraph {
   Pose evaluate(double dt) {
     final step = dt.isFinite && dt > 0.0 ? dt : 0.0;
     _passed.clear();
+    final root = rootNode;
+    final travelled = root == null ? null : _travel(root, _current, _head);
+    final fadedFrom = root == null || _previous < 0
+        ? null
+        : _travel(root, _previous, _previousHead);
     final before = _cycles(_current, _head);
     _head = _advance(_current, _head, step);
     _pass(_current, before, _cycles(_current, _head));
     if (_previous >= 0) {
       _previousHead = _advance(_previous, _previousHead, step);
       _fadeElapsed += step;
-      if (_fadeElapsed >= _fadeDuration) _previous = -1;
     }
+    rootDelta.setZero();
+    if (root != null) {
+      rootDelta.setFrom(_travel(root, _current, _head)..sub(travelled!));
+      if (_previous >= 0) {
+        final w = (_fadeElapsed / _fadeDuration).clamp(0.0, 1.0);
+        final faded = _travel(root, _previous, _previousHead)..sub(fadedFrom!);
+        rootDelta
+          ..scale(w)
+          ..addScaled(faded, 1.0 - w);
+      }
+      rootDelta.y = 0.0;
+    }
+    if (_previous >= 0 && _fadeElapsed >= _fadeDuration) _previous = -1;
     if (_previous < 0) _takeTransition();
     _sample();
+    if (root != null) {
+      pose.translations[root * 3] = _rest.translations[root * 3];
+      pose.translations[root * 3 + 2] = _rest.translations[root * 3 + 2];
+    }
     for (final layer in layers) {
       layer._step(step);
       final over = layer.graph.evaluate(step);
@@ -306,6 +357,64 @@ final class AnimationGraph {
       weight: (value - at[i]) / (at[i + 1] - at[i]),
     );
   }
+
+  /// How far [root] has come since [state] was entered, by its clips'
+  /// translation tracks unwound across the loop's turns: where the clip has
+  /// it now, plus a whole cycle's travel for each turn already gone round.
+  Vector3 _travel(int root, int state, _Playhead head) {
+    final plays = _clips[state];
+    if (!plays.blend) {
+      final clip = plays.clips.first;
+      final length = clip.duration;
+      // The turns the playhead has wrapped, read off the playhead itself:
+      // elapsed is the time and the whole cycles before it. Floored from
+      // elapsed alone, a sum of steps a hair short of the turn counted one
+      // fewer than the playhead had wrapped, and the root leapt a stride back.
+      final turns =
+          length <= 0.0 || machine.states[state].wrap != AnimationWrap.loop
+          ? 0
+          : ((head.elapsed - head.time) / length).round();
+      return _unwound(clip, root, head.time, turns);
+    }
+    final (:lower, :upper, :weight) = _mix(plays);
+    final turns = machine.states[state].wrap == AnimationWrap.loop
+        ? (head.elapsed - head.time).round()
+        : 0;
+    final a = plays.clips[lower], b = plays.clips[upper];
+    final out = _unwound(a, root, head.time * a.duration, turns)
+      ..scale(1.0 - weight);
+    if (weight > 0.0) {
+      out.addScaled(_unwound(b, root, head.time * b.duration, turns), weight);
+    }
+    return out;
+  }
+
+  /// [clip]'s [root] translation at [time], after [turns] whole cycles.
+  Vector3 _unwound(AnimationClip clip, int root, double time, int turns) {
+    final track = _rootTrack(clip, root);
+    if (track == null) return Vector3.zero();
+    track.sample(time, _sampled);
+    final at = Vector3(_sampled[0], _sampled[1], _sampled[2]);
+    if (turns == 0) return at;
+    track.sample(track.endTime, _sampled);
+    final end = Vector3(_sampled[0], _sampled[1], _sampled[2]);
+    track.sample(track.startTime, _sampled);
+    final start = Vector3(_sampled[0], _sampled[1], _sampled[2]);
+    return at..addScaled(end - start, turns.toDouble());
+  }
+
+  AnimationTrack? _rootTrack(AnimationClip clip, int root) {
+    for (final track in clip.tracks) {
+      if (track.nodeIndex == root &&
+          track.path == AnimationPath.translation &&
+          track.pointer == null) {
+        return track;
+      }
+    }
+    return null;
+  }
+
+  final Float32List _sampled = Float32List(3);
 
   /// How many cycles of [state] [head] has gone through since it was
   /// entered; null for a clip with no length, which has no cycle to mark.

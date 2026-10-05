@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Root motion from the animation graph.** With `rootNode` set, the
+  graph takes that node's travel along the floor out of the pose and
+  hands it over as `rootDelta`. The node's x and z are held at rest and
+  its height stays the clip's. The travel is the clip's own, unwound
+  across the loop's turns, through a blend by its weights and through a
+  crossfade by the fade's. `rootDeltaIn` carries it into the world by the
+  model's matrix, turned, scaled and laid flat. The turns are read off the
+  playhead, elapsed time minus where it stands. Floored from elapsed time
+  alone, a sum of sixtieths a hair under a turn counted one turn fewer
+  than the playhead had wrapped, and the body leapt a stride back.
+
 - **Goals in the animation graph: IK after the pose.**
   `AnimationGraph.goals` is laid on the posed frame, in the pose's own
   space. `ReachGoal` bends a two-bone chain to a target through

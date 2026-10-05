@@ -88,6 +88,165 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('root motion', () {
+    /// A one-node clip whose root walks [metres] along z over [length]
+    /// seconds, at a height of 0.2.
+    AnimationClip walking(String name, double metres, double length) =>
+        AnimationClip(
+          name: name,
+          tracks: <AnimationTrack>[
+            AnimationTrack(
+              nodeIndex: 0,
+              path: AnimationPath.translation,
+              interpolation: AnimationInterpolation.linear,
+              times: Float32List.fromList(<double>[0.0, length]),
+              values: Float32List.fromList(<double>[0, 0.2, 0, 0, 0.2, metres]),
+              componentCount: 3,
+            ),
+          ],
+        );
+
+    AnimationGraph moving(
+      List<AnimationState> states,
+      List<AnimationClip> clips, {
+      List<AnimationTransition> transitions = const <AnimationTransition>[],
+    }) => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[
+          AnimationParameter.float('speed'),
+          AnimationParameter.trigger('stop'),
+        ]),
+        entry: states.first.name,
+        states: states,
+        transitions: transitions,
+      ),
+      clips: clips,
+      pose: _onePose(),
+    )..rootNode = 0;
+
+    double travelled(AnimationGraph graph, int steps) {
+      var z = 0.0;
+      for (var i = 0; i < steps; i++) {
+        graph.evaluate(_dt);
+        z += graph.rootDelta.z;
+        expect(graph.rootDelta.x, 0.0);
+        expect(graph.rootDelta.y, 0.0);
+      }
+      return z;
+    }
+
+    test('hands over the walk and holds the root over the body', () {
+      final graph = moving(
+        const <AnimationState>[AnimationState(name: 'walk', clip: 'walk')],
+        <AnimationClip>[walking('walk', 1.5, 1.0)],
+      );
+      expect(travelled(graph, 64), closeTo(1.5, 1e-5));
+      // Round the loop's turn and on: three metres in two seconds.
+      expect(travelled(graph, 64), closeTo(1.5, 1e-5));
+      // Halfway round, where the clip has the root three quarters out.
+      travelled(graph, 32);
+      expect(graph.pose.translations[2], 0.0, reason: 'z held at rest');
+      expect(
+        graph.pose.translations[1],
+        closeTo(0.2, 1e-6),
+        reason: "its height is the clip's",
+      );
+    });
+
+    test('on sixtieths, which do not sum to a turn exactly, it never steps '
+        'back', () {
+      // Floored from elapsed time alone, the turns came out one short on a
+      // step whose sum fell a hair under the loop's length while the
+      // playhead had already wrapped: the root leapt a stride back.
+      final graph = moving(
+        const <AnimationState>[AnimationState(name: 'walk', clip: 'walk')],
+        <AnimationClip>[walking('walk', 1.5, 1.0)],
+      );
+      var z = 0.0;
+      for (var i = 0; i < 600; i++) {
+        graph.evaluate(1.0 / 60.0);
+        expect(graph.rootDelta.z, greaterThan(0.0), reason: 'step $i');
+        z += graph.rootDelta.z;
+      }
+      expect(z, closeTo(15.0, 1e-3));
+    });
+
+    test('a clip played once moves its length and no more', () {
+      final graph = moving(
+        const <AnimationState>[
+          AnimationState(
+            name: 'lunge',
+            clip: 'lunge',
+            wrap: AnimationWrap.once,
+          ),
+        ],
+        <AnimationClip>[walking('lunge', 0.8, 0.5)],
+      );
+      expect(travelled(graph, 200), closeTo(0.8, 1e-5));
+    });
+
+    test('a blend travels its mix, a cycle of the mixed length', () {
+      final graph = moving(
+        <AnimationState>[
+          AnimationState(
+            name: 'move',
+            blend: AnimationBlendSpace('speed', const <BlendPoint>[
+              BlendPoint(0.0, 'walk'),
+              BlendPoint(1.0, 'run'),
+            ]),
+          ),
+        ],
+        <AnimationClip>[walking('walk', 1.5, 1.0), walking('run', 3.0, 0.5)],
+      );
+      graph.parameters.setFloat('speed', 0.5);
+      // Half and half: 2.25 m a cycle of three quarters of a second.
+      expect(travelled(graph, 48), closeTo(2.25, 1e-5));
+    });
+
+    test('through a crossfade to a stand the travel fades out', () {
+      final graph = moving(
+        const <AnimationState>[
+          AnimationState(name: 'walk', clip: 'walk'),
+          AnimationState(name: 'stand', clip: 'stand'),
+        ],
+        <AnimationClip>[walking('walk', 1.0, 1.0), _clip('stand', 0.0)],
+        transitions: <AnimationTransition>[
+          AnimationTransition(
+            from: 'walk',
+            to: 'stand',
+            conditions: const <AnimationCondition>[TriggerCondition('stop')],
+            duration: 0.5,
+          ),
+        ],
+      );
+      travelled(graph, 16);
+      graph.parameters.fire('stop');
+      graph.evaluate(_dt);
+      final steps = <double>[];
+      for (var i = 0; i < 40; i++) {
+        graph.evaluate(_dt);
+        steps.add(graph.rootDelta.z);
+      }
+      for (var i = 1; i < steps.length; i++) {
+        expect(steps[i], lessThanOrEqualTo(steps[i - 1] + 1e-9));
+      }
+      expect(steps.first, greaterThan(0.0));
+      expect(steps.last, 0.0, reason: 'standing once the fade is done');
+    });
+
+    test('with no root node the root walks in the pose as drawn', () {
+      final graph = moving(
+        const <AnimationState>[AnimationState(name: 'walk', clip: 'walk')],
+        <AnimationClip>[walking('walk', 1.5, 1.0)],
+      )..rootNode = null;
+      for (var i = 0; i < 32; i++) {
+        graph.evaluate(_dt);
+      }
+      expect(graph.rootDelta.length, 0.0);
+      expect(graph.pose.translations[2], closeTo(0.75, 1e-5));
+    });
+  });
+
   group('goals', () {
     /// A chain straight up from the origin, a node every metre: [count]
     /// nodes, each the last one's child.

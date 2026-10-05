@@ -372,7 +372,18 @@ final class CharacterController {
   /// [wishDirection] is where the player wants to go, in world space and
   /// horizontal; it need not be normalised, and its length scales the requested
   /// speed so an analogue stick works. [sprint] picks which top speed applies.
-  void step(double dt, {required Vector3 wishDirection, bool sprint = false}) {
+  ///
+  /// [drivenBy], when given, is how far along the floor this step goes
+  /// instead — root motion, an animation's own stride handed over by its
+  /// graph — and [wishDirection] is not accelerated towards: the body moves
+  /// at that displacement's speed, swept as any move is, so a walk cycle
+  /// stops at a wall and climbs a step, and falls and jumps as it would.
+  void step(
+    double dt, {
+    required Vector3 wishDirection,
+    bool sprint = false,
+    Vector3? drivenBy,
+  }) {
     _contacts = 0;
     _steppedUp = 0.0;
     _climbed = false;
@@ -381,7 +392,13 @@ final class CharacterController {
 
     _carryWithGround(dt);
     _resolveOverlap();
-    _accelerate(dt, wishDirection, sprint);
+    if (drivenBy != null && dt > 0.0) {
+      velocity
+        ..x = drivenBy.x / dt
+        ..z = drivenBy.z / dt;
+    } else {
+      _accelerate(dt, wishDirection, sprint);
+    }
     _applyGravity(dt);
     _tryJump();
     _moveHorizontally(dt);

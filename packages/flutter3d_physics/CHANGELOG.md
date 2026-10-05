@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A character can be walked by its animation.**
+  `CharacterController.step(drivenBy:)` takes a displacement along the
+  floor in place of a wish to accelerate towards, such as root motion
+  handed over by an animation graph. The body moves at that speed, swept
+  as any move is: it stops at a wall, climbs a step, falls off an edge and
+  jumps as before. Without it, nothing changes.
+
 - **Bodies are stepped through `RigidDynamics`.** `WorldStep`, the games,
   the crates and the Flame bridge hold the interface, and `Dynamics`
   implements it unchanged. `flutter3d_physics_native`'s `NativeDynamics`
