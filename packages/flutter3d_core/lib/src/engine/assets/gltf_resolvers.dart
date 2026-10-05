@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter3d_core/formats.dart';
+
+import '../platform/files.dart';
 
 /// Resolves asset URIs relative to a directory on disk.
 ///
@@ -19,14 +19,10 @@ AssetUriResolver fileUriResolver(String baseDirectory) {
       );
     }
 
-    final file = File('$baseDirectory/$relative');
-    // Synchronous, because an async `exists` is a round trip through the
-    // event loop to answer a question the filesystem answers immediately —
-    // and this one is asked once per referenced buffer and image.
-    if (!file.existsSync()) {
-      throw FileSystemException('glTF resource not found', file.path);
-    }
-    return file.readAsBytes();
+    return readReferencedFile(
+      '$baseDirectory/$relative',
+      'glTF resource not found',
+    );
   };
 }
 

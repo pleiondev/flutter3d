@@ -4,8 +4,6 @@
 /// every build after the first `init` actually ships.
 library;
 
-import 'dart:io' show FileSystemException;
-
 import 'package:flutter/foundation.dart'
     show FlutterError, debugPrint, kDebugMode, kIsWeb;
 import 'package:flutter3d_core/flutter3d_core.dart';
@@ -112,8 +110,9 @@ Future<ModelDocument> loadModelAsset(
       );
     } on FlutterError {
       // No file for this class: the single one below.
-    } on FileSystemException {
-      // The same, read from disk.
+    } catch (error) {
+      // The same, read from disk; anything else is not a missing file.
+      if (!isMissingFile(error)) rethrow;
     }
   }
   try {
@@ -122,7 +121,8 @@ Future<ModelDocument> loadModelAsset(
     );
   } on FlutterError {
     return _fallback(sourcePath, generatedPath, debugMode, fallbackSource);
-  } on FileSystemException {
+  } catch (error) {
+    if (!isMissingFile(error)) rethrow;
     return _fallback(sourcePath, generatedPath, debugMode, fallbackSource);
   }
 }

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **Listed for the web.** The engine ran in the browser through
+  `flutter3d_webgl`, but pub.dev listed it without the web, because pub.dev
+  decides by imports and `loadModelAsset` imported `dart:io` to name
+  `FileSystemException`. It now asks `flutter3d_core`'s `isMissingFile`
+  instead, which is the same test natively and false in the browser. The
+  pubspec declares all six platforms.
+
 - **`generatedMaterialPathFor`**: where the build hook writes a `.f3dmat`'s
   compiled bundle, `flutter3d_generated/<same path>.f3dshaders`.
 

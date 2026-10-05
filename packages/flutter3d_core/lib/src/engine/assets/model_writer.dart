@@ -1,8 +1,9 @@
 import 'dart:developer' as developer;
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+
+import '../platform/background.dart';
 
 /// Whether this build has no isolates in it — see `model_loader.dart`'s own
 /// copy of this constant for why it replaces `kIsWeb` here (mcp-03n).
@@ -95,7 +96,7 @@ Future<Uint8List> encodeModelInIsolate(ModelWriteRequest request) async {
       arguments: <String, Object?>{'format': request.format.name},
     );
   try {
-    return await Isolate.run(() => encodeModel(request));
+    return await runInBackground(() => encodeModel(request));
   } finally {
     task.finish();
   }

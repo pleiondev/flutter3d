@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:typed_data';
 
 // `Ktx2Texture` hidden: this package's own thin wrapper of the same name,
@@ -7,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import '../platform/background.dart';
 import 'image_decoder.dart';
 import 'ktx2/ktx2.dart';
 
@@ -197,7 +197,7 @@ Future<TextureHandle?> _uploadKtx2(
 
     texture = _isWeb || !isBasisUniversalKtx2(encoded)
         ? Ktx2Texture.parse(encoded, universalTarget: universalTarget)
-        : await Isolate.run(
+        : await runInBackground(
             () => Ktx2Texture.parse(encoded, universalTarget: universalTarget),
           );
   } on Ktx2FormatException catch (error) {

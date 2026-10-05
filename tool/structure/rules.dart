@@ -93,6 +93,10 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'a step asks no machine for an answer', run: _portableStepArithmetic),
   (name: 'every skill is named for its package', run: _skillNames),
+  (
+    name: 'a package that says it runs on the web reaches no dart:io there',
+    run: _webPackagesReachNoIo,
+  ),
 ];
 
 // ------------------------------------------------------------------- genre
@@ -913,6 +917,11 @@ List<Finding> _ruleCount() {
     'thirty-three',
     'thirty-four',
     'thirty-five',
+    'thirty-six',
+    'thirty-seven',
+    'thirty-eight',
+    'thirty-nine',
+    'forty',
   ];
   final actual = allRules.length;
   final found = <Finding>[];
@@ -3160,4 +3169,101 @@ List<Finding> _surfaceDepthStays() {
     }
   }
   return found;
+}
+
+// --------------------------------------------------------------------- web
+
+/// The libraries pub.dev counts against the web: an import of one, from
+/// anything a package's libraries reach in the browser's build, and pub.dev
+/// lists the package without the web — stub or not, run there or not.
+const Set<String> _notOnTheWeb = <String>{
+  'dart:io',
+  'dart:isolate',
+  'dart:ffi',
+  'dart:mirrors',
+  'dart:cli',
+};
+
+/// A package whose pubspec lists `web:` under `platforms:` reaches none of
+/// [_notOnTheWeb] through the imports and exports the browser's build
+/// follows: into this repository's packages, and down the web branch of a
+/// conditional one. `flutter3d` was listed without the web while it ran
+/// there, for one `dart:io` it imported to name an exception.
+List<Finding> _webPackagesReachNoIo() {
+  final found = <Finding>[];
+  for (final entry in packages.entries) {
+    final pubspec = File('${entry.value.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) continue;
+    if (!RegExp(
+      r'^platforms:\n(?:  \w+:\n)*  web:',
+      multiLine: true,
+    ).hasMatch(pubspec.readAsStringSync())) {
+      continue;
+    }
+    final seen = <String>{};
+    // From its public libraries, as pub.dev reads it: what `lib/src` holds
+    // counts only where one of them reaches it.
+    final queue = <File>[
+      ...Directory(
+        '${entry.value.path}/lib',
+      ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart')),
+    ];
+    while (queue.isNotEmpty) {
+      final file = queue.removeLast();
+      if (!seen.add(file.absolute.path) || !file.existsSync()) continue;
+      for (final uri in _webDirectives(file.readAsStringSync())) {
+        if (_notOnTheWeb.contains(uri)) {
+          found.add(
+            Finding(
+              file.path.substring(file.path.indexOf('packages/')),
+              'reaches $uri in the browser, though ${entry.key} says it runs '
+              'there: choose it by `if (dart.library.js_interop)`',
+            ),
+          );
+          continue;
+        }
+        final next = _resolveInRepository(uri, file);
+        if (next != null) queue.add(next);
+      }
+    }
+  }
+  return found;
+}
+
+/// Every import and export in [source], each as the browser's build takes
+/// it: a conditional one by its web branch when it names one, by its
+/// default when it asks for `dart.library.io` the browser has not.
+Iterable<String> _webDirectives(String source) sync* {
+  final directive = RegExp(
+    r"^(?:import|export)\s+'([^']+)'((?:\s+if\s*\([^)]*\)\s*'[^']+')*)",
+    multiLine: true,
+  );
+  final branch = RegExp(r"if\s*\(([^)]*)\)\s*'([^']+)'");
+  for (final match in directive.allMatches(source)) {
+    var chosen = match.group(1)!;
+    for (final condition in branch.allMatches(match.group(2) ?? '')) {
+      final asks = condition.group(1)!.trim();
+      if (asks.contains('js_interop') ||
+          asks.contains('dart.library.html') ||
+          asks.contains('dart.library.js')) {
+        chosen = condition.group(2)!;
+        break;
+      }
+    }
+    yield chosen;
+  }
+}
+
+/// [uri], imported from [from], as a file in this repository; null for the
+/// SDK's libraries and packages from elsewhere.
+File? _resolveInRepository(String uri, File from) {
+  if (uri.startsWith('dart:')) return null;
+  if (uri.startsWith('package:')) {
+    final rest = uri.substring('package:'.length);
+    final slash = rest.indexOf('/');
+    final home = packages[rest.substring(0, slash)];
+    if (home == null) return null;
+    return File('${home.path}/lib/${rest.substring(slash + 1)}');
+  }
+  return File.fromUri(from.absolute.uri.resolve(uri));
 }

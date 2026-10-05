@@ -15,6 +15,18 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector, which reads imports: the
+# engine draws through flutter3d_impeller on every native platform and
+# through flutter3d_webgl in the browser, and its asset layer picks isolates
+# and files or their absence at compile time (`platform/` in flutter3d_core).
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   flutter:
     sdk: flutter

@@ -79,6 +79,7 @@ export 'src/engine/assets/texture_upload.dart';
 // graph is.
 export 'src/engine/geometry/device_mesh.dart';
 // Rendering.
+export 'src/engine/platform/files.dart' show isMissingFile;
 export 'src/engine/render/adaptive_quality.dart';
 export 'src/engine/render/adaptive_scale.dart';
 export 'src/engine/render/cluster_draws.dart';

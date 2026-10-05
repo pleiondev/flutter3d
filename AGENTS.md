@@ -23,7 +23,7 @@ row a change belongs to.
 
 ```sh
 dart analyze                      # in the packages you touched
-dart run tool/structure.dart      # 35 rules about how the tree is arranged
+dart run tool/structure.dart      # 36 rules about how the tree is arranged
 dart run tool/verify_plan.dart    # every finished row names something real
 ```
 

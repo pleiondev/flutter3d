@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **Nothing in the browser's build imports `dart:io` or `dart:isolate`.**
+  Decoding and encoding models and transcoding KTX2 off the main isolate go
+  through `src/engine/platform/background.dart`: `Isolate.run` natively,
+  in place in the browser. The model decoder's sibling-file ports are in
+  `model_isolate.dart`. `FileAssetSource` and `fileUriResolver` read
+  through `platform/files.dart`, which is `dart:io` natively and refuses
+  with a reason in the browser. Each is chosen by `if
+  (dart.library.js_interop)` at compile time, as pub.dev reads it. Native
+  behaviour is unchanged: the same `FileSystemException`, the same
+  isolates. `isMissingFile` tells a missing file on either. The pubspec
+  declares all six platforms, and a structure rule now holds every package
+  that says it runs on the web to imports the browser can have.
+
 - **Instance attributes.** `InstancedMeshNode.setInstanceData` (and `data`
   on `addInstance` and `acquire`, `InstanceHandle.setData`) gives each copy
   of a batch four numbers of the game's own, after its colour in a record
