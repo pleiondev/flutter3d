@@ -186,6 +186,9 @@ final class DungeonRun extends RunSession<LevelReady> {
       rules: sampleRules(),
     );
 
+    // The player, once the level is staged below: the corpses ask it where
+    // the killing shot came from.
+    Player? shooter;
     final scene = (
       actors: ActorVisuals(
         loaded.scene,
@@ -194,8 +197,12 @@ final class DungeonRun extends RunSession<LevelReady> {
         // On their own layer as well as the world's, which is what lets the
         // sensor draw their silhouettes and nothing else's.
         layerMask: DungeonLayers.world | DungeonLayers.actors,
-        // The dead fall as ragdolls rather than playing a death clip.
-        corpses: RagdollCorpses(loaded.collision),
+        // The dead fall as ragdolls rather than playing a death clip,
+        // pushed away from the player, whose shots killed them.
+        corpses: RagdollCorpses(
+          loaded.collision,
+          shotFrom: () => shooter?.body.position,
+        ),
       ),
       fixtures:
           FixtureVisuals(
@@ -228,6 +235,7 @@ final class DungeonRun extends RunSession<LevelReady> {
       eyeOffset: eyeOffset,
       lookSensitivity: lookSensitivity,
     );
+    shooter = staged.player;
 
     // `wg-02`: every `widget_surface` entity, resolved against
     // `widgetRegistry` — not fed through `SpawnContext` like a fixture or an

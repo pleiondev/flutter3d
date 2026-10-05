@@ -18,11 +18,23 @@ import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show SkeletonRagdoll;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// The model the dungeon draws [actor] with, which says its kind.
 String? _modelOf(Actor actor) => const DungeonMonsters().modelFor(actor);
+
+/// Where joint [name] of [ragdoll]'s skeleton is.
+Vector3 _joint(SkeletonRagdoll ragdoll, String name) => ragdoll.skeleton.joints
+    .firstWhere((j) => j.name == name)
+    .worldMatrix
+    .getTranslation();
+
+/// How far apart [a] and [b] are along the floor.
+double _flat(Vector3 a, Vector3 b) => Vector3(a.x - b.x, 0.0, a.z - b.z).length;
 
 /// Saves kept in a map: nothing here saves.
 final class _Storage implements Storage {
@@ -85,8 +97,12 @@ void main() {
     }
     level.staged.actors.syncCorpses();
     visuals.animate(1.0 / 60.0);
-    // Where each runner's feet stood when it died: the floor under it.
+    // Where each runner's feet stood when it died: the floor under it; and
+    // how far its pelvis was from the player, whose shot pushes it away.
     final floors = <Actor, double>{};
+    final player = level.staged.player.body.position.clone();
+    final reach = <Actor, double>{};
+    final standing = <Actor, double>{};
     for (final actor in monsters) {
       final ragdoll = corpses.ragdollOf(actor);
       if (!runners.contains(actor)) {
@@ -94,7 +110,9 @@ void main() {
         continue;
       }
       expect(ragdoll, isNotNull, reason: 'a runner falls as a body');
-      floors[actor] = ragdoll!.skeleton.joints
+      reach[actor] = _flat(_joint(ragdoll!, 'Body'), player);
+      standing[actor] = _joint(ragdoll, 'Head').y;
+      floors[actor] = ragdoll.skeleton.joints
           .firstWhere((j) => j.name == 'Foot.L')
           .worldMatrix
           .getTranslation()
@@ -112,13 +130,25 @@ void main() {
       frames++;
     }
     expect(settled(), isTrue, reason: 'still after $frames frames');
+    // Thrown back by the shot, on the whole: a wall behind one stops it.
+    final moved =
+        runners
+            .map(
+              (a) =>
+                  _flat(_joint(corpses.ragdollOf(a)!, 'Body'), player) -
+                  reach[a]!,
+            )
+            .reduce((x, y) => x + y) /
+        runners.length;
+    expect(moved, greaterThan(0.2), reason: 'pushed away from the player');
     for (final actor in runners) {
       final ragdoll = corpses.ragdollOf(actor)!;
       final head = ragdoll.skeleton.joints.firstWhere((j) => j.name == 'Head');
-      // Lying: its head within half a metre of the floor it stood on.
+      // Down: its head below six tenths of the height it stood at — lying,
+      // or slumped against the wall the shot threw it into.
       expect(
         head.worldMatrix.getTranslation().y - floors[actor]!,
-        lessThan(0.5),
+        lessThan(0.6 * (standing[actor]! - floors[actor]!)),
       );
       // Its bodies on the floor and not in it.
       for (final j in ragdoll.skeleton.joints) {

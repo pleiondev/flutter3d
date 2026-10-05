@@ -18,13 +18,22 @@ import 'package:vector_math/vector_math.dart';
 /// of its own, and is not in a save or a replay: a corpse is a pose, as a
 /// particle is a point.
 final class RagdollCorpses implements ActorCorpses {
-  RagdollCorpses(CollisionWorld world)
+  /// [shotFrom] says where the shots come from — the player — and a corpse
+  /// is pushed away from there as it falls; null pushes nobody.
+  RagdollCorpses(CollisionWorld world, {this.shotFrom})
     : _dynamics = NativeDynamics(
         world: world,
         gravity: Vector3(0.0, -9.81, 0.0),
       )..native.substeps = 8;
 
   final NativeDynamics _dynamics;
+
+  /// Where the shot that killed a monster came from, asked when it dies.
+  final Vector3? Function()? shotFrom;
+
+  /// How hard the killing shot pushes the chest, N s: a 60 kg runner
+  /// thrown back at two metres a second, as a body and not a statue.
+  static const double shotPush = 120.0;
   final Map<Actor, SkeletonRagdoll> _ragdolls = <Actor, SkeletonRagdoll>{};
   double _owed = 0.0;
 
@@ -66,7 +75,24 @@ final class RagdollCorpses implements ActorCorpses {
       // A rig the profile does not know: it plays its death clip instead.
       return false;
     }
+    _push(_ragdolls[actor]!);
     return true;
+  }
+
+  /// The killing shot into [ragdoll]'s chest: away from where it came from,
+  /// level, and a little up, so the body leaves the floor it stood on.
+  void _push(SkeletonRagdoll ragdoll) {
+    final from = shotFrom?.call();
+    final chest = ragdoll.bodyNamed('Torso');
+    if (from == null || chest == null) return;
+    final at = ragdoll.ragdoll.poseOf(chest).position;
+    final away = Vector3(at.x - from.x, 0.0, at.z - from.z);
+    if (away.length2 < 1e-6) return;
+    away
+      ..normalize()
+      ..y = 0.25
+      ..scale(shotPush);
+    _dynamics.native.applyImpulse(ragdoll.ragdoll.bodyOf(chest), away, at: at);
   }
 
   @override
