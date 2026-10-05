@@ -213,13 +213,20 @@ void main() {
       final a = jsonDecode(live[i]), b = jsonDecode(again[i]);
       void diff(Object? x, Object? y, String path) {
         if (x is Map && y is Map) {
-          for (final k in {...x.keys, ...y.keys}) diff(x[k], y[k], '$path/$k');
+          for (final k in {...x.keys, ...y.keys}) {
+            diff(x[k], y[k], '$path/$k');
+          }
         } else if (x is List && y is List && x.length == y.length) {
-          for (var j = 0; j < x.length; j++) diff(x[j], y[j], '$path[$j]');
+          for (var j = 0; j < x.length; j++) {
+            diff(x[j], y[j], '$path[$j]');
+          }
         } else if (jsonEncode(x) != jsonEncode(y)) {
-          printOnFailure('step $i $path: live ${jsonEncode(x)} again ${jsonEncode(y)}');
+          printOnFailure(
+            'step $i $path: live ${jsonEncode(x)} again ${jsonEncode(y)}',
+          );
         }
       }
+
       diff(a, b, '');
       break;
     }
