@@ -3,6 +3,7 @@ import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart' show Deadzone;
 
+import '../config/color_roles.dart';
 import '../config/color_vision_setting.dart';
 import '../config/game_config.dart';
 import '../input/bindings.dart';
@@ -32,6 +33,7 @@ class SettingsPanel extends StatelessWidget {
     this.credits,
     this.writeFailed = false,
     this.buses = settableBuses,
+    this.colours,
   });
 
   /// Whether the last attempt to save these settings was refused.
@@ -78,6 +80,10 @@ class SettingsPanel extends StatelessWidget {
   /// screen's only job is to be somewhere a player reliably reaches. A game with
   /// nothing to declare passes nothing.
   final Widget? credits;
+
+  /// The colours this game gives meanings to, each a row the player can
+  /// change; null, or none, leaves the section out.
+  final ColorRoles? colours;
 
   /// Which volumes this game has to offer.
   ///
@@ -183,6 +189,22 @@ class SettingsPanel extends StatelessWidget {
                   onChanged: (bool hold) =>
                       onSetting('a11y.toggleSprint', hold ? 0.0 : 1.0),
                 ),
+                if (colours case final ColorRoles roles
+                    when roles.roles.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  const SettingsHeading('Colours'),
+                  const SizedBox(height: 8),
+                  // What each colour means, and the colour it is: a player
+                  // who cannot tell two marks apart moves one of them.
+                  for (final role in roles.roles)
+                    SettingsColourRow(
+                      label: role.label,
+                      choices: ColorRoles.choices(role),
+                      chosen: config.settingOf(role.setting, 0.0).round(),
+                      onChanged: (int chosen) =>
+                          onSetting(role.setting, chosen.toDouble()),
+                    ),
+                ],
                 const SizedBox(height: 12),
                 const SettingsHeading('Mouse'),
                 const SizedBox(height: 8),

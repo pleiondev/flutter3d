@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show ColorRole, ColorRoles;
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -25,6 +26,17 @@ const Map<String, Color> keyPipColours = <String, Color>{
   'brass': Color(0xFFC9A040),
   'iron': Color(0xFF7F8C99),
 };
+
+/// The colours this game gives meanings to: one per key, each a row in the
+/// settings a player can change. See `ColorRoles`.
+final ColorRoles dungeonColours = ColorRoles(<ColorRole>[
+  for (final MapEntry(key: name, value: colour) in keyPipColours.entries)
+    ColorRole(
+      'key.$name',
+      '${name[0].toUpperCase()}${name.substring(1)} key',
+      colour,
+    ),
+]);
 
 class Hud extends StatelessWidget {
   const Hud({
@@ -51,6 +63,7 @@ class Hud extends StatelessWidget {
     required this.armour,
     required this.pouches,
     required this.powers,
+    this.keyColours = keyPipColours,
   });
 
   final bool captured;
@@ -105,6 +118,10 @@ class Hud extends StatelessWidget {
 
   /// Seconds left on whatever is running.
   final Map<String, double> powers;
+
+  /// The colour each carried key is marked in — the player's choice from
+  /// [dungeonColours], or [keyPipColours] as the game has them.
+  final Map<String, Color> keyColours;
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +369,7 @@ class Hud extends StatelessWidget {
                           height: 22.0,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              color: keyPipColours[key] ?? Colors.white70,
+                              color: keyColours[key] ?? Colors.white70,
                               borderRadius: BorderRadius.circular(3.0),
                             ),
                             child: Center(

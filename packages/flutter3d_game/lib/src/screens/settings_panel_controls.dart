@@ -266,3 +266,69 @@ class SettingsChoiceRow extends StatelessWidget {
     );
   }
 }
+
+/// One of a few colours — a row of swatches, the chosen one ringed.
+class SettingsColourRow extends StatelessWidget {
+  const SettingsColourRow({
+    super.key,
+    required this.label,
+    required this.choices,
+    required this.chosen,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<Color> choices;
+  final int chosen;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+            ),
+          ),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: <Widget>[
+                for (var i = 0; i < choices.length; i++)
+                  Semantics(
+                    label: i == 0 ? '$label, as the game has it' : '$label, $i',
+                    selected: i == chosen,
+                    button: true,
+                    child: GestureDetector(
+                      key: ValueKey<String>('colour:$label:$i'),
+                      onTap: () => onChanged(i),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: choices[i],
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: i == chosen
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.25),
+                            width: i == chosen ? 2.5 : 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

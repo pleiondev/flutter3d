@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **Colours with meanings a player can move.** A `ColorRole` is what a
+  colour is for, what the panel calls it and what it is by default;
+  `ColorRoles` gives each the player's choice from `colour.<name>` — its
+  own colour or one of Okabe and Ito's eight, which stay apart for every
+  common kind of colour blindness — and lints the roles seen together in
+  the colours the player has them. `SettingsPanel(colours:)` and
+  `SettingsOverlay(colours:)` add a Colours section, a row of swatches
+  per role (`SettingsColourRow`).
+
 - **The player picks a colour vision correction.** The settings panel's
   Accessibility section has a Colour vision choice — off, protan, deutan,
   tritan — written to `a11y.colorVision`; `colorVisionOf` reads it as a
