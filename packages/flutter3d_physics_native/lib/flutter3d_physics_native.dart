@@ -14,6 +14,7 @@ export 'src/native_cloth.dart'
     hide ClothPacked, createCoreCloth, packClothBalls, writeClothSettings;
 export 'src/native_debris.dart'
     hide packDebrisBodies, packDebrisStatics, writeDebrisSettings;
+export 'src/native_dynamics.dart';
 export 'src/native_fluid.dart' hide packFluidParticles, writeFluidSettings;
 export 'src/native_particles.dart' hide packParticles, writeParticleForces;
 export 'src/native_world.dart';

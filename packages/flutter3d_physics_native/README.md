@@ -22,7 +22,18 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - cloth: sheets and ropes held by constraints of any stiffness, draped over balls and blown by the wind, on the CPU and on the GPU.
 - water as particles in a tank that slumps, splashes and settles, on the CPU and on the GPU.
 
-Multibody chains and the remaining platforms follow, each with its tests.
+## Under CollisionWorld
+
+`NativeDynamics` is a `RigidDynamics` from `flutter3d_physics`. Build it where a game built a `Dynamics`:
+
+```dart
+final dynamics = NativeDynamics(world: collisionWorld); // was Dynamics(world: collisionWorld)
+final crate = dynamics.add(RigidBody(world: collisionWorld, shape: CollisionBox(Vector3.all(0.5)), position: at));
+```
+
+The bodies stay `RigidBody` objects on the `CollisionWorld`, so sweeps, queries and the character controller see them where the core put them. The rest of the world (level boxes, wedges, height fields, characters, doors, lifts) is mirrored into the core as fixed bodies each step. The core turns bodies built with `canRotate`, and `native` reaches its joints, bullets and air. It steps in f32 to bits of its own, the same on every platform, so a run's digests differ from the reference's. For rollback, use `snapshot()` and `restore()`: unlike a body's own `save()`, they carry the warm starts and sleep.
+
+Multibody chains follow, with their tests.
 
 ## Building
 

@@ -72,6 +72,11 @@ final class CollisionWorld {
   /// which keep the grid's indices true.
   Iterable<Collider> get statics => _statics;
 
+  /// The moving colliders — bodies, characters, doors and lifts — for a
+  /// caller that mirrors the world elsewhere, as the native dynamics does.
+  /// Read-only, as [statics] is.
+  Iterable<Collider> get movers => _movers;
+
   /// How many moving colliders are in the world.
   ///
   /// [colliderCount] is what the engine's own checks watch, because the total is

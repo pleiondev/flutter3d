@@ -1,5 +1,26 @@
 ## Unreleased
 
+- **The core under `flutter3d_physics`' bodies.** `NativeDynamics` is a
+  `RigidDynamics`, so a game builds one where it built a `Dynamics`, and
+  its crates, sweeps and character controller stay as they were. The core
+  holds the bodies. Before each step, whatever a game did to a body (an
+  impulse, a push, a teleport, its own `restore`) is found by comparing it
+  with where the mirror left it, and written in. After the step, every
+  body is written back: its collider moved, its velocity, spin and
+  orientation, asleep or awake. Level geometry, characters, doors and
+  lifts stand in the core as fixed bodies, made, moved and taken out as
+  their colliders are. A box, sphere or capsule becomes the same shape, a
+  wedge becomes a hull, and a height field becomes a mesh split the way
+  the field splits its quads. A moving collider is given the velocity it
+  moved at, or a lift would leave the crate on it behind: 1.89 m instead
+  of 2 after a metre's climb. The same scenes through both backends land
+  crates where the reference does, stack and sleep them, push them, and
+  rest them on a height field. Only the core rolls a ball down a wedge,
+  because the reference meets a wedge as its box, and only the core tips
+  a crate off an edge. `snapshot()` and `restore()` carry the warm starts
+  and sleep for a rollback, and a restored world steps on to the same
+  bits.
+
 - **The same bits on every platform, and a test that says so.**
   `csrc/tests/test_digest.c` steps seven scenes and fails unless each
   hashes to the number written in it: a world of every shape, the same

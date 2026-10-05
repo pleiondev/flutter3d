@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **Bodies are stepped through `RigidDynamics`.** `WorldStep`, the games,
+  the crates and the Flame bridge hold the interface, and `Dynamics`
+  implements it unchanged. `flutter3d_physics_native`'s `NativeDynamics`
+  is the other implementation. A character's push is `Pusher`, the same
+  code `Dynamics.push` ran, now shared, so a crate is shoved the same
+  whichever steps it. `CollisionWorld.movers` lists the moving colliders,
+  as `statics` lists the still ones.
+
 - **Drops let go on top of each other spread instead of flying apart.**
   A stream lets go of its drops at one point step after step, so
   `ParticleFluid` laid each lump exactly on the last. A coincident pair
