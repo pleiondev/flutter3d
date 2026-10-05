@@ -121,6 +121,7 @@ final class AnimationState {
     this.blend,
     this.speed = 1.0,
     this.wrap = AnimationWrap.loop,
+    this.markers = const <AnimationMarker>[],
   });
 
   final String name;
@@ -135,6 +136,12 @@ final class AnimationState {
   /// The clips this state blends instead of playing one; null for a state
   /// that plays [clip].
   final AnimationBlendSpace? blend;
+
+  /// Moments of this state's cycle, each [AnimationMarker.at] a share of it
+  /// from nought up to one: where a game names its feet down when the clips
+  /// themselves do not — and the only kind a blend has, its cycle being the
+  /// mix's and not one clip's.
+  final List<AnimationMarker> markers;
 
   /// Playback rate, zero or more. Zero holds the first frame.
   final double speed;

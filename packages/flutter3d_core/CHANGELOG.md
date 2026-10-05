@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Markers in the animation graph.** An `AnimationMarker` names a moment,
+  such as a foot down or a blow landing. A state carries them as shares of
+  its cycle, a blend's cycle included. A clip reads its own from its glTF
+  `extras` as `{"markers": [{"time": 0.3, "name": "step"}]}`, in seconds.
+  `.f3d` does not keep extras, so only a model read from glTF has them
+  until `.f3d` does. `AnimationGraph.passed` lists those the last step went
+  through, each once a cycle, one at nought on entering the state, once in
+  all for a clip played once, and only from the state being entered during
+  a crossfade.
+
 - **Layers in the animation graph.** `AnimationGraph.layers` holds
   `AnimationGraphLayer`s. Each is a graph of its own, with its own states
   and parameters, evaluated on the same steps and laid on the base pose

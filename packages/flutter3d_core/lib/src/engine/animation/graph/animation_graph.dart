@@ -2,6 +2,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../animation_layer.dart';
+import '../animation_target.dart';
 import '../pose.dart';
 import 'animation_parameters.dart';
 import 'animation_state_machine.dart';
@@ -80,6 +81,15 @@ final class AnimationGraph {
     this.pose,
   ) : _from = pose.restCopy(),
       _scratch = pose.restCopy(),
+      _marks = <List<(double, String)>>[
+        for (final (i, state) in machine.states.indexed)
+          <(double, String)>[
+            for (final m in state.markers) (m.at, m.name),
+            if (!_clips[i].blend && _clips[i].clips.first.duration > 0.0)
+              for (final m in _clips[i].clips.first.markers)
+                (m.at / _clips[i].clips.first.duration, m.name),
+          ]..sort((a, b) => a.$1.compareTo(b.$1)),
+      ],
       _current = machine.indexOfState(machine.entry) {
     _sample();
   }
@@ -91,6 +101,18 @@ final class AnimationGraph {
 
   /// What [evaluate] writes into and returns.
   final Pose pose;
+
+  /// The markers the last [evaluate] passed in the state the graph is in:
+  /// each with its state's name, in the order they came. A footstep, a blow
+  /// landing — what a game turns into a sound or an event.
+  ///
+  /// **The entered state's alone.** One fading out passes its markers too,
+  /// but a step from the walk a run is replacing is the run's business now,
+  /// and two feet down at once is the sound of a seam.
+  List<({String state, String name})> get passed =>
+      List<({String state, String name})>.unmodifiable(_passed);
+  final List<({String state, String name})> _passed =
+      <({String state, String name})>[];
 
   /// Graphs laid over this one's pose, each over part of the skeleton, in
   /// order: see [AnimationGraphLayer]. Added and taken away by the game.
@@ -107,6 +129,10 @@ final class AnimationGraph {
 
   /// Where a blend's second clip is sampled before it is mixed in.
   final Pose _scratch;
+
+  /// Each state's markers, as shares of its cycle, earliest first: its own
+  /// and, for a state that plays one clip, the clip's.
+  final List<List<(double, String)>> _marks;
 
   int _current;
   _Playhead _head = _Playhead.start;
@@ -144,7 +170,10 @@ final class AnimationGraph {
   /// one whatever the clock did.
   Pose evaluate(double dt) {
     final step = dt.isFinite && dt > 0.0 ? dt : 0.0;
+    _passed.clear();
+    final before = _cycles(_current, _head);
     _head = _advance(_current, _head, step);
+    _pass(_current, before, _cycles(_current, _head));
     if (_previous >= 0) {
       _previousHead = _advance(_previous, _previousHead, step);
       _fadeElapsed += step;
@@ -266,6 +295,35 @@ final class AnimationGraph {
       upper: i + 1,
       weight: (value - at[i]) / (at[i + 1] - at[i]),
     );
+  }
+
+  /// How many cycles of [state] [head] has gone through since it was
+  /// entered; null for a clip with no length, which has no cycle to mark.
+  double? _cycles(int state, _Playhead head) {
+    final plays = _clips[state];
+    if (plays.blend) return head.elapsed;
+    final length = plays.clips.first.duration;
+    return length <= 0.0 ? null : head.elapsed / length;
+  }
+
+  /// [state]'s markers between [from] and [to] cycles: each share m of a
+  /// cycle n passed when from ≤ n + m < to, so one on a boundary is passed
+  /// once and one at nought as the state is entered. A clip played once has
+  /// one cycle to pass.
+  void _pass(int state, double? from, double? to) {
+    if (from == null || to == null || !(to > from)) return;
+    final marks = _marks[state];
+    if (marks.isEmpty) return;
+    final once = machine.states[state].wrap == AnimationWrap.once;
+    final last = once ? 0 : to.floor();
+    for (var n = from.floor(); n <= last; n++) {
+      for (final (share, name) in marks) {
+        final at = n + share;
+        if (from <= at && at < to) {
+          _passed.add((state: machine.states[state].name, name: name));
+        }
+      }
+    }
   }
 
   /// A clip with no length is a single pose, done as soon as it is entered.

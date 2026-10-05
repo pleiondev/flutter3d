@@ -87,6 +87,14 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
     MonsterState.dead,
   ];
 
+  /// A foot down at the start of a stride and another halfway: the two of a
+  /// walk or a run cycle, marked on the state since the crypt's clips name
+  /// none. Each is a footstep where the monster is.
+  static const List<AnimationMarker> footfalls = <AnimationMarker>[
+    AnimationMarker(0.0, 'step'),
+    AnimationMarker(0.5, 'step'),
+  ];
+
   /// Where a monster that can both walk and run is all walk, m/s, and where
   /// it is all run: the runner's own chasing speed. Between, the blend space
   /// mixes the two by speed, one stride at one phase.
@@ -134,9 +142,10 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
               BlendPoint(walkAt, walk),
               BlendPoint(runAt, run),
             ]),
+            markers: footfalls,
           )
         else if (stride != null)
-          AnimationState(name: 'move', clip: stride),
+          AnimationState(name: 'move', clip: stride, markers: footfalls),
         if (attack != null) AnimationState(name: 'attack', clip: attack),
         if (hurt != null)
           AnimationState(name: 'hurt', clip: hurt, wrap: AnimationWrap.once),

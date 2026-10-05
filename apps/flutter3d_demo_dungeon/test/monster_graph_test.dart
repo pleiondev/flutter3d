@@ -87,6 +87,30 @@ void main() {
     expect(move.blend!.points.map((p) => p.clip), <String>['Walk', 'Run']);
   });
 
+  test(
+    'a moving monster steps twice a stride, a standing one not at all',
+    () async {
+      final g = await _graphOf('monster_runner');
+      var steps = 0;
+      void count(MonsterState state, double speed, double seconds) {
+        g.parameters
+          ..setInteger('state', DungeonMonsters.stateCodes.indexOf(state))
+          ..setFloat('speed', speed);
+        for (var t = 0.0; t < seconds; t += 1.0 / 60.0) {
+          g.evaluate(1.0 / 60.0);
+          steps += g.passed.where((p) => p.name == 'step').length;
+        }
+      }
+
+      count(MonsterState.idle, 0.0, 2.0);
+      expect(steps, 0);
+      count(MonsterState.chase, 5.4, 3.0);
+      // The run cycle, a little under a second: some five strides in three
+      // seconds after the fade in, two footfalls each.
+      expect(steps, greaterThan(4));
+      },
+  );
+
   test('the shooter, with no run, walks', () async {
     final g = await _graphOf('monster_shooter');
     expect(_say(g, MonsterState.chase, speed: 3.0, seconds: 1.0), 'move');

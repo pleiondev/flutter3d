@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`ActorVisuals.markersPassed`**: every marker an actor's graph passed
+  in the last `animate`, with the actor and the state. The dungeon plays
+  a monster's footsteps from them.
+
 - **A modelled actor can be animated by a graph.** `ActorVisuals` takes
   `graphs:`, an `ActorGraphs`. For each modelled actor it gives a machine
   for, an `AnimationGraph` is built over the model's own clips and

@@ -71,6 +71,14 @@ final class ActorVisuals {
   /// Each actor [graphs] gave a machine, its graph.
   final Map<Actor, AnimationGraph> _graphs = <Actor, AnimationGraph>{};
 
+  /// Every marker an actor's graph passed in the last [animate], with whose
+  /// and in which state: a monster's foot down is a footstep a game plays
+  /// where it is.
+  List<({Actor actor, String state, String name})> get markersPassed =>
+      List<({Actor actor, String state, String name})>.unmodifiable(_markers);
+  final List<({Actor actor, String state, String name})> _markers =
+      <({Actor actor, String state, String name})>[];
+
   /// The graph animating [actor], if one does: to ask what state it is in.
   AnimationGraph? graphOf(Actor actor) => _graphs[actor];
 
@@ -318,6 +326,7 @@ final class ActorVisuals {
 
   /// Advances every animation. Once a frame, with the frame's own delta.
   void animate(double dt) {
+    _markers.clear();
     for (final entry in _players.entries) {
       final actor = entry.key;
       if (_taken.contains(actor)) continue;
@@ -326,6 +335,9 @@ final class ActorVisuals {
       if (graph != null) {
         graphs!.drive(actor, graph.parameters);
         graph.evaluate(dt).writeTo(entry.value.targets);
+        for (final passed in graph.passed) {
+          _markers.add((actor: actor, state: passed.state, name: passed.name));
+        }
         if (corpses != null && actor.isAlive) _keepPose(actor);
         continue;
       }

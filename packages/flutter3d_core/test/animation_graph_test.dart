@@ -88,6 +88,126 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('markers', () {
+    AnimationGraph marked(
+      List<AnimationState> states,
+      List<AnimationClip> clips, {
+      List<AnimationTransition> transitions = const <AnimationTransition>[],
+    }) => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[
+          AnimationParameter.trigger('go'),
+          AnimationParameter.float('speed'),
+        ]),
+        entry: states.first.name,
+        states: states,
+        transitions: transitions,
+      ),
+      clips: clips,
+      pose: _onePose(),
+    );
+
+    /// The step on which each marker was passed, over [steps] steps.
+    List<(int, String)> heard(AnimationGraph graph, int steps) =>
+        <(int, String)>[
+          for (var i = 1; i <= steps; i++)
+            for (final m in (graph..evaluate(_dt)).passed) (i, m.name),
+        ];
+
+    test("a state's markers are passed once a cycle, the first on entry", () {
+      final graph = marked(
+        const <AnimationState>[
+          AnimationState(
+            name: 'walk',
+            clip: 'walk',
+            markers: <AnimationMarker>[
+              AnimationMarker(0.0, 'left'),
+              AnimationMarker(0.5, 'right'),
+            ],
+          ),
+        ],
+        <AnimationClip>[_clip('walk', 0.0)],
+      );
+      // A one-second loop at 1/64 s: on entry, at half, at the turn.
+      expect(heard(graph, 66), <(int, String)>[
+        (1, 'left'),
+        (33, 'right'),
+        (65, 'left'),
+      ]);
+    });
+
+    test("a clip's own markers, read from its extras, once for a clip played "
+        'once', () {
+      final swing = AnimationClip(
+        name: 'swing',
+        tracks: _clip('swing', 0.0, length: 0.5).tracks,
+        extras: const <String, Object?>{
+          'markers': <Object?>[
+            <String, Object?>{'time': 0.25, 'name': 'hit'},
+            <String, Object?>{'time': 'soon', 'name': 'ignored'},
+          ],
+        },
+      );
+      expect(swing.markers.single.name, 'hit');
+      final graph = marked(
+        const <AnimationState>[
+          AnimationState(
+            name: 'swing',
+            clip: 'swing',
+            wrap: AnimationWrap.once,
+          ),
+        ],
+        <AnimationClip>[swing],
+      );
+      expect(heard(graph, 200), <(int, String)>[(17, 'hit')]);
+    });
+
+    test('a blend marks its own cycle, the mixed one', () {
+      final graph = marked(
+        <AnimationState>[
+          AnimationState(
+            name: 'move',
+            blend: AnimationBlendSpace('speed', const <BlendPoint>[
+              BlendPoint(0.0, 'walk'),
+              BlendPoint(1.0, 'run'),
+            ]),
+            markers: const <AnimationMarker>[AnimationMarker(0.5, 'step')],
+          ),
+        ],
+        <AnimationClip>[_clip('walk', 0.0), _clip('run', 0.0, length: 0.5)],
+      );
+      graph.parameters.setFloat('speed', 0.5);
+      // The mix is three quarters of a second; its half, 24 steps in.
+      expect(heard(graph, 40), <(int, String)>[(25, 'step')]);
+    });
+
+    test('in a crossfade only the state entered is heard', () {
+      const left = <AnimationMarker>[AnimationMarker(0.25, 'walk-step')];
+      const right = <AnimationMarker>[AnimationMarker(0.0, 'run-step')];
+      final graph = marked(
+        const <AnimationState>[
+          AnimationState(name: 'walk', clip: 'walk', markers: left),
+          AnimationState(name: 'run', clip: 'run', markers: right),
+        ],
+        <AnimationClip>[_clip('walk', 0.0), _clip('run', 0.0, length: 0.25)],
+        transitions: <AnimationTransition>[
+          AnimationTransition(
+            from: 'walk',
+            to: 'run',
+            conditions: const <AnimationCondition>[TriggerCondition('go')],
+            duration: 0.5,
+          ),
+        ],
+      );
+      graph.evaluate(_dt);
+      graph.parameters.fire('go');
+      graph.evaluate(_dt);
+      // Half a second of fade, a quarter of a second into which the walk
+      // would have stepped were it heard: only the run's steps are.
+      expect(heard(graph, 64).map((h) => h.$2).toSet(), <String>{'run-step'});
+    });
+  });
+
   group('a layer', () {
     /// Two nodes, the second the first's child, both at rest unturned.
     Pose twoPose() => Pose(

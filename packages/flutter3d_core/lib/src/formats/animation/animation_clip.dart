@@ -1,5 +1,17 @@
 import 'animation_track.dart';
 
+/// A named moment in an animation: [at] seconds into a clip, or a share of
+/// a state's cycle — see where it is held.
+final class AnimationMarker {
+  const AnimationMarker(this.at, this.name);
+
+  final double at;
+  final String name;
+
+  @override
+  String toString() => 'AnimationMarker($name at $at)';
+}
+
 /// A named set of tracks that play together.
 final class AnimationClip {
   AnimationClip({
@@ -45,6 +57,21 @@ final class AnimationClip {
   final Map<String, Object?>? extras;
 
   bool get isEmpty => tracks.isEmpty;
+
+  /// The moments named in this clip — a foot down, a blow landing — read
+  /// from [extras] as `{"markers": [{"time": 0.3, "name": "step"}, …]}`,
+  /// seconds into the clip, earliest first. glTF has nowhere of its own to
+  /// put them; an animation's `extras` is where an exporter's custom
+  /// properties go. Empty when it names none, or names them in another way.
+  late final List<AnimationMarker> markers = () {
+    final listed = extras?['markers'];
+    if (listed is! List) return const <AnimationMarker>[];
+    return <AnimationMarker>[
+      for (final m in listed)
+        if (m is Map && m['time'] is num && m['name'] is String)
+          AnimationMarker((m['time'] as num).toDouble(), m['name'] as String),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+  }();
 
   static double _durationOf(List<AnimationTrack> tracks) {
     var longest = 0.0;

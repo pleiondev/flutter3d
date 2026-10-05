@@ -351,6 +351,14 @@ void main() {
           if (!_near(joints[i].localMatrix, before[i])) i,
       ];
       expect(moved, isNotEmpty, reason: 'the run is written into the joints');
+      // The run's markers are heard, whose and in which state.
+      final heard = <({Actor actor, String state, String name})>[];
+      for (var i = 0; i < 60; i++) {
+        visuals.animate(1.0 / 60.0);
+        heard.addAll(visuals.markersPassed);
+      }
+      expect(heard, isNotEmpty);
+      expect(heard.first, (actor: actor, state: 'run', name: 'step'));
     });
   });
 
@@ -490,7 +498,11 @@ final class _Graphs implements ActorGraphs {
         entry: 'stand',
         states: const <AnimationState>[
           AnimationState(name: 'stand', clip: 'CharacterArmature|Idle'),
-          AnimationState(name: 'run', clip: 'CharacterArmature|Run'),
+          AnimationState(
+            name: 'run',
+            clip: 'CharacterArmature|Run',
+            markers: <AnimationMarker>[AnimationMarker(0.0, 'step')],
+          ),
         ],
         transitions: <AnimationTransition>[
           AnimationTransition(

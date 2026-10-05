@@ -996,6 +996,15 @@ class _GameScreenState extends State<GameScreen>
     // an animation is display, and playing it on the fixed step would make a
     // monster's stride depend on how far behind the machine is.
     _actorVisuals?.animate(dt);
+    // A monster's foot down, as its animation graph marks it: a footstep
+    // where it is, so one coming down a corridor is heard before it is seen.
+    final passing = _actorVisuals?.markersPassed;
+    if (passing != null) {
+      for (final passed in passing) {
+        final at = passed.actor.position;
+        if (passed.name == 'step' && at != null) _audio.play(Sounds.step, at);
+      }
+    }
     _fixtureVisuals?.sync(_frames.elapsed);
     // `wg-02`: once a frame, fire-and-forget — `WidgetSurface.tick` uploads
     // a texture only when its own pipeline is actually dirty, the same
