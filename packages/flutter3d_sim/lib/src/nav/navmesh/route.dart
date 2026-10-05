@@ -25,11 +25,18 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import '../cell_heap.dart';
+import '../jump_links.dart';
+import 'mesh_links.dart';
 import 'navmesh.dart';
 
 /// The polygons a route crosses and the corners a body walks between.
 final class NavMeshRoute {
-  const NavMeshRoute._(this.corridor, this.points, {required this.complete});
+  const NavMeshRoute._(
+    this.corridor,
+    this.points, {
+    required this.jumps,
+    required this.complete,
+  });
 
   /// The polygons from the start's to the last one reached, each sharing an
   /// edge with the next.
@@ -38,6 +45,11 @@ final class NavMeshRoute {
   /// Where to walk: the start, every corner the route bends round, and the
   /// end. Two points when nothing is in the way.
   final List<Vector3> points;
+
+  /// Where the route jumps: each `i` here makes the leg from `points[i]` to
+  /// `points[i + 1]` a [NavMeshLink]'s flight rather than a walk. Empty for
+  /// a route found without a reach.
+  final List<int> jumps;
 
   /// False when the goal cannot be reached from the start. The route then
   /// ends at the point nearest the goal on the polygon nearest it, so a body
@@ -57,11 +69,16 @@ final class NavMeshRoute {
 /// [costOf] prices a metre of each area — see [NavArea] — and is never under
 /// one, which keeps the straight distance to the goal a guess that never
 /// overestimates; an area it prices at infinity is not walked at all.
+///
+/// [jumps] is the body's own reach: the mesh's [NavMesh.links] it takes are
+/// the ones within it, each priced as the length of its flight. Without it
+/// the route walks.
 NavMeshRoute? findRoute(
   NavMesh mesh,
   Vector3 from,
   Vector3 to, {
   double Function(int area)? costOf,
+  JumpReach? jumps,
 }) {
   final start = mesh.polygonAt(from);
   if (start < 0) return null;
@@ -74,6 +91,8 @@ NavMeshRoute? findRoute(
   final entry = Float64List(count * 3);
   final cost = Int64List(count)..fillRange(0, count, -1);
   final parent = Int32List(count)..fillRange(0, count, -1);
+  // The link a polygon was last reached by, or −1 for a walk.
+  final via = Int32List(count)..fillRange(0, count, -1);
   final closed = Uint8List(count);
   final open = CellHeap();
 
@@ -129,7 +148,33 @@ NavMeshRoute? findRoute(
       if (cost[q] >= 0 && cost[q] <= g) continue;
       cost[q] = g;
       parent[q] = p;
+      via[q] = -1;
       enter(q, mx, my, mz);
+      open.push(q, g + guess(q));
+    }
+
+    if (jumps == null) continue;
+    for (final i in mesh.linksFrom(p)) {
+      final link = mesh.links[i];
+      final q = link.to;
+      if (closed[q] != 0 || price(mesh.areaOf(q)).isInfinite) continue;
+      if (!jumps.takes(rise: link.rise, gap: link.gap)) continue;
+      final run = millimetres(
+        link.start.x - entry[p * 3],
+        link.start.y - entry[p * 3 + 1],
+        link.start.z - entry[p * 3 + 2],
+      );
+      final flight = millimetres(
+        link.end.x - link.start.x,
+        link.end.y - link.start.y,
+        link.end.z - link.start.z,
+      );
+      final g = cost[p] + (run * perMetre).round() + flight;
+      if (cost[q] >= 0 && cost[q] <= g) continue;
+      cost[q] = g;
+      parent[q] = p;
+      via[q] = i;
+      enter(q, link.end.x, link.end.y, link.end.z);
       open.push(q, g + guess(q));
     }
   }
@@ -148,9 +193,31 @@ NavMeshRoute? findRoute(
   } else {
     mesh.closestPointOn(last, to, end);
   }
+
+  // Walked stretches between jumps, each pulled tight on its own.
+  final points = <Vector3>[];
+  final jumpsAt = <int>[];
+  var stretch = <int>[polygons.first];
+  var stretchStart = from.clone();
+  for (var i = 1; i < polygons.length; i++) {
+    final link = via[polygons[i]];
+    if (link < 0) {
+      stretch.add(polygons[i]);
+      continue;
+    }
+    points.addAll(
+      _pullString(mesh, stretch, stretchStart, mesh.links[link].start.clone()),
+    );
+    jumpsAt.add(points.length - 1);
+    stretch = <int>[polygons[i]];
+    stretchStart = mesh.links[link].end.clone();
+  }
+  points.addAll(_pullString(mesh, stretch, stretchStart, end));
+
   return NavMeshRoute._(
     polygons,
-    _pullString(mesh, polygons, from.clone(), end),
+    points,
+    jumps: jumpsAt,
     complete: complete,
   );
 }
@@ -227,6 +294,6 @@ List<Vector3> _pullString(
       }
     }
   }
-  if (!_samePlace(points.last, end) || points.length == 1) points.add(end);
+  if (!_samePlace(points.last, end)) points.add(end);
   return points;
 }

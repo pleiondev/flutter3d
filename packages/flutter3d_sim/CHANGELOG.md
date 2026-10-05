@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A navigation mesh can be baked with jumps.** `NavMesh.bake(jumps:)`
+  scans the bake's own floors, in whole voxels, for the gaps, ledges and
+  drops of at most `maxFall` that reach jumps, and keeps the shortest
+  between each pair of polygons as a `NavMeshLink`. A floor's eroded rim
+  is a run-up, not a gap, so no link crosses a floor a body already walks;
+  something solid at the body's height is a ledge it lands on or a wall.
+  `route(jumps:)` takes the links within the body's own reach and says in
+  `NavMeshRoute.jumps` which legs are flights. A mesh baked without a reach
+  has the digest it had before.
+
 - **A navigation mesh finds the way across itself.** `NavMesh.route`
   runs A* over the polygons, entering each at the midpoint of the edge it
   was reached through, then pulls a string through the shared edges, so a

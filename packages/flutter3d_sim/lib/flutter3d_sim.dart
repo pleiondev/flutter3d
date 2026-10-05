@@ -100,6 +100,7 @@ export 'src/nav/flow_field.dart';
 export 'src/nav/jump_links.dart';
 export 'src/nav/nav_grid.dart';
 export 'src/nav/navigation.dart';
+export 'src/nav/navmesh/mesh_links.dart' show NavMeshLink;
 export 'src/nav/navmesh/navmesh.dart';
 export 'src/nav/navmesh/navmesh_config.dart';
 export 'src/nav/navmesh/route.dart' show NavMeshRoute;

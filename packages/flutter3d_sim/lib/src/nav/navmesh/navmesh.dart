@@ -26,8 +26,10 @@ import 'package:vector_math/vector_math.dart';
 import '../../level/heightfield.dart';
 import '../../level/level.dart';
 import '../../save/state_digest.dart';
+import '../jump_links.dart';
 import 'contours.dart';
 import 'distance_field.dart';
+import 'mesh_links.dart';
 import 'navmesh_config.dart';
 import 'open_field.dart';
 import 'poly_mesh.dart';
@@ -59,6 +61,7 @@ final class NavMesh {
     required this._polygons,
     required this._neighbours,
     required this._areas,
+    this.links = const <NavMeshLink>[],
   });
 
   /// What the mesh was baked to. Part of [digest].
@@ -73,6 +76,22 @@ final class NavMesh {
   final Int32List _polygons;
   final Int32List _neighbours;
   final Uint8List _areas;
+
+  /// The jumps the bake found between polygons the walk does not join —
+  /// none unless it was given a reach. See [NavMeshLink].
+  final List<NavMeshLink> links;
+
+  /// Indices into [links] of the jumps that leave [polygon], in [links]'
+  /// order.
+  List<int> linksFrom(int polygon) => _linksFrom[polygon];
+
+  late final List<List<int>> _linksFrom = () {
+    final out = List<List<int>>.generate(polygonCount, (_) => <int>[]);
+    for (var i = 0; i < links.length; i++) {
+      out[links[i].from].add(i);
+    }
+    return out;
+  }();
 
   int get maxVerticesPerPolygon => config.maxVerticesPerPolygon;
 
@@ -224,12 +243,14 @@ final class NavMesh {
   /// is over no polygon.
   ///
   /// [costOf] prices a metre of each area, one or more; [double.infinity]
-  /// keeps a route off an area altogether.
+  /// keeps a route off an area altogether. [jumps] is the body's reach, and
+  /// the [links] within it are taken; without it the route walks.
   NavMeshRoute? route(
     Vector3 from,
     Vector3 to, {
     double Function(int area)? costOf,
-  }) => findRoute(this, from, to, costOf: costOf);
+    JumpReach? jumps,
+  }) => findRoute(this, from, to, costOf: costOf, jumps: jumps);
 
   /// One number for the whole mesh and what it was baked to.
   ///
@@ -237,15 +258,32 @@ final class NavMesh {
   /// config, through [StateDigest], so it is the same bits on every platform
   /// a run is replayed on. Two bakes of one level agree on it or one of them
   /// is wrong.
-  int get digest =>
-      (StateDigest()
-            ..add(config.values)
-            ..add(<double>[originX, originY, originZ])
-            ..add(_vertices)
-            ..add(_polygons)
-            ..add(_neighbours)
-            ..add(_areas))
-          .value;
+  int get digest {
+    final digest = StateDigest()
+      ..add(config.values)
+      ..add(<double>[originX, originY, originZ])
+      ..add(_vertices)
+      ..add(_polygons)
+      ..add(_neighbours)
+      ..add(_areas);
+    // Only when there are some, so a walked mesh keeps the digest it had
+    // before links existed.
+    if (links.isNotEmpty) {
+      digest.add(<double>[
+        for (final link in links) ...<double>[
+          link.from.toDouble(),
+          link.to.toDouble(),
+          link.start.x,
+          link.start.y,
+          link.start.z,
+          link.end.x,
+          link.end.y,
+          link.end.z,
+        ],
+      ]);
+    }
+    return digest.value;
+  }
 
   /// [digest] as eight hexadecimal digits, the way a test writes it down.
   String get digestHex => digest.toRadixString(16).padLeft(8, '0');
@@ -259,12 +297,16 @@ final class NavMesh {
     NavMeshConfig config = const NavMeshConfig(),
     int Function(Brush brush)? areaOf,
     int groundArea = NavArea.ground,
+    JumpReach? jumps,
+    double maxFall = 2.0,
   }) => bake(
     expandRecipes(level).brushes,
     ground: level.heightfield,
     config: config,
     areaOf: areaOf,
     groundArea: groundArea,
+    jumps: jumps,
+    maxFall: maxFall,
   );
 
   /// Bakes [brushes] and, when given, [ground] into one mesh.
@@ -273,6 +315,11 @@ final class NavMesh {
   /// it says otherwise; [NavArea.none] keeps agents off a brush entirely —
   /// lava, a roof the game does not want walked. [groundArea] is the
   /// terrain's.
+  ///
+  /// [jumps] adds [links]: the gaps and ledges a body of that reach jumps,
+  /// and the drops of at most [maxFall] it jumps down — bake with the most
+  /// capable reach a level's bodies have, and let each route filter by its
+  /// own body's. Without it the mesh is walked only.
   ///
   /// **From brushes, not from the collision world**, for `NavGrid`'s reason:
   /// the collision world has doors in it, and a mesh baked with a door closed
@@ -283,6 +330,8 @@ final class NavMesh {
     NavMeshConfig config = const NavMeshConfig(),
     int Function(Brush brush)? areaOf,
     int groundArea = NavArea.ground,
+    JumpReach? jumps,
+    double maxFall = 2.0,
   }) {
     final solid =
         SpanField.rasterise(
@@ -314,15 +363,32 @@ final class NavMesh {
       maxCorners: config.maxVerticesPerPolygon,
     );
 
-    return NavMesh._(
-      config: config,
-      originX: solid.originX,
-      originY: solid.originY,
-      originZ: solid.originZ,
-      vertices: parts.vertices,
-      polygons: parts.polygons,
-      neighbours: parts.neighbours,
-      areas: parts.areas,
+    NavMesh mesh({List<NavMeshLink> links = const <NavMeshLink>[]}) =>
+        NavMesh._(
+          config: config,
+          originX: solid.originX,
+          originY: solid.originY,
+          originZ: solid.originZ,
+          vertices: parts.vertices,
+          polygons: parts.polygons,
+          neighbours: parts.neighbours,
+          areas: parts.areas,
+          links: links,
+        );
+
+    final walked = mesh();
+    if (jumps == null) return walked;
+    return mesh(
+      links: List<NavMeshLink>.unmodifiable(
+        bakeMeshLinks(
+          open,
+          solid,
+          config: config,
+          reach: jumps,
+          maxFall: maxFall,
+          polygonAt: walked.polygonAt,
+        ),
+      ),
     );
   }
 }
