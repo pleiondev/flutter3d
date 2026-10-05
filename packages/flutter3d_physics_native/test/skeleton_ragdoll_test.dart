@@ -87,6 +87,15 @@ void main() {
       dynamics: dynamics,
     );
     expect(ragdoll.ragdoll.bones.length, 11);
+    // Knees bound bent are hinges; elbows bound in a T-pose fall back.
+    expect(
+      ragdoll.ragdoll.heldAs(ragdoll.bodyNamed('LowerLeg.L')!),
+      isA<RagdollHinge>(),
+    );
+    expect(
+      ragdoll.ragdoll.heldAs(ragdoll.bodyNamed('LowerArm.L')!),
+      isA<RagdollBall>(),
+    );
     expect(ragdoll.bodyNamed('Torso'), isNotNull);
     expect(ragdoll.bodyNamed('Ear1.L'), isNull);
     ragdoll.apply();

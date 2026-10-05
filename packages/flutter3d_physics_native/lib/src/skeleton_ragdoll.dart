@@ -70,7 +70,8 @@ final class RagdollProfile {
   /// The Quaternius character rig — the dungeon's monsters, the hero, the
   /// robot: `Body` at the pelvis, `Torso`, `Head`, upper and lower arms and
   /// legs, and the feet, which hang from `Root` for their IK, carried by the
-  /// shins. A forearm reaches to the tip of the middle finger where the rig
+  /// shins. Knees are hinges, their axis from the bend the rig is bound
+  /// with; elbows too where the bend says enough. A forearm reaches to the tip of the middle finger where the rig
   /// has fingers, so the hand lies inside it: ended at the knuckles, the
   /// runner's fingers went eight centimetres into the floor. Elbows and knees
   /// are balls with a wide cone and little twist:
@@ -119,14 +120,14 @@ final class RagdollProfile {
     tailLength: (of: 'UpperArm.L', times: 0.9),
     radius: 0.03,
     share: 0.02,
-    joint: _limb,
+    joint: _elbow,
   );
   static const RagdollPart _lowerArmR = RagdollPart(
     tailAt: <String>['Fist.R', 'Middle3.R', 'Middle1.R'],
     tailLength: (of: 'UpperArm.R', times: 0.9),
     radius: 0.03,
     share: 0.02,
-    joint: _limb,
+    joint: _elbow,
   );
   static const RagdollPart _upperLeg = RagdollPart(
     tailAt: <String>['LowerLeg.L', 'LowerLeg.R'],
@@ -138,8 +139,18 @@ final class RagdollProfile {
     tailLength: (of: 'UpperLeg.L', times: 1.2),
     radius: 0.04,
     share: 0.05,
-    joint: _limb,
+    joint: _knee,
   );
+
+  /// A knee is a hinge: the rig binds it bent a little, which says the
+  /// axis and the way it bends.
+  static const RagdollJoint _knee = RagdollBend(otherwise: _limb);
+
+  /// An elbow, bound in a T-pose all but straight, would read its axis from
+  /// a few hundredths of a radian of noise; asked for a tenth and a half of
+  /// bend, the Quaternius arms fall back to a ball.
+  static const RagdollJoint _elbow = RagdollBend(least: 0.15, otherwise: _limb);
+
   static const RagdollJoint _limb = RagdollBall(
     cone: 2.2,
     twistLower: -0.15,

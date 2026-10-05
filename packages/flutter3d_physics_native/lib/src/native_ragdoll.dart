@@ -19,6 +19,7 @@
 /// back as its body times that offset.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
 
 import 'native_dynamics.dart';
@@ -53,6 +54,22 @@ final class RagdollHinge extends RagdollJoint {
 
   final Vector3 axis;
   final double lower, upper;
+}
+
+/// A hinge whose axis the rest pose shows: a knee or an elbow a rig binds a
+/// little bent, as most do for their IK, bends about the axis across its
+/// bone and its parent's, the way it is already bent — from straight to
+/// [most] radians of bend. Bound straighter than [least] radians, the rest
+/// pose does not say which way, and it is held as [otherwise].
+final class RagdollBend extends RagdollJoint {
+  const RagdollBend({
+    this.most = 2.4,
+    this.least = 0.05,
+    required this.otherwise,
+  });
+
+  final double most, least;
+  final RagdollJoint otherwise;
 }
 
 /// One bone, in world space: where it starts ([head], the joint with its
@@ -136,7 +153,9 @@ final class NativeRagdoll {
       final a = _bodies[bone.parent], b = _bodies[i];
       final direction = (bone.tail - bone.head).normalized();
       final NativeJoint joint;
-      switch (bone.joint) {
+      final held = _resolved(bone, rest[bone.parent]);
+      _held[i] = held;
+      switch (held) {
         case RagdollHinge(:final axis, :final lower, :final upper):
           joint = world.createJoint(
             NativeJointType.revolute,
@@ -167,8 +186,11 @@ final class NativeRagdoll {
             b,
             anchor: bone.head,
           );
+        case RagdollBend():
+          throw StateError('a bend is resolved against the rest pose first');
       }
       _joints.add(joint);
+      _jointOf[i] = joint;
     }
     if (pose != null) place(pose, velocity: velocity, spin: spin);
   }
@@ -178,8 +200,18 @@ final class NativeRagdoll {
   final NativeDynamics? _dynamics;
   final List<NativeBody> _bodies = <NativeBody>[];
   final List<NativeJoint> _joints = <NativeJoint>[];
+  final Map<int, NativeJoint> _jointOf = <int, NativeJoint>{};
+  final Map<int, RagdollJoint?> _held = <int, RagdollJoint?>{};
   final List<Quaternion> _offsetTurn = <Quaternion>[];
   final List<Vector3> _offsetAt = <Vector3>[];
+
+  /// How bone [index] came to be held: a [RagdollBend] as the hinge or the
+  /// fallback its rest pose made it; null for the root and a fixed joint.
+  RagdollJoint? heldAs(int index) => _held[index];
+
+  /// The joint holding bone [index] to its parent; null for the root. To
+  /// read how far a knee has bent, or set a motor on it.
+  NativeJoint? jointOf(int index) => _jointOf[index];
 
   /// The core's body for bone [index]: to strike it, or to read its contacts.
   NativeBody bodyOf(int index) => _bodies[index];
@@ -228,6 +260,25 @@ final class NativeRagdoll {
     _joints.clear();
     _bodies.clear();
   }
+}
+
+/// [bone]'s joint, a [RagdollBend] made the hinge or the fallback the rest
+/// pose says.
+RagdollJoint? _resolved(RagdollBone bone, RagdollBone parent) {
+  final held = bone.joint;
+  if (held is! RagdollBend) return held;
+  final up = (parent.tail - parent.head).normalized();
+  final down = (bone.tail - bone.head).normalized();
+  final across = up.cross(down);
+  final bent = Portable.atan2(across.length, up.dot(down));
+  if (bent < held.least) return held.otherwise;
+  // Turning the bone about up × down by a positive angle bends it further:
+  // from straight (minus the rest bend) to the most it bends.
+  return RagdollHinge(
+    axis: turnBy(bone.orientation.conjugated(), across.normalized()),
+    lower: -bent,
+    upper: held.most - bent,
+  );
 }
 
 /// The turn that takes the y axis to [along].

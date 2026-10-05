@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Knees bend the way they bend.** `RagdollBend` is a hinge whose axis
+  and sense come from the rest pose. A knee a rig binds a little bent
+  bends about the axis across its bone and its parent's, the way it is
+  already bent, from straight to `most`. Below `least` radians of rest
+  bend it falls back to `otherwise`. The Quaternius profile's knees are
+  hinges now. Its elbows, bound in a T-pose with a few hundredths of a
+  radian of noise, stay balls. A hanging leg struck at the ankle bends
+  further back and comes straight but never past straight when struck
+  forward, measured in the world: the joint's own angle turns with its
+  axis and could not tell a knee from one bending the wrong way.
+  `NativeRagdoll.jointOf` and `heldAs` say how each bone is held.
 - **A skinned character can go limp.** `NativeRagdoll` makes a capsule
   for each bone and a joint where each bone meets its parent, from bones
   given in world space. It builds them at rest, so a joint's cone and

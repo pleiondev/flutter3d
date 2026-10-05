@@ -237,6 +237,100 @@ void main() {
     expect(dynamics.native.bodyCount, count - rest.length);
   });
 
+  test('a knee bound a little bent bends further that way and stops at '
+      'straight the other', () {
+    // A hanging leg: a thigh from a fixed hip, a shin bound 0.3 rad bent
+    // back.
+    final world = dynamics.native;
+    final hip = world.addBody(
+      position: Vector3(0.0, 3.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final back = Vector3(0.0, -0.4 * 0.955, -0.4 * 0.296);
+    final rest = <RagdollBone>[
+      RagdollBone(
+        name: 'thigh',
+        parent: -1,
+        head: Vector3(0.0, 3.0, 0.0),
+        tail: Vector3(0.0, 2.6, 0.0),
+        orientation: Quaternion.identity(),
+        radius: 0.06,
+        mass: 6,
+      ),
+      RagdollBone(
+        name: 'shin',
+        parent: 0,
+        head: Vector3(0.0, 2.6, 0.0),
+        tail: Vector3(0.0, 2.6, 0.0) + back,
+        orientation: Quaternion.identity(),
+        radius: 0.05,
+        mass: 3,
+        joint: const RagdollBend(
+          otherwise: RagdollBall(cone: 1, twistLower: 0, twistUpper: 0),
+        ),
+      ),
+    ];
+    final leg = NativeRagdoll(world, rest, friction: 0.0);
+    world.createJoint(
+      NativeJointType.fixed,
+      hip,
+      leg.bodyOf(0),
+      anchor: Vector3(0.0, 3.0, 0.0),
+    );
+    final knee = leg.jointOf(1)!;
+    expect(world.jointValue(knee), closeTo(0.0, 1e-4));
+    // How far the shin points back from straight down, in the world rather
+    // than in the joint's own sense — which turns with its axis, and so
+    // cannot tell a knee from one bending the wrong way.
+    final along = back.normalized();
+    double backward() {
+      final d = turnBy(leg.poseOf(1).orientation, along);
+      return Portable.atan2(-d.z, -d.y);
+    }
+
+    // Struck at the ankle: back bends it further, forward straightens it.
+    double struck(double z) {
+      var least = 1e9, most = -1e9;
+      world.applyImpulse(
+        leg.bodyOf(1),
+        Vector3(0.0, 0.0, z),
+        at: leg.poseOf(1).position + turnBy(leg.poseOf(1).orientation, back),
+      );
+      for (var i = 0; i < 30; i++) {
+        dynamics.step(1.0 / 60.0);
+        final angle = backward();
+        least = angle < least ? angle : least;
+        most = angle > most ? angle : most;
+      }
+      return z < 0 ? most : least;
+    }
+
+    expect(struck(-12.0), greaterThan(1.0), reason: 'bent further back');
+    // Forward it comes straight and stops, never past it.
+    expect(struck(12.0), greaterThan(-0.06), reason: 'never bent forward');
+  });
+
+  test('a knee bound straight is held as its fallback', () {
+    final rest = figure();
+    final ragdoll = NativeRagdoll(dynamics.native, <RagdollBone>[
+      rest[0],
+      RagdollBone(
+        name: 'straight',
+        parent: 0,
+        head: rest[0].tail,
+        tail: rest[0].tail + Vector3(0.0, 0.4, 0.0),
+        orientation: Quaternion.identity(),
+        radius: 0.05,
+        mass: 3,
+        joint: const RagdollBend(
+          otherwise: RagdollBall(cone: 1, twistLower: 0, twistUpper: 0),
+        ),
+      ),
+    ]);
+    expect(dynamics.native.jointSwing(ragdoll.jointOf(1)!), closeTo(0.0, 1e-4));
+  });
+
   test('a bone that comes before its parent is refused', () {
     final rest = figure();
     final wrong = <RagdollBone>[rest[1], rest[0]];
