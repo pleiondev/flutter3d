@@ -27,6 +27,10 @@ Map<String, String> generate(String header) {
   };
 }
 
+/// [text] with Unix line ends: a Windows checkout has the sources and the
+/// generated files with CRLF, and the generated text is the same text.
+String _lf(String text) => text.replaceAll('\r\n', '\n');
+
 /// [files] as `dart format` leaves them, so that formatting the package
 /// does not make them out of date.
 Map<String, String> _formatted(Map<String, String> files) {
@@ -40,13 +44,15 @@ Map<String, String> _formatted(Map<String, String> files) {
         kept[entry.key] = entry.value;
         continue;
       }
-      final f = File('${dir.path}/f${i++}.dart')..writeAsStringSync(entry.value);
+      final f = File('${dir.path}/f${i++}.dart')
+        ..writeAsStringSync(entry.value);
       paths[entry.key] = f;
     }
     final result = Process.runSync('dart', <String>['format', dir.path]);
     if (result.exitCode != 0) throw StateError('dart format: ${result.stderr}');
     return <String, String>{
-      for (final entry in paths.entries) entry.key: entry.value.readAsStringSync(),
+      for (final entry in paths.entries)
+        entry.key: _lf(entry.value.readAsStringSync()),
       ...kept,
     };
   } finally {
@@ -55,12 +61,14 @@ Map<String, String> _formatted(Map<String, String> files) {
 }
 
 void main(List<String> args) {
-  final files = _formatted(generate(File('csrc/include/f3d_physics.h').readAsStringSync()));
+  final files = _formatted(
+    generate(_lf(File('csrc/include/f3d_physics.h').readAsStringSync())),
+  );
   final check = args.contains('--check');
   var stale = false;
   for (final entry in files.entries) {
     final file = File(entry.key);
-    final current = file.existsSync() ? file.readAsStringSync() : '';
+    final current = file.existsSync() ? _lf(file.readAsStringSync()) : '';
     if (current == entry.value) continue;
     if (check) {
       stderr.writeln(
