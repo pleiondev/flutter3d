@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **An agent writes behaviour trees.** `setBehaviour` and
+  `removeBehaviour`, the first describing every composite, leaf and
+  consideration a tree may use and refusing one that does not read with
+  each problem; `list` names the level's trees and `validate` reports an
+  entity running a tree the level does not have.
+
 - **An agent can play the level it is editing.** `play` runs the game the
   level belongs to through `flutter3d_editor_play`, the editor's own Play,
   and waits until it is up or has failed; `play_status`, `play_swap`,

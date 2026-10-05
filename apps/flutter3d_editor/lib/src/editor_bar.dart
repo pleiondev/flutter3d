@@ -12,13 +12,21 @@ import 'editor_cubit.dart';
 /// whole screen, and a second subscription here would be a second place to
 /// keep in step with the first.
 final class EditorBar extends StatelessWidget {
-  const EditorBar({super.key, required this.state, this.onFewerLights});
+  const EditorBar({
+    super.key,
+    required this.state,
+    this.onFewerLights,
+    this.onBehaviours,
+  });
 
   final EditorReady state;
 
   /// Runs the light optimizer; the button is left out when null, and
   /// disabled while the level has no lights to optimise.
   final VoidCallback? onFewerLights;
+
+  /// Opens the level's behaviour trees; the button is left out when null.
+  final VoidCallback? onBehaviours;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +68,10 @@ final class EditorBar extends StatelessWidget {
                 onPressed: editing.level.lights.isEmpty ? null : run,
                 child: const Text('Fewer lights'),
               ),
+            ],
+            if (onBehaviours case final VoidCallback run) ...<Widget>[
+              const SizedBox(width: 12),
+              TextButton(onPressed: run, child: const Text('Behaviours')),
             ],
           ],
         ),

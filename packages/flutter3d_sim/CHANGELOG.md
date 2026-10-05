@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A level keeps its behaviour trees.** `Level.behaviours` holds them by
+  name as the documents `BehaviourTree.read` takes, written only when
+  there are some; an entity names the one it runs in a `behaviour`
+  property. `BehavioursRead` is the `LevelRule` a game brings with its own
+  `BehaviourKinds`: every tree reads, and every entity names a tree the
+  level has.
+
 - **A breach says what it broke.** `Breaches.onHole` is told the box of
   every hole as it is blown, after the brushes are cut, and
   `Breaches.onRestore` when a restore has put the walls back and blown the

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **Behaviour trees are written in the editor.** `Editing.setBehaviour`
+  writes a tree under a name and refuses one that does not read with every
+  problem and where it is, writing nothing; `removeBehaviour` takes one
+  out. Each is a step of undo. `Editing.behaviourKinds` is what trees are
+  read against, the standard kinds unless the game says otherwise, and
+  `issuesFor` checks the level with `BehavioursRead`.
+
 - **The draw order of a brush, in the scene and the inspector.**
   `LevelScene` gives each batch its brushes' `drawOrder`, a duplicate keeps
   it, and the inspector offers it on a brush that has never said.

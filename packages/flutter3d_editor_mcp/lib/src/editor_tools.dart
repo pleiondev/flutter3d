@@ -554,6 +554,54 @@ List<EditorTool> get editorTools => <EditorTool>[
   ),
   _told(
     Tool(
+      name: 'setBehaviour',
+      description:
+          'Write a behaviour tree into the level under a name; an entity runs '
+          'it by naming it in its behaviour property (setField). The tree is '
+          'the document BehaviourTree reads: a node is {kind, ...}, where '
+          'kind is a composite — sequence {children}, selector {children}, '
+          'utility {options: [{name, weight, considerations, do}], inertia}, '
+          'invert {child}, alwaysSucceed {child}, cooldown {seconds, child} — '
+          'or a leaf: goToFocus {within}, goTo {key, within} (a point on '
+          'the board), wait {seconds}, seesFocus, focusWithin {distance}, '
+          'check {key, above, below}, set {key, value}, markFocus {key}, '
+          'jump, and whatever the game adds. A utility option scores weight '
+          'times its considerations: constant {value}, focusDistance {from, '
+          'to}, health {from, to}, blackboard {key, from, to}, since {key, '
+          'from, to}. A tree that does not read is refused with every problem '
+          'and where it is, and nothing is written. Undoable.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(description: 'what the level calls it'),
+          'tree': ObjectSchema(description: 'the root node'),
+        },
+        required: <String>['name', 'tree'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.setBehaviour(
+          arguments['name']! as String,
+          (arguments['tree']! as Map).cast<String, Object?>(),
+        ),
+  ),
+  _told(
+    Tool(
+      name: 'removeBehaviour',
+      description:
+          'Take a behaviour tree out of the level. An entity still naming it '
+          'is left naming it, and validate says so. Undoable.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(description: 'the tree to take out'),
+        },
+        required: <String>['name'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.removeBehaviour(arguments['name']! as String),
+  ),
+  _told(
+    Tool(
       name: 'validate',
       description:
           'What is wrong with the level, as the game would see it: geometry '

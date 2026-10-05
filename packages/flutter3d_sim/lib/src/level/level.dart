@@ -39,9 +39,11 @@ final class Level {
     this.music,
     this.next,
     List<LevelRecipe>? recipes,
+    Map<String, Map<String, Object?>>? behaviours,
     Map<String, Object?> source = const <String, Object?>{},
   }) : brushes = brushes ?? <Brush>[],
        recipes = recipes ?? <LevelRecipe>[],
+       behaviours = behaviours ?? <String, Map<String, Object?>>{},
        // ignore: prefer_initializing_formals
        _source = source,
        entities = entities ?? <EntityDef>[],
@@ -105,6 +107,15 @@ final class Level {
   /// second copy of them on the next load.
   final List<LevelRecipe> recipes;
 
+  /// Behaviour trees by name, each the document `BehaviourTree.read` takes;
+  /// an entity names the one it runs in a `behaviour` property.
+  ///
+  /// **Kept as documents, not as trees.** What a leaf kind means is the
+  /// game's — `BehaviourKinds` — and a level is read before any game is
+  /// there to ask; whether a tree reads is a `LevelRule` the game brings,
+  /// `BehavioursRead`, with its own kinds.
+  final Map<String, Map<String, Object?>> behaviours;
+
   Iterable<EntityDef> ofType(String type) =>
       entities.where((EntityDef e) => e.type == type);
 
@@ -161,6 +172,9 @@ final class Level {
       music: json.textOrNull('music'),
       next: json.textOrNull('next'),
       recipes: json.objects('recipes').map(LevelRecipe.fromJson).toList(),
+      behaviours: Map<String, Map<String, Object?>>.of(
+        json.objectMap('behaviours'),
+      ),
       source: json,
     );
   }
@@ -209,6 +223,13 @@ final class Level {
       'recipes',
       recipes.map((LevelRecipe r) => r.toJson()).toList(),
       whenAbsent: recipes.isNotEmpty,
+    ),
+    WriteThroughField(
+      'behaviours',
+      <String, Object?>{
+        for (final MapEntry(:key, :value) in behaviours.entries) key: value,
+      },
+      whenAbsent: behaviours.isNotEmpty,
     ),
   ]);
 }

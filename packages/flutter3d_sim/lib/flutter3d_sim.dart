@@ -47,6 +47,7 @@ export 'src/actors/actor_hurt.dart';
 export 'src/actors/actor_strides.dart';
 export 'src/actors/actor_system.dart';
 export 'src/actors/behaviour_brain.dart';
+export 'src/actors/behaviour_rule.dart';
 export 'src/actors/behaviour_tree.dart';
 export 'src/actors/brain.dart';
 export 'src/actors/damageable.dart';

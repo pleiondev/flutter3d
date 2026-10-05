@@ -46,6 +46,8 @@ void main() {
       'play_swap',
       'play_stop',
       'play_devices',
+      'setBehaviour',
+      'removeBehaviour',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),
@@ -185,6 +187,82 @@ void main() {
     });
   });
 
+  group('behaviours', () {
+    Future<Answer> call(
+      EditorSession session,
+      String tool,
+      Map<String, Object?> arguments,
+    ) async {
+      final answer = await editorTools
+          .firstWhere((EditorTool it) => it.name == tool)
+          .run(session, arguments);
+      return (did: answer.did, says: answer.says);
+    }
+
+    const guard = <String, Object?>{
+      'kind': 'sequence',
+      'children': <Object?>[
+        <String, Object?>{'kind': 'goTo', 'key': 'post'},
+        <String, Object?>{'kind': 'wait', 'seconds': 1},
+      ],
+    };
+
+    test('a tree is written, listed, saved and undone', () async {
+      final session = EditorSession(
+        Editing.parse(_bareLevel, path: 'nowhere.json'),
+      );
+      final wrote = await call(session, 'setBehaviour', <String, Object?>{
+        'name': 'guard',
+        'tree': guard,
+      });
+      expect(wrote.did, isTrue, reason: wrote.says);
+      expect(session.listing(), contains('behaviours: guard'));
+      // Mutation: a level that does not write its behaviours loses them on
+      // the way through a save.
+      final saved = Editing.parse(session.editing.write(), path: 'again.json');
+      expect(saved.level.behaviours['guard'], guard);
+      expect(session.undo().says, contains('set behaviour guard'));
+      expect(session.editing.level.behaviours, isEmpty);
+    });
+
+    test(
+      'a tree that does not read is refused with where, and no step',
+      () async {
+        final session = EditorSession(
+          Editing.parse(_bareLevel, path: 'nowhere.json'),
+        );
+        final refused = await call(session, 'setBehaviour', <String, Object?>{
+          'name': 'guard',
+          'tree': <String, Object?>{
+            'kind': 'sequence',
+            'children': <Object?>[
+              <String, Object?>{'kind': 'teleport'},
+            ],
+          },
+        });
+        expect(refused.did, isFalse);
+        expect(refused.says, contains('teleport'));
+        expect(refused.says, contains('children[0]'));
+        expect(session.editing.level.behaviours, isEmpty);
+        expect(session.editing.canUndo, isFalse);
+      },
+    );
+
+    test('validate names an entity running a tree the level does not have', () {
+      final session = EditorSession(
+        Editing.parse(_guardedLevel, path: 'nowhere.json'),
+      );
+      // Mutation: a validator without the behaviour rule says nothing here.
+      expect(session.validate(), contains('runs behaviour "guard"'));
+      session.editing.setBehaviour('guard', guard);
+      expect(session.validate(), 'no issues');
+      expect(
+        session.removeBehaviour('patrol').says,
+        contains('there is no behaviour patrol'),
+      );
+    });
+  });
+
   test('optimizeLights keeps one of three lamps in one place, and undo '
       'puts all three back', () async {
     // The agent's way to the light optimizer: the same core, applied as one
@@ -261,5 +339,16 @@ const String _litLevel = '''
   },
   "brushes": [{"at": [0.0, 0.0, 0.0], "size": [1.0, 1.0, 1.0], "material": "stone"}],
   "lights": [{"type": "point", "at": [20.0, 2.0, 0.0], "intensity": 4.0, "range": 8.0}]
+}
+''';
+
+/// [_litLevel] with a monster that runs a behaviour called guard.
+const String _guardedLevel = '''
+{
+  "version": 1,
+  "materials": {"stone": {"baseColor": [0.5, 0.5, 0.5, 1.0]}},
+  "brushes": [{"at": [0.0, -0.5, 0.0], "size": [10.0, 1.0, 10.0], "material": "stone"}],
+  "lights": [{"type": "point", "at": [0.0, 2.0, 0.0], "intensity": 4.0, "range": 8.0}],
+  "entities": [{"type": "monster", "at": [1.0, 0.0, 1.0], "behaviour": "guard"}]
 }
 ''';

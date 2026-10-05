@@ -39,6 +39,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/behaviours_dialog.dart';
 import 'src/documents.dart';
 import 'src/editor_bar.dart';
 import 'src/editor_chooser.dart';
@@ -1315,6 +1316,15 @@ class _EditorScreenState extends State<EditorScreen>
     _changed(plan.says);
   }
 
+  /// The level's behaviour trees, written through the history.
+  Future<void> _behaviours() async {
+    final editing = _editing;
+    if (editing == null || !mounted) return;
+    if (await showBehaviours(context, editing) && mounted) {
+      _changed('behaviours written');
+    }
+  }
+
   /// Asks what to do about unsaved work, and does it.
   ///
   /// Three answers rather than two, because "save" is the one a person
@@ -1456,6 +1466,7 @@ class _EditorScreenState extends State<EditorScreen>
                   child: EditorBar(
                     state: state,
                     onFewerLights: () => unawaited(_fewerLights()),
+                    onBehaviours: () => unawaited(_behaviours()),
                   ),
                 ),
                 // Below the bar and above the legend, so nothing it covers is

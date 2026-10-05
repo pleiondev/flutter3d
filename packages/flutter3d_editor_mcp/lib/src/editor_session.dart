@@ -63,13 +63,42 @@ final class EditorSession {
   /// able to find out that there is a third brush.
   String listing() {
     final rows = contentsOf(editing.level);
-    if (rows.isEmpty) return 'the level is empty';
+    final trees = editing.level.behaviours.keys.toList()..sort();
+    if (rows.isEmpty && trees.isEmpty) return 'the level is empty';
     return <String>[
       for (final row in rows) row.says,
+      if (trees.isNotEmpty) 'behaviours: ${trees.join(', ')}',
       '',
       'selection: $selection',
     ].join('\n');
   }
+
+  /// Writes [tree] as the behaviour called [name], or says every problem
+  /// with it and writes nothing.
+  Answer setBehaviour(String name, Map<String, Object?> tree) {
+    final had = editing.level.behaviours.containsKey(name);
+    final problems = editing.setBehaviour(name, tree);
+    if (problems.isNotEmpty) {
+      return (
+        did: false,
+        says: <String>[
+          'behaviour $name was not written:',
+          for (final problem in problems) '  $problem',
+        ].join('\n'),
+      );
+    }
+    return (
+      did: true,
+      says:
+          '${had ? 'replaced' : 'wrote'} behaviour $name — an entity runs '
+          'it by naming it in its behaviour property',
+    );
+  }
+
+  /// Takes the behaviour called [name] out.
+  Answer removeBehaviour(String name) => editing.removeBehaviour(name)
+      ? (did: true, says: 'removed behaviour $name')
+      : (did: false, says: 'there is no behaviour $name — call list');
 
   /// What is selected, said to something that has no mouse.
   ///

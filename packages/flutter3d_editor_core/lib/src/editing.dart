@@ -307,6 +307,37 @@ final class Editing {
     return alone;
   }
 
+  /// The leaf and consideration kinds a behaviour tree is read against: the
+  /// standard ones unless the game the level is for says which it has.
+  BehaviourKinds behaviourKinds = BehaviourKinds();
+
+  /// Writes [document] as the behaviour tree called [name], in place of any
+  /// tree of that name, and says what is wrong with it — nothing, when it was
+  /// written.
+  ///
+  /// **Refused with every problem rather than written**, the rule
+  /// [setField] keeps: a tree that does not read is a level that does not
+  /// load in the game, and the place to hear about it is here, with the path
+  /// to each problem, not at the first tick.
+  List<String> setBehaviour(String name, Map<String, Object?> document) {
+    if (name.isEmpty) return <String>['a behaviour needs a name'];
+    final problems = BehaviourTree.read(document, behaviourKinds).problems;
+    if (problems.isNotEmpty) return problems;
+    _remember('set behaviour $name');
+    level.behaviours[name] = document;
+    return const <String>[];
+  }
+
+  /// Takes the behaviour tree called [name] out, and says whether there was
+  /// one. An entity that ran it is left naming it, which `BehavioursRead`
+  /// reports: the editor does not guess which tree it should run instead.
+  bool removeBehaviour(String name) {
+    if (!level.behaviours.containsKey(name)) return false;
+    _remember('remove behaviour $name');
+    level.behaviours.remove(name);
+    return true;
+  }
+
   /// Adds a light where somebody is looking.
   ///
   /// **A light the editor may invent, unlike an entity.** A `LevelLight` is a
@@ -586,8 +617,10 @@ final class Editing {
   /// The editor's own reason for existing beside a generator: a level that
   /// cannot be finished is not a level, and finding that out twenty minutes
   /// into playing it is worse than being told while it is being built.
-  List<LevelIssue> issuesFor(EntityRegistry registry) =>
-      LevelValidator(registry: registry).validate(level);
+  List<LevelIssue> issuesFor(EntityRegistry registry) => LevelValidator(
+    registry: registry,
+    rules: <LevelRule>[BehavioursRead(behaviourKinds)],
+  ).validate(level);
 
   /// The document as text, ready to be written.
   ///
