@@ -5,8 +5,8 @@
 /// The crypt opened the way the game opens it, every monster in it dead at
 /// once: each runner's skeleton goes limp into the physics core and lies
 /// down on the floor the collision world has, whole and still; the shooters
-/// and the tanks, rigs of four joints the ragdoll profile does not name, keep
-/// their death clips. Through `DungeonRun.open`, so what is tested is the
+/// and the tanks, rigs of four joints the ragdoll profile does not name, die
+/// by their animation graphs into their death clips. Through `DungeonRun.open`, so what is tested is the
 /// game's own assembly and not a copy of it.
 library;
 
@@ -91,11 +91,16 @@ void main() {
     ];
     expect(runners, isNotEmpty, reason: 'the crypt has runners');
     expect(monsters.length, greaterThan(runners.length), reason: 'and others');
-
+    // Every modelled monster is animated by the graph its clips make.
     for (final actor in monsters) {
-      actor.health!.damage(1e6);
+      expect(visuals.graphOf(actor), isNotNull, reason: _modelOf(actor));
     }
-    level.staged.actors.syncCorpses();
+
+    // Shot dead the way a shot kills: through the actor system, which tells
+    // the brain and makes the body a trigger.
+    for (final actor in monsters) {
+      level.staged.actors.hurt(actor, 1e6);
+    }
     visuals.animate(1.0 / 60.0);
     // Where each runner's feet stood when it died: the floor under it; and
     // how far its pelvis was from the player, whose shot pushes it away.
@@ -130,6 +135,10 @@ void main() {
       frames++;
     }
     expect(settled(), isTrue, reason: 'still after $frames frames');
+    // The rest died by their graphs, into the clip that ends lying down.
+    for (final actor in monsters.where((a) => !runners.contains(a))) {
+      expect(visuals.graphOf(actor)!.state, 'death', reason: _modelOf(actor));
+    }
     // Thrown back by the shot, on the whole: a wall behind one stops it.
     final moved =
         runners

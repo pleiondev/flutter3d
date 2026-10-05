@@ -3,14 +3,16 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
 import 'package:vector_math/vector_math.dart';
 
 import 'actor_appearance.dart';
 import 'actor_corpses.dart';
+import 'actor_graphs.dart';
 
 export 'actor_appearance.dart';
 export 'actor_corpses.dart';
+export 'actor_graphs.dart';
 
 /// Where the monsters are, and which way they are facing.
 ///
@@ -31,6 +33,7 @@ final class ActorVisuals {
     IssueSink? onIssue,
     this.layerMask = 1,
     this.corpses,
+    this.graphs,
   }) : _meshes = SharedMeshes(device),
        _device = device,
        onIssue = onIssue ?? printIssue;
@@ -61,6 +64,19 @@ final class ActorVisuals {
   /// What a modelled actor becomes when it dies, when not its death clip:
   /// the dungeon's monsters fall as ragdolls. Null plays the clip.
   final ActorCorpses? corpses;
+
+  /// What animates a modelled actor by a graph, when not its clip names.
+  final ActorGraphs? graphs;
+
+  /// Each actor [graphs] gave a machine, its graph.
+  final Map<Actor, AnimationGraph> _graphs = <Actor, AnimationGraph>{};
+
+  /// The graph animating [actor], if one does: to ask what state it is in.
+  AnimationGraph? graphOf(Actor actor) => _graphs[actor];
+
+  /// The model [actor] is drawn as, once it has arrived: its joints, its
+  /// player, its meshes. Null for an actor still, or only ever, a capsule.
+  ModelInstance? modelOf(Actor actor) => _instances[actor];
 
   /// The models, kept for [corpses]: a ragdoll is made of a model's joints.
   final Map<Actor, ModelInstance> _instances = <Actor, ModelInstance>{};
@@ -138,6 +154,7 @@ final class ActorVisuals {
     _players.remove(actor);
     _playing.remove(actor);
     _instances.remove(actor);
+    _graphs.remove(actor);
     _lastPose.remove(actor);
     _declined.remove(actor);
     if (_taken.remove(actor)) corpses?.end(actor);
@@ -167,6 +184,7 @@ final class ActorVisuals {
     _playing.clear();
     _smoothed.clear();
     _instances.clear();
+    _graphs.clear();
     _lastPose.clear();
     _taken.clear();
     _declined.clear();
@@ -228,6 +246,16 @@ final class ActorVisuals {
     _instances[actor] = instance;
     final player = instance.player;
     if (player != null) _players[actor] = player;
+    final machine = player == null
+        ? null
+        : graphs?.machineFor(actor, player.clips);
+    if (machine != null) {
+      _graphs[actor] = AnimationGraph(
+        machine: machine,
+        clips: player!.clips,
+        pose: Pose.fromNodes(asset.nodes),
+      );
+    }
   }
 
   Future<ModelAsset?> _load(String path) async {
@@ -294,6 +322,13 @@ final class ActorVisuals {
       final actor = entry.key;
       if (_taken.contains(actor)) continue;
       if (!actor.isAlive && _takeOver(actor)) continue;
+      final graph = _graphs[actor];
+      if (graph != null) {
+        graphs!.drive(actor, graph.parameters);
+        graph.evaluate(dt).writeTo(entry.value.targets);
+        if (corpses != null && actor.isAlive) _keepPose(actor);
+        continue;
+      }
       final wanted = appearance.clipsFor(entry.key);
       // The first the model actually has. `crossFadeToNamed` reports whether
       // the name was there, so a clip this export does not carry is a miss

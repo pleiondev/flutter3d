@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **A modelled actor can be animated by a graph.** `ActorVisuals` takes
+  `graphs:`, an `ActorGraphs`. For each modelled actor it gives a machine
+  for, an `AnimationGraph` is built over the model's own clips and
+  `Pose.fromNodes` of its nodes. Once a frame `drive` writes what the actor
+  is doing into the graph's parameters, and the evaluated pose goes into
+  the model's targets. The machine's states, transitions, fades and exit
+  times decide what is drawn, where before only a list of clip names did.
+  An actor given no machine keeps its clip names. `graphOf` and `modelOf`
+  say what an actor is animated by and drawn as. A dead actor's ragdoll
+  still takes over first.
 - **A dead monster can fall as a body.** `ActorVisuals` takes
   `corpses:`, an `ActorCorpses`. The moment a modelled actor is seen dead,
   its `begin` is asked whether to take the pose over, and is given the

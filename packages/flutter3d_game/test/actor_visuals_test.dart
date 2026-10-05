@@ -312,6 +312,48 @@ void main() {
     });
   });
 
+  group('an actor a game animates by a graph', () {
+    test('gets one over its model, driven and written once a frame', () async {
+      // N1. Mutations: skip `drive` (the graph never leaves idle), or the
+      // `writeTo` (the joints never move).
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final graphs = _Graphs();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        graphs: graphs,
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      await visuals.settled;
+      final graph = visuals.graphOf(actor)!;
+      expect(graph.state, 'stand');
+      final before = <Matrix4>[
+        for (final j in _skeletonOf(visuals, actor).joints)
+          j.localMatrix.clone(),
+      ];
+      graphs.running = true;
+      for (var i = 0; i < 30; i++) {
+        visuals.animate(1.0 / 60.0);
+      }
+      expect(graphs.driven, 30);
+      expect(graph.state, 'run');
+      final joints = _skeletonOf(visuals, actor).joints;
+      final moved = <int>[
+        for (var i = 0; i < joints.length; i++)
+          if (!_near(joints[i].localMatrix, before[i])) i,
+      ];
+      expect(moved, isNotEmpty, reason: 'the run is written into the joints');
+    });
+  });
+
   group('a loading screen', () {
     test('settles once every model it asked for has been answered', () async {
       // `N3`: a warm-up run before the models arrive never sees their
@@ -421,4 +463,48 @@ final class _Corpses implements ActorCorpses {
 
   @override
   void dispose() => disposed = true;
+}
+
+/// The hero's first skeleton, as [visuals] dressed [actor] in it.
+Skeleton _skeletonOf(ActorVisuals visuals, Actor actor) =>
+    visuals.modelOf(actor)!.skeletons.first;
+
+bool _near(Matrix4 a, Matrix4 b) {
+  for (var i = 0; i < 16; i++) {
+    if ((a.storage[i] - b.storage[i]).abs() > 1e-5) return false;
+  }
+  return true;
+}
+
+/// Stands, and runs when told to.
+final class _Graphs implements ActorGraphs {
+  bool running = false;
+  int driven = 0;
+
+  @override
+  AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips) =>
+      AnimationStateMachine(
+        parameters: AnimationParameterSchema(<AnimationParameter>[
+          const AnimationParameter.boolean('running'),
+        ]),
+        entry: 'stand',
+        states: const <AnimationState>[
+          AnimationState(name: 'stand', clip: 'CharacterArmature|Idle'),
+          AnimationState(name: 'run', clip: 'CharacterArmature|Run'),
+        ],
+        transitions: <AnimationTransition>[
+          AnimationTransition(
+            from: 'stand',
+            to: 'run',
+            conditions: const <AnimationCondition>[BoolCondition('running')],
+            duration: 0.1,
+          ),
+        ],
+      );
+
+  @override
+  void drive(Actor actor, AnimationParameters parameters) {
+    driven++;
+    parameters.setBool('running', running);
+  }
 }

@@ -1,0 +1,116 @@
+/// The monsters' animation graph — N1.
+///
+///     flutter test test/monster_graph_test.dart
+///
+/// Built over the clips the crypt's own models carry: the runner, which can
+/// run, walks off from idle when it starts to chase and runs once it is
+/// fast, walks again when slowed and stands when stopped, is struck from
+/// whatever it is doing and comes back, and dies from anything; the shooter,
+/// which has no run, walks at every speed; a model with no idle gets no
+/// graph and keeps naming clips.
+library;
+
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_demo_dungeon/src/monster_looks.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
+import 'package:flutter_test/flutter_test.dart';
+
+/// A graph over [model]'s clips, the machine the dungeon builds for it.
+Future<AnimationGraph> _graphOf(String model) async {
+  final doc = await decodeModel(
+    ModelLoadRequest(source: FileAssetSource('assets_src/models/$model.glb')),
+  );
+  final machine = const DungeonMonsters().machineFor(
+    _nobody(),
+    doc.animations,
+  )!;
+  return AnimationGraph(
+    machine: machine,
+    clips: doc.animations,
+    pose: Pose.fromNodes(doc.nodes),
+  );
+}
+
+Actor _nobody() {
+  final world = CollisionWorld();
+  return ActorSystem(
+    world: world,
+    random: GameRandom(1),
+  ).spawn(body: CharacterController(world: world));
+}
+
+/// Says [state] at [speed] for [seconds], and returns where the graph is.
+String _say(
+  AnimationGraph graph,
+  MonsterState state, {
+  double speed = 0.0,
+  double seconds = 0.5,
+}) {
+  graph.parameters
+    ..setInteger('state', DungeonMonsters.stateCodes.indexOf(state))
+    ..setFloat('speed', speed);
+  for (var t = 0.0; t < seconds; t += 1.0 / 60.0) {
+    graph.evaluate(1.0 / 60.0);
+  }
+  return graph.state;
+}
+
+void main() {
+  test('the runner stands, walks off, runs, slows, stops, is struck and '
+      'dies', () async {
+    final g = await _graphOf('monster_runner');
+    expect(g.state, 'idle');
+    expect(_say(g, MonsterState.alert), 'idle');
+    expect(_say(g, MonsterState.chase, speed: 1.5), 'walk');
+    expect(_say(g, MonsterState.chase, speed: 5.4), 'run');
+    expect(_say(g, MonsterState.chase, speed: 2.8), 'run', reason: 'between');
+    expect(_say(g, MonsterState.chase, speed: 2.0), 'walk');
+    expect(_say(g, MonsterState.chase, speed: 0.0), 'idle');
+    expect(_say(g, MonsterState.chase, speed: 5.4, seconds: 1.0), 'run');
+    expect(_say(g, MonsterState.hurt, speed: 5.4), 'hurt');
+    expect(_say(g, MonsterState.chase, speed: 0.0), 'idle');
+    expect(_say(g, MonsterState.attack), 'attack');
+    expect(_say(g, MonsterState.dead), 'death');
+    expect(_say(g, MonsterState.chase, speed: 5.4), 'death', reason: 'once');
+  });
+
+  test('the shooter, with no run, walks at any speed', () async {
+    final g = await _graphOf('monster_shooter');
+    expect(_say(g, MonsterState.chase, speed: 3.0, seconds: 1.0), 'walk');
+    expect(g.machine.indexOfState('run'), -1);
+    expect(_say(g, MonsterState.hurt), 'hurt');
+    expect(_say(g, MonsterState.dead), 'death');
+  });
+
+  test('a model with no idle keeps naming its clips', () {
+    expect(
+      const DungeonMonsters().machineFor(_nobody(), <AnimationClip>[]),
+      isNull,
+    );
+  });
+
+  test('a monster says its state and how fast it goes along the floor', () {
+    final actor = _nobody();
+    actor.body!.velocity.setValues(3.0, -9.0, 4.0);
+    final parameters = AnimationParameters(
+      AnimationParameterSchema(<AnimationParameter>[
+        const AnimationParameter.integer('state'),
+        const AnimationParameter.float('speed'),
+      ]),
+    );
+    const DungeonMonsters().drive(actor, parameters);
+    expect(parameters.values, <double>[0.0, 5.0]);
+    // Dead, whatever its brain said last.
+    final mortal = ActorSystem(
+      world: CollisionWorld(),
+      random: GameRandom(1),
+    ).spawn(health: Health(1.0));
+    mortal.health!.damage(2.0);
+    const DungeonMonsters().drive(mortal, parameters);
+    expect(
+      parameters.values.first,
+      DungeonMonsters.stateCodes.indexOf(MonsterState.dead),
+    );
+  });
+}

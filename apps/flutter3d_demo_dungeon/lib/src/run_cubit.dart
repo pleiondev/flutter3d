@@ -193,6 +193,9 @@ final class DungeonRun extends RunSession<LevelReady> {
       actors: ActorVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
+        // The monsters are animated by a graph over their own clips: idle,
+        // walking or running by speed, attacking, struck, dying.
+        graphs: const DungeonMonsters(),
         device: device,
         // On their own layer as well as the world's, which is what lets the
         // sensor draw their silhouettes and nothing else's.
