@@ -516,7 +516,7 @@
           {"from": 3.6, "to": 6.2, "text": "It knows you are here."}
         ],
         "signals": [
-          {"t": 3.6, "name": "altar_wakes"}
+          {"t": 3.6, "name": "altar_wakes", "data": {"sound": "stone_move", "at": [0.0, 1.0, -64.0]}}
         ],
         "actors": [
           {"t": 3.6, "actor": "altar_west", "do": "goTo", "at": [-4.0, 0.9, -56.0]},

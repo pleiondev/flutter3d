@@ -114,6 +114,29 @@ final class _Run {
 }
 
 void main() {
+  test('a cutscene\'s signal plays the sound it names, where it says', () {
+    // Mutation: ignoring the signal's place plays the altar waking in the
+    // player's ear; ignoring the name plays nothing.
+    final run = _Run()..run(1);
+    final sounding = run.soundtrack.listen(
+      run.staged.sim,
+      run.staged.player,
+      <GameEvent>[
+        const SequenceSignal('altar_wakes', <String, Object?>{
+          'sound': 'stone_move',
+          'at': <double>[0.0, 1.0, -64.0],
+        }),
+        const SequenceSignal('nothing', <String, Object?>{'sound': 'choir'}),
+      ],
+    );
+    final waking = sounding.once.where(
+      (Heard h) => h.sound == Sounds.stoneMove,
+    );
+    expect(waking, hasLength(1));
+    expect(waking.single.at.z, -64.0);
+    expect(sounding.once.where((Heard h) => h.sound.name == 'choir'), isEmpty);
+  });
+
   test('walking the shipped level is not silent', () {
     // **The claim the whole file exists for.** Before it, a build with no audio
     // device and a build with no sounds at all were the same green.

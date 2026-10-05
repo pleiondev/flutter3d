@@ -374,6 +374,12 @@ final class GameSimulation {
     // [WorldStep], which holds the whole argument now, including which half of
     // it a test will catch and which half is reasoning said out loud.
     _world.movers(dt);
+    // A cutscene's signals, on the step they fired, into the run's own
+    // events — where whatever answers them, a sound or a reaction, already
+    // listens. Moved rather than copied, so each is heard once.
+    for (final mechanism in mechanisms?.all ?? const <Mechanism>[]) {
+      if (mechanism is Cutscene) mechanism.signals.drain().forEach(events.add);
+    }
     _world.index(dt);
 
     player.body.step(

@@ -155,11 +155,14 @@ void main() {
 
   test('it fires its signal and walks the runner to its mark', () {
     final it = _Run()..run(2);
-    final cutscene = it.sim.cutscene!;
     final signals = <String>[];
     for (var i = 0; i < 120; i++) {
       it.run(1);
-      signals.addAll(cutscene.signals.drain().map((e) => e.name));
+      // In the run's own events, where the game listens. Mutation: leaving
+      // them in the cutscene's buffer hears nothing here.
+      signals.addAll(
+        it.sim.events.drain().whereType<SequenceSignal>().map((e) => e.name),
+      );
     }
     expect(signals, <String>['bell']);
     final at = it.grunt.position!;

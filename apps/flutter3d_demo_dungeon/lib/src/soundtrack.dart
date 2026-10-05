@@ -102,6 +102,16 @@ final class Soundtrack {
   /// which sounds are playing.
   final Set<Mechanism> _running = <Mechanism>{};
 
+  /// Three numbers as a place, or null.
+  static Vector3? _place(Object? value) =>
+      value is List && value.length == 3 && value.every((Object? e) => e is num)
+      ? Vector3(
+          (value[0]! as num).toDouble(),
+          (value[1]! as num).toDouble(),
+          (value[2]! as num).toDouble(),
+        )
+      : null;
+
   /// Called once per simulation step, in order.
   Sounding listen(GameSimulation sim, Player player, List<GameEvent> events) {
     final once = <Heard>[];
@@ -125,6 +135,15 @@ final class Soundtrack {
           if (event.staggered && where != null) {
             once.add(Heard(Sounds.monsterPain, where));
           }
+        case SequenceSignal(:final data):
+          // A cutscene names the sound it wants and where, in the level's
+          // own document; a name this bank has not got is silence rather
+          // than a guess. Where it is not said, at the player.
+          final named = data['sound'];
+          final sound = Sounds.all
+              .where((SoundDef s) => s.name == named)
+              .firstOrNull;
+          if (sound != null) once.add(Heard(sound, _place(data['at']) ?? at));
         case MechanismUsed(outcome: Refused()):
           // A door that will not open. The refusal is the simulation's; saying
           // so is this.

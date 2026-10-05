@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **A cutscene's signals are the run's events.** Each step the
+  simulation moves every cutscene's signals into `GameSimulation.events`,
+  on the step they fired, where sounds and reactions already listen.
+
 - **Cutscenes in the shooter.** `sampleRegistry` reads `cutscene`
   entities for sixty steps a second, and `GameSimulation.cutscene` is the
   one playing. While one plays the player's input moves, turns, fires and

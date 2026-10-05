@@ -791,7 +791,14 @@ final Map<String, Object?> _altarScene = <String, Object?>{
     <String, Object?>{'from': 3.6, 'to': 6.2, 'text': 'It knows you are here.'},
   ],
   'signals': <Object?>[
-    <String, Object?>{'t': 3.6, 'name': 'altar_wakes'},
+    <String, Object?>{
+      't': 3.6,
+      'name': 'altar_wakes',
+      'data': <String, Object?>{
+        'sound': 'stone_move',
+        'at': <num>[0.0, 1.0, -64.0],
+      },
+    },
   ],
   'actors': <Object?>[
     for (final (name, at) in <(String, List<num>)>[
