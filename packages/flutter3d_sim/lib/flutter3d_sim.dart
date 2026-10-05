@@ -105,6 +105,7 @@ export 'src/nav/navmesh/mesh_links.dart' show NavMeshLink;
 export 'src/nav/navmesh/navmesh.dart';
 export 'src/nav/navmesh/navmesh_config.dart';
 export 'src/nav/navmesh/route.dart' show NavMeshRoute;
+export 'src/nav/navmesh/span_field.dart' show NavLattice;
 export 'src/physics/layers.dart';
 export 'src/save/data_source_trace.dart';
 export 'src/save/demo.dart';

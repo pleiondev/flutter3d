@@ -35,12 +35,20 @@ final class Contour {
 /// that leaves it.
 typedef _Corner = ({int x, int y, int z, int beyond, bool areaBorder});
 
-/// Traces every region's outline and simplifies it to within [maxError]
-/// cells, in the order the regions are first met in a sweep of the field.
-List<Contour> buildContours(
+/// Traces the outline of every region whose first span lies in one of
+/// [rects] — columns `[x0, x1)` by `[z0, z1)` of [field] — and simplifies it
+/// to within [maxError] cells: per rectangle, in the order the regions are
+/// first met sweeping it row by row.
+///
+/// A region never crosses a tile's edge, so with a rectangle per tile each
+/// region is traced once, in its tile's list. Corners are in the lattice's
+/// own numbering, the field's offset added, so a tile's outlines are the
+/// same whether the field was the whole level or a window onto it.
+List<List<Contour>> buildContours(
   OpenField field,
   Int32List region, {
   required double maxError,
+  required List<({int x0, int z0, int x1, int z1})> rects,
 }) {
   final count = field.spanCount;
 
@@ -54,32 +62,47 @@ List<Contour> buildContours(
     });
   }
 
-  final contours = <Contour>[];
-  for (var cz = 0; cz < field.rows; cz++) {
-    for (var cx = 0; cx < field.columns; cx++) {
-      final c = cz * field.columns + cx;
-      for (var s = field.cellStart[c]; s < field.cellStart[c + 1]; s++) {
-        if (sides[s] == 0 || region[s] == 0) continue;
-        final raw = _walk(field, region, sides, cx, cz, s);
-        final simple = _removeDegenerate(_simplify(raw, maxError));
-        if (simple.length < 3) continue;
-        contours.add(
-          Contour(
-            region[s],
-            field.area[s],
-            Int32List.fromList(<int>[
-              for (final corner in simple) ...<int>[
-                corner.x,
-                corner.y,
-                corner.z,
-              ],
-            ]),
-          ),
-        );
-      }
-    }
-  }
-  return contours;
+  return <List<Contour>>[
+    for (final rect in rects)
+      <Contour>[
+        for (var cz = rect.z0; cz < rect.z1; cz++)
+          for (var cx = rect.x0; cx < rect.x1; cx++)
+            for (
+              var s = field.cellStart[cz * field.columns + cx];
+              s < field.cellStart[cz * field.columns + cx + 1];
+              s++
+            )
+              if (sides[s] != 0 && region[s] != 0)
+                ?_trace(field, region, sides, cx, cz, s, maxError),
+      ],
+  ];
+}
+
+/// The simplified outline of [s]'s region, traced from [s], or null when it
+/// simplifies to less than a triangle.
+Contour? _trace(
+  OpenField field,
+  Int32List region,
+  Uint8List sides,
+  int cx,
+  int cz,
+  int s,
+  double maxError,
+) {
+  final raw = _walk(field, region, sides, cx, cz, s);
+  final simple = _removeDegenerate(_simplify(raw, maxError));
+  if (simple.length < 3) return null;
+  return Contour(
+    region[s],
+    field.area[s],
+    Int32List.fromList(<int>[
+      for (final corner in simple) ...<int>[
+        corner.x + field.offsetX,
+        corner.y,
+        corner.z + field.offsetZ,
+      ],
+    ]),
+  );
 }
 
 /// Follows the region's border from span [s], keeping the region on one

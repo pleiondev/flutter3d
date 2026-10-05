@@ -1,5 +1,20 @@
 ## Unreleased
 
+- **A navigation mesh can have a part of it baked again.**
+  `NavMeshConfig.tileSize` cuts the lattice into tiles, a region never
+  crosses a tile's edge, and `NavMesh.rebake` bakes again only the tiles
+  a change reaches, outlines their neighbours again against them and cuts
+  the polygons again from every outline. The result is the changed level
+  baked whole, digest for digest, on the mesh's own `NavLattice`, which
+  `bake(lattice:)` takes. On the dungeon's levels at a quarter-metre
+  lattice and four-metre tiles a broken wall is baked again in 2 to 5 ms,
+  against 6 to 40 for the whole. Tiled, `maxEdgeError` stays under half a
+  cell: a simplified edge then never crosses a cell's centre, so a floor
+  reaching one cell into a tile is not simplified away and the mesh still
+  covers exactly what the grid covers. Untiled meshes, the default, bake
+  as before, digests and all. Refused for meshes with jumps or islands
+  dropped.
+
 - **One navigation mesh per width of body.** `ActorSystem.navMeshes`
   replaces the single mesh: a mesh is eroded by one radius, and a body
   wider than it was baked for was routed through gaps it does not fit.

@@ -393,6 +393,58 @@ void main() {
     });
   });
 
+  group('in tiles', () {
+    // Two-metre tiles, small enough that every scene here is cut by several
+    // edges, and floors reach one cell into a tile all over.
+    const tiled = NavMeshConfig(tileSize: 4, maxEdgeError: 0.45);
+    final scenes = <(String, List<Brush>)>[
+      ('a flat floor', _floor()),
+      ('two rooms and a doorway', _rooms()),
+      ('tall steps', _tallSteps()),
+      ('short steps', _shortSteps()),
+      ('a pillar', _pillar()),
+    ];
+    for (final (name, brushes) in scenes) {
+      test('$name covers what the grid covers', () {
+        final mesh = NavMesh.bake(brushes, config: tiled);
+        _expectWellFormed(mesh);
+        // Mutation: simplifying by 0.9 of a cell rather than under half
+        // cuts the corners the erosion leaves round the doorway and the
+        // pillar, and the mesh covers cells the grid refuses.
+        _expectCoverageMatches(mesh, NavGrid.bake(brushes), tiled.agentRadius);
+      });
+    }
+
+    test('a flat floor is still one walk, in more polygons', () {
+      final mesh = NavMesh.bake(_floor(), config: tiled);
+      expect(mesh.polygonCount, greaterThan(1));
+      expect(_reachable(mesh, 0), hasLength(mesh.polygonCount));
+    });
+
+    test('the hillside covers what the grid covers', () {
+      const hills = NavMeshConfig(
+        maxSlope: 0.35,
+        tileSize: 4,
+        maxEdgeError: 0.45,
+      );
+      final mesh = NavMesh.bake(
+        const <Brush>[],
+        ground: _hillside(),
+        config: hills,
+      );
+      _expectWellFormed(mesh);
+      _expectCoverageMatches(
+        mesh,
+        NavGrid.bakeHeightfield(
+          _hillside(),
+          stepHeight: hills.stepHeight,
+          maxSlope: hills.maxSlope,
+        ),
+        hills.agentRadius,
+      );
+    });
+  });
+
   group('an empty level', () {
     test('bakes an empty mesh rather than refusing', () {
       final mesh = NavMesh.bakeLevel(Level(name: 'empty'));

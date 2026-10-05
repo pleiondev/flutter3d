@@ -32,73 +32,55 @@ final class SolidSpan {
   int area;
 }
 
-/// Solid voxels, column by column, lowest span first.
-final class SpanField {
-  SpanField._({
+/// The lattice a mesh is baked on: where its corner is and how many cells.
+///
+/// Taken from the level when a mesh is first baked — its corner at the least
+/// x and z any solid brush reaches, its count the extent over the cell size
+/// rounded up, terrain widening it — and kept by the mesh, so that a part of
+/// it baked again later lands on the same cells.
+final class NavLattice {
+  const NavLattice({
     required this.originX,
     required this.originY,
     required this.originZ,
-    required this.cellSize,
-    required this.cellHeight,
     required this.columns,
     required this.rows,
-    required this.spans,
   });
+
+  /// Nothing to stand on: no columns.
+  static const NavLattice empty = NavLattice(
+    originX: 0.0,
+    originY: 0.0,
+    originZ: 0.0,
+    columns: 0,
+    rows: 0,
+  );
 
   /// The world position of voxel `(0, 0, 0)`'s lowest corner.
   final double originX;
   final double originY;
   final double originZ;
 
-  final double cellSize;
-  final double cellHeight;
   final int columns;
   final int rows;
 
-  /// Per column, `cz * columns + cx`, merged and sorted by height.
-  final List<List<SolidSpan>> spans;
-
   bool get isEmpty => columns == 0 || rows == 0;
 
-  /// Rasterises the solid [brushes] and the [ground] into columns of spans.
-  ///
-  /// [areaOf] names a brush's walking surface; [groundArea] is the terrain's.
-  /// A surface steeper than `config.maxSlope` is solid and not a floor.
-  ///
-  /// **The lattice is `NavGrid.bake`'s**: its corner at the least x and z any
-  /// solid brush reaches, its count the extent over the cell size rounded up.
-  /// Terrain widens it to cover the field.
-  static SpanField rasterise(
+  /// The lattice of [brushes]' solid ones and [ground] — `NavGrid.bake`'s.
+  factory NavLattice.of(
     Iterable<Brush> brushes, {
     required NavMeshConfig config,
     Heightfield? ground,
-    required int Function(Brush brush) areaOf,
-    required int groundArea,
   }) {
     final solid = <Brush>[
       for (final brush in brushes)
         if (brush.solid) brush,
     ];
-    final cs = config.cellSize;
-    final ch = config.cellHeight;
+    if (solid.isEmpty && ground == null) return empty;
     final samples = ground?.copyOfSamples();
     final groundLow = samples == null || samples.isEmpty
         ? null
         : samples.reduce(math.min).toDouble();
-
-    if (solid.isEmpty && ground == null) {
-      return SpanField._(
-        originX: 0.0,
-        originY: 0.0,
-        originZ: 0.0,
-        cellSize: cs,
-        cellHeight: ch,
-        columns: 0,
-        rows: 0,
-        spans: const <List<SolidSpan>>[],
-      );
-    }
-
     final (minX, minY, minZ, maxX, maxZ) = solid.fold(
       ground == null
           ? (
@@ -123,9 +105,123 @@ final class SpanField {
         math.max(box.$5, brush.max.z),
       ),
     );
+    final cs = config.cellSize;
+    return NavLattice(
+      originX: minX,
+      originY: minY,
+      originZ: minZ,
+      columns: math.max(1, ((maxX - minX) / cs).ceil()),
+      rows: math.max(1, ((maxZ - minZ) / cs).ceil()),
+    );
+  }
 
-    final columns = math.max(1, ((maxX - minX) / cs).ceil());
-    final rows = math.max(1, ((maxZ - minZ) / cs).ceil());
+  @override
+  bool operator ==(Object other) =>
+      other is NavLattice &&
+      other.originX == originX &&
+      other.originY == originY &&
+      other.originZ == originZ &&
+      other.columns == columns &&
+      other.rows == rows;
+
+  @override
+  int get hashCode => Object.hash(originX, originY, originZ, columns, rows);
+}
+
+/// A rectangle of a lattice's columns, `[x0, x1)` by `[z0, z1)`.
+typedef NavWindow = ({int x0, int z0, int x1, int z1});
+
+/// Solid voxels, column by column, lowest span first.
+final class SpanField {
+  SpanField._({
+    required this.originX,
+    required this.originY,
+    required this.originZ,
+    required this.cellSize,
+    required this.cellHeight,
+    required this.columns,
+    required this.rows,
+    required this.offsetX,
+    required this.offsetZ,
+    required this.spans,
+  });
+
+  /// The world position of the lattice's voxel `(0, 0, 0)`'s lowest corner —
+  /// the lattice's, not this field's first column's, when the field is a
+  /// window onto it.
+  final double originX;
+  final double originY;
+  final double originZ;
+
+  final double cellSize;
+  final double cellHeight;
+  final int columns;
+  final int rows;
+
+  /// The lattice column and row of this field's column `(0, 0)`.
+  final int offsetX;
+  final int offsetZ;
+
+  /// Per column, `cz * columns + cx`, merged and sorted by height.
+  final List<List<SolidSpan>> spans;
+
+  bool get isEmpty => columns == 0 || rows == 0;
+
+  /// Rasterises the solid [brushes] and the [ground] into columns of spans,
+  /// over [window] of [lattice] — all of it unless told otherwise.
+  ///
+  /// [areaOf] names a brush's walking surface; [groundArea] is the terrain's.
+  /// A surface steeper than `config.maxSlope` is solid and not a floor.
+  ///
+  /// **The lattice is `NavGrid.bake`'s** unless one is given — see
+  /// [NavLattice.of]. **A column of a window is the same column of the whole**,
+  /// bit for bit: every position is worked out from the lattice's origin and
+  /// the column's index in the lattice, never from the window's corner, so a
+  /// part baked again agrees with the whole baked once.
+  static SpanField rasterise(
+    Iterable<Brush> brushes, {
+    required NavMeshConfig config,
+    Heightfield? ground,
+    required int Function(Brush brush) areaOf,
+    required int groundArea,
+    NavLattice? lattice,
+    NavWindow? window,
+  }) {
+    final solid = <Brush>[
+      for (final brush in brushes)
+        if (brush.solid) brush,
+    ];
+    final cs = config.cellSize;
+    final ch = config.cellHeight;
+    final grid =
+        lattice ?? NavLattice.of(solid, config: config, ground: ground);
+    final samples = ground?.copyOfSamples();
+    final groundLow = samples == null || samples.isEmpty
+        ? null
+        : samples.reduce(math.min).toDouble();
+
+    final w =
+        window ?? (x0: 0, z0: 0, x1: grid.columns, z1: grid.rows);
+    final columns = math.max(0, w.x1 - w.x0);
+    final rows = math.max(0, w.z1 - w.z0);
+    if (grid.isEmpty || columns == 0 || rows == 0) {
+      return SpanField._(
+        originX: grid.originX,
+        originY: grid.originY,
+        originZ: grid.originZ,
+        cellSize: cs,
+        cellHeight: ch,
+        columns: 0,
+        rows: 0,
+        offsetX: w.x0,
+        offsetZ: w.z0,
+        spans: const <List<SolidSpan>>[],
+      );
+    }
+
+    final minX = grid.originX;
+    final minY = grid.originY;
+    final minZ = grid.originZ;
     final raw = List<List<SolidSpan>>.generate(
       columns * rows,
       (_) => <SolidSpan>[],
@@ -150,22 +246,22 @@ final class SpanField {
       final area = areaOf(brush);
 
       // Every column the brush overlaps by more than a hair, exactly as
-      // `NavGrid` buckets them.
-      final x0 = _clamp(
-        ((lo.x - minX) / cs + Tolerance.gridBias).floor(),
-        columns,
+      // `NavGrid` buckets them; then only those in the window.
+      final x0 = math.max(
+        w.x0,
+        _clamp(((lo.x - minX) / cs + Tolerance.gridBias).floor(), grid.columns),
       );
-      final x1 = _clamp(
-        ((hi.x - minX) / cs - Tolerance.gridBias).floor(),
-        columns,
+      final x1 = math.min(
+        w.x1 - 1,
+        _clamp(((hi.x - minX) / cs - Tolerance.gridBias).floor(), grid.columns),
       );
-      final z0 = _clamp(
-        ((lo.z - minZ) / cs + Tolerance.gridBias).floor(),
-        rows,
+      final z0 = math.max(
+        w.z0,
+        _clamp(((lo.z - minZ) / cs + Tolerance.gridBias).floor(), grid.rows),
       );
-      final z1 = _clamp(
-        ((hi.z - minZ) / cs - Tolerance.gridBias).floor(),
-        rows,
+      final z1 = math.min(
+        w.z1 - 1,
+        _clamp(((hi.z - minZ) / cs - Tolerance.gridBias).floor(), grid.rows),
       );
 
       for (var cz = z0; cz <= z1; cz++) {
@@ -177,7 +273,7 @@ final class SpanField {
               ? hi.y
               : _rampHeight(brush, ramp.x, ramp.z, px, pz);
           final bottom = floorVoxel(lo.y);
-          raw[cz * columns + cx].add(
+          raw[(cz - w.z0) * columns + (cx - w.x0)].add(
             SolidSpan(
               bottom,
               math.max(bottom, topVoxel(top)),
@@ -190,15 +286,19 @@ final class SpanField {
 
     if (ground != null) {
       final bottom = floorVoxel(groundLow!);
-      for (var cz = 0; cz < rows; cz++) {
+      for (var cz = math.max(0, w.z0); cz < math.min(grid.rows, w.z1); cz++) {
         final pz = minZ + (cz + 0.5) * cs;
-        for (var cx = 0; cx < columns; cx++) {
+        for (
+          var cx = math.max(0, w.x0);
+          cx < math.min(grid.columns, w.x1);
+          cx++
+        ) {
           final px = minX + (cx + 0.5) * cs;
           // Off the field is not ground, for `bakeHeightfield`'s reason: the
           // field answers beyond its edge with the edge's height, and a floor
           // laid on that answer is a floor that is not there.
           if (!ground.contains(px, pz)) continue;
-          raw[cz * columns + cx].add(
+          raw[(cz - w.z0) * columns + (cx - w.x0)].add(
             SolidSpan(
               bottom,
               math.max(bottom, topVoxel(ground.heightAt(px, pz))),
@@ -217,6 +317,8 @@ final class SpanField {
       cellHeight: ch,
       columns: columns,
       rows: rows,
+      offsetX: w.x0,
+      offsetZ: w.z0,
       spans: <List<SolidSpan>>[for (final column in raw) _merged(column)],
     );
   }

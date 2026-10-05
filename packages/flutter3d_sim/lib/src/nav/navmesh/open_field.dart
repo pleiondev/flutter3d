@@ -21,6 +21,8 @@ final class OpenField {
   OpenField._({
     required this.columns,
     required this.rows,
+    required this.offsetX,
+    required this.offsetZ,
     required this.cellStart,
     required this.floor,
     required this.ceiling,
@@ -30,6 +32,11 @@ final class OpenField {
 
   final int columns;
   final int rows;
+
+  /// The lattice column and row of this field's column `(0, 0)`: nought for
+  /// a whole level, the window's corner for a part of one baked again.
+  final int offsetX;
+  final int offsetZ;
 
   /// Spans of column `c` are `cellStart[c]` up to `cellStart[c + 1]`.
   final Int32List cellStart;
@@ -115,6 +122,8 @@ final class OpenField {
     return OpenField._(
       columns: solid.columns,
       rows: solid.rows,
+      offsetX: solid.offsetX,
+      offsetZ: solid.offsetZ,
       cellStart: cellStart,
       floor: floor,
       ceiling: ceiling,

@@ -20,7 +20,14 @@ final class NavMeshConfig {
     this.maxEdgeError = 1.3,
     this.maxVerticesPerPolygon = 6,
     this.minIslandArea = 0.0,
-  }) : assert(cellSize > 0.0, 'a cell of no width has no place to stand'),
+    this.tileSize = 0,
+  }) : assert(tileSize >= 0, 'a tile of fewer than no cells'),
+       assert(
+         tileSize == 0 || maxEdgeError < 0.5,
+         'a tiled mesh simplifies its outlines by less than half a cell, or '
+         'it loses and gains standing room at every tile edge',
+       ),
+       assert(cellSize > 0.0, 'a cell of no width has no place to stand'),
        assert(
          cellHeight > 0.0,
          'a voxel of no height cannot tell floors apart',
@@ -86,7 +93,25 @@ final class NavMeshConfig {
         maxEdgeError: maxEdgeError,
         maxVerticesPerPolygon: maxVerticesPerPolygon,
         minIslandArea: minIslandArea,
+        tileSize: tileSize,
       );
+
+  /// The side of a tile, in cells, or nought for none.
+  ///
+  /// A mesh baked in tiles can have a part baked again — see
+  /// `NavMesh.rebake` — at the price of polygons cut at every tile's edge.
+  ///
+  /// **Tiled, [maxEdgeError] is under half a cell.** A tile's edge cuts a
+  /// floor wherever it falls, and a floor that reaches one cell into a tile
+  /// is a strip whose far side is a cell from its near one: simplified by a
+  /// cell or more it is a line, and gone. Under half a cell, a simplified
+  /// edge cannot cross the centre of a cell — every centre is half a cell
+  /// from the lattice lines the raw outline runs on — so the mesh covers
+  /// exactly the cells the grid does, tile edges or not.
+  /// Untiled, a region runs as far as the floor does and the polygons are
+  /// as large as they get, which is the better mesh for a level that never
+  /// changes.
+  final int tileSize;
 
   /// [agentHeight] in voxels, rounded up: a ceiling one voxel short of the
   /// agent's head is a ceiling the agent does not fit under.
@@ -118,5 +143,8 @@ final class NavMeshConfig {
     maxEdgeError,
     maxVerticesPerPolygon.toDouble(),
     minIslandArea,
+    // Only when there are tiles, so an untiled mesh keeps the digest it had
+    // before tiles existed.
+    if (tileSize > 0) tileSize.toDouble(),
   ];
 }

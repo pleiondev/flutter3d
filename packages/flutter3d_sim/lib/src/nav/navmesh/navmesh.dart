@@ -54,15 +54,12 @@ abstract final class NavArea {
 final class NavMesh {
   NavMesh._({
     required this.config,
-    required this.originX,
-    required this.originY,
-    required this.originZ,
+    required this.lattice,
+    required this._tileContours,
     required this._vertices,
     required this._polygons,
     required this._neighbours,
     required this._areas,
-    required this._columns,
-    required this._rows,
     required this._columnStart,
     required this._floors,
     this.links = const <NavMeshLink>[],
@@ -71,10 +68,17 @@ final class NavMesh {
   /// What the mesh was baked to. Part of [digest].
   final NavMeshConfig config;
 
+  /// The cells the mesh was baked on, which a part baked again keeps.
+  final NavLattice lattice;
+
   /// The world position of lattice point `(0, 0, 0)`.
-  final double originX;
-  final double originY;
-  final double originZ;
+  double get originX => lattice.originX;
+  double get originY => lattice.originY;
+  double get originZ => lattice.originZ;
+
+  /// The outlines the polygons were cut from, tile by tile, in tile order:
+  /// what [rebake] replaces a part of and cuts again.
+  final List<List<Contour>> _tileContours;
 
   final Int32List _vertices;
   final Int32List _polygons;
@@ -85,8 +89,8 @@ final class NavMesh {
   /// voxels: column `c`'s are `_floors[_columnStart[c]]` up to
   /// `_floors[_columnStart[c + 1]]`, lowest first. The heights the polygons'
   /// corners cannot carry — see [heightAt].
-  final int _columns;
-  final int _rows;
+  int get _columns => lattice.columns;
+  int get _rows => lattice.rows;
   final Int32List _columnStart;
   final Int32List _floors;
 
@@ -481,14 +485,217 @@ final class NavMesh {
     int groundArea = NavArea.ground,
     JumpReach? jumps,
     double maxFall = 2.0,
+    NavLattice? lattice,
+  }) {
+    final grid =
+        lattice ?? NavLattice.of(brushes, config: config, ground: ground);
+    final (across, down) = _tileCounts(config, grid);
+    final all = (x0: 0, z0: 0, x1: across, z1: down);
+    final baked = _bakeWindow(
+      brushes,
+      ground: ground,
+      config: config,
+      areaOf: areaOf ?? (_) => NavArea.ground,
+      groundArea: groundArea,
+      lattice: grid,
+      window: (x0: 0, z0: 0, x1: grid.columns, z1: grid.rows),
+      regionTiles: all,
+      contourTiles: all,
+    );
+    final floors = _standingFloors(baked.open);
+    final walked = _assemble(
+      config,
+      grid,
+      baked.contours,
+      floors.start,
+      floors.floors,
+    );
+    if (jumps == null) return walked;
+    return _assemble(
+      config,
+      grid,
+      baked.contours,
+      floors.start,
+      floors.floors,
+      links: List<NavMeshLink>.unmodifiable(
+        bakeMeshLinks(
+          baked.open,
+          baked.solid,
+          config: config,
+          reach: jumps,
+          maxFall: maxFall,
+          polygonAt: walked.polygonAt,
+        ),
+      ),
+    );
+  }
+
+  /// This mesh with the part of it over the world rectangle from
+  /// `(minX, minZ)` to `(maxX, maxZ)` baked again from [brushes] and
+  /// [ground] — the whole level as it now is, and the same [areaOf] and
+  /// [groundArea] it was baked with.
+  ///
+  /// **The same mesh as baking the changed level whole**, on this mesh's
+  /// lattice, digest for digest: a tile's regions are its own, so the tiles
+  /// the change reaches — the rectangle widened by the agent's erosion — are
+  /// baked again, their neighbours outlined again against them, and the
+  /// polygons cut again from every outline. Two rings of tiles and the
+  /// erosion around them are rasterised for that, a fixed amount whatever
+  /// the size of the level.
+  ///
+  /// Refused for a mesh baked without tiles ([NavMeshConfig.tileSize]),
+  /// with jumps, or with [NavMeshConfig.minIslandArea]: an island is a fact
+  /// about all of a floor, and a jump about everything within a flight.
+  /// The level may not grow past the lattice: what is outside it is not
+  /// baked.
+  NavMesh rebake(
+    Iterable<Brush> brushes, {
+    Heightfield? ground,
+    int Function(Brush brush)? areaOf,
+    int groundArea = NavArea.ground,
+    required double minX,
+    required double minZ,
+    required double maxX,
+    required double maxZ,
+  }) {
+    final size = config.tileSize;
+    if (size <= 0) {
+      throw StateError(
+        'a mesh baked without tiles is baked again whole: set '
+        'NavMeshConfig.tileSize to bake a part of it again',
+      );
+    }
+    if (links.isNotEmpty) {
+      throw UnsupportedError('a mesh with jumps is baked again whole');
+    }
+    if (config.minIslandCells > 1) {
+      throw UnsupportedError(
+        'a mesh that drops islands is baked again whole: an island is a '
+        'fact about all of a floor',
+      );
+    }
+    if (lattice.isEmpty) return this;
+
+    final cs = config.cellSize;
+    final margin = config.erosion + 1;
+    final (across, down) = _tileCounts(config, lattice);
+    int column(double x) => ((x - originX) / cs).floor().clamp(0, _columns - 1);
+    int row(double z) => ((z - originZ) / cs).floor().clamp(0, _rows - 1);
+
+    // The tiles the change reaches: the rectangle, widened by the erosion,
+    // which moves where a floor ends that far.
+    final changed = (
+      x0: (column(minX) - margin).clamp(0, _columns - 1) ~/ size,
+      z0: (row(minZ) - margin).clamp(0, _rows - 1) ~/ size,
+      x1: (column(maxX) + margin).clamp(0, _columns - 1) ~/ size + 1,
+      z1: (row(maxZ) + margin).clamp(0, _rows - 1) ~/ size + 1,
+    );
+    ({int x0, int z0, int x1, int z1}) widened(int by) => (
+      x0: math.max(0, changed.x0 - by),
+      z0: math.max(0, changed.z0 - by),
+      x1: math.min(across, changed.x1 + by),
+      z1: math.min(down, changed.z1 + by),
+    );
+    // Outlined again: the changed tiles and the ring round them, whose
+    // borders with them may have moved. Given regions: one ring further, for
+    // what lies beyond those borders.
+    final outlined = widened(1);
+    final regioned = widened(2);
+    final baked = _bakeWindow(
+      brushes,
+      ground: ground,
+      config: config,
+      areaOf: areaOf ?? (_) => NavArea.ground,
+      groundArea: groundArea,
+      lattice: lattice,
+      window: (
+        x0: math.max(0, regioned.x0 * size - margin),
+        z0: math.max(0, regioned.z0 * size - margin),
+        x1: math.min(_columns, regioned.x1 * size + margin),
+        z1: math.min(_rows, regioned.z1 * size + margin),
+      ),
+      regionTiles: regioned,
+      contourTiles: outlined,
+    );
+
+    final contours = List<List<Contour>>.of(_tileContours);
+    var k = 0;
+    for (var tz = outlined.z0; tz < outlined.z1; tz++) {
+      for (var tx = outlined.x0; tx < outlined.x1; tx++) {
+        contours[tz * across + tx] = baked.contours[k++];
+      }
+    }
+
+    // The standing floors: the changed tiles' columns from the window, the
+    // rest as they were, copied a run at a time.
+    final open = baked.open;
+    final cx0 = changed.x0 * size;
+    final cz0 = changed.z0 * size;
+    final cx1 = math.min(_columns, changed.x1 * size);
+    final cz1 = math.min(_rows, changed.z1 * size);
+    final start = Int32List(_columns * _rows + 1);
+    final out = <int>[];
+    for (var cz = 0; cz < _rows; cz++) {
+      for (var cx = 0; cx < _columns; cx++) {
+        final c = cz * _columns + cx;
+        start[c] = out.length;
+        if (cx >= cx0 && cx < cx1 && cz >= cz0 && cz < cz1) {
+          final local =
+              (cz - open.offsetZ) * open.columns + (cx - open.offsetX);
+          for (
+            var s = open.cellStart[local];
+            s < open.cellStart[local + 1];
+            s++
+          ) {
+            if (open.area[s] != nullArea) out.add(open.floor[s]);
+          }
+        } else {
+          for (var i = _columnStart[c]; i < _columnStart[c + 1]; i++) {
+            out.add(_floors[i]);
+          }
+        }
+      }
+    }
+    start[_columns * _rows] = out.length;
+    final floors = (start: start, floors: Int32List.fromList(out));
+    return _assemble(config, lattice, contours, floors.start, floors.floors);
+  }
+
+  /// How many tiles across and down [lattice] is cut into: one by one when
+  /// it is not tiled.
+  static (int, int) _tileCounts(NavMeshConfig config, NavLattice lattice) {
+    final size = config.tileSize;
+    if (size == 0) return (1, 1);
+    return (
+      (lattice.columns + size - 1) ~/ size,
+      (lattice.rows + size - 1) ~/ size,
+    );
+  }
+
+  /// The stages of a bake over [window] of [lattice], up to the outlines:
+  /// regions for the tiles [regionTiles], outlines for [contourTiles], one
+  /// list per tile in row order.
+  static ({SpanField solid, OpenField open, List<List<Contour>> contours})
+  _bakeWindow(
+    Iterable<Brush> brushes, {
+    required Heightfield? ground,
+    required NavMeshConfig config,
+    required int Function(Brush brush) areaOf,
+    required int groundArea,
+    required NavLattice lattice,
+    required NavWindow window,
+    required ({int x0, int z0, int x1, int z1}) regionTiles,
+    required ({int x0, int z0, int x1, int z1}) contourTiles,
   }) {
     final solid =
         SpanField.rasterise(
             brushes,
             config: config,
             ground: ground,
-            areaOf: areaOf ?? (_) => NavArea.ground,
+            areaOf: areaOf,
             groundArea: groundArea,
+            lattice: lattice,
+            window: window,
           )
           ..filterLowHangingObstacles(config.walkableClimb)
           ..filterLowHeight(config.walkableHeight);
@@ -501,63 +708,89 @@ final class NavMesh {
     erode(open, distanceField(open, config.walkableClimb), config.erosion);
     dropIslands(open, config.minIslandCells);
 
-    final regions = monotoneRegions(open);
-    final contours = buildContours(
+    final size = config.tileSize;
+    final (across, _) = _tileCounts(config, lattice);
+    final region = monotoneRegions(
       open,
-      regions.region,
-      maxError: config.maxEdgeError,
+      tiles: (
+        size: size,
+        across: across,
+        x0: regionTiles.x0,
+        z0: regionTiles.z0,
+        x1: regionTiles.x1,
+        z1: regionTiles.z1,
+      ),
     );
-    final parts = buildPolyMesh(
-      contours,
-      maxCorners: config.maxVerticesPerPolygon,
-    );
-
-    final floors = _standingFloors(open);
-    NavMesh mesh({List<NavMeshLink> links = const <NavMeshLink>[]}) =>
-        NavMesh._(
-          config: config,
-          originX: solid.originX,
-          originY: solid.originY,
-          originZ: solid.originZ,
-          vertices: parts.vertices,
-          polygons: parts.polygons,
-          neighbours: parts.neighbours,
-          areas: parts.areas,
-          columns: open.columns,
-          rows: open.rows,
-          columnStart: floors.start,
-          floors: floors.floors,
-          links: links,
-        );
-
-    final walked = mesh();
-    if (jumps == null) return walked;
-    return mesh(
-      links: List<NavMeshLink>.unmodifiable(
-        bakeMeshLinks(
-          open,
-          solid,
-          config: config,
-          reach: jumps,
-          maxFall: maxFall,
-          polygonAt: walked.polygonAt,
-        ),
+    final rects = <({int x0, int z0, int x1, int z1})>[
+      for (var tz = contourTiles.z0; tz < contourTiles.z1; tz++)
+        for (var tx = contourTiles.x0; tx < contourTiles.x1; tx++)
+          size == 0
+              ? (x0: 0, z0: 0, x1: open.columns, z1: open.rows)
+              : (
+                  x0: math.max(0, tx * size - open.offsetX),
+                  z0: math.max(0, tz * size - open.offsetZ),
+                  x1: math.min(open.columns, (tx + 1) * size - open.offsetX),
+                  z1: math.min(open.rows, (tz + 1) * size - open.offsetZ),
+                ),
+    ];
+    return (
+      solid: solid,
+      open: open,
+      contours: buildContours(
+        open,
+        region,
+        maxError: config.maxEdgeError,
+        rects: rects,
       ),
     );
   }
 
-  /// The floors of [open] a body may stand on, column by column.
-  static ({Int32List start, Int32List floors}) _standingFloors(OpenField open) {
-    final count = open.columns * open.rows;
-    final start = Int32List(count + 1);
-    final floors = <int>[];
-    for (var c = 0; c < count; c++) {
-      start[c] = floors.length;
-      for (var s = open.cellStart[c]; s < open.cellStart[c + 1]; s++) {
-        if (open.area[s] != nullArea) floors.add(open.floor[s]);
-      }
-    }
-    start[count] = floors.length;
-    return (start: start, floors: Int32List.fromList(floors));
+  /// The mesh cut from [tileContours], every tile's in tile order.
+  static NavMesh _assemble(
+    NavMeshConfig config,
+    NavLattice lattice,
+    List<List<Contour>> tileContours,
+    Int32List columnStart,
+    Int32List floors, {
+    List<NavMeshLink> links = const <NavMeshLink>[],
+  }) {
+    final parts = buildPolyMesh(<Contour>[
+      for (final tile in tileContours) ...tile,
+    ], maxCorners: config.maxVerticesPerPolygon);
+    return NavMesh._(
+      config: config,
+      lattice: lattice,
+      tileContours: tileContours,
+      vertices: parts.vertices,
+      polygons: parts.polygons,
+      neighbours: parts.neighbours,
+      areas: parts.areas,
+      columnStart: columnStart,
+      floors: floors,
+      links: links,
+    );
   }
+
+  /// Per-column lists packed into a start index and one array.
+  static ({Int32List start, Int32List floors}) _packed(List<List<int>> lists) {
+    final start = Int32List(lists.length + 1);
+    for (var c = 0; c < lists.length; c++) {
+      start[c + 1] = start[c] + lists[c].length;
+    }
+    return (
+      start: start,
+      floors: Int32List.fromList(<int>[for (final l in lists) ...l]),
+    );
+  }
+
+  /// The floors of [open] a body may stand on, column by column.
+  static ({Int32List start, Int32List floors}) _standingFloors(
+    OpenField open,
+  ) => _packed(<List<int>>[
+    for (var c = 0; c < open.columns * open.rows; c++)
+      <int>[
+        for (var s = open.cellStart[c]; s < open.cellStart[c + 1]; s++)
+          if (open.area[s] != nullArea) open.floor[s],
+      ],
+  ]);
 }
