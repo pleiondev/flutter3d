@@ -113,6 +113,14 @@ void main() {
       expect(route.points.last, Vector3(3, 0, 2));
     });
 
+    test('a point on the polygon\'s far edge is on it', () {
+      // The floor's polygon runs from lattice 1 to 19, world −4.5 to 4.5.
+      // Mutation: indexing a polygon under the columns it covers and not
+      // the one its far edge starts loses the points on that edge.
+      expect(mesh.polygonAt(Vector3(4.5, 0, 4.5)), 0);
+      expect(mesh.polygonAt(Vector3(-4.5, 0, -4.5)), 0);
+    });
+
     test('a start off the mesh has no route', () {
       expect(mesh.route(Vector3(20, 0, 0), Vector3(0, 0, 0)), isNull);
     });

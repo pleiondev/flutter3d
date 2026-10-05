@@ -171,10 +171,58 @@ final class NavMesh {
 
   /// Every polygon over `(x, z)` in plan, lowest index first — one per floor
   /// where floors are stacked.
-  List<int> polygonsAt(double x, double z) => <int>[
-    for (var p = 0; p < polygonCount; p++)
-      if (containsPoint(p, x, z)) p,
-  ];
+  ///
+  /// Asked of the polygons [_byColumn] lists for the lattice column under
+  /// the point, not of every polygon: a body asks this every step, and on a
+  /// mesh of hundreds of polygons the walk over all of them was most of what
+  /// finding its route cost.
+  List<int> polygonsAt(double x, double z) {
+    final cx = ((x - originX) / config.cellSize).floor();
+    final cz = ((z - originZ) / config.cellSize).floor();
+    if (cx < 0 || cz < 0 || cx >= _columns || cz >= _rows) return <int>[];
+    final (start, polygons) = _byColumn;
+    final c = cz * _columns + cx;
+    return <int>[
+      for (var i = start[c]; i < start[c + 1]; i++)
+        if (containsPoint(polygons[i], x, z)) polygons[i],
+    ];
+  }
+
+  /// For each lattice column, the polygons whose extent in plan reaches it,
+  /// lowest index first: column `c`'s are `polygons[start[c]]` up to
+  /// `polygons[start[c + 1]]`.
+  ///
+  /// **Up to the column its far corners start**, not the last one it covers,
+  /// because a polygon's edges count as on it and a point on its far edge is
+  /// in the next column over. Nothing outside the lattice is on the mesh: the bake
+  /// puts every floor inside it.
+  late final (Int32List, Int32List) _byColumn = () {
+    final count = _columns * _rows;
+    final lists = List<List<int>>.generate(count, (_) => <int>[]);
+    for (var p = 0; p < polygonCount; p++) {
+      var x0 = 1 << 30;
+      var x1 = -(1 << 30);
+      var z0 = 1 << 30;
+      var z1 = -(1 << 30);
+      for (var k = 0; k < polygonVertexCount(p); k++) {
+        final v = polygonVertex(p, k);
+        x0 = math.min(x0, latticeX(v));
+        x1 = math.max(x1, latticeX(v));
+        z0 = math.min(z0, latticeZ(v));
+        z1 = math.max(z1, latticeZ(v));
+      }
+      for (var cz = math.max(0, z0); cz <= math.min(_rows - 1, z1); cz++) {
+        for (var cx = math.max(0, x0); cx <= math.min(_columns - 1, x1); cx++) {
+          lists[cz * _columns + cx].add(p);
+        }
+      }
+    }
+    final start = Int32List(count + 1);
+    for (var c = 0; c < count; c++) {
+      start[c + 1] = start[c] + lists[c].length;
+    }
+    return (start, Int32List.fromList(<int>[for (final l in lists) ...l]));
+  }();
 
   /// The height of [polygon]'s surface over `(x, z)`.
   ///
@@ -460,9 +508,7 @@ final class NavMesh {
   }
 
   /// The floors of [open] a body may stand on, column by column.
-  static ({Int32List start, Int32List floors}) _standingFloors(
-    OpenField open,
-  ) {
+  static ({Int32List start, Int32List floors}) _standingFloors(OpenField open) {
     final count = open.columns * open.rows;
     final start = Int32List(count + 1);
     final floors = <int>[];

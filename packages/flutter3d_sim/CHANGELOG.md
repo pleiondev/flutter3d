@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **Finding which polygon a point is on no longer looks at all of them.**
+  `NavMesh.polygonsAt` asks only the polygons indexed under the point's
+  lattice column. On the platformer's ascent, 576 polygons, it went from
+  most of a route's cost to a third of a microsecond, and a route across
+  the level takes about twenty.
+
 - **Actors walk past each other.** `Avoidance` is ORCA: each neighbour
   rules out the velocities that meet it within a horizon, each body takes
   half the turning, and the velocity picked is the one nearest the wanted
