@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **A cutscene is a document played in the fixed step.**
+  `Sequence.read` takes a camera's keys on a path, subtitles, a fade and
+  signals, in seconds, and turns every moment into the step it falls on
+  for the game's rate, refusing a document with every problem and where
+  it is. `SequencePlayer` has one integer of state: each step it fires the
+  signals that step reaches as `SequenceSignal` events, once each and in
+  order, and a restore carries on without firing any twice. The camera
+  runs along curves through its keys, on each key on its step, eased if
+  asked; the subtitles and the fade are read for the frame drawn between
+  two steps. A skip is the rest of it stepped undrawn, which ends where
+  watching it ends.
+
 - **A level keeps its behaviour trees.** `Level.behaviours` holds them by
   name as the documents `BehaviourTree.read` takes, written only when
   there are some; an entity names the one it runs in a `behaviour`
