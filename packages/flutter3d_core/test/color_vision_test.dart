@@ -122,4 +122,45 @@ void main() {
     expect(strip[1], (g * 255).round());
     expect(strip[2], (b * 255).round());
   });
+
+  group('the lint for cues told apart by hue alone', () {
+    test('names the pair a deficiency runs together, and who', () {
+      // Red against a green of nearly its lightness: 78 apart to normal eyes,
+      // under 4 to a deutan's, and still apart to a protan's or a tritan's.
+      // Blue against teal, the other way: only a tritan loses it.
+      final found = ColorVision.confusions(<String, (double, double, double)>{
+        'red': (0.8, 0.25, 0.2),
+        'green': (0.45, 0.55, 0.2),
+        'blue': (0.3, 0.45, 0.85),
+        'teal': (0.2, 0.6, 0.6),
+      });
+      // Mutation: measuring the pair without simulating it finds nothing.
+      expect(found.map((c) => '${c.a}/${c.b} ${c.by}').toSet(), <String>{
+        'green/red deutan',
+        'blue/teal tritan',
+      });
+    });
+
+    test('says nothing of a pair everybody tells apart', () {
+      expect(
+        ColorVision.confusions(<String, (double, double, double)>{
+          'black': (0.0, 0.0, 0.0),
+          'white': (1.0, 1.0, 1.0),
+        }),
+        isEmpty,
+      );
+    });
+
+    test('nor of a pair nobody does — that is not a hue cue', () {
+      // Two greys a hair apart are a problem for every player, and this is
+      // the lint for the ones only some players have.
+      expect(
+        ColorVision.confusions(<String, (double, double, double)>{
+          'grey': (0.5, 0.5, 0.5),
+          'greyer': (0.52, 0.52, 0.52),
+        }),
+        isEmpty,
+      );
+    });
+  });
 }

@@ -10,11 +10,20 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-/// The colours the HUD draws a carried key in.
-const Map<String, Color> _keyPips = <String, Color>{
+/// The colours the HUD draws a carried key in, by the key's name.
+///
+/// **Brass and iron are the keys this game's levels use**, and the table
+/// had only the three it was first written with: both drew as the same
+/// white mark, so a player holding one could not tell which from the HUD,
+/// whatever their eyes. And colour alone is never all of it — each mark
+/// carries its key's initial too, because `ColorVision.confusions` finds
+/// brass running into red for a deutan and into yellow for a tritan.
+const Map<String, Color> keyPipColours = <String, Color>{
   'blue': Color(0xFF3A6BF2),
   'red': Color(0xFFE52E29),
   'yellow': Color(0xFFF2D133),
+  'brass': Color(0xFFC9A040),
+  'iron': Color(0xFF7F8C99),
 };
 
 class Hud extends StatelessWidget {
@@ -343,8 +352,19 @@ class Hud extends StatelessWidget {
                           height: 22.0,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              color: _keyPips[key] ?? Colors.white70,
+                              color: keyPipColours[key] ?? Colors.white70,
                               borderRadius: BorderRadius.circular(3.0),
+                            ),
+                            child: Center(
+                              child: Text(
+                                key.isEmpty ? '' : key[0].toUpperCase(),
+                                key: ValueKey<String>('key-pip:$key'),
+                                style: const TextStyle(
+                                  color: Color(0xDD101010),
+                                  fontSize: 11.0,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ),

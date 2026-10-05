@@ -198,6 +198,71 @@ final class ColorVision {
     pixels: ByteData.sublistView(toStrip(size: size, grade: grade)),
   );
 
+  /// Of [colours] — sRGB encoded, nought to one, by name — the pairs that
+  /// someone missing a cone runs together: [within] or further apart to
+  /// normal eyes, and nearer than it to the deficiency's.
+  ///
+  /// **The lint for a cue told apart by hue alone.** Two keys, two teams,
+  /// two kinds of pickup coloured to say which: a pair this answers is one a
+  /// player with that deficiency cannot tell apart by colour, and the fix is
+  /// a second cue — a letter, a shape, a pattern — rather than a third
+  /// colour. Distances are CIE 1976 ΔE in Lab under D65 ([difference]),
+  /// where about two is the least anybody notices side by side; the default
+  /// of twenty is what still reads at a glance on a small mark.
+  static List<({String a, String b, ColorVisionDeficiency by, double distance})>
+  confusions(
+    Map<String, (double, double, double)> colours, {
+    double within = 20.0,
+  }) {
+    final names = colours.keys.toList()..sort();
+    final found =
+        <({String a, String b, ColorVisionDeficiency by, double distance})>[];
+    for (var i = 0; i < names.length; i++) {
+      for (var j = i + 1; j < names.length; j++) {
+        final first = colours[names[i]]!;
+        final second = colours[names[j]]!;
+        if (difference(first, second) < within) continue;
+        for (final kind in ColorVisionDeficiency.values) {
+          final sees = ColorVision.simulate(kind);
+          final distance = difference(
+            sees.applyEncoded(first.$1, first.$2, first.$3),
+            sees.applyEncoded(second.$1, second.$2, second.$3),
+          );
+          if (distance < within) {
+            found.add((a: names[i], b: names[j], by: kind, distance: distance));
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  /// How far apart two sRGB colours look: CIE 1976 ΔE in Lab, D65.
+  static double difference(
+    (double, double, double) a,
+    (double, double, double) b,
+  ) {
+    final la = _lab(a);
+    final lb = _lab(b);
+    return math.sqrt(
+      (la.$1 - lb.$1) * (la.$1 - lb.$1) +
+          (la.$2 - lb.$2) * (la.$2 - lb.$2) +
+          (la.$3 - lb.$3) * (la.$3 - lb.$3),
+    );
+  }
+
+  static (double, double, double) _lab((double, double, double) srgb) {
+    final r = _linear(srgb.$1);
+    final g = _linear(srgb.$2);
+    final b = _linear(srgb.$3);
+    final x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+    final y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    final z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+    double f(double t) =>
+        t > 0.008856 ? math.pow(t, 1.0 / 3.0).toDouble() : 7.787 * t + 16 / 116;
+    return (116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z)));
+  }
+
   static double _linear(double c) =>
       c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
 

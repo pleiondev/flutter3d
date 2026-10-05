@@ -137,7 +137,7 @@ final class DungeonFixtures implements FixtureAppearance {
     final mechanism = fixture.mechanism;
     if (mechanism is Pickup) {
       return LevelMaterial(
-        baseColor: _keyColours[mechanism.detail] ?? Vector4(0.8, 0.8, 0.2, 1.0),
+        baseColor: keyColours[mechanism.detail] ?? Vector4(0.8, 0.8, 0.2, 1.0),
         roughness: 0.25,
         metallic: 0.6,
       );
@@ -171,9 +171,13 @@ final class DungeonFixtures implements FixtureAppearance {
   @override
   double scaleOf(Fixture fixture) => 1.0;
 
-  static final Map<String, Vector4> _keyColours = <String, Vector4>{
+  /// The colour a key is made in, by its name.
+  static final Map<String, Vector4> keyColours = <String, Vector4>{
     'blue': Vector4(0.20, 0.42, 0.95, 1.0),
     'red': Vector4(0.90, 0.18, 0.16, 1.0),
     'yellow': Vector4(0.95, 0.82, 0.20, 1.0),
+    // The two the levels use, which fell to the default yellow both alike.
+    'brass': Vector4(0.79, 0.63, 0.25, 1.0),
+    'iron': Vector4(0.50, 0.55, 0.60, 1.0),
   };
 }

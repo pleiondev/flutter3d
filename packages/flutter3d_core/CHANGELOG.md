@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **A lint for cues told apart by hue alone.** `ColorVision.confusions`
+  takes a palette by name and answers the pairs normal eyes tell apart
+  and a protan, deutan or tritan does not, with who and how near, in CIE
+  1976 ΔE (`ColorVision.difference`); a pair nobody tells apart is not
+  its business. The fix for a pair it answers is a second cue, not a
+  third colour.
+
 - **Colour vision, as a colour table.** `ColorVision.simulate` shows the
   picture as someone missing a cone sees it — protan, deutan or tritan,
   Machado, Oliveira and Fernandes's matrices, blended by severity — and
