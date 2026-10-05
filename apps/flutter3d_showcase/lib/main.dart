@@ -8,6 +8,14 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show loadPhysicsCore;
 import 'package:flutter3d_showcase/src/shell/app.dart';
 
-void main() => runApp(const ShowcaseApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The physics core the crates fall in, which the browser fetches as
+  // WebAssembly once; natively it is in the app already.
+  await loadPhysicsCore();
+  runApp(const ShowcaseApp());
+}

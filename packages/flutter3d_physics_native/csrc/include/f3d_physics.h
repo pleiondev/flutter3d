@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 18u
+#define F3D_ABI_VERSION 19u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -530,19 +530,32 @@ F3D_API int f3d_world_cast_shape(F3dWorld *world, F3dShapeKind kind,
 #define F3D_CHARACTER_CEILING 4u
 #define F3D_CHARACTER_STEPPED 8u
 
+/* Bits of the options f3d_world_move_character takes. */
+/* It stood on ground before this move, and may climb a step: a body in the
+ * air does not step up onto a ledge it brushes past. */
+#define F3D_CHARACTER_MAY_STEP 1u
+
 /* Moves an upright capsule of [radius] and straight [half_height] — a
  * character — from position[0..2] by (dx, dy, dz), sliding along what it
- * meets, and writes where it ends into position. Ground is what it stands
- * on whose normal's height is at least [max_slope_cos]; steeper is wall,
- * which it slides along and does not climb. A step up to [step_height] it
- * climbs, and it keeps to ground it is walking down within that height.
- * The ground's normal goes into ground[0..2] and its body into
+ * meets, and writes where it ends into position. velocity[0..2] is the
+ * character's, in and out: the speed into everything it met is taken out
+ * of it, as the speed into a wall is gone for good. Ground is what it
+ * stands on whose normal's height is at least [max_slope_cos]; steeper is
+ * wall, which it slides along and does not climb. With
+ * F3D_CHARACTER_MAY_STEP in [options], a move that met something tries a
+ * step up to [step_height] and keeps it only if it got further along
+ * (dx, dz) than sliding did; it keeps to ground it is walking down within
+ * that height. The ground's normal goes into ground[0..2] and its body into
  * [ground_body] (nought when in the air). Returns F3D_CHARACTER_ bits.
+ * A body on a layer in [one_way] is a floor from above and nothing else:
+ * met only with a normal whose height is at least [max_slope_cos], passed
+ * through rising into it or walking into its side.
  * Kinematic: nothing pushes it, and it moves nothing. */
 F3D_API uint32_t f3d_world_move_character(
     F3dWorld *world, f3d_real radius, f3d_real half_height, f3d_real *position,
-    f3d_real dx, f3d_real dy, f3d_real dz, f3d_real max_slope_cos,
-    f3d_real step_height, uint32_t mask, F3dBody ignore, F3dBody *ground_body,
+    f3d_real dx, f3d_real dy, f3d_real dz, f3d_real *velocity,
+    f3d_real max_slope_cos, f3d_real step_height, uint32_t mask,
+    uint32_t one_way, uint32_t options, F3dBody ignore, F3dBody *ground_body,
     f3d_real *ground);
 
 /* -------------------------------------------------------------- particles */

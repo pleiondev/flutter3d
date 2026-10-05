@@ -103,7 +103,12 @@ void main() {
     expect(p.core.position.y, closeTo(0.9 + 0.2, 0.02), reason: 'on the step');
     expect(p.dart.position.y, closeTo(0.9 + 0.2, 0.02));
     expect(p.core.isGrounded, isTrue);
-    expect(climbed, closeTo(0.2, 0.05), reason: 'lifted once, by the riser');
+    // Reported is the rise not travelled through, for a renderer to smooth:
+    // the box was lifted the whole riser at once; the capsule's round foot
+    // rides the riser's edge for part of it, as up a slope, and is lifted
+    // the rest.
+    expect(climbed, greaterThan(0.0));
+    expect(climbed, lessThanOrEqualTo(0.2 + 0.01));
   });
 
   test('a jump leaves the floor and lands as the reference does', () {

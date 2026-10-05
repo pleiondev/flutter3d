@@ -53,7 +53,12 @@ final class Runner
     // What this body counts as solid is a policy, and a platformer's policy is
     // that some platforms are floors from above and nothing at all from below.
     // The engine holds the mechanism and this holds the opinion.
-    body.solidFilter = _countsAsSolid;
+    // One-way platforms, said to the body as a rule it keeps on either
+    // backend — the same three answers as [_countsAsSolid], which the
+    // runner's own probes still ask. Handed over as a predicate once, which
+    // the physics core cannot ask, and the runner kept to the reference's
+    // sweeps.
+    body.oneWayLayers = PlatformerLayers.oneWay;
     _standing = body.shape;
     _crouching = CollisionBox(
       Vector3(body.halfExtents.x, tuning.crouchHeight, body.halfExtents.z),
@@ -289,7 +294,9 @@ final class Runner
     // Read before the step, because the step is where a landing turns downward
     // speed into zero and the number is gone.
     final falling = math.max(0.0, -body.velocity.y);
-    body.step(dt, wishDirection: _wish, sprint: sprinting);
+    body
+      ..dropThrough = _dropping > 0.0
+      ..step(dt, wishDirection: _wish, sprint: sprinting);
     _readLanding(falling);
     _face(dt);
 

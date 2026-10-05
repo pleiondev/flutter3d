@@ -72,6 +72,31 @@ final class CharacterController {
   /// monster does not walk through a wall because the player can.
   ContactFilter? solidFilter;
 
+  /// Layers this body meets only as a floor from above — one-way platforms:
+  /// jumped up through, walked through from the side, landed on. Said as a
+  /// rule rather than asked of a [solidFilter], so the physics core can keep
+  /// it too: a body with a filter keeps its own sweeps, one with this does
+  /// not have to.
+  int oneWayLayers = 0;
+
+  /// Whether the [oneWayLayers] are not there at all this step: dropping
+  /// through the platform underfoot.
+  bool dropThrough = false;
+
+  /// What the sweeps ask about each contact: [solidFilter], with the
+  /// [oneWayLayers] rule before it.
+  ContactFilter? get _allow => oneWayLayers == 0 ? solidFilter : _oneWay;
+  late final ContactFilter _oneWay = _countsAsSolid;
+
+  bool _countsAsSolid(SweptContact contact) {
+    if (contact.other.layer & oneWayLayers != 0) {
+      return !dropThrough &&
+          contact.normal.y > _walkableNormalY &&
+          velocity.y <= 0.0;
+    }
+    return solidFilter?.call(contact) ?? true;
+  }
+
   /// The scratch this controller hands its own [solidFilter] when it asks
   /// directly rather than through a sweep. See [SweptContact].
   final SweptContact _contact = SweptContact();
@@ -290,9 +315,10 @@ final class CharacterController {
         // upward is which way a body grows: a one-way platform overhead is not
         // in the way of standing up, for the same reason it is not in the way
         // of jumping.
-        if (solidFilter == null) return false;
+        final allow = _allow;
+        if (allow == null) return false;
         _contact.set(other, _up);
-        if (solidFilter!(_contact)) return false;
+        if (allow(_contact)) return false;
       }
     }
 
@@ -392,7 +418,16 @@ final class CharacterController {
     _jumpBuffer = math.max(0.0, _jumpBuffer - dt);
 
     _carryWithGround(dt);
-    _resolveOverlap();
+    final mover = world.characterMover;
+    final moved = mover != null && solidFilter == null;
+    // **One volume, the mover's.** The box this controller pushes out of
+    // what it overlaps is not the shape a mover moves — the core moves the
+    // capsule inside it — and the box's corners overlap a riser the
+    // capsule's round foot stands on: pushed back out each step, a body
+    // never got onto a step lower than its radius. The core keeps its own
+    // capsule out of what it meets; what it does not yet do is push it out of
+    // something moved into it, which the box did.
+    if (!moved) _resolveOverlap();
     if (drivenBy != null && dt > 0.0) {
       velocity
         ..x = drivenBy.x / dt
@@ -402,8 +437,7 @@ final class CharacterController {
     }
     _applyGravity(dt);
     _tryJump();
-    final mover = world.characterMover;
-    if (mover != null && solidFilter == null) {
+    if (moved) {
       _moveBy(mover, dt);
     } else {
       _moveHorizontally(dt);
@@ -448,7 +482,7 @@ final class CharacterController {
       halfExtents,
       _correction,
       ignore: collider,
-      allow: solidFilter,
+      allow: _allow,
     )) {
       position.add(_correction);
       // A ceiling pressing down should not leave upward speed, and a floor
@@ -630,7 +664,7 @@ final class CharacterController {
       _probe,
       _hit,
       ignore: collider,
-      allow: solidFilter,
+      allow: _allow,
     )) {
       point.add(_probe);
       return true;
@@ -664,7 +698,7 @@ final class CharacterController {
         delta,
         _hit,
         ignore: collider,
-        allow: solidFilter,
+        allow: _allow,
       )) {
         point.add(delta);
         delta.setZero();
@@ -760,7 +794,7 @@ final class CharacterController {
           _probe,
           _hit,
           ignore: collider,
-          allow: solidFilter,
+          allow: _allow,
         ) ||
         _hit.normal.y <= _walkableNormalY) {
       _setAirborne();
@@ -781,39 +815,30 @@ final class CharacterController {
 
   /// The step's geometry by [mover]: the whole of this step's motion handed
   /// over at once, and what came back read as the sweeps above read their
-  /// own — speed into a wall or a ceiling gone, standing where it stood,
-  /// lifted by a step it climbed.
+  /// own — the speed into what it met gone, standing where it stood, lifted
+  /// by a step it climbed.
+  ///
+  /// [contactsLastStep] counts the kinds of surface met — a wall, a ceiling,
+  /// a floor — rather than every face: the mover reports no more.
   void _moveBy(CharacterMover mover, double dt) {
     final leftDeliberately = _snapSuppressed;
     _snapSuppressed = false;
     _delta.setValues(velocity.x * dt, velocity.y * dt, velocity.z * dt);
-    if (_delta.length2 == 0.0) {
-      // Still, and nothing asked: a body at rest asks the floor anyway, so a
-      // floor taken away from under it is noticed.
-      _delta.y = -_skin;
-    }
-    final from = _plainPosition..setFrom(position);
+    final fromY = position.y;
     final moved = mover.move(
       this,
       _delta,
       stepHeight: tuning.stepHeight,
       walkableNormalY: _walkableNormalY,
+      mayStep: _grounded,
     );
     position.setFrom(moved.position);
+    velocity.setFrom(moved.velocity);
     _contacts =
         (moved.hitWall ? 1 : 0) +
         (moved.hitCeiling ? 1 : 0) +
         (moved.grounded ? 1 : 0);
-    if (moved.stepped) {
-      _steppedUp = math.max(0.0, position.y - from.y - _delta.y);
-    }
-    if (moved.hitWall && dt > 0.0) {
-      // What of the level move a wall left is the speed along it.
-      velocity
-        ..x = (position.x - from.x) / dt
-        ..z = (position.z - from.z) / dt;
-    }
-    if (moved.hitCeiling && velocity.y > 0.0) velocity.y = 0.0;
+    if (moved.stepped) _steppedUp = math.max(0.0, position.y - fromY);
     // Ground met on the way is ground — a slope climbed is stood on — unless
     // the body is leaving it on purpose: a jump rises off the floor it met.
     if (!moved.grounded || (velocity.y > 0.0 && leftDeliberately)) {

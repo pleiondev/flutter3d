@@ -1,11 +1,22 @@
 ## Unreleased
 
+- **ABI 19: the character as the reference moves one.**
+  `f3d_world_move_character` takes the character's velocity in and out,
+  with the speed into everything met taken away. It tries a step only for
+  a body that stood (`F3D_CHARACTER_MAY_STEP`) and keeps it only when it
+  got further than sliding did. It moves its skin off a surface along that
+  surface's normal: backed off along the move, a move that grazed the edge
+  of a step started the next cast touching it and stuck there. One-way
+  layers are floors from above only. `NativeDynamics(castsRays: true)`
+  answers the world's rays through `NativeWorldRays`, and `mirrorWorld`
+  stands a level made since the last step before any query.
+
 - **The core moves characters.** `NativeDynamics(movesCharacters: true)`
   sets the world's `characterMover` to a `NativeCharacterMover`. It moves
   each controller as the capsule inside its box through the world the
   dynamics mirror, with the lifts and the other characters put where they
   are this step first, and names the ground as its collider. `dispose`
-  hands the characters back to their own sweeps. Also `placeMovers`,
+  hands the characters back to their own sweeps. Also `mirrorWorld`,
   `standingOf` and `colliderOf`.
 
 - **A fallen body gets up.** `SkeletonRagdoll.lying()` reads the pelvis

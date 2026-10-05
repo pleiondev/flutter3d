@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **The runner's one-way platforms are a rule, not a predicate.** Its body
+  takes `oneWayLayers`, with `dropThrough` while dropping, so the physics
+  core moves the runner too. The runner's own wall probe still asks the
+  same three answers.
+
 - **A save carries what the dynamics need beyond the bodies.** The
   simulation's snapshot holds `RigidDynamics.saveState()` under
   `dynamics` and gives it back after the bodies are restored. For

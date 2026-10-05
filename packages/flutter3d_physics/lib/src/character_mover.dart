@@ -13,6 +13,9 @@ typedef CharacterMoved = ({
   /// Climbed a step to get there.
   bool stepped,
 
+  /// The velocity it moved with, less the speed into everything it met.
+  Vector3 velocity,
+
   /// The ground's normal, or zero in the air.
   Vector3 groundNormal,
 
@@ -32,12 +35,16 @@ typedef CharacterMoved = ({
 /// in it, except one whose `solidFilter` asks about each contact, which a
 /// mover cannot answer and the controller's own sweeps can.
 abstract interface class CharacterMover {
-  /// Moves [body] from where it is by [delta]: climbing up to [stepHeight],
-  /// standing on ground whose normal's height is at least [walkableNormalY].
+  /// Moves [body] from where it is by [delta], sliding along what it meets
+  /// and taking the speed into it out of the body's velocity; standing on
+  /// ground whose normal's height is at least [walkableNormalY]; and, when
+  /// [mayStep] — it stood on ground — climbing up to [stepHeight] where that
+  /// gets further than sliding does.
   CharacterMoved move(
     CharacterController body,
     Vector3 delta, {
     required double stepHeight,
     required double walkableNormalY,
+    required bool mayStep,
   });
 }

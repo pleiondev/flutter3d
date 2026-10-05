@@ -18,7 +18,7 @@ RigidDynamics platformerDynamics(CollisionWorld world) =>
     ? Dynamics(world: world)
     // The walkers moved by the core too; the runner, whose one-way
     // platforms ask about each contact, keeps its own sweeps.
-    : NativeDynamics(world: world, movesCharacters: true);
+    : NativeDynamics(world: world, movesCharacters: true, castsRays: true);
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {

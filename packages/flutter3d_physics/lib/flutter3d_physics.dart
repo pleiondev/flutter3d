@@ -60,3 +60,4 @@ export 'src/rigid_dynamics.dart';
 export 'src/snapshot.dart';
 export 'src/spatial_grid.dart';
 export 'src/tolerances.dart';
+export 'src/world_rays.dart';

@@ -10,6 +10,7 @@ import 'ray_hit.dart';
 import 'spatial_grid.dart';
 import 'sweep_hit.dart';
 import 'tolerances.dart';
+import 'world_rays.dart';
 
 export 'ray_hit.dart';
 export 'sweep_hit.dart';
@@ -44,6 +45,10 @@ final class CollisionWorld {
   /// sweeps — see [CharacterMover]. The physics core sets one for a world it
   /// mirrors.
   CharacterMover? characterMover;
+
+  /// What casts this world's rays, or null for its own walk — see
+  /// [WorldRays]. Not asked for a ray that wants triggers.
+  WorldRays? rays;
 
   final SpatialGrid _staticGrid;
   final SpatialGrid _moverGrid;
@@ -150,11 +155,18 @@ final class CollisionWorld {
   /// wanted the same thing all along.
   int? idOf(Collider collider) => _ids[collider];
 
+  /// Bumped whenever a collider joins or leaves: a mirror of this world —
+  /// the physics core's — asks it to know when to look for new ones without
+  /// walking every collider on every query.
+  int get revision => _revision;
+  int _revision = 0;
+
   /// Adds a collider and returns it, so the call can be inlined into a field.
   Collider add(Collider collider) {
     collider.world = this;
     collider.refreshBounds();
     _ids[collider] = _nextId++;
+    _revision++;
 
     if (collider.kind == ColliderKind.static) {
       _statics.add(collider);
@@ -201,6 +213,7 @@ final class CollisionWorld {
     collider.world = null;
     _reporters.remove(collider);
     _ids.remove(collider);
+    _revision++;
 
     // Both grids hold indices into their list, so removing from either
     // renumbers every entry after it. Re-indexing here rather than leaving it
@@ -216,6 +229,7 @@ final class CollisionWorld {
   }
 
   void clear() {
+    _revision++;
     _statics.clear();
     _movers.clear();
     _reporters.clear();
@@ -580,6 +594,17 @@ final class CollisionWorld {
     Collider? ignore,
     bool includeTriggers = false,
   }) {
+    final rays = this.rays;
+    if (rays != null && !includeTriggers) {
+      return rays.raycast(
+        origin,
+        direction,
+        maxDistance,
+        out,
+        mask: mask,
+        ignore: ignore,
+      );
+    }
     out.reset();
     var nearest = maxDistance;
 

@@ -56,6 +56,7 @@ RigidDynamics arcadeDynamics(CollisionWorld world) => physicsBackend == 'dart'
         gravity: Vector3.zero(),
         // The bots walked by the core through the yard it mirrors.
         movesCharacters: true,
+        castsRays: true,
       );
 
 /// A ship over a floating meteor yard, and the bots patrolling it.

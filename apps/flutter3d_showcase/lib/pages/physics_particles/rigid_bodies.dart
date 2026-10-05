@@ -9,12 +9,13 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class RigidBodiesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
-  late final Dynamics _dynamics;
+  late final RigidDynamics _dynamics;
   final List<RigidBody> _crates = <RigidBody>[];
   final List<double> _halves = <double>[];
   final List<MeshNode> _meshes = <MeshNode>[];
@@ -41,7 +42,7 @@ final class RigidBodiesDemo extends ShowcaseDemo {
     // #region world
     _world = CollisionWorld();
     _world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
-    _dynamics = Dynamics(world: _world);
+    _dynamics = NativeDynamics(world: _world);
     // #endregion world
 
     final Scene scene = Scene()

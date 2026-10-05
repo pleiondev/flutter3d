@@ -312,6 +312,9 @@ typedef NativeCharacterMove = ({
   bool hitCeiling,
   bool stepped,
 
+  /// The velocity it was moved with, less the speed into what it met.
+  Vector3 velocity,
+
   /// The ground's normal, or zero in the air.
   Vector3 groundNormal,
 
@@ -1114,6 +1117,10 @@ final class NativeWorld {
   /// [stepHeight] it climbs, and walking down it keeps to the ground.
   /// Kinematic: nothing pushes it, and it moves nothing.
   ///
+  /// A body on a layer in [oneWay] is a floor from above and nothing else:
+  /// met only standing on it, passed through rising into it or walking into
+  /// its side — a platform jumped up through and landed on.
+  ///
   /// **A cosine, not an angle.** Turning an angle into one here would ask
   /// the platform's library, whose last bit differs from machine to
   /// machine, and a character's step must not.
@@ -1122,18 +1129,25 @@ final class NativeWorld {
     required double halfHeight,
     required Vector3 position,
     required Vector3 move,
+    Vector3? velocity,
     double maxSlopeCos = 0.7071067811865476,
     double stepHeight = 0.35,
+    bool mayStep = true,
     int mask = 0xffffffff,
+    int oneWay = 0,
     NativeBody? ignore,
   }) {
     final p = c.F32s.alloc(3);
+    final v = c.F32s.alloc(3);
     final ground = c.F32s.alloc(3);
     final body = c.U64s.alloc(1);
     try {
       p[0] = position.x;
       p[1] = position.y;
       p[2] = position.z;
+      v[0] = velocity?.x ?? 0.0;
+      v[1] = velocity?.y ?? 0.0;
+      v[2] = velocity?.z ?? 0.0;
       final flags = c.f3d_world_move_character(
         _live,
         radius,
@@ -1142,9 +1156,12 @@ final class NativeWorld {
         move.x,
         move.y,
         move.z,
+        v,
         maxSlopeCos,
         stepHeight,
         mask,
+        oneWay,
+        mayStep ? c.CharacterFlags.mayStep : 0,
         ignore?.raw ?? 0,
         body,
         ground,
@@ -1155,11 +1172,13 @@ final class NativeWorld {
         hitWall: flags & c.CharacterFlags.wall != 0,
         hitCeiling: flags & c.CharacterFlags.ceiling != 0,
         stepped: flags & c.CharacterFlags.stepped != 0,
+        velocity: Vector3(v[0], v[1], v[2]),
         groundNormal: Vector3(ground[0], ground[1], ground[2]),
         ground: body[0] == 0 ? null : NativeBody(body[0]),
       );
     } finally {
       p.free();
+      v.free();
       ground.free();
       body.free();
     }

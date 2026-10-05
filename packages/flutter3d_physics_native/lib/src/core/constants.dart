@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 18;
+const int abiVersion = 19;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -25,6 +25,9 @@ abstract final class CharacterFlags {
   static const int wall = 2;
   static const int ceiling = 4;
   static const int stepped = 8;
+
+  /// `F3D_CHARACTER_MAY_STEP`, an option rather than a result.
+  static const int mayStep = 1;
 }
 
 /// `F3D_EVENT_CAPACITY`.

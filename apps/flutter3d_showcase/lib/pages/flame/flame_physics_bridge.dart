@@ -9,6 +9,7 @@ import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
@@ -130,7 +131,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final Dynamics dynamics = Dynamics(world: world);
+    final RigidDynamics dynamics = NativeDynamics(world: world);
     final RigidBody body = dynamics.add(
       RigidBody(
         world: world,
@@ -201,9 +202,9 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     final world = CollisionWorld();
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
     // A thin trigger embedded just above the floor, so the crate's fall
-    // genuinely overlaps something: `Dynamics` stops a falling body exactly
+    // genuinely overlaps something: the dynamics stop a falling body exactly
     // at the surface it lands on, never inside it, so the floor itself never
-    // reports an overlap to relay. `Dynamics.step` ignores triggers entirely
+    // reports an overlap to relay. The dynamics ignore triggers entirely
     // (`includeTriggers: false` in its own contact queries), so this sensor
     // never affects how or where the crate actually lands.
     final landingSensor = world.add(
@@ -213,7 +214,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final dynamics = Dynamics(world: world);
+    final dynamics = NativeDynamics(world: world);
     // #endregion world
 
     // #region body
@@ -329,7 +330,7 @@ final class _Fall extends Component {
   _Fall(this._world, this._dynamics, this._body, this._start, this._height);
 
   final CollisionWorld _world;
-  final Dynamics _dynamics;
+  final RigidDynamics _dynamics;
   final RigidBody _body;
   final Map<String, Object?> _start;
   final double Function() _height;

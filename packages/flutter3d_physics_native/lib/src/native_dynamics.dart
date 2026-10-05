@@ -48,8 +48,10 @@ final class NativeDynamics implements RigidDynamics {
     int substeps = 4,
     int threads = 1,
     bool movesCharacters = false,
+    bool castsRays = false,
   }) : gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {
     if (movesCharacters) world.characterMover = NativeCharacterMover(this);
+    if (castsRays) world.rays = NativeWorldRays(this);
     native
       ..setAir(temperature: 293.15, density: 1e-30)
       ..setSleep(speed: 0.08, time: 0.5)
@@ -113,17 +115,45 @@ final class NativeDynamics implements RigidDynamics {
   /// or one not seen yet.
   NativeBody? standingOf(Collider collider) => _standing[collider]?.handle;
 
-  /// Every collider that moves put where it is now in the core, between
-  /// steps — for a query that must see this step's lifts and characters,
-  /// not the last step's. Made to stand if it had not; how fast each moves
-  /// is still the next [step]'s to say.
-  void placeMovers() {
+  /// The core body [collider] is: a body's own, or the one it stands as.
+  NativeBody? handleOfCollider(Collider collider) =>
+      switch (_byCollider[collider]) {
+        final RigidBody body => _mirrors[body]?.handle,
+        null => _standing[collider]?.handle,
+      };
+
+  /// The world as it is now, in the core, between steps — for a query that
+  /// must see this step's lifts and characters and a level made since the
+  /// last step, not the last step's: a collider that joined stands, one that
+  /// left is taken out, and every one that moves is put where it is. How fast
+  /// each moves is still the next [step]'s to say.
+  void mirrorWorld() {
+    if (world.revision != _revision) {
+      _revision = world.revision;
+      final present = <Collider>{};
+      void stand(Collider collider) {
+        if (collider.kind == ColliderKind.trigger) return;
+        if (_byCollider.containsKey(collider)) return;
+        present.add(collider);
+        _standing[collider] ??= _standingFor(collider);
+      }
+
+      world.statics.forEach(stand);
+      world.movers.forEach(stand);
+      _standing.removeWhere((collider, standing) {
+        if (present.contains(collider)) return false;
+        native.removeBody(standing.handle);
+        _owners.remove(standing.handle);
+        return true;
+      });
+    }
     for (final collider in world.movers) {
-      if (collider.kind == ColliderKind.trigger) continue;
-      if (_byCollider.containsKey(collider)) continue;
-      (_standing[collider] ??= _standingFor(collider)).place(native, collider);
+      _standing[collider]?.place(native, collider);
     }
   }
+
+  /// The [CollisionWorld.revision] [mirrorWorld] last stood the world at.
+  int _revision = -1;
 
   /// [body] made in the core as it is now, and its mirror.
   _Mirror _mirrorFor(RigidBody body) {
@@ -252,6 +282,10 @@ final class NativeDynamics implements RigidDynamics {
     if (world.characterMover case final NativeCharacterMover mover
         when identical(mover.dynamics, this)) {
       world.characterMover = null;
+    }
+    if (world.rays case final NativeWorldRays rays
+        when identical(rays.dynamics, this)) {
+      world.rays = null;
     }
     native.dispose();
   }
@@ -490,8 +524,7 @@ final class _Standing {
 
 /// The core moving a world's characters — P9: `CharacterController`'s step
 /// geometry as `NativeWorld.moveCharacter`'s capsule through the world
-/// [dynamics] mirrors, the lifts and the other characters put where they
-/// are this step first.
+/// [dynamics] mirrors, the world mirrored as it is this step first.
 ///
 /// **A capsule.** A character's box becomes the capsule inside it: as wide
 /// as its narrower side, as tall. A corner meets the round of it a little
@@ -507,8 +540,9 @@ final class NativeCharacterMover implements CharacterMover {
     Vector3 delta, {
     required double stepHeight,
     required double walkableNormalY,
+    required bool mayStep,
   }) {
-    dynamics.placeMovers();
+    dynamics.mirrorWorld();
     final half = body.halfExtents;
     final radius = math.min(half.x, half.z);
     final moved = dynamics.native.moveCharacter(
@@ -516,8 +550,14 @@ final class NativeCharacterMover implements CharacterMover {
       halfHeight: math.max(0.0, half.y - radius),
       position: body.position,
       move: delta,
+      velocity: body.velocity,
       maxSlopeCos: walkableNormalY,
       stepHeight: stepHeight,
+      mayStep: mayStep,
+      // One-way platforms as the controller says them: floors from above,
+      // or not there at all while it drops through.
+      mask: body.dropThrough ? ~body.oneWayLayers & Layers.all : Layers.all,
+      oneWay: body.dropThrough ? 0 : body.oneWayLayers & Layers.all,
       ignore: dynamics.standingOf(body.collider),
     );
     return (
@@ -526,11 +566,49 @@ final class NativeCharacterMover implements CharacterMover {
       hitWall: moved.hitWall,
       hitCeiling: moved.hitCeiling,
       stepped: moved.stepped,
+      velocity: moved.velocity,
       groundNormal: moved.groundNormal,
       ground: switch (moved.ground) {
         final NativeBody ground => dynamics.colliderOf(ground),
         null => null,
       },
     );
+  }
+}
+
+/// The core casting a world's rays — P9: `CollisionWorld.raycast` through the
+/// world [dynamics] mirrors, its movers put where they are first, the body
+/// met named back as its collider. A body made in the core by hand is met
+/// too, and named as nobody's.
+final class NativeWorldRays implements WorldRays {
+  NativeWorldRays(this.dynamics);
+
+  final NativeDynamics dynamics;
+
+  @override
+  bool raycast(
+    Vector3 origin,
+    Vector3 direction,
+    double maxDistance,
+    RayHit out, {
+    required int mask,
+    Collider? ignore,
+  }) {
+    out.reset();
+    dynamics.mirrorWorld();
+    final hit = dynamics.native.rayCast(
+      origin,
+      direction,
+      maxDistance,
+      mask: mask & Layers.all,
+      ignore: ignore == null ? null : dynamics.handleOfCollider(ignore),
+    );
+    if (hit == null) return false;
+    out
+      ..distance = hit.at
+      ..collider = dynamics.colliderOf(hit.body);
+    out.point.setFrom(hit.point);
+    out.normal.setFrom(hit.normal);
+    return true;
   }
 }

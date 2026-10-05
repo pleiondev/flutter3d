@@ -23,7 +23,6 @@ const String physicsBackend = String.fromEnvironment(
 /// The dynamics [physicsBackend] names for [world], or none: the crypt has
 /// no loose bodies, so the core is here to walk the player and the monsters
 /// through the level it mirrors. Load it first, with `loadPhysicsCore`.
-RigidDynamics? dungeonDynamics(CollisionWorld world) =>
-    physicsBackend == 'dart'
+RigidDynamics? dungeonDynamics(CollisionWorld world) => physicsBackend == 'dart'
     ? null
-    : NativeDynamics(world: world, movesCharacters: true);
+    : NativeDynamics(world: world, movesCharacters: true, castsRays: true);

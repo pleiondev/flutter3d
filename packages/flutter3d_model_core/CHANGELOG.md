@@ -1,5 +1,10 @@
 ## Unreleased
 
+**The rigid bake takes its solver.** `BakeRigidBodyJobRequest(dynamicsFor:)`
+steps the box with what a caller hands over: the reference by default, the
+physics core from a caller that has it. The box's corners turn as the body
+turns.
+
 **A project keeps its characters' animation graphs.**
 `ModelProject.animationGraphs` holds them by name, as `AnimationGraphJson`
 writes them. `SetAnimationGraph` sets one, refused with the reason when it

@@ -247,8 +247,10 @@ static F3dWorld *level(void) {
 static uint32_t walk(F3dWorld *w, f3d_real *p, F3dVec3 d, f3d_real step,
                      f3d_real *ground) {
   F3dBody gb;
-  return f3d_world_move_character(w, R, H, p, d.x, d.y, d.z, SLOPE_COS, step,
-                                  ~0u, 0, &gb, ground);
+  f3d_real v[3] = {0, 0, 0};
+  return f3d_world_move_character(w, R, H, p, d.x, d.y, d.z, v, SLOPE_COS,
+                                  step, ~0u, 0u, F3D_CHARACTER_MAY_STEP, 0,
+                                  &gb, ground);
 }
 
 static void test_character(void) {
@@ -311,7 +313,98 @@ static void test_character(void) {
   /* Refused: no radius. */
   CHECK(walk(w, u, f3d_v3(0, 0, 0), 0, g) == walk(w, u, f3d_v3(0, 0, 0), 0, g));
   F3dBody gb;
-  CHECK(f3d_world_move_character(w, 0, H, u, 0, 0, 0, SLOPE_COS, 0, ~0u, 0, &gb, g) == 0);
+  f3d_real v0[3] = {0, 0, 0};
+  CHECK(f3d_world_move_character(w, 0, H, u, 0, 0, 0, v0, SLOPE_COS, 0, ~0u, 0u,
+                                 0u, 0, &gb, g) == 0);
+  f3d_world_destroy(w);
+}
+
+/* A platform on a one-way layer: jumped up through, landed on, walked into
+ * from the side and through; on any other layer, a ceiling and a wall. */
+static void test_one_way(void) {
+  F3dWorld *w = f3d_world_create();
+  const F3dQuat identity = {0, 0, 0, 1};
+  fixed_shape(w, F3D_SHAPE_BOX, 50, F3D_R(0.5), 50, f3d_v3(0, F3D_R(-0.5), 0),
+              identity);
+  const F3dBody platform = fixed_shape(w, F3D_SHAPE_BOX, 2, F3D_R(0.1), 2,
+                                       f3d_v3(0, F3D_R(2.0), 0), identity);
+  CHECK(f3d_body_set_collision_filter(w, platform, 2u, ~0u));
+  F3dBody gb;
+  f3d_real g[3];
+  f3d_real still[3] = {0, 0, 0};
+  /* Rising into it: through, to above it. */
+  f3d_real p[3] = {0, STANDING, 0};
+  uint32_t flags = f3d_world_move_character(w, R, H, p, 0, 3, 0, still,
+                                            SLOPE_COS, 0, ~0u, 2u, 0u, 0, &gb,
+                                            g);
+  CHECK(!(flags & F3D_CHARACTER_CEILING));
+  CHECK_NEAR(p[1], STANDING + 3, 1e-4);
+  /* Falling onto it: it stands there, on the platform. */
+  flags = f3d_world_move_character(w, R, H, p, 0, -2, 0, still, SLOPE_COS, 0,
+                                   ~0u, 2u, 0u, 0, &gb, g);
+  CHECK(flags & F3D_CHARACTER_GROUNDED);
+  CHECK(gb == platform);
+  CHECK_NEAR(p[1], 2.1 + R + H + 0.01, 2e-3);
+  /* Walking into its side from below its top: through. */
+  f3d_real s[3] = {-4, F3D_R(2.0), 0};
+  flags = f3d_world_move_character(w, R, H, s, 8, 0, 0, still, SLOPE_COS, 0,
+                                   ~0u, 2u, 0u, 0, &gb, g);
+  CHECK(!(flags & F3D_CHARACTER_WALL));
+  CHECK_NEAR(s[0], 4, 1e-4);
+  /* Not one-way: the same rise stops under it. */
+  f3d_real c[3] = {0, STANDING, 0};
+  flags = f3d_world_move_character(w, R, H, c, 0, 3, 0, still, SLOPE_COS, 0,
+                                   ~0u, 0u, 0u, 0, &gb, g);
+  CHECK(flags & F3D_CHARACTER_CEILING);
+  CHECK(c[1] < 1.9 - R - H + 0.02);
+  f3d_world_destroy(w);
+}
+
+/* A step lower than the capsule's radius, met by the round of its foot as a
+ * slope: climbed, not ridden on its edge; not climbed by a body that was
+ * not standing; and the speed into a wall taken out, along it kept. */
+static void test_step_and_speed(void) {
+  F3dWorld *w = f3d_world_create();
+  const F3dQuat identity = {0, 0, 0, 1};
+  fixed_shape(w, F3D_SHAPE_BOX, 50, F3D_R(0.5), 50, f3d_v3(0, F3D_R(-0.5), 0),
+              identity);
+  /* A riser of 0.2 from z = 3 on; the capsule's radius is 0.3. */
+  fixed_shape(w, F3D_SHAPE_BOX, 2, F3D_R(0.1), 3, f3d_v3(0, F3D_R(0.1), 6),
+              identity);
+  /* A wall across x = 10. */
+  fixed_shape(w, F3D_SHAPE_BOX, F3D_R(0.5), 2, 20, f3d_v3(F3D_R(10.5), 2, 0),
+              identity);
+  F3dBody gb;
+  f3d_real g[3];
+  f3d_real p[3] = {0, STANDING, F3D_R(2.0)};
+  f3d_real v[3] = {0, 0, 6};
+  uint32_t flags = 0;
+  for (int i = 0; i < 30; i++) {
+    flags = f3d_world_move_character(w, R, H, p, 0, F3D_R(-0.0167), F3D_R(0.1),
+                                     v, SLOPE_COS, F3D_R(0.35), ~0u, 0u,
+                                     F3D_CHARACTER_MAY_STEP, 0, &gb, g);
+  }
+  CHECK(flags & F3D_CHARACTER_GROUNDED);
+  CHECK_NEAR(p[1], 0.2 + STANDING, 3e-3);
+  CHECK(p[2] > 4.5);
+  /* In the air, the same riser stops it: it may not step. */
+  f3d_real a[3] = {0, STANDING, F3D_R(2.5)};
+  f3d_real va[3] = {0, 0, 6};
+  for (int i = 0; i < 10; i++) {
+    f3d_world_move_character(w, R, H, a, 0, 0, F3D_R(0.1), va, SLOPE_COS,
+                             F3D_R(0.35), ~0u, 0u, 0u, 0, &gb, g);
+  }
+  CHECK(a[2] < 3.0);
+  CHECK(a[1] < STANDING + 0.1);
+  /* Into the wall at a slant: the speed into it gone, along it kept. */
+  f3d_real q[3] = {9, STANDING, 0};
+  f3d_real vq[3] = {3, 0, 4};
+  flags = f3d_world_move_character(w, R, H, q, 1, 0, F3D_R(0.1), vq, SLOPE_COS,
+                                   F3D_R(0.35), ~0u, 0u, F3D_CHARACTER_MAY_STEP,
+                                   0, &gb, g);
+  CHECK(flags & F3D_CHARACTER_WALL);
+  CHECK_NEAR(vq[0], 0, 1e-5);
+  CHECK_NEAR(vq[2], 4, 1e-5);
   f3d_world_destroy(w);
 }
 
@@ -321,5 +414,7 @@ int main(void) {
   test_rays_against_every_ball();
   test_overlaps_and_casts();
   test_character();
+  test_one_way();
+  test_step_and_speed();
   return finish();
 }

@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **One-way platforms as a rule, rays elsewhere.**
+  `CharacterController.oneWayLayers` and `dropThrough` say one-way
+  platforms as a rule the body keeps on either backend. They are a floor
+  from above and nothing from below or the side. `CollisionWorld.rays`
+  takes a `WorldRays` that answers every `raycast` not asking for
+  triggers. `CollisionWorld.revision` counts colliders joining and leaving.
+  A character moved by a mover is not pushed out of overlaps by its box:
+  its volume is the mover's.
+
 - **A world can say who moves its characters.**
   `CollisionWorld.characterMover` takes a `CharacterMover`. When one is
   set, `CharacterController` keeps everything its step decides: speed,

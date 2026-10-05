@@ -353,7 +353,7 @@ void main() {
     // rather than a layer mask: with a mask "a player sprinting past one stops
     // dead on an invisible lip at chest height".
     //
-    // The body obeys that, because the filter is its `solidFilter`. The wall
+    // The body obeys that, through its `oneWayLayers`. The wall
     // probe ran its own sweep without it, so the side of a one-way platform was
     // a wall to cling to and to jump off — the invisible lip, arrived at from
     // the other direction.

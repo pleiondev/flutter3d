@@ -35,6 +35,10 @@ dependencies:
     path: ../../packages/flutter3d_particles
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
+  # The physics core the crates fall in: C built by its hook for each target,
+  # WebAssembly in the browser.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
   flutter3d_samples:
     path: ../../packages/flutter3d_samples
   flutter3d_sim:
