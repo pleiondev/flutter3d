@@ -24,7 +24,10 @@ import 'package:vector_math/vector_math.dart';
 
 import '../math/spline.dart';
 
-/// One camera key: where the eye is, what it looks at, how wide it sees.
+/// One camera key: where the eye is, what it looks at, how wide it sees —
+/// the vertical field of view in degrees, forty-five unless the document
+/// says, which is the engine's own lens, so a cutscene that names none cuts
+/// to it without the picture changing size.
 typedef CameraKey = ({int step, Vector3 at, Vector3 look, double fov});
 
 /// One subtitle: shown from step [from] up to, not including, step [to].
@@ -215,7 +218,7 @@ final class Sequence {
           final step = moment(row, 't', where);
           final at = vector(row, 'at', where);
           final look = vector(row, 'look', where);
-          final fov = row.containsKey('fov') ? number(row, 'fov', where) : 60.0;
+          final fov = row.containsKey('fov') ? number(row, 'fov', where) : 45.0;
           if (step == null || at == null || look == null || fov == null) {
             continue;
           }

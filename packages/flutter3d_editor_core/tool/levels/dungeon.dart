@@ -750,6 +750,61 @@ Map<String, String> cistern(GeneratorSource _) {
 /// the other, a choir, and an altar hall thirty-two metres across under a
 /// grid of reflection probes — the room `LevelSketch.probeReach` was written
 /// for. A second secret, behind a column in the reliquary.
+/// The sanctum's one cutscene, seven seconds long.
+final Map<String, Object?> _altarScene = <String, Object?>{
+  'seconds': 7,
+  'camera': <String, Object?>{
+    'ease': true,
+    'keys': <Object?>[
+      <String, Object?>{
+        't': 0,
+        'at': <num>[0.0, 2.2, -42.0],
+        'look': <num>[0.0, 1.5, -64.0],
+      },
+      <String, Object?>{
+        't': 2.5,
+        'at': <num>[5.0, 7.0, -49.0],
+        'look': <num>[0.0, 1.0, -64.0],
+      },
+      <String, Object?>{
+        't': 5,
+        'at': <num>[-8.0, 5.0, -57.0],
+        'look': <num>[0.0, 1.5, -63.0],
+      },
+      <String, Object?>{
+        't': 7,
+        'at': <num>[0.0, 1.6, -41.0],
+        'look': <num>[0.0, 1.6, -60.0],
+      },
+    ],
+  },
+  'fade': <Object?>[
+    <String, Object?>{'t': 0, 'value': 1},
+    <String, Object?>{'t': 0.6, 'value': 0},
+  ],
+  'subtitles': <Object?>[
+    <String, Object?>{
+      'from': 0.8,
+      'to': 3.2,
+      'text': 'The altar. What the wardens kept from the world stands on it.',
+    },
+    <String, Object?>{'from': 3.6, 'to': 6.2, 'text': 'It knows you are here.'},
+  ],
+  'signals': <Object?>[
+    <String, Object?>{'t': 3.6, 'name': 'altar_wakes'},
+  ],
+  'actors': <Object?>[
+    for (final (name, at) in <(String, List<num>)>[
+      ('altar_west', <num>[-4.0, 0.9, -56.0]),
+      ('altar_east', <num>[4.0, 0.9, -56.0]),
+      ('altar_north', <num>[0.0, 0.9, -55.0]),
+    ]) ...<Object?>[
+      <String, Object?>{'t': 3.6, 'actor': name, 'do': 'goTo', 'at': at},
+      <String, Object?>{'t': 6.5, 'actor': name, 'do': 'release'},
+    ],
+  ],
+};
+
 Map<String, String> sanctum(GeneratorSource _) {
   const tool = 'apps/flutter3d_demo_dungeon/tool/make_sanctum.py';
   const vestibule = <num>[0.0, 0.0, 14.0];
@@ -986,9 +1041,9 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..block(<num>[0.0, 0.15, -64.0], <num>[16.0, 0.3, 12.0], 'stone')
     ..block(<num>[0.0, 0.45, -64.0], <num>[14.0, 0.3, 10.0], 'stone')
     ..block(<num>[0.0, 0.75, -64.0], <num>[12.0, 0.3, 8.0], 'stone')
-    ..monster('tank', <num>[-4.0, 0.9, -65.0])
-    ..monster('tank', <num>[4.0, 0.9, -65.0])
-    ..monster('tank', <num>[0.0, 0.9, -62.0])
+    ..monster('tank', <num>[-4.0, 0.9, -65.0], name: 'altar_west')
+    ..monster('tank', <num>[4.0, 0.9, -65.0], name: 'altar_east')
+    ..monster('tank', <num>[0.0, 0.9, -62.0], name: 'altar_north')
     ..monster('shooter', <num>[-12.0, 0.0, -66.0])
     ..monster('shooter', <num>[12.0, 0.0, -66.0])
     ..monster('shooter', <num>[0.0, 0.0, -71.0])
@@ -1003,7 +1058,17 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..pickup('bullets', <num>[14.0, 0.8, -62.0], amount: 20)
     ..pickup('invulnerability', <num>[0.0, 0.8, -46.0], amount: 20)
     ..pickup('berserk', <num>[0.0, 0.8, -58.0], amount: 30)
-    ..exitAt('the_light', <num>[0.0, 0.9, -66.0]);
+    ..exitAt('the_light', <num>[0.0, 0.9, -66.0])
+    // The first sight of the altar: from the corridor, over the hall and
+    // round to the dais, while the three on it come down to meet whoever
+    // came this far. Started once, on the way in.
+    ..trigger(
+      'the_altar',
+      <num>[0.0, 1.5, -40.0],
+      size: <num>[6.0, 3.0, 2.0],
+      once: true,
+    )
+    ..cutscene('the_altar', <num>[0.0, 0.0, -41.0], _altarScene);
   return <String, String>{
     '$_levels/sanctum.json': k.write(
       file: 'sanctum.json',

@@ -243,7 +243,7 @@ void main() {
       expect(Vector2(at.x, at.z).length, greaterThan(7.5));
       // Mutation: interpolating the field of view by the next key's step
       // rather than the fraction between the two.
-      expect(fov, closeTo(50.0, 1e-9));
+      expect(fov, closeTo(42.5, 1e-9));
     });
 
     test('the subtitles read the one that started last', () {

@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **A loop can run steps now.** `GameLoop.runSteps` steps through the
+  same door as `advance` — a tape being recorded gets each step, a tape
+  being played gives one — without handing out any look or touching the
+  clock, which is how a cutscene is skipped: its remaining steps run in
+  one frame and a replay of the run steps them all. A cutscene camera's
+  field of view is vertical degrees and forty-five unless a key says, the
+  engine's own lens.
+
 - **A level has cutscenes.** A `cutscene` entity carries its sequence
   document in its `sequence` property and `CutsceneKind` reads it for the
   game's step rate, reporting a document that does not read as a

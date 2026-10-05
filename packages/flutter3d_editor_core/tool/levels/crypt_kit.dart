@@ -171,11 +171,23 @@ final class CryptKit {
     'yaw': roundNumber(yaw, 4),
   });
 
-  void monster(String kind, List<num> at) => entities.add(<String, Object?>{
-    'type': 'monster',
-    'at': roundedVector(at),
-    'kind': kind,
-  });
+  void monster(String kind, List<num> at, {String? name}) =>
+      entities.add(<String, Object?>{
+        'type': 'monster',
+        'name': ?name,
+        'at': roundedVector(at),
+        'kind': kind,
+      });
+
+  /// A cutscene a trigger names: [sequence] is the document the game reads
+  /// — see `Sequence.read` — kept on the entity as written.
+  void cutscene(String name, List<num> at, Map<String, Object?> sequence) =>
+      entities.add(<String, Object?>{
+        'type': 'cutscene',
+        'name': name,
+        'at': roundedVector(at),
+        'sequence': sequence,
+      });
 
   void pickup(String gives, List<num> at, {num? amount, num? ammo}) =>
       entities.add(<String, Object?>{

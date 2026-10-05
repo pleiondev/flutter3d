@@ -150,6 +150,27 @@ void main() {
     expect(heldIn, <bool>[true, true, true]);
   });
 
+  test('steps run now are recorded, and step with the held input', () {
+    final loop = build();
+    final recorder = InputTapeRecorder(seed: 1);
+    loop.recorders.add(recorder);
+    look.add(5, 0);
+    input.press(_shoot);
+    final alpha = loop.alpha;
+    loop.runSteps(30);
+    // Mutation: stepping the simulation directly rather than through the
+    // loop leaves the tape thirty steps short, and a replay of a run that
+    // skipped a cutscene ends thirty steps early.
+    expect(recorder.tape.steps, 30);
+    expect(looksSeen, hasLength(30));
+    // No turn of the camera was asked for while they ran, and the look the
+    // mouse made waits for the next frame.
+    expect(looksSeen, everyElement(0.0));
+    expect(look.x, 5.0);
+    expect(loop.alpha, alpha);
+    expect(input.held(_shoot), isTrue);
+  });
+
   test('a loop with no look source runs anyway', () {
     // `drainLook` is nullable, and a simulation driven from a test or from a
     // build with no pointer capture has none.

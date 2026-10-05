@@ -23,6 +23,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
+import 'src/cutscene_overlay.dart';
 import 'src/ending.dart';
 import 'src/first_shot_hint.dart';
 import 'src/frame_effects.dart';
@@ -980,6 +981,18 @@ class _GameScreenState extends State<GameScreen>
             pointerHeld: _devices.isCaptured,
             padConnected: _pad.isConnected,
           );
+    // Space or use, or the button on the overlay: whichever the player has.
+    // Held rather than pressed, read here between steps — the simulation
+    // reads none of the player's input while a cutscene plays, so the keys
+    // are free.
+    if (_sim?.cutscene != null &&
+        (_skipAsked ||
+            _input.held(GameAction.jump) ||
+            _input.held(GameAction.use))) {
+      _skipAsked = false;
+      _skipCutscene();
+    }
+    _skipAsked = false;
     _steps = _loop.advance(dt);
     _pace.note(
       dropped: _loop.clock.droppedSteps,
@@ -1049,6 +1062,19 @@ class _GameScreenState extends State<GameScreen>
     // "per step" means, and the two are different counts on any display that
     // is not exactly 60 Hz.
     _actorVisuals?.recordStep(dt: dt);
+
+    // A skipped cutscene's steps happen and are not shown. The run still
+    // hears about them — a cutscene could end a level — and the camera still
+    // follows the body, so the frame after the skip is drawn from where the
+    // player is.
+    if (_skipping) {
+      if (_killcamPresent == null) {
+        _run.observe();
+        unawaited(_run.advance());
+      }
+      _smoothedPosition.push(player.body.position);
+      return;
+    }
 
     // A weapon can change hands inside the step — a slot key, or the last
     // round of the current one. The view model is told once, here, rather than
@@ -1516,6 +1542,13 @@ class _GameScreenState extends State<GameScreen>
                 },
                 powers: _inventory.powers,
               ),
+              if (_sim?.cutscene case final Cutscene cutscene)
+                CutsceneOverlay(
+                  fade: cutscene.player.fade(alpha: _loop.alpha),
+                  subtitle: cutscene.player.subtitle,
+                  skipHint: Playing.touch ? 'Skip' : 'Space to skip',
+                  onSkip: () => _skipAsked = true,
+                ),
               if (_mapOn && _sim?.automap != null && _player != null)
                 Positioned.fill(
                   child: Padding(
@@ -1559,6 +1592,28 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  /// Whether the steps being run are a skipped cutscene's: stepped, and not
+  /// performed. See [_skipCutscene].
+  bool _skipping = false;
+
+  /// Whether a skip was asked for since the last frame.
+  bool _skipAsked = false;
+
+  /// Steps the rest of the cutscene now, through the loop — so the tape
+  /// being recorded gets every step and a replay steps them all — without
+  /// the noise, sparks and flashes of seconds nobody watched, which would
+  /// otherwise arrive in this one frame.
+  void _skipCutscene() {
+    final cutscene = _sim?.cutscene;
+    if (cutscene == null || _loop.paused) return;
+    _skipping = true;
+    try {
+      _loop.runSteps(cutscene.player.remaining);
+    } finally {
+      _skipping = false;
+    }
+  }
+
   /// Whether the automap is up. See the M key.
   bool _mapOn = false;
 
@@ -1574,6 +1629,22 @@ class _GameScreenState extends State<GameScreen>
   void _placeCamera() {
     final player = _player;
     if (player == null) return;
+
+    // A cutscene with a camera of its own has the view until it ends, drawn
+    // between the two steps either side of this frame like everything else.
+    final fov = _sim?.cutscene?.player.cameraAt(
+      _eye,
+      _target,
+      alpha: _loop.alpha,
+    );
+    if (fov != null) {
+      _camera
+        ..projection = PerspectiveProjection(fovYRadians: fov * math.pi / 180)
+        ..setPositionFrom(_eye)
+        ..lookAt(_target);
+      return;
+    }
+    _camera.projection = const PerspectiveProjection();
 
     if (_killcamPresent != null) {
       // Standing back from the body rather than behind its eyes, so the death

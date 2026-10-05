@@ -160,20 +160,40 @@ final class GameLoop {
     final lookY = _look.y * perStep;
 
     for (var i = 0; i < steps; i++) {
-      final tape = playback;
-      if (tape != null && !tape.isFinished) {
-        tape.applyTo(input);
-      } else {
-        input.addLook(lookX, lookY);
-      }
-      for (var r = 0; r < recorders.length; r++) {
-        recorders[r].record(input);
-      }
-      input.beginStep();
-      onStep(clock.stepSeconds);
-      input.endStep();
+      _stepOnce(lookX, lookY);
     }
 
     return steps;
+  }
+
+  /// Runs [count] steps now, whatever the clock says: a cutscene skipped, a
+  /// wait fast-forwarded.
+  ///
+  /// **Through the same door as [advance]**, so a tape being recorded gets
+  /// an entry per step and a tape being played gives one, and a replay of a
+  /// run that skipped arrives where the run did — it steps the same steps,
+  /// only at the speed of the clock. No look is handed out: the frame that
+  /// asked for the steps did not turn the camera while they ran. The clock
+  /// is left alone, so the frame after draws between the same two steps it
+  /// would have.
+  void runSteps(int count) {
+    for (var i = 0; i < count; i++) {
+      _stepOnce(0.0, 0.0);
+    }
+  }
+
+  void _stepOnce(double lookX, double lookY) {
+    final tape = playback;
+    if (tape != null && !tape.isFinished) {
+      tape.applyTo(input);
+    } else {
+      input.addLook(lookX, lookY);
+    }
+    for (var r = 0; r < recorders.length; r++) {
+      recorders[r].record(input);
+    }
+    input.beginStep();
+    onStep(clock.stepSeconds);
+    input.endStep();
   }
 }
