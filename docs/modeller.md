@@ -545,6 +545,18 @@ extracted, having first saved the real values on the clip);
 `bakeRootMotionIntoClip` is the exact inverse (refused if nothing was
 extracted, or the key count changed since).
 
+**Animation graphs**: `setAnimationGraph {graphName, graph}` sets the
+state machine a game runs for a character, by name, replacing one of that
+name. The graph is JSON as `AnimationGraphJson` writes it: parameters,
+states playing a clip or blending along a line or across a plane, markers,
+and transitions with conditions, fades, priorities and exit times. It is
+refused, saying where, when the shape is wrong or it names a clip, state or
+parameter the project does not have. `removeAnimationGraph {graphName}`
+takes one away. The project file and its history keep them, and an export
+writes them into the model's root `extras` under `animationGraphs`. There a
+game reads them with `AnimationGraphJson.graphsIn`, and an import brings
+them back.
+
 **Retargeting**: `retargetClip {sourceClipIndex, sourceSkeletonIndex,
 targetSkeletonIndex, boneMap?, lockFeet? (default true), groundY? (default
 0), footTolerance? (default 1e-3), clipName?}` — rest-relative rotation,

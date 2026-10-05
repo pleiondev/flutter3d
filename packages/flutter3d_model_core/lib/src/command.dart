@@ -29,6 +29,8 @@ import 'dart:typed_data';
 // argument's the same word for the same reason — nothing here reads a
 // material's, and the collision is the one the plan's own critique (Г4/Ж2)
 // gives for keeping the two hierarchies apart in the first place.
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show AnimationGraphJson, AnimationStateMachine;
 import 'package:flutter3d_core/formats.dart' hide EnumHint;
 import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -55,6 +57,7 @@ import 'texture_bake.dart';
 import 'texture_graph.dart';
 import 'world_transform.dart';
 
+part 'animation_graph_commands.dart';
 part 'bake_commands.dart';
 part 'job_commands.dart';
 part 'joint_commands.dart';
@@ -1673,6 +1676,16 @@ _modelCommandReaders =
         _ => null,
       },
       'addClip': (json) => AddClip(clipName: json['clipName'] as String?),
+      'setAnimationGraph': (json) =>
+          switch ((json['graphName'], json['graph'])) {
+            (final String graphName, final Map<String, Object?> graph) =>
+              SetAnimationGraph(graphName: graphName, graph: graph),
+            _ => null,
+          },
+      'removeAnimationGraph': (json) => switch (json['graphName']) {
+        final String graphName => RemoveAnimationGraph(graphName: graphName),
+        _ => null,
+      },
       'addLod': (json) => switch ((
         json['id'],
         json['ratio'],

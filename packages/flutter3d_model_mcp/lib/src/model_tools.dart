@@ -2405,6 +2405,59 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'setAnimationGraph',
+      description:
+          'Set the animation graph a game runs for a character, by name, '
+          'replacing one of that name; it is exported into the model\'s root '
+          'extras, where AnimationGraphJson.graphsIn reads it. "graph" has '
+          '"parameters" (each {"name", "type": float|integer|boolean|'
+          'trigger, optional "initial"}), optional "entry" (a state name; '
+          'the first state otherwise), "states" (each {"name"} and either '
+          '"clip" naming one of the project\'s clips or "blend": '
+          '{"parameter", optional "across" for a second parameter, "points": '
+          '[{"at", "y" when across, "clip"}]}; optional "speed", "wrap" '
+          '(once|loop|pingPong), "markers": [{"at" from 0 to 1, "name"}]) '
+          'and "transitions" (each {"from", "to", optional "conditions": '
+          '[{"parameter", then "compare": greater|less|equals|notEquals with '
+          '"value", or "is": true|false, or "trigger": true}], "duration" '
+          'in seconds, "priority", "exitTime" as a share of the clip}). '
+          'Refused, saying where, when the shape is wrong or the graph names '
+          'a clip, state or parameter it does not have.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'graphName': StringSchema(description: 'whose graph, e.g. hero'),
+          'graph': ObjectSchema(
+            description: 'the graph, as described above',
+            properties: <String, Schema>{
+              'parameters': ListSchema(items: ObjectSchema()),
+              'states': ListSchema(items: ObjectSchema()),
+              'transitions': ListSchema(items: ObjectSchema()),
+            },
+            required: <String>['parameters', 'states'],
+          ),
+        },
+        required: <String>['graphName', 'graph'],
+      ),
+    ),
+    _command('setAnimationGraph'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeAnimationGraph',
+      description:
+          'Remove the animation graph of that name; refused, naming the '
+          'graphs there are, when there is none.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'graphName': StringSchema(description: 'whose graph'),
+        },
+        required: <String>['graphName'],
+      ),
+    ),
+    _command('removeAnimationGraph'),
+  ),
+  ModelTool(
+    Tool(
       name: 'addLight',
       description:
           'Add a light to the project\'s own lighting, appended at the '

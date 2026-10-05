@@ -126,6 +126,7 @@ final class RemoveMaterial extends ModelCommand {
         skeletons: project.skeletons,
         clips: project.clips,
         lighting: project.lighting,
+        animationGraphs: project.animationGraphs,
       ),
     );
   }

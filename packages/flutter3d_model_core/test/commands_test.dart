@@ -2986,6 +2986,16 @@ void main() {
         const AddSkeleton(skeletonName: 'rig'),
         const BindSkin(objectId: 1, skeletonIndex: 0),
         const AddClip(clipName: 'idle'),
+        const SetAnimationGraph(
+          graphName: 'hero',
+          graph: <String, Object?>{
+            'parameters': <Object?>[],
+            'states': <Object?>[
+              <String, Object?>{'name': 'idle', 'clip': 'idle'},
+            ],
+          },
+        ),
+        const RemoveAnimationGraph(graphName: 'hero'),
         const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3),
         const SetLodRatio(id: 1, lodIndex: 0, ratio: 0.25),
         const RegenerateLods(1),

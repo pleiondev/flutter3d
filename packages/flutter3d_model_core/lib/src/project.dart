@@ -638,6 +638,7 @@ final class ModelProject implements ModelProjectView {
     this.skeletons = const <ProjectSkeleton>[],
     this.clips = const <ProjectClip>[],
     this.lighting = const SceneLighting(),
+    this.animationGraphs = const <String, Map<String, Object?>>{},
   });
 
   final ProjectProfile profile;
@@ -666,6 +667,14 @@ final class ModelProject implements ModelProjectView {
   /// reopening puts back the lighting of that step. This comment said for a
   /// while that it was not written at all, which was true.
   final SceneLighting lighting;
+
+  /// The characters' animation graphs, by name, each as
+  /// `AnimationGraphJson.encode` writes it — checked when set by
+  /// `SetAnimationGraph`, kept as JSON so a project file and its history
+  /// carry them as they carry any other table, and written into an export's
+  /// root `extras`, where a game reads them with `AnimationGraphJson
+  /// .graphsIn`.
+  final Map<String, Map<String, Object?>> animationGraphs;
 
   /// In the order they were added, which is the order the outliner shows and
   /// the order an export writes. A map by id would make a lookup cheaper and
@@ -749,6 +758,7 @@ final class ModelProject implements ModelProjectView {
       skeletons: skeletons,
       clips: clips,
       lighting: lighting,
+      animationGraphs: animationGraphs,
     );
   }
 
@@ -766,6 +776,7 @@ final class ModelProject implements ModelProjectView {
     skeletons: skeletons,
     clips: clips,
     lighting: lighting,
+    animationGraphs: animationGraphs,
   );
 
   /// This project without the object [id], and without anything under it.
@@ -805,6 +816,7 @@ final class ModelProject implements ModelProjectView {
       skeletons: skeletons,
       clips: clips,
       lighting: lighting,
+      animationGraphs: animationGraphs,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -819,6 +831,7 @@ final class ModelProject implements ModelProjectView {
     List<ProjectSkeleton>? skeletons,
     List<ProjectClip>? clips,
     SceneLighting? lighting,
+    Map<String, Map<String, Object?>>? animationGraphs,
   }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
@@ -828,6 +841,7 @@ final class ModelProject implements ModelProjectView {
     skeletons: skeletons ?? this.skeletons,
     clips: clips ?? this.clips,
     lighting: lighting ?? this.lighting,
+    animationGraphs: animationGraphs ?? this.animationGraphs,
   );
 
   @override

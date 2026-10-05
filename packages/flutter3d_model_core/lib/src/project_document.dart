@@ -17,6 +17,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show AnimationGraphJson;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -133,6 +134,12 @@ final class ProjectModelDocument extends ModelDocument {
 
   @override
   List<AnimationClip> animations = const <AnimationClip>[];
+
+  /// The project's animation graphs in the root `extras`, under
+  /// `AnimationGraphJson.extrasKey`; null for a project with none, so its
+  /// export is the file it always was.
+  @override
+  DocumentAsset? asset;
 
   /// The stack evaluator this document folds modifiers through — `ux-13`.
   ///
@@ -431,6 +438,13 @@ final class ProjectModelDocument extends ModelDocument {
               : indexOfId[skeleton.skeletonRoot!],
         ),
     ];
+    asset = project.animationGraphs.isEmpty
+        ? null
+        : DocumentAsset(
+            extras: <String, Object?>{
+              AnimationGraphJson.extrasKey: project.animationGraphs,
+            },
+          );
     animations = <AnimationClip>[
       for (final ProjectClip clip in project.clips)
         AnimationClip(
@@ -657,6 +671,7 @@ ModelProject fromModelDocument(
   project = project.copyWith(
     skeletons: _skeletonsOf(document.skins, objectIdOfNode),
     clips: _clipsOf(document.animations, objectIdOfNode),
+    animationGraphs: _graphsOf(document.asset),
   );
 
   if (options.scale != 1.0 || options.upAxis == UpAxis.z) {
@@ -801,6 +816,29 @@ List<ProjectSkeleton> _skeletonsOf(
 /// dropped rather than kept under a fabricated id — a track is one entry in
 /// a clip, not a positional slot anything else addresses, so dropping one
 /// costs nothing downstream the way dropping a skeleton would.
+/// The graphs [asset]'s root `extras` keeps, as JSON by name — only those
+/// that read as a graph, so a file a later build wrote opens with what this
+/// one can run.
+Map<String, Map<String, Object?>> _graphsOf(DocumentAsset? asset) {
+  final kept = asset?.extras?[AnimationGraphJson.extrasKey];
+  if (kept is! Map<String, Object?>) {
+    return const <String, Map<String, Object?>>{};
+  }
+  return <String, Map<String, Object?>>{
+    for (final MapEntry(:key, :value) in kept.entries)
+      if (value is Map<String, Object?> && _reads(value)) key: value,
+  };
+}
+
+bool _reads(Map<String, Object?> graph) {
+  try {
+    AnimationGraphJson.decode(graph);
+    return true;
+  } on FormatException {
+    return false;
+  }
+}
+
 List<ProjectClip> _clipsOf(
   List<AnimationClip> animations,
   Map<int, int> objectIdOfNode,

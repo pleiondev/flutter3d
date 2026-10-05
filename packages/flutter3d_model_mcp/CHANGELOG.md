@@ -1,3 +1,9 @@
+## Unreleased
+
+**`setAnimationGraph` and `removeAnimationGraph`.** An agent sets a
+character's graph by name over the project's clips, with the whole shape
+described in the tool, and is told where a wrong one is wrong.
+
 ## 0.8.1
 
 **`ModelSession.rebind` points a session at the document now on screen.** A

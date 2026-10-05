@@ -614,6 +614,10 @@ Uint8List writeProject(
         // project nobody has lit writes the bytes it always wrote.
         if (!_isDefaultLighting(project.lighting))
           'lighting': _lightingJson(project.lighting),
+        // Written only when there are some, so a project without a graph
+        // writes the bytes it always wrote; absent reads as none.
+        if (project.animationGraphs.isNotEmpty)
+          'animationGraphs': project.animationGraphs,
         'objects': objects,
       }),
     ),
@@ -1018,6 +1022,7 @@ ProjectRead readProject(Uint8List bytes) {
       warnings,
       imageCount: images.length,
     );
+    final animationGraphs = _readAnimationGraphs(document['animationGraphs']);
 
     final (List<HistoryStep> history, String? historyRefusal) = _readHistory(
       bytes,
@@ -1031,6 +1036,7 @@ ProjectRead readProject(Uint8List bytes) {
       skeletons: skeletons,
       clips: clips,
       lighting: lighting,
+      animationGraphs: animationGraphs,
       nextId: nextId,
       warnings: warnings,
       simulationChunks: simulationChunks,
@@ -1046,6 +1052,7 @@ ProjectRead readProject(Uint8List bytes) {
         skeletons: skeletons,
         clips: clips,
         lighting: lighting,
+        animationGraphs: animationGraphs,
         nextId: nextId,
       ),
       warnings: warnings,
@@ -1088,6 +1095,7 @@ ProjectRead readProject(Uint8List bytes) {
   required List<ProjectSkeleton> skeletons,
   required List<ProjectClip> clips,
   required SceneLighting lighting,
+  required Map<String, Map<String, Object?>> animationGraphs,
   required int nextId,
   required List<String> warnings,
   List<Uint8List> simulationChunks = const <Uint8List>[],
@@ -1139,6 +1147,7 @@ ProjectRead readProject(Uint8List bytes) {
   var carriedSkeletons = skeletons;
   var carriedClips = clips;
   var carriedLighting = lighting;
+  var carriedGraphs = animationGraphs;
   final noticed = <String>[];
 
   final steps = List<HistoryStep?>.filled(entries.length, null);
@@ -1262,6 +1271,9 @@ ProjectRead readProject(Uint8List bytes) {
           imageCount: carriedImages.length,
         );
       }
+      if (step.containsKey('animationGraphs')) {
+        carriedGraphs = _readAnimationGraphs(step['animationGraphs']);
+      }
       steps[i] = HistoryStep(
         command: command,
         before: ModelProject(
@@ -1272,6 +1284,7 @@ ProjectRead readProject(Uint8List bytes) {
           skeletons: carriedSkeletons,
           clips: carriedClips,
           lighting: carriedLighting,
+          animationGraphs: carriedGraphs,
           nextId: carriedNextId,
         ),
         selectionBefore: selection,
@@ -1535,8 +1548,21 @@ Map<String, Object?> _stepJson(
     // an undo puts back, and "back to the default" is a thing to put back.
     if (!identical(before.lighting, after.lighting))
       'lighting': _lightingJson(before.lighting),
+    if (!identical(before.animationGraphs, after.animationGraphs))
+      'animationGraphs': before.animationGraphs,
   };
 }
+
+/// The graphs a manifest or a history step keeps, by name; none for
+/// anything not shaped as names to objects. Not decoded here: they were
+/// checked when set, and a project opens whether or not this build can run
+/// a graph a later one wrote.
+Map<String, Map<String, Object?>> _readAnimationGraphs(Object? json) =>
+    <String, Map<String, Object?>>{
+      if (json is Map<String, Object?>)
+        for (final MapEntry(:key, :value) in json.entries)
+          if (value is Map<String, Object?>) key: value,
+    };
 
 /// Whether [lighting] is what a project nobody has lit holds.
 bool _isDefaultLighting(SceneLighting lighting) {
