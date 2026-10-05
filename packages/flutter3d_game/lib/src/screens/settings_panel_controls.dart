@@ -217,3 +217,52 @@ class SettingsSwitchRow extends StatelessWidget {
     );
   }
 }
+
+/// One of a few named choices — a row of chips, the chosen one lit.
+class SettingsChoiceRow extends StatelessWidget {
+  const SettingsChoiceRow({
+    super.key,
+    required this.label,
+    required this.choices,
+    required this.chosen,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<String> choices;
+  final int chosen;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(
+          width: 140,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: <Widget>[
+              for (var i = 0; i < choices.length; i++)
+                ChoiceChip(
+                  label: Text(choices[i]),
+                  selected: i == chosen,
+                  onSelected: (_) => onChanged(i),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

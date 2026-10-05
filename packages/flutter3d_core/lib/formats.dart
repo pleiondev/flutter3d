@@ -28,6 +28,7 @@ export 'src/formats/animation/animation_mask.dart';
 export 'src/formats/animation/animation_track.dart';
 export 'src/formats/asset_resolver.dart';
 export 'src/formats/asset_source.dart';
+export 'src/formats/color_vision.dart';
 export 'src/formats/cube_lut.dart';
 export 'src/formats/document_compare.dart';
 export 'src/formats/draco/draco.dart';

@@ -3,6 +3,7 @@ import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart' show Deadzone;
 
+import '../config/color_vision_setting.dart';
 import '../config/game_config.dart';
 import '../input/bindings.dart';
 import '../input/pad_routes.dart';
@@ -163,6 +164,16 @@ class SettingsPanel extends StatelessWidget {
                   // the first and leaves the second.
                   onChanged: (double value) =>
                       onSetting('a11y.cameraMotion', value),
+                ),
+                SettingsChoiceRow(
+                  label: 'Colour vision',
+                  // A correction for the player's own eyes: what their kind
+                  // of colour blindness runs together is moved to where they
+                  // can tell it apart. See `ColorVision.correct`.
+                  choices: colorVisionChoices,
+                  chosen: config.settingOf(colorVisionSetting, 0.0).round(),
+                  onChanged: (int chosen) =>
+                      onSetting(colorVisionSetting, chosen.toDouble()),
                 ),
                 SettingsSwitchRow(
                   label: 'Hold to sprint',

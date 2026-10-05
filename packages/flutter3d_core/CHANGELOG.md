@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **Colour vision, as a colour table.** `ColorVision.simulate` shows the
+  picture as someone missing a cone sees it — protan, deutan or tritan,
+  Machado, Oliveira and Fernandes's matrices, blended by severity — and
+  `ColorVision.correct` moves what they run together to where they can
+  tell it apart, Fidaner's shift of the error. Both are a matrix in linear
+  light; `toStrip` bakes one into the strip `LookSettings.lut` reads after
+  the tone map, with a game's own `CubeLut` grade applied first when it
+  has one, and `upload` puts it on a device. No shader of its own: the
+  table pass every backend has draws it, and the software renderer's frame
+  through it is the frame `ColorVision` predicts to within the table's
+  interpolation. At no severity the table is the neutral one, byte for
+  byte.
+
 - **Root motion through the root's parent, and snapshots that pose again.**
   `rootDelta` and holding the root over rest are in the pose's space,
   through the root's parent at rest: a Z-up armature in centimetres walks

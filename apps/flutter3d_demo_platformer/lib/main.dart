@@ -148,6 +148,10 @@ class _GameScreenState extends State<GameScreen>
   );
   late final GameConfig _config;
 
+  /// The colour table for the player's colour vision. See
+  /// `ColorVisionLook`.
+  ColorVisionLook? _vision;
+
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final PadInput _pad;
@@ -601,6 +605,7 @@ class _GameScreenState extends State<GameScreen>
     setState(() {
       try {
         _renderer = Renderer.create(device: device);
+        _vision = ColorVisionLook(device);
         // One pool, one draw call, added once. Everything this game throws
         // into the air goes through it.
         _renderer?.addContributor(ParticleContributor(_particles));
@@ -1017,10 +1022,17 @@ class _GameScreenState extends State<GameScreen>
     // 1024 the near cascade is 1.9 cm of world per texel and the penguin's
     // shadow is a visible flight of steps beside it.
     shadows: const ShadowSettings(cascades: 3, resolution: 2048),
-    look: filtered && _photo.active
-        ? _photo.look(const LookSettings())
-        : const LookSettings(),
+    // Photo mode's filter, and over it the player's colour vision.
+    look: _seen(
+      filtered && _photo.active
+          ? _photo.look(const LookSettings())
+          : const LookSettings(),
+    ),
   );
+
+  /// [look] with the player's colour vision correction, when they asked
+  /// for one in the settings.
+  LookSettings _seen(LookSettings look) => _vision?.of(_config, look) ?? look;
 
   /// One simulation step. Nothing here draws.
   /// What the last simulated step reported. See where it is drained.

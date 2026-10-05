@@ -40,6 +40,7 @@ export 'src/cloud/http_cloud_saves.dart';
 export 'src/cloud/platform_cloud_saves.dart';
 export 'src/cloud/save_sync.dart';
 export 'src/config/accommodations.dart';
+export 'src/config/color_vision_setting.dart';
 export 'src/config/game_config.dart';
 export 'src/input/bindings.dart';
 export 'src/input/desktop_input.dart';

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **The player picks a colour vision correction.** The settings panel's
+  Accessibility section has a Colour vision choice — off, protan, deutan,
+  tritan — written to `a11y.colorVision`; `colorVisionOf` reads it as a
+  `ColorVision.correct`, and `ColorVisionLook` hands a frame the table for
+  it, made once per kind, keeping a look's own table where it has one.
+  `SettingsChoiceRow` is the panel's row of named choices.
+
 - **Graphs made on an actor's first step.** `ActorAnimations(graphFor:)`
   makes an actor's graph inside the step it first takes, so monsters
   spawned as a level goes get one at the same step in every run. A

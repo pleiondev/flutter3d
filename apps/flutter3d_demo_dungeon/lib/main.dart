@@ -130,6 +130,10 @@ class _GameScreenState extends State<GameScreen>
 
   late final GameConfig _config;
 
+  /// The colour table for the player's colour vision, once there is a device
+  /// to hold it. See `ColorVisionLook`.
+  ColorVisionLook? _vision;
+
   /// The settings screen, which is a state machine and now says so.
   late final SettingsCubit _settings;
 
@@ -472,6 +476,7 @@ class _GameScreenState extends State<GameScreen>
     setState(() {
       try {
         _renderer = Renderer.create(device: device);
+        _vision = ColorVisionLook(device);
       } catch (error) {
         _initError = error;
       }
@@ -1392,6 +1397,9 @@ class _GameScreenState extends State<GameScreen>
                 view: _view,
                 onBeforeFrame: _placeCamera,
                 settings: () => RenderSettings(
+                  // The player's colour vision, from the settings panel: a
+                  // correction for what their eyes run together.
+                  look: _vision?.of(_config) ?? const LookSettings(),
                   // Off, and no longer for either of the reasons written here
                   // before. Rough stone stopped being the problem when the
                   // surface buffer began carrying perceptual roughness in its

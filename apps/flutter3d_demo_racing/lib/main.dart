@@ -232,6 +232,8 @@ class _RaceScreenState extends State<RaceScreen>
       cascades: kShadowCascades,
       resolution: kShadowResolution,
     ),
+    // The player's colour vision, from the settings panel.
+    look: _vision?.of(_config) ?? const LookSettings(),
   );
 
   /// The hour this circuit is raced at, and everything that follows from it.
@@ -446,6 +448,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// The last thing that went wrong where a player could see it.
   String? _issue;
   late final GameConfig _config;
+
+  /// The colour table for the player's colour vision. See
+  /// `ColorVisionLook`.
+  ColorVisionLook? _vision;
   late final SettingsCubit _settings;
 
   /// What the player has already told the operating system.
@@ -671,6 +677,7 @@ class _RaceScreenState extends State<RaceScreen>
     }
     if (!mounted) return;
     _device = device;
+    _vision = ColorVisionLook(device);
 
     setState(() {
       try {
