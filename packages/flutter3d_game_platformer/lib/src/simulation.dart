@@ -92,7 +92,7 @@ final class PlatformerSimulation {
   );
   final InputState input;
   final MechanismWorld? mechanisms;
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// The things that move on their own, or null for a level with none.
   ///

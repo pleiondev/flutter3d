@@ -64,7 +64,7 @@ final class WorldStep {
 
   final CollisionWorld collision;
   final MechanismWorld? mechanisms;
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// Whether a step has run [movers] and not yet reached [publish].
   ///

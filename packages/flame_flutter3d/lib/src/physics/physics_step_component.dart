@@ -61,7 +61,7 @@ final class PhysicsStepComponent extends Component
   }) : step = step ?? FixedStep();
 
   /// The bodies this steps.
-  final Dynamics dynamics;
+  final RigidDynamics dynamics;
 
   /// The world whose contacts this dispatches after the step.
   final CollisionWorld world;

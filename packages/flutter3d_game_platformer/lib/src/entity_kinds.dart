@@ -27,7 +27,7 @@ export 'platformer_entities.dart';
 /// A game composes this itself — there is no default registry and that is the
 /// point — but the eight the format ships are wanted verbatim, so listing them
 /// here is the honest version of "and the usual".
-EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
+EntityRegistry platformerRegistry({RigidDynamics? dynamics}) =>
     EntityRegistry(<EntityKind>[
       const PlayerSpawnKind(),
       const DoorKind(),

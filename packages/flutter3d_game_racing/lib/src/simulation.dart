@@ -74,7 +74,7 @@ final class RacingSimulation {
 
   final RaceState race;
   final MechanismWorld? mechanisms;
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// What each driver is asking for. Filled in before [step] — by the player's
   /// keys for car nought, and by an AI for the rest.

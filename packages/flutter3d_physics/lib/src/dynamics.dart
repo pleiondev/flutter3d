@@ -41,6 +41,7 @@ import 'collision_shape.dart';
 import 'collision_world.dart';
 import 'contact.dart';
 import 'rigid_body.dart';
+import 'rigid_dynamics.dart';
 import 'tolerances.dart';
 
 /// What a contact needed last step.
@@ -88,15 +89,18 @@ final class _Pair {
   double bounce = 0.0;
 }
 
-final class Dynamics {
+/// The reference [RigidDynamics]: sequential impulses in Dart doubles.
+final class Dynamics implements RigidDynamics {
   Dynamics({required this.world, Vector3? gravity, this.iterations = 20})
     : gravity = gravity ?? Vector3(0.0, -22.0, 0.0);
 
+  @override
   final CollisionWorld world;
 
   /// Metres per second squared. The default matches the character controller's,
   /// because a crate that falls slower than the player who dropped it reads as
   /// a bug in the crate.
+  @override
   final Vector3 gravity;
 
   /// How many times the velocity solver goes round.
@@ -110,6 +114,7 @@ final class Dynamics {
   /// and throws the pile apart.
   int positionIterations = 6;
 
+  @override
   final List<RigidBody> bodies = <RigidBody>[];
 
   /// Below this speed for [sleepAfter] seconds, a body stops being simulated.
@@ -151,12 +156,14 @@ final class Dynamics {
   final Contact _contact = Contact();
   final Vector3 _scratch = Vector3.zero();
 
+  @override
   RigidBody add(RigidBody body) {
     bodies.add(body);
     _byCollider[body.collider] = body;
     return body;
   }
 
+  @override
   void remove(RigidBody body) {
     bodies.remove(body);
     _byCollider.remove(body.collider);
@@ -170,6 +177,7 @@ final class Dynamics {
   /// broadphase loop, where a linear scan makes the cost of a step quadratic in
   /// the number of bodies. The platformer's shipped level has thirty-four
   /// crates in it, which is where that stopped being theoretical.
+  @override
   RigidBody? bodyOf(Collider collider) {
     _lookups++;
     return _byCollider[collider];
@@ -187,6 +195,7 @@ final class Dynamics {
   final Map<Collider, RigidBody> _byCollider = <Collider, RigidBody>{};
 
   /// One fixed step.
+  @override
   void step(double dt) {
     if (dt <= 0.0) return;
     _lookupsLastStep = _lookups;
@@ -251,6 +260,7 @@ final class Dynamics {
   ///
   /// Horizontal only. Walking into a crate must not press it into the floor,
   /// and standing on one must not drive it downwards.
+  @override
   void push(Collider by, Vector3 velocity, {double strength = 1.0}) {
     final speed = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
     if (speed < Nearly.moving) return;

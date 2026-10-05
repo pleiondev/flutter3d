@@ -17,7 +17,7 @@ final class Staged {
   /// The one registry that validated the document and then spawned it.
   final EntityRegistry registry;
 
-  final Dynamics dynamics;
+  final RigidDynamics dynamics;
   final ActorSystem actors;
   final MechanismWorld mechanisms;
   final Runner runner;

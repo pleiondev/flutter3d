@@ -140,7 +140,7 @@ final class _Shown {
   final CameraNode camera;
 
   MechanismWorld get mechanisms => staged.mechanisms;
-  Dynamics get dynamics => staged.dynamics;
+  RigidDynamics get dynamics => staged.dynamics;
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
   PlatformerSimulation get sim => staged.sim;

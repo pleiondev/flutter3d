@@ -175,7 +175,7 @@ final class GameSimulation {
 
   /// Crates, barrels and anything else with mass, or null for a game with
   /// none.
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// What the level document says follows it.
   final String? levelNext;

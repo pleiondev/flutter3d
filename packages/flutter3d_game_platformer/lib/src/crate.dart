@@ -57,7 +57,7 @@ final class CrateKind extends EntityKind {
   CrateKind({this.dynamics}) : super(PlatformerEntities.crate);
 
   /// Where a crate goes once there is a world. Null while validating.
-  Dynamics? dynamics;
+  RigidDynamics? dynamics;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {

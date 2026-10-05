@@ -82,7 +82,7 @@ class RigidBodyComponent extends Object3dComponent
   /// to bump into. Taken out when the component is gone, not when Flame
   /// moves it to a new parent, and never from inside a contact: Flame
   /// removes components at the start of a frame, between steps.
-  final Dynamics? removeFrom;
+  final RigidDynamics? removeFrom;
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();

@@ -55,7 +55,7 @@ final class _Game {
 
   final EntityRegistry kinds = platformerRegistry();
   late final Staged staged;
-  Dynamics get dynamics => staged.dynamics;
+  RigidDynamics get dynamics => staged.dynamics;
   MechanismWorld get mechanisms => staged.mechanisms;
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
