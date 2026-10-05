@@ -26,10 +26,19 @@ import 'actor_system.dart';
 import 'behaviour_tree.dart';
 import 'brain.dart';
 
-final class BehaviourBrain extends Brain {
+/// A brain that runs a [BehaviourTree] over the actor's [Blackboard] —
+/// [BehaviourBrain], or a game's own that runs one for part of the time —
+/// so that [BehaviourBrain.pathOf] and [BehaviourBrain.goalOf] can read it
+/// whoever wrote the brain.
+abstract interface class HasBehaviourTree {
+  BehaviourTree get tree;
+}
+
+final class BehaviourBrain extends Brain implements HasBehaviourTree {
   BehaviourBrain(this.tree);
 
   /// Shared by every actor that runs it; see [BehaviourTree].
+  @override
   final BehaviourTree tree;
 
   /// Where the last noise this actor heard came from, as a point.
@@ -84,7 +93,7 @@ final class BehaviourBrain extends Brain {
   /// an entity would change the next snapshot by being switched on.
   static List<BehaviourPathStep> pathOf(Actor actor) =>
       switch ((actor.brain, actor.entities.get<Blackboard>(actor.entity))) {
-        (final BehaviourBrain brain, final Blackboard board) =>
+        (final HasBehaviourTree brain, final Blackboard board) =>
           brain.tree.pathOf(board),
         _ => const <BehaviourPathStep>[],
       };
@@ -93,7 +102,7 @@ final class BehaviourBrain extends Brain {
   /// [pathOf].
   static Vector3? goalOf(Actor actor, ActorSystem system) =>
       switch ((actor.brain, actor.entities.get<Blackboard>(actor.entity))) {
-        (final BehaviourBrain brain, final Blackboard board) =>
+        (final HasBehaviourTree brain, final Blackboard board) =>
           brain.tree.goalOf((actor: actor, system: system, board: board)),
         _ => null,
       };

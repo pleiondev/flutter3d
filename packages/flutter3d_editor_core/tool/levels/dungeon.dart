@@ -693,7 +693,18 @@ Map<String, String> cistern(GeneratorSource _) {
     ..pillar(<num>[-3.0, 2.0, -28.0])
     ..pillar(<num>[3.0, 2.0, -28.0])
     ..monster('tank', <num>[0.0, 0.0, -30.0])
-    ..monster('runner', <num>[-4.0, 0.0, -25.0])
+    // A guard on a beat along the drain's south wall, written as a tree
+    // the level carries: from one post to the other, a look round at each.
+    ..monster(
+      'runner',
+      <num>[-4.0, 0.0, -25.0],
+      name: 'drain_guard',
+      behaviour: 'drain_watch',
+      board: <String, Object?>{
+        'west': <num>[-4.5, 0.9, -24.5],
+        'east': <num>[4.5, 0.9, -24.5],
+      },
+    )
     ..monster('runner', <num>[4.0, 0.0, -31.0])
     ..pickup('health', <num>[-4.0, 0.8, -24.0], amount: 25)
     ..pickup('shells', <num>[4.0, 0.8, -24.0], amount: 8)
@@ -733,6 +744,15 @@ Map<String, String> cistern(GeneratorSource _) {
     )
     ..pickup('armour', <num>[3.0, 0.8, -41.0], amount: 25)
     ..exitAt('the_sanctum', <num>[0.0, 0.0, -45.0]);
+  k.behaviours['drain_watch'] = <String, Object?>{
+    'kind': 'sequence',
+    'children': <Object?>[
+      <String, Object?>{'kind': 'goTo', 'key': 'west', 'within': 0.6},
+      <String, Object?>{'kind': 'wait', 'seconds': 1.5},
+      <String, Object?>{'kind': 'goTo', 'key': 'east', 'within': 0.6},
+      <String, Object?>{'kind': 'wait', 'seconds': 1.5},
+    ],
+  };
   return <String, String>{
     '$_levels/cistern.json': k.write(
       file: 'cistern.json',

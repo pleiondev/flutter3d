@@ -274,14 +274,17 @@ EntityRegistry sampleRegistry({
 /// Two rules, and both are about *this* game rather than about the format: one
 /// place to start, and a way to finish. A game that ends by script rather than
 /// by walking into a door passes an empty list.
-List<LevelRule> sampleRules() => const <LevelRule>[
-  ExactlyOne(
+List<LevelRule> sampleRules() => <LevelRule>[
+  const ExactlyOne(
     EntityTypes.playerSpawn,
     because:
         'the player would start at the origin, which is usually '
         'inside the floor',
   ),
-  AtLeastOne(EntityTypes.exit, because: 'the level cannot be finished'),
+  const AtLeastOne(EntityTypes.exit, because: 'the level cannot be finished'),
+  // A monster's tree reads against the leaves this game's monsters have —
+  // the standard ones — and a monster names a tree the level has.
+  BehavioursRead(BehaviourKinds()),
 ];
 
 /// The loadout this game's player starts with.

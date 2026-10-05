@@ -109,19 +109,30 @@ base class ChaseBrain extends Brain {
     return at == null ? it.canSee() : it.canSeePoint(at);
   }
 
+  /// Whether it is at rest — standing, or about whatever a subclass gives it
+  /// to do before it has noticed anyone: where sight, a noise and pain all
+  /// wake it.
+  ///
+  /// **Asked rather than compared with [MonsterState.idle]**, because a
+  /// guard on a beat rests in a state of its own. Each of the three wakings
+  /// compared with idle, so a patrolling guard walked past a player in plain
+  /// view, and past a shotgun going off in the next room.
+  bool get resting => state == MonsterState.idle;
+
   @override
   void think(Mind it) {
     _readTarget(it);
+    if (resting) {
+      if (_targetDistance <= def.sightRange && _canSeeTarget(it)) {
+        _enter(MonsterState.alert);
+      }
+      return;
+    }
     switch (state) {
       case MonsterState.dead:
       case MonsterState.hurt:
         // Staggered, and not making decisions.
         return;
-
-      case MonsterState.idle:
-        if (_targetDistance <= def.sightRange && _canSeeTarget(it)) {
-          _enter(MonsterState.alert);
-        }
 
       case MonsterState.alert:
         if (stateTime >= def.alertDuration * difficulty.opponentReaction) {
@@ -209,11 +220,11 @@ base class ChaseBrain extends Brain {
     final culprit = it.hurtBy;
     if (culprit is Actor && !identical(culprit, it.actor) && culprit.isAlive) {
       quarrel = culprit;
-      if (state == MonsterState.idle || state == MonsterState.alert) {
+      if (resting || state == MonsterState.alert) {
         _enter(MonsterState.chase);
       }
     }
-    if (state == MonsterState.idle) _enter(MonsterState.chase);
+    if (resting) _enter(MonsterState.chase);
     if (painCooldown <= 0.0 &&
         state != MonsterState.hurt &&
         it.random.nextDouble() < def.painChance) {
@@ -239,7 +250,7 @@ base class ChaseBrain extends Brain {
   /// that would cancel the flinch the player just earned.
   @override
   void onNoise(Mind it, Vector3 at) {
-    if (state != MonsterState.idle) return;
+    if (!resting) return;
     hasNoticed = true;
     _enter(MonsterState.chase);
   }

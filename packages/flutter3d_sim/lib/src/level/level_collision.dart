@@ -101,6 +101,7 @@ extension LevelCollision on Level {
   /// repair it should still see everything it can.
   void spawnInto(SpawnContext context, {required EntityRegistry registry}) {
     final kinds = registry;
+    context.level = this;
     for (final entity in entities) {
       kinds[entity.type]?.spawn(entity, context);
     }

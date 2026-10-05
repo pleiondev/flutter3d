@@ -171,13 +171,24 @@ final class CryptKit {
     'yaw': roundNumber(yaw, 4),
   });
 
-  void monster(String kind, List<num> at, {String? name}) =>
-      entities.add(<String, Object?>{
-        'type': 'monster',
-        'name': ?name,
-        'at': roundedVector(at),
-        'kind': kind,
-      });
+  void monster(
+    String kind,
+    List<num> at, {
+    String? name,
+    String? behaviour,
+    Map<String, Object?>? board,
+  }) => entities.add(<String, Object?>{
+    'type': 'monster',
+    'name': ?name,
+    'at': roundedVector(at),
+    'kind': kind,
+    'behaviour': ?behaviour,
+    'board': ?board,
+  });
+
+  /// The level's behaviour trees by name, for a monster's `behaviour` to
+  /// name; written only when there are some.
+  final Map<String, Object?> behaviours = <String, Object?>{};
 
   /// A cutscene a trigger names: [sequence] is the document the game reads
   /// — see `Sequence.read` — kept on the entity as written.
@@ -479,6 +490,7 @@ final class CryptKit {
       'lights': lights,
       'entities': entities,
       'next': ?next,
+      if (behaviours.isNotEmpty) 'behaviours': behaviours,
     };
     return '${DocumentText.compact(document)}\n';
   }

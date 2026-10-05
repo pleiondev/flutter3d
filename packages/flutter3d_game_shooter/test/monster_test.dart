@@ -201,6 +201,28 @@ void main() {
       expect(_mind(monster).state, MonsterState.alert);
     });
 
+    test('a guard on its beat takes notice as one standing does', () {
+      // Mutation: a resting state the sight check does not know — the beat's
+      // own `patrolling` — and the guard walks its beat past the player.
+      final world = _room();
+      final h = _harness(world);
+      final guard = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      guard.brain = PatrolBrain(
+        def: Monsters.runner,
+        shot: WeaponShot(
+          world: world,
+          hitscan: Hitscan(world: world, random: h.system.random),
+          projectiles: ProjectileSystem(world: world),
+        ),
+        route: <Vector3>[Vector3(-4.0, 0.9, -8.0), Vector3(4.0, 0.9, -8.0)],
+      );
+
+      h.system.beginStep();
+      h.system.step(_dt, focus: h.eye, focusBody: h.player);
+
+      expect(_mind(guard).state, MonsterState.alert);
+    });
+
     test('a wall in the way keeps it asleep', () {
       // The failure this exists for: monsters charging through geometry at a
       // player they cannot possibly have seen.

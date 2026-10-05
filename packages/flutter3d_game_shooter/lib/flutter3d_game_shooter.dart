@@ -39,3 +39,4 @@ export 'src/secret.dart';
 export 'src/simulation.dart';
 export 'src/spawner.dart';
 export 'src/step_phases.dart';
+export 'src/tree_brain.dart';

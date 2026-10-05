@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Monsters rest by behaviour trees.** A `monster` entity naming a
+  `behaviour` the level has gets a `TreeBrain`: the tree walks it while it
+  rests, with the entity's `board` on its blackboard, and the chase takes
+  over the moment sight, a noise or pain wakes it. `sampleRules` checks the
+  trees with `BehavioursRead`.
+
+- **A guard on its beat notices the player.** `ChaseBrain.resting` is
+  what sight, a noise and pain wake from; each compared with idle, so a
+  `PatrolBrain` walked past a player in plain view and past a shot in the
+  next room. `PatrolBrain` and `TreeBrain` rest in `patrolling`.
+
 - **A cutscene's signals are the run's events.** Each step the
   simulation moves every cutscene's signals into `GameSimulation.events`,
   on the step they fired, where sounds and reactions already listen.

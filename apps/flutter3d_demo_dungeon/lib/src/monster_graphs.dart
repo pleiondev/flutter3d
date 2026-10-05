@@ -62,6 +62,9 @@ final class MonsterGraphs implements ActorGraphs {
     MonsterState.attack,
     MonsterState.hurt,
     MonsterState.dead,
+    // Last, so the codes before it keep their numbers: a guard on a beat,
+    // or resting by a tree, walks as a chase does.
+    patrolling,
   ];
 
   /// A foot down at the start of a stride and another halfway: the two of a
@@ -149,19 +152,27 @@ final class MonsterGraphs implements ActorGraphs {
       ],
       transitions: <AnimationTransition>[
         if (stride != null) ...<AnimationTransition>[
-          AnimationTransition(
-            from: 'idle',
-            to: 'move',
-            conditions: <AnimationCondition>[
-              isIn(MonsterState.chase),
-              const CompareCondition('speed', AnimationComparison.greater, 0.3),
-            ],
-            duration: 0.2,
-          ),
+          for (final walking in <MonsterState>[MonsterState.chase, patrolling])
+            AnimationTransition(
+              from: 'idle',
+              to: 'move',
+              conditions: <AnimationCondition>[
+                isIn(walking),
+                const CompareCondition(
+                  'speed',
+                  AnimationComparison.greater,
+                  0.3,
+                ),
+              ],
+              duration: 0.2,
+            ),
           AnimationTransition(
             from: 'move',
             to: 'idle',
-            conditions: <AnimationCondition>[isNot(MonsterState.chase)],
+            conditions: <AnimationCondition>[
+              isNot(MonsterState.chase),
+              isNot(patrolling),
+            ],
             duration: 0.25,
           ),
           AnimationTransition(

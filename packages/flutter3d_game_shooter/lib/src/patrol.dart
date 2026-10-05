@@ -80,6 +80,11 @@ final class PatrolBrain extends ChaseBrain {
 
   final Vector3 _target = Vector3.zero();
 
+  /// On its beat is at rest: sight, a noise and pain wake it as they wake
+  /// one standing.
+  @override
+  bool get resting => state == patrolling || super.resting;
+
   @override
   void act(Mind it) {
     super.act(it);

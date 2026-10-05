@@ -999,6 +999,10 @@ class _GameScreenState extends State<GameScreen>
     }
     _skipAsked = false;
     _steps = _loop.advance(dt);
+    final actors = _actors;
+    _renderer?.debugLines = _treesOn && actors != null
+        ? BehaviourOverlay(actors).draw
+        : null;
     _pace.note(
       dropped: _loop.clock.droppedSteps,
       dt: dt,
@@ -1352,6 +1356,15 @@ class _GameScreenState extends State<GameScreen>
             setState(() => _fogOn = !_fogOn);
             return KeyEventResult.handled;
           }
+          // B shows what every monster running a behaviour tree has decided:
+          // its path through the tree over its head and where it is going,
+          // and the same in words in the corner. Reads the boards and
+          // writes nothing, so a run watched with it on is the same run.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyB) {
+            setState(() => _treesOn = !_treesOn);
+            return KeyEventResult.handled;
+          }
           // M shows the map the run has drawn so far. The game keeps running
           // underneath, as it did in the games this one is drawn from: a map
           // that pauses the fight is a menu, and this is not one.
@@ -1567,6 +1580,22 @@ class _GameScreenState extends State<GameScreen>
                   skipHint: Playing.touch ? 'Skip' : 'Space to skip',
                   onSkip: () => _skipAsked = true,
                 ),
+              if (_treesOn && _actors != null)
+                Positioned(
+                  left: 12,
+                  top: 96,
+                  child: IgnorePointer(
+                    child: Text(
+                      BehaviourOverlay(_actors!).describe().join('\n'),
+                      key: const ValueKey<String>('behaviour-overlay'),
+                      style: const TextStyle(
+                        color: Color(0xFFFFD27A),
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ),
               if (_mapOn && _sim?.automap != null && _player != null)
                 Positioned.fill(
                   child: Padding(
@@ -1631,6 +1660,9 @@ class _GameScreenState extends State<GameScreen>
       _skipping = false;
     }
   }
+
+  /// Whether the behaviour trees are drawn. See the B key.
+  bool _treesOn = false;
 
   /// Whether the automap is up. See the M key.
   bool _mapOn = false;

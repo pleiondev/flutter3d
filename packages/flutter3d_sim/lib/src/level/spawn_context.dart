@@ -69,6 +69,11 @@ final class SpawnContext {
   final ActorSystem actors;
   final MechanismWorld mechanisms;
 
+  /// The level being spawned — what an entity's names resolve against, a
+  /// monster's `behaviour` among them. Set by `spawnInto` for the length of
+  /// the spawn; null for a context a caller drives by hand.
+  Level? level;
+
   /// Told about each actor as it appears.
   ///
   /// The hook exists because the simulation has no idea what anything looks

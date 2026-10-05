@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 import 'chase_brain.dart';
 import 'combat/weapon_behaviour.dart';
 import 'monster_def.dart';
+import 'tree_brain.dart';
 
 /// What this game's monsters are, and how one becomes an [Actor].
 ///
@@ -70,7 +71,13 @@ final class Bestiary {
 
 /// Spawns whatever the bestiary says a monster can be.
 final class MonsterKind extends EntityKind {
-  MonsterKind(this.catalog, {this.bestiary}) : super(ShooterEntities.monster);
+  MonsterKind(this.catalog, {this.bestiary, BehaviourKinds? kinds})
+    : kinds = kinds ?? BehaviourKinds(),
+      super(ShooterEntities.monster);
+
+  /// What a monster's behaviour tree is read against: the standard leaves
+  /// unless the game adds its own.
+  final BehaviourKinds kinds;
 
   /// What a `kind` string may name. Enough to **validate** a document, which is
   /// something a level editor and a loader that has not built a world yet both
@@ -101,7 +108,46 @@ final class MonsterKind extends EntityKind {
       yaw: entity.yaw,
       name: entity.name,
     );
+    _rest(actor, entity, context, def);
     context.onActorSpawned?.call(actor);
+  }
+
+  /// The trees read so far, by the document they were read from, so that ten
+  /// guards running one tree share it, as `BehaviourTree` is meant to be.
+  final Map<Map<String, Object?>, BehaviourTree?> _trees =
+      Map<Map<String, Object?>, BehaviourTree?>.identity();
+
+  /// A monster whose entity names a `behaviour` the level has rests by it —
+  /// see [TreeBrain] — with its `board`, an object of named values, on its
+  /// blackboard for the tree to read. A name the level has not got, or a
+  /// tree that does not read, leaves the monster as it was: both are
+  /// validation errors (`BehavioursRead`), and a spawn does not fail on one.
+  void _rest(
+    Actor actor,
+    EntityDef entity,
+    SpawnContext context,
+    MonsterDef def,
+  ) {
+    final named = entity.string('behaviour');
+    final document = named == null ? null : context.level?.behaviours[named];
+    final chase = actor.brain;
+    if (document == null || chase is! ChaseBrain) return;
+    final tree = _trees.putIfAbsent(
+      document,
+      () => BehaviourTree.read(document, kinds).tree,
+    );
+    if (tree == null) return;
+    actor.brain = TreeBrain(
+      def: def,
+      shot: chase.shot,
+      tree: tree,
+      difficulty: chase.difficulty,
+    );
+    final board = entity.properties['board'];
+    context.actors.entities.set(
+      actor.entity,
+      Blackboard(values: board is Map ? board.cast<String, Object?>() : null),
+    );
   }
 
   @override

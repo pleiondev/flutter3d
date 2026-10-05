@@ -407,7 +407,14 @@
     {"type": "torch", "at": [-5.75, 2.8, -25.0], "yaw": 1.5708, "light": "drain_west"},
     {"type": "torch", "at": [5.75, 2.8, -31.0], "yaw": -1.5708, "light": "drain_east"},
     {"type": "monster", "at": [0.0, 0.0, -30.0], "kind": "tank"},
-    {"type": "monster", "at": [-4.0, 0.0, -25.0], "kind": "runner"},
+    {
+      "type": "monster",
+      "name": "drain_guard",
+      "at": [-4.0, 0.0, -25.0],
+      "kind": "runner",
+      "behaviour": "drain_watch",
+      "board": {"west": [-4.5, 0.9, -24.5], "east": [4.5, 0.9, -24.5]}
+    },
     {"type": "monster", "at": [4.0, 0.0, -31.0], "kind": "runner"},
     {"type": "pickup", "at": [-4.0, 0.8, -24.0], "gives": "health", "amount": 25},
     {"type": "pickup", "at": [4.0, 0.8, -24.0], "gives": "shells", "amount": 8},
@@ -429,5 +436,16 @@
     {"type": "pickup", "at": [3.0, 0.8, -41.0], "gives": "armour", "amount": 25},
     {"type": "exit", "name": "the_sanctum", "at": [0.0, 1.3, -45.0]}
   ],
-  "next": "assets/levels/sanctum.json"
+  "next": "assets/levels/sanctum.json",
+  "behaviours": {
+    "drain_watch": {
+      "kind": "sequence",
+      "children": [
+        {"kind": "goTo", "key": "west", "within": 0.6},
+        {"kind": "wait", "seconds": 1.5},
+        {"kind": "goTo", "key": "east", "within": 0.6},
+        {"kind": "wait", "seconds": 1.5}
+      ]
+    }
+  }
 }

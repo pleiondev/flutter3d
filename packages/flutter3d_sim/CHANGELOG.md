@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A level's tree reaches its monsters.** `SpawnContext.level` is the
+  level being spawned, set by `spawnInto`, so a kind can resolve the names
+  an entity gives. `HasBehaviourTree` is any brain that runs a tree, and
+  `BehaviourBrain.pathOf` and `goalOf` read whichever brain it is.
+
 - **A cutscene can ask an actor for a gesture.** A `play` cue names a
   clip; the actor stands, and on the cue's own step the player asks for it
   through `Mind.gesture`, `ActorSystem.gesture` and `ActorStrides.gesture`,
