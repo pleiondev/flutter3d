@@ -1,7 +1,7 @@
 #!/bin/bash
 # The core's digests on the platforms a Mac can reach — P9, phase 13.
 #
-#     tool/digest_platforms.sh [linux] [android] [ios]
+#     tool/digest_platforms.sh [linux] [android] [ios] [windows]
 #
 # csrc/tests/test_digest.c steps seven scenes and fails unless they hash to
 # the numbers written in it; this builds it, in both precisions, for:
@@ -10,10 +10,13 @@
 #            clang each (the last under emulation: minutes);
 #   android  arm64 with the NDK's clang, run on the emulator or device adb
 #            sees (ANDROID_HOME, or ~/Library/Android/sdk);
-#   ios      the simulator, booted if none is.
+#   ios      the simulator, booted if none is;
+#   windows  x86-64 with mingw-w64 in Docker, run under wine, with
+#            test_threads.c beside it for the pool on Win32 threads (under
+#            emulation: many minutes).
 #
-# Windows is CI's (`physics-native-windows`): MSVC, through
-# test/c_unit_test.dart. With no argument, all three.
+# MSVC is CI's (`physics-native-windows`), through test/c_unit_test.dart.
+# With no argument, all four.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -76,7 +79,19 @@ ios() {
   done
 }
 
+windows() {
+  while IFS='|' read -r where result; do report "$where" "$result"; done < <(docker run --rm --platform linux/amd64 -v "$PWD:/src" -w /src debian:trixie bash -c "
+    apt-get update -qq >/dev/null && apt-get install -y -qq gcc-mingw-w64-x86-64 wine wine64 >/dev/null 2>&1
+    export WINEDEBUG=-all
+    for t in test_digest test_threads; do
+      for p in '' -DF3D_REAL_DOUBLE; do
+        x86_64-w64-mingw32-gcc $FLAGS -D_USE_MATH_DEFINES -static \$p csrc/tests/\$t.c $SOURCES -o /tmp/t.exe &&
+          echo \"windows (wine) \$t \${p:-f32}|\$(wine /tmp/t.exe 2>&1 | tail -1)\"
+      done
+    done")
+}
+
 targets=("$@")
-[ ${#targets[@]} -eq 0 ] && targets=(linux android ios)
+[ ${#targets[@]} -eq 0 ] && targets=(linux android ios windows)
 for target in "${targets[@]}"; do "$target"; done
 exit $failed
