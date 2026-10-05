@@ -176,6 +176,106 @@ final class LookGoal extends AnimationGoal {
   }
 }
 
+/// One leg [FootPlantGoal] stands on the ground: [root] → [mid] → [tip],
+/// hip, knee and ankle, bent by `TwoBoneIk` towards [pole].
+///
+/// [foot] is the bone the foot is skinned to when it is not under [tip]:
+/// a rig exported with its feet as IK targets parented to the root — the
+/// Quaternius characters', `Foot.L` on `Root` — has the clip put the foot
+/// where the leg ends, and the plant moves it with the ankle.
+final class FootLeg {
+  FootLeg({
+    required this.root,
+    required this.mid,
+    required this.tip,
+    this.foot,
+    this.poleJoint,
+    Vector3? pole,
+  }) : pole = pole ?? Vector3(0.0, 0.0, 1.0);
+
+  final int root, mid, tip;
+  final int? foot;
+
+  /// A joint whose place is the knee's pole — `PoleTarget.L` — read each
+  /// frame from the pose; [pole] when null.
+  final int? poleJoint;
+
+  /// Which side the knee bends to, in the pose's space, when [poleJoint]
+  /// is null.
+  final Vector3 pole;
+
+  /// The height of the ground under this foot, in the pose's space, where
+  /// the clip's own floor is nought; the game writes it before each step —
+  /// a ray down from the foot, brought into the model's space. Nought is
+  /// flat ground, which changes nothing.
+  double ground = 0.0;
+}
+
+/// The feet put on the ground the game says is under them: a stair, a
+/// slope, a rubble heap the clip was not made on.
+///
+/// Each foot moves up or down by its [FootLeg.ground], the leg bending to
+/// reach it. A foot that must go down further than the leg can reach
+/// lowers [hips] instead, by the most any foot must go down, so a
+/// character on a stair stands with one knee bent rather than one leg
+/// hanging in the air. Below a weight of one, every shift is that share.
+final class FootPlantGoal extends AnimationGoal {
+  FootPlantGoal({required this.hips, required this.legs, super.weight});
+
+  /// The joint the legs hang from, lowered when a foot must go down.
+  final int hips;
+  final List<FootLeg> legs;
+
+  @override
+  void apply(Pose pose) {
+    if (weight <= 0.0 || legs.isEmpty) return;
+    final drop =
+        legs.fold<double>(0.0, (d, l) => math.min(d, l.ground)) * weight;
+    var world = pose.worldMatrices();
+    // Where the clip had each ankle, before the hips move them.
+    final ankles = <Vector3>[
+      for (final leg in legs) world[leg.tip].getTranslation(),
+    ];
+    if (drop < 0.0) {
+      _moveWorld(pose, world, hips, Vector3(0.0, drop, 0.0));
+      world = pose.worldMatrices();
+    }
+    for (final (i, leg) in legs.indexed) {
+      final target = ankles[i]..y += leg.ground * weight;
+      final pole = switch (leg.poleJoint) {
+        final int joint => world[joint].getTranslation(),
+        null => world[leg.mid].getTranslation() + leg.pole,
+      };
+      TwoBoneIk.solve(
+        pose,
+        root: leg.root,
+        mid: leg.mid,
+        tip: leg.tip,
+        target: target,
+        pole: pole,
+      );
+      if (leg.foot case final int foot) {
+        final moved = target - world[foot].getTranslation();
+        _moveWorld(pose, world, foot, moved);
+      }
+      world = pose.worldMatrices();
+    }
+  }
+}
+
+/// Moves [joint] by [by] in the pose's space, through its parent's frame.
+void _moveWorld(Pose pose, List<Matrix4> world, int joint, Vector3 by) {
+  final parent = pose.parents[joint];
+  final local = parent < 0
+      ? by
+      : (Matrix4.inverted(
+          world[parent],
+        )..setTranslationRaw(0.0, 0.0, 0.0)).transform3(by.clone());
+  pose.translations[joint * 3] += local.x;
+  pose.translations[joint * 3 + 1] += local.y;
+  pose.translations[joint * 3 + 2] += local.z;
+}
+
 /// [v] turned by [q], as `asRotationMatrix` turns it — not
 /// `Quaternion.rotated`, which turns by the inverse.
 Vector3 _turn(Quaternion q, Vector3 v) =>

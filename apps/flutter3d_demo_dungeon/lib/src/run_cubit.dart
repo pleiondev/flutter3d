@@ -206,6 +206,22 @@ final class DungeonRun extends RunSession<LevelReady> {
             player.eye(watched);
             return watched;
           },
+          // The level's own floor under a foot: a ray from half a metre
+          // above it down through a metre, against the world and nothing
+          // that walks.
+          groundAt: (at) {
+            final from = Vector3(at.x, at.y + 0.5, at.z);
+            final hit = RayHit();
+            return loaded.collision.raycast(
+                  from,
+                  Vector3(0.0, -1.0, 0.0),
+                  1.0,
+                  hit,
+                  mask: CollisionLayers.world,
+                )
+                ? hit.point.y
+                : null;
+          },
         ),
         device: device,
         // On their own layer as well as the world's, which is what lets the

@@ -7,13 +7,26 @@ import 'package:vector_math/vector_math.dart';
 import 'monster_looks.dart';
 
 /// How the crypt's monsters move — N1: an animation graph over each
-/// model's own clips, and a head that turns to watch whoever it has seen.
+/// model's own clips, a head that turns to watch whoever it has seen, and
+/// feet put on whatever floor is under them.
 final class MonsterGraphs implements ActorGraphs {
   /// [lookAt] says where a watching monster looks — the player's eyes —
-  /// in the world; null, or a null from it, watches nothing.
-  MonsterGraphs({this.lookAt});
+  /// in the world; null, or a null from it, watches nothing. [groundAt] says
+  /// how high the floor is under a point in the world, or null where there
+  /// is none near; without it the feet stay where the clips put them.
+  MonsterGraphs({this.lookAt, this.groundAt});
 
   final Vector3? Function()? lookAt;
+  final double? Function(Vector3 at)? groundAt;
+
+  /// The most a foot is put up or down, m: a stair's riser. Past it the
+  /// floor under a foot is a ledge it is not standing on.
+  static const double mostStep = 0.4;
+
+  /// How long feet take to plant or let go, s.
+  static const double plantSeconds = 0.2;
+
+  final Expando<bool> _planted = Expando<bool>('planted');
 
   /// The states a monster turns its head to watch in.
   static final Set<MonsterState> watching = <MonsterState>{
@@ -189,23 +202,57 @@ final class MonsterGraphs implements ActorGraphs {
 
   /// A look on the head, where the model has one: what faced +Z at rest —
   /// where a glTF character faces — turned to whatever it watches.
+  ///
+  /// And a plant on the legs, where the model has the Quaternius legs: hip,
+  /// knee and ankle under the body, and each foot a bone of its own on the
+  /// root that the clips put where the ankle is.
   @override
   void dress(Actor actor, AnimationGraph graph, ModelInstance model) {
-    final head = model.nodes.indexWhere((n) => n.name == 'Head');
-    if (head < 0) return;
-    graph.goals.add(
-      LookGoal(
-        joint: head,
-        forward: Vector3(0.0, 0.0, 1.0),
-        limit: lookLimit,
-        weight: 0.0,
-      ),
-    );
+    int joint(String name) => model.nodes.indexWhere((n) => n.name == name);
+    final head = joint('Head');
+    if (head >= 0) {
+      graph.goals.add(
+        LookGoal(
+          joint: head,
+          forward: Vector3(0.0, 0.0, 1.0),
+          limit: lookLimit,
+          weight: 0.0,
+        ),
+      );
+    }
+    final legs = <FootLeg>[
+      for (final side in const <String>['L', 'R'])
+        if (<int>[
+              joint('UpperLeg.$side'),
+              joint('LowerLeg.$side'),
+              joint('LowerLeg.${side}_end'),
+            ]
+            case [final hip, final knee, final ankle]
+            when hip >= 0 && knee >= 0 && ankle >= 0)
+          FootLeg(
+            root: hip,
+            mid: knee,
+            tip: ankle,
+            foot: switch (joint('Foot.$side')) {
+              < 0 => null,
+              final foot => foot,
+            },
+            poleJoint: switch (joint('PoleTarget.$side')) {
+              < 0 => null,
+              final pole => pole,
+            },
+          ),
+    ];
+    final hips = joint('Body');
+    if (legs.length == 2 && hips >= 0) {
+      graph.goals.add(FootPlantGoal(hips: hips, legs: legs, weight: 0.0));
+    }
   }
 
   @override
   void drive(Actor actor, AnimationGraph graph, ModelInstance model) {
     writeParameters(actor, graph.parameters);
+    _plant(actor, graph, model);
     final look = graph.goals.whereType<LookGoal>().firstOrNull;
     if (look == null) return;
     final target = lookAt?.call();
@@ -218,6 +265,33 @@ final class MonsterGraphs implements ActorGraphs {
       look.target.setFrom(
         Matrix4.inverted(model.root.worldMatrix).transform3(target.clone()),
       );
+    }
+  }
+
+  /// Each foot's floor, from [groundAt] under where the last frame left the
+  /// ankle, brought into the model's space; planted while the monster is
+  /// alive and on the ground, let go in the air and when it dies.
+  void _plant(Actor actor, AnimationGraph graph, ModelInstance model) {
+    final plant = graph.goals.whereType<FootPlantGoal>().firstOrNull;
+    final ground = groundAt;
+    if (plant == null || ground == null) return;
+    final on = actor.isAlive && (actor.body?.isGrounded ?? false);
+    if (_planted[actor] != on) {
+      _planted[actor] = on;
+      plant.fadeTo(on ? 1.0 : 0.0, plantSeconds);
+    }
+    final toWorld = model.root.worldMatrix;
+    final toPose = Matrix4.inverted(toWorld);
+    final pose = graph.pose.worldMatrices();
+    for (final leg in plant.legs) {
+      final at = toWorld.transform3(pose[leg.tip].getTranslation());
+      final floor = ground(at);
+      leg.ground = floor == null
+          ? 0.0
+          : toPose
+                .transform3(Vector3(at.x, floor, at.z))
+                .y
+                .clamp(-mostStep, mostStep);
     }
   }
 

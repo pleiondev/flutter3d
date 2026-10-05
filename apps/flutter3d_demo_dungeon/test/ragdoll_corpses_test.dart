@@ -10,7 +10,7 @@
 /// game's own assembly and not a copy of it.
 library;
 
-import 'package:flutter3d/flutter3d.dart' show LookGoal;
+import 'package:flutter3d/flutter3d.dart' show FootPlantGoal, LookGoal;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_dungeon/src/monster_looks.dart';
@@ -101,6 +101,18 @@ void main() {
     }
     for (final actor in runners) {
       expect(visuals.graphOf(actor)!.goals.whereType<LookGoal>(), hasLength(1));
+      // And their feet on the floor the level has under them: the crypt's
+      // is flat where they stand, so each foot finds it where the clip's
+      // own floor is.
+      final plant = visuals
+          .graphOf(actor)!
+          .goals
+          .whereType<FootPlantGoal>()
+          .single;
+      for (final leg in plant.legs) {
+        expect(leg.ground.abs(), lessThan(0.05), reason: _modelOf(actor));
+        expect(leg.foot, isNotNull, reason: 'the Quaternius foot bone');
+      }
     }
     // A runner that has seen the player turns its head to the player's eyes
     // over a third of a second: the goal comes in, aimed where they are.

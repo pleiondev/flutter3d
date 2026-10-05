@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **Feet put on the ground under them.** `FootPlantGoal` takes a
+  `FootLeg` per leg: hip, knee and ankle bent by `TwoBoneIk` towards a
+  pole joint or direction. Each has a `ground` height the game writes from
+  a ray down. A foot on a step is lifted onto it. A foot below the clip's
+  floor lowers the hips by as much, so the other knee bends rather than
+  one leg hanging. A rig whose foot is a bone of its own on the root, as
+  the Quaternius characters export their IK targets, names it as `foot`,
+  and it moves with its ankle. On flat ground nothing moves.
+
 - **`.f3d` keeps `extras`.** A new section, 28, holds every `extras`
   block a document carries: the document's own, and those of nodes,
   materials, skins and clips. Each is JSON tagged with its owner's kind
