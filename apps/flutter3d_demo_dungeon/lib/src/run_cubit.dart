@@ -6,7 +6,7 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, RunStatus
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show loadPhysicsCore;
+    show NativeDynamics, loadPhysicsCore;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart';
@@ -285,6 +285,7 @@ final class DungeonRun extends RunSession<LevelReady> {
       registry: registry,
       inventory: inventory,
       onActorSpawned: scene.actors.add,
+      dynamicsFor: dungeonDynamics,
       onFixture: scene.fixtures.add,
       eyeOffset: eyeOffset,
       lookSensitivity: lookSensitivity,
@@ -337,6 +338,10 @@ final class DungeonRun extends RunSession<LevelReady> {
   /// rather than copies.
   @override
   void close(LevelReady level) {
+    // The core's world, and with it the characters' mover.
+    if (level.staged.sim.dynamics case final NativeDynamics native) {
+      native.dispose();
+    }
     level.actorVisuals.dispose();
     level.fixtureVisuals.dispose();
     level.widgetSurfaces.dispose();

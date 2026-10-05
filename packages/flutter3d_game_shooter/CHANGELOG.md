@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`stage(dynamicsFor:)`** makes a level's dynamics before anybody is
+  spawned and hands them to the simulation. None by default.
+
 - **A save carries what the dynamics need beyond the bodies.** The
   simulation's snapshot holds `RigidDynamics.saveState()` under
   `dynamics` and gives it back after the bodies are restored. For

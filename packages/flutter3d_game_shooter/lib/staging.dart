@@ -132,8 +132,13 @@ Staged stage(
   double eyeOffset = 0.7,
   double lookSensitivity = 0.0022,
   GameRandom? random,
+  RigidDynamics? Function(CollisionWorld world)? dynamicsFor,
 }) {
   final entities = EcsWorld();
+  // What steps the bodies and, for the physics core, moves the characters:
+  // made before anybody is spawned, so the first step already has it. None
+  // by default, which is the crypt as it always was.
+  final dynamics = dynamicsFor?.call(world);
 
   // **One generator, shared by everything in this world that rolls.** It was
   // three: `ActorSystem` and `Hitscan` each defaulted to an unseeded
@@ -235,6 +240,7 @@ Staged stage(
             actors: actors,
             projectiles: projectiles,
             shot: shot,
+            dynamics: dynamics,
             levelNext: level.next,
           )
           ..automap = Automap(navigation.grid)

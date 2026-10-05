@@ -41,11 +41,19 @@ import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show loadPhysicsCore;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/arcade_game.dart';
 
-void main() => runApp(const ArcadeApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The physics core, which the browser fetches as WebAssembly once;
+  // natively it is in the app already and this returns at once.
+  if (physicsBackend != 'dart') await loadPhysicsCore();
+  runApp(const ArcadeApp());
+}
 
 class ArcadeApp extends StatelessWidget {
   const ArcadeApp({super.key});

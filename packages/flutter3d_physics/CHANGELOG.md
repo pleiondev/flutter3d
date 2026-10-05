@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **A world can say who moves its characters.**
+  `CollisionWorld.characterMover` takes a `CharacterMover`. When one is
+  set, `CharacterController` keeps everything its step decides: speed,
+  friction, gravity, the jump, coyote time, being carried. It hands the
+  mover only the geometry: sliding, the step, the slope, keeping to the
+  ground. A body whose `solidFilter` asks about each contact keeps its own
+  sweeps. Null, the default, is the controller as it was.
+
 - **A character can be walked by its animation.**
   `CharacterController.step(drivenBy:)` takes a displacement along the
   floor in place of a wish to accelerate towards, such as root motion

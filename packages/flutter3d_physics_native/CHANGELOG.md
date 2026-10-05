@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **The core moves characters.** `NativeDynamics(movesCharacters: true)`
+  sets the world's `characterMover` to a `NativeCharacterMover`. It moves
+  each controller as the capsule inside its box through the world the
+  dynamics mirror, with the lifts and the other characters put where they
+  are this step first, and names the ground as its collider. `dispose`
+  hands the characters back to their own sweeps. Also `placeMovers`,
+  `standingOf` and `colliderOf`.
+
 - **A fallen body gets up.** `SkeletonRagdoll.lying()` reads the pelvis
   against how it was bound. It says whether the chest faces up, where the
   pelvis is, and which way along the floor the head lies, with the yaw an

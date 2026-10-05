@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'character_mover.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
@@ -401,9 +402,14 @@ final class CharacterController {
     }
     _applyGravity(dt);
     _tryJump();
-    _moveHorizontally(dt);
-    _moveVertically(dt);
-    _probeGround();
+    final mover = world.characterMover;
+    if (mover != null && solidFilter == null) {
+      _moveBy(mover, dt);
+    } else {
+      _moveHorizontally(dt);
+      _moveVertically(dt);
+      _probeGround();
+    }
 
     // Collider holds its own copy of the position — it clones on construction,
     // and relying on a shared vector would have been a silent aliasing bug the
@@ -770,6 +776,54 @@ final class CharacterController {
     // noise — true of carrying, and it threw away the answer to every other
     // question about the floor. [groundBody] still narrows it.
     _ground = _hit.collider;
+    _coyote = tuning.coyoteTime;
+  }
+
+  /// The step's geometry by [mover]: the whole of this step's motion handed
+  /// over at once, and what came back read as the sweeps above read their
+  /// own — speed into a wall or a ceiling gone, standing where it stood,
+  /// lifted by a step it climbed.
+  void _moveBy(CharacterMover mover, double dt) {
+    final leftDeliberately = _snapSuppressed;
+    _snapSuppressed = false;
+    _delta.setValues(velocity.x * dt, velocity.y * dt, velocity.z * dt);
+    if (_delta.length2 == 0.0) {
+      // Still, and nothing asked: a body at rest asks the floor anyway, so a
+      // floor taken away from under it is noticed.
+      _delta.y = -_skin;
+    }
+    final from = _plainPosition..setFrom(position);
+    final moved = mover.move(
+      this,
+      _delta,
+      stepHeight: tuning.stepHeight,
+      walkableNormalY: _walkableNormalY,
+    );
+    position.setFrom(moved.position);
+    _contacts =
+        (moved.hitWall ? 1 : 0) +
+        (moved.hitCeiling ? 1 : 0) +
+        (moved.grounded ? 1 : 0);
+    if (moved.stepped) {
+      _steppedUp = math.max(0.0, position.y - from.y - _delta.y);
+    }
+    if (moved.hitWall && dt > 0.0) {
+      // What of the level move a wall left is the speed along it.
+      velocity
+        ..x = (position.x - from.x) / dt
+        ..z = (position.z - from.z) / dt;
+    }
+    if (moved.hitCeiling && velocity.y > 0.0) velocity.y = 0.0;
+    // Ground met on the way is ground — a slope climbed is stood on — unless
+    // the body is leaving it on purpose: a jump rises off the floor it met.
+    if (!moved.grounded || (velocity.y > 0.0 && leftDeliberately)) {
+      _setAirborne();
+      return;
+    }
+    velocity.y = 0.0;
+    _grounded = true;
+    _groundNormal.setFrom(moved.groundNormal);
+    _ground = moved.ground;
     _coyote = tuning.coyoteTime;
   }
 

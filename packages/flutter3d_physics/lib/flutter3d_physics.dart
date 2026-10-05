@@ -30,6 +30,7 @@
 library;
 
 export 'src/character_controller.dart';
+export 'src/character_mover.dart';
 export 'src/cloth/cloth_collision.dart';
 export 'src/cloth/cloth_mesh.dart';
 export 'src/cloth/cloth_settings.dart';

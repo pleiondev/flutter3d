@@ -15,6 +15,7 @@ import 'package:flutter/widgets.dart'
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'bot_brain.dart';
@@ -36,6 +37,26 @@ const double cameraHeight = 20.0;
 /// How many metres of the yard the orthographic camera shows top to bottom:
 /// the whole of its 18-metre depth and a margin.
 const double viewHeight = 22.0;
+
+/// Which dynamics steps the ship: the native core, unless the build is made
+/// with `--dart-define=FLUTTER3D_PHYSICS=dart`, which is the reference in
+/// plain Dart.
+const String physicsBackend = String.fromEnvironment(
+  'FLUTTER3D_PHYSICS',
+  defaultValue: 'native',
+);
+
+/// The dynamics [physicsBackend] names, for [world], with no gravity: the
+/// yard is seen from straight above. In the browser the core must be loaded
+/// first, with `loadPhysicsCore`.
+RigidDynamics arcadeDynamics(CollisionWorld world) => physicsBackend == 'dart'
+    ? Dynamics(world: world, gravity: Vector3.zero())
+    : NativeDynamics(
+        world: world,
+        gravity: Vector3.zero(),
+        // The bots walked by the core through the yard it mirrors.
+        movesCharacters: true,
+      );
 
 /// A ship over a floating meteor yard, and the bots patrolling it.
 ///
@@ -81,9 +102,17 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
             GameAction.moveRight,
         InputSource.key(LogicalKeyboardKey.keyD.keyId): GameAction.moveRight,
       }) {
-    dynamics = Dynamics(world: collisionWorld, gravity: Vector3.zero());
+    dynamics = arcadeDynamics(collisionWorld);
     actorSystem = ActorSystem(world: collisionWorld, random: GameRandom(7));
     inputBridge = FlameInputBridge(bindings: bindings, inputState: inputState);
+  }
+
+  /// The core's world, let go with the game rather than whenever the
+  /// collector gets to it.
+  @override
+  void onRemove() {
+    if (dynamics case final NativeDynamics native) native.dispose();
+    super.onRemove();
   }
 
   /// Metres per second the ship flies at full stick deflection.
@@ -126,7 +155,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// Every collider the player's or a bot's body owns, one world for both
   /// bridges — see this class's own doc comment.
   final CollisionWorld collisionWorld;
-  late final Dynamics dynamics;
+  late final RigidDynamics dynamics;
   late final ActorSystem actorSystem;
 
   /// What every input device — here, just [inputBridge] — writes into, and

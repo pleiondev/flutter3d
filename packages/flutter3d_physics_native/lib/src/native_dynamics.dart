@@ -29,6 +29,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -46,7 +47,9 @@ final class NativeDynamics implements RigidDynamics {
     Vector3? gravity,
     int substeps = 4,
     int threads = 1,
+    bool movesCharacters = false,
   }) : gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {
+    if (movesCharacters) world.characterMover = NativeCharacterMover(this);
     native
       ..setAir(temperature: 293.15, density: 1e-30)
       ..setSleep(speed: 0.08, time: 0.5)
@@ -69,6 +72,9 @@ final class NativeDynamics implements RigidDynamics {
   final Map<Collider, RigidBody> _byCollider = <Collider, RigidBody>{};
   final Map<RigidBody, _Mirror> _mirrors = <RigidBody, _Mirror>{};
   final Map<Collider, _Standing> _standing = <Collider, _Standing>{};
+
+  /// Whose each core body is: a body's collider, or a standing collider.
+  final Map<NativeBody, Collider> _owners = <NativeBody, Collider>{};
   final Map<CollisionShape, (NativeHull, Vector3)> _hulls =
       <CollisionShape, (NativeHull, Vector3)>{};
   final Map<CollisionShape, NativeMesh> _meshes =
@@ -99,6 +105,26 @@ final class NativeDynamics implements RigidDynamics {
     return body;
   }
 
+  /// The collider [handle] stands for — a body's, or one standing in the
+  /// core — or null for a body made by hand.
+  Collider? colliderOf(NativeBody handle) => _owners[handle];
+
+  /// The core body [collider] stands as; null for a trigger, a body's own,
+  /// or one not seen yet.
+  NativeBody? standingOf(Collider collider) => _standing[collider]?.handle;
+
+  /// Every collider that moves put where it is now in the core, between
+  /// steps — for a query that must see this step's lifts and characters,
+  /// not the last step's. Made to stand if it had not; how fast each moves
+  /// is still the next [step]'s to say.
+  void placeMovers() {
+    for (final collider in world.movers) {
+      if (collider.kind == ColliderKind.trigger) continue;
+      if (_byCollider.containsKey(collider)) continue;
+      (_standing[collider] ??= _standingFor(collider)).place(native, collider);
+    }
+  }
+
   /// [body] made in the core as it is now, and its mirror.
   _Mirror _mirrorFor(RigidBody body) {
     final (shape, offset) = _shapeOf(body.collider.shape);
@@ -120,6 +146,7 @@ final class NativeDynamics implements RigidDynamics {
         layer: body.collider.layer & Layers.all,
         mask: body.collider.mask & Layers.all,
       );
+    _owners[handle] = body.collider;
     return _Mirror(handle, offset)..take(body);
   }
 
@@ -128,7 +155,10 @@ final class NativeDynamics implements RigidDynamics {
     bodies.remove(body);
     _byCollider.remove(body.collider);
     final mirror = _mirrors.remove(body);
-    if (mirror != null) native.removeBody(mirror.handle);
+    if (mirror != null) {
+      native.removeBody(mirror.handle);
+      _owners.remove(mirror.handle);
+    }
     world.remove(body.collider);
   }
 
@@ -204,11 +234,27 @@ final class NativeDynamics implements RigidDynamics {
     for (final body in bodies) {
       _mirrors[body]!.fetch(native, body);
     }
+    _owners
+      ..clear()
+      ..addAll(<NativeBody, Collider>{
+        for (final MapEntry(key: collider, value: standing)
+            in _standing.entries)
+          standing.handle: collider,
+        for (final MapEntry(key: body, value: mirror) in _mirrors.entries)
+          mirror.handle: body.collider,
+      });
     world.reindex();
   }
 
-  /// Lets the core go. Nothing can be stepped after.
-  void dispose() => native.dispose();
+  /// Lets the core go. Nothing can be stepped after, and the world's
+  /// characters go back to their own sweeps.
+  void dispose() {
+    if (world.characterMover case final NativeCharacterMover mover
+        when identical(mover.dynamics, this)) {
+      world.characterMover = null;
+    }
+    native.dispose();
+  }
 
   /// Every collider that is not a body's and not a trigger, standing in the
   /// core as a fixed body where it is now.
@@ -227,6 +273,7 @@ final class NativeDynamics implements RigidDynamics {
     _standing.removeWhere((collider, standing) {
       if (standing.sweep == sweep) return false;
       native.removeBody(standing.handle);
+      _owners.remove(standing.handle);
       return true;
     });
   }
@@ -239,6 +286,7 @@ final class NativeDynamics implements RigidDynamics {
       mass: 0.0,
     );
     shape(handle);
+    _owners[handle] = collider;
     return _Standing(handle, offset)..placed(native, collider);
   }
 
@@ -404,6 +452,12 @@ final class _Standing {
     );
   }
 
+  /// Put where [collider] is now, between steps, for a query; [follow] at
+  /// the next step still moves it from where it stood and says how fast.
+  void place(NativeWorld native, Collider collider) {
+    native.setPosition(handle, collider.position + offset);
+  }
+
   /// Where [collider] is now — put back by its owner's restore before the
   /// core's — and whether it was moving when the core's snapshot was taken.
   /// The collider's own position rather than the core's, which is rounded
@@ -431,5 +485,52 @@ final class _Standing {
     if (_layer != collider.layer || _mask != collider.mask) {
       placed(native, collider);
     }
+  }
+}
+
+/// The core moving a world's characters — P9: `CharacterController`'s step
+/// geometry as `NativeWorld.moveCharacter`'s capsule through the world
+/// [dynamics] mirrors, the lifts and the other characters put where they
+/// are this step first.
+///
+/// **A capsule.** A character's box becomes the capsule inside it: as wide
+/// as its narrower side, as tall. A corner meets the round of it a little
+/// later than it met the box, and a ledge lets go of it a little sooner.
+final class NativeCharacterMover implements CharacterMover {
+  NativeCharacterMover(this.dynamics);
+
+  final NativeDynamics dynamics;
+
+  @override
+  CharacterMoved move(
+    CharacterController body,
+    Vector3 delta, {
+    required double stepHeight,
+    required double walkableNormalY,
+  }) {
+    dynamics.placeMovers();
+    final half = body.halfExtents;
+    final radius = math.min(half.x, half.z);
+    final moved = dynamics.native.moveCharacter(
+      radius: radius,
+      halfHeight: math.max(0.0, half.y - radius),
+      position: body.position,
+      move: delta,
+      maxSlopeCos: walkableNormalY,
+      stepHeight: stepHeight,
+      ignore: dynamics.standingOf(body.collider),
+    );
+    return (
+      position: moved.position,
+      grounded: moved.grounded,
+      hitWall: moved.hitWall,
+      hitCeiling: moved.hitCeiling,
+      stepped: moved.stepped,
+      groundNormal: moved.groundNormal,
+      ground: switch (moved.ground) {
+        final NativeBody ground => dynamics.colliderOf(ground),
+        null => null,
+      },
+    );
   }
 }

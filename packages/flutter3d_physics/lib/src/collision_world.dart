@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'character_mover.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'ray_hit.dart';
@@ -38,6 +39,11 @@ final class CollisionWorld {
   CollisionWorld({double cellSize = 4.0})
     : _staticGrid = SpatialGrid(cellSize: cellSize),
       _moverGrid = SpatialGrid(cellSize: cellSize);
+
+  /// What moves the characters in this world, or null for their own
+  /// sweeps — see [CharacterMover]. The physics core sets one for a world it
+  /// mirrors.
+  CharacterMover? characterMover;
 
   final SpatialGrid _staticGrid;
   final SpatialGrid _moverGrid;
