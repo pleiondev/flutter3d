@@ -7,8 +7,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'actor_appearance.dart';
+import 'actor_corpses.dart';
 
 export 'actor_appearance.dart';
+export 'actor_corpses.dart';
 
 /// Where the monsters are, and which way they are facing.
 ///
@@ -28,6 +30,7 @@ final class ActorVisuals {
     required GraphicsDevice device,
     IssueSink? onIssue,
     this.layerMask = 1,
+    this.corpses,
   }) : _meshes = SharedMeshes(device),
        _device = device,
        onIssue = onIssue ?? printIssue;
@@ -54,6 +57,22 @@ final class ActorVisuals {
 
   /// The game's half: one material per monster and per state.
   final ActorAppearance appearance;
+
+  /// What a modelled actor becomes when it dies, when not its death clip:
+  /// the dungeon's monsters fall as ragdolls. Null plays the clip.
+  final ActorCorpses? corpses;
+
+  /// The models, kept for [corpses]: a ragdoll is made of a model's joints.
+  final Map<Actor, ModelInstance> _instances = <Actor, ModelInstance>{};
+
+  /// Actors [corpses] took over, and those it declined.
+  final Set<Actor> _taken = <Actor>{};
+  final Set<Actor> _declined = <Actor>{};
+
+  /// Each living modelled actor's joints as the last frame left them, for
+  /// the motion a corpse starts with; kept only when there are [corpses].
+  final Map<Actor, List<Matrix4>> _lastPose = <Actor, List<Matrix4>>{};
+  double _lastDt = 1.0 / 60.0;
 
   final SharedMeshes _meshes;
   final GraphicsDevice _device;
@@ -118,6 +137,10 @@ final class ActorVisuals {
     _nodes.remove(actor)?.removeFromParent();
     _players.remove(actor);
     _playing.remove(actor);
+    _instances.remove(actor);
+    _lastPose.remove(actor);
+    _declined.remove(actor);
+    if (_taken.remove(actor)) corpses?.end(actor);
   }
 
   /// Lets go of every node, every uploaded mesh and every loaded model.
@@ -143,6 +166,11 @@ final class ActorVisuals {
     _players.clear();
     _playing.clear();
     _smoothed.clear();
+    _instances.clear();
+    _lastPose.clear();
+    _taken.clear();
+    _declined.clear();
+    corpses?.dispose();
     for (final pending in _models.values) {
       unawaited(pending.then((asset) => asset?.release(_device)));
     }
@@ -197,6 +225,7 @@ final class ActorVisuals {
     if (capsule != null) scene.remove(capsule);
 
     _nodes[actor] = instance.root;
+    _instances[actor] = instance;
     final player = instance.player;
     if (player != null) _players[actor] = player;
   }
@@ -262,6 +291,9 @@ final class ActorVisuals {
   /// Advances every animation. Once a frame, with the frame's own delta.
   void animate(double dt) {
     for (final entry in _players.entries) {
+      final actor = entry.key;
+      if (_taken.contains(actor)) continue;
+      if (!actor.isAlive && _takeOver(actor)) continue;
       final wanted = appearance.clipsFor(entry.key);
       // The first the model actually has. `crossFadeToNamed` reports whether
       // the name was there, so a clip this export does not carry is a miss
@@ -280,6 +312,40 @@ final class ActorVisuals {
         ..wrap = wrapFor(entry.key)
         ..update(dt)
         ..apply();
+      if (corpses != null && actor.isAlive) _keepPose(actor);
+    }
+    _lastDt = dt > 0.0 ? dt : _lastDt;
+    corpses?.step(dt);
+  }
+
+  /// Whether [corpses] takes [actor] over now that it is dead: asked once.
+  bool _takeOver(Actor actor) {
+    final corpses = this.corpses;
+    final instance = _instances[actor];
+    if (corpses == null || instance == null || _declined.contains(actor)) {
+      return false;
+    }
+    final taken = corpses.begin(
+      actor,
+      instance,
+      previous: _lastPose.remove(actor),
+      dt: _lastDt,
+    );
+    (taken ? _taken : _declined).add(actor);
+    return taken;
+  }
+
+  /// [actor]'s joints as they stand now, into the list kept for it.
+  void _keepPose(Actor actor) {
+    final skeletons = _instances[actor]?.skeletons;
+    if (skeletons == null || skeletons.isEmpty) return;
+    final joints = skeletons.first.joints;
+    final kept = _lastPose.putIfAbsent(
+      actor,
+      () => <Matrix4>[for (final _ in joints) Matrix4.zero()],
+    );
+    for (var i = 0; i < joints.length; i++) {
+      kept[i].setFrom(joints[i].worldMatrix);
     }
   }
 
@@ -345,6 +411,9 @@ final class ActorVisuals {
     for (final entry in _nodes.entries) {
       final actor = entry.key;
       final node = entry.value;
+      // A corpse a ragdoll took over stays where it fell: its joints are
+      // the ragdoll's, and moving its root would move them.
+      if (_taken.contains(actor)) continue;
       final position = _drawAt(actor, alpha);
 
       // Only a capsule takes the game's material; a model brings its own, and

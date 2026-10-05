@@ -15,6 +15,7 @@
 ///   defaults to looping, so a death clip restarted the instant it ended.
 library;
 
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
@@ -244,6 +245,73 @@ void main() {
     });
   });
 
+  group('a corpse a game takes over', () {
+    test('is handed over once with the pose it died in, then left alone, '
+        'and let go with the level', () async {
+      // N1: a game that gives its monsters ragdolls takes a dead modelled
+      // actor's pose over through `ActorCorpses`.
+      //
+      // Mutations: drop the `_taken` check in `animate` (the player keeps
+      // playing: the clip time moves), in `sync` (the root moves), or the
+      // kept pose (`previous` arrives null).
+      // The bundle is asked first and must be able to say no; then, in a
+      // debug build, a source under `assets_src/` is read from the disk.
+      // This package ships none, so the hero is put there for the test.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final sources = Directory('assets_src');
+      expect(sources.existsSync(), isFalse, reason: 'left from another run');
+      File('../flutter3d/test/fixtures/hero.glb').copySync(
+        (File('assets_src/models/hero.glb')..createSync(recursive: true)).path,
+      );
+      addTearDown(() => sources.deleteSync(recursive: true));
+      final corpses = _Corpses();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _HeroLook(),
+        device: FakeBackend(),
+        corpses: corpses,
+        onIssue: (Issue issue) => fail('$issue'),
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      await visuals.settled;
+      for (var i = 0; i < 3; i++) {
+        visuals
+          ..animate(1.0 / 60.0)
+          ..sync();
+      }
+      expect(corpses.begun, isEmpty, reason: 'alive');
+      expect(corpses.steps, 3);
+
+      actor.health!.damage(100.0);
+      visuals.animate(1.0 / 60.0);
+      expect(corpses.begun, <Actor>[actor]);
+      expect(corpses.previous, isNotNull);
+      expect(
+        corpses.previous,
+        hasLength(corpses.model!.skeletons.first.jointCount),
+      );
+
+      final player = corpses.model!.player!;
+      final clock = player.time;
+      final root = corpses.model!.root.worldMatrix.getTranslation();
+      actor.body!.teleport(Vector3(5.0, 0.0, 5.0));
+      for (var i = 0; i < 5; i++) {
+        visuals
+          ..animate(1.0 / 60.0)
+          ..sync();
+      }
+      expect(corpses.begun, hasLength(1), reason: 'asked once');
+      expect(player.time, clock, reason: 'its clip is not played on');
+      expect(corpses.model!.root.worldMatrix.getTranslation(), root);
+
+      visuals.remove(actor);
+      expect(corpses.ended, <Actor>[actor]);
+      visuals.dispose();
+      expect(corpses.disposed, isTrue);
+    });
+  });
+
   group('a loading screen', () {
     test('settles once every model it asked for has been answered', () async {
       // `N3`: a warm-up run before the models arrive never sees their
@@ -302,4 +370,55 @@ final class _PlainLook implements ActorAppearance {
 
   @override
   List<String> clipsFor(Actor actor) => const <String>[];
+}
+
+/// The hero from flutter3d's fixtures: a rigged model with clips.
+final class _HeroLook implements ActorAppearance {
+  const _HeroLook();
+
+  @override
+  String meshKeyFor(Actor actor) => 'hero';
+
+  @override
+  Material materialFor(Actor actor) => Material();
+
+  @override
+  String? modelFor(Actor actor) => 'assets_src/models/hero.glb';
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[
+    'CharacterArmature|Idle',
+  ];
+}
+
+/// Takes every corpse, and remembers what it was told.
+final class _Corpses implements ActorCorpses {
+  final List<Actor> begun = <Actor>[];
+  final List<Actor> ended = <Actor>[];
+  ModelInstance? model;
+  List<Matrix4>? previous;
+  int steps = 0;
+  bool disposed = false;
+
+  @override
+  bool begin(
+    Actor actor,
+    ModelInstance model, {
+    List<Matrix4>? previous,
+    double dt = 1.0 / 60.0,
+  }) {
+    begun.add(actor);
+    this.model = model;
+    this.previous = previous;
+    return true;
+  }
+
+  @override
+  void step(double dt) => steps++;
+
+  @override
+  void end(Actor actor) => ended.add(actor);
+
+  @override
+  void dispose() => disposed = true;
 }

@@ -70,7 +70,10 @@ final class RagdollProfile {
   /// The Quaternius character rig — the dungeon's monsters, the hero, the
   /// robot: `Body` at the pelvis, `Torso`, `Head`, upper and lower arms and
   /// legs, and the feet, which hang from `Root` for their IK, carried by the
-  /// shins. Elbows and knees are balls with a wide cone and little twist:
+  /// shins. A forearm reaches to the tip of the middle finger where the rig
+  /// has fingers, so the hand lies inside it: ended at the knuckles, the
+  /// runner's fingers went eight centimetres into the floor. Elbows and knees
+  /// are balls with a wide cone and little twist:
   /// which way a hinge on this rig would bend depends on axes the rig does
   /// not promise, and a knee bent backwards is worse than one a little too
   /// free.
@@ -112,14 +115,14 @@ final class RagdollProfile {
     joint: RagdollBall(cone: 1.5, twistLower: -1.0, twistUpper: 1.0),
   );
   static const RagdollPart _lowerArmL = RagdollPart(
-    tailAt: <String>['Fist.L', 'Middle1.L'],
+    tailAt: <String>['Fist.L', 'Middle3.L', 'Middle1.L'],
     tailLength: (of: 'UpperArm.L', times: 0.9),
     radius: 0.03,
     share: 0.02,
     joint: _limb,
   );
   static const RagdollPart _lowerArmR = RagdollPart(
-    tailAt: <String>['Fist.R', 'Middle1.R'],
+    tailAt: <String>['Fist.R', 'Middle3.R', 'Middle1.R'],
     tailLength: (of: 'UpperArm.R', times: 0.9),
     radius: 0.03,
     share: 0.02,

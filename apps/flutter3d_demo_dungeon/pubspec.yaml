@@ -42,6 +42,11 @@ dependencies:
   flutter3d_game_shooter:
     path: ../../packages/flutter3d_game_shooter
 
+  # The physics core, for the ragdolls the monsters fall as: C built by its
+  # hook for each target, WebAssembly in the browser.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
+
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's

@@ -16,7 +16,9 @@
   `RagdollProfile.quaternius` covers the dungeon's monsters, the hero
   and the robot. On that rig, elbows and knees are wide balls rather than
   hinges, because the rig does not promise the axes a hinge's sign would
-  need. `NativeDynamics.keep` keeps a ragdoll's bodies through restores.
+  need. Its forearm reaches to the tip of the middle finger, so a hand lies
+  inside the capsule. Ending at the knuckles, the dungeon runner's fingers
+  went 8 cm into the floor. `NativeDynamics.keep` keeps a ragdoll's bodies through restores.
   *Found:* vector_math's `Quaternion.rotated` turns by the inverse of
   what `asRotationMatrix` means, while the core and flutter3d_physics
   mean the latter. A ragdoll placed with it had each body turned one way

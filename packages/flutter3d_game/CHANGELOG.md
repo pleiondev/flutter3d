@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **A dead monster can fall as a body.** `ActorVisuals` takes
+  `corpses:`, an `ActorCorpses`. The moment a modelled actor is seen dead,
+  its `begin` is asked whether to take the pose over, and is given the
+  joints' world matrices from the frame before so the body keeps its
+  motion. From then on the actor's clip is not played on and its model is
+  not moved, and `step` writes its joints once a frame. `remove` and
+  `dispose` reach it too. Without one, the death clip plays as before.
+  This package names no physics: the dungeon hands it a ragdoll.
+
 - **An edit made under a running game goes into its demo.**
   `DemoRecording` is the run being written down: start, recorder,
   checkpoints and the levels swapped in, with `levelSwapped` turning the
