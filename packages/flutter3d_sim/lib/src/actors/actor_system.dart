@@ -876,6 +876,10 @@ final class ActorSystem {
     }
   }
 
+  /// Asks [actor]'s animation for the gesture [name], on this step — see
+  /// [ActorStrides.gesture]. Nothing when there are no strides.
+  void gesture(Actor actor, String name) => strides?.gesture(actor, name);
+
   /// Asks this actor's body to jump.
   ///
   /// Through the controller's own buffered request rather than by writing

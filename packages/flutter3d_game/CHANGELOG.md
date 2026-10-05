@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **Gestures reach the graph.** `ActorAnimations.gesture` fires the
+  trigger `cue:<name>` on the actor's graph, made now if it is not yet, for
+  its state machine to play; a graph with no such trigger gets nothing.
+
 - **Colours with meanings a player can move.** A `ColorRole` is what a
   colour is for, what the panel calls it and what it is by default;
   `ColorRoles` gives each the player's choice from `colour.<name>` — its

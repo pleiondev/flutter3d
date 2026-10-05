@@ -27,10 +27,11 @@ List<Brush> _rooms() => <Brush>[
 ];
 
 /// The guard's own wish: stand at its post in the west room.
-final BehaviourTree _guarding = BehaviourTree.read(
-  const <String, Object?>{'kind': 'goTo', 'key': 'post', 'within': 0.3},
-  BehaviourKinds(),
-).tree!;
+final BehaviourTree _guarding = BehaviourTree.read(const <String, Object?>{
+  'kind': 'goTo',
+  'key': 'post',
+  'within': 0.3,
+}, BehaviourKinds()).tree!;
 
 /// Four seconds: the guard sent through the doorway to the east room, made
 /// to look north there, and released a second before the end.
@@ -171,4 +172,79 @@ void main() {
       expect(restored.at.storage, original.at.storage, reason: 'step $i');
     }
   });
+
+  test('a gesture is asked for once, on its cue\'s step', () {
+    final world = CollisionWorld()
+      ..addBox(Vector3(0, -0.5, 0), Vector3(20, 1, 20))
+      ..update();
+    late SequencePlayer playing;
+    final strides = _Gestures(() => playing.step);
+    final system = ActorSystem(world: world, random: GameRandom(1))
+      ..strides = strides;
+    system.spawn(
+      body: CharacterController(world: world, position: Vector3(0, 0.9, 0)),
+      facing: Facing(),
+      name: 'guard',
+    );
+    final read = Sequence.read(<String, Object?>{
+      'seconds': 2,
+      'actors': <Object?>[
+        <String, Object?>{
+          't': 0.5,
+          'actor': 'guard',
+          'do': 'play',
+          'clip': 'Jump',
+        },
+      ],
+    }, stepsPerSecond: 60);
+    final player = playing = SequencePlayer(read.sequence!);
+    system.director = player;
+    for (var i = 0; i < 90; i++) {
+      player.advance();
+      system
+        ..beginStep()
+        ..step(_dt, focus: Vector3(0, -50, 0));
+    }
+    // Mutation: asking on every step the cue holds plays it ninety times.
+    expect(strides.asked, <String>['30:guard:Jump']);
+
+    // Restored past it, nothing is asked again.
+    final again = playing = SequencePlayer(read.sequence!)
+      ..restore(<String, Object?>{'step': 40});
+    system.director = again;
+    strides.asked.clear();
+    for (var i = 0; i < 30; i++) {
+      again.advance();
+      system
+        ..beginStep()
+        ..step(_dt, focus: Vector3(0, -50, 0));
+    }
+    expect(strides.asked, isEmpty);
+  });
+
+  test('a play cue names its clip', () {
+    final read = Sequence.read(<String, Object?>{
+      'seconds': 1,
+      'actors': <Object?>[
+        <String, Object?>{'t': 0, 'actor': 'guard', 'do': 'play'},
+      ],
+    }, stepsPerSecond: 60);
+    expect(read.problems, <Matcher>[contains('actors[0].clip')]);
+  });
+}
+
+/// Strides that move nobody and write down every gesture asked for, with
+/// the cutscene's step it was asked on.
+final class _Gestures extends ActorStrides {
+  _Gestures(this.step);
+
+  final List<String> asked = <String>[];
+  final int Function() step;
+
+  @override
+  Vector3? strideOf(Actor actor, Vector3 wish, double dt) => null;
+
+  @override
+  void gesture(Actor actor, String name) =>
+      asked.add('${step()}:${actor.name}:$name');
 }

@@ -519,11 +519,14 @@
           {"t": 3.6, "name": "altar_wakes", "data": {"sound": "stone_move", "at": [0.0, 1.0, -64.0]}}
         ],
         "actors": [
-          {"t": 3.6, "actor": "altar_west", "do": "goTo", "at": [-4.0, 0.9, -56.0]},
+          {"t": 3.6, "actor": "altar_west", "do": "play", "clip": "Jump"},
+          {"t": 4.6, "actor": "altar_west", "do": "goTo", "at": [-4.0, 0.9, -56.0]},
           {"t": 6.5, "actor": "altar_west", "do": "release"},
-          {"t": 3.6, "actor": "altar_east", "do": "goTo", "at": [4.0, 0.9, -56.0]},
+          {"t": 3.6, "actor": "altar_east", "do": "play", "clip": "Jump"},
+          {"t": 4.6, "actor": "altar_east", "do": "goTo", "at": [4.0, 0.9, -56.0]},
           {"t": 6.5, "actor": "altar_east", "do": "release"},
-          {"t": 3.6, "actor": "altar_north", "do": "goTo", "at": [0.0, 0.9, -55.0]},
+          {"t": 3.6, "actor": "altar_north", "do": "play", "clip": "Jump"},
+          {"t": 4.6, "actor": "altar_north", "do": "goTo", "at": [0.0, 0.9, -55.0]},
           {"t": 6.5, "actor": "altar_north", "do": "release"}
         ]
       }

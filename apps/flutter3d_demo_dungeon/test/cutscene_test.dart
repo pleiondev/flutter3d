@@ -158,6 +158,43 @@ void main() {
     ), 'test/goldens/cutscene-altar.png');
   });
 
+  test('the three on the dais start up before they come down', () async {
+    // Through the run as it ships, which is where the monsters have their
+    // graphs. Just after the cue the jump is playing.
+    final it = cpuTestDevice(width: 16, height: 16);
+    final run = RunCubit(
+      DungeonRun(
+        firstLevel: 'assets/levels/sanctum.json',
+        registry: sampleRegistry(),
+        input: InputState(),
+        inventory: startingInventory(),
+        saves: SaveFile(appName: 'dungeon', storage: _Storage()),
+        device: it.device,
+      ),
+    );
+    await run.begin();
+    final level = (run.state as RunPlaying<LevelReady>).level;
+    level.staged.player.body.position.setValues(0.0, 0.9, -40.0);
+    final animations = level.staged.actors.strides! as ActorAnimations;
+    final tanks = <Actor>[
+      for (final name in <String>['altar_west', 'altar_east', 'altar_north'])
+        level.staged.actors.actors.firstWhere((a) => a.name == name),
+    ];
+    // The player stands in the trigger from the start, so the cutscene's
+    // steps are the run's; 3.6 seconds in, and a few steps more.
+    for (var i = 0; i < 216 + 8; i++) {
+      level.staged.sim.step(1 / 60);
+    }
+    // Started by the first step, so one behind the run.
+    expect(level.staged.sim.cutscene!.player.step, 216 + 7);
+    // Mutation: a gesture asked of nothing, or a machine without the cue
+    // states, leaves them standing in their idle.
+    expect(
+      <String>[for (final t in tanks) animations.graphOf(t)!.state],
+      everyElement('cue:Jump'),
+    );
+  });
+
   testWidgets('the overlay says the subtitle and offers the skip', (
     WidgetTester tester,
   ) async {

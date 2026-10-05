@@ -93,6 +93,18 @@ final class ActorAnimations implements ActorStrides {
     );
   }
 
+  /// Fires the trigger `cue:<name>` on [actor]'s graph, made now if this is
+  /// before its first step, for a state machine to play the gesture from.
+  ///
+  /// **The machine's to answer, by its own parameters**: a graph whose
+  /// schema has no such trigger gets nothing — `fire` reports rather than
+  /// throws — which is what a gesture this model has no clip for should
+  /// do. Fired in the step, so it is in the graph's state, which a snapshot
+  /// keeps until a transition takes it.
+  @override
+  void gesture(Actor actor, String name) =>
+      (_animated[actor] ?? _made(actor))?.graph.parameters.fire('cue:$name');
+
   _Animated? _made(Actor actor) {
     final graphFor = this.graphFor;
     if (graphFor == null || !_asked.add(actor)) return null;

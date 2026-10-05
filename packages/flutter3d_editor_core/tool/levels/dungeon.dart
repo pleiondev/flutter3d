@@ -806,7 +806,9 @@ final Map<String, Object?> _altarScene = <String, Object?>{
       ('altar_east', <num>[4.0, 0.9, -56.0]),
       ('altar_north', <num>[0.0, 0.9, -55.0]),
     ]) ...<Object?>[
-      <String, Object?>{'t': 3.6, 'actor': name, 'do': 'goTo', 'at': at},
+      // They wake with a start, then come down.
+      <String, Object?>{'t': 3.6, 'actor': name, 'do': 'play', 'clip': 'Jump'},
+      <String, Object?>{'t': 4.6, 'actor': name, 'do': 'goTo', 'at': at},
       <String, Object?>{'t': 6.5, 'actor': name, 'do': 'release'},
     ],
   ],

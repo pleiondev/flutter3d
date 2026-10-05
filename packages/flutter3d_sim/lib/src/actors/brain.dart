@@ -177,4 +177,7 @@ final class Mind {
 
   /// Stop.
   void halt() => system.steer(actor, Vector3.zero());
+
+  /// Asks for the gesture [name] — see [ActorSystem.gesture].
+  void gesture(String name) => system.gesture(actor, name);
 }

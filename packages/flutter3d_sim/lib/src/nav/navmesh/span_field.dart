@@ -200,8 +200,7 @@ final class SpanField {
         ? null
         : samples.reduce(math.min).toDouble();
 
-    final w =
-        window ?? (x0: 0, z0: 0, x1: grid.columns, z1: grid.rows);
+    final w = window ?? (x0: 0, z0: 0, x1: grid.columns, z1: grid.rows);
     final columns = math.max(0, w.x1 - w.x0);
     final rows = math.max(0, w.z1 - w.z0);
     if (grid.isEmpty || columns == 0 || rows == 0) {

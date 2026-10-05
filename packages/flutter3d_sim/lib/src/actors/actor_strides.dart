@@ -30,4 +30,10 @@ abstract class ActorStrides {
 
   /// Back to what [save] wrote, for [actors] as the restore left them.
   void restore(Object? from, Iterable<Actor> actors) {}
+
+  /// [actor] is to make the gesture called [name] — a one-off the game's
+  /// animation plays once and leaves, asked for on this step by whoever is
+  /// directing it. Nothing by default, which is right for strides that are
+  /// not an animation.
+  void gesture(Actor actor, String name) {}
 }

@@ -109,6 +109,60 @@ void _step(ActorSystem system, int steps) {
 }
 
 void main() {
+  test('a gesture fires its cue on the graph, and the machine plays it', () {
+    // A graph that walks, and plays a jump once on `cue:jump`, back to its
+    // walk when the jump is done.
+    AnimationGraph gesturing(Actor actor) => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[
+          AnimationParameter.trigger('cue:jump'),
+        ]),
+        entry: 'walk',
+        states: const <AnimationState>[
+          AnimationState(name: 'walk', clip: 'walk'),
+          AnimationState(name: 'jump', clip: 'walk', wrap: AnimationWrap.once),
+        ],
+        transitions: <AnimationTransition>[
+          AnimationTransition(
+            from: 'walk',
+            to: 'jump',
+            conditions: const <AnimationCondition>[
+              TriggerCondition('cue:jump'),
+            ],
+          ),
+          AnimationTransition(from: 'jump', to: 'walk', exitTime: 1.0),
+        ],
+      ),
+      clips: <AnimationClip>[_walkClip()],
+      pose: _pose(),
+    );
+    final world = CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+    final animations = ActorAnimations(graphFor: gesturing);
+    final system = ActorSystem(world: world, random: GameRandom(1))
+      ..strides = animations;
+    final actor = system.spawn(
+      body: CharacterController(world: world, position: Vector3(0, 0.9, 0)),
+      facing: Facing(),
+    );
+    void step() => system
+      ..beginStep()
+      ..step(_dt, focus: Vector3(0, -50, 0));
+
+    // Before its first step: the graph is made for the gesture.
+    system.gesture(actor, 'jump');
+    step();
+    // Mutation: firing the gesture's own name rather than its `cue:` lands
+    // on no parameter, and the walk goes on.
+    expect(animations.graphOf(actor)!.state, 'jump');
+    // A gesture the machine has no cue for is nothing, not an error.
+    system.gesture(actor, 'dance');
+    for (var i = 0; i < 90; i++) {
+      step();
+    }
+    expect(animations.graphOf(actor)!.state, 'walk');
+  });
+
   test('the stride walks the body the way it faces, at the model\'s size', () {
     final s = _stage(scale: 2.0);
     _step(s.system, 60);

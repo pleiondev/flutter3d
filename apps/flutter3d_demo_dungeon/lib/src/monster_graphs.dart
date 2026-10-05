@@ -44,6 +44,16 @@ final class MonsterGraphs implements ActorGraphs {
   static const double lookLimit = 1.0;
   static const double lookSeconds = 0.3;
 
+  /// The clips a cutscene may ask a monster to play once, where its model
+  /// has them.
+  static const List<String> gestures = <String>[
+    'Jump',
+    'Yes',
+    'No',
+    'Dance',
+    'Wave',
+  ];
+
   /// What a monster is doing, as the graph's `state` parameter reads it.
   static const List<MonsterState> stateCodes = <MonsterState>[
     MonsterState.idle,
@@ -93,11 +103,23 @@ final class MonsterGraphs implements ActorGraphs {
         CompareCondition('state', AnimationComparison.notEquals, code(state));
     final stride = walk ?? run;
     final moving = <String>['idle', if (stride != null) 'move'];
-    final acting = <String>[...moving, if (attack != null) 'attack'];
+    // The one-offs a cutscene can ask for, by the clip's own name — see
+    // `ActorStrides.gesture`: each a state played once from standing or
+    // moving, on its `cue:` trigger, and back to idle at its end.
+    final cues = <String>[
+      for (final clip in gestures)
+        if (have.contains(clip)) clip,
+    ];
+    final acting = <String>[
+      ...moving,
+      if (attack != null) 'attack',
+      for (final clip in cues) 'cue:$clip',
+    ];
     return AnimationStateMachine(
       parameters: AnimationParameterSchema(<AnimationParameter>[
         const AnimationParameter.integer('state'),
         const AnimationParameter.float('speed'),
+        for (final clip in cues) AnimationParameter.trigger('cue:$clip'),
       ]),
       entry: 'idle',
       states: <AnimationState>[
@@ -118,6 +140,12 @@ final class MonsterGraphs implements ActorGraphs {
           AnimationState(name: 'hurt', clip: hurt, wrap: AnimationWrap.once),
         if (death != null)
           AnimationState(name: 'death', clip: death, wrap: AnimationWrap.once),
+        for (final clip in cues)
+          AnimationState(
+            name: 'cue:$clip',
+            clip: clip,
+            wrap: AnimationWrap.once,
+          ),
       ],
       transitions: <AnimationTransition>[
         if (stride != null) ...<AnimationTransition>[
@@ -175,6 +203,22 @@ final class MonsterGraphs implements ActorGraphs {
             to: 'idle',
             conditions: <AnimationCondition>[isNot(MonsterState.hurt)],
             duration: 0.15,
+          ),
+        ],
+        for (final clip in cues) ...<AnimationTransition>[
+          for (final from in moving)
+            AnimationTransition(
+              from: from,
+              to: 'cue:$clip',
+              conditions: <AnimationCondition>[TriggerCondition('cue:$clip')],
+              duration: 0.15,
+              priority: 2,
+            ),
+          AnimationTransition(
+            from: 'cue:$clip',
+            to: 'idle',
+            exitTime: 1.0,
+            duration: 0.2,
           ),
         ],
         if (death != null)

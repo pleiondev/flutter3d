@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **A cutscene can ask an actor for a gesture.** A `play` cue names a
+  clip; the actor stands, and on the cue's own step the player asks for it
+  through `Mind.gesture`, `ActorSystem.gesture` and `ActorStrides.gesture`,
+  which does nothing by default. Asked once, on that step, so a restore
+  past it asks nothing again.
+
 - **A loop can run steps now.** `GameLoop.runSteps` steps through the
   same door as `advance` — a tape being recorded gets each step, a tape
   being played gives one — without handing out any look or touching the

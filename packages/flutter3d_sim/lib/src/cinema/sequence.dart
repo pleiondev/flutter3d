@@ -65,12 +65,17 @@ final class ActorCueKind {
   /// Back to its own brain.
   static const ActorCueKind release = ActorCueKind._('release');
 
+  /// Stand, and make the gesture [ActorCue.clip] once, on the cue's step —
+  /// a clip the game's animation knows by that name.
+  static const ActorCueKind play = ActorCueKind._('play');
+
   /// Every kind, in the order a refusal lists them.
   static const List<ActorCueKind> values = <ActorCueKind>[
     goTo,
     face,
     stand,
     release,
+    play,
   ];
 
   @override
@@ -78,7 +83,13 @@ final class ActorCueKind {
 }
 
 /// One actor's direction from [step] until its next: who, what, and where.
-typedef ActorCue = ({int step, String actor, ActorCueKind kind, Vector3? at});
+typedef ActorCue = ({
+  int step,
+  String actor,
+  ActorCueKind kind,
+  Vector3? at,
+  String? clip,
+});
 
 /// What [Sequence.read] made of a document: the sequence, or every problem
 /// with it and where.
@@ -138,7 +149,7 @@ final class Sequence {
   /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fov"}],
   /// "ease": true}, "subtitles": [{"from", "to", "text"}], "fade": [{"t",
   /// "value"}], "signals": [{"t", "name", "data"}], "actors": [{"t",
-  /// "actor", "do", "at"}]}` — every part but
+  /// "actor", "do", "at", "clip"}]}` — every part but
   /// `seconds` may be left out. A moment past the end is a problem: a
   /// cutscene that is skipped would never reach it.
   static SequenceRead read(Object? json, {required int stepsPerSecond}) {
@@ -309,14 +320,26 @@ final class Sequence {
       }
       final needsPlace = kind == ActorCueKind.goTo || kind == ActorCueKind.face;
       final at = needsPlace ? vector(row, 'at', where) : null;
+      final clip = row['clip'];
+      final needsClip = kind == ActorCueKind.play;
+      if (needsClip && (clip is! String || clip.isEmpty)) {
+        problems.add('$where.clip: the name of a clip');
+      }
       if (step == null ||
           actor is! String ||
           actor.isEmpty ||
           kind == null ||
-          (needsPlace && at == null)) {
+          (needsPlace && at == null) ||
+          (needsClip && (clip is! String || clip.isEmpty))) {
         continue;
       }
-      cues.add((step: step, actor: actor, kind: kind, at: at));
+      cues.add((
+        step: step,
+        actor: actor,
+        kind: kind,
+        at: at,
+        clip: needsClip && clip is String ? clip : null,
+      ));
     }
     // Stable, as the signals are.
     final orderedCues = <ActorCue>[

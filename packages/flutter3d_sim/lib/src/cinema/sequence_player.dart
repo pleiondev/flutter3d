@@ -119,6 +119,11 @@ final class SequencePlayer implements ActorDirector {
       it
         ..halt()
         ..turnTowards(at!.x - here!.x, at.z - here.z);
+    } else if (kind == ActorCueKind.play) {
+      // Once, on the cue's own step: the cue holds until the next, and a
+      // gesture asked for every step would never finish.
+      it.halt();
+      if (cue.step == _step) it.gesture(cue.clip!);
     } else {
       // Standing, and anything this build does not know how to do.
       it.halt();

@@ -224,12 +224,8 @@ final class Level {
       recipes.map((LevelRecipe r) => r.toJson()).toList(),
       whenAbsent: recipes.isNotEmpty,
     ),
-    WriteThroughField(
-      'behaviours',
-      <String, Object?>{
-        for (final MapEntry(:key, :value) in behaviours.entries) key: value,
-      },
-      whenAbsent: behaviours.isNotEmpty,
-    ),
+    WriteThroughField('behaviours', <String, Object?>{
+      for (final MapEntry(:key, :value) in behaviours.entries) key: value,
+    }, whenAbsent: behaviours.isNotEmpty),
   ]);
 }
