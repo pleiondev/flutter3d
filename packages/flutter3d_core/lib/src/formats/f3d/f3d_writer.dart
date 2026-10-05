@@ -52,8 +52,8 @@ final class F3dWriter {
   /// **Not empty by assumption.** `.f3d` holds geometry, materials, the
   /// hierarchy, skins and clips, and a document has grown fields since that
   /// the container has no record for: a texture's `KHR_texture_transform`, a
-  /// material's own lighting model, lights, cameras, `extras` and an additive
-  /// clip's reference time. Each is named here when the document has one, so a
+  /// material's own lighting model, lights, cameras and an additive clip's
+  /// reference time. `extras` it carries, in [F3dSection.extras]. Each is named here when the document has one, so a
   /// converted asset that draws differently from its source says why.
   late final List<String> warnings = _buildWarnings();
 
@@ -73,12 +73,6 @@ final class F3dWriter {
           transformed(m.emissiveTexture),
     );
     final withLighting = count((m) => m.lightingModel != null);
-    final withExtras =
-        count((m) => m.extras != null) +
-        document.nodes.where((n) => n.extras != null).length +
-        document.skins.where((s) => s.extras != null).length +
-        document.animations.where((a) => a.extras != null).length +
-        (document.asset?.extras != null ? 1 : 0);
     final additive = document.animations
         .where((a) => a.referenceTime != null)
         .length;
@@ -96,7 +90,6 @@ final class F3dWriter {
         dropped(document.cameras.length, 'camera(s)'),
       if (document.splats.isNotEmpty)
         dropped(document.splats.length, 'splat cloud(s)'),
-      if (withExtras > 0) dropped(withExtras, 'extras block(s)'),
       if (additive > 0) dropped(additive, 'additive clip reference time(s)'),
     ];
   }
@@ -130,6 +123,7 @@ final class F3dWriter {
     final warningTable = _writeWarnings();
     final skinTable = _writeSkins();
     final layoutTable = _writeLayouts();
+    final (extrasTable, extrasCount) = _writeExtras();
 
     final sections = <(int kind, Uint8List data, int count)>[
       (F3dSection.layouts, layoutTable, _layouts.length),
@@ -171,6 +165,9 @@ final class F3dWriter {
         (F3dSection.variants, variantTable, document.variants.length),
       (F3dSection.warnings, warningTable, document.warnings.length),
       (F3dSection.skins, skinTable, document.skins.length),
+      // Only when there is one, so a document with none writes the bytes it
+      // did before the section existed.
+      if (extrasCount > 0) (F3dSection.extras, extrasTable, extrasCount),
       (F3dSection.strings, _strings.toBytes(), 0),
       (F3dSection.blob, _blob.toBytes(), 0),
     ];

@@ -198,6 +198,71 @@ void main() {
     });
   });
 
+  group('extras in .f3d', () {
+    test(
+      'every owner\'s survive a write and a read, each on its own',
+      () async {
+        final source = await GltfLoader().load(
+          _sample('simple_skin/SimpleSkin.gltf'),
+        );
+        final skin = source.skins.first;
+        final clip = source.animations.first;
+        Map<String, Object?> tagged(String who) => <String, Object?>{
+          ..._sampleExtras,
+          'who': who,
+        };
+        final annotated = PlainModelDocument(
+          surfaces: source.surfaces,
+          materials: <SurfaceMaterial>[
+            _withExtras(SurfaceMaterial(name: 'skin'), tagged('material')),
+          ],
+          images: source.images,
+          nodes: <ModelNode>[
+            for (final (i, n) in source.nodes.indexed)
+              if (i == 1) _nodeWithExtras(n, tagged('node 1')) else n,
+          ],
+          skins: <ModelSkin>[
+            ModelSkin(
+              name: skin.name,
+              joints: skin.joints,
+              inverseBindMatrices: skin.inverseBindMatrices,
+              skeletonRoot: skin.skeletonRoot,
+              extras: tagged('skin'),
+            ),
+          ],
+          animations: <AnimationClip>[
+            AnimationClip(
+              name: clip.name,
+              tracks: clip.tracks,
+              extras: tagged('clip'),
+            ),
+          ],
+          asset: DocumentAsset(extras: tagged('document')),
+        );
+        final writer = F3dWriter(annotated);
+        expect(writer.warnings.where((w) => w.contains('extras')), isEmpty);
+        final reread = F3dDocument.parse(writer.write());
+        expectSameJson(reread.asset?.extras, tagged('document'));
+        expect(reread.asset?.generator, isNull);
+        expect(reread.nodes.first.extras, isNull, reason: 'only node 1 had');
+        expectSameJson(reread.nodes[1].extras, tagged('node 1'));
+        expectSameJson(reread.materials.first.extras, tagged('material'));
+        expectSameJson(reread.skins.single.extras, tagged('skin'));
+        expectSameJson(reread.animations.single.extras, tagged('clip'));
+      },
+    );
+
+    test(
+      'a document with none writes no section and reads back none',
+      () async {
+        final source = await GltfLoader().load(_sample('Box.glb'));
+        final plain = F3dDocument.parse(F3dWriter(source).write());
+        expect(plain.asset?.extras, isNull);
+        expect(plain.nodes.every((n) => n.extras == null), isTrue);
+      },
+    );
+  });
+
   group('TextureBinding.transform from KHR_texture_transform', () {
     test(
       'is carried through, and one a consumer can honour is no warning',

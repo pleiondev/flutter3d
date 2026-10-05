@@ -52,6 +52,7 @@ export 'src/engine/animation/baked_poses.dart';
 // the fixed-step evaluation that turns them into a `Pose`.
 export 'src/engine/animation/graph/animation_goals.dart';
 export 'src/engine/animation/graph/animation_graph.dart';
+export 'src/engine/animation/graph/animation_graph_json.dart';
 export 'src/engine/animation/graph/animation_parameters.dart';
 export 'src/engine/animation/graph/animation_state_machine.dart';
 export 'src/engine/animation/inverse_kinematics.dart';

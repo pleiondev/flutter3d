@@ -32,6 +32,7 @@ extension _F3dAnimation on F3dDocument {
             tracks: _interleave(<AnimationTrack>[
               for (var t = 0; t < trackCount; t++) _readTrack(firstTrack + t),
             ], pointerTracks[i] ?? const <(int, AnimationTrack)>[]),
+            extras: _extrasOf(F3dExtrasOwner.animation, i),
           );
         }(),
     ];
@@ -150,6 +151,7 @@ extension _F3dAnimation on F3dDocument {
                 ),
             ],
             skeletonRoot: root < 0 ? null : root,
+            extras: _extrasOf(F3dExtrasOwner.skin, i),
           );
         }(),
     ];

@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **`.f3d` keeps `extras`.** A new section, 28, holds every `extras`
+  block a document carries: the document's own, and those of nodes,
+  materials, skins and clips. Each is JSON tagged with its owner's kind
+  and index. A clip's markers now survive conversion, which they did not
+  before; the writer warned that extras were dropped and dropped them. A
+  document with none writes the bytes it did. A reader that predates the
+  section skips it, as unknown sections are skipped.
+- **Animation graphs as JSON, kept in a model file.**
+  `AnimationGraphJson.encode`/`decode` turn an `AnimationStateMachine`
+  into plain JSON and back. Every field is named, states, clips and
+  parameters by name, defaults left out. A wrong shape throws a
+  `FormatException` saying where, such as `states[1].blend.points[0].at is
+  "fast", not a number`. `keep` puts graphs by name into a document's root
+  `extras` under `animationGraphs`, and `graphsIn` reads them back, so a
+  model carries its characters' graphs through `.f3d` and glTF alike.
+
 - **An animation graph saves and restores.** `AnimationGraph.save()` is
   everything a step changes, as JSON: the state by name and its playhead,
   the crossfade, the parameters, each layer's graph and weight, and each

@@ -219,6 +219,7 @@ extension _F3dScene on F3dDocument {
               _view.getUint32(o + 12, Endian.little),
             ).toList(),
             lods: _lods[i],
+            extras: _extrasOf(F3dExtrasOwner.node, i),
           );
         }(),
     ];

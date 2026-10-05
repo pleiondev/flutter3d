@@ -167,12 +167,34 @@ abstract final class F3dSection {
   /// switches by the screen fraction alone, and a file without it reads as
   /// every level unmeasured.
   static const int lodErrors = 27;
+
+  /// Every `extras` block the document carries, each a JSON string with
+  /// the kind and the index of what it belongs to — see
+  /// [F3dRecord.extras] and [F3dExtrasOwner]. A clip's markers and a
+  /// model's animation graphs live there. Written only when there is one,
+  /// so a file with none is the bytes it was; a reader that predates it
+  /// skips it and loses the blocks, as it always had.
+  static const int extras = 28;
+}
+
+/// Whose an [F3dSection.extras] record is.
+abstract final class F3dExtrasOwner {
+  /// The root document's own, `DocumentAsset.extras`; its index is 0.
+  static const int document = 0;
+  static const int node = 1;
+  static const int material = 2;
+  static const int skin = 3;
+  static const int animation = 4;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
 abstract final class F3dRecord {
   /// u32 attributeCount, u32 firstAttribute
   static const int layout = 8;
+
+  /// u32 owner (an [F3dExtrasOwner]), u32 index, u32 jsonOffset,
+  /// u32 jsonLength — the JSON in the strings section.
+  static const int extras = 16;
 
   /// u32 nameOffset, u32 nameLength, u32 componentCount
   static const int attribute = 12;

@@ -273,12 +273,55 @@ final class F3dDocument extends ModelDocument {
   /// written before `fmt-04`, or one whose document genuinely said nothing.
   DocumentAsset? _readAsset() {
     final table = _table(F3dSection.asset, F3dRecord.asset);
-    if (table.count == 0) return null;
+    final extras = _extrasOf(F3dExtrasOwner.document, 0);
+    if (table.count == 0) {
+      return extras == null ? null : DocumentAsset(extras: extras);
+    }
     final generator = _string(
       _view.getUint32(table.offset, Endian.little),
       _view.getUint32(table.offset + 4, Endian.little),
     );
-    return DocumentAsset(generator: generator);
+    return DocumentAsset(generator: generator, extras: extras);
+  }
+
+  /// Every [F3dSection.extras] block, by owner and index.
+  late final Map<(int, int), Map<String, Object?>> _extras = _readExtras();
+
+  /// The `extras` of the [index]th of [owner]'s kind, or null.
+  Map<String, Object?>? _extrasOf(int owner, int index) =>
+      _extras[(owner, index)];
+
+  Map<(int, int), Map<String, Object?>> _readExtras() {
+    final table = _table(F3dSection.extras, F3dRecord.extras);
+    return <(int, int), Map<String, Object?>>{
+      for (var i = 0; i < table.count; i++)
+        if (_readExtrasAt(table.offset + i * F3dRecord.extras) case (
+          final key,
+          final extras,
+        ))
+          key: extras,
+    };
+  }
+
+  ((int, int), Map<String, Object?>)? _readExtrasAt(int o) {
+    final json = _string(
+      _view.getUint32(o + 8, Endian.little),
+      _view.getUint32(o + 12, Endian.little),
+    );
+    final Object? decoded;
+    try {
+      decoded = json == null ? null : jsonDecode(json);
+    } on FormatException catch (error) {
+      throw F3dFormatException('An extras block is not JSON: $error');
+    }
+    if (decoded is! Map<String, Object?>) return null;
+    return (
+      (
+        _view.getUint32(o, Endian.little),
+        _view.getUint32(o + 4, Endian.little),
+      ),
+      decoded,
+    );
   }
 
   // ----------------------------------------------------------------- warnings

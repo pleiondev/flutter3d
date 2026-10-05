@@ -123,6 +123,7 @@ extension _F3dMaterials on F3dDocument {
       doubleSided: doubleSided,
       unlit: unlit,
       extensions: extensions,
+      extras: _extrasOf(F3dExtrasOwner.material, index),
     );
   }
 
