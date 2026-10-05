@@ -42,16 +42,16 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show loadPhysicsCore;
+    show preparePhysics;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/arcade_game.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // The physics core, which the browser fetches as WebAssembly once;
-  // natively it is in the app already and this returns at once.
-  if (physicsBackend != 'dart') await loadPhysicsCore();
+  // The run's physics, chosen once: the core, which the browser fetches as
+  // WebAssembly, or the reference where it will not start.
+  await preparePhysics();
   runApp(const ArcadeApp());
 }
 

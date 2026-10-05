@@ -59,27 +59,34 @@ void main() {
       expect(read.checkpoints.steps, written.checkpoints.steps);
       expect(read.platform, isNull);
       expect(read.recordedBy, isNull);
+      expect(read.physics, isNull);
     });
 
-    test('carries platform and who recorded it, when given them', () {
-      final written = Demo(
-        level: 'assets/levels/crypt.json',
-        levelHash: 'deadbeef',
-        start: const Snapshot(<String, Object?>{}),
-        tape: InputTape(seed: 1, frames: const <InputFrame>[]),
-        buildStamp: 'test-build',
-        checkpoints: DigestTrace(every: 1),
-        platform: 'macos',
-        recordedBy: 'dmitrii',
-      );
+    test(
+      'carries platform, who recorded it and on what physics, when given them',
+      () {
+        final written = Demo(
+          level: 'assets/levels/crypt.json',
+          levelHash: 'deadbeef',
+          start: const Snapshot(<String, Object?>{}),
+          tape: InputTape(seed: 1, frames: const <InputFrame>[]),
+          buildStamp: 'test-build',
+          checkpoints: DigestTrace(every: 1),
+          platform: 'macos',
+          recordedBy: 'dmitrii',
+          physics: 'dart',
+        );
 
-      final read = Demo.fromJson(
-        jsonDecode(jsonEncode(written.toJson())) as Map<String, Object?>,
-      );
+        final read = Demo.fromJson(
+          jsonDecode(jsonEncode(written.toJson())) as Map<String, Object?>,
+        );
 
-      expect(read.platform, 'macos');
-      expect(read.recordedBy, 'dmitrii');
-    });
+        expect(read.platform, 'macos');
+        expect(read.recordedBy, 'dmitrii');
+        // What it replays on. Mutation: dropping it on the way out.
+        expect(read.physics, 'dart');
+      },
+    );
 
     test('refuses a demo from a newer build, and says so', () {
       // The case the version exists for: the file can still be opened by the

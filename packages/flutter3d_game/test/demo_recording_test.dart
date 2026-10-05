@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// The toy reads its speed off the level's fog density: any number a level
 /// document carries will do, and this one needs no brushes.
@@ -192,4 +193,33 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('a demo says which physics it was recorded on', () {
+    final demo = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: _Toy().save(),
+      seed: 0,
+    );
+    // Mutation: leaving it out, which a replay reads as "whatever is on".
+    expect(demo.demo(buildStamp: 'test').physics, PhysicsBackend.current.name);
+    final was = PhysicsBackend.current;
+    PhysicsBackend.current = const _Named('native');
+    addTearDown(() => PhysicsBackend.current = was);
+    expect(demo.demo(buildStamp: 'test').physics, 'native');
+  });
+}
+
+/// A backend that is only its name: what the recording reads of it.
+final class _Named implements PhysicsBackend {
+  const _Named(this.name);
+  @override
+  final String name;
+  @override
+  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
+      const DartPhysics().dynamics(world, gravity: gravity);
+  @override
+  void attach(CollisionWorld world) {}
+  @override
+  void release(CollisionWorld world) {}
 }

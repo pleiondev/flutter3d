@@ -12,17 +12,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 export 'package:flutter3d_game_shooter/staging.dart'
     show Staged, stage, startingInventory;
 
-/// What moves the crypt's characters: the physics core, unless the build is
-/// made with `--dart-define=FLUTTER3D_PHYSICS=dart`, which leaves them to
-/// their own sweeps in plain Dart — the reference.
-const String physicsBackend = String.fromEnvironment(
-  'FLUTTER3D_PHYSICS',
-  defaultValue: 'native',
-);
-
-/// The dynamics [physicsBackend] names for [world], or none: the crypt has
-/// no loose bodies, so the core is here to walk the player and the monsters
-/// through the level it mirrors. Load it first, with `loadPhysicsCore`.
-RigidDynamics? dungeonDynamics(CollisionWorld world) => physicsBackend == 'dart'
-    ? null
-    : NativeDynamics(world: world, movesCharacters: true, castsRays: true);
+/// The dynamics the run's backend gives [world] — see `usePhysics` — or
+/// none on the Dart reference: the crypt has no loose bodies, so the core
+/// is here to walk the player and the monsters through the level it
+/// mirrors, and the reference walks them with their own sweeps.
+RigidDynamics? dungeonDynamics(CollisionWorld world) => switch (usePhysics()) {
+  final NativePhysics core => core.dynamics(world),
+  _ => null,
+};

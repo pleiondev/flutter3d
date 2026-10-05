@@ -23,6 +23,8 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart'
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show SkeletonRagdoll;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show startPhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -57,6 +59,10 @@ final class _Storage implements Storage {
 }
 
 void main() {
+  // Ragdolls are the core's; on the reference the dead keep their clips,
+  // which `physics_backend_test.dart` holds.
+  setUpAll(() => startPhysics(asked: 'native'));
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('in the crypt every runner falls as a body and lies still, and the '

@@ -23,6 +23,7 @@ import 'package:flutter3d_demo_platformer/src/runner_visuals.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +34,8 @@ final class _Ascent implements ReplaySubject {
     : _follow = FollowCamera(world: _loaded.collision);
 
   static Future<_Ascent> open(ReplayStart start) async {
+    // On the backend it was recorded on: the two are not promised to agree.
+    await startPhysics(asked: start.demo.physics ?? askedPhysics);
     final (:kinds, :loaded, :fixtures) = await openLevel(
       start.demo.level,
       device: start.device,

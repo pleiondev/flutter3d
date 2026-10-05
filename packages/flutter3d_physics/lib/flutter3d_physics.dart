@@ -53,6 +53,7 @@ export 'src/fluid/particle_fluid.dart';
 export 'src/fluid/pipe.dart';
 export 'src/fluid/vessel_shape.dart';
 export 'src/inertia.dart';
+export 'src/physics_backend.dart';
 export 'src/portable_math.dart';
 export 'src/push.dart';
 export 'src/rigid_body.dart';

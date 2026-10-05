@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **A recording says which physics it ran on.** `Demo.physics` is
+  `'native'` or `'dart'`, and a replay runs on that backend; the two
+  backends are not promised to agree with each other.
+
 - **A level's tree reaches its monsters.** `SpawnContext.level` is the
   level being spawned, set by `spawnInto`, so a kind can resolve the names
   an entity gives. `HasBehaviourTree` is any brain that runs a tree, and

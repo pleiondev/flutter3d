@@ -53,8 +53,11 @@ final class RigidBodiesDemo extends ShowcaseDemo {
     // #region world
     _world = CollisionWorld();
     _world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
-    _dynamics = _native = NativeDynamics(world: _world);
+    // The run's backend: the core, or the Dart reference where it will
+    // not start.
+    _dynamics = usePhysics().dynamics(_world);
     // #endregion world
+    if (_dynamics case final NativeDynamics core) _native = core;
 
     final Scene scene = Scene()
       ..ambientColor = Vector3(0.5, 0.55, 0.65)

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **`DemoRecording` stamps the run's physics** into the demo it writes.
+
 - **Gestures reach the graph.** `ActorAnimations.gesture` fires the
   trigger `cue:<name>` on the actor's graph, made now if it is not yet, for
   its state machine to play; a graph with no such trigger gets nothing.

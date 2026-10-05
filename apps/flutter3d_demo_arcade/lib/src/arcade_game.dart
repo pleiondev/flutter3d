@@ -38,26 +38,11 @@ const double cameraHeight = 20.0;
 /// the whole of its 18-metre depth and a margin.
 const double viewHeight = 22.0;
 
-/// Which dynamics steps the ship: the native core, unless the build is made
-/// with `--dart-define=FLUTTER3D_PHYSICS=dart`, which is the reference in
-/// plain Dart.
-const String physicsBackend = String.fromEnvironment(
-  'FLUTTER3D_PHYSICS',
-  defaultValue: 'native',
-);
-
-/// The dynamics [physicsBackend] names, for [world], with no gravity: the
-/// yard is seen from straight above. In the browser the core must be loaded
-/// first, with `loadPhysicsCore`.
-RigidDynamics arcadeDynamics(CollisionWorld world) => physicsBackend == 'dart'
-    ? Dynamics(world: world, gravity: Vector3.zero())
-    : NativeDynamics(
-        world: world,
-        gravity: Vector3.zero(),
-        // The bots walked by the core through the yard it mirrors.
-        movesCharacters: true,
-        castsRays: true,
-      );
+/// The dynamics the run's backend gives [world] — see `usePhysics` — with
+/// no gravity: the yard is seen from straight above. On the core the bots
+/// are walked through the yard it mirrors as well.
+RigidDynamics arcadeDynamics(CollisionWorld world) =>
+    usePhysics().dynamics(world, gravity: Vector3.zero());
 
 /// A ship over a floating meteor yard, and the bots patrolling it.
 ///

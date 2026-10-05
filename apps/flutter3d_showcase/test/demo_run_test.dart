@@ -3,6 +3,8 @@
 /// default to.
 library;
 
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show startPhysics;
 import 'package:flutter3d_showcase/pages/physics_particles/rigid_bodies.dart';
 import 'package:flutter3d_showcase/pages/shadows/soft_shadows.dart';
 import 'package:flutter3d_showcase/src/demo/demo_run.dart';
@@ -46,6 +48,8 @@ void main() {
   test(
     'leaving a page lets go of the physics core its crates fell in',
     () async {
+      // On the core whatever the build asked: this is about letting it go.
+      await startPhysics(asked: 'native');
       // Mutation: drop `demo.dispose()` from `DemoRun.dispose`, or the page's
       // own `dispose`: the core's world lives on until the collector finds it.
       final demo = RigidBodiesDemo();

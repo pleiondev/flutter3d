@@ -16,6 +16,7 @@ import 'package:flutter3d_game_shooter/bridge.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart' show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
@@ -788,6 +789,7 @@ class _GameScreenState extends State<GameScreen>
         buildStamp: _buildStamp,
         checkpoints: checkpoints,
         platform: defaultTargetPlatform.name,
+        physics: usePhysics().name,
       ),
     );
   }

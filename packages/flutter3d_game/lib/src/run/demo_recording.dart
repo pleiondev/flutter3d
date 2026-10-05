@@ -88,6 +88,8 @@ final class DemoRecording {
     platform: platform,
     recordedBy: recordedBy,
     levelSwaps: List<DemoLevelSwap>.unmodifiable(_swaps),
+    // What it replays on: see `Demo.physics`.
+    physics: PhysicsBackend.current.name,
   );
 }
 

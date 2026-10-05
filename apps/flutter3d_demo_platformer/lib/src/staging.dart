@@ -3,23 +3,12 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
-/// Which dynamics steps the crates: the native core, unless the build is
-/// made with `--dart-define=FLUTTER3D_PHYSICS=dart`, which is the reference
-/// in plain Dart — the same crates, and other bits.
-const String physicsBackend = String.fromEnvironment(
-  'FLUTTER3D_PHYSICS',
-  defaultValue: 'native',
-);
-
-/// The dynamics [physicsBackend] names, for [world]. In the browser the
-/// core must be loaded first, with `loadPhysicsCore`.
+/// The dynamics the run's backend gives [world] — see `usePhysics`: on the
+/// core, the crates and the characters, the runner's platforms solid from
+/// above as a rule the core keeps, and the rays; on the Dart reference the
+/// same crates, and other bits.
 RigidDynamics platformerDynamics(CollisionWorld world) =>
-    physicsBackend == 'dart'
-    ? Dynamics(world: world)
-    // The characters moved by the core and the rays cast there too — the
-    // runner as well, its platforms solid from above said as a rule the
-    // core keeps.
-    : NativeDynamics(world: world, movesCharacters: true, castsRays: true);
+    usePhysics().dynamics(world);
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {

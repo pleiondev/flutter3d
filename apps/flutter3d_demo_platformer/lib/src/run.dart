@@ -154,9 +154,9 @@ final class PlatformerRun extends RunSession<LevelReady> {
     GraphicsDevice device, {
     Level? document,
   }) async {
-    // The physics core, which the browser fetches as WebAssembly once;
-    // natively it is in the app already and this returns at once.
-    if (physicsBackend != 'dart') await loadPhysicsCore();
+    // The run's physics, chosen once: the core, which the browser fetches
+    // as WebAssembly, or the reference where it will not start.
+    await preparePhysics();
     final (:kinds, :loaded, :fixtures) = await openLevel(
       asset,
       device: device,
@@ -262,6 +262,16 @@ final class PlatformerRun extends RunSession<LevelReady> {
       throw StateError(
         '${demo.level} digests to $hash, and the demo was recorded in '
         '${demo.levelHash}; the level has changed since',
+      );
+    }
+    // A run plays back on the backend it was recorded on, and this one's
+    // level is built already: said, rather than replayed into a divergence.
+    if (demo.physics case final String physics
+        when physics != usePhysics().name) {
+      throw StateError(
+        'the demo was recorded on the $physics physics and this run is on '
+        '${usePhysics().name}; start the game with '
+        '--dart-define=FLUTTER3D_PHYSICS=$physics to replay it',
       );
     }
     final device = await openDevice();

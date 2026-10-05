@@ -6,7 +6,7 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, RunStatus
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show NativeDynamics, loadPhysicsCore;
+    show NativeDynamics, NativePhysics, preparePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart';
@@ -178,9 +178,10 @@ final class DungeonRun extends RunSession<LevelReady> {
 
   @override
   Future<LevelReady> open(String asset) async {
-    // The physics core the corpses fall in, which the browser fetches as
-    // WebAssembly once; natively it is in the app and this returns at once.
-    await loadPhysicsCore();
+    // The run's physics: the core, which the browser fetches as WebAssembly
+    // once — natively it is in the app — or the reference where it will not
+    // start. Chosen once; every level after asks the same.
+    await preparePhysics();
     final loaded = await const LevelLoader().load(
       asset,
       device: device,
@@ -253,10 +254,13 @@ final class DungeonRun extends RunSession<LevelReady> {
         layerMask: DungeonLayers.world | DungeonLayers.actors,
         // The dead fall as ragdolls rather than playing a death clip,
         // pushed away from the player, whose shots killed them.
-        corpses: RagdollCorpses(
-          loaded.collision,
-          shotFrom: () => shooter?.body.position,
-        ),
+        // On the reference, the death clip: a ragdoll is the core's.
+        corpses: usePhysics() is NativePhysics
+            ? RagdollCorpses(
+                loaded.collision,
+                shotFrom: () => shooter?.body.position,
+              )
+            : null,
       ),
       fixtures:
           FixtureVisuals(

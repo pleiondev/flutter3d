@@ -137,7 +137,8 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final NativeDynamics dynamics = _native = NativeDynamics(world: world);
+    final RigidDynamics dynamics = usePhysics().dynamics(world);
+    if (dynamics case final NativeDynamics core) _native = core;
     final RigidBody body = dynamics.add(
       RigidBody(
         world: world,
@@ -219,7 +220,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final dynamics = NativeDynamics(world: world);
+    final dynamics = usePhysics().dynamics(world);
     // #endregion world
 
     // #region body
@@ -276,7 +277,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     // #endregion fall
 
     final settled = body.position.y;
-    dynamics.dispose();
+    usePhysics().release(world);
     return (
       'settled at y=${settled.toStringAsFixed(2)}; the bridge heard '
           'the landing: ${component.collided}',

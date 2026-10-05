@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **The core is the default, and the Dart reference is the fallback.**
+  - `usePhysics()` picks the run's backend the first time something asks,
+    and returns the same one after that.
+  - The core is used unless the build asks for the reference
+    (`FLUTTER3D_PHYSICS=dart`) or the core fails to start. Starting it is
+    tested by actually making a world, so a missing library or an ABI
+    mismatch becomes a fallback instead of a crash, and
+    `physicsFallbackReason` explains it.
+  - `preparePhysics()` first loads the module in the browser.
+  - `NativePhysics` is the backend itself.
+
 - **The character moves as the box the reference sweeps, and a run saves
   the same bytes however it was watched.**
   - `f3d_world_move_character` takes the character's shape. The core

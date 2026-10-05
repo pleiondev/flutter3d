@@ -70,6 +70,7 @@ final class Demo {
     this.recordedBy,
     this.dataSources,
     this.levelSwaps = const <DemoLevelSwap>[],
+    this.physics,
   });
 
   /// Bumped when an existing field changes meaning.
@@ -128,6 +129,12 @@ final class Demo {
   /// Who recorded it — an account name, a player id — or null for anonymous.
   final String? recordedBy;
 
+  /// The [PhysicsBackend] it was recorded on — `'native'` or `'dart'` — and
+  /// so the one it replays on: the two are not promised to agree, each only
+  /// with itself. Null for a run recorded before this was written, which a
+  /// replay plays on whatever the run is on.
+  final String? physics;
+
   /// `edu-05`: every `edu_data_source` this run read, one entry per fixed
   /// step it was read at — null for a run that bound none, the same
   /// genuinely-optional shape [platform]/[recordedBy] already have. Additive
@@ -156,6 +163,7 @@ final class Demo {
     'checkpoints': checkpoints.toJson(),
     if (platform != null) 'platform': platform,
     if (recordedBy != null) 'recordedBy': recordedBy,
+    if (physics != null) 'physics': physics,
     if (dataSources != null) 'dataSources': dataSources!.toJson(),
     if (levelSwaps.isNotEmpty)
       'levelSwaps': <Map<String, Object?>>[
@@ -225,6 +233,7 @@ final class Demo {
     }
     final platform = json['platform'];
     final recordedBy = json['recordedBy'];
+    final physics = json['physics'];
     final rawDataSources = json['dataSources'];
     DataSourceTrace? dataSources;
     if (rawDataSources is Map<String, Object?>) {
@@ -244,6 +253,7 @@ final class Demo {
       checkpoints: trace,
       platform: platform is String ? platform : null,
       recordedBy: recordedBy is String ? recordedBy : null,
+      physics: physics is String ? physics : null,
       dataSources: dataSources,
       levelSwaps: _readSwaps(json['levelSwaps'], steps: readTape.steps),
     );

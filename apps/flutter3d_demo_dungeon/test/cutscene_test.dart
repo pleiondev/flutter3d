@@ -189,10 +189,9 @@ void main() {
     expect(level.staged.sim.cutscene!.player.step, 216 + 7);
     // Mutation: a gesture asked of nothing, or a machine without the cue
     // states, leaves them standing in their idle.
-    expect(
-      <String>[for (final t in tanks) animations.graphOf(t)!.state],
-      everyElement('cue:Jump'),
-    );
+    expect(<String>[
+      for (final t in tanks) animations.graphOf(t)!.state,
+    ], everyElement('cue:Jump'));
   });
 
   testWidgets('the overlay says the subtitle and offers the skip', (

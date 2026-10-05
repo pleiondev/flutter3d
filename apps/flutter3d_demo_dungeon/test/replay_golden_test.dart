@@ -28,6 +28,8 @@ import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show startPhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -168,6 +170,10 @@ Future<Demo> _recordAShortRun({int steps = 30}) async {
 }
 
 void main() {
+  // On the core, which the reference picture was drawn from: the Dart
+  // reference puts the monsters elsewhere by the tape's last step.
+  setUpAll(() => startPhysics(asked: 'native'));
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test("rp-05's own literal row: the frame at the tape's own last step matches "

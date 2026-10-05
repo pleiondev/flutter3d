@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **`PhysicsBackend`, one for the whole run.** It produces a world's
+  dynamics and can attach its character moves and rays to a world.
+  `PhysicsBackend.current` is set once by the game and read by everything
+  that makes a world. `DartPhysics`, the reference, is the default until a
+  game sets something else.
+
 - **One rule for a jump that does not clear a platform solid from above:
   it falls back through.** The controller no longer pushes the body out of
   such a platform when it overlaps one, as the physics core does not.

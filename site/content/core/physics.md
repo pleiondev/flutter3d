@@ -209,6 +209,29 @@ Gravity defaults to the character controller's, because a crate that falls slowe
 
 Bodies sleep when they stop, and wake when something touches them. A `Physical` component carries a body in a snapshot, so the next kind of moving thing cannot be left out of a save by omission.
 
+## Which engine runs it
+
+Everything on this page has two implementations: the Dart reference in `flutter3d_physics`, and the C core in `flutter3d_physics_native`, which is an FFI library natively and a WebAssembly module in the browser. A run uses one of them for everything — bodies, character moves, rays — and picks it once:
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await preparePhysics();       // fetches the module in a browser
+  runApp(const MyGame());
+}
+
+// later, wherever a world is staged
+final dynamics = usePhysics().dynamics(world);
+```
+
+The core is the default. The reference runs when the build asks for it with `--dart-define=FLUTTER3D_PHYSICS=dart`, or when the core will not start: a missing library, a module that did not load, or bindings for another ABI. In that case `physicsFallbackReason` says what happened, and the game keeps running.
+
+<div class="why">
+<p>One switch for the whole run, not one per system. If characters walk on one engine and crates fall on another, the two disagree about where the floor is, and a recording of that run cannot be replayed on either.</p>
+</div>
+
+The two engines are not promised to agree with each other, only each with itself. A recording stores the backend it was made on (`Demo.physics`), and a replay runs on that backend. A game that is already on the other backend refuses the replay and gives the reason, rather than drifting from the first step.
+
 ## Layers are numbers here
 
 A collider carries a `layer` and a `mask`, and two of them meet when each is in the other's mask. **Which bit means what is a game's business.** This package shipped as part of one for a while, and its layer list named `monster`, `pickup` and `projectile`, which is exactly the knowledge a collision world must not have. `Layers.all` is the only constant left, because "every bit" means the same thing in every game.
