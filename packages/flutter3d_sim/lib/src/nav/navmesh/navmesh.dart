@@ -18,6 +18,7 @@
 /// every operating system it runs on.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
@@ -31,6 +32,7 @@ import 'navmesh_config.dart';
 import 'open_field.dart';
 import 'poly_mesh.dart';
 import 'regions.dart';
+import 'route.dart';
 import 'span_field.dart';
 
 /// The surfaces a polygon can be, by number.
@@ -141,6 +143,93 @@ final class NavMesh {
     for (var p = 0; p < polygonCount; p++)
       if (containsPoint(p, x, z)) p,
   ];
+
+  /// The height of [polygon]'s surface over `(x, z)`, from the triangle of
+  /// its fan that the point is over — a ramp's polygon is not flat, and its
+  /// corners are the only heights the mesh has.
+  ///
+  /// A point outside the polygon in plan gets the height of the triangle
+  /// nearest it, extended; [closestPointOn] keeps its points inside.
+  double heightAt(int polygon, double x, double z) {
+    final n = polygonVertexCount(polygon);
+    final a = Vector3.zero();
+    final b = Vector3.zero();
+    final c = Vector3.zero();
+    vertexAt(polygonVertex(polygon, 0), a);
+    var best = double.infinity;
+    var height = a.y;
+    for (var k = 1; k + 1 < n; k++) {
+      vertexAt(polygonVertex(polygon, k), b);
+      vertexAt(polygonVertex(polygon, k + 1), c);
+      final area = (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
+      final wb = ((x - a.x) * (c.z - a.z) - (z - a.z) * (c.x - a.x)) / area;
+      final wc = ((b.x - a.x) * (z - a.z) - (b.z - a.z) * (x - a.x)) / area;
+      final wa = 1.0 - wb - wc;
+      // How far outside the triangle the point is, by its most negative
+      // weight; nought inside.
+      final outside = -math.min(0.0, math.min(wa, math.min(wb, wc)));
+      if (outside < best) {
+        best = outside;
+        height = wa * a.y + wb * b.y + wc * c.y;
+      }
+    }
+    return height;
+  }
+
+  /// The polygon a body at [at] stands on: of the polygons over it in plan,
+  /// the one whose surface there is nearest its height, or −1 when no
+  /// polygon is under it at all.
+  ///
+  /// Nearest and not nearest below: a body in the air over a floor is
+  /// still over that floor, and one a little under a ramp's surface — the
+  /// mesh is a voxel coarse — still stands on the ramp.
+  int polygonAt(Vector3 at) {
+    var best = -1;
+    var distance = double.infinity;
+    for (final p in polygonsAt(at.x, at.z)) {
+      final d = (heightAt(p, at.x, at.z) - at.y).abs();
+      if (d < distance) (best, distance) = (p, d);
+    }
+    return best;
+  }
+
+  /// The point of [polygon] nearest [at] in plan, on its surface, into
+  /// [out].
+  void closestPointOn(int polygon, Vector3 at, Vector3 out) {
+    var x = at.x;
+    var z = at.z;
+    if (!containsPoint(polygon, x, z)) {
+      final n = polygonVertexCount(polygon);
+      final a = Vector3.zero();
+      final b = Vector3.zero();
+      var best = double.infinity;
+      for (var k = 0; k < n; k++) {
+        vertexAt(polygonVertex(polygon, k), a);
+        vertexAt(polygonVertex(polygon, (k + 1) % n), b);
+        final ex = b.x - a.x;
+        final ez = b.z - a.z;
+        final t =
+            (((at.x - a.x) * ex + (at.z - a.z) * ez) / (ex * ex + ez * ez))
+                .clamp(0.0, 1.0);
+        final px = a.x + ex * t;
+        final pz = a.z + ez * t;
+        final d = (px - at.x) * (px - at.x) + (pz - at.z) * (pz - at.z);
+        if (d < best) (best, x, z) = (d, px, pz);
+      }
+    }
+    out.setValues(x, heightAt(polygon, x, z), z);
+  }
+
+  /// The way from [from] to [to] — see [NavMeshRoute] — or null when [from]
+  /// is over no polygon.
+  ///
+  /// [costOf] prices a metre of each area, one or more; [double.infinity]
+  /// keeps a route off an area altogether.
+  NavMeshRoute? route(
+    Vector3 from,
+    Vector3 to, {
+    double Function(int area)? costOf,
+  }) => findRoute(this, from, to, costOf: costOf);
 
   /// One number for the whole mesh and what it was baked to.
   ///

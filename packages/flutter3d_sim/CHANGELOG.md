@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **A navigation mesh finds the way across itself.** `NavMesh.route`
+  runs A* over the polygons, entering each at the midpoint of the edge it
+  was reached through, then pulls a string through the shared edges, so a
+  body walks from corner to corner and every leg stays on the mesh.
+  `costOf` prices a metre of each area, one or more, and infinity keeps a
+  route off an area. A goal nobody can reach gives a route marked
+  incomplete that ends at the point nearest it, on the polygon nearest
+  it. Costs are counted in whole millimetres and ties go by the mesh's own
+  order, so a route is the same on every machine. `polygonAt` picks, of
+  the polygons over a point, the one whose surface is nearest its height;
+  `heightAt` and `closestPointOn` read the surface.
+
 - **What steps the animations is saved with the actors.** `ActorStrides`
   is an abstract class now, with `save` and `restore` doing nothing by
   default. `ActorSystem.save` writes its state beside the system's own,
