@@ -55,7 +55,17 @@ final class AnimationGraph {
     return AnimationGraph._(
       machine,
       AnimationParameters(machine.parameters),
-      <AnimationClip>[for (final state in machine.states) byName[state.clip]!],
+      <_Plays>[
+        for (final state in machine.states)
+          if (state.blend case final blend?)
+            _Plays.blend(
+              machine.parameters.indexOf(blend.parameter),
+              <double>[for (final p in blend.points) p.at],
+              <AnimationClip>[for (final p in blend.points) byName[p.clip]!],
+            )
+          else
+            _Plays.one(byName[state.clip]!),
+      ],
       outgoing,
       pose,
     );
@@ -68,6 +78,7 @@ final class AnimationGraph {
     this._outgoing,
     this.pose,
   ) : _from = pose.restCopy(),
+      _scratch = pose.restCopy(),
       _current = machine.indexOfState(machine.entry) {
     _sample();
   }
@@ -80,14 +91,17 @@ final class AnimationGraph {
   /// What [evaluate] writes into and returns.
   final Pose pose;
 
-  /// The clip each state plays, index-aligned with the machine's states.
-  final List<AnimationClip> _clips;
+  /// What each state plays, index-aligned with the machine's states.
+  final List<_Plays> _clips;
 
   /// Each state's way out, highest priority first.
   final List<List<_Transition>> _outgoing;
 
   /// Where the outgoing state is sampled during a crossfade.
   final Pose _from;
+
+  /// Where a blend's second clip is sampled before it is mixed in.
+  final Pose _scratch;
 
   int _current;
   _Playhead _head = _Playhead.start;
@@ -108,7 +122,8 @@ final class AnimationGraph {
   /// How much of [state] the pose holds: 1 unless a crossfade is under way.
   double get fadeWeight => _previous < 0 ? 1.0 : _fadeElapsed / _fadeDuration;
 
-  /// The playhead in [state]'s clip, in seconds.
+  /// The playhead in [state]'s clip, in seconds; in a blend state, the share
+  /// of the cycle, nought to one.
   double get stateTime => _head.time;
 
   /// How far into [state] the graph is, in lengths of its clip — what an exit
@@ -169,7 +184,9 @@ final class AnimationGraph {
   }
 
   _Playhead _advance(int state, _Playhead head, double step) {
-    final length = _clips[state].duration;
+    final plays = _clips[state];
+    if (plays.blend) return _advanceBlend(state, plays, head, step);
+    final length = plays.clips.first.duration;
     final delta = step * machine.states[state].speed;
     if (length <= 0.0 || delta == 0.0) {
       return _Playhead(head.time, head.elapsed + delta, head.reversing);
@@ -184,17 +201,85 @@ final class AnimationGraph {
     return _Playhead(moved.time, head.elapsed + delta, moved.reversing);
   }
 
+  /// A blend's phase moves by the length its mix would have: see
+  /// [AnimationBlendSpace]. Its elapsed time is counted in cycles already.
+  _Playhead _advanceBlend(
+    int state,
+    _Plays plays,
+    _Playhead head,
+    double step,
+  ) {
+    final (:lower, :upper, :weight) = _mix(plays);
+    final length =
+        plays.clips[lower].duration +
+        (plays.clips[upper].duration - plays.clips[lower].duration) * weight;
+    final delta = step * machine.states[state].speed;
+    if (length <= 0.0 || delta == 0.0) {
+      return _Playhead(
+        head.time,
+        head.elapsed + (length <= 0.0 ? 1.0 : 0.0),
+        head.reversing,
+      );
+    }
+    final share = delta / length;
+    final moved = advanceTime(
+      time: head.time,
+      deltaSeconds: share,
+      length: 1.0,
+      wrap: machine.states[state].wrap,
+      reversing: head.reversing,
+    );
+    return _Playhead(moved.time, head.elapsed + share, moved.reversing);
+  }
+
+  /// Which two of a blend's clips its parameter falls between, and how far
+  /// towards the second.
+  ({int lower, int upper, double weight}) _mix(_Plays plays) {
+    final value = parameters.valueAt(plays.parameter);
+    final at = plays.at;
+    if (value <= at.first) return (lower: 0, upper: 0, weight: 0.0);
+    if (value >= at.last) {
+      return (lower: at.length - 1, upper: at.length - 1, weight: 0.0);
+    }
+    var i = 0;
+    while (value > at[i + 1]) {
+      i++;
+    }
+    return (
+      lower: i,
+      upper: i + 1,
+      weight: (value - at[i]) / (at[i + 1] - at[i]),
+    );
+  }
+
   /// A clip with no length is a single pose, done as soon as it is entered.
   double _normalized(int state, _Playhead head) {
-    final length = _clips[state].duration;
+    final plays = _clips[state];
+    if (plays.blend) return head.elapsed;
+    final length = plays.clips.first.duration;
     return length <= 0.0 ? 1.0 : head.elapsed / length;
   }
 
   void _sample() {
-    pose.sampleClip(_clips[_current], _head.time);
+    _sampleState(_current, _head, pose);
     if (_previous < 0) return;
-    _from.sampleClip(_clips[_previous], _previousHead.time);
+    _sampleState(_previous, _previousHead, _from);
     pose.blendFrom(_from, fadeWeight);
+  }
+
+  /// [state] at [head] into [into]: its clip, or its blend's two.
+  void _sampleState(int state, _Playhead head, Pose into) {
+    final plays = _clips[state];
+    if (!plays.blend) {
+      into.sampleClip(plays.clips.first, head.time);
+      return;
+    }
+    final (:lower, :upper, :weight) = _mix(plays);
+    final a = plays.clips[lower], b = plays.clips[upper];
+    into.sampleClip(b, head.time * b.duration);
+    if (lower == upper || weight >= 1.0) return;
+    _scratch.sampleClip(a, head.time * a.duration);
+    into.blendFrom(_scratch, weight);
   }
 
   static List<_Transition> _outgoingFrom(
@@ -226,6 +311,23 @@ final class AnimationGraph {
         ),
     ];
   }
+}
+
+/// What a state plays: one clip, or a blend's clips at their points by a
+/// parameter.
+final class _Plays {
+  _Plays.one(AnimationClip clip)
+    : clips = <AnimationClip>[clip],
+      at = const <double>[],
+      parameter = -1,
+      blend = false;
+
+  _Plays.blend(this.parameter, this.at, this.clips) : blend = true;
+
+  final List<AnimationClip> clips;
+  final List<double> at;
+  final int parameter;
+  final bool blend;
 }
 
 /// Where a state's clip is, and how long the graph has been in the state.

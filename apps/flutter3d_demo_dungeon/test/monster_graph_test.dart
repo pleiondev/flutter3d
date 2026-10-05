@@ -2,12 +2,11 @@
 ///
 ///     flutter test test/monster_graph_test.dart
 ///
-/// Built over the clips the crypt's own models carry: the runner, which can
-/// run, walks off from idle when it starts to chase and runs once it is
-/// fast, walks again when slowed and stands when stopped, is struck from
-/// whatever it is doing and comes back, and dies from anything; the shooter,
-/// which has no run, walks at every speed; a model with no idle gets no
-/// graph and keeps naming clips.
+/// Built over the clips the crypt's own models carry: the runner moves off
+/// from idle when it starts to chase, by a blend of its walk and its run,
+/// stands when stopped, is struck from whatever it is doing and comes back,
+/// and dies from anything; the shooter, which has no run, walks; a model
+/// with no idle gets no graph and keeps naming clips.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
@@ -57,17 +56,15 @@ String _say(
 }
 
 void main() {
-  test('the runner stands, walks off, runs, slows, stops, is struck and '
-      'dies', () async {
+  test('the runner stands, moves off, is struck and back, attacks, and '
+      'dies once', () async {
     final g = await _graphOf('monster_runner');
     expect(g.state, 'idle');
     expect(_say(g, MonsterState.alert), 'idle');
-    expect(_say(g, MonsterState.chase, speed: 1.5), 'walk');
-    expect(_say(g, MonsterState.chase, speed: 5.4), 'run');
-    expect(_say(g, MonsterState.chase, speed: 2.8), 'run', reason: 'between');
-    expect(_say(g, MonsterState.chase, speed: 2.0), 'walk');
+    expect(_say(g, MonsterState.chase, speed: 1.5), 'move');
+    expect(_say(g, MonsterState.chase, speed: 5.4), 'move', reason: 'one');
     expect(_say(g, MonsterState.chase, speed: 0.0), 'idle');
-    expect(_say(g, MonsterState.chase, speed: 5.4, seconds: 1.0), 'run');
+    expect(_say(g, MonsterState.chase, speed: 5.4), 'move');
     expect(_say(g, MonsterState.hurt, speed: 5.4), 'hurt');
     expect(_say(g, MonsterState.chase, speed: 0.0), 'idle');
     expect(_say(g, MonsterState.attack), 'attack');
@@ -75,10 +72,27 @@ void main() {
     expect(_say(g, MonsterState.chase, speed: 5.4), 'death', reason: 'once');
   });
 
-  test('the shooter, with no run, walks at any speed', () async {
+  test('the runner moves by a blend of its walk and its run', () async {
+    final doc = await decodeModel(
+      ModelLoadRequest(
+        source: const FileAssetSource('assets_src/models/monster_runner.glb'),
+      ),
+    );
+    final machine = const DungeonMonsters().machineFor(
+      _nobody(),
+      doc.animations,
+    )!;
+    final move = machine.states[machine.indexOfState('move')];
+    expect(move.blend, isNotNull);
+    expect(move.blend!.points.map((p) => p.clip), <String>['Walk', 'Run']);
+  });
+
+  test('the shooter, with no run, walks', () async {
     final g = await _graphOf('monster_shooter');
-    expect(_say(g, MonsterState.chase, speed: 3.0, seconds: 1.0), 'walk');
-    expect(g.machine.indexOfState('run'), -1);
+    expect(_say(g, MonsterState.chase, speed: 3.0, seconds: 1.0), 'move');
+    final move = g.machine.states[g.machine.indexOfState('move')];
+    expect(move.blend, isNull);
+    expect(move.clip, 'Walk');
     expect(_say(g, MonsterState.hurt), 'hurt');
     expect(_say(g, MonsterState.dead), 'death');
   });

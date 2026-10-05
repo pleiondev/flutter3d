@@ -80,23 +80,61 @@ final class TriggerCondition extends AnimationCondition {
   const TriggerCondition(super.parameter);
 }
 
+/// One clip of an [AnimationBlendSpace], played where its parameter reads [at].
+final class BlendPoint {
+  const BlendPoint(this.at, this.clip);
+
+  final double at;
+
+  /// The [AnimationClip.name] played here.
+  final String clip;
+}
+
+/// Clips blended by a parameter — a one-dimensional blend space: a walk at
+/// one speed and a run at another, and between them some of each.
+///
+/// **One cycle, whatever the mix.** The clips are played at one phase, a
+/// share of their own length each, and the phase moves at the speed of the
+/// length the mix would have: a walk of a second and a run of two thirds of
+/// one, half and half, go round once in five sixths of a second, every foot
+/// down in both at once. Played by their own clocks instead, the two would
+/// drift apart and the feet with them.
+///
+/// Below the first point the first clip plays alone, above the last the
+/// last.
+final class AnimationBlendSpace {
+  AnimationBlendSpace(this.parameter, List<BlendPoint> points)
+    : points = List<BlendPoint>.unmodifiable(points);
+
+  /// The float or integer parameter that places the mix.
+  final String parameter;
+
+  /// At least two, in increasing order of [BlendPoint.at].
+  final List<BlendPoint> points;
+}
+
 /// A state: which clip plays while the graph is in it, and how.
 final class AnimationState {
   const AnimationState({
     required this.name,
-    required this.clip,
+    this.clip = '',
+    this.blend,
     this.speed = 1.0,
     this.wrap = AnimationWrap.loop,
   });
 
   final String name;
 
-  /// The [AnimationClip.name] this state plays.
+  /// The [AnimationClip.name] this state plays; empty for a [blend] state.
   ///
   /// A name rather than an index into the clip list, because the list is
   /// whatever order a file's exporter wrote; a re-export that sorts the clips
   /// must not move a character from idling to dying.
   final String clip;
+
+  /// The clips this state blends instead of playing one; null for a state
+  /// that plays [clip].
+  final AnimationBlendSpace? blend;
 
   /// Playback rate, zero or more. Zero holds the first frame.
   final double speed;
@@ -197,11 +235,14 @@ final class AnimationStateMachine {
       if (states.isNotEmpty && !stateNames.contains(entry))
         'The entry state `$entry` is not one of the states.',
       for (final s in states) ...[
-        ?_if(
-          !clipNames.contains(s.clip),
-          'State `${s.name}` plays clip `${s.clip}`, which is not among '
-          '${_listed(clipNames, 'the clips (none is named)')}.',
-        ),
+        if (s.blend == null)
+          ?_if(
+            !clipNames.contains(s.clip),
+            'State `${s.name}` plays clip `${s.clip}`, which is not among '
+            '${_listed(clipNames, 'the clips (none is named)')}.',
+          )
+        else
+          ..._blendProblems(s, clipNames),
         ?_if(
           !s.speed.isFinite || s.speed < 0.0,
           'State `${s.name}` has speed ${s.speed}; it must be finite and not '
@@ -209,6 +250,47 @@ final class AnimationStateMachine {
         ),
       ],
       for (final t in transitions) ..._transitionProblems(t, stateNames),
+    ];
+  }
+
+  List<String> _blendProblems(AnimationState s, Set<String> clipNames) {
+    final blend = s.blend!;
+    final parameter = parameters[blend.parameter];
+    final label = 'State `${s.name}`';
+    return <String>[
+      ?_if(
+        s.clip.isNotEmpty,
+        '$label names clip `${s.clip}` and blends as well; a blend state '
+        'plays its points, so leave its clip empty.',
+      ),
+      if (parameter == null)
+        '$label blends by `${blend.parameter}`, which is not a parameter.'
+      else
+        ?_if(
+          parameter.type != AnimationParameterType.float &&
+              parameter.type != AnimationParameterType.integer,
+          '$label blends by ${parameter.type.name} `${parameter.name}`; a '
+          'blend needs a number, a float or an integer.',
+        ),
+      ?_if(
+        blend.points.length < 2,
+        '$label blends ${blend.points.length} point(s); a blend is between '
+        'at least two.',
+      ),
+      for (final p in blend.points)
+        ?_if(
+          !clipNames.contains(p.clip),
+          '$label blends clip `${p.clip}`, which is not among '
+          '${_listed(clipNames, 'the clips (none is named)')}.',
+        ),
+      for (var i = 1; i < blend.points.length; i++)
+        ?_if(
+          !(blend.points[i].at > blend.points[i - 1].at),
+          '$label has blend points at ${blend.points[i - 1].at} then '
+          '${blend.points[i].at}; they must rise, each above the last.',
+        ),
+      for (final p in blend.points)
+        ?_if(!p.at.isFinite, '$label has a blend point at ${p.at}.'),
     ];
   }
 

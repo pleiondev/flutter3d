@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Blend spaces in the animation graph.** An `AnimationState` can blend
+  instead of playing one clip. `AnimationBlendSpace` names a float or
+  integer parameter and two or more `BlendPoint`s, a clip at each value,
+  and between two points the state plays some of each. The clips share one
+  phase, which moves at the speed of the length the mix would have, so a
+  walk of a second and a run of half a second go round together at three
+  quarters of a second when half and half, with the feet down at once. An
+  exit time out of a blend counts in cycles of the mix. `problems` names a
+  blend with too few points, points that do not rise, a missing clip or
+  parameter, a parameter that is not a number, and a clip named beside a
+  blend.
+
 - **`Skeleton.bindPoseOf`**: a joint's bind pose in the skinned mesh's
   space, the inverse of its inverse bind matrix. A ragdoll takes its
   joints' limits from it.

@@ -88,6 +88,160 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('a blend space', () {
+    /// x from [from] to [to] over [length] seconds.
+    AnimationClip ramp(String name, double from, double to, double length) =>
+        AnimationClip(
+          name: name,
+          tracks: <AnimationTrack>[
+            AnimationTrack(
+              nodeIndex: 0,
+              path: AnimationPath.translation,
+              interpolation: AnimationInterpolation.linear,
+              times: Float32List.fromList(<double>[0.0, length]),
+              values: Float32List.fromList(<double>[from, 0, 0, to, 0, 0]),
+              componentCount: 3,
+            ),
+          ],
+        );
+
+    AnimationGraph moving(
+      List<AnimationClip> clips, {
+      List<AnimationTransition> transitions = const <AnimationTransition>[],
+    }) => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[
+          AnimationParameter.float('speed'),
+        ]),
+        entry: 'move',
+        states: <AnimationState>[
+          AnimationState(
+            name: 'move',
+            blend: AnimationBlendSpace('speed', const <BlendPoint>[
+              BlendPoint(1.0, 'walk'),
+              BlendPoint(5.0, 'run'),
+            ]),
+          ),
+          const AnimationState(name: 'idle', clip: 'walk'),
+        ],
+        transitions: transitions,
+      ),
+      clips: clips,
+      pose: _onePose(),
+    );
+
+    double xAfter(AnimationGraph graph, double speed, int steps) {
+      graph.parameters.setFloat('speed', speed);
+      var x = 0.0;
+      for (var i = 0; i < steps; i++) {
+        x = graph.evaluate(_dt).translations[0];
+      }
+      return x;
+    }
+
+    test('mixes its two clips by the parameter, and holds past the ends', () {
+      final clips = <AnimationClip>[_clip('walk', 10.0), _clip('run', 30.0)];
+      expect(xAfter(moving(clips), 3.0, 1), 20.0);
+      expect(xAfter(moving(clips), 2.0, 1), 15.0);
+      expect(xAfter(moving(clips), 0.0, 1), 10.0);
+      expect(xAfter(moving(clips), 9.0, 1), 30.0);
+    });
+
+    test('plays both at one phase, at the speed of the mixed length', () {
+      // A walk of a second and a run of half of one. Half and half, the
+      // cycle is three quarters of a second: 24 steps of 1/64 are half of
+      // it, and both clips stand at their middles.
+      final clips = <AnimationClip>[
+        ramp('walk', 0.0, 1.0, 1.0),
+        ramp('run', 0.0, 1.0, 0.5),
+      ];
+      expect(xAfter(moving(clips), 3.0, 24), closeTo(0.5, 1e-6));
+      // All run, a quarter of a second is half its cycle.
+      expect(xAfter(moving(clips), 5.0, 16), closeTo(0.5, 1e-6));
+    });
+
+    test('counts its exit time in cycles of the mix', () {
+      final clips = <AnimationClip>[
+        ramp('walk', 0.0, 1.0, 1.0),
+        ramp('run', 0.0, 1.0, 0.5),
+      ];
+      final graph = moving(
+        clips,
+        transitions: <AnimationTransition>[
+          AnimationTransition(from: 'move', to: 'idle', exitTime: 1.0),
+        ],
+      );
+      graph.parameters.setFloat('speed', 3.0);
+      for (var i = 0; i < 47; i++) {
+        graph.evaluate(_dt);
+      }
+      expect(graph.state, 'move', reason: 'not yet a cycle of 0.75 s');
+      graph.evaluate(_dt);
+      expect(graph.state, 'idle');
+    });
+
+    test('says what stops one running', () {
+      List<String> problems(AnimationState state, {bool flag = false}) =>
+          AnimationStateMachine(
+            parameters: AnimationParameterSchema(<AnimationParameter>[
+              const AnimationParameter.float('speed'),
+              if (flag) const AnimationParameter.boolean('fast'),
+            ]),
+            entry: state.name,
+            states: <AnimationState>[state],
+            transitions: const <AnimationTransition>[],
+          ).problems(<AnimationClip>[_clip('walk', 0.0), _clip('run', 1.0)]);
+      AnimationState blending(
+        String parameter,
+        List<BlendPoint> points, {
+        String clip = '',
+      }) => AnimationState(
+        name: 'move',
+        clip: clip,
+        blend: AnimationBlendSpace(parameter, points),
+      );
+      const both = <BlendPoint>[BlendPoint(0, 'walk'), BlendPoint(1, 'run')];
+
+      expect(problems(blending('speed', both)), isEmpty);
+      expect(
+        problems(blending('speed', both, clip: 'walk')).single,
+        contains('leave its clip empty'),
+      );
+      expect(
+        problems(blending('pace', both)).single,
+        contains('not a parameter'),
+      );
+      expect(
+        problems(blending('fast', both), flag: true).single,
+        contains('needs a number'),
+      );
+      expect(
+        problems(
+          blending('speed', const <BlendPoint>[BlendPoint(0, 'walk')]),
+        ).single,
+        contains('at least two'),
+      );
+      expect(
+        problems(
+          blending('speed', const <BlendPoint>[
+            BlendPoint(1, 'walk'),
+            BlendPoint(1, 'run'),
+          ]),
+        ).single,
+        contains('must rise'),
+      );
+      expect(
+        problems(
+          blending('speed', const <BlendPoint>[
+            BlendPoint(0, 'walk'),
+            BlendPoint(1, 'sprint'),
+          ]),
+        ).single,
+        contains('`sprint`'),
+      );
+    });
+  });
+
   group('conditions', () {
     // Mutation: drop the `checks.every(_holds)` test in `_takeTransition` and
     // the graph walks at speed 0.4; flip `greater` to `less` in

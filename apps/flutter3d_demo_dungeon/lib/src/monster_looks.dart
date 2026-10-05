@@ -87,17 +87,19 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
     MonsterState.dead,
   ];
 
-  /// Over this horizontal speed, m/s, a monster that can run runs; under
-  /// [walkBelow] it walks again. Apart, so one at the edge does not flicker.
-  static const double runAbove = 3.0;
-  static const double walkBelow = 2.5;
+  /// Where a monster that can both walk and run is all walk, m/s, and where
+  /// it is all run: the runner's own chasing speed. Between, the blend space
+  /// mixes the two by speed, one stride at one phase.
+  static const double walkAt = 1.5;
+  static const double runAt = 5.4;
 
-  /// The machine for a monster drawn with [clips]: idle, walking and — where
-  /// the model has the clip — running by its speed while it chases; attacking,
-  /// struck and dying by its brain's state, from whatever it was doing, with
-  /// a fade into each. Built from the clips the model has, so the runner,
-  /// which can run, and the shooter and the tank, which walk, are one
-  /// definition. Null for a model with no idle to stand in.
+  /// The machine for a monster drawn with [clips]: idle, and moving while it
+  /// chases — a walk and a run blended by its speed where the model has both,
+  /// whichever it has where one; attacking, struck and dying by its brain's
+  /// state, from whatever it was doing, with a fade into each. Built from
+  /// the clips the model has, so the runner, which can run, and the shooter
+  /// and the tank, which walk, are one definition. Null for a model with no
+  /// idle to stand in.
   @override
   AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips) {
     final have = <String>{for (final c in clips) ?c.name};
@@ -114,23 +116,27 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
         CompareCondition('state', AnimationComparison.equals, code(state));
     CompareCondition isNot(MonsterState state) =>
         CompareCondition('state', AnimationComparison.notEquals, code(state));
-    final chasing = isIn(MonsterState.chase);
-    final moving = <String>[
-      'idle',
-      if (walk != null) 'walk',
-      if (run != null) 'run',
-    ];
-    final firstStride = walk != null ? 'walk' : (run != null ? 'run' : null);
+    final stride = walk ?? run;
+    final moving = <String>['idle', if (stride != null) 'move'];
+    final acting = <String>[...moving, if (attack != null) 'attack'];
     return AnimationStateMachine(
       parameters: AnimationParameterSchema(<AnimationParameter>[
-        AnimationParameter.integer('state'),
-        AnimationParameter.float('speed'),
+        const AnimationParameter.integer('state'),
+        const AnimationParameter.float('speed'),
       ]),
       entry: 'idle',
       states: <AnimationState>[
         AnimationState(name: 'idle', clip: idle),
-        if (walk != null) AnimationState(name: 'walk', clip: walk),
-        if (run != null) AnimationState(name: 'run', clip: run),
+        if (walk != null && run != null)
+          AnimationState(
+            name: 'move',
+            blend: AnimationBlendSpace('speed', <BlendPoint>[
+              BlendPoint(walkAt, walk),
+              BlendPoint(runAt, run),
+            ]),
+          )
+        else if (stride != null)
+          AnimationState(name: 'move', clip: stride),
         if (attack != null) AnimationState(name: 'attack', clip: attack),
         if (hurt != null)
           AnimationState(name: 'hurt', clip: hurt, wrap: AnimationWrap.once),
@@ -138,51 +144,24 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
           AnimationState(name: 'death', clip: death, wrap: AnimationWrap.once),
       ],
       transitions: <AnimationTransition>[
-        if (firstStride != null)
+        if (stride != null) ...<AnimationTransition>[
           AnimationTransition(
             from: 'idle',
-            to: firstStride,
+            to: 'move',
             conditions: <AnimationCondition>[
-              chasing,
+              isIn(MonsterState.chase),
               const CompareCondition('speed', AnimationComparison.greater, 0.3),
             ],
             duration: 0.2,
           ),
-        if (walk != null && run != null) ...<AnimationTransition>[
           AnimationTransition(
-            from: 'walk',
-            to: 'run',
-            conditions: <AnimationCondition>[
-              const CompareCondition(
-                'speed',
-                AnimationComparison.greater,
-                runAbove,
-              ),
-            ],
-            duration: 0.2,
-          ),
-          AnimationTransition(
-            from: 'run',
-            to: 'walk',
-            conditions: <AnimationCondition>[
-              const CompareCondition(
-                'speed',
-                AnimationComparison.less,
-                walkBelow,
-              ),
-            ],
-            duration: 0.25,
-          ),
-        ],
-        for (final stride in moving.skip(1)) ...<AnimationTransition>[
-          AnimationTransition(
-            from: stride,
+            from: 'move',
             to: 'idle',
             conditions: <AnimationCondition>[isNot(MonsterState.chase)],
             duration: 0.25,
           ),
           AnimationTransition(
-            from: stride,
+            from: 'move',
             to: 'idle',
             conditions: <AnimationCondition>[
               const CompareCondition('speed', AnimationComparison.less, 0.1),
@@ -207,7 +186,7 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
           ),
         ],
         if (hurt != null) ...<AnimationTransition>[
-          for (final from in <String>[...moving, if (attack != null) 'attack'])
+          for (final from in acting)
             AnimationTransition(
               from: from,
               to: 'hurt',
@@ -223,11 +202,7 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
           ),
         ],
         if (death != null)
-          for (final from in <String>[
-            ...moving,
-            if (attack != null) 'attack',
-            if (hurt != null) 'hurt',
-          ])
+          for (final from in <String>[...acting, if (hurt != null) 'hurt'])
             AnimationTransition(
               from: from,
               to: 'death',
