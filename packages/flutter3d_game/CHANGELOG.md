@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`ActorGraphs.dress` and a richer `drive`.** `dress` gets each
+  graph once it is built, with the model, to add goals or layers. `drive`
+  gets the graph and the model every frame, so a goal's target can be put
+  in the model's space.
+
 - **`ActorVisuals.markersPassed`**: every marker an actor's graph passed
   in the last `animate`, with the actor and the state. The dungeon plays
   a monster's footsteps from them.

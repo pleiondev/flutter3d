@@ -335,6 +335,7 @@ void main() {
       await visuals.settled;
       final graph = visuals.graphOf(actor)!;
       expect(graph.state, 'stand');
+      expect(graphs.dressed, 1);
       final before = <Matrix4>[
         for (final j in _skeletonOf(visuals, actor).joints)
           j.localMatrix.clone(),
@@ -488,6 +489,7 @@ bool _near(Matrix4 a, Matrix4 b) {
 final class _Graphs implements ActorGraphs {
   bool running = false;
   int driven = 0;
+  int dressed = 0;
 
   @override
   AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips) =>
@@ -515,8 +517,12 @@ final class _Graphs implements ActorGraphs {
       );
 
   @override
-  void drive(Actor actor, AnimationParameters parameters) {
+  void dress(Actor actor, AnimationGraph graph, ModelInstance model) =>
+      dressed++;
+
+  @override
+  void drive(Actor actor, AnimationGraph graph, ModelInstance model) {
     driven++;
-    parameters.setBool('running', running);
+    graph.parameters.setBool('running', running);
   }
 }

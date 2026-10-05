@@ -9,10 +9,12 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show loadPhysicsCore;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vector_math/vector_math.dart';
 
 import 'exit_door.dart';
 import 'fixture_looks.dart';
 import 'layers.dart';
+import 'monster_graphs.dart';
 import 'monster_looks.dart';
 import 'ragdoll_corpses.dart';
 import 'staging.dart';
@@ -189,13 +191,22 @@ final class DungeonRun extends RunSession<LevelReady> {
     // The player, once the level is staged below: the corpses ask it where
     // the killing shot came from.
     Player? shooter;
+    final watched = Vector3.zero();
     final scene = (
       actors: ActorVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
         // The monsters are animated by a graph over their own clips: idle,
-        // walking or running by speed, attacking, struck, dying.
-        graphs: const DungeonMonsters(),
+        // walking into running by speed, attacking, struck, dying — and
+        // turning their heads to watch the player once they have seen them.
+        graphs: MonsterGraphs(
+          lookAt: () {
+            final player = shooter;
+            if (player == null) return null;
+            player.eye(watched);
+            return watched;
+          },
+        ),
         device: device,
         // On their own layer as well as the world's, which is what lets the
         // sensor draw their silhouettes and nothing else's.

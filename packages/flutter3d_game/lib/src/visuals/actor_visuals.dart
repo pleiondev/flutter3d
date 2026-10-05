@@ -258,11 +258,12 @@ final class ActorVisuals {
         ? null
         : graphs?.machineFor(actor, player.clips);
     if (machine != null) {
-      _graphs[actor] = AnimationGraph(
+      final graph = _graphs[actor] = AnimationGraph(
         machine: machine,
         clips: player!.clips,
         pose: Pose.fromNodes(asset.nodes),
       );
+      graphs!.dress(actor, graph, instance);
     }
   }
 
@@ -333,7 +334,7 @@ final class ActorVisuals {
       if (!actor.isAlive && _takeOver(actor)) continue;
       final graph = _graphs[actor];
       if (graph != null) {
-        graphs!.drive(actor, graph.parameters);
+        graphs!.drive(actor, graph, _instances[actor]!);
         graph.evaluate(dt).writeTo(entry.value.targets);
         for (final passed in graph.passed) {
           _markers.add((actor: actor, state: passed.state, name: passed.name));

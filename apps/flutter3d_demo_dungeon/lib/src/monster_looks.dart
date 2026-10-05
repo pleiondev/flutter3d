@@ -8,7 +8,7 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// The mesh, the placement and the death pose are the bridge's; the models, the
 /// clips and the three colours are this game's.
-final class DungeonMonsters implements ActorAppearance, ActorGraphs {
+final class DungeonMonsters implements ActorAppearance {
   const DungeonMonsters();
 
   /// The engine hands over an `Actor`; what kind of thing it is lives on its
@@ -16,10 +16,10 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
   /// A platformer's appearance would cast to its own brain and never see a
   /// `MonsterState` at all.
   @override
-  String meshKeyFor(Actor actor) => _brainOf(actor)?.def.name ?? 'actor';
+  String meshKeyFor(Actor actor) => brainOf(actor)?.def.name ?? 'actor';
 
   @override
-  String? modelFor(Actor actor) => modelsForKind[_brainOf(actor)?.def.name];
+  String? modelFor(Actor actor) => modelsForKind[brainOf(actor)?.def.name];
 
   /// Which clip, from what the brain is doing.
   ///
@@ -39,7 +39,7 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
   /// anywhere near it.
   @override
   List<String> clipsFor(Actor actor) {
-    final brain = _brainOf(actor);
+    final brain = brainOf(actor);
     if (brain == null) return const <String>[];
     return clipsForState[brain.state] ?? const <String>[];
   }
@@ -65,7 +65,7 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
 
   @override
   Material materialFor(Actor actor) {
-    final brain = _brainOf(actor);
+    final brain = brainOf(actor);
     // Brightened for a moment after a hit, which is the cheapest damage
     // feedback there is and the one whose absence makes a fight feel
     // unresponsive. Only reaches a monster still drawn as a capsule — a model
@@ -75,168 +75,8 @@ final class DungeonMonsters implements ActorAppearance, ActorGraphs {
     return _materials[brain?.def.name] ?? _unknown;
   }
 
-  // MARK: - The graph
-
-  /// What a monster is doing, as the graph's `state` parameter reads it.
-  static const List<MonsterState> stateCodes = <MonsterState>[
-    MonsterState.idle,
-    MonsterState.alert,
-    MonsterState.chase,
-    MonsterState.attack,
-    MonsterState.hurt,
-    MonsterState.dead,
-  ];
-
-  /// A foot down at the start of a stride and another halfway: the two of a
-  /// walk or a run cycle, marked on the state since the crypt's clips name
-  /// none. Each is a footstep where the monster is.
-  static const List<AnimationMarker> footfalls = <AnimationMarker>[
-    AnimationMarker(0.0, 'step'),
-    AnimationMarker(0.5, 'step'),
-  ];
-
-  /// Where a monster that can both walk and run is all walk, m/s, and where
-  /// it is all run: the runner's own chasing speed. Between, the blend space
-  /// mixes the two by speed, one stride at one phase.
-  static const double walkAt = 1.5;
-  static const double runAt = 5.4;
-
-  /// The machine for a monster drawn with [clips]: idle, and moving while it
-  /// chases — a walk and a run blended by its speed where the model has both,
-  /// whichever it has where one; attacking, struck and dying by its brain's
-  /// state, from whatever it was doing, with a fade into each. Built from
-  /// the clips the model has, so the runner, which can run, and the shooter
-  /// and the tank, which walk, are one definition. Null for a model with no
-  /// idle to stand in.
-  @override
-  AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips) {
-    final have = <String>{for (final c in clips) ?c.name};
-    String? pick(List<String> names) => names.where(have.contains).firstOrNull;
-    final idle = pick(const <String>['Idle']);
-    if (idle == null) return null;
-    final walk = pick(const <String>['Walk']);
-    final run = pick(const <String>['Run']);
-    final attack = pick(const <String>['Punch', 'Bite_Front']);
-    final hurt = pick(const <String>['HitReact', 'HitRecieve']);
-    final death = pick(const <String>['Death']);
-    int code(MonsterState state) => stateCodes.indexOf(state);
-    CompareCondition isIn(MonsterState state) =>
-        CompareCondition('state', AnimationComparison.equals, code(state));
-    CompareCondition isNot(MonsterState state) =>
-        CompareCondition('state', AnimationComparison.notEquals, code(state));
-    final stride = walk ?? run;
-    final moving = <String>['idle', if (stride != null) 'move'];
-    final acting = <String>[...moving, if (attack != null) 'attack'];
-    return AnimationStateMachine(
-      parameters: AnimationParameterSchema(<AnimationParameter>[
-        const AnimationParameter.integer('state'),
-        const AnimationParameter.float('speed'),
-      ]),
-      entry: 'idle',
-      states: <AnimationState>[
-        AnimationState(name: 'idle', clip: idle),
-        if (walk != null && run != null)
-          AnimationState(
-            name: 'move',
-            blend: AnimationBlendSpace('speed', <BlendPoint>[
-              BlendPoint(walkAt, walk),
-              BlendPoint(runAt, run),
-            ]),
-            markers: footfalls,
-          )
-        else if (stride != null)
-          AnimationState(name: 'move', clip: stride, markers: footfalls),
-        if (attack != null) AnimationState(name: 'attack', clip: attack),
-        if (hurt != null)
-          AnimationState(name: 'hurt', clip: hurt, wrap: AnimationWrap.once),
-        if (death != null)
-          AnimationState(name: 'death', clip: death, wrap: AnimationWrap.once),
-      ],
-      transitions: <AnimationTransition>[
-        if (stride != null) ...<AnimationTransition>[
-          AnimationTransition(
-            from: 'idle',
-            to: 'move',
-            conditions: <AnimationCondition>[
-              isIn(MonsterState.chase),
-              const CompareCondition('speed', AnimationComparison.greater, 0.3),
-            ],
-            duration: 0.2,
-          ),
-          AnimationTransition(
-            from: 'move',
-            to: 'idle',
-            conditions: <AnimationCondition>[isNot(MonsterState.chase)],
-            duration: 0.25,
-          ),
-          AnimationTransition(
-            from: 'move',
-            to: 'idle',
-            conditions: <AnimationCondition>[
-              const CompareCondition('speed', AnimationComparison.less, 0.1),
-            ],
-            duration: 0.25,
-          ),
-        ],
-        if (attack != null) ...<AnimationTransition>[
-          for (final from in moving)
-            AnimationTransition(
-              from: from,
-              to: 'attack',
-              conditions: <AnimationCondition>[isIn(MonsterState.attack)],
-              duration: 0.1,
-              priority: 1,
-            ),
-          AnimationTransition(
-            from: 'attack',
-            to: 'idle',
-            conditions: <AnimationCondition>[isNot(MonsterState.attack)],
-            duration: 0.2,
-          ),
-        ],
-        if (hurt != null) ...<AnimationTransition>[
-          for (final from in acting)
-            AnimationTransition(
-              from: from,
-              to: 'hurt',
-              conditions: <AnimationCondition>[isIn(MonsterState.hurt)],
-              duration: 0.08,
-              priority: 5,
-            ),
-          AnimationTransition(
-            from: 'hurt',
-            to: 'idle',
-            conditions: <AnimationCondition>[isNot(MonsterState.hurt)],
-            duration: 0.15,
-          ),
-        ],
-        if (death != null)
-          for (final from in <String>[...acting, if (hurt != null) 'hurt'])
-            AnimationTransition(
-              from: from,
-              to: 'death',
-              conditions: <AnimationCondition>[isIn(MonsterState.dead)],
-              duration: 0.15,
-              priority: 10,
-            ),
-      ],
-    );
-  }
-
-  /// The brain's state and the body's speed along the floor. Dead is dead
-  /// whatever the brain last said: health is the authority on that.
-  @override
-  void drive(Actor actor, AnimationParameters parameters) {
-    final state = actor.isAlive
-        ? _brainOf(actor)?.state ?? MonsterState.idle
-        : MonsterState.dead;
-    final code = stateCodes.indexOf(state);
-    parameters.setInteger('state', code < 0 ? 0 : code);
-    final v = actor.body?.velocity;
-    parameters.setFloat('speed', v == null ? 0.0 : Vector2(v.x, v.z).length);
-  }
-
-  static ChaseBrain? _brainOf(Actor actor) {
+  /// The chase brain driving [actor], if that is what drives it.
+  static ChaseBrain? brainOf(Actor actor) {
     final brain = actor.brain;
     return brain is ChaseBrain ? brain : null;
   }

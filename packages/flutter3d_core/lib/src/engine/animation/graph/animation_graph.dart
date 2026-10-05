@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import '../animation_layer.dart';
 import '../animation_target.dart';
 import '../pose.dart';
+import 'animation_goals.dart';
 import 'animation_parameters.dart';
 import 'animation_state_machine.dart';
 
@@ -114,6 +115,10 @@ final class AnimationGraph {
   final List<({String state, String name})> _passed =
       <({String state, String name})>[];
 
+  /// Where joints are made to reach or look after the states and layers
+  /// have posed them, in order: see [AnimationGoal]. Added by the game.
+  final List<AnimationGoal> goals = <AnimationGoal>[];
+
   /// Graphs laid over this one's pose, each over part of the skeleton, in
   /// order: see [AnimationGraphLayer]. Added and taken away by the game.
   final List<AnimationGraphLayer> layers = <AnimationGraphLayer>[];
@@ -191,6 +196,11 @@ final class AnimationGraph {
         );
       }
       if (layer.weight > 0.0) layer._layOnto(pose);
+    }
+    for (final goal in goals) {
+      goal
+        ..step(step)
+        ..apply(pose);
     }
     return pose;
   }

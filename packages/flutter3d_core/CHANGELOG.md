@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Goals in the animation graph: IK after the pose.**
+  `AnimationGraph.goals` is laid on the posed frame, in the pose's own
+  space. `ReachGoal` bends a two-bone chain to a target through
+  `TwoBoneIk`. `LookGoal` turns a joint so that what faced `forward` at
+  rest faces the target, at most `limit` radians. Each has a weight that
+  `fadeTo` moves on the steps. The look undoes the joint's rest frame to
+  find its face. Written with vector_math's `Quaternion.rotated`, which
+  turns by the inverse, it faced the wrong way only once the animation had
+  turned the joint off its rest, so the test turns it.
+
 - **Markers in the animation graph.** An `AnimationMarker` names a moment,
   such as a foot down or a blow landing. A state carries them as shares of
   its cycle, a blend's cycle included. A clip reads its own from its glTF

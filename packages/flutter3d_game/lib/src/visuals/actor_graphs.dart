@@ -6,9 +6,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// `ActorVisuals` plays an actor's clips by asking its appearance which to
 /// play now and cross-fading to it. A game that hands it one of these instead
 /// gets an [AnimationGraph] per actor, built over the model's own clips from
-/// the [AnimationStateMachine] [machineFor] gives: [drive] writes what the
-/// actor is doing into its parameters once a frame, and the graph's states,
-/// transitions, fades and exit times decide what is drawn. The appearance's
+/// the [AnimationStateMachine] [machineFor] gives. [dress] adds what the
+/// game lays on it — layers, goals — once it is built; [drive] writes what
+/// the actor is doing into its parameters, and moves its goals' targets,
+/// once a frame; the graph's states, transitions, fades and exit times
+/// decide what is drawn. The appearance's
 /// clip names go on serving the actors whose model this gives no machine for.
 ///
 /// Display, as the clips were: evaluated on the frame with the frame's delta.
@@ -19,7 +21,13 @@ abstract interface class ActorGraphs {
   /// before.
   AnimationStateMachine? machineFor(Actor actor, List<AnimationClip> clips);
 
-  /// What [actor] is doing, into [parameters]: once a frame, before its
-  /// graph is evaluated.
-  void drive(Actor actor, AnimationParameters parameters);
+  /// [graph], just built for [actor] drawn as [model]: anything the game
+  /// lays on it — a look, a reach, a layer — added here, once.
+  void dress(Actor actor, AnimationGraph graph, ModelInstance model);
+
+  /// What [actor] is doing, into [graph]'s parameters, and where its goals
+  /// aim: once a frame, before it is evaluated. [model] is where it is
+  /// drawn: a goal's target is in the space of its root,
+  /// `inverse(model.root.worldMatrix)` times a point in the world.
+  void drive(Actor actor, AnimationGraph graph, ModelInstance model);
 }

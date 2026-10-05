@@ -88,6 +88,169 @@ double _yaw(Pose pose) =>
     2.0 * math.atan2(pose.rotations[1], pose.rotations[3]);
 
 void main() {
+  group('goals', () {
+    /// A chain straight up from the origin, a node every metre: [count]
+    /// nodes, each the last one's child.
+    Pose chain(int count) => Pose(
+      parents: <int>[for (var i = 0; i < count; i++) i - 1],
+      restTranslations: Float32List.fromList(<double>[
+        for (var i = 0; i < count; i++) ...<double>[0, i == 0 ? 0 : 1, 0],
+      ]),
+      restRotations: Float32List.fromList(<double>[
+        for (var i = 0; i < count; i++) ...<double>[0, 0, 0, 1],
+      ]),
+      restScales: Float32List.fromList(<double>[
+        for (var i = 0; i < count; i++) ...<double>[1, 1, 1],
+      ]),
+    );
+
+    AnimationGraph still(Pose pose) => AnimationGraph(
+      machine: AnimationStateMachine(
+        parameters: AnimationParameterSchema(const <AnimationParameter>[]),
+        entry: 'still',
+        states: const <AnimationState>[
+          AnimationState(name: 'still', clip: 'still'),
+        ],
+        transitions: const <AnimationTransition>[],
+      ),
+      clips: <AnimationClip>[_clip('still', 0.0, yaw: 0.0)],
+      pose: pose,
+    );
+
+    /// Which way node [joint] faces, as what faced +Z at rest.
+    Vector3 facing(Pose pose, int joint) {
+      final q = Quaternion.identity();
+      pose.worldMatrices()[joint].decompose(Vector3.zero(), q, Vector3.zero());
+      return q.asRotationMatrix().transform(Vector3(0, 0, 1));
+    }
+
+    test('a look turns its joint to the target, no further than its limit', () {
+      final graph = still(chain(2));
+      final look = LookGoal(
+        joint: 1,
+        forward: Vector3(0, 0, 1),
+        limit: 2.0,
+        target: Vector3(5, 1, 0),
+      );
+      graph.goals.add(look);
+      var pose = graph.evaluate(_dt);
+      expect(facing(pose, 1).x, closeTo(1.0, 1e-5));
+      look.limit = 0.5;
+      pose = graph.evaluate(_dt);
+      expect(facing(pose, 1).x, closeTo(math.sin(0.5), 1e-5));
+    });
+
+    test(
+      'a joint turned at rest faces what it faced, and turns from there',
+      () {
+        // The head's own frame a third of a turn round at rest, its face still
+        // to +Z: the look must undo the frame to know where the face is.
+        final turned = chain(2);
+        final q = Quaternion.axisAngle(Vector3(0, 1, 0), 2.0);
+        final pose = Pose(
+          parents: turned.parents,
+          restTranslations: Float32List.fromList(<double>[0, 0, 0, 0, 1, 0]),
+          restRotations: Float32List.fromList(<double>[
+            0,
+            0,
+            0,
+            1,
+            q.x,
+            q.y,
+            q.z,
+            q.w,
+          ]),
+          restScales: Float32List.fromList(<double>[1, 1, 1, 1, 1, 1]),
+        );
+        // And the root turned by the animation, so the head's frame is not
+        // its rest's either.
+        final graph =
+            AnimationGraph(
+                machine: AnimationStateMachine(
+                  parameters: AnimationParameterSchema(
+                    const <AnimationParameter>[],
+                  ),
+                  entry: 'turned',
+                  states: const <AnimationState>[
+                    AnimationState(name: 'turned', clip: 'turned'),
+                  ],
+                  transitions: const <AnimationTransition>[],
+                ),
+                clips: <AnimationClip>[_clip('turned', 0.0, yaw: 0.6)],
+                pose: pose,
+              )
+              ..goals.add(
+                LookGoal(
+                  joint: 1,
+                  forward: Vector3(0, 0, 1),
+                  limit: 3.0,
+                  target: Vector3(5, 1, 0),
+                ),
+              );
+        graph.evaluate(_dt);
+        final face = Quaternion.identity();
+        graph.pose.worldMatrices()[1].decompose(
+          Vector3.zero(),
+          face,
+          Vector3.zero(),
+        );
+        final restFace = q.conjugated().asRotationMatrix().transform(
+          Vector3(0, 0, 1),
+        );
+        final now = face.asRotationMatrix().transform(restFace);
+        expect(now.x, closeTo(1.0, 1e-5));
+      },
+    );
+
+    test('at half weight it turns half as far', () {
+      final graph = still(chain(2));
+      graph.goals.add(
+        LookGoal(
+          joint: 1,
+          forward: Vector3(0, 0, 1),
+          limit: 2.0,
+          target: Vector3(5, 1, 0),
+          weight: 0.5,
+        ),
+      );
+      final pose = graph.evaluate(_dt);
+      expect(facing(pose, 1).x, closeTo(math.sin(math.pi / 4), 1e-5));
+    });
+
+    test("a reach brings the chain's tip to its target", () {
+      final graph = still(chain(3));
+      graph.goals.add(
+        ReachGoal(
+          root: 0,
+          mid: 1,
+          tip: 2,
+          target: Vector3(0.8, 1.2, 0.0),
+          pole: Vector3(1, 0, 0),
+        ),
+      );
+      final pose = graph.evaluate(_dt);
+      final tip = pose.worldMatrices()[2].getTranslation();
+      expect(tip.distanceTo(Vector3(0.8, 1.2, 0.0)), lessThan(1e-4));
+    });
+
+    test('comes in over the time it is given', () {
+      final graph = still(chain(2));
+      final look = LookGoal(
+        joint: 1,
+        forward: Vector3(0, 0, 1),
+        limit: 2.0,
+        target: Vector3(5, 1, 0),
+        weight: 0.0,
+      )..fadeTo(1.0, 0.25);
+      graph.goals.add(look);
+      for (var i = 0; i < 8; i++) {
+        graph.evaluate(_dt);
+      }
+      expect(look.weight, 0.5);
+      expect(facing(graph.pose, 1).x, closeTo(math.sin(math.pi / 4), 1e-5));
+    });
+  });
+
   group('markers', () {
     AnimationGraph marked(
       List<AnimationState> states,

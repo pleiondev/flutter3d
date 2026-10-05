@@ -10,6 +10,7 @@
 /// game's own assembly and not a copy of it.
 library;
 
+import 'package:flutter3d/flutter3d.dart' show LookGoal;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_dungeon/src/monster_looks.dart';
@@ -17,6 +18,8 @@ import 'package:flutter3d_demo_dungeon/src/ragdoll_corpses.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart'
+    show ChaseBrain, MonsterState;
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show SkeletonRagdoll;
@@ -91,10 +94,30 @@ void main() {
     ];
     expect(runners, isNotEmpty, reason: 'the crypt has runners');
     expect(monsters.length, greaterThan(runners.length), reason: 'and others');
-    // Every modelled monster is animated by the graph its clips make.
+    // Every modelled monster is animated by the graph its clips make, and
+    // the runners, which have a head, watch with it.
     for (final actor in monsters) {
       expect(visuals.graphOf(actor), isNotNull, reason: _modelOf(actor));
     }
+    for (final actor in runners) {
+      expect(visuals.graphOf(actor)!.goals.whereType<LookGoal>(), hasLength(1));
+    }
+    // A runner that has seen the player turns its head to the player's eyes
+    // over a third of a second: the goal comes in, aimed where they are.
+    final watcher = runners.first;
+    (watcher.brain! as ChaseBrain).state = MonsterState.chase;
+    for (var i = 0; i < 30; i++) {
+      visuals.animate(1.0 / 60.0);
+    }
+    final look = visuals.graphOf(watcher)!.goals.whereType<LookGoal>().single;
+    expect(look.weight, 1.0);
+    final eye = Vector3.zero();
+    level.staged.player.eye(eye);
+    final root = visuals.modelOf(watcher)!.root.worldMatrix;
+    expect(
+      root.transform3(look.target.clone()).distanceTo(eye),
+      lessThan(1e-3),
+    );
 
     // Shot dead the way a shot kills: through the actor system, which tells
     // the brain and makes the body a trigger.
