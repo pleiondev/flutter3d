@@ -547,7 +547,7 @@ F3D_API int f3d_world_cast_shape(F3dWorld *world, F3dShapeKind kind,
  * (dx, dz) than sliding did; it keeps to ground it is walking down within
  * that height. The ground's normal goes into ground[0..2] and its body into
  * [ground_body] (nought when in the air). Returns F3D_CHARACTER_ bits.
- * A body on a layer in [one_way] is a floor from above and nothing else:
+ * A body on a layer in [from_above] is a floor from above and nothing else:
  * met only with a normal whose height is at least [max_slope_cos], passed
  * through rising into it or walking into its side.
  * Kinematic: nothing pushes it, and it moves nothing. */
@@ -555,7 +555,7 @@ F3D_API uint32_t f3d_world_move_character(
     F3dWorld *world, f3d_real radius, f3d_real half_height, f3d_real *position,
     f3d_real dx, f3d_real dy, f3d_real dz, f3d_real *velocity,
     f3d_real max_slope_cos, f3d_real step_height, uint32_t mask,
-    uint32_t one_way, uint32_t options, F3dBody ignore, F3dBody *ground_body,
+    uint32_t from_above, uint32_t options, F3dBody ignore, F3dBody *ground_body,
     f3d_real *ground);
 
 /* -------------------------------------------------------------- particles */

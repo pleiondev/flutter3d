@@ -77,19 +77,19 @@ final class CharacterController {
   /// rule rather than asked of a [solidFilter], so the physics core can keep
   /// it too: a body with a filter keeps its own sweeps, one with this does
   /// not have to.
-  int oneWayLayers = 0;
+  int fromAboveLayers = 0;
 
-  /// Whether the [oneWayLayers] are not there at all this step: dropping
+  /// Whether the [fromAboveLayers] are not there at all this step: dropping
   /// through the platform underfoot.
   bool dropThrough = false;
 
   /// What the sweeps ask about each contact: [solidFilter], with the
-  /// [oneWayLayers] rule before it.
-  ContactFilter? get _allow => oneWayLayers == 0 ? solidFilter : _oneWay;
-  late final ContactFilter _oneWay = _countsAsSolid;
+  /// [fromAboveLayers] rule before it.
+  ContactFilter? get _allow => fromAboveLayers == 0 ? solidFilter : _fromAbove;
+  late final ContactFilter _fromAbove = _countsAsSolid;
 
   bool _countsAsSolid(SweptContact contact) {
-    if (contact.other.layer & oneWayLayers != 0) {
+    if (contact.other.layer & fromAboveLayers != 0) {
       return !dropThrough &&
           contact.normal.y > _walkableNormalY &&
           velocity.y <= 0.0;

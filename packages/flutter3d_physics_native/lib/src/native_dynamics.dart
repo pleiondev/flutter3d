@@ -556,8 +556,8 @@ final class NativeCharacterMover implements CharacterMover {
       mayStep: mayStep,
       // One-way platforms as the controller says them: floors from above,
       // or not there at all while it drops through.
-      mask: body.dropThrough ? ~body.oneWayLayers & Layers.all : Layers.all,
-      oneWay: body.dropThrough ? 0 : body.oneWayLayers & Layers.all,
+      mask: body.dropThrough ? ~body.fromAboveLayers & Layers.all : Layers.all,
+      fromAbove: body.dropThrough ? 0 : body.fromAboveLayers & Layers.all,
       ignore: dynamics.standingOf(body.collider),
     );
     return (

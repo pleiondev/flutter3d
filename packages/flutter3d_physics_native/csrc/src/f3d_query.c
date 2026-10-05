@@ -500,11 +500,11 @@ static int cast_against(const F3dPlaced *q, F3dVec3 move, const F3dPlaced *other
 /* The nearest cast hit of [q] moved by [move] against what the world holds:
  * 1 when there is one. */
 /* The nearest of what [q] moved by [move] meets. A body on a layer in
- * [one_way] is met only from above — with a normal whose height is at
- * least [one_way_cos] — and passed through every other way: a platform
+ * [from_above] is met only from above — with a normal whose height is at
+ * least [from_above_cos] — and passed through every other way: a platform
  * jumped up through and landed on. */
 static int cast_world(F3dWorld *world, const F3dPlaced *q, F3dVec3 move,
-                      uint32_t mask, uint32_t one_way, f3d_real one_way_cos,
+                      uint32_t mask, uint32_t from_above, f3d_real from_above_cos,
                       F3dBody ignore, F3dBody *body, f3d_real *fraction,
                       F3dVec3 *normal, F3dVec3 *point) {
   Near n;
@@ -518,7 +518,7 @@ static int cast_world(F3dWorld *world, const F3dPlaced *q, F3dVec3 move,
     f3d_real t;
     F3dVec3 nn, pp;
     if (!cast_against(q, move, &p, &t, &nn, &pp)) continue;
-    if ((s->layer & one_way) && nn.y < one_way_cos) continue;
+    if ((s->layer & from_above) && nn.y < from_above_cos) continue;
     if (found && t >= *fraction) continue;
     found = 1;
     *body = f3d_handle_of(world, s);
@@ -559,8 +559,8 @@ typedef struct Character {
   F3dWorld *world;
   F3dPlaced shape;
   uint32_t mask;
-  uint32_t one_way;
-  f3d_real one_way_cos;
+  uint32_t from_above;
+  f3d_real from_above_cos;
   F3dBody ignore;
 } Character;
 
@@ -577,8 +577,8 @@ static int advance(Character *c, F3dVec3 move, F3dVec3 *normal, F3dBody *body,
   if (!(length > F3D_R(1e-9))) return 0;
   f3d_real t;
   F3dVec3 p;
-  if (!cast_world(c->world, &c->shape, move, c->mask, c->one_way,
-                  c->one_way_cos, c->ignore, body, &t, normal, &p)) {
+  if (!cast_world(c->world, &c->shape, move, c->mask, c->from_above,
+                  c->from_above_cos, c->ignore, body, &t, normal, &p)) {
     c->shape.at = f3d_add(c->shape.at, move);
     return 0;
   }
@@ -643,7 +643,7 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
                                   f3d_real dx, f3d_real dy, f3d_real dz,
                                   f3d_real *velocity, f3d_real max_slope_cos,
                                   f3d_real step_height, uint32_t mask,
-                                  uint32_t one_way, uint32_t options,
+                                  uint32_t from_above, uint32_t options,
                                   F3dBody ignore, F3dBody *ground_body,
                                   f3d_real *ground) {
   *ground_body = 0;
@@ -657,8 +657,8 @@ uint32_t f3d_world_move_character(F3dWorld *world, f3d_real radius,
   Character c;
   c.world = world;
   c.mask = mask;
-  c.one_way = one_way;
-  c.one_way_cos = max_slope_cos;
+  c.from_above = from_above;
+  c.from_above_cos = max_slope_cos;
   c.ignore = ignore;
   const F3dQuat upright = {F3D_R(0.0), F3D_R(0.0), F3D_R(0.0), F3D_R(1.0)};
   query_shape(F3D_SHAPE_CAPSULE, radius, half_height, F3D_R(0.0), F3D_R(0.0),

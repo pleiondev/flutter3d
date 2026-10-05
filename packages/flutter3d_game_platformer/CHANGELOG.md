@@ -1,7 +1,7 @@
 ## Unreleased
 
 - **The runner's one-way platforms are a rule, not a predicate.** Its body
-  takes `oneWayLayers`, with `dropThrough` while dropping, so the physics
+  takes `fromAboveLayers`, with `dropThrough` while dropping, so the physics
   core moves the runner too. The runner's own wall probe still asks the
   same three answers.
 

@@ -1,7 +1,7 @@
 ## Unreleased
 
 - **One-way platforms as a rule, rays elsewhere.**
-  `CharacterController.oneWayLayers` and `dropThrough` say one-way
+  `CharacterController.fromAboveLayers` and `dropThrough` say one-way
   platforms as a rule the body keeps on either backend. They are a floor
   from above and nothing from below or the side. `CollisionWorld.rays`
   takes a `WorldRays` that answers every `raycast` not asking for

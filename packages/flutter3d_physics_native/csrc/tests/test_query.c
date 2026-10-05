@@ -321,7 +321,7 @@ static void test_character(void) {
 
 /* A platform on a one-way layer: jumped up through, landed on, walked into
  * from the side and through; on any other layer, a ceiling and a wall. */
-static void test_one_way(void) {
+static void test_from_above(void) {
   F3dWorld *w = f3d_world_create();
   const F3dQuat identity = {0, 0, 0, 1};
   fixed_shape(w, F3D_SHAPE_BOX, 50, F3D_R(0.5), 50, f3d_v3(0, F3D_R(-0.5), 0),
@@ -414,7 +414,7 @@ int main(void) {
   test_rays_against_every_ball();
   test_overlaps_and_casts();
   test_character();
-  test_one_way();
+  test_from_above();
   test_step_and_speed();
   return finish();
 }

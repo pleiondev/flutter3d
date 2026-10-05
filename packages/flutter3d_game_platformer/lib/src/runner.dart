@@ -58,7 +58,7 @@ final class Runner
     // runner's own probes still ask. Handed over as a predicate once, which
     // the physics core cannot ask, and the runner kept to the reference's
     // sweeps.
-    body.oneWayLayers = PlatformerLayers.oneWay;
+    body.fromAboveLayers = PlatformerLayers.oneWay;
     _standing = body.shape;
     _crouching = CollisionBox(
       Vector3(body.halfExtents.x, tuning.crouchHeight, body.halfExtents.z),

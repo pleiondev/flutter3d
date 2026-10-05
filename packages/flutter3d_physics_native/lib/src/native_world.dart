@@ -1117,7 +1117,7 @@ final class NativeWorld {
   /// [stepHeight] it climbs, and walking down it keeps to the ground.
   /// Kinematic: nothing pushes it, and it moves nothing.
   ///
-  /// A body on a layer in [oneWay] is a floor from above and nothing else:
+  /// A body on a layer in [fromAbove] is a floor from above and nothing else:
   /// met only standing on it, passed through rising into it or walking into
   /// its side — a platform jumped up through and landed on.
   ///
@@ -1134,7 +1134,7 @@ final class NativeWorld {
     double stepHeight = 0.35,
     bool mayStep = true,
     int mask = 0xffffffff,
-    int oneWay = 0,
+    int fromAbove = 0,
     NativeBody? ignore,
   }) {
     final p = c.F32s.alloc(3);
@@ -1160,7 +1160,7 @@ final class NativeWorld {
         maxSlopeCos,
         stepHeight,
         mask,
-        oneWay,
+        fromAbove,
         mayStep ? c.CharacterFlags.mayStep : 0,
         ignore?.raw ?? 0,
         body,
