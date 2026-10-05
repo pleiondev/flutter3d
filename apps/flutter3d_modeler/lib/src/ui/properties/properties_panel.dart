@@ -112,6 +112,8 @@ class PropertiesPanel extends StatelessWidget {
     this.selectedConstraint,
     required this.onSelectConstraint,
     this.onRemoveConstraint,
+    this.onSetAnimationGraph,
+    this.onRemoveAnimationGraph,
     this.weightBrushMode = PaintWeightsMode.paint,
     required this.onWeightBrushModeChanged,
     this.weightBrushRadius = 48.0,
@@ -360,6 +362,12 @@ class PropertiesPanel extends StatelessWidget {
   final int? selectedConstraint;
   final ValueChanged<int> onSelectConstraint;
   final ValueChanged<int>? onRemoveConstraint;
+
+  /// The animation panel's graphs: sets one, answering with the refusal
+  /// or null; and removes one.
+  final String? Function(String name, Map<String, Object?> graph)?
+  onSetAnimationGraph;
+  final ValueChanged<String>? onRemoveAnimationGraph;
 
   /// `S5`'s own [WeightPaintPanel]: the brush's own radius/strength/mirror/
   /// normalize, and which of `weights.paint`/`weights.assign` is armed.
@@ -859,6 +867,9 @@ class PropertiesPanel extends StatelessWidget {
             selectedConstraint: selectedConstraint,
             onSelectConstraint: onSelectConstraint,
             onRemoveConstraint: onRemoveConstraint,
+            animationGraphs: project.animationGraphs,
+            onSetAnimationGraph: onSetAnimationGraph,
+            onRemoveAnimationGraph: onRemoveAnimationGraph,
           ),
         if (sections.contains(PropertiesSection.weightPaint))
           WeightPaintPanel(

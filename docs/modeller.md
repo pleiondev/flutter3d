@@ -552,7 +552,9 @@ states playing a clip or blending along a line or across a plane, markers,
 and transitions with conditions, fades, priorities and exit times. It is
 refused, saying where, when the shape is wrong or it names a clip, state or
 parameter the project does not have. `removeAnimationGraph {graphName}`
-takes one away. The project file and its history keep them, and an export
+takes one away. The animation panel lists them with their states and
+transitions counted, opens one into its JSON and sets it back, showing a
+refusal under the text. The project file and its history keep them, and an export
 writes them into the model's root `extras` under `animationGraphs`. There a
 game reads them with `AnimationGraphJson.graphsIn`, and an import brings
 them back.

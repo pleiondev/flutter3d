@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
+import 'package:flutter3d_modeler/src/ui/animation_graphs_list.dart';
 import 'package:flutter3d_modeler/src/ui/animation_panel.dart';
 import 'package:flutter3d_modeler/src/ui/constraints_list.dart';
 import 'package:flutter3d_modeler/src/ui/skeleton_tree.dart';
@@ -46,6 +47,7 @@ Future<void> _pump(
   ValueChanged<int>? onSelectJoint,
   int? selectedConstraint,
   ValueChanged<int>? onSelectConstraint,
+  bool graphs = false,
 }) => tester.pumpWidget(
   MaterialApp(
     locale: const Locale('en'),
@@ -63,12 +65,27 @@ Future<void> _pump(
         onSelectJoint: onSelectJoint ?? (_) {},
         selectedConstraint: selectedConstraint,
         onSelectConstraint: onSelectConstraint ?? (_) {},
+        animationGraphs: const <String, Map<String, Object?>>{
+          'hero': <String, Object?>{'states': <Object?>[]},
+        },
+        onSetAnimationGraph: graphs ? (_, _) => null : null,
+        onRemoveAnimationGraph: graphs ? (_) {} : null,
       ),
     ),
   ),
 );
 
 void main() {
+  testWidgets('with somewhere to set them, the graphs are listed', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, clips: <ProjectClip>[_clip('walk')]);
+    expect(find.byType(AnimationGraphsList), findsNothing);
+    await _pump(tester, clips: <ProjectClip>[_clip('walk')], graphs: true);
+    expect(find.byType(AnimationGraphsList), findsOneWidget);
+    expect(find.text('hero'), findsOneWidget);
+  });
+
   testWidgets('picking a clip in the action list reports its index', (
     WidgetTester tester,
   ) async {

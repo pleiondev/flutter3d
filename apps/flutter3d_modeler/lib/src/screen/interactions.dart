@@ -443,6 +443,19 @@ extension _Interactions on _ModelerScreenState {
 
   void _addClip() => _cubit.ran(const AddClip());
 
+  /// The animation panel's graphs: `SetAnimationGraph`, answering the panel
+  /// with the refusal the cubit was told, so it shows under the JSON.
+  String? _setAnimationGraph(String name, Map<String, Object?> graph) =>
+      _cubit.ran(SetAnimationGraph(graphName: name, graph: graph))
+      ? null
+      : switch (_cubit.state) {
+          ModelerReady(:final said?) => said,
+          _ => 'refused',
+        };
+
+  void _removeAnimationGraph(String name) =>
+      _cubit.ran(RemoveAnimationGraph(graphName: name));
+
   void _setMaterialField(int index, String field, Object? value) =>
       _cubit.ran(SetMaterialField(index: index, field: field, value: value));
 

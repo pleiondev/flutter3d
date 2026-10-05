@@ -390,6 +390,8 @@ extension _ReadyParts on _ModelerScreenState {
                 onRemoveTextureNode: _removeTextureNode,
                 onBakeTextureGraph: _bakeTextureGraph,
                 onAddClip: _addClip,
+                onSetAnimationGraph: _setAnimationGraph,
+                onRemoveAnimationGraph: _removeAnimationGraph,
                 selectedAnimationClip: _animationClip,
                 onSelectAnimationClip: _selectAnimationClip,
                 selectedJoint: _selectedJoint,
