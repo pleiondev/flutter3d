@@ -84,6 +84,32 @@ void main() {
     expect(world.containsMultibody(chain), isFalse);
   });
 
+  test('a motor on an upright axle brings a wheel to its speed', () {
+    final axle = world.addBody(
+      position: Vector3(0.0, 1.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final wheel = world.addBody(position: Vector3(0.0, 1.0, 0.0), mass: 2.0);
+    world.setShape(wheel, const NativeShape.cylinder(0.5, 0.05));
+    final spun = world.createMultibody(axle);
+    world
+      ..addLink(
+        spun,
+        wheel,
+        type: NativeJointType.revolute,
+        anchor: Vector3(0.0, 1.0, 0.0),
+      )
+      ..setLinkMotor(spun, 1, speed: 2.0, force: 50.0);
+    for (var i = 0; i < 60; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(world.linkJoint(spun, 1).speed, closeTo(2.0, 1e-3));
+    // Taken off, nothing holds the speed but the wheel's own spin.
+    world.setLinkMotor(spun, 1);
+    expect(() => world.setLinkMotor(spun, 0, speed: 1.0), throwsArgumentError);
+  });
+
   test('a spherical link reads its turn and spin', () {
     final top = world.addBody(
       position: Vector3(0.0, 3.0, 0.0),
