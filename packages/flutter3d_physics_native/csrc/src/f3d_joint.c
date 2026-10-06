@@ -433,15 +433,30 @@ static void sort_keys(uint64_t *a, uint64_t *spare, uint32_t n) {
 }
 
 void f3d_joined_ready(F3dWorld *world) {
-  if (world->s.joint_live == 0 || !world->joined_stale) return;
+  if ((world->s.joint_live == 0 && world->s.multibody_links == 0) ||
+      !world->joined_stale) {
+    return;
+  }
   f3d_free(world->joined);
   world->joined = NULL;
   world->joined_count = 0;
-  const uint32_t n = world->s.joint_used;
+  const uint32_t n = world->s.joint_used + world->s.multibody_links;
   uint64_t *keys = (uint64_t *)f3d_alloc((size_t)n * 2u * sizeof(uint64_t) + 8u);
   if (keys == NULL) return;
   uint32_t count = 0;
-  for (uint32_t i = 0; i < n; i++) {
+  /* A multibody's links and their parents, as a joint's two bodies. */
+  for (uint32_t m = 0; m < world->s.multibody_count; m++) {
+    const F3dMultibodySlot *mb = &world->multibodies[m];
+    if (!mb->live) continue;
+    for (uint32_t k = 1; k < mb->link_count && count < n; k++) {
+      const uint32_t sa = (uint32_t)(mb->links[k].body & 0xffffffffu);
+      const uint32_t sb =
+          (uint32_t)(mb->links[mb->links[k].parent].body & 0xffffffffu);
+      keys[count++] = sa < sb ? ((uint64_t)sa << 32) | sb
+                              : ((uint64_t)sb << 32) | sa;
+    }
+  }
+  for (uint32_t i = 0; i < world->s.joint_used; i++) {
     const F3dJointSlot *j = &world->joints[i];
     if (!j->live || (j->flags & F3D_JOINT_COLLIDE)) continue;
     const uint32_t sa = (uint32_t)(j->a & 0xffffffffu);
@@ -456,7 +471,7 @@ void f3d_joined_ready(F3dWorld *world) {
 }
 
 int f3d_joined(F3dWorld *world, uint32_t a, uint32_t b) {
-  if (world->s.joint_live == 0) return 0;
+  if (world->s.joint_live == 0 && world->s.multibody_links == 0) return 0;
   f3d_joined_ready(world);
   if (world->joined_stale) return 0;
   const uint64_t key =

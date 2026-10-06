@@ -6,6 +6,20 @@
   that one number names one tree, and `^0.9.0` on any `flutter3d_*`
   package resolves against every other.
 
+- **Chains whose joints cannot come apart.** `NativeWorld.createMultibody`
+  roots a tree of bodies at a fixed body (a fixed base: an arm, a crane, a
+  chain from a ceiling) or a dynamic one (a floating base). `addLink` hangs
+  a link under it on a fixed, revolute, prismatic or spherical joint. The
+  joints are in reduced coordinates. After the solver has moved the links,
+  contacts and all, each joint's angle or travel is read off where they
+  stand, and every link is put back where its parent and that coordinate
+  say. Their velocities are replaced with the nearest the joints allow,
+  weighted by every link's mass and inertia, and motors and limits then
+  push through the whole tree. A chain of twenty light links with a weight
+  a hundred times heavier on the end keeps every joint within a tenth of a
+  millimetre as it swings. Links do not collide with their parents.
+  `F3D_ABI_VERSION` is 25, and a snapshot is format 12.
+
 - **Vehicles on wheels that hang from springs.** `NativeWorld.createVehicle`
   puts up to eight wheels under a dynamic chassis. Each wheel is a ray cast
   down from where its suspension is fixed. Where the ray lands, its spring

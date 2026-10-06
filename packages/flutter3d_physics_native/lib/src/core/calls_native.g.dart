@@ -661,6 +661,171 @@ int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) =>
       capacity,
     );
 
+@Native<Uint32 Function(Pointer<Void>, Uint64)>(symbol: 'f3d_multibody_create')
+external int _f3d_multibody_create(Pointer<Void> world, int root);
+int f3d_multibody_create(int world, int root) =>
+    _f3d_multibody_create(Pointer.fromAddress(world), root);
+
+@Native<Int32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_multibody_destroy',
+  isLeaf: true,
+)
+external int _f3d_multibody_destroy(Pointer<Void> world, int multibody);
+int f3d_multibody_destroy(int world, int multibody) =>
+    _f3d_multibody_destroy(Pointer.fromAddress(world), multibody);
+
+@Native<Int32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_multibody_is_valid',
+  isLeaf: true,
+)
+external int _f3d_multibody_is_valid(Pointer<Void> world, int multibody);
+int f3d_multibody_is_valid(int world, int multibody) =>
+    _f3d_multibody_is_valid(Pointer.fromAddress(world), multibody);
+
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint32,
+    Uint32,
+    Uint64,
+    Int32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_multibody_add_link')
+external int _f3d_multibody_add_link(
+  Pointer<Void> world,
+  int multibody,
+  int parent,
+  int body,
+  int type,
+  double ax,
+  double ay,
+  double az,
+  double ux,
+  double uy,
+  double uz,
+);
+int f3d_multibody_add_link(
+  int world,
+  int multibody,
+  int parent,
+  int body,
+  int type,
+  double ax,
+  double ay,
+  double az,
+  double ux,
+  double uy,
+  double uz,
+) => _f3d_multibody_add_link(
+  Pointer.fromAddress(world),
+  multibody,
+  parent,
+  body,
+  type,
+  ax,
+  ay,
+  az,
+  ux,
+  uy,
+  uz,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Int32, Float, Float)>(
+  symbol: 'f3d_multibody_set_limits',
+  isLeaf: true,
+)
+external int _f3d_multibody_set_limits(
+  Pointer<Void> world,
+  int multibody,
+  int link,
+  int enabled,
+  double lower,
+  double upper,
+);
+int f3d_multibody_set_limits(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double lower,
+  double upper,
+) => _f3d_multibody_set_limits(
+  Pointer.fromAddress(world),
+  multibody,
+  link,
+  enabled,
+  lower,
+  upper,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Int32, Float, Float)>(
+  symbol: 'f3d_multibody_set_motor',
+  isLeaf: true,
+)
+external int _f3d_multibody_set_motor(
+  Pointer<Void> world,
+  int multibody,
+  int link,
+  int enabled,
+  double speed,
+  double force,
+);
+int f3d_multibody_set_motor(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double speed,
+  double force,
+) => _f3d_multibody_set_motor(
+  Pointer.fromAddress(world),
+  multibody,
+  link,
+  enabled,
+  speed,
+  force,
+);
+
+@Native<Uint32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_multibody_link_count',
+  isLeaf: true,
+)
+external int _f3d_multibody_link_count(Pointer<Void> world, int multibody);
+int f3d_multibody_link_count(int world, int multibody) =>
+    _f3d_multibody_link_count(Pointer.fromAddress(world), multibody);
+
+@Native<Uint32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_multibody_dof_count',
+  isLeaf: true,
+)
+external int _f3d_multibody_dof_count(Pointer<Void> world, int multibody);
+int f3d_multibody_dof_count(int world, int multibody) =>
+    _f3d_multibody_dof_count(Pointer.fromAddress(world), multibody);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_multibody_read_joint',
+  isLeaf: true,
+)
+external int _f3d_multibody_read_joint(
+  Pointer<Void> world,
+  int multibody,
+  int link,
+  Pointer<Void> out,
+);
+int f3d_multibody_read_joint(int world, int multibody, int link, int out) =>
+    _f3d_multibody_read_joint(
+      Pointer.fromAddress(world),
+      multibody,
+      link,
+      Pointer.fromAddress(out),
+    );
+
 @Native<
   Uint64 Function(
     Pointer<Void>,

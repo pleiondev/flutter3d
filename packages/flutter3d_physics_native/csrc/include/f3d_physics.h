@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 24u
+#define F3D_ABI_VERSION 25u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -64,6 +64,14 @@ typedef uint64_t F3dJoint;
 
 /* A vehicle, numbered from one; a number is never given out again. */
 typedef uint32_t F3dVehicle;
+
+/* A multibody, numbered as a vehicle is. */
+typedef uint32_t F3dMultibody;
+
+/* The most links a multibody has, its root among them, and the most
+ * degrees of freedom: a floating root's six and its joints'. */
+#define F3D_MULTIBODY_MOST_LINKS 32u
+#define F3D_MULTIBODY_MOST_DOFS 64u
 
 /* The most wheels a vehicle has. */
 #define F3D_VEHICLE_MOST_WHEELS 8u
@@ -499,6 +507,75 @@ F3D_API uint32_t f3d_vehicle_wheel_count(const F3dWorld *world,
 F3D_API uint32_t f3d_vehicle_read_wheels(const F3dWorld *world,
                                          F3dVehicle vehicle, f3d_real *out,
                                          uint32_t capacity);
+
+/* ------------------------------------------------------------- multibodies */
+
+/* A multibody rooted at [root]: a tree of bodies held to each other by
+ * joints in reduced coordinates — each link's place is its parent's and
+ * its joint's angle or travel, and nothing else — so however long the chain
+ * and however heavy its end, no joint comes apart. A fixed root is a fixed
+ * base: a crane, a robot arm, a chain from a ceiling; a dynamic root
+ * floats, with six degrees of freedom of its own: a ragdoll, a vehicle
+ * with a trailer.
+ *
+ * The links stay ordinary bodies: they collide, sleep together, and are in
+ * snapshots. Each step the solver moves them as it moves every body,
+ * contacts and all; then the multibody reads its joints' coordinates off
+ * where they stand, puts every link back where those coordinates say, and
+ * replaces their velocities with the nearest the joints allow — weighted
+ * by every link's mass and inertia — before its motors and limits act on
+ * the joints' speeds. A link does not collide with its parent.
+ *
+ * The root is link nought. Nought for a body not in the world, or one that
+ * is a link already, or no memory. */
+F3D_API F3dMultibody f3d_multibody_create(F3dWorld *world, F3dBody root);
+F3D_API int f3d_multibody_destroy(F3dWorld *world, F3dMultibody multibody);
+F3D_API int f3d_multibody_is_valid(const F3dWorld *world,
+                                   F3dMultibody multibody);
+
+/* Adds [body] as a link under link [parent], held by a joint of [type] —
+ * fixed, revolute, prismatic or spherical — at the anchor (ax, ay, az) and
+ * along the axis (ux, uy, uz), both relative to the origin and taken where
+ * the bodies stand now, which is the joint's nought. Returns the link's
+ * index, or -1 for a multibody or a parent not there, a body not dynamic
+ * or a link already, a type it does not take, a value not finite, an axis
+ * of nought for a revolute or prismatic joint, or a multibody with
+ * F3D_MULTIBODY_MOST_LINKS links or F3D_MULTIBODY_MOST_DOFS degrees of
+ * freedom already. */
+F3D_API int f3d_multibody_add_link(F3dWorld *world, F3dMultibody multibody,
+                                   uint32_t parent, F3dBody body,
+                                   F3dJointType type, f3d_real ax, f3d_real ay,
+                                   f3d_real az, f3d_real ux, f3d_real uy,
+                                   f3d_real uz);
+
+/* Limits on a revolute link's angle, radians, or a prismatic link's
+ * travel, m; [enabled] nought takes them off. 0 for another kind of link,
+ * or a lower above the upper. */
+F3D_API int f3d_multibody_set_limits(F3dWorld *world, F3dMultibody multibody,
+                                     uint32_t link, int enabled,
+                                     f3d_real lower, f3d_real upper);
+
+/* A motor on a revolute or prismatic link: it drives the joint's speed
+ * towards [speed], rad/s or m/s, with at most [force], N m or N.
+ * [enabled] nought takes it off. */
+F3D_API int f3d_multibody_set_motor(F3dWorld *world, F3dMultibody multibody,
+                                    uint32_t link, int enabled,
+                                    f3d_real speed, f3d_real force);
+
+/* How many links, and how many degrees of freedom. */
+F3D_API uint32_t f3d_multibody_link_count(const F3dWorld *world,
+                                          F3dMultibody multibody);
+F3D_API uint32_t f3d_multibody_dof_count(const F3dWorld *world,
+                                         F3dMultibody multibody);
+
+/* Link [link]'s joint as the last step left it, into out[0..7]: for a
+ * revolute or prismatic joint its angle or travel and its speed, the rest
+ * nought; for a spherical joint its turn as a quaternion xyzw in the
+ * parent's frame and its spin xyz relative to the parent, in the world;
+ * nought for a fixed joint and the root. */
+F3D_API int f3d_multibody_read_joint(const F3dWorld *world,
+                                     F3dMultibody multibody, uint32_t link,
+                                     f3d_real *out);
 
 /* ----------------------------------------------------------------- joints */
 

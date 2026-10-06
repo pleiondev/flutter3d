@@ -30,7 +30,7 @@ static F3dVec3 turned(F3dMat3 m, F3dVec3 v) {
  * eleventh power on a quarter turn, which holds a float to its last bit
  * there, after [x] is brought into a half turn either side of nought and
  * folded into the quarter. No library call, so every platform agrees. */
-static void sin_cos(f3d_real x, f3d_real *sine, f3d_real *cosine) {
+void f3d_sin_cos(f3d_real x, f3d_real *sine, f3d_real *cosine) {
   const f3d_real turn = F3D_R(2.0) * F3D_PI;
   if (!(f3d_abs(x) <= F3D_PI)) {
     const f3d_real k = x / turn;
@@ -244,7 +244,7 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
   const F3dVec3 ahead = turned(frame, v->forward);
   const F3dVec3 left = f3d_cross(up, ahead);
   f3d_real sn, cs;
-  sin_cos(w->steer, &sn, &cs);
+  f3d_sin_cos(w->steer, &sn, &cs);
   const F3dVec3 heading = f3d_add(f3d_scale(ahead, cs), f3d_scale(left, sn));
   F3dBody ground = 0;
   f3d_real hit[F3D_HIT_FLOATS];

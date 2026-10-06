@@ -109,7 +109,8 @@ const Set<String> _notLeaf = <String>{
   'f3d_world_set_threads', 'f3d_world_ray_cast', 'f3d_world_ray_cast_all',
   'f3d_world_overlap_shape', 'f3d_world_cast_shape', 'f3d_world_move_character',
   'f3d_world_create_hull', 'f3d_world_create_mesh', 'f3d_joint_create',
-  'f3d_world_create_compound', 'f3d_vehicle_create',
+  'f3d_world_create_compound', 'f3d_vehicle_create', 'f3d_multibody_create',
+  'f3d_multibody_add_link',
   'f3d_joint_create_distance', 'f3d_joint_destroy', 'f3d_world_restore',
   'f3d_body_create', 'f3d_particles_create', 'f3d_particles_destroy',
   'f3d_debris_create', 'f3d_debris_destroy', 'f3d_debris_step',
@@ -136,6 +137,7 @@ _Kind _kind(String type) {
       return _Kind.int32;
     case 'uint32_t':
     case 'F3dVehicle':
+    case 'F3dMultibody':
       return _Kind.uint32;
     case 'uint64_t':
     case 'F3dBody':

@@ -50,6 +50,11 @@ void main() {
     expect(c.wheelStateFloats, define('F3D_WHEEL_STATE_FLOATS'));
   });
 
+  test('a multibody holds as many links and degrees as the header says', () {
+    expect(c.multibodyMostLinks, define('F3D_MULTIBODY_MOST_LINKS'));
+    expect(c.multibodyMostDofs, define('F3D_MULTIBODY_MOST_DOFS'));
+  });
+
   test('a broken joint is the header\'s event', () {
     expect(
       header,

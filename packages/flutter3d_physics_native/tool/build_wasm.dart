@@ -36,6 +36,7 @@ const List<String> wasmSources = <String>[
   'csrc/src/f3d_hull.c',
   'csrc/src/f3d_compound.c',
   'csrc/src/f3d_vehicle.c',
+  'csrc/src/f3d_multibody.c',
   'csrc/src/f3d_mesh.c',
   'csrc/src/f3d_joint.c',
   'csrc/src/f3d_ccd.c',

@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 24;
+const int abiVersion = 25;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -63,6 +63,10 @@ const int compoundMostParts = 64;
 const int vehicleMostWheels = 8;
 const int wheelFloats = 8;
 const int wheelStateFloats = 14;
+
+/// `F3D_MULTIBODY_MOST_LINKS` and `F3D_MULTIBODY_MOST_DOFS`.
+const int multibodyMostLinks = 32;
+const int multibodyMostDofs = 64;
 
 /// `F3dJointType`.
 abstract final class JointType {

@@ -35,7 +35,7 @@ final crate = dynamics.add(RigidBody(world: collisionWorld, shape: CollisionBox(
 
 The bodies stay `RigidBody` objects on the `CollisionWorld`, so sweeps, queries and the character controller see them where the core put them. The rest of the world (level boxes, wedges, height fields, characters, doors, lifts) is mirrored into the core as fixed bodies each step. The core turns bodies built with `canRotate`, and `native` reaches its joints, bullets and air. It steps in f32 to bits of its own, the same on every platform, so a run's digests differ from the reference's. For rollback, use `snapshot()` and `restore()`: unlike a body's own `save()`, they carry the warm starts and sleep.
 
-Multibody chains follow, with their tests.
+Multibodies (`createMultibody`) hold a tree of bodies in reduced coordinates, so a long chain with a heavy end keeps its joints together where separate joints would stretch.
 
 ## Building
 

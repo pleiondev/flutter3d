@@ -439,6 +439,38 @@ typedef struct F3dVehicleSlot {
   F3dWheel wheels[F3D_VEHICLE_MOST_WHEELS];
 } F3dVehicleSlot;
 
+/* One link of a multibody. Plain data. */
+typedef struct F3dLink {
+  F3dBody body;
+  uint32_t parent;
+  uint32_t type;
+  /* Where its degrees of freedom start among the multibody's, and how
+   * many: nought, one or three. */
+  uint32_t first_dof, dofs;
+  uint32_t flags;
+  /* Where the joint holds the parent and the link, each in its own frame;
+   * the axis in the parent's frame; and the link's turn relative to the
+   * parent when the joint is at nought. */
+  F3dVec3 parent_anchor, child_anchor, axis;
+  F3dQuat reference;
+  /* A revolute or prismatic joint's coordinate and speed; a spherical
+   * one's turn in the parent's frame and spin relative to it. */
+  f3d_real q, qd;
+  F3dQuat turn;
+  F3dVec3 spin;
+  f3d_real lower, upper, motor_speed, motor_force;
+} F3dLink;
+
+/* A multibody's slot. Plain data, zeroed when taken. */
+typedef struct F3dMultibodySlot {
+  uint32_t live;
+  uint32_t link_count;
+  uint32_t dof_count;
+  /* One for a dynamic root, with six degrees of freedom first. */
+  uint32_t floating;
+  F3dLink links[F3D_MULTIBODY_MOST_LINKS];
+} F3dMultibodySlot;
+
 /* Bits of F3dJointSlot.flags. */
 enum {
   F3D_JOINT_LIMIT = 1u << 0,
@@ -546,6 +578,10 @@ typedef struct F3dWorldState {
   uint32_t compound_part_count;
   /* Vehicles ever made. */
   uint32_t vehicle_count;
+  /* Multibodies ever made, and how many links all the live ones have
+   * beside their roots: what the collision filter counts. */
+  uint32_t multibody_count;
+  uint32_t multibody_links;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -627,6 +663,8 @@ struct F3dWorld {
   F3dCompoundPart *compound_parts;
   /* The vehicles, vehicle_count of them. In a snapshot. */
   F3dVehicleSlot *vehicles;
+  /* The multibodies, multibody_count of them. In a snapshot. */
+  F3dMultibodySlot *multibodies;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */
@@ -798,6 +836,14 @@ void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies);
 /* Every vehicle's wheels, after the contacts and before the solver: their
  * rays cast, and their springs and tyres put on the bus. */
 void f3d_step_vehicles(F3dWorld *world, f3d_real dt);
+
+/* The core's own sine and cosine: the same bits everywhere. */
+void f3d_sin_cos(f3d_real x, f3d_real *sine, f3d_real *cosine);
+
+/* Every multibody, after the solver: its joints read off where its links
+ * stand, its links put back where the joints say, and their velocities
+ * the nearest the joints allow, its motors and limits then acting. */
+void f3d_step_multibodies(F3dWorld *world, f3d_real dt);
 
 /* Takes out every joint that held past its break, at the end of a step. */
 void f3d_break_joints(F3dWorld *world);

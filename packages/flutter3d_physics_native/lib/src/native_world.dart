@@ -93,6 +93,11 @@ extension type const NativeHull(int id) {}
 /// ([NativeWorld.setMesh]). Numbered from one.
 extension type const NativeMesh(int id) {}
 
+/// A multibody in a [NativeWorld]: a tree of bodies held by joints in
+/// reduced coordinates. Numbered from one; a number is never given out
+/// again.
+extension type const NativeMultibody(int id) {}
+
 /// A vehicle in a [NativeWorld]: a chassis on wheels that hang from it on
 /// springs. Numbered from one; a number is never given out again.
 extension type const NativeVehicle(int id) {}
@@ -1590,6 +1595,163 @@ final class NativeWorld {
   /// Shapes [body] as [hull].
   void setHull(NativeBody body, NativeHull hull) =>
       _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
+
+  /// A multibody rooted at [root]: a tree of bodies held by joints in
+  /// reduced coordinates, each link placed by its parent and its joint's
+  /// angle or travel and nothing else, so no joint comes apart however long
+  /// the chain or heavy its end. A fixed root is a fixed base; a dynamic one
+  /// floats. The links stay ordinary bodies that collide and sleep; a link
+  /// does not collide with its parent. The root is link nought.
+  NativeMultibody createMultibody(NativeBody root) {
+    final id = c.f3d_multibody_create(_live, root.raw);
+    if (id == 0) {
+      throw ArgumentError.value(
+        root.raw,
+        'root',
+        'not in this world, or a link already',
+      );
+    }
+    return NativeMultibody(id);
+  }
+
+  /// Adds [body] as a link under link [parent], on a joint of [type] —
+  /// fixed, revolute, prismatic or spherical — at [anchor] and along
+  /// [axis], taken where the bodies stand now, which is the joint's nought.
+  /// Returns the link's index.
+  int addLink(
+    NativeMultibody multibody,
+    NativeBody body, {
+    int parent = 0,
+    required NativeJointType type,
+    required Vector3 anchor,
+    Vector3? axis,
+  }) {
+    final a = axis ?? Vector3(0.0, 1.0, 0.0);
+    final index = c.f3d_multibody_add_link(
+      _live,
+      multibody.id,
+      parent,
+      body.raw,
+      type.code,
+      anchor.x,
+      anchor.y,
+      anchor.z,
+      a.x,
+      a.y,
+      a.z,
+    );
+    if (index < 0) {
+      throw ArgumentError(
+        'link ${body.raw} under $parent: a body not dynamic or a link '
+        'already, a ${type.name} joint a multibody does not take, an axis of '
+        'nought, or ${c.multibodyMostLinks} links or '
+        '${c.multibodyMostDofs} degrees of freedom already',
+      );
+    }
+    return index;
+  }
+
+  /// Takes [multibody] out; its bodies stay.
+  bool removeMultibody(NativeMultibody multibody) =>
+      c.f3d_multibody_destroy(_live, multibody.id) == 1;
+
+  /// Whether [multibody] is still in this world: a link taken out takes it
+  /// out too.
+  bool containsMultibody(NativeMultibody multibody) =>
+      c.f3d_multibody_is_valid(_live, multibody.id) == 1;
+
+  int linkCount(NativeMultibody multibody) =>
+      c.f3d_multibody_link_count(_live, multibody.id);
+
+  /// The root's six degrees of freedom when it floats, and its joints'.
+  int dofCount(NativeMultibody multibody) =>
+      c.f3d_multibody_dof_count(_live, multibody.id);
+
+  /// Limits on a revolute link's angle, radians, or a prismatic link's
+  /// travel, m; null for both takes them off.
+  void setLinkLimits(
+    NativeMultibody multibody,
+    int link, {
+    double? lower,
+    double? upper,
+  }) {
+    final on = lower != null && upper != null;
+    if (c.f3d_multibody_set_limits(
+          _live,
+          multibody.id,
+          link,
+          on ? 1 : 0,
+          lower ?? 0.0,
+          upper ?? 0.0,
+        ) ==
+        0) {
+      throw ArgumentError(
+        'limits on link $link: not a revolute or '
+        'prismatic link, or a lower above the upper',
+      );
+    }
+  }
+
+  /// A motor on a revolute or prismatic link, driving its speed towards
+  /// [speed] with at most [force]; null [speed] takes it off.
+  void setLinkMotor(
+    NativeMultibody multibody,
+    int link, {
+    double? speed,
+    double force = 0.0,
+  }) {
+    if (c.f3d_multibody_set_motor(
+          _live,
+          multibody.id,
+          link,
+          speed != null ? 1 : 0,
+          speed ?? 0.0,
+          force,
+        ) ==
+        0) {
+      throw ArgumentError(
+        'a motor on link $link: not a revolute or '
+        'prismatic link, or a force below nought',
+      );
+    }
+  }
+
+  /// A revolute link's angle or a prismatic link's travel, and its speed,
+  /// as the last step left them.
+  ({double position, double speed}) linkJoint(
+    NativeMultibody multibody,
+    int link,
+  ) {
+    final out = c.F32s.alloc(8);
+    try {
+      if (c.f3d_multibody_read_joint(_live, multibody.id, link, out) == 0) {
+        throw ArgumentError.value(link, 'link', 'not in this multibody');
+      }
+      return (position: out[0], speed: out[1]);
+    } finally {
+      out.free();
+    }
+  }
+
+  /// A spherical link's turn in its parent's frame and its spin relative to
+  /// the parent, as the last step left them.
+  ({Quaternion turn, Vector3 spin}) linkTurn(
+    NativeMultibody multibody,
+    int link,
+  ) {
+    final out = c.F32s.alloc(8);
+    try {
+      if (c.f3d_multibody_read_joint(_live, multibody.id, link, out) == 0) {
+        throw ArgumentError.value(link, 'link', 'not in this multibody');
+      }
+      return (
+        turn: Quaternion(out[0], out[1], out[2], out[3]),
+        spin: Vector3(out[4], out[5], out[6]),
+      );
+    } finally {
+      out.free();
+    }
+  }
 
   /// A vehicle on [chassis], a dynamic body: [up] and [forward] are the
   /// chassis's own, square to each other. Its wheels hang along the down,

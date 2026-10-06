@@ -238,6 +238,63 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber out,
     JSNumber capacity,
   );
+  @JS('f3d_multibody_create__w')
+  external JSNumber f3d_multibody_create(
+    JSNumber world,
+    JSNumber rootLow,
+    JSNumber rootHigh,
+  );
+  @JS('f3d_multibody_destroy')
+  external JSNumber f3d_multibody_destroy(JSNumber world, JSNumber multibody);
+  @JS('f3d_multibody_is_valid')
+  external JSNumber f3d_multibody_is_valid(JSNumber world, JSNumber multibody);
+  @JS('f3d_multibody_add_link__w')
+  external JSNumber f3d_multibody_add_link(
+    JSNumber world,
+    JSNumber multibody,
+    JSNumber parent,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber type,
+    JSNumber ax,
+    JSNumber ay,
+    JSNumber az,
+    JSNumber ux,
+    JSNumber uy,
+    JSNumber uz,
+  );
+  @JS('f3d_multibody_set_limits')
+  external JSNumber f3d_multibody_set_limits(
+    JSNumber world,
+    JSNumber multibody,
+    JSNumber link,
+    JSNumber enabled,
+    JSNumber lower,
+    JSNumber upper,
+  );
+  @JS('f3d_multibody_set_motor')
+  external JSNumber f3d_multibody_set_motor(
+    JSNumber world,
+    JSNumber multibody,
+    JSNumber link,
+    JSNumber enabled,
+    JSNumber speed,
+    JSNumber force,
+  );
+  @JS('f3d_multibody_link_count')
+  external JSNumber f3d_multibody_link_count(
+    JSNumber world,
+    JSNumber multibody,
+  );
+  @JS('f3d_multibody_dof_count')
+  external JSNumber f3d_multibody_dof_count(JSNumber world, JSNumber multibody);
+  @JS('f3d_multibody_read_joint')
+  external JSNumber f3d_multibody_read_joint(
+    JSNumber world,
+    JSNumber multibody,
+    JSNumber link,
+    JSNumber out,
+  );
   @JS('f3d_joint_create__w')
   external JSNumber f3d_joint_create(
     JSNumber world,
@@ -1239,6 +1296,87 @@ int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) => _x
     .f3d_vehicle_read_wheels(world.toJS, vehicle.toJS, out.toJS, capacity.toJS)
     .toDartInt
     .toUnsigned(32);
+int f3d_multibody_create(int world, int root) => _x
+    .f3d_multibody_create(world.toJS, lowHalf(root).toJS, highHalf(root).toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_multibody_destroy(int world, int multibody) =>
+    _x.f3d_multibody_destroy(world.toJS, multibody.toJS).toDartInt;
+int f3d_multibody_is_valid(int world, int multibody) =>
+    _x.f3d_multibody_is_valid(world.toJS, multibody.toJS).toDartInt;
+int f3d_multibody_add_link(
+  int world,
+  int multibody,
+  int parent,
+  int body,
+  int type,
+  double ax,
+  double ay,
+  double az,
+  double ux,
+  double uy,
+  double uz,
+) => _x
+    .f3d_multibody_add_link(
+      world.toJS,
+      multibody.toJS,
+      parent.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      type.toJS,
+      ax.toJS,
+      ay.toJS,
+      az.toJS,
+      ux.toJS,
+      uy.toJS,
+      uz.toJS,
+    )
+    .toDartInt;
+int f3d_multibody_set_limits(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double lower,
+  double upper,
+) => _x
+    .f3d_multibody_set_limits(
+      world.toJS,
+      multibody.toJS,
+      link.toJS,
+      enabled.toJS,
+      lower.toJS,
+      upper.toJS,
+    )
+    .toDartInt;
+int f3d_multibody_set_motor(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double speed,
+  double force,
+) => _x
+    .f3d_multibody_set_motor(
+      world.toJS,
+      multibody.toJS,
+      link.toJS,
+      enabled.toJS,
+      speed.toJS,
+      force.toJS,
+    )
+    .toDartInt;
+int f3d_multibody_link_count(int world, int multibody) => _x
+    .f3d_multibody_link_count(world.toJS, multibody.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_multibody_dof_count(int world, int multibody) => _x
+    .f3d_multibody_dof_count(world.toJS, multibody.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_multibody_read_joint(int world, int multibody, int link, int out) => _x
+    .f3d_multibody_read_joint(world.toJS, multibody.toJS, link.toJS, out.toJS)
+    .toDartInt;
 int f3d_joint_create(
   int world,
   int type,
