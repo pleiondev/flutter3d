@@ -19,8 +19,10 @@ List<(String, String)> _sections(String changelog) {
   String? version;
   final StringBuffer body = StringBuffer();
   for (final String line in changelog.split('\n')) {
+    // A build number is part of the heading: `## 0.8.2+1` is its own
+    // section, and read as `0.8.2` it shadowed the real one above it.
     final RegExpMatch? heading = RegExp(
-      r'^## (\d+\.\d+\.\d+)',
+      r'^## (\d+\.\d+\.\d+(?:\+\d+)?)',
     ).firstMatch(line);
     if (heading != null) {
       if (version != null) out.add((version, body.toString()));
