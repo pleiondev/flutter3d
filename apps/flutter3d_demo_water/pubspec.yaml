@@ -1,0 +1,28 @@
+name: flutter3d_demo_water
+description: "A valley with a spring, a stream that runs down it, a waterfall off a cliff and a pond at its foot; drop stones and logs in."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer, and what every application repeats over it: the device
+  # `openDevice` picks, the frame surface and clock.
+  flutter3d: ^0.9.0
+  flutter3d_app: ^0.9.0
+
+  # The water and the bodies in it: the physics core's shallow water, its
+  # spray, and the stones and logs that fall into it.
+  flutter3d_physics_native: ^0.9.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
