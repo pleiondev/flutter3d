@@ -64,5 +64,6 @@ camera sees and what is in the way. Look before and after you change things.
 
 `play` runs the game this level belongs to. While it runs, every `save` goes
 to it and the game takes the level without starting over; `play_status`
-shows its console, `play_swap` puts changed code into it.
+shows its console, `play_events` what the game posted since a cursor (a level
+loaded, the player died), and `play_swap` puts changed code into it.
 ''';

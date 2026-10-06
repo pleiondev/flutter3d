@@ -46,6 +46,7 @@ void main() {
       'optimizeLights',
       'play',
       'play_status',
+      'play_events',
       'play_swap',
       'play_stop',
       'play_devices',

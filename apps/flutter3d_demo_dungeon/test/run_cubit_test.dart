@@ -23,6 +23,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, SettingsOverlay
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart' show Pickup;
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -262,6 +263,121 @@ void main() {
         isA<RunPlaying<LevelReady>>(),
         reason: 'a level with no next unloaded itself',
       );
+    });
+  });
+
+  group('what the run posts for whoever watches it', () {
+    /// What the game posts while the test runs, by kind and data.
+    List<(String, Map<String, Object?>)> listen() {
+      final posted = <(String, Map<String, Object?>)>[];
+      final before = postGameEvent;
+      postGameEvent = (String kind, Map<String, Object?> data) =>
+          posted.add((kind, data));
+      addTearDown(() => postGameEvent = before);
+      return posted;
+    }
+
+    List<String> kinds(List<(String, Map<String, Object?>)> posted) => <String>[
+      for (final (kind, _) in posted) kind,
+    ];
+
+    /// One step, as the game takes it: the simulation, then the run told.
+    void step(RunCubit run) {
+      (run.state as RunPlaying<LevelReady>).level.staged.sim.step(1.0 / 60.0);
+      run.observe();
+    }
+
+    test('a level coming up, and coming up again after a death', () async {
+      // Mutation: drop `posts.changed` from the cubit's `onChanged` and
+      // nothing at all is posted; drop the `_died` flag and the restart is a
+      // level loading with no word of the player coming back.
+      final posted = listen();
+      final it = _game();
+      await it.run.begin();
+      expect(kinds(posted), <String>['level.loaded']);
+      expect(posted.single.$2, <String, Object?>{'level': _crypt});
+
+      it.run.inventory.damage(999.0);
+      step(it.run);
+      step(it.run);
+      expect(kinds(posted).skip(1), <String>['player.died'], reason: 'once');
+
+      await it.run.restart();
+      expect(kinds(posted).skip(2), <String>[
+        'level.loaded',
+        'player.respawned',
+      ]);
+    });
+
+    test('a level edited under the running game is not a load', () async {
+      // Mutation: drop the `was is! RunPlaying` guard and every save from
+      // the editor reads to an agent as the level starting over.
+      final it = _game();
+      await it.run.begin();
+      final posted = listen();
+
+      it.run.run.replaceLevel(await it.run.run.open(_crypt));
+
+      expect(posted, isEmpty);
+    });
+
+    test('a pickup walked over is posted once, with what it gave', () async {
+      final it = _game();
+      await it.run.begin();
+      final staged = (it.run.state as RunPlaying<LevelReady>).level.staged;
+      // A key: the one gift a player who has just arrived is never too full
+      // to take, the way a medkit at full health is refused.
+      final key = staged.mechanisms.all.whereType<Pickup>().firstWhere(
+        (Pickup it) => it.gift.name == 'key',
+      );
+      final posted = listen();
+
+      staged.player.body.teleport(key.origin);
+      for (var i = 0; i < 10; i++) {
+        step(it.run);
+      }
+
+      // Mutation: drop `posts.stepped()` from `observe` and the key goes
+      // into the player's hand with nobody outside told.
+      expect(kinds(posted), <String>['pickup.taken']);
+      expect(posted.single.$2['gift'], 'key');
+      expect(posted.single.$2['detail'], key.detail);
+      expect(posted.single.$2['level'], _crypt);
+    });
+
+    /// What is posted once the player stands in the way out of [first].
+    Future<List<(String, Map<String, Object?>)>> leave(String first) async {
+      final it = _game(first: first);
+      await it.run.begin();
+      final staged = (it.run.state as RunPlaying<LevelReady>).level.staged;
+      final exit = staged.mechanisms.all.whereType<Exit>().first;
+      final posted = listen();
+      // The trigger is the doorway's own volume, whatever stands in front of
+      // it, so being put inside it is enough.
+      staged.player.body.teleport(exit.collider.position);
+      for (var i = 0; i < 10; i++) {
+        step(it.run);
+      }
+      return posted;
+    }
+
+    test('the way out is posted with where it leads', () async {
+      final posted = await leave(_crypt);
+      expect(kinds(posted), <String>['level.exited']);
+      expect(posted.single.$2, <String, Object?>{
+        'level': _crypt,
+        'next': 'assets/levels/vaults.json',
+      });
+    });
+
+    test('the way out of the last level is the run finished', () async {
+      final posted = await leave('assets/levels/sanctum.json');
+      // Mutation: drop the `next == null` branch and the sanctum, which
+      // nothing follows, ends with nobody told the run is over.
+      expect(kinds(posted), <String>['level.exited', 'run.finished']);
+      expect(posted.first.$2['next'], isNull);
+      expect(posted.last.$2['levels'], isA<int>());
+      expect(posted.last.$2['seconds'], isA<double>());
     });
   });
 

@@ -314,6 +314,44 @@ List<EditorTool> get _playTools => <EditorTool>[
   ),
   _told(
     Tool(
+      name: 'play_events',
+      description:
+          'What the game started by play has posted about itself — a level '
+          'loaded, the player died or came back, a pickup taken, the way out '
+          'reached — in order, each with its sequence number, kind, time and '
+          'data. Pass since the next this answered last time (0 the first '
+          'time) and nothing is seen twice or skipped, through a play_stop '
+          'and a play as well; kinds keeps only the kinds named. Answers JSON: '
+          'events, next, and missed when the game posted more than was kept '
+          'before it was asked. A game posts these with flutter3d_game\'s '
+          'postGameEvent; what it prints is play_status.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'since': IntegerSchema(
+            description:
+                'the next from the last play_events; 0 for everything kept',
+            minimum: 0,
+          ),
+          'kinds': ListSchema(
+            description:
+                'only these kinds, as the game names them: level.loaded, '
+                'player.died; leave out for every kind',
+            items: StringSchema(),
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) {
+      final since = arguments['since'];
+      final kinds = arguments['kinds'];
+      return session.play.events(
+        since: since is int ? since : 0,
+        kinds: kinds is List ? kinds.whereType<String>().toSet() : null,
+      );
+    },
+  ),
+  _told(
+    Tool(
       // `play_swap` and not the word flutter itself uses for it: CONTRIBUTING
       // keeps that word out of the packages for a weapon's, and `HotSwap` is
       // what the engine calls the same thing on the game's side.

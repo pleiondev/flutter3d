@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **`play_events` hears what the running game says about itself.** A level
+  loaded, the player died or came back, a pickup taken, the way out
+  reached: whatever the game posts with `postGameEvent`, in order, each
+  with a sequence number, kind, time and data. An agent passes back the
+  `next` it was given and sees nothing twice and skips nothing, through a
+  `play_stop` and a `play` as well; `kinds` narrows it, and `missed` says
+  when more was posted than was kept before it asked.
+
 - **`generate_level`** replaces the open level with one made from a seed
   and rules.
 

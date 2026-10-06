@@ -13,7 +13,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:vm_service/vm_service.dart';
+
+import 'game_events.dart';
 import 'play_state.dart';
+import 'vm_connect.dart';
 import 'watched.dart';
 
 /// Starts `flutter` with [arguments] in [workingDirectory]. A parameter of
@@ -64,12 +68,19 @@ List<String>? treeKillCommand(int pid, {required bool windows}) =>
 /// go to [console] in the order they arrived, because the moment somebody
 /// needs this panel is the moment something went wrong, and a filtered
 /// console hides exactly that.
+///
+/// **Its events come over the VM service, not the daemon.** The tool's
+/// protocol carries what the game prints and nothing it posts, so once
+/// `app.debugPort` says where the game's VM service is, the run opens a
+/// connection of its own there and listens for what the game posts, the way
+/// [AttachedRun] does; the connection goes when the game does.
 final class FlutterRun implements PlayedGame {
   FlutterRun({
     required this.projectRoot,
     this.device,
     this._start = _startFlutter,
     this._kill = _killFlutter,
+    this._connect = connectVmService,
   });
 
   /// The directory with the project's `pubspec.yaml`.
@@ -82,6 +93,9 @@ final class FlutterRun implements PlayedGame {
   final StartFlutter _start;
 
   final KillFlutter _kill;
+
+  /// How the run reaches the game's VM service for its events.
+  final ConnectVmService _connect;
 
   @override
   String get title => projectRoot;
@@ -100,6 +114,16 @@ final class FlutterRun implements PlayedGame {
   final Watched<List<String>> console = Watched<List<String>>(const <String>[]);
 
   static const int consoleLimit = 2000;
+
+  final GameEventLog _events = GameEventLog();
+
+  @override
+  Watched<List<PostedEvent>> get events => _events.events;
+
+  /// The connection [events] arrive over, and the listening on it; null
+  /// until the game's VM service is known, and again once it has gone.
+  VmService? _service;
+  StreamSubscription<Event>? _listening;
 
   Process? _process;
   String? _appId;
@@ -141,6 +165,7 @@ final class FlutterRun implements PlayedGame {
         }
         _pending.clear();
         state.value = PlayStopped(code);
+        unawaited(_stopListening());
       }),
     );
   }
@@ -175,8 +200,37 @@ final class FlutterRun implements PlayedGame {
   @override
   Future<void> dispose() async {
     await stop();
+    await _stopListening();
     await state.close();
     await console.close();
+    await _events.close();
+  }
+
+  /// Listens for what the game at [vmService] posts, once per run.
+  Future<void> _listenForEvents(String vmService) async {
+    if (_service != null) return;
+    final VmService service;
+    try {
+      service = await _connect(vmService);
+    } on Object catch (error) {
+      _print('the game\'s events will not arrive: $vmService: $error');
+      return;
+    }
+    // The game may have gone, or this been asked twice, while it connected.
+    if (_process == null || _service != null) {
+      await service.dispose();
+      return;
+    }
+    _service = service;
+    _listening = await _events.listenTo(service);
+  }
+
+  Future<void> _stopListening() async {
+    final service = _service;
+    _service = null;
+    await _listening?.cancel();
+    _listening = null;
+    await service?.dispose();
   }
 
   Future<String?> _restart({required bool fullRestart}) async {
@@ -245,6 +299,7 @@ final class FlutterRun implements PlayedGame {
       }:
         _appId = appId;
         state.value = PlayRunning(appId: appId, vmService: uri);
+        unawaited(_listenForEvents(uri));
       case {'event': 'app.log', 'params': {'log': final String log}}:
         _print(log);
       case {

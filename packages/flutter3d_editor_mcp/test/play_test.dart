@@ -24,10 +24,12 @@ const String _level = '''
 ''';
 
 /// A session on a level in a project at `/game`, whose runs are fake, and
-/// what the game was sent.
+/// what the game was sent; [games] are the VM services of its runs, one per
+/// `play`, for a test that has the game post events.
 ({
   EditorSession session,
   List<FakeFlutterTool> tools,
+  List<FakeGame> games,
   List<String> pushed,
   List<String?> devices,
 })
@@ -37,6 +39,7 @@ _session({
   String Function(String path)? root,
 }) {
   final tools = <FakeFlutterTool>[];
+  final games = <FakeGame>[];
   final pushed = <String>[];
   final devices = <String?>[];
   final play = PlaySession(
@@ -45,7 +48,13 @@ _session({
         root ?? (String path) => path.startsWith('/game/') ? '/game' : null,
     newRun: (String root, String? device) {
       devices.add(device);
-      final fake = fakeFlutterRun(projectRoot: root, device: device);
+      final game = FakeGame();
+      games.add(game);
+      final fake = fakeFlutterRun(
+        projectRoot: root,
+        device: device,
+        game: game,
+      );
       tools.add(fake.tool);
       return fake.run;
     },
@@ -64,6 +73,7 @@ _session({
   return (
     session: EditorSession(Editing.parse(_level, path: levelPath), play: play),
     tools: tools,
+    games: games,
     pushed: pushed,
     devices: devices,
   );
@@ -85,6 +95,7 @@ Future<Answer> _played(
   ({
     EditorSession session,
     List<FakeFlutterTool> tools,
+    List<FakeGame> games,
     List<String> pushed,
     List<String?> devices,
   })
@@ -155,6 +166,95 @@ void main() {
     final said = await reload;
     expect(said.did, isTrue);
     expect(said.says, 'hot swap: Reloaded 3 of 812 libraries');
+  });
+
+  group('what the game posts', () {
+    /// `play_events` from [since], read back.
+    Future<Map<String, Object?>> events(
+      EditorSession session,
+      int since, {
+      List<String>? kinds,
+    }) async {
+      final answer = await _call(session, 'play_events', <String, Object?>{
+        'since': since,
+        'kinds': ?kinds,
+      });
+      expect(answer.did, isTrue, reason: answer.says);
+      return jsonDecode(answer.says) as Map<String, Object?>;
+    }
+
+    List<Object?> kindsOf(Map<String, Object?> read) => <Object?>[
+      for (final event in read['events']! as List<Object?>)
+        (event! as Map<String, Object?>)['kind'],
+    ];
+
+    test('reaches play_events in order, and the cursor moves on', () async {
+      final it = _session();
+      await _played(it);
+      await pumpEventQueue();
+      final game = it.games.single
+        ..posts('flutter3d.level.loaded', <String, Object?>{'level': 'crypt'})
+        ..posts('flutter3d.pickup.taken', <String, Object?>{'gift': 'key'});
+      await pumpEventQueue();
+
+      final first = await events(it.session, 0);
+      expect(kindsOf(first), <String>['level.loaded', 'pickup.taken']);
+      expect(
+        ((first['events']! as List<Object?>).first!
+            as Map<String, Object?>)['data'],
+        <String, Object?>{'level': 'crypt'},
+      );
+      expect(first['next'], 2);
+
+      game
+        ..posts('flutter3d.player.died')
+        ..posts('flutter3d.player.respawned');
+      await pumpEventQueue();
+
+      // Mutation: answering from the start rather than the cursor gives the
+      // level and the pickup again.
+      final second = await events(it.session, first['next']! as int);
+      expect(kindsOf(second), <String>['player.died', 'player.respawned']);
+      expect(second['next'], 4);
+      expect(kindsOf(await events(it.session, 4)), isEmpty);
+
+      expect(
+        kindsOf(await events(it.session, 0, kinds: <String>['player.died'])),
+        <String>['player.died'],
+      );
+    });
+
+    test('a cursor carries through a stop and a new play', () async {
+      final it = _session();
+      await _played(it);
+      await pumpEventQueue();
+      it.games.single
+        ..posts('flutter3d.level.loaded')
+        ..posts('flutter3d.player.died');
+      await pumpEventQueue();
+      final before = await events(it.session, 0);
+      expect(before['next'], 2);
+
+      it.tools.single.exit(0);
+      await pumpEventQueue();
+      await _played(it);
+      await pumpEventQueue();
+      it.games.last.posts('flutter3d.level.loaded');
+      await pumpEventQueue();
+
+      // Mutation: drop `_postedBefore` and the new run's first event is
+      // number 1 again, which the old cursor 2 has already passed.
+      final after = await events(it.session, before['next']! as int);
+      expect(kindsOf(after), <String>['level.loaded']);
+      expect(after['next'], 3);
+    });
+
+    test('nothing running has nothing to say', () async {
+      final it = _session();
+      final answer = await _call(it.session, 'play_events');
+      expect(answer.did, isFalse);
+      expect(answer.says, contains('call play'));
+    });
   });
 
   test('nothing running is nothing to reload or stop', () async {

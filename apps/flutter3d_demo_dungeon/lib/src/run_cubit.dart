@@ -14,6 +14,7 @@ import 'package:vector_math/vector_math.dart';
 import 'depths.dart';
 import 'exit_door.dart';
 import 'fixture_looks.dart';
+import 'game_posts.dart';
 import 'layers.dart';
 import 'monster_graphs.dart';
 import 'monster_looks.dart';
@@ -408,13 +409,21 @@ final class DungeonRun extends RunSession<LevelReady> {
 /// The run, as the widget tree sees it.
 ///
 /// A wrapper and nothing more, which is the point: `RunSession` decides nothing
-/// about state management, and this game happens to use BLoC.
+/// about state management, and this game happens to use BLoC. What it adds
+/// is telling [posts] what it emits, so the moments the screen reacts to are
+/// the moments posted for whoever watches from outside.
 final class RunCubit extends Cubit<RunStatus<LevelReady>> {
-  RunCubit(this.run) : super(run.status) {
-    run.onChanged = emit;
+  RunCubit(this.run) : posts = GamePosts(run), super(run.status) {
+    run.onChanged = (RunStatus<LevelReady> status) {
+      emit(status);
+      posts.changed(status);
+    };
   }
 
   final DungeonRun run;
+
+  /// What the run posts about itself — see [GamePosts].
+  final GamePosts posts;
 
   Inventory get inventory => run.inventory;
   LevelReady? get level => run.level;
@@ -424,7 +433,14 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
   Future<void> restart() => run.restart();
   Future<void> startOver() => run.startOver();
   Future<void> advance() => run.advance();
-  void observe() => run.observe();
+  /// Once per step, after it: what the step took off the floor is posted,
+  /// then the run reads how it is going. Not called while a kill camera
+  /// replays the last seconds, so a pickup taken again there is not posted
+  /// twice.
+  void observe() {
+    posts.stepped();
+    run.observe();
+  }
   void save() => run.save();
 
   @override

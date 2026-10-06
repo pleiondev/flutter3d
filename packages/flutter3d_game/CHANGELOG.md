@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **`postGameEvent` tells whoever watches the game what happened.** It
+  posts `flutter3d.<kind>` with a JSON map on the VM service's `Extension`
+  stream, where the editor's Play and an agent's `play_events` listen;
+  nothing goes anywhere when nobody is attached. A variable, like
+  `debugPrint`, so a test puts its own in and sees what was posted.
+  `replayAfterHotSwap` posts its `timeline.replayedUnderNewCode` through it.
+
 - **A high-contrast accommodation.** `Accommodations.highContrast` reads the
   platform's own flag, `highContrastOf` turns the engine's look on from the
   `a11y.highContrast` setting with that flag as the fallback, and the

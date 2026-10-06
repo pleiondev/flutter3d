@@ -2,6 +2,7 @@
 /// whether the editor started it or found it already running.
 library;
 
+import 'game_events.dart';
 import 'watched.dart';
 
 /// Where a run is: not yet started, starting, running with a VM service to
@@ -60,6 +61,16 @@ abstract interface class PlayedGame {
   /// Every line the game has printed, oldest first, capped.
   Watched<List<String>> get console;
 
+  /// Every event the game posted with `postGameEvent` while it was watched,
+  /// oldest first, capped like [console]; [eventsSince] reads it by cursor.
+  ///
+  /// **Beside the console, not in it.** A line is for a person to read and
+  /// is gone in two thousand more; an event is a kind and a map an agent
+  /// can wait for — "the level is up", "the player died" — and numbered, so
+  /// one asked for twice is not seen twice and one never asked for is not
+  /// lost to a burst of printing.
+  Watched<List<PostedEvent>> get events;
+
   /// Runs the game, or attaches to it again. Does nothing while it goes.
   Future<void> start();
 
@@ -77,7 +88,11 @@ abstract interface class PlayedGame {
 
 /// The lines of the console a session keeps, with [line] added and the
 /// oldest dropped past [limit].
-List<String> appendLine(List<String> lines, String line, int limit) => <String>[
-  ...lines.length >= limit ? lines.skip(lines.length - limit + 1) : lines,
-  line,
+List<String> appendLine(List<String> lines, String line, int limit) =>
+    appendCapped(lines, line, limit);
+
+/// [items] with [item] added and the oldest dropped past [limit].
+List<T> appendCapped<T>(List<T> items, T item, int limit) => <T>[
+  ...items.length >= limit ? items.skip(items.length - limit + 1) : items,
+  item,
 ];

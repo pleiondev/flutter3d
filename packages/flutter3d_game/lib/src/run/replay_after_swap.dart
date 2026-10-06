@@ -1,9 +1,8 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show HotSwap;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'game_events.dart';
 import 'run_timeline.dart';
 
 /// Lives the last [seconds] of [timeline] again under the new code after
@@ -18,9 +17,10 @@ import 'run_timeline.dart';
 ///
 /// [capture] is the simulation's present, as `registerTimelineExtensions`
 /// takes it. What happened goes to [onReplayed] — by default a line in the
-/// console — and to the VM service as a `flutter3d.timeline.replayedUnderNewCode`
-/// event, for an editor listening there. Nothing happens in a build where
-/// `HotSwap` is off, which is every build but a debug one.
+/// console — and, through [postGameEvent], to the VM service as a
+/// `flutter3d.timeline.replayedUnderNewCode` event, for an editor listening
+/// there. Nothing happens in a build where `HotSwap` is off, which is every
+/// build but a debug one.
 ///
 /// Returns the call that stops it.
 VoidCallback replayAfterHotSwap(
@@ -37,10 +37,7 @@ VoidCallback replayAfterHotSwap(
       capture: capture,
     );
     if (done == null) return;
-    developer.postEvent(
-      'flutter3d.timeline.replayedUnderNewCode',
-      done.toJson(),
-    );
+    postGameEvent('timeline.replayedUnderNewCode', done.toJson());
     (onReplayed ?? _say)(done);
   }
 

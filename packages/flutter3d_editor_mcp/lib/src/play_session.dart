@@ -60,6 +60,11 @@ final class PlaySession {
 
   FlutterRun? _run;
 
+  /// The events every run before this one posted, so [events]' cursor goes
+  /// on counting through a `play_stop` and a `play` rather than starting
+  /// again at 1 under an agent still holding the old run's number.
+  int _postedBefore = 0;
+
   /// Runs the project, on [device] or the tool's own choice, and waits until
   /// it is up, has failed, or [waitFor] has passed.
   Future<Answer> start({String? device}) async {
@@ -84,6 +89,7 @@ final class PlaySession {
             'call play_stop first to run it on $device',
       );
     }
+    _postedBefore += running?.events.value.lastOrNull?.sequence ?? 0;
     unawaited(running?.dispose());
     final run = _run = newRun(root, device);
     await run.start();
@@ -99,6 +105,42 @@ final class PlaySession {
     final run = _run;
     if (run == null) return 'not running; call play to start the game';
     return '${_describe(run)}\n${_tail(run, lines)}'.trim();
+  }
+
+  /// What the game posted after the cursor [since], of [kinds] only when
+  /// given, as JSON: the events in order, `next` to pass as [since] on the
+  /// next call, `missed` when more were posted than were kept since the
+  /// cursor, and `restarted` when the cursor is past anything posted — one
+  /// from another server — and the answer starts from the first.
+  Answer events({int since = 0, Set<String>? kinds}) {
+    final run = _run;
+    if (run == null) {
+      return (did: false, says: 'not running; call play to start the game');
+    }
+    final before = _postedBefore;
+    final read = eventsSince(
+      run.events.value,
+      since > before ? since - before : 0,
+      kinds: kinds,
+    );
+    // A cursor into a run that has since been replaced: whatever that run
+    // posted after it went with the run.
+    final lost = since < before && !read.restarted ? before - since : 0;
+    return (
+      did: true,
+      says: jsonEncode(<String, Object?>{
+        'next': read.next + before,
+        if (read.missed + lost > 0) 'missed': read.missed + lost,
+        if (read.restarted) 'restarted': true,
+        'events': <Object?>[
+          for (final event in read.events)
+            <String, Object?>{
+              ...event.toJson(),
+              'sequence': event.sequence + before,
+            },
+        ],
+      }),
+    );
   }
 
   /// A hot reload, or a hot restart when [restart], and what the tool said.

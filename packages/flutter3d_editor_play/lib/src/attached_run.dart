@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import 'package:vm_service/vm_service.dart';
 
+import 'game_events.dart';
 import 'play_state.dart';
 import 'vm_connect.dart';
 import 'watched.dart';
@@ -35,6 +36,11 @@ import 'watched.dart';
 /// the attach arriving first. The replay comes a stream at a time, so prints
 /// and logs from before the attach are not interleaved as they happened. A
 /// VM with no DDS in front gives only what follows.
+///
+/// **Its events are numbered from the attach.** What the game posts goes out
+/// on the VM service's `Extension` stream, and what this keeps is what that
+/// stream delivers once listened to; a bare VM keeps no history of it, so
+/// there a level that came up before the attach is not among them.
 final class AttachedRun implements PlayedGame {
   AttachedRun(this.vmService, {this._connect = connectVmService});
 
@@ -56,6 +62,11 @@ final class AttachedRun implements PlayedGame {
   final Watched<List<String>> console = Watched<List<String>>(const <String>[]);
 
   static const int consoleLimit = 2000;
+
+  final GameEventLog _events = GameEventLog();
+
+  @override
+  Watched<List<PostedEvent>> get events => _events.events;
 
   /// The names the flutter tool registered its services under, by service:
   /// `reloadSources` → `s0.reloadSources`.
@@ -112,6 +123,7 @@ final class AttachedRun implements PlayedGame {
       service.onStderrEvent.listen((Event it) => _printed('stderr', it)),
       service.onLoggingEvent.listen(_logged),
       service.onServiceEvent.listen(_registered),
+      service.onExtensionEvent.listen(_events.take),
     ]);
     // Subscribing to `Service` replays what is already registered, so a tool
     // that connected long before the editor is still found.
@@ -120,6 +132,7 @@ final class AttachedRun implements PlayedGame {
       EventStreams.kStderr,
       EventStreams.kLogging,
       EventStreams.kService,
+      EventStreams.kExtension,
     ]) {
       try {
         await service.streamListen(stream);
@@ -163,6 +176,7 @@ final class AttachedRun implements PlayedGame {
     await stop();
     await state.close();
     await console.close();
+    await _events.close();
   }
 
   /// Calls the flutter tool's service [name]; [doing] and [done] are what

@@ -163,6 +163,32 @@ void main() {
       expect(replays.single.divergence?.path, contains('x'));
     });
 
+    test('the replay is posted for whoever watches the game', () async {
+      // Mutation: drop the `postGameEvent` call and an editor's Play panel,
+      // or an agent polling `play_events`, never hears that the new code
+      // parted from the old.
+      final posted = <(String, Map<String, Object?>)>[];
+      final before = postGameEvent;
+      postGameEvent = (String kind, Map<String, Object?> data) =>
+          posted.add((kind, data));
+      addTearDown(() => postGameEvent = before);
+      final live = _run();
+      _steps(live, 0, 300);
+      final hotSwap = HotSwap(enabled: true);
+      replayAfterHotSwap(
+        live.timeline,
+        capture: live.walker.save,
+        hotSwap: hotSwap,
+        onReplayed: (_) {},
+      );
+
+      live.walker.rule = _new;
+      await hotSwap.swap();
+
+      expect(posted.single.$1, 'timeline.replayedUnderNewCode');
+      expect(posted.single.$2['toStep'], 300);
+    });
+
     test('stopped, a swap replays nothing', () async {
       final live = _run();
       _steps(live, 0, 300);

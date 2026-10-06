@@ -80,6 +80,27 @@ final class FakeGame {
     },
   });
 
+  /// The game calling `dart:developer`'s `postEvent` with [kind] and
+  /// [data] — `flutter3d_game`'s `postGameEvent` posts `flutter3d.<kind>` —
+  /// at [time], milliseconds since the epoch as the VM stamps it.
+  void posts(
+    String kind, [
+    Map<String, Object?> data = const <String, Object?>{},
+    int time = 0,
+  ]) => _event('Extension', <String, Object?>{
+    'kind': 'Extension',
+    'extensionKind': kind,
+    'extensionData': data,
+    'timestamp': time,
+    'isolate': <String, Object?>{
+      'type': '@Isolate',
+      'id': isolateId,
+      'name': 'main',
+      'number': '1',
+      'isSystemIsolate': false,
+    },
+  });
+
   /// The game exiting, which closes the socket.
   Future<void> exits() => _out.close();
 
@@ -250,10 +271,19 @@ final class _Sent implements StreamConsumer<List<int>> {
 
 /// A [FlutterRun] over a [FakeFlutterTool], and the arguments each start
 /// was given, the working directory first.
+///
+/// [game] is the VM service the run finds at the address the tool reports,
+/// for a test that has the game post events; one that posts nothing when
+/// left out.
 ({FlutterRun run, FakeFlutterTool tool, List<List<String>> started})
-fakeFlutterRun({String projectRoot = '/game', String? device = 'macos'}) {
+fakeFlutterRun({
+  String projectRoot = '/game',
+  String? device = 'macos',
+  FakeGame? game,
+}) {
   final tool = FakeFlutterTool();
   final started = <List<String>>[];
+  final reached = game ?? FakeGame();
   return (
     run: FlutterRun(
       projectRoot: projectRoot,
@@ -262,6 +292,7 @@ fakeFlutterRun({String projectRoot = '/game', String? device = 'macos'}) {
         started.add(<String>[directory, ...arguments]);
         return tool;
       },
+      connect: (String _) async => reached.service,
     ),
     tool: tool,
     started: started,

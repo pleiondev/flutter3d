@@ -26,18 +26,21 @@ if (run.state.value case PlayRunning(:final vmService)) {
 
 | | |
 |---|---|
-| `FlutterRun` | One `flutter run --machine`: its state, its console, reload, restart, stop |
+| `FlutterRun` | One `flutter run --machine`: its state, its console, the events the game posts, reload, restart, stop |
 | `projectRootFor`, `projectRootOnDisk` | The project a level file belongs to: the nearest `pubspec.yaml` above it |
 | `flutterDevices`, `parseFlutterDevices` | What `-d` can be given, from `flutter devices --machine` |
 | `pushLevel` | A saved level, sent to the running game's `ext.flutter3d.level.apply` — or, given the `base` it was saved over, as a patch to `ext.flutter3d.level.patch`, whole only when the game says the patch is stale |
 | `Watched` | A value and a stream of its changes, where Flutter's `ValueNotifier` cannot go |
-| `AttachedRun` | A game somebody else started, by its VM service address: console, hot reload and restart, detach |
+| `AttachedRun` | A game somebody else started, by its VM service address: console, events, hot reload and restart, detach |
+| `PostedEvent`, `eventsSince` | What the game posted with `flutter3d_game`'s `postGameEvent` — numbered, capped like the console — and the read by cursor that `play_events` answers with |
 | `PlayedGame` | What `FlutterRun` and `AttachedRun` both are, for one panel over either |
 | `connectVmService` | A VM service connection over a socket a browser has too |
 
 `package:flutter3d_editor_play/testing.dart` has `FakeFlutterTool`, a
 `flutter run --machine` a test controls, and `fakeFlutterRun` over it;
-`FakeGame`, a VM service a test controls, and `fakeAttachedRun` over it.
+`FakeGame`, a VM service a test controls (`posts` is the game posting an
+event), and `fakeAttachedRun` over it; `fakeFlutterRun(game:)` finds it at
+the address the tool reports.
 
 ## In a browser
 

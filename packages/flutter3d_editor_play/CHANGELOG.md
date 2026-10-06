@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **The events a game posts, beside its console.** `PlayedGame.events`
+  keeps what the game posted with `flutter3d_game`'s `postGameEvent` — a
+  level loaded, the player died — each a `PostedEvent` with a sequence
+  number, its kind without the `flutter3d.` prefix, a time and its data,
+  capped at 2000 like the console. `AttachedRun` listens to the VM
+  service's `Extension` stream on the socket it already has; `FlutterRun`
+  opens one at the address `app.debugPort` reports, since the daemon carries
+  prints and not posts, and drops it when the game exits. `eventsSince`
+  reads the list by cursor, with the next cursor, how many the cap dropped
+  unread, and a restart from the first for a cursor past the end.
+- **`FakeGame.posts`** is the game posting an event, and `fakeFlutterRun`
+  takes the `FakeGame` its run finds at the reported address.
+
 - **`callGameExtension`** asks a running game for one of its extensions.
   It finds the isolate that registered it and returns the game's own
   answer or the reason it refused.
