@@ -206,6 +206,35 @@ void main() {
       expect(replayed.says, contains('holds there'));
     });
 
+    test('two runs that part are bisected to the step and the field', () {
+      // The same forty steps forward, except that one of them turns aside
+      // for the last twenty: they agree for twenty and part on the next.
+      final straight = _session()..open(_crypt);
+      straight.step(steps: 40, moveY: 1.0);
+      final a = '${workspace.path}/straight.f3drun';
+      expect(straight.writeRun(a).did, isTrue);
+
+      final aside = _session()..open(_crypt);
+      aside
+        ..step(steps: 20, moveY: 1.0)
+        ..step(steps: 20, moveX: 1.0);
+      final b = '${workspace.path}/aside.f3drun';
+      expect(aside.writeRun(b).did, isTrue);
+
+      // Mutation: comparing at the checkpoints only, which names a later
+      // step; or stepping one run ahead of the other, which parts at once.
+      final found = _session().bisect(a, b);
+      expect(found.did, isTrue, reason: found.says);
+      expect(found.says, contains('agree for 20 steps and part at step 21'));
+      // The input is what differed, and the answer says so, with where.
+      expect(found.says, contains('step 20 had different input'));
+      expect(found.says, contains('first at `'));
+      expect(
+        _session().bisect(a, a).says,
+        contains('the runs agree for all 40 steps'),
+      );
+    });
+
     test('a run is verified on the physics it was recorded on', () {
       final session = _session()..open(_crypt);
       final path = '${workspace.path}/walked.f3drun';

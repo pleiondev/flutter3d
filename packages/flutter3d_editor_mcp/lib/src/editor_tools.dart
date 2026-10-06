@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
@@ -111,6 +112,154 @@ Answer Function(EditorSession, Map<String, Object?>) _command(String name) =>
       return session.run(command);
     };
 
+/// `P12` for an agent: the frame the running game actually drew, pass by
+/// pass and draw by draw, through the `ext.flutter3d.render.*` extensions
+/// the game registered — the game started by `play`, or any game whose VM
+/// service address is given.
+List<EditorTool> get _renderTools {
+  /// The address to ask: the one given, or the game `play` runs.
+  String? at(EditorSession session, Map<String, Object?> arguments) =>
+      switch (arguments['vmService']) {
+        final String given when given.isNotEmpty => given,
+        _ => session.play.vmService,
+      };
+  final vmService = StringSchema(
+    description:
+        'the game\'s VM service address, ws:// or http://; leave out for '
+        'the game play started',
+  );
+  EditorTool tool(
+    String name,
+    String verb,
+    String description,
+    Map<String, Schema> parameters, {
+    List<String> required = const <String>[],
+  }) => _told(
+    Tool(
+      name: name,
+      description: description,
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{'vmService': vmService, ...parameters},
+        required: required,
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) async {
+      final address = at(session, arguments);
+      if (address == null) {
+        return (
+          did: false,
+          says: 'no game is running: call play first, or give vmService',
+        );
+      }
+      final answer = await session.play.ask(
+        address,
+        'ext.flutter3d.render.$verb',
+        args: <String, String>{
+          for (final MapEntry(:key, :value) in arguments.entries)
+            if (key != 'vmService' && value != null) key: '$value',
+        },
+      );
+      return switch (answer) {
+        (json: final Map<String, Object?> json, refused: null) => (
+          did: true,
+          says: const JsonEncoder.withIndent('  ').convert(json),
+        ),
+        (json: _, refused: final String? why) => (
+          did: false,
+          says: why ?? 'the game did not answer',
+        ),
+      };
+    },
+  );
+  final fresh = BooleanSchema(
+    description:
+        'true for a new capture of the next frame; false to read the one '
+        'held',
+  );
+  final pass = StringSchema(
+    description: 'a pass, by its index or name from render_passes',
+  );
+  return <EditorTool>[
+    tool(
+      'render_passes',
+      'passes',
+      'The running game\'s next frame, pass by pass: each pass, what it read '
+          'and wrote, how many draws it made, and the frame\'s size. Takes a '
+          'new capture, which the other render tools then read.',
+      <String, Schema>{'fresh': fresh},
+    ),
+    tool(
+      'render_draws',
+      'draws',
+      'The draws of the captured frame, a page at a time: index, pass, node '
+          'name, material, sizes. render_draw opens one.',
+      <String, Schema>{
+        'fresh': fresh,
+        'pass': pass,
+        'offset': IntegerSchema(description: 'the first row; default 0'),
+        'limit': IntegerSchema(description: 'how many rows; default 200'),
+      },
+    ),
+    tool(
+      'render_draw',
+      'draw',
+      'One draw of the captured frame: its pipeline state and every value '
+          'bound for it.',
+      <String, Schema>{
+        'index': IntegerSchema(description: 'the draw\'s index'),
+      },
+      required: <String>['index'],
+    ),
+    tool(
+      'render_pick',
+      'pick',
+      'Which draws put the pixel at x, y (from the top left) on the screen: '
+          'the node the picking pass found there and its draws, in a capture '
+          'of that same frame, which the other render tools then read.',
+      <String, Schema>{
+        'x': IntegerSchema(description: 'pixels from the left'),
+        'y': IntegerSchema(description: 'pixels from the top'),
+      },
+      required: <String>['x', 'y'],
+    ),
+    tool(
+      'render_read_pixel',
+      'readPixel',
+      'One pixel of one pass\'s output, as stored and as read back.',
+      <String, Schema>{
+        'pass': pass,
+        'x': IntegerSchema(description: 'pixels from the left'),
+        'y': IntegerSchema(description: 'pixels from the top'),
+        'resource': StringSchema(description: 'which output; the first'),
+      },
+      required: <String>['pass', 'x', 'y'],
+    ),
+    tool(
+      'render_pass_output',
+      'passOutput',
+      'A summary of one pass\'s output: its format, size and range.',
+      <String, Schema>{
+        'pass': pass,
+        'resource': StringSchema(description: 'which output; the first'),
+      },
+      required: <String>['pass'],
+    ),
+    tool(
+      'render_scan_nan',
+      'scanNan',
+      'Every pass output searched for NaN and infinity, with the first '
+          'pixel of each.',
+      <String, Schema>{'fresh': fresh},
+    ),
+    tool(
+      'render_stats',
+      'stats',
+      'What the next frame cost: draws, triangles, passes, targets.',
+      <String, Schema>{'fresh': fresh},
+    ),
+  ];
+}
+
 /// `HR5`: the game the level belongs to, run and driven — the editor
 /// application's Play toolbar, as tools.
 List<EditorTool> get _playTools => <EditorTool>[
@@ -183,6 +332,26 @@ List<EditorTool> get _playTools => <EditorTool>[
     ),
     (EditorSession session, Map<String, Object?> arguments) =>
         session.play.swap(restart: arguments['restart'] == true),
+  ),
+  _told(
+    Tool(
+      name: 'play_keep_tape',
+      description:
+          'Keep the last seconds the running game recorded as a .f3drun in '
+          'its project\'s test/tapes/, under a name: the run that just went '
+          'wrong, where replay tests and the sim server\'s verify and bisect '
+          'read tapes from.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(
+            description: 'lowercase letters, digits and underscores',
+          ),
+        },
+        required: <String>['name'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.play.keepTape(arguments['name']! as String),
   ),
   _told(
     Tool(
@@ -684,6 +853,7 @@ List<EditorTool> get editorTools => <EditorTool>[
     },
   ),
   ..._playTools,
+  ..._renderTools,
   EditorTool(
     Tool(
       name: 'screenshot',

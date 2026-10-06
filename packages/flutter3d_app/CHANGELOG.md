@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`ext.flutter3d.render.pick`** reports the node drawn at a pixel and
+  its draws, from one frame that ran both the picking pass and the
+  journaled capture.
+
 - **Every loaded level runs on the run's physics.** `LevelLoader` attaches
   the run's `PhysicsBackend` to the level's world, and `LoadedLevel.dispose`
   releases it.

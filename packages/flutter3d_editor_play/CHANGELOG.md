@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`callGameExtension`** asks a running game for one of its extensions.
+  It finds the isolate that registered it and returns the game's own
+  answer or the reason it refused.
+
 - **A save goes to the running game as a patch.** `pushLevel(base:)` sends
   the patch from `base` to the saved document when the game has
   `ext.flutter3d.level.patch` and the patch is shorter, and the whole

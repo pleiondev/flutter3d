@@ -160,6 +160,32 @@ Map<String, Object?> renderDraw(
   };
 });
 
+/// `pick`: what [node] — the picking pass's answer at ([x], [y]) — drew in
+/// [capture], the same frame: its name and the indices of its draws, which
+/// `draw` opens. Nothing picked is the clear colour, said as such.
+Map<String, Object?> renderPicked(
+  FrameCapture capture,
+  MeshNode? node, {
+  required int x,
+  required int y,
+}) => node == null
+    ? <String, Object?>{
+        'x': x,
+        'y': y,
+        'node': null,
+        'draws': const <int>[],
+        'says': 'nothing is drawn at ($x, $y): it is the clear colour',
+      }
+    : <String, Object?>{
+        'x': x,
+        'y': y,
+        'node': node.name,
+        'draws': <int>[
+          for (final draw in capture.draws)
+            if (identical(draw.node, node)) draw.index,
+        ],
+      };
+
 /// `readPixel`: one pixel of one output, as stored and as read back.
 ///
 /// [parameters]: `pass`, `x`, `y`, and `resource` (optional). `uint` is the

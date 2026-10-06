@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **The frame the running game drew, for an agent.**
+  - `render_*` tools sit over the game's `ext.flutter3d.render.*`. Among
+    them is `render_pick`, which answers which draws painted a pixel.
+  - `play_keep_tape` keeps the run the game recorded in `test/tapes/`.
+
 - **`setCutscene` and `removeCutscene`.** An agent writes a level's
   cutscene from nothing — camera keys, subtitles, fades, signals and actor
   cues in one document — and is told every problem with it, and where,

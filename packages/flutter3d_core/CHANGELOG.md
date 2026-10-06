@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`DrawRecord.node` is the node that was drawn**, not only its name, so
+  a pick can be matched to the frame's draws.
+
 - **A lint for cues told apart by hue alone.** `ColorVision.confusions`
   takes a palette by name and answers the pairs normal eyes tell apart
   and a protan, deutan or tritan does not, with who and how near, in CIE

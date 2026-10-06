@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`RestorableRun`** marks a headless run that can be put back to a
+  saved state, which `bisectTapes` needs on each side. The shooter's run
+  implements it.
+
 - **A run sent as telemetry keeps its physics**, so the server replays it
   on the backend it was played on.
 

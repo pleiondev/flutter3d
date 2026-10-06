@@ -14,7 +14,7 @@
 ///
 /// ## What a caller sees
 ///
-/// Seven extensions, each `ext.flutter3d.render.<verb>`, string parameters as
+/// Eight extensions, each `ext.flutter3d.render.<verb>`, string parameters as
 /// the protocol requires:
 ///
 /// * `passes`, `draws`, `stats`, `scanNan` — take a fresh capture unless
@@ -22,6 +22,9 @@
 /// * `passOutput`, `draw`, `readPixel` — read the capture already held, so an
 ///   index from `draws` or a pass from `passes` means the same frame; pass
 ///   `fresh=true` to take a new one. With none held they take one.
+/// * `pick` — which draws put the pixel at `x`, `y` on the screen: the
+///   picking pass's node and its draws, taken together with a fresh capture
+///   of the same frame, which it then holds for `draw` to open.
 ///
 /// Every answer carries `frame`, a count of captures this game has taken, so
 /// a caller can see whether two answers are about the same frame.
@@ -103,6 +106,33 @@ void registerRenderExtensions(
   answer('passOutput', freshByDefault: false, ask: renderPassOutput);
   answer('draw', freshByDefault: false, ask: renderDraw);
   answer('readPixel', freshByDefault: false, ask: renderReadPixel);
+  developer.registerExtension('ext.flutter3d.render.pick', (
+    method,
+    parameters,
+  ) async {
+    final x = int.tryParse(parameters['x'] ?? '');
+    final y = int.tryParse(parameters['y'] ?? '');
+    if (x == null || y == null || x < 0 || y < 0) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.invalidParams,
+        'pick takes x and y, whole pixels from the top left',
+      );
+    }
+    final picked = await _inspector.pick(x, y);
+    return switch (picked) {
+      _Unavailable(:final why) => developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.extensionError,
+        why,
+      ),
+      _Taken(value: (final frame, final capture)) =>
+        developer.ServiceExtensionResponse.result(
+          jsonEncode(<String, Object?>{
+            'frame': frame,
+            ...renderPicked(capture, _inspector.lastPicked, x: x, y: y),
+          }),
+        ),
+    };
+  });
 }
 
 bool _registered = false;
@@ -166,5 +196,38 @@ final class _Inspector {
     _held = taken;
     _heldFrom = current;
     return _Taken(taken);
+  }
+
+  /// What [pick] found, read by the answer that follows it.
+  MeshNode? lastPicked;
+
+  /// The node drawn at ([x], [y]) and a capture of the very frame that drew
+  /// it: both asked before the frame, so the picking pass and the journal
+  /// are one frame's. The frame's size comes from the capture held, or a
+  /// first capture taken for it.
+  Future<_Capture> pick(int x, int y) async {
+    final current = renderer();
+    if (current == null) {
+      return const _Unavailable('the game has not opened its renderer yet');
+    }
+    final sized = await capture(fresh: false);
+    if (sized case _Unavailable()) return sized;
+    final (_, held) = (sized as _Taken).value;
+    if (x >= held.width || y >= held.height) {
+      return _Unavailable(
+        '($x, $y) is outside the ${held.width}×${held.height} frame',
+      );
+    }
+    final node = current.pickPixel(
+      (x + 0.5) / held.width,
+      (y + 0.5) / held.height,
+    );
+    final taken = await capture(fresh: true);
+    try {
+      lastPicked = await node.timeout(timeout);
+    } on Object catch (error) {
+      return _Unavailable('the picking pass did not answer: $error');
+    }
+    return taken;
   }
 }

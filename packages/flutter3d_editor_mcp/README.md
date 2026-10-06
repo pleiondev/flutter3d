@@ -48,6 +48,8 @@ one name in the undo stack, and come back out under the same key. What an edit
 | `screenshot` | A flat picture of the level from a camera you may name |
 | `report` | What that camera sees of every brush, light and entity, and what is in the way |
 | `play`, `play_status`, `play_swap`, `play_stop`, `play_devices` | Run the game the level belongs to, see its console, swap its code, stop it, and choose the device — the editor's Play button, from [`flutter3d_editor_play`](../flutter3d_editor_play). While it runs, `save` sends the level to it |
+| `play_keep_tape` | Write the last seconds the running game kept into its project's `test/tapes/` as a `.f3drun` |
+| `render_passes`, `render_draws`, `render_draw`, `render_pick`, `render_read_pixel`, `render_pass_output`, `render_scan_nan`, `render_stats` | The frame the running game actually drew: its passes and draws, which draws painted a pixel, a pixel's value, NaNs, and the cost. Each tool takes `vmService` to ask a game that `play` did not start |
 
 Ten of those are the document commands. The two that are not, `list` and
 `validate`, were missing from every sketch of this, and missing in the same

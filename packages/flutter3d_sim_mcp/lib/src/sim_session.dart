@@ -190,6 +190,94 @@ final class SimSession {
           );
   }
 
+  /// Two runs of one level played side by side, each in a world of its own,
+  /// to the first step at which they differ — and what differs there, as
+  /// a path into the state: `actors.3.health`.
+  ///
+  /// **Every step, not every checkpoint.** A run's checkpoints bracket a
+  /// defect to tens of steps; two tapes in hand can be stepped together and
+  /// compared at each, which names the step the two first part on. Two runs
+  /// on other physics, or in other versions of the level, would part at the
+  /// first step for a reason nobody needs told, so both are refused.
+  PictureAnswer bisect(String pathA, String pathB) {
+    final runs = <Demo>[];
+    for (final path in <String>[pathA, pathB]) {
+      try {
+        final json = jsonDecode(File(path).readAsStringSync());
+        runs.add(Demo.fromJson((json as Map).cast<String, Object?>()));
+      } on DemoFormatException catch (error) {
+        return _refuse('"$path" is not a run: ${error.message}');
+      } catch (error) {
+        return _refuse('could not read a run from "$path": $error');
+      }
+    }
+    final [a, b] = runs;
+    if (a.levelHash != b.levelHash) {
+      return _refuse(
+        'the two were played in different levels, or different versions of '
+        'one (${a.levelHash} and ${b.levelHash})',
+      );
+    }
+    if (a.physics != b.physics) {
+      return _refuse(
+        'the two were played on different physics (${a.physics} and '
+        '${b.physics}), which are not promised to agree',
+      );
+    }
+    if (a.levelSwaps.isNotEmpty || b.levelSwaps.isNotEmpty) {
+      return _refuse('a run with its level edited under it is not bisected');
+    }
+    final Level level;
+    try {
+      final json = jsonDecode(File(a.level).readAsStringSync());
+      level = Level.fromJson((json as Map).cast<String, Object?>());
+    } catch (error) {
+      return _refuse('could not read the runs\' level "${a.level}": $error');
+    }
+    if (level.digestHex != a.levelHash) {
+      return _refuse(
+        'the level at "${a.level}" has changed since the runs were recorded',
+      );
+    }
+    return _onPhysicsOf(a, () {
+      ReplaySide? side(Demo demo) {
+        final world = CollisionWorld();
+        level.addTo(world);
+        usePhysics().attach(world);
+        final input = InputState();
+        final run = game.start(level, world, input);
+        world.update();
+        if (run is! RestorableRun) return null;
+        return ReplaySide(
+          start: demo.start,
+          tape: demo.tape,
+          input: input,
+          step: () => run.step(_dt),
+          restore: run.restore,
+          capture: run.save,
+        );
+      }
+
+      final (one, two) = (side(a), side(b));
+      if (one == null || two == null) {
+        return _refuse(
+          'a ${game.name} run cannot be put back to a state it saved, which '
+          'bisecting two runs needs',
+        );
+      }
+      return switch (bisectTapes(a: one, b: two)) {
+        TapesAgree() && final agree => (did: true, says: '$agree', png: null),
+        final TapesDiverge parted => (
+          did: true,
+          says:
+              'the runs agree for ${parted.step - 1} steps and part at step '
+              '${parted.step}: $parted',
+          png: null,
+        ),
+      };
+    });
+  }
+
   /// Replays the `.f3drun` at [path] into a fresh run of its own level and
   /// answers whether it retraces the checkpoints it was written with — and,
   /// when [predicate] is given, whether that claim holds where the replay
@@ -422,4 +510,3 @@ T _onPhysicsOf<T>(Demo demo, T Function() body) {
     choosePhysics(was);
   }
 }
-

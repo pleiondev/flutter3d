@@ -1,11 +1,25 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show Demo, DemoFormatException;
 
 /// Makes a run of [projectRoot] on [device]. A parameter of [PlaySession] so
 /// a test hands it a run over a tool of its own making.
 typedef NewRun = FlutterRun Function(String projectRoot, String? device);
+
+/// Asks a running game for one of its `ext.flutter3d.*` extensions — see
+/// [callGameExtension], which is what a session asks with unless a test
+/// hands in its own.
+typedef GameAsk =
+    Future<({Map<String, Object?>? json, String? refused})> Function(
+      String vmService,
+      String method, {
+      Map<String, String> args,
+    });
 
 FlutterRun _newRun(String projectRoot, String? device) =>
     FlutterRun(projectRoot: projectRoot, device: device);
@@ -25,7 +39,11 @@ final class PlaySession {
     this.devices = flutterDevices,
     this.push = pushLevel,
     this.waitFor = const Duration(minutes: 3),
+    this.ask = callGameExtension,
   });
+
+  /// How the running game is asked for what it registered.
+  final GameAsk ask;
 
   /// The level being edited; its project is what [start] runs.
   final String levelPath;
@@ -136,6 +154,60 @@ final class PlaySession {
   }
 
   Future<void> dispose() async => _run?.dispose();
+
+  /// The last seconds the running game kept, as a `.f3drun` in its
+  /// project's `test/tapes/` under [name] — the run an agent just watched
+  /// go wrong, where `testReplay` and the sim server's `verify` and
+  /// `bisect` read tapes from.
+  ///
+  Future<Answer> keepTape(String name) async {
+    final address = vmService;
+    final root = projectRootOf(levelPath);
+    if (address == null || root == null) {
+      return (did: false, says: 'no game is running: call play first');
+    }
+    if (!RegExp(r'^[a-z0-9_]+$').hasMatch(name)) {
+      return (
+        did: false,
+        says: 'a tape is named in lowercase letters, digits and underscores',
+      );
+    }
+    final answer = await ask(address, 'ext.flutter3d.timeline.bugReport');
+    final json = answer.json;
+    if (json == null) {
+      return (did: false, says: answer.refused ?? 'the game kept nothing');
+    }
+    final Demo demo;
+    try {
+      // A bug report names its starting state `start`, which the editor's
+      // timeline reads it by; a `.f3drun` names it `run`.
+      demo = Demo.fromJson(<String, Object?>{
+        ...json,
+        if (!json.containsKey('run')) 'run': json['start'],
+      });
+    } on DemoFormatException catch (error) {
+      return (
+        did: false,
+        says: 'the game\'s run is not a .f3drun: ${error.message}',
+      );
+    }
+    final file = File('$root/test/tapes/$name${Demo.fileExtension}');
+    file
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(jsonEncode(demo.toJson()));
+    return (
+      did: true,
+      says:
+          'kept ${demo.steps} steps of ${demo.level} as ${file.path}, '
+          'played on the ${demo.physics ?? 'unrecorded'} physics',
+    );
+  }
+
+  /// Where the running game's VM service is, or null while nothing runs.
+  String? get vmService => switch (_run?.state.value) {
+    PlayRunning(:final vmService) => vmService,
+    _ => null,
+  };
 
   Future<void> _settled(FlutterRun run) async {
     if (_settledState(run.state.value)) return;

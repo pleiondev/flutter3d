@@ -106,23 +106,21 @@ void main() {
     return (did: result.isError != true, says: says ?? '', png: png);
   }
 
-  test(
-    'the eight tools an agent is offered are the ones it can call',
-    () async {
-      final offered = await connection.listTools(ListToolsRequest());
-      final names = offered.tools.map((t) => t.name).toSet();
-      expect(names, <String>{
-        'open',
-        'step',
-        'snapshot',
-        'digest',
-        'writeRun',
-        'frame',
-        'expect',
-        'verify',
-      });
-    },
-  );
+  test('the nine tools an agent is offered are the ones it can call', () async {
+    final offered = await connection.listTools(ListToolsRequest());
+    final names = offered.tools.map((t) => t.name).toSet();
+    expect(names, <String>{
+      'open',
+      'step',
+      'snapshot',
+      'digest',
+      'writeRun',
+      'frame',
+      'expect',
+      'verify',
+      'bisect',
+    });
+  });
 
   test('a run before opening a level is refused, not crashed', () async {
     final result = await call('step', <String, Object?>{'steps': 1});
@@ -192,4 +190,43 @@ void main() {
     expect(demo.tape.steps, 60);
     expect(demo.checkpoints.steps, isNotEmpty);
   }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test(
+    'an agent bisects two runs to the step and the field they part on',
+    () async {
+      const crypt =
+          '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json';
+      Future<String> run(String name, List<Map<String, Object?>> legs) async {
+        expect(
+          (await call('open', <String, Object?>{'path': crypt})).did,
+          isTrue,
+        );
+        for (final leg in legs) {
+          expect((await call('step', leg)).did, isTrue);
+        }
+        final path = '${workspace.path}/$name.f3drun';
+        expect(
+          (await call('writeRun', <String, Object?>{'path': path})).did,
+          isTrue,
+        );
+        return path;
+      }
+
+      final straight = await run('straight', <Map<String, Object?>>[
+        <String, Object?>{'steps': 50, 'moveY': 1.0},
+      ]);
+      final aside = await run('aside', <Map<String, Object?>>[
+        <String, Object?>{'steps': 30, 'moveY': 1.0},
+        <String, Object?>{'steps': 20, 'moveX': 1.0},
+      ]);
+      final found = await call('bisect', <String, Object?>{
+        'a': straight,
+        'b': aside,
+      });
+      expect(found.did, isTrue, reason: found.says);
+      expect(found.says, contains('part at step 31'));
+      expect(found.says, contains('step 30 had different input'));
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 }

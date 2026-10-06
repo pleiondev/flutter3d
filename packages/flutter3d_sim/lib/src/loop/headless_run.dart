@@ -20,6 +20,16 @@ import '../level/level.dart';
 import '../save/snapshot.dart';
 import 'run_outcome.dart';
 
+/// A [HeadlessRun] that can be put back to a state it saved — what
+/// `bisectTapes` needs of each side, to step on from a state it kept rather
+/// than from the start every time it asks.
+///
+/// **Beside [HeadlessRun], not part of it**, so a game whose run cannot be
+/// put back still plays, and a tool that needs this says so of it.
+abstract interface class RestorableRun implements HeadlessRun {
+  void restore(Snapshot snapshot);
+}
+
 /// One run of a level, started by a [HeadlessGame].
 abstract interface class HeadlessRun {
   /// Advances the run one fixed step of [dt] seconds, reading the

@@ -407,4 +407,47 @@ void main() {
     expect(() => jsonEncode(renderPasses(capture)), returnsNormally);
     expect(() => jsonEncode(renderStats(capture)), returnsNormally);
   });
+
+  test('pick: the draws of the node under the pixel, of that frame alone', () {
+    // Two crates of one name, which is what a level gives a row of them:
+    // the picked one's draws are its own, not its namesake's.
+    // Mutation: matching by name, which answers both.
+    final device = CpuDevice(
+      width: 2,
+      height: 2,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final box = SharedMeshes(device).box(Vector3.all(1.0));
+    final picked = MeshNode(box, Material(), name: 'crate');
+    final namesake = MeshNode(box, Material(), name: 'crate');
+    DrawRecord draw(int index, MeshNode node) => DrawRecord(
+      index: index,
+      passIndex: 0,
+      pass: 'scene',
+      kind: 'mesh',
+      mesh: node.name,
+      material: 'wood',
+      lighting: 'pbr',
+      vertices: 24,
+      indices: 36,
+      instances: 1,
+      triangles: 12,
+      state: const <String, Object?>{},
+      uniforms: const <String, List<double>>{},
+      node: node,
+    );
+    final capture = FrameCapture(
+      width: 2,
+      height: 2,
+      passes: const <CapturedPass>[],
+      draws: <DrawRecord>[draw(0, namesake), draw(1, picked), draw(2, picked)],
+    );
+    final answer = renderPicked(capture, picked, x: 1, y: 0);
+    expect(answer['node'], 'crate');
+    expect(answer['draws'], <int>[1, 2]);
+    expect(
+      renderPicked(capture, null, x: 1, y: 0)['says'],
+      contains('clear colour'),
+    );
+  });
 }

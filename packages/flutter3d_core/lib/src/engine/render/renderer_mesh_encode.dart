@@ -965,6 +965,7 @@ extension _MeshEncode on Renderer {
     // `P12`: nothing past the `?.` runs unless this frame is being journaled.
     state.journal?.add(
       kind: 'mesh',
+      node: node,
       mesh: node.name,
       material: material.name,
       lighting: material.lighting.label,

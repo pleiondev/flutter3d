@@ -170,6 +170,27 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
   ),
   SimTool(
     Tool(
+      name: 'bisect',
+      description:
+          'Play two .f3drun files of the same level side by side, each in a '
+          'fresh world of its own, and say the first step at which they '
+          'differ and the first field that does, as a path into the state '
+          '(players.0.health). Every step is compared, not only the '
+          'checkpoints. Two runs on different physics or in different '
+          'versions of the level are refused.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'a': StringSchema(description: 'one .f3drun'),
+          'b': StringSchema(description: 'the other'),
+        },
+        required: <String>['a', 'b'],
+      ),
+    ),
+    (session, args) =>
+        session.bisect(args['a']! as String, args['b']! as String),
+  ),
+  SimTool(
+    Tool(
       name: 'snapshot',
       description:
           'Where things stand right now, as JSON: the step, and what the game '

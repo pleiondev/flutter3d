@@ -10,3 +10,4 @@ library;
 export 'attach.dart';
 export 'src/devices.dart';
 export 'src/flutter_run.dart';
+export 'src/game_extension.dart';

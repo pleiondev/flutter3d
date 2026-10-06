@@ -37,6 +37,7 @@ final class DrawRecord {
     required this.triangles,
     required this.state,
     required this.uniforms,
+    this.node,
   });
 
   /// Position in the frame, across every pass.
@@ -67,6 +68,12 @@ final class DrawRecord {
 
   /// The values bound for this draw, by name — matrices column-major.
   final Map<String, List<double>> uniforms;
+
+  /// The scene node that was drawn — not its name, which a level gives to
+  /// a dozen torches — so [Renderer.pickPixel]'s answer can be found among
+  /// the frame's draws. Null for a draw that is not one node's, such as a
+  /// contributor's.
+  final Object? node;
 
   /// The row a list shows.
   Map<String, Object?> toSummaryJson() => <String, Object?>{
@@ -131,6 +138,7 @@ final class DrawJournal {
     required int instances,
     required Map<String, Object?> state,
     Map<String, Float32List> uniforms = const <String, Float32List>{},
+    Object? node,
   }) {
     _records.add(
       DrawRecord(
@@ -151,6 +159,7 @@ final class DrawJournal {
           for (final MapEntry(:key, :value) in uniforms.entries)
             key: List<double>.unmodifiable(value),
         },
+        node: node,
       ),
     );
   }

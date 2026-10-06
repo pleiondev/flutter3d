@@ -19,6 +19,8 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
@@ -183,13 +185,19 @@ class _GameScreenState extends State<GameScreen>
       throw StateError('nothing has been recorded yet');
     }
     final level = _level?.loaded.level;
+    // A run as a `.f3drun` reads it — the asset it is played in, and no
+    // checkpoints, which a tool that keeps it takes by playing it again —
+    // so what an agent drops into `test/tapes/` replays as it is.
     return <String, Object?>{
-      'level': level?.name ?? 'unknown',
+      'version': 1,
+      'level': _demo?.level ?? level?.name ?? 'unknown',
       'levelHash': level?.digestHex ?? '',
       'start': report.start.toJson(),
       'tape': report.tape.toJson(),
       'buildStamp': _buildStamp,
+      'checkpoints': DigestTrace().toJson(),
       'platform': defaultTargetPlatform.name,
+      'physics': usePhysics().name,
     };
   }
 

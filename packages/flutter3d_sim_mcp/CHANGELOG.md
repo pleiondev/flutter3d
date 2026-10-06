@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`bisect` finds where two runs part.** It reports the step, whether
+  the input differed there, and the first field that differs, using the
+  library's `bisectTapes`.
+
 - **The session runs on the physics core.** A run is verified on the
   backend it was recorded on, and the session returns to its own backend
   afterwards. Playtests run each isolate on the session's backend.

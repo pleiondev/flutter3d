@@ -4,12 +4,15 @@
 ///     dart test test/play_test.dart
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_editor_mcp/flutter3d_editor_mcp.dart';
 import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
 import 'package:flutter3d_editor_play/testing.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show Demo, DigestTrace, InputFrame, InputTape, Snapshot;
 import 'package:test/test.dart';
 
 const String _level = '''
@@ -28,13 +31,18 @@ const String _level = '''
   List<String> pushed,
   List<String?> devices,
 })
-_session({String levelPath = '/game/assets/levels/one.json'}) {
+_session({
+  String levelPath = '/game/assets/levels/one.json',
+  GameAsk? ask,
+  String Function(String path)? root,
+}) {
   final tools = <FakeFlutterTool>[];
   final pushed = <String>[];
   final devices = <String?>[];
   final play = PlaySession(
     levelPath: levelPath,
-    projectRootOf: (String path) => path.startsWith('/game/') ? '/game' : null,
+    projectRootOf:
+        root ?? (String path) => path.startsWith('/game/') ? '/game' : null,
     newRun: (String root, String? device) {
       devices.add(device);
       final fake = fakeFlutterRun(projectRoot: root, device: device);
@@ -51,6 +59,7 @@ _session({String levelPath = '/game/assets/levels/one.json'}) {
       };
     },
     waitFor: const Duration(seconds: 5),
+    ask: ask ?? callGameExtension,
   );
   return (
     session: EditorSession(Editing.parse(_level, path: levelPath), play: play),
@@ -217,5 +226,115 @@ void main() {
     final it = _session();
     final answer = await _call(it.session, 'play_devices');
     expect(answer.says, 'macOS (macos, darwin)');
+  });
+
+  group('the frame the running game drew', () {
+    test(
+      'render tools ask the game play started, and say its answer',
+      () async {
+        final asked = <String>[];
+        final it = _session(
+          ask:
+              (
+                String vmService,
+                String method, {
+                Map<String, String> args = const <String, String>{},
+              }) async {
+                asked.add('$vmService $method $args');
+                return switch (method) {
+                  'ext.flutter3d.render.pick' => (
+                    json: <String, Object?>{
+                      'frame': 3,
+                      'node': 'crypt_wall',
+                      'draws': <int>[4, 9],
+                    },
+                    refused: null,
+                  ),
+                  _ => (json: null, refused: 'there is no draw 40'),
+                };
+              },
+        );
+        // Nothing running, nothing to ask.
+        final before = await _call(it.session, 'render_pick', <String, Object?>{
+          'x': 1,
+          'y': 2,
+        });
+        expect(before.did, isFalse);
+        expect(before.says, contains('call play first'));
+
+        await _played(it);
+        final picked = await _call(it.session, 'render_pick', <String, Object?>{
+          'x': 640,
+          'y': 360,
+        });
+        expect(picked.did, isTrue, reason: picked.says);
+        expect(picked.says, contains('crypt_wall'));
+        // Mutation: asking with the tool's own vmService argument left in.
+        expect(
+          asked.single,
+          endsWith('ext.flutter3d.render.pick {x: 640, y: 360}'),
+        );
+        // The game's refusal, in its own words.
+        final refused = await _call(
+          it.session,
+          'render_draw',
+          <String, Object?>{'index': 40},
+        );
+        expect(refused.did, isFalse);
+        expect(refused.says, 'there is no draw 40');
+        // Another game, by its address.
+        await _call(it.session, 'render_stats', <String, Object?>{
+          'vmService': 'ws://other/ws',
+        });
+        // Mutation: asking with the tool's own vmService argument left in.
+        expect(asked.last, 'ws://other/ws ext.flutter3d.render.stats {}');
+      },
+    );
+
+    test('the run the game kept is dropped into its test/tapes', () async {
+      final project = Directory.systemTemp.createTempSync('keep_tape');
+      addTearDown(() => project.deleteSync(recursive: true));
+      final it = _session(
+        root: (String _) => project.path,
+        ask:
+            (
+              String vmService,
+              String method, {
+              Map<String, String> args = const <String, String>{},
+            }) async => (
+              json: <String, Object?>{
+                'version': 1,
+                'level': 'assets/levels/crypt.json',
+                'levelHash': 'abc',
+                'start': const Snapshot(<String, Object?>{}).toJson(),
+                'tape': InputTape(
+                  seed: 1,
+                  frames: const <InputFrame>[InputFrame(), InputFrame()],
+                ).toJson(),
+                'buildStamp': 'dev',
+                'checkpoints': DigestTrace().toJson(),
+                'physics': 'native',
+              },
+              refused: null,
+            ),
+      );
+      await _played(it);
+      expect(
+        (await _call(it.session, 'play_keep_tape', <String, Object?>{
+          'name': '../out',
+        })).did,
+        isFalse,
+      );
+      final kept = await _call(it.session, 'play_keep_tape', <String, Object?>{
+        'name': 'wall_clip',
+      });
+      expect(kept.did, isTrue, reason: kept.says);
+      final file = File('${project.path}/test/tapes/wall_clip.f3drun');
+      final demo = Demo.fromJson(
+        jsonDecode(file.readAsStringSync()) as Map<String, Object?>,
+      );
+      expect(demo.steps, 2);
+      expect(demo.physics, 'native');
+    });
   });
 }

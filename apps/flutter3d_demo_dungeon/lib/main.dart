@@ -769,13 +769,19 @@ class _GameScreenState extends State<GameScreen>
     if (report == null) {
       throw StateError('nothing has been recorded yet');
     }
+    // A run as a `.f3drun` reads it, with no checkpoints — a tool that
+    // keeps it takes them by playing it again — so what an agent drops into
+    // `test/tapes/` replays as it is.
     return <String, Object?>{
+      'version': 1,
       'level': _demoLevel ?? 'unknown',
       'levelHash': _demoLevelHash ?? '',
       'start': report.start.toJson(),
       'tape': report.tape.toJson(),
       'buildStamp': _buildStamp,
+      'checkpoints': DigestTrace().toJson(),
       'platform': defaultTargetPlatform.name,
+      'physics': usePhysics().name,
     };
   }
 

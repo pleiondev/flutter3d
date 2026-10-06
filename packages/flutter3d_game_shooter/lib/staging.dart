@@ -318,7 +318,7 @@ final class ShooterHeadlessGame implements HeadlessGame {
 }
 
 /// A [Staged] shooter run, answering what a blind tool asks of one.
-final class _ShooterRun implements HeadlessRun {
+final class _ShooterRun implements RestorableRun {
   _ShooterRun(this.staged);
 
   final Staged staged;
@@ -328,6 +328,9 @@ final class _ShooterRun implements HeadlessRun {
 
   @override
   Snapshot save() => staged.sim.save();
+
+  @override
+  void restore(Snapshot snapshot) => staged.sim.restore(snapshot);
 
   @override
   RunOutcome get outcome => staged.sim.state.outcome;
