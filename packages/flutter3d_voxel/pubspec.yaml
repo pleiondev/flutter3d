@@ -1,0 +1,57 @@
+name: flutter3d_voxel
+description: "A world of blocks: chunks, a seeded terrain, edits kept as deltas, greedy meshes to draw, greedy boxes to collide with and the navigation mesh baked again where an edit landed."
+version: 0.1.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - voxel
+  - game-engine
+  - procedural-generation
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: everything here is
+# arithmetic over byte arrays, and the three packages under it run in a
+# browser as they do anywhere else.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dependencies:
+  # `MeshData` and `VertexLayout` — the geometry a chunk's faces become —
+  # through `geometry.dart` alone, which names no device and no renderer.
+  flutter3d_core: ^0.8.3
+
+  # The level's vocabulary the navigation mesh is baked from (`Brush`,
+  # `NavMesh`), the seeded `GameRandom` the terrain is drawn with, and,
+  # re-exported from `flutter3d_physics`, the `CollisionWorld` the chunks'
+  # boxes are added to.
+  flutter3d_sim: ^0.8.1
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, so a server can hold the same world a player edits.**
+#
+# A sandbox's state is the blocks, and a run that is verified, replayed or
+# shared is verified against them. That only means something if the code that
+# turns an edit into colliders and a navigation mesh is the code the player
+# ran, and the place that checks a run has no Flutter SDK. So nothing here
+# draws: a chunk becomes `MeshData`, and the game uploads it.
+#
+# Collision is boxes added to an ordinary `CollisionWorld`, not a voxel shape
+# the physics has to learn. A world attached to the native core
+# (`PhysicsBackend.attach`) mirrors its statics by revision, so the same boxes
+# collide on the core and on the Dart reference with nothing voxel-shaped in
+# either.

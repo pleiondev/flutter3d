@@ -1,0 +1,44 @@
+name: flutter3d_demo_sandbox
+description: "A first-person sandbox of blocks: walk the hills, dig, build, and find the world as you left it."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer, and what every application repeats over it: the device
+  # `openDevice` picks, the frame surface and clock, and storage.
+  flutter3d: ^0.8.3
+  flutter3d_app: ^0.8.0
+
+  # The keyboard and the walk: `DesktopInput` and `LevelWalk`, which this
+  # sandbox's body is.
+  flutter3d_game: ^0.8.0
+  flutter3d_sim: ^0.8.1
+
+  # The blocks: the world, its meshes, its boxes and its navigation.
+  flutter3d_voxel: ^0.1.0
+
+  # The physics core the body is moved by and its rays cast on: C built by
+  # its hook for each target, WebAssembly in the browser.
+  # `FLUTTER3D_PHYSICS=dart` at build time moves it with flutter3d_physics'
+  # reference instead.
+  flutter3d_physics_native: ^0.1.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # A device with no GPU behind it, for the frame test.
+  flutter3d_cpu: ^0.8.0
+
+flutter:
+  uses-material-design: true

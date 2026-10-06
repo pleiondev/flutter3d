@@ -38,6 +38,7 @@ const List<String> applications = <String>[
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
   'flutter3d_demo_river',
+  'flutter3d_demo_sandbox',
   'flutter3d_demo_strategy',
   'flutter3d_editor',
   'flutter3d_modeler',
@@ -104,6 +105,10 @@ const Map<String, String> flatDartPackages = <String, String>{
       'a server verifies a student\'s submitted lab run the same way it '
       'verifies a game run — by replaying it, in a container with no '
       'Flutter SDK in it',
+  'flutter3d_voxel':
+      'a sandbox\'s state is its blocks, and a server that holds or checks '
+      'one reads the same edits into the same colliders and navigation the '
+      'player\'s game did — in a container with no Flutter SDK in it',
   'flutter3d_build':
       '`hook/build.dart` is a separate process the Flutter tool starts with '
       'no window and no Flutter SDK to resolve — `ap-00`\'s spike is the '
