@@ -378,7 +378,19 @@ typedef struct F3dSlot {
    * in the other's mask. */
   uint32_t layer;
   uint32_t mask;
+  /* A compound's parts' heat: the first of them in the world's lumps plus
+   * one, and how many; nought while it has none of its own yet. */
+  uint32_t lumps;
+  uint32_t lump_count;
 } F3dSlot;
+
+/* One part of a compound as heat sees it: what a body is to heat, a part
+ * at a time, so a beam can burn from one end. Plain data. */
+typedef struct F3dLump {
+  f3d_real temperature, heat, water, fuel, mass, heat_release;
+  uint32_t burning;
+  uint32_t reserved;
+} F3dLump;
 
 typedef struct F3dEventRecord {
   F3dBody body;
@@ -609,6 +621,8 @@ typedef struct F3dWorldState {
    * beside their roots: what the collision filter counts. */
   uint32_t multibody_count;
   uint32_t multibody_links;
+  /* Compounds' parts' heat, every live compound's in slot order. */
+  uint32_t lump_count;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -692,6 +706,8 @@ struct F3dWorld {
   F3dVehicleSlot *vehicles;
   /* The multibodies, multibody_count of them. In a snapshot. */
   F3dMultibodySlot *multibodies;
+  /* The lumps, lump_count of them. In a snapshot. */
+  F3dLump *lumps;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */

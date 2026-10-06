@@ -213,4 +213,50 @@ void main() {
     expect(world.airTemperature, 250.0);
     expect(world.airDensity, closeTo(1.3, 1e-6));
   });
+
+  test('a post burns upwards a part at a time', () {
+    // Five boxes stood on end, one body: lit at the bottom, each part catches
+    // in the flame of the one below, and the top is still cold when the
+    // second part catches.
+    final post = world.addBody(
+      position: Vector3(0.0, 1.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 16.0,
+    );
+    world
+      ..setCompound(
+        post,
+        world.createCompound(<NativeCompoundPart>[
+          for (var k = 0; k < 5; k++)
+            NativeCompoundPart(
+              NativeShape.box(Vector3(0.05, 0.2, 0.05)),
+              at: Vector3(0.0, -0.8 + 0.4 * k, 0.0),
+            ),
+        ]),
+      )
+      ..setMaterial(post, NativeMaterial.wood())
+      ..setPartTemperature(post, 0, 700.0);
+    expect(world.isPartBurning(post, 0), isFalse);
+    var second = -1;
+    var topThen = 0.0;
+    for (var i = 0; i < 1200 && second < 0; i++) {
+      world.step(1.0);
+      if (world.isPartBurning(post, 1)) {
+        second = i;
+        topThen = world.partTemperatureOf(post, 4);
+      }
+    }
+    // Mutation: one temperature for the whole post — it never catches, the
+    // bottom's heat spread over all five.
+    expect(second, greaterThan(0));
+    expect(topThen, lessThan(400.0));
+    expect(world.isBurning(post), isTrue);
+    expect(() => world.partTemperatureOf(post, 5), throwsArgumentError);
+    // A torch held to the top heats the top.
+    final before = world.partTemperatureOf(post, 4);
+    world
+      ..addHeatAt(post, Vector3(0.0, 1.85, 0.0), 500000.0)
+      ..step(0.01);
+    expect(world.partTemperatureOf(post, 4), greaterThan(before + 50.0));
+  });
 }

@@ -86,6 +86,18 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
   return 1;
 }
 
+static f3d_real capacity_of(const F3dSlot *s);
+static int ensure_lumps(F3dWorld *world);
+static void body_from_lumps(F3dWorld *world, F3dSlot *s);
+
+/* A compound's parts' heat, made now if it has none yet; null for any
+ * other body, or when memory ran out. */
+static F3dLump *lumps_of(F3dWorld *world, F3dSlot *s) {
+  if (s->shape != F3D_SHAPE_COMPOUND) return NULL;
+  if (!ensure_lumps(world) || s->lumps == 0) return NULL;
+  return &world->lumps[s->lumps - 1u];
+}
+
 static int in_range(f3d_real x, f3d_real low, f3d_real high) {
   return f3d_finite(x) && x >= low && x <= high;
 }
@@ -119,8 +131,21 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
   if (!in_range(m.flame_radiant, F3D_R(0.0), F3D_R(1.0))) return 0;
   if (!in_range(m.flame_absorption, F3D_R(0.0), big)) return 0;
   s->material = m;
+  const int burns = m.ignition_temperature > F3D_R(0.0);
+  F3dLump *l = lumps_of(world, s);
+  for (uint32_t i = 0; l != NULL && i < s->lump_count; i++) {
+    l[i].fuel = l[i].mass * m.fuel_fraction;
+    if (l[i].fuel <= F3D_R(0.0) || !burns) {
+      l[i].burning = 0;
+      l[i].heat_release = F3D_R(0.0);
+    }
+  }
+  if (l != NULL) {
+    body_from_lumps(world, s);
+    return 1;
+  }
   s->fuel = s->mass * m.fuel_fraction;
-  if (s->fuel <= F3D_R(0.0) || m.ignition_temperature <= F3D_R(0.0)) {
+  if (s->fuel <= F3D_R(0.0) || !burns) {
     s->flags &= (uint8_t)~F3D_FLAG_BURNING;
     s->heat_release = F3D_R(0.0);
   }
@@ -130,7 +155,96 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
 int f3d_body_set_temperature(F3dWorld *world, F3dBody body, f3d_real kelvin) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !(f3d_finite(kelvin) && kelvin > F3D_R(0.0))) return 0;
+  F3dLump *l = lumps_of(world, s);
+  for (uint32_t i = 0; l != NULL && i < s->lump_count; i++) {
+    l[i].temperature = kelvin;
+  }
   s->temperature = kelvin;
+  return 1;
+}
+
+/* The part [part] of [body]'s heat, or null: a compound's part, or part
+ * nought of any other body, which is the body. */
+static int part_ok(const F3dSlot *s, uint32_t part) {
+  if (s->shape == F3D_SHAPE_COMPOUND) return 1;
+  return part == 0;
+}
+
+int f3d_body_get_part_temperature(F3dWorld *world, F3dBody body, uint32_t part,
+                                  f3d_real *out) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || out == NULL || !part_ok(s, part)) return 0;
+  F3dLump *l = lumps_of(world, s);
+  if (l == NULL) {
+    if (s->shape == F3D_SHAPE_COMPOUND) return 0;
+    *out = s->temperature;
+    return 1;
+  }
+  if (part >= s->lump_count) return 0;
+  *out = l[part].temperature;
+  return 1;
+}
+
+int f3d_body_set_part_temperature(F3dWorld *world, F3dBody body, uint32_t part,
+                                  f3d_real kelvin) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || !part_ok(s, part) ||
+      !(f3d_finite(kelvin) && kelvin > F3D_R(0.0))) {
+    return 0;
+  }
+  F3dLump *l = lumps_of(world, s);
+  if (l == NULL) {
+    if (s->shape == F3D_SHAPE_COMPOUND) return 0;
+    s->temperature = kelvin;
+    return 1;
+  }
+  if (part >= s->lump_count) return 0;
+  l[part].temperature = kelvin;
+  body_from_lumps(world, s);
+  return 1;
+}
+
+int f3d_body_is_part_burning(F3dWorld *world, F3dBody body, uint32_t part,
+                             int *out) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || out == NULL || !part_ok(s, part)) return 0;
+  F3dLump *l = lumps_of(world, s);
+  if (l == NULL) {
+    if (s->shape == F3D_SHAPE_COMPOUND) return 0;
+    *out = (s->flags & F3D_FLAG_BURNING) != 0;
+    return 1;
+  }
+  if (part >= s->lump_count) return 0;
+  *out = l[part].burning != 0;
+  return 1;
+}
+
+int f3d_body_add_heat_at(F3dWorld *world, F3dBody body, f3d_real x, f3d_real y,
+                         f3d_real z, f3d_real joules) {
+  F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || !(f3d_finite(x) && f3d_finite(y) && f3d_finite(z) &&
+                     f3d_finite(joules))) {
+    return 0;
+  }
+  F3dLump *l = lumps_of(world, s);
+  if (l == NULL) {
+    s->heat += joules;
+    return 1;
+  }
+  /* Into the part whose centre is nearest the point. */
+  const F3dPlaced whole = f3d_placed_of(world, s);
+  const F3dVec3 p = f3d_v3(x, y, z);
+  uint32_t best = 0;
+  f3d_real d2 = F3D_R(-1.0);
+  for (uint32_t i = 0; i < s->lump_count; i++) {
+    const F3dVec3 d = f3d_sub(f3d_placed_part(&whole, i).at, p);
+    const f3d_real e = f3d_dot(d, d);
+    if (d2 < F3D_R(0.0) || e < d2) {
+      d2 = e;
+      best = i;
+    }
+  }
+  l[best].heat += joules;
   return 1;
 }
 
@@ -152,12 +266,42 @@ int f3d_body_add_heat(F3dWorld *world, F3dBody body, f3d_real joules) {
 int f3d_body_add_water(F3dWorld *world, F3dBody body, f3d_real kg) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !f3d_finite(kg)) return 0;
+  F3dLump *l = lumps_of(world, s);
+  if (l != NULL) {
+    /* Over a compound's parts by their surfaces. */
+    f3d_real surface = F3D_R(0.0);
+    const F3dCompound *c = &world->compounds[s->hull - 1u];
+    for (uint32_t i = 0; i < s->lump_count; i++) {
+      surface += f3d_shape_surface(world, world->compound_parts[c->first_part + i].kind,
+                                   world->compound_parts[c->first_part + i].size,
+                                   world->compound_parts[c->first_part + i].rounding,
+                                   world->compound_parts[c->first_part + i].hull);
+    }
+    for (uint32_t i = 0; i < s->lump_count; i++) {
+      const F3dCompoundPart *p = &world->compound_parts[c->first_part + i];
+      const f3d_real share =
+          surface > F3D_R(0.0)
+              ? f3d_shape_surface(world, p->kind, p->size, p->rounding, p->hull) / surface
+              : F3D_R(1.0) / (f3d_real)s->lump_count;
+      const f3d_real add = kg * share;
+      if (add > F3D_R(0.0)) {
+        const f3d_real held = l[i].mass * s->material.specific_heat +
+                              l[i].water * F3D_WATER_HEAT;
+        const f3d_real added = add * F3D_WATER_HEAT;
+        l[i].temperature = (held * l[i].temperature +
+                            added * world->s.air_temperature) /
+                           (held + added);
+      }
+      l[i].water = f3d_max(l[i].water + add, F3D_R(0.0));
+    }
+    body_from_lumps(world, s);
+    return 1;
+  }
   if (kg > F3D_R(0.0)) {
     /* It lands at the air's temperature and mixes with what is there:
      * counted at the body's own, it would bring heat from nowhere. Taken
      * off, it leaves at the body's, and the body's temperature stays. */
-    const f3d_real body_heat =
-        s->mass * s->material.specific_heat + s->water * F3D_WATER_HEAT;
+    const f3d_real body_heat = capacity_of(s);
     const f3d_real added = kg * F3D_WATER_HEAT;
     s->temperature = (body_heat * s->temperature +
                       added * world->s.air_temperature) /
@@ -210,15 +354,15 @@ static f3d_real capacity_of(const F3dSlot *s) {
   return s->mass * s->material.specific_heat + s->water * F3D_WATER_HEAT;
 }
 
-/* How big a body is where it touches: a ball's radius, a capsule's, a
- * box's least half extent. */
-static f3d_real radius_of(const F3dSlot *s) {
-  switch (s->shape) {
+/* How big a shape of [kind] and [size] is where it touches: a ball's
+ * radius, a capsule's, a box's least half extent. */
+static f3d_real touch_radius(uint32_t kind, F3dVec3 size) {
+  switch (kind) {
     case F3D_SHAPE_SPHERE:
     case F3D_SHAPE_CAPSULE:
-      return s->size.x;
+      return size.x;
     case F3D_SHAPE_BOX:
-      return f3d_min(s->size.x, f3d_min(s->size.y, s->size.z));
+      return f3d_min(size.x, f3d_min(size.y, size.z));
     default:
       return F3D_R(0.0);
   }
@@ -261,41 +405,261 @@ static f3d_real contact_area(const F3dManifold *m, f3d_real r) {
   return area;
 }
 
-/* Heat across every contact that touches. The conductance is Holm's
- * constriction of two bodies meeting over a spot of radius a,
- * G = 4a / (1/k₁ + 1/k₂), with a the radius of a circle of the contact's
- * area; and the exchange is taken implicitly for the pair, so it carries
- * them towards one temperature and never past it. In key order, so the
- * same world passes the same heat. */
-static void conduct(F3dWorld *world, f3d_real dt) {
+/* ------------------------------------------------------------- lumps */
+
+/* A compound's own record, or null for any other body. */
+static const F3dCompound *compound_of(const F3dWorld *world, const F3dSlot *s) {
+  if (s->shape != F3D_SHAPE_COMPOUND || s->hull == 0 ||
+      s->hull > world->s.compound_count) {
+    return NULL;
+  }
+  return &world->compounds[s->hull - 1u];
+}
+
+static const F3dCompoundPart *part_of(const F3dWorld *world,
+                                      const F3dCompound *c, uint32_t i) {
+  return &world->compound_parts[c->first_part + i];
+}
+
+static f3d_real part_volume(const F3dWorld *world, const F3dCompoundPart *p) {
+  return f3d_shape_volume(world, p->kind, p->size, p->rounding, p->hull);
+}
+
+static f3d_real part_surface(const F3dWorld *world, const F3dCompoundPart *p) {
+  return f3d_shape_surface(world, p->kind, p->size, p->rounding, p->hull);
+}
+
+/* A compound's parts' heat, made from the body's: each part as hot as the
+ * body, with its share of the mass and fuel by volume and of the water by
+ * surface. */
+static void lumps_from_body(const F3dWorld *world, const F3dSlot *s,
+                            const F3dCompound *c, F3dLump *out) {
+  f3d_real volume = F3D_R(0.0), surface = F3D_R(0.0);
+  for (uint32_t i = 0; i < c->part_count; i++) {
+    volume += part_volume(world, part_of(world, c, i));
+    surface += part_surface(world, part_of(world, c, i));
+  }
+  for (uint32_t i = 0; i < c->part_count; i++) {
+    const F3dCompoundPart *p = part_of(world, c, i);
+    const f3d_real by_volume = volume > F3D_R(0.0)
+                                   ? part_volume(world, p) / volume
+                                   : F3D_R(1.0) / (f3d_real)c->part_count;
+    const f3d_real by_surface = surface > F3D_R(0.0)
+                                    ? part_surface(world, p) / surface
+                                    : F3D_R(1.0) / (f3d_real)c->part_count;
+    F3dLump *l = &out[i];
+    f3d_zero(l, sizeof *l);
+    l->temperature = s->temperature;
+    l->mass = s->mass * by_volume;
+    l->fuel = s->fuel * by_volume;
+    l->water = s->water * by_surface;
+    l->burning = (s->flags & F3D_FLAG_BURNING) != 0;
+  }
+}
+
+/* Gives every live compound its parts' heat and drops what no live
+ * compound holds: the world's lumps rebuilt in slot order when they no
+ * longer match, a part's kept where its body kept its shape. 0 when memory
+ * ran out. */
+static int ensure_lumps(F3dWorld *world) {
+  uint32_t need = 0;
+  int fits = 1;
+  for (uint32_t i = 0; i < world->s.used; i++) {
+    const F3dSlot *s = &world->slots[i];
+    const F3dCompound *c = s->live ? compound_of(world, s) : NULL;
+    if (c == NULL) {
+      if (s->lumps != 0) fits = 0;
+      continue;
+    }
+    if (s->lumps == 0 || s->lump_count != c->part_count ||
+        s->lumps - 1u + s->lump_count > world->s.lump_count ||
+        s->lumps - 1u != need) {
+      fits = 0;
+    }
+    need += c->part_count;
+  }
+  if (fits && need == world->s.lump_count) return 1;
+  F3dLump *made = need > 0 ? (F3dLump *)f3d_alloc((size_t)need * sizeof(F3dLump))
+                           : NULL;
+  if (need > 0 && made == NULL) return 0;
+  uint32_t at = 0;
+  for (uint32_t i = 0; i < world->s.used; i++) {
+    F3dSlot *s = &world->slots[i];
+    const F3dCompound *c = s->live ? compound_of(world, s) : NULL;
+    if (c == NULL) {
+      s->lumps = 0;
+      s->lump_count = 0;
+      continue;
+    }
+    const int kept = s->lumps != 0 && s->lump_count == c->part_count &&
+                     s->lumps - 1u + s->lump_count <= world->s.lump_count;
+    if (kept) {
+      f3d_copy(&made[at], &world->lumps[s->lumps - 1u],
+               (size_t)c->part_count * sizeof(F3dLump));
+    } else {
+      lumps_from_body(world, s, c, &made[at]);
+    }
+    s->lumps = at + 1u;
+    s->lump_count = c->part_count;
+    at += c->part_count;
+  }
+  f3d_free(world->lumps);
+  world->lumps = made;
+  world->s.lump_count = need;
+  return 1;
+}
+
+/* A compound body's whole from its parts: its temperature the parts'
+ * weighted by what they hold, and its water, fuel, fire and mass theirs
+ * summed. */
+static void body_from_lumps(F3dWorld *world, F3dSlot *s) {
+  if (s->lumps == 0) return;
+  const F3dLump *l = &world->lumps[s->lumps - 1u];
+  f3d_real held = F3D_R(0.0), warm = F3D_R(0.0), water = F3D_R(0.0);
+  f3d_real fuel = F3D_R(0.0), release = F3D_R(0.0), mass = F3D_R(0.0);
+  int burning = 0;
+  for (uint32_t i = 0; i < s->lump_count; i++) {
+    const f3d_real c = l[i].mass * s->material.specific_heat +
+                       l[i].water * F3D_WATER_HEAT;
+    held += c;
+    warm += c * l[i].temperature;
+    water += l[i].water;
+    fuel += l[i].fuel;
+    release += l[i].heat_release;
+    mass += l[i].mass;
+    burning |= l[i].burning != 0;
+  }
+  if (held > F3D_R(0.0)) s->temperature = warm / held;
+  s->water = water;
+  s->fuel = fuel;
+  s->heat_release = release;
+  if (burning) {
+    s->flags |= F3D_FLAG_BURNING;
+  } else {
+    s->flags &= (uint8_t)~F3D_FLAG_BURNING;
+  }
+  if (mass != s->mass) {
+    s->mass = mass;
+    f3d_refresh_mass(world, s);
+  }
+}
+
+/* ---------------------------------------------------------- the step's */
+
+/* What heat sees for a step: a whole body, or one part of a compound,
+ * worked on as a copy and written back at the end. */
+typedef struct Heat {
+  F3dLump l;
+  uint32_t slot;
+  F3dVec3 at;
+  f3d_real surface;
+  /* How big it is where it touches. */
+  f3d_real touch;
+  /* How far it reaches from [at], for a compound's parts. */
+  f3d_real reach;
+} Heat;
+
+/* Every live body's entries, and where each body's start. */
+typedef struct Heats {
+  Heat *h;
+  uint32_t count;
+  uint32_t *first, *many;
+} Heats;
+
+static f3d_real held_by(const F3dWorld *world, const Heat *h) {
+  return h->l.mass * world->slots[h->slot].material.specific_heat +
+         h->l.water * F3D_WATER_HEAT;
+}
+
+/* The entry of a body that is nearest [p]: its only one, or the part. */
+static Heat *nearest(Heats *hs, uint32_t slot, F3dVec3 p) {
+  Heat *best = &hs->h[hs->first[slot]];
+  f3d_real d2 = F3D_R(-1.0);
+  for (uint32_t k = 0; k < hs->many[slot]; k++) {
+    Heat *h = &hs->h[hs->first[slot] + k];
+    const F3dVec3 d = f3d_sub(h->at, p);
+    const f3d_real e = f3d_dot(d, d);
+    if (d2 < F3D_R(0.0) || e < d2) {
+      d2 = e;
+      best = h;
+    }
+  }
+  return best;
+}
+
+/* Heat across every contact that touches, each side's part nearest the
+ * contact. The conductance is Holm's constriction of two bodies meeting
+ * over a spot of radius a, G = 4a / (1/k₁ + 1/k₂), with a the radius of a
+ * circle of the contact's area; and the exchange is taken implicitly for
+ * the pair, so it carries them towards one temperature and never past it.
+ * In key order, so the same world passes the same heat. */
+static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
   for (uint32_t i = 0; i < world->s.manifold_count; i++) {
     const F3dManifold *m = &world->manifolds[i];
-    if (!m->touching) continue;
-    F3dSlot *a = f3d_slot_of(world, m->a);
-    F3dSlot *b = f3d_slot_of(world, m->b);
-    if (a == NULL || b == NULL) continue;
-    const f3d_real ca = capacity_of(a), cb = capacity_of(b);
+    if (!m->touching || m->count == 0) continue;
+    F3dSlot *sa = f3d_slot_of(world, m->a);
+    F3dSlot *sb = f3d_slot_of(world, m->b);
+    if (sa == NULL || sb == NULL) continue;
+    const uint32_t ia_slot = (uint32_t)(m->a & 0xffffffffu);
+    const uint32_t ib_slot = (uint32_t)(m->b & 0xffffffffu);
+    if (hs->many[ia_slot] == 0 || hs->many[ib_slot] == 0) continue;
+    F3dVec3 centre = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+    for (uint32_t k = 0; k < m->count; k++) {
+      centre = f3d_add(centre, m->points[k].point);
+    }
+    centre = f3d_scale(centre, F3D_R(1.0) / (f3d_real)m->count);
+    Heat *a = nearest(hs, ia_slot, centre);
+    Heat *b = nearest(hs, ib_slot, centre);
+    const f3d_real ca = held_by(world, a), cb = held_by(world, b);
     /* No thermal mass: a fixed one is a reservoir, and nothing else can
      * have none. */
     const f3d_real ia = ca > F3D_R(0.0) ? F3D_R(1.0) / ca : F3D_R(0.0);
     const f3d_real ib = cb > F3D_R(0.0) ? F3D_R(1.0) / cb : F3D_R(0.0);
     if (ia == F3D_R(0.0) && ib == F3D_R(0.0)) continue;
-    const f3d_real ra = radius_of(a), rb = radius_of(b);
+    const f3d_real ra = a->touch, rb = b->touch;
     const f3d_real r = ra > F3D_R(0.0) && rb > F3D_R(0.0)
                            ? ra * rb / (ra + rb)
                            : f3d_max(ra, rb);
     const f3d_real area = contact_area(m, r);
     if (!(area > F3D_R(0.0))) continue;
     const f3d_real spot = f3d_sqrt(area / F3D_PI);
-    const f3d_real g =
-        F3D_R(4.0) * spot /
-        (F3D_R(1.0) / a->material.conductivity +
-         F3D_R(1.0) / b->material.conductivity);
+    const f3d_real g = F3D_R(4.0) * spot /
+                       (F3D_R(1.0) / sa->material.conductivity +
+                        F3D_R(1.0) / sb->material.conductivity);
     const f3d_real gdt = g * dt;
-    const f3d_real q = gdt * (b->temperature - a->temperature) /
+    const f3d_real q = gdt * (b->l.temperature - a->l.temperature) /
                        (F3D_R(1.0) + gdt * (ia + ib));
-    a->temperature += q * ia;
-    b->temperature -= q * ib;
+    a->l.temperature += q * ia;
+    b->l.temperature -= q * ib;
+  }
+}
+
+/* Heat between a compound's own parts where they meet: Holm's
+ * constriction again, G = 2ak for one material, over a spot as wide as the
+ * narrower part's cross-section — a table's leg into its top. Parts whose
+ * reaches do not meet do not touch. Implicit a pair at a time, in part
+ * order. */
+static void conduct_within(F3dWorld *world, Heats *hs, f3d_real dt) {
+  for (uint32_t i = 0; i < world->s.used; i++) {
+    if (hs->many[i] < 2u) continue;
+    const f3d_real k = world->slots[i].material.conductivity;
+    for (uint32_t p = 0; p < hs->many[i]; p++) {
+      for (uint32_t q = p + 1u; q < hs->many[i]; q++) {
+        Heat *a = &hs->h[hs->first[i] + p];
+        Heat *b = &hs->h[hs->first[i] + q];
+        const F3dVec3 d = f3d_sub(a->at, b->at);
+        if (f3d_dot(d, d) > (a->reach + b->reach) * (a->reach + b->reach)) continue;
+        const f3d_real spot = f3d_min(a->touch, b->touch);
+        if (!(spot > F3D_R(0.0))) continue;
+        const f3d_real ca = held_by(world, a), cb = held_by(world, b);
+        if (!(ca > F3D_R(0.0) && cb > F3D_R(0.0))) continue;
+        const f3d_real gdt = F3D_R(2.0) * spot * k * dt;
+        const f3d_real flow = gdt * (b->l.temperature - a->l.temperature) /
+                              (F3D_R(1.0) + gdt * (F3D_R(1.0) / ca + F3D_R(1.0) / cb));
+        a->l.temperature += flow / ca;
+        b->l.temperature -= flow / cb;
+      }
+    }
   }
 }
 
@@ -312,9 +676,10 @@ static void conduct(F3dWorld *world, f3d_real dt) {
 /* Air's specific heat at constant pressure, J / (kg K). */
 #define F3D_AIR_HEAT F3D_R(1005.0)
 
-/* The radius of the ball with a body's surface: what radiation sees of it. */
-static f3d_real seen_radius(const F3dSlot *s) {
-  return f3d_sqrt(s->surface / (F3D_R(4.0) * F3D_PI));
+/* The radius of the ball with an entry's surface: what radiation sees of
+ * it. */
+static f3d_real seen_radius(const Heat *h) {
+  return f3d_sqrt(h->surface / (F3D_R(4.0) * F3D_PI));
 }
 
 /* The share of everything a point sends out that a ball of radius [r] at
@@ -363,17 +728,21 @@ static f3d_real flame_length(f3d_real q, f3d_real d) {
                  d);
 }
 
-/* What can be heated: a body with a surface and a thermal mass, not a
- * mesh — a level's floor is the room, already the air's temperature it
+/* Whether a body's entries radiate and are radiated to: not a mesh — a
+ * level's floor is the room, already the air's temperature everything
  * radiates against. */
-static int receives(const F3dSlot *s) {
-  return s->live && s->shape != F3D_SHAPE_MESH && s->surface > F3D_R(0.0) &&
-         capacity_of(s) > F3D_R(0.0);
+static int radiates(const F3dSlot *s) {
+  return s->live && s->shape != F3D_SHAPE_MESH;
+}
+
+/* What can be heated: an entry with a surface and a thermal mass. */
+static int receives(const F3dWorld *world, const Heat *h) {
+  return radiates(&world->slots[h->slot]) && h->surface > F3D_R(0.0) &&
+         held_by(world, h) > F3D_R(0.0);
 }
 
 typedef struct Near {
   const F3dWorld *world;
-  uint32_t self;
   uint32_t count, capacity;
   uint32_t *slots;
   int failed;
@@ -382,7 +751,6 @@ typedef struct Near {
 static int near_body(void *context, int32_t leaf) {
   Near *n = (Near *)context;
   const uint32_t slot = n->world->tree.nodes[leaf].slot;
-  if (slot == n->self) return 1;
   if (n->count == n->capacity) {
     const uint32_t grown = n->capacity == 0 ? 64u : n->capacity * 2u;
     uint32_t *more = (uint32_t *)f3d_realloc(n->slots, (size_t)grown * sizeof(uint32_t));
@@ -401,13 +769,12 @@ static int near_body(void *context, int32_t leaf) {
  * every other body: the share of F3D_RADIANT_RAYS rays that reach it, to
  * its centre and to four points around it at √½ of its radius — the circle
  * that halves the disc it shows. */
-static f3d_real seen(F3dWorld *world, const F3dSlot *a, const F3dSlot *b,
-                     f3d_real rb) {
-  const F3dBody ha = f3d_handle_of(world, a), hb = f3d_handle_of(world, b);
-  const F3dVec3 to = f3d_sub(b->position, a->position);
-  const f3d_real d = f3d_sqrt(f3d_dot(to, to));
+static f3d_real seen(F3dWorld *world, F3dVec3 from, F3dBody ha, F3dVec3 to,
+                     F3dBody hb, f3d_real rb) {
+  const F3dVec3 line = f3d_sub(to, from);
+  const f3d_real d = f3d_sqrt(f3d_dot(line, line));
   if (!(d > F3D_R(0.0))) return F3D_R(1.0);
-  const F3dVec3 n = f3d_scale(to, F3D_R(1.0) / d);
+  const F3dVec3 n = f3d_scale(line, F3D_R(1.0) / d);
   /* Two directions across the line, the same however it points. */
   const F3dVec3 helper = f3d_abs(n.y) < F3D_R(0.9)
                              ? f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0))
@@ -417,11 +784,11 @@ static f3d_real seen(F3dWorld *world, const F3dSlot *a, const F3dSlot *b,
   const F3dVec3 e2 = f3d_cross(n, e1);
   const f3d_real off = F3D_R(0.70710678) * rb;
   const F3dVec3 aims[F3D_RADIANT_RAYS] = {
-      b->position, f3d_madd(b->position, e1, off), f3d_madd(b->position, e1, -off),
-      f3d_madd(b->position, e2, off), f3d_madd(b->position, e2, -off)};
+      to, f3d_madd(to, e1, off), f3d_madd(to, e1, -off), f3d_madd(to, e2, off),
+      f3d_madd(to, e2, -off)};
   uint32_t open = 0;
   for (uint32_t k = 0; k < F3D_RADIANT_RAYS; k++) {
-    const F3dVec3 r = f3d_sub(aims[k], a->position);
+    const F3dVec3 r = f3d_sub(aims[k], from);
     const f3d_real len = f3d_sqrt(f3d_dot(r, r));
     if (!(len > F3D_R(0.0))) {
       open++;
@@ -431,8 +798,8 @@ static f3d_real seen(F3dWorld *world, const F3dSlot *a, const F3dSlot *b,
     F3dBody hit[4];
     f3d_real hits[4 * F3D_HIT_FLOATS];
     const uint32_t count = f3d_world_ray_cast_all(
-        world, a->position.x, a->position.y, a->position.z, dir.x, dir.y, dir.z,
-        len, UINT32_MAX, ha, hit, hits, 4);
+        world, from.x, from.y, from.z, dir.x, dir.y, dir.z, len, UINT32_MAX,
+        ha, hit, hits, 4);
     int blocked = 0;
     for (uint32_t h = 0; h < count; h++) {
       if (hit[h] != hb && hit[h] != ha) blocked = 1;
@@ -463,14 +830,13 @@ static f3d_real seen(F3dWorld *world, const F3dSlot *a, const F3dSlot *b,
  * A source looks as far as its radiation could still give the largest body
  * F3D_RADIANT_LEAST. Sources in slot order and what they find sorted, so the
  * same world passes the same heat. */
-static void radiate(F3dWorld *world, f3d_real dt) {
+static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
   const f3d_real ta = world->s.air_temperature;
   const f3d_real ta4 = ta * ta * ta * ta;
-  /* The largest body that can be heated, as radiation sees it. */
+  /* The largest thing that can be heated, as radiation sees it. */
   f3d_real largest = F3D_R(0.0);
-  for (uint32_t i = 0; i < world->s.used; i++) {
-    const F3dSlot *s = &world->slots[i];
-    if (receives(s)) largest = f3d_max(largest, seen_radius(s));
+  for (uint32_t e = 0; e < hs->count; e++) {
+    if (receives(world, &hs->h[e])) largest = f3d_max(largest, seen_radius(&hs->h[e]));
   }
   if (!(largest > F3D_R(0.0))) return;
   const f3d_real g2 = f3d_dot(world->s.gravity, world->s.gravity);
@@ -483,18 +849,17 @@ static void radiate(F3dWorld *world, f3d_real dt) {
   n.capacity = 0;
   n.slots = NULL;
   n.failed = 0;
-  for (uint32_t i = 0; i < world->s.used; i++) {
-    F3dSlot *a = &world->slots[i];
-    if (!a->live || a->shape == F3D_SHAPE_MESH || !(a->surface > F3D_R(0.0))) {
-      continue;
-    }
-    const F3dMaterial *ma = &a->material;
-    const f3d_real t = a->temperature;
+  for (uint32_t e = 0; e < hs->count && !n.failed; e++) {
+    const Heat *a = &hs->h[e];
+    const F3dSlot *sa = &world->slots[a->slot];
+    if (!radiates(sa) || !(a->surface > F3D_R(0.0))) continue;
+    const F3dMaterial *ma = &sa->material;
+    const f3d_real t = a->l.temperature;
     /* What it sends out above the room, and its flame's. */
     const f3d_real excess = ma->emissivity * F3D_STEFAN_BOLTZMANN * a->surface *
                             (t * t * t * t - ta4);
-    const int alight = (a->flags & F3D_FLAG_BURNING) != 0;
-    const f3d_real flame = alight ? ma->flame_radiant * a->heat_release
+    const int alight = a->l.burning != 0;
+    const f3d_real flame = alight ? ma->flame_radiant * a->l.heat_release
                                   : F3D_R(0.0);
     const f3d_real sent = excess + flame;
     const f3d_real ra = seen_radius(a);
@@ -502,15 +867,14 @@ static void radiate(F3dWorld *world, f3d_real dt) {
      * stands by the buoyant speed (g·Q / (ρ c_p Tₐ D))^(1/3). */
     f3d_real column = F3D_R(0.0);
     F3dVec3 axis = up;
-    if (alight && a->heat_release > F3D_R(0.0)) {
+    if (alight && a->l.heat_release > F3D_R(0.0)) {
       const f3d_real across = F3D_R(2.0) * ra;
-      column = flame_length(a->heat_release, across) + ra;
+      column = flame_length(a->l.heat_release, across) + ra;
       const f3d_real rise = cube_root(
-          g * a->heat_release /
+          g * a->l.heat_release /
           (world->s.air_density * F3D_AIR_HEAT * ta * across));
       f3d_real wind[3];
-      f3d_world_sample_wind(world, a->position.x, a->position.y,
-                            a->position.z, wind);
+      f3d_world_sample_wind(world, a->at.x, a->at.y, a->at.z, wind);
       F3dVec3 blow = f3d_v3(wind[0], wind[1], wind[2]);
       blow = f3d_sub(blow, f3d_scale(up, f3d_dot(blow, up)));
       const F3dVec3 lean = f3d_add(f3d_scale(up, rise), blow);
@@ -518,16 +882,15 @@ static void radiate(F3dWorld *world, f3d_real dt) {
       if (len > F3D_R(0.0)) axis = f3d_scale(lean, F3D_R(1.0) / len);
     }
     if (f3d_abs(sent) < F3D_RADIANT_LEAST && column == F3D_R(0.0)) continue;
-    /* caught ≤ (r/d)²/2: past this, the largest body catches less than the
-     * least worth sending. */
+    /* caught ≤ (r/d)²/2: past this, the largest thing catches less than
+     * the least worth sending. */
     const f3d_real far =
         largest * f3d_sqrt(f3d_abs(sent) / (F3D_R(2.0) * F3D_RADIANT_LEAST));
     const f3d_real top = ra + F3D_PLUME_SPREAD * column;
     const f3d_real reach = f3d_max(far, column + top + largest);
     F3dBox box;
-    box.lo = f3d_sub(a->position, f3d_v3(reach, reach, reach));
-    box.hi = f3d_add(a->position, f3d_v3(reach, reach, reach));
-    n.self = i;
+    box.lo = f3d_sub(a->at, f3d_v3(reach, reach, reach));
+    box.hi = f3d_add(a->at, f3d_v3(reach, reach, reach));
     n.count = 0;
     f3d_tree_query(&world->tree, box, near_body, &n);
     if (n.failed) break;
@@ -542,132 +905,268 @@ static void radiate(F3dWorld *world, f3d_real dt) {
     }
     const f3d_real flame_e =
         F3D_R(1.0) - decay(ma->flame_absorption * F3D_R(2.0) * ra);
+    const F3dBody ha = f3d_handle_of(world, sa);
     for (uint32_t k = 0; k < n.count; k++) {
-      F3dSlot *b = &world->slots[n.slots[k]];
-      if (!receives(b)) continue;
-      const F3dVec3 between = f3d_sub(b->position, a->position);
-      const f3d_real d = f3d_sqrt(f3d_dot(between, between));
-      if (d > reach) continue;
-      const f3d_real rb = seen_radius(b);
-      /* In the flame. */
-      f3d_real inside = F3D_R(0.0);
-      if (column > F3D_R(0.0)) {
-        const f3d_real along = f3d_clamp(f3d_dot(between, axis), F3D_R(0.0), column);
-        const F3dVec3 off = f3d_sub(between, f3d_scale(axis, along));
-        const f3d_real apart = f3d_sqrt(f3d_dot(off, off));
-        const f3d_real width = ra + F3D_PLUME_SPREAD * along;
-        inside = f3d_clamp((width + rb - apart) / (F3D_R(2.0) * rb),
-                           F3D_R(0.0), F3D_R(1.0));
+      const uint32_t other = n.slots[k];
+      if (other >= world->s.used) continue;
+      const F3dBody hb = f3d_handle_of(world, &world->slots[other]);
+      for (uint32_t j = 0; j < hs->many[other]; j++) {
+        Heat *b = &hs->h[hs->first[other] + j];
+        /* Not itself; but another part of its own body, yes: a beam's
+         * burning end heats the part beside it. */
+        if (b == a || !receives(world, b)) continue;
+        const F3dSlot *sb = &world->slots[b->slot];
+        const F3dVec3 between = f3d_sub(b->at, a->at);
+        const f3d_real d = f3d_sqrt(f3d_dot(between, between));
+        if (d > reach) continue;
+        const f3d_real rb = seen_radius(b);
+        /* In the flame. */
+        f3d_real inside = F3D_R(0.0);
+        if (column > F3D_R(0.0)) {
+          const f3d_real along =
+              f3d_clamp(f3d_dot(between, axis), F3D_R(0.0), column);
+          const F3dVec3 off = f3d_sub(between, f3d_scale(axis, along));
+          const f3d_real apart = f3d_sqrt(f3d_dot(off, off));
+          const f3d_real width = ra + F3D_PLUME_SPREAD * along;
+          inside = f3d_clamp((width + rb - apart) / (F3D_R(2.0) * rb),
+                             F3D_R(0.0), F3D_R(1.0));
+        }
+        if (inside > F3D_R(0.0) && b->l.temperature < ma->flame_temperature) {
+          const f3d_real cb = held_by(world, b);
+          const f3d_real tf = ma->flame_temperature, tb = b->l.temperature;
+          const f3d_real cond =
+              (ma->flame_convection + flame_e * sb->material.emissivity *
+                                          F3D_STEFAN_BOLTZMANN *
+                                          (tf * tf + tb * tb) * (tf + tb)) *
+              b->surface * F3D_R(0.5) * inside;
+          /* Never past the flame in one step. */
+          const f3d_real gdt = f3d_min(cond * dt, cb);
+          b->l.heat += gdt * (tf - tb);
+        }
+        /* From afar, on what is outside the flame. */
+        const f3d_real share = sb->material.emissivity * caught(rb, d) *
+                               (F3D_R(1.0) - inside);
+        if (f3d_abs(sent) * share < F3D_RADIANT_LEAST) continue;
+        b->l.heat += sent * share * seen(world, a->at, ha, b->at, hb, rb) * dt;
       }
-      if (inside > F3D_R(0.0) && b->temperature < ma->flame_temperature) {
-        const f3d_real cb = capacity_of(b);
-        const f3d_real tf = ma->flame_temperature, tb = b->temperature;
-        const f3d_real cond =
-            (ma->flame_convection + flame_e * b->material.emissivity *
-                                        F3D_STEFAN_BOLTZMANN *
-                                        (tf * tf + tb * tb) * (tf + tb)) *
-            b->surface * F3D_R(0.5) * inside;
-        /* Never past the flame in one step. */
-        const f3d_real gdt = f3d_min(cond * dt, cb);
-        b->heat += gdt * (tf - tb);
-      }
-      /* From afar, on what is outside the flame. */
-      const f3d_real share = b->material.emissivity * caught(rb, d) *
-                             (F3D_R(1.0) - inside);
-      if (f3d_abs(sent) * share < F3D_RADIANT_LEAST) continue;
-      b->heat += sent * share * seen(world, a, b, rb) * dt;
     }
   }
   f3d_free(n.slots);
 }
 
-void f3d_step_heat(F3dWorld *world, f3d_real dt) {
+enum { CAUGHT = 1, WENT_OUT = 2, BURNT_OUT = 4 };
+
+/* One entry's step: its fire, its heat, what it gives the air, its water
+ * and whether it is alight. Returns what changed, as CAUGHT, WENT_OUT and
+ * BURNT_OUT. */
+static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
+                           f3d_real dt) {
   const f3d_real ta = world->s.air_temperature;
-  conduct(world, dt);
-  radiate(world, dt);
-  for (uint32_t i = 0; i < world->s.used; i++) {
-    F3dSlot *s = &world->slots[i];
-    if (!s->live) continue;
-    const F3dMaterial *m = &s->material;
-    f3d_real power = s->heat / dt;
-    s->heat = F3D_R(0.0);
-    s->heat_release = F3D_R(0.0);
-    /* The fire: a burning surface loses mass at the burn rate, the mass
-     * releases its heat of combustion, and the flame's share of that goes
-     * back into the body; the rest leaves as hot gas. The mass leaves at
-     * the body's velocity, so the velocity does not change. */
-    if (s->flags & F3D_FLAG_BURNING) {
-      const f3d_real burnt =
-          f3d_min(m->burn_rate * s->surface * dt, s->fuel);
-      const f3d_real released = burnt * m->heat_of_combustion / dt;
-      power += m->flame_feedback * released;
-      s->heat_release = (F3D_R(1.0) - m->flame_feedback) * released;
-      s->fuel -= burnt;
-      s->mass -= burnt;
-      f3d_refresh_mass(world, s);
-      if (s->fuel <= F3D_R(0.0)) {
-        s->fuel = F3D_R(0.0);
-        s->flags &= (uint8_t)~F3D_FLAG_BURNING;
-        f3d_push_event(world, f3d_handle_of(world, s), F3D_EVENT_BURNT_OUT);
-      }
-    }
-    const f3d_real dry = s->mass * m->specific_heat;
-    const f3d_real capacity = dry + s->water * F3D_WATER_HEAT;
-    if (!(capacity > F3D_R(0.0))) continue;
-    /* What the surface gives the air: convection to the air moving past
-     * it, and radiation εσ(T⁴ − Tₐ⁴), written exactly as
-     * εσ(T² + Tₐ²)(T + Tₐ)·(T − Tₐ) so both are a conductance times the
-     * difference. Taken implicitly with the conductance as it is, the
-     * step cannot overshoot the air's temperature, however small the body
-     * or long the step. */
-    f3d_real conductance = F3D_R(0.0);
-    if (s->surface > F3D_R(0.0)) {
-      f3d_real wind[3];
-      f3d_world_sample_wind(world, s->position.x, s->position.y,
-                            s->position.z, wind);
-      const f3d_real ux = s->velocity.x - wind[0];
-      const f3d_real uy = s->velocity.y - wind[1];
-      const f3d_real uz = s->velocity.z - wind[2];
-      const f3d_real u = f3d_sqrt(ux * ux + uy * uy + uz * uz);
-      const f3d_real t = s->temperature;
-      conductance = s->surface *
-                    (convection(u) + m->emissivity * F3D_STEFAN_BOLTZMANN *
-                                         (t * t + ta * ta) * (t + ta));
-    }
-    f3d_real next = (capacity * s->temperature + dt * (power + conductance * ta)) /
-                    (capacity + dt * conductance);
-    /* Water on the body holds it at its boiling point: what would heat
-     * the body past it boils water off instead, and only once the water
-     * has gone does the body heat on. */
-    if (s->water > F3D_R(0.0) && next > F3D_WATER_BOILS) {
-      const f3d_real excess = (next - F3D_WATER_BOILS) * capacity;
-      const f3d_real boils = excess / F3D_WATER_LATENT;
-      if (boils < s->water) {
-        s->water -= boils;
-        next = F3D_WATER_BOILS;
-      } else {
-        const f3d_real left = excess - s->water * F3D_WATER_LATENT;
-        s->water = F3D_R(0.0);
-        next = dry > F3D_R(0.0) ? F3D_WATER_BOILS + left / dry
-                                : F3D_WATER_BOILS;
-      }
-    }
-    s->temperature = f3d_max(next, F3D_R(1e-3));
-    /* Alight at the ignition temperature, out below it. A wet body is held
-     * at boiling, below any ignition temperature here, so water puts a fire
-     * out and keeps a wet body from catching. */
-    const f3d_real ignition = m->ignition_temperature;
-    if (ignition <= F3D_R(0.0)) continue;
-    if (s->flags & F3D_FLAG_BURNING) {
-      if (s->temperature < ignition) {
-        s->flags &= (uint8_t)~F3D_FLAG_BURNING;
-        f3d_push_event(world, f3d_handle_of(world, s),
-                       F3D_EVENT_EXTINGUISHED);
-      }
-    } else if (s->fuel > F3D_R(0.0) && s->water <= F3D_R(0.0) &&
-               s->temperature >= ignition) {
-      s->flags |= F3D_FLAG_BURNING;
-      f3d_push_event(world, f3d_handle_of(world, s), F3D_EVENT_IGNITED);
+  const F3dMaterial *m = &s->material;
+  F3dLump *l = &h->l;
+  uint32_t said = 0;
+  f3d_real power = l->heat / dt;
+  l->heat = F3D_R(0.0);
+  l->heat_release = F3D_R(0.0);
+  /* The fire: a burning surface loses mass at the burn rate, the mass
+   * releases its heat of combustion, and the flame's share of that goes
+   * back into it; the rest leaves as hot gas. The mass leaves at the body's
+   * velocity, so the velocity does not change. */
+  if (l->burning) {
+    const f3d_real burnt = f3d_min(m->burn_rate * h->surface * dt, l->fuel);
+    const f3d_real released = burnt * m->heat_of_combustion / dt;
+    power += m->flame_feedback * released;
+    l->heat_release = (F3D_R(1.0) - m->flame_feedback) * released;
+    l->fuel -= burnt;
+    l->mass -= burnt;
+    if (l->fuel <= F3D_R(0.0)) {
+      l->fuel = F3D_R(0.0);
+      l->burning = 0;
+      said |= BURNT_OUT;
     }
   }
+  const f3d_real dry = l->mass * m->specific_heat;
+  const f3d_real capacity = dry + l->water * F3D_WATER_HEAT;
+  if (!(capacity > F3D_R(0.0))) return said;
+  /* What the surface gives the air: convection to the air moving past it,
+   * and radiation εσ(T⁴ − Tₐ⁴), written exactly as εσ(T² + Tₐ²)(T + Tₐ)·
+   * (T − Tₐ) so both are a conductance times the difference. Taken
+   * implicitly with the conductance as it is, the step cannot overshoot
+   * the air's temperature, however small the body or long the step. */
+  f3d_real conductance = F3D_R(0.0);
+  if (h->surface > F3D_R(0.0)) {
+    f3d_real wind[3];
+    f3d_world_sample_wind(world, h->at.x, h->at.y, h->at.z, wind);
+    const f3d_real ux = s->velocity.x - wind[0];
+    const f3d_real uy = s->velocity.y - wind[1];
+    const f3d_real uz = s->velocity.z - wind[2];
+    const f3d_real u = f3d_sqrt(ux * ux + uy * uy + uz * uz);
+    const f3d_real t = l->temperature;
+    conductance = h->surface *
+                  (convection(u) + m->emissivity * F3D_STEFAN_BOLTZMANN *
+                                       (t * t + ta * ta) * (t + ta));
+  }
+  f3d_real next = (capacity * l->temperature + dt * (power + conductance * ta)) /
+                  (capacity + dt * conductance);
+  /* Water on it holds it at its boiling point: what would heat it past it
+   * boils water off instead, and only once the water has gone does it heat
+   * on. */
+  if (l->water > F3D_R(0.0) && next > F3D_WATER_BOILS) {
+    const f3d_real excess = (next - F3D_WATER_BOILS) * capacity;
+    const f3d_real boils = excess / F3D_WATER_LATENT;
+    if (boils < l->water) {
+      l->water -= boils;
+      next = F3D_WATER_BOILS;
+    } else {
+      const f3d_real left = excess - l->water * F3D_WATER_LATENT;
+      l->water = F3D_R(0.0);
+      next = dry > F3D_R(0.0) ? F3D_WATER_BOILS + left / dry : F3D_WATER_BOILS;
+    }
+  }
+  l->temperature = f3d_max(next, F3D_R(1e-3));
+  /* Alight at the ignition temperature, out below it. A wet one is held at
+   * boiling, below any ignition temperature here, so water puts a fire out
+   * and keeps a wet body from catching. */
+  const f3d_real ignition = m->ignition_temperature;
+  if (ignition <= F3D_R(0.0)) return said;
+  if (l->burning) {
+    if (l->temperature < ignition) {
+      l->burning = 0;
+      said |= WENT_OUT;
+    }
+  } else if (l->fuel > F3D_R(0.0) && l->water <= F3D_R(0.0) &&
+             l->temperature >= ignition) {
+    l->burning = 1;
+    said |= CAUGHT;
+  }
+  return said;
+}
+
+/* Every live body's entries for the step: a body's own, or a compound's
+ * parts', where they stand; heat the body was given as a whole shared out
+ * by what each part holds. */
+static int gather(F3dWorld *world, Heats *hs) {
+  const uint32_t used = world->s.used;
+  uint32_t total = 0;
+  for (uint32_t i = 0; i < used; i++) {
+    const F3dSlot *s = &world->slots[i];
+    if (!s->live) continue;
+    total += s->lumps != 0 ? s->lump_count : 1u;
+  }
+  hs->count = total;
+  hs->h = (Heat *)f3d_alloc((size_t)total * sizeof(Heat) + 8u);
+  hs->first = (uint32_t *)f3d_alloc((size_t)used * 2u * sizeof(uint32_t) + 8u);
+  if (hs->h == NULL || hs->first == NULL) return 0;
+  hs->many = hs->first + used;
+  uint32_t at = 0;
+  for (uint32_t i = 0; i < used; i++) {
+    F3dSlot *s = &world->slots[i];
+    hs->first[i] = at;
+    hs->many[i] = 0;
+    if (!s->live) continue;
+    if (s->lumps == 0) {
+      Heat *h = &hs->h[at++];
+      f3d_zero(h, sizeof *h);
+      h->l.temperature = s->temperature;
+      h->l.heat = s->heat;
+      h->l.water = s->water;
+      h->l.fuel = s->fuel;
+      h->l.mass = s->mass;
+      h->l.heat_release = s->heat_release;
+      h->l.burning = (s->flags & F3D_FLAG_BURNING) != 0;
+      h->slot = i;
+      h->at = s->position;
+      h->surface = s->surface;
+      h->touch = touch_radius(s->shape, s->size);
+      hs->many[i] = 1;
+      continue;
+    }
+    const F3dCompound *c = compound_of(world, s);
+    const F3dPlaced whole = f3d_placed_of(world, s);
+    f3d_real held = F3D_R(0.0);
+    for (uint32_t k = 0; k < s->lump_count; k++) {
+      const F3dLump *l = &world->lumps[s->lumps - 1u + k];
+      held += l->mass * s->material.specific_heat + l->water * F3D_WATER_HEAT;
+    }
+    for (uint32_t k = 0; k < s->lump_count; k++) {
+      const F3dCompoundPart *part = part_of(world, c, k);
+      Heat *h = &hs->h[at++];
+      f3d_zero(h, sizeof *h);
+      h->l = world->lumps[s->lumps - 1u + k];
+      const f3d_real mine = h->l.mass * s->material.specific_heat +
+                            h->l.water * F3D_WATER_HEAT;
+      if (held > F3D_R(0.0)) h->l.heat += s->heat * mine / held;
+      h->slot = i;
+      h->at = f3d_placed_part(&whole, k).at;
+      h->surface = part_surface(world, part);
+      h->touch = touch_radius(part->kind, part->size);
+      h->reach = part->reach;
+    }
+    s->heat = F3D_R(0.0);
+    hs->many[i] = s->lump_count;
+  }
+  return 1;
+}
+
+void f3d_step_heat(F3dWorld *world, f3d_real dt) {
+  if (!ensure_lumps(world)) return;
+  Heats hs;
+  f3d_zero(&hs, sizeof hs);
+  if (!gather(world, &hs)) {
+    f3d_free(hs.h);
+    f3d_free(hs.first);
+    return;
+  }
+  conduct(world, &hs, dt);
+  conduct_within(world, &hs, dt);
+  radiate(world, &hs, dt);
+  for (uint32_t i = 0; i < world->s.used; i++) {
+    F3dSlot *s = &world->slots[i];
+    if (!s->live || hs.many[i] == 0) continue;
+    const F3dBody handle = f3d_handle_of(world, s);
+    const int was = (s->flags & F3D_FLAG_BURNING) != 0;
+    uint32_t said = 0;
+    for (uint32_t k = 0; k < hs.many[i]; k++) {
+      said |= step_entry(world, s, &hs.h[hs.first[i] + k], dt);
+    }
+    if (s->lumps == 0) {
+      /* A body: its fields back, and what happened, in the order it did. */
+      const F3dLump *l = &hs.h[hs.first[i]].l;
+      s->temperature = l->temperature;
+      s->heat = F3D_R(0.0);
+      s->water = l->water;
+      s->fuel = l->fuel;
+      s->heat_release = l->heat_release;
+      if (l->mass != s->mass) {
+        s->mass = l->mass;
+        f3d_refresh_mass(world, s);
+      }
+      if (l->burning) {
+        s->flags |= F3D_FLAG_BURNING;
+      } else {
+        s->flags &= (uint8_t)~F3D_FLAG_BURNING;
+      }
+      if (said & BURNT_OUT) f3d_push_event(world, handle, F3D_EVENT_BURNT_OUT);
+      if (said & WENT_OUT) f3d_push_event(world, handle, F3D_EVENT_EXTINGUISHED);
+      if (said & CAUGHT) f3d_push_event(world, handle, F3D_EVENT_IGNITED);
+      continue;
+    }
+    /* A compound: its parts back, the body from them, and what happened to
+     * the body as a whole — alight when its first part catches, out when
+     * its last goes out, burnt out when no fuel is left in any. */
+    for (uint32_t k = 0; k < hs.many[i]; k++) {
+      world->lumps[s->lumps - 1u + k] = hs.h[hs.first[i] + k].l;
+    }
+    body_from_lumps(world, s);
+    const int is = (s->flags & F3D_FLAG_BURNING) != 0;
+    if (!was && is) {
+      f3d_push_event(world, handle, F3D_EVENT_IGNITED);
+    } else if (was && !is) {
+      f3d_push_event(world, handle, s->fuel <= F3D_R(0.0)
+                                        ? F3D_EVENT_BURNT_OUT
+                                        : F3D_EVENT_EXTINGUISHED);
+    }
+  }
+  f3d_free(hs.h);
+  f3d_free(hs.first);
 }

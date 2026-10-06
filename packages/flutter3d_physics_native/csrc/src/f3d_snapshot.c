@@ -11,7 +11,7 @@
 #include "f3d_internal.h"
 
 #define F3D_SNAPSHOT_MAGIC 0x53443346u /* "F3DS", little-endian. */
-#define F3D_SNAPSHOT_VERSION 13u
+#define F3D_SNAPSHOT_VERSION 14u
 
 typedef struct F3dSnapshotHeader {
   uint32_t magic;
@@ -28,6 +28,7 @@ typedef struct F3dSnapshotHeader {
   uint32_t part_bytes;
   uint32_t vehicle_bytes;
   uint32_t multibody_bytes;
+  uint32_t lump_bytes;
 } F3dSnapshotHeader;
 
 static uint64_t grid_reals(const F3dWorldState *s) {
@@ -50,7 +51,8 @@ static uint64_t size_of(const F3dWorldState *s) {
          (uint64_t)s->compound_count * sizeof(F3dCompound) +
          (uint64_t)s->compound_part_count * sizeof(F3dCompoundPart) +
          (uint64_t)s->vehicle_count * sizeof(F3dVehicleSlot) +
-         (uint64_t)s->multibody_count * sizeof(F3dMultibodySlot);
+         (uint64_t)s->multibody_count * sizeof(F3dMultibodySlot) +
+         (uint64_t)s->lump_count * sizeof(F3dLump);
 }
 
 uint32_t f3d_world_snapshot_size(const F3dWorld *world) {
@@ -78,6 +80,7 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   header.part_bytes = (uint32_t)sizeof(F3dCompoundPart);
   header.vehicle_bytes = (uint32_t)sizeof(F3dVehicleSlot);
   header.multibody_bytes = (uint32_t)sizeof(F3dMultibodySlot);
+  header.lump_bytes = (uint32_t)sizeof(F3dLump);
   uint8_t *at = buffer;
   f3d_copy(at, &header, sizeof header);
   at += sizeof header;
@@ -161,6 +164,11 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   if (world->s.multibody_count > 0) {
     f3d_copy(at, world->multibodies,
              (size_t)world->s.multibody_count * sizeof(F3dMultibodySlot));
+    at += (size_t)world->s.multibody_count * sizeof(F3dMultibodySlot);
+  }
+  /* The compounds' parts' heat. */
+  if (world->s.lump_count > 0) {
+    f3d_copy(at, world->lumps, (size_t)world->s.lump_count * sizeof(F3dLump));
   }
   return needed;
 }
@@ -182,7 +190,8 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       header.compound_bytes != sizeof(F3dCompound) ||
       header.part_bytes != sizeof(F3dCompoundPart) ||
       header.vehicle_bytes != sizeof(F3dVehicleSlot) ||
-      header.multibody_bytes != sizeof(F3dMultibodySlot)) {
+      header.multibody_bytes != sizeof(F3dMultibodySlot) ||
+      header.lump_bytes != sizeof(F3dLump)) {
     return 0;
   }
   if (size < sizeof header + sizeof(F3dWorldState)) return 0;
@@ -334,6 +343,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   }
   F3dVehicleSlot *vehicles = NULL;
   F3dMultibodySlot *multibodies = NULL;
+  F3dLump *lumps = NULL;
+  if (state.lump_count > 0) {
+    lumps = (F3dLump *)f3d_alloc((size_t)state.lump_count * sizeof(F3dLump));
+  }
   if (state.multibody_count > 0) {
     multibodies = (F3dMultibodySlot *)f3d_alloc(
         (size_t)state.multibody_count * sizeof(F3dMultibodySlot));
@@ -343,7 +356,9 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
                                            sizeof(F3dVehicleSlot));
   }
   if ((state.vehicle_count > 0 && vehicles == NULL) ||
-      (state.multibody_count > 0 && multibodies == NULL)) {
+      (state.multibody_count > 0 && multibodies == NULL) ||
+      (state.lump_count > 0 && lumps == NULL)) {
+    f3d_free(lumps);
     f3d_free(vehicles);
     f3d_free(multibodies);
     f3d_free(compounds);
@@ -412,11 +427,17 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   if (multibodies != NULL) {
     f3d_copy(multibodies, at,
              (size_t)state.multibody_count * sizeof(F3dMultibodySlot));
+    at += (size_t)state.multibody_count * sizeof(F3dMultibodySlot);
+  }
+  if (lumps != NULL) {
+    f3d_copy(lumps, at, (size_t)state.lump_count * sizeof(F3dLump));
   }
   f3d_free(world->vehicles);
   world->vehicles = vehicles;
   f3d_free(world->multibodies);
   world->multibodies = multibodies;
+  f3d_free(world->lumps);
+  world->lumps = lumps;
   f3d_free(world->compounds);
   f3d_free(world->compound_parts);
   world->compounds = compounds;

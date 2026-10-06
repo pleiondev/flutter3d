@@ -1019,6 +1019,40 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyHigh,
     JSNumber joules,
   );
+  @JS('f3d_body_get_part_temperature__w')
+  external JSNumber f3d_body_get_part_temperature(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber part,
+    JSNumber out,
+  );
+  @JS('f3d_body_set_part_temperature__w')
+  external JSNumber f3d_body_set_part_temperature(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber part,
+    JSNumber kelvin,
+  );
+  @JS('f3d_body_is_part_burning__w')
+  external JSNumber f3d_body_is_part_burning(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber part,
+    JSNumber out,
+  );
+  @JS('f3d_body_add_heat_at__w')
+  external JSNumber f3d_body_add_heat_at(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber x,
+    JSNumber y,
+    JSNumber z,
+    JSNumber joules,
+  );
   @JS('f3d_body_add_water__w')
   external JSNumber f3d_body_add_water(
     JSNumber world,
@@ -2311,6 +2345,56 @@ int f3d_body_add_heat(int world, int body, double joules) => _x
       world.toJS,
       lowHalf(body).toJS,
       highHalf(body).toJS,
+      joules.toJS,
+    )
+    .toDartInt;
+int f3d_body_get_part_temperature(int world, int body, int part, int out) => _x
+    .f3d_body_get_part_temperature(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      part.toJS,
+      out.toJS,
+    )
+    .toDartInt;
+int f3d_body_set_part_temperature(
+  int world,
+  int body,
+  int part,
+  double kelvin,
+) => _x
+    .f3d_body_set_part_temperature(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      part.toJS,
+      kelvin.toJS,
+    )
+    .toDartInt;
+int f3d_body_is_part_burning(int world, int body, int part, int out) => _x
+    .f3d_body_is_part_burning(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      part.toJS,
+      out.toJS,
+    )
+    .toDartInt;
+int f3d_body_add_heat_at(
+  int world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double joules,
+) => _x
+    .f3d_body_add_heat_at(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      x.toJS,
+      y.toJS,
+      z.toJS,
       joules.toJS,
     )
     .toDartInt;

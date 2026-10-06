@@ -2680,6 +2680,85 @@ external int _f3d_body_add_heat(Pointer<Void> world, int body, double joules);
 int f3d_body_add_heat(int world, int body, double joules) =>
     _f3d_body_add_heat(Pointer.fromAddress(world), body, joules);
 
+@Native<Int32 Function(Pointer<Void>, Uint64, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_body_get_part_temperature',
+  isLeaf: true,
+)
+external int _f3d_body_get_part_temperature(
+  Pointer<Void> world,
+  int body,
+  int part,
+  Pointer<Void> out,
+);
+int f3d_body_get_part_temperature(int world, int body, int part, int out) =>
+    _f3d_body_get_part_temperature(
+      Pointer.fromAddress(world),
+      body,
+      part,
+      Pointer.fromAddress(out),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Uint32, Float)>(
+  symbol: 'f3d_body_set_part_temperature',
+  isLeaf: true,
+)
+external int _f3d_body_set_part_temperature(
+  Pointer<Void> world,
+  int body,
+  int part,
+  double kelvin,
+);
+int f3d_body_set_part_temperature(
+  int world,
+  int body,
+  int part,
+  double kelvin,
+) => _f3d_body_set_part_temperature(
+  Pointer.fromAddress(world),
+  body,
+  part,
+  kelvin,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_body_is_part_burning',
+  isLeaf: true,
+)
+external int _f3d_body_is_part_burning(
+  Pointer<Void> world,
+  int body,
+  int part,
+  Pointer<Void> out,
+);
+int f3d_body_is_part_burning(int world, int body, int part, int out) =>
+    _f3d_body_is_part_burning(
+      Pointer.fromAddress(world),
+      body,
+      part,
+      Pointer.fromAddress(out),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Float, Float, Float, Float)>(
+  symbol: 'f3d_body_add_heat_at',
+  isLeaf: true,
+)
+external int _f3d_body_add_heat_at(
+  Pointer<Void> world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double joules,
+);
+int f3d_body_add_heat_at(
+  int world,
+  int body,
+  double x,
+  double y,
+  double z,
+  double joules,
+) => _f3d_body_add_heat_at(Pointer.fromAddress(world), body, x, y, z, joules);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Float)>(
   symbol: 'f3d_body_add_water',
   isLeaf: true,

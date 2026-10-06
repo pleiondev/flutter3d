@@ -5,6 +5,8 @@
  * keeps a body from catching and puts a fire out.
  */
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "check.h"
 
@@ -346,6 +348,153 @@ static void test_fire_spreads(void) {
   CHECK(windy[4] < 0);
 }
 
+/* A pine beam two metres long, ten centimetres square, as five boxes end
+ * to end: one fixed body of 16 kg, lying along x or standing along y. */
+static F3dBody beam(F3dWorld *w, int upright) {
+  uint32_t kinds[5];
+  f3d_real reals[5 * F3D_COMPOUND_PART_FLOATS];
+  memset(reals, 0, sizeof reals);
+  for (int k = 0; k < 5; k++) {
+    kinds[k] = F3D_SHAPE_BOX;
+    f3d_real *r = &reals[k * F3D_COMPOUND_PART_FLOATS];
+    const f3d_real along = (f3d_real)(-0.8 + 0.4 * k);
+    r[0] = upright ? F3D_R(0.05) : F3D_R(0.2);
+    r[1] = upright ? F3D_R(0.2) : F3D_R(0.05);
+    r[2] = F3D_R(0.05);
+    r[upright ? 5 : 4] = along;
+    r[10] = 1;
+  }
+  const uint32_t shape = f3d_world_create_compound(w, kinds, NULL, reals, 5);
+  const F3dBody b = f3d_body_create(w, F3D_BODY_FIXED, 0,
+                                    upright ? F3D_R(1.0) : F3D_R(0.05), 0, 16);
+  f3d_body_set_compound(w, b, shape);
+  F3dMaterial m;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &m);
+  f3d_body_set_material(w, b, &m);
+  return b;
+}
+
+/* When each part of a beam lit at its first part catches, s, or −1. */
+static void burn_beam(int upright, int when[5], f3d_real *second_part_peak) {
+  F3dWorld *w = f3d_world_create();
+  const F3dBody b = beam(w, upright);
+  f3d_body_set_part_temperature(w, b, 0, 700);
+  for (int k = 0; k < 5; k++) when[k] = -1;
+  *second_part_peak = 0;
+  for (int i = 0; i < 3000; i++) {
+    f3d_world_step(w, 1);
+    for (int k = 0; k < 5; k++) {
+      int on = 0;
+      f3d_body_is_part_burning(w, b, (uint32_t)k, &on);
+      if (on && when[k] < 0) when[k] = i;
+    }
+    f3d_real t;
+    f3d_body_get_part_temperature(w, b, 1, &t);
+    if (t > *second_part_peak) *second_part_peak = t;
+  }
+  f3d_world_destroy(w);
+}
+
+static void test_a_beam_burns_from_one_end(void) {
+  /* A compound's parts have their heat each. A beam stood on end and lit at
+   * the bottom burns upwards a part at a time, each catching in the flame
+   * of the one below. Laid flat and lit at one end, it warms the part
+   * beside the fire and goes no further, as a lone log on its side does in
+   * still air: its flame stands over the burning end, not along it. */
+  int up[5], flat[5];
+  f3d_real peak_up, peak_flat;
+  burn_beam(1, up, &peak_up);
+  burn_beam(0, flat, &peak_flat);
+  CHECK(up[0] == 0);
+  for (int k = 1; k < 5; k++) CHECK(up[k] > up[k - 1]);
+  CHECK(flat[0] == 0);
+  for (int k = 1; k < 5; k++) CHECK(flat[k] < 0);
+  CHECK(peak_flat > 310 && peak_flat < 573);
+  F3dWorld *w = f3d_world_create();
+  const F3dBody b = beam(w, 0);
+  CHECK(f3d_body_set_part_temperature(w, b, 0, 700) == 1);
+  CHECK(f3d_body_set_part_temperature(w, b, 5, 700) == 0);
+  f3d_real t;
+  f3d_body_get_temperature(w, b, &t);
+  CHECK_NEAR(t, (700 + 4 * 293.15) / 5, 0.01);
+  f3d_world_destroy(w);
+  /* Heat given to the body as a whole warms every part alike: shared out
+   * by what each holds. */
+  w = f3d_world_create();
+  const F3dBody even = beam(w, 0);
+  f3d_body_add_heat(w, even, 16 * 1700 * 10);
+  f3d_world_step(w, F3D_R(0.001));
+  for (uint32_t k = 0; k < 5; k++) {
+    f3d_real tk;
+    f3d_body_get_part_temperature(w, even, k, &tk);
+    CHECK_NEAR(tk, 303.15, 0.05);
+  }
+  f3d_world_destroy(w);
+  /* A steel bar's parts pass heat along it: one end at 800 K warms the part
+   * beside it by conduction within a minute, far more than the air and the
+   * glow could. */
+  w = f3d_world_create();
+  const F3dBody bar = beam(w, 0);
+  F3dMaterial steel;
+  f3d_material_preset(F3D_MATERIAL_STEEL, &steel);
+  f3d_body_set_material(w, bar, &steel);
+  f3d_body_set_part_temperature(w, bar, 0, 800);
+  for (int i = 0; i < 60; i++) f3d_world_step(w, 1);
+  f3d_real next_to;
+  f3d_body_get_part_temperature(w, bar, 1, &next_to);
+  CHECK(next_to > 330);
+  f3d_world_destroy(w);
+  /* The body said it caught once, when its first part did. */
+  F3dBody bodies[16];
+  uint32_t kinds[16];
+  w = f3d_world_create();
+  const F3dBody c = beam(w, 0);
+  f3d_body_set_part_temperature(w, c, 0, 700);
+  f3d_world_step(w, 1);
+  CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 16) == 1);
+  CHECK(kinds[0] == F3D_EVENT_IGNITED);
+  /* A fire is where its part burns, at that end of the beam. */
+  f3d_real fires[F3D_FIRE_FLOATS * 4];
+  F3dBody named[4];
+  CHECK(f3d_world_read_fires(w, fires, named, 4) == 1);
+  CHECK(named[0] == c);
+  CHECK_NEAR(fires[0], -0.8, 1e-5);
+  /* And the beam is lighter by what that part burnt, the rest untouched. */
+  f3d_real mass;
+  f3d_body_get_mass(w, c, &mass);
+  CHECK(mass < 16 && mass > 16 - 0.01);
+  /* Heat held to the other end goes into that end. */
+  f3d_real before;
+  f3d_body_get_part_temperature(w, c, 3, &before);
+  CHECK(f3d_body_add_heat_at(w, c, F3D_R(0.85), F3D_R(0.05), 0, 500000) == 1);
+  f3d_world_step(w, F3D_R(0.01));
+  f3d_real end, middle;
+  f3d_body_get_part_temperature(w, c, 4, &end);
+  f3d_body_get_part_temperature(w, c, 3, &middle);
+  /* Half a megajoule on 3.2 kg of pine: about ninety kelvin. */
+  CHECK(end > 370);
+  CHECK(middle < before + 1);
+  /* Through a snapshot, every part goes on as it would have. */
+  const uint32_t size = f3d_world_snapshot_size(w);
+  uint8_t *bytes = (uint8_t *)malloc(size);
+  CHECK(f3d_world_snapshot_write(w, bytes, size) == size);
+  F3dWorld *copy = f3d_world_create();
+  CHECK(f3d_world_restore(copy, bytes, size) == 1);
+  for (int i = 0; i < 50; i++) {
+    f3d_world_step(w, 1);
+    f3d_world_step(copy, 1);
+  }
+  for (uint32_t k = 0; k < 5; k++) {
+    f3d_real x, y;
+    f3d_body_get_part_temperature(w, c, k, &x);
+    f3d_body_get_part_temperature(copy, c, k, &y);
+    CHECK(x == y);
+  }
+  free(bytes);
+  f3d_world_destroy(copy);
+  f3d_world_destroy(w);
+}
+
 static void test_burning_body_gets_lighter(void) {
   /* A dynamic log that burns loses mass and, with it, inertia; its
    * velocity stays, since what burns leaves at the body's speed. */
@@ -451,6 +600,7 @@ int main(void) {
   test_fire();
   test_radiation_between_bodies();
   test_fire_spreads();
+  test_a_beam_burns_from_one_end();
   test_burning_body_gets_lighter();
   test_water();
   return finish();

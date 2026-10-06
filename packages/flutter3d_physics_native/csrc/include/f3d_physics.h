@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 27u
+#define F3D_ABI_VERSION 28u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -415,9 +415,10 @@ F3D_API uint32_t f3d_world_read_transforms(const F3dWorld *world,
                                            F3dBody *handles,
                                            uint32_t capacity);
 
-/* Every burning body, F3D_FIRE_FLOATS reals apiece, as
- * f3d_world_read_transforms does: what a smoke grid takes its sources
- * from. */
+/* Every fire, F3D_FIRE_FLOATS reals apiece, as f3d_world_read_transforms
+ * does: a burning body's, or one a burning part of a compound, at that
+ * part, so a compound can name the same body more than once. What a smoke
+ * grid takes its sources from. */
 F3D_API uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
                                       F3dBody *handles, uint32_t capacity);
 
@@ -1453,6 +1454,24 @@ F3D_API int f3d_body_get_temperature(const F3dWorld *world, F3dBody body,
 /* The bus: joules into the body over the next step, or out of it for a
  * negative amount. */
 F3D_API int f3d_body_add_heat(F3dWorld *world, F3dBody body, f3d_real joules);
+
+/* A compound's parts each have a temperature, water, fuel and fire of
+ * their own, so a beam burns from the end the fire reached; the body's own
+ * temperature is theirs weighted by what each holds, and it burns while
+ * any part does. Part nought of any other body is the body. These read and
+ * set one part; 0 for a part it does not have. */
+F3D_API int f3d_body_get_part_temperature(F3dWorld *world, F3dBody body,
+                                          uint32_t part, f3d_real *out);
+F3D_API int f3d_body_set_part_temperature(F3dWorld *world, F3dBody body,
+                                          uint32_t part, f3d_real kelvin);
+F3D_API int f3d_body_is_part_burning(F3dWorld *world, F3dBody body,
+                                     uint32_t part, int *out);
+
+/* [joules] into the body where (x, y, z) is: into the part of a compound
+ * whose centre is nearest it, into any other body whole. A torch held to
+ * one end. */
+F3D_API int f3d_body_add_heat_at(F3dWorld *world, F3dBody body, f3d_real x,
+                                 f3d_real y, f3d_real z, f3d_real joules);
 
 /* The bus: kilograms of water onto the body, at the air's temperature and
  * mixed with the body's heat at once, or off it for a negative amount.

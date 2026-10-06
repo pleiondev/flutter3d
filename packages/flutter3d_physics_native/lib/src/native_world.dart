@@ -2122,6 +2122,41 @@ final class NativeWorld {
   void addHeat(NativeBody body, double joules) =>
       _check(c.f3d_body_add_heat(_live, body.raw, joules), body, joules);
 
+  /// Joules into [body] where [point] is: into the part of a compound
+  /// whose centre is nearest it, into any other body whole. A torch held to
+  /// one end of a beam.
+  void addHeatAt(NativeBody body, Vector3 point, double joules) => _check(
+    c.f3d_body_add_heat_at(_live, body.raw, point.x, point.y, point.z, joules),
+    body,
+    joules,
+  );
+
+  /// A compound's part [part]'s temperature, K. Each part of a compound
+  /// has its own heat, water, fuel and fire, so a post burns upwards a part
+  /// at a time; [temperatureOf] is theirs weighted by what each holds. Part
+  /// nought of any other body is the body.
+  double partTemperatureOf(NativeBody body, int part) {
+    if (c.f3d_body_get_part_temperature(_live, body.raw, part, _out) == 0) {
+      throw ArgumentError.value(part, 'part', 'not a part of $body');
+    }
+    return _out[0];
+  }
+
+  void setPartTemperature(NativeBody body, int part, double kelvin) {
+    if (c.f3d_body_set_part_temperature(_live, body.raw, part, kelvin) == 0) {
+      throw ArgumentError('part $part of $body at $kelvin K');
+    }
+  }
+
+  /// Whether a compound's part [part] is alight; part nought of any other
+  /// body is the body.
+  bool isPartBurning(NativeBody body, int part) {
+    if (c.f3d_body_is_part_burning(_live, body.raw, part, _outInt) == 0) {
+      throw ArgumentError.value(part, 'part', 'not a part of $body');
+    }
+    return _outInt[0] == 1;
+  }
+
   /// Kilograms of water onto [body] at the air's temperature, or off it.
   /// Water holds the body at its boiling point until it has boiled away.
   void addWater(NativeBody body, double kilograms) =>

@@ -259,6 +259,22 @@ F3D_API int f3d_body_add_heat__w(void * world, uint32_t body_low, uint32_t body_
   return f3d_body_add_heat((void *)world, ((uint64_t)body_high << 32) | body_low, joules);
 }
 
+F3D_API int f3d_body_get_part_temperature__w(void * world, uint32_t body_low, uint32_t body_high, uint32_t part, void * out) {
+  return f3d_body_get_part_temperature((void *)world, ((uint64_t)body_high << 32) | body_low, part, (void *)out);
+}
+
+F3D_API int f3d_body_set_part_temperature__w(void * world, uint32_t body_low, uint32_t body_high, uint32_t part, f3d_real kelvin) {
+  return f3d_body_set_part_temperature((void *)world, ((uint64_t)body_high << 32) | body_low, part, kelvin);
+}
+
+F3D_API int f3d_body_is_part_burning__w(void * world, uint32_t body_low, uint32_t body_high, uint32_t part, void * out) {
+  return f3d_body_is_part_burning((void *)world, ((uint64_t)body_high << 32) | body_low, part, (void *)out);
+}
+
+F3D_API int f3d_body_add_heat_at__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real x, f3d_real y, f3d_real z, f3d_real joules) {
+  return f3d_body_add_heat_at((void *)world, ((uint64_t)body_high << 32) | body_low, x, y, z, joules);
+}
+
 F3D_API int f3d_body_add_water__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real kg) {
   return f3d_body_add_water((void *)world, ((uint64_t)body_high << 32) | body_low, kg);
 }

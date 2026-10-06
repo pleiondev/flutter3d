@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 27;
+const int abiVersion = 28;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;

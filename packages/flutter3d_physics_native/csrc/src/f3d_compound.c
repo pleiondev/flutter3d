@@ -214,6 +214,9 @@ int f3d_body_set_compound(F3dWorld *world, F3dBody body, uint32_t compound) {
   }
   s->shape = F3D_SHAPE_COMPOUND;
   s->hull = compound;
+  /* Its parts' heat is made afresh from the body's at the next step. */
+  s->lumps = 0;
+  s->lump_count = 0;
   s->size = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   f3d_refresh_mass(world, s);
   s->flags |= F3D_FLAG_MOVED;

@@ -23,6 +23,18 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A post burns upwards, a part at a time.** Each part of a compound
+  has its own temperature, water, fuel and fire. A post stood on end and
+  lit at the bottom catches a part at a time in the flame of the one below;
+  a beam laid flat and lit at one end warms the part beside the fire and
+  goes no further, as a log on its side does in still air. The parts pass
+  heat to each other where they meet, a contact heats the part nearest it,
+  and a fire is read at the part that burns. The body's temperature is its
+  parts' weighed by what each holds, and it burns while any part does.
+  `partTemperatureOf`, `setPartTemperature`, `isPartBurning` and
+  `addHeatAt` reach a part. `F3D_ABI_VERSION` is 28, and a snapshot is
+  format 14.
+
 - **A box in a corner stands on both faces.** A mesh, or a compound,
   that meets another body with two faces at once gives each face its own
   manifold. A box in the corner of a room stands on the floor and stops at

@@ -51,6 +51,7 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->compound_parts);
   f3d_free(world->vehicles);
   f3d_free(world->multibodies);
+  f3d_free(world->lumps);
   f3d_free(world->meshes);
   f3d_free(world->mesh_vertices);
   f3d_free(world->mesh_triangles);
@@ -734,6 +735,23 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
   for (uint32_t i = 0; i < world->s.used && written < capacity; i++) {
     const F3dSlot *s = &world->slots[i];
     if (!s->live || !(s->flags & F3D_FLAG_BURNING)) continue;
+    if (s->lumps != 0) {
+      /* A compound burns where its parts do: a fire a burning part. */
+      const F3dPlaced whole = f3d_placed_of(world, s);
+      for (uint32_t k = 0; k < s->lump_count && written < capacity; k++) {
+        const F3dLump *l = &world->lumps[s->lumps - 1u + k];
+        if (!l->burning) continue;
+        const F3dVec3 at = f3d_placed_part(&whole, k).at;
+        f3d_real *f = fires + (size_t)written * F3D_FIRE_FLOATS;
+        f[0] = at.x;
+        f[1] = at.y;
+        f[2] = at.z;
+        f[3] = l->heat_release;
+        if (handles != NULL) handles[written] = handle_of(i, s->generation);
+        written++;
+      }
+      continue;
+    }
     f3d_real *f = fires + (size_t)written * F3D_FIRE_FLOATS;
     f[0] = s->position.x;
     f[1] = s->position.y;
