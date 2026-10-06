@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A browser build opens WebGPU first.** WebGPU's golden set now holds
+  every scene the others hold, so `FLUTTER3D_WEBGPU` defaults to true, and
+  WebGL2 is the fallback where the browser hands out no adapter.
+  `--dart-define=FLUTTER3D_WEBGPU=false` leaves WebGPU out of the bundle.
+
 - **`LoadedLevel` carries the level's decals, mirrors and screens**, along
   with `wantsDecals` for the frame. It releases the screens' textures.
 

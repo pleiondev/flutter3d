@@ -43,7 +43,7 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_hardware`](packages/flutter3d_hardware) | The abstraction over graphics APIs: a device, an encoder, a pass. Its vocabulary is its own and names no API, so a fourth backend changes no user code. Plain Dart |
 | [`packages/flutter3d_impeller`](packages/flutter3d_impeller) | The desktop backend, over `flutter_gpu`. Also where the shader build lives |
 | [`packages/flutter3d_webgl`](packages/flutter3d_webgl) | The web backend, over WebGL2. What an ordinary browser build draws through |
-| [`packages/flutter3d_webgpu`](packages/flutter3d_webgpu) | The second web backend, over WebGPU. The only one whose shaders are not the same text the others read: its WGSL is translated from the same GLSL through `glslangValidator` and `naga`. A browser build reaches it by asking: `--dart-define=FLUTTER3D_WEBGPU=true`. [README](packages/flutter3d_webgpu/README.md) |
+| [`packages/flutter3d_webgpu`](packages/flutter3d_webgpu) | The second web backend, over WebGPU. The only one whose shaders are not the same text the others read: its WGSL is translated from the same GLSL through `glslangValidator` and `naga`. A browser build tries it first and falls back to WebGL2; `--dart-define=FLUTTER3D_WEBGPU=false` builds WebGL2 alone. [README](packages/flutter3d_webgpu/README.md) |
 | [`packages/flutter3d_cpu`](packages/flutter3d_cpu) | A software rasteriser, built for testing rather than teaching. It gives a second, independent set of reference images and lets the renderer be tested in CI with no GPU |
 | [`packages/flutter3d_testing`](packages/flutter3d_testing) | Pixel regression tests for a game built on this engine, with no GPU: draw a frame through the software backend and hold it to a reference image. Nothing else on this platform can do it without a real device |
 | [`packages/flutter3d_conformance`](packages/flutter3d_conformance) | The contract every backend must pass, as runnable checks rather than a document |
@@ -123,12 +123,12 @@ flutter pub get
 
 In a browser it is the same command with a different device, and no shader
 bundle: the WebGL backend translates the same GLSL and the browser compiles it.
-A build that wants WebGPU instead asks for it with
-`--dart-define=FLUTTER3D_WEBGPU=true`, and the probe falls back to WebGL2 where
-the browser has no adapter to give. WebGPU is off by default for two reasons. A
-build that can try both backends ships both, which costs 376,649 bytes of
-`main.dart.js` measured on the strategy demo. And WebGL2 is the browser backend
-three shipped games have been looked at on.
+A browser build tries WebGPU first and falls back to WebGL2 where the browser
+has no adapter to give. WebGPU became the default in 0.9.0, once its golden set
+held every scene the other backends hold. A build that wants WebGL2 alone
+passes `--dart-define=FLUTTER3D_WEBGPU=false`. That saves the 376,649 bytes of
+`main.dart.js`, measured on the strategy demo, that carrying both backends
+costs.
 
 ```bash
 (cd apps/flutter3d_demo_dungeon && flutter run -d chrome)
@@ -158,7 +158,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 11802 tests across forty-four packages and nine applications. The
+There are 11824 tests across forty-four packages and nine applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 95 scenes
 checkable in a headless run.

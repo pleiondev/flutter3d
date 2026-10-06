@@ -1,5 +1,6 @@
-/// The browser backend: WebGL2 over a canvas the browser composites, and —
-/// only when a build asks for it — WebGPU tried first.
+/// The browser backend: WebGPU tried first, and WebGL2 over a canvas the
+/// browser composites where WebGPU will not start — or where a build says
+/// it does not want WebGPU at all.
 ///
 /// **WebGL2 is not named here either** — it registers itself with
 /// `flutter3d_hardware`'s device registry, the same way the native half's
@@ -42,10 +43,17 @@ const bool kFixedResolution = true;
 
 /// Whether this build may try WebGPU before settling for WebGL2.
 ///
-///     flutter build web --dart-define=FLUTTER3D_WEBGPU=true
+///     flutter build web --dart-define=FLUTTER3D_WEBGPU=false   # WebGL2 only
 ///
-/// **Off by default, and that is a decision about bundle size rather than about
-/// WebGPU.** The probe cannot be a compile-time choice the way web-or-native is:
+/// **On by default since 0.9.0**, when WebGPU's golden set held every scene
+/// the other three hold (nothing left in `cross_backend_test.dart`'s
+/// `_provisional`) — decision 18's condition for a backend a build reaches
+/// without asking. Where a browser hands out no adapter, the registry's
+/// fallback opens WebGL2, as it always did for a build that asked.
+///
+/// **The define stays, and it is a decision about bundle size rather than
+/// about WebGPU.** The probe cannot be a compile-time choice the way
+/// web-or-native is:
 /// whether a browser hands out a WebGPU adapter depends on the browser, the
 /// driver and the machine's blocklist, none of which anything at compile time
 /// can see — so finding out means trying, and trying means the WebGPU device is
@@ -60,18 +68,21 @@ const bool kFixedResolution = true;
 /// this off and a 2,906,514-byte one with it on — 14.9% more script, and 368 KiB
 /// on the whole of `build/web`. That is the WebGPU device, its encoder, its
 /// pipeline cache and its WGSL arriving in a bundle that will never open them.
-/// So the flag is the price tag, and whether a particular game pays it is that
-/// game's call — the same shape as the resolution and the shadow budget this
-/// package already refuses to decide. The figure is re-measured rather than
+/// So the flag is the price tag, and a game that would rather not pay it —
+/// a small one, served where WebGL2 is all its players have — turns it off;
+/// the same shape as the resolution and the shadow budget this package
+/// already refuses to decide. The figure is re-measured rather than
 /// carried forward, because both halves grow: the reading before this one was
 /// 372,686 bytes over a tree eleven thousand bytes smaller.
 ///
-/// What is *not* a call anybody makes per game is that WebGL2 is what an
-/// ordinary web build draws through. WebGPU is the newer API and the one whose
-/// reference pictures are still being recorded, and a default that quietly
-/// moved every browser build onto it would change what three shipped games look
-/// like without anybody having asked for it.
-const bool _tryWebGpu = bool.fromEnvironment('FLUTTER3D_WEBGPU');
+/// It was off until the pictures were in: a default that moved every
+/// browser build onto a backend whose references were still being recorded
+/// would have changed what three shipped games look like with nothing to
+/// say whether it changed them for the worse.
+const bool _tryWebGpu = bool.fromEnvironment(
+  'FLUTTER3D_WEBGPU',
+  defaultValue: true,
+);
 
 bool _registered = false;
 void _ensureRegistered() {

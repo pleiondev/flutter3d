@@ -2691,7 +2691,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **11802 tests** across 44 packages and 10 applications |
+| Unit tests | **11824 tests** across 44 packages and 10 applications |
 | Structure rules | 36, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3244,10 +3244,10 @@ size rather than about WebGPU.** Which backend a browser hands out cannot be a
 compile-time question the way web-or-native is: whether `navigator.gpu` exists,
 and whether the adapter behind it is blocklisted on this machine's driver, is
 knowable only by trying — and trying means the WebGPU device is reachable code,
-which means dart2js ships it. So the probe sits behind
-`--dart-define=FLUTTER3D_WEBGPU=true`; `bool.fromEnvironment` folds to a
-constant, the branch folds with it, and a build that did not ask carries one
-backend instead of two. **The price is measured**, on
+which means dart2js ships it. So the probe sits behind a define,
+`FLUTTER3D_WEBGPU`. It has been on by default since 0.9.0, when WebGPU's golden
+set held every scene. `--dart-define=FLUTTER3D_WEBGPU=false` folds the branch
+away, and a build that asks for that carries one backend instead of two. **The price is measured**, on
 `apps/flutter3d_demo_strategy` with `flutter build web --release`: 2,529,865
 bytes of `main.dart.js` with the flag off against 2,906,514 with it on —
 **376,649 bytes, 14.9%**, and 368 KiB over the whole of `build/web`. That is the
