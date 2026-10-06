@@ -672,8 +672,8 @@ int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) =>
     Float,
     Pointer<Void>,
   )
->(symbol: 'f3d_water_create')
-external int _f3d_water_create(
+>(symbol: 'f3d_shallow_create')
+external int _f3d_shallow_create(
   Pointer<Void> world,
   int nx,
   int nz,
@@ -683,7 +683,7 @@ external int _f3d_water_create(
   double oz,
   Pointer<Void> ground,
 );
-int f3d_water_create(
+int f3d_shallow_create(
   int world,
   int nx,
   int nz,
@@ -692,7 +692,7 @@ int f3d_water_create(
   double oy,
   double oz,
   int ground,
-) => _f3d_water_create(
+) => _f3d_shallow_create(
   Pointer.fromAddress(world),
   nx,
   nz,
@@ -704,32 +704,32 @@ int f3d_water_create(
 );
 
 @Native<Int32 Function(Pointer<Void>, Uint32)>(
-  symbol: 'f3d_water_destroy',
+  symbol: 'f3d_shallow_destroy',
   isLeaf: true,
 )
-external int _f3d_water_destroy(Pointer<Void> world, int water);
-int f3d_water_destroy(int world, int water) =>
-    _f3d_water_destroy(Pointer.fromAddress(world), water);
+external int _f3d_shallow_destroy(Pointer<Void> world, int water);
+int f3d_shallow_destroy(int world, int water) =>
+    _f3d_shallow_destroy(Pointer.fromAddress(world), water);
 
 @Native<Int32 Function(Pointer<Void>, Uint32)>(
-  symbol: 'f3d_water_is_valid',
+  symbol: 'f3d_shallow_is_valid',
   isLeaf: true,
 )
-external int _f3d_water_is_valid(Pointer<Void> world, int water);
-int f3d_water_is_valid(int world, int water) =>
-    _f3d_water_is_valid(Pointer.fromAddress(world), water);
+external int _f3d_shallow_is_valid(Pointer<Void> world, int water);
+int f3d_shallow_is_valid(int world, int water) =>
+    _f3d_shallow_is_valid(Pointer.fromAddress(world), water);
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
-  symbol: 'f3d_water_set_ground',
+  symbol: 'f3d_shallow_set_ground',
   isLeaf: true,
 )
-external int _f3d_water_set_ground(
+external int _f3d_shallow_set_ground(
   Pointer<Void> world,
   int water,
   Pointer<Void> ground,
 );
-int f3d_water_set_ground(int world, int water, int ground) =>
-    _f3d_water_set_ground(
+int f3d_shallow_set_ground(int world, int water, int ground) =>
+    _f3d_shallow_set_ground(
       Pointer.fromAddress(world),
       water,
       Pointer.fromAddress(ground),
@@ -737,8 +737,8 @@ int f3d_water_set_ground(int world, int water, int ground) =>
 
 @Native<
   Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float, Float)
->(symbol: 'f3d_water_fill', isLeaf: true)
-external int _f3d_water_fill(
+>(symbol: 'f3d_shallow_fill', isLeaf: true)
+external int _f3d_shallow_fill(
   Pointer<Void> world,
   int water,
   double x0,
@@ -747,7 +747,7 @@ external int _f3d_water_fill(
   double z1,
   double level,
 );
-int f3d_water_fill(
+int f3d_shallow_fill(
   int world,
   int water,
   double x0,
@@ -755,13 +755,14 @@ int f3d_water_fill(
   double x1,
   double z1,
   double level,
-) => _f3d_water_fill(Pointer.fromAddress(world), water, x0, z0, x1, z1, level);
+) =>
+    _f3d_shallow_fill(Pointer.fromAddress(world), water, x0, z0, x1, z1, level);
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float)>(
-  symbol: 'f3d_water_pour',
+  symbol: 'f3d_shallow_pour',
   isLeaf: true,
 )
-external int _f3d_water_pour(
+external int _f3d_shallow_pour(
   Pointer<Void> world,
   int water,
   double x,
@@ -769,19 +770,19 @@ external int _f3d_water_pour(
   double radius,
   double volume,
 );
-int f3d_water_pour(
+int f3d_shallow_pour(
   int world,
   int water,
   double x,
   double z,
   double radius,
   double volume,
-) => _f3d_water_pour(Pointer.fromAddress(world), water, x, z, radius, volume);
+) => _f3d_shallow_pour(Pointer.fromAddress(world), water, x, z, radius, volume);
 
 @Native<
   Int32 Function(Pointer<Void>, Uint32, Uint32, Float, Float, Float, Float)
->(symbol: 'f3d_water_set_source', isLeaf: true)
-external int _f3d_water_set_source(
+>(symbol: 'f3d_shallow_set_source', isLeaf: true)
+external int _f3d_shallow_set_source(
   Pointer<Void> world,
   int water,
   int index,
@@ -790,7 +791,7 @@ external int _f3d_water_set_source(
   double radius,
   double rate,
 );
-int f3d_water_set_source(
+int f3d_shallow_set_source(
   int world,
   int water,
   int index,
@@ -798,7 +799,7 @@ int f3d_water_set_source(
   double z,
   double radius,
   double rate,
-) => _f3d_water_set_source(
+) => _f3d_shallow_set_source(
   Pointer.fromAddress(world),
   water,
   index,
@@ -809,31 +810,65 @@ int f3d_water_set_source(
 );
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Float, Int32)>(
-  symbol: 'f3d_water_set_bed',
+  symbol: 'f3d_shallow_set_bed',
   isLeaf: true,
 )
-external int _f3d_water_set_bed(
+external int _f3d_shallow_set_bed(
   Pointer<Void> world,
   int water,
   double roughness,
   int openEdges,
 );
-int f3d_water_set_bed(int world, int water, double roughness, int openEdges) =>
-    _f3d_water_set_bed(Pointer.fromAddress(world), water, roughness, openEdges);
+int f3d_shallow_set_bed(
+  int world,
+  int water,
+  double roughness,
+  int openEdges,
+) => _f3d_shallow_set_bed(
+  Pointer.fromAddress(world),
+  water,
+  roughness,
+  openEdges,
+);
 
-@Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Pointer<Void>)>(
-  symbol: 'f3d_water_sample',
+@Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Float)>(
+  symbol: 'f3d_shallow_set_fluid',
   isLeaf: true,
 )
-external int _f3d_water_sample(
+external int _f3d_shallow_set_fluid(
+  Pointer<Void> world,
+  int water,
+  double density,
+  double viscosity,
+  double tension,
+);
+int f3d_shallow_set_fluid(
+  int world,
+  int water,
+  double density,
+  double viscosity,
+  double tension,
+) => _f3d_shallow_set_fluid(
+  Pointer.fromAddress(world),
+  water,
+  density,
+  viscosity,
+  tension,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Pointer<Void>)>(
+  symbol: 'f3d_shallow_sample',
+  isLeaf: true,
+)
+external int _f3d_shallow_sample(
   Pointer<Void> world,
   int water,
   double x,
   double z,
   Pointer<Void> out,
 );
-int f3d_water_sample(int world, int water, double x, double z, int out) =>
-    _f3d_water_sample(
+int f3d_shallow_sample(int world, int water, double x, double z, int out) =>
+    _f3d_shallow_sample(
       Pointer.fromAddress(world),
       water,
       x,
@@ -842,17 +877,17 @@ int f3d_water_sample(int world, int water, double x, double z, int out) =>
     );
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Pointer<Void>)>(
-  symbol: 'f3d_water_read',
+  symbol: 'f3d_shallow_read',
   isLeaf: true,
 )
-external int _f3d_water_read(
+external int _f3d_shallow_read(
   Pointer<Void> world,
   int water,
   Pointer<Void> surface,
   Pointer<Void> depth,
 );
-int f3d_water_read(int world, int water, int surface, int depth) =>
-    _f3d_water_read(
+int f3d_shallow_read(int world, int water, int surface, int depth) =>
+    _f3d_shallow_read(
       Pointer.fromAddress(world),
       water,
       Pointer.fromAddress(surface),
@@ -860,33 +895,33 @@ int f3d_water_read(int world, int water, int surface, int depth) =>
     );
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
-  symbol: 'f3d_water_read_flow',
+  symbol: 'f3d_shallow_read_flow',
   isLeaf: true,
 )
-external int _f3d_water_read_flow(
+external int _f3d_shallow_read_flow(
   Pointer<Void> world,
   int water,
   Pointer<Void> velocity,
 );
-int f3d_water_read_flow(int world, int water, int velocity) =>
-    _f3d_water_read_flow(
+int f3d_shallow_read_flow(int world, int water, int velocity) =>
+    _f3d_shallow_read_flow(
       Pointer.fromAddress(world),
       water,
       Pointer.fromAddress(velocity),
     );
 
 @Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Pointer<Void>)>(
-  symbol: 'f3d_water_volume',
+  symbol: 'f3d_shallow_volume',
   isLeaf: true,
 )
-external int _f3d_water_volume(
+external int _f3d_shallow_volume(
   Pointer<Void> world,
   int water,
   Pointer<Void> held,
   Pointer<Void> lost,
 );
-int f3d_water_volume(int world, int water, int held, int lost) =>
-    _f3d_water_volume(
+int f3d_shallow_volume(int world, int water, int held, int lost) =>
+    _f3d_shallow_volume(
       Pointer.fromAddress(world),
       water,
       Pointer.fromAddress(held),

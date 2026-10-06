@@ -22,17 +22,17 @@ void main() {
         for (var i = 0; i < 8; i++) i < 4 ? 1.0 : 0.0,
     ];
     final origin = Vector3(10.0, 1.0, 20.0);
-    final water = world.createWater(
+    final water = world.createShallowLiquid(
       nx: 8,
       nz: 8,
       cell: 0.5,
       origin: origin,
       ground: ground,
     );
-    world.fillWater(water, x0: 12.0, z0: 0, x1: 99, z1: 99, level: 0.5);
-    final view = WaterView(
+    world.fillShallowLiquid(water, x0: 12.0, z0: 0, x1: 99, z1: 99, level: 0.5);
+    final view = LiquidView(
       world: world,
-      water: water,
+      liquid: water,
       ground: ground,
       device: softwareDevice(),
       scene: Scene(),
@@ -54,9 +54,9 @@ void main() {
     expect(at(bank, 1), lessThan(1.0 + 1.0));
     expect(at(bank, 6), 0.0);
     expect(
-      () => WaterView(
+      () => LiquidView(
         world: world,
-        water: water,
+        liquid: water,
         ground: const <double>[0.0],
         device: softwareDevice(),
         scene: Scene(),
@@ -72,7 +72,7 @@ void main() {
       for (var j = 0; j < 4; j++)
         for (var i = 0; i < 24; i++) i < 8 ? 2.0 : 0.0,
     ];
-    final water = world.createWater(
+    final water = world.createShallowLiquid(
       nx: 24,
       nz: 4,
       cell: 0.25,
@@ -80,11 +80,11 @@ void main() {
       ground: ground,
     );
     world
-      ..fillWater(water, x0: 2.0, z0: -1, x1: 9, z1: 9, level: 0.5)
-      ..setWaterSource(water, 0, x: 0.5, z: 0.5, radius: 0.3, rate: 0.05);
-    final view = WaterView(
+      ..fillShallowLiquid(water, x0: 2.0, z0: -1, x1: 9, z1: 9, level: 0.5)
+      ..setShallowSource(water, 0, x: 0.5, z: 0.5, radius: 0.3, rate: 0.05);
+    final view = LiquidView(
       world: world,
-      water: water,
+      liquid: water,
       ground: ground,
       device: softwareDevice(),
       scene: Scene(),

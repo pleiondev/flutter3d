@@ -377,6 +377,9 @@ typedef struct F3dSlot {
   f3d_real fuel;
   /* W given off as gas over the last step. */
   f3d_real heat_release;
+  /* kg of fluid it carries along as it speeds up, this step: what water
+   * round it adds to its inertia. */
+  f3d_real added_mass;
   /* Coulomb's coefficient, and the share of the approach speed that comes
    * back. */
   f3d_real friction;
@@ -511,9 +514,9 @@ typedef struct F3dLink {
 } F3dLink;
 
 /* One spring of a water. Plain data. */
-typedef struct F3dWaterSource {
+typedef struct F3dShallowSource {
   f3d_real x, z, radius, rate;
-} F3dWaterSource;
+} F3dShallowSource;
 
 /* A water's slot: its grid, where its reals start in the world's array of
  * them, and its springs. Plain data, zeroed when taken.
@@ -522,7 +525,7 @@ typedef struct F3dWaterSource {
  * depth at each, nx × nz; the velocity across each x face, (nx + 1) × nz;
  * across each z face, nx × (nz + 1); and the volume bodies fill in each
  * column, nx × nz. */
-typedef struct F3dWaterSlot {
+typedef struct F3dShallowSlot {
   uint32_t live;
   uint32_t nx, nz;
   uint32_t first;
@@ -530,10 +533,12 @@ typedef struct F3dWaterSlot {
   F3dVec3 origin;
   f3d_real roughness;
   uint32_t open_edges;
+  /* What it is: kg/m³, Pa·s and N/m. */
+  f3d_real density, viscosity, tension;
   f3d_real lost;
   uint32_t source_count;
-  F3dWaterSource sources[F3D_WATER_MOST_SOURCES];
-} F3dWaterSlot;
+  F3dShallowSource sources[F3D_SHALLOW_MOST_SOURCES];
+} F3dShallowSlot;
 
 /* A piece of falling water: a stretch of sheet off a lip, or drops. Plain
  * data. */
@@ -684,8 +689,8 @@ typedef struct F3dWorldState {
   uint32_t lump_count;
   /* Waters ever made, the reals all the live ones hold, and the spray in
    * flight. */
-  uint32_t water_count;
-  uint32_t water_reals;
+  uint32_t shallow_count;
+  uint32_t shallow_reals;
   uint32_t spray_count;
   uint32_t bubble_count;
 } F3dWorldState;
@@ -774,8 +779,8 @@ struct F3dWorld {
   /* The lumps, lump_count of them. In a snapshot. */
   F3dLump *lumps;
   /* The waters, their reals and their spray. In a snapshot. */
-  F3dWaterSlot *waters;
-  f3d_real *water_data;
+  F3dShallowSlot *shallows;
+  f3d_real *shallow_data;
   F3dSpray *spray;
   F3dBubbles *bubbles;
   /* The joints, and the pairs of slots joined by a joint that keeps them

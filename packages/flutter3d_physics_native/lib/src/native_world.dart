@@ -93,11 +93,13 @@ extension type const NativeHull(int id) {}
 /// ([NativeWorld.setMesh]). Numbered from one.
 extension type const NativeMesh(int id) {}
 
-/// Water over ground in a [NativeWorld]: a stream, a pond, a waterfall into
-/// it. Shallow water on a grid of [nx] × [nz] cells [cell] metres square,
-/// the first cell's corner at [origin].
-final class NativeWater {
-  const NativeWater._(this.id, this.nx, this.nz, this.cell, this.origin);
+/// A liquid over ground in a [NativeWorld]: a stream, a pond, a waterfall
+/// into it — or a pool of oil, a river of molten rock, as its
+/// [NativeLiquidProperties] say. The shallow-water equations on a grid of
+/// [nx] × [nz] cells [cell] metres square, the first cell's corner at
+/// [origin].
+final class NativeShallowLiquid {
+  const NativeShallowLiquid._(this.id, this.nx, this.nz, this.cell, this.origin);
 
   /// Numbered from one; a number is never given out again.
   final int id;
@@ -105,9 +107,70 @@ final class NativeWater {
   final double cell;
   final Vector3 origin;
 
-  /// How many cells: the length of what [NativeWorld.readWaterSurface]
+  /// How many cells: the length of what [NativeWorld.readShallowSurface]
   /// and its depths return.
   int get cells => nx * nz;
+}
+
+/// What a liquid is: its density, kg/m³, its viscosity, Pa·s, and its
+/// surface tension, N/m — [NativeWorld.setShallowProperties].
+///
+/// The density is what a body in it is held up by and pushes against. The
+/// viscosity is what a body's drag answers to at its Reynolds number — a
+/// ball sinks through honey at Stokes's speed and through water as Newton's
+/// drag allows — what mixes the flow, and the ground's laminar hold where it
+/// runs thin and slow, so honey and molten rock creep down a slope as a film. With
+/// the tension, it is what spray and falling sheets break up by.
+final class NativeLiquidProperties {
+  const NativeLiquidProperties({
+    required this.density,
+    required this.viscosity,
+    required this.tension,
+  });
+
+  /// Fresh water at room temperature: what a shallow liquid starts as.
+  static const NativeLiquidProperties water = NativeLiquidProperties(
+    density: 1000.0,
+    viscosity: 1.0e-3,
+    tension: 0.072,
+  );
+
+  /// The sea: salt makes it heavier and a little thicker. For a game set
+  /// in the sea — a harbour, a reef a diver swims over.
+  static const NativeLiquidProperties seawater = NativeLiquidProperties(
+    density: 1025.0,
+    viscosity: 1.08e-3,
+    tension: 0.073,
+  );
+
+  /// Olive oil: lighter than water, eighty times as thick.
+  static const NativeLiquidProperties oil = NativeLiquidProperties(
+    density: 910.0,
+    viscosity: 0.081,
+    tension: 0.032,
+  );
+
+  /// Honey: ten thousand times as thick as water.
+  static const NativeLiquidProperties honey = NativeLiquidProperties(
+    density: 1420.0,
+    viscosity: 10.0,
+    tension: 0.05,
+  );
+
+  /// Molten basalt, a hundred pascal-seconds as it flows from a vent: a
+  /// stone floats on it, and it creeps. For a game with a volcano whose
+  /// flow runs downhill — the stone-age valley's.
+  static const NativeLiquidProperties moltenBasalt = NativeLiquidProperties(
+    density: 2700.0,
+    viscosity: 100.0,
+    tension: 0.35,
+  );
+
+  final double density, viscosity, tension;
+
+  @override
+  String toString() =>
+      'NativeLiquidProperties($density kg/m³, $viscosity Pa·s, $tension N/m)';
 }
 
 /// Reals one piece of falling water takes in [NativeWorld.readSpray]: where
@@ -132,7 +195,7 @@ const int nativeBubbleFloats = c.bubbleFloats;
 
 /// What water is like at a point: its surface's height above the water's
 /// origin, its depth, and the flow's velocity in x and z.
-typedef NativeWaterSample = ({
+typedef NativeShallowSample = ({
   double surface,
   double depth,
   double flowX,
@@ -1669,18 +1732,22 @@ final class NativeWorld {
   void setHull(NativeBody body, NativeHull hull) =>
       _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
 
-  /// Water over ground: [nx] × [nz] cells [cell] metres square, the first
-  /// cell's corner at [origin], and [ground] the height of the ground at each
+  /// A liquid over ground — water, until [setShallowProperties] says
+  /// otherwise: [nx] × [nz] cells [cell] metres square, the first cell's
+  /// corner at [origin], and [ground] the height of the ground at each
   /// cell's centre above the origin, x fastest. It starts dry.
   ///
-  /// In each column the water moves as one, its depth carried across the
+  /// In each column the liquid moves as one, its depth carried across the
   /// columns' faces, so none is made or lost but by springs, open edges and
   /// what is taken off; it runs down the slope of its surface and is held
-  /// back by the bed's roughness. Off a drop steeper than forty-five degrees
-  /// it leaves as spray, falls and lands below — a waterfall. A dynamic body
-  /// in it pushes the water aside, so a stone dropped in makes waves; it is
-  /// held up by what it displaces and carried by the flow.
-  NativeWater createWater({
+  /// back by the bed — its roughness where the flow is turbulent, its
+  /// viscosity where it creeps. Off a drop steeper than forty-five degrees it
+  /// leaves as spray, falls and lands below — a waterfall. A dynamic body in
+  /// it pushes the liquid aside, so a stone dropped in makes waves; it is
+  /// held up by what it displaces, dragged as its Reynolds number says,
+  /// heavier to speed up by the liquid it carries, and pushes the flow back
+  /// as hard, so it leaves a wake.
+  NativeShallowLiquid createShallowLiquid({
     required int nx,
     required int nz,
     required double cell,
@@ -1697,7 +1764,7 @@ final class NativeWorld {
     final g = c.F32s.alloc(ground.isEmpty ? 1 : ground.length);
     try {
       g.setAll(ground);
-      final id = c.f3d_water_create(
+      final id = c.f3d_shallow_create(
         _live,
         nx,
         nz,
@@ -1713,27 +1780,27 @@ final class NativeWorld {
           'a cell out of range, or a height not finite',
         );
       }
-      return NativeWater._(id, nx, nz, cell, origin.clone());
+      return NativeShallowLiquid._(id, nx, nz, cell, origin.clone());
     } finally {
       g.free();
     }
   }
 
-  bool removeWater(NativeWater water) =>
-      c.f3d_water_destroy(_live, water.id) == 1;
+  bool removeShallowLiquid(NativeShallowLiquid water) =>
+      c.f3d_shallow_destroy(_live, water.id) == 1;
 
-  bool containsWater(NativeWater water) =>
-      c.f3d_water_is_valid(_live, water.id) == 1;
+  bool containsShallowLiquid(NativeShallowLiquid water) =>
+      c.f3d_shallow_is_valid(_live, water.id) == 1;
 
-  /// The ground again, dug or built up, as [createWater] took it.
-  void setWaterGround(NativeWater water, List<double> ground) {
+  /// The ground again, dug or built up, as [createShallowLiquid] took it.
+  void setShallowGround(NativeShallowLiquid water, List<double> ground) {
     if (ground.length != water.cells) {
       throw ArgumentError.value(ground.length, 'ground', 'not ${water.cells}');
     }
     final g = c.F32s.alloc(ground.length);
     try {
       g.setAll(ground);
-      if (c.f3d_water_set_ground(_live, water.id, g) == 0) {
+      if (c.f3d_shallow_set_ground(_live, water.id, g) == 0) {
         throw ArgumentError('a height not finite');
       }
     } finally {
@@ -1743,47 +1810,47 @@ final class NativeWorld {
 
   /// Every cell between ([x0], [z0]) and ([x1], [z1]) filled, or drained, to
   /// [level] above the water's origin: a pond put in place.
-  void fillWater(
-    NativeWater water, {
+  void fillShallowLiquid(
+    NativeShallowLiquid water, {
     required double x0,
     required double z0,
     required double x1,
     required double z1,
     required double level,
   }) {
-    if (c.f3d_water_fill(_live, water.id, x0, z0, x1, z1, level) == 0) {
+    if (c.f3d_shallow_fill(_live, water.id, x0, z0, x1, z1, level) == 0) {
       throw ArgumentError('a fill not finite');
     }
   }
 
   /// [volume] m³ poured in at ([x], [z]) over a disc of [radius], or taken
   /// out where it is negative.
-  void pourWater(
-    NativeWater water,
+  void pourShallowLiquid(
+    NativeShallowLiquid water,
     double x,
     double z, {
     double radius = 0.0,
     required double volume,
   }) {
-    if (c.f3d_water_pour(_live, water.id, x, z, radius, volume) == 0) {
+    if (c.f3d_shallow_pour(_live, water.id, x, z, radius, volume) == 0) {
       throw ArgumentError('a pour not finite');
     }
   }
 
   /// Spring [index]: [rate] m³/s welling up at ([x], [z]) over a disc of
-  /// [radius]; a rate of nought stops it. At most [c.waterMostSources].
-  void setWaterSource(
-    NativeWater water,
+  /// [radius]; a rate of nought stops it. At most [c.shallowMostSources].
+  void setShallowSource(
+    NativeShallowLiquid water,
     int index, {
     required double x,
     required double z,
     double radius = 0.0,
     required double rate,
   }) {
-    if (c.f3d_water_set_source(_live, water.id, index, x, z, radius, rate) ==
+    if (c.f3d_shallow_set_source(_live, water.id, index, x, z, radius, rate) ==
         0) {
       throw ArgumentError(
-        'spring $index: past ${c.waterMostSources}, or a '
+        'spring $index: past ${c.shallowMostSources}, or a '
         'radius or rate below nought',
       );
     }
@@ -1791,22 +1858,38 @@ final class NativeWorld {
 
   /// Manning's roughness of the bed, about 0.03 for a stream's and 0.012 for
   /// smooth concrete; and whether water reaching the grid's edge runs off.
-  void setWaterBed(
-    NativeWater water, {
+  void setShallowBed(
+    NativeShallowLiquid water, {
     double roughness = 0.03,
     bool openEdges = false,
   }) {
-    if (c.f3d_water_set_bed(_live, water.id, roughness, openEdges ? 1 : 0) ==
+    if (c.f3d_shallow_set_bed(_live, water.id, roughness, openEdges ? 1 : 0) ==
         0) {
       throw ArgumentError.value(roughness, 'roughness', 'below nought');
     }
   }
 
+  /// What [water] is — water, as it starts, or honey, oil, molten rock: what holds
+  /// a body up and drags it, how the flow mixes and creeps over the ground,
+  /// and how its spray breaks up.
+  void setShallowProperties(NativeShallowLiquid water, NativeLiquidProperties fluid) {
+    if (c.f3d_shallow_set_fluid(
+          _live,
+          water.id,
+          fluid.density,
+          fluid.viscosity,
+          fluid.tension,
+        ) ==
+        0) {
+      throw ArgumentError.value(fluid, 'fluid', 'not a fluid');
+    }
+  }
+
   /// The water at ([x], [z]), or null outside its grid.
-  NativeWaterSample? sampleWater(NativeWater water, double x, double z) {
+  NativeShallowSample? sampleShallow(NativeShallowLiquid water, double x, double z) {
     final out = c.F32s.alloc(4);
     try {
-      if (c.f3d_water_sample(_live, water.id, x, z, out) == 0) return null;
+      if (c.f3d_shallow_sample(_live, water.id, x, z, out) == 0) return null;
       return (surface: out[0], depth: out[1], flowX: out[2], flowZ: out[3]);
     } finally {
       out.free();
@@ -1815,14 +1898,14 @@ final class NativeWorld {
 
   /// Every cell's surface height above the water's origin and its depth,
   /// x fastest; where it is dry the surface is the ground.
-  ({Float32List surface, Float32List depth}) readWaterSurface(
-    NativeWater water,
+  ({Float32List surface, Float32List depth}) readShallowSurface(
+    NativeShallowLiquid water,
   ) {
     final n = water.cells;
     final surface = c.F32s.alloc(n);
     final depth = c.F32s.alloc(n);
     try {
-      c.f3d_water_read(_live, water.id, surface, depth);
+      c.f3d_shallow_read(_live, water.id, surface, depth);
       return (surface: surface.copy(n), depth: depth.copy(n));
     } finally {
       surface.free();
@@ -1831,11 +1914,11 @@ final class NativeWorld {
   }
 
   /// Every cell's flow, its velocity x and z: two a cell.
-  Float32List readWaterFlow(NativeWater water) {
+  Float32List readShallowFlow(NativeShallowLiquid water) {
     final n = water.cells * 2;
     final flow = c.F32s.alloc(n);
     try {
-      c.f3d_water_read_flow(_live, water.id, flow);
+      c.f3d_shallow_read_flow(_live, water.id, flow);
       return flow.copy(n);
     } finally {
       flow.free();
@@ -1844,10 +1927,10 @@ final class NativeWorld {
 
   /// The water it holds, m³, in its cells and in the air as spray, and what
   /// has run off its open edges.
-  ({double held, double lost}) waterVolume(NativeWater water) {
+  ({double held, double lost}) shallowVolume(NativeShallowLiquid water) {
     final out = c.F32s.alloc(2);
     try {
-      c.f3d_water_volume(_live, water.id, out, out + 4);
+      c.f3d_shallow_volume(_live, water.id, out, out + 4);
       return (held: out[0], lost: out[1]);
     } finally {
       out.free();
@@ -1857,7 +1940,7 @@ final class NativeWorld {
   /// The spray in flight, [nativeSprayFloats] reals a drop — where it is, its
   /// velocity, and the water it carries — up to [capacity] drops; of every
   /// water in the world, or only of [of].
-  Float32List readSpray({int capacity = c.waterMostSpray, NativeWater? of}) =>
+  Float32List readSpray({int capacity = c.shallowMostSpray, NativeShallowLiquid? of}) =>
       _readOfWater(capacity, c.sprayFloats, c.f3d_world_read_spray, of);
 
   /// Up to [capacity] pieces of [floats] reals each read by [read], and of
@@ -1866,7 +1949,7 @@ final class NativeWorld {
     int capacity,
     int floats,
     int Function(int, int, int, int) read,
-    NativeWater? of,
+    NativeShallowLiquid? of,
   ) {
     final out = c.F32s.alloc(capacity * floats);
     final waters = of == null ? null : c.U32s.alloc(capacity);
@@ -1892,8 +1975,8 @@ final class NativeWorld {
   /// rising and carried by the flow until they reach the surface; in every
   /// water in the world, or only in [of].
   Float32List readBubbles({
-    int capacity = c.waterMostBubbles,
-    NativeWater? of,
+    int capacity = c.shallowMostBubbles,
+    NativeShallowLiquid? of,
   }) => _readOfWater(capacity, c.bubbleFloats, c.f3d_world_read_bubbles, of);
 
   /// A multibody rooted at [root]: a tree of bodies held by joints in

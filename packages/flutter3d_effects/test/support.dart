@@ -14,6 +14,6 @@ GraphicsDevice softwareDevice() => CpuDevice(
   shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
 
-/// `assets/water.f3dshaders`, as an application's bundle hands it over.
+/// `assets/liquid.f3dshaders`, as an application's bundle hands it over.
 ByteData waterBundle() =>
-    ByteData.sublistView(File('assets/water.f3dshaders').readAsBytesSync());
+    ByteData.sublistView(File('assets/liquid.f3dshaders').readAsBytesSync());

@@ -1,4 +1,4 @@
-/// The water's material: `assets_src/water.f3dmat`, compiled into the
+/// The water's material: `assets_src/liquid.f3dmat`, compiled into the
 /// bundle the package ships, bound to a renderer and moved every frame.
 library;
 
@@ -7,38 +7,38 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
-/// How a [WaterView]'s surface is lit: ripples the flow carries, the sky
+/// How a [LiquidView]'s surface is lit: ripples the flow carries, the sky
 /// mirrored as strongly as Fresnel says, the sun's glint, the colour a
 /// depth of water gives the bed under it, and froth where there is air.
 ///
 /// One look serves every water in a scene; [update] it once a frame.
-final class WaterLook {
-  WaterLook._(this.material);
+final class LiquidLook {
+  LiquidLook._(this.material);
 
   /// Where an application's asset bundle holds the compiled material:
-  /// `rootBundle.load(WaterLook.asset)`.
+  /// `rootBundle.load(LiquidLook.asset)`.
   static const String asset =
-      'packages/flutter3d_effects/assets/water.f3dshaders';
+      'packages/flutter3d_effects/assets/liquid.f3dshaders';
 
   /// The material's name in its bundle.
-  static const String model = 'Water';
+  static const String model = 'Liquid';
 
   /// The look from the compiled [bundle] — what [asset] holds — with its
   /// stages added to [renderer] for [device].
-  static Future<WaterLook> load({
+  static Future<LiquidLook> load({
     required GraphicsDevice device,
     required Renderer renderer,
     required ByteData bundle,
   }) async {
     renderer.addMaterials(await device.loadShaders(bundle));
-    return WaterLook.of(bundle);
+    return LiquidLook.of(bundle);
   }
 
   /// The look from [bundle] without binding its stages: for a renderer that
   /// already has them, or a test that reads what the material declares.
-  factory WaterLook.of(ByteData bundle) {
+  factory LiquidLook.of(ByteData bundle) {
     final materials = BundledMaterials.read(bundle);
-    return WaterLook._(
+    return LiquidLook._(
       Material(
         name: 'water',
         lighting: materials[model],

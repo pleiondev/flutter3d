@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 31;
+const int abiVersion = 32;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -68,13 +68,13 @@ const int wheelStateFloats = 14;
 const int multibodyMostLinks = 32;
 const int multibodyMostDofs = 64;
 
-/// `F3D_WATER_MOST_SOURCES`, `F3D_WATER_MOST_SPRAY` and `F3D_SPRAY_FLOATS`.
-const int waterMostSources = 16;
-const int waterMostSpray = 16384;
+/// `F3D_SHALLOW_MOST_SOURCES`, `F3D_SHALLOW_MOST_SPRAY` and `F3D_SPRAY_FLOATS`.
+const int shallowMostSources = 16;
+const int shallowMostSpray = 16384;
 const int sprayFloats = 11;
 
-/// `F3D_WATER_MOST_BUBBLES` and `F3D_BUBBLE_FLOATS`.
-const int waterMostBubbles = 16384;
+/// `F3D_SHALLOW_MOST_BUBBLES` and `F3D_BUBBLE_FLOATS`.
+const int shallowMostBubbles = 16384;
 const int bubbleFloats = 5;
 
 /// `F3D_SPRAY_SHEET` and `F3D_SPRAY_DROPS`.

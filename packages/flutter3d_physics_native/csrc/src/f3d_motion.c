@@ -344,12 +344,21 @@ void f3d_integrate_velocity(const F3dWorld *world, F3dSlot *s, f3d_real h) {
                        (F3D_R(0.25) * s->surface) * speed * im;
     keep = F3D_R(1.0) / (F3D_R(1.0) + k * h);
   }
-  s->velocity.x =
-      wind[0] + (s->velocity.x - wind[0] + (g.x + s->force.x * im) * h) * keep;
-  s->velocity.y =
-      wind[1] + (s->velocity.y - wind[1] + (g.y + s->force.y * im) * h) * keep;
-  s->velocity.z =
-      wind[2] + (s->velocity.z - wind[2] + (g.z + s->force.z * im) * h) * keep;
+  /* Water round it that must speed up with it: its weight is still only
+   * its own, but everything that moves it moves its added mass too,
+   * (m g + F) / (m + mₐ). Here rather than as a force against its
+   * acceleration, which overshoots for anything lighter than the water it
+   * carries — a ball of air rising from the bottom of a pond. */
+  const f3d_real carried =
+      im > F3D_R(0.0) && s->added_mass > F3D_R(0.0)
+          ? F3D_R(1.0) / (F3D_R(1.0) + s->added_mass * im)
+          : F3D_R(1.0);
+  s->velocity.x = wind[0] + (s->velocity.x - wind[0] +
+                             (g.x + s->force.x * im) * carried * h) * keep;
+  s->velocity.y = wind[1] + (s->velocity.y - wind[1] +
+                             (g.y + s->force.y * im) * carried * h) * keep;
+  s->velocity.z = wind[2] + (s->velocity.z - wind[2] +
+                             (g.z + s->force.z * im) * carried * h) * keep;
   if (s->linear_damping > F3D_R(0.0)) {
     const f3d_real damp = F3D_R(1.0) / (F3D_R(1.0) + h * s->linear_damping);
     s->velocity.x *= damp;
@@ -396,6 +405,7 @@ void f3d_integrate_position(F3dSlot *s, f3d_real h) {
 void f3d_finish_motion(const F3dWorld *world, F3dSlot *s, f3d_real dt) {
   s->force = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   s->torque = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  s->added_mass = F3D_R(0.0);
   if (s->type != F3D_BODY_DYNAMIC || (s->flags & F3D_FLAG_ASLEEP)) return;
   /* How long it has been still: slower than the sleep speed, in m/s and in
    * rad/s alike. Spin counts: a body turning on the spot is not at rest.

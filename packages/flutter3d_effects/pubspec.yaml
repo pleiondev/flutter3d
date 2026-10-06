@@ -41,7 +41,7 @@ resolution: workspace
 
 flutter:
   assets:
-    # The water's material, compiled from `assets_src/water.f3dmat` by
+    # The water's material, compiled from `assets_src/liquid.f3dmat` by
     # `hook/build.dart` on every build: an application loads it as
-    # `WaterLook.asset`.
+    # `LiquidLook.asset`.
     - assets/

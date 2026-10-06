@@ -49,7 +49,7 @@ final class WaterRun {
     );
     // The water over it: the pond already at its lip, the stream dry until
     // the spring fills it.
-    water = _world.createWater(
+    water = _world.createShallowLiquid(
       nx: valleyCells,
       nz: valleyCells,
       cell: valleyCell,
@@ -57,8 +57,8 @@ final class WaterRun {
       ground: _ground,
     );
     _world
-      ..setWaterBed(water, roughness: 0.035, openEdges: true)
-      ..fillWater(
+      ..setShallowBed(water, roughness: 0.035, openEdges: true)
+      ..fillShallowLiquid(
         water,
         x0: pondX - pondRadius,
         z0: cliffFoot,
@@ -66,7 +66,7 @@ final class WaterRun {
         z1: pondZ + pondRadius,
         level: 0.05,
       )
-      ..setWaterSource(
+      ..setShallowSource(
         water,
         0,
         x: springX,
@@ -75,9 +75,9 @@ final class WaterRun {
         rate: springRate,
       );
     _build();
-    waterView = WaterView(
+    waterView = LiquidView(
       world: _world,
-      water: water,
+      liquid: water,
       ground: _ground,
       device: _device,
       scene: scene,
@@ -98,13 +98,13 @@ final class WaterRun {
 
   /// The water's material: its clock and how rough the wind makes it are
   /// set here every frame.
-  final WaterLook look;
+  final LiquidLook look;
   final NativeWorld _world = NativeWorld();
-  late final NativeWater water;
+  late final NativeShallowLiquid water;
   late final List<double> _ground;
 
   /// The water and the fires, drawn.
-  late final WaterView waterView;
+  late final LiquidView waterView;
   late final FireView fireView;
   double _clock = 0.0;
   late final DeviceMesh _stoneMesh, _logMesh;
@@ -118,7 +118,7 @@ final class WaterRun {
   bool windy = false;
 
   /// What the water holds and what has run off the map, for the panel.
-  ({double held, double lost}) get volume => _world.waterVolume(water);
+  ({double held, double lost}) get volume => _world.shallowVolume(water);
 
   /// How many pieces of falling water are in the air, and how many clouds
   /// of bubbles are in the water.
@@ -127,7 +127,7 @@ final class WaterRun {
 
   /// The pond's surface above the valley's origin, m.
   double get pondLevel =>
-      _world.sampleWater(water, pondX, pondZ)?.surface ?? 0.0;
+      _world.sampleShallow(water, pondX, pondZ)?.surface ?? 0.0;
 
   /// The grid's triangles over the cells whose corner (i, j) [keep] says.
   static List<int> _triangles(bool Function(int i, int j) keep) => <int>[
@@ -244,7 +244,7 @@ final class WaterRun {
       final p = origin + d * t;
       if (p.x < 0 || p.z < 0 || p.x > valleySize || p.z > valleySize) continue;
       final ground = groundAt(p.x, p.z);
-      final surface = _world.sampleWater(water, p.x, p.z)?.surface ?? ground;
+      final surface = _world.sampleShallow(water, p.x, p.z)?.surface ?? ground;
       if (p.y <= math.max(surface, ground)) return p;
     }
     return null;

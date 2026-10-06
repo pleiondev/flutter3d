@@ -9,12 +9,12 @@ import 'support.dart';
 void main() {
   test(
     'the shipped bundle is the water material, and it moves',
-    skip: File('assets/water.f3dshaders').existsSync()
+    skip: File('assets/liquid.f3dshaders').existsSync()
         ? false
         : 'no bundle: run `dart run tool/build_materials.dart`, which a build '
               'of any application using the package also does',
     () {
-      final look = WaterLook.of(waterBundle());
+      final look = LiquidLook.of(waterBundle());
       expect(
         look.material.parameters.keys,
         containsAll(<String>[

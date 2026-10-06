@@ -1,4 +1,4 @@
-/// One water of the physics core, drawn: its surface, the sheet it throws
+/// One shallow liquid of the physics core, drawn: its surface, the sheet it throws
 /// off a lip, the drops that sheet breaks into and the splashes, and the
 /// bubbles it drags down.
 library;
@@ -9,7 +9,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
-        NativeWater,
+        NativeShallowLiquid,
         NativeWorld,
         nativeBubbleFloats,
         nativeSprayFloats,
@@ -20,22 +20,22 @@ import 'vertices.dart';
 
 /// How much falling water is drawn at most: pieces of a falling sheet, drops
 /// and clouds of bubbles. What is past it is still simulated.
-final class WaterDetail {
-  const WaterDetail({
+final class LiquidDetail {
+  const LiquidDetail({
     required this.sheet,
     required this.drops,
     required this.bubbles,
   });
 
   /// A desktop or a console.
-  static const WaterDetail full = WaterDetail(
+  static const LiquidDetail full = LiquidDetail(
     sheet: 4000,
     drops: 3000,
     bubbles: 3000,
   );
 
   /// A phone, or a browser on one.
-  static const WaterDetail light = WaterDetail(
+  static const LiquidDetail light = LiquidDetail(
     sheet: 1500,
     drops: 800,
     bubbles: 600,
@@ -44,8 +44,8 @@ final class WaterDetail {
   final int sheet, drops, bubbles;
 }
 
-/// [water] of [world] drawn into [scene] with [look], over the ground the
-/// water was made with.
+/// [liquid] of [world] drawn into [scene] with [look], over the ground it
+/// was made with.
 ///
 /// **Its surface is one vertex a cell,** rewritten every frame from what
 /// the core says: where it is dry the vertex sinks under the ground and is
@@ -64,31 +64,31 @@ final class WaterDetail {
 /// **None of it casts a shadow:** water lets most of the sun through, and a
 /// shadow map knows only through or not — a solid shadow of a waterfall on
 /// the cliff behind it is a dark band.
-final class WaterView {
-  WaterView({
+final class LiquidView {
+  LiquidView({
     required this._world,
-    required this.water,
+    required this.liquid,
     required List<double> ground,
     required GraphicsDevice device,
     required Scene scene,
     required Material look,
-    this.detail = WaterDetail.full,
+    this.detail = LiquidDetail.full,
   }) : _device = device,
        _ground = List<double>.of(ground) {
-    if (ground.length != water.cells) {
+    if (ground.length != liquid.cells) {
       throw ArgumentError.value(
         ground.length,
         'ground',
-        'one height a cell, ${water.cells}',
+        'one height a cell, ${liquid.cells}',
       );
     }
-    _vertices = Float32List(water.cells * vertexFloats);
+    _vertices = Float32List(liquid.cells * vertexFloats);
     _surface = DeviceMesh.upload(
       device,
       MeshData(
         layout: VertexLayout.standard,
         vertices: _writeSurface(Float32List(0)),
-        indices: gridTriangles(water.nx, water.nz),
+        indices: gridTriangles(liquid.nx, liquid.nz),
       ),
     );
     surfaceNode = MeshNode(_surface, look, name: 'water')..castsShadow = false;
@@ -152,11 +152,11 @@ final class WaterView {
   final NativeWorld _world;
   final GraphicsDevice _device;
 
-  /// The water drawn.
-  final NativeWater water;
+  /// The liquid drawn.
+  final NativeShallowLiquid liquid;
 
   /// How much of its falling water is drawn at most.
-  final WaterDetail detail;
+  final LiquidDetail detail;
 
   final List<double> _ground;
   late final Float32List _vertices;
@@ -170,7 +170,7 @@ final class WaterView {
   late final MeshNode surfaceNode, sheetNode;
 
   /// How many pieces of falling water and clouds of bubbles the core has
-  /// for this water, and how many quads of sheet were drawn, as of the last
+  /// for this liquid, and how many quads of sheet were drawn, as of the last
   /// [update].
   int sprayInFlight = 0, bubbleClouds = 0, sheetQuads = 0;
 
@@ -178,12 +178,12 @@ final class WaterView {
   Float32List get surfaceVertices => _vertices;
 
   /// The ground under it changed — dug, built on — as the core's
-  /// `setWaterGround` was told.
+  /// `setShallowGround` was told.
   set ground(List<double> heights) => _ground.setAll(0, heights);
 
   /// Everything brought up to date with the world as it stands.
   void update() {
-    final bubbles = _world.readBubbles(of: water);
+    final bubbles = _world.readBubbles(of: liquid);
     _surface.overwriteVertices(
       _device,
       0,
@@ -192,7 +192,7 @@ final class WaterView {
     surfaceNode.markBoundsDirty();
     final spray = _world.readSpray(
       capacity: detail.sheet + detail.drops,
-      of: water,
+      of: liquid,
     );
     _drawDrops(spray);
     _drawSheet(spray);
@@ -202,11 +202,11 @@ final class WaterView {
   /// How much of each column is air, of the bubbles in it, spread over the
   /// column's neighbours as a cloud spreads.
   Float64List _airIn(Float32List bubbles, Float32List depth) {
-    final nx = water.nx, nz = water.nz, cell = water.cell;
-    final air = Float64List(water.cells);
+    final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
+    final air = Float64List(liquid.cells);
     for (var o = 0; o < bubbles.length; o += nativeBubbleFloats) {
-      final i = ((bubbles[o] - water.origin.x) / cell).floor();
-      final j = ((bubbles[o + 2] - water.origin.z) / cell).floor();
+      final i = ((bubbles[o] - liquid.origin.x) / cell).floor();
+      final j = ((bubbles[o + 2] - liquid.origin.z) / cell).floor();
       for (var dj = -1; dj <= 1; dj++) {
         for (var di = -1; di <= 1; di++) {
           final (x, z) = (i + di, j + dj);
@@ -225,10 +225,10 @@ final class WaterView {
   static const double _wet = 0.004;
 
   Float32List _writeSurface(Float32List bubbles) {
-    final read = _world.readWaterSurface(water);
-    final flow = _world.readWaterFlow(water);
-    final nx = water.nx, nz = water.nz, cell = water.cell;
-    final o = water.origin;
+    final read = _world.readShallowSurface(liquid);
+    final flow = _world.readShallowFlow(liquid);
+    final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
+    final o = liquid.origin;
     final surface = read.surface;
     final air = _airIn(bubbles, read.depth);
     double height(int i, int j) =>
@@ -323,7 +323,7 @@ final class WaterView {
 
     // Faces side by side on a lip: faces across x are numbered one apart,
     // faces across z a row of nx + 1 apart.
-    bool beside(int a, int b) => b - a == 1 || b - a == water.nx + 1;
+    bool beside(int a, int b) => b - a == 1 || b - a == liquid.nx + 1;
     void quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, double alpha) {
       if (quads >= detail.sheet) return;
       final normal = (b - a).cross(c - a);

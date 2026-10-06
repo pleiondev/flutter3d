@@ -240,7 +240,7 @@ point of §3.3.
 | `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder — and two libraries under it that import on their own: `geometry.dart`, the mesh vocabulary every decoder and every editable mesh share (`MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh`), and `formats.dart`, model documents, their decoders (glTF, OBJ, STL, `.f3d`, and FBX refused with a reason) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs ([§8.1](#81-model-decoding), [§8.6](#86-writers)). Plain Dart |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | The particle simulation and what draws it: `ParticleSystem`, emission, affectors, curves, and the billboard and mesh pass contributors. The contributors draw through `flutter3d_core`, so `flutter3d_model_core`'s `BakeParticleSystemJobRequest` depends on it directly. Plain Dart |
-| `flutter3d_effects` | The physics core's water and fire, drawn: `WaterView` (a water's surface with the `WaterLook` material, its falling sheet, drops and bubbles) and `FireView` (flames, lit smoke, embers, firelight, charring), read off `flutter3d_physics_native` and drawn through `flutter3d_core` and `flutter3d_particles`. Plain Dart |
+| `flutter3d_effects` | The physics core's water and fire, drawn: `LiquidView` (a water's surface with the `LiquidLook` material, its falling sheet, drops and bubbles) and `FireView` (flames, lit smoke, embers, firelight, charring), read off `flutter3d_physics_native` and drawn through `flutter3d_core` and `flutter3d_particles`. Plain Dart |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid, an XPBD cloth solver |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
@@ -2708,7 +2708,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **12011 tests** across 46 packages and 10 applications |
+| Unit tests | **12012 tests** across 46 packages and 10 applications |
 | Structure rules | 36, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

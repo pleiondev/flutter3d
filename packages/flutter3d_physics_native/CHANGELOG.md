@@ -23,6 +23,25 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A shallow liquid is any liquid, and a body moves through it as through
+  one.** What used to be water over ground is `NativeShallowLiquid`
+  (`f3d_shallow_*`), and `setShallowProperties` gives it a density,
+  viscosity and surface tension — `NativeLiquidProperties.water`, `seawater`,
+  `oil`, `honey` or `moltenBasalt`. A body in it is dragged as a ball is at its
+  Reynolds number, Schiller and Naumann's 24/Re·(1 + 0.15·Re^0.687) up to
+  Newton's 0.44: a steel ball sinks through honey at Stokes's 129 mm/s and
+  a heavy one through water at Newton's 2.44 m/s. The liquid it must carry
+  to speed up, half what it displaces, is on its inertia in the
+  integrator, so a ping-pong ball let go under water starts up at
+  15.5 m/s², not 112. The drag pushes the flow back as hard, and the
+  water it shoulders aside keeps its flow, so a body driven through it
+  leaves a wake and the pool takes up the momentum it lost. The viscosity
+  mixes the flow and holds it to the ground as a laminar film where that
+  holds harder than Manning's roughness, so a thick oil runs down a slope
+  at Nusselt's gSh²/3ν; bubbles rise through it no faster than
+  Hadamard and Rybczynski allow, and its spray breaks up by its own
+  numbers. `F3D_ABI_VERSION` is 32.
+
 - **Spray and bubbles can be read for one water.** `readSpray` and
   `readBubbles` take `of:`, so a world with a flooded hall and a fountain
   draws each one's falling water over its own surface.
@@ -72,7 +91,7 @@
   format 16.
 
 - **Water over ground: a stream, a pond, a waterfall into it.**
-  `NativeWorld.createWater` lays shallow water on a grid over the ground.
+  `NativeWorld.createShallowLiquid` lays shallow water on a grid over the ground.
   In each column the water moves as one, its depth carried across the
   columns' faces by the flow, so none is made or lost but by springs,
   open edges and what is taken off. It runs down the slope of its
@@ -83,9 +102,9 @@
   foot. A dynamic body pushes the water aside, so a stone dropped in makes
   waves. It is held up by the weight of what it displaces, measured
   exactly as the cap of its ball below the water round it, and the flow
-  drags it along. `fillWater`, `pourWater`, `setWaterSource` and
-  `setWaterBed` shape it; `readWaterSurface`, `readWaterFlow`,
-  `sampleWater` and `readSpray` read it for drawing. `F3D_ABI_VERSION` is
+  drags it along. `fillShallowLiquid`, `pourShallowLiquid`, `setShallowSource` and
+  `setShallowBed` shape it; `readShallowSurface`, `readShallowFlow`,
+  `sampleShallow` and `readSpray` read it for drawing. `F3D_ABI_VERSION` is
   29, and a snapshot is format 15.
 
 - **A post burns upwards, a part at a time.** Each part of a compound

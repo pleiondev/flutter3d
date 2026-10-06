@@ -16,31 +16,31 @@ static void run(F3dWorld *w, int steps) {
   for (int i = 0; i < steps; i++) f3d_world_step(w, F3D_R(1.0) / 60);
 }
 
-static double total(F3dWorld *w, F3dWater water) {
+static double total(F3dWorld *w, F3dShallow water) {
   f3d_real held, lost;
-  f3d_water_volume(w, water, &held, &lost);
+  f3d_shallow_volume(w, water, &held, &lost);
   return (double)held + (double)lost;
 }
 
 static void test_refusals(void) {
   F3dWorld *w = f3d_world_create();
   f3d_real ground[4] = {0, 0, 0, 0};
-  CHECK(f3d_water_create(w, 0, 2, 1, 0, 0, 0, ground) == 0);
-  CHECK(f3d_water_create(w, 2, 2, 0, 0, 0, 0, ground) == 0);
-  CHECK(f3d_water_create(w, 2, 2, 1, 0, 0, 0, NULL) == 0);
+  CHECK(f3d_shallow_create(w, 0, 2, 1, 0, 0, 0, ground) == 0);
+  CHECK(f3d_shallow_create(w, 2, 2, 0, 0, 0, 0, ground) == 0);
+  CHECK(f3d_shallow_create(w, 2, 2, 1, 0, 0, 0, NULL) == 0);
   ground[2] = nan_value();
-  CHECK(f3d_water_create(w, 2, 2, 1, 0, 0, 0, ground) == 0);
+  CHECK(f3d_shallow_create(w, 2, 2, 1, 0, 0, 0, ground) == 0);
   ground[2] = 0;
-  const F3dWater water = f3d_water_create(w, 2, 2, 1, 0, 0, 0, ground);
+  const F3dShallow water = f3d_shallow_create(w, 2, 2, 1, 0, 0, 0, ground);
   CHECK(water == 1);
-  CHECK(f3d_water_set_source(w, water, F3D_WATER_MOST_SOURCES, 0, 0, 1, 1) == 0);
-  CHECK(f3d_water_set_source(w, water, 0, 0, 0, 1, -1) == 0);
-  CHECK(f3d_water_set_bed(w, water, -1, 0) == 0);
+  CHECK(f3d_shallow_set_source(w, water, F3D_SHALLOW_MOST_SOURCES, 0, 0, 1, 1) == 0);
+  CHECK(f3d_shallow_set_source(w, water, 0, 0, 0, 1, -1) == 0);
+  CHECK(f3d_shallow_set_bed(w, water, -1, 0) == 0);
   f3d_real out[4];
-  CHECK(f3d_water_sample(w, water, 5, 5, out) == 0);
-  CHECK(f3d_water_destroy(w, water) == 1);
-  CHECK(!f3d_water_is_valid(w, water));
-  CHECK(f3d_water_destroy(w, water) == 0);
+  CHECK(f3d_shallow_sample(w, water, 5, 5, out) == 0);
+  CHECK(f3d_shallow_destroy(w, water) == 1);
+  CHECK(!f3d_shallow_is_valid(w, water));
+  CHECK(f3d_shallow_destroy(w, water) == 0);
   f3d_world_destroy(w);
 }
 
@@ -54,12 +54,12 @@ static void test_lake_at_rest(void) {
       ground[i + j * 32] = (f3d_real)(0.3 * sin(i * 0.7) * cos(j * 0.5));
     }
   }
-  const F3dWater water = f3d_water_create(w, 32, 32, F3D_R(0.25), 0, 0, 0, ground);
-  f3d_water_fill(w, water, 0, 0, 8, 8, F3D_R(0.5));
+  const F3dShallow water = f3d_shallow_create(w, 32, 32, F3D_R(0.25), 0, 0, 0, ground);
+  f3d_shallow_fill(w, water, 0, 0, 8, 8, F3D_R(0.5));
   run(w, 300);
   f3d_real surface[32 * 32], flow[2 * 32 * 32];
-  f3d_water_read(w, water, surface, NULL);
-  f3d_water_read_flow(w, water, flow);
+  f3d_shallow_read(w, water, surface, NULL);
+  f3d_shallow_read_flow(w, water, flow);
   for (int c = 0; c < 32 * 32; c++) {
     CHECK_NEAR(surface[c], 0.5, 1e-5);
     CHECK(fabs((double)flow[2 * c]) < 1e-5 && fabs((double)flow[2 * c + 1]) < 1e-5);
@@ -73,14 +73,14 @@ static void test_dam_break(void) {
   F3dWorld *w = f3d_world_create();
   f3d_real ground[64 * 16];
   memset(ground, 0, sizeof ground);
-  const F3dWater water = f3d_water_create(w, 64, 16, F3D_R(0.1), 0, 0, 0, ground);
-  f3d_water_fill(w, water, 0, 0, 2, F3D_R(1.6), F3D_R(0.5));
+  const F3dShallow water = f3d_shallow_create(w, 64, 16, F3D_R(0.1), 0, 0, 0, ground);
+  f3d_shallow_fill(w, water, 0, 0, 2, F3D_R(1.6), F3D_R(0.5));
   const double before = total(w, water);
   double far_end = 0;
   for (int i = 0; i < 600; i++) {
     run(w, 1);
     f3d_real s[4];
-    f3d_water_sample(w, water, F3D_R(6.35), F3D_R(0.8), s);
+    f3d_shallow_sample(w, water, F3D_R(6.35), F3D_R(0.8), s);
     if (s[1] > far_end) far_end = s[1];
   }
   CHECK_NEAR(total(w, water), before, 1e-5 * before);
@@ -91,7 +91,7 @@ static void test_dam_break(void) {
 
 /* A stream bed from a spring down a slope to a cliff three metres high,
  * and a pond at its foot: [nx] × 24 cells of a quarter metre. */
-static F3dWater falls(F3dWorld *w, f3d_real *ground, int nx) {
+static F3dShallow falls(F3dWorld *w, f3d_real *ground, int nx) {
   for (int j = 0; j < 24; j++) {
     for (int i = 0; i < nx; i++) {
       const double x = i * 0.25;
@@ -100,9 +100,9 @@ static F3dWater falls(F3dWorld *w, f3d_real *ground, int nx) {
                                              : 0.02 * fabs(x - 18) + 0.2 * channel);
     }
   }
-  const F3dWater water = f3d_water_create(w, (uint32_t)nx, 24, F3D_R(0.25), 0, 0, 0, ground);
-  f3d_water_fill(w, water, F3D_R(12.2), 0, 24, 6, F3D_R(0.8));
-  f3d_water_set_source(w, water, 0, 1, 3, F3D_R(0.5), F3D_R(0.05));
+  const F3dShallow water = f3d_shallow_create(w, (uint32_t)nx, 24, F3D_R(0.25), 0, 0, 0, ground);
+  f3d_shallow_fill(w, water, F3D_R(12.2), 0, 24, 6, F3D_R(0.8));
+  f3d_shallow_set_source(w, water, 0, 1, 3, F3D_R(0.5), F3D_R(0.05));
   return water;
 }
 
@@ -112,7 +112,7 @@ static void test_waterfall(void) {
    * one cubic metre more, wherever it is. */
   F3dWorld *w = f3d_world_create();
   f3d_real *ground = (f3d_real *)malloc(96 * 24 * sizeof(f3d_real));
-  const F3dWater water = falls(w, ground, 96);
+  const F3dShallow water = falls(w, ground, 96);
   const double before = total(w, water);
   uint32_t most = 0;
   f3d_real spray[F3D_SPRAY_FLOATS * 64];
@@ -163,12 +163,12 @@ static void test_waterfall(void) {
   CHECK(below);
   /* The stream runs: a shallow sheet moving downhill. */
   f3d_real s[4];
-  f3d_water_sample(w, water, 6, 3, s);
+  f3d_shallow_sample(w, water, 6, 3, s);
   CHECK(s[1] > 0.02 && s[1] < 0.3);
   CHECK(s[2] > 0.3);
   /* The spring stopped, the falls run dry, and the bubbles rise and are
    * gone at the surface within seconds. */
-  f3d_water_set_source(w, water, 0, 1, 3, F3D_R(0.5), 0);
+  f3d_shallow_set_source(w, water, 0, 1, 3, F3D_R(0.5), 0);
   run(w, 900);
   CHECK(f3d_world_read_bubbles(w, NULL, NULL, 1024) == 0);
   free(ground);
@@ -181,8 +181,8 @@ static void test_no_spray_on_level_ground(void) {
   F3dWorld *w = f3d_world_create();
   f3d_real ground[64 * 16];
   memset(ground, 0, sizeof ground);
-  const F3dWater water = f3d_water_create(w, 64, 16, F3D_R(0.05), 0, 0, 0, ground);
-  f3d_water_fill(w, water, 0, 0, 1, 1, F3D_R(0.6));
+  const F3dShallow water = f3d_shallow_create(w, 64, 16, F3D_R(0.05), 0, 0, 0, ground);
+  f3d_shallow_fill(w, water, 0, 0, 1, 1, F3D_R(0.6));
   uint32_t most = 0;
   for (int i = 0; i < 300; i++) {
     run(w, 1);
@@ -193,12 +193,12 @@ static void test_no_spray_on_level_ground(void) {
 }
 
 /* A pond [n] cells of [cell] across, a metre deep, centred on the origin. */
-static F3dWater pond(F3dWorld *w, int n, f3d_real cell) {
+static F3dShallow pond(F3dWorld *w, int n, f3d_real cell) {
   f3d_real *ground = (f3d_real *)calloc((size_t)n * n, sizeof(f3d_real));
-  const F3dWater water =
-      f3d_water_create(w, (uint32_t)n, (uint32_t)n, cell, -n * cell / 2, 0, -n * cell / 2, ground);
+  const F3dShallow water =
+      f3d_shallow_create(w, (uint32_t)n, (uint32_t)n, cell, -n * cell / 2, 0, -n * cell / 2, ground);
   free(ground);
-  f3d_water_fill(w, water, -99, -99, 99, 99, 1);
+  f3d_shallow_fill(w, water, -99, -99, 99, 99, 1);
   return water;
 }
 
@@ -206,7 +206,7 @@ static void test_stone_makes_waves(void) {
   /* A five kilogram stone dropped in raises a wave a metre off, and the
    * pond holds what it held. */
   F3dWorld *w = f3d_world_create();
-  const F3dWater water = pond(w, 48, F3D_R(0.1));
+  const F3dShallow water = pond(w, 48, F3D_R(0.1));
   const double before = total(w, water);
   const F3dBody stone = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.5), 0, 5);
   f3d_body_set_shape(w, stone, F3D_SHAPE_SPHERE, F3D_R(0.1), 0, 0);
@@ -216,7 +216,7 @@ static void test_stone_makes_waves(void) {
     run(w, 1);
     if (w->s.spray_count > splash) splash = w->s.spray_count;
     f3d_real s[4];
-    f3d_water_sample(w, water, 1, 0, s);
+    f3d_shallow_sample(w, water, 1, 0, s);
     if (fabs((double)s[0] - 1.0) > most) most = fabs((double)s[0] - 1.0);
   }
   /* Two millimetres a metre off: most of what it pushed aside flew up
@@ -249,7 +249,7 @@ static void test_floats_as_deep_as_it_weighs(void) {
    * pond's walls throw them back. */
   const double r = 0.2, mass = 600 * 4.0 / 3.0 * M_PI * r * r * r;
   F3dWorld *w = f3d_world_create();
-  const F3dWater water = pond(w, 64, F3D_R(0.1));
+  const F3dShallow water = pond(w, 64, F3D_R(0.1));
   const F3dBody ball = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(0.973), 0, (f3d_real)mass);
   f3d_body_set_shape(w, ball, F3D_SHAPE_SPHERE, (f3d_real)r, 0, 0);
   run(w, 300);
@@ -263,7 +263,7 @@ static void test_floats_as_deep_as_it_weighs(void) {
     hi = fmax(hi, p[1]);
   }
   f3d_real s[4];
-  f3d_water_sample(w, water, 2, 0, s);
+  f3d_shallow_sample(w, water, 2, 0, s);
   /* Below the surface by what three fifths under puts it, give or take a
    * centimetre of the grid's ten. */
   CHECK_NEAR(sum / 600 - s[0], -0.027, 0.01);
@@ -275,7 +275,7 @@ static void test_flow_carries_a_float(void) {
   /* A float on a stream drifts downstream with it. */
   F3dWorld *w = f3d_world_create();
   f3d_real *ground = (f3d_real *)malloc(96 * 24 * sizeof(f3d_real));
-  const F3dWater water = falls(w, ground, 96);
+  const F3dShallow water = falls(w, ground, 96);
   run(w, 600);
   const F3dBody cork = f3d_body_create(w, F3D_BODY_DYNAMIC, 3, F3D_R(3.9), 3, F3D_R(0.5));
   f3d_body_set_shape(w, cork, F3D_SHAPE_SPHERE, F3D_R(0.08), 0, 0);
@@ -297,14 +297,14 @@ static void test_column_spreads(void) {
   F3dWorld *w = f3d_world_create();
   f3d_real ground[16 * 16];
   memset(ground, 0, sizeof ground);
-  const F3dWater water = f3d_water_create(w, 16, 16, F3D_R(0.2), 0, 0, 0, ground);
-  f3d_water_pour(w, water, F3D_R(1.7), F3D_R(1.7), 0, F3D_R(0.08));
+  const F3dShallow water = f3d_shallow_create(w, 16, 16, F3D_R(0.2), 0, 0, 0, ground);
+  f3d_shallow_pour(w, water, F3D_R(1.7), F3D_R(1.7), 0, F3D_R(0.08));
   const double before = total(w, water);
   f3d_real depth[16 * 16];
   double least = 1;
   for (int i = 0; i < 20; i++) {
     f3d_world_step(w, 1);
-    f3d_water_read(w, water, NULL, depth);
+    f3d_shallow_read(w, water, NULL, depth);
     for (int c = 0; c < 16 * 16; c++) least = fmin(least, depth[c]);
   }
   CHECK(least >= 0);
@@ -320,15 +320,15 @@ static void test_jet_mixes_into_a_pool(void) {
   F3dWorld *w = f3d_world_create();
   f3d_real ground[96 * 32];
   memset(ground, 0, sizeof ground);
-  const F3dWater water = f3d_water_create(w, 96, 32, F3D_R(0.1), 0, 0, 0, ground);
-  f3d_water_fill(w, water, -9, -9, 99, 99, 1);
-  const F3dWaterSlot *slot = &w->waters[water - 1u];
-  f3d_real *u = w->water_data + slot->first + 2u * 96u * 32u;
+  const F3dShallow water = f3d_shallow_create(w, 96, 32, F3D_R(0.1), 0, 0, 0, ground);
+  f3d_shallow_fill(w, water, -9, -9, 99, 99, 1);
+  const F3dShallowSlot *slot = &w->shallows[water - 1u];
+  f3d_real *u = w->shallow_data + slot->first + 2u * 96u * 32u;
   for (int j = 15; j <= 16; j++)
     for (int i = 5; i <= 25; i++) u[i + j * 97] = 2;
   run(w, 60);
   f3d_real flow[2 * 96 * 32];
-  f3d_water_read_flow(w, water, flow);
+  f3d_shallow_read_flow(w, water, flow);
   double peak = 0, aside = 0;
   for (int i = 0; i < 96; i++) {
     peak = fmax(peak, fabs(flow[2 * (i + 15 * 96)]));
@@ -337,6 +337,161 @@ static void test_jet_mixes_into_a_pool(void) {
   /* Unmixed, the jet still runs at 1.55 m/s a second on. */
   CHECK(peak < 1.0);
   CHECK(aside > 0.1);
+  f3d_world_destroy(w);
+}
+
+/* A pool [depth] deep of [nx] × [nx] cells of [cell], of a fluid of
+ * [density] and [viscosity], and a ball of radius [r] and [mass] held at
+ * its middle [under] below the surface, still. */
+static F3dBody ball_in(F3dWorld *w, uint32_t nx, f3d_real cell, f3d_real depth,
+                       f3d_real density, f3d_real viscosity, f3d_real r,
+                       f3d_real mass, f3d_real under) {
+  f3d_real *ground = (f3d_real *)calloc(nx * nx, sizeof(f3d_real));
+  const F3dShallow water = f3d_shallow_create(w, nx, nx, cell, 0, 0, 0, ground);
+  free(ground);
+  f3d_shallow_fill(w, water, -9, -9, 99, 99, depth);
+  CHECK(f3d_shallow_set_fluid(w, water, density, viscosity, F3D_R(0.07)) == 1);
+  const f3d_real mid = F3D_R(0.5) * (f3d_real)nx * cell;
+  const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, mid, depth - under, mid, mass);
+  f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, r, 0, 0);
+  return b;
+}
+
+static void test_fluids(void) {
+  /* What a water is can be set, and only to what a fluid can be. */
+  F3dWorld *w = f3d_world_create();
+  f3d_real ground[4] = {0, 0, 0, 0};
+  const F3dShallow water = f3d_shallow_create(w, 2, 2, 1, 0, 0, 0, ground);
+  CHECK(f3d_shallow_set_fluid(w, water, 1420, 10, F3D_R(0.05)) == 1);
+  CHECK(f3d_shallow_set_fluid(w, water, 0, 10, F3D_R(0.05)) == 0);
+  CHECK(f3d_shallow_set_fluid(w, water, 1420, -1, F3D_R(0.05)) == 0);
+  CHECK(f3d_shallow_set_fluid(w, water, 1420, 10, NAN) == 0);
+  CHECK(f3d_shallow_set_fluid(w, water + 1u, 1420, 10, F3D_R(0.05)) == 0);
+  f3d_world_destroy(w);
+}
+
+static void test_ball_settles_through_honey(void) {
+  /* A steel ball two centimetres across in honey (1420 kg/m³, 10 Pa·s)
+   * falls at Stokes's speed 2(ρ_s − ρ)gr²/9μ, 139 mm/s, which at Re 0.39
+   * Schiller and Naumann's correction makes 8% slower: 129 mm/s. */
+  F3dWorld *w = f3d_world_create();
+  const f3d_real r = F3D_R(0.01);
+  const f3d_real mass = F3D_R(7800.0) * F3D_R(4.0) / F3D_R(3.0) * F3D_PI * r * r * r;
+  const F3dBody b = ball_in(w, 16, F3D_R(0.1), 1, 1420, 10, r, mass, F3D_R(0.3));
+  run(w, 120);
+  f3d_real v[3];
+  f3d_body_get_velocity(w, b, v);
+  const double stokes = 2.0 * (7800.0 - 1420.0) * 9.81 * 1e-4 / (9.0 * 10.0);
+  const double re = 1420.0 * stokes * 0.02 / 10.0;
+  const double expected = stokes / (1.0 + 0.15 * pow(re, 0.687));
+  CHECK_NEAR(-v[1], expected, 0.02 * expected);
+  f3d_world_destroy(w);
+}
+
+static void test_ball_falls_through_water_at_newtons_speed(void) {
+  /* A ball of twenty centimetres and twice water's density falls through
+   * water at Re 5·10⁵, where the drag is Newton's 0.44:
+   * v = √(8gr(ρ_s/ρ − 1)/3C_d), 2.44 m/s. */
+  F3dWorld *w = f3d_world_create();
+  const f3d_real r = F3D_R(0.1);
+  const f3d_real mass = F3D_R(2000.0) * F3D_R(4.0) / F3D_R(3.0) * F3D_PI * r * r * r;
+  const F3dBody b = ball_in(w, 16, F3D_R(0.25), 8, 1000, F3D_R(0.001), r, mass, F3D_R(0.5));
+  run(w, 120);
+  f3d_real v[3];
+  f3d_body_get_velocity(w, b, v);
+  const double newton = sqrt(8.0 * 9.81 * 0.1 * (2.0 - 1.0) / (3.0 * 0.44));
+  /* CHECK_NEAR scales its tolerance by what it wants past one. */
+  CHECK_NEAR(-v[1], newton, 0.03);
+  f3d_world_destroy(w);
+}
+
+static void test_a_light_ball_carries_water_with_it(void) {
+  /* A ping-pong ball, 2.7 g in 33 cm³, let go under water: what holds it
+   * up is ρVg less its weight, and what it must speed up is itself and half
+   * the water it displaces, so it starts up at 15.5 m/s² — not the 112 it
+   * would with nothing to carry. */
+  F3dWorld *w = f3d_world_create();
+  const f3d_real r = F3D_R(0.02);
+  const F3dBody b = ball_in(w, 16, F3D_R(0.1), 1, 1000, F3D_R(0.001), r, F3D_R(0.0027), F3D_R(0.5));
+  const f3d_real dt = F3D_R(1.0) / 240;
+  f3d_world_step(w, dt);
+  f3d_real v[3];
+  f3d_body_get_velocity(w, b, v);
+  const double volume = 4.0 / 3.0 * M_PI * 0.02 * 0.02 * 0.02;
+  const double up = ((1000.0 * volume - 0.0027) * 9.81) / (0.0027 + 0.5 * 1000.0 * volume);
+  CHECK_NEAR(v[1], up * (double)dt, 0.05 * up * (double)dt);
+  f3d_world_destroy(w);
+}
+
+/* Every cell's x momentum, kg·m/s. */
+static double water_momentum_x(F3dWorld *w, F3dShallow water, uint32_t n, f3d_real cell) {
+  f3d_real *depth = (f3d_real *)malloc(n * sizeof(f3d_real));
+  f3d_real *flow = (f3d_real *)malloc(2u * n * sizeof(f3d_real));
+  f3d_shallow_read(w, water, NULL, depth);
+  f3d_shallow_read_flow(w, water, flow);
+  double p = 0.0;
+  for (uint32_t c = 0; c < n; c++) p += 1000.0 * (double)depth[c] * (double)cell * (double)cell * (double)flow[2 * c];
+  free(depth);
+  free(flow);
+  return p;
+}
+
+static void test_a_body_driven_through_water_sets_it_moving(void) {
+  /* A ball as dense as water sent through a still pool at two metres a
+   * second slows as the water drags it, and the water takes up what it
+   * loses: the momentum the ball and the water it carried gave up is the
+   * pool's, and the water in its wake runs the way it went. Over a quarter
+   * of a second: the flow's own advection, semi-Lagrangian, wears momentum
+   * away as it goes — a patch of flow alone in this pool loses eight per
+   * cent in half a second — so the balance is held while that is small. */
+  F3dWorld *w = f3d_world_create();
+  const f3d_real r = F3D_R(0.15);
+  const double volume = 4.0 / 3.0 * M_PI * 0.15 * 0.15 * 0.15;
+  const f3d_real mass = (f3d_real)(1000.0 * volume);
+  const F3dBody b = ball_in(w, 64, F3D_R(0.1), 1, 1000, F3D_R(0.001), r, mass, F3D_R(0.5));
+  CHECK(f3d_shallow_set_bed(w, 1u, 0, 0) == 1);
+  f3d_body_set_velocity(w, b, 2, 0, 0);
+  f3d_real p0[3];
+  f3d_body_get_position(w, b, p0);
+  run(w, 15);
+  f3d_real v[3], p[3];
+  f3d_body_get_velocity(w, b, v);
+  f3d_body_get_position(w, b, p);
+  CHECK(v[0] < F3D_R(1.9));
+  const double carried = (double)mass + 0.5 * 1000.0 * volume;
+  const double given = carried * (2.0 - (double)v[0]);
+  const double taken = water_momentum_x(w, 1u, 64u * 64u, F3D_R(0.1));
+  CHECK_NEAR(taken, given, 0.15);
+  /* Behind it, where it passed, the water runs after it. */
+  f3d_real behind[4];
+  f3d_shallow_sample(w, 1u, F3D_R(0.5) * (p0[0] + p[0]), p[2], behind);
+  CHECK(behind[2] > F3D_R(0.02));
+  f3d_world_destroy(w);
+}
+
+static void test_a_thick_film_runs_as_nusselt_says(void) {
+  /* Oil a thousand times thicker than water, two centimetres deep, down a
+   * slope of one in a hundred: a laminar film, whose mean speed is
+   * gSh²/3ν, 13 mm/s — where Manning's rough bed would have had it at
+   * fifteen centimetres a second. */
+  F3dWorld *w = f3d_world_create();
+  enum { NX = 64, NZ = 4 };
+  f3d_real ground[NX * NZ];
+  for (int j = 0; j < NZ; j++)
+    for (int i = 0; i < NX; i++) ground[i + j * NX] = F3D_R(1.0) - F3D_R(0.001) * (f3d_real)i;
+  const F3dShallow water = f3d_shallow_create(w, NX, NZ, F3D_R(0.1), 0, 0, 0, ground);
+  CHECK(f3d_shallow_set_fluid(w, water, 1000, 1, F3D_R(0.03)) == 1);
+  f3d_shallow_set_bed(w, water, F3D_R(0.03), 1);
+  const F3dShallowSlot *slot = &w->shallows[water - 1u];
+  f3d_real *depth = w->shallow_data + slot->first + NX * NZ;
+  for (int c = 0; c < NX * NZ; c++) depth[c] = F3D_R(0.02);
+  run(w, 300);
+  f3d_real at[4];
+  f3d_shallow_sample(w, water, F3D_R(3.2), F3D_R(0.2), at);
+  const double h = (double)at[1];
+  const double nusselt = 9.81 * 0.01 * h * h / (3.0 * 0.001);
+  CHECK(h > 0.015 && h < 0.025);
+  CHECK_NEAR(at[2], nusselt, 0.1 * nusselt);
   f3d_world_destroy(w);
 }
 
@@ -350,11 +505,11 @@ static void test_no_climbing_a_dry_bank(void) {
   for (int j = 0; j < 4; j++) {
     for (int i = 0; i < 40; i++) ground[i + j * 40] = i >= 30 ? F3D_R(0.5) : 0;
   }
-  const F3dWater water = f3d_water_create(w, 40, 4, F3D_R(0.1), 0, 0, 0, ground);
-  f3d_water_fill(w, water, 0, 0, F3D_R(2.95), F3D_R(0.4), F3D_R(0.1));
+  const F3dShallow water = f3d_shallow_create(w, 40, 4, F3D_R(0.1), 0, 0, 0, ground);
+  f3d_shallow_fill(w, water, 0, 0, F3D_R(2.95), F3D_R(0.4), F3D_R(0.1));
   /* All of it already running at the step at two metres a second. */
-  F3dWaterSlot *slot = &w->waters[water - 1u];
-  f3d_real *u = w->water_data + slot->first + 2u * 40u * 4u;
+  F3dShallowSlot *slot = &w->shallows[water - 1u];
+  f3d_real *u = w->shallow_data + slot->first + 2u * 40u * 4u;
   for (int j = 0; j < 4; j++) {
     for (int i = 1; i <= 30; i++) u[i + j * 41] = 2;
   }
@@ -362,7 +517,7 @@ static void test_no_climbing_a_dry_bank(void) {
   for (int i = 0; i < 240; i++) {
     run(w, 1);
     f3d_real depth[40 * 4];
-    f3d_water_read(w, water, NULL, depth);
+    f3d_shallow_read(w, water, NULL, depth);
     for (int j = 0; j < 4; j++) {
       for (int k = 30; k < 40; k++) on_step = fmax(on_step, depth[k + j * 40]);
     }
@@ -379,12 +534,12 @@ static void test_open_edge(void) {
   for (int j = 0; j < 8; j++) {
     for (int i = 0; i < 32; i++) ground[i + j * 32] = (f3d_real)(1.0 - 0.03 * i);
   }
-  const F3dWater water = f3d_water_create(w, 32, 8, F3D_R(0.25), 0, 0, 0, ground);
-  f3d_water_set_bed(w, water, F3D_R(0.03), 1);
-  f3d_water_pour(w, water, 1, 1, F3D_R(0.5), 1);
+  const F3dShallow water = f3d_shallow_create(w, 32, 8, F3D_R(0.25), 0, 0, 0, ground);
+  f3d_shallow_set_bed(w, water, F3D_R(0.03), 1);
+  f3d_shallow_pour(w, water, 1, 1, F3D_R(0.5), 1);
   run(w, 600);
   f3d_real held, lost;
-  f3d_water_volume(w, water, &held, &lost);
+  f3d_shallow_volume(w, water, &held, &lost);
   CHECK(lost > 0.3);
   CHECK_NEAR(held + lost, 1, 1e-4);
   f3d_world_destroy(w);
@@ -395,7 +550,7 @@ static void test_snapshot(void) {
    * goes on exactly as the world would have. */
   F3dWorld *w = f3d_world_create();
   f3d_real *ground = (f3d_real *)malloc(96 * 24 * sizeof(f3d_real));
-  const F3dWater water = falls(w, ground, 96);
+  const F3dShallow water = falls(w, ground, 96);
   const F3dBody cork = f3d_body_create(w, F3D_BODY_DYNAMIC, 18, 2, 3, F3D_R(0.5));
   f3d_body_set_shape(w, cork, F3D_SHAPE_SPHERE, F3D_R(0.08), 0, 0);
   run(w, 900);
@@ -408,8 +563,8 @@ static void test_snapshot(void) {
   run(w, 120);
   run(copy, 120);
   f3d_real a[96 * 24], b[96 * 24];
-  f3d_water_read(w, water, a, NULL);
-  f3d_water_read(copy, water, b, NULL);
+  f3d_shallow_read(w, water, a, NULL);
+  f3d_shallow_read(copy, water, b, NULL);
   CHECK(memcmp(a, b, sizeof a) == 0);
   f3d_real pa[3], pb[3];
   f3d_body_get_position(w, cork, pa);
@@ -432,6 +587,12 @@ int main(void) {
   test_flow_carries_a_float();
   test_column_spreads();
   test_jet_mixes_into_a_pool();
+  test_fluids();
+  test_ball_settles_through_honey();
+  test_ball_falls_through_water_at_newtons_speed();
+  test_a_light_ball_carries_water_with_it();
+  test_a_body_driven_through_water_sets_it_moving();
+  test_a_thick_film_runs_as_nusselt_says();
   test_no_climbing_a_dry_bank();
   test_open_edge();
   test_snapshot();

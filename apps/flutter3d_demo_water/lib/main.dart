@@ -95,10 +95,10 @@ class _WaterScreenState extends State<WaterScreen>
       final device = await openDevice(width: 1280, height: 800);
       final renderer = Renderer.create(device: device);
       // The water's material, as `flutter3d_effects` ships it.
-      final water = await WaterLook.load(
+      final water = await LiquidLook.load(
         device: device,
         renderer: renderer,
-        bundle: await rootBundle.load(WaterLook.asset),
+        bundle: await rootBundle.load(LiquidLook.asset),
       )..sun(along: _sunAlong, light: Vector3(2.0, 1.95, 1.85));
       final scene = Scene()
         ..ambientIntensity = 0.45

@@ -238,8 +238,8 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber out,
     JSNumber capacity,
   );
-  @JS('f3d_water_create')
-  external JSNumber f3d_water_create(
+  @JS('f3d_shallow_create')
+  external JSNumber f3d_shallow_create(
     JSNumber world,
     JSNumber nx,
     JSNumber nz,
@@ -249,18 +249,18 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber oz,
     JSNumber ground,
   );
-  @JS('f3d_water_destroy')
-  external JSNumber f3d_water_destroy(JSNumber world, JSNumber water);
-  @JS('f3d_water_is_valid')
-  external JSNumber f3d_water_is_valid(JSNumber world, JSNumber water);
-  @JS('f3d_water_set_ground')
-  external JSNumber f3d_water_set_ground(
+  @JS('f3d_shallow_destroy')
+  external JSNumber f3d_shallow_destroy(JSNumber world, JSNumber water);
+  @JS('f3d_shallow_is_valid')
+  external JSNumber f3d_shallow_is_valid(JSNumber world, JSNumber water);
+  @JS('f3d_shallow_set_ground')
+  external JSNumber f3d_shallow_set_ground(
     JSNumber world,
     JSNumber water,
     JSNumber ground,
   );
-  @JS('f3d_water_fill')
-  external JSNumber f3d_water_fill(
+  @JS('f3d_shallow_fill')
+  external JSNumber f3d_shallow_fill(
     JSNumber world,
     JSNumber water,
     JSNumber x0,
@@ -269,8 +269,8 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber z1,
     JSNumber level,
   );
-  @JS('f3d_water_pour')
-  external JSNumber f3d_water_pour(
+  @JS('f3d_shallow_pour')
+  external JSNumber f3d_shallow_pour(
     JSNumber world,
     JSNumber water,
     JSNumber x,
@@ -278,8 +278,8 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber radius,
     JSNumber volume,
   );
-  @JS('f3d_water_set_source')
-  external JSNumber f3d_water_set_source(
+  @JS('f3d_shallow_set_source')
+  external JSNumber f3d_shallow_set_source(
     JSNumber world,
     JSNumber water,
     JSNumber index,
@@ -288,36 +288,44 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber radius,
     JSNumber rate,
   );
-  @JS('f3d_water_set_bed')
-  external JSNumber f3d_water_set_bed(
+  @JS('f3d_shallow_set_bed')
+  external JSNumber f3d_shallow_set_bed(
     JSNumber world,
     JSNumber water,
     JSNumber roughness,
     JSNumber openEdges,
   );
-  @JS('f3d_water_sample')
-  external JSNumber f3d_water_sample(
+  @JS('f3d_shallow_set_fluid')
+  external JSNumber f3d_shallow_set_fluid(
+    JSNumber world,
+    JSNumber water,
+    JSNumber density,
+    JSNumber viscosity,
+    JSNumber tension,
+  );
+  @JS('f3d_shallow_sample')
+  external JSNumber f3d_shallow_sample(
     JSNumber world,
     JSNumber water,
     JSNumber x,
     JSNumber z,
     JSNumber out,
   );
-  @JS('f3d_water_read')
-  external JSNumber f3d_water_read(
+  @JS('f3d_shallow_read')
+  external JSNumber f3d_shallow_read(
     JSNumber world,
     JSNumber water,
     JSNumber surface,
     JSNumber depth,
   );
-  @JS('f3d_water_read_flow')
-  external JSNumber f3d_water_read_flow(
+  @JS('f3d_shallow_read_flow')
+  external JSNumber f3d_shallow_read_flow(
     JSNumber world,
     JSNumber water,
     JSNumber velocity,
   );
-  @JS('f3d_water_volume')
-  external JSNumber f3d_water_volume(
+  @JS('f3d_shallow_volume')
+  external JSNumber f3d_shallow_volume(
     JSNumber world,
     JSNumber water,
     JSNumber held,
@@ -1445,7 +1453,7 @@ int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) => _x
     .f3d_vehicle_read_wheels(world.toJS, vehicle.toJS, out.toJS, capacity.toJS)
     .toDartInt
     .toUnsigned(32);
-int f3d_water_create(
+int f3d_shallow_create(
   int world,
   int nx,
   int nz,
@@ -1455,7 +1463,7 @@ int f3d_water_create(
   double oz,
   int ground,
 ) => _x
-    .f3d_water_create(
+    .f3d_shallow_create(
       world.toJS,
       nx.toJS,
       nz.toJS,
@@ -1467,13 +1475,13 @@ int f3d_water_create(
     )
     .toDartInt
     .toUnsigned(32);
-int f3d_water_destroy(int world, int water) =>
-    _x.f3d_water_destroy(world.toJS, water.toJS).toDartInt;
-int f3d_water_is_valid(int world, int water) =>
-    _x.f3d_water_is_valid(world.toJS, water.toJS).toDartInt;
-int f3d_water_set_ground(int world, int water, int ground) =>
-    _x.f3d_water_set_ground(world.toJS, water.toJS, ground.toJS).toDartInt;
-int f3d_water_fill(
+int f3d_shallow_destroy(int world, int water) =>
+    _x.f3d_shallow_destroy(world.toJS, water.toJS).toDartInt;
+int f3d_shallow_is_valid(int world, int water) =>
+    _x.f3d_shallow_is_valid(world.toJS, water.toJS).toDartInt;
+int f3d_shallow_set_ground(int world, int water, int ground) =>
+    _x.f3d_shallow_set_ground(world.toJS, water.toJS, ground.toJS).toDartInt;
+int f3d_shallow_fill(
   int world,
   int water,
   double x0,
@@ -1482,7 +1490,7 @@ int f3d_water_fill(
   double z1,
   double level,
 ) => _x
-    .f3d_water_fill(
+    .f3d_shallow_fill(
       world.toJS,
       water.toJS,
       x0.toJS,
@@ -1492,7 +1500,7 @@ int f3d_water_fill(
       level.toJS,
     )
     .toDartInt;
-int f3d_water_pour(
+int f3d_shallow_pour(
   int world,
   int water,
   double x,
@@ -1500,7 +1508,7 @@ int f3d_water_pour(
   double radius,
   double volume,
 ) => _x
-    .f3d_water_pour(
+    .f3d_shallow_pour(
       world.toJS,
       water.toJS,
       x.toJS,
@@ -1509,7 +1517,7 @@ int f3d_water_pour(
       volume.toJS,
     )
     .toDartInt;
-int f3d_water_set_source(
+int f3d_shallow_set_source(
   int world,
   int water,
   int index,
@@ -1518,7 +1526,7 @@ int f3d_water_set_source(
   double radius,
   double rate,
 ) => _x
-    .f3d_water_set_source(
+    .f3d_shallow_set_source(
       world.toJS,
       water.toJS,
       index.toJS,
@@ -1528,25 +1536,40 @@ int f3d_water_set_source(
       rate.toJS,
     )
     .toDartInt;
-int f3d_water_set_bed(int world, int water, double roughness, int openEdges) =>
-    _x
-        .f3d_water_set_bed(
-          world.toJS,
-          water.toJS,
-          roughness.toJS,
-          openEdges.toJS,
-        )
-        .toDartInt;
-int f3d_water_sample(int world, int water, double x, double z, int out) => _x
-    .f3d_water_sample(world.toJS, water.toJS, x.toJS, z.toJS, out.toJS)
+int f3d_shallow_set_bed(
+  int world,
+  int water,
+  double roughness,
+  int openEdges,
+) => _x
+    .f3d_shallow_set_bed(world.toJS, water.toJS, roughness.toJS, openEdges.toJS)
     .toDartInt;
-int f3d_water_read(int world, int water, int surface, int depth) => _x
-    .f3d_water_read(world.toJS, water.toJS, surface.toJS, depth.toJS)
+int f3d_shallow_set_fluid(
+  int world,
+  int water,
+  double density,
+  double viscosity,
+  double tension,
+) => _x
+    .f3d_shallow_set_fluid(
+      world.toJS,
+      water.toJS,
+      density.toJS,
+      viscosity.toJS,
+      tension.toJS,
+    )
     .toDartInt;
-int f3d_water_read_flow(int world, int water, int velocity) =>
-    _x.f3d_water_read_flow(world.toJS, water.toJS, velocity.toJS).toDartInt;
-int f3d_water_volume(int world, int water, int held, int lost) =>
-    _x.f3d_water_volume(world.toJS, water.toJS, held.toJS, lost.toJS).toDartInt;
+int f3d_shallow_sample(int world, int water, double x, double z, int out) => _x
+    .f3d_shallow_sample(world.toJS, water.toJS, x.toJS, z.toJS, out.toJS)
+    .toDartInt;
+int f3d_shallow_read(int world, int water, int surface, int depth) => _x
+    .f3d_shallow_read(world.toJS, water.toJS, surface.toJS, depth.toJS)
+    .toDartInt;
+int f3d_shallow_read_flow(int world, int water, int velocity) =>
+    _x.f3d_shallow_read_flow(world.toJS, water.toJS, velocity.toJS).toDartInt;
+int f3d_shallow_volume(int world, int water, int held, int lost) => _x
+    .f3d_shallow_volume(world.toJS, water.toJS, held.toJS, lost.toJS)
+    .toDartInt;
 int f3d_world_read_spray(int world, int spray, int waters, int capacity) => _x
     .f3d_world_read_spray(world.toJS, spray.toJS, waters.toJS, capacity.toJS)
     .toDartInt
