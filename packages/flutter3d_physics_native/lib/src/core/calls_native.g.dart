@@ -661,6 +661,256 @@ int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) =>
       capacity,
     );
 
+@Native<
+  Uint32 Function(
+    Pointer<Void>,
+    Uint32,
+    Uint32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Pointer<Void>,
+  )
+>(symbol: 'f3d_water_create')
+external int _f3d_water_create(
+  Pointer<Void> world,
+  int nx,
+  int nz,
+  double cell,
+  double ox,
+  double oy,
+  double oz,
+  Pointer<Void> ground,
+);
+int f3d_water_create(
+  int world,
+  int nx,
+  int nz,
+  double cell,
+  double ox,
+  double oy,
+  double oz,
+  int ground,
+) => _f3d_water_create(
+  Pointer.fromAddress(world),
+  nx,
+  nz,
+  cell,
+  ox,
+  oy,
+  oz,
+  Pointer.fromAddress(ground),
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_water_destroy',
+  isLeaf: true,
+)
+external int _f3d_water_destroy(Pointer<Void> world, int water);
+int f3d_water_destroy(int world, int water) =>
+    _f3d_water_destroy(Pointer.fromAddress(world), water);
+
+@Native<Int32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_water_is_valid',
+  isLeaf: true,
+)
+external int _f3d_water_is_valid(Pointer<Void> world, int water);
+int f3d_water_is_valid(int world, int water) =>
+    _f3d_water_is_valid(Pointer.fromAddress(world), water);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_water_set_ground',
+  isLeaf: true,
+)
+external int _f3d_water_set_ground(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> ground,
+);
+int f3d_water_set_ground(int world, int water, int ground) =>
+    _f3d_water_set_ground(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(ground),
+    );
+
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float, Float)
+>(symbol: 'f3d_water_fill', isLeaf: true)
+external int _f3d_water_fill(
+  Pointer<Void> world,
+  int water,
+  double x0,
+  double z0,
+  double x1,
+  double z1,
+  double level,
+);
+int f3d_water_fill(
+  int world,
+  int water,
+  double x0,
+  double z0,
+  double x1,
+  double z1,
+  double level,
+) => _f3d_water_fill(Pointer.fromAddress(world), water, x0, z0, x1, z1, level);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float)>(
+  symbol: 'f3d_water_pour',
+  isLeaf: true,
+)
+external int _f3d_water_pour(
+  Pointer<Void> world,
+  int water,
+  double x,
+  double z,
+  double radius,
+  double volume,
+);
+int f3d_water_pour(
+  int world,
+  int water,
+  double x,
+  double z,
+  double radius,
+  double volume,
+) => _f3d_water_pour(Pointer.fromAddress(world), water, x, z, radius, volume);
+
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Uint32, Float, Float, Float, Float)
+>(symbol: 'f3d_water_set_source', isLeaf: true)
+external int _f3d_water_set_source(
+  Pointer<Void> world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double radius,
+  double rate,
+);
+int f3d_water_set_source(
+  int world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double radius,
+  double rate,
+) => _f3d_water_set_source(
+  Pointer.fromAddress(world),
+  water,
+  index,
+  x,
+  z,
+  radius,
+  rate,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Float, Int32)>(
+  symbol: 'f3d_water_set_bed',
+  isLeaf: true,
+)
+external int _f3d_water_set_bed(
+  Pointer<Void> world,
+  int water,
+  double roughness,
+  int openEdges,
+);
+int f3d_water_set_bed(int world, int water, double roughness, int openEdges) =>
+    _f3d_water_set_bed(Pointer.fromAddress(world), water, roughness, openEdges);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Float, Float, Pointer<Void>)>(
+  symbol: 'f3d_water_sample',
+  isLeaf: true,
+)
+external int _f3d_water_sample(
+  Pointer<Void> world,
+  int water,
+  double x,
+  double z,
+  Pointer<Void> out,
+);
+int f3d_water_sample(int world, int water, double x, double z, int out) =>
+    _f3d_water_sample(
+      Pointer.fromAddress(world),
+      water,
+      x,
+      z,
+      Pointer.fromAddress(out),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_water_read',
+  isLeaf: true,
+)
+external int _f3d_water_read(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> surface,
+  Pointer<Void> depth,
+);
+int f3d_water_read(int world, int water, int surface, int depth) =>
+    _f3d_water_read(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(surface),
+      Pointer.fromAddress(depth),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_water_read_flow',
+  isLeaf: true,
+)
+external int _f3d_water_read_flow(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> velocity,
+);
+int f3d_water_read_flow(int world, int water, int velocity) =>
+    _f3d_water_read_flow(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(velocity),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_water_volume',
+  isLeaf: true,
+)
+external int _f3d_water_volume(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> held,
+  Pointer<Void> lost,
+);
+int f3d_water_volume(int world, int water, int held, int lost) =>
+    _f3d_water_volume(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(held),
+      Pointer.fromAddress(lost),
+    );
+
+@Native<Uint32 Function(Pointer<Void>, Pointer<Void>, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_world_read_spray',
+  isLeaf: true,
+)
+external int _f3d_world_read_spray(
+  Pointer<Void> world,
+  Pointer<Void> spray,
+  Pointer<Void> waters,
+  int capacity,
+);
+int f3d_world_read_spray(int world, int spray, int waters, int capacity) =>
+    _f3d_world_read_spray(
+      Pointer.fromAddress(world),
+      Pointer.fromAddress(spray),
+      Pointer.fromAddress(waters),
+      capacity,
+    );
+
 @Native<Uint32 Function(Pointer<Void>, Uint64)>(symbol: 'f3d_multibody_create')
 external int _f3d_multibody_create(Pointer<Void> world, int root);
 int f3d_multibody_create(int world, int root) =>

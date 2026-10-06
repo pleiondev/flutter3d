@@ -500,6 +500,38 @@ typedef struct F3dLink {
   f3d_real swing, twist;
 } F3dLink;
 
+/* One spring of a water. Plain data. */
+typedef struct F3dWaterSource {
+  f3d_real x, z, radius, rate;
+} F3dWaterSource;
+
+/* A water's slot: its grid, where its reals start in the world's array of
+ * them, and its springs. Plain data, zeroed when taken.
+ *
+ * Its reals, in order: the ground at each cell's centre, nx × nz; the
+ * depth at each, nx × nz; the velocity across each x face, (nx + 1) × nz;
+ * across each z face, nx × (nz + 1); and the volume bodies fill in each
+ * column, nx × nz. */
+typedef struct F3dWaterSlot {
+  uint32_t live;
+  uint32_t nx, nz;
+  uint32_t first;
+  f3d_real cell;
+  F3dVec3 origin;
+  f3d_real roughness;
+  uint32_t open_edges;
+  f3d_real lost;
+  uint32_t source_count;
+  F3dWaterSource sources[F3D_WATER_MOST_SOURCES];
+} F3dWaterSlot;
+
+/* A drop of spray in flight. Plain data. */
+typedef struct F3dSpray {
+  F3dVec3 at, velocity;
+  f3d_real volume;
+  uint32_t water;
+} F3dSpray;
+
 /* A multibody's slot. Plain data, zeroed when taken. */
 typedef struct F3dMultibodySlot {
   uint32_t live;
@@ -623,6 +655,11 @@ typedef struct F3dWorldState {
   uint32_t multibody_links;
   /* Compounds' parts' heat, every live compound's in slot order. */
   uint32_t lump_count;
+  /* Waters ever made, the reals all the live ones hold, and the spray in
+   * flight. */
+  uint32_t water_count;
+  uint32_t water_reals;
+  uint32_t spray_count;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -708,6 +745,10 @@ struct F3dWorld {
   F3dMultibodySlot *multibodies;
   /* The lumps, lump_count of them. In a snapshot. */
   F3dLump *lumps;
+  /* The waters, their reals and their spray. In a snapshot. */
+  F3dWaterSlot *waters;
+  f3d_real *water_data;
+  F3dSpray *spray;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */
@@ -884,6 +925,10 @@ void f3d_step_vehicles(F3dWorld *world, f3d_real dt);
 
 /* The core's own sine and cosine: the same bits everywhere. */
 void f3d_sin_cos(f3d_real x, f3d_real *sine, f3d_real *cosine);
+
+/* Every water, before the solver: the bodies in it held up and dragged,
+ * the water moved, and its spray flown. */
+void f3d_step_water(F3dWorld *world, f3d_real dt);
 
 /* Every multibody, after the solver: its joints read off where its links
  * stand, its links put back where the joints say, and their velocities

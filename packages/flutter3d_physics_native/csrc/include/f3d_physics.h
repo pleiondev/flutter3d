@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 28u
+#define F3D_ABI_VERSION 29u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -517,6 +517,97 @@ F3D_API uint32_t f3d_vehicle_wheel_count(const F3dWorld *world,
 F3D_API uint32_t f3d_vehicle_read_wheels(const F3dWorld *world,
                                          F3dVehicle vehicle, f3d_real *out,
                                          uint32_t capacity);
+
+/* ------------------------------------------------------------------ water */
+
+/* A body of water over ground: a stream, a pond, a lake, numbered from one
+ * as a vehicle is. */
+typedef uint32_t F3dWater;
+
+/* The most springs a water has, and the most drops in flight in a world. */
+#define F3D_WATER_MOST_SOURCES 16u
+#define F3D_WATER_MOST_SPRAY 16384u
+
+/* Reals one drop of spray takes in f3d_water_read_spray: where it is xyz,
+ * its velocity xyz, and the water it carries, m³. */
+#define F3D_SPRAY_FLOATS 7u
+
+/* Water over [nx] × [nz] cells [cell] metres square, the first cell's corner
+ * at (ox, oy, oz) and x then z across; [ground] is the height of the ground
+ * at each cell's centre above oy, nx × nz of them, x fastest. It starts dry.
+ *
+ * It is shallow water: in each column the water moves as one, as a
+ * stream, a pond or a flood does, its depth carried by what flows across
+ * the column's faces — so not a drop is made or lost but by springs, open
+ * edges and what is taken off — and its flow pushed by the slope of its
+ * surface and held back by the ground's roughness. Where it runs off a
+ * drop steeper than it is wide it leaves the grid as spray, falls, and
+ * lands in the water or on the ground below, a waterfall. A dynamic body in
+ * it stands in the columns it fills, so the surface rises round it and
+ * waves run from a stone dropped in; it is held up by what it displaces and
+ * dragged by the flow. Nought for sizes or a cell out of range, a ground
+ * not finite, or no memory. */
+F3D_API F3dWater f3d_water_create(F3dWorld *world, uint32_t nx, uint32_t nz,
+                                  f3d_real cell, f3d_real ox, f3d_real oy,
+                                  f3d_real oz, const f3d_real *ground);
+F3D_API int f3d_water_destroy(F3dWorld *world, F3dWater water);
+F3D_API int f3d_water_is_valid(const F3dWorld *world, F3dWater water);
+
+/* The ground again, as f3d_water_create took it: dug or built up. The
+ * water over each cell stays as deep, so its surface moves with the ground
+ * and runs off where it now stands higher than its neighbours'. */
+F3D_API int f3d_water_set_ground(F3dWorld *world, F3dWater water,
+                                 const f3d_real *ground);
+
+/* Every cell within the box from (x0, z0) to (x1, z1) filled to [level]
+ * above oy, or drained to it where it stands above: a pond put in place. */
+F3D_API int f3d_water_fill(F3dWorld *world, F3dWater water, f3d_real x0,
+                           f3d_real z0, f3d_real x1, f3d_real z1,
+                           f3d_real level);
+
+/* [volume] m³ poured in at (x, z) over a disc of [radius], or taken out
+ * where it is negative, as far as there is water to take. */
+F3D_API int f3d_water_pour(F3dWorld *world, F3dWater water, f3d_real x,
+                           f3d_real z, f3d_real radius, f3d_real volume);
+
+/* Spring [index]: [rate] m³/s welling up at (x, z) over a disc of
+ * [radius], every step; a rate of nought stops it. 0 for an index past
+ * F3D_WATER_MOST_SOURCES or a value out of range. */
+F3D_API int f3d_water_set_source(F3dWorld *world, F3dWater water,
+                                 uint32_t index, f3d_real x, f3d_real z,
+                                 f3d_real radius, f3d_real rate);
+
+/* Manning's roughness of the ground, s/m^(1/3): about 0.03 for a stream's
+ * bed, 0.012 for smooth concrete; and whether water reaching the grid's
+ * edge runs off it, else the edge is a wall. */
+F3D_API int f3d_water_set_bed(F3dWorld *world, F3dWater water,
+                              f3d_real roughness, int open_edges);
+
+/* The surface at (x, z): its height above oy, the depth there, and the
+ * flow's velocity x and z, into out[0..3]; 0 outside the grid. */
+F3D_API int f3d_water_sample(const F3dWorld *world, F3dWater water, f3d_real x,
+                             f3d_real z, f3d_real *out);
+
+/* Every cell's surface height above oy, and its depth, nx × nz of each,
+ * x fastest; either may be null. Where it is dry the surface is the
+ * ground. */
+F3D_API int f3d_water_read(const F3dWorld *world, F3dWater water,
+                           f3d_real *surface, f3d_real *depth);
+
+/* Every cell's flow, its velocity x and z, two reals a cell. */
+F3D_API int f3d_water_read_flow(const F3dWorld *world, F3dWater water,
+                                f3d_real *velocity);
+
+/* The water it holds, m³, in its cells and in the air as spray; and what
+ * has run off its open edges since it was made. */
+F3D_API int f3d_water_volume(const F3dWorld *world, F3dWater water,
+                             f3d_real *held, f3d_real *lost);
+
+/* The world's spray in flight, F3D_SPRAY_FLOATS reals apiece, up to
+ * [capacity] of them; the water each came off into [waters] when not null.
+ * Returns how many. */
+F3D_API uint32_t f3d_world_read_spray(const F3dWorld *world, f3d_real *spray,
+                                      F3dWater *waters, uint32_t capacity);
 
 /* ------------------------------------------------------------- multibodies */
 

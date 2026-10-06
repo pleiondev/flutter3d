@@ -52,6 +52,9 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->vehicles);
   f3d_free(world->multibodies);
   f3d_free(world->lumps);
+  f3d_free(world->waters);
+  f3d_free(world->water_data);
+  f3d_free(world->spray);
   f3d_free(world->meshes);
   f3d_free(world->mesh_vertices);
   f3d_free(world->mesh_triangles);
@@ -767,6 +770,7 @@ void f3d_world_step(F3dWorld *world, f3d_real dt) {
   if (!(f3d_finite(dt) && dt > F3D_R(0.0))) return;
   f3d_step_collide(world, dt);
   f3d_step_vehicles(world, dt);
+  f3d_step_water(world, dt);
   f3d_step_solve(world, dt);
   f3d_step_multibodies(world, dt);
   f3d_break_joints(world);

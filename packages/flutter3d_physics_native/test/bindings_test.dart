@@ -50,6 +50,12 @@ void main() {
     expect(c.wheelStateFloats, define('F3D_WHEEL_STATE_FLOATS'));
   });
 
+  test('water holds as many springs and drops as the header says', () {
+    expect(c.waterMostSources, define('F3D_WATER_MOST_SOURCES'));
+    expect(c.waterMostSpray, define('F3D_WATER_MOST_SPRAY'));
+    expect(c.sprayFloats, define('F3D_SPRAY_FLOATS'));
+  });
+
   test('a multibody holds as many links and degrees as the header says', () {
     expect(c.multibodyMostLinks, define('F3D_MULTIBODY_MOST_LINKS'));
     expect(c.multibodyMostDofs, define('F3D_MULTIBODY_MOST_DOFS'));

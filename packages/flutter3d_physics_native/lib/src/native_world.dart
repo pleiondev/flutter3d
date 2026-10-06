@@ -93,6 +93,32 @@ extension type const NativeHull(int id) {}
 /// ([NativeWorld.setMesh]). Numbered from one.
 extension type const NativeMesh(int id) {}
 
+/// Water over ground in a [NativeWorld]: a stream, a pond, a waterfall into
+/// it. Shallow water on a grid of [nx] × [nz] cells [cell] metres square,
+/// the first cell's corner at [origin].
+final class NativeWater {
+  const NativeWater._(this.id, this.nx, this.nz, this.cell, this.origin);
+
+  /// Numbered from one; a number is never given out again.
+  final int id;
+  final int nx, nz;
+  final double cell;
+  final Vector3 origin;
+
+  /// How many cells: the length of what [NativeWorld.readWaterSurface]
+  /// and its depths return.
+  int get cells => nx * nz;
+}
+
+/// What water is like at a point: its surface's height above the water's
+/// origin, its depth, and the flow's velocity in x and z.
+typedef NativeWaterSample = ({
+  double surface,
+  double depth,
+  double flowX,
+  double flowZ,
+});
+
 /// A multibody in a [NativeWorld]: a tree of bodies held by joints in
 /// reduced coordinates. Numbered from one; a number is never given out
 /// again.
@@ -1618,6 +1644,203 @@ final class NativeWorld {
   /// Shapes [body] as [hull].
   void setHull(NativeBody body, NativeHull hull) =>
       _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
+
+  /// Water over ground: [nx] × [nz] cells [cell] metres square, the first
+  /// cell's corner at [origin], and [ground] the height of the ground at each
+  /// cell's centre above the origin, x fastest. It starts dry.
+  ///
+  /// In each column the water moves as one, its depth carried across the
+  /// columns' faces, so none is made or lost but by springs, open edges and
+  /// what is taken off; it runs down the slope of its surface and is held
+  /// back by the bed's roughness. Off a drop steeper than forty-five degrees
+  /// it leaves as spray, falls and lands below — a waterfall. A dynamic body
+  /// in it pushes the water aside, so a stone dropped in makes waves; it is
+  /// held up by what it displaces and carried by the flow.
+  NativeWater createWater({
+    required int nx,
+    required int nz,
+    required double cell,
+    required Vector3 origin,
+    required List<double> ground,
+  }) {
+    if (ground.length != nx * nz) {
+      throw ArgumentError.value(
+        ground.length,
+        'ground',
+        'not nx × nz = ${nx * nz} heights',
+      );
+    }
+    final g = c.F32s.alloc(ground.isEmpty ? 1 : ground.length);
+    try {
+      g.setAll(ground);
+      final id = c.f3d_water_create(
+        _live,
+        nx,
+        nz,
+        cell,
+        origin.x,
+        origin.y,
+        origin.z,
+        g,
+      );
+      if (id == 0) {
+        throw ArgumentError(
+          'water of $nx × $nz cells of $cell m: a size or '
+          'a cell out of range, or a height not finite',
+        );
+      }
+      return NativeWater._(id, nx, nz, cell, origin.clone());
+    } finally {
+      g.free();
+    }
+  }
+
+  bool removeWater(NativeWater water) =>
+      c.f3d_water_destroy(_live, water.id) == 1;
+
+  bool containsWater(NativeWater water) =>
+      c.f3d_water_is_valid(_live, water.id) == 1;
+
+  /// The ground again, dug or built up, as [createWater] took it.
+  void setWaterGround(NativeWater water, List<double> ground) {
+    if (ground.length != water.cells) {
+      throw ArgumentError.value(ground.length, 'ground', 'not ${water.cells}');
+    }
+    final g = c.F32s.alloc(ground.length);
+    try {
+      g.setAll(ground);
+      if (c.f3d_water_set_ground(_live, water.id, g) == 0) {
+        throw ArgumentError('a height not finite');
+      }
+    } finally {
+      g.free();
+    }
+  }
+
+  /// Every cell between ([x0], [z0]) and ([x1], [z1]) filled, or drained, to
+  /// [level] above the water's origin: a pond put in place.
+  void fillWater(
+    NativeWater water, {
+    required double x0,
+    required double z0,
+    required double x1,
+    required double z1,
+    required double level,
+  }) {
+    if (c.f3d_water_fill(_live, water.id, x0, z0, x1, z1, level) == 0) {
+      throw ArgumentError('a fill not finite');
+    }
+  }
+
+  /// [volume] m³ poured in at ([x], [z]) over a disc of [radius], or taken
+  /// out where it is negative.
+  void pourWater(
+    NativeWater water,
+    double x,
+    double z, {
+    double radius = 0.0,
+    required double volume,
+  }) {
+    if (c.f3d_water_pour(_live, water.id, x, z, radius, volume) == 0) {
+      throw ArgumentError('a pour not finite');
+    }
+  }
+
+  /// Spring [index]: [rate] m³/s welling up at ([x], [z]) over a disc of
+  /// [radius]; a rate of nought stops it. At most [c.waterMostSources].
+  void setWaterSource(
+    NativeWater water,
+    int index, {
+    required double x,
+    required double z,
+    double radius = 0.0,
+    required double rate,
+  }) {
+    if (c.f3d_water_set_source(_live, water.id, index, x, z, radius, rate) ==
+        0) {
+      throw ArgumentError(
+        'spring $index: past ${c.waterMostSources}, or a '
+        'radius or rate below nought',
+      );
+    }
+  }
+
+  /// Manning's roughness of the bed, about 0.03 for a stream's and 0.012 for
+  /// smooth concrete; and whether water reaching the grid's edge runs off.
+  void setWaterBed(
+    NativeWater water, {
+    double roughness = 0.03,
+    bool openEdges = false,
+  }) {
+    if (c.f3d_water_set_bed(_live, water.id, roughness, openEdges ? 1 : 0) ==
+        0) {
+      throw ArgumentError.value(roughness, 'roughness', 'below nought');
+    }
+  }
+
+  /// The water at ([x], [z]), or null outside its grid.
+  NativeWaterSample? sampleWater(NativeWater water, double x, double z) {
+    final out = c.F32s.alloc(4);
+    try {
+      if (c.f3d_water_sample(_live, water.id, x, z, out) == 0) return null;
+      return (surface: out[0], depth: out[1], flowX: out[2], flowZ: out[3]);
+    } finally {
+      out.free();
+    }
+  }
+
+  /// Every cell's surface height above the water's origin and its depth,
+  /// x fastest; where it is dry the surface is the ground.
+  ({Float32List surface, Float32List depth}) readWaterSurface(
+    NativeWater water,
+  ) {
+    final n = water.cells;
+    final surface = c.F32s.alloc(n);
+    final depth = c.F32s.alloc(n);
+    try {
+      c.f3d_water_read(_live, water.id, surface, depth);
+      return (surface: surface.copy(n), depth: depth.copy(n));
+    } finally {
+      surface.free();
+      depth.free();
+    }
+  }
+
+  /// Every cell's flow, its velocity x and z: two a cell.
+  Float32List readWaterFlow(NativeWater water) {
+    final n = water.cells * 2;
+    final flow = c.F32s.alloc(n);
+    try {
+      c.f3d_water_read_flow(_live, water.id, flow);
+      return flow.copy(n);
+    } finally {
+      flow.free();
+    }
+  }
+
+  /// The water it holds, m³, in its cells and in the air as spray, and what
+  /// has run off its open edges.
+  ({double held, double lost}) waterVolume(NativeWater water) {
+    final out = c.F32s.alloc(2);
+    try {
+      c.f3d_water_volume(_live, water.id, out, out + 4);
+      return (held: out[0], lost: out[1]);
+    } finally {
+      out.free();
+    }
+  }
+
+  /// The spray in flight, [c.sprayFloats] reals a drop — where it is, its
+  /// velocity, and the water it carries — up to [capacity] drops.
+  Float32List readSpray({int capacity = c.waterMostSpray}) {
+    final out = c.F32s.alloc(capacity * c.sprayFloats);
+    try {
+      final count = c.f3d_world_read_spray(_live, out, 0, capacity);
+      return out.copy(count * c.sprayFloats);
+    } finally {
+      out.free();
+    }
+  }
 
   /// A multibody rooted at [root]: a tree of bodies held by joints in
   /// reduced coordinates, each link placed by its parent and its joint's

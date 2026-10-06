@@ -238,6 +238,98 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber out,
     JSNumber capacity,
   );
+  @JS('f3d_water_create')
+  external JSNumber f3d_water_create(
+    JSNumber world,
+    JSNumber nx,
+    JSNumber nz,
+    JSNumber cell,
+    JSNumber ox,
+    JSNumber oy,
+    JSNumber oz,
+    JSNumber ground,
+  );
+  @JS('f3d_water_destroy')
+  external JSNumber f3d_water_destroy(JSNumber world, JSNumber water);
+  @JS('f3d_water_is_valid')
+  external JSNumber f3d_water_is_valid(JSNumber world, JSNumber water);
+  @JS('f3d_water_set_ground')
+  external JSNumber f3d_water_set_ground(
+    JSNumber world,
+    JSNumber water,
+    JSNumber ground,
+  );
+  @JS('f3d_water_fill')
+  external JSNumber f3d_water_fill(
+    JSNumber world,
+    JSNumber water,
+    JSNumber x0,
+    JSNumber z0,
+    JSNumber x1,
+    JSNumber z1,
+    JSNumber level,
+  );
+  @JS('f3d_water_pour')
+  external JSNumber f3d_water_pour(
+    JSNumber world,
+    JSNumber water,
+    JSNumber x,
+    JSNumber z,
+    JSNumber radius,
+    JSNumber volume,
+  );
+  @JS('f3d_water_set_source')
+  external JSNumber f3d_water_set_source(
+    JSNumber world,
+    JSNumber water,
+    JSNumber index,
+    JSNumber x,
+    JSNumber z,
+    JSNumber radius,
+    JSNumber rate,
+  );
+  @JS('f3d_water_set_bed')
+  external JSNumber f3d_water_set_bed(
+    JSNumber world,
+    JSNumber water,
+    JSNumber roughness,
+    JSNumber openEdges,
+  );
+  @JS('f3d_water_sample')
+  external JSNumber f3d_water_sample(
+    JSNumber world,
+    JSNumber water,
+    JSNumber x,
+    JSNumber z,
+    JSNumber out,
+  );
+  @JS('f3d_water_read')
+  external JSNumber f3d_water_read(
+    JSNumber world,
+    JSNumber water,
+    JSNumber surface,
+    JSNumber depth,
+  );
+  @JS('f3d_water_read_flow')
+  external JSNumber f3d_water_read_flow(
+    JSNumber world,
+    JSNumber water,
+    JSNumber velocity,
+  );
+  @JS('f3d_water_volume')
+  external JSNumber f3d_water_volume(
+    JSNumber world,
+    JSNumber water,
+    JSNumber held,
+    JSNumber lost,
+  );
+  @JS('f3d_world_read_spray')
+  external JSNumber f3d_world_read_spray(
+    JSNumber world,
+    JSNumber spray,
+    JSNumber waters,
+    JSNumber capacity,
+  );
   @JS('f3d_multibody_create__w')
   external JSNumber f3d_multibody_create(
     JSNumber world,
@@ -1337,6 +1429,112 @@ int f3d_vehicle_wheel_count(int world, int vehicle) => _x
     .toUnsigned(32);
 int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) => _x
     .f3d_vehicle_read_wheels(world.toJS, vehicle.toJS, out.toJS, capacity.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_water_create(
+  int world,
+  int nx,
+  int nz,
+  double cell,
+  double ox,
+  double oy,
+  double oz,
+  int ground,
+) => _x
+    .f3d_water_create(
+      world.toJS,
+      nx.toJS,
+      nz.toJS,
+      cell.toJS,
+      ox.toJS,
+      oy.toJS,
+      oz.toJS,
+      ground.toJS,
+    )
+    .toDartInt
+    .toUnsigned(32);
+int f3d_water_destroy(int world, int water) =>
+    _x.f3d_water_destroy(world.toJS, water.toJS).toDartInt;
+int f3d_water_is_valid(int world, int water) =>
+    _x.f3d_water_is_valid(world.toJS, water.toJS).toDartInt;
+int f3d_water_set_ground(int world, int water, int ground) =>
+    _x.f3d_water_set_ground(world.toJS, water.toJS, ground.toJS).toDartInt;
+int f3d_water_fill(
+  int world,
+  int water,
+  double x0,
+  double z0,
+  double x1,
+  double z1,
+  double level,
+) => _x
+    .f3d_water_fill(
+      world.toJS,
+      water.toJS,
+      x0.toJS,
+      z0.toJS,
+      x1.toJS,
+      z1.toJS,
+      level.toJS,
+    )
+    .toDartInt;
+int f3d_water_pour(
+  int world,
+  int water,
+  double x,
+  double z,
+  double radius,
+  double volume,
+) => _x
+    .f3d_water_pour(
+      world.toJS,
+      water.toJS,
+      x.toJS,
+      z.toJS,
+      radius.toJS,
+      volume.toJS,
+    )
+    .toDartInt;
+int f3d_water_set_source(
+  int world,
+  int water,
+  int index,
+  double x,
+  double z,
+  double radius,
+  double rate,
+) => _x
+    .f3d_water_set_source(
+      world.toJS,
+      water.toJS,
+      index.toJS,
+      x.toJS,
+      z.toJS,
+      radius.toJS,
+      rate.toJS,
+    )
+    .toDartInt;
+int f3d_water_set_bed(int world, int water, double roughness, int openEdges) =>
+    _x
+        .f3d_water_set_bed(
+          world.toJS,
+          water.toJS,
+          roughness.toJS,
+          openEdges.toJS,
+        )
+        .toDartInt;
+int f3d_water_sample(int world, int water, double x, double z, int out) => _x
+    .f3d_water_sample(world.toJS, water.toJS, x.toJS, z.toJS, out.toJS)
+    .toDartInt;
+int f3d_water_read(int world, int water, int surface, int depth) => _x
+    .f3d_water_read(world.toJS, water.toJS, surface.toJS, depth.toJS)
+    .toDartInt;
+int f3d_water_read_flow(int world, int water, int velocity) =>
+    _x.f3d_water_read_flow(world.toJS, water.toJS, velocity.toJS).toDartInt;
+int f3d_water_volume(int world, int water, int held, int lost) =>
+    _x.f3d_water_volume(world.toJS, water.toJS, held.toJS, lost.toJS).toDartInt;
+int f3d_world_read_spray(int world, int spray, int waters, int capacity) => _x
+    .f3d_world_read_spray(world.toJS, spray.toJS, waters.toJS, capacity.toJS)
     .toDartInt
     .toUnsigned(32);
 int f3d_multibody_create(int world, int root) => _x

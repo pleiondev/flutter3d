@@ -23,6 +23,23 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **Water over ground: a stream, a pond, a waterfall into it.**
+  `NativeWorld.createWater` lays shallow water on a grid over the ground.
+  In each column the water moves as one, its depth carried across the
+  columns' faces by the flow, so none is made or lost but by springs,
+  open edges and what is taken off. It runs down the slope of its
+  surface, is held back by Manning's roughness of the bed, and is pulled
+  by the wind. A lake stays still over a bumpy bed. Where the ground drops
+  away steeper than forty-five degrees the flow leaves as spray, falls and
+  lands in the water or on the ground below: a waterfall, and waves at its
+  foot. A dynamic body pushes the water aside, so a stone dropped in makes
+  waves. It is held up by the weight of what it displaces, measured
+  exactly as the cap of its ball below the water round it, and the flow
+  drags it along. `fillWater`, `pourWater`, `setWaterSource` and
+  `setWaterBed` shape it; `readWaterSurface`, `readWaterFlow`,
+  `sampleWater` and `readSpray` read it for drawing. `F3D_ABI_VERSION` is
+  29, and a snapshot is format 15.
+
 - **A post burns upwards, a part at a time.** Each part of a compound
   has its own temperature, water, fuel and fire. A post stood on end and
   lit at the bottom catches a part at a time in the flame of the one below;

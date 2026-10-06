@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 28;
+const int abiVersion = 29;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -67,6 +67,11 @@ const int wheelStateFloats = 14;
 /// `F3D_MULTIBODY_MOST_LINKS` and `F3D_MULTIBODY_MOST_DOFS`.
 const int multibodyMostLinks = 32;
 const int multibodyMostDofs = 64;
+
+/// `F3D_WATER_MOST_SOURCES`, `F3D_WATER_MOST_SPRAY` and `F3D_SPRAY_FLOATS`.
+const int waterMostSources = 16;
+const int waterMostSpray = 16384;
+const int sprayFloats = 7;
 
 /// `F3dJointType`.
 abstract final class JointType {
