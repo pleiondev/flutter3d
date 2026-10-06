@@ -2940,6 +2940,22 @@ int f3d_body_get_temperature(int world, int body, int out) =>
       Pointer.fromAddress(out),
     );
 
+@Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>)>(
+  symbol: 'f3d_body_get_surface_temperature',
+  isLeaf: true,
+)
+external int _f3d_body_get_surface_temperature(
+  Pointer<Void> world,
+  int body,
+  Pointer<Void> out,
+);
+int f3d_body_get_surface_temperature(int world, int body, int out) =>
+    _f3d_body_get_surface_temperature(
+      Pointer.fromAddress(world),
+      body,
+      Pointer.fromAddress(out),
+    );
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Float)>(
   symbol: 'f3d_body_add_heat',
   isLeaf: true,

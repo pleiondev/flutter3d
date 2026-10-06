@@ -369,6 +369,8 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
   s->mass = mass;
   f3d_material_preset(F3D_MATERIAL_INERT, &s->material);
   s->temperature = world->s.air_temperature;
+  s->interior = s->temperature;
+  s->skin = s->temperature;
   s->friction = F3D_R(0.6);
   s->layer = 1u;
   s->mask = UINT32_MAX;
@@ -733,6 +735,21 @@ uint32_t f3d_world_read_transforms(const F3dWorld *world, f3d_real *transforms,
   return written;
 }
 
+/* One fire's reals: where, the watts, and its flame. */
+static void write_fire(const F3dWorld *world, f3d_real *f, F3dVec3 at,
+                       f3d_real surface, f3d_real release) {
+  F3dVec3 axis;
+  const f3d_real reach = f3d_flame_of(world, at, surface, release, &axis);
+  f[0] = at.x;
+  f[1] = at.y;
+  f[2] = at.z;
+  f[3] = release;
+  f[4] = reach;
+  f[5] = axis.x;
+  f[6] = axis.y;
+  f[7] = axis.z;
+}
+
 uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
                               F3dBody *handles, uint32_t capacity) {
   uint32_t written = 0;
@@ -746,21 +763,18 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
         const F3dLump *l = &world->lumps[s->lumps - 1u + k];
         if (!l->burning) continue;
         const F3dVec3 at = f3d_placed_part(&whole, k).at;
-        f3d_real *f = fires + (size_t)written * F3D_FIRE_FLOATS;
-        f[0] = at.x;
-        f[1] = at.y;
-        f[2] = at.z;
-        f[3] = l->heat_release;
+        const F3dCompoundPart *p =
+            &world->compound_parts[world->compounds[s->hull - 1u].first_part + k];
+        write_fire(world, fires + (size_t)written * F3D_FIRE_FLOATS, at,
+                   f3d_shape_surface(world, p->kind, p->size, p->rounding, p->hull),
+                   l->heat_release);
         if (handles != NULL) handles[written] = handle_of(i, s->generation);
         written++;
       }
       continue;
     }
-    f3d_real *f = fires + (size_t)written * F3D_FIRE_FLOATS;
-    f[0] = s->position.x;
-    f[1] = s->position.y;
-    f[2] = s->position.z;
-    f[3] = s->heat_release;
+    write_fire(world, fires + (size_t)written * F3D_FIRE_FLOATS, s->position,
+               s->surface, s->heat_release);
     if (handles != NULL) handles[written] = handle_of(i, s->generation);
     written++;
   }

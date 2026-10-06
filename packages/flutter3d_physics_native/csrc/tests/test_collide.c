@@ -492,11 +492,11 @@ static void test_conduction(void) {
 }
 
 static void test_fire_warms_what_it_touches(void) {
-  /* A burning block pressed against a cold one warms it through the
-   * contact, and one standing apart not at all. Not to burning: wood is an
-   * insulator, a contact of 10 × 10 cm passes about a hundredth of a watt
-   * per kelvin, and fire crosses from log to log by its flames, which the
-   * smoke grid will carry. */
+  /* A burning block pressed against a cold one warms it, and one standing
+   * five metres apart not at all. Wood is an insulator, a contact of
+   * 10 × 10 cm passes about a hundredth of a watt per kelvin; but the
+   * burning face a millimetre off fills half the sky of the face against
+   * it, and that face catches. */
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, 0, 0);
   F3dMaterial wood;
@@ -520,7 +520,7 @@ static void test_fire_warms_what_it_touches(void) {
   CHECK(burning);
   CHECK(near > far + 1);
   CHECK_NEAR(far, 293.15, 1e-4);
-  CHECK(!near_burning);
+  CHECK(near_burning);
   f3d_world_destroy(w);
 }
 

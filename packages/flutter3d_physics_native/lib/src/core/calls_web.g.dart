@@ -1111,6 +1111,13 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyHigh,
     JSNumber out,
   );
+  @JS('f3d_body_get_surface_temperature__w')
+  external JSNumber f3d_body_get_surface_temperature(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber out,
+  );
   @JS('f3d_body_add_heat__w')
   external JSNumber f3d_body_add_heat(
     JSNumber world,
@@ -2549,6 +2556,14 @@ int f3d_body_set_temperature(int world, int body, double kelvin) => _x
     .toDartInt;
 int f3d_body_get_temperature(int world, int body, int out) => _x
     .f3d_body_get_temperature(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      out.toJS,
+    )
+    .toDartInt;
+int f3d_body_get_surface_temperature(int world, int body, int out) => _x
+    .f3d_body_get_surface_temperature(
       world.toJS,
       lowHalf(body).toJS,
       highHalf(body).toJS,

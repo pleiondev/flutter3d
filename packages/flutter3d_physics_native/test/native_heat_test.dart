@@ -88,15 +88,24 @@ void main() {
       world.step(0.1);
     }
     expect(world.isBurning(block), isTrue);
-    // It heats itself well past its ignition point.
-    expect(world.temperatureOf(block), greaterThan(700.0));
+    // Its surface heats itself well past its ignition point, ahead of its
+    // middle.
+    expect(world.surfaceTemperatureOf(block), greaterThan(700.0));
+    expect(
+      world.surfaceTemperatureOf(block),
+      greaterThan(world.temperatureOf(block)),
+    );
     // Eleven grams a second per square metre of its 0.06 m², fifteen
     // megajoules a kilogram, seven tenths of it leaving as gas.
     const rate = 0.011 * 0.06;
     expect(world.heatReleaseOf(block), closeTo(0.7 * rate * 1.5e7, 0.01));
     final fires = world.readFires();
     expect(fires.bodies, <NativeBody>[block]);
+    expect(fires.fires.length, nativeFireFloats);
     expect(fires.fires[3], world.heatReleaseOf(block));
+    // Its flame stands over it, straight up in still air.
+    expect(fires.fires[4], greaterThan(0.0));
+    expect(fires.fires.sublist(5, 8), <double>[0.0, 1.0, 0.0]);
     expect(world.massOf(block), closeTo(0.6 - rate * 60.0, 1e-4));
     var steps = 0;
     while (world.isBurning(block) && steps < 10000) {
@@ -119,9 +128,11 @@ void main() {
         ..addHeat(wet, 2000.0)
         ..step(0.1);
       expect(world.isBurning(wet), isFalse);
+      // Its surface is held at boiling while the water boils off.
       if (world.waterOf(wet) > 0.0) {
-        expect(world.temperatureOf(wet), lessThanOrEqualTo(373.15 + 1e-3));
-        boiling |= world.temperatureOf(wet) > 373.14;
+        final surface = world.surfaceTemperatureOf(wet);
+        expect(surface, lessThanOrEqualTo(373.15 + 1e-3));
+        boiling |= surface > 373.14;
       }
     }
     expect(boiling, isTrue);

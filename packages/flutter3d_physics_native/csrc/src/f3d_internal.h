@@ -364,7 +364,14 @@ typedef struct F3dSlot {
   /* Seconds spent below the sleep speed. */
   f3d_real still;
   F3dMaterial material;
+  /* Its mean temperature, K: what the heat in it says. */
   f3d_real temperature;
+  /* How heat lies in it: the temperature beyond the depth heat has reached
+   * into it from its surface, K, and that depth squared, m²; and its
+   * surface's temperature over the last step, K. */
+  f3d_real interior;
+  f3d_real reached;
+  f3d_real skin;
   f3d_real heat;
   f3d_real water;
   f3d_real fuel;
@@ -388,6 +395,9 @@ typedef struct F3dSlot {
  * at a time, so a beam can burn from one end. Plain data. */
 typedef struct F3dLump {
   f3d_real temperature, heat, water, fuel, mass, heat_release;
+  /* As a body's: beyond the reach of its surface's heat, that reach
+   * squared, and its surface's temperature. */
+  f3d_real interior, reached, skin;
   uint32_t burning;
   uint32_t reserved;
 } F3dLump;
@@ -969,5 +979,10 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt);
 void f3d_step_continuous(F3dWorld *world, const F3dSolverBody *bodies);
 void f3d_step_solve(F3dWorld *world, f3d_real dt);
 void f3d_step_heat(F3dWorld *world, f3d_real dt);
+/* The flame over a fire giving off [release] W of hot gas from a body or
+ * part centred at [at] with [surface] m² of surface: how far it reaches
+ * from [at], m, and along which unit [axis] — up, leaning with the wind. */
+f3d_real f3d_flame_of(const F3dWorld *world, F3dVec3 at, f3d_real surface,
+                      f3d_real release, F3dVec3 *axis);
 
 #endif /* F3D_INTERNAL_H_ */

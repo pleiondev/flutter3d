@@ -18,7 +18,7 @@
 #include "scene.h"
 
 #ifdef F3D_REAL_DOUBLE
-static const uint64_t expected[7] = {0x1fb772f206ab8078ull, 0x3d15a01d108662d0ull, 0x133d63714f6d0c92ull,
+static const uint64_t expected[7] = {0x1fb772f206ab8078ull, 0xd6c42b47ec0c4233ull, 0x133d63714f6d0c92ull,
                                      0xdea75fe91bac5613ull, 0xc98ced65f832abbeull, 0x4c8f3b90f328112cull,
                                      0xd1be7e081d0955e8ull};
 #else

@@ -5,13 +5,13 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 30;
+const int abiVersion = 31;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
 
 /// `F3D_FIRE_FLOATS`.
-const int fireFloats = 4;
+const int fireFloats = 8;
 
 /// `F3D_CONTACT_FLOATS`.
 const int contactFloats = 7;

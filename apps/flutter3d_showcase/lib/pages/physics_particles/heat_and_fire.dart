@@ -270,7 +270,7 @@ final class HeatAndFireDemo extends ShowcaseDemo {
     final ({Float32List fires, List<NativeBody> bodies}) burning = world
         .readFires();
     for (var i = 0; i < burning.bodies.length; i++) {
-      final double watts = burning.fires[i * 4 + 3];
+      final double watts = burning.fires[i * nativeFireFloats + 3];
       final int count = (watts / 5000.0).ceil().clamp(1, 4);
       for (var k = 0; k < count; k++) {
         final _Flame f = _flames[_nextFlame];
@@ -278,9 +278,9 @@ final class HeatAndFireDemo extends ShowcaseDemo {
         f
           ..life = 0.8
           ..position.setValues(
-            burning.fires[i * 4] + (_random.nextDouble() - 0.5) * 0.05,
-            burning.fires[i * 4 + 1] + _board.y * _random.nextDouble(),
-            burning.fires[i * 4 + 2] + (_random.nextDouble() - 0.5) * 0.18,
+            burning.fires[i * nativeFireFloats] + (_random.nextDouble() - 0.5) * 0.05,
+            burning.fires[i * nativeFireFloats + 1] + _board.y * _random.nextDouble(),
+            burning.fires[i * nativeFireFloats + 2] + (_random.nextDouble() - 0.5) * 0.18,
           );
       }
     }

@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 30u
+#define F3D_ABI_VERSION 31u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -212,9 +212,12 @@ typedef enum F3dEventKind {
  * orientation quaternion xyzw. */
 #define F3D_TRANSFORM_FLOATS 7u
 
-/* Reals one fire takes in f3d_world_read_fires: position xyz, then the
- * watts it gives off as hot gas. */
-#define F3D_FIRE_FLOATS 4u
+/* Reals one fire takes in f3d_world_read_fires: position xyz, the watts it
+ * gives off as hot gas, how far its flame reaches from that position, m —
+ * Heskestad's length over a base as wide as what burns, from its middle —
+ * and the unit axis xyz the flame stands along, up and leaning with the
+ * wind by the speed of its own buoyancy. */
+#define F3D_FIRE_FLOATS 8u
 
 /* Reals one contact point takes in f3d_world_read_contacts: the normal
  * xyz, out of the second body into the first, the point xyz halfway
@@ -1570,12 +1573,22 @@ F3D_API int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out);
 F3D_API int f3d_body_set_material(F3dWorld *world, F3dBody body,
                                   const F3dMaterial *material);
 
-/* Kelvin. Set, it does not light a fire or put one out until the step
- * says so. */
+/* Kelvin: the body's mean, what the heat in it says. Set, the body is that
+ * temperature all through, and it does not light a fire or put one out
+ * until the step says so. */
 F3D_API int f3d_body_set_temperature(F3dWorld *world, F3dBody body,
                                      f3d_real kelvin);
 F3D_API int f3d_body_get_temperature(const F3dWorld *world, F3dBody body,
                                      f3d_real *out);
+
+/* Kelvin: its surface's over the last step. Heat reaches into a body from
+ * its surface over a layer that thickens with the square root of time, so
+ * a thick body's surface runs ahead of its mean — a log's catches in a
+ * flame while its middle is cold — and a small or conductive body's is its
+ * mean. It is the surface that catches fire, goes out, radiates and meets
+ * other bodies. */
+F3D_API int f3d_body_get_surface_temperature(const F3dWorld *world,
+                                             F3dBody body, f3d_real *out);
 
 /* The bus: joules into the body over the next step, or out of it for a
  * negative amount. */

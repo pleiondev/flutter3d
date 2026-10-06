@@ -255,6 +255,10 @@ F3D_API int f3d_body_get_temperature__w(void * world, uint32_t body_low, uint32_
   return f3d_body_get_temperature((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)out);
 }
 
+F3D_API int f3d_body_get_surface_temperature__w(void * world, uint32_t body_low, uint32_t body_high, void * out) {
+  return f3d_body_get_surface_temperature((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)out);
+}
+
 F3D_API int f3d_body_add_heat__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real joules) {
   return f3d_body_add_heat((void *)world, ((uint64_t)body_high << 32) | body_low, joules);
 }

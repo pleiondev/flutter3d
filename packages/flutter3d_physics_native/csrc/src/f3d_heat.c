@@ -158,8 +158,14 @@ int f3d_body_set_temperature(F3dWorld *world, F3dBody body, f3d_real kelvin) {
   F3dLump *l = lumps_of(world, s);
   for (uint32_t i = 0; l != NULL && i < s->lump_count; i++) {
     l[i].temperature = kelvin;
+    l[i].interior = kelvin;
+    l[i].reached = F3D_R(0.0);
+    l[i].skin = kelvin;
   }
   s->temperature = kelvin;
+  s->interior = kelvin;
+  s->reached = F3D_R(0.0);
+  s->skin = kelvin;
   return 1;
 }
 
@@ -195,11 +201,13 @@ int f3d_body_set_part_temperature(F3dWorld *world, F3dBody body, uint32_t part,
   F3dLump *l = lumps_of(world, s);
   if (l == NULL) {
     if (s->shape == F3D_SHAPE_COMPOUND) return 0;
-    s->temperature = kelvin;
-    return 1;
+    return f3d_body_set_temperature(world, body, kelvin);
   }
   if (part >= s->lump_count) return 0;
   l[part].temperature = kelvin;
+  l[part].interior = kelvin;
+  l[part].reached = F3D_R(0.0);
+  l[part].skin = kelvin;
   body_from_lumps(world, s);
   return 1;
 }
@@ -256,6 +264,14 @@ int f3d_body_get_temperature(const F3dWorld *world, F3dBody body,
   return 1;
 }
 
+int f3d_body_get_surface_temperature(const F3dWorld *world, F3dBody body,
+                                     f3d_real *out) {
+  const F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || out == NULL) return 0;
+  *out = s->skin;
+  return 1;
+}
+
 int f3d_body_add_heat(F3dWorld *world, F3dBody body, f3d_real joules) {
   F3dSlot *s = f3d_slot_of(world, body);
   if (s == NULL || !f3d_finite(joules)) return 0;
@@ -288,9 +304,13 @@ int f3d_body_add_water(F3dWorld *world, F3dBody body, f3d_real kg) {
         const f3d_real held = l[i].mass * s->material.specific_heat +
                               l[i].water * F3D_WATER_HEAT;
         const f3d_real added = add * F3D_WATER_HEAT;
+        const f3d_real was = l[i].temperature;
         l[i].temperature = (held * l[i].temperature +
                             added * world->s.air_temperature) /
                            (held + added);
+        /* Mixed all through: the whole of it moves alike. */
+        l[i].interior += l[i].temperature - was;
+        l[i].skin += l[i].temperature - was;
       }
       l[i].water = f3d_max(l[i].water + add, F3D_R(0.0));
     }
@@ -303,9 +323,13 @@ int f3d_body_add_water(F3dWorld *world, F3dBody body, f3d_real kg) {
      * off, it leaves at the body's, and the body's temperature stays. */
     const f3d_real body_heat = capacity_of(s);
     const f3d_real added = kg * F3D_WATER_HEAT;
+    const f3d_real was = s->temperature;
     s->temperature = (body_heat * s->temperature +
                       added * world->s.air_temperature) /
                      (body_heat + added);
+    /* Mixed all through: the whole of it moves alike. */
+    s->interior += s->temperature - was;
+    s->skin += s->temperature - was;
   }
   s->water = f3d_max(s->water + kg, F3D_R(0.0));
   return 1;
@@ -450,6 +474,9 @@ static void lumps_from_body(const F3dWorld *world, const F3dSlot *s,
     F3dLump *l = &out[i];
     f3d_zero(l, sizeof *l);
     l->temperature = s->temperature;
+    l->interior = s->interior;
+    l->reached = s->reached;
+    l->skin = s->skin;
     l->mass = s->mass * by_volume;
     l->fuel = s->fuel * by_volume;
     l->water = s->water * by_surface;
@@ -517,19 +544,28 @@ static void body_from_lumps(F3dWorld *world, F3dSlot *s) {
   const F3dLump *l = &world->lumps[s->lumps - 1u];
   f3d_real held = F3D_R(0.0), warm = F3D_R(0.0), water = F3D_R(0.0);
   f3d_real fuel = F3D_R(0.0), release = F3D_R(0.0), mass = F3D_R(0.0);
+  f3d_real inside = F3D_R(0.0), reached = F3D_R(0.0), skin = F3D_R(0.0);
   int burning = 0;
   for (uint32_t i = 0; i < s->lump_count; i++) {
     const f3d_real c = l[i].mass * s->material.specific_heat +
                        l[i].water * F3D_WATER_HEAT;
     held += c;
     warm += c * l[i].temperature;
+    inside += c * l[i].interior;
+    reached += c * l[i].reached;
+    skin += c * l[i].skin;
     water += l[i].water;
     fuel += l[i].fuel;
     release += l[i].heat_release;
     mass += l[i].mass;
     burning |= l[i].burning != 0;
   }
-  if (held > F3D_R(0.0)) s->temperature = warm / held;
+  if (held > F3D_R(0.0)) {
+    s->temperature = warm / held;
+    s->interior = inside / held;
+    s->reached = reached / held;
+    s->skin = skin / held;
+  }
   s->water = water;
   s->fuel = fuel;
   s->heat_release = release;
@@ -557,6 +593,10 @@ typedef struct Heat {
   f3d_real touch;
   /* How far it reaches from [at], for a compound's parts. */
   f3d_real reach;
+  /* m³; and how many times further from the interior's temperature its
+   * surface is than its mean, this step. */
+  f3d_real volume;
+  f3d_real gain;
 } Heat;
 
 /* Every live body's entries, and where each body's start. */
@@ -569,6 +609,64 @@ typedef struct Heats {
 static f3d_real held_by(const F3dWorld *world, const Heat *h) {
   return h->l.mass * world->slots[h->slot].material.specific_heat +
          h->l.water * F3D_WATER_HEAT;
+}
+
+/* Its surface's temperature: as far from the interior's as the gain says. */
+static f3d_real skin_of(const Heat *h) {
+  return h->l.interior + h->gain * (h->l.temperature - h->l.interior);
+}
+
+/* How heat lies in a body, by the heat balance integral (Goodman): from
+ * the surface heat reaches in over a layer that thickens as δ² = 6αt
+ * whatever warms or cools it, α = k/(ρc), and across the layer the
+ * temperature falls off as a parabola to the interior's. A parabola holds a
+ * third of its surface's excess, so the mean's excess over the interior is
+ * the surface's times Aδ/3V, and the surface is 3V/(Aδ) times as far from
+ * the interior as the mean is. Once the layer is as deep as the body is
+ * thick, V/A, the interior warms too, at its slowest mode's rate (π/2)²α/L²,
+ * and a body that is all one temperature again has no layer. A small or
+ * conductive body gets there within a step and is one temperature
+ * throughout; a log of wood takes hours, and its surface catches long
+ * before its middle has warmed.
+ *
+ * The layer grows by this step's [dt] here; the gain is the step's. */
+static void lay_heat(const F3dWorld *world, Heat *h, f3d_real dt) {
+  const F3dMaterial *m = &world->slots[h->slot].material;
+  h->gain = F3D_R(1.0);
+  if (!(h->volume > F3D_R(0.0) && h->surface > F3D_R(0.0) &&
+        h->l.mass > F3D_R(0.0) && m->specific_heat > F3D_R(0.0))) {
+    return;
+  }
+  const f3d_real thick = h->volume / h->surface;
+  const f3d_real alpha =
+      m->conductivity * h->volume / (h->l.mass * m->specific_heat);
+  h->l.reached = f3d_min(h->l.reached + F3D_R(6.0) * alpha * dt, thick * thick);
+  if (h->l.reached > F3D_R(0.0)) {
+    h->gain = F3D_R(3.0) * thick / f3d_sqrt(h->l.reached);
+  }
+}
+
+/* After the step: the interior warming once the layer is through, and a
+ * body all one temperature, within a hundredth of a kelvin, starting a new
+ * layer when it is next warmed or cooled. */
+static void settle_heat(const F3dWorld *world, Heat *h, f3d_real dt) {
+  F3dLump *l = &h->l;
+  const F3dMaterial *m = &world->slots[h->slot].material;
+  if (h->volume > F3D_R(0.0) && h->surface > F3D_R(0.0) &&
+      l->mass > F3D_R(0.0) && m->specific_heat > F3D_R(0.0)) {
+    const f3d_real thick = h->volume / h->surface;
+    if (l->reached >= thick * thick) {
+      const f3d_real alpha =
+          m->conductivity * h->volume / (l->mass * m->specific_heat);
+      const f3d_real x = F3D_R(0.25) * F3D_PI * F3D_PI * alpha * dt /
+                         (thick * thick);
+      l->interior += (l->temperature - l->interior) * x / (F3D_R(1.0) + x);
+    }
+  }
+  if (f3d_abs(l->temperature - l->interior) <= F3D_R(0.01)) {
+    l->interior = l->temperature;
+    l->reached = F3D_R(0.0);
+  }
 }
 
 /* The entry of a body that is nearest [p]: its only one, or the part. */
@@ -590,9 +688,10 @@ static Heat *nearest(Heats *hs, uint32_t slot, F3dVec3 p) {
 /* Heat across every contact that touches, each side's part nearest the
  * contact. The conductance is Holm's constriction of two bodies meeting
  * over a spot of radius a, G = 4a / (1/k₁ + 1/k₂), with a the radius of a
- * circle of the contact's area; and the exchange is taken implicitly for
- * the pair, so it carries them towards one temperature and never past it.
- * In key order, so the same world passes the same heat. */
+ * circle of the contact's area, between their surfaces; and the exchange is
+ * taken implicitly for the pair, each surface moving by its gain over its
+ * thermal mass, so it carries the surfaces towards one temperature and
+ * never past it. In key order, so the same world passes the same heat. */
 static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
   for (uint32_t i = 0; i < world->s.manifold_count; i++) {
     const F3dManifold *m = &world->manifolds[i];
@@ -616,6 +715,8 @@ static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
     const f3d_real ia = ca > F3D_R(0.0) ? F3D_R(1.0) / ca : F3D_R(0.0);
     const f3d_real ib = cb > F3D_R(0.0) ? F3D_R(1.0) / cb : F3D_R(0.0);
     if (ia == F3D_R(0.0) && ib == F3D_R(0.0)) continue;
+    /* What a joule does to each surface. */
+    const f3d_real sa_k = ia * a->gain, sb_k = ib * b->gain;
     const f3d_real ra = a->touch, rb = b->touch;
     const f3d_real r = ra > F3D_R(0.0) && rb > F3D_R(0.0)
                            ? ra * rb / (ra + rb)
@@ -627,8 +728,8 @@ static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
                        (F3D_R(1.0) / sa->material.conductivity +
                         F3D_R(1.0) / sb->material.conductivity);
     const f3d_real gdt = g * dt;
-    const f3d_real q = gdt * (b->l.temperature - a->l.temperature) /
-                       (F3D_R(1.0) + gdt * (ia + ib));
+    const f3d_real q = gdt * (skin_of(b) - skin_of(a)) /
+                       (F3D_R(1.0) + gdt * (sa_k + sb_k));
     a->l.temperature += q * ia;
     b->l.temperature -= q * ib;
   }
@@ -656,8 +757,12 @@ static void conduct_within(F3dWorld *world, Heats *hs, f3d_real dt) {
         const f3d_real gdt = F3D_R(2.0) * spot * k * dt;
         const f3d_real flow = gdt * (b->l.temperature - a->l.temperature) /
                               (F3D_R(1.0) + gdt * (F3D_R(1.0) / ca + F3D_R(1.0) / cb));
+        /* Through the body, not across a surface: each part moves alike
+         * all through. */
         a->l.temperature += flow / ca;
+        a->l.interior += flow / ca;
         b->l.temperature -= flow / cb;
+        b->l.interior -= flow / cb;
       }
     }
   }
@@ -726,6 +831,33 @@ static f3d_real two_fifths(f3d_real x) {
 static f3d_real flame_length(f3d_real q, f3d_real d) {
   return f3d_max(F3D_R(0.235) * two_fifths(q * F3D_R(1e-3)) - F3D_R(1.02) * d,
                  d);
+}
+
+f3d_real f3d_flame_of(const F3dWorld *world, F3dVec3 at, f3d_real surface,
+                      f3d_real release, F3dVec3 *axis) {
+  const f3d_real g2 = f3d_dot(world->s.gravity, world->s.gravity);
+  const f3d_real g = f3d_sqrt(g2);
+  const F3dVec3 up = g2 > F3D_R(0.0)
+                         ? f3d_scale(world->s.gravity, F3D_R(-1.0) / g)
+                         : f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0));
+  *axis = up;
+  if (!(release > F3D_R(0.0) && surface > F3D_R(0.0))) return F3D_R(0.0);
+  /* Heskestad's length over a base as wide as the body, from its middle;
+   * leaning with the wind where it stands by the buoyant speed
+   * (g·Q / (ρ c_p Tₐ D))^(1/3). */
+  const f3d_real r = f3d_sqrt(surface / (F3D_R(4.0) * F3D_PI));
+  const f3d_real across = F3D_R(2.0) * r;
+  const f3d_real rise = cube_root(
+      g * release / (world->s.air_density * F3D_AIR_HEAT *
+                     world->s.air_temperature * across));
+  f3d_real wind[3];
+  f3d_world_sample_wind(world, at.x, at.y, at.z, wind);
+  F3dVec3 blow = f3d_v3(wind[0], wind[1], wind[2]);
+  blow = f3d_sub(blow, f3d_scale(up, f3d_dot(blow, up)));
+  const F3dVec3 lean = f3d_add(f3d_scale(up, rise), blow);
+  const f3d_real len = f3d_sqrt(f3d_dot(lean, lean));
+  if (len > F3D_R(0.0)) *axis = f3d_scale(lean, F3D_R(1.0) / len);
+  return flame_length(release, across) + r;
 }
 
 /* Whether a body's entries radiate and are radiated to: not a mesh — a
@@ -839,11 +971,6 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
     if (receives(world, &hs->h[e])) largest = f3d_max(largest, seen_radius(&hs->h[e]));
   }
   if (!(largest > F3D_R(0.0))) return;
-  const f3d_real g2 = f3d_dot(world->s.gravity, world->s.gravity);
-  const f3d_real g = f3d_sqrt(g2);
-  const F3dVec3 up = g2 > F3D_R(0.0)
-                         ? f3d_scale(world->s.gravity, F3D_R(-1.0) / g)
-                         : f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0));
   Near n;
   n.world = world;
   n.capacity = 0;
@@ -854,8 +981,8 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
     const F3dSlot *sa = &world->slots[a->slot];
     if (!radiates(sa) || !(a->surface > F3D_R(0.0))) continue;
     const F3dMaterial *ma = &sa->material;
-    const f3d_real t = a->l.temperature;
-    /* What it sends out above the room, and its flame's. */
+    const f3d_real t = skin_of(a);
+    /* What its surface sends out above the room, and its flame's. */
     const f3d_real excess = ma->emissivity * F3D_STEFAN_BOLTZMANN * a->surface *
                             (t * t * t * t - ta4);
     const int alight = a->l.burning != 0;
@@ -863,24 +990,10 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
                                   : F3D_R(0.0);
     const f3d_real sent = excess + flame;
     const f3d_real ra = seen_radius(a);
-    /* The column: Heskestad's length, leaning with the wind where it
-     * stands by the buoyant speed (g·Q / (ρ c_p Tₐ D))^(1/3). */
-    f3d_real column = F3D_R(0.0);
-    F3dVec3 axis = up;
-    if (alight && a->l.heat_release > F3D_R(0.0)) {
-      const f3d_real across = F3D_R(2.0) * ra;
-      column = flame_length(a->l.heat_release, across) + ra;
-      const f3d_real rise = cube_root(
-          g * a->l.heat_release /
-          (world->s.air_density * F3D_AIR_HEAT * ta * across));
-      f3d_real wind[3];
-      f3d_world_sample_wind(world, a->at.x, a->at.y, a->at.z, wind);
-      F3dVec3 blow = f3d_v3(wind[0], wind[1], wind[2]);
-      blow = f3d_sub(blow, f3d_scale(up, f3d_dot(blow, up)));
-      const F3dVec3 lean = f3d_add(f3d_scale(up, rise), blow);
-      const f3d_real len = f3d_sqrt(f3d_dot(lean, lean));
-      if (len > F3D_R(0.0)) axis = f3d_scale(lean, F3D_R(1.0) / len);
-    }
+    /* The column the flame stands in. */
+    F3dVec3 axis;
+    const f3d_real column = f3d_flame_of(
+        world, a->at, a->surface, alight ? a->l.heat_release : F3D_R(0.0), &axis);
     if (f3d_abs(sent) < F3D_RADIANT_LEAST && column == F3D_R(0.0)) continue;
     /* caught ≤ (r/d)²/2: past this, the largest thing catches less than
      * the least worth sending. */
@@ -931,9 +1044,11 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
           inside = f3d_clamp((width + rb - apart) / (F3D_R(2.0) * rb),
                              F3D_R(0.0), F3D_R(1.0));
         }
-        if (inside > F3D_R(0.0) && b->l.temperature < ma->flame_temperature) {
-          const f3d_real cb = held_by(world, b);
-          const f3d_real tf = ma->flame_temperature, tb = b->l.temperature;
+        const f3d_real tb = skin_of(b);
+        if (inside > F3D_R(0.0) && tb < ma->flame_temperature) {
+          /* What the surface can take before it is as hot as the flame. */
+          const f3d_real cb = held_by(world, b) / b->gain;
+          const f3d_real tf = ma->flame_temperature;
           const f3d_real cond =
               (ma->flame_convection + flame_e * sb->material.emissivity *
                                           F3D_STEFAN_BOLTZMANN *
@@ -988,11 +1103,17 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
   const f3d_real dry = l->mass * m->specific_heat;
   const f3d_real capacity = dry + l->water * F3D_WATER_HEAT;
   if (!(capacity > F3D_R(0.0))) return said;
+  const f3d_real gain = h->gain;
+  const f3d_real inner = l->interior;
+  /* The surface as the step found it. */
+  const f3d_real was = l->skin;
   /* What the surface gives the air: convection to the air moving past it,
    * and radiation εσ(T⁴ − Tₐ⁴), written exactly as εσ(T² + Tₐ²)(T + Tₐ)·
-   * (T − Tₐ) so both are a conductance times the difference. Taken
-   * implicitly with the conductance as it is, the step cannot overshoot
-   * the air's temperature, however small the body or long the step. */
+   * (T − Tₐ) so both are a conductance times the difference — at the
+   * surface's temperature, which moves by the gain times the mean's. Taken
+   * implicitly with the conductance as it is, the step cannot carry the
+   * surface past the air's temperature, however small the body or long the
+   * step. */
   f3d_real conductance = F3D_R(0.0);
   if (h->surface > F3D_R(0.0)) {
     f3d_real wind[3];
@@ -1001,41 +1122,48 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
     const f3d_real uy = s->velocity.y - wind[1];
     const f3d_real uz = s->velocity.z - wind[2];
     const f3d_real u = f3d_sqrt(ux * ux + uy * uy + uz * uz);
-    const f3d_real t = l->temperature;
+    const f3d_real t = skin_of(h);
     conductance = h->surface *
                   (convection(u) + m->emissivity * F3D_STEFAN_BOLTZMANN *
                                        (t * t + ta * ta) * (t + ta));
   }
-  f3d_real next = (capacity * l->temperature + dt * (power + conductance * ta)) /
-                  (capacity + dt * conductance);
-  /* Water on it holds it at its boiling point: what would heat it past it
-   * boils water off instead, and only once the water has gone does it heat
-   * on. */
-  if (l->water > F3D_R(0.0) && next > F3D_WATER_BOILS) {
-    const f3d_real excess = (next - F3D_WATER_BOILS) * capacity;
+  f3d_real next = (capacity * l->temperature +
+                   dt * (power - conductance * (inner * (F3D_R(1.0) - gain) - ta))) /
+                  (capacity + dt * conductance * gain);
+  /* Water on it holds its surface at the boiling point: what would heat
+   * the surface past it boils water off instead, and only once the water
+   * has gone does it heat on. */
+  const f3d_real boiling_mean = inner + (F3D_WATER_BOILS - inner) / gain;
+  int boiling = 0;
+  if (l->water > F3D_R(0.0) && next > boiling_mean) {
+    const f3d_real excess = (next - boiling_mean) * capacity;
     const f3d_real boils = excess / F3D_WATER_LATENT;
     if (boils < l->water) {
       l->water -= boils;
-      next = F3D_WATER_BOILS;
+      next = boiling_mean;
+      boiling = 1;
     } else {
       const f3d_real left = excess - l->water * F3D_WATER_LATENT;
       l->water = F3D_R(0.0);
-      next = dry > F3D_R(0.0) ? F3D_WATER_BOILS + left / dry : F3D_WATER_BOILS;
+      next = dry > F3D_R(0.0) ? boiling_mean + left / dry : boiling_mean;
     }
   }
   l->temperature = f3d_max(next, F3D_R(1e-3));
-  /* Alight at the ignition temperature, out below it. A wet one is held at
-   * boiling, below any ignition temperature here, so water puts a fire out
-   * and keeps a wet body from catching. */
+  settle_heat(world, h, dt);
+  l->skin = boiling ? F3D_WATER_BOILS : f3d_max(skin_of(h), F3D_R(1e-3));
+  /* Alight when its surface reaches the ignition temperature, at the start
+   * of the step or its end, and out when it ends below it. A wet one is held
+   * at boiling, below any ignition temperature here, so water puts a fire
+   * out and keeps a wet body from catching. */
   const f3d_real ignition = m->ignition_temperature;
   if (ignition <= F3D_R(0.0)) return said;
   if (l->burning) {
-    if (l->temperature < ignition) {
+    if (l->skin < ignition) {
       l->burning = 0;
       said |= WENT_OUT;
     }
   } else if (l->fuel > F3D_R(0.0) && l->water <= F3D_R(0.0) &&
-             l->temperature >= ignition) {
+             f3d_max(was, l->skin) >= ignition) {
     l->burning = 1;
     said |= CAUGHT;
   }
@@ -1043,9 +1171,9 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
 }
 
 /* Every live body's entries for the step: a body's own, or a compound's
- * parts', where they stand; heat the body was given as a whole shared out
- * by what each part holds. */
-static int gather(F3dWorld *world, Heats *hs) {
+ * parts', where they stand, with the heat laid in them grown by [dt]; heat
+ * the body was given as a whole shared out by what each part holds. */
+static int gather(F3dWorld *world, Heats *hs, f3d_real dt) {
   const uint32_t used = world->s.used;
   uint32_t total = 0;
   for (uint32_t i = 0; i < used; i++) {
@@ -1068,6 +1196,9 @@ static int gather(F3dWorld *world, Heats *hs) {
       Heat *h = &hs->h[at++];
       f3d_zero(h, sizeof *h);
       h->l.temperature = s->temperature;
+      h->l.interior = s->interior;
+      h->l.reached = s->reached;
+      h->l.skin = s->skin;
       h->l.heat = s->heat;
       h->l.water = s->water;
       h->l.fuel = s->fuel;
@@ -1078,6 +1209,10 @@ static int gather(F3dWorld *world, Heats *hs) {
       h->at = s->position;
       h->surface = s->surface;
       h->touch = touch_radius(s->shape, s->size);
+      h->volume = s->shape == F3D_SHAPE_MESH
+                      ? F3D_R(0.0)
+                      : f3d_shape_volume(world, s->shape, s->size, s->rounding, s->hull);
+      lay_heat(world, h, dt);
       hs->many[i] = 1;
       continue;
     }
@@ -1101,6 +1236,8 @@ static int gather(F3dWorld *world, Heats *hs) {
       h->surface = part_surface(world, part);
       h->touch = touch_radius(part->kind, part->size);
       h->reach = part->reach;
+      h->volume = part_volume(world, part);
+      lay_heat(world, h, dt);
     }
     s->heat = F3D_R(0.0);
     hs->many[i] = s->lump_count;
@@ -1112,7 +1249,7 @@ void f3d_step_heat(F3dWorld *world, f3d_real dt) {
   if (!ensure_lumps(world)) return;
   Heats hs;
   f3d_zero(&hs, sizeof hs);
-  if (!gather(world, &hs)) {
+  if (!gather(world, &hs, dt)) {
     f3d_free(hs.h);
     f3d_free(hs.first);
     return;
@@ -1133,6 +1270,9 @@ void f3d_step_heat(F3dWorld *world, f3d_real dt) {
       /* A body: its fields back, and what happened, in the order it did. */
       const F3dLump *l = &hs.h[hs.first[i]].l;
       s->temperature = l->temperature;
+      s->interior = l->interior;
+      s->reached = l->reached;
+      s->skin = l->skin;
       s->heat = F3D_R(0.0);
       s->water = l->water;
       s->fuel = l->fuel;

@@ -1,6 +1,7 @@
 /*
  * Heat and fire on bodies, tested in C — P9: the heat bus, Newton's
- * cooling against its closed form, radiation that cannot overshoot, wind
+ * cooling against its closed form and a thick ball against the series, a
+ * log that catches at its surface, radiation that cannot overshoot, wind
  * that cools, ignition, a fire that burns its fuel out, and water that
  * keeps a body from catching and puts a fire out.
  */
@@ -93,26 +94,40 @@ static void test_heat_bus(void) {
   f3d_world_destroy(w);
 }
 
-static void test_newton_cooling(void) {
-  /* A sphere that does not radiate cools by convection alone, in still
-   * air at 10.45 W/(m² K): T − Tₐ = (T₀ − Tₐ) e^(−hA t / C). */
+/* The mean temperature above the air, over where it started, of a ball of
+ * radius 5 cm and a kilogram at 1000 J/(kg K) and [conductivity], that
+ * does not radiate, after cooling in still air for 3000 s. */
+static double cooled(f3d_real conductivity) {
   F3dWorld *w = f3d_world_create();
   f3d_world_set_gravity(w, 0, 0, 0);
-  const f3d_real r = F3D_R(0.05);
   const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 0, 0, 1);
-  f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, r, 0, 0);
+  f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, F3D_R(0.05), 0, 0);
   F3dMaterial m;
   f3d_material_preset(F3D_MATERIAL_INERT, &m);
   m.emissivity = 0;
+  m.conductivity = conductivity;
   f3d_body_set_material(w, b, &m);
   f3d_body_set_temperature(w, b, F3D_R(393.15));
   for (int i = 0; i < 3000; i++) f3d_world_step(w, 1);
   f3d_real t;
   f3d_body_get_temperature(w, b, &t);
-  const double area = 4 * 3.14159265358979 * (double)r * (double)r;
-  const double tau = 1000.0 / (10.45 * area);
-  CHECK_NEAR(((double)t - 293.15) / 100.0, exp(-3000.0 / tau), 1e-3);
   f3d_world_destroy(w);
+  return ((double)t - 293.15) / 100.0;
+}
+
+static void test_newton_cooling(void) {
+  /* A ball that does not radiate cools by convection alone, in still air
+   * at 10.45 W/(m² K). Of copper, all one temperature throughout (Biot's
+   * number hr/k a thousandth): T − Tₐ = (T₀ − Tₐ) e^(−hA t / C). */
+  const double area = 4 * 3.14159265358979 * 0.05 * 0.05;
+  const double tau = 1000.0 / (10.45 * area);
+  CHECK_NEAR(cooled(400), exp(-3000.0 / tau), 1e-3);
+  /* Of a conductivity of 1 W/(m K), Biot's number is a half, and its
+   * surface runs cold ahead of its middle: it cools slower than that, as
+   * the series solution for a sphere says — its mean at 0.4097 of where it
+   * started, summed to forty terms, where one temperature would be at
+   * 0.3735. The heat balance integral is within a few per cent of it. */
+  CHECK_NEAR(cooled(1), 0.4097, 0.015);
 }
 
 static void test_radiation_cannot_overshoot(void) {
@@ -329,15 +344,16 @@ static void blaze(f3d_real wind, int when[5], f3d_real *far_peak) {
 
 static void test_fire_spreads(void) {
   /* In still air the fire climbs first, into the crate standing in its
-   * flame, and then reaches the one beside it, which both fires shine on;
-   * the next in the row and the far one only warm. */
+   * flame, then reaches the one beside it, which both fires shine on, and
+   * then the next in the row, eight centimetres from it; the one four
+   * metres off only warms. */
   int when[5];
   f3d_real far;
   blaze(0, when, &far);
   CHECK(when[0] == 0);
   CHECK(when[1] > 0 && when[1] < 300);
   CHECK(when[2] > when[1]);
-  CHECK(when[3] < 0 && when[4] < 0);
+  CHECK(when[3] > when[2] && when[4] < 0);
   CHECK(far < 310);
   /* Two metres a second along the row lays the flame over the crate beside
    * it, away from the one above: the fire runs downwind, down the row. */
@@ -459,7 +475,9 @@ static void test_a_beam_burns_from_one_end(void) {
   CHECK(f3d_world_read_fires(w, fires, named, 4) == 1);
   CHECK(named[0] == c);
   CHECK_NEAR(fires[0], -0.8, 1e-5);
-  /* And the beam is lighter by what that part burnt, the rest untouched. */
+  /* A step after it caught, the beam is lighter by what that part burnt,
+   * the rest untouched. */
+  f3d_world_step(w, 1);
   f3d_real mass;
   f3d_body_get_mass(w, c, &mass);
   CHECK(mass < 16 && mass > 16 - 0.01);
@@ -492,6 +510,43 @@ static void test_a_beam_burns_from_one_end(void) {
   }
   free(bytes);
   f3d_world_destroy(copy);
+  f3d_world_destroy(w);
+}
+
+/* A pine log 1.4 m long and 30 cm thick, 55 kg, fixed at height [y]. */
+static F3dBody log_at(F3dWorld *w, f3d_real y) {
+  const F3dBody b = f3d_body_create(w, F3D_BODY_FIXED, 0, y, 0, 55);
+  f3d_body_set_shape(w, b, F3D_SHAPE_BOX, F3D_R(0.7), F3D_R(0.15), F3D_R(0.15));
+  F3dMaterial m;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &m);
+  f3d_body_set_material(w, b, &m);
+  return b;
+}
+
+static void test_a_log_catches_at_its_surface(void) {
+  /* A log laid on a burning one stands in its flame. Heat reaches into
+   * wood a millimetre or so in the first seconds, so its surface reaches
+   * ignition while its middle is near the room's temperature: it catches
+   * within a minute or two, as wood in a flame does. Heated through, as
+   * one temperature, it would need 26 MJ to reach ignition, half an hour
+   * of what the flame gives it. */
+  F3dWorld *w = f3d_world_create();
+  const F3dBody under = log_at(w, F3D_R(0.15));
+  const F3dBody over = log_at(w, F3D_R(0.46));
+  f3d_body_set_temperature(w, under, 700);
+  int when = -1;
+  f3d_real mean = 0, skin = 0;
+  for (int i = 0; i < 600 && when < 0; i++) {
+    f3d_world_step(w, 1);
+    if (burning(w, over)) {
+      when = i;
+      f3d_body_get_temperature(w, over, &mean);
+      f3d_body_get_surface_temperature(w, over, &skin);
+    }
+  }
+  CHECK(when > 0 && when < 180);
+  CHECK(skin >= F3D_R(573.15));
+  CHECK(mean < 320);
   f3d_world_destroy(w);
 }
 
@@ -544,8 +599,8 @@ static void test_water(void) {
   f3d_body_get_temperature(w, warm, &after);
   CHECK(after == t);
 
-  /* A wet block heated hard sits at boiling while its water boils off,
-   * and does not catch until it has. */
+  /* A wet block heated hard: its surface sits at boiling while its water
+   * boils off, and it does not catch until it has. */
   const F3dBody wet_block = wood_block(w);
   f3d_body_add_water(w, wet_block, F3D_R(0.05));
   int caught_wet = 0, held = 0;
@@ -554,7 +609,7 @@ static void test_water(void) {
     f3d_body_add_heat(w, wet_block, 2000);
     f3d_world_step(w, F3D_R(0.1));
     f3d_body_get_water(w, wet_block, &water);
-    f3d_body_get_temperature(w, wet_block, &t);
+    f3d_body_get_surface_temperature(w, wet_block, &t);
     if (water > 0) {
       caught_wet |= burning(w, wet_block);
       if (water < w0) held |= t == F3D_WATER_BOILS;
@@ -575,7 +630,7 @@ static void test_water(void) {
   CHECK(!burning(w, wet_block));
   CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 8) == 1);
   CHECK(bodies[0] == wet_block && kinds[0] == F3D_EVENT_EXTINGUISHED);
-  f3d_body_get_temperature(w, wet_block, &t);
+  f3d_body_get_surface_temperature(w, wet_block, &t);
   CHECK(t == F3D_WATER_BOILS);
   /* Too little only hisses: ten grams on a block that has burnt for a
    * minute and a half boil away at once, and it burns on. */
@@ -601,6 +656,7 @@ int main(void) {
   test_radiation_between_bodies();
   test_fire_spreads();
   test_a_beam_burns_from_one_end();
+  test_a_log_catches_at_its_surface();
   test_burning_body_gets_lighter();
   test_water();
   return finish();

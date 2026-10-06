@@ -23,6 +23,24 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A log catches at its surface while its middle is cold.** Heat used to
+  be one temperature through a body, so a 55 kg log had to be heated
+  through, 26 MJ, before it could catch: half an hour in a flame. Now heat
+  reaches in from the surface over a layer that thickens as δ² = 6αt, with
+  the parabola across it the heat balance integral gives, and the surface
+  is what catches, goes out, radiates, meets other bodies and holds at
+  boiling under water; once the layer is as deep as the body is thick the
+  interior warms at its slowest mode's rate. The mean is still what the
+  heat says, so no heat is made. A log on a burning one catches in fifteen
+  seconds with its middle at 299 K; a copper ball still cools as Newton
+  says, and a ball of Biot number a half cools within 3% of the series
+  solution where one temperature was 9% off. A fire now runs along a row
+  of crates as well as up a stack. `NativeWorld.surfaceTemperatureOf`
+  reads it. `readFires` gives eight floats a fire: with the position and
+  the watts, how far the flame reaches and the axis it leans along, the
+  same flame the core heats with (`nativeFireFloats`).
+  `F3D_ABI_VERSION` is 31.
+
 - **What a waterfall drives into a pond spreads instead of crossing it as
   a stripe.** Water mixes its momentum sideways through its own eddies:
   those the grid can see, by Smagorinsky's viscosity off the flow's shear,

@@ -118,6 +118,11 @@ final class NativeWater {
 /// left, one past its index, nought for drops, so a sheet's pieces join into
 /// one ribbon in the order they left.
 const int nativeSprayFloats = c.sprayFloats;
+
+/// Reals one fire takes in [NativeWorld.readFires]: where it is xyz, the
+/// watts it gives off as hot gas, how far its flame reaches from there, m,
+/// and the unit axis xyz the flame stands along.
+const int nativeFireFloats = c.fireFloats;
 const int nativeSpraySheet = c.spraySheet;
 const int nativeSprayDrops = c.sprayDrops;
 
@@ -671,10 +676,14 @@ final class NativeWorld {
   ({Float32List transforms, List<NativeBody> bodies}) readTransforms() =>
       _readPer(bodyCount, c.transformFloats, c.f3d_world_read_transforms);
 
-  /// Every burning body: its position and the watts it gives off as hot gas,
-  /// four floats apiece — what a smoke grid takes its sources from.
+  /// Every burning body, or burning part of a compound, eight floats apiece:
+  /// its position, the watts it gives off as hot gas — what a smoke grid
+  /// takes its sources from — how far its flame reaches from that position,
+  /// m, by Heskestad's length over a base as wide as what burns, and the
+  /// unit axis the flame stands along, up and leaning with the wind by the
+  /// speed of its own buoyancy: what a renderer draws the flame along.
   ({Float32List fires, List<NativeBody> bodies}) readFires() {
-    final read = _readPer(bodyCount, c.fireFloats, c.f3d_world_read_fires);
+    final read = _readPer(bodyCount, nativeFireFloats, c.f3d_world_read_fires);
     return (fires: read.transforms, bodies: read.bodies);
   }
 
@@ -2358,14 +2367,25 @@ final class NativeWorld {
     }
   }
 
-  /// Kelvin.
+  /// Kelvin: its mean, what the heat in it says.
   double temperatureOf(NativeBody body) {
     _check(c.f3d_body_get_temperature(_live, body.raw, _out), body);
     return _out[0];
   }
 
-  /// Sets it; the next step decides whether that lights a fire or puts one
-  /// out.
+  /// Kelvin: its surface's over the last step. Heat reaches into a body
+  /// from its surface over a layer that thickens with the square root of
+  /// time, so a thick body's surface runs ahead of its mean — a log's
+  /// catches in a flame while its middle is cold — and a small or
+  /// conductive body's is its mean. The surface is what catches fire, goes
+  /// out, radiates and meets other bodies.
+  double surfaceTemperatureOf(NativeBody body) {
+    _check(c.f3d_body_get_surface_temperature(_live, body.raw, _out), body);
+    return _out[0];
+  }
+
+  /// Sets it, the same all through; the next step decides whether that
+  /// lights a fire or puts one out.
   void setTemperature(NativeBody body, double kelvin) =>
       _check(c.f3d_body_set_temperature(_live, body.raw, kelvin), body, kelvin);
 
