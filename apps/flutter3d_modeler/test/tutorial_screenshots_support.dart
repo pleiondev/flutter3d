@@ -156,6 +156,10 @@ class TolerantGoldens extends LocalFileComparator {
       await getGoldenBytes(golden),
     );
     if (result.passed || result.diffPercent <= budget) return true;
+    // The picture taken, the reference and where they part, under
+    // `failures/` beside the test: a percentage alone says something moved
+    // and not what.
+    await generateFailureOutput(result, golden, basedir);
     throw FlutterError(
       'The screenshot ${golden.pathSegments.last} differs from its reference '
       'in ${(result.diffPercent * 100).toStringAsFixed(2)}% of its pixels, '
