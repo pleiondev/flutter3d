@@ -57,6 +57,7 @@ import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
+import 'src/play/attach_note.dart';
 import 'src/play/live_material.dart';
 import 'src/play/play_launch.dart';
 import 'src/play/play_screen.dart';
@@ -1792,14 +1793,24 @@ class _EditorScreenState extends State<EditorScreen>
       context: context,
       builder: (BuildContext context) => AlertDialog(
         title: const Text('Attach to a running game'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'VM service URI',
-            hintText: 'printed by the running game on startup',
-          ),
-          autofocus: true,
-          onSubmitted: (String value) => Navigator.of(context).pop(value),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'VM service URI',
+                hintText: 'printed by the running game on startup',
+              ),
+              autofocus: true,
+              onSubmitted: (String value) => Navigator.of(context).pop(value),
+            ),
+            if (attachNote(Uri.base, web: kIsWeb) case final String note) ...[
+              const SizedBox(height: 12),
+              Text(note),
+            ],
+          ],
         ),
         actions: <Widget>[
           TextButton(
