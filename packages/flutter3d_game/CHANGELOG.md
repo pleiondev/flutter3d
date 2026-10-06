@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`GameCloud.shares`** is a `RunService` on the same server, using
+  `httpRunTransport` over `package:http`. Pressing Share counts as the
+  player's yes; no question guards it.
+
 - **The player is asked before anything of theirs leaves the device.**
   - `Consents` holds two questions: may the run be kept in the cloud, and
     may finished runs be sent. Both are no until answered.

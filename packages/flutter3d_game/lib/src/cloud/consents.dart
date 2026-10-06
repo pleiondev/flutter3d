@@ -6,6 +6,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
         Demo,
         HttpTelemetrySink,
         JsonPost,
+        RunRequest,
+        RunResponse,
+        RunService,
+        RunTransport,
         TelemetryConsent,
         TelemetrySent,
         TelemetryUploader;
@@ -78,6 +82,21 @@ final class Consents {
   }
 }
 
+/// [RunTransport] over [client]: what [RunService] speaks to a share server
+/// with.
+RunTransport httpRunTransport(http.Client client) =>
+    (RunRequest request) async {
+      final answer = await client.send(
+        http.Request(request.method, request.uri)
+          ..headers['content-type'] = 'application/json'
+          ..body = request.body ?? '',
+      );
+      return RunResponse(
+        answer.statusCode,
+        await answer.stream.bytesToString(),
+      );
+    };
+
 /// [JsonPost] over [client]: what `HttpTelemetrySink` sends with, natively
 /// and in a browser alike.
 JsonPost httpJsonPost(http.Client client) => (Uri url, String json) async {
@@ -128,6 +147,12 @@ final class GameCloud {
       consents,
       base == null
           ? null
+          : RunService(
+              base: base.resolve('api/'),
+              transport: httpRunTransport(network!),
+            ),
+      base == null
+          ? null
           : TelemetryUploader(
               game: game,
               policy: policy,
@@ -140,9 +165,13 @@ final class GameCloud {
     );
   }
 
-  GameCloud._(this.consents, this.uploader);
+  GameCloud._(this.consents, this.shares, this.uploader);
 
   final Consents consents;
+
+  /// Where a run is shared and a shared one opened by its code, or null
+  /// with no server. No question guards it: pressing Share is the yes.
+  final RunService? shares;
 
   /// What sends a finished run, or null with no server.
   final TelemetryUploader? uploader;

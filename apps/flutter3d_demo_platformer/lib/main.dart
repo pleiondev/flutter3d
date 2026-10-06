@@ -28,6 +28,7 @@ import 'src/audio_cubit.dart';
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/effects.dart';
+import 'src/ghost.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
 import 'src/photo_mode.dart';
@@ -37,6 +38,7 @@ import 'src/run_cubit.dart';
 import 'src/runner_looks.dart';
 import 'src/runner_visuals.dart';
 import 'src/screen_cubit.dart';
+import 'src/share_strip.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/title_card.dart';
@@ -424,6 +426,83 @@ class _GameScreenState extends State<GameScreen>
     // To the server too, if the player said runs may go: the uploader asks
     // their answer at the moment of sending.
     unawaited(_cloud.send(written));
+    _lastRun = written;
+  }
+
+  /// The run that ended last, which Share files.
+  Demo? _lastRun;
+
+  /// The ghost being raced: where its runner was through the level, the
+  /// level it was run in, and what draws it.
+  Tape? _ghostTrack;
+  String? _ghostLevel;
+  GhostRunner? _ghost;
+
+  /// Files [_lastRun] with its level, and answers its code or why not.
+  Future<String> _share() async {
+    final shares = _cloud.shares;
+    final run = _lastRun;
+    final loaded = _loaded;
+    if (shares == null || run == null || loaded == null) {
+      return 'There is no run to share.';
+    }
+    final level = loaded.level.toJson();
+    final ShareBundle bundle;
+    try {
+      bundle = ShareBundle(game: 'platformer', level: level, run: run);
+    } on ShareFormatException catch (error) {
+      return error.message;
+    }
+    return switch (await shares.share(bundle)) {
+      ServiceDone<SharedBundle>(:final value) => 'Your code is ${value.code}.',
+      ServiceRefused<SharedBundle>(:final reason) => reason,
+    };
+  }
+
+  /// Opens [code] and, when its run is through this level, races it: the
+  /// level from the top, with the ghost beside the runner.
+  Future<String> _race(String code) async {
+    final shares = _cloud.shares;
+    final loaded = _loaded;
+    if (shares == null || loaded == null) return 'There is nowhere to look.';
+    if (code.isEmpty) return 'Type a code first.';
+    final ShareBundle bundle;
+    switch (await shares.open(code)) {
+      case ServiceRefused<ShareBundle>(:final reason):
+        return reason;
+      case ServiceDone<ShareBundle>(:final value):
+        bundle = value;
+    }
+    final run = bundle.run;
+    if (run == null) return 'That code is a level with no run in it.';
+    if (bundle.levelHash != loaded.level.digestHex) {
+      return 'That run is through another level, or another version of '
+          'this one.';
+    }
+    final (:ghost, :says) = ghostOf(Level.fromJson(bundle.level), run);
+    if (ghost == null) return says;
+    setState(() {
+      _ghostTrack = ghost;
+      _ghostLevel = bundle.levelHash;
+    });
+    _restart();
+    return 'Racing ${bundle.title ?? code}: $says.';
+  }
+
+  /// Puts the ghost in [level]'s scene when it is the level being raced.
+  void _haunt(LevelReady level, GraphicsDevice device) {
+    _ghost = null;
+    if (_ghostTrack == null || _ghostLevel != level.loaded.level.digestHex) {
+      return;
+    }
+    _ghost = GhostRunner.build(
+      device,
+      level.scene,
+      halfExtents: level.runner.body.halfExtents,
+      model: _runnerVisuals.asset,
+      modelFloor: _runnerVisuals.modelFloor,
+      facing: _runnerVisuals.facing,
+    );
   }
 
   /// What the player is asked about their data, and what a yes turns on:
@@ -771,6 +850,7 @@ class _GameScreenState extends State<GameScreen>
   /// something the run does not own.
   void _levelArrived(LevelReady level, GraphicsDevice device) {
     final runner = level.runner;
+    _haunt(level, device);
     // A load takes far longer than a frame and drops simulated time every time.
     // Counting that against the machine would light the slow-machine warning on
     // every level of every run, which is the same as not having one.
@@ -954,6 +1034,14 @@ class _GameScreenState extends State<GameScreen>
     _particles.advance(_loop.lastFrame);
     _runnerVisuals.animate(dt, _runner);
     _placeCamera(dt);
+    // The ghost on the run's own clock: both started at the top together.
+    if ((_ghost, _ghostTrack, _sim) case (
+      final GhostRunner ghost,
+      final Tape track,
+      final PlatformerSimulation sim,
+    )) {
+      ghost.showAt(sim.elapsed, track);
+    }
     if (_photo.active) {
       // The paused loop drains nothing, so the look is taken here, and the
       // photo camera is put on the node after the follow camera was.
@@ -1488,6 +1576,17 @@ class _GameScreenState extends State<GameScreen>
               // and below the settings overlay, so the gear still opens.
               if (Playing.touch && _screen.state.started && _runIsOver)
                 TapToRestart(onRestart: _restart),
+              // Share the run just ended, or race somebody's: where a run
+              // is over, and only in a build with somewhere to share to.
+              if (_cloud.shares != null && _runIsOver && !_photo.active)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: ShareStrip(
+                    onShare: _lastRun == null ? null : _share,
+                    onRace: _race,
+                  ),
+                ),
               if (!_screen.state.started)
                 TitleCard(
                   prompt: Playing.touch
