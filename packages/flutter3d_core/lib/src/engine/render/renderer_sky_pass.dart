@@ -32,10 +32,11 @@ extension _SkyPass on Renderer {
     // Three fragment stages: the ray is the same in each, and which one runs
     // is decided by whether there is a cube to sample, and failing that,
     // whether there is air to scatter through. A cube wins, as
-    // `SkySettings.physical` says.
+    // `SkySettings.physical` says. The air is the resolved one: a sky nobody
+    // coloured is physical without naming a `PhysicalSky`.
     final cubemap = sky.cubemap;
     final textured = cubemap != null;
-    final air = textured ? null : sky.physical;
+    final air = textured ? null : sky.resolvedPhysical;
     final fragmentName = textured
         ? 'SkyCube'
         : (air != null ? 'SkyPhysical' : 'Sky');

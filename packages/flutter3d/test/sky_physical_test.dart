@@ -77,8 +77,27 @@ Future<Uint8List> _draw(
   ({CpuDevice device, Renderer renderer}) it,
   CameraNode camera, {
   SkySettings sky = const SkySettings(),
+  Vector3? block,
 }) async {
   final scene = Scene()..add(camera);
+  // A grey block lit by nothing but the ambient, which is the sky's: what
+  // the renderer took the ambient from shows on it.
+  if (block != null) {
+    scene.add(
+      MeshNode(
+        DeviceMesh.upload(
+          it.device,
+          CuboidShape(size: Vector3.all(1.0)).build(),
+        ),
+        engine.Material(
+          name: 'block',
+          baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+          lighting: LightingModel.lambert,
+        ),
+        name: 'block',
+      )..setPosition(block.x, block.y, block.z),
+    );
+  }
   final result = it.renderer.render(
     width: _width,
     height: _height,
@@ -154,6 +173,92 @@ void main() {
       final off = await _draw(_engine(), camera);
       final unset = await _draw(_engine(), camera, sky: _sky(enabled: false));
       expect(unset, off);
+    });
+
+    test('a sky nobody coloured is the physical one', () async {
+      // Mutation: make `resolvedPhysical` return `physical` alone, or read
+      // `physical` in the sky pass, the ambient or `sample` instead of the
+      // resolved air. The first leaves every uncoloured sky a gradient; the
+      // others draw one sky and light or fog the world from another, and
+      // only a comparison against the named air sees it.
+      expect(const SkySettings().resolvedPhysical, same(const PhysicalSky()));
+      const named = PhysicalSky(starBrightness: 0.0);
+      expect(
+        SkySettings(physical: named, zenith: Vector3.zero()).resolvedPhysical,
+        same(named),
+        reason: 'air that was named wins over colours',
+      );
+
+      final looking = Vector3(-1.0, 0.15, 0.3);
+      final block = Vector3(-1.0, -0.25, 0.3).normalized()..scale(4.0);
+      final plain = SkySettings(enabled: true, directionToSun: _sunAt(50.0));
+      final air = await _draw(
+        _engine(),
+        _camera(looking),
+        sky: plain.copyWith(physical: const PhysicalSky()),
+        block: block,
+      );
+      final drawn = await _draw(
+        _engine(),
+        _camera(looking),
+        sky: plain,
+        block: block,
+      );
+      expect(drawn, air, reason: 'the sky and the block lit by it');
+
+      // And the sample a fog colour or an environment map takes is the same
+      // air's, or the fog meets a sky of another colour at the horizon.
+      for (final direction in <Vector3>[
+        looking,
+        Vector3(0.0, 1.0, 0.0),
+        Vector3(0.3, -0.5, 1.0),
+      ]) {
+        expect(
+          plain.sample(direction),
+          plain.copyWith(physical: const PhysicalSky()).sample(direction),
+        );
+      }
+    });
+
+    test('a coloured sky keeps the gradient it was given', () async {
+      // Mutation: drop the colours from the test in `resolvedPhysical`. Every
+      // level that chose its three colours would come up in the default air.
+      for (final coloured in <SkySettings>[
+        SkySettings(zenith: Vector3(0.1, 0.2, 0.5)),
+        SkySettings(horizon: Vector3(0.4, 0.5, 0.6)),
+        SkySettings(nadir: Vector3(0.1, 0.1, 0.1)),
+        SkySettings(sunColor: Vector3(1.0, 0.9, 0.8)),
+      ]) {
+        expect(coloured.resolvedPhysical, isNull);
+      }
+
+      // The default zenith written out: the gradient the engine always drew,
+      // asked for by naming one of its colours.
+      final looking = Vector3(-1.0, 0.15, 0.3);
+      final sky = SkySettings(
+        enabled: true,
+        directionToSun: _sunAt(50.0),
+        zenith: Vector3(0.10, 0.22, 0.52),
+      );
+      final frame = await _draw(_engine(), _camera(looking), sky: sky);
+      final drawn = _centre(frame);
+      final gradient = _expected(sky, looking);
+      final air = _expected(
+        sky.copyWith(physical: const PhysicalSky()),
+        looking,
+      );
+      for (final channel in <int>[0, 1, 2]) {
+        expect(
+          (drawn[channel] - gradient[channel]).abs(),
+          lessThan(0.02),
+          reason: 'channel $channel: drawn $drawn, the gradient $gradient',
+        );
+      }
+      expect(
+        (drawn - air).length,
+        greaterThan(0.05),
+        reason: 'and not the air, $air, which would make the check above moot',
+      );
     });
 
     for (final (name, sunDegrees, looking, intensity)
@@ -294,6 +399,39 @@ void main() {
   });
 
   group('height fog', () {
+    test('is what a fog gets unless it asks for a flat one', () async {
+      // Mutation: put the constructor's default back to nought. A fog that
+      // names only its density is then flat, and the wall up the slope is as
+      // fogged as one at the eye's height.
+      expect(
+        const FogSettings().heightFalloff,
+        FogSettings.defaultHeightFalloff,
+      );
+      expect(FogSettings.defaultHeightFalloff, greaterThan(0.0));
+
+      final slope = Vector3(0.0, 0.25, 1.0).normalized();
+      final byDefault = await _wallMean(
+        const FogSettings(density: 0.03),
+        slope,
+        60.0,
+      );
+      final asked = await _wallMean(
+        const FogSettings(
+          density: 0.03,
+          heightFalloff: FogSettings.defaultHeightFalloff,
+        ),
+        slope,
+        60.0,
+      );
+      final flat = await _wallMean(
+        const FogSettings(density: 0.03, heightFalloff: 0.0),
+        slope,
+        60.0,
+      );
+      expect(byDefault, asked);
+      expect(byDefault, greaterThan(flat + 5.0), reason: 'flat $flat');
+    });
+
     test('thins upwards from its base height', () {
       // Mutation: fold the base height in with the wrong sign. The fog lies
       // on the ceiling.
@@ -305,7 +443,11 @@ void main() {
       expect(fog.densityAt(3.0), closeTo(0.1, 1e-12));
       expect(fog.densityAt(5.0), closeTo(0.1 * math.exp(-1.0), 1e-12));
       expect(fog.densityAt(1.0), closeTo(0.1 * math.exp(1.0), 1e-12));
-      expect(const FogSettings(density: 0.1).densityAt(1000.0), 0.1);
+      expect(
+        const FogSettings(density: 0.1, heightFalloff: 0.0).densityAt(1000.0),
+        0.1,
+        reason: 'nought, asked for, is the same fog at every height',
+      );
       expect(
         const FogSettings(density: 0.1, heightFalloff: -1.0).densityAt(9.0),
         0.1,
@@ -331,12 +473,12 @@ void main() {
       for (var i = 0; i < steps; i++) {
         sum += height.densityAt(slope.y * distance * (i + 0.5) / steps);
       }
-      final flat = FogSettings(density: sum / steps);
+      final flat = FogSettings(density: sum / steps, heightFalloff: 0.0);
 
       final up = await _wallMean(height, slope, distance);
       final even = await _wallMean(flat, slope, distance);
       final eye = await _wallMean(
-        const FogSettings(density: 0.03),
+        const FogSettings(density: 0.03, heightFalloff: 0.0),
         slope,
         distance,
       );
@@ -345,11 +487,16 @@ void main() {
     });
 
     test('with no falloff it is the flat fog, to the byte', () async {
-      // The property every golden with fog in it rests on.
+      // The property a golden recorded with a flat fog rests on: asking for
+      // nought gives back the fog from before `P5`, wherever its base is.
       final slope = Vector3(0.0, 0.25, 1.0).normalized();
-      final a = await _wallMean(const FogSettings(density: 0.03), slope, 60.0);
+      final a = await _wallMean(
+        const FogSettings(density: 0.03, heightFalloff: 0.0),
+        slope,
+        60.0,
+      );
       final b = await _wallMean(
-        const FogSettings(density: 0.03, baseHeight: 40.0),
+        const FogSettings(density: 0.03, heightFalloff: 0.0, baseHeight: 40.0),
         slope,
         60.0,
       );

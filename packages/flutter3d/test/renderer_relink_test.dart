@@ -24,7 +24,8 @@ import 'package:vector_math/vector_math.dart';
 /// Every kind of pass the renderer holds a pipeline for, in one frame: two
 /// shadowed lights so the map and the cube atlas are both drawn, a skinned and
 /// an instanced caster so their shadow stages link beside the static one, a
-/// gradient sky, bloom, and a debug overlay for the line pipeline.
+/// sky — the physical one, which an uncoloured sky is since `P5` made it the
+/// default — bloom, and a debug overlay for the line pipeline.
 const RenderSettings _everything = RenderSettings(
   sky: SkySettings(enabled: true),
   bloom: BloomSettings(intensity: 1.0),
@@ -170,7 +171,7 @@ void main() {
       'MeshSkinnedVertex+ShadowDistance',
       'MeshInstancedVertex+ShadowDistance',
       'ShadowTileResetVertex+ShadowTileReset',
-      'SkyVertex+Sky',
+      'SkyPhysicalVertex+SkyPhysical',
       'FullscreenVertex+BloomUpsample',
       'FullscreenVertex+Composite',
       'DebugLineVertex+DebugLine',

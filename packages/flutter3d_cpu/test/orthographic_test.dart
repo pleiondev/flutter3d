@@ -144,6 +144,10 @@ void main() {
   test('fog lies flat on a wall the camera faces', () {
     // Mutation: keep the radial `EyeDistance` through an orthographic lens,
     // and the fog rings round the middle of the frame.
+    //
+    // A flat fog: the default since `P5` thins with height, which on a wall
+    // facing the camera is a spread from top to bottom that is right, and
+    // would hide the ring this looks for.
     final fogged = _render(
       _ortho,
       distance: 20.0,
@@ -154,7 +158,11 @@ void main() {
       settings: RenderSettings(
         bloom: const BloomSettings(enabled: false),
         look: const LookSettings(dither: 0.0),
-        fog: FogSettings(color: Vector3.zero(), density: 0.05),
+        fog: FogSettings(
+          color: Vector3.zero(),
+          density: 0.05,
+          heightFalloff: 0.0,
+        ),
       ),
     );
     expect(_spread(fogged), lessThan(0.01));
@@ -198,9 +206,11 @@ void main() {
     }
   });
 
-  test('the sky is a gradient, not one colour', () {
+  test('the sky changes up the frame, not one colour', () {
     // Mutation: hand the sky the orthographic matrix's own corner rays, which
-    // are all the view axis, and the frame is a single colour.
+    // are all the view axis, and the frame is a single colour. The physical
+    // sky since `P5`, which an uncoloured one is; it was the gradient before,
+    // and the rays are the same for both.
     final sky = _render(
       _ortho,
       wall: false,

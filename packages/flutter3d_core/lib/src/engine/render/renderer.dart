@@ -1277,7 +1277,9 @@ final class Renderer implements RenderServices {
   /// The textured half of the same pair, built only if a cube is ever set.
   PipelineHandle? _skyCubePipeline;
 
-  /// The air's, built only if `SkySettings.physical` is ever set — `P5`.
+  /// The air's, built only if a sky ever resolves to one — `P5`. That is any
+  /// sky switched on without a cube or gradient colours: see
+  /// `SkySettings.resolvedPhysical`.
   PipelineHandle? _skyPhysicalPipeline;
 
   /// World space to the shadow camera's clip space, rebuilt each frame the
@@ -2242,7 +2244,7 @@ final class Renderer implements RenderServices {
 
     var upX = 1.0, upY = 1.0, upZ = 1.0;
     var downX = 1.0, downY = 1.0, downZ = 1.0;
-    final air = sky.cubemap == null ? sky.physical : null;
+    final air = sky.cubemap == null ? sky.resolvedPhysical : null;
     if (sky.enabled && air != null) {
       // `P5`: the same halves, out of the air. Taken off the scattered light
       // with no disc, for the reason above, and a horizon averaged round the

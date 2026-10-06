@@ -62,10 +62,12 @@ const Map<String, double> _budgets = <String, double>{
   'widget-scene': 0.05,
   // 0.005% measured: both draw the hard cutoff, Impeller and this set alike.
   'alpha-to-coverage': 0.01,
-  // 0.575% measured, on the spheres' and the floor's edges, which Impeller
+  // 0.385% measured, on the spheres' and the floor's edges, which Impeller
   // multisamples and this set does not; the highlights, fog and sky agree.
-  // Recorded first from an Impeller build by mistake, which read 0%.
-  'orthographic-metal': 0.65,
+  // 0.575% under the gradient sky and the flat fog, before `P5` made the
+  // physical sky and the height fog the defaults. Recorded first from an
+  // Impeller build by mistake, which read 0%.
+  'orthographic-metal': 0.45,
   'orthographic-shadows': 1.1,
   'orthographic-particles': 0.1,
   // 0.567% measured, on the silhouette and the floor's far edge, which
@@ -117,11 +119,13 @@ const Map<String, double> _budgets = <String, double>{
   // 0.431%, except `particles-recycled` at 0.417%. Set just above, which is
   // the rule this file is built on — a budget far from what was measured has
   // stopped watching.
-  // The sky itself agrees exactly — every pixel of gradient, lobe and disc is
-  // the same number on both backends, which is what a transcription is for.
-  // What differs is the teapot's silhouette against it: 392 pixels of edge,
-  // where one backend multisamples and the other does not. Measured 0.227%.
-  'sky': 0.24,
+  // The sky itself agrees to within the comparison's eight levels — not a
+  // pixel of it differs beyond them on either backend, which is what a
+  // transcription is for. What differs is the teapot's silhouette against
+  // it: 281 pixels of edge, where one backend multisamples and the other does
+  // not. Measured 0.163% against the physical sky an uncoloured one has been
+  // since `P5`; 0.227% against the gradient before it.
+  'sky': 0.18,
   'particle-stack': 0.45,
   'particles-burst': 0.45,
   // A pool that has been round several times, which every other particle

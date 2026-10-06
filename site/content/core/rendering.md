@@ -462,6 +462,8 @@ FogSettings(
 )
 ```
 
+The fog lies on the ground: it is `density` thick at `baseHeight` (nought) and thins upwards by `heightFalloff`, 0.05 per metre unless you say otherwise, which halves it every fourteen metres. At eye height that is within a tenth of `density`; a roof ten metres up stands in six tenths of it. The ray is integrated in closed form, an exponential more than a flat fog and no extra pass. `heightFalloff: 0.0` is the flat fog, the same numbers to the bit. Particles and splats fog as a flat fog as thick as the air at the camera.
+
 Every lit shader applies fog as it writes the HDR target (`ApplyFog` in `lib/color.glsl`, called from `WriteSurface`), in linear space, before the tone map. It is not a post pass, and for an extension that difference decides who gets fog: a shader that writes the frame directly writes the fog with it, so a lighting model of your own gets fog for free and a post pass of your own does not. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
 
 ### Volumetric fog
@@ -495,9 +497,11 @@ SkySettings(
 )
 ```
 
-{{golden sky | The procedural sky behind a model: three stops, a scattering lobe and the sun's disc, all above display white before the tone curve.}}
+A sky switched on with none of `zenith`, `horizon`, `nadir` or `sunColor` given is the physical one, `const PhysicalSky()`: single scattering by molecules and haze, so the colours come from where the sun is, and stars once it is down. Name any of those colours, as above, and you get the gradient you named; set `physical:` for other air. It costs more than the gradient: sixteen samples along each view ray and eight towards the sun from each, per pixel of sky, with no precomputed table yet. On a phone looking mostly at sky, the gradient is the cheaper choice.
 
-One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The model is a three-stop gradient plus a scattering lobe and an analytic sun disc; a `cubemap` replaces all three of those, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
+{{golden sky | The default sky behind a model: the physical one, with the sun a third of the way up and its disc above display white before the tone curve.}}
+
+One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The gradient is three stops plus a scattering lobe and an analytic sun disc; a `cubemap` replaces it, or the air, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
 
 The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
 

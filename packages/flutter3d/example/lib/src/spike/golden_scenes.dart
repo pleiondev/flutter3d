@@ -598,10 +598,14 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // the disabled path emits nothing at all. Turning it on anywhere else would
   // re-baseline the lot in a commit about something else.
   //
-  // What it pins: the gradient, the sun's disc — which is analytic and half a
+  // What it pins: the sky a caller gets by switching it on and nothing else,
+  // which since `P5` is the physical one (`SkySettings.resolvedPhysical`) —
+  // the default air with the default sun a third of the way up, and the
+  // ambient taken from it; the sun's disc — which is analytic and half a
   // degree across, so it is the part most sensitive to the ray being built
   // wrongly — and the fact that the sky lands *behind* the teapot rather than
-  // over it.
+  // over it. It pinned the gradient until then; a coloured sky still draws
+  // one, held in `sky_physical_test.dart` and `sky_procedural_test.dart`.
   //
   // **Bloom off, and the disc kept modest.** The first recording of this scene
   // asked for intensity 40 with bloom on, and the result was a flat lilac wash:
@@ -609,8 +613,8 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // golden pinned a picture in which nothing about the sky could be read. A
   // reference nobody can read is a reference that cannot fail usefully.
   //
-  // The colours are the defaults, because `Vector3` has no const constructor
-  // and a scene that had to be built at runtime would be the only one here.
+  // No colours, because a sky given any is the gradient; and `Vector3` has no
+  // const constructor, so a scene that named them would be built at runtime.
   const GoldenScene(
     name: 'sky',
     source: 'Teapot',

@@ -1255,12 +1255,14 @@ final class DebugViewSettings {
 /// closed form instead, so it costs an exponential more than the flat fog and
 /// no pass. A valley fills, a hilltop stands out of it, and a camera looking
 /// up sees less fog than one looking along the ground, which a flat fog cannot
-/// say. Nought, the default, is the flat fog and the same numbers to the bit.
+/// say. **On by default**: [heightFalloff] is [defaultHeightFalloff] unless a
+/// caller says otherwise, and the fog is [density] thick at height nought.
+/// Nought, asked for, is the flat fog and the same numbers to the bit.
 final class FogSettings {
   const FogSettings({
     this.color,
     this.density = 0.0,
-    this.heightFalloff = 0.0,
+    this.heightFalloff = defaultHeightFalloff,
     this.baseHeight = 0.0,
   });
 
@@ -1285,7 +1287,20 @@ final class FogSettings {
   /// How fast the fog thins with height, per metre. Nought is the same fog at
   /// every height; 0.1 halves it every seven metres, a mist in a valley; 0.01
   /// every seventy, the haze over a landscape. Negative is held at nought.
+  /// [defaultHeightFalloff] unless given.
   final double heightFalloff;
+
+  /// What [heightFalloff] is when nobody sets it: 0.05 per metre, which halves
+  /// the fog every fourteen metres.
+  ///
+  /// Chosen for the size of a game level rather than of a landscape. Over the
+  /// first two metres, where a player's eye and everything they walk past
+  /// stand, the fog is within a tenth of [density], so a fog tuned before
+  /// height fog existed still reads as tuned at eye level; a roof ten metres
+  /// up is in six tenths of it and a hilltop thirty metres up in a fifth, so
+  /// what a level raises out of the fog stands out of it. The haze over a
+  /// landscape wants less, a mist in a hollow more — say so with a number.
+  static const double defaultHeightFalloff = 0.05;
 
   /// The height at which the fog is [density] thick, in world metres.
   final double baseHeight;

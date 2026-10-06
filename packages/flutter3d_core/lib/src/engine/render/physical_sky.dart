@@ -10,7 +10,9 @@
 /// and stars once the sun is far enough down.
 ///
 /// Set on `SkySettings.physical`, beside the gradient and the cube map rather
-/// than instead of them, and off unless it is set.
+/// than instead of them. A sky switched on with none of the gradient's colours
+/// given draws `const PhysicalSky()` without being asked; see
+/// `SkySettings.resolvedPhysical`.
 library;
 
 import 'dart:math' as math;

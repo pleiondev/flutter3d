@@ -107,10 +107,12 @@ const Map<String, double> _budgets = <String, double>{
   // 0.595% measured, on the discs' rims and nowhere else: coverage here,
   // the hard cutoff on Impeller — `Material.alphaToCoverage`, two of four.
   'alpha-to-coverage': 0.7,
-  // 0.394% measured, on the spheres' and the floor's edges, which WebGL2
+  // 0.117% measured, on the spheres' and the floor's edges, which WebGL2
   // does not multisample as Impeller does; the highlights, the fog and the
-  // sky agree.
-  'orthographic-metal': 0.5,
+  // sky agree. 0.394% while the sky was the gradient and the fog flat; the
+  // physical sky and the height fog, both defaults since `P5`, put a paler
+  // background behind the same edges.
+  'orthographic-metal': 0.15,
   'orthographic-shadows': 0.3,
   'orthographic-particles': 0.01,
   // 0.359% measured, on the silhouette: `shadow-teapot`'s edge between
@@ -160,7 +162,9 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-teapot': 0.3,
   'spot-shadow': 0.3,
   'cube-shadow-gap': 0.3,
-  'sky': 0.2,
+  // 0.080% measured, the teapot's silhouette, against the physical sky an
+  // uncoloured one has been since `P5`.
+  'sky': 0.1,
   'teapot-generated-normals': 0.2,
   'view-model-overlay': 0.2,
   'lighting-normals': 0.2,

@@ -13,6 +13,23 @@
   `SplatQuads.build` takes `keysOnly`, and `SplatSorter.sort` is
   `quantise` followed by the counting sort.
 
+- **A sky nobody coloured is the physical one, and fog lies on the
+  ground unless told otherwise.** `SkySettings.resolvedPhysical` is what the
+  sky pass, the ambient, `sample` and `EnvironmentMap.fromSky` now read:
+  `physical` if set, `const PhysicalSky()` when none of `zenith`, `horizon`,
+  `nadir` and `sunColor` is given, and the gradient when any of them is, so
+  a level that chose its colours keeps them. A cube map still wins, and
+  `enabled` is still false by default, so a scene with no sky keeps its
+  clear colour. `FogSettings.heightFalloff` defaults to
+  `FogSettings.defaultHeightFalloff`, 0.05 per metre, which halves the fog
+  every fourteen metres: within a tenth of `density` at eye height, six
+  tenths of it on a roof ten metres up. `heightFalloff: 0.0` is still the
+  flat fog to the bit, and `Atmosphere` still passes its own falloff, nought
+  unless given. The cost moved with the default: the physical sky marches
+  sixteen samples along each view ray and eight towards the sun from each,
+  per pixel of sky, with no precomputed table yet, where the gradient was
+  three mixes.
+
 - **A high-contrast look with outlines — `RenderSettings.highContrast`.**
   `HighContrastSettings` flattens the texture inside each surface, drains the
   frame toward grey and pushes its tone apart, draws every edge the geometry

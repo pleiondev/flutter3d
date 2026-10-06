@@ -13,6 +13,12 @@
 /// valid: with [enabled] false the renderer emits nothing at all, not a single
 /// state call, and every frame this engine ever drew is unchanged.
 ///
+/// **On, it is the physical sky unless it was coloured** — `P5`. A sky
+/// switched on with no [SkySettings.zenith], `horizon`, `nadir` or `sunColor`
+/// scatters the sun through `const PhysicalSky()`; one given any of those
+/// colours draws the gradient it was given. See
+/// [SkySettings.resolvedPhysical].
+///
 /// The alternative in this repository is a painted dome (`SkyDome` in
 /// `scene/sky.dart`), which needs no shader and works today. What this buys
 /// over it: a sun disc — analytic, so its angular radius is a number rather
@@ -62,15 +68,20 @@ final class SkySettings {
   // `FogSettings` in `render_settings.dart` already takes and for the same
   // reason:
   // `Vector3` has no const constructor, so a default cannot be written in the
-  // parameter list of a const constructor.
+  // parameter list of a const constructor. Null has a second meaning on the
+  // four colours below: with all of them null and no [physical], the sky is
+  // the default air rather than the gradient — see [resolvedPhysical].
 
-  /// The sky straight up. Null takes [resolvedZenith].
+  /// The sky straight up, for the gradient. Null takes [resolvedZenith];
+  /// set, it asks for the gradient over the default air.
   final Vector3? zenith;
 
-  /// The sky level with the horizon. Null takes [resolvedHorizon].
+  /// The sky level with the horizon, for the gradient. Null takes
+  /// [resolvedHorizon]; set, it asks for the gradient, as [zenith] does.
   final Vector3? horizon;
 
-  /// The sky straight down. Null takes [resolvedNadir].
+  /// The sky straight down, for the gradient. Null takes [resolvedNadir];
+  /// set, it asks for the gradient, as [zenith] does.
   ///
   /// Not the ground: it is what fills the frame when the camera looks down at
   /// nothing, which is haze, and haze is darker than the sky above it.
@@ -83,7 +94,9 @@ final class SkySettings {
   /// length.
   final Vector3? directionToSun;
 
-  /// The sun's own colour, used by both the lobe and the disc.
+  /// The sun's own colour, used by both the lobe and the disc of the
+  /// gradient. Set, it asks for the gradient, as [zenith] does: the air
+  /// colours its own sun.
   final Vector3? sunColor;
 
   Vector3 get resolvedZenith => zenith ?? _defaultZenith;
@@ -127,9 +140,10 @@ final class SkySettings {
   ///
   /// Build one with `GraphicsDevice.createCubeTextureFromPixels`, whose
   /// docstring carries the face order. Ask `supportsCubeTextures` first: a
-  /// device that cannot make one leaves this null and the procedural sky is
-  /// what draws, which is why the textured sky is an option on top of the
-  /// gradient rather than a replacement for it.
+  /// device that cannot make one leaves this null and the procedural sky —
+  /// the air or the gradient, see [resolvedPhysical] — is what draws, which is
+  /// why the textured sky is an option on top of it rather than a replacement
+  /// for it.
   final TextureHandle? cubemap;
 
   /// Multiplied into the cube's own colour, so one cube can serve more than one
@@ -141,9 +155,10 @@ final class SkySettings {
   static Vector3 get _defaultTint => Vector3(1.0, 1.0, 1.0);
 
   /// The air to scatter the sun through instead of evaluating the gradient —
-  /// `P5`. Null, the default, draws the gradient.
+  /// `P5`. What draws is [resolvedPhysical], not this field: null takes the
+  /// default air, `const PhysicalSky()`, unless the caller coloured the sky.
   ///
-  /// When this is set the colours of the sky come from the air and where the
+  /// When there is air the colours of the sky come from it and from where the
   /// sun is: [zenith], [horizon], [nadir], [sunColor], [glowExponent] and
   /// [glowStrength] are not read. [directionToSun] places the sun, and the
   /// disc keeps its size, softness and [sunIntensity], drawn white and dimmed
@@ -158,7 +173,26 @@ final class SkySettings {
   /// takes from it all follow the sun too. The stars are the one part [sample]
   /// leaves out: an environment map thirty-two texels a side would turn each
   /// into a bright texel somewhere it does not belong.
+  ///
+  /// **It costs more than the gradient.** Each pixel of sky marches sixteen
+  /// samples along the view ray and eight towards the sun from each, and there
+  /// is no precomputed table yet to turn that into a texture read; on a phone
+  /// that fills the frame with sky, the gradient is the cheaper choice.
   final PhysicalSky? physical;
+
+  /// The air the sky is drawn through, or null for the gradient.
+  ///
+  /// [physical] if it is set. Otherwise the default air, `const
+  /// PhysicalSky()`, when none of [zenith], [horizon], [nadir] and [sunColor]
+  /// is set — a sky nobody coloured is a physical one — and null, the
+  /// gradient, when any of them is: a caller who wrote gradient colours keeps
+  /// the gradient they asked for. A [cubemap] wins over either, which the
+  /// readers of this check first.
+  PhysicalSky? get resolvedPhysical =>
+      physical ??
+      (zenith == null && horizon == null && nadir == null && sunColor == null
+          ? const PhysicalSky()
+          : null);
 
   /// The colour of the sky in [direction], on the CPU.
   ///
@@ -168,7 +202,7 @@ final class SkySettings {
   ///
   /// [direction] need not be normalised.
   Vector3 sample(Vector3 direction) {
-    final air = physical;
+    final air = resolvedPhysical;
     if (air != null) return _samplePhysical(air, direction);
     final length = direction.length;
     if (length <= 0.0) return Vector3.copy(resolvedHorizon);

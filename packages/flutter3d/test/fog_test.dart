@@ -12,6 +12,12 @@
 /// Nothing caught it because nothing asked. The golden sets are recorded with
 /// the default `FogSettings()`, whose density is zero — the one case where the
 /// bug and the fix agree exactly.
+///
+/// **Every fog here is flat**, `heightFalloff: 0.0`, though the default is a
+/// height fog since `P5`: the wall is hundreds of metres tall, so a falloff
+/// would thin the fog over most of the frame and these claims about distance
+/// would become claims about height. `sky_physical_test.dart` holds the
+/// height.
 library;
 
 import 'dart:typed_data';
@@ -119,7 +125,11 @@ void main() {
     // Mutation: leave `_writeLit` returning the colour unfogged, which is what
     // it did. Both distances come back the same white and this fails on the
     // first expectation — which is the whole of what was wrong.
-    final fog = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.02);
+    final fog = FogSettings(
+      color: Vector3(0.0, 0.0, 0.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
 
     final near = await _mean(_wall(away: 5.0), fog: fog);
     final far = await _mean(_wall(away: 200.0), fog: fog);
@@ -140,8 +150,16 @@ void main() {
     // Mutation: multiply by the transmittance instead of mixing toward the fog
     // colour. Distance would then always darken, and a car disappearing into a
     // pale morning would go black rather than white.
-    final white = FogSettings(color: Vector3(1.0, 1.0, 1.0), density: 0.02);
-    final black = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.02);
+    final white = FogSettings(
+      color: Vector3(1.0, 1.0, 1.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
+    final black = FogSettings(
+      color: Vector3(0.0, 0.0, 0.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
 
     final intoWhite = await _mean(_wall(away: 200.0), fog: white);
     final intoBlack = await _mean(_wall(away: 200.0), fog: black);
@@ -168,8 +186,16 @@ void main() {
   });
 
   test('density decides how far the view carries', () async {
-    final thin = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.002);
-    final thick = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.02);
+    final thin = FogSettings(
+      color: Vector3(0.0, 0.0, 0.0),
+      density: 0.002,
+      heightFalloff: 0.0,
+    );
+    final thick = FogSettings(
+      color: Vector3(0.0, 0.0, 0.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
 
     final inThin = await _mean(_wall(away: 100.0), fog: thin);
     final inThick = await _mean(_wall(away: 100.0), fog: thick);
