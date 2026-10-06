@@ -56,6 +56,9 @@ dependencies:
   # not start — see `preparePhysics` in `main`.
   flutter3d_physics_native:
     path: ../../packages/flutter3d_physics_native
+  # A race of more than two: `PartyRollback` over a relay's party room.
+  flame_multiplayer:
+    path: ../../packages/flame_multiplayer
 
   vector_math: ^2.2.0
 

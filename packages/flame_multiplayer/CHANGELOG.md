@@ -1,3 +1,12 @@
+## Unreleased
+
+- **Parties of more than two.**
+  - `PartyWire` and `LoopbackParty`.
+  - `PartyRollback` rolls back for two to thirty-two.
+  - `PartyTape` and `PartyTapeWatcher` serve spectators from the settled
+    tape.
+  - `AuthorityServer` and `PredictingClient` are the authoritative model.
+
 ## 0.1.0
 
 **Two players on two machines, in four ways a game can share itself.**

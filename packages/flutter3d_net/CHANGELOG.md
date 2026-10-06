@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **The relay holds parties.** `/party/<code>?size=N` hands out the slots
+  and says who left, and `/watch/<code>` admits spectators. `joinParty` is
+  the client.
+
 - `firstDifferingPath` lives in `flutter3d_sim` now; this package exports
   it from there, so imports of it keep working.
 

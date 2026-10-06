@@ -23,6 +23,7 @@
 library;
 
 export 'src/baton_stream.dart';
+export 'src/party.dart';
 export 'src/peer_feed.dart';
 export 'src/peer_room.dart';
 export 'src/peer_wire.dart';
