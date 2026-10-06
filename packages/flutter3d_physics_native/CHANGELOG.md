@@ -6,6 +6,41 @@
   that one number names one tree, and `^0.9.0` on any `flutter3d_*`
   package resolves against every other.
 
+- **Fire spreads from one body to the next.** A body well above the air's
+  temperature radiates to the bodies near it as well as to the air, each
+  seen as a ball with its own surface. The exchange is the same from either
+  side and never carries one past the other. A burning body throws a third
+  of its fire's heat as radiation, and its flame stands over it as tall as
+  the fire is big. Anything standing in the flame is heated by its gas,
+  both by the gas's contact and by what the gas radiates. A crate stacked on
+  a burning one catches in a little over two minutes, one beside it in four,
+  and the next in the row from that one. A crate four metres off only warms.
+  Nothing shades: a wall between two bodies does not stop the radiation.
+
+- **A box in a corner stands on both faces.** A mesh, or a compound,
+  that meets another body with two faces at once gives each face its own
+  manifold. A box in the corner of a room stands on the floor and stops at
+  the wall, where before it kept only the deeper of the two and the other
+  let it in. A mesh's edge contacts, on seams the face already holds, do
+  not start a second manifold, so a crate still slides over a fine grid
+  without a bump. A pair's contact begins and ends as one, whichever of its
+  manifolds touches.
+
+- **A wheel meets a kerb with its rim.** Beside the ray down its middle,
+  each wheel casts itself, a cylinder of its radius on its axle, through
+  its travel. Where the rim meets something higher than the ray does, the
+  wheel stands on that, along the normal of what it met. A plank three
+  centimetres wide, crossed at five metres a second, used to fall between
+  two steps' rays; now the car rides up over it. On a road the ray decides
+  as it did.
+
+- **A cone on a ball joint of a multibody.** `NativeWorld.setLinkCone`
+  holds a spherical link's axis within a swing of where its parent holds
+  it, and its twist about that axis within a twist. The cone is held twice:
+  the link's turn is brought back inside it after the solver, and any of
+  its spin that would carry it further out is pushed back through the
+  whole tree. `F3D_ABI_VERSION` is 26, and a snapshot is format 13.
+
 - **Chains whose joints cannot come apart.** `NativeWorld.createMultibody`
   roots a tree of bodies at a fixed body (a fixed base: an arm, a crane, a
   chain from a ceiling) or a dynamic one (a floating base). `addLink` hangs

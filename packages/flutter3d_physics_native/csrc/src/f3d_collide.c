@@ -173,10 +173,12 @@ static uint64_t manifold_key(const F3dManifold *m) {
                   (uint32_t)(m->b & 0xffffffffu));
 }
 
-/* The last step's manifold for this exact pair of bodies, by a binary
- * search of the sorted array; null when there was none. */
+/* The last step's manifolds for this exact pair of bodies, side by side
+ * in the sorted array: the first by a binary search, and how many into
+ * [count]; null when there were none. */
 static const F3dManifold *previous(const F3dWorld *world, F3dBody a,
-                                   F3dBody b) {
+                                   F3dBody b, uint32_t *count) {
+  *count = 0;
   const uint64_t key = pair_key((uint32_t)(a & 0xffffffffu),
                                 (uint32_t)(b & 0xffffffffu));
   uint32_t lo = 0, hi = world->s.manifold_count;
@@ -191,7 +193,14 @@ static const F3dManifold *previous(const F3dWorld *world, F3dBody a,
   }
   if (lo == world->s.manifold_count) return NULL;
   const F3dManifold *m = &world->manifolds[lo];
-  return m->a == a && m->b == b ? m : NULL;
+  if (m->a != a || m->b != b) return NULL;
+  uint32_t n = 1;
+  while (lo + n < world->s.manifold_count && world->manifolds[lo + n].a == a &&
+         world->manifolds[lo + n].b == b) {
+    n++;
+  }
+  *count = n;
+  return m;
 }
 
 static uint32_t find(uint32_t *parent, uint32_t i) {
@@ -596,7 +605,7 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
       pairs[pair_count++] = pairs[i];
     }
   }
-  if (!reserve_next(world, pair_count)) return;
+  if (!reserve_next(world, pair_count * F3D_PAIR_MANIFOLDS)) return;
   /* The narrow phase, pair by pair, shared out among the workers, each
    * pair's manifold made in its own slot; then the slots with one are
    * closed up in key order. */
@@ -610,13 +619,17 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
   f3d_pool_run(world->pool, pair_count, narrow_share, &narrow);
   uint32_t found = 0;
   for (uint32_t i = 0; i < pair_count; i++) {
-    if (!made[i]) continue;
-    if (found != i) {
-      f3d_copy(&world->next_manifolds[found], &world->next_manifolds[i], sizeof(F3dManifold));
+    for (uint32_t h = 0; h < made[i]; h++) {
+      const uint32_t from = i * F3D_PAIR_MANIFOLDS + h;
+      if (found != from) {
+        f3d_copy(&world->next_manifolds[found], &world->next_manifolds[from],
+                 sizeof(F3dManifold));
+      }
+      found++;
     }
-    found++;
   }
-  /* What began and ended touching: the two sorted arrays side by side. */
+  /* What began and ended touching, pair by pair — a pair touches when any
+   * of its manifolds does: the two sorted arrays side by side. */
   uint32_t i = 0, j = 0;
   const uint32_t before = world->s.manifold_count;
   while (i < before || j < found) {
@@ -624,24 +637,27 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
     const F3dManifold *now = j < found ? &world->next_manifolds[j] : NULL;
     const uint64_t ko = old ? manifold_key(old) : UINT64_MAX;
     const uint64_t kn = now ? manifold_key(now) : UINT64_MAX;
-    if (old && now && ko == kn && old->a == now->a && old->b == now->b) {
-      if (old->touching && !now->touching) {
-        f3d_push_pair_event(world, now->a, now->b, F3D_EVENT_CONTACT_ENDED);
-      } else if (!old->touching && now->touching) {
-        f3d_push_pair_event(world, now->a, now->b, F3D_EVENT_CONTACT_BEGAN);
-      }
-      i++;
-      j++;
-    } else if (now == NULL || (old && ko <= kn)) {
-      if (old->touching) {
-        f3d_push_pair_event(world, old->a, old->b, F3D_EVENT_CONTACT_ENDED);
-      }
-      i++;
-    } else {
-      if (now->touching) {
-        f3d_push_pair_event(world, now->a, now->b, F3D_EVENT_CONTACT_BEGAN);
-      }
-      j++;
+    const uint64_t key = ko < kn ? ko : kn;
+    const F3dManifold *named = ko <= kn ? old : now;
+    const F3dBody pa = named->a, pb = named->b;
+    uint32_t was = 0, is = 0;
+    while (i < before && manifold_key(&world->manifolds[i]) == key &&
+           world->manifolds[i].a == pa && world->manifolds[i].b == pb) {
+      was |= world->manifolds[i++].touching;
+    }
+    while (j < found && manifold_key(&world->next_manifolds[j]) == key &&
+           world->next_manifolds[j].a == pa && world->next_manifolds[j].b == pb) {
+      is |= world->next_manifolds[j++].touching;
+    }
+    /* Same slots, other bodies: what was there before has gone. */
+    if (old && now && ko == kn && (old->a != now->a || old->b != now->b)) {
+      if (was) f3d_push_pair_event(world, pa, pb, F3D_EVENT_CONTACT_ENDED);
+      continue;
+    }
+    if (was && !is) {
+      f3d_push_pair_event(world, pa, pb, F3D_EVENT_CONTACT_ENDED);
+    } else if (!was && is) {
+      f3d_push_pair_event(world, pa, pb, F3D_EVENT_CONTACT_BEGAN);
     }
   }
   /* The new manifolds become the world's, and the old array is the next
@@ -667,42 +683,52 @@ static void narrow_share(void *context, uint32_t worker, uint32_t begin, uint32_
   F3dWorld *world = n->world;
   for (uint32_t i = begin; i < end; i++) {
     n->made[i] = 0;
+    F3dManifold *m = &world->next_manifolds[i * F3D_PAIR_MANIFOLDS];
     const uint32_t a = (uint32_t)(n->pairs[i].key >> 32);
     const uint32_t b = (uint32_t)(n->pairs[i].key & 0xffffffffu);
     const F3dSlot *sa = &world->slots[a];
     const F3dSlot *sb = &world->slots[b];
     const F3dBody ha = f3d_handle_of(world, sa), hb = f3d_handle_of(world, sb);
-    F3dManifold *m = &world->next_manifolds[i];
     if (!active(sa) && !active(sb)) {
-      const F3dManifold *kept = previous(world, ha, hb);
+      uint32_t had = 0;
+      const F3dManifold *kept = previous(world, ha, hb, &had);
       if (kept != NULL) {
         /* By bytes: the padding is part of what a snapshot compares. */
-        f3d_copy(m, kept, sizeof *m);
-        n->made[i] = 1;
+        f3d_copy(m, kept, (size_t)had * sizeof *m);
+        n->made[i] = (uint8_t)had;
       }
       continue;
     }
-    f3d_zero(m, sizeof *m);
+    f3d_zero(m, F3D_PAIR_MANIFOLDS * sizeof *m);
     const F3dPlaced pa = f3d_placed_of(world, sa), pb = f3d_placed_of(world, sb);
-    if (f3d_collide(&pa, &pb, n->margin + speculative(world, sa, sb, n->dt), m) == 0) {
-      continue;
-    }
-    m->a = ha;
-    m->b = hb;
-    /* Warm start: a point made by the same features as one last step
-     * starts from what that one pushed with. */
-    const F3dManifold *old = previous(world, ha, hb);
-    if (old != NULL) {
-      for (uint32_t k = 0; k < m->count; k++) {
-        for (uint32_t o = 0; o < old->count; o++) {
-          if (old->points[o].id != m->points[k].id) continue;
-          m->points[k].normal_impulse = old->points[o].normal_impulse;
-          m->points[k].tangent_impulse[0] = old->points[o].tangent_impulse[0];
-          m->points[k].tangent_impulse[1] = old->points[o].tangent_impulse[1];
-          break;
+    const uint32_t made = f3d_collide_pair(
+        &pa, &pb, n->margin + speculative(world, sa, sb, n->dt), m);
+    if (made == 0) continue;
+    uint32_t had = 0;
+    const F3dManifold *old = previous(world, ha, hb, &had);
+    for (uint32_t h = 0; h < made; h++) {
+      F3dManifold *mh = &m[h];
+      mh->a = ha;
+      mh->b = hb;
+      mh->part = h;
+      /* Warm start: a point made by the same features as one last step —
+       * in either of the pair's manifolds — starts from what that one
+       * pushed with. */
+      for (uint32_t k = 0; k < mh->count; k++) {
+        int done = 0;
+        for (uint32_t q = 0; q < had && !done; q++) {
+          const F3dManifold *oq = &old[q];
+          for (uint32_t o = 0; o < oq->count; o++) {
+            if (oq->points[o].id != mh->points[k].id) continue;
+            mh->points[k].normal_impulse = oq->points[o].normal_impulse;
+            mh->points[k].tangent_impulse[0] = oq->points[o].tangent_impulse[0];
+            mh->points[k].tangent_impulse[1] = oq->points[o].tangent_impulse[1];
+            done = 1;
+            break;
+          }
         }
       }
     }
-    n->made[i] = 1;
+    n->made[i] = (uint8_t)made;
   }
 }

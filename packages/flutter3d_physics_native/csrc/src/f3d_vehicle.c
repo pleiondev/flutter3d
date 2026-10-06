@@ -233,8 +233,25 @@ static f3d_real mass_along(const F3dSlot *s, F3dSym3 inverse_inertia,
   return k > F3D_R(0.0) ? F3D_R(1.0) / k : F3D_R(0.0);
 }
 
-/* Casts wheel [w]'s ray and, when it lands, fills [t] and puts its spring
- * on the bus; 0 when it hangs. */
+/* A wheel's half width, as a share of its radius: what its cast is as
+ * wide as. A wheel has no width of its own here; a road tyre is about this
+ * shape. */
+#define F3D_WHEEL_HALF_WIDTH F3D_R(0.3)
+
+/* How much higher than the ray the wheel's rim has to meet something, m,
+ * for the rim to be what the wheel stands on. */
+#define F3D_WHEEL_RIM_LEAD F3D_R(0.005)
+
+/* Casts wheel [w] down its suspension and, when it lands, fills [t] and
+ * puts its spring on the bus; 0 when it hangs.
+ *
+ * Two casts: a ray down the wheel's middle, exact on a road, and the wheel
+ * itself — a cylinder of its radius on its axle, from fully compressed down
+ * through its travel. The ray alone would see a kerb or a plank only where
+ * it met it, and one a few centimetres wide not at all when the car crossed
+ * it between steps. Where the rim meets something higher than the ray
+ * does, the wheel stands on that, along the normal of what it met; else on
+ * what the ray found, so a car on a road runs as it would on the ray. */
 static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
                  F3dWheel *w, F3dMat3 frame, f3d_real dt, Tread *t) {
   const F3dVec3 up = turned(frame, v->up);
@@ -249,9 +266,37 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
   F3dBody ground = 0;
   f3d_real hit[F3D_HIT_FLOATS];
   const f3d_real reach = w->rest + w->radius;
-  const int touched = f3d_world_ray_cast(
+  int touched = f3d_world_ray_cast(
       world, origin.x, origin.y, origin.z, down.x, down.y, down.z, reach,
       s->mask, f3d_handle_of(world, s), &ground, hit);
+  f3d_real length = touched ? f3d_max(hit[6] - w->radius, F3D_R(0.0)) : w->rest;
+  F3dVec3 normal = f3d_v3(hit[3], hit[4], hit[5]);
+  int on_rim = 0;
+  /* The cylinder's axis is its local y: turned onto the axle, the shortest
+   * way. */
+  const F3dVec3 axle = f3d_cross(up, heading);
+  F3dQuat turn = {axle.z, F3D_R(0.0), -axle.x, F3D_R(1.0) + axle.y};
+  if (turn.w < F3D_R(1e-6)) {
+    turn.x = F3D_R(1.0);
+    turn.z = F3D_R(0.0);
+    turn.w = F3D_R(0.0);
+  }
+  F3dBody rim_ground = 0;
+  f3d_real rim[F3D_HIT_FLOATS];
+  if (f3d_world_cast_shape(
+          world, F3D_SHAPE_CYLINDER, w->radius, F3D_WHEEL_HALF_WIDTH * w->radius,
+          F3D_R(0.0), F3D_R(0.0), origin.x, origin.y, origin.z, turn.x, turn.y,
+          turn.z, turn.w, down.x * w->rest, down.y * w->rest, down.z * w->rest,
+          s->mask, f3d_handle_of(world, s), &rim_ground, rim)) {
+    const f3d_real at = rim[6] * w->rest;
+    if (!touched || at < length - F3D_WHEEL_RIM_LEAD) {
+      touched = 1;
+      ground = rim_ground;
+      length = at;
+      normal = f3d_v3(rim[3], rim[4], rim[5]);
+      on_rim = 1;
+    }
+  }
   w->touching = 0;
   w->force = F3D_R(0.0);
   w->lateral = F3D_R(0.0);
@@ -265,12 +310,15 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
     w->rotation += w->spin * dt;
     return 0;
   }
-  const F3dVec3 point = f3d_v3(hit[0], hit[1], hit[2]);
-  const F3dVec3 normal = f3d_v3(hit[3], hit[4], hit[5]);
   w->touching = 1;
   w->normal = normal;
-  w->length = f3d_max(hit[6] - w->radius, F3D_R(0.0));
+  w->length = length;
   w->centre = f3d_madd(origin, down, w->length);
+  /* Where the ray landed; or, on the rim, under the wheel's centre along
+   * what it met — a flat face meets the cylinder's whole width, and the
+   * cast names one end of that line. */
+  const F3dVec3 point = on_rim ? f3d_madd(w->centre, normal, -w->radius)
+                               : f3d_v3(hit[0], hit[1], hit[2]);
   f3d_zero(t, sizeof *t);
   t->point = point;
   t->lever = f3d_sub(point, s->position);

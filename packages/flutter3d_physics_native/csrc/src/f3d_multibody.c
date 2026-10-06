@@ -24,6 +24,7 @@
 enum {
   LINK_LIMIT = 1u << 0,
   LINK_MOTOR = 1u << 1,
+  LINK_CONE = 1u << 2,
 };
 
 static F3dQuat qmul(F3dQuat a, F3dQuat b) {
@@ -224,6 +225,29 @@ int f3d_multibody_set_motor(F3dWorld *world, F3dMultibody multibody,
   return 1;
 }
 
+int f3d_multibody_set_cone(F3dWorld *world, F3dMultibody multibody,
+                           uint32_t link, int enabled, f3d_real swing,
+                           f3d_real twist) {
+  F3dMultibodySlot *m = multibody_of(world, multibody);
+  if (m == NULL || link == 0 || link >= m->link_count) return 0;
+  F3dLink *l = &m->links[link];
+  if (l->type != F3D_JOINT_SPHERICAL) return 0;
+  if (enabled) {
+    if (!(f3d_finite(swing) && f3d_finite(twist) && swing > F3D_R(0.0) &&
+          swing <= F3D_PI && twist >= F3D_R(0.0) && twist <= F3D_PI)) {
+      return 0;
+    }
+    l->swing = swing;
+    l->twist = twist;
+    l->flags |= LINK_CONE;
+  } else {
+    l->flags &= ~(uint32_t)LINK_CONE;
+  }
+  F3dSlot *s = f3d_slot_of(world, l->body);
+  if (s != NULL) f3d_wake(world, s);
+  return 1;
+}
+
 uint32_t f3d_multibody_link_count(const F3dWorld *world,
                                   F3dMultibody multibody) {
   const F3dMultibodySlot *m = multibody_of(world, multibody);
@@ -280,6 +304,50 @@ static f3d_real unwrap(f3d_real a, f3d_real near) {
   while (a - near > F3D_PI) a -= turn;
   while (a - near < -F3D_PI) a += turn;
   return a;
+}
+
+/* A spherical joint's turn [q], in the parent's frame, as a swing of the
+ * axis [a] and a twist about it: q = swing · twist. The angles are the
+ * swing's, in [0, π], and the twist's, in (−π, π]. */
+static void split(F3dQuat q, F3dVec3 a, F3dQuat *swing, F3dQuat *twist,
+                  f3d_real *swung, f3d_real *twisted) {
+  if (q.w < F3D_R(0.0)) {
+    q.x = -q.x;
+    q.y = -q.y;
+    q.z = -q.z;
+    q.w = -q.w;
+  }
+  const f3d_real along = q.x * a.x + q.y * a.y + q.z * a.z;
+  F3dQuat t = {a.x * along, a.y * along, a.z * along, q.w};
+  t = qnorm(t);
+  *twist = t;
+  *swing = qnorm(qmul(q, qconj(t)));
+  const f3d_real sv = f3d_sqrt(swing->x * swing->x + swing->y * swing->y +
+                               swing->z * swing->z);
+  *swung = F3D_R(2.0) * f3d_atan2(sv, f3d_abs(swing->w));
+  *twisted = F3D_R(2.0) * f3d_atan2(t.x * a.x + t.y * a.y + t.z * a.z, t.w);
+}
+
+/* A spherical link's turn brought back inside its cone. */
+static void hold_cone(F3dLink *l) {
+  F3dQuat swing, twist;
+  f3d_real swung, twisted;
+  split(l->turn, l->axis, &swing, &twist, &swung, &twisted);
+  int changed = 0;
+  if (swung > l->swing) {
+    const F3dVec3 v = f3d_v3(swing.x, swing.y, swing.z);
+    const f3d_real len = f3d_sqrt(f3d_dot(v, v));
+    if (len > F3D_R(0.0)) {
+      swing = about(f3d_scale(v, (swing.w < F3D_R(0.0) ? F3D_R(-1.0) : F3D_R(1.0)) / len),
+                    l->swing);
+      changed = 1;
+    }
+  }
+  if (f3d_abs(twisted) > l->twist) {
+    twist = about(l->axis, twisted < F3D_R(0.0) ? -l->twist : l->twist);
+    changed = 1;
+  }
+  if (changed) l->turn = qnorm(qmul(swing, twist));
 }
 
 /* Link [l]'s joint read off where it and its parent stand. */
@@ -481,6 +549,7 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
     if ((l->flags & LINK_LIMIT) && l->dofs == 1) {
       l->q = f3d_clamp(l->q, l->lower, l->upper);
     }
+    if (l->flags & LINK_CONE) hold_cone(l);
     placed[k] = place(l, placed[l->parent]);
     slots[k]->position = placed[k].at;
     slots[k]->orientation = placed[k].turn;
@@ -557,6 +626,50 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
     if (!(inv > F3D_R(0.0))) continue;
     const f3d_real push = (want - x[d]) / inv;
     for (uint32_t i = 0; i < dn; i++) x[i] += u[i] * push;
+  }
+  /* Cones: a spherical link's spin relative to its parent, in the
+   * parent's frame, is its three joint speeds; what of it would carry the
+   * axis further out than the swing allows, or twist it past the twist, is
+   * pushed back through the whole tree as a limit is. */
+  for (uint32_t k = 1; k < n; k++) {
+    const F3dLink *l = &m->links[k];
+    if (!(l->flags & LINK_CONE)) continue;
+    const uint32_t d = l->first_dof;
+    F3dQuat swing, twist;
+    f3d_real swung, twisted;
+    split(l->turn, l->axis, &swing, &twist, &swung, &twisted);
+    const F3dVec3 out = rotate(l->turn, l->axis);
+    const F3dVec3 bend = f3d_cross(l->axis, out);
+    const f3d_real bent = f3d_sqrt(f3d_dot(bend, bend));
+    F3dVec3 dirs[3];
+    f3d_real limits[3], now[3];
+    uint32_t count = 0;
+    if (bent > F3D_R(1e-6)) {
+      dirs[count] = f3d_scale(bend, F3D_R(1.0) / bent);
+      limits[count] = l->swing;
+      now[count++] = swung;
+    }
+    dirs[count] = out;
+    limits[count] = l->twist;
+    now[count++] = twisted;
+    dirs[count] = f3d_scale(out, F3D_R(-1.0));
+    limits[count] = l->twist;
+    now[count++] = -twisted;
+    for (uint32_t c = 0; c < count; c++) {
+      const F3dVec3 j = dirs[c];
+      const f3d_real rate = j.x * x[d] + j.y * x[d + 1u] + j.z * x[d + 2u];
+      const f3d_real want = (limits[c] - now[c]) / dt;
+      if (rate <= want) continue;
+      for (uint32_t i = 0; i < dn; i++) u[i] = F3D_R(0.0);
+      u[d] = j.x;
+      u[d + 1u] = j.y;
+      u[d + 2u] = j.z;
+      solve(a, dn, u);
+      const f3d_real inv = j.x * u[d] + j.y * u[d + 1u] + j.z * u[d + 2u];
+      if (!(inv > F3D_R(0.0))) continue;
+      const f3d_real push = (want - rate) / inv;
+      for (uint32_t i = 0; i < dn; i++) x[i] += u[i] * push;
+    }
   }
   /* The joints' speeds kept, and every link moving as they say. */
   for (uint32_t k = 1; k < n; k++) {

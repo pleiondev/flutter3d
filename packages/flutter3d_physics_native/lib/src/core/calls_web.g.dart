@@ -281,6 +281,15 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber speed,
     JSNumber force,
   );
+  @JS('f3d_multibody_set_cone')
+  external JSNumber f3d_multibody_set_cone(
+    JSNumber world,
+    JSNumber multibody,
+    JSNumber link,
+    JSNumber enabled,
+    JSNumber swing,
+    JSNumber twist,
+  );
   @JS('f3d_multibody_link_count')
   external JSNumber f3d_multibody_link_count(
     JSNumber world,
@@ -1364,6 +1373,23 @@ int f3d_multibody_set_motor(
       enabled.toJS,
       speed.toJS,
       force.toJS,
+    )
+    .toDartInt;
+int f3d_multibody_set_cone(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double swing,
+  double twist,
+) => _x
+    .f3d_multibody_set_cone(
+      world.toJS,
+      multibody.toJS,
+      link.toJS,
+      enabled.toJS,
+      swing.toJS,
+      twist.toJS,
     )
     .toDartInt;
 int f3d_multibody_link_count(int world, int multibody) => _x

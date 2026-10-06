@@ -1733,6 +1733,33 @@ final class NativeWorld {
     }
   }
 
+  /// A cone on a spherical link: its axis, the one given to [addLink],
+  /// swings at most [swing] radians from where the parent holds it, and the
+  /// link twists about it at most [twist] either way. Null [swing] takes it
+  /// off. A shoulder in a ragdoll, a lamp on a ball joint that must not
+  /// flop over.
+  void setLinkCone(
+    NativeMultibody multibody,
+    int link, {
+    double? swing,
+    double twist = 3.141592653589793,
+  }) {
+    if (c.f3d_multibody_set_cone(
+          _live,
+          multibody.id,
+          link,
+          swing != null ? 1 : 0,
+          swing ?? 0.0,
+          twist,
+        ) ==
+        0) {
+      throw ArgumentError(
+        'a cone on link $link: not a spherical link, a '
+        'swing outside (0, π] or a twist outside [0, π]',
+      );
+    }
+  }
+
   /// A spherical link's turn in its parent's frame and its spin relative to
   /// the parent, as the last step left them.
   ({Quaternion turn, Vector3 spin}) linkTurn(

@@ -240,6 +240,91 @@ static void test_motor_moves_the_tree(void) {
   f3d_world_destroy(w);
 }
 
+static void test_cone(void) {
+  /* A ball hanging a metre under a ball joint, knocked sideways at four
+   * metres a second and spun about its rod. In a cone of half a radian and
+   * a twist of three tenths it stays inside both; without one it swings
+   * past a radian and turns freely. */
+  for (int coned = 0; coned < 2; coned++) {
+    F3dWorld *w = still_air();
+    const F3dBody top = post(w, 0, 3);
+    const F3dBody bob = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 2, 0, 1);
+    f3d_body_set_shape(w, bob, F3D_SHAPE_BOX, F3D_R(0.1), F3D_R(0.1), F3D_R(0.1));
+    const F3dMultibody m = f3d_multibody_create(w, top);
+    CHECK(f3d_multibody_add_link(w, m, 0, bob, F3D_JOINT_SPHERICAL, 0, 3, 0, 0, -1, 0) == 1);
+    if (coned) {
+      CHECK(f3d_multibody_set_cone(w, m, 1, 1, 0, F3D_R(0.3)) == 0);
+      CHECK(f3d_multibody_set_cone(w, m, 1, 1, F3D_R(0.5), F3D_R(4.0)) == 0);
+      CHECK(f3d_multibody_set_cone(w, m, 1, 1, F3D_R(0.5), F3D_R(0.3)) == 1);
+    }
+    f3d_body_set_velocity(w, bob, 4, 0, 0);
+    f3d_body_set_angular_velocity(w, bob, 0, 4, 0);
+    double most_swing = 0, most_twist = 0, most_out_at_edge = 0;
+    for (int i = 0; i < 120; i++) {
+      run(w, 1);
+      f3d_real j[8];
+      f3d_multibody_read_joint(w, m, 1, j);
+      /* The rod's direction, the turn applied to straight down. */
+      const F3dQuat q = {j[0], j[1], j[2], j[3]};
+      const F3dMat3 r = f3d_mat_of(q);
+      /* (0,-1,0) turned is -c1; how far down it points is c1.y. */
+      const double down = (double)r.c[1].y;
+      const double swing = acos(down > 1 ? 1 : down);
+      if (swing > most_swing) most_swing = swing;
+      /* The twist: twice the angle of the turn's part about the rod. */
+      const double along = -(double)q.y;
+      double tw = 2 * atan2(along, (double)q.w);
+      if (tw > M_PI) tw -= 2 * M_PI;
+      if (tw < -M_PI) tw += 2 * M_PI;
+      if (fabs(tw) > most_twist) most_twist = fabs(tw);
+      /* At the cone's edge, the spin the link keeps carries it no further
+       * out. */
+      if (fabs(tw) > 0.299) {
+        const F3dVec3 rod = f3d_scale(r.c[1], F3D_R(-1.0));
+        const double turning =
+            (tw > 0 ? 1 : -1) * (double)f3d_dot(f3d_v3(j[4], j[5], j[6]), rod);
+        if (turning > most_out_at_edge) most_out_at_edge = turning;
+      }
+      if (swing > 0.499) {
+        const F3dVec3 out = f3d_scale(r.c[1], F3D_R(-1.0));
+        const F3dVec3 bend = f3d_cross(f3d_v3(0, -1, 0), out);
+        const double bent = sqrt((double)f3d_dot(bend, bend));
+        const double rate = (double)f3d_dot(f3d_v3(j[4], j[5], j[6]), bend) / bent;
+        if (rate > most_out_at_edge) most_out_at_edge = rate;
+      }
+    }
+    if (coned) {
+      CHECK(most_out_at_edge < 0.05);
+      f3d_real j[8];
+      CHECK(most_swing <= 0.5 + 0.01);
+      CHECK(most_swing > 0.45);
+      CHECK(most_twist <= 0.3 + 0.02);
+      CHECK(most_twist > 0.25);
+      /* Put a radian out by hand, it reads back inside after one step. */
+      f3d_body_set_velocity(w, bob, 0, 0, 0);
+      f3d_body_set_angular_velocity(w, bob, 0, 0, 0);
+      /* A ball joint is read from how the link is turned: turned a
+       * radian about z, it swings out a radian. */
+      f3d_body_set_orientation(w, bob, 0, 0, (f3d_real)sin(0.5), (f3d_real)cos(0.5));
+      run(w, 1);
+      f3d_multibody_read_joint(w, m, 1, j);
+      const F3dQuat back = {j[0], j[1], j[2], j[3]};
+      const double down = (double)f3d_mat_of(back).c[1].y;
+      CHECK(acos(down > 1 ? 1 : down) <= 0.5 + 1e-3);
+      /* Turned a radian about its rod, it twists back to the edge. */
+      f3d_body_set_orientation(w, bob, 0, (f3d_real)sin(0.5), 0, (f3d_real)cos(0.5));
+      f3d_body_set_angular_velocity(w, bob, 0, 0, 0);
+      run(w, 1);
+      f3d_multibody_read_joint(w, m, 1, j);
+      CHECK(fabs(2 * atan2(-(double)j[1], (double)j[3])) <= 0.3 + 1e-3);
+    } else {
+      CHECK(most_swing > 1.0);
+      CHECK(most_twist > 1.0);
+    }
+    f3d_world_destroy(w);
+  }
+}
+
 static void test_snapshot(void) {
   F3dWorld *w = still_air();
   const F3dBody top = post(w, 0, 5);
@@ -279,6 +364,7 @@ int main(void) {
   test_floating_lands();
   test_limits_and_motor();
   test_motor_moves_the_tree();
+  test_cone();
   test_snapshot();
   return finish();
 }

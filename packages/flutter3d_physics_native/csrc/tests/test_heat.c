@@ -219,6 +219,111 @@ static void test_fire(void) {
   f3d_world_destroy(w);
 }
 
+static F3dBody stone_ball(F3dWorld *w, f3d_real x) {
+  const F3dBody b = f3d_body_create(w, F3D_BODY_FIXED, x, 0, 0, 10);
+  f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, F3D_R(0.2), 0, 0);
+  F3dMaterial m;
+  f3d_material_preset(F3D_MATERIAL_STONE, &m);
+  f3d_body_set_material(w, b, &m);
+  return b;
+}
+
+static void test_radiation_between_bodies(void) {
+  /* A stone ball at 1000 K half a metre from one at the air's temperature,
+   * against each alone: the cold one warms by what the hot one gives up
+   * beyond its own cooling, joule for joule. */
+  f3d_real alone_hot, alone_cold, hot, cold;
+  for (int pair = 0; pair < 2; pair++) {
+    F3dWorld *w = f3d_world_create();
+    F3dBody a = 0, b = 0;
+    if (pair) {
+      a = stone_ball(w, 0);
+      b = stone_ball(w, F3D_R(0.5));
+    } else {
+      a = stone_ball(w, 0);
+    }
+    f3d_body_set_temperature(w, a, 1000);
+    f3d_world_step(w, F3D_R(0.1));
+    f3d_real ta;
+    f3d_body_get_temperature(w, a, &ta);
+    if (pair) {
+      f3d_real tb;
+      f3d_body_get_temperature(w, b, &tb);
+      hot = ta;
+      cold = tb;
+    } else {
+      alone_hot = ta;
+      /* A lone body at the air's temperature stays there. */
+      F3dWorld *w2 = f3d_world_create();
+      const F3dBody c = stone_ball(w2, 0);
+      f3d_world_step(w2, F3D_R(0.1));
+      f3d_body_get_temperature(w2, c, &alone_cold);
+      f3d_world_destroy(w2);
+    }
+    f3d_world_destroy(w);
+  }
+  CHECK(cold > alone_cold + 1e-4);
+  CHECK(hot < alone_hot);
+  /* To three per cent: near 1000 K a float steps by 6e-5, a fiftieth of
+   * the hundredth of a kelvin compared here, and a ball that has given heat
+   * away loses a little less of the rest to the air. */
+  CHECK_NEAR((alone_hot - hot), (cold - alone_cold), 0.03 * (cold - alone_cold));
+  /* Two metres apart it sees a tenth as much of the sky: much less. */
+  F3dWorld *w = f3d_world_create();
+  const F3dBody a = stone_ball(w, 0);
+  const F3dBody b = stone_ball(w, 2);
+  f3d_body_set_temperature(w, a, 1000);
+  f3d_world_step(w, F3D_R(0.1));
+  f3d_real far;
+  f3d_body_get_temperature(w, b, &far);
+  CHECK(far - alone_cold < (cold - alone_cold) / 10);
+  (void)a;
+  f3d_world_destroy(w);
+}
+
+static F3dBody crate(F3dWorld *w, f3d_real x, f3d_real y) {
+  /* A wooden crate half a metre on a side, ten kilograms of planks. */
+  const F3dBody b = f3d_body_create(w, F3D_BODY_FIXED, x, y, 0, 10);
+  f3d_body_set_shape(w, b, F3D_SHAPE_BOX, F3D_R(0.25), F3D_R(0.25), F3D_R(0.25));
+  F3dMaterial m;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &m);
+  f3d_body_set_material(w, b, &m);
+  return b;
+}
+
+static void test_fire_spreads(void) {
+  /* One crate alight, one stacked on it, a row of two beside it, and one
+   * four metres off. The fire climbs first, into the crate standing in its
+   * flame; it reaches the crate beside it, and from that one the next; the
+   * far one only warms. */
+  F3dWorld *w = f3d_world_create();
+  const F3dBody lit = crate(w, 0, F3D_R(0.25));
+  const F3dBody above = crate(w, 0, F3D_R(0.76));
+  const F3dBody beside = crate(w, F3D_R(0.52), F3D_R(0.25));
+  const F3dBody next = crate(w, F3D_R(1.1), F3D_R(0.25));
+  const F3dBody far = crate(w, 4, F3D_R(0.25));
+  f3d_body_set_temperature(w, lit, 700);
+  int when[5] = {-1, -1, -1, -1, -1};
+  const F3dBody all[5] = {lit, above, beside, next, far};
+  f3d_real hottest_far = 0;
+  for (int i = 0; i < 1500; i++) {
+    f3d_world_step(w, 1);
+    for (int k = 0; k < 5; k++) {
+      if (when[k] < 0 && burning(w, all[k])) when[k] = i;
+    }
+    f3d_real t;
+    f3d_body_get_temperature(w, far, &t);
+    if (t > hottest_far) hottest_far = t;
+  }
+  CHECK(when[0] == 0);
+  CHECK(when[1] > 0 && when[1] < 300);
+  CHECK(when[2] > when[1] && when[2] < 400);
+  CHECK(when[3] > when[2]);
+  CHECK(when[4] < 0);
+  CHECK(hottest_far < 330);
+  f3d_world_destroy(w);
+}
+
 static void test_burning_body_gets_lighter(void) {
   /* A dynamic log that burns loses mass and, with it, inertia; its
    * velocity stays, since what burns leaves at the body's speed. */
@@ -322,6 +427,8 @@ int main(void) {
   test_radiation_cannot_overshoot();
   test_wind_cools();
   test_fire();
+  test_radiation_between_bodies();
+  test_fire_spreads();
   test_burning_body_gets_lighter();
   test_water();
   return finish();

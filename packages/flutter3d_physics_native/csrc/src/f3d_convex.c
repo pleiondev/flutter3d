@@ -1115,9 +1115,58 @@ static int near_triangle(void *context, int32_t leaf) {
   return g->n < F3D_MESH_NEAR;
 }
 
-uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
-                          f3d_real margin, F3dManifold *out) {
+void f3d_join_points(F3dVec3 *pts, const F3dVec3 *normals, f3d_real *depth,
+                     uint32_t *ids, const uint8_t *faces, uint32_t found,
+                     F3dManifold *out, F3dManifold *second) {
   out->count = 0;
+  if (second != NULL) second->count = 0;
+  if (found == 0) return;
+  uint32_t best = 0;
+  for (uint32_t i = 1; i < found; i++) {
+    if (depth[i] > depth[best]) best = i;
+  }
+  const F3dVec3 n = normals[best];
+  /* The second face: the deepest point that does not agree with the
+   * first. */
+  int other = -1;
+  for (uint32_t i = 0; i < found; i++) {
+    if (f3d_dot(normals[i], n) >= F3D_R(0.95)) continue;
+    if (faces != NULL && !faces[i]) continue;
+    if (other < 0 || depth[i] > depth[other]) other = (int)i;
+  }
+  F3dVec3 kp[64], sp[64];
+  f3d_real kd[64], sd[64];
+  uint32_t ki[64], si[64];
+  uint32_t kept = 0, rest = 0;
+  const F3dVec3 m = other >= 0 ? normals[other] : n;
+  for (uint32_t i = 0; i < found && i < 64u; i++) {
+    if (f3d_dot(normals[i], n) >= F3D_R(0.95)) {
+      kp[kept] = pts[i];
+      kd[kept] = depth[i];
+      ki[kept++] = ids[i];
+    } else if (second != NULL && other >= 0 &&
+               (faces == NULL || faces[i]) &&
+               f3d_dot(normals[i], m) >= F3D_R(0.95)) {
+      sp[rest] = pts[i];
+      sd[rest] = depth[i];
+      si[rest++] = ids[i];
+    }
+  }
+  four(kp, kd, ki, &kept, n);
+  out->normal = n;
+  for (uint32_t i = 0; i < kept; i++) emit(out, kp[i], kd[i], ki[i]);
+  if (second != NULL && rest > 0) {
+    four(sp, sd, si, &rest, m);
+    second->normal = m;
+    for (uint32_t i = 0; i < rest; i++) emit(second, sp[i], sd[i], si[i]);
+  }
+}
+
+uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
+                          f3d_real margin, F3dManifold *out,
+                          F3dManifold *second) {
+  out->count = 0;
+  if (second != NULL) second->count = 0;
   if (mesh->mesh == NULL || mesh->mesh_tree == NULL) return 0;
   const f3d_real r = rounding_of(body);
   /* The body's box in the mesh's frame, by its support along each of the
@@ -1153,6 +1202,7 @@ uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
   F3dVec3 pts[ROOM], normals[ROOM];
   f3d_real depth[ROOM];
   uint32_t ids[ROOM];
+  uint8_t faces[ROOM];
   uint32_t found = 0;
   for (uint32_t q = 0; q < near.n; q++) {
     const uint32_t t = near.t[q];
@@ -1227,27 +1277,13 @@ uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
       normals[found] = tm.normal;
       depth[found] = tm.points[k].depth;
       ids[found] = (t << 4) | (tm.points[k].id & 15u);
+      faces[found] = f3d_dot(tm.normal, face) >= F3D_R(0.9999);
       found++;
     }
   }
   if (found == 0) return 0;
-  /* One manifold: the deepest point's normal, and every point whose
-   * triangle agrees with it to eighteen degrees. */
-  uint32_t best = 0;
-  for (uint32_t i = 1; i < found; i++) {
-    if (depth[i] > depth[best]) best = i;
-  }
-  const F3dVec3 n = normals[best];
-  uint32_t kept = 0;
-  for (uint32_t i = 0; i < found; i++) {
-    if (f3d_dot(normals[i], n) < F3D_R(0.95)) continue;
-    pts[kept] = pts[i];
-    depth[kept] = depth[i];
-    ids[kept] = ids[i];
-    kept++;
-  }
-  four(pts, depth, ids, &kept, n);
-  out->normal = n;
-  for (uint32_t i = 0; i < kept; i++) emit(out, pts[i], depth[i], ids[i]);
+  /* The deepest point's normal and every point whose triangle agrees with
+   * it to eighteen degrees; and, when asked for, the second face's. */
+  f3d_join_points(pts, normals, depth, ids, faces, found, out, second);
   return out->count;
 }

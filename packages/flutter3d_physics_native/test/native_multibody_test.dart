@@ -4,6 +4,8 @@
 /// away.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -133,5 +135,37 @@ void main() {
     // Falling from level, it has turned about z, the negative way.
     expect(turn.turn.z, lessThan(-0.05));
     expect(turn.spin.z, lessThan(-0.5));
+  });
+
+  test('a cone keeps a ball joint from swinging out past it', () {
+    final top = world.addBody(
+      position: Vector3(0.0, 3.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final bob = world.addBody(position: Vector3(0.0, 2.0, 0.0));
+    world.setShape(bob, const NativeShape.sphere(0.1));
+    final lamp = world.createMultibody(top);
+    world
+      ..addLink(
+        lamp,
+        bob,
+        type: NativeJointType.spherical,
+        anchor: Vector3(0.0, 3.0, 0.0),
+        axis: Vector3(0.0, -1.0, 0.0),
+      )
+      ..setLinkCone(lamp, 1, swing: 0.5, twist: 0.3)
+      ..setVelocity(bob, Vector3(4.0, 0.0, 0.0));
+    var most = 0.0;
+    for (var i = 0; i < 60; i++) {
+      world.step(1.0 / 60.0);
+      // How far the rod is from straight down.
+      final rod = world.positionOf(bob) - Vector3(0.0, 3.0, 0.0);
+      most = math.max(most, math.acos(-rod.y / rod.length));
+    }
+    // Mutation: the cone not passed to the core — it swings past a radian.
+    expect(most, inInclusiveRange(0.45, 0.51));
+    expect(() => world.setLinkCone(lamp, 1, swing: 0.0), throwsArgumentError);
+    world.setLinkCone(lamp, 1);
   });
 }

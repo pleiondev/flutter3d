@@ -792,6 +792,34 @@ int f3d_multibody_set_motor(
   force,
 );
 
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Int32, Float, Float)>(
+  symbol: 'f3d_multibody_set_cone',
+  isLeaf: true,
+)
+external int _f3d_multibody_set_cone(
+  Pointer<Void> world,
+  int multibody,
+  int link,
+  int enabled,
+  double swing,
+  double twist,
+);
+int f3d_multibody_set_cone(
+  int world,
+  int multibody,
+  int link,
+  int enabled,
+  double swing,
+  double twist,
+) => _f3d_multibody_set_cone(
+  Pointer.fromAddress(world),
+  multibody,
+  link,
+  enabled,
+  swing,
+  twist,
+);
+
 @Native<Uint32 Function(Pointer<Void>, Uint32)>(
   symbol: 'f3d_multibody_link_count',
   isLeaf: true,

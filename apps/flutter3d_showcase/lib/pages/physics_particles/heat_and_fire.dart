@@ -62,10 +62,6 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   /// Half a board: twenty centimetres square and four thick.
   static Vector3 get _board => Vector3(0.02, 0.1, 0.1);
   static const double _apart = 0.3;
-  static const double _sigma = 5.670374e-8;
-
-  /// How much of what a board's near face sees is the heater.
-  static const double _view = 0.8;
 
   @override
   void configureView(DemoContext context) {
@@ -133,32 +129,6 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   }
   // #endregion wind
 
-  // #region radiate
-  /// The heat the heater's face throws onto a board's facing one over [dt]:
-  /// εσ(T_h⁴ − T⁴) on twenty centimetres square, times the share of what
-  /// the board sees that is the heater. The core passes heat across a
-  /// contact and gives it to the air, but bodies apart do not shine on each
-  /// other, so the page works this out and hands it in as heat.
-  void _radiate(double dt) {
-    final NativeWorld world = _world!;
-    final double source = world.temperatureOf(_heater);
-    for (final (NativeBody b, double emissivity) in <(NativeBody, double)>[
-      (_wood, NativeMaterial.wood().emissivity),
-      (_steel, NativeMaterial.steel().emissivity),
-    ]) {
-      final double t = world.temperatureOf(b);
-      final double face = 4.0 * _board.y * _board.z;
-      final double watts =
-          emissivity *
-          _sigma *
-          (math.pow(source, 4) - math.pow(t, 4)) *
-          face *
-          _view;
-      world.addHeat(b, watts * dt);
-    }
-  }
-  // #endregion radiate
-
   // #region douse
   /// Half a litre of water on the wood, and the heater let cool to the air.
   /// The water holds the board at its boiling point, below where wood
@@ -172,10 +142,9 @@ final class HeatAndFireDemo extends ShowcaseDemo {
   }
   // #endregion douse
 
-  /// One step of [dt]: the heater's heat in, the world on, and what it said
-  /// happened.
+  /// One step of [dt]: the world on, and what it said happened. The core
+  /// passes the heater's radiation to the boards itself.
   List<NativeEvent> _advance(double dt) {
-    _radiate(dt);
     // #region step
     _world!.step(dt);
     final List<NativeEvent> fire = <NativeEvent>[
@@ -393,7 +362,7 @@ final class HeatAndFireDemo extends ShowcaseDemo {
     final NativeWorld world = _world!;
     final List<NativeEvent> said = <NativeEvent>[];
     var steps = 0;
-    while (_caught == null && steps < 200) {
+    while (_caught == null && steps < 600) {
       said.addAll(_advance(1.0));
       steps++;
     }

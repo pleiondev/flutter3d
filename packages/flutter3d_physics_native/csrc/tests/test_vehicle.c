@@ -189,6 +189,33 @@ static void test_drives_through_a_turn(void) {
   CHECK_NEAR(speeds[1], speeds[0], 0.02);
 }
 
+static void test_climbs_a_plank(void) {
+  /* A plank three centimetres wide and six high across the road, crossed
+   * at five metres a second: eight centimetres a step. A ray down each
+   * wheel's middle steps over it and the car never feels it; the wheel's
+   * rim meets it and the car rides up over it. */
+  F3dWorld *w = road();
+  const F3dBody plank = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(0.03), 6, 0);
+  f3d_body_set_shape(w, plank, F3D_SHAPE_BOX, 3, F3D_R(0.03), F3D_R(0.015));
+  F3dBody chassis;
+  car(w, F3D_R(0.86), 1, &chassis);
+  run(w, 60);
+  f3d_body_set_velocity(w, chassis, 0, 0, 5);
+  double most = 0;
+  for (int i = 0; i < 150; i++) {
+    run(w, 1);
+    f3d_real vel[3];
+    f3d_body_get_velocity(w, chassis, vel);
+    if (fabs((double)vel[1]) > most) most = fabs((double)vel[1]);
+  }
+  CHECK(most > 0.05);
+  /* And over it: it went on past the plank. */
+  f3d_real at[3];
+  f3d_body_get_position(w, chassis, at);
+  CHECK(at[2] > 10);
+  f3d_world_destroy(w);
+}
+
 static void test_pushes_back(void) {
   /* A car on a free platform as heavy as itself, on a floor with no
    * friction: driving forward pushes the platform back, and what the two
@@ -287,6 +314,7 @@ int main(void) {
   test_drives_and_brakes();
   test_steers();
   test_drives_through_a_turn();
+  test_climbs_a_plank();
   test_pushes_back();
   test_ice();
   test_upside_down();

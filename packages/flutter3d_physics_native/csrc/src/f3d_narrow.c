@@ -598,31 +598,62 @@ static int classic(const F3dPlaced *p) {
          (p->kind == F3D_SHAPE_BOX && p->rounding == F3D_R(0.0));
 }
 
+static void mark_touching(F3dManifold *m) {
+  m->touching = 0;
+  for (uint32_t i = 0; i < m->count; i++) {
+    if (m->points[i].depth >= -F3D_LINEAR_SLOP) m->touching = 1;
+  }
+}
+
+/* f3d_collide, with a mesh's or a compound's second face into [second]
+ * when it is not null. */
+static uint32_t collide(const F3dPlaced *pa, const F3dPlaced *pb,
+                        f3d_real margin, F3dManifold *out,
+                        F3dManifold *second);
+
 uint32_t f3d_collide(const F3dPlaced *pa, const F3dPlaced *pb, f3d_real margin,
                      F3dManifold *out) {
+  return collide(pa, pb, margin, out, NULL);
+}
+
+uint32_t f3d_collide_pair(const F3dPlaced *pa, const F3dPlaced *pb,
+                          f3d_real margin, F3dManifold *out) {
+  out[1].count = 0;
+  if (collide(pa, pb, margin, &out[0], &out[1]) == 0) return 0;
+  out[0].part = 0;
+  out[1].part = 1;
+  return out[1].count > 0 ? 2u : 1u;
+}
+
+static uint32_t collide(const F3dPlaced *pa, const F3dPlaced *pb,
+                        f3d_real margin, F3dManifold *out,
+                        F3dManifold *second) {
   out->count = 0;
   out->touching = 0;
+  if (second != NULL) {
+    second->count = 0;
+    second->touching = 0;
+  }
   uint32_t count = 0;
   if (pa->kind == F3D_SHAPE_POINT || pb->kind == F3D_SHAPE_POINT) return 0;
   if (pa->kind == F3D_SHAPE_COMPOUND || pb->kind == F3D_SHAPE_COMPOUND) {
-    count = f3d_collide_compound(pa, pb, margin, out);
-    for (uint32_t i = 0; i < count; i++) {
-      if (out->points[i].depth >= -F3D_LINEAR_SLOP) out->touching = 1;
-    }
+    count = f3d_collide_compound(pa, pb, margin, out, second);
+    mark_touching(out);
+    if (second != NULL) mark_touching(second);
     return count;
   }
   if (pa->kind == F3D_SHAPE_MESH || pb->kind == F3D_SHAPE_MESH) {
     if (pa->kind == F3D_SHAPE_MESH && pb->kind == F3D_SHAPE_MESH) return 0;
     if (pb->kind == F3D_SHAPE_MESH) {
-      count = f3d_collide_mesh(pb, pa, margin, out);
+      count = f3d_collide_mesh(pb, pa, margin, out, second);
     } else {
-      count = f3d_collide_mesh(pa, pb, margin, out);
+      count = f3d_collide_mesh(pa, pb, margin, out, second);
       out->normal = f3d_scale(out->normal, F3D_R(-1.0));
+      if (second != NULL) second->normal = f3d_scale(second->normal, F3D_R(-1.0));
     }
     out->count = count;
-    for (uint32_t i = 0; i < count; i++) {
-      if (out->points[i].depth >= -F3D_LINEAR_SLOP) out->touching = 1;
-    }
+    mark_touching(out);
+    if (second != NULL) mark_touching(second);
     return count;
   }
   if (!classic(pa) || !classic(pb)) {

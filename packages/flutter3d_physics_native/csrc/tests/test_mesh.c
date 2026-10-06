@@ -174,6 +174,95 @@ static void test_no_bumps_at_seams(void) {
   CHECK(smooth < 0.05);
 }
 
+/* A corner of a room as one mesh: a floor four metres square at y = 0 and
+ * a wall two metres high along x = 1, facing back into the room. */
+static F3dBody corner(F3dWorld *w) {
+  const f3d_real v[] = {-2, 0, -2, 1, 0, -2, 1, 0, 2, -2, 0, 2,
+                        1,  2, -2, 1, 2, 2};
+  /* The floor faces up; the wall faces −x. */
+  const uint32_t t[] = {0, 3, 2, 0, 2, 1, 1, 2, 5, 1, 5, 4};
+  const uint32_t mesh = f3d_world_create_mesh(w, v, 6, t, 4);
+  const F3dBody b = f3d_body_create(w, F3D_BODY_FIXED, 0, 0, 0, 0);
+  f3d_body_set_mesh(w, b, mesh);
+  /* No friction: what comes at the wall reaches it at full speed. */
+  f3d_body_set_friction(w, b, 0);
+  return b;
+}
+
+/* How far [body], [half] across in x and [low] below its origin, ends up
+ * into the floor and into the wall at worst, run into the corner at three
+ * metres a second. */
+static void into_corner(F3dWorld *w, F3dBody body, double half, double low,
+                        double *floor, double *wall) {
+  f3d_body_set_friction(w, body, 0);
+  f3d_body_set_velocity(w, body, 3, 0, 0);
+  *floor = 0;
+  *wall = 0;
+  for (int i = 0; i < 120; i++) {
+    f3d_world_step(w, F3D_R(1.0 / 60.0));
+    f3d_real p[3];
+    f3d_body_get_position(w, body, p);
+    if (low - (double)p[1] > *floor) *floor = low - (double)p[1];
+    if ((double)p[0] + half - 1 > *wall) *wall = (double)p[0] + half - 1;
+  }
+}
+
+static void test_corner(void) {
+  /* A box run into the corner rests on the floor and stops at the wall:
+   * the mesh meets it with two faces, and both hold. With one manifold a
+   * pair, the deeper face's, the other face let it in. */
+  F3dWorld *w = f3d_world_create();
+  f3d_world_set_sleep(w, 0, 0);
+  corner(w);
+  const F3dBody box = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(0.25), 0, 1);
+  f3d_body_set_shape(w, box, F3D_SHAPE_BOX, F3D_R(0.25), F3D_R(0.25), F3D_R(0.25));
+  run(w, 20);
+  double floor, wall;
+  into_corner(w, box, 0.25, 0.25, &floor, &wall);
+  CHECK(floor < 0.01);
+  CHECK(wall < 0.01);
+  /* Pressed into the corner, it has two manifolds with the room. */
+  f3d_body_set_velocity(w, box, 1, 0, 0);
+  f3d_world_step(w, F3D_R(1.0 / 60.0));
+  int manifolds = 0;
+  for (uint32_t i = 0; i < w->s.manifold_count; i++) {
+    if (w->manifolds[i].b == box || w->manifolds[i].a == box) manifolds++;
+  }
+  CHECK(manifolds == 2);
+  f3d_world_destroy(w);
+  /* A bench of three boxes, one body, the same. */
+  w = f3d_world_create();
+  f3d_world_set_sleep(w, 0, 0);
+  corner(w);
+  const uint32_t kinds[3] = {F3D_SHAPE_BOX, F3D_SHAPE_BOX, F3D_SHAPE_BOX};
+  f3d_real reals[3 * F3D_COMPOUND_PART_FLOATS] = {0};
+  const f3d_real parts[3][6] = {{0, F3D_R(0.45), 0, F3D_R(0.4), F3D_R(0.05), F3D_R(0.2)},
+                                {F3D_R(-0.35), F3D_R(0.2), 0, F3D_R(0.05), F3D_R(0.2), F3D_R(0.2)},
+                                {F3D_R(0.35), F3D_R(0.2), 0, F3D_R(0.05), F3D_R(0.2), F3D_R(0.2)}};
+  for (int k = 0; k < 3; k++) {
+    f3d_real *r = &reals[k * F3D_COMPOUND_PART_FLOATS];
+    /* Size, rounding, place, turn. */
+    r[0] = parts[k][3];
+    r[1] = parts[k][4];
+    r[2] = parts[k][5];
+    r[4] = parts[k][0];
+    r[5] = parts[k][1];
+    r[6] = parts[k][2];
+    r[10] = 1;
+  }
+  const uint32_t bench_shape = f3d_world_create_compound(w, kinds, NULL, reals, 3);
+  CHECK(bench_shape != 0);
+  f3d_real offset[3];
+  f3d_world_get_compound_offset(w, bench_shape, offset);
+  const F3dBody bench = f3d_body_create(w, F3D_BODY_DYNAMIC, -1, offset[1], 0, 5);
+  CHECK(f3d_body_set_compound(w, bench, bench_shape) == 1);
+  run(w, 30);
+  into_corner(w, bench, 0.4, (double)offset[1], &floor, &wall);
+  CHECK(floor < 0.01);
+  CHECK(wall < 0.01);
+  f3d_world_destroy(w);
+}
+
 static void test_one_sided(void) {
   /* A ball under the grid going up passes through it, as through the back
    * of a wall. */
@@ -269,6 +358,7 @@ int main(void) {
   test_building();
   test_resting();
   test_no_bumps_at_seams();
+  test_corner();
   test_one_sided();
   test_rolling_down_a_mesh();
   test_snapshot();

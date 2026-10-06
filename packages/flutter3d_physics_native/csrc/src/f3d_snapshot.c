@@ -11,7 +11,7 @@
 #include "f3d_internal.h"
 
 #define F3D_SNAPSHOT_MAGIC 0x53443346u /* "F3DS", little-endian. */
-#define F3D_SNAPSHOT_VERSION 12u
+#define F3D_SNAPSHOT_VERSION 13u
 
 typedef struct F3dSnapshotHeader {
   uint32_t magic;

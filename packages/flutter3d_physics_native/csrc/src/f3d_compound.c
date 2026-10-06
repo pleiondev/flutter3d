@@ -279,8 +279,10 @@ static f3d_real reach_of(const F3dPlaced *side, const F3dPlaced *placed,
 }
 
 uint32_t f3d_collide_compound(const F3dPlaced *a, const F3dPlaced *b,
-                              f3d_real margin, F3dManifold *out) {
+                              f3d_real margin, F3dManifold *out,
+                              F3dManifold *second) {
   out->count = 0;
+  if (second != NULL) second->count = 0;
   const uint32_t na = parts_of(a), nb = parts_of(b);
   enum { ROOM = 64 };
   F3dVec3 pts[ROOM], normals[ROOM];
@@ -298,42 +300,27 @@ uint32_t f3d_collide_compound(const F3dPlaced *a, const F3dPlaced *b,
         const f3d_real most = ra + rb + margin;
         if (f3d_dot(d, d) > most * most) continue;
       }
-      F3dManifold tm;
-      f3d_zero(&tm, sizeof tm);
-      const uint32_t n = f3d_collide(&pa, &pb, margin, &tm);
+      /* A part against a mesh may meet two of its faces: both kept, each
+       * point with its own face's normal, for the join below. */
+      F3dManifold made[F3D_PAIR_MANIFOLDS];
+      f3d_zero(made, sizeof made);
+      const uint32_t manifolds = f3d_collide_pair(&pa, &pb, margin, made);
       /* The pair of parts in the top byte, so a point keeps its warm start
        * from step to step and two parts' points are not taken for one. */
-      const uint32_t pair = ((i * F3D_COMPOUND_MOST_PARTS + j) * 37u + 1u) & 0xFFu;
-      for (uint32_t k = 0; k < n && found < ROOM; k++) {
-        pts[found] = tm.points[k].point;
-        normals[found] = tm.normal;
-        depth[found] = tm.points[k].depth;
-        ids[found] = (tm.points[k].id & 0x00FFFFFFu) | (pair << 24);
-        found++;
+      const uint32_t parts = ((i * F3D_COMPOUND_MOST_PARTS + j) * 37u + 1u) & 0xFFu;
+      for (uint32_t h = 0; h < manifolds; h++) {
+        const F3dManifold *tm = &made[h];
+        for (uint32_t k = 0; k < tm->count && found < ROOM; k++) {
+          pts[found] = tm->points[k].point;
+          normals[found] = tm->normal;
+          depth[found] = tm->points[k].depth;
+          ids[found] = (tm->points[k].id & 0x00FFFFFFu) | (parts << 24);
+          found++;
+        }
       }
     }
   }
   if (found == 0) return 0;
-  uint32_t best = 0;
-  for (uint32_t i = 1; i < found; i++) {
-    if (depth[i] > depth[best]) best = i;
-  }
-  const F3dVec3 n = normals[best];
-  uint32_t kept = 0;
-  for (uint32_t i = 0; i < found; i++) {
-    if (f3d_dot(normals[i], n) < F3D_R(0.95)) continue;
-    pts[kept] = pts[i];
-    depth[kept] = depth[i];
-    ids[kept] = ids[i];
-    kept++;
-  }
-  f3d_keep_four(pts, depth, ids, &kept, n);
-  out->normal = n;
-  for (uint32_t i = 0; i < kept && out->count < F3D_MANIFOLD_POINTS; i++) {
-    F3dContactPoint *c = &out->points[out->count++];
-    c->point = pts[i];
-    c->depth = depth[i];
-    c->id = ids[i];
-  }
+  f3d_join_points(pts, normals, depth, ids, NULL, found, out, second);
   return out->count;
 }

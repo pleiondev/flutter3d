@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 25u
+#define F3D_ABI_VERSION 26u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -561,6 +561,15 @@ F3D_API int f3d_multibody_set_limits(F3dWorld *world, F3dMultibody multibody,
 F3D_API int f3d_multibody_set_motor(F3dWorld *world, F3dMultibody multibody,
                                     uint32_t link, int enabled,
                                     f3d_real speed, f3d_real force);
+
+/* A cone on a spherical link: its axis — the one given when it was added —
+ * swings at most [swing] from where the parent holds it, in (0, π], and the
+ * link twists about that axis at most [twist] either way, in [0, π].
+ * [enabled] nought takes it off. 0 for another kind of link, or a value out
+ * of range. */
+F3D_API int f3d_multibody_set_cone(F3dWorld *world, F3dMultibody multibody,
+                                   uint32_t link, int enabled, f3d_real swing,
+                                   f3d_real twist);
 
 /* How many links, and how many degrees of freedom. */
 F3D_API uint32_t f3d_multibody_link_count(const F3dWorld *world,

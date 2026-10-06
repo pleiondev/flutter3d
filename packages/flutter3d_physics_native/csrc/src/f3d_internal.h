@@ -187,8 +187,15 @@ typedef struct F3dManifold {
   /* 1 while some point is within the solver's slop of touching, or past
    * it: not only within the margin. */
   uint32_t touching;
+  /* Which of a pair's manifolds: nought, or one for the second face a
+   * mesh or a compound meets it with — a box in a corner of a room, a
+   * table's leg against a wall while it stands on the floor. */
+  uint32_t part;
   F3dContactPoint points[F3D_MANIFOLD_POINTS];
 } F3dManifold;
+
+/* The most manifolds two bodies have: one a face. */
+#define F3D_PAIR_MANIFOLDS 2u
 
 /* A shape where it stands, as the narrow phase reads it. */
 /* A shape no body has: one triangle of a mesh, as the narrow phase reads
@@ -220,6 +227,23 @@ typedef struct F3dPlaced {
 /* Fills [out]'s normal and points for [a] against [b], within [margin],
  * and returns how many points; nought when they are further apart. The
  * normal points out of b into a. */
+/* As f3d_collide, but where a mesh or a compound meets the other shape with
+ * two faces at once it gives each its own manifold: up to
+ * F3D_PAIR_MANIFOLDS of them in [out], their number returned. */
+uint32_t f3d_collide_pair(const F3dPlaced *a, const F3dPlaced *b,
+                          f3d_real margin, F3dManifold *out);
+
+/* Of [found] points, each with the normal of the face that made it: the
+ * deepest one's normal and the points that agree with it to eighteen
+ * degrees into [out], and, when [second] is not null, the deepest of the
+ * rest's normal and the points that agree with that into [second]. Four
+ * at most each. Only a point [faces] marks may start the second — a
+ * mesh's edge contacts, on seams the first face's points already hold,
+ * must not — and null marks every point. */
+void f3d_join_points(F3dVec3 *pts, const F3dVec3 *normals, f3d_real *depth,
+                     uint32_t *ids, const uint8_t *faces, uint32_t found,
+                     F3dManifold *out, F3dManifold *second);
+
 uint32_t f3d_collide(const F3dPlaced *a, const F3dPlaced *b, f3d_real margin,
                      F3dManifold *out);
 
@@ -459,6 +483,9 @@ typedef struct F3dLink {
   F3dQuat turn;
   F3dVec3 spin;
   f3d_real lower, upper, motor_speed, motor_force;
+  /* A spherical link's cone: how far its axis swings from the parent's,
+   * and how far it twists about itself, radians. */
+  f3d_real swing, twist;
 } F3dLink;
 
 /* A multibody's slot. Plain data, zeroed when taken. */
@@ -748,7 +775,8 @@ F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *slot);
  * tree, each against it, merged into one manifold whose normal points out
  * of the mesh into the shape. */
 uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
-                          f3d_real margin, F3dManifold *out);
+                          f3d_real margin, F3dManifold *out,
+                          F3dManifold *second);
 
 /* Builds each mesh's tree that is missing: after a restore, or for a mesh
  * just made. */
@@ -774,7 +802,8 @@ F3dPlaced f3d_placed_part(const F3dPlaced *compound, uint32_t i);
 /* Two shapes, one of them or both compounds: every pair of parts whose
  * spheres meet, joined into one manifold as a mesh's triangles are. */
 uint32_t f3d_collide_compound(const F3dPlaced *a, const F3dPlaced *b,
-                              f3d_real margin, F3dManifold *out);
+                              f3d_real margin, F3dManifold *out,
+                              F3dManifold *second);
 
 /* A shape's volume, m³, inertia about its centre for [mass], and surface,
  * m², as a body of it would have them. For a compound's parts. */
