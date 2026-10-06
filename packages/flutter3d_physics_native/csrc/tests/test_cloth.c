@@ -260,6 +260,215 @@ static void test_refused(void) {
   f3d_cloth_destroy(NULL);
 }
 
+/* ------------------------------------------------- f3d_cloth_solve */
+
+static F3dClothSolveSettings solve_settings(void) {
+  F3dClothSolveSettings s;
+  memset(&s, 0, sizeof s);
+  s.gravity[1] = F3D_R(-9.81);
+  s.damping = F3D_R(0.02);
+  s.thickness = F3D_R(0.01);
+  s.substeps = 8;
+  s.iterations = 2;
+  return s;
+}
+
+static void solve(F3dCloth *c, const F3dClothSolveSettings *s, int steps) {
+  for (int i = 0; i < steps; i++) f3d_cloth_solve(c, s, F3D_R(1.0 / 60.0));
+}
+
+/* The sheet() above, with its triangles, two to a quad. */
+static F3dCloth *solve_sheet(f3d_real y) {
+  F3dCloth *c = sheet(y, 0, 0);
+  static uint32_t corners[(SIDE - 1) * (SIDE - 1) * 6];
+  uint32_t n = 0;
+  for (uint32_t j = 0; j + 1 < SIDE; j++) {
+    for (uint32_t i = 0; i + 1 < SIDE; i++) {
+      const uint32_t tl = j * SIDE + i, tr = tl + 1, bl = tl + SIDE, br = bl + 1;
+      const uint32_t quad[6] = {tl, bl, br, tl, br, tr};
+      for (int k = 0; k < 6; k++) corners[n++] = quad[k];
+    }
+  }
+  CHECK(f3d_cloth_set_triangles(c, corners, n / 3u));
+  return c;
+}
+
+static void test_solve_obstacles(void) {
+  /* A ball, a box as its six planes and a ground: dropped on each, no point
+   * ends up inside it and all of them finite. */
+  static f3d_real state[SIDE * SIDE * F3D_CLOTH_STATE_FLOATS];
+  F3dClothSolveSettings s = solve_settings();
+
+  F3dCloth *c = solve_sheet(F3D_R(0.8));
+  const f3d_real ball[5] = {F3D_CLOTH_BALL, 0, F3D_R(0.3), 0, F3D_R(0.3)};
+  CHECK(f3d_cloth_set_obstacles(c, ball, 5));
+  solve(c, &s, 90);
+  f3d_cloth_read_state(c, state);
+  double nearest = 1e9, top = -1e9;
+  for (int i = 0; i < SIDE * SIDE; i++) {
+    const f3d_real *p = state + i * F3D_CLOTH_STATE_FLOATS;
+    CHECK(isfinite(p[0]) && isfinite(p[1]) && isfinite(p[2]));
+    nearest = fmin(nearest, sqrt(pow(p[0], 2) + pow(p[1] - 0.3, 2) + pow(p[2], 2)));
+    top = fmax(top, (double)p[1]);
+  }
+  CHECK(nearest > 0.3 + 0.01 - 1e-4);
+  CHECK(top > 0.6 && top < 0.63);
+  f3d_cloth_destroy(c);
+
+  /* A box 0.4 m on a side, its top at 0.4. */
+  c = solve_sheet(F3D_R(0.8));
+  const f3d_real box[2 + 6 * 4] = {
+      F3D_CLOTH_CONVEX, 6, 1, 0, 0, F3D_R(0.2), -1, 0, 0, F3D_R(0.2), 0, 1, 0, F3D_R(0.4),
+      0, -1, 0, 0, 0, 0, 1, F3D_R(0.2), 0, 0, -1, F3D_R(0.2),
+  };
+  CHECK(f3d_cloth_set_obstacles(c, box, 26));
+  solve(c, &s, 90);
+  f3d_cloth_read_state(c, state);
+  int inside = 0;
+  top = -1e9;
+  for (int i = 0; i < SIDE * SIDE; i++) {
+    const f3d_real *p = state + i * F3D_CLOTH_STATE_FLOATS;
+    inside += fabs(p[0]) < 0.2 && fabs(p[2]) < 0.2 && p[1] < 0.4 && p[1] > 0;
+    top = fmax(top, (double)p[1]);
+  }
+  CHECK(inside == 0);
+  /* Lying on its top, a little tented where it bends over the edges. */
+  CHECK(top > 0.41 - 1e-4 && top < 0.45);
+  f3d_cloth_destroy(c);
+
+  /* A ground of 3 × 3 samples a metre apart, sloping up along x, its
+   * corner at (−1, 0, −1): the sheet, held by friction, lies on the slope
+   * the thickness above it. */
+  c = solve_sheet(F3D_R(1.5));
+  const f3d_real ground[8 + 9] = {F3D_CLOTH_GROUND, -1, 0, -1, 1, 3, 3, 1,
+                                  0, F3D_R(0.5), 1, 0, F3D_R(0.5), 1, 0, F3D_R(0.5), 1};
+  CHECK(f3d_cloth_set_obstacles(c, ground, 17));
+  s.friction = 1;
+  solve(c, &s, 120);
+  f3d_cloth_read_state(c, state);
+  double worst = 0;
+  for (int i = 0; i < SIDE * SIDE; i++) {
+    const f3d_real *p = state + i * F3D_CLOTH_STATE_FLOATS;
+    worst = fmax(worst, fabs(p[1] - (0.5 * (p[0] + 1.0) + 0.01)));
+  }
+  CHECK(worst < 0.005);
+  f3d_cloth_destroy(c);
+}
+
+static void test_solve_wind_and_self(void) {
+  /* One loose triangle in the yz plane, no gravity: a wind along x carries
+   * it along x, one along y past its edge does nothing to it. */
+  const f3d_real tri[12] = {0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1};
+  const uint32_t corners[3] = {0, 1, 2};
+  F3dClothSolveSettings s = solve_settings();
+  s.gravity[1] = 0;
+  s.damping = 0;
+  s.wind[0] = 4;
+  s.wind_drag = 2;
+  F3dCloth *c = f3d_cloth_create(tri, 3, NULL, NULL, 0);
+  CHECK(f3d_cloth_set_triangles(c, corners, 1));
+  solve(c, &s, 30);
+  f3d_real state[3 * F3D_CLOTH_STATE_FLOATS];
+  f3d_cloth_read_state(c, state);
+  CHECK(state[0] > F3D_R(0.01) && state[3] > F3D_R(0.0) && state[3] < F3D_R(4.0));
+  CHECK(state[1] == 0 && state[2] == 0);
+  s.wind[0] = 0;
+  s.wind[1] = 4;
+  f3d_cloth_destroy(c);
+  c = f3d_cloth_create(tri, 3, NULL, NULL, 0);
+  CHECK(f3d_cloth_set_triangles(c, corners, 1));
+  solve(c, &s, 30);
+  f3d_cloth_read_state(c, state);
+  CHECK(state[0] == 0 && state[1] == 0 && state[3] == 0);
+  f3d_cloth_destroy(c);
+  /* A corner out of range is refused. */
+  c = f3d_cloth_create(tri, 3, NULL, NULL, 0);
+  const uint32_t out_of_range[3] = {0, 1, 3};
+  CHECK(!f3d_cloth_set_triangles(c, out_of_range, 1));
+  f3d_cloth_destroy(c);
+
+  /* Two loose points a metre apart at rest, put a centimetre apart: with a
+   * self-thickness of 0.1 one pass parts them to it; neighbours at rest
+   * stay. */
+  const f3d_real two[8] = {0, 0, 0, 1, 1, 0, 0, 1};
+  f3d_real moved[14] = {0, 0, 0, 0, 0, 0, 1, F3D_R(0.01), 0, 0, 0, 0, 0, 1};
+  s = solve_settings();
+  s.gravity[1] = 0;
+  s.substeps = 1;
+  s.iterations = 1;
+  s.self_thickness = F3D_R(0.1);
+  c = f3d_cloth_create(two, 2, NULL, NULL, 0);
+  f3d_cloth_write_state(c, moved);
+  solve(c, &s, 1);
+  f3d_real out[14];
+  f3d_cloth_read_state(c, out);
+  CHECK_NEAR(out[7] - out[0], 0.1, 1e-5);
+  /* Neighbours at rest are left to their constraints. */
+  const f3d_real close[6] = {0, 0, 0, F3D_R(0.01), 0, 0};
+  f3d_cloth_set_rest(c, close);
+  f3d_cloth_write_state(c, moved);
+  solve(c, &s, 1);
+  f3d_cloth_read_state(c, out);
+  CHECK_NEAR(out[7] - out[0], 0.01, 1e-6);
+  f3d_cloth_destroy(c);
+}
+
+static void test_solve_settings_reach_it(void) {
+  /* A kilogram below a pin on a constraint of compliance 10⁻³: XPBD, its
+   * multiplier kept across the passes, settles it α m g lower, and a
+   * compliance set after it was made reaches the constraint it was given
+   * for. */
+  const f3d_real points[8] = {0, 0, 0, 0, 0, -1, 0, 1};
+  const uint32_t edge[2] = {0, 1};
+  const f3d_real stiff = 0, alpha = F3D_R(1e-3);
+  F3dCloth *c = f3d_cloth_create(points, 2, edge, &stiff, 1);
+  f3d_cloth_set_compliance(c, &alpha);
+  F3dClothSolveSettings s = solve_settings();
+  s.damping = F3D_R(0.05);
+  s.iterations = 4;
+  s.self_thickness = F3D_R(0.1);
+  solve(c, &s, 300);
+  f3d_real out[14];
+  f3d_cloth_read_state(c, out);
+  CHECK_NEAR(-1.0 - out[8], 9.81e-3, 2e-5);
+  CHECK(out[0] == 0 && out[1] == 0 && out[6] == 0);
+  /* Bad records are refused and the last kept. */
+  const f3d_real ball[5] = {F3D_CLOTH_BALL, 0, F3D_R(-1.3), 0, F3D_R(0.35)};
+  CHECK(f3d_cloth_set_obstacles(c, ball, 5));
+  const f3d_real no_kind[5] = {F3D_R(7.0), 0, 0, 0, 1};
+  const f3d_real cut_short[4] = {F3D_CLOTH_BALL, 0, 0, 0};
+  const f3d_real thin_ground[8] = {F3D_CLOTH_GROUND, 0, 0, 0, 1, 1, 3, 1};
+  const f3d_real half_kind[5] = {F3D_R(0.5), 0, 0, 0, 1};
+  CHECK(!f3d_cloth_set_obstacles(c, no_kind, 5));
+  CHECK(!f3d_cloth_set_obstacles(c, cut_short, 4));
+  CHECK(!f3d_cloth_set_obstacles(c, thin_ground, 8));
+  CHECK(!f3d_cloth_set_obstacles(c, half_kind, 5));
+  /* The ball still there holds the weight up off its constraint. */
+  s.iterations = 2;
+  solve(c, &s, 60);
+  f3d_cloth_read_state(c, out);
+  CHECK(out[8] > F3D_R(-0.95));
+  CHECK(f3d_cloth_set_obstacles(c, NULL, 0));
+  /* Nothing for no substeps, or no time. */
+  f3d_real before[14];
+  f3d_cloth_read_state(c, before);
+  s.substeps = 0;
+  solve(c, &s, 1);
+  s.substeps = 8;
+  f3d_cloth_solve(c, &s, 0);
+  f3d_cloth_read_state(c, out);
+  CHECK(memcmp(before, out, sizeof out) == 0);
+  f3d_cloth_destroy(c);
+  /* A length given after it was made is the one it is held at. */
+  c = f3d_cloth_create(points, 2, edge, &stiff, 1);
+  const f3d_real two_metres = 2;
+  f3d_cloth_set_lengths(c, &two_metres);
+  solve(c, &s, 300);
+  f3d_cloth_read_state(c, out);
+  CHECK_NEAR(out[8], -2.0, 1e-3);
+  f3d_cloth_destroy(c);
+}
+
 int main(void) {
   test_spring();
   test_pendulum();
@@ -267,5 +476,8 @@ int main(void) {
   test_drape();
   test_wind_and_floor();
   test_refused();
+  test_solve_obstacles();
+  test_solve_wind_and_self();
+  test_solve_settings_reach_it();
   return finish();
 }

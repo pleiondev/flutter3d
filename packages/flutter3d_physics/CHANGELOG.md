@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **Cloth comes from the run's backend.** `PhysicsBackend.current
+  .cloth(mesh)` makes a `ClothSimulation`, which steps the `ClothMesh` in
+  place as `stepCloth` does, so a page that draws from `mesh.positions`
+  reads the same arrays on either backend. `DartCloth` is the reference's,
+  `stepCloth` and nothing else. A backend with a cloth of its own says so by
+  implementing `ClothPhysics`; `cloth` is an extension rather than a member
+  of `PhysicsBackend`, so a backend a test writes needs nothing new.
+
 - **Sweeps can be cast elsewhere.** `WorldSweeps`, set as
   `CollisionWorld.sweeps`, handles every `sweep` that has no
   `ContactFilter`. A filter is a Dart function that has to be asked about

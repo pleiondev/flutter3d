@@ -217,7 +217,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | character-controller | A character controller | `CharacterController`, `MovementTuning` | 0.5.0 |
 | rigid-bodies | Rigid bodies | `RigidBody`, `Dynamics`, snapshot (fold) | unknown |
 | heightfield-collision | Walking on terrain | `CollisionHeightfield` | 0.5.1 |
-| xpbd-cloth | Cloth | `ClothMesh.grid`, `stepCloth`, `ClothObstacle`, `WindSettings` | 0.7.0 |
+| xpbd-cloth | Cloth | `ClothMesh.grid`, `ClothSimulation`, `ClothObstacle`, `WindSettings` | 0.7.0 |
 | six-way-smoke | Smoke lit by the scene | `SixWayMaterial`, `ContributorLights` | `flutter3d_core` CL 0.8.0 "Lit particle sheets." |
 
 ## Set I: simulation, audio, XR, widgets and the rest (`lib/pages/sim_audio_xr/`, `lib/pages/widgets_misc/`)

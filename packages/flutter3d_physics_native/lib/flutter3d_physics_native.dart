@@ -10,8 +10,18 @@ library;
 
 export 'src/core/load.dart';
 export 'src/gpu.dart';
+// The core's own ClothMesh and ClothSettings by the names CoreClothMesh and
+// CoreClothSettings: flutter3d_physics, which a game imports beside this,
+// has the plain names for the cloth every backend steps.
 export 'src/native_cloth.dart'
-    hide ClothPacked, createCoreCloth, packClothBalls, writeClothSettings;
+    hide
+        ClothMesh,
+        ClothPacked,
+        ClothSettings,
+        createCoreCloth,
+        packClothBalls,
+        writeClothSettings;
+export 'src/native_cloth_simulation.dart' hide packClothObstacles;
 export 'src/native_debris.dart'
     hide packDebrisBodies, packDebrisStatics, writeDebrisSettings;
 export 'src/native_dynamics.dart';

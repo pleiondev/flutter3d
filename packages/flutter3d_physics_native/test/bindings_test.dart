@@ -120,6 +120,11 @@ void main() {
       expect(c.debrisMaxStatics, define('F3D_DEBRIS_MAX_STATICS'));
       expect(c.clothFloats, define('F3D_CLOTH_FLOATS'));
       expect(c.clothMaxBalls, define('F3D_CLOTH_MAX_BALLS'));
+      expect(c.clothStateFloats, define('F3D_CLOTH_STATE_FLOATS'));
+      expect(c.ClothObstacleKind.ball, define('F3D_CLOTH_BALL'));
+      expect(c.ClothObstacleKind.capsule, define('F3D_CLOTH_CAPSULE'));
+      expect(c.ClothObstacleKind.convex, define('F3D_CLOTH_CONVEX'));
+      expect(c.ClothObstacleKind.ground, define('F3D_CLOTH_GROUND'));
       expect(c.fluidInputFloats, define('F3D_FLUID_INPUT_FLOATS'));
       expect(c.fluidFloats, define('F3D_FLUID_FLOATS'));
     },

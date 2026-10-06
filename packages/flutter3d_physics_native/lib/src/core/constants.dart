@@ -99,6 +99,18 @@ const int clothFloats = 4;
 
 const int clothMaxBalls = 16;
 
+/// `F3D_CLOTH_STATE_FLOATS`.
+const int clothStateFloats = 7;
+
+/// `F3D_CLOTH_BALL` and the rest: what each record of
+/// `f3d_cloth_set_obstacles` starts with.
+abstract final class ClothObstacleKind {
+  static const int ball = 0;
+  static const int capsule = 1;
+  static const int convex = 2;
+  static const int ground = 3;
+}
+
 /// `F3D_FLUID_INPUT_FLOATS` and `F3D_FLUID_FLOATS`.
 const int fluidInputFloats = 6;
 

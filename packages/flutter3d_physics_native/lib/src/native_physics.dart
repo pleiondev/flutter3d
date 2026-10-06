@@ -2,6 +2,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'core/load.dart';
+import 'native_cloth_simulation.dart';
 import 'native_dynamics.dart';
 import 'native_world.dart';
 
@@ -14,12 +15,16 @@ const String askedPhysics = String.fromEnvironment(
 );
 
 /// The physics core as a [PhysicsBackend]: every world's bodies, character
-/// moves and rays on it, through a [NativeDynamics] per world.
-final class NativePhysics implements PhysicsBackend {
+/// moves and rays on it, through a [NativeDynamics] per world, and every
+/// cloth through a [NativeClothSimulation].
+final class NativePhysics implements PhysicsBackend, ClothPhysics {
   NativePhysics();
 
   @override
   String get name => 'native';
+
+  @override
+  ClothSimulation cloth(ClothMesh mesh) => NativeClothSimulation(mesh);
 
   /// What [attach] made for each world, so [release] can let it go.
   final Expando<NativeDynamics> _attached = Expando<NativeDynamics>(
@@ -114,8 +119,10 @@ PhysicsStart _choose(String asked, void Function() probe) {
 /// to be, by [startPhysics], or this falls back.
 PhysicsBackend choosePhysics(String asked) {
   if (asked != 'dart' && !physicsCoreLoaded) {
-    return _choose(asked, () => throw StateError('the core is not loaded'))
-        .backend;
+    return _choose(
+      asked,
+      () => throw StateError('the core is not loaded'),
+    ).backend;
   }
   return _choose(asked, () => NativeWorld().dispose()).backend;
 }
@@ -123,8 +130,7 @@ PhysicsBackend choosePhysics(String asked) {
 /// [startPhysics] unless the run's backend is chosen already: what code
 /// that opens a level calls, so the first level starts the physics and the
 /// rest find it as the first left it.
-Future<PhysicsStart> preparePhysics() async =>
-    _chosen ?? await startPhysics();
+Future<PhysicsStart> preparePhysics() async => _chosen ?? await startPhysics();
 
 /// Loads the core where it has to be loaded — the browser's module — and
 /// chooses the run's backend as [usePhysics] does, choosing again if

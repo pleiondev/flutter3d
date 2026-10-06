@@ -690,7 +690,9 @@ F3D_API uint32_t f3d_debris_read(const F3dDebris *debris, f3d_real *out,
  * point, and solved colour by colour: the GPU steps the same cloth in
  * f3d_gpu.h a colour a dispatch, with nothing summed in any order, and
  * this one is its reference and the fallback where there is none. Points
- * collide with balls, a floor, and nothing else — not each other. */
+ * collide with balls, a floor, and nothing else — not each other.
+ * f3d_cloth_solve, further down, steps the same cloth as the Dart
+ * reference does, against obstacles of every shape and itself. */
 typedef struct F3dCloth F3dCloth;
 
 /* Reals one point takes, in f3d_cloth_create and f3d_cloth_read: position
@@ -754,6 +756,97 @@ F3D_API void f3d_cloth_step(F3dCloth *cloth, const F3dClothSettings *settings,
 /* Every point, F3D_CLOTH_FLOATS reals apiece, into [out]: up to
  * [capacity]; returns how many. */
 F3D_API uint32_t f3d_cloth_read(const F3dCloth *cloth, f3d_real *out, uint32_t capacity);
+
+/* The same cloth stepped as flutter3d_physics's stepCloth steps a
+ * ClothMesh, for a run whose cloth is on the core: f3d_cloth_solve below.
+ * Where f3d_cloth_step makes one pass a substep, as the GPU does, this one
+ * makes as many as it is asked, each multiplier kept across them; damps a
+ * fraction a substep; blows on triangles along their normals; keeps the
+ * sheet's own layers apart; and pushes the points out of obstacles of
+ * every shape the reference meets, with friction measured against the
+ * substep's whole push. The two answers are close, not equal: the
+ * constraints go colour by colour here and kind by kind there, in f32. */
+
+/* Reals one point takes in f3d_cloth_write_state and f3d_cloth_read_state:
+ * position xyz, velocity xyz, inverse mass. */
+#define F3D_CLOTH_STATE_FLOATS 7u
+
+/* What each obstacle record of f3d_cloth_set_obstacles starts with, and
+ * what follows, in reals:
+ *   F3D_CLOTH_BALL     x y z radius
+ *   F3D_CLOTH_CAPSULE  x y z radius half_height, upright
+ *   F3D_CLOTH_CONVEX   count, then count planes nx ny nz d, solid where
+ *                      n · p <= d and the normals outwards: a box, a wedge
+ *   F3D_CLOTH_GROUND   x y z of sample (0, 0) at height nought, cell,
+ *                      columns, rows, how deep below the surface it is
+ *                      solid, then columns × rows heights row by row along
+ *                      +x, rows along +z, each quad split from (0, 0) to
+ *                      (1, 1) */
+#define F3D_CLOTH_BALL 0u
+#define F3D_CLOTH_CAPSULE 1u
+#define F3D_CLOTH_CONVEX 2u
+#define F3D_CLOTH_GROUND 3u
+
+typedef struct F3dClothSolveSettings {
+  f3d_real gravity[3];
+  /* The air's velocity, and how hard it pushes: N per m² of a triangle per
+   * m/s of air through it along its normal. Nought: no wind. */
+  f3d_real wind[3];
+  f3d_real wind_drag;
+  /* The fraction of a point's velocity taken away each substep. */
+  f3d_real damping;
+  /* How far outside an obstacle a point is held. */
+  f3d_real thickness;
+  /* Of a point's slide along an obstacle, how much each substep's push
+   * may take back: Coulomb at position level. */
+  f3d_real friction;
+  /* How close two points not that close in the rest shape may come;
+   * nought lets the layers pass through each other. */
+  f3d_real self_thickness;
+  /* The part of two touching points' slide taken away as they part. */
+  f3d_real self_friction;
+  /* At least one each, or the step does nothing. */
+  uint32_t substeps;
+  uint32_t iterations;
+} F3dClothSolveSettings;
+
+/* The triangles the wind blows on and a round obstacle keeps outside it,
+ * three corners apiece, replacing the last; 0, and none kept, when a corner
+ * is out of range or there is no memory. */
+F3D_API int f3d_cloth_set_triangles(F3dCloth *cloth, const uint32_t *corners,
+                                    uint32_t count);
+
+/* The rest shape self-collision asks which points are neighbours, xyz a
+ * point: two closer there than the self-thickness are left to their
+ * constraints. Where the points were made, until this is called. */
+F3D_API void f3d_cloth_set_rest(F3dCloth *cloth, const f3d_real *xyz);
+
+/* Every constraint's compliance, m/N, in the order f3d_cloth_create was
+ * given them. */
+F3D_API void f3d_cloth_set_compliance(F3dCloth *cloth, const f3d_real *compliance);
+
+/* Every constraint's length, in the same order: for a cloth whose rest
+ * lengths are not the distances it was made at. */
+F3D_API void f3d_cloth_set_lengths(F3dCloth *cloth, const f3d_real *length);
+
+/* The obstacles, [length] reals of records laid out as above, replacing
+ * the last; 0, and the last kept, for a record of no kind, cut short, or
+ * a ground of fewer than two by two samples or no cell, or no memory. */
+F3D_API int f3d_cloth_set_obstacles(F3dCloth *cloth, const f3d_real *records,
+                                    uint32_t length);
+
+/* Every point's position, velocity and inverse mass, F3D_CLOTH_STATE_FLOATS
+ * reals apiece, from [state], or into it. */
+F3D_API void f3d_cloth_write_state(F3dCloth *cloth, const f3d_real *state);
+F3D_API void f3d_cloth_read_state(const F3dCloth *cloth, f3d_real *state);
+
+/* Each substep: damping, gravity and the wind into a predicted position;
+ * then [iterations] times the constraints colour by colour, the layers
+ * apart and the points out of the obstacles; friction against what the
+ * obstacles pushed; and the velocity from where the points went. Pinned
+ * points, of inverse mass nought, are not moved. */
+F3D_API void f3d_cloth_solve(F3dCloth *cloth, const F3dClothSolveSettings *settings,
+                             f3d_real dt);
 
 /* ------------------------------------------------------------------ fluid */
 

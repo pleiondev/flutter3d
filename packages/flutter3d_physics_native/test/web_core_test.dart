@@ -9,6 +9,7 @@
 @TestOn('browser')
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -120,10 +121,10 @@ void main() {
     expect(debris.read()!.bodies[1], closeTo(0.1, 0.001));
     debris.dispose();
     final cloth = NativeCloth(
-      ClothMesh.grid(columns: 6, rows: 6, pinned: <int>{0, 5}),
+      CoreClothMesh.grid(columns: 6, rows: 6, pinned: <int>{0, 5}),
     );
     for (var i = 0; i < 60; i++) {
-      cloth.step(ClothSettings(), 1 / 60);
+      cloth.step(CoreClothSettings(), 1 / 60);
     }
     expect(cloth.read()!.points[1], 0.0);
     cloth.dispose();
@@ -140,6 +141,23 @@ void main() {
     );
     expect(water.read()!.particles[1], lessThan(1.0));
     water.dispose();
+  });
+
+  test('a run\'s cloth on the module drapes a ball as the reference does', () {
+    ClothMesh sheet() => ClothMesh.grid(cols: 8, rows: 8, height: 0.8);
+    final ball = <ClothObstacle>[
+      ClothObstacle(CollisionSphere(0.2), Vector3(0.35, 0.5, 0.35)),
+    ];
+    final reference = sheet();
+    final cloth = NativeClothSimulation(sheet());
+    for (var i = 0; i < 30; i++) {
+      cloth.step(const ClothSettings(), 1 / 60, obstacles: ball);
+      stepCloth(reference, const ClothSettings(), 1 / 60, obstacles: ball);
+    }
+    for (var k = 0; k < reference.positions.length; k++) {
+      expect(cloth.mesh.positions[k], closeTo(reference.positions[k], 5e-3));
+    }
+    cloth.dispose();
   });
 
   test('the shared scene steps to the native library\'s bytes', () {

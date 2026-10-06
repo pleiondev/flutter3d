@@ -34,6 +34,7 @@ export 'src/character_mover.dart';
 export 'src/cloth/cloth_collision.dart';
 export 'src/cloth/cloth_mesh.dart';
 export 'src/cloth/cloth_settings.dart';
+export 'src/cloth/cloth_simulation.dart';
 export 'src/cloth/xpbd_solver.dart';
 export 'src/collider.dart';
 export 'src/collision_shape.dart';

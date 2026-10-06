@@ -54,6 +54,21 @@ abstract final class F3dClothSettingsLayout {
   static const int size = 48;
 }
 
+/// `F3dClothSolveSettings`.
+abstract final class F3dClothSolveSettingsLayout {
+  static const int gravity = 0;
+  static const int wind = 12;
+  static const int windDrag = 24;
+  static const int damping = 28;
+  static const int thickness = 32;
+  static const int friction = 36;
+  static const int selfThickness = 40;
+  static const int selfFriction = 44;
+  static const int substeps = 48;
+  static const int iterations = 52;
+  static const int size = 56;
+}
+
 /// `F3dFluidSettings`.
 abstract final class F3dFluidSettingsLayout {
   static const int gravity = 0;

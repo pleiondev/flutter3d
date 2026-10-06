@@ -15,6 +15,12 @@ void main() {
   test(
     'by default the run is on the core, and a world made is on it',
     () async {
+      // The build's default, which `--dart-define=FLUTTER3D_PHYSICS=dart`
+      // turns round: that run checks the other half below.
+      if (askedPhysics == 'dart') {
+        expect((await startPhysics()).backend, isA<DartPhysics>());
+        return;
+      }
       final start = await startPhysics();
       expect(start.fallbackBecause, isNull);
       expect(PhysicsBackend.current.name, 'native');
@@ -37,6 +43,7 @@ void main() {
   test('a core that will not start is a fallback, with the reason', () async {
     // Mutation: letting the first world's error out of startPhysics.
     final start = await startPhysics(
+      asked: 'native',
       probe: () => throw StateError('the core is ABI 1 and these are 2'),
     );
     expect(start.backend, isA<DartPhysics>());
@@ -46,7 +53,7 @@ void main() {
 
   test('a world attached casts its rays on the core, and released, on its '
       'own again', () async {
-    await startPhysics();
+    await startPhysics(asked: 'native');
     final world = CollisionWorld()
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(10.0, 1.0, 10.0));
     PhysicsBackend.current.attach(world);
@@ -69,7 +76,7 @@ void main() {
     // Mutation: choosing afresh on every ask, which would put a run's later
     // worlds on the core under the earlier ones on Dart.
     expect(usePhysics(asked: 'native'), isA<DartPhysics>());
-    await startPhysics();
+    await startPhysics(asked: 'native');
     expect(usePhysics(asked: 'dart'), isA<NativePhysics>());
     expect(physicsFallbackReason, isNull);
   });
@@ -77,7 +84,7 @@ void main() {
   test(
     'dynamics made for an attached world take it over: one core world',
     () async {
-      await startPhysics();
+      await startPhysics(asked: 'native');
       final world = CollisionWorld();
       PhysicsBackend.current.attach(world);
       final dynamics = PhysicsBackend.current.dynamics(world) as NativeDynamics;

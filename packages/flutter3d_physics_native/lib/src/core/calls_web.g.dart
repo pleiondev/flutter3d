@@ -503,6 +503,30 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber out,
     JSNumber capacity,
   );
+  @JS('f3d_cloth_set_triangles')
+  external JSNumber f3d_cloth_set_triangles(
+    JSNumber cloth,
+    JSNumber corners,
+    JSNumber count,
+  );
+  @JS('f3d_cloth_set_rest')
+  external void f3d_cloth_set_rest(JSNumber cloth, JSNumber xyz);
+  @JS('f3d_cloth_set_compliance')
+  external void f3d_cloth_set_compliance(JSNumber cloth, JSNumber compliance);
+  @JS('f3d_cloth_set_lengths')
+  external void f3d_cloth_set_lengths(JSNumber cloth, JSNumber length);
+  @JS('f3d_cloth_set_obstacles')
+  external JSNumber f3d_cloth_set_obstacles(
+    JSNumber cloth,
+    JSNumber records,
+    JSNumber length,
+  );
+  @JS('f3d_cloth_write_state')
+  external void f3d_cloth_write_state(JSNumber cloth, JSNumber state);
+  @JS('f3d_cloth_read_state')
+  external void f3d_cloth_read_state(JSNumber cloth, JSNumber state);
+  @JS('f3d_cloth_solve')
+  external void f3d_cloth_solve(JSNumber cloth, JSNumber settings, JSNumber dt);
   @JS('f3d_fluid_create')
   external JSNumber f3d_fluid_create(JSNumber capacity, JSNumber spacing);
   @JS('f3d_fluid_destroy')
@@ -1480,6 +1504,22 @@ int f3d_cloth_read(int cloth, int out, int capacity) => _x
     .f3d_cloth_read(cloth.toJS, out.toJS, capacity.toJS)
     .toDartInt
     .toUnsigned(32);
+int f3d_cloth_set_triangles(int cloth, int corners, int count) =>
+    _x.f3d_cloth_set_triangles(cloth.toJS, corners.toJS, count.toJS).toDartInt;
+void f3d_cloth_set_rest(int cloth, int xyz) =>
+    _x.f3d_cloth_set_rest(cloth.toJS, xyz.toJS);
+void f3d_cloth_set_compliance(int cloth, int compliance) =>
+    _x.f3d_cloth_set_compliance(cloth.toJS, compliance.toJS);
+void f3d_cloth_set_lengths(int cloth, int length) =>
+    _x.f3d_cloth_set_lengths(cloth.toJS, length.toJS);
+int f3d_cloth_set_obstacles(int cloth, int records, int length) =>
+    _x.f3d_cloth_set_obstacles(cloth.toJS, records.toJS, length.toJS).toDartInt;
+void f3d_cloth_write_state(int cloth, int state) =>
+    _x.f3d_cloth_write_state(cloth.toJS, state.toJS);
+void f3d_cloth_read_state(int cloth, int state) =>
+    _x.f3d_cloth_read_state(cloth.toJS, state.toJS);
+void f3d_cloth_solve(int cloth, int settings, double dt) =>
+    _x.f3d_cloth_solve(cloth.toJS, settings.toJS, dt.toJS);
 int f3d_fluid_create(int capacity, double spacing) =>
     _x.f3d_fluid_create(capacity.toJS, spacing.toJS).toDartInt.toUnsigned(32);
 void f3d_fluid_destroy(int fluid) => _x.f3d_fluid_destroy(fluid.toJS);

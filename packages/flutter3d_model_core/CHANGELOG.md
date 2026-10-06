@@ -1,5 +1,10 @@
 ## Unreleased
 
+**The cloth bake runs on the run's physics.** `BakeClothJobRequest` steps
+its mesh through `PhysicsBackend.current.cloth`, which is the core when the
+game started on it and `stepCloth` otherwise. This package still does not
+depend on the core.
+
 **The rigid bake takes its solver.** `BakeRigidBodyJobRequest(dynamicsFor:)`
 steps the box with what a caller hands over: the reference by default, the
 physics core from a caller that has it. The box's corners turn as the body

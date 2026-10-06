@@ -1444,6 +1444,105 @@ int f3d_cloth_read(int cloth, int out, int capacity) => _f3d_cloth_read(
   capacity,
 );
 
+@Native<Int32 Function(Pointer<Void>, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_cloth_set_triangles',
+  isLeaf: true,
+)
+external int _f3d_cloth_set_triangles(
+  Pointer<Void> cloth,
+  Pointer<Void> corners,
+  int count,
+);
+int f3d_cloth_set_triangles(int cloth, int corners, int count) =>
+    _f3d_cloth_set_triangles(
+      Pointer.fromAddress(cloth),
+      Pointer.fromAddress(corners),
+      count,
+    );
+
+@Native<Void Function(Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_cloth_set_rest',
+  isLeaf: true,
+)
+external void _f3d_cloth_set_rest(Pointer<Void> cloth, Pointer<Void> xyz);
+void f3d_cloth_set_rest(int cloth, int xyz) =>
+    _f3d_cloth_set_rest(Pointer.fromAddress(cloth), Pointer.fromAddress(xyz));
+
+@Native<Void Function(Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_cloth_set_compliance',
+  isLeaf: true,
+)
+external void _f3d_cloth_set_compliance(
+  Pointer<Void> cloth,
+  Pointer<Void> compliance,
+);
+void f3d_cloth_set_compliance(int cloth, int compliance) =>
+    _f3d_cloth_set_compliance(
+      Pointer.fromAddress(cloth),
+      Pointer.fromAddress(compliance),
+    );
+
+@Native<Void Function(Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_cloth_set_lengths',
+  isLeaf: true,
+)
+external void _f3d_cloth_set_lengths(Pointer<Void> cloth, Pointer<Void> length);
+void f3d_cloth_set_lengths(int cloth, int length) => _f3d_cloth_set_lengths(
+  Pointer.fromAddress(cloth),
+  Pointer.fromAddress(length),
+);
+
+@Native<Int32 Function(Pointer<Void>, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_cloth_set_obstacles',
+  isLeaf: true,
+)
+external int _f3d_cloth_set_obstacles(
+  Pointer<Void> cloth,
+  Pointer<Void> records,
+  int length,
+);
+int f3d_cloth_set_obstacles(int cloth, int records, int length) =>
+    _f3d_cloth_set_obstacles(
+      Pointer.fromAddress(cloth),
+      Pointer.fromAddress(records),
+      length,
+    );
+
+@Native<Void Function(Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_cloth_write_state',
+  isLeaf: true,
+)
+external void _f3d_cloth_write_state(Pointer<Void> cloth, Pointer<Void> state);
+void f3d_cloth_write_state(int cloth, int state) => _f3d_cloth_write_state(
+  Pointer.fromAddress(cloth),
+  Pointer.fromAddress(state),
+);
+
+@Native<Void Function(Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_cloth_read_state',
+  isLeaf: true,
+)
+external void _f3d_cloth_read_state(Pointer<Void> cloth, Pointer<Void> state);
+void f3d_cloth_read_state(int cloth, int state) => _f3d_cloth_read_state(
+  Pointer.fromAddress(cloth),
+  Pointer.fromAddress(state),
+);
+
+@Native<Void Function(Pointer<Void>, Pointer<Void>, Float)>(
+  symbol: 'f3d_cloth_solve',
+  isLeaf: true,
+)
+external void _f3d_cloth_solve(
+  Pointer<Void> cloth,
+  Pointer<Void> settings,
+  double dt,
+);
+void f3d_cloth_solve(int cloth, int settings, double dt) => _f3d_cloth_solve(
+  Pointer.fromAddress(cloth),
+  Pointer.fromAddress(settings),
+  dt,
+);
+
 @Native<Pointer<Void> Function(Uint32, Float)>(symbol: 'f3d_fluid_create')
 external Pointer<Void> _f3d_fluid_create(int capacity, double spacing);
 int f3d_fluid_create(int capacity, double spacing) =>

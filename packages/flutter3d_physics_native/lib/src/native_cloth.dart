@@ -122,6 +122,14 @@ final class ClothSettings {
   final int substeps;
 }
 
+/// [ClothMesh] as the package's library exports it: `flutter3d_physics`
+/// has a `ClothMesh` of its own, the one `PhysicsBackend.cloth` steps on
+/// either backend, and a game imports both libraries.
+typedef CoreClothMesh = ClothMesh;
+
+/// [ClothSettings] as the package's library exports it; see [CoreClothMesh].
+typedef CoreClothSettings = ClothSettings;
+
 /// What a read gives: the step the points are from, counted from one, and
 /// four floats a point — position xyz, inverse mass.
 typedef ClothFrame = ({int step, Float32List points});

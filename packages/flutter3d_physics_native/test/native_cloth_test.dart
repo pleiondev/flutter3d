@@ -12,7 +12,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A sheet a metre square hanging from the two corners of its first row.
-ClothMesh _sheet(int side) => ClothMesh.grid(
+CoreClothMesh _sheet(int side) => CoreClothMesh.grid(
   columns: side,
   rows: side,
   origin: Vector3(-0.5, 0.0, -0.5),
@@ -53,7 +53,7 @@ void main() {
     expect(cloth.pointCount, 144);
     expect(cloth.colourCount, inInclusiveRange(12, 24));
     expect(cloth.read(), isNull);
-    final settings = ClothSettings(damping: 1.0);
+    final settings = CoreClothSettings(damping: 1.0);
     for (var i = 0; i < 120; i++) {
       cloth.step(settings, 1 / 60);
     }
@@ -70,7 +70,7 @@ void main() {
   test('bad meshes, too many balls and a disposed cloth say so', () {
     expect(
       () => NativeCloth(
-        ClothMesh(
+        CoreClothMesh(
           points: <Vector3>[Vector3.zero(), Vector3(1.0, 0.0, 0.0)],
           inverseMasses: <double>[1.0, 1.0],
           edges: <(int, int)>[(1, 1)],
@@ -107,29 +107,29 @@ void main() {
         final scenes =
             <
               (
-                ClothMesh,
-                ClothSettings,
+                CoreClothMesh,
+                CoreClothSettings,
                 List<({Vector3 centre, double radius})>,
               )
             >[
               (
-                ClothMesh(
+                CoreClothMesh(
                   points: <Vector3>[Vector3.zero(), Vector3(1.0, 0.0, 0.0)],
                   inverseMasses: <double>[0.0, 1.0],
                   edges: <(int, int)>[(0, 1)],
                   compliances: <double>[0.0],
                 ),
-                ClothSettings(damping: 0.0),
+                CoreClothSettings(damping: 0.0),
                 <({Vector3 centre, double radius})>[],
               ),
               (
-                ClothMesh(
+                CoreClothMesh(
                   points: <Vector3>[Vector3.zero(), Vector3(0.0, -1.0, 0.0)],
                   inverseMasses: <double>[0.0, 1.0],
                   edges: <(int, int)>[(0, 1)],
                   compliances: <double>[1e-3],
                 ),
-                ClothSettings(
+                CoreClothSettings(
                   damping: 2.0,
                   wind: Vector3(3.0, 0.0, 0.0),
                   drag: 0.5,
@@ -137,7 +137,7 @@ void main() {
                 <({Vector3 centre, double radius})>[],
               ),
               (
-                ClothMesh(
+                CoreClothMesh(
                   points: <Vector3>[
                     Vector3(0.1, 1.0, 0.0),
                     Vector3(0.3, 1.0, 0.05),
@@ -146,13 +146,13 @@ void main() {
                   edges: <(int, int)>[(0, 1)],
                   compliances: <double>[1e-6],
                 ),
-                ClothSettings(floorY: 0.0, friction: 0.2),
+                CoreClothSettings(floorY: 0.0, friction: 0.2),
                 <({Vector3 centre, double radius})>[
                   (centre: Vector3(0.0, 0.3, 0.0), radius: 0.3),
                 ],
               ),
               (
-                ClothMesh(
+                CoreClothMesh(
                   points: <Vector3>[
                     Vector3(0.0, 0.5, 0.0),
                     Vector3(0.3, 0.2, 0.0),
@@ -161,7 +161,7 @@ void main() {
                   edges: <(int, int)>[],
                   compliances: <double>[],
                 ),
-                ClothSettings(
+                CoreClothSettings(
                   floorY: 0.1,
                   thickness: 0.02,
                   friction: 0.4,
@@ -196,7 +196,7 @@ void main() {
         final onGpu = gpu!.cloth(_sheet(32));
         addTearDown(cpu.dispose);
         addTearDown(onGpu.dispose);
-        final settings = ClothSettings(damping: 1.0);
+        final settings = CoreClothSettings(damping: 1.0);
         for (var i = 0; i < 30; i++) {
           cpu.step(settings, 1 / 60);
           onGpu.step(settings, 1 / 60);
@@ -227,7 +227,7 @@ void main() {
         final onGpu = gpu!.cloth(_sheet(8));
         addTearDown(onGpu.dispose);
         expect(onGpu.read(wait: false), isNull);
-        final settings = ClothSettings();
+        final settings = CoreClothSettings();
         var last = 0;
         for (var i = 1; i <= 20; i++) {
           onGpu.step(settings, 1 / 60);

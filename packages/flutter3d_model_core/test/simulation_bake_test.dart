@@ -7,6 +7,7 @@ library;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
+import 'package:vector_math/vector_math.dart';
 
 BakeClothJobRequest bake({int frameCount = 120}) => BakeClothJobRequest(
   objectId: 1,
@@ -140,6 +141,63 @@ void main() {
       expect(command.cache.frameCount, 1);
     });
   });
+
+  test('a bake steps its cloth on the run\'s backend', () async {
+    final was = PhysicsBackend.current;
+    addTearDown(() => PhysicsBackend.current = was);
+    final backend = _Counting();
+    PhysicsBackend.current = backend;
+    final job = bake(frameCount: 3);
+    await job.bake();
+    // Mutation: the bake calling stepCloth itself, past the backend.
+    expect(backend.steps, 3);
+    expect(job.buildCache().frameCount, 3);
+  });
+}
+
+/// A backend with a cloth of its own, the reference's, that counts its
+/// steps.
+final class _Counting implements PhysicsBackend, ClothPhysics {
+  int steps = 0;
+
+  @override
+  String get name => 'counting';
+
+  @override
+  ClothSimulation cloth(ClothMesh mesh) => _CountedCloth(this, DartCloth(mesh));
+
+  @override
+  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
+      const DartPhysics().dynamics(world, gravity: gravity);
+
+  @override
+  void attach(CollisionWorld world) {}
+
+  @override
+  void release(CollisionWorld world) {}
+}
+
+final class _CountedCloth implements ClothSimulation {
+  _CountedCloth(this._backend, this._cloth);
+
+  final _Counting _backend;
+  final DartCloth _cloth;
+
+  @override
+  ClothMesh get mesh => _cloth.mesh;
+
+  @override
+  void step(
+    ClothSettings settings,
+    double dt, {
+    List<ClothObstacle> obstacles = const <ClothObstacle>[],
+  }) {
+    _backend.steps++;
+    _cloth.step(settings, dt, obstacles: obstacles);
+  }
+
+  @override
+  void dispose() {}
 }
 
 bool _assertionsEnabled() {

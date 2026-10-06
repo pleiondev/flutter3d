@@ -1,5 +1,20 @@
 ## Unreleased
 
+- **Cloth runs on the core by default.** `NativePhysics.cloth` steps a
+  `flutter3d_physics` `ClothMesh` with `f3d_cloth_solve`, which does what
+  `stepCloth` does: XPBD with its multipliers kept across the iterations,
+  damping by the substep, wind blowing on triangles along their normals,
+  self-collision through a spatial hash, and friction against obstacles.
+  Obstacles are spheres, upright capsules, boxes and wedges as their
+  planes, and heightfields as their samples, all in one packed record
+  format (`f3d_cloth_set_obstacles`). A sheet on the core ends within a few
+  millimetres of the reference's after a second of draping; the two differ
+  in the order the constraints are solved and in f32 rounding.
+- **The core's own cloth types go by `CoreClothMesh` and
+  `CoreClothSettings`** in the package's library, because
+  `flutter3d_physics` uses the plain names for the cloth both backends step.
+  `NativeCloth` and `GpuCloth` are unchanged.
+
 - **Sweeps run on the core.** `NativeWorldSweeps` casts the shape's
   bounding box through the mirrored world, the same way the reference
   does. A shape that starts inside something hits nothing. With

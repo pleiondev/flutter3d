@@ -17,6 +17,10 @@ import 'rigid_dynamics.dart';
 /// The two are not promised to agree with each other, only each with
 /// itself: a run recorded on one replays bit for bit on the same one, and
 /// a recording says which it was (`Demo.physics`).
+///
+/// Cloth comes from the same answer, through `cloth` (the
+/// `PhysicsBackendCloth` extension), which a backend with a cloth of its
+/// own serves by also implementing `ClothPhysics`.
 abstract interface class PhysicsBackend {
   /// What a recording calls it: `'native'` or `'dart'`.
   String get name;

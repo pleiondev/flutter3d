@@ -19,7 +19,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - events, and snapshots a world restores from to the byte;
 - particles that fall, drift in the wind, bounce off a floor and die, on the CPU and, through wgpu-native, on the GPU.
 - debris, the visual bodies: thousands of balls that tumble, heap and settle on still planes and boxes, on the CPU and on the GPU, where they are read a frame late.
-- cloth: sheets and ropes held by constraints of any stiffness, draped over balls and blown by the wind, on the CPU and on the GPU.
+- cloth: sheets and ropes held by constraints of any stiffness, blown by the wind, on the CPU and on the GPU. On the CPU a sheet can also drape over the same obstacles the Dart solver handles (balls, capsules, boxes, wedges and heightfields), with friction and self-collision. `usePhysics().cloth(mesh)` returns the core's cloth, or the Dart solver when the run is on the reference.
 - water as particles in a tank that slumps, splashes and settles, on the CPU and on the GPU.
 
 ## Under CollisionWorld
