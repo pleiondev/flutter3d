@@ -72,6 +72,9 @@ final class LevelSceneParts {
     required this.batches,
     required this.lights,
     required this.probes,
+    this.decals = const <DecalNode>[],
+    this.reflectors = const <PlanarReflectorNode>[],
+    this.screens = const <RenderTexture>[],
   });
 
   final Scene scene;
@@ -84,6 +87,17 @@ final class LevelSceneParts {
 
   /// One kept probe per reflection-probe entity, in document order.
   final List<ReflectionProbeNode> probes;
+
+  /// One per decal entity. They are drawn where the game turns decals on,
+  /// so a game whose level has some reads this to know it should.
+  final List<DecalNode> decals;
+
+  /// One per reflector entity, mirroring the batches of its material.
+  final List<PlanarReflectorNode> reflectors;
+
+  /// One per camera-screen entity, already added to the scene. Each is the
+  /// caller's to give back with `Renderer.releaseTextureAfterFrame`.
+  final List<RenderTexture> screens;
 }
 
 /// Builds the scene a level document describes.
@@ -145,11 +159,34 @@ final class LevelScene {
     for (final probe in probes) {
       scene.add(probe);
     }
+    // Decals, mirrors and screens, each naming a level material the way a
+    // brush does: the picture a decal paints, the surfaces a mirror is
+    // drawn on, the surfaces a screen lights. Kinds in `flutter3d_sim`
+    // validate them; see `DecalKind`.
+    final decals = <DecalNode>[
+      for (final entity in level.ofType(EntityTypes.decal))
+        decalOf(entity, level, textures),
+    ];
+    final reflectors = <PlanarReflectorNode>[
+      for (final entity in level.ofType(EntityTypes.reflector))
+        reflectorOf(entity, batches),
+    ];
+    final screens = <RenderTexture>[
+      for (final entity in level.ofType(EntityTypes.cameraScreen))
+        screenOf(entity, batches, device: device),
+    ];
+    for (final node in <SceneNode>[...decals, ...reflectors]) {
+      scene.add(node);
+    }
+    screens.forEach(scene.addRenderTexture);
     return LevelSceneParts(
       scene: scene,
       batches: batches,
       lights: lights,
       probes: probes,
+      decals: decals,
+      reflectors: reflectors,
+      screens: screens,
     );
   }
 
@@ -362,6 +399,88 @@ final class LevelScene {
   /// Kept, never rolling: a level's rooms do not move, and a probe that
   /// redrew a face a frame would spend a view of the level on a picture it
   /// already has.
+  /// The decal [entity] asks for: its material's picture and colour,
+  /// stamped down a box of `size` at its `at`, turned by its `yaw` and
+  /// tipped by its `pitch` — ninety stands it on a wall.
+  static DecalNode decalOf(
+    EntityDef entity,
+    Level level,
+    Map<String, TextureHandle?> textures,
+  ) {
+    final source = level.materials[entity.string('material')];
+    final size = entity.vector('size') ?? Vector3(1.0, 1.0, 1.0);
+    final pitch = (entity.number('pitch') ?? 0.0) * math.pi / 180.0;
+    return DecalNode(
+        name: entity.name,
+        texture: source == null ? null : textures[source.albedo],
+        color: source?.baseColor.clone(),
+        order: entity.integer('order') ?? 0,
+      )
+      ..setPositionFrom(entity.position)
+      ..setRotation(
+        Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw) *
+            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), pitch),
+      )
+      ..setScale(size.x, size.y, size.z);
+  }
+
+  /// The mirror [entity] asks for: a plane through its `at`, facing up,
+  /// drawn on every batch of its material.
+  static PlanarReflectorNode reflectorOf(
+    EntityDef entity,
+    List<LevelBatch> batches,
+  ) {
+    final material = entity.string('material');
+    return PlanarReflectorNode(
+      name: entity.name,
+      surfaces: <MeshNode>[
+        for (final batch in batches)
+          if (batch.node.material.name == material) batch.node,
+      ],
+      reflectance: entity.number('reflectance') ?? 1.0,
+      strength: entity.number('strength') ?? 1.0,
+      resolution: entity.number('resolution') ?? 0.5,
+    )..setPositionFrom(entity.position);
+  }
+
+  /// The camera [entity] asks for, drawing into a texture every batch of
+  /// its material gives off as light — and leaves out of its own picture,
+  /// or a screen in view would show itself showing itself.
+  static RenderTexture screenOf(
+    EntityDef entity,
+    List<LevelBatch> batches, {
+    required GraphicsDevice device,
+  }) {
+    final look = entity.vector('look') ?? entity.position + Vector3(0, 0, -1);
+    final camera =
+        CameraNode(
+            name: entity.name,
+            projection: PerspectiveProjection(
+              fovYRadians: (entity.number('fov') ?? 60.0) * math.pi / 180.0,
+            ),
+          )
+          ..setPositionFrom(entity.position)
+          ..lookAt(look, up: Vector3(0.0, 1.0, 0.0));
+    final screen = RenderTexture.create(
+      device,
+      camera: camera,
+      width: entity.integer('width') ?? 256,
+      height: entity.integer('height') ?? 144,
+      refreshEveryFrame: !entity.flag('once'),
+    );
+    final material = entity.string('material');
+    for (final batch in batches) {
+      final shown = batch.node.material;
+      if (shown.name != material) continue;
+      screen.excluded.add(batch.node);
+      shown
+        ..emissiveTexture = screen.texture
+        ..emissive.setValues(1.0, 1.0, 1.0)
+        ..emissiveStrength = math.max(shown.emissiveStrength, 1.0);
+    }
+    return screen;
+  }
+
   static ReflectionProbeNode probeOf(EntityDef entity) => ReflectionProbeNode(
     name: entity.name,
     radius: entity.number('radius') ?? 0.0,

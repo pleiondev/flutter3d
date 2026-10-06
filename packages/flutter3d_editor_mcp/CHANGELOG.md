@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`screenshot` takes a `debugView`**, which draws each surface as one of
+  its numbers.
+
 - **The frame the running game drew, for an agent.**
   - `render_*` tools sit over the game's `ext.flutter3d.render.*`. Among
     them is `render_pick`, which answers which draws painted a pixel.

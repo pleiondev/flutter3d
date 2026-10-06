@@ -1470,6 +1470,13 @@ class _GameScreenState extends State<GameScreen>
                   // the floor. That is a decision about how the crypt should
                   // look, and nothing has drawn one with it on to judge.
                   reflections: const ReflectionSettings(),
+                  // A level's own decals and mirrors, when it placed any —
+                  // the cistern's still water. Each costs a pass, so only
+                  // where the document asks for one.
+                  decals: DecalSettings(enabled: loaded.wantsDecals),
+                  planarReflections: PlanarReflectionSettings(
+                    enabled: loaded.reflectors.isNotEmpty,
+                  ),
                   // Straight from the document. A crypt without fog is a crypt
                   // with a visible far wall, and the far wall is the thing an
                   // author least wants seen.

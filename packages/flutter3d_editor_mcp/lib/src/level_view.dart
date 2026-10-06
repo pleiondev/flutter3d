@@ -130,9 +130,14 @@ final class LevelView {
     );
   }
 
-  /// A PNG of the level from [camera].
-  Future<Uint8List> picture(LevelCamera camera) async {
-    final (eye, result) = _draw(camera);
+  /// A PNG of the level from [camera], or of one of its materials' numbers
+  /// — [debugView], `P6`'s: albedo, normal, roughness and the rest, each
+  /// drawn as the colour it is.
+  Future<Uint8List> picture(
+    LevelCamera camera, {
+    DebugView debugView = DebugView.off,
+  }) async {
+    final (eye, result) = _draw(camera, debugView: debugView);
     _scene.remove(eye);
     final pixels = await _device.readPixels(result.frame);
     if (pixels == null) throw StateError('the frame could not be read back');
@@ -246,7 +251,10 @@ final class LevelView {
     return <PieceReport>[for (final piece in _pieces) reportOf(piece)];
   }
 
-  (CameraNode, FrameResult) _draw(LevelCamera camera) {
+  (CameraNode, FrameResult) _draw(
+    LevelCamera camera, {
+    DebugView debugView = DebugView.off,
+  }) {
     final eye = CameraNode(
       projection: const PerspectiveProjection(
         fovYRadians: 1.2,
@@ -263,6 +271,7 @@ final class LevelView {
       views: <RenderView>[
         RenderView(camera: eye, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
+      settings: RenderSettings(debugView: DebugViewSettings(view: debugView)),
     );
     return (eye, result);
   }

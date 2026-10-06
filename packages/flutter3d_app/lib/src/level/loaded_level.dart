@@ -24,6 +24,9 @@ final class LoadedLevel {
     Map<String, TextureHandle?>? materialTextures,
     List<DeviceMesh>? brushMeshes,
     List<ReflectionProbeNode>? probes,
+    this.decals = const <DecalNode>[],
+    this.reflectors = const <PlanarReflectorNode>[],
+    this.screens = const <RenderTexture>[],
     this.culler,
     this.batching = LevelBatching.perMaterial,
   }) : issues = List.unmodifiable(issues),
@@ -45,6 +48,21 @@ final class LoadedLevel {
   /// The reflection probes the document placed, in [scene] — one per
   /// `reflection_probe` entity, kept rather than rolling.
   final List<ReflectionProbeNode> probes;
+
+  /// The decals the document placed, in [scene]. A game draws them by
+  /// turning `RenderSettings.decals` on, which it does when this is not
+  /// empty — see [wantsDecals].
+  final List<DecalNode> decals;
+
+  /// The mirrors the document placed, in [scene].
+  final List<PlanarReflectorNode> reflectors;
+
+  /// The cameras the document placed, drawing into the materials they
+  /// name; given back in [dispose].
+  final List<RenderTexture> screens;
+
+  /// Whether the level has decals for the frame to paint.
+  bool get wantsDecals => decals.isNotEmpty;
 
   /// Whether every probe has been drawn whole — or never will be, on a device
   /// that builds none, which must not be waited for.
@@ -144,6 +162,9 @@ final class LoadedLevel {
 
   void dispose(GraphicsDevice device) {
     physics.release(collision);
+    for (final screen in screens) {
+      device.releaseTexture(screen.texture);
+    }
     watchedTextures.forEach(HotSwap.instance.forgetTexture);
     for (final mesh in brushMeshes) {
       device.releaseGeometry(mesh.vertices);

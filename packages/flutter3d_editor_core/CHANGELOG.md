@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **`LevelScene` builds a level's decals, mirrors and camera screens**:
+  - a `DecalNode` from its material's picture, tipped onto a wall by
+    `pitch`;
+  - a `PlanarReflectorNode` on every batch of its material;
+  - a `RenderTexture` that the material gives off as light.
+
 - **Cutscenes are written like behaviours.** `Editing.cutscenes` lists the
   level's scenes by name; `setCutscene` reads a scene at
   `cutsceneStepsPerSecond` and writes it as a `cutscene` entity, refusing

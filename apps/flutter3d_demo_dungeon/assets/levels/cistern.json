@@ -335,6 +335,15 @@
     {"type": "pickup", "at": [3.0, 0.8, 12.0], "gives": "shells", "amount": 8},
     {"type": "reflection_probe", "at": [-6.0, 1.9, -6.0]},
     {"type": "reflection_probe", "at": [6.0, 1.9, -6.0]},
+    {
+      "type": "reflector",
+      "name": "basin_mirror",
+      "at": [0.0, -0.85, -6.0],
+      "material": "water",
+      "reflectance": 0.35,
+      "strength": 0.8
+    },
+    {"type": "decal", "name": "landing_wet", "at": [0.0, 0.0, 1.0], "size": [3.0, 0.6, 2.0], "material": "water"},
     {"type": "lamp", "at": [0.0, 4.0, -6.0], "light": "basin_lamp", "color": [0.5, 0.85, 0.8]},
     {"type": "torch", "at": [-11.75, 2.0, -12.0], "yaw": 1.5708, "light": "basin_northwest"},
     {"type": "torch", "at": [11.75, 2.0, -12.0], "yaw": -1.5708, "light": "basin_northeast"},

@@ -4,6 +4,9 @@
 ///     flutter test test/tree_guard_test.dart
 library;
 
+import 'dart:io';
+
+import 'package:flutter3d/flutter3d.dart' show MeshNode;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
@@ -67,4 +70,40 @@ void main() {
       contains(startsWith('drain_guard: sequence')),
     );
   });
+
+  test(
+    'the cistern\'s water mirrors the hall, and its landing is wet',
+    () async {
+      final it = cpuTestDevice(width: 16, height: 16);
+      final run = RunCubit(
+        DungeonRun(
+          firstLevel: 'assets/levels/cistern.json',
+          registry: sampleRegistry(),
+          input: InputState(),
+          inventory: startingInventory(),
+          saves: SaveFile(appName: 'dungeon', storage: _Storage()),
+          device: it.device,
+        ),
+      );
+      await run.begin();
+      final loaded = (run.state as RunPlaying<LevelReady>).level.loaded;
+      // Mutation: a reflector entity the level format reads and nothing
+      // builds — the water would stay as dark as it was.
+      final mirror = loaded.reflectors.single;
+      expect(mirror.surfaces, isNotEmpty);
+      expect(
+        mirror.surfaces.map((MeshNode n) => n.material.name).toSet(),
+        <String>{'water'},
+      );
+      expect(loaded.wantsDecals, isTrue);
+      // And the game draws both: a scan, the frame's settings being a
+      // closure in a widget no test mounts.
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(
+        main,
+        contains('decals: DecalSettings(enabled: loaded.wantsDecals)'),
+      );
+      expect(main, contains('enabled: loaded.reflectors.isNotEmpty'));
+    },
+  );
 }

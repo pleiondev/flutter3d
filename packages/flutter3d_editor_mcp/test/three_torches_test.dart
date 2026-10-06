@@ -258,6 +258,32 @@ void main() {
     expect(png.length, greaterThan(2000));
   });
 
+  test('a screenshot can be of the materials\' numbers instead', () async {
+    await placeThreeTorches();
+    Future<CallToolResult> shot([String? view]) => connection.callTool(
+      CallToolRequest(
+        name: 'screenshot',
+        arguments: <String, Object?>{'debugView': ?view},
+      ),
+    );
+    final lit = await shot();
+    final normals = await shot('normal');
+    expect(normals.isError, isNot(true));
+    expect(
+      (normals.content.first as TextContent).text,
+      contains('as its normal'),
+    );
+    // Mutation: the view named and not handed to the renderer, which draws
+    // the lit picture again.
+    expect(
+      (normals.content.last as ImageContent).data,
+      isNot((lit.content.last as ImageContent).data),
+    );
+    final wrong = await shot('sparkle');
+    expect(wrong.isError, isTrue);
+    expect((wrong.content.first as TextContent).text, contains('albedo'));
+  });
+
   test('the report says what the camera sees of each torch', () async {
     await placeThreeTorches();
     final report = await call('report');

@@ -523,6 +523,24 @@ Map<String, String> cistern(GeneratorSource _) {
       solid: false,
       casts: false,
     )
+    // The water is still, and shows the hall above it: a mirror on its
+    // surface, faint, since dark water gives back little. And where the
+    // landing meets the stair down, the stone is wet with it.
+    ..entity(<String, Object?>{
+      'type': 'reflector',
+      'name': 'basin_mirror',
+      'at': <num>[0.0, -depth + 0.35, -6.0],
+      'material': 'water',
+      'reflectance': 0.35,
+      'strength': 0.8,
+    })
+    ..entity(<String, Object?>{
+      'type': 'decal',
+      'name': 'landing_wet',
+      'at': <num>[0.0, 0.0, 1.0],
+      'size': <num>[3.0, 0.6, 2.0],
+      'material': 'water',
+    })
     // A pier from each doorway, and a flight down into the water.
     ..block(<num>[0.0, -depth / 2.0, 1.5], <num>[4.0, depth, 5.0], 'stone')
     ..stair(

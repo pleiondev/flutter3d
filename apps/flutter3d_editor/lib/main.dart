@@ -175,6 +175,15 @@ class _EditorScreenState extends State<EditorScreen>
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
 
+  /// Whether the level on screen placed decals or mirrors, which the
+  /// viewport then draws, as the game would.
+  bool _decals = false;
+  bool _mirrors = false;
+
+  /// Which of a material's numbers the viewport shows, or the lit picture.
+  /// See the V key.
+  DebugView _debugView = DebugView.off;
+
   /// The cutscene whose camera the viewport is playing, and how long it has
   /// been playing; null when the fly camera has the view.
   CutscenePreview? _preview;
@@ -488,6 +497,8 @@ class _EditorScreenState extends State<EditorScreen>
       );
       if (!mounted) return;
       _scene = loaded.scene..add(_camera);
+      _decals = loaded.wantsDecals;
+      _mirrors = loaded.reflectors.isNotEmpty;
       _lamp = LightNode(
         type: LightType.point,
         color: Vector3(1.0, 0.98, 0.94),
@@ -970,6 +981,22 @@ class _EditorScreenState extends State<EditorScreen>
     }
     if (command && key == LogicalKeyboardKey.keyO) {
       unawaited(_chooseAndOpen());
+      return KeyEventResult.handled;
+    }
+
+    // V steps the viewport through the materials' numbers — `P6`'s debug
+    // views: albedo, normal, roughness and the rest, each the colour it is —
+    // and back to the lit picture. Shift steps back.
+    if (!command && key == LogicalKeyboardKey.keyV) {
+      final views = DebugView.values;
+      final at = views.indexOf(_debugView);
+      final step = pressed.isShiftPressed ? views.length - 1 : 1;
+      setState(() => _debugView = views[(at + step) % views.length]);
+      _cubit.say(
+        _debugView == DebugView.off
+            ? 'the lit picture'
+            : 'showing ${_debugView.name} — V for the next, shift-V back',
+      );
       return KeyEventResult.handled;
     }
 
@@ -1458,6 +1485,13 @@ class _EditorScreenState extends State<EditorScreen>
                       // whatever picking last selected" — and this is the first
                       // caller it has ever had.
                       highlighted: <SceneNode>[?_dressing?.marker],
+                      // The level's own decals and mirrors, as the game
+                      // draws them: an author placing one sees it.
+                      decals: DecalSettings(enabled: _decals),
+                      debugView: DebugViewSettings(view: _debugView),
+                      planarReflections: PlanarReflectionSettings(
+                        enabled: _mirrors,
+                      ),
                       // **No shadows, and not for speed.** With them on this
                       // editor flickers: the picture alternates between the
                       // scene and a nearly black one, on a camera nobody is

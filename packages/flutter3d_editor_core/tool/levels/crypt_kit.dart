@@ -186,6 +186,13 @@ final class CryptKit {
     'board': ?board,
   });
 
+  /// An entity the kit has no word of its own for — a mirror, a decal —
+  /// as its document row, `at` rounded like every other.
+  void entity(Map<String, Object?> row) => entities.add(<String, Object?>{
+    ...row,
+    if (row['at'] case final List<num> at) 'at': roundedVector(at),
+  });
+
   /// The level's behaviour trees by name, for a monster's `behaviour` to
   /// name; written only when there are some.
   final Map<String, Object?> behaviours = <String, Object?>{};

@@ -84,6 +84,7 @@ export 'src/level/lightmap.dart';
 export 'src/level/lightmap_baker.dart';
 export 'src/level/lightmap_layout.dart';
 export 'src/level/spawn_context.dart';
+export 'src/level/surface_kinds.dart';
 export 'src/level/surface_table.dart';
 export 'src/loop/difficulty.dart';
 export 'src/loop/fixed_step.dart';

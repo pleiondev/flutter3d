@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`LoadedLevel` carries the level's decals, mirrors and screens**, along
+  with `wantsDecals` for the frame. It releases the screens' textures.
+
 - **`ext.flutter3d.render.pick`** reports the node drawn at a pixel and
   its draws, from one frame that ran both the picking pass and the
   journaled capture.

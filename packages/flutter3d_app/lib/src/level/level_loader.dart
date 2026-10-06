@@ -568,6 +568,9 @@ final class LevelLoader {
           for (final batch in parts.batches) batch.mesh,
         ],
         probes: parts.probes,
+        decals: parts.decals,
+        reflectors: parts.reflectors,
+        screens: parts.screens,
         // With their boxes, so the culler can ask which of them a cell sees.
         culler: visibility == null
             ? null

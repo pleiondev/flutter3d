@@ -862,15 +862,28 @@ List<EditorTool> get editorTools => <EditorTool>[
           'brush in its material\'s colour (no textures), lit by the level\'s '
           'own lights, with a small yellow box at each light and a blue one at '
           'each entity so things that have no shape can still be seen. Take '
-          'one before and after a change.',
-      inputSchema: ObjectSchema(properties: _cameraProperties),
+          'one before and after a change. With debugView, each surface is '
+          'drawn as one of its numbers instead: albedo, normal, roughness, '
+          'metallic, occlusion, emissive, uv, or nonFinite to find NaNs.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          ..._cameraProperties,
+          'debugView': StringSchema(
+            description: 'off unless given: albedo, normal, roughness, ...',
+          ),
+        },
+      ),
     ),
     // **It used to be declared and refused**, because every renderer reached a
     // device whose finished frame was a Flutter widget. That stopped being
     // true when the device registry replaced `present`, and the level's scene
     // moved to `LevelScene` in the editor core, so this draws for real.
     (EditorSession session, Map<String, Object?> arguments) =>
-        session.screenshot(_point(arguments, 'from'), _point(arguments, 'at')),
+        session.screenshot(
+          _point(arguments, 'from'),
+          _point(arguments, 'at'),
+          debugView: arguments['debugView'] as String?,
+        ),
   ),
   _told(
     Tool(

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show DebugView;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
     show Answer, PictureAnswer;
@@ -243,17 +244,36 @@ final class EditorSession {
   }
 
   /// A picture of the level from [from] looking at [at].
-  Future<PictureAnswer> screenshot(Vector3? from, Vector3? at) async {
+  Future<PictureAnswer> screenshot(
+    Vector3? from,
+    Vector3? at, {
+    String? debugView,
+  }) async {
     final camera = _camera(from, at);
     if (camera == null) {
       return (did: false, says: 'the level is empty', png: null);
     }
-    final png = await LevelView.of(editing.level).picture(camera);
+    final view = debugView == null
+        ? DebugView.off
+        : DebugView.values.where((v) => v.name == debugView).firstOrNull;
+    if (view == null) {
+      return (
+        did: false,
+        says:
+            'there is no debug view "$debugView": '
+            '${DebugView.values.map((v) => v.name).join(', ')}',
+        png: null,
+      );
+    }
+    final png = await LevelView.of(
+      editing.level,
+    ).picture(camera, debugView: view);
     return (
       did: true,
       says:
           'the level from ${_place(camera.from)} looking at '
-          '${_place(camera.at)}, ${LevelView.width}×${LevelView.height}',
+          '${_place(camera.at)}, ${LevelView.width}×${LevelView.height}'
+          '${view == DebugView.off ? '' : ', as its ${view.name}'}',
       png: png,
     );
   }

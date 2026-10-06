@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **Decals, mirrors and camera screens in the level format.**
+  `DecalKind`, `ReflectorKind` and `CameraScreenKind` each name a level
+  material, and are refused when the material is missing or a number would
+  make them nothing.
+
 - **`RestorableRun`** marks a headless run that can be put back to a
   saved state, which `bisectTapes` needs on each side. The shooter's run
   implements it.

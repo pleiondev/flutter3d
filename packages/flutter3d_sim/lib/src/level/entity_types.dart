@@ -30,4 +30,13 @@ abstract final class EntityTypes {
   /// A cutscene a trigger starts — see `CutsceneKind`. The format's word,
   /// because a level telling its own story is not one genre's idea.
   static const String cutscene = 'cutscene';
+
+  /// A picture projected onto what stands in a box — see `DecalKind`.
+  static const String decal = 'decal';
+
+  /// A floor or a pool that mirrors the room — see `ReflectorKind`.
+  static const String reflector = 'reflector';
+
+  /// A camera whose picture a material shows — see `CameraScreenKind`.
+  static const String cameraScreen = 'camera_screen';
 }

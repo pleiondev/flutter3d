@@ -1,4 +1,7 @@
 {
+  "decal": { "size": [1.0, 0.2, 1.0], "tint": [0.55, 0.35, 0.3] },
+  "reflector": { "size": [1.0, 0.05, 1.0], "tint": [0.6, 0.8, 1.0] },
+  "camera_screen": { "size": [0.4, 0.3, 0.3], "tint": [0.4, 0.9, 0.6] },
   "monster": {
     "model": "assets_src/models/monster_{kind}.glb",
     "size": [0.9, 1.9, 0.9]
