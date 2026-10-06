@@ -50,6 +50,7 @@ void main() {
       'play_stop',
       'play_devices',
       'play_keep_tape',
+      'generate_level',
       'render_passes',
       'render_draws',
       'render_draw',
@@ -275,6 +276,26 @@ void main() {
         contains('there is no behaviour patrol'),
       );
     });
+  });
+
+  test('an agent makes a whole level from a seed, and it validates', () async {
+    final session = EditorSession(
+      Editing.parse(_bareLevel, path: 'nowhere.json'),
+    );
+    final made = await editorTools
+        .firstWhere((EditorTool it) => it.name == 'generate_level')
+        .run(session, <String, Object?>{
+          'seed': 7,
+          'rules': <String, Object?>{'columns': 3, 'rows': 3},
+        });
+    expect(made.did, isTrue, reason: made.says);
+    expect(made.says, contains('rooms joined by corridors'));
+    expect(session.editing.level.ofType('player_spawn'), hasLength(1));
+    expect(session.editing.level.ofType('exit'), hasLength(1));
+    // One step back is the level as it was.
+    // Mutation: replacing the level without remembering it.
+    session.editing.undo();
+    expect(session.editing.level.recipes, isEmpty);
   });
 
   group('cutscenes', () {

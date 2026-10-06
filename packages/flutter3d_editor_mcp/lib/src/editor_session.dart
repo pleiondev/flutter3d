@@ -172,6 +172,28 @@ final class EditorSession {
   /// The document keeps the recipe rather than its brushes, which is why the
   /// answer counts them: `list` shows what the document holds, and a recipe
   /// is expanded only where the level is used. Undoable like any change.
+  /// A whole level made by `generateLevel` from [rules] and [seed], in
+  /// place of the open one — one step of undo — and what it is made of.
+  /// Off this thread, since a big grid of rooms is a bake and a route.
+  Future<Answer> generateLevel(LevelRules rules, {required int seed}) async {
+    final made = await generateLevelOffThread(rules, seed: seed);
+    final level = made.level;
+    if (level == null) return (did: false, says: made.says);
+    editing.replaceLevel(
+      level,
+      says: 'generate a level from seed ${made.seed}',
+    );
+    final rooms = level.recipes
+        .where((LevelRecipe recipe) => recipe.kind == 'room')
+        .length;
+    return (
+      did: true,
+      says:
+          '${made.says}: $rooms rooms joined by corridors, the player in one '
+          'and the exit a walk away in the farthest — call validate, or save',
+    );
+  }
+
   Answer generate(LevelRecipe recipe) {
     try {
       final built = editing.addRecipe(recipe);

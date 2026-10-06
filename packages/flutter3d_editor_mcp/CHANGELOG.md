@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`generate_level`** replaces the open level with one made from a seed
+  and rules.
+
 - **`screenshot` takes a `debugView`**, which draws each surface as one of
   its numbers.
 

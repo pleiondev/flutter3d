@@ -11,6 +11,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'depths.dart';
 import 'exit_door.dart';
 import 'fixture_looks.dart';
 import 'layers.dart';
@@ -176,18 +177,31 @@ final class DungeonRun extends RunSession<LevelReady> {
   final double eyeOffset;
   final double lookSensitivity;
 
+  /// The seed the depths begin at, so each level of them knows how deep it
+  /// is and grows crowded as the run goes down.
+  int depthsFrom = 1;
+
   @override
   Future<LevelReady> open(String asset) async {
     // The run's physics: the core, which the browser fetches as WebAssembly
     // once — natively it is in the app — or the reference where it will not
     // start. Chosen once; every level after asks the same.
     await preparePhysics();
-    final loaded = await const LevelLoader().load(
-      asset,
-      device: device,
-      registry: registry,
-      rules: sampleRules(),
-    );
+    // The depths are made, not read: a seed where an asset would be.
+    final depth = Depths.seedOf(asset);
+    final loaded = depth == null
+        ? await const LevelLoader().load(
+            asset,
+            device: device,
+            registry: registry,
+            rules: sampleRules(),
+          )
+        : await const LevelLoader().build(
+            await Depths.level(depth, first: depthsFrom),
+            device: device,
+            registry: registry,
+            rules: sampleRules(),
+          );
 
     // The player, once the level is staged below: the corpses ask it where
     // the killing shot came from.

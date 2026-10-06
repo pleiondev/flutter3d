@@ -123,6 +123,17 @@ class CryptEnding extends StatelessWidget {
                   letterSpacing: 1,
                 ),
               ),
+              if (!touch) ...<Widget>[
+                const SizedBox(height: 8),
+                Text(
+                  'Or N, to go deeper, where nobody built the rooms.',
+                  key: const ValueKey<String>('ending:deeper'),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

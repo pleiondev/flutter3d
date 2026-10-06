@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **`Editing.replaceLevel`** puts a whole level in place as one step of
+  undo.
+
 - **`LevelScene` builds a level's decals, mirrors and camera screens**:
   - a `DecalNode` from its material's picture, tipped onto a wall by
     `pitch`;

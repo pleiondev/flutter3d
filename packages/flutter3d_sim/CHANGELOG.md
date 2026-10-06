@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **Levels from a seed and some rules (N11).**
+  - `collapse` is wave function collapse over tiles.
+  - `generateLevel` lays out rooms joined by corridors, with the player in
+    one room and the exit in the farthest, held to `ExitReachable`. Off the
+    thread with `generateLevelOffThread`.
+  - `erodeThermally` and `erodeHydraulically` shape a `Heightfield`.
+
 - **Decals, mirrors and camera screens in the level format.**
   `DecalKind`, `ReflectorKind` and `CameraScreenKind` each name a level
   material, and are refused when the material is missing or a number would

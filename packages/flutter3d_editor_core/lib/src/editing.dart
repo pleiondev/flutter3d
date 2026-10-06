@@ -150,6 +150,15 @@ final class Editing {
   /// nothing — the transaction has already taken its snapshot.
   void _remember(String says) => history.remember(says);
 
+  /// Puts [next] where the level was, as one step of undo [says] names —
+  /// a level made whole by a generator, which an author then edits like any
+  /// other. The selection goes: what it pointed at is not there.
+  void replaceLevel(Level next, {required String says}) {
+    _remember(says);
+    level = next;
+    select(null, null);
+  }
+
   /// Whether there is anything to go back to.
   bool get canUndo => history.canUndo;
 

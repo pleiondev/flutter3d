@@ -4,7 +4,8 @@ import 'dart:convert';
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show LevelRecipe, levelKits;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show LevelRecipe, LevelRules, levelKits;
 import 'package:vector_math/vector_math.dart';
 
 import 'editor_session.dart';
@@ -678,6 +679,41 @@ List<EditorTool> get editorTools => <EditorTool>[
       inputSchema: ObjectSchema(),
     ),
     (EditorSession session, Map<String, Object?> arguments) => session.redo(),
+  ),
+  _told(
+    Tool(
+      name: 'generate_level',
+      description:
+          'Replace the open level with a whole one made from a seed: rooms '
+          'laid out by wave function collapse on a grid of cells, corridors '
+          'where two rooms face each other through a doorway, a light in '
+          'each room, the player in one and the exit in the room farthest '
+          'from it — refused unless a body can walk from the start to the '
+          'exit. The same seed and rules make the same level; the answer '
+          'names the seed that made it, which may be a later one when a seed '
+          'makes no level. Undoable. rules: columns, rows (cells; 4 by 3), '
+          'cell (16 m), room (10 m), height (4 m), corridor (3 m), density '
+          '(0.7, how likely a cell is a room), clutter (boxes per room), '
+          'materials {name: row}, perRoom [{entity: row, count}] for what '
+          'stands in every room but the first.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'seed': IntegerSchema(description: 'what its chances are drawn from'),
+          'rules': ObjectSchema(
+            description: 'the level\'s rules; all optional',
+          ),
+        },
+        required: <String>['seed'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.generateLevel(
+          LevelRules.fromJson(
+            (arguments['rules'] as Map?)?.cast<String, Object?>() ??
+                const <String, Object?>{},
+          ),
+          seed: arguments['seed']! as int,
+        ),
   ),
   _told(
     Tool(
