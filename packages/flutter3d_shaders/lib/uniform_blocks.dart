@@ -363,6 +363,14 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'sharpen': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'HighContrast': <String, Map<String, UniformMemberLayout>>{
+    'HighContrastInfo': <String, UniformMemberLayout>{
+      'look': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'edges': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'line': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'screen': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Impostor': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -871,6 +879,12 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'IdInfo': <String, UniformMemberLayout>{
       'id': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'mask': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'OutlineMask': <String, Map<String, UniformMemberLayout>>{
+    'OutlineMaskInfo': <String, UniformMemberLayout>{
+      'target': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'color': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'Particle': <String, Map<String, UniformMemberLayout>>{

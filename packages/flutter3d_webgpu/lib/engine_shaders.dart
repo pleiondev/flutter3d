@@ -42855,6 +42855,660 @@ fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'OutlineMask': WebGpuStage(
+      wgsl: r'''
+struct OutlineMaskInfo {
+    target_: vec4<f32>,
+    color: vec4<f32>,
+}
+
+var<private> gl_FragCoord_1: vec4<f32>;
+@group(1) @binding(0) 
+var<uniform> mask_info: OutlineMaskInfo;
+@group(1) @binding(1) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var surface_texture_smp: sampler;
+var<private> v_depth_1: f32;
+var<private> frag_color: vec4<f32>;
+var<private> v_current_1: vec4<f32>;
+var<private> v_previous_1: vec4<f32>;
+
+fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
+    var local: vec2<f32>;
+
+    let _e19 = (*rows);
+    if (_e19 > 0f) {
+        let _e22 = gl_FragCoord_1[0u];
+        let _e23 = (*rows);
+        let _e25 = gl_FragCoord_1[1u];
+        local = vec2<f32>(_e22, (_e23 - _e25));
+    } else {
+        let _e28 = gl_FragCoord_1;
+        local = _e28.xy;
+    }
+    let _e30 = local;
+    return _e30;
+}
+
+fn main_1() {
+    var uv: vec2<f32>;
+    var param: f32;
+    var stored: f32;
+    var hidden: bool;
+    var phi_90_: bool;
+
+    let _e23 = mask_info.target_[2u];
+    param = _e23;
+    let _e24 = FragCoordFromTop_u0028_f1_u003b((&param));
+    let _e26 = mask_info.target_;
+    uv = (_e24 * _e26.xy);
+    let _e29 = uv;
+    let _e30 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e29, 0f);
+    stored = _e30.w;
+    let _e32 = stored;
+    let _e33 = (_e32 > 0f);
+    phi_90_ = _e33;
+    if _e33 {
+        let _e34 = v_depth_1;
+        let _e35 = stored;
+        let _e38 = mask_info.target_[3u];
+        phi_90_ = (_e34 > ((_e35 * (1f + _e38)) + 0.001f));
+    }
+    let _e44 = phi_90_;
+    hidden = _e44;
+    let _e45 = hidden;
+    if _e45 {
+        discard;
+    }
+    let _e47 = mask_info.color;
+    let _e48 = _e47.xyz;
+    frag_color = vec4<f32>(_e48.x, _e48.y, _e48.z, 1f);
+    return;
+}
+
+@fragment 
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(1) v_depth: f32, @location(0) v_current: vec4<f32>, @location(2) v_previous: vec4<f32>) -> @location(0) vec4<f32> {
+    gl_FragCoord_1 = gl_FragCoord;
+    v_depth_1 = v_depth;
+    v_current_1 = v_current;
+    v_previous_1 = v_previous;
+    main_1();
+    let _e9 = frag_color;
+    return _e9;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'OutlineMaskInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'target',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'color',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'HighContrast': WebGpuStage(
+      wgsl: r'''
+struct HighContrastInfo {
+    look: vec4<f32>,
+    edges: vec4<f32>,
+    line: vec4<f32>,
+    screen: vec4<f32>,
+}
+
+@group(1) @binding(3) 
+var scene_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var scene_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> contrast_info: HighContrastInfo;
+@group(1) @binding(5) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(6) 
+var surface_texture_smp: sampler;
+@group(1) @binding(1) 
+var mask_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var mask_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn DepthBend_u0028_f1_u003b_f1_u003b_f1_u003b(a: ptr<function, f32>, centre: ptr<function, f32>, b: ptr<function, f32>) -> f32 {
+    let _e48 = (*a);
+    let _e50 = (*b);
+    if ((_e48 <= 0f) || (_e50 <= 0f)) {
+        return 1000000f;
+    }
+    let _e53 = (*a);
+    let _e54 = (*b);
+    let _e56 = (*centre);
+    let _e60 = (*centre);
+    return (abs(((_e53 + _e54) - (2f * _e56))) / _e60);
+}
+
+fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
+    var n: vec3<f32>;
+    var t: f32;
+    var local: f32;
+    var local_1: f32;
+
+    let _e50 = (*e);
+    (*e) = ((_e50 * 2f) - vec2(1f));
+    let _e54 = (*e);
+    let _e56 = (*e)[0u];
+    let _e60 = (*e)[1u];
+    n = vec3<f32>(_e54.x, _e54.y, ((1f - abs(_e56)) - abs(_e60)));
+    let _e67 = n[2u];
+    t = max(-(_e67), 0f);
+    let _e71 = n[0u];
+    if (_e71 >= 0f) {
+        let _e73 = t;
+        local = -(_e73);
+    } else {
+        let _e75 = t;
+        local = _e75;
+    }
+    let _e76 = local;
+    let _e78 = n[0u];
+    n[0u] = (_e78 + _e76);
+    let _e82 = n[1u];
+    if (_e82 >= 0f) {
+        let _e84 = t;
+        local_1 = -(_e84);
+    } else {
+        let _e86 = t;
+        local_1 = _e86;
+    }
+    let _e87 = local_1;
+    let _e89 = n[1u];
+    n[1u] = (_e89 + _e87);
+    let _e92 = n;
+    return normalize(_e92);
+}
+
+fn main_1() {
+    var scene: vec4<f32>;
+    var colour: vec3<f32>;
+    var texel: vec2<f32>;
+    var hasSurface: bool;
+    var hasMask: bool;
+    var surface: vec4<f32>;
+    var depth: f32;
+    var normal: vec3<f32>;
+    var local_2: vec3<f32>;
+    var param: vec2<f32>;
+    var bend: f32;
+    var turn: f32;
+    var flatten: f32;
+    var spacing: vec2<f32>;
+    var sum: vec3<f32>;
+    var count: f32;
+    var y: i32;
+    var x: i32;
+    var uv: vec2<f32>;
+    var tap: vec4<f32>;
+    var ring: f32;
+    var same: bool;
+    var param_1: vec2<f32>;
+    var luma: f32;
+    var reach: f32;
+    var dx: vec2<f32>;
+    var dy: vec2<f32>;
+    var left: vec4<f32>;
+    var right: vec4<f32>;
+    var up: vec4<f32>;
+    var down: vec4<f32>;
+    var across: bool;
+    var along: bool;
+    var bent: f32;
+    var local_3: f32;
+    var param_2: f32;
+    var param_3: f32;
+    var param_4: f32;
+    var local_4: f32;
+    var param_5: f32;
+    var param_6: f32;
+    var param_7: f32;
+    var turned: f32;
+    var param_8: vec2<f32>;
+    var param_9: vec2<f32>;
+    var param_10: vec2<f32>;
+    var param_11: vec2<f32>;
+    var ringWidth: f32;
+    var own: vec4<f32>;
+    var directions: array<vec2<f32>, 8>;
+    var found: vec4<f32>;
+    var i: i32;
+    var d: i32;
+    var tap_1: vec4<f32>;
+    var phi_267_: bool;
+    var phi_279_: bool;
+    var phi_405_: bool;
+    var phi_421_: bool;
+    var phi_588_: bool;
+    var phi_623_: bool;
+
+    let _e99 = v_uv_1;
+    let _e100 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e99, 0f);
+    scene = _e100;
+    let _e101 = scene;
+    colour = _e101.xyz;
+    let _e104 = contrast_info.screen;
+    texel = _e104.xy;
+    let _e108 = contrast_info.screen[2u];
+    hasSurface = (_e108 > 0.5f);
+    let _e112 = contrast_info.screen[3u];
+    hasMask = (_e112 > 0.5f);
+    surface = vec4<f32>(0f, 0f, 0f, 0f);
+    let _e114 = hasSurface;
+    if _e114 {
+        let _e115 = v_uv_1;
+        let _e116 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e115, 0f);
+        surface = _e116;
+    }
+    let _e118 = surface[3u];
+    depth = _e118;
+    let _e119 = depth;
+    if (_e119 > 0f) {
+        let _e121 = surface;
+        param = _e121.xy;
+        let _e123 = DecodeOctahedral_u0028_vf2_u003b((&param));
+        local_2 = _e123;
+    } else {
+        local_2 = vec3<f32>(0f, 0f, 1f);
+    }
+    let _e124 = local_2;
+    normal = _e124;
+    let _e127 = contrast_info.edges[0u];
+    bend = max(_e127, 0.0001f);
+    let _e131 = contrast_info.edges[1u];
+    turn = max(_e131, 0.0001f);
+    let _e135 = contrast_info.look[0u];
+    flatten = clamp(_e135, 0f, 1f);
+    let _e137 = depth;
+    let _e139 = flatten;
+    if ((_e137 > 0f) && (_e139 > 0f)) {
+        let _e142 = texel;
+        let _e145 = contrast_info.edges[3u];
+        spacing = (_e142 * max(_e145, 1f));
+        sum = vec3<f32>(0f, 0f, 0f);
+        count = 0f;
+        y = -2i;
+        loop {
+            let _e148 = y;
+            if (_e148 <= 2i) {
+                x = -2i;
+                loop {
+                    let _e150 = x;
+                    if (_e150 <= 2i) {
+                        let _e152 = v_uv_1;
+                        let _e153 = x;
+                        let _e155 = y;
+                        let _e158 = spacing;
+                        uv = (_e152 + (vec2<f32>(f32(_e153), f32(_e155)) * _e158));
+                        let _e161 = uv;
+                        let _e162 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e161, 0f);
+                        tap = _e162;
+                        let _e163 = x;
+                        let _e165 = y;
+                        ring = f32(max(abs(_e163), abs(_e165)));
+                        let _e170 = tap[3u];
+                        let _e171 = (_e170 > 0f);
+                        phi_267_ = _e171;
+                        if _e171 {
+                            let _e173 = tap[3u];
+                            let _e174 = depth;
+                            let _e177 = bend;
+                            let _e178 = depth;
+                            let _e180 = ring;
+                            phi_267_ = (abs((_e173 - _e174)) <= ((_e177 * _e178) * max(_e180, 1f)));
+                        }
+                        let _e185 = phi_267_;
+                        phi_279_ = _e185;
+                        if _e185 {
+                            let _e186 = tap;
+                            param_1 = _e186.xy;
+                            let _e188 = DecodeOctahedral_u0028_vf2_u003b((&param_1));
+                            let _e189 = normal;
+                            let _e192 = turn;
+                            phi_279_ = ((1f - dot(_e188, _e189)) < _e192);
+                        }
+                        let _e195 = phi_279_;
+                        same = _e195;
+                        let _e196 = same;
+                        if _e196 {
+                            let _e197 = uv;
+                            let _e198 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e197, 0f);
+                            let _e200 = sum;
+                            sum = (_e200 + _e198.xyz);
+                            let _e202 = count;
+                            count = (_e202 + 1f);
+                        }
+                        continue;
+                    } else {
+                        break;
+                    }
+                    continuing {
+                        let _e204 = x;
+                        x = (_e204 + 1i);
+                    }
+                }
+                continue;
+            } else {
+                break;
+            }
+            continuing {
+                let _e206 = y;
+                y = (_e206 + 1i);
+            }
+        }
+        let _e208 = count;
+        if (_e208 > 0f) {
+            let _e210 = colour;
+            let _e211 = sum;
+            let _e212 = count;
+            let _e215 = flatten;
+            colour = mix(_e210, (_e211 / vec3(_e212)), vec3(_e215));
+        }
+    }
+    let _e218 = colour;
+    luma = dot(_e218, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
+    let _e220 = luma;
+    let _e222 = colour;
+    let _e225 = contrast_info.look[2u];
+    colour = mix(vec3(_e220), _e222, vec3(clamp(_e225, 0f, 1f)));
+    let _e229 = colour;
+    let _e234 = contrast_info.look[1u];
+    colour = clamp((((_e229 - vec3(0.5f)) * max(_e234, 0f)) + vec3(0.5f)), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e242 = contrast_info.edges[2u];
+    reach = _e242;
+    let _e243 = depth;
+    let _e245 = reach;
+    if ((_e243 > 0f) && (_e245 > 0f)) {
+        let _e249 = texel[0u];
+        let _e250 = reach;
+        dx = vec2<f32>((_e249 * _e250), 0f);
+        let _e254 = texel[1u];
+        let _e255 = reach;
+        dy = vec2<f32>(0f, (_e254 * _e255));
+        let _e258 = v_uv_1;
+        let _e259 = dx;
+        let _e261 = textureSampleLevel(surface_texture_tex, surface_texture_smp, (_e258 - _e259), 0f);
+        left = _e261;
+        let _e262 = v_uv_1;
+        let _e263 = dx;
+        let _e265 = textureSampleLevel(surface_texture_tex, surface_texture_smp, (_e262 + _e263), 0f);
+        right = _e265;
+        let _e266 = v_uv_1;
+        let _e267 = dy;
+        let _e269 = textureSampleLevel(surface_texture_tex, surface_texture_smp, (_e266 - _e267), 0f);
+        up = _e269;
+        let _e270 = v_uv_1;
+        let _e271 = dy;
+        let _e273 = textureSampleLevel(surface_texture_tex, surface_texture_smp, (_e270 + _e271), 0f);
+        down = _e273;
+        let _e275 = v_uv_1[0u];
+        let _e277 = dx[0u];
+        let _e279 = ((_e275 - _e277) >= 0f);
+        phi_405_ = _e279;
+        if _e279 {
+            let _e281 = v_uv_1[0u];
+            let _e283 = dx[0u];
+            phi_405_ = ((_e281 + _e283) <= 1f);
+        }
+        let _e287 = phi_405_;
+        across = _e287;
+        let _e289 = v_uv_1[1u];
+        let _e291 = dy[1u];
+        let _e293 = ((_e289 - _e291) >= 0f);
+        phi_421_ = _e293;
+        if _e293 {
+            let _e295 = v_uv_1[1u];
+            let _e297 = dy[1u];
+            phi_421_ = ((_e295 + _e297) <= 1f);
+        }
+        let _e301 = phi_421_;
+        along = _e301;
+        let _e302 = across;
+        if _e302 {
+            let _e304 = left[3u];
+            param_2 = _e304;
+            let _e305 = depth;
+            param_3 = _e305;
+            let _e307 = right[3u];
+            param_4 = _e307;
+            let _e308 = DepthBend_u0028_f1_u003b_f1_u003b_f1_u003b((&param_2), (&param_3), (&param_4));
+            local_3 = _e308;
+        } else {
+            local_3 = 0f;
+        }
+        let _e309 = local_3;
+        let _e310 = along;
+        if _e310 {
+            let _e312 = up[3u];
+            param_5 = _e312;
+            let _e313 = depth;
+            param_6 = _e313;
+            let _e315 = down[3u];
+            param_7 = _e315;
+            let _e316 = DepthBend_u0028_f1_u003b_f1_u003b_f1_u003b((&param_5), (&param_6), (&param_7));
+            local_4 = _e316;
+        } else {
+            local_4 = 0f;
+        }
+        let _e317 = local_4;
+        bent = max(_e309, _e317);
+        turned = 0f;
+        let _e320 = left[3u];
+        if (_e320 > 0f) {
+            let _e322 = turned;
+            let _e323 = left;
+            param_8 = _e323.xy;
+            let _e325 = DecodeOctahedral_u0028_vf2_u003b((&param_8));
+            let _e326 = normal;
+            turned = max(_e322, (1f - dot(_e325, _e326)));
+        }
+        let _e331 = right[3u];
+        if (_e331 > 0f) {
+            let _e333 = turned;
+            let _e334 = right;
+            param_9 = _e334.xy;
+            let _e336 = DecodeOctahedral_u0028_vf2_u003b((&param_9));
+            let _e337 = normal;
+            turned = max(_e333, (1f - dot(_e336, _e337)));
+        }
+        let _e342 = up[3u];
+        if (_e342 > 0f) {
+            let _e344 = turned;
+            let _e345 = up;
+            param_10 = _e345.xy;
+            let _e347 = DecodeOctahedral_u0028_vf2_u003b((&param_10));
+            let _e348 = normal;
+            turned = max(_e344, (1f - dot(_e347, _e348)));
+        }
+        let _e353 = down[3u];
+        if (_e353 > 0f) {
+            let _e355 = turned;
+            let _e356 = down;
+            param_11 = _e356.xy;
+            let _e358 = DecodeOctahedral_u0028_vf2_u003b((&param_11));
+            let _e359 = normal;
+            turned = max(_e355, (1f - dot(_e358, _e359)));
+        }
+        let _e363 = bent;
+        let _e364 = bend;
+        let _e366 = turned;
+        let _e367 = turn;
+        if ((_e363 >= _e364) || (_e366 >= _e367)) {
+            let _e371 = contrast_info.line;
+            colour = _e371.xyz;
+        }
+    }
+    let _e375 = contrast_info.line[3u];
+    ringWidth = _e375;
+    let _e376 = hasMask;
+    if _e376 {
+        let _e377 = v_uv_1;
+        let _e378 = textureSampleLevel(mask_texture_tex, mask_texture_smp, _e377, 0f);
+        own = _e378;
+        let _e380 = own[3u];
+        if (_e380 > 0.5f) {
+            let _e382 = colour;
+            let _e383 = own;
+            let _e387 = contrast_info.look[3u];
+            colour = mix(_e382, _e383.xyz, vec3(clamp(_e387, 0f, 1f)));
+        } else {
+            let _e391 = ringWidth;
+            if (_e391 > 0f) {
+                directions = array<vec2<f32>, 8>(vec2<f32>(1f, 0f), vec2<f32>(-1f, 0f), vec2<f32>(0f, 1f), vec2<f32>(0f, -1f), vec2<f32>(1f, 1f), vec2<f32>(-1f, 1f), vec2<f32>(1f, -1f), vec2<f32>(-1f, -1f));
+                found = vec4<f32>(0f, 0f, 0f, 0f);
+                i = 1i;
+                loop {
+                    let _e393 = i;
+                    if (_e393 <= 4i) {
+                        let _e395 = i;
+                        let _e397 = ringWidth;
+                        let _e398 = (f32(_e395) <= _e397);
+                        phi_588_ = _e398;
+                        if _e398 {
+                            let _e400 = found[3u];
+                            phi_588_ = (_e400 < 0.5f);
+                        }
+                        let _e403 = phi_588_;
+                        if _e403 {
+                            d = 0i;
+                            loop {
+                                let _e404 = d;
+                                if (_e404 < 8i) {
+                                    let _e406 = v_uv_1;
+                                    let _e407 = d;
+                                    let _e409 = directions[_e407];
+                                    let _e410 = texel;
+                                    let _e412 = i;
+                                    let _e416 = textureSampleLevel(mask_texture_tex, mask_texture_smp, (_e406 + ((_e409 * _e410) * f32(_e412))), 0f);
+                                    tap_1 = _e416;
+                                    let _e418 = found[3u];
+                                    let _e419 = (_e418 < 0.5f);
+                                    phi_623_ = _e419;
+                                    if _e419 {
+                                        let _e421 = tap_1[3u];
+                                        phi_623_ = (_e421 > 0.5f);
+                                    }
+                                    let _e424 = phi_623_;
+                                    if _e424 {
+                                        let _e425 = tap_1;
+                                        found = _e425;
+                                    }
+                                    continue;
+                                } else {
+                                    break;
+                                }
+                                continuing {
+                                    let _e426 = d;
+                                    d = (_e426 + 1i);
+                                }
+                            }
+                        }
+                        continue;
+                    } else {
+                        break;
+                    }
+                    continuing {
+                        let _e428 = i;
+                        i = (_e428 + 1i);
+                    }
+                }
+                let _e431 = found[3u];
+                if (_e431 > 0.5f) {
+                    let _e433 = found;
+                    colour = _e433.xyz;
+                }
+            }
+        }
+    }
+    let _e435 = colour;
+    let _e437 = scene[3u];
+    frag_color = vec4<f32>(_e435.x, _e435.y, _e435.z, _e437);
+    return;
+}
+
+@fragment 
+fn main(@location(6) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'HighContrastInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 64,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'look', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'edges',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(name: 'line', offsetInBytes: 32, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'screen',
+              offsetInBytes: 48,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'mask_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'scene_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 5,
+          samplerBinding: 6,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'Decal': WebGpuStage(
       wgsl: r'''
 struct DecalInfo {

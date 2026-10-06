@@ -114,6 +114,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'FullscreenVertex': (blocks: <String>{}, samplers: <String>{}),
   'Fxaa': (blocks: <String>{'FxaaInfo'}, samplers: <String>{'source_texture'}),
+  'HighContrast': (
+    blocks: <String>{'HighContrastInfo'},
+    samplers: <String>{'mask_texture', 'scene_texture', 'surface_texture'},
+  ),
   'Impostor': (
     blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
     samplers: <String>{
@@ -212,6 +216,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'ObjectId': (
     blocks: <String>{'IdInfo'},
     samplers: <String>{'base_color_texture'},
+  ),
+  'OutlineMask': (
+    blocks: <String>{'OutlineMaskInfo'},
+    samplers: <String>{'surface_texture'},
   ),
   'Particle': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
   'ParticleMesh': (blocks: <String>{'FogInfo'}, samplers: <String>{}),

@@ -6,6 +6,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'fixture_appearance.dart';
+import 'outline_marks.dart';
 
 export 'fixture_appearance.dart';
 
@@ -67,6 +68,18 @@ final class FixtureVisuals {
 
   /// One uploaded mesh per distinct shape, shared with the game's silhouettes.
   final SharedMeshes meshes;
+
+  /// The colour each fixture is ringed in under the high-contrast look, or
+  /// null for none — `N9`. Asked every [sync], so a role colour the player
+  /// changes in the settings is the ring's colour on the next frame.
+  ///
+  /// The game's question, not this class's: which fixtures matter — the
+  /// pickups, a lever, the way out — and in which role's colour. Left null,
+  /// nothing is ringed and nothing is walked. A game can leave it set with
+  /// the look off: the engine reads no ring until the look is on.
+  Vector3? Function(Fixture fixture)? outlineOf;
+
+  final OutlineMarks _marks = OutlineMarks();
 
   /// Learns where the level's named lights are. Called once, after the scene
   /// is built.
@@ -309,6 +322,9 @@ final class FixtureVisuals {
         ..visible = true
         ..setScale(scale, scale, scale);
       piece.node.setPositionFrom(piece.fixture.position);
+      if (outlineOf case final ring?) {
+        _marks.mark(piece.node, ring(piece.fixture));
+      }
 
       final material = piece.node is MeshNode
           ? (piece.node as MeshNode).material
@@ -368,6 +384,7 @@ final class FixtureVisuals {
       piece.node.removeFromParent();
     }
     _pieces.clear();
+    _marks.clear();
     _lights.clear();
     _baseIntensity.clear();
     _glowing.clear();

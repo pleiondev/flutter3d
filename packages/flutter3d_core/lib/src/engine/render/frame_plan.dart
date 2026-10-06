@@ -108,6 +108,11 @@ abstract final class FrameResourceIds {
   /// something asked to pick from.
   static const ResourceId objectIds = ResourceId('object_ids');
 
+  /// The colour each marked node is ringed in, where the scene shows it, in
+  /// RGBA8 with alpha one where a mark is — `N9`. Produced only while the
+  /// high-contrast look is on and some node carries a `MeshNode.outlineColor`.
+  static const ResourceId outlineMask = ResourceId('outline_mask');
+
   /// What is shown.
   static const ResourceId frame = ResourceId('frame');
 

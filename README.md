@@ -65,10 +65,12 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_net`](packages/flutter3d_net), [`flutter3d_net_webrtc`](packages/flutter3d_net_webrtc) | Rollback netcode for two peers over `flutter3d_sim`, with the network behind one interface, and that interface over a WebRTC data channel |
 | [`packages/flutter3d_build`](packages/flutter3d_build) | The build hook: model and texture sources converted into what the engine loads, on every build, with a content-hash cache |
 | [`packages/flutter3d_lab`](packages/flutter3d_lab) | Virtual laboratory simulations a server can replay with no Flutter SDK. The pendulum is the first |
+| [`packages/flutter3d_voxel`](packages/flutter3d_voxel) | A world of blocks: chunks over a seeded terrain, edits saved as deltas against the seed, greedy meshes to draw, greedy boxes to collide with on either physics backend, and a navigation mesh baked again only where an edit landed. Plain Dart. [README](packages/flutter3d_voxel/README.md) |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
+| [`apps/flutter3d_demo_sandbox`](apps/flutter3d_demo_sandbox) | A first-person sandbox on `flutter3d_voxel`: walk the hills, dig a block out, put one back from a hotbar of four, and find the world as you left it on the next launch |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
 | [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | The model editor: mesh editing, materials and a texture graph, UV, sculpting, retopology, texture painting, rigging and animation, simulation and LOD over one project document, with undo that records who made each change. On macOS and in a browser, where it is <https://models.pleion.dev> |
 | [`apps/flutter3d_lesson_viewer`](apps/flutter3d_lesson_viewer), [`flutter3d_stereo_lesson_viewer`](apps/flutter3d_stereo_lesson_viewer), [`flutter3d_lab_pendulum`](apps/flutter3d_lab_pendulum) | The lessons: a level document with steps in it, played flat or as a stereo pair, and the pendulum laboratory a student runs |
@@ -160,7 +162,7 @@ Or one package at a time:
 
 There are 11824 tests across forty-four packages and nine applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
-half is rendered by the software backend, which is what makes 95 scenes
+half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
 
 Several steps run in a browser. `flutter test --platform chrome` covers the two

@@ -339,6 +339,11 @@ const Map<String, double> _budgets = <String, double>{
   // the mirror's reflection and of the monitor's picture agree.
   'planar-mirror': 0.9,
   'render-texture': 1.0,
+  // `N9`. 0 of 172800 measured against Impeller on 2026-10-06, worst
+  // channel 3: the look reads the surface buffer at nearest and draws its
+  // lines and rings without multisampling on both, so the silhouettes that
+  // usually separate the two sets are the look's own, drawn alike.
+  'high-contrast': 0.01,
 };
 
 /// How far apart two channels may be before the pixel counts as differing.

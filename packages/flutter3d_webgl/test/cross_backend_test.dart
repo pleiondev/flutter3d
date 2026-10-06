@@ -331,6 +331,12 @@ const Map<String, double> _budgets = <String, double>{
   // with its rows turned over, agree inside.
   'planar-mirror': 0.2,
   'render-texture': 0.22,
+  // `N9`. 0 of 172800 measured against Impeller on 2026-10-06, worst channel
+  // 1. It was 54.645% on its first recording, and none of it was the look:
+  // the stage's paving hash shifted a product past thirty-two bits, which
+  // dart2js truncates first, so this set drew a different floor — see
+  // `GoldenStages.pavingGrey`.
+  'high-contrast': 0.01,
 };
 
 /// Scenes budgeted before this set had a picture of them.

@@ -24,20 +24,22 @@ import 'package:flutter/widgets.dart';
 /// ## Only what a game can act on
 ///
 /// Flutter reports several accessibility features; this names the ones this
-/// engine has somewhere to put. `boldText` and `highContrast` are not here
-/// because nothing yet reads them, and a field nobody reads is a promise nobody
-/// keeps.
+/// engine has somewhere to put. `boldText` is not here because nothing yet
+/// reads it, and a field nobody reads is a promise nobody keeps. `highContrast`
+/// was left out for the same reason until the engine had a look to turn on
+/// with it — `HighContrastSettings`, read through `highContrastOf`.
 final class Accommodations {
-  const Accommodations({this.reduceMotion = false});
+  const Accommodations({this.reduceMotion = false, this.highContrast = false});
 
   /// What the platform says, or the defaults where there is no platform to ask.
   ///
-  /// `MediaQuery.maybeDisableAnimationsOf` rather than the throwing form: a game
+  /// The `maybe` forms of `MediaQuery` rather than the throwing ones: a game
   /// mounted outside a `MediaQuery` — a test, a golden — should get the
   /// unaccommodated defaults rather than an exception from an accessibility
   /// feature, which would be a particularly poor way to fail.
   factory Accommodations.of(BuildContext context) => Accommodations(
     reduceMotion: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
+    highContrast: MediaQuery.maybeHighContrastOf(context) ?? false,
   );
 
   /// Whether the player has asked for less movement on screen.
@@ -45,6 +47,14 @@ final class Accommodations {
   /// On Apple's platforms this is Reduce Motion, on Android it is the animator
   /// duration scale set to nought, and Flutter reports both as the same flag.
   final bool reduceMotion;
+
+  /// Whether the player has asked the system for more contrast.
+  ///
+  /// iOS's Increase Contrast; Flutter reports nothing for it elsewhere yet, so
+  /// on most platforms this is false and the game's own switch is the way in.
+  /// What it turns on by default is the engine's high-contrast look — see
+  /// `highContrastOf`.
+  final bool highContrast;
 
   /// How much of a camera's involuntary movement to keep by default.
   ///

@@ -200,6 +200,47 @@ void main() {
       expect(changed['a11y.toggleSprint'], 1.0);
     });
 
+    testWidgets('and the high-contrast look has a switch — N9', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: drop the row, and the look can be reached only through a
+      // phone's own settings, which most platforms do not report at all.
+      final changed = <String, double>{};
+      await tester.pumpWidget(
+        _panel(onSetting: (String name, double value) => changed[name] = value),
+      );
+      final toggle = find.descendant(
+        of: find.widgetWithText(Row, 'High contrast'),
+        matching: find.byType(Switch),
+      );
+      await tester.ensureVisible(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Switch>(toggle).value, isFalse);
+      await tester.tap(toggle);
+
+      expect(changed[highContrastSetting], 1.0);
+    });
+
+    testWidgets('which reads as on when the system asked for contrast', (
+      WidgetTester tester,
+    ) async {
+      // **The panel must agree with the screen behind it.** The game draws
+      // the look when the system asks and the player has said nothing, so a
+      // switch shown off then would be a switch claiming the opposite of
+      // what is drawn. Mutation: read the setting with a fallback of nought.
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(highContrast: true),
+          child: _panel(),
+        ),
+      );
+      final toggle = find.descendant(
+        of: find.widgetWithText(Row, 'High contrast'),
+        matching: find.byType(Switch),
+      );
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+    });
+
     testWidgets('and a screen reader is told what each row is', (
       WidgetTester tester,
     ) async {

@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`OutlineMask` and `HighContrast`**, the stages of
+  `RenderSettings.highContrast`: a marked node's ring colour, drawn through
+  the velocity vertex stages and dropped behind the surface buffer, and the
+  look over the finished frame.
 - **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
   of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
   when its photons are followed.

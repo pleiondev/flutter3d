@@ -98,6 +98,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'VelocityNeighborMax', fragment: true),
   (name: 'MotionBlur', fragment: true),
   (name: 'ViewportShade', fragment: true),
+  (name: 'OutlineMask', fragment: true),
+  (name: 'HighContrast', fragment: true),
   (name: 'Decal', fragment: true),
   (name: 'ShadowDepth', fragment: true),
   (name: 'ShadowDistance', fragment: true),

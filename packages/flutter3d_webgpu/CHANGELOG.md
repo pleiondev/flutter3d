@@ -7,6 +7,8 @@
   lighting model what to bind, and a lit material that declares a map it
   never reads had the draw refused.
 
+- The shader table regenerated for `OutlineMask` and `HighContrast`, and
+  `high-contrast` in the reference set.
 - The shader table regenerated for the caustic stages.
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured

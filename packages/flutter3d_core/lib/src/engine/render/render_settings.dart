@@ -1010,6 +1010,136 @@ final class ViewportShadingSettings {
   );
 }
 
+/// A high-contrast look with outlines, for players who see little contrast
+/// or little detail — `N9`.
+///
+/// **Three changes to the finished picture, and one to what a game marks.**
+/// The texture detail inside each surface is flattened to the surface's mean;
+/// the result is drained toward grey and pushed apart in tone; every edge the
+/// geometry has is drawn as a line; and every node with a
+/// `MeshNode.outlineColor` is ringed in that colour, with a share of it laid
+/// over the node itself. The grey world is what makes the rings mean
+/// something: colour is left on exactly the things a game said matter.
+///
+/// **The flattening is guided by the geometry, not the picture**, which is
+/// the choice that makes it remove texture rather than shape. An
+/// edge-preserving filter on colour — bilateral, Kuwahara — has to call the
+/// mortar between two stones an edge, because in colour it is one, so the
+/// detail it was meant to remove is exactly what it keeps. Asking the surface
+/// buffer instead, a neighbour is averaged in when it is on the same surface —
+/// near the same depth, facing the same way — and left out when it is not.
+/// Texture lives within a surface and shape between surfaces, so a cross
+/// bilateral filter guided this way keeps the second and drops the first, for
+/// twenty-five taps of two textures and no threshold on colour at all.
+///
+/// **Off by default**, and switched on by a game rather than by this engine:
+/// it is an accommodation a player asks for, and `flutter3d_game`'s
+/// `highContrastOf` is where the asking is read — the platform's own
+/// high-contrast flag as the fallback, the player's switch over it.
+///
+/// **It costs the frame its multisampling**, for [ViewportShadingSettings]'
+/// reason: the look reads the surface buffer, and attaching that takes the
+/// sample count off the scene pass. On a device that cannot attach the buffer
+/// at all the look still drains and pushes the tone, and has no edges to draw.
+final class HighContrastSettings {
+  const HighContrastSettings({
+    this.enabled = false,
+    this.flatten = 1.0,
+    this.flattenSpacing = 1.0,
+    this.contrast = 1.5,
+    this.saturation = 0.25,
+    this.depthEdge = 0.04,
+    this.normalEdge = 0.2,
+    this.outlineWidth = 1.0,
+    this.outlineColor,
+    this.roleWidth = 3.0,
+    this.roleFill = 0.3,
+  });
+
+  /// Whether the look is drawn. False is the default and an exact no-op:
+  /// neither pass runs, and nothing reads a node's outline colour.
+  final bool enabled;
+
+  /// How much of each surface's mean replaces each pixel, nought to one.
+  final double flatten;
+
+  /// How far apart the flattening's five-by-five taps are, in pixels.
+  ///
+  /// **One by default, a dense five-pixel square**, and wider is not simply
+  /// stronger. A sparse grid samples the texture rather than averaging it: at
+  /// two, a pattern that repeats every two pixels lands every tap on the same
+  /// phase of it and comes back as a moiré instead of a grey. Widen it for a
+  /// screen where the detail is coarse — a high resolution, a texture seen
+  /// close — and look at what it does.
+  final double flattenSpacing;
+
+  /// The gain on tone about mid grey: one leaves it, above one pushes light
+  /// and dark apart.
+  final double contrast;
+
+  /// How much of each pixel's colour is kept, nought to one, after it is
+  /// drained toward its own luma. Low by default, so the colour left in the
+  /// frame is the colour a game marked.
+  final double saturation;
+
+  /// How far depth may bend before it is another surface, as a share of the
+  /// depth per tap.
+  ///
+  /// **A share, and of the second difference, not the step** — the one place
+  /// this outline differs from [ViewportShadingSettings.depthEdge]. A floor
+  /// receding from a game's camera steps further between neighbours the
+  /// further away it is, so a step in metres draws its far half solid; a
+  /// plane's depth is linear across the screen, so its *bend* is near nought
+  /// however steep it is, and a silhouette is where that stops. The same
+  /// number tells the flattening which taps are still the same surface.
+  final double depthEdge;
+
+  /// How far apart two normals must be to count as an edge, as one minus
+  /// their cosine: 0.2 is about thirty-seven degrees.
+  final double normalEdge;
+
+  /// How far the outline's taps reach, in pixels; nought draws no outline.
+  final double outlineWidth;
+
+  /// The outline's colour, display-referred, or null for black.
+  final vm.Vector3? outlineColor;
+
+  /// How wide the ring round a marked node is, in pixels, up to four; nought
+  /// draws none.
+  final double roleWidth;
+
+  /// How much of a marked node's colour is laid over the node itself, nought
+  /// to one. Not nought by default: a ring alone around a small thing far
+  /// away is a few pixels, and the fill is what makes it findable.
+  final double roleFill;
+
+  HighContrastSettings copyWith({
+    bool? enabled,
+    double? flatten,
+    double? flattenSpacing,
+    double? contrast,
+    double? saturation,
+    double? depthEdge,
+    double? normalEdge,
+    double? outlineWidth,
+    vm.Vector3? outlineColor,
+    double? roleWidth,
+    double? roleFill,
+  }) => HighContrastSettings(
+    enabled: enabled ?? this.enabled,
+    flatten: flatten ?? this.flatten,
+    flattenSpacing: flattenSpacing ?? this.flattenSpacing,
+    contrast: contrast ?? this.contrast,
+    saturation: saturation ?? this.saturation,
+    depthEdge: depthEdge ?? this.depthEdge,
+    normalEdge: normalEdge ?? this.normalEdge,
+    outlineWidth: outlineWidth ?? this.outlineWidth,
+    outlineColor: outlineColor ?? this.outlineColor,
+    roleWidth: roleWidth ?? this.roleWidth,
+    roleFill: roleFill ?? this.roleFill,
+  );
+}
+
 /// What a debug view shows in place of the light — `P6`.
 ///
 /// **A final class with const instances rather than an enum**, for the reason
@@ -1344,6 +1474,7 @@ final class RenderSettings {
     this.planarReflections = const PlanarReflectionSettings(),
     this.decals = const DecalSettings(),
     this.viewportShading = const ViewportShadingSettings(),
+    this.highContrast = const HighContrastSettings(),
     this.debugView = const DebugViewSettings(),
     this.transparency = TransparencyMode.sorted,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
@@ -1462,7 +1593,7 @@ final class RenderSettings {
   /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
   /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
   /// floats, where those expressions have far less room before they part, and
-  /// nothing headless can run them. So the ninety-five goldens keep the frame
+  /// nothing headless can run them. So the ninety-six goldens keep the frame
   /// they have, and an application that wants the draw calls back asks.
   ///
   /// Shadows and picking are unaffected: both walk the scene themselves and
@@ -1561,6 +1692,10 @@ final class RenderSettings {
   /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
   /// than out of the materials.
   final ViewportShadingSettings viewportShading;
+
+  /// `N9`'s high-contrast look: surfaces flattened, tone pushed apart, edges
+  /// drawn, and the nodes a game marked ringed in their role colours.
+  final HighContrastSettings highContrast;
 
   /// `P6`'s material channels in place of the light, over all or part of the
   /// frame.
@@ -1866,6 +2001,7 @@ final class RenderSettings {
     PlanarReflectionSettings? planarReflections,
     DecalSettings? decals,
     ViewportShadingSettings? viewportShading,
+    HighContrastSettings? highContrast,
     DebugViewSettings? debugView,
     TransparencyMode? transparency,
   }) => RenderSettings(
@@ -1915,6 +2051,7 @@ final class RenderSettings {
     planarReflections: planarReflections ?? this.planarReflections,
     decals: decals ?? this.decals,
     viewportShading: viewportShading ?? this.viewportShading,
+    highContrast: highContrast ?? this.highContrast,
     debugView: debugView ?? this.debugView,
     transparency: transparency ?? this.transparency,
   );
@@ -2005,6 +2142,8 @@ final class RenderSettings {
     'scene colour copy',
     'transparent',
     'object ids',
+    // `N9`: the colours the high-contrast look rings marked nodes in.
+    'outline mask',
     'reflections',
     'luminance',
     // `C3`: the surface buffer reduced for the occlusion readback.
@@ -2046,6 +2185,9 @@ final class RenderSettings {
     // the sharpening that follows it.
     'spatial upscale',
     'antialias',
+    // `N9`: the high-contrast look, on the finished picture for the
+    // viewport shading's reason — its lines must not be smoothed.
+    'high contrast',
     // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished picture,
     // so it runs after the tone map and after the edges are smoothed.
     'viewport shading',
@@ -2246,7 +2388,7 @@ final class DisplayTransform {
 /// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
 /// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
 /// that asks for none of it composites to the same bytes it did before this
-/// existed. Ninety-five goldens depend on that being exact, and the composite
+/// existed. Ninety-six goldens depend on that being exact, and the composite
 /// pass already keeps the same promise for ambient occlusion.
 ///
 /// Applied in the composite rather than as passes of their own, which is the

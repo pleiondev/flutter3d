@@ -2048,6 +2048,120 @@ final class _ViewportShadeNode extends RenderNode {
   }
 }
 
+/// `N9`'s marks: every node with a `MeshNode.outlineColor`, drawn in that
+/// colour where the scene shows it, for the high-contrast look to ring.
+///
+/// **Active only when there is something to mark**, and that is what "a node
+/// without a colour costs nothing" comes to. With the look off this is never
+/// asked about anybody's colour; with it on and no node marked it is culled
+/// before it costs a texture, and the look's optional read of the mask comes
+/// back null. Asking walks the scene's meshes until the first marked one,
+/// which on a level where something is marked is usually the first few.
+///
+/// A hard reader of the surface buffer, because the buffer is what hides a
+/// mark behind a wall — see `outline_mask.frag` — and a mark that could not be
+/// hidden would ring monsters through stone. On a device that cannot attach the
+/// buffer it is culled, and the look draws without rings rather than with
+/// wrong ones.
+final class _OutlineMaskNode extends RenderNode with _NeedsSurfaceBuffer {
+  _OutlineMaskNode(this._renderer, this._settings, this._scene, this._views);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+  final Scene _scene;
+  final List<RenderView> _views;
+
+  @override
+  String get name => 'outline mask';
+
+  @override
+  bool get isActive =>
+      _settings.highContrast.enabled &&
+      _scene.meshes.any((MeshNode node) => node.outlineColor != null);
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.outlineMask,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final drawn = _renderer._encodeOutlineMask(
+      target: frame.resources.texture(FrameResourceIds.outlineMask),
+      surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
+      scene: _scene,
+      views: _views,
+      settings: _settings,
+      width: frame.width,
+      height: frame.height,
+    );
+    frame.state.drawCalls += drawn;
+    // The velocity stages' pipelines, so the tracker's answer about the mesh
+    // pipelines is stale for whatever draws next.
+    frame.state.invalidatePipeline();
+  }
+}
+
+/// `N9`'s high-contrast look, as a link in the finished picture.
+///
+/// In the present phase beside the viewport shading and for its reasons: the
+/// lines are about the finished picture, so they come after the tone map and
+/// after the antialias, which would otherwise blur the one thing a line must
+/// not be; and the role colours are display colours, which an exposure and a
+/// tone curve would move away from the swatch the player picked them from.
+///
+/// **Both its other reads are optional**, which is what lets it degrade. On a
+/// device that cannot attach the surface buffer the read comes back null and
+/// the look still drains and pushes the tone; with no node marked the mask's
+/// node is culled and the read is null, and nothing is ringed.
+final class _HighContrastNode extends RenderNode {
+  _HighContrastNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'high contrast';
+
+  @override
+  FramePhase get preferredPhase => FramePhase.present;
+
+  @override
+  bool get isActive => _settings.highContrast.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+    FrameResourceIds.outlineMask,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    final contrasted = _renderer._encodeHighContrast(
+      scene: frame.resources.texture(FrameResourceIds.frame),
+      surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
+      mask: frame.resources.tryTexture(FrameResourceIds.outlineMask),
+      settings: _settings.highContrast,
+      resources: frame.resources,
+    );
+    frame.resources.provide(FrameResourceIds.frame, contrasted);
+  }
+}
+
 /// `gfx-32n`'s depth-aware blur, as a link in the occlusion chain.
 ///
 /// **Reads `ao` and writes `ao`, which is what makes it skippable for free.**

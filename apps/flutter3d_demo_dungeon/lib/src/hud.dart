@@ -29,6 +29,13 @@ const Map<String, Color> keyPipColours = <String, Color>{
 
 /// The colours this game gives meanings to: one per key, each a row in the
 /// settings a player can change. See `ColorRoles`.
+///
+/// **And what can hurt you, and what can be picked up** — `N9`. Under the
+/// high-contrast look the crypt goes grey and these two are the colours left
+/// in it, ringed round every living monster and every pickup that is not a
+/// key (a key is ringed in its own colour). Okabe and Ito's vermillion and
+/// bluish green, which stay apart from each other for every common kind of
+/// colour blindness; a player who runs one into a key's colour moves it here.
 final ColorRoles dungeonColours = ColorRoles(<ColorRole>[
   for (final MapEntry(key: name, value: colour) in keyPipColours.entries)
     ColorRole(
@@ -36,6 +43,8 @@ final ColorRoles dungeonColours = ColorRoles(<ColorRole>[
       '${name[0].toUpperCase()}${name.substring(1)} key',
       colour,
     ),
+  const ColorRole('monster', 'Monsters', Color(0xFFD55E00)),
+  const ColorRole('pickup', 'Pickups', Color(0xFF009E73)),
 ]);
 
 class Hud extends StatelessWidget {

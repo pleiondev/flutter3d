@@ -336,6 +336,49 @@ void main() {
     });
   });
 
+  group('rings — N9', () {
+    test('a fixture is ringed in the colour the game names for it', () {
+      // The high-contrast look rings what a node says, and a fixture's node
+      // is this class's, so the game's answer has to land on it. Mutation:
+      // drop the call from `sync`, and the crate wears no ring.
+      final answers = _Answers();
+      final it = visuals(answers)..add(_fixture());
+      var colour = Vector3(0.9, 0.6, 0.0);
+      it
+        ..outlineOf = ((Fixture fixture) => colour)
+        ..sync(0.0);
+      expect(
+        (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
+        Vector3(0.9, 0.6, 0.0),
+      );
+
+      // Asked again every frame, so a role colour the player changes in the
+      // settings is the ring on the next one. Mutation: mark only when the
+      // node has no ring yet.
+      colour = Vector3(0.3, 0.7, 0.9);
+      it.sync(0.0);
+      expect(
+        (_only(loaded.scene, 'crate') as MeshNode).outlineColor,
+        Vector3(0.3, 0.7, 0.9),
+      );
+    });
+
+    test('and a game that names none rings nothing', () {
+      final it = visuals(_Answers())..add(_fixture());
+      it.sync(0.0);
+      expect((_only(loaded.scene, 'crate') as MeshNode).outlineColor, isNull);
+
+      // And an answer of null takes a ring off — a pickup that stopped
+      // mattering.
+      it
+        ..outlineOf = ((Fixture fixture) => Vector3(1.0, 0.0, 0.0))
+        ..sync(0.0)
+        ..outlineOf = ((Fixture fixture) => null)
+        ..sync(0.0);
+      expect((_only(loaded.scene, 'crate') as MeshNode).outlineColor, isNull);
+    });
+  });
+
   test('bindLights finds only the lights the level named', () {
     // Mutation: index by node rather than by name. A fixture then dims a light
     // chosen by scene order, which is stable within a run and meaningless.

@@ -605,6 +605,31 @@ final class FxaaInfoBlock extends UniformBlock {
   };
 }
 
+/// `HighContrastInfo`.
+final class HighContrastInfoBlock extends UniformBlock {
+  HighContrastInfoBlock() : super('HighContrastInfo');
+
+  /// `look`: Vector4, at byte 0.
+  final Float32List look = Float32List(4);
+
+  /// `edges`: Vector4, at byte 16.
+  final Float32List edges = Float32List(4);
+
+  /// `line`: Vector4, at byte 32.
+  final Float32List line = Float32List(4);
+
+  /// `screen`: Vector4, at byte 48.
+  final Float32List screen = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'look': look,
+    'edges': edges,
+    'line': line,
+    'screen': screen,
+  };
+}
+
 /// `IdInfo`.
 final class IdInfoBlock extends UniformBlock {
   IdInfoBlock() : super('IdInfo');
@@ -922,6 +947,23 @@ final class NoiseInfoBlock extends UniformBlock {
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'noise': noise,
+  };
+}
+
+/// `OutlineMaskInfo`.
+final class OutlineMaskInfoBlock extends UniformBlock {
+  OutlineMaskInfoBlock() : super('OutlineMaskInfo');
+
+  /// `target`: Vector4, at byte 0.
+  final Float32List target = Float32List(4);
+
+  /// `color`: Vector4, at byte 16.
+  final Float32List color = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'target': target,
+    'color': color,
   };
 }
 

@@ -2731,7 +2731,7 @@ material parameter — is the case `doc/boundary-0.5.0.md` worked through for
 set belongs to whoever builds on the package rather than to the package
 itself.
 
-**Golden render tests.** 95 scenes against **four complete independent
+**Golden render tests.** 96 scenes against **four complete independent
 reference sets** — Impeller, the software rasteriser, WebGL2 and WebGPU — each
 held to zero differing pixels against its own set, with a per-channel tolerance
 of 8.
@@ -3143,7 +3143,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws all ninety-five golden scenes the way Impeller does**,
+**The web backend draws all ninety-six golden scenes the way Impeller does**,
 between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's
@@ -3259,7 +3259,7 @@ and charge each of them the bytes, and neither is a change to make on somebody
 else's behalf. A build that wants it says so in one flag, and the engine's own
 example takes the same answer from `?backend=webgpu` in the URL — a query
 parameter rather than a define, because the browser golden stand's whole saving
-is one dart2js run serving ninety-five scenes and both browser backends.
+is one dart2js run serving ninety-six scenes and both browser backends.
 
 **`flutter3d_shaders` is one text and no two backends take it the same way.**
 Impeller compiles the GLSL with `impellerc`; the WebGL2 generator translates it
@@ -3716,7 +3716,7 @@ what went out at 0.4.2.
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_sim`
 6. `flutter3d_app`, `flutter3d_editor_core`, `flutter3d_editor_play`,
-   `flutter3d_net`, `flutter3d_lab`
+   `flutter3d_net`, `flutter3d_lab`, `flutter3d_voxel`
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,

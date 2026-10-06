@@ -9,6 +9,7 @@ import 'package:vector_math/vector_math.dart';
 import 'actor_appearance.dart';
 import 'actor_corpses.dart';
 import 'actor_graphs.dart';
+import 'outline_marks.dart';
 
 export 'actor_appearance.dart';
 export 'actor_corpses.dart';
@@ -79,6 +80,17 @@ final class ActorVisuals {
   /// graph of its own for it; its markers arrive as game events rather than
   /// in [markersPassed].
   final AnimationGraph? Function(Actor actor)? simulated;
+
+  /// The colour each actor is ringed in under the high-contrast look, or
+  /// null for none — `N9`. Asked every [sync], and applied to whatever the
+  /// actor is drawn as at the time: the capsule, then the model that replaces
+  /// it, then the corpse, which a game may well want left unringed.
+  ///
+  /// Left null, nothing is ringed and nothing is walked. A game can leave it
+  /// set with the look off: the engine reads no ring until the look is on.
+  Vector3? Function(Actor actor)? outlineOf;
+
+  final OutlineMarks _marks = OutlineMarks();
 
   /// Each actor [graphs] gave a machine, its graph.
   final Map<Actor, AnimationGraph> _graphs = <Actor, AnimationGraph>{};
@@ -171,7 +183,10 @@ final class ActorVisuals {
   /// nothing calls `ActorSystem.remove` today, which is the worst kind of
   /// latent: the first caller finds out in a frame rather than at a compile.
   void remove(Actor actor) {
-    _nodes.remove(actor)?.removeFromParent();
+    if (_nodes.remove(actor) case final node?) {
+      node.removeFromParent();
+      _marks.forget(node);
+    }
     _players.remove(actor);
     _playing.remove(actor);
     _instances.remove(actor);
@@ -201,6 +216,7 @@ final class ActorVisuals {
       node.removeFromParent();
     }
     _nodes.clear();
+    _marks.clear();
     _players.clear();
     _playing.clear();
     _smoothed.clear();
@@ -261,7 +277,12 @@ final class ActorVisuals {
       mesh.layerMask = layerMask;
     }
     final capsule = _nodes.remove(actor);
-    if (capsule != null) scene.remove(capsule);
+    if (capsule != null) {
+      scene.remove(capsule);
+      // The model is a new tree with no ring on it yet; the next sync rings
+      // it, and the capsule's entry would only keep the capsule alive.
+      _marks.forget(capsule);
+    }
 
     _nodes[actor] = instance.root;
     _instances[actor] = instance;
@@ -526,6 +547,7 @@ final class ActorVisuals {
     for (final entry in _nodes.entries) {
       final actor = entry.key;
       final node = entry.value;
+      if (outlineOf case final ring?) _marks.mark(node, ring(actor));
       // A corpse a ragdoll took over stays where it fell: its joints are
       // the ragdoll's, and moving its root would move them.
       if (_taken.contains(actor)) continue;

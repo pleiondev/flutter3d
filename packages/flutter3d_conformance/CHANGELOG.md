@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Links `HighContrast` through the full-screen stage and `OutlineMask`
+  through the three velocity vertex stages.
 - Links the caustic stages: `MeshVertex` with `CausticSurface`, and
   `CausticPhotonVertex` with `CausticPhoton`.
 - Links every mesh vertex stage with `ShadowTransmittance`.

@@ -112,12 +112,17 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // `R1`: the three stages a moved node is drawn through into the velocity
     // buffer, each with the one fragment stage that differences them.
     // `R4`: and with the stage that marks a blended surface reactive, which
-    // reads one of the three things they hand on.
+    // reads one of the three things they hand on. `N9`: and with the stage
+    // that writes a node's ring colour, which reads the same one.
     for (final vertex in <String>[
       'VelocityVertex',
       'VelocitySkinnedVertex',
       'VelocityInstancedVertex',
-    ]) ...<(String, String)>[(vertex, 'Velocity'), (vertex, 'Reactive')],
+    ]) ...<(String, String)>[
+      (vertex, 'Velocity'),
+      (vertex, 'Reactive'),
+      (vertex, 'OutlineMask'),
+    ],
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     // Every post stage the renderer builds a pipeline for, through the one
     // vertex stage they all share. The probe's convolution reads a cube through
@@ -161,6 +166,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'VelocityNeighborMax',
       'MotionBlur',
       'ViewportShade',
+      // `N9`: the high-contrast look, over the frame, the surface buffer
+      // and the marks.
+      'HighContrast',
       // `P3`: the decals, over the surface and albedo buffers.
       'Decal',
       'MrtProbe',

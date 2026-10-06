@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **A high-contrast look with outlines — `RenderSettings.highContrast`.**
+  `HighContrastSettings` flattens the texture inside each surface, drains the
+  frame toward grey and pushes its tone apart, draws every edge the geometry
+  has, and rings each node with a `MeshNode.outlineColor` in that colour.
+  The flattening is a cross bilateral filter guided by the surface buffer
+  rather than the picture, so it removes the detail within a surface and
+  keeps the edges between surfaces; the outline thresholds how far depth
+  *bends*, so a floor seen at a slant is not drawn as one solid line. Off by
+  default, an exact no-op off, and a node without a colour costs nothing:
+  the `outline mask` pass runs only while the look is on and some node is
+  marked, and a mark behind something the scene drew is dropped against the
+  surface buffer, so nothing is ringed through a wall.
+
 - **`DrawRecord.node` is the node that was drawn**, not only its name, so
   a pick can be matched to the frame's draws.
 

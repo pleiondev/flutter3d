@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **`OutlineMaskShader` and `HighContrastShader`**, the software twins of
+  the high-contrast look's two stages, and the first set to record its
+  golden, `high-contrast`.
+
 - **`kVInstance`**: a mesh stage's varyings carry an instance's own four
   numbers, from slot 1 in `MeshInstancedVertexShader` and nought from every
   other; `kMeshVaryings` is twenty-two.

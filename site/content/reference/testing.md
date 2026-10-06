@@ -1,17 +1,17 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 11802 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 11824 tests need a GPU.
 ---
 
 # Testing
 
-11802 tests across 44 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+11824 tests across 44 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 1668 | | | |
+| `flutter3d` | 1669 | | | |
 | | | | `flutter3d_mesh` | 599 |
 | | | | `apps/flutter3d_modeler` | 1753 |
-| `flutter3d_sim` | 774 | | `pad_input` | 67 |
+| `flutter3d_sim` | 777 | | `pad_input` | 67 |
 | `flutter3d_lab` | 15 | | `flutter3d_core` | 834 |
 | `flutter3d_lti` | 26 | | `apps/flutter3d_lab_pendulum` | 7 |
 | | | | `apps/flutter3d_lab_incident` | 13 |
@@ -21,14 +21,14 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 70 |
 | `apps/flutter3d_demo_platformer` | 218 | | `flutter3d_impeller` | 64 |
 | `flutter3d_cpu` | 382 | | `apps/flutter3d_demo_strategy` | 50 |
-| `apps/flutter3d_editor` | 240 | | `apps/flutter3d_demo_arcade` | 20 |
+| `apps/flutter3d_editor` | 242 | | `apps/flutter3d_demo_arcade` | 20 |
 | `apps/flutter3d_demo_racing` | 163 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 278 | | `flutter3d_webgpu` | 194 |
-| `flutter3d_physics_native` | 148 | | | |
-| `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 46 |
+| `flutter3d_physics` | 280 | | `flutter3d_webgpu` | 194 |
+| `flutter3d_physics_native` | 158 | | | |
+| `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 47 |
 | `apps/flutter3d_demo_river` | 54 | | `flutter3d_testing` | 49 |
-| `flutter3d_editor_core` | 144 | | `flutter3d_editor_widgets` | 91 |
-| `apps/flutter3d_demo_dungeon` | 140 | | `flutter3d_app` | 186 |
+| `flutter3d_editor_core` | 146 | | `flutter3d_editor_widgets` | 91 |
+| `apps/flutter3d_demo_dungeon` | 141 | | `flutter3d_app` | 186 |
 | `flutter3d_game` | 357 | | `flutter3d_shaders` | 5 |
 | `flutter3d_particles` | 99 | | `flutter3d_stereo` | 50 |
 | `flutter3d_model_core` | 1178 | | `flutter3d_model_mcp` | 197 |
@@ -41,7 +41,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 89 |
 | `flame_multiplayer` | 9 | | `flame_multiplayer_dashwire` | 3 |
 
-The rows sum to 11774 rather than 11802: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 11796 rather than 11824: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -53,7 +53,7 @@ tool/ci.sh                                   # shaders, analyze, every test
 
 ## Four independent golden sets, not one
 
-Ninety-five scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+Ninety-six scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 The browser sets are recorded when a branch lands, not beside it (`golden_web.sh` holds one fixed port for the whole of its run), so a new scene is in the other sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
 
@@ -66,7 +66,7 @@ The browser sets are recorded when a branch lands, not beside it (`golden_web.sh
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
 <div class="why">
-<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps ninety-five scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps ninety-six scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.

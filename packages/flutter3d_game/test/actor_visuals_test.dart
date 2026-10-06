@@ -191,6 +191,39 @@ void main() {
     });
   });
 
+  group('the ring an actor wears — N9', () {
+    test('is the colour the game names, and goes when it names none', () {
+      // The high-contrast look rings what each mesh says, so the game's
+      // answer has to reach the mesh. Mutation: drop the call from `sync`,
+      // and the monster is grey among grey walls.
+      final scene = Scene();
+      final actor = _actor();
+      Vector3? ring = Vector3(0.84, 0.37, 0.0);
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+      )..add(actor);
+      expect(
+        scene.meshes.single.outlineColor,
+        isNull,
+        reason: 'nothing is ringed before the game is asked',
+      );
+
+      visuals
+        ..outlineOf = ((Actor it) => ring)
+        ..sync();
+      expect(scene.meshes.single.outlineColor, Vector3(0.84, 0.37, 0.0));
+
+      // A monster that died, say: the game stops naming a colour and the
+      // ring comes off rather than staying on the corpse.
+      ring = null;
+      visuals.sync();
+      expect(scene.meshes.single.outlineColor, isNull);
+      visuals.dispose();
+    });
+  });
+
   group('letting a level go', () {
     test('an actor removed takes its node out of the scene', () {
       // **There was `add` and no counterpart.** An actor removed through

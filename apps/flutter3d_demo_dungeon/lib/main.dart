@@ -26,9 +26,11 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/cutscene_overlay.dart';
+import 'src/depths.dart';
 import 'src/ending.dart';
 import 'src/first_shot_hint.dart';
 import 'src/frame_effects.dart';
+import 'src/high_contrast_rings.dart';
 import 'src/hud.dart';
 import 'src/layers.dart';
 import 'src/reactions.dart';
@@ -131,6 +133,9 @@ class _GameScreenState extends State<GameScreen>
   }
 
   late final GameConfig _config;
+
+  /// What the high-contrast look rings, and in which role's colour — `N9`.
+  late final CryptRings _rings = CryptRings(_config);
 
   /// The colour table for the player's colour vision, once there is a device
   /// to hold it. See `ColorVisionLook`.
@@ -1051,7 +1056,12 @@ class _GameScreenState extends State<GameScreen>
     // is drawn between the two steps either side of this frame rather than
     // where the later one left it — which is what the player's own camera has
     // always done, and what every monster in the crypt was not doing.
-    _actorVisuals?.sync(_loop.alpha);
+    // Asked for their rings as well, which the engine reads only while the
+    // high-contrast look is on — so they are set whether or not it is.
+    _actorVisuals
+      ?..outlineOf ??= _rings.actor
+      ..sync(_loop.alpha);
+    _fixtureVisuals?.outlineOf ??= _rings.fixture;
     // Once a frame: the monsters' graphs are stepped by the simulation and
     // this draws the pose the last step left; what it still plays on the
     // frame's own clock is a model with no graph, naming its clips, and the
@@ -1377,6 +1387,15 @@ class _GameScreenState extends State<GameScreen>
             unawaited(_run.restart());
             return KeyEventResult.handled;
           }
+          // N, out of the sanctum: on into the depths, levels nobody built,
+          // each made from its seed as it is reached — see `Depths`.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyN &&
+              _crawlIsOut) {
+            _run.run.depthsFrom = _depthsSeed;
+            unawaited(_run.run.load(Depths.first(_depthsSeed)));
+            return KeyEventResult.handled;
+          }
           // G toggles the fog in place. A before-and-after has to come from
           // one process at one camera position, which is exactly what the
           // measurement I threw away did not have.
@@ -1451,6 +1470,9 @@ class _GameScreenState extends State<GameScreen>
                   // The player's colour vision, from the settings panel: a
                   // correction for what their eyes run together.
                   look: _vision?.of(_config) ?? const LookSettings(),
+                  // The high-contrast look, from the settings panel's switch
+                  // or, until the player touches it, the system's own.
+                  highContrast: highContrastOf(_config, _system),
                   // Off, and no longer for either of the reasons written here
                   // before. Rough stone stopped being the problem when the
                   // surface buffer began carrying perceptual roughness in its
@@ -1707,6 +1729,10 @@ class _GameScreenState extends State<GameScreen>
       _skipping = false;
     }
   }
+
+  /// Where the depths begin: one sequence of them for every run, so two
+  /// players who went down compare the same rooms.
+  static const int _depthsSeed = 1;
 
   /// Whether the behaviour trees are drawn. See the B key.
   bool _treesOn = false;

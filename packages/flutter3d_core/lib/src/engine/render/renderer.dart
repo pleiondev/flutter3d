@@ -77,6 +77,7 @@ part 'renderer_frame_nodes.dart';
 part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
+part 'renderer_outline_pass.dart';
 part 'renderer_pick_pass.dart';
 part 'renderer_planar_pass.dart';
 part 'renderer_post_pass.dart';
@@ -184,6 +185,8 @@ final class Renderer implements RenderServices {
     required this.velocityNeighborMaxShader,
     required this.motionBlurShader,
     required this.viewportShadeShader,
+    required this.outlineMaskShader,
+    required this.highContrastShader,
     required this.decalShader,
     required this.wboitResolveShader,
     required this.sceneColourCopyShader,
@@ -265,10 +268,7 @@ final class Renderer implements RenderServices {
     _pipelineCache.clear();
     _shaders = _addedMaterials.isEmpty
         ? _baseShaders
-        : ShaderLibraryStack(<ShaderLibrary>[
-            ..._addedMaterials,
-            _baseShaders,
-          ]);
+        : ShaderLibraryStack(<ShaderLibrary>[..._addedMaterials, _baseShaders]);
   }
 
   /// What draws alongside the world.
@@ -420,6 +420,11 @@ final class Renderer implements RenderServices {
 
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
   final ShaderHandle viewportShadeShader;
+
+  /// `N9`'s marks, drawn through the velocity vertex stages, and the
+  /// high-contrast look over the finished picture.
+  final ShaderHandle outlineMaskShader;
+  final ShaderHandle highContrastShader;
 
   /// `P3`'s projected decals, read out of the surface and albedo buffers.
   final ShaderHandle decalShader;
@@ -763,6 +768,8 @@ final class Renderer implements RenderServices {
   final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
   final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
   final ReactiveInfoBlock _reactiveInfo = ReactiveInfoBlock();
+  final OutlineMaskInfoBlock _outlineMaskInfo = OutlineMaskInfoBlock();
+  final HighContrastInfoBlock _highContrastInfo = HighContrastInfoBlock();
   final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
   final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
   final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
@@ -1642,7 +1649,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: ninety-five goldens go through this
+  /// strength has, and for the same reason: ninety-six goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -1727,6 +1734,8 @@ final class Renderer implements RenderServices {
         velocityNeighborMaxShader: require('VelocityNeighborMax'),
         motionBlurShader: require('MotionBlur'),
         viewportShadeShader: require('ViewportShade'),
+        outlineMaskShader: require('OutlineMask'),
+        highContrastShader: require('HighContrast'),
         decalShader: require('Decal'),
         wboitResolveShader: require('WboitResolve'),
         sceneColourCopyShader: require('SceneColourCopy'),
@@ -2735,7 +2744,12 @@ final class Renderer implements RenderServices {
       // way, and before anything else: it reads nothing and writes a name
       // nothing else reads, so its place in the chain is nobody's concern,
       // and inactive it is culled.
-      ..addNode(objectIds);
+      ..addNode(objectIds)
+      // `N9`: the marks the high-contrast look rings, after the scene whose
+      // surface buffer hides them. Registered whether or not the look is on,
+      // for the reason bloom is — the look reads the name — and culled
+      // unless the look is on and something is marked.
+      ..addNode(_OutlineMaskNode(this, s, composite._scene, composite._views));
 
     for (final node in nodes.of(FramePhase.overlay)) {
       graph.addNode(node);
@@ -2843,6 +2857,7 @@ final class Renderer implements RenderServices {
     // culled) unless the frame is upscaled.
     final easu = _EasuNode(this, s, fxaa);
     final shade = _ViewportShadeNode(this, view, s);
+    final contrast = _HighContrastNode(this, s);
     // `R2`: after everything that reads the scene's own buffers and before
     // bloom, so the glow is taken from the resolved picture and the
     // screen-space effects work at the scene's size.
@@ -2861,6 +2876,9 @@ final class Renderer implements RenderServices {
       // the same reason bloom is: registration order is the version chain, and
       // an inactive node is culled rather than branched around.
       ..addNode(fxaa)
+      // `N9`, after the smoothing for the viewport shading's reason below:
+      // its lines are the thing that must not be blurred.
+      ..addNode(contrast)
       // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished
       // picture, so it goes after the tone map and after the edges are
       // smoothed. Before the antialias it would have had its own outline
@@ -2881,9 +2899,17 @@ final class Renderer implements RenderServices {
     // reconstructed, at the size that was asked for.
     // `R5`: with the spatial upscale, everything after it.
     _outputSized = s.antiAlias.temporal.enabled
-        ? <FrameGraphNode>{resolve, bloom, composite, fxaa, shade, ...present}
+        ? <FrameGraphNode>{
+            resolve,
+            bloom,
+            composite,
+            fxaa,
+            contrast,
+            shade,
+            ...present,
+          }
         : _upscales(s)
-        ? <FrameGraphNode>{easu, fxaa, shade, ...present}
+        ? <FrameGraphNode>{easu, fxaa, contrast, shade, ...present}
         : const <FrameGraphNode>{};
 
     return graph.compile(
@@ -4513,6 +4539,15 @@ final class Renderer implements RenderServices {
             ..declare(
               const ResourceDesc(
                 id: FrameResourceIds.objectIds,
+                format: TextureFormat.r8g8b8a8UNormInt,
+              ),
+            )
+            // `N9`: the frame's size, because a ring is drawn a pixel at a
+            // time round what the scene drew, and eight bits a channel
+            // because what it holds is a display colour a player picked.
+            ..declare(
+              const ResourceDesc(
+                id: FrameResourceIds.outlineMask,
                 format: TextureFormat.r8g8b8a8UNormInt,
               ),
             )

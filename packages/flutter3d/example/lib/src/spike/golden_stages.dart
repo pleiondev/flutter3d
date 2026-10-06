@@ -2237,6 +2237,93 @@ abstract final class GoldenStages {
     );
   }
 
+  // ------------------------------------------------------------------ N9
+
+  /// `high-contrast`: the P4 props on a paved floor, with the box ringed as a
+  /// monster would be and the ball as a pickup — `high_contrast_test.dart`'s
+  /// claims in one frame.
+  ///
+  /// The paving is the detail the look flattens: stones of different greys
+  /// with a dark joint between them and a speckle on each, drawn here in Dart
+  /// so every backend reads the same texels. The post is not marked, so the
+  /// frame shows a node outlined by its geometry beside two ringed by role.
+  /// The grey of `high-contrast`'s paving at texel ([x], [y]): each stone its
+  /// own grey from a hash of where it is, a two-texel joint, and a speckle
+  /// from a hash of the texel. Dark, so that the sun on it lands in the
+  /// middle of the tone the look pushes apart rather than past white.
+  ///
+  /// **The same answer under both integer models, and it was not.** The
+  /// browser sets are built by dart2js, where an `int` is a double and a shift
+  /// or a mask first truncates its operand to thirty-two bits. The first hash
+  /// here multiplied by a Knuth constant into the forties of bits and shifted
+  /// the product, so the VM and the browser baked two different floors and
+  /// both browser references disagreed with Impeller on half their pixels —
+  /// by the same amount, which is what pointed at the stage rather than at
+  /// either backend. Every product here stays under 2^53, where a double is
+  /// exact, and the mask keeps only bits a truncation to thirty-two leaves
+  /// alone. `golden_paving_test.dart` holds that.
+  static int pavingGrey(int x, int y) {
+    final stone = (x ~/ 16) * 7 + (y ~/ 16) * 13;
+    final joint = x % 16 < 2 || y % 16 < 2;
+    final speckle = (((x * 73 + y * 151) * 40503) & 0xFFFF) >> 11;
+    return joint ? 20 : 45 + (stone * 37) % 40 + speckle;
+  }
+
+  static Future<GoldenStaged> highContrast(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.25;
+    // Thirty-two stones a side, so a stone is under half a metre of the
+    // slab: a slab's face runs its coordinate once across, and the
+    // texture transforms are the layered model's, not the plain ones'.
+    const size = 512;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final grey = pavingGrey(x, y);
+        final at = (y * size + x) * 4;
+        pixels
+          ..[at] = grey
+          ..[at + 1] = grey
+          ..[at + 2] = (grey * 0.92).round()
+          ..[at + 3] = 255;
+      }
+    }
+    final paving = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    )!;
+    final props = _p4Props(device);
+    // Okabe and Ito's orange and bluish green: a monster and a pickup.
+    (props[0] as MeshNode).outlineColor = Vector3(0.902, 0.624, 0.0);
+    (props[1] as MeshNode).outlineColor = Vector3(0.0, 0.62, 0.451);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(14.0, 0.2, 14.0),
+          Vector3(0.0, -0.1, 0.0),
+          Material(
+            name: 'paving',
+            lighting: LightingModel.lambert,
+            albedo: paving,
+            albedoSampler: SamplerOptions.linearClamp,
+          ),
+        ),
+        ...props,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2)),
+    );
+  }
+
+  static RenderSettings highContrastSettings(RenderSettings settings) =>
+      settings.copyWith(
+        highContrast: const HighContrastSettings(enabled: true),
+      );
+
   // ------------------------------------------------------------------ P5
 
   /// The sun for `sky-physical-dusk`, four degrees up and ahead of the camera.

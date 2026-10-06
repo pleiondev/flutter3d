@@ -1,5 +1,13 @@
 ## Unreleased
 
+- **A high-contrast accommodation.** `Accommodations.highContrast` reads the
+  platform's own flag, `highContrastOf` turns the engine's look on from the
+  `a11y.highContrast` setting with that flag as the fallback, and the
+  settings panel has a High contrast switch that shows what is drawn.
+  `ActorVisuals.outlineOf` and `FixtureVisuals.outlineOf` let a game name
+  the role colour each actor and fixture is ringed in; `outlineColourOf`
+  turns a `Color` into the colour a ring takes.
+
 - **`GameCloud.shares`** is a `RunService` on the same server, using
   `httpRunTransport` over `package:http`. Pressing Share counts as the
   player's yes; no question guards it.

@@ -1199,6 +1199,18 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     stage: GoldenStages.renderTexture,
   ),
 
+  // N9. The high-contrast look: a paved floor flattened, every edge drawn,
+  // and a box and a ball ringed in role colours beside a post that is not.
+  const GoldenScene(
+    name: 'high-contrast',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.highContrast,
+    configure: GoldenStages.highContrastSettings,
+  ),
+
   // P5. The physical sky at dusk over blocks standing in ground fog, and the
   // same sky after dark with its stars out.
   const GoldenScene(

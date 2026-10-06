@@ -244,6 +244,11 @@ const Map<String, double> _budgets = <String, double>{
   // `P4`. 0 of 172800 measured against Impeller on 2026-10-01.
   'planar-mirror': 0.01,
   'render-texture': 0.01,
+  // `N9`. 0 of 172800 measured against Impeller on 2026-10-06. Its first
+  // recording disagreed on 54.646%, the same as WebGL2's to a few pixels,
+  // because both are built by dart2js and both baked the stage's paving
+  // through a hash that overflowed thirty-two bits.
+  'high-contrast': 0.01,
 };
 
 /// Scenes this set holds no picture of, and why the picture was refused.

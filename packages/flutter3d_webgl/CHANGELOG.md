@@ -1,5 +1,8 @@
 ## Unreleased
 
+- The shader table regenerated for `OutlineMask` and `HighContrast`, and
+  `high-contrast` in the browser reference set, agreeing with Impeller to the
+  pixel.
 - The shader table regenerated for the caustic stages.
 - The shader table regenerated for the painted, unclamped transmittance.
 - The shader table regenerated for `ShadowTransmittance` and the coloured

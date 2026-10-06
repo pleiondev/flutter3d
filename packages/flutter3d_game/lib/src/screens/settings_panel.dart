@@ -4,9 +4,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart' show Deadzone;
 
 import '../cloud/consents.dart';
+import '../config/accommodations.dart';
 import '../config/color_roles.dart';
 import '../config/color_vision_setting.dart';
 import '../config/game_config.dart';
+import '../config/high_contrast_setting.dart';
 import '../input/bindings.dart';
 import '../input/pad_routes.dart';
 import 'privacy_section.dart';
@@ -187,6 +189,16 @@ class SettingsPanel extends StatelessWidget {
                   chosen: config.settingOf(colorVisionSetting, 0.0).round(),
                   onChanged: (int chosen) =>
                       onSetting(colorVisionSetting, chosen.toDouble()),
+                ),
+                SettingsSwitchRow(
+                  label: 'High contrast',
+                  // Shown as the system's answer until the player gives one
+                  // of their own, which is what the game will draw: a switch
+                  // that read off while the look was on would be the panel
+                  // disagreeing with the screen behind it.
+                  on: wantsHighContrast(config, Accommodations.of(context)),
+                  onChanged: (bool on) =>
+                      onSetting(highContrastSetting, on ? 1.0 : 0.0),
                 ),
                 SettingsSwitchRow(
                   label: 'Hold to sprint',

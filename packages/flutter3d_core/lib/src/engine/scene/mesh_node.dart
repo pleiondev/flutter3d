@@ -95,6 +95,24 @@ base class MeshNode extends SceneNode {
   /// [tint] fades it.
   bool get drawsTransparent => material.isTransparent || tint.w < 1.0;
 
+  /// The colour this node is ringed in under `RenderSettings.highContrast`,
+  /// or null — the default — for no ring — `N9`.
+  ///
+  /// **A role, not a look.** What a game marks here is what a player has to
+  /// find in a grey world: the monsters, the pickups, the way out, each in the
+  /// colour its role has in the game's own settings. Display-referred, as a
+  /// `Color` gives it — `(color.r, color.g, color.b)` — and *not* linear like
+  /// [tint], because the ring is drawn on the finished picture and has to
+  /// come out the colour the player picked from a swatch.
+  ///
+  /// **Null costs nothing**, and that is the shape of the feature: the pass
+  /// that writes these is drawn for marked nodes alone and skipped on a frame
+  /// with none, and with the look off nothing reads this at all, so a game
+  /// can leave its marks set for the player who turns the look on. Per mesh,
+  /// as [layerMask] is, since a render list asks the node it draws and not its
+  /// parents: a model is marked by walking it.
+  Vector3? outlineColor;
+
   /// The skeleton deforming this mesh, when it is skinned.
   ///
   /// Null for the overwhelming majority of meshes, and the renderer branches on

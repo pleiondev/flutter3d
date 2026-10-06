@@ -75,7 +75,9 @@ final class GameConfig {
   ///   are what make people ill, and the following is the game;
   /// * `a11y.toggleSprint` — one when sprinting latches rather than being held.
   ///   Stored as a number like everything else here, because a map of doubles is
-  ///   one thing to read, write and hand-edit rather than two.
+  ///   one thing to read, write and hand-edit rather than two;
+  /// * `a11y.highContrast` — one for the engine's high-contrast look, nought
+  ///   for none, absent for whatever the system asks. See `highContrastOf`.
   ///
   /// **The `a11y.` names are settings and not decoration.** Each is something a
   /// player cannot play without: a camera that flinches, a key that has to be

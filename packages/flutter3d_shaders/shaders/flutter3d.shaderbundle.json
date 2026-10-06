@@ -259,6 +259,14 @@
     "type": "fragment",
     "file": "shaders/post/viewport_shade.frag"
   },
+  "OutlineMask": {
+    "type": "fragment",
+    "file": "shaders/post/outline_mask.frag"
+  },
+  "HighContrast": {
+    "type": "fragment",
+    "file": "shaders/post/high_contrast.frag"
+  },
   "Decal": {
     "type": "fragment",
     "file": "shaders/post/decal.frag"
