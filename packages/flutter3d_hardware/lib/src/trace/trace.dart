@@ -241,10 +241,12 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
         );
         if (event is TraceSubmit) passes.remove(pass);
       case TraceCreateStorageBuffer():
-        storage[event.id] = device.createStorageBuffer(
+        final buffer = storage[event.id] = device.createStorageBuffer(
           event.bytes,
           hostReadable: event.hostReadable,
+          bindableAsIndices: event.indices != null,
         );
+        if (event.indices case final id?) geometry[id] = buffer.asIndices!;
       case TraceReleaseStorageBuffer(:final buffer):
         device.releaseStorageBuffer(storage.remove(buffer)!);
       case TraceCreateComputePipeline(:final id, :final shader):

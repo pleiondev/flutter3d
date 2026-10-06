@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A storage buffer bindable as indices is the same bytes as the index
+  buffer** (`H11`), so a dispatch's writes are what the next draw reads.
+  The `SplatSort` stages are not carried: the CPU sort is this backend's,
+  and the reference the GPU's is held to.
+
 - **`OutlineMaskShader` and `HighContrastShader`**, the software twins of
   the high-contrast look's two stages, and the first set to record its
   golden, `high-contrast`.

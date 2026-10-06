@@ -193,6 +193,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     id: 6,
     bytes: _bytes(<int>[1, 2, 3, 4]),
     hostReadable: true,
+    indices: 9,
   ),
   const TraceCreateComputePipeline(7, 'PrefixSum'),
   const TraceBeginComputePass(1, 'sum'),

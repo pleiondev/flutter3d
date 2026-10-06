@@ -10,6 +10,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'webgpu_compute_stage.dart';
 import 'webgpu_formats.dart' show gpuWritableBytes;
 import 'webgpu_interop.dart';
+import 'webgpu_types.dart' show WebGpuGeometry;
 
 /// A storage buffer: the GPU buffer and the length it was asked for, which
 /// may be less than the buffer's own four-byte-rounded size.
@@ -31,11 +32,14 @@ final class WebGpuComputePipeline {
 
 int _roundUp4(int n) => (n + 3) & ~3;
 
-/// A buffer holding [bytes], usable as storage and as either end of a copy.
+/// A buffer holding [bytes], usable as storage and as either end of a copy —
+/// and as a draw's index buffer when [bindableAsIndices] asks, which is a
+/// usage bit a WebGPU buffer has to be born with.
 StorageBuffer webgpuCreateStorageBuffer(
   GPUDevice gpu,
   ByteData bytes, {
   required bool hostReadable,
+  bool bindableAsIndices = false,
 }) {
   final size = _roundUp4(bytes.lengthInBytes < 4 ? 4 : bytes.lengthInBytes);
   final buffer = gpu.createBuffer(
@@ -44,7 +48,8 @@ StorageBuffer webgpuCreateStorageBuffer(
       usage:
           GpuBufferUsage.storage |
           GpuBufferUsage.copyDst |
-          GpuBufferUsage.copySrc,
+          GpuBufferUsage.copySrc |
+          (bindableAsIndices ? GpuBufferUsage.index : 0),
       label: 'storage ${bytes.lengthInBytes}',
     ),
   );
@@ -65,6 +70,13 @@ StorageBuffer webgpuCreateStorageBuffer(
     backend: WebGpuStorage(buffer, bytes.lengthInBytes),
     lengthInBytes: bytes.lengthInBytes,
     hostReadable: hostReadable,
+    asIndices: bindableAsIndices
+        ? GeometryBuffer(
+            backend: WebGpuGeometry(buffer),
+            offsetInBytes: 0,
+            lengthInBytes: bytes.lengthInBytes,
+          )
+        : null,
   );
 }
 

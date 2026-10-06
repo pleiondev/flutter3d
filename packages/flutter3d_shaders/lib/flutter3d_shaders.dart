@@ -23,7 +23,17 @@ typedef RequiredShader = ({String name, bool fragment});
 /// generator reads it; a backend that computes answers to these names, and
 /// one that does not answers `supportsCompute` false instead. Checked
 /// against the manifest by `test/manifest_test.dart`.
-const List<String> kComputeShaders = <String>['PrefixSum'];
+///
+/// The three `SplatSort` stages are the GPU splat sort — `H11` — and a
+/// computing backend may leave them out: the software rasteriser does, so
+/// its clouds take the CPU sort they are held to, and a consumer asks for
+/// each by name before it dispatches.
+const List<String> kComputeShaders = <String>[
+  'PrefixSum',
+  'SplatSortCount',
+  'SplatSortScan',
+  'SplatSortScatter',
+];
 
 /// Every entry point, as the manifest lists them.
 ///

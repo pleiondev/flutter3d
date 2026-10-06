@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **`SplatSortCount`, `SplatSortScan` and `SplatSortScatter`**, the compute
+  stages of the GPU splat sort (`H11`): a digit count per tile of 256
+  keys, a scan of the counts in one workgroup, and a stable scatter whose
+  last pass writes six indices a splat. A computing backend may leave them
+  out, and the software rasteriser does.
+
 - **`OutlineMask` and `HighContrast`**, the stages of
   `RenderSettings.highContrast`: a marked node's ring colour, drawn through
   the velocity vertex stages and dropped behind the surface buffer, and the

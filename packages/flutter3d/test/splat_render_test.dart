@@ -134,6 +134,44 @@ void main() {
     );
   });
 
+  test(
+    'the software rasteriser computes, and still sorts on the CPU',
+    () async {
+      // `H11`: the GPU sort is for a device with compute *and* the `SplatSort`
+      // stages, and this one has only the first. So its clouds stay on the
+      // sort the GPU's order is held to, and draw through the identity
+      // indices. Mutation: answer `availableOn` from `supportsCompute` alone —
+      // this device is offered the sort, and `createComputePipeline` refuses a
+      // stage it does not have.
+      final it = cpuTestDevice(width: _width, height: _height);
+      expect(it.device.supportsCompute, isTrue);
+      expect(SplatGpuSort.availableOn(it.device), isFalse);
+
+      final renderer = Renderer.create(
+        device: it.device,
+        fallbackAlbedo: it.albedo,
+        fallbackNormal: it.normal,
+      );
+      final contributor = SplatContributor(
+        _cloud(<(Vector3, Vector4)>[
+          (Vector3.zero(), Vector4(1.0, 0.0, 0.0, 1.0)),
+        ]),
+      );
+      renderer
+        ..addContributor(contributor)
+        ..render(
+          width: _width,
+          height: _height,
+          scene: Scene(),
+          views: <RenderView>[
+            RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
+          ],
+        );
+      expect(contributor.quads.sorts, 1);
+      expect(contributor.drewGpuOrder, isFalse);
+    },
+  );
+
   test('an empty cloud costs no draw call', () async {
     // `isActive` is asked before the pass is set up, so a cloud with nothing in
     // it must not be the reason a frame opens one.

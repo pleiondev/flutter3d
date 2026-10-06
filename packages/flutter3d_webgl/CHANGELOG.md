@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `createStorageBuffer` takes `bindableAsIndices`, and refuses it as it
+  refuses every storage buffer: no compute here, so splats sort on the CPU.
+
 - The shader table regenerated for `OutlineMask` and `HighContrast`, and
   `high-contrast` in the browser reference set, agreeing with Impeller to the
   pixel.

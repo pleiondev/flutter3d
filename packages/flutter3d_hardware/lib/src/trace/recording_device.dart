@@ -388,13 +388,22 @@ final class RecordingDevice implements GraphicsDevice {
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
+    bool bindableAsIndices = false,
   }) {
-    final buffer = inner.createStorageBuffer(bytes, hostReadable: hostReadable);
+    final buffer = inner.createStorageBuffer(
+      bytes,
+      hostReadable: hostReadable,
+      bindableAsIndices: bindableAsIndices,
+    );
+    final indices = buffer.asIndices;
     events.add(
       TraceCreateStorageBuffer(
         id: _name(_storageIds, buffer),
         bytes: _copy(bytes),
         hostReadable: hostReadable,
+        // Named as geometry, so a draw that binds it is recorded as one
+        // binding any other index buffer — `H11`.
+        indices: indices == null ? null : _name(_geometryIds, indices.backend),
       ),
     );
     return buffer;

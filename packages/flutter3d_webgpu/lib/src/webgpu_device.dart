@@ -188,10 +188,15 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
+    bool bindableAsIndices = false,
   }) => guard(
     'a ${bytes.lengthInBytes}-byte storage buffer',
-    () =>
-        webgpuCreateStorageBuffer(gpuDevice, bytes, hostReadable: hostReadable),
+    () => webgpuCreateStorageBuffer(
+      gpuDevice,
+      bytes,
+      hostReadable: hostReadable,
+      bindableAsIndices: bindableAsIndices,
+    ),
   );
 
   @override

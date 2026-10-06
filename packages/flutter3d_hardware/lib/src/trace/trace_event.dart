@@ -266,6 +266,7 @@ sealed class TraceEvent {
       id: asInt(j['id']),
       bytes: blob.read(j['bytes']),
       hostReadable: j['hostReadable']! as bool,
+      indices: j['indices'] == null ? null : asInt(j['indices']),
     ),
     'releaseStorageBuffer' => TraceReleaseStorageBuffer(asInt(j['buffer'])),
     'createComputePipeline' => TraceCreateComputePipeline(
@@ -988,10 +989,15 @@ final class TraceCreateStorageBuffer extends TraceEvent {
     required this.id,
     required this.bytes,
     required this.hostReadable,
+    this.indices,
   });
   final int id;
   final ByteData bytes;
   final bool hostReadable;
+
+  /// The geometry id its `asIndices` is recorded under, or null when it was
+  /// not asked to be bindable as indices — `H11`.
+  final int? indices;
   @override
   String get kind => 'createStorageBuffer';
   @override
@@ -999,6 +1005,7 @@ final class TraceCreateStorageBuffer extends TraceEvent {
     'id': id,
     'bytes': blob.add(bytes),
     'hostReadable': hostReadable,
+    if (indices != null) 'indices': indices,
   };
 }
 

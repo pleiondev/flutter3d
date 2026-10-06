@@ -110,7 +110,8 @@ final class SplatSorter {
   /// first `cloud.count` entries mean anything.
   Uint32List get order => _order;
 
-  /// The quantised keys in the same order as [order], ascending.
+  /// The quantised keys in the same order as [order]: ascending after
+  /// [sort], in the cloud's own order after [quantise].
   Uint32List get keys => _keys;
 
   /// How far apart the nearest and farthest splat were at the last [sort],
@@ -127,6 +128,32 @@ final class SplatSorter {
   /// this eye, not across a fixed one: sixteen bits over the cloud's own
   /// depth is what keeps a small cloud and a large one equally well ordered.
   void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model, Vector3? axis}) {
+    quantise(cloud, eye, model: model, axis: axis);
+    sortSplatKeys(
+      _keys,
+      _order,
+      _keyScratch,
+      _orderScratch,
+      cloud.count,
+      _counts,
+    );
+  }
+
+  /// [sort]'s first half alone: [keys] filled in the cloud's own order and
+  /// [order] with `0, 1, 2, …`, nothing sorted — what the GPU sort is handed
+  /// (`H11`), so that the keys it orders are these to the bit.
+  ///
+  /// **The keys stay on the CPU on purpose.** A distance worked out in the
+  /// GPU's 32-bit floats lands a splat near a step of the quantisation in the
+  /// neighbouring key now and then, and two orders that differ there are two
+  /// pictures that differ there. One walk over the centres is the price of
+  /// every backend drawing one order.
+  void quantise(
+    SplatCloud cloud,
+    Vector3 eye, {
+    Matrix4? model,
+    Vector3? axis,
+  }) {
     final count = cloud.count;
     if (_keys.length < count) {
       _keys = Uint32List(count);
@@ -177,7 +204,5 @@ final class SplatSorter {
       _keys[i] = q < 0 ? 0 : (q > kSplatKeyMax ? kSplatKeyMax : q);
       _order[i] = i;
     }
-
-    sortSplatKeys(_keys, _order, _keyScratch, _orderScratch, count, _counts);
   }
 }

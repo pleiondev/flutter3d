@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `createStorageBuffer` takes `bindableAsIndices`, and refuses it as it
+  refuses every storage buffer: no compute here, so splats sort on the CPU.
+
 - **`supportsAlphaToCoverage` is false**: flutter_gpu has no
   alpha-to-coverage and no sample mask. `setAlphaToCoverage` does nothing.
 

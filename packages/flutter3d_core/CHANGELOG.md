@@ -1,5 +1,18 @@
 ## Unreleased
 
+- **A sorted splat cloud is ordered on the GPU where the device computes —
+  `H11`.** `SplatGpuSort` takes the keys `SplatSorter.quantise` makes and
+  orders them in two stable eight-bit radix passes on WebGPU compute, and
+  its last pass writes the draw's index buffer, so the order never comes
+  back to the CPU and the quads are built in the cloud's own order.
+  `SplatContributor` uses it when the device has compute and the
+  `SplatSort` stages and the cloud has at most `kSplatGpuSortLimit`
+  splats; `gpuSort = false` turns it off, and every other device keeps the
+  CPU sort, which is the reference: the GPU's order is the CPU's to the
+  splat, ties in index order, and the picture is the same to the byte.
+  `SplatQuads.build` takes `keysOnly`, and `SplatSorter.sort` is
+  `quantise` followed by the counting sort.
+
 - **A high-contrast look with outlines — `RenderSettings.highContrast`.**
   `HighContrastSettings` flattens the texture inside each surface, drains the
   frame toward grey and pushes its tone apart, draws every edge the geometry

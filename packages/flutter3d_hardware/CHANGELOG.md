@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **A storage buffer a draw can bind as its indices** —
+  `createStorageBuffer(bindableAsIndices: true)` and
+  `StorageBuffer.asIndices`, for `H11`: a compute pass writes a draw's
+  order and the draw reads it without a round trip through the CPU. The
+  trace records it as geometry and replays it as such.
+
 - **`ShaderLibraryStack`**: any number of libraries consulted in order, the
   first that answers winning — `P8`. What a game with more than one compiled
   material bundle hands a renderer.

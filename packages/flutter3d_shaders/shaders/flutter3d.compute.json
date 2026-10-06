@@ -2,5 +2,17 @@
   "PrefixSum": {
     "type": "compute",
     "file": "shaders/compute/prefix_sum.comp"
+  },
+  "SplatSortCount": {
+    "type": "compute",
+    "file": "shaders/compute/splat_sort_count.comp"
+  },
+  "SplatSortScan": {
+    "type": "compute",
+    "file": "shaders/compute/splat_sort_scan.comp"
+  },
+  "SplatSortScatter": {
+    "type": "compute",
+    "file": "shaders/compute/splat_sort_scatter.comp"
   }
 }

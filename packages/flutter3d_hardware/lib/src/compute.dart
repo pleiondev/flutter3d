@@ -14,6 +14,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'geometry_buffer.dart';
 import 'shader.dart';
 
 /// A buffer a compute stage reads and writes.
@@ -25,6 +26,7 @@ final class StorageBuffer {
     required this.backend,
     required this.lengthInBytes,
     this.hostReadable = false,
+    this.asIndices,
   });
 
   final Object backend;
@@ -36,6 +38,15 @@ final class StorageBuffer {
   /// because a GPU buffer that can be mapped for reading is a different
   /// allocation from one that cannot, on every API that has either.
   final bool hostReadable;
+
+  /// The same memory as an index buffer a draw can bind, when it was asked
+  /// for with `bindableAsIndices` — `H11`: a compute pass writes a draw's
+  /// order and the draw reads it, and nothing crosses back to the CPU. Null
+  /// otherwise. Released with this buffer, never through `releaseGeometry`.
+  ///
+  /// Asked at creation for [hostReadable]'s reason: WebGPU names `INDEX` in
+  /// a buffer's usage when it is made, as `uploadGeometry` already found.
+  final GeometryBuffer? asIndices;
 }
 
 /// A compiled compute stage, ready to dispatch.

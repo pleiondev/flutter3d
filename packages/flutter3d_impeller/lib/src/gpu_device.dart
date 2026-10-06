@@ -56,6 +56,7 @@ final class GpuRenderBackend implements GraphicsDevice {
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
+    bool bindableAsIndices = false,
   }) => throw UnsupportedError(_noCompute);
 
   @override

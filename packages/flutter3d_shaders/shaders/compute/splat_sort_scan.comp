@@ -1,0 +1,67 @@
+#version 460 core
+
+// The second of a splat sort's three stages — `H11`: the counts turned in
+// place into where each (digit, tile) pair starts writing.
+//
+// An exclusive prefix sum over `256 × tiles` counts, in one workgroup. The
+// counts are taken 1024 at a time, four to an invocation, scanned the way
+// `prefix_sum.comp` scans them, and the chunk's total carried into the next.
+// One workgroup walking the whole array is a serial loop over chunks, which a
+// tree of workgroups would not be; it is kept because it is one dispatch with
+// nothing in it that can be ordered differently from run to run, and the
+// array is a 256th of the cloud.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) buffer SortCounts {
+  uint counts[];
+}
+counts_buffer;
+
+layout(std140, set = 0, binding = 1) uniform SortInfo {
+  vec4 sort;
+}
+sort_info;
+
+shared uint partial[256];
+
+void main() {
+  uint total = 256u * uint(sort_info.sort.z);
+  uint t = gl_LocalInvocationID.x;
+  uint carry = 0u;
+
+  for (uint base = 0u; base < total; base += 1024u) {
+    uint at = base + t * 4u;
+    uint v0 = at < total ? counts_buffer.counts[at] : 0u;
+    uint v1 = at + 1u < total ? counts_buffer.counts[at + 1u] : 0u;
+    uint v2 = at + 2u < total ? counts_buffer.counts[at + 2u] : 0u;
+    uint v3 = at + 3u < total ? counts_buffer.counts[at + 3u] : 0u;
+    partial[t] = v0 + v1 + v2 + v3;
+    barrier();
+
+    for (uint offset = 1u; offset < 256u; offset <<= 1u) {
+      uint add = t >= offset ? partial[t - offset] : 0u;
+      barrier();
+      partial[t] += add;
+      barrier();
+    }
+
+    uint before = carry + (t == 0u ? 0u : partial[t - 1u]);
+    if (at < total) {
+      counts_buffer.counts[at] = before;
+    }
+    if (at + 1u < total) {
+      counts_buffer.counts[at + 1u] = before + v0;
+    }
+    if (at + 2u < total) {
+      counts_buffer.counts[at + 2u] = before + v0 + v1;
+    }
+    if (at + 3u < total) {
+      counts_buffer.counts[at + 3u] = before + v0 + v1 + v2;
+    }
+    carry += partial[255];
+    // Every invocation has read the chunk's total before the next chunk
+    // writes over it.
+    barrier();
+  }
+}

@@ -1,5 +1,12 @@
 ## Unreleased
 
+- **Splat clouds are sorted on this device's compute — `H11`.** The
+  compute table carries `SplatSortCount`, `SplatSortScan` and
+  `SplatSortScatter`, and a storage buffer asked to be bindable as indices
+  is made with `INDEX` in its usage. `splat_sort_gpu_test.dart` holds the
+  order to the CPU's for a hundred thousand splats and the picture to the
+  byte; the splat references did not move.
+
 - **A stage loaded from a bundle says what it declares.**
   `WebGpuStage.declared` is the section's own blocks and samplers, which on
   this backend are the pipeline's layout, and a loaded library hands it to

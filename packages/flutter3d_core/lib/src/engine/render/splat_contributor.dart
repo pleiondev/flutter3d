@@ -41,6 +41,7 @@ import 'identity_indices.dart';
 import 'pass_contributor.dart';
 import 'splat_lod.dart';
 import 'splat_sort.dart';
+import 'splat_sort_gpu.dart';
 
 /// How far out the quad reaches, in standard deviations.
 ///
@@ -184,6 +185,12 @@ final class SplatQuads {
   Vector3? _sortedAxis;
   final Float64List _sortedModel = Float64List(16);
   bool _sortedWithModel = false;
+  bool _sortedKeysOnly = false;
+
+  /// Each splat's key in the cloud's own order, after a [build] with
+  /// `keysOnly` — what `SplatGpuSort` orders. Only the first `cloud.count`
+  /// entries mean anything.
+  Uint32List get keys => _sorter.keys;
 
   /// How many times [build] has sorted. For the tests that hold it to not
   /// sorting on every frame.
@@ -227,19 +234,25 @@ final class SplatQuads {
   /// projected onto [right] and [up] alone and nothing is added — the exact
   /// ellipse on the view axis, and a quad whose size is the splat's own, for
   /// a caller with no projection to hand.
+  ///
+  /// With [keysOnly] the sort stops at the keys — `H11`: the quads come out
+  /// in the cloud's own order, [keys] holds each splat's key in that order,
+  /// and the ordering is left to `SplatGpuSort`, whose index buffer the draw
+  /// binds. [sorts] moves as it would, and says when that is owed again.
   void build({
     required Vector3 eye,
     required Vector3 right,
     required Vector3 up,
     Matrix4? model,
     bool sorted = true,
+    bool keysOnly = false,
     SplatLens? lens,
   }) {
     // A tree's cut is chosen where the sort runs, so a hashed build still
     // sorts when the cut moves: the order and the cut have to agree.
     // `P7`: depth along the axis through an orthographic lens.
     final axis = lens != null && lens.orthographic ? lens.forward : null;
-    if ((sorted || lod != null) && _needsSort(eye, model, axis)) {
+    if ((sorted || lod != null) && _needsSort(eye, model, axis, keysOnly)) {
       final lod = this.lod;
       if (lod != null) {
         // The cut is chosen by distance in the tree's own space, so the eye
@@ -250,14 +263,19 @@ final class SplatQuads {
         _sortedPageVersion = lod.tree.pageVersion;
         _sortedBudget = lod.budget;
       }
-      _sorter.sort(cloud, eye, model: model, axis: axis);
+      if (keysOnly) {
+        _sorter.quantise(cloud, eye, model: model, axis: axis);
+      } else {
+        _sorter.sort(cloud, eye, model: model, axis: axis);
+      }
       _sorts++;
       _sortedEye = eye.clone();
       _sortedAxis = axis?.clone();
       _sortedWithModel = model != null;
+      _sortedKeysOnly = keysOnly;
       if (model != null) _sortedModel.setAll(0, model.storage);
     }
-    final order = sorted ? _sorter.order : null;
+    final order = sorted && !keysOnly ? _sorter.order : null;
     final count = cloud.count;
     final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
     if (_vertices.length < needed) _vertices = Float32List(needed);
@@ -423,9 +441,12 @@ final class SplatQuads {
     vertexCount = count * kSplatVerticesPerSplat;
   }
 
-  bool _needsSort(Vector3 eye, Matrix4? model, Vector3? axis) {
+  bool _needsSort(Vector3 eye, Matrix4? model, Vector3? axis, bool keysOnly) {
     final last = _sortedEye;
     if (last == null) return true;
+    // Keys alone are not an order, and an order is not the keys in the
+    // cloud's own order: moving between the two sorts again.
+    if (keysOnly != _sortedKeysOnly) return true;
     final lod = this.lod;
     if (lod != null &&
         (lod.tree.pageVersion != _sortedPageVersion ||
@@ -508,6 +529,47 @@ final class SplatContributor extends PassContributor {
   /// Sorted, hashed, or whichever the frame's temporal setting calls for.
   SplatComposite composite;
 
+  /// Whether a sorted cloud is ordered on the GPU where the device can —
+  /// `H11`: compute and the `SplatSort` stages, which is WebGPU, and a cloud
+  /// of at most [kSplatGpuSortLimit] splats. On by default. Off sorts on the
+  /// CPU everywhere, which is the order the GPU's is held to; the picture is
+  /// the same either way.
+  bool gpuSort = true;
+
+  /// The GPU sort for the device last drawn with, while it is the one used.
+  SplatGpuSort? _gpu;
+
+  /// [SplatQuads.sorts] when [_gpu] last dispatched.
+  int _gpuSorted = -1;
+
+  /// Whether the last [encode] drew through [_gpu]'s index buffer, which the
+  /// reactive pass then draws through too.
+  bool _drewGpuOrder = false;
+
+  /// Whether the last frame drew this cloud in the GPU sort's order — what
+  /// a test asks to know which of the two orders it is looking at.
+  bool get drewGpuOrder => _drewGpuOrder;
+
+  /// [_gpu] for [frame]'s device, made the first time it is asked for, or
+  /// null where the CPU sorts.
+  SplatGpuSort? _gpuSortFor(ContributorFrame frame, bool hashed) {
+    final lod = quads.lod;
+    final most = lod != null ? lod.budget : cloud.count;
+    if (!gpuSort ||
+        hashed ||
+        most > kSplatGpuSortLimit ||
+        !SplatGpuSort.availableOn(frame.device)) {
+      return null;
+    }
+    final gpu = _gpu;
+    if (gpu != null && identical(gpu.device, frame.device)) return gpu;
+    gpu?.release();
+    // A new device has none of the old one's order: the next build sorts.
+    quads.invalidateSort();
+    _gpuSorted = -1;
+    return _gpu = SplatGpuSort(frame.device);
+  }
+
   /// The node the cloud hangs from, when it has one: its world matrix places
   /// the cloud, and hiding it hides the cloud. Null draws [cloud] in world
   /// units as stored, which is what a PLY capture is.
@@ -525,6 +587,7 @@ final class SplatContributor extends PassContributor {
     _pipeline = null;
     _hashedPipeline = null;
     _reactivePipeline = null;
+    _gpu?.relink();
   }
 
   /// The index sequence 0, 1, 2, … every draw in this engine needs — see
@@ -590,15 +653,30 @@ final class SplatContributor extends PassContributor {
       frame.height * view.viewportFraction.height,
     );
 
+    final gpu = _gpuSortFor(frame, hashed);
     quads.build(
       eye: eye,
       right: right,
       up: up,
       model: node?.worldMatrix,
       sorted: !hashed,
+      keysOnly: gpu != null,
       lens: lens,
     );
+    _drewGpuOrder = false;
     if (quads.vertexCount == 0) return;
+
+    // `H11`: the keys this build made, ordered on the GPU into the index
+    // buffer the draw binds — dispatched only when the build sorted, so a
+    // still camera costs nothing here either.
+    if (gpu != null && quads.sorts != _gpuSorted) {
+      gpu.sort(quads.keys, cloud.count, frameIndex: frame.frameIndex);
+      _gpuSorted = quads.sorts;
+    }
+    final indices = gpu != null
+        ? gpu.drawn(frame.frameIndex)!
+        : _identityIndices.view(frame.device, quads.vertexCount);
+    _drewGpuOrder = gpu != null;
 
     frame.encoder
       ..clearBindings()
@@ -625,11 +703,7 @@ final class SplatContributor extends PassContributor {
     frame.encoder
       ..setState(hashed ? _kHashedState : _kSplatState)
       ..bindVertexData(bytes, quads.vertexCount)
-      ..bindIndexBuffer(
-        _identityIndices.view(frame.device, quads.vertexCount),
-        IndexType.int32,
-        quads.vertexCount,
-      )
+      ..bindIndexBuffer(indices, IndexType.int32, quads.vertexCount)
       ..bindBlock(vertexShader, _particleInfo);
 
     // **Fog, which both splat stages read and nothing bound.** An unbound
@@ -725,7 +799,9 @@ final class SplatContributor extends PassContributor {
       ..setState(ReactiveFrame.state)
       ..bindVertexData(bytes, quads.vertexCount)
       ..bindIndexBuffer(
-        _identityIndices.view(frame.device, quads.vertexCount),
+        // The scene pass's own order, already marked drawn this frame.
+        (_drewGpuOrder ? _gpu?.indices : null) ??
+            _identityIndices.view(frame.device, quads.vertexCount),
         IndexType.int32,
         quads.vertexCount,
       )

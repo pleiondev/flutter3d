@@ -684,10 +684,13 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// members below it throw an [UnsupportedError] where this is false.
   bool get supportsCompute;
 
-  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer].
+  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer];
+  /// [bindableAsIndices] gives it a `StorageBuffer.asIndices` a draw can
+  /// bind as 32-bit indices once a compute pass has written them — `H11`.
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
+    bool bindableAsIndices = false,
   });
 
   /// A pipeline from a compute stage of this device's shader library.

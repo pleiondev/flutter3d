@@ -54,15 +54,28 @@ final class CpuDevice implements GraphicsDevice {
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
-  }) => StorageBuffer(
-    backend: ByteData.sublistView(
+    bool bindableAsIndices = false,
+  }) {
+    final copy = ByteData.sublistView(
       Uint8List.fromList(
         bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
       ),
-    ),
-    lengthInBytes: bytes.lengthInBytes,
-    hostReadable: hostReadable,
-  );
+    );
+    return StorageBuffer(
+      backend: copy,
+      lengthInBytes: bytes.lengthInBytes,
+      hostReadable: hostReadable,
+      // The same bytes in the shape [uploadGeometry] gives a draw, so what a
+      // dispatch writes is what the next draw reads, with no copy between.
+      asIndices: bindableAsIndices
+          ? GeometryBuffer(
+              backend: (bytes: copy, usage: GeometryUsage.indices),
+              offsetInBytes: 0,
+              lengthInBytes: bytes.lengthInBytes,
+            )
+          : null,
+    );
+  }
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
