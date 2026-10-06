@@ -28,6 +28,7 @@ import 'nav_grid.dart';
 import 'pendulum_lab.dart';
 import 'portable_math.dart';
 import 'positional_audio.dart';
+import 'procedural_levels.dart';
 import 'replay_digest.dart';
 import 'rewind.dart';
 import 'splines.dart';
@@ -37,6 +38,7 @@ import 'stereo_rig.dart';
 import 'terrain_tiles.dart';
 import 'viewer_profiles.dart';
 import 'voice_limit.dart';
+import 'voxel_world.dart';
 
 final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'fixed-step': FixedStepDemo.new,
@@ -52,6 +54,8 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'lightmap-bake': LightmapBakeDemo.new,
   'baked-visibility': BakedVisibilityDemo.new,
   'terrain-tiles': TerrainTilesDemo.new,
+  'procedural-levels': ProceduralLevelsDemo.new,
+  'voxel-world': VoxelWorldDemo.new,
   'splines': SplinesDemo.new,
   'level-format': LevelFormatDemo.new,
   'level-mechanisms': LevelMechanismsDemo.new,

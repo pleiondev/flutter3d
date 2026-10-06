@@ -252,14 +252,23 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_physics/lib/src/character_controller.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.9.0',
+        note:
+            'The walker\'s sliding, stepping and slope are worked out by the run\'s physics, the native core by default, while its speed, gravity and jump stay the controller\'s.',
+        evidence: 'A world can say who moves its characters.',
+        evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
+      ),
+    ],
   ),
   Feature(
     id: 'rigid-bodies',
     title: 'Rigid bodies',
     category: Category.physicsParticles,
     summary:
-        'Mass, gravity, impulses and rest, with no rotation: a box that '
-        'never tips stays cheap to test against another box.',
+        'Mass, gravity, impulses and rest, with no rotation unless asked '
+        'for: a box that never tips stays cheap to test against another box.',
     since: '0.2.0',
     evidence: 'Rigid bodies with mass, gravity, impulses, pushing and rest',
     evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
@@ -267,6 +276,34 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_physics/lib/src/rigid_body.dart',
       'packages/flutter3d_physics/lib/src/dynamics.dart',
+    ],
+    changes: <Change>[
+      Change(
+        version: '0.9.0',
+        note:
+            'The crates fall on the run\'s physics, the native core by default and the Dart reference where it will not start, and a body can now be built to turn.',
+        evidence: '`PhysicsBackend`, one for the whole run.',
+        evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
+      ),
+    ],
+  ),
+  Feature(
+    id: 'physics-core',
+    title: 'The physics core',
+    category: Category.physicsParticles,
+    summary:
+        'The same crates dropped twice, one pile stepped in Dart and one by '
+        'the physics core in C, ending in the same place.',
+    since: '0.9.0',
+    evidence:
+        'The core is the default, and the Dart reference is the fallback.',
+    evidenceFile: 'packages/flutter3d_physics_native/CHANGELOG.md',
+    keywords: <String>['NativePhysics'],
+    packages: <String>['flutter3d_physics', 'flutter3d_physics_native'],
+    engineFiles: <String>[
+      'packages/flutter3d_physics/lib/src/physics_backend.dart',
+      'packages/flutter3d_physics_native/lib/src/native_physics.dart',
+      'packages/flutter3d_physics_native/lib/src/native_dynamics.dart',
     ],
   ),
   Feature(
@@ -323,6 +360,13 @@ const List<Feature> physicsParticlesFeatures = <Feature>[
         note:
             'The ball\'s facets no longer show through the sheet draped over it: the flat triangles between the particles stay clear of the surface too.',
         evidence: 'A ball no longer shows through the cloth draped over it.',
+        evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
+      ),
+      Change(
+        version: '0.9.0',
+        note:
+            'The sheet is stepped on the run\'s physics, the native core by default, which moves the same particle arrays the Dart reference does.',
+        evidence: 'Cloth comes from the run\'s backend.',
         evidenceFile: 'packages/flutter3d_physics/CHANGELOG.md',
       ),
     ],

@@ -174,6 +174,44 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     packages: <String>['flutter3d_sim'],
   ),
   Feature(
+    id: 'procedural-levels',
+    title: 'Levels from a seed',
+    category: Category.simAudioXr,
+    summary:
+        'Rooms and corridors laid out from a seed and a few rules, the player '
+        'in one room and the exit in the farthest, and refused unless the '
+        'exit can be walked to.',
+    since: '0.9.0',
+    evidence: 'Levels from a seed and some rules (N11).',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['generateLevel', 'ExitReachable'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/procgen/generate_level.dart',
+      'packages/flutter3d_sim/lib/src/procgen/wfc.dart',
+      'packages/flutter3d_sim/lib/src/procgen/exit_reachable.dart',
+    ],
+  ),
+  Feature(
+    id: 'voxel-world',
+    title: 'A world of blocks',
+    category: Category.simAudioXr,
+    summary:
+        'Ground of blocks drawn from a seed, dug into and built on, each edit '
+        'meshing its chunk again and replacing its collision boxes, and a '
+        'save that holds only the edits.',
+    since: '0.9.0',
+    evidence: 'A world of blocks, kept as a seed and the edits since.',
+    evidenceFile: 'packages/flutter3d_voxel/CHANGELOG.md',
+    keywords: <String>['VoxelWorld'],
+    packages: <String>['flutter3d_voxel'],
+    engineFiles: <String>[
+      'packages/flutter3d_voxel/lib/src/voxel_world.dart',
+      'packages/flutter3d_voxel/lib/src/voxel_mesher.dart',
+      'packages/flutter3d_voxel/lib/src/voxel_collision.dart',
+    ],
+  ),
+  Feature(
     id: 'level-format',
     title: 'The level format',
     category: Category.simAudioXr,

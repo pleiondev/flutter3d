@@ -28,6 +28,12 @@ how many world units the view spans from top to bottom, wherever the camera
 stands. Move an orthographic camera closer and the picture does not zoom, it
 only clips nearer geometry.
 
+The light knows which lens it is seen through. Through an orthographic camera
+every ray runs along the same axis, so highlights, Fresnel and reflections are
+measured against that axis rather than from the camera's position, and they
+stay put on the box as the camera pans. Fog thickens with depth from the eye's
+plane rather than in rings round the eye.
+
 {{code orthographic}}
 
 > **Note.** Switching lenses on a live camera is nothing more than assigning

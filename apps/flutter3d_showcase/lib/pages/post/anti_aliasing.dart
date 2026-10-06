@@ -1,5 +1,5 @@
-/// FXAA: edges smoothed on the finished picture, and a sharpen pass that
-/// shares its taps.
+/// FXAA or SMAA 1x: edges smoothed on the finished picture, and a sharpen
+/// pass that shares FXAA's taps.
 ///
 /// Quoted by `anti_aliasing.md` and shown whole in the Source tab.
 library;
@@ -13,6 +13,9 @@ import 'package:vector_math/vector_math.dart';
 final class AntiAliasingDemo extends ShowcaseDemo {
   bool enabled = true;
   double sharpen = 0.0;
+
+  /// FXAA or SMAA 1x, as [EdgeSmoothing.fxaa] and [EdgeSmoothing.smaa].
+  EdgeSmoothing method = EdgeSmoothing.fxaa;
 
   /// One diagonal card staircases at exactly one contrast step, over one
   /// edge — too little for either pass to read as more than noise at a
@@ -62,16 +65,29 @@ final class AntiAliasingDemo extends ShowcaseDemo {
   @override
   RenderSettings settings(DemoContext context) => RenderSettings(
     // #region settings
-    antiAlias: AntiAliasSettings(enabled: enabled, sharpen: sharpen),
+    antiAlias: AntiAliasSettings(
+      enabled: enabled,
+      sharpen: sharpen,
+      // #region method
+      method: method,
+      // #endregion method
+    ),
     // #endregion settings
   );
 
   @override
   List<DemoControl> controls(DemoContext context) => <DemoControl>[
     ToggleControl(
-      'FXAA',
+      'Smooth edges',
       value: () => enabled,
       onChanged: (bool v) => enabled = v,
+    ),
+    ChoiceControl(
+      'Method',
+      options: const <String>['FXAA', 'SMAA 1x'],
+      index: () => method == EdgeSmoothing.smaa ? 1 : 0,
+      onChanged: (int i) =>
+          method = i == 1 ? EdgeSmoothing.smaa : EdgeSmoothing.fxaa,
     ),
     SliderControl(
       'Sharpen',

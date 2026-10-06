@@ -220,7 +220,7 @@ const List<Feature> postFeatures = <Feature>[
   ),
   Feature(
     id: 'anti-aliasing',
-    title: 'FXAA and sharpen',
+    title: 'FXAA, SMAA and sharpen',
     category: Category.post,
     summary:
         'One pass over the finished picture that softens a hard contrast '
@@ -229,6 +229,14 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'AntiAliasSettings` with FXAA and `sharpen',
     keywords: <String>['antialiassettings'],
     engineFiles: <String>[_settings],
+    changes: <Change>[
+      Change(
+        version: '0.9.0',
+        note:
+            'SMAA 1x joins FXAA as a method: three passes that rebuild the line behind each staircase, truer on long shallow edges.',
+        evidence: 'SMAA 1x beside FXAA.',
+      ),
+    ],
   ),
   Feature(
     id: 'depth-of-field',
@@ -366,5 +374,22 @@ const List<Feature> postFeatures = <Feature>[
     evidenceFile: _coreChangelog,
     keywords: <String>['localexposuresettings'],
     engineFiles: <String>[_settings, _frameNodes],
+  ),
+  Feature(
+    id: 'high-contrast',
+    title: 'High contrast',
+    category: Category.post,
+    summary:
+        'Texture flattened, colour drained and every edge drawn, with a ring '
+        'in its role\'s colour around each thing a player has to find.',
+    since: '0.9.0',
+    evidence: 'A high-contrast look with outlines',
+    evidenceFile: _coreChangelog,
+    keywords: <String>['HighContrastSettings', 'outlineColor'],
+    engineFiles: <String>[
+      _settings,
+      _frameNodes,
+      'packages/flutter3d_core/lib/src/engine/scene/mesh_node.dart',
+    ],
   ),
 ];

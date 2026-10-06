@@ -55,6 +55,15 @@ const List<Feature> flameFeatures = <Feature>[
     evidence: "re-fires flutter3d's collision events as flame's own",
     evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
     packages: <String>['flame_flutter3d', 'flutter3d_physics'],
+    changes: <Change>[
+      Change(
+        version: '0.9.0',
+        note:
+            'The body falls on whichever physics the run chose, the native core by default, since the step component takes the Dart reference\'s solver and the core\'s alike.',
+        evidence: 'steps whichever physics the run chose.',
+        evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+      ),
+    ],
   ),
   Feature(
     id: 'flame-input-bridge',

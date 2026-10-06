@@ -213,6 +213,15 @@ const List<Feature> sceneFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/splat/splat_cloud.dart',
       'packages/flutter3d_core/lib/src/engine/render/splat_contributor.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.9.0',
+        note:
+            'On WebGPU the cloud is sorted on the GPU, in two radix passes that write the draw\'s indices; every other device keeps the CPU sort, which gives the same picture to the byte.',
+        evidence:
+            'A sorted splat cloud is ordered on the GPU where the device computes',
+      ),
+    ],
   ),
   Feature(
     id: 'splat-budget',
@@ -349,6 +358,40 @@ const List<Feature> sceneFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/frame_capture.dart',
       'packages/flutter3d_core/lib/src/engine/render/renderer.dart',
+    ],
+  ),
+  Feature(
+    id: 'decals',
+    title: 'Decals',
+    category: Category.scene,
+    summary:
+        'A box that paints a colour onto whatever stands inside it, a stain '
+        'on a floor or a sign on a wall, under the light already there.',
+    since: '0.9.0',
+    evidence: 'Projected box decals.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['DecalNode'],
+    packages: <String>['flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/decal_node.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_decal_pass.dart',
+    ],
+  ),
+  Feature(
+    id: 'render-textures',
+    title: 'A camera into a texture',
+    category: Category.scene,
+    summary:
+        'A second camera draws the room into a texture, and a monitor in the '
+        'room shows it in the same frame.',
+    since: '0.9.0',
+    evidence: 'A public camera into a texture',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['RenderTexture'],
+    packages: <String>['flutter3d_core'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_texture.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_frame_nodes.dart',
     ],
   ),
 ];

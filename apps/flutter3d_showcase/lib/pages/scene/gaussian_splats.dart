@@ -20,6 +20,9 @@ typedef _SplatRow = ({
 final class GaussianSplatsDemo extends ShowcaseDemo {
   late final SplatCloud _cloud;
   late final SplatContributor _contributor;
+  late final GraphicsDevice _device;
+
+  bool gpuSort = true;
 
   static const int _count = 35;
 
@@ -61,6 +64,7 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
     // #region contributor
     _contributor = context.renderer.addContributor(SplatContributor(_cloud));
     // #endregion contributor
+    _device = context.device;
 
     final Scene scene = Scene()
       ..ambientColor = Vector3(0.4, 0.46, 0.6)
@@ -73,7 +77,37 @@ final class GaussianSplatsDemo extends ShowcaseDemo {
   }
 
   @override
+  void update(DemoContext context, double dt) {
+    // #region gpu
+    // On by default: the device sorts where it can compute, the CPU
+    // everywhere else. Off sorts on the CPU even where the device could.
+    _contributor.gpuSort = gpuSort;
+    // #endregion gpu
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    ToggleControl(
+      'GPU sort',
+      value: () => gpuSort,
+      onChanged: (bool v) => gpuSort = v,
+    ),
+  ];
+
+  @override
   void verify(Scene scene, FrameResult frame) {
+    // #region gpu-check
+    // The cloud was drawn in the GPU's order exactly when the toggle is on
+    // and this device can run the sort: never on the software device, which
+    // has no compute.
+    final bool gpuExpected = gpuSort && SplatGpuSort.availableOn(_device);
+    if (_contributor.drewGpuOrder != gpuExpected) {
+      throw StateError(
+        'drew in the GPU order: ${_contributor.drewGpuOrder}, '
+        'expected $gpuExpected',
+      );
+    }
+    // #endregion gpu-check
     // #region check
     final Int32List order = _cloud.sortedBackToFront(
       Vector3(0.0, 0.0, -5.0),

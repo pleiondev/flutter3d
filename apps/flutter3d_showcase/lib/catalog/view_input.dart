@@ -23,6 +23,15 @@ const List<Feature> viewInputFeatures = <Feature>[
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/projection.dart',
     ],
+    changes: <Change>[
+      Change(
+        version: '0.9.0',
+        note:
+            'Through the orthographic lens the box\'s highlight stays put as the camera pans: light is measured against the view axis rather than from the eye\'s position.',
+        evidence:
+            'An orthographic camera no longer reads its eye as a point the light travels to.',
+      ),
+    ],
   ),
   Feature(
     id: 'off-axis-projection',

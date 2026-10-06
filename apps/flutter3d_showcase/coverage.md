@@ -77,6 +77,8 @@ audit has been written out. There is no test that reads this file itself.
 | irradiance-updates | The field kept current | `IrradianceField.gpuUpdates` | `flutter3d_core` CL 0.8.0 "The irradiance field can update on the GPU." |
 | evsm-shadows | EVSM shadows | `ShadowSettings.filter`, `ShadowFilter.evsm` | `flutter3d_core` CL 0.8.0 "EVSM for the sun." |
 | static-cascades | Cascades that keep what stands still | `MeshNode.shadowIsStatic` on a directional light's cascades | `flutter3d_core` CL 0.8.0 "Cascades are redrawn only where something changed." |
+| physical-sky | Physical sky | `SkySettings.physical`, `PhysicalSky`, `PhysicalSky.sunlight`, `FogSettings.heightFalloff` | `flutter3d_core` CL 0.9.0 "A physical sky, with stars, and fog that lies on the ground." |
+| planar-reflections | Planar reflections | `PlanarReflectorNode`, `RenderSettings.planarReflections` | `flutter3d_core` CL 0.9.0 "Planar reflections" |
 
 ## Set C: post-processing (`lib/pages/post/`)
 
@@ -90,7 +92,7 @@ audit has been written out. There is no test that reads this file itself.
 | screen-space-reflections | Screen-space reflections | `ReflectionSettings` | F3D 0.2.0 |
 | ambient-occlusion | Ambient occlusion | `AmbientOcclusionSettings` | F3D 0.2.0; blur F3D 0.7.0 |
 | light-shafts | Light shafts | `LightShaftSettings` | F3D 0.7.0 |
-| anti-aliasing | FXAA and sharpen | `AntiAliasSettings`, `FrameResult.antiAliasing` | F3D 0.7.0 |
+| anti-aliasing | FXAA, SMAA and sharpen | `AntiAliasSettings`, `EdgeSmoothing`, `FrameResult.antiAliasing` | F3D 0.7.0; SMAA `flutter3d_core` CL 0.9.0 |
 | msaa | Automatic multisampling | `device.preferredSampleCount`, `msaaDeclined` (needs offscreen MSAA) | unknown |
 | depth-of-field | Depth of field | `DepthOfFieldSettings` | F3D 0.7.0 |
 | user-post-effect | Your own post effect | `FullscreenEffect.overlay/present` | F3D 0.7.0 — **no page**: the engine's own proof of it (`flutter3d/test/fullscreen_effect_test.dart`) uses a shader written only for the CPU rasteriser; a real page needs a shader shipped for all four backends, which is asset-pipeline work, not a page under `lib/pages/post/` |
@@ -105,6 +107,7 @@ audit has been written out. There is no test that reads this file itself.
 | spatial-upscale | Spatial upscaling | `RenderSettings.spatialUpscale` | `flutter3d_core` CL 0.8.0 "Spatial upscaling." |
 | horizon-occlusion | Horizon occlusion and bounced light | `AmbientOcclusionSettings.method` (`gtao`, `ssil`) | `flutter3d_core` CL 0.8.0 "Horizon-based occlusion and indirect light." |
 | local-exposure | Local exposure | `RenderSettings.localExposure`, `LocalExposureSettings` | `flutter3d_core` CL 0.8.0 "Local exposure." |
+| high-contrast | High contrast | `RenderSettings.highContrast`, `HighContrastSettings`, `MeshNode.outlineColor` | `flutter3d_core` CL 0.9.0 "A high-contrast look with outlines" |
 
 ## Set D: scene and geometry (`lib/pages/scene/`)
 
@@ -134,6 +137,8 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | impostors | Impostors | `ModelLod.impostor`, `ModelImpostor`, `ImpostorNode` | `flutter3d_core` CL 0.8.0 "Impostors." |
 | occlusion-culling | Occlusion culling | `RenderSettings.occlusion`, `OcclusionMode`, `SoftwareOcclusion` | `flutter3d_core` CL 0.8.0 "Occlusion culling." |
 | splat-budget | Splats under a budget | `buildSplatOctree`, `SplatLod`, `SplatContributor.lod` | `flutter3d_core` CL 0.8.0 "Large captures by budget." |
+| decals | Decals | `DecalNode`, `RenderSettings.decals` (`DecalSettings`) | `flutter3d_core` CL 0.9.0 "Projected box decals." |
+| render-textures | A camera into a texture | `RenderTexture.create`, `Scene.addRenderTexture`, `RenderTexture.invalidate` | `flutter3d_core` CL 0.9.0 "A public camera into a texture" |
 
 ## Set E: animation (`lib/pages/animation/`)
 
@@ -216,6 +221,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | collision-layers | Layers and contact callbacks | `Layers`, `Collider`, `CollisionListener` | unknown |
 | character-controller | A character controller | `CharacterController`, `MovementTuning` | 0.5.0 |
 | rigid-bodies | Rigid bodies | `RigidBody`, `Dynamics`, snapshot (fold) | unknown |
+| physics-core | The physics core | `PhysicsBackend`, `NativePhysics`, `DartPhysics`, `RigidDynamics`/`NativeDynamics` | `flutter3d_physics_native` CL 0.9.0 "The core is the default, and the Dart reference is the fallback." |
 | heightfield-collision | Walking on terrain | `CollisionHeightfield` | 0.5.1 |
 | xpbd-cloth | Cloth | `ClothMesh.grid`, `ClothSimulation`, `ClothObstacle`, `WindSettings` | 0.7.0 |
 | six-way-smoke | Smoke lit by the scene | `SixWayMaterial`, `ContributorLights` | `flutter3d_core` CL 0.8.0 "Lit particle sheets." |
@@ -237,6 +243,8 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | lightmap-bake | Baking a lightmap | `LightmapLayout`, `LightmapBaker`, `Breaches` | 0.4.1, 0.4.2 |
 | baked-visibility | Baked visibility | `LevelVisibility`, `VisibilityCuller` | unknown |
 | terrain-tiles | Terrain in tiles | `Heightfield`, `HeightfieldTiles`, `TerrainTiles` | 0.5.2, 0.7.0 |
+| procedural-levels | Levels from a seed | `generateLevel`, `LevelRules`, `collapse`, `ExitReachable`, `expandRecipes` | `flutter3d_sim` CL 0.9.0 "Levels from a seed and some rules (N11)." |
+| voxel-world | A world of blocks | `VoxelWorld`, `VoxelTerrain`, `meshChunk`, `VoxelCollision`, `toJson`/`restoreEdits` | `flutter3d_voxel` CL 0.9.0 "A world of blocks, kept as a seed and the edits since." |
 | level-format | The level format | `Level`, `Brush`, `LevelValidator` | 0.4.2 |
 | level-mechanisms | Doors, lifts and buttons | `Door`, `Lift`, `Button`, `TriggerVolume` | unknown |
 | light-fixtures | Flickering lights | `LightFixture`, `FlameFlicker`, `PulseLight` | unknown |
