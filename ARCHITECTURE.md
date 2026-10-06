@@ -59,7 +59,7 @@ work in the sentence this replaces:
 | Android | yes, Impeller (Vulkan) | yes | n/a | played on a handset — a Galaxy A55, touch controls and all |
 | iOS | yes, Impeller (Metal) | yes | n/a | simulator, clean; no physical device yet |
 | Windows | built, not yet played | XInput | Raw Input, `ClipCursor` | CI builds the five games and the editor |
-| Linux | built, not yet played | joystick devices | GDK grab, X11 only | CI builds the five games and the editor |
+| Linux | runs, on the software backend | joystick devices | GDK grab, X11 only | CI builds the five games and the editor; built and started here in an arm64 container |
 
 **Windows and Linux are built, not played.** Every game and the editor has
 a `windows/` and a `linux/` runner, and the CI desktop job compiles each of
@@ -70,6 +70,19 @@ XInput's stick y pointing up, the `xpad` driver's button order, a Linux
 trigger resting at −32767 — is read in Dart and tested there. Nobody has
 yet held a controller in front of either. Under Wayland the pointer cannot
 be warped, so a captured mouse stops at the window's edge.
+
+**On Linux the games run, but not yet on Impeller.** All five games and the
+editor were built with Flutter 3.47.0 in an Ubuntu arm64 container, and the
+plugin libraries of `pad_input` and `pointer_lock` were compiled and
+registered there. The dungeon ran under Xvfb, loaded its level and kept
+running. On that run Impeller would not start: the Linux embedder keeps
+Flutter GPU off unless the engine is given `--enable-flutter-gpu`, so
+`openDevice()` moved on to the next backend. With the switch on, Impeller's
+GLES backend compiles our shaders as GLSL ES 1.00 and refuses the ones that
+read `gl_VertexID`. That was on Mesa's software rasteriser (llvmpipe), and a
+real GPU may behave otherwise. A Linux build that draws through Impeller
+needs that switch set by the runner, and full-screen passes that do not
+depend on `gl_VertexID`.
 
 Android has been played on a real handset — the platformer on a Galaxy A55,
 where Impeller picked Vulkan by itself, rendered clean, and the on-screen
