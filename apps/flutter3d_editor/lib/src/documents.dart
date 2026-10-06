@@ -1,5 +1,3 @@
-import 'dart:io';
-
 /// Where a level document actually is.
 ///
 /// **A relative path is relative to the process, and a process is not where
@@ -16,6 +14,20 @@ import 'dart:io';
 /// and it reaches the repository root too, where `apps/flutter3d_demo_dungeon/…` is. Both
 /// spellings of the same intention work, which is the point: nobody should have
 /// to know which directory an application bundle thinks it is in.
+/// A document that is nowhere, with [Documents.couldNotFind]'s sentence as
+/// its whole message — which is what the screen that shows it prints.
+///
+/// Its own type rather than `dart:io`'s `FileSystemException`, because a
+/// browser build reaches this too and has no `dart:io` to throw one with.
+final class DocumentNotFound implements Exception {
+  const DocumentNotFound(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 abstract final class Documents {
   /// The absolute path [path] means, or null if it is nowhere.
   ///
@@ -49,7 +61,14 @@ abstract final class Documents {
   ///
   /// The working directory first, because a person running from a terminal has
   /// said something by being where they are, and the bundle has not.
-  static List<String> searchFrom({String? executable, String? working}) {
+  ///
+  /// Both are handed in rather than read here: asking the process where it is
+  /// takes `dart:io`, and a browser build reads this file too — see
+  /// `EditorDisk.searchFrom`, which is where a desktop asks.
+  static List<String> searchFrom({
+    required String executable,
+    required String working,
+  }) {
     final roots = <String>[];
     void climb(String? path) {
       if (path == null) return;
@@ -62,8 +81,8 @@ abstract final class Documents {
       }
     }
 
-    climb(working ?? Directory.current.path);
-    climb(_parent(executable ?? Platform.resolvedExecutable));
+    climb(working);
+    climb(_parent(executable));
     return roots;
   }
 

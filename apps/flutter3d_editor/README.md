@@ -349,12 +349,20 @@ beside it and takes ownership of the copy, because a copy still naming the
 generator invites the same accident.
 
 The editor runs on the desktop: there are runners for macOS, Windows and
-Linux, and CI builds the last two. The other applications choose between
-Impeller and WebGL at compile time because they ship to a browser as well.
-This one was written to save a file back over itself, which a browser will not
-do, so for now there is no backend to choose and no `backend_web.dart`. A web
-build that opens and edits but cannot Play another project is a later step of
-the same roadmap item.
+Linux, and CI builds the last two. It also builds for a browser
+(`flutter build web`), with less, and the page says so on its first screen.
+A browser gives a page no disk, so the documents live in the page
+(`lib/src/disk/`): a level is opened by reading the file somebody picks, on its
+own and without its game's textures; saving downloads it under the name it was
+opened with; a new project from a template is made in the page and downloaded
+once as `<name>.zip`. What a tab opened or wrote is kept in its
+`sessionStorage`, so a reload keeps the "where you were" list working. Play
+cannot start a game, since that is a process; the Play button says to run the
+game yourself and attach to the VM service address it prints, which works
+from a page over the same socket the desktop uses. A watched shader bundle
+(`--dart-define=shaders=`) is desktop-only. On the desktop the editor names
+Impeller and nothing else; in a browser it takes the games' backend, WebGPU
+first and WebGL2 where WebGPU will not start (`lib/src/backend.dart`).
 
 The editor has no vocabulary of its own. A level says `monster` or `coin` or
 `checkpoint`, and what those are worth belongs to the game. The engine's own

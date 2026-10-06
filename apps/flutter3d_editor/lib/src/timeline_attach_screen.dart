@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
+import 'package:file_selector/file_selector.dart' show XTypeGroup;
 import 'package:flutter/material.dart';
 
+import 'disk/editor_disk.dart';
 import 'timeline_client.dart';
 
 /// `rp-02`'s panel: pause, step, preview a rewind and release, against a
@@ -19,9 +19,13 @@ import 'timeline_client.dart';
 /// somebody drags a slider. Every button here refreshes [_paused] and
 /// [_history] itself when it has reason to think either changed.
 final class TimelineAttachScreen extends StatefulWidget {
-  const TimelineAttachScreen({super.key, required this.client});
+  TimelineAttachScreen({super.key, required this.client, EditorDisk? disk})
+    : disk = disk ?? editorDisk;
 
   final TimelineClient client;
+
+  /// Where a bug report is saved.
+  final EditorDisk disk;
 
   @override
   State<TimelineAttachScreen> createState() => _TimelineAttachScreenState();
@@ -117,16 +121,13 @@ final class _TimelineAttachScreenState extends State<TimelineAttachScreen> {
     setState(() => _savingBugReport = true);
     try {
       final report = await widget.client.bugReport();
-      final location = await getSaveLocation(
-        suggestedName: 'bugreport.json',
-        acceptedTypeGroups: const <XTypeGroup>[
-          XTypeGroup(label: 'bug reports', extensions: <String>['json']),
-        ],
+      // A save panel on a desktop, a download in a browser — see
+      // `EditorDisk.saveAs`.
+      await widget.disk.saveAs(
+        'bugreport.json',
+        jsonEncode(report),
+        const XTypeGroup(label: 'bug reports', extensions: <String>['json']),
       );
-      if (location == null) return;
-      // Sync: this is a JSON bug report, a few kilobytes at most — not the
-      // kind of write async I/O exists to keep off a frame.
-      File(location.path).writeAsStringSync(jsonEncode(report));
     } catch (error) {
       if (mounted) setState(() => _said = '$error');
     } finally {

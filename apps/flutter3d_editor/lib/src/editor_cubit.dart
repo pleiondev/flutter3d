@@ -25,8 +25,12 @@ final class EditorCubit extends Cubit<EditorState> {
   EditorCubit() : super(const EditorOpening());
 
   /// Nothing is at [path] yet — here are the templates on offer instead.
-  void nothingFound(List<Template> templates, {required String path}) =>
-      emit(EditorChoosing(templates, said: 'nothing at $path yet'));
+  ///
+  /// A null [path] says nothing about where it looked: a browser build has
+  /// no disk to have looked on, and the chooser's own paragraph says so.
+  void nothingFound(List<Template> templates, {required String? path}) => emit(
+    EditorChoosing(templates, said: path == null ? '' : 'nothing at $path yet'),
+  );
 
   /// A document opened, and this is what it opened to.
   ///

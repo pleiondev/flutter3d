@@ -342,6 +342,11 @@ step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --p
 # browser run before anything is filtered.
 step "test flutter3d_app (browser)" in_dir packages/flutter3d_app flutter test --platform chrome test/backend_choice_test.dart test/backend_choice_web_test.dart
 
+# The level editor's web build (P11): the page's disk — session storage, the
+# download — and that a browser build picks it. Named, for the same reason as
+# above: the editor's other tests reach `dart:io`.
+step "test flutter3d_editor (browser)" in_dir apps/flutter3d_editor flutter test --platform chrome test/disk_web_test.dart
+
 # **The WebGPU spike, which the loops above cannot reach.** It is a workspace
 # member under `tool/` rather than a package or an application — see its own
 # README for why — so nothing named by a wildcard finds it, and a spike nobody

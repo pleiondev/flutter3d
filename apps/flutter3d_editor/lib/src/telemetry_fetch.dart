@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import 'playtest_report.dart';
 
@@ -55,17 +56,13 @@ Future<({PlaytestReport? report, String says})> fetchTelemetryHeatmap({
   }
 }
 
-/// [TextGet] over `dart:io`.
+/// [TextGet] over `package:http`, which is `dart:io`'s client on a desktop
+/// and `fetch` in a browser — `dart:io`'s own is not there at all.
+///
+/// Ten seconds for the whole answer, where `dart:io` used to bound only the
+/// connection: `package:http` has no separate connection timeout to set, and
+/// a heatmap that has not arrived in ten seconds is not going to be read.
 Future<({int status, String body})> getText(Uri url) async {
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
-  try {
-    final request = await client.getUrl(url);
-    final response = await request.close();
-    return (
-      status: response.statusCode,
-      body: await response.transform(utf8.decoder).join(),
-    );
-  } finally {
-    client.close();
-  }
+  final response = await http.get(url).timeout(const Duration(seconds: 10));
+  return (status: response.statusCode, body: utf8.decode(response.bodyBytes));
 }

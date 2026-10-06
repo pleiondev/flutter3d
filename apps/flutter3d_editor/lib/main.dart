@@ -3,9 +3,13 @@
 ///     cd apps/flutter3d_editor
 ///     flutter run -d macos --dart-define=level=../flutter3d_demo_dungeon/assets/levels/crypt.json
 ///
-/// **Desktop first: macOS, Windows and Linux.** This application was written
-/// to save a file back over itself, which a browser will not do — so unlike
-/// the games there is no web build yet and no backend to choose between.
+/// **Desktop first: macOS, Windows and Linux — and a browser, with less.**
+/// This application was written to save a file back over itself, which a
+/// browser will not do. The web build (P11) keeps its documents in the page
+/// instead and saves by download — see `src/disk/editor_disk.dart` — draws
+/// through the games' WebGPU-or-WebGL2 backend (`src/backend.dart`), and
+/// plays only a game somebody started themselves, by attaching to it
+/// (`src/play/play_launch.dart`). A shader bundle to watch is desktop-only.
 ///
 /// What is here is the shell: a window, a camera, a mouse and a keyboard. The
 /// parts that can lose somebody's work are `package:flutter3d_editor_core`,
@@ -19,10 +23,10 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:file_selector/file_selector.dart';
+import 'package:file_selector/file_selector.dart' show XTypeGroup;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart'
     show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/material.dart' hide Material;
@@ -30,9 +34,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_app/native.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
+import 'package:flutter3d_editor_play/attach.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -40,6 +43,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/cutscene_preview.dart';
+import 'src/disk/editor_disk.dart';
 import 'src/documents.dart';
 import 'src/documents_dialog.dart';
 import 'src/editor_bar.dart';
@@ -53,31 +57,18 @@ import 'src/fly_camera.dart';
 import 'src/light_plan_dialog.dart';
 import 'src/material_panel.dart';
 import 'src/open_run_channel.dart';
-import 'src/play/device_picker.dart';
 import 'src/play/live_material.dart';
+import 'src/play/play_launch.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
 import 'src/recent_projects.dart';
 import 'src/run_info.dart';
 import 'src/run_info_screen.dart';
 import 'src/scene_dressing.dart';
-import 'src/shader_watch.dart';
+import 'src/shader_source.dart';
 import 'src/step_panel.dart';
 import 'src/timeline_attach_screen.dart';
 import 'src/timeline_client.dart';
-
-/// The widget that shows [frame] — always drawn through [GpuRenderBackend],
-/// the one backend this desktop-only application names.
-///
-/// Not `presentFrame` from `flutter3d_app`, because that barrel depends on a
-/// web backend this application has no reason to carry — see `src/backend.dart`
-/// for why there is no conditional import here at all.
-Widget _presentFrame(
-  GraphicsDevice device,
-  TextureHandle frame, {
-  BoxFit fit = BoxFit.fill,
-  FilterQuality quality = FilterQuality.none,
-}) => GpuFrameImage(frame: frame, fit: fit, quality: quality);
 
 /// The document opened on launch, when one is named on the command line.
 ///
@@ -169,8 +160,9 @@ class _EditorScreenState extends State<EditorScreen>
   Renderer? _renderer;
   Scene? _scene;
 
-  /// The bundle [kShadersPath] named, kept current. Null when none was.
-  ShaderWatch? _shaders;
+  /// The bundle [kShadersPath] named, kept current. Null when none was, and
+  /// always in a browser — see `src/shader_source.dart`.
+  WatchedShaders? _shaders;
 
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
@@ -305,27 +297,40 @@ class _EditorScreenState extends State<EditorScreen>
 
   Future<void> _open() async {
     try {
-      final device = await GpuRenderBackend.create();
+      final device = await openEditorDevice();
       if (!mounted) return;
       _device = device;
 
       // Where the document actually is — see `Documents`, and the launch that
       // found nothing because a bundle's working directory is `/`.
-      final tried = Documents.searchFrom();
+      final tried = editorDisk.searchFrom();
 
       // The shader bundle, before the renderer: it is the renderer's
       // `materials`, and a bundle that will not load is the same failure as
       // an engine shader that will not, reported the same way.
-      final shaders = await _openShaders(device, from: tried);
+      final shaders = await openShaders(
+        device,
+        kShadersPath,
+        from: tried,
+        // The renderer's half: every pipeline linked so far is dropped and
+        // the next frame links the refreshed stages.
+        onRefreshed: (LoadedShaderLibrary library) {
+          _renderer?.relinkShaders();
+          _cubit.say('shaders: ${library.name} reloaded');
+        },
+        onRefused: (ShaderBundleRefused refused) =>
+            _cubit.say('shaders: $refused'),
+      );
       if (!mounted) return;
       _renderer = Renderer.create(device: device, materials: shaders?.library);
-      _shaders = shaders?..start();
+      _shaders = shaders;
+      shaders?.start();
       _dressing = SceneDressing(device);
       final found = Documents.find(kLevelPath, from: tried, exists: _onDisk);
       if (found == null) {
         final templates = await _readTemplates();
         if (templates.isEmpty) {
-          throw FileSystemException(
+          throw DocumentNotFound(
             Documents.couldNotFind(
               kLevelPath,
               Documents.candidates(kLevelPath, from: tried),
@@ -334,7 +339,7 @@ class _EditorScreenState extends State<EditorScreen>
         }
         if (!mounted) return;
         _recent = _projects.read(exists: _onDisk);
-        _cubit.nothingFound(templates, path: kLevelPath);
+        _cubit.nothingFound(templates, path: kIsWeb ? null : kLevelPath);
         return;
       }
       await _openAt(found);
@@ -343,61 +348,10 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  /// Loads the bundle [kShadersPath] names and arranges to keep reading it,
-  /// or null when no bundle was named.
-  ///
-  /// The path is looked for the way the level's is. A bundle named and not
-  /// found throws rather than being skipped: an editor asked to draw with a
-  /// file and drawing without it would look like the file having no effect,
-  /// which is the one thing this loop exists to make impossible.
-  Future<ShaderWatch?> _openShaders(
-    GraphicsDevice device, {
-    required List<String> from,
-  }) async {
-    if (kShadersPath.isEmpty) return null;
-    final found = Documents.find(
-      kShadersPath,
-      from: from,
-      exists: (String path) => File(path).existsSync(),
-    );
-    if (found == null) {
-      throw FileSystemException(
-        Documents.couldNotFind(
-          kShadersPath,
-          Documents.candidates(kShadersPath, from: from),
-        ),
-      );
-    }
-    final file = File(found);
-    DateTime? modifiedAt() =>
-        file.existsSync() ? file.lastModifiedSync() : null;
-    Future<ByteData> read() async =>
-        (await file.readAsBytes()).buffer.asByteData();
-    // The time first, the bytes second: a write that lands between the two
-    // is then a change the first poll sees, rather than one that was
-    // stamped as seen and never read. `ShaderWatch._seen` says why.
-    final seen = modifiedAt();
-    final library = await device.loadShaders(await read());
-    return ShaderWatch(
-      library: library,
-      seen: seen,
-      modifiedAt: modifiedAt,
-      readBytes: read,
-      // The renderer's half: every pipeline linked so far is dropped and the
-      // next frame links the refreshed stages.
-      onRefreshed: () {
-        _renderer?.relinkShaders();
-        _cubit.say('shaders: ${library.name} reloaded');
-      },
-      onRefused: (ShaderBundleRefused refused) =>
-          _cubit.say('shaders: $refused'),
-    );
-  }
-
   /// Whether there is a file at [path]. The one thing `Documents` and
   /// `RecentProjects` both want from a disk, and the seam both are tested
   /// without.
-  static bool _onDisk(String path) => File(path).existsSync();
+  static bool _onDisk(String path) => editorDisk.exists(path);
 
   /// Opens the document at [found], which is known to be there.
   ///
@@ -408,7 +362,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// that turns out not to be a level is not offered back tomorrow.
   Future<void> _openAt(String found) async {
     try {
-      final text = await File(found).readAsString();
+      final text = await editorDisk.readText(found);
       final editing = Editing.parse(text, path: found);
       _recent = _projects.remember(found, exists: _onDisk);
       // Where this document's own `assets/…` live. A game never has to work
@@ -416,7 +370,7 @@ class _EditorScreenState extends State<EditorScreen>
       // to another application.
       final assetRoot = Documents.assetRootFor(
         found,
-        hasAssets: (String path) => Directory(path).existsSync(),
+        hasAssets: editorDisk.hasDirectory,
       );
       final looks = await _readLooks(assetRoot);
       _standWhereThePlayerWould(editing.level);
@@ -569,18 +523,13 @@ class _EditorScreenState extends State<EditorScreen>
   /// dialog — `packageName` cleans it into both the directory's name and the
   /// pubspec's — and the project lands beside [kLevelPath]'s own directory,
   /// not inside it, so a second template does not have to fight the first
-  /// one for the same folder.
+  /// one for the same folder. In a browser it lands in the page and is
+  /// downloaded as a zip — see `EditorDisk.writeProject`.
   Future<void> _create(Template template, String name) async {
-    final defaultRoot = projectAt(
-      File(kLevelPath).isAbsolute
-          ? kLevelPath
-          : '${Directory.current.path}/$kLevelPath',
-    ).root;
     final projectName = packageName(name);
-    final root = '${File(defaultRoot).parent.path}/$projectName';
+    final root = editorDisk.newProjectRoot(kLevelPath, projectName);
     try {
-      final directory = Directory(root);
-      if (directory.existsSync() && directory.listSync().isNotEmpty) {
+      if (editorDisk.hasFilesUnder(root)) {
         _cubit.choosingSaid('$root is not empty');
         return;
       }
@@ -596,17 +545,16 @@ class _EditorScreenState extends State<EditorScreen>
         },
       );
 
-      for (final entry in project.entries) {
-        final file = File('$root/${entry.key}');
-        file.parent.createSync(recursive: true);
-        file.writeAsBytesSync(entry.value);
-      }
+      final said = await editorDisk.writeProject(root, project);
 
       if (!mounted) return;
       // Straight into the new project's level: the "made N files" moment
       // is never on screen for it to be told apart from "opened N brushes" —
       // the picture is still a spinner until `_build` finishes either way.
       await _openAt('$root/assets/levels/first.json');
+      // Except where it is news: a browser has just downloaded a zip, and
+      // somebody should hear where their project went.
+      if (said != null && mounted) _cubit.say(said);
     } catch (error) {
       if (mounted) _cubit.choosingSaid('could not create it: $error');
     }
@@ -619,10 +567,10 @@ class _EditorScreenState extends State<EditorScreen>
   /// editor.
   static Future<Looks> _readLooks(String? root) async {
     if (root == null) return Looks.none;
-    final file = File('$root/$kLooksFile');
+    final path = '$root/$kLooksFile';
     try {
-      if (!file.existsSync()) return Looks.none;
-      return Looks.parse(await file.readAsString());
+      if (!editorDisk.exists(path)) return Looks.none;
+      return Looks.parse(await editorDisk.readText(path));
     } catch (error) {
       debugPrint('editor: could not read $kLooksFile ($error)');
       return Looks.none;
@@ -637,7 +585,7 @@ class _EditorScreenState extends State<EditorScreen>
     final path = request.uri;
     final root = _ready?.assetRoot;
     if (root == null) throw StateError('no application around $path');
-    return ByteData.sublistView(await File('$root/$path').readAsBytes());
+    return ByteData.sublistView(await editorDisk.readBytes('$root/$path'));
   }
 
   /// Puts the marker where the selection now is, or takes it away. A thin
@@ -1167,19 +1115,15 @@ class _EditorScreenState extends State<EditorScreen>
 
     final path = copy ? await _freePathBeside(editing.path) : editing.path;
     try {
-      // **Atomically, which it was not.** This wrote a person's hand-built
-      // level with a bare `writeAsString` while settings and saves — documents
-      // a game can afford to lose — have gone through a temporary and a rename
-      // since they were written. A crash or a full disk halfway through left a
-      // truncated level where the good one had been, so one lost session
-      // became every future one.
       // A copy of a generated document takes ownership of itself. One that
       // still named the generator would invite somebody to run it again, and
       // running it again is exactly what throws the work away.
       final document = editing.write(claiming: copy ? kAuthor : null);
-      await writeFileAtomically(path, document);
+      // Atomically on a desktop, as a download in a browser — see
+      // `EditorDisk.writeDocument`, which also says which happened.
+      final said = await editorDisk.writeDocument(path, document);
       editing.history.saved();
-      _cubit.say('written to $path');
+      _cubit.say(said);
       // `HR3`: the game this level is playing in takes it too. Not a copy:
       // the running game plays the original, not the file beside it.
       if (!copy) {
@@ -1248,7 +1192,7 @@ class _EditorScreenState extends State<EditorScreen>
     var candidate = '$stem.edited$suffix';
     // Two hundred is a number nobody reaches and a loop that always ends.
     for (var n = 2; n < 200; n++) {
-      if (!File(candidate).existsSync()) return candidate;
+      if (!editorDisk.exists(candidate)) return candidate;
       candidate = '$stem.edited.$n$suffix';
     }
     return candidate;
@@ -1544,7 +1488,7 @@ class _EditorScreenState extends State<EditorScreen>
                         _fly.position.z,
                       );
                     },
-                    presentFrame: _presentFrame,
+                    presentFrame: presentEditorFrame,
                   ),
                 ),
                 Positioned(
@@ -1630,7 +1574,9 @@ class _EditorScreenState extends State<EditorScreen>
                       Icons.play_circle_outline,
                       color: Color(0xFFE6EAF0),
                     ),
-                    tooltip: 'Play the project',
+                    tooltip: kStartsGames
+                        ? 'Play the project'
+                        : 'Play — in a browser, attach to a running game',
                     onPressed: () => _play(state),
                   ),
                 ),
@@ -1728,7 +1674,7 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _openRunAt(String path) async {
     final Demo run;
     try {
-      run = parseRunFile(File(path).readAsStringSync());
+      run = parseRunFile(await editorDisk.readText(path));
     } on DemoFormatException catch (error) {
       if (!mounted) return;
       _changed('could not read $path as a run: ${error.message}');
@@ -1751,31 +1697,25 @@ class _EditorScreenState extends State<EditorScreen>
       label: 'flutter3d runs',
       extensions: <String>['f3drun'],
     );
-    final file = await openFile(
-      acceptedTypeGroups: const <XTypeGroup>[runFiles],
-    );
-    if (file == null || !mounted) return;
-    await _openRunAt(file.path);
+    final path = await editorDisk.choose(runFiles);
+    if (path == null || !mounted) return;
+    await _openRunAt(path);
   }
 
   /// Opens the play panel on the project [state]'s level belongs to,
-  /// starting a run of it when none is going.
+  /// starting a run of it when none is going — or, where no game can be
+  /// started, says how to play instead. See `src/play/play_launch.dart`.
   Future<void> _play(EditorReady state) async {
-    final root = projectRootOnDisk(state.editing.path);
-    if (root == null) {
-      _changed(
-        'this level is not inside a Flutter project, so there is '
-        'nothing to run',
-      );
+    final path = state.editing.path;
+    if (whyCannotPlay(path) case final String why) {
+      _changed(why);
       return;
     }
-    final run = switch (_run) {
-      final FlutterRun same? when same.projectRoot == root => same,
-      final other => () {
-        unawaited(other?.dispose());
-        return _run = FlutterRun(projectRoot: root);
-      }(),
-    };
+    final run = gameFor(path, _run);
+    if (!identical(run, _run)) {
+      unawaited(_run?.dispose());
+      _run = run;
+    }
     if (run.state.value case PlayIdle() || PlayStopped()) {
       unawaited(run.start());
     }
@@ -1784,8 +1724,7 @@ class _EditorScreenState extends State<EditorScreen>
         builder: (_) => PlayScreen(
           session: run,
           onTimeline: _openTimeline,
-          picker: ({required bool enabled}) =>
-              DevicePicker(run: run, enabled: enabled),
+          picker: devicePickerFor(run),
         ),
       ),
     );

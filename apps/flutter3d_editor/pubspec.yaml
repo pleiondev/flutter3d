@@ -11,13 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # **Desktop runners for macOS, Windows and Linux; the web build is a step of
-  # its own.** The other applications pick a backend at compile time because
-  # they ship to a browser. This one was written to save a file back to the
-  # disk it came from, which a browser will not do, so for now there is one
-  # backend, named here, and no `backend_web.dart`. P11 in
-  # `tasks/0.9-engine-roadmap.md` asks for a web build that cannot Play another
-  # project; it brings its backend with it when it lands.
+  # **Impeller by name on a desktop; whatever `flutter3d_app` opens in a
+  # browser.** The desktop build names this backend rather than asking the
+  # registry, so an editor never quietly falls back to the software
+  # rasteriser — see `src/backend.dart`. The web build (P11) takes the games'
+  # choice instead, WebGPU first and WebGL2 after it, through
+  # `src/backend_web.dart`; nothing there reaches this package.
   flutter3d_impeller:
     path: ../../packages/flutter3d_impeller
 
@@ -81,8 +80,9 @@ dependencies:
   # thing no amount of Dart can produce: the system's own open panel, which is
   # how a person says which document they mean.
   #
-  # It is called from exactly one function — `askForLevel` in
-  # `src/editor_chooser.dart` — so everything that can be wrong without a
+  # It is called from the two disks — `choose` and `saveAs` in
+  # `src/disk/disk_io.dart`, and `choose` in `src/disk/memory_disk.dart`, where
+  # a browser's panel answers with bytes — so everything that can be wrong without a
   # window stays somewhere a test can reach: which path a spelling means is
   # `src/documents.dart`, which projects are still worth offering is
   # `src/recent_projects.dart`, and both are tested with no plugin registered.
@@ -105,6 +105,18 @@ dependencies:
   # state object per frame is an allocation and a rebuild sixty times a
   # second, which is the whole reason `EditorCubit` stops where it does.
   flutter_bloc: ^9.1.1
+
+  # **The browser's half of the disk** — see `src/disk/disk_web.dart`. `web`
+  # for the anchor a save is downloaded through and the session storage the
+  # documents survive a reload in; `archive` for the one download a new
+  # project becomes, since a browser asked to download a dozen files at once
+  # asks the person whether to allow it, file by file.
+  web: ^1.1.0
+  archive: ^4.0.0
+
+  # One GET to a telemetry server (`src/telemetry_fetch.dart`), the same
+  # lines on a desktop and in a browser where `dart:io`'s client is absent.
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

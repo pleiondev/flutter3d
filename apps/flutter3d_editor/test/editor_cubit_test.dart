@@ -39,6 +39,16 @@ void main() {
       expect(state.said, contains('/levels/first.json'));
     });
 
+    test('in a browser, says nothing about a disk it never looked on', () {
+      // Mutation: the path dropped into the sentence regardless.
+      final cubit = EditorCubit()
+        ..nothingFound(<Template>[testTemplate], path: null);
+
+      final state = cubit.state as EditorChoosing;
+      expect(state.templates, <Template>[testTemplate]);
+      expect(state.said, isEmpty);
+    });
+
     test('and a failed create says why without leaving the chooser', () {
       final cubit = EditorCubit()
         ..nothingFound(<Template>[testTemplate], path: '/levels/first.json')
