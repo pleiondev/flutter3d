@@ -314,6 +314,21 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber jointHigh,
     JSNumber out,
   );
+  @JS('f3d_joint_set_break__w')
+  external JSNumber f3d_joint_set_break(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber force,
+    JSNumber torque,
+  );
+  @JS('f3d_joint_get_torque__w')
+  external JSNumber f3d_joint_get_torque(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber out,
+  );
   @JS('f3d_joint_get_force__w')
   external JSNumber f3d_joint_get_force(
     JSNumber world,
@@ -1297,6 +1312,23 @@ int f3d_joint_get_value(int world, int joint, int out) => _x
     .toDartInt;
 int f3d_joint_get_swing(int world, int joint, int out) => _x
     .f3d_joint_get_swing(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      out.toJS,
+    )
+    .toDartInt;
+int f3d_joint_set_break(int world, int joint, double force, double torque) => _x
+    .f3d_joint_set_break(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      force.toJS,
+      torque.toJS,
+    )
+    .toDartInt;
+int f3d_joint_get_torque(int world, int joint, int out) => _x
+    .f3d_joint_get_torque(
       world.toJS,
       lowHalf(joint).toJS,
       highHalf(joint).toJS,

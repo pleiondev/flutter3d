@@ -44,6 +44,13 @@ void main() {
     expect(c.compoundMostParts, define('F3D_COMPOUND_MOST_PARTS'));
   });
 
+  test('a broken joint is the header\'s event', () {
+    expect(
+      header,
+      contains('F3D_EVENT_JOINT_BROKEN = ${c.EventKind.jointBroken},'),
+    );
+  });
+
   test('the generated calls and layouts are the header\'s', () {
     // A function or a field added to the header and not generated is caught
     // before anybody looks for it.

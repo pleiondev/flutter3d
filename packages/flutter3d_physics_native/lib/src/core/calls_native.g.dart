@@ -818,6 +818,35 @@ int f3d_joint_get_swing(int world, int joint, int out) => _f3d_joint_get_swing(
   Pointer.fromAddress(out),
 );
 
+@Native<Int32 Function(Pointer<Void>, Uint64, Float, Float)>(
+  symbol: 'f3d_joint_set_break',
+  isLeaf: true,
+)
+external int _f3d_joint_set_break(
+  Pointer<Void> world,
+  int joint,
+  double force,
+  double torque,
+);
+int f3d_joint_set_break(int world, int joint, double force, double torque) =>
+    _f3d_joint_set_break(Pointer.fromAddress(world), joint, force, torque);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>)>(
+  symbol: 'f3d_joint_get_torque',
+  isLeaf: true,
+)
+external int _f3d_joint_get_torque(
+  Pointer<Void> world,
+  int joint,
+  Pointer<Void> out,
+);
+int f3d_joint_get_torque(int world, int joint, int out) =>
+    _f3d_joint_get_torque(
+      Pointer.fromAddress(world),
+      joint,
+      Pointer.fromAddress(out),
+    );
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>)>(
   symbol: 'f3d_joint_get_force',
   isLeaf: true,

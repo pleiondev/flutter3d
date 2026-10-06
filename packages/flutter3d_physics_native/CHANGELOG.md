@@ -6,6 +6,14 @@
   that one number names one tree, and `^0.9.0` on any `flutter3d_*`
   package resolves against every other.
 
+- **Joints that break.** `NativeWorld.setJointBreak` gives a joint a
+  force and a torque it lets go past: at the end of a step that held its
+  second body harder, the joint is taken out, both bodies woken, and a
+  `NativeEventKind.jointBroken` names them. `jointTorque` reads what its
+  locked turns held with, beside `jointForce`. A shelf's bracket, a door
+  kicked off its hinges, a rope that snaps. `F3D_ABI_VERSION` is 23, and a
+  snapshot is format 10.
+
 - **Several shapes on one body.** `NativeWorld.createCompound` takes up
   to sixty-four parts, each a sphere, box, capsule, cylinder, cone or hull
   placed and turned in the compound's frame, and `setCompound` shapes a

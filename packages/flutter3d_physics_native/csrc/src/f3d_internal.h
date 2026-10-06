@@ -466,6 +466,11 @@ typedef struct F3dJointSlot {
    * with, N m, and what it pushed with about the world's axes. */
   f3d_real friction;
   F3dVec3 friction_impulse;
+  /* What it lets go past, N and N m; nought for never. */
+  f3d_real break_force, break_torque;
+  /* The angular impulse its locked turns put on B over the last substep,
+   * in the world. */
+  F3dVec3 turned;
 } F3dJointSlot;
 
 /* Everything in a world that is not behind a pointer: what a snapshot
@@ -765,6 +770,9 @@ typedef struct F3dSolverBody {
  * solved with the soft bias or without it. Their anchors and masses are
  * worked out from where the bodies are each time. */
 void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies);
+
+/* Takes out every joint that held past its break, at the end of a step. */
+void f3d_break_joints(F3dWorld *world);
 void f3d_solve_joints(F3dWorld *world, const F3dSolverBody *bodies,
                       f3d_real h, int use_bias);
 

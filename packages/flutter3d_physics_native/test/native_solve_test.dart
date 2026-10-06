@@ -187,6 +187,50 @@ void main() {
     },
   );
 
+  test('a sign on a fixed joint holds its weight and lets go of a heavier '
+      'pull, and says so', () {
+    // The C tests hold the force and the torque against statics; this
+    // holds the binding: the limit set, the joint gone, the event read.
+    final hook = world.addBody(
+      position: Vector3(0.0, 3.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final sign = world.addBody(position: Vector3(0.0, 2.5, 0.0), mass: 5.0);
+    world.setShape(sign, NativeShape.box(Vector3(0.3, 0.2, 0.02)));
+    final joint = world.createJoint(
+      NativeJointType.fixed,
+      hook,
+      sign,
+      anchor: Vector3(0.0, 2.7, 0.0),
+    );
+    world.setJointBreak(joint, force: 70.0, torque: 50.0);
+    expect(
+      () => world.setJointBreak(joint, force: -1.0),
+      throwsArgumentError,
+    );
+    for (var i = 0; i < 60; i++) {
+      world.step(1.0 / 60.0);
+    }
+    expect(world.containsJoint(joint), isTrue);
+    expect(world.jointForce(joint).y, closeTo(49.05, 0.1));
+    expect(world.jointTorque(joint).length, lessThan(0.1));
+    world.readEvents();
+    // Twenty-five newtons more pull: past seventy, it lets go.
+    world
+      ..addForce(sign, Vector3(0.0, -25.0, 0.0))
+      ..step(1.0 / 60.0);
+    // Mutation: the limit never read — the joint is still there.
+    expect(world.containsJoint(joint), isFalse);
+    final broken = world
+        .readEvents()
+        .where((e) => e.kind == NativeEventKind.jointBroken)
+        .toList();
+    expect(broken, hasLength(1));
+    expect(broken.single.body, hook);
+    expect(broken.single.other, sign);
+  });
+
   test('a ball joint holds a limb in its cone, its twist in limits', () {
     // The binding of what a ragdoll's shoulder is made of: a limb a metre
     // long hung by its end and knocked past level, a spin about it.

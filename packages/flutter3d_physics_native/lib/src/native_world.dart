@@ -276,6 +276,13 @@ final class NativeEventKind {
     'contactEnded',
   );
 
+  /// A joint held past its break and let go; the event names its two
+  /// bodies.
+  static const NativeEventKind jointBroken = NativeEventKind._(
+    c.EventKind.jointBroken,
+    'jointBroken',
+  );
+
   static const List<NativeEventKind> _all = <NativeEventKind>[
     slept,
     woke,
@@ -284,6 +291,7 @@ final class NativeEventKind {
     burntOut,
     contactBegan,
     contactEnded,
+    jointBroken,
   ];
 
   /// The kind the core's [code] names; one this binding does not know yet
@@ -947,6 +955,27 @@ final class NativeWorld {
     _checkJoint(c.f3d_joint_get_force(_live, joint.raw, _out), joint);
     return _read3();
   }
+
+  /// The torque [joint]'s locked turns held its second body with over the
+  /// last substep, N m.
+  Vector3 jointTorque(NativeJoint joint) {
+    _checkJoint(c.f3d_joint_get_torque(_live, joint.raw, _out), joint);
+    return _read3();
+  }
+
+  /// Lets [joint] break: at the end of a step in which it held its second
+  /// body with more than [force] newtons ([jointForce]) or more than
+  /// [torque] newton metres ([jointTorque]), it is taken out and a
+  /// [NativeEventKind.jointBroken] names its bodies. Nought is never, and
+  /// is what a joint starts with.
+  void setJointBreak(
+    NativeJoint joint, {
+    double force = 0,
+    double torque = 0,
+  }) => _checkJoint(
+    c.f3d_joint_set_break(_live, joint.raw, force, torque),
+    joint,
+  );
 
   /// How many substeps a step is solved in, one to sixty-four; four for a
   /// new world. More holds tall stacks and fast bodies better and costs that

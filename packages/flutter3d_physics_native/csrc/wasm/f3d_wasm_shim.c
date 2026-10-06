@@ -65,6 +65,14 @@ F3D_API int f3d_joint_get_swing__w(void * world, uint32_t joint_low, uint32_t jo
   return f3d_joint_get_swing((void *)world, ((uint64_t)joint_high << 32) | joint_low, (void *)out);
 }
 
+F3D_API int f3d_joint_set_break__w(void * world, uint32_t joint_low, uint32_t joint_high, f3d_real force, f3d_real torque) {
+  return f3d_joint_set_break((void *)world, ((uint64_t)joint_high << 32) | joint_low, force, torque);
+}
+
+F3D_API int f3d_joint_get_torque__w(void * world, uint32_t joint_low, uint32_t joint_high, void * out) {
+  return f3d_joint_get_torque((void *)world, ((uint64_t)joint_high << 32) | joint_low, (void *)out);
+}
+
 F3D_API int f3d_joint_get_force__w(void * world, uint32_t joint_low, uint32_t joint_high, void * out) {
   return f3d_joint_get_force((void *)world, ((uint64_t)joint_high << 32) | joint_low, (void *)out);
 }

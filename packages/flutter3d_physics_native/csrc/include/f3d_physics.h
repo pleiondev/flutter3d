@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 22u
+#define F3D_ABI_VERSION 23u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -164,6 +164,9 @@ typedef enum F3dEventKind {
    * resting body; a contact further out in the margin is neither. */
   F3D_EVENT_CONTACT_BEGAN = 5,
   F3D_EVENT_CONTACT_ENDED = 6,
+  /* A joint held past what f3d_joint_set_break allows it and let go: the
+   * event names its two bodies, the joint is gone. */
+  F3D_EVENT_JOINT_BROKEN = 7,
 } F3dEventKind;
 
 /* Reals one body takes in f3d_world_read_transforms: position xyz, then the
@@ -507,6 +510,21 @@ F3D_API int f3d_joint_get_swing(const F3dWorld *world, F3dJoint joint,
                                 f3d_real *out);
 
 /* The force it held B with over the last substep, N, into out[0..2]. */
+/* How hard the joint may hold before it lets go: [force], N, all it pushes
+ * B with as f3d_joint_get_force says it, and [torque], N m, what its
+ * locked turns hold B with as f3d_joint_get_torque says it. At
+ * the end of a step that held past either, the joint is taken out, its
+ * bodies woken, and F3D_EVENT_JOINT_BROKEN raised. Nought for either is
+ * never; a new joint breaks on neither. 0 for a value negative or not
+ * finite. */
+F3D_API int f3d_joint_set_break(F3dWorld *world, F3dJoint joint,
+                                f3d_real force, f3d_real torque);
+
+/* The torque the joint held B's locked turns with over the last substep,
+ * N m, in the world, into out[0..2]. */
+F3D_API int f3d_joint_get_torque(const F3dWorld *world, F3dJoint joint,
+                                 f3d_real *out);
+
 F3D_API int f3d_joint_get_force(const F3dWorld *world, F3dJoint joint,
                                 f3d_real *out);
 

@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 22;
+const int abiVersion = 23;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -86,6 +86,7 @@ abstract final class EventKind {
   static const int burntOut = 4;
   static const int contactBegan = 5;
   static const int contactEnded = 6;
+  static const int jointBroken = 7;
 }
 
 /// `F3D_PARTICLE_FLOATS`.

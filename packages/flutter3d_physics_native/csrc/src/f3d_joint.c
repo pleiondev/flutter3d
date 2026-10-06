@@ -356,6 +356,54 @@ int f3d_joint_set_collide(F3dWorld *world, F3dJoint joint, int collide) {
   return 1;
 }
 
+int f3d_joint_set_break(F3dWorld *world, F3dJoint joint, f3d_real force,
+                        f3d_real torque) {
+  F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL) return 0;
+  if (!(f3d_finite(force) && force >= F3D_R(0.0)) ||
+      !(f3d_finite(torque) && torque >= F3D_R(0.0))) {
+    return 0;
+  }
+  j->break_force = force;
+  j->break_torque = torque;
+  return 1;
+}
+
+int f3d_joint_get_torque(const F3dWorld *world, F3dJoint joint,
+                         f3d_real *out) {
+  const F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL) return 0;
+  const f3d_real h = world->s.last_substep;
+  const f3d_real k = h > F3D_R(0.0) ? F3D_R(1.0) / h : F3D_R(0.0);
+  out[0] = j->turned.x * k;
+  out[1] = j->turned.y * k;
+  out[2] = j->turned.z * k;
+  return 1;
+}
+
+void f3d_break_joints(F3dWorld *world) {
+  const f3d_real h = world->s.last_substep;
+  if (!(h > F3D_R(0.0))) return;
+  /* In slot order, so the events come out the same on every platform.
+   * Compared as impulses: the limit times the substep, squared, against
+   * what was pushed, squared — no root, no division. */
+  for (uint32_t i = 0; i < world->s.joint_used; i++) {
+    F3dJointSlot *j = &world->joints[i];
+    if (!j->live) continue;
+    const f3d_real most_push = j->break_force * h;
+    const f3d_real most_turn = j->break_torque * h;
+    const int pushed_past = j->break_force > F3D_R(0.0) &&
+                            f3d_dot(j->pushed, j->pushed) > most_push * most_push;
+    const int turned_past = j->break_torque > F3D_R(0.0) &&
+                            f3d_dot(j->turned, j->turned) > most_turn * most_turn;
+    if (!pushed_past && !turned_past) continue;
+    const F3dBody a = j->a, b = j->b;
+    wake_both(world, j);
+    free_joint(world, j);
+    f3d_push_pair_event(world, a, b, F3D_EVENT_JOINT_BROKEN);
+  }
+}
+
 int f3d_joint_get_force(const F3dWorld *world, F3dJoint joint, f3d_real *out) {
   const F3dJointSlot *j = joint_of(world, joint);
   if (j == NULL) return 0;
@@ -945,7 +993,15 @@ void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies) {
     const int n = rows_of(j, &f, rows);
     apply_rows(&f, rows, n, j->impulse);
     F3dVec3 pushed = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
-    for (int k = 0; k < n; k++) pushed = f3d_madd(pushed, rows[k].lin_b, j->impulse[k]);
+    F3dVec3 turned = pushed;
+    for (int k = 0; k < n; k++) {
+      pushed = f3d_madd(pushed, rows[k].lin_b, j->impulse[k]);
+      /* A turn row moves nothing along: its turn on B is its torque. */
+      if (f3d_dot(rows[k].lin_b, rows[k].lin_b) == F3D_R(0.0)) {
+        turned = f3d_madd(turned, rows[k].ang_b, j->impulse[k]);
+      }
+    }
+    j->turned = turned;
     switch (j->type) {
       case F3D_JOINT_REVOLUTE:
         twist(&f, f3d_scale(f.axis, axial));
