@@ -775,6 +775,71 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, f3d_real h,
       g->w[i + j * nx] = flow_z(&old, x - vx * step_cells, z - vz * step_cells);
     }
   }
+  /* 2½. Turbulence: the flow's own eddies mix its momentum sideways, so a
+   * jet driven into a pool by a waterfall widens and slows instead of
+   * crossing it as a thin stripe. Two kinds: the eddies the grid sees,
+   * Smagorinsky's ν = (C·Δ)²·|S| with C = 0.15 and |S| the shear of the
+   * flow in the cell; and the eddies as big as the water is deep, which a
+   * depth-averaged flow cannot see, Fischer's transverse mixing
+   * ε = 0.15·h·u* with u* the friction velocity Manning's bed gives,
+   * n·|U|·√g / h^(1/6). Each face's velocity spreads to its neighbours',
+   * explicitly and never faster than a quarter of a cell's mixing a
+   * substep. Where it is dry there is nothing to mix. */
+  {
+    f3d_copy(u_old, g->u, (size_t)ux * nz * sizeof(f3d_real));
+    f3d_copy(w_old, g->w, (size_t)nx * (nz + 1u) * sizeof(f3d_real));
+    const f3d_real mix = F3D_R(0.15) * g->cell;
+    const f3d_real most_nu = F3D_R(0.25) * g->cell * g->cell / h;
+    for (uint32_t c = 0; c < g->n; c++) {
+      out[c] = F3D_R(0.0);
+      if (!(g->depth[c] > F3D_WATER_DRY)) continue;
+      const uint32_t i = c % nx, j = c / nx;
+      const f3d_real ux_ = (u_old[i + 1u + j * ux] - u_old[i + j * ux]) / g->cell;
+      const f3d_real wz_ = (w_old[i + (j + 1u) * nx] - w_old[i + j * nx]) / g->cell;
+      const f3d_real uz_ = (j + 1u < nz && j > 0u)
+                               ? (u_old[i + (j + 1u) * ux] - u_old[i + (j - 1u) * ux]) /
+                                     (F3D_R(2.0) * g->cell)
+                               : F3D_R(0.0);
+      const f3d_real wx_ = (i + 1u < nx && i > 0u)
+                               ? (w_old[i + 1u + j * nx] - w_old[i - 1u + j * nx]) /
+                                     (F3D_R(2.0) * g->cell)
+                               : F3D_R(0.0);
+      const f3d_real shear = f3d_sqrt(F3D_R(2.0) * (ux_ * ux_ + wz_ * wz_) +
+                                      (uz_ + wx_) * (uz_ + wx_));
+      const f3d_real d = g->depth[c];
+      const f3d_real speed = f3d_sqrt(
+          F3D_R(0.25) * (u_old[i + j * ux] + u_old[i + 1u + j * ux]) *
+              (u_old[i + j * ux] + u_old[i + 1u + j * ux]) +
+          F3D_R(0.25) * (w_old[i + j * nx] + w_old[i + (j + 1u) * nx]) *
+              (w_old[i + j * nx] + w_old[i + (j + 1u) * nx]));
+      const f3d_real friction =
+          ws->roughness * speed * f3d_sqrt(gravity) / f3d_sqrt(cube_root(d));
+      out[c] = f3d_min(mix * mix * shear + F3D_R(0.15) * d * friction, most_nu);
+    }
+    const f3d_real k = h / (g->cell * g->cell);
+    for (uint32_t j = 0; j < nz; j++) {
+      for (uint32_t i = 1; i < nx; i++) {
+        const f3d_real nu = F3D_R(0.5) * (out[i - 1u + j * nx] + out[i + j * nx]);
+        if (!(nu > F3D_R(0.0))) continue;
+        const uint32_t f = i + j * ux;
+        const f3d_real lap = u_old[f - 1u] + u_old[f + 1u] - F3D_R(4.0) * u_old[f] +
+                             (j > 0u ? u_old[f - ux] : u_old[f]) +
+                             (j + 1u < nz ? u_old[f + ux] : u_old[f]);
+        g->u[f] += nu * k * lap;
+      }
+    }
+    for (uint32_t j = 1; j < nz; j++) {
+      for (uint32_t i = 0; i < nx; i++) {
+        const f3d_real nu = F3D_R(0.5) * (out[i + (j - 1u) * nx] + out[i + j * nx]);
+        if (!(nu > F3D_R(0.0))) continue;
+        const uint32_t f = i + j * nx;
+        const f3d_real lap = w_old[f - nx] + w_old[f + nx] - F3D_R(4.0) * w_old[f] +
+                             (i > 0u ? w_old[f - 1u] : w_old[f]) +
+                             (i + 1u < nx ? w_old[f + 1u] : w_old[f]);
+        g->w[f] += nu * k * lap;
+      }
+    }
+  }
   /* 3. The slope, the bed and the wind, face by face. */
   const f3d_real most = F3D_R(0.5) * g->cell / h;
   const f3d_real n2 = ws->roughness * ws->roughness;
@@ -958,15 +1023,39 @@ static void land(F3dWorld *world, Grid *g, const F3dSpray *d, uint32_t c) {
   const f3d_real splash = splash_share(diameter, speed);
   const f3d_real stays = d->volume * (F3D_R(1.0) - splash);
   const int wet = g->depth[c] > F3D_WATER_DRY;
-  const f3d_real held = g->depth[c] * g->area;
-  g->depth[c] += stays / g->area;
-  const f3d_real share = stays / (held + stays);
-  const uint32_t i = c % g->nx, j = c / g->nx;
-  const uint32_t ux = g->nx + 1u;
-  g->u[i + j * ux] += (d->velocity.x - g->u[i + j * ux]) * share;
-  g->u[i + 1u + j * ux] += (d->velocity.x - g->u[i + 1u + j * ux]) * share;
-  g->w[i + j * g->nx] += (d->velocity.z - g->w[i + j * g->nx]) * share;
-  g->w[i + (j + 1u) * g->nx] += (d->velocity.z - g->w[i + (j + 1u) * g->nx]) * share;
+  /* Plunging in, it drags the water round it along and widens until it
+   * reaches the bottom: its water and its push go into every wet column
+   * within as far as the pool is deep where it came down, alike; onto dry
+   * ground, into the one column. */
+  const uint32_t ci = c % g->nx, cj = c / g->nx;
+  const f3d_real reach = wet ? f3d_max(g->depth[c], g->cell) : F3D_R(0.0);
+  const int32_t span = (int32_t)(reach / g->cell);
+  uint32_t taken = 0;
+  for (int pass = 0; pass < 2; pass++) {
+    for (int32_t dj = -span; dj <= span; dj++) {
+      for (int32_t di = -span; di <= span; di++) {
+        const int32_t i = (int32_t)ci + di, j = (int32_t)cj + dj;
+        if (i < 0 || j < 0 || i >= (int32_t)g->nx || j >= (int32_t)g->nz) continue;
+        if ((f3d_real)(di * di + dj * dj) * g->cell * g->cell > reach * reach) continue;
+        const uint32_t q = (uint32_t)i + (uint32_t)j * g->nx;
+        if (q != c && !(g->depth[q] > F3D_WATER_DRY)) continue;
+        if (pass == 0) {
+          taken++;
+          continue;
+        }
+        const f3d_real part = stays / (f3d_real)taken;
+        const f3d_real held = g->depth[q] * g->area;
+        g->depth[q] += part / g->area;
+        const f3d_real share = part / (held + part);
+        const uint32_t ux = g->nx + 1u;
+        const uint32_t ii = (uint32_t)i, jj = (uint32_t)j;
+        g->u[ii + jj * ux] += (d->velocity.x - g->u[ii + jj * ux]) * share;
+        g->u[ii + 1u + jj * ux] += (d->velocity.x - g->u[ii + 1u + jj * ux]) * share;
+        g->w[ii + jj * g->nx] += (d->velocity.z - g->w[ii + jj * g->nx]) * share;
+        g->w[ii + (jj + 1u) * g->nx] += (d->velocity.z - g->w[ii + (jj + 1u) * g->nx]) * share;
+      }
+    }
+  }
   const f3d_real gravity = f3d_sqrt(f3d_dot(world->s.gravity, world->s.gravity));
   const F3dVec3 up = gravity > F3D_R(0.0)
                          ? f3d_scale(world->s.gravity, F3D_R(-1.0) / gravity)

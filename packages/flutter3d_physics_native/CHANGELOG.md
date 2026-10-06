@@ -23,6 +23,15 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **What a waterfall drives into a pond spreads instead of crossing it as
+  a stripe.** Water mixes its momentum sideways through its own eddies:
+  those the grid can see, by Smagorinsky's viscosity off the flow's shear,
+  and those as large as the water is deep, which a depth-averaged flow
+  cannot, by Fischer's transverse mixing off the bed's friction velocity.
+  What plunges in drags the water round it along and lands over a disc as
+  wide as the pool is deep. A jet driven at two metres a second into a pool
+  a metre deep slows to under one in a second, where unmixed it kept 1.55.
+
 - **A waterfall keeps to continuity, splashes, and drags air down.**
   Each face of a cliff's lip throws what went over it in a step as one
   piece of sheet, at the speed it went over with, falling freely; its

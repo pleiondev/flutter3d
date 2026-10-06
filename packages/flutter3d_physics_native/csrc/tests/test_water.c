@@ -3,7 +3,7 @@
  * at rest over a bumpy bed, a dam breaking with not a drop made or lost, a
  * spring feeding a stream off a cliff into a pond, the spray only at the
  * cliff, a stone's waves, a ball floating as deep as Archimedes says, the
- * flow carrying a float, an open edge letting water go, and water through
+ * flow carrying a float, a jet mixing into a pool, an open edge letting water go, and water through
  * a snapshot.
  */
 #include <math.h>
@@ -312,6 +312,34 @@ static void test_column_spreads(void) {
   f3d_world_destroy(w);
 }
 
+static void test_jet_mixes_into_a_pool(void) {
+  /* A jet two cells wide driven into a pool a metre deep at two metres a
+   * second, as a waterfall drives one: its eddies mix it with the still
+   * water round it, so in a second it has slowed and widened instead of
+   * crossing the pool as a stripe as fast as it came in. */
+  F3dWorld *w = f3d_world_create();
+  f3d_real ground[96 * 32];
+  memset(ground, 0, sizeof ground);
+  const F3dWater water = f3d_water_create(w, 96, 32, F3D_R(0.1), 0, 0, 0, ground);
+  f3d_water_fill(w, water, -9, -9, 99, 99, 1);
+  const F3dWaterSlot *slot = &w->waters[water - 1u];
+  f3d_real *u = w->water_data + slot->first + 2u * 96u * 32u;
+  for (int j = 15; j <= 16; j++)
+    for (int i = 5; i <= 25; i++) u[i + j * 97] = 2;
+  run(w, 60);
+  f3d_real flow[2 * 96 * 32];
+  f3d_water_read_flow(w, water, flow);
+  double peak = 0, aside = 0;
+  for (int i = 0; i < 96; i++) {
+    peak = fmax(peak, fabs(flow[2 * (i + 15 * 96)]));
+    aside = fmax(aside, fabs(flow[2 * (i + 20 * 96)]));
+  }
+  /* Unmixed, the jet still runs at 1.55 m/s a second on. */
+  CHECK(peak < 1.0);
+  CHECK(aside > 0.1);
+  f3d_world_destroy(w);
+}
+
 static void test_no_climbing_a_dry_bank(void) {
   /* A sheet of water ten centimetres deep running at a step half a metre
    * high at two metres a second: a flow that fast runs up a wall by
@@ -403,6 +431,7 @@ int main(void) {
   test_floats_as_deep_as_it_weighs();
   test_flow_carries_a_float();
   test_column_spreads();
+  test_jet_mixes_into_a_pool();
   test_no_climbing_a_dry_bank();
   test_open_edge();
   test_snapshot();
