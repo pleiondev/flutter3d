@@ -224,6 +224,16 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 | physics-core | The physics core | `PhysicsBackend`, `NativePhysics`, `DartPhysics`, `RigidDynamics`/`NativeDynamics` | `flutter3d_physics_native` CL 0.9.0 "The core is the default, and the Dart reference is the fallback." |
 | heightfield-collision | Walking on terrain | `CollisionHeightfield` | 0.5.1 |
 | xpbd-cloth | Cloth | `ClothMesh.grid`, `ClothSimulation`, `ClothObstacle`, `WindSettings` | 0.7.0 |
+| compound-shapes | Several shapes on one body | `NativeWorld.createCompound`, `NativeCompoundPart`, `compoundOffset`, `setCompound`, `createHull` | `flutter3d_physics_native` CL 0.9.0 "Several shapes on one body." |
+| breakable-joints | Joints that break | `NativeWorld.setJointBreak`, `jointForce`, `NativeEventKind.jointBroken`, `readEvents`, `containsJoint` | `flutter3d_physics_native` CL 0.9.0 "Joints that break." |
+| vehicle | A car on four springs | `NativeWorld.createVehicle`, `addWheel`, `setWheel`, `wheelsOf`, `NativeWheelState` | `flutter3d_physics_native` CL 0.9.0 "Vehicles on wheels that hang from springs." |
+| multibody-chain | A chain that does not stretch | `NativeWorld.createMultibody`, `addLink`, `createJoint` | `flutter3d_physics_native` CL 0.9.0 "Chains whose joints cannot come apart." |
+| joints-and-motors | Joints and motors | `NativeWorld.createJoint`/`createDistanceJoint`, `setJointLimits/Motor/Spring/Length/Cone/Friction`, `jointValue`/`jointSwing` | `flutter3d_physics_native` CL 0.9.0 "Fixed, spherical, revolute (a hinge), prismatic (a slider) and distance joints" |
+| ragdoll | A ragdoll | `NativeRagdoll`, `RagdollBone`, `RagdollBall`/`RagdollHinge`, `bodyOf`/`poseOf` | `flutter3d_physics_native` CL 0.9.0 "A ragdoll of eleven bodies on ten joints falls to a floor and sleeps within two seconds." |
+| convex-shapes | Convex shapes and mesh floors | `NativeShape.cylinder/cone`, `createHull`/`setHull`/`hullOffset`, `setRounding`, `createMesh`/`setMesh` | `flutter3d_physics_native` CL 0.9.0 "Cylinders, cones and convex hulls, and any shape rounded by a radius" |
+| continuous-collision | Fast bodies and thin walls | `NativeWorld.speculative`, `setBullet` | `flutter3d_physics_native` CL 0.9.0 "Continuous collision, phase 8." |
+| heat-and-fire | Heat and fire | `NativeMaterial`, `addHeat`/`addWater`, `readEvents` (ignited/extinguished), `readFires`, `setWindGrid`/`windAt` | `flutter3d_physics_native` CL 0.9.0 "Wind, heat and fire are the world's." |
+| liquids | Liquids on the core | `FluidWorld`, `Pipe`, `FloatingBody`, `Jet`, `NativeLiquid` | `flutter3d_physics_native` CL 0.9.0 "Pipes and floating bodies run on the core." |
 | six-way-smoke | Smoke lit by the scene | `SixWayMaterial`, `ContributorLights` | `flutter3d_core` CL 0.8.0 "Lit particle sheets." |
 
 ## Set I: simulation, audio, XR, widgets and the rest (`lib/pages/sim_audio_xr/`, `lib/pages/widgets_misc/`)
