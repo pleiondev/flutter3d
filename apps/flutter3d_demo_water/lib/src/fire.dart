@@ -2,13 +2,13 @@
 /// catch, burn down and spread fire to each other by the core's heat, and
 /// what is drawn of each fire, read off the watts the core says it gives.
 ///
-/// The core says where each fire is and how much heat goes up from it; the
-/// rest follows from what is measured of real fires. The flame stands as
-/// tall as Heskestad's correlation gives, the gas in it rises as McCaffrey
-/// measured, it pulses at the frequency a pool fire of its width puffs at,
-/// and the smoke above it rises at the plume's speed. Everything that flies
-/// is carried by the air: the wind the core blows, plus its own buoyancy, so
-/// a wind leans the flame as far as it is strong against the flame's rise.
+/// The core says where each fire is, how much heat goes up from it, and
+/// how far its flame reaches along which axis — the flame it heats the
+/// other logs with. The rest follows from what is measured of real fires:
+/// the gas in the flame rises as McCaffrey measured, it pulses at the
+/// frequency a fire of its width puffs at, and the smoke above it rises at
+/// the plume's speed. Everything that flies is carried by the air: the wind
+/// the core blows, plus its own buoyancy.
 library;
 
 import 'dart:math' as math;
@@ -20,7 +20,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_build/src/six_way_bake.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
-    show NativeBody, NativeMaterial, NativeShape, NativeWorld;
+    show NativeBody, NativeMaterial, NativeShape, NativeWorld, nativeFireFloats;
 import 'package:vector_math/vector_math.dart';
 
 /// Where the bonfire stands: on the sand past the pond's east shore.
@@ -29,18 +29,18 @@ const double fireX = 23.5, fireZ = 24.0;
 /// The ground under it, m.
 const double fireGround = 0.5;
 
-/// A log's size, m: long, and as thick as a forearm is long.
-Vector3 get _logSize => Vector3(1.4, 0.3, 0.3);
-
-/// How wide the fire's base is, m: what Heskestad's correlation calls D.
-const double _base = 0.6;
+/// A log's radius and half its length, m: 1.4 m long, 30 cm thick.
+const double _logRadius = 0.15, _logHalf = 0.7;
 
 /// One log of the pile and what it looked like before it burnt.
 final class _Log {
-  _Log(this.body, this.node, this.fuel);
+  _Log(this.body, this.node, this.look, this.fuel);
 
   final NativeBody body;
-  final MeshNode node;
+
+  /// Where the body is; the round log drawn in it.
+  final SceneNode node;
+  final MeshNode look;
 
   /// The fuel it started with, kg.
   final double fuel;
@@ -73,23 +73,41 @@ final class _CarriedBy extends ParticleAffector {
 /// The bonfire, its fires and what is drawn of them.
 final class Bonfire {
   Bonfire(this._world, GraphicsDevice device, this._scene, Renderer renderer) {
-    final mesh = DeviceMesh.upload(device, CuboidShape(size: _logSize).build());
+    final mesh = DeviceMesh.upload(
+      device,
+      const CylinderShape(
+        radiusTop: _logRadius,
+        radiusBottom: _logRadius,
+        height: 2 * _logHalf,
+        segments: 20,
+      ).build(),
+    );
     // Three layers, crosswise, as a fire is laid: two logs along x, two
-    // along z on them, two along x on top.
-    final half = _logSize * 0.5;
+    // along z on them, two along x on top. A cylinder stands along y, so
+    // each is laid down a quarter turn about the other level axis.
     for (var layer = 0; layer < 3; layer++) {
       final alongX = layer.isEven;
       for (final side in <double>[-0.4, 0.4]) {
-        final y = fireGround + half.y + layer * _logSize.y + 0.01;
+        final y = fireGround + _logRadius * (1 + 2 * layer) + 0.01;
         final body = _world.addBody(
           position: alongX
               ? Vector3(fireX, y, fireZ + side)
               : Vector3(fireX + side, y, fireZ),
           // Seasoned wood, 450 kg/m³.
-          mass: 450.0 * _logSize.x * _logSize.y * _logSize.z,
+          mass: 450.0 * math.pi * _logRadius * _logRadius * 2 * _logHalf,
         );
+        // As it meets others, a bar along x rounded by two thirds of its
+        // radius: round enough to look it, flat enough to lie on another
+        // across it, where two round ones meet at a point and roll apart.
+        const round = 2 * _logRadius / 3;
         _world
-          ..setShape(body, NativeShape.box(half))
+          ..setShape(
+            body,
+            NativeShape.box(
+              Vector3(_logHalf - round, _logRadius - round, _logRadius - round),
+            ),
+          )
+          ..setRounding(body, round)
           ..setMaterial(body, NativeMaterial.wood());
         if (!alongX) {
           _world.setOrientation(
@@ -97,13 +115,18 @@ final class Bonfire {
             Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), math.pi / 2),
           );
         }
-        final node = MeshNode(
-          mesh,
-          Material(name: 'log', baseColor: _wood, roughness: 0.9),
-          name: 'log',
-        );
+        // The cylinder stands along y; laid along the body's x.
+        final look =
+            MeshNode(
+              mesh,
+              Material(name: 'log', baseColor: _wood, roughness: 0.9),
+              name: 'log',
+            )..setRotation(
+              Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), math.pi / 2),
+            );
+        final node = SceneNode(name: 'log')..add(look);
         _scene.add(node);
-        _logs.add(_Log(body, node, _world.fuelOf(body)));
+        _logs.add(_Log(body, node, look, _world.fuelOf(body)));
       }
     }
 
@@ -178,7 +201,7 @@ final class Bonfire {
   /// The flame's gas rises as fast all the way up; the plume above it
   /// slows as it spreads, McCaffrey's u = 1.11·Q^(1/3)·z^(−1/3), Q in kW
   /// and z over the fire's base. Smoke follows it closely, an ember lags.
-  double _flameRise = 0.0, _kw = 0.0;
+  double _flameRise = 0.0, _kw = 0.0, _reach = 0.0;
   double _plume(double height) =>
       1.11 *
       math.pow(_kw, 1 / 3) *
@@ -220,16 +243,22 @@ final class Bonfire {
     _air.setFrom(wind);
     final (:fires, :bodies) = _world.readFires();
     burning = bodies.length;
+    const n = nativeFireFloats;
     // The plume over the pile is the whole fire's: its heat summed.
     watts = <double>[
-      for (var k = 0; k < bodies.length; k++) fires[4 * k + 3],
+      for (var k = 0; k < bodies.length; k++) fires[n * k + 3],
     ].fold(0.0, (sum, q) => sum + q);
     _kw = watts / 1000.0;
+    _reach = <double>[
+      for (var k = 0; k < bodies.length; k++) fires[n * k + 4],
+    ].fold(0.0, math.max);
     for (var k = 0; k < bodies.length; k++) {
       _burn(
         bodies[k],
-        Vector3(fires[4 * k], fires[4 * k + 1], fires[4 * k + 2]),
-        fires[4 * k + 3],
+        Vector3(fires[n * k], fires[n * k + 1], fires[n * k + 2]),
+        fires[n * k + 3],
+        fires[n * k + 4],
+        Vector3(fires[n * k + 5], fires[n * k + 6], fires[n * k + 7]),
       );
     }
     // A fire not in the list has gone out: nothing more from it.
@@ -253,7 +282,7 @@ final class Bonfire {
       final burnt = log.fuel > 0
           ? 1.0 - _world.fuelOf(log.body) / log.fuel
           : 0.0;
-      final material = log.node.material;
+      final material = log.look.material;
       material.baseColor.setFrom(
         _wood + (_char - _wood) * math.min(1.0, burnt * 4.0),
       );
@@ -273,39 +302,44 @@ final class Bonfire {
       ..intensity = kw <= 0
           ? 0.0
           : 0.04 * kw * (0.8 + 0.4 * _flicker.nextDouble())
-      ..setPosition(fireX, fireGround + 0.5 + 0.3 * _flameLength(kw), fireZ);
+      ..setPosition(fireX, fireGround + 0.5 + 0.3 * _reach, fireZ);
     _flames.advance(dt);
     _embers.advance(dt);
     _smoke.advance(dt);
   }
 
-  /// Heskestad's flame length, m, for [kw] kilowatts over the fire's base:
-  /// L = 0.235·Q^(2/5) − 1.02·D, and never shorter than nothing.
-  static double _flameLength(double kw) =>
-      kw <= 0 ? 0.0 : math.max(0.0, 0.235 * math.pow(kw, 0.4) - 1.02 * _base);
-
-  void _burn(NativeBody body, Vector3 at, double q) {
+  /// The flame the core has over a fire of [q] W at [at]: reaching
+  /// [reach] m from there along [axis].
+  void _burn(
+    NativeBody body,
+    Vector3 at,
+    double q,
+    double reach,
+    Vector3 axis,
+  ) {
     final kw = q / 1000.0;
-    final length = math.max(_flameLength(kw), 0.3);
     // McCaffrey's continuous flame: the gas rises at 6.84·√z m/s, which
     // averages 4.56·√L over the flame — so a tongue lives as long as it
     // takes to rise the flame's length.
+    final length = math.max(reach - _logRadius, _logRadius);
     final rise = 4.56 * math.sqrt(length);
     _flameRise = rise;
-    // The tongues rise off the log's upper face.
-    final root = at + Vector3(0.0, 0.5 * _logSize.y, 0.0);
-    // A fire puffs at about 1.5/√D Hz (Pagni): the tongues come in breaths.
+    // The tongues rise off the log's surface, along the flame.
+    final root = at + axis * _logRadius;
+    // A fire puffs at about 1.5/√D Hz (Pagni), D its base, here a log's
+    // thickness: the tongues come in breaths.
     final puff =
-        1.0 + 0.6 * math.sin(2 * math.pi * 1.5 / math.sqrt(_base) * _clock);
+        1.0 +
+        0.6 * math.sin(2 * math.pi * 1.5 / math.sqrt(2 * _logRadius) * _clock);
     _flames.emit(
       body.raw,
       _flameEffect(length / rise),
       root,
       perSecond: (90.0 + 0.6 * kw) * puff,
-      direction: Vector3(0.0, 1.0, 0.0),
+      direction: axis,
     );
     // Above the flame, the plume: McCaffrey's u = 1.11·Q^(1/3)·z^(−1/3).
-    final tip = at + Vector3(0.0, 1.2 * length, 0.0);
+    final tip = at + axis * (1.2 * reach);
     _smoke.emit(
       body.raw,
       _smokeEffect(_plume(tip.y)),
