@@ -114,3 +114,10 @@ abstract final class F3dLiquidWaveSettingsLayout {
   static const int area = 20;
   static const int size = 24;
 }
+
+/// `F3dLiquidFloatSettings`.
+abstract final class F3dLiquidFloatSettingsLayout {
+  static const int gravity = 0;
+  static const int dt = 12;
+  static const int size = 16;
+}

@@ -12,8 +12,9 @@ import 'core/core.dart' as c;
 import 'native_physics.dart';
 
 /// The core's fluid solver: the spilt particles by `f3d_liquid_particles`,
-/// a stream's parcels by `f3d_liquid_parcels` and a surface's modes by
-/// `f3d_liquid_modes`, each what the reference does.
+/// a stream's parcels by `f3d_liquid_parcels`, a surface's modes by
+/// `f3d_liquid_modes`, the columns in pipes by `f3d_liquid_pipes` and
+/// floating bodies by `f3d_liquid_floats`, each what the reference does.
 ///
 /// **Nothing is held.** Every call writes one step's state into the core's
 /// memory, steps it and reads it back, as the reference moves the same
@@ -195,6 +196,56 @@ final class NativeLiquid implements FluidSolver {
       }
     } finally {
       block.free();
+      c.coreFree(s);
+    }
+  }
+
+  @override
+  void flowPipes(PipeFlow flow) {
+    final n = flow.count;
+    if (n == 0) return;
+    final block = c.F32s.alloc(n * c.liquidPipeFloats);
+    try {
+      block.setAll(flow.pipes);
+      c.f3d_liquid_pipes(block, n, flow.dt);
+      final out = block.copy(n * c.liquidPipeFloats);
+      for (var i = 0; i < n; i++) {
+        flow.pipes[i * PipeFlow.pipeFloats + PipeFlow.flow] =
+            out[i * c.liquidPipeFloats];
+      }
+    } finally {
+      block.free();
+    }
+  }
+
+  @override
+  void pushBodies(FloatPush push) {
+    if (push.count == 0) return;
+    final bodyCount = push.bodies.length ~/ FloatPush.bodyFloats;
+    final bodies = _block(push.bodies);
+    final pushes = _block(push.pushes);
+    final s = c.coreAlloc(c.F3dLiquidFloatSettingsLayout.size);
+    try {
+      for (var k = 0; k < 3; k++) {
+        c.writeF32(
+          s + c.F3dLiquidFloatSettingsLayout.gravity + k * 4,
+          push.gravity[k],
+        );
+      }
+      c.writeF32(s + c.F3dLiquidFloatSettingsLayout.dt, push.dt);
+      if (c.f3d_liquid_floats(bodies, bodyCount, pushes, push.count, s) == 0) {
+        throw StateError('the core refused the floating bodies');
+      }
+      final out = bodies.copy(bodyCount * c.liquidBodyFloats);
+      for (var i = 0; i < bodyCount; i++) {
+        for (var k = 0; k < 3; k++) {
+          push.bodies[i * FloatPush.bodyFloats + k] =
+              out[i * c.liquidBodyFloats + k];
+        }
+      }
+    } finally {
+      bodies.free();
+      pushes.free();
       c.coreFree(s);
     }
   }

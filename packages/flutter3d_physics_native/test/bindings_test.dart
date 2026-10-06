@@ -133,6 +133,13 @@ void main() {
       expect(c.LiquidWallKind.plane, define('F3D_LIQUID_PLANE'));
       expect(c.LiquidWallKind.inside, define('F3D_LIQUID_INSIDE'));
       expect(c.LiquidWallKind.outside, define('F3D_LIQUID_OUTSIDE'));
+      expect(c.liquidPipeFloats, define('F3D_LIQUID_PIPE_FLOATS'));
+      expect(c.liquidBodyFloats, define('F3D_LIQUID_BODY_FLOATS'));
+      expect(c.liquidPushFloats, define('F3D_LIQUID_PUSH_FLOATS'));
+      expect(c.LiquidFloatShape.sphere, define('F3D_LIQUID_SPHERE'));
+      expect(c.LiquidFloatShape.box, define('F3D_LIQUID_BOX'));
+      expect(c.LiquidFloatShape.capsule, define('F3D_LIQUID_CAPSULE'));
+      expect(c.LiquidFloatShape.other, define('F3D_LIQUID_OTHER'));
     },
   );
 

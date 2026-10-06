@@ -1672,6 +1672,38 @@ void f3d_liquid_modes(int modes, int count, int settings) => _f3d_liquid_modes(
   Pointer.fromAddress(settings),
 );
 
+@Native<Void Function(Pointer<Void>, Uint32, Float)>(
+  symbol: 'f3d_liquid_pipes',
+  isLeaf: true,
+)
+external void _f3d_liquid_pipes(Pointer<Void> pipes, int count, double dt);
+void f3d_liquid_pipes(int pipes, int count, double dt) =>
+    _f3d_liquid_pipes(Pointer.fromAddress(pipes), count, dt);
+
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Uint32, Pointer<Void>)
+>(symbol: 'f3d_liquid_floats', isLeaf: true)
+external int _f3d_liquid_floats(
+  Pointer<Void> bodies,
+  int bodyCount,
+  Pointer<Void> pushes,
+  int count,
+  Pointer<Void> settings,
+);
+int f3d_liquid_floats(
+  int bodies,
+  int bodyCount,
+  int pushes,
+  int count,
+  int settings,
+) => _f3d_liquid_floats(
+  Pointer.fromAddress(bodies),
+  bodyCount,
+  Pointer.fromAddress(pushes),
+  count,
+  Pointer.fromAddress(settings),
+);
+
 @Native<Uint32 Function(Pointer<Void>)>(
   symbol: 'f3d_world_snapshot_size',
   isLeaf: true,

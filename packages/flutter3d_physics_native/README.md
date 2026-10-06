@@ -21,7 +21,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - debris, the visual bodies: thousands of balls that tumble, heap and settle on still planes and boxes, on the CPU and on the GPU, where they are read a frame late.
 - cloth: sheets and ropes held by constraints of any stiffness, blown by the wind, on the CPU and on the GPU. On the CPU a sheet can also drape over the same obstacles the Dart solver handles (balls, capsules, boxes, wedges and heightfields), with friction and self-collision. `usePhysics().cloth(mesh)` returns the core's cloth, or the Dart solver when the run is on the reference.
 - water as particles in a tank that slumps, splashes and settles, on the CPU and on the GPU.
-- the liquids of `flutter3d_physics` — the spilt particles (position-based fluid with cohesion), a stream's parcels in the air (falling, running along and clinging to the glass) and the waves on a vessel's surface — stepped as the Dart reference steps them, against the planes and turned glassware a `FluidWorld` makes. `usePhysics().fluid` is the core's solver, or the Dart one when the run is on the reference; a `FluidWorld` asks for it when it is made.
+- the liquids of `flutter3d_physics` — the spilt particles (position-based fluid with cohesion), a stream's parcels in the air (falling, running along and clinging to the glass) and the waves on a vessel's surface — stepped as the Dart reference steps them, against the planes and turned glassware a `FluidWorld` makes; and the liquid in pipes between vessels and the bodies floating in them. `usePhysics().fluid` is the core's solver, or the Dart one when the run is on the reference; a `FluidWorld` asks for it when it is made.
 
 ## Under CollisionWorld
 

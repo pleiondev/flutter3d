@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **Pipes and floating bodies run on the core.** `NativeLiquid` drives a
+  pipe's column with `f3d_liquid_pipes` and pushes floating bodies with
+  `f3d_liquid_floats`, as the reference does: the column accelerated by the
+  pressure across it over its inertance and held back implicitly by
+  Hagen–Poiseuille's friction and its end losses, and a body lifted by the
+  weight of what it displaces and dragged with White's sphere coefficient
+  for its frontal area — a sphere's, a box's or an upright capsule's. A
+  U-tube swings within a fiftieth of a millimetre of the reference's, and
+  floating bodies stay within a tenth of one. `F3D_ABI_VERSION` is 21.
+
 - **Liquids run on the core by default.** `NativePhysics.fluid` is a
   `NativeLiquid`, which steps `flutter3d_physics`' liquids as the reference
   does: `f3d_liquid_particles` the spilt particles (position-based fluid

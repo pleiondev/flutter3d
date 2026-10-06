@@ -2,8 +2,10 @@
 /// reference on the scenes its users step — a block of spilt liquid in a
 /// box, drops falling into a test tube with a round bottom, a stream
 /// running down the inside of a glass and one clinging to the outside of
-/// the glass it is poured from, a knocked surface ringing down, and a
-/// whole pour from one tube into another.
+/// the glass it is poured from, a knocked surface ringing down, a U-tube
+/// swinging and a thick liquid creeping level through a pipe, a block, a
+/// ball and a capsule floating and settling, and a whole pour from one tube
+/// into another.
 ///
 /// The two are not promised to agree to the bit, only each with itself:
 /// the core works in single precision and sums neighbours in another
@@ -393,6 +395,154 @@ void main() {
     expect(first, greaterThan(1e-5));
     for (var i = 0; i < core.length; i++) {
       expect(core[i], closeTo(reference[i], 1e-3 * first), reason: 'step $i');
+    }
+  });
+
+  group('pipes', () {
+    /// Two tubes of [medium] at 12 and 8 cm joined at their floors by a
+    /// pipe of [bore], stepped for [seconds]: how far apart their levels
+    /// are, step by step.
+    List<double> levels(
+      FluidSolver solver,
+      FluidMedium medium,
+      double radius,
+      double bore,
+      double seconds,
+    ) {
+      LiquidBody tube(double level) => LiquidBody(
+        shape: _tube(radius, 0.5),
+        medium: medium,
+        volume: math.pi * radius * radius * level,
+        modes: 2,
+      );
+      final world = FluidWorld(
+        gravity: Vector3(0, -9.81, 0),
+        step: 1 / 2000,
+        solver: solver,
+      );
+      final a = tube(0.12), b = tube(0.08);
+      world.bodies.addAll([a, b]);
+      world.pipes.add(
+        Pipe(
+          from: a,
+          at: Vector3(0, 0.0005, 0),
+          to: b,
+          toAt: Vector3(0, 0.0005, 0),
+          radius: bore,
+          length: 0.1,
+          minorLoss: 0,
+        ),
+      );
+      final out = <double>[];
+      for (var i = 0; i < seconds * 2000; i++) {
+        a.place(Matrix3.identity(), Vector3.zero());
+        b.place(Matrix3.identity(), Vector3(0.2, 0, 0));
+        world.advance(world.step);
+        out.add(a.height - b.height);
+      }
+      return out;
+    }
+
+    test('a U-tube swings as the reference\'s does', () {
+      // Within a fiftieth of a millimetre all the way, its swing four
+      // centimetres: the same period, the same damping. Mutation: the
+      // core's inertance without the liquid standing over each end, and it
+      // swings at nearly twice the rate.
+      final core = levels(_core, FluidMedium.water, 0.03, 0.03, 2);
+      final reference = levels(_reference, FluidMedium.water, 0.03, 0.03, 2);
+      for (var i = 0; i < core.length; i++) {
+        expect(core[i], closeTo(reference[i], 2e-5), reason: 'step $i');
+      }
+    });
+
+    test('a thick liquid creeps level as the reference\'s does', () {
+      // Poiseuille's friction holds it: within a fiftieth of a millimetre
+      // of the reference. Mutation: the core's friction without the bore's
+      // fourth power, and it creeps at another rate.
+      final core = levels(_core, FluidMedium.glycerol, 0.02, 0.002, 2);
+      final reference = levels(
+        _reference,
+        FluidMedium.glycerol,
+        0.02,
+        0.002,
+        2,
+      );
+      for (var i = 0; i < core.length; i++) {
+        expect(core[i], closeTo(reference[i], 2e-5), reason: 'step $i');
+      }
+    });
+  });
+
+  test('a block, a ball and a capsule float as the reference\'s do', () {
+    // Each let go above a vat of water and over glycerol, falling in,
+    // bobbing and settling: a flat wooden block and a capsule, both thrown
+    // in sideways so their drag is met along more than one axis, and a
+    // steel ball sinking at Stokes's speed. The rigid bodies are the reference's on
+    // both; only the push is the solver's.
+    List<List<Vector3>> run(FluidSolver solver) {
+      final gravity = Vector3(0, -9.81, 0);
+      final collisions = CollisionWorld();
+      final dynamics = Dynamics(world: collisions, gravity: gravity);
+      final world = FluidWorld(gravity: gravity, step: 1 / 960, solver: solver);
+      final water = LiquidBody(
+        shape: _tube(0.2, 0.3),
+        medium: FluidMedium.water,
+        volume: math.pi * 0.04 * 0.1,
+        modes: 2,
+      );
+      final glycerol = LiquidBody(
+        shape: _tube(0.05, 0.4),
+        medium: FluidMedium.glycerol,
+        volume: math.pi * 0.0025 * 0.3,
+        modes: 2,
+      );
+      world.bodies.addAll([water, glycerol]);
+      final bodies = [
+        RigidBody(
+          world: collisions,
+          shape: CollisionBox(Vector3(0.03, 0.012, 0.02)),
+          position: Vector3(-0.08, 0.13, 0),
+          mass: 600 * 8 * 0.03 * 0.012 * 0.02,
+        ),
+        RigidBody(
+          world: collisions,
+          shape: CollisionSphere(0.002),
+          position: Vector3(1.0, 0.25, 0),
+          mass: 7800 * 4 / 3 * math.pi * 0.002 * 0.002 * 0.002,
+        ),
+        RigidBody(
+          world: collisions,
+          shape: CollisionCapsule(radius: 0.01, halfHeight: 0.02),
+          position: Vector3(0.08, 0.14, 0),
+          mass: 0.01,
+        ),
+      ];
+      bodies[0].velocity.setValues(0.4, 0, -0.3);
+      bodies[2].velocity.setValues(-0.5, 0, 0.3);
+      for (final body in bodies) {
+        dynamics.add(body);
+        world.float(body);
+      }
+      final path = <List<Vector3>>[];
+      for (var i = 0; i < 960 * 2; i++) {
+        water.place(Matrix3.identity(), Vector3.zero());
+        glycerol.place(Matrix3.identity(), Vector3(1.0, 0, 0));
+        world.advance(world.step);
+        dynamics.step(world.step);
+        path.add([for (final b in bodies) b.position.clone()]);
+      }
+      return path;
+    }
+
+    // Within a tenth of a millimetre all the way. Mutations in the core:
+    // the block lifted by its whole volume rather than what is under, and
+    // it floats high; no drag, and they all bob on; a box's frontal area
+    // the same whichever way it moves, or a capsule's not foreshortened by
+    // how steeply it is met, and that one drifts its own way.
+    final core = run(_core);
+    final reference = run(_reference);
+    for (var i = 0; i < core.length; i++) {
+      expect(_apart(core[i], reference[i]), lessThan(1e-4), reason: 'step $i');
     }
   });
 

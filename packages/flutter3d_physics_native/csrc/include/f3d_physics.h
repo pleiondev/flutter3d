@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 20u
+#define F3D_ABI_VERSION 21u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -913,7 +913,10 @@ F3D_API uint32_t f3d_fluid_read(const F3dFluid *fluid, f3d_real *out, uint32_t c
  *   f3d_liquid_parcels    a stream's parcels in the air: falling, running
  *                         along and clinging to walls, their ripples grown;
  *   f3d_liquid_modes      a free surface's modes, each a damped oscillator
- *                         stepped exactly, held under Stokes' limit.
+ *                         stepped exactly, held under Stokes' limit;
+ *   f3d_liquid_pipes      the column of liquid in a pipe between vessels,
+ *                         driven by the pressure across it;
+ *   f3d_liquid_floats     bodies floating in it, lifted and dragged.
  *
  * Close to the Dart reference, not equal to it: f32 here, and neighbours
  * summed in another order. */
@@ -1000,6 +1003,42 @@ typedef struct F3dLiquidWaveSettings {
  * first, on by the settings' step. */
 F3D_API void f3d_liquid_modes(f3d_real *modes, uint32_t count,
                               const F3dLiquidWaveSettings *settings);
+
+/* Reals one pipe takes: the flow from its first vessel to its second
+ * (moved), the pressure at its first end less at its second, how deep each
+ * end is under its surface, each vessel's surface area, its bore and
+ * length, the liquid's density and viscosity, and the loss where it enters
+ * and leaves in velocity heads. */
+#define F3D_LIQUID_PIPE_FLOATS 11u
+
+/* Drives [count] pipes on by [dt]: each column accelerated by the pressure
+ * across it over its inertance, held back implicitly by Hagen–Poiseuille's
+ * friction and its end losses; nothing through an end above its surface. */
+F3D_API void f3d_liquid_pipes(f3d_real *pipes, uint32_t count, f3d_real dt);
+
+/* Reals one floating body takes: velocity xyz (moved), inverse mass; and
+ * one push: which body, its shape (F3D_LIQUID_SPHERE: radius; _BOX: half
+ * extents; _CAPSULE: radius, half height, upright; _OTHER: none), three
+ * sizes, the volume of it under the surface, and the liquid's density and
+ * viscosity. */
+#define F3D_LIQUID_BODY_FLOATS 4u
+#define F3D_LIQUID_PUSH_FLOATS 8u
+#define F3D_LIQUID_SPHERE 0u
+#define F3D_LIQUID_BOX 1u
+#define F3D_LIQUID_CAPSULE 2u
+#define F3D_LIQUID_OTHER 3u
+
+typedef struct F3dLiquidFloatSettings {
+  f3d_real gravity[3];
+  f3d_real dt;
+} F3dLiquidFloatSettings;
+
+/* Applies [count] pushes in order to [bodies]: each lifts its body by the
+ * weight of the liquid it displaces, then slows it by the drag of the part
+ * under, implicitly, with White's sphere coefficient. 1, or 0 and nothing
+ * moved for a body out of range or a shape of no kind. */
+F3D_API int f3d_liquid_floats(f3d_real *bodies, uint32_t body_count, const f3d_real *pushes,
+                              uint32_t count, const F3dLiquidFloatSettings *settings);
 
 /* -------------------------------------------------------------- snapshots */
 

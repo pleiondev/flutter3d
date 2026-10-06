@@ -3,27 +3,32 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import '../physics_backend.dart';
+import 'buoyancy.dart';
 import 'fluid_medium.dart';
 import 'free_surface.dart';
 import 'jet.dart';
 import 'particle_fluid.dart';
+import 'pipe.dart';
 
 /// The parts of a `FluidWorld` that are stepped through time, from the run's
 /// physics: `PhysicsBackend.current.fluid`, the core where the run is on it
 /// and [DartFluid] where it is on the reference.
 ///
-/// **Three solvers, and nothing else.** What a world steps is the particles
+/// **Five solvers, and nothing else.** What a world steps is the particles
 /// spilt liquid becomes ([ParticleFluid]: position-based fluids against the
 /// walls), the parcels of a stream in the air ([Jet]: falling, running along
-/// walls, clinging, growing the ripples that part it) and the waves on each
-/// vessel's surface ([FreeSurface]: every mode a damped oscillator). Those
-/// are what a backend of its own does. What is left is the same on every
-/// backend and stays in Dart: how much liquid is where, what is dissolved in
-/// it and which layer it is in, all exact bookkeeping; the shapes the
-/// surface can take and where its plane stands, which are geometry solved
-/// once a layout, not stepped; and the hand-off between the pieces — a drop
-/// caught by a vessel, liquid over a lip — which asks a `LiquidBody` that
-/// holds those books.
+/// walls, clinging, growing the ripples that part it), the waves on each
+/// vessel's surface ([FreeSurface]: every mode a damped oscillator), the
+/// liquid in each pipe between vessels ([Pipe]: a column driven by the
+/// pressure across it and held back by friction), and the bodies floating
+/// in it ([FloatingBody]: lifted by what they displace and slowed by
+/// drag). Those are what a backend of its own does. What is left is the
+/// same on every backend and stays in Dart: how much liquid is where, what
+/// is dissolved in it and which layer it is in, all exact bookkeeping; the
+/// shapes the surface can take, where its plane stands and how much of a
+/// body is under it, which are geometry, not stepped; and the hand-off
+/// between the pieces — a drop caught by a vessel, liquid over a lip or
+/// through a pipe — which asks a `LiquidBody` that holds those books.
 ///
 /// **Each call moves its data in place.** The pieces keep their own state
 /// as they always have, hand it to a solver as one of the records below for
@@ -43,6 +48,12 @@ abstract interface class FluidSolver {
 
   /// Rings [ringing]'s modes on by one step.
   void ringModes(ModeRinging ringing);
+
+  /// Drives [flow]'s pipes on by one step.
+  void flowPipes(PipeFlow flow);
+
+  /// Pushes [push]'s floating bodies for one step.
+  void pushBodies(FloatPush push);
 }
 
 /// A backend with a fluid of its own: what [PhysicsBackendFluid.fluid] asks
@@ -79,6 +90,12 @@ final class DartFluid implements FluidSolver {
 
   @override
   void ringModes(ModeRinging ringing) => ringModesInDart(ringing);
+
+  @override
+  void flowPipes(PipeFlow flow) => flowPipesInDart(flow);
+
+  @override
+  void pushBodies(FloatPush push) => pushBodiesInDart(push);
 }
 
 /// Particles of one liquid for [FluidSolver.moveParticles]: [substeps]
@@ -238,4 +255,85 @@ final class ModeRinging {
   final FluidMedium medium;
 
   int get count => k2.length;
+}
+
+/// Pipes for [FluidSolver.flowPipes]: the liquid in each, a column of it,
+/// accelerated by the pressure across its ends over its inertance — its own
+/// length over its section, and the liquid standing over each end over that
+/// vessel's surface — and held back, implicitly, by Hagen–Poiseuille's
+/// friction and the losses where it enters and leaves. Air cannot be
+/// pushed through: an end whose surface is below it gives nothing.
+///
+/// The pressures are the [Pipe]'s to work out, layer by layer and less the
+/// pull of each meniscus; what the new flow carries through is its to move.
+final class PipeFlow {
+  PipeFlow({required this.pipes, required this.dt});
+
+  /// [pipeFloats] doubles a pipe, laid out as the offsets below say; the
+  /// flow is moved in place.
+  final Float64List pipes;
+
+  final double dt;
+
+  int get count => pipes.length ~/ pipeFloats;
+
+  /// Doubles a pipe takes in [pipes].
+  static const int pipeFloats = 11;
+
+  /// Where each part of a pipe is in its record: the flow, cubic metres a
+  /// second from its first vessel to its second; the pressure at its first
+  /// end less the pressure at its second; how deep each end is under its
+  /// vessel's surface; each vessel's surface area; the pipe's bore and
+  /// length; the liquid's density and viscosity; and the loss where it
+  /// enters and leaves, in velocity heads.
+  static const int flow = 0;
+  static const int drive = 1;
+  static const int headFrom = 2;
+  static const int headTo = 3;
+  static const int areaFrom = 4;
+  static const int areaTo = 5;
+  static const int radius = 6;
+  static const int length = 7;
+  static const int density = 8;
+  static const int viscosity = 9;
+  static const int minorLoss = 10;
+}
+
+/// Floating bodies for [FluidSolver.pushBodies]: each push, in order, lifts
+/// a body by the weight of the liquid it displaces for [dt] and slows it
+/// by the drag of the part of it under, implicitly, with White's sphere
+/// coefficient at the Reynolds number of the sphere of its frontal area.
+///
+/// How much of a body is under is the [FloatingBody]'s to work out: it is
+/// geometry, a cap or a cut, not stepped.
+final class FloatPush {
+  FloatPush({
+    required this.bodies,
+    required this.pushes,
+    required this.gravity,
+    required this.dt,
+  });
+
+  /// [bodyFloats] doubles a body: its velocity xyz, moved in place, and its
+  /// inverse mass.
+  final Float64List bodies;
+
+  /// [pushFloats] doubles a push: which body, its shape's kind
+  /// ([sphere], [box], [capsule], or [other] for one with no inside), the
+  /// shape's sizes — a radius; half extents; a radius and half height —
+  /// the volume of it under, and the liquid's density and viscosity.
+  final Float64List pushes;
+
+  final Vector3 gravity;
+  final double dt;
+
+  int get count => pushes.length ~/ pushFloats;
+
+  static const int bodyFloats = 4;
+  static const int pushFloats = 8;
+
+  static const int sphere = 0;
+  static const int box = 1;
+  static const int capsule = 2;
+  static const int other = 3;
 }

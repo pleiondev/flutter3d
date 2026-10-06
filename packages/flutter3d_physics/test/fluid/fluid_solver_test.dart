@@ -16,6 +16,8 @@ final class _Counting implements FluidSolver {
   int particles = 0;
   int parcels = 0;
   int modes = 0;
+  int pipes = 0;
+  int pushes = 0;
 
   @override
   void moveParticles(ParticleMotion motion) {
@@ -33,6 +35,18 @@ final class _Counting implements FluidSolver {
   void ringModes(ModeRinging ringing) {
     modes++;
     const DartFluid().ringModes(ringing);
+  }
+
+  @override
+  void flowPipes(PipeFlow flow) {
+    pipes++;
+    const DartFluid().flowPipes(flow);
+  }
+
+  @override
+  void pushBodies(FloatPush push) {
+    pushes++;
+    const DartFluid().pushBodies(push);
   }
 }
 
@@ -59,7 +73,8 @@ RevolvedVessel _tube(double r, double h) =>
     RevolvedVessel([Vector2(0, 0), Vector2(r, 0), Vector2(r, h)]);
 
 /// A narrow tube tipped over a wide one, pouring: streams, splashes and
-/// waves, on [world].
+/// waves, on [world]; and beside them a vat with a ball floating in it and
+/// a pipe from its floor into the wide tube's.
 ({LiquidBody source, LiquidBody target}) _pour(FluidWorld world) {
   final source = LiquidBody(
     shape: _tube(0.008, 0.1),
@@ -75,10 +90,35 @@ RevolvedVessel _tube(double r, double h) =>
     modes: 4,
     wallThickness: 0.0008,
   );
-  world.bodies.addAll([source, target]);
+  final vat = LiquidBody(
+    shape: _tube(0.05, 0.1),
+    medium: FluidMedium.water,
+    volume: math.pi * 0.05 * 0.05 * 0.05,
+    modes: 4,
+  );
+  world.bodies.addAll([source, target, vat]);
+  world.pipes.add(
+    Pipe(
+      from: vat,
+      at: Vector3(0, 0.002, 0),
+      to: target,
+      toAt: Vector3(0, 0.002, 0),
+      radius: 0.001,
+      length: 0.3,
+    ),
+  );
+  world.float(
+    RigidBody(
+      world: CollisionWorld(),
+      shape: CollisionSphere(0.01),
+      position: Vector3(0.3, 0.04, 0),
+      mass: 0.002,
+    ),
+  );
   for (var i = 0; i < 240; i++) {
     source.place(Matrix3.rotationX(1.3), Vector3(0, 0.1, -0.1045));
     target.place(Matrix3.identity(), Vector3.zero());
+    vat.place(Matrix3.identity(), Vector3(0.3, 0, 0));
     world.advance(world.step);
   }
   return (source: source, target: target);
@@ -106,10 +146,13 @@ void main() {
       expect(world.solver, same(backend.fluid));
       _pour(world);
       // Mutations: a stream made with no solver, particles made with
-      // none, or a body stepped with none, and that count stays at nought.
+      // none, a body, a pipe or a float stepped with none, and that count
+      // stays at nought.
       expect(backend.fluid.parcels, greaterThan(0));
       expect(backend.fluid.particles, greaterThan(0));
       expect(backend.fluid.modes, greaterThan(0));
+      expect(backend.fluid.pipes, greaterThan(0));
+      expect(backend.fluid.pushes, greaterThan(0));
     } finally {
       PhysicsBackend.current = before;
     }

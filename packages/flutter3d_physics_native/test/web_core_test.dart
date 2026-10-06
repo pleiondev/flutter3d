@@ -195,6 +195,61 @@ void main() {
     expect(pour(const NativeLiquid()), closeTo(reference, 0.01 * reference));
   });
 
+  test('a pipe and a float on the module move as the reference\'s do', () {
+    // Two tubes joined at their floors, a ball floating in the fuller one.
+    (double, double) run(FluidSolver solver) {
+      RevolvedVessel tube() =>
+          RevolvedVessel([Vector2(0, 0), Vector2(0.03, 0), Vector2(0.03, 0.5)]);
+      final gravity = Vector3(0, -9.81, 0);
+      final collisions = CollisionWorld();
+      final dynamics = Dynamics(world: collisions, gravity: gravity);
+      final world = FluidWorld(gravity: gravity, solver: solver);
+      final a = LiquidBody(
+        shape: tube(),
+        medium: FluidMedium.water,
+        volume: 3.4e-4,
+        modes: 2,
+      );
+      final b = LiquidBody(
+        shape: tube(),
+        medium: FluidMedium.water,
+        volume: 2.3e-4,
+        modes: 2,
+      );
+      world.bodies.addAll([a, b]);
+      world.pipes.add(
+        Pipe(
+          from: a,
+          at: Vector3(0, 0.001, 0),
+          to: b,
+          toAt: Vector3(0, 0.001, 0),
+          radius: 0.01,
+          length: 0.1,
+        ),
+      );
+      final ball = RigidBody(
+        world: collisions,
+        shape: CollisionSphere(0.01),
+        position: Vector3(0, 0.15, 0),
+        mass: 0.002,
+      );
+      dynamics.add(ball);
+      world.float(ball);
+      for (var i = 0; i < 240; i++) {
+        a.place(Matrix3.identity(), Vector3.zero());
+        b.place(Matrix3.identity(), Vector3(0.2, 0, 0));
+        world.advance(world.step);
+        dynamics.step(world.step);
+      }
+      return (a.height - b.height, ball.position.y);
+    }
+
+    final reference = run(const DartFluid());
+    final core = run(const NativeLiquid());
+    expect(core.$1, closeTo(reference.$1, 1e-4));
+    expect(core.$2, closeTo(reference.$2, 1e-4));
+  });
+
   test('the shared scene steps to the native library\'s bytes', () {
     expect(hashOf(sharedSceneSnapshot()), sharedSceneHash);
   });

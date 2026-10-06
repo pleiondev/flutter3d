@@ -5,8 +5,11 @@
  * box settles at its rest density; a parcel falls as the world falls, runs
  * along a wall it is thrown at, is drawn back to one it drifts off while
  * slow, and grows its ripples only in the air; a mode rings at gravity's
- * frequency, decays, and stands no higher than Stokes' limit; and records
- * of no kind, or cut short, are refused with nothing moved.
+ * frequency, decays, and stands no higher than Stokes' limit; a pipe's
+ * column gathers speed as the pressure across it says and settles at
+ * Poiseuille's flow, and passes nothing through an end above its surface;
+ * a steel ball settles through glycerol at Stokes's speed; and records of
+ * no kind, or cut short, are refused with nothing moved.
  */
 #include <math.h>
 #include <string.h>
@@ -279,6 +282,86 @@ static void modes(void) {
   CHECK_NEAR(fabs((double)big[2]) * 2, 2.0 * PI_D / (14.0 * k), 1e-6);
 }
 
+/* A pipe a millimetre in bore and ten centimetres long, of water, both
+ * ends a centimetre under vessels of ten square centimetres. */
+static void pipe(f3d_real *r, f3d_real flow, f3d_real drive) {
+  const f3d_real p[F3D_LIQUID_PIPE_FLOATS] = {
+      flow, drive, F3D_R(0.01), F3D_R(0.01), F3D_R(1e-3), F3D_R(1e-3),
+      F3D_R(0.001), F3D_R(0.1), F3D_R(998.2), F3D_R(1.002e-3), 0,
+  };
+  memcpy(r, p, sizeof p);
+}
+
+static void pipes(void) {
+  const double a = PI_D * 1e-6;
+  const double inertance = 998.2 * (0.1 / a + 2.0 * 0.01 / 1e-3);
+  const double viscous = 8.0 * 1.002e-3 * 0.1 / (PI_D * 1e-12);
+  /* From rest, one short step: the flow the pressure across it gives the
+   * column's inertance, less the friction's implicit share. */
+  f3d_real r[F3D_LIQUID_PIPE_FLOATS];
+  pipe(r, 0, 100);
+  f3d_liquid_pipes(r, 1, F3D_R(1e-4));
+  CHECK_NEAR(r[0], 1e-4 * 100 / inertance / (1.0 + 1e-4 * viscous / inertance), 1e-5);
+  /* Long after, Poiseuille's: the drive over the viscous resistance. */
+  pipe(r, 0, 100);
+  for (int i = 0; i < 2000; i++) f3d_liquid_pipes(r, 1, F3D_R(0.01));
+  CHECK_NEAR(r[0] * 1e9, 100.0 / viscous * 1e9, 1e-4 * 100.0 / viscous * 1e9);
+  /* An end above its surface passes nothing out of it. */
+  pipe(r, F3D_R(1e-7), 100);
+  r[2] = F3D_R(-0.001);
+  f3d_liquid_pipes(r, 1, F3D_R(0.01));
+  CHECK(r[0] == F3D_R(0.0));
+  /* Two at once, each its own. */
+  f3d_real two[2 * F3D_LIQUID_PIPE_FLOATS];
+  pipe(two, 0, 100);
+  pipe(two + F3D_LIQUID_PIPE_FLOATS, 0, -100);
+  f3d_liquid_pipes(two, 2, F3D_R(0.01));
+  CHECK(two[0] > F3D_R(0.0));
+  CHECK(two[F3D_LIQUID_PIPE_FLOATS] == -two[0]);
+}
+
+static void floats(void) {
+  /* A steel ball a millimetre across falls through glycerol and settles at
+   * Stokes's speed, 2(ρs − ρ)gR²/9μ: the body's own step adds gravity,
+   * the push lifts it and drags it. */
+  F3dLiquidFloatSettings s;
+  memset(&s, 0, sizeof s);
+  s.gravity[1] = F3D_R(-9.81);
+  s.dt = F3D_R(1.0 / 2000.0);
+  const double radius = 0.001, volume = 4.0 / 3.0 * PI_D * radius * radius * radius;
+  f3d_real body[F3D_LIQUID_BODY_FLOATS] = {0, 0, 0, (f3d_real)(1.0 / (7800.0 * volume))};
+  const f3d_real push[F3D_LIQUID_PUSH_FLOATS] = {
+      0, (f3d_real)F3D_LIQUID_SPHERE, (f3d_real)radius, 0, 0, (f3d_real)volume,
+      F3D_R(1261.0), F3D_R(1.412),
+  };
+  for (int i = 0; i < 4000; i++) {
+    body[1] += s.gravity[1] * s.dt;
+    CHECK(f3d_liquid_floats(body, 1, push, 1, &s) == 1);
+  }
+  /* Read, as a world reads it, after the body's own step. */
+  body[1] += s.gravity[1] * s.dt;
+  const double stokes = 2.0 * (7800.0 - 1261.0) * 9.81 * radius * radius / (9.0 * 1.412);
+  CHECK_NEAR(-body[1] * 100.0, stokes * 100.0, 0.01 * stokes * 100.0);
+  CHECK(body[0] == F3D_R(0.0) && body[2] == F3D_R(0.0));
+  /* Nothing under: nothing lifts or drags it. */
+  f3d_real dry[F3D_LIQUID_BODY_FLOATS] = {0, -1, 0, 100};
+  f3d_real none[F3D_LIQUID_PUSH_FLOATS];
+  memcpy(none, push, sizeof none);
+  none[5] = 0;
+  CHECK(f3d_liquid_floats(dry, 1, none, 1, &s) == 1);
+  CHECK_NEAR(dry[1], -1.0, 1e-6);
+  /* A body that is not there, or a shape of no kind, is refused. */
+  f3d_real bad[F3D_LIQUID_PUSH_FLOATS];
+  memcpy(bad, push, sizeof bad);
+  bad[0] = 1;
+  CHECK(f3d_liquid_floats(dry, 1, bad, 1, &s) == 0);
+  memcpy(bad, push, sizeof bad);
+  bad[1] = 9;
+  const f3d_real before = dry[1];
+  CHECK(f3d_liquid_floats(dry, 1, bad, 1, &s) == 0);
+  CHECK(dry[1] == before);
+}
+
 static void refused(void) {
   F3dLiquidParticleSettings s = particle_settings(0.002, 0.001);
   const F3dLiquidStreamSettings st = stream_settings();
@@ -307,6 +390,8 @@ int main(void) {
   coincident();
   parcels();
   modes();
+  pipes();
+  floats();
   refused();
   return finish();
 }

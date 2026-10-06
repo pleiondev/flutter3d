@@ -1,7 +1,9 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'fluid_solver.dart';
 import 'liquid_body.dart';
 
 /// A round pipe joining two vessels below their surfaces: communicating
@@ -50,42 +52,35 @@ final class Pipe {
   /// Cubic metres a second from [from] to [to]; negative the other way.
   double flow = 0.0;
 
-  /// Moves the liquid in the pipe on by [dt] under [gravity].
-  void step(double dt, {required Vector3 gravity}) {
+  /// Moves the liquid in the pipe on by [dt] under [gravity]. The column is
+  /// driven on by [solver] — the reference unless a `FluidWorld` passes the
+  /// run's — from the pressures worked out here.
+  void step(
+    double dt, {
+    required Vector3 gravity,
+    FluidSolver solver = const DartFluid(),
+  }) {
     final medium = from.medium;
-    final rho = medium.density;
     final g = gravity.length;
     if (g <= 0.0) return;
-    final a = math.pi * radius * radius;
-    final head0 = from.depthAbove(at);
-    final head1 = to.depthAbove(toAt);
     // Every layer over each end, at its own density, less the meniscus's
     // pull.
     final p0 = from.pressureAt(at) - from.capillaryPressure;
     final p1 = to.pressureAt(toAt) - to.capillaryPressure;
-    // Air cannot be pushed through: a side whose surface is below its end
-    // gives nothing.
-    if (head0 <= 0.0 && flow > 0.0) flow = 0.0;
-    if (head1 <= 0.0 && flow < 0.0) flow = 0.0;
-    final inertance =
-        rho *
-        (length / a +
-            math.max(head0, 0.0) / math.max(from.surface.area, a) +
-            math.max(head1, 0.0) / math.max(to.surface.area, a));
-    final viscous =
-        8.0 *
-        medium.viscosity *
-        length /
-        (math.pi * (radius * radius * radius * radius));
-    final quadratic = minorLoss * rho * flow.abs() / (2.0 * a * a);
-    // Friction taken implicitly, so a thick liquid in a thin pipe is stable
-    // at any step.
-    var drive = p0 - p1;
-    if (head0 <= 0.0 && drive > 0.0) drive = 0.0;
-    if (head1 <= 0.0 && drive < 0.0) drive = 0.0;
-    flow =
-        (flow + dt * drive / inertance) /
-        (1.0 + dt * (viscous + quadratic) / inertance);
+    final record = Float64List(PipeFlow.pipeFloats)
+      ..[PipeFlow.flow] = flow
+      ..[PipeFlow.drive] = p0 - p1
+      ..[PipeFlow.headFrom] = from.depthAbove(at)
+      ..[PipeFlow.headTo] = to.depthAbove(toAt)
+      ..[PipeFlow.areaFrom] = from.surface.area
+      ..[PipeFlow.areaTo] = to.surface.area
+      ..[PipeFlow.radius] = radius
+      ..[PipeFlow.length] = length
+      ..[PipeFlow.density] = medium.density
+      ..[PipeFlow.viscosity] = medium.viscosity
+      ..[PipeFlow.minorLoss] = minorLoss;
+    solver.flowPipes(PipeFlow(pipes: record, dt: dt));
+    flow = record[PipeFlow.flow];
     // The liquid at each opening goes through: the layer it opens into.
     final moved = flow * dt;
     if (moved > 0.0) {
@@ -93,5 +88,47 @@ final class Pipe {
     } else if (moved < 0.0) {
       to.drawAt(toAt, -moved).forEach(from.add);
     }
+  }
+}
+
+/// [flow] driven in Dart: what [DartFluid.flowPipes] does.
+void flowPipesInDart(PipeFlow flow) {
+  final dt = flow.dt;
+  for (var i = 0; i < flow.count; i++) {
+    final r = Float64List.sublistView(
+      flow.pipes,
+      i * PipeFlow.pipeFloats,
+      (i + 1) * PipeFlow.pipeFloats,
+    );
+    final rho = r[PipeFlow.density];
+    final radius = r[PipeFlow.radius];
+    final length = r[PipeFlow.length];
+    final head0 = r[PipeFlow.headFrom];
+    final head1 = r[PipeFlow.headTo];
+    var q = r[PipeFlow.flow];
+    final a = math.pi * radius * radius;
+    // Air cannot be pushed through: a side whose surface is below its end
+    // gives nothing.
+    if (head0 <= 0.0 && q > 0.0) q = 0.0;
+    if (head1 <= 0.0 && q < 0.0) q = 0.0;
+    final inertance =
+        rho *
+        (length / a +
+            math.max(head0, 0.0) / math.max(r[PipeFlow.areaFrom], a) +
+            math.max(head1, 0.0) / math.max(r[PipeFlow.areaTo], a));
+    final viscous =
+        8.0 *
+        r[PipeFlow.viscosity] *
+        length /
+        (math.pi * (radius * radius * radius * radius));
+    final quadratic = r[PipeFlow.minorLoss] * rho * q.abs() / (2.0 * a * a);
+    // Friction taken implicitly, so a thick liquid in a thin pipe is stable
+    // at any step.
+    var drive = r[PipeFlow.drive];
+    if (head0 <= 0.0 && drive > 0.0) drive = 0.0;
+    if (head1 <= 0.0 && drive < 0.0) drive = 0.0;
+    r[PipeFlow.flow] =
+        (q + dt * drive / inertance) /
+        (1.0 + dt * (viscous + quadratic) / inertance);
   }
 }

@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **Pipes and floating bodies are on the run's backend too.** `FluidSolver`
+  gains `flowPipes(PipeFlow)`, the column in each pipe driven by the
+  pressure across it and held back by its friction, and
+  `pushBodies(FloatPush)`, a floating body lifted by what it displaces and
+  slowed by drag; `FluidWorld` steps both through its solver, and
+  `Pipe.step` and `FloatingBody.push` take a `solver` like the rest. The
+  pressures at a pipe's ends and how much of a body is under the surface
+  are worked out in Dart on both backends; on the reference everything
+  steps exactly as before. A `FluidSolver` written outside this package
+  needs the two new methods.
+
 - **Liquids come from the run's backend.** A `FluidWorld` steps its waves,
   streams and spilt particles on a `FluidSolver`, which is
   `PhysicsBackend.current.fluid` when the world is made unless it is given

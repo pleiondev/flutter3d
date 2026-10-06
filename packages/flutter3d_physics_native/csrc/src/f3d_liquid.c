@@ -35,6 +35,15 @@
  * sine, cosine and exponential are this file's own, since the WebAssembly
  * build has no C library.
  *
+ * Pipes (Pipe): the column in each is driven by the pressure across its
+ * ends over its inertance and held back, implicitly, by Hagen–Poiseuille's
+ * friction and the losses where it enters and leaves.
+ *
+ * Floats (FloatingBody): a body is lifted by the weight of the liquid it
+ * displaces and slowed, implicitly, by the drag of the part of it under,
+ * with White's sphere coefficient for the sphere of its frontal area. How
+ * much of it is under is the Dart side's: geometry, not stepped.
+ *
  * Walls are planes, and the inside and outside of a vessel turned from a
  * profile (RevolvedVessel's InsideWalls and OutsideWalls).
  */
@@ -820,4 +829,96 @@ void f3d_liquid_modes(f3d_real *modes, uint32_t count, const F3dLiquidWaveSettin
     m[4] = (f3d_real)(w * w);
     m[5] = (f3d_real)decay;
   }
+}
+
+/* -------------------------------------------------------------- pipes */
+
+void f3d_liquid_pipes(f3d_real *pipes, uint32_t count, f3d_real dt_real) {
+  const double pi = 3.14159265358979323846;
+  const double dt = (double)dt_real;
+  for (uint32_t i = 0; i < count; i++) {
+    f3d_real *r = pipes + (size_t)i * F3D_LIQUID_PIPE_FLOATS;
+    double q = (double)r[0];
+    double drive = (double)r[1];
+    const double head0 = (double)r[2], head1 = (double)r[3];
+    const double radius = (double)r[6], length = (double)r[7];
+    const double rho = (double)r[8], mu = (double)r[9], loss = (double)r[10];
+    const double a = pi * radius * radius;
+    /* Air cannot be pushed through. */
+    if (head0 <= 0.0 && q > 0.0) q = 0.0;
+    if (head1 <= 0.0 && q < 0.0) q = 0.0;
+    const double inertance = rho * (length / a + dmax(head0, 0.0) / dmax((double)r[4], a) +
+                                    dmax(head1, 0.0) / dmax((double)r[5], a));
+    const double viscous = 8.0 * mu * length / (pi * (radius * radius * radius * radius));
+    const double quadratic = loss * rho * dabs(q) / (2.0 * a * a);
+    if (head0 <= 0.0 && drive > 0.0) drive = 0.0;
+    if (head1 <= 0.0 && drive < 0.0) drive = 0.0;
+    /* Friction taken implicitly: stable at any step. */
+    r[0] = (f3d_real)((q + dt * drive / inertance) / (1.0 + dt * (viscous + quadratic) / inertance));
+  }
+}
+
+/* ------------------------------------------------------------- floats */
+
+/* White's drag coefficient of a sphere at Reynolds number [re]. */
+static double sphere_drag(double re) {
+  if (re <= 0.0) return 0.0;
+  return 24.0 / re + 6.0 / (1.0 + dsqrt(re)) + 0.4;
+}
+
+int f3d_liquid_floats(f3d_real *bodies, uint32_t body_count, const f3d_real *pushes,
+                      uint32_t count, const F3dLiquidFloatSettings *settings) {
+  for (uint32_t i = 0; i < count; i++) {
+    const f3d_real *r = pushes + (size_t)i * F3D_LIQUID_PUSH_FLOATS;
+    if (!(r[0] >= F3D_R(0.0)) || !(r[0] < (f3d_real)body_count) ||
+        (f3d_real)(uint32_t)r[0] != r[0] || !(r[1] >= F3D_R(0.0)) ||
+        !(r[1] <= (f3d_real)F3D_LIQUID_OTHER) || (f3d_real)(uint32_t)r[1] != r[1]) {
+      return 0;
+    }
+  }
+  const double pi = 3.14159265358979323846;
+  const double dt = (double)settings->dt;
+  const double g[3] = {(double)settings->gravity[0], (double)settings->gravity[1],
+                       (double)settings->gravity[2]};
+  for (uint32_t i = 0; i < count; i++) {
+    const f3d_real *r = pushes + (size_t)i * F3D_LIQUID_PUSH_FLOATS;
+    f3d_real *b = bodies + (size_t)(uint32_t)r[0] * F3D_LIQUID_BODY_FLOATS;
+    const uint32_t kind = (uint32_t)r[1];
+    const double sa = (double)r[2], sb = (double)r[3], sc = (double)r[4];
+    const double under = (double)r[5], rho = (double)r[6], mu = (double)r[7];
+    const double inverse_mass = (double)b[3];
+    /* Archimedes, as an impulse. */
+    double v[3];
+    for (int k = 0; k < 3; k++) v[k] = (double)b[k] - g[k] * rho * under * dt * inverse_mass;
+    const double speed = dsqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (speed > 1e-9) {
+      const double dx = v[0] / speed, dy = v[1] / speed, dz = v[2] / speed;
+      double area = 0.0, whole = 1.0;
+      switch (kind) {
+        case F3D_LIQUID_SPHERE:
+          area = pi * sa * sa;
+          whole = 4.0 / 3.0 * pi * sa * sa * sa;
+          break;
+        case F3D_LIQUID_BOX:
+          area = 4.0 * (sb * sc * dabs(dx) + sa * sc * dabs(dy) + sa * sb * dabs(dz));
+          whole = 8.0 * sa * sb * sc;
+          break;
+        case F3D_LIQUID_CAPSULE:
+          area = pi * sa * sa + 4.0 * sa * sb * dsqrt(dmax(1.0 - dy * dy, 0.0));
+          whole = pi * sa * sa * (2.0 * sb + 4.0 / 3.0 * sa);
+          break;
+        default:
+          break;
+      }
+      const double share = whole > 0.0 ? dmax(0.0, under / whole < 1.0 ? under / whole : 1.0) : 0.0;
+      const double diameter = dsqrt(4.0 * area / pi);
+      const double re = rho * speed * diameter / mu;
+      const double k = 0.5 * rho * sphere_drag(re) * area * share * speed * inverse_mass;
+      /* Gravity taken into the implicit solve and back out: the body's own
+       * step adds it after. */
+      for (int c = 0; c < 3; c++) v[c] = (v[c] + g[c] * dt) / (1.0 + k * dt) - g[c] * dt;
+    }
+    for (int c = 0; c < 3; c++) b[c] = (f3d_real)v[c];
+  }
+  return 1;
 }

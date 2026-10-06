@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 20;
+const int abiVersion = 21;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -123,6 +123,23 @@ const int liquidParticleFloats = 6;
 const int liquidParcelFloats = 17;
 
 const int liquidModeFloats = 6;
+
+/// `F3D_LIQUID_PIPE_FLOATS`, `F3D_LIQUID_BODY_FLOATS` and
+/// `F3D_LIQUID_PUSH_FLOATS`.
+const int liquidPipeFloats = 11;
+
+const int liquidBodyFloats = 4;
+
+const int liquidPushFloats = 8;
+
+/// `F3D_LIQUID_SPHERE` and the rest: the shape a push of
+/// `f3d_liquid_floats` names.
+abstract final class LiquidFloatShape {
+  static const int sphere = 0;
+  static const int box = 1;
+  static const int capsule = 2;
+  static const int other = 3;
+}
 
 /// `F3D_LIQUID_PLANE` and the rest: what each wall record of
 /// `f3d_liquid_particles` and `f3d_liquid_parcels` starts with.

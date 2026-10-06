@@ -22,9 +22,10 @@ import 'pipe.dart';
 /// over, so a run is the same run on any frame rate.
 ///
 /// **On the run's physics.** The parts of it stepped through time — the
-/// waves, the streams in the air, the spilt particles — are [solver]'s,
-/// which is the run's backend's unless the world is given another: the
-/// core where the run is on it, the Dart reference where it is not
+/// waves, the streams in the air, the spilt particles, the liquid in the
+/// pipes and the bodies floating in it — are [solver]'s, which is the run's
+/// backend's unless the world is given another: the core where the run is
+/// on it, the Dart reference where it is not
 /// ([FluidSolver]). What is where, and how much, is kept here either way.
 
 final class FluidWorld {
@@ -42,7 +43,8 @@ final class FluidWorld {
   /// Seconds per step.
   final double step;
 
-  /// What steps the waves, the streams and the particles:
+  /// What steps the waves, the streams, the particles, the pipes and what
+  /// floats:
   /// `PhysicsBackend.current.fluid` when the world was made, unless it was
   /// given one.
   final FluidSolver solver;
@@ -104,12 +106,12 @@ final class FluidWorld {
     for (final liquid in bodies) {
       var displaced = 0.0;
       for (final f in floating) {
-        displaced += f.push(liquid, dt, gravity);
+        displaced += f.push(liquid, dt, gravity, solver: solver);
       }
       liquid.displaced = displaced;
     }
     for (final pipe in pipes) {
-      pipe.step(dt, gravity: gravity);
+      pipe.step(dt, gravity: gravity, solver: solver);
     }
     for (final body in bodies) {
       final spill = body.step(dt, gravity: gravity, solver: solver);

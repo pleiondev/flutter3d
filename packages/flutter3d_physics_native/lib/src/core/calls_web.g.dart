@@ -571,6 +571,16 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber count,
     JSNumber settings,
   );
+  @JS('f3d_liquid_pipes')
+  external void f3d_liquid_pipes(JSNumber pipes, JSNumber count, JSNumber dt);
+  @JS('f3d_liquid_floats')
+  external JSNumber f3d_liquid_floats(
+    JSNumber bodies,
+    JSNumber bodyCount,
+    JSNumber pushes,
+    JSNumber count,
+    JSNumber settings,
+  );
   @JS('f3d_world_snapshot_size')
   external JSNumber f3d_world_snapshot_size(JSNumber world);
   @JS('f3d_world_snapshot_write')
@@ -1591,6 +1601,23 @@ int f3d_liquid_parcels(
     .toDartInt;
 void f3d_liquid_modes(int modes, int count, int settings) =>
     _x.f3d_liquid_modes(modes.toJS, count.toJS, settings.toJS);
+void f3d_liquid_pipes(int pipes, int count, double dt) =>
+    _x.f3d_liquid_pipes(pipes.toJS, count.toJS, dt.toJS);
+int f3d_liquid_floats(
+  int bodies,
+  int bodyCount,
+  int pushes,
+  int count,
+  int settings,
+) => _x
+    .f3d_liquid_floats(
+      bodies.toJS,
+      bodyCount.toJS,
+      pushes.toJS,
+      count.toJS,
+      settings.toJS,
+    )
+    .toDartInt;
 int f3d_world_snapshot_size(int world) =>
     _x.f3d_world_snapshot_size(world.toJS).toDartInt.toUnsigned(32);
 int f3d_world_snapshot_write(int world, int buffer, int size) => _x
