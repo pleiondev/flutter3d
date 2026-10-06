@@ -1,5 +1,0 @@
-
-# The build hook's own output, compiled on every build. Kept as a directory,
-# and only that: `pubspec.yaml` names it as an asset directory.
-/flutter3d_generated/**
-!/flutter3d_generated/.gitkeep

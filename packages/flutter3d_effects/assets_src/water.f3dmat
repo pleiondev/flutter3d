@@ -1,13 +1,15 @@
-// The valley's water, drawn as water: ripples the flow carries along, the
-// sky in it as strongly as Fresnel says, the sun's glint, the colour a depth
-// of water gives what is under it, and froth where the falls drove air in.
+// The physics core's water, drawn as water: ripples the flow carries
+// along, the sky in it as strongly as Fresnel says, the sun's glint, the
+// colour a depth of water gives what is under it, and froth where falling
+// water drove air in. `tool/build_materials.dart` compiles it into
+// `assets/water.f3dshaders`; `WaterLook` binds it.
 //
 // The mesh says what the shader cannot see for itself. Each vertex's colour
 // is the flow at it, x and z, as 0.5 + velocity / 8 in red and green, and
 // the froth, the share of it that is air over three hundredths, in blue; its
 // first texture coordinate is how deep the water is there, m.
 material Water {
-  // Seconds since the valley opened; the game moves it every frame.
+  // Seconds since the water was first drawn; moved every frame.
   uniform float time = 0.0;
   // How steep the ripples are: a wind roughens the water.
   uniform float chop = 1.0;

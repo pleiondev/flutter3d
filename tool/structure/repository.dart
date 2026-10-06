@@ -1213,6 +1213,12 @@ const Map<String, Map<String, String>> portableStepExempt =
             'a dropped-frame meter, measured against the wall clock — it is '
             'already a thing no two machines agree about',
       },
+      'flutter3d_effects': <String, String>{
+        'lib/src/fire_view.dart':
+            'tongues of flame, smoke and embers drawn for a person to look '
+            'at, from fires the core has already stepped; nothing steps on '
+            'a particle of them',
+      },
       'flutter3d_editor_core': <String, String>{
         'lib/src/picking.dart':
             'where a click points, given a camera. Nothing steps on it: the '

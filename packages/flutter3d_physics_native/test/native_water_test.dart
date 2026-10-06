@@ -100,6 +100,45 @@ void main() {
     expect(world.sampleWater(basin, 2.0, 2.0)!.surface, closeTo(0.7, 1e-6));
   });
 
+  test('spray and bubbles are read for one water of several', () {
+    // A step two metres high with a pool under it, fed at the top: its
+    // sheet falls and drags air into the pool. A still pond beside it
+    // throws nothing.
+    final falls = world.createWater(
+      nx: 24,
+      nz: 4,
+      cell: 0.25,
+      origin: Vector3.zero(),
+      ground: <double>[
+        for (var j = 0; j < 4; j++)
+          for (var i = 0; i < 24; i++) i < 8 ? 2.0 : 0.0,
+      ],
+    );
+    final pond = world.createWater(
+      nx: 8,
+      nz: 8,
+      cell: 0.25,
+      origin: Vector3(20.0, 0.0, 0.0),
+      ground: List<double>.filled(64, 0.0),
+    );
+    world
+      ..fillWater(falls, x0: 2.0, z0: -1, x1: 9, z1: 9, level: 0.5)
+      ..fillWater(pond, x0: 0, z0: 0, x1: 99, z1: 99, level: 0.3)
+      ..setWaterSource(falls, 0, x: 0.5, z: 0.5, radius: 0.3, rate: 0.05);
+    // Five seconds: the stream reaches the lip in two, its sheet lands and
+    // drags air in by four.
+    for (var i = 0; i < 300; i++) {
+      world.step(1.0 / 60.0);
+    }
+    // Mutation: drop the filter in `_readOfWater` — the pond reads the
+    // falls' spray as its own.
+    expect(world.readSpray(of: falls), isNotEmpty);
+    expect(world.readSpray(of: falls), world.readSpray());
+    expect(world.readSpray(of: pond), isEmpty);
+    expect(world.readBubbles(of: falls), isNotEmpty);
+    expect(world.readBubbles(of: pond), isEmpty);
+  });
+
   test('a ball lighter than water floats in it', () {
     final pond = world.createWater(
       nx: 32,

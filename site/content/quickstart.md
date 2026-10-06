@@ -91,7 +91,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 12006 tests across 45 packages and fourteen applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so ninety-six scenes stay checkable in a headless run.
+There are 12011 tests across 46 packages and fourteen applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so ninety-six scenes stay checkable in a headless run.
 
 ## Your own application
 

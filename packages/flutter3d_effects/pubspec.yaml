@@ -1,0 +1,47 @@
+name: flutter3d_effects
+description: >-
+  The physics core's water and fire, drawn: a water surface lit as water is,
+  a waterfall as one sheet with its spray, bubbles and froth, and flames,
+  smoke, embers and firelight read off the core's fires.
+version: 0.9.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - effects
+  - water
+  - fire
+  - graphics
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  # The scene, meshes, materials and the renderer the views draw into — the
+  # Flutter-free core, so the package runs under `dart test`.
+  flutter3d_core: ^0.9.0
+  # The flames, embers and smoke, and the six-way smoke sheet's baker.
+  flutter3d_particles: ^0.9.0
+  # What is drawn: the core's water, spray, bubbles and fires.
+  flutter3d_physics_native: ^0.9.0
+  vector_math: ^2.2.0
+  # `hook/build.dart`: the material compiler the build hook runs for a
+  # game's own materials, run here for the package's, and the hook contract.
+  flutter3d_build: ^0.9.0
+  flutter3d_shaders: ^0.9.0
+  hooks: ^2.0.0
+
+dev_dependencies:
+  test: ^1.25.0
+  # The software device the tests draw on.
+  flutter3d_cpu: ^0.9.0
+  flutter_lints: ^6.0.0
+
+resolution: workspace
+
+flutter:
+  assets:
+    # The water's material, compiled from `assets_src/water.f3dmat` by
+    # `hook/build.dart` on every build: an application loads it as
+    # `WaterLook.asset`.
+    - assets/

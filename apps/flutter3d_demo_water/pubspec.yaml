@@ -20,14 +20,8 @@ dependencies:
   # spray, and the stones and logs that fall into it.
   flutter3d_physics_native: ^0.9.0
 
-  # The fire's flames, embers and smoke.
-  flutter3d_particles: ^0.9.0
-
-  # The build hook (`hook/build.dart`) that compiles `assets_src/water.f3dmat`
-  # into `flutter3d_generated/water.f3dshaders`, and the smoke's six-way
-  # baker the bonfire runs once as it is laid.
-  flutter3d_build:
-    path: ../../packages/flutter3d_build
+  # The water and the fire, drawn.
+  flutter3d_effects: ^0.9.0
 
   vector_math: ^2.2.0
 
@@ -35,7 +29,3 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-
-flutter:
-  assets:
-    - flutter3d_generated/

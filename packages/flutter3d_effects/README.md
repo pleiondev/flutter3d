@@ -1,0 +1,54 @@
+# flutter3d_effects
+
+The physics core's water and fire, drawn.
+
+```dart
+final look = await WaterLook.load(
+  device: device,
+  renderer: renderer,
+  bundle: await rootBundle.load(WaterLook.asset),
+);
+final water = WaterView(
+  world: world, water: pond, ground: heights,
+  device: device, scene: scene, look: look.material,
+);
+final fire = FireView(world: world, device: device, scene: scene, renderer: renderer);
+
+// every frame, after world.step(dt):
+water.update();
+fire.update(dt);
+look.update(seconds: clock, eye: camera.position);
+```
+
+`flutter3d_physics_native` simulates shallow water over ground, the sheet
+a stream throws off a cliff with its spray and bubbles, and fires that heat
+bodies, burn them and spread. This package draws what it simulates and
+adds nothing to it: every number on screen is read off the core.
+
+A **`WaterView`** is one water: its surface, one vertex a cell, lit by the
+`WaterLook` material with ripples the flow carries, the sky mirrored as
+strongly as Fresnel says, the colour a depth of water gives the bed and
+froth where falling water drove air in; the sheet off a lip drawn as one
+sheet, sewn row to row; the drops it breaks into; the bubbles it drags
+down.
+
+A **`FireView`** is every fire of a world: tongues rising through each
+flame as fast as the gas in a real flame rises, along the axis the core
+leans it by the wind; lit smoke over it at the plume's speed; embers;
+firelight; and the bodies it was told to watch charring as their fuel
+goes.
+
+There is no Flutter in it, so it runs under `dart test`. An application
+hands it one thing, the material's compiled bundle, from its asset bundle
+as `WaterLook.asset`. The package's build hook compiles that bundle from
+`assets_src/water.f3dmat` on every build, with the compiler a game's own
+hook runs, so nothing is run by hand after a checkout; the bundle is tied to
+the Flutter SDK and is not committed. `dart test`, which runs no hook, wants
+`dart run tool/build_materials.dart` first.
+
+`WaterDetail.light` and `FireDetail.light` draw less for a phone.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
+3D engine for Flutter.

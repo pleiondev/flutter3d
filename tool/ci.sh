@@ -91,6 +91,10 @@ step "shaders" in_dir packages/flutter3d_impeller dart run bin/build_shader_bund
 # without it; the `loaded-shader` golden is what loads it.
 step "example shaders" in_dir packages/flutter3d/example ./tool/build_shaders.sh
 
+# The water's material, which `flutter3d_effects`' own hook compiles on every
+# application build — and which `dart test` there, which runs no hook, reads.
+step "effects materials" in_dir packages/flutter3d_effects dart run tool/build_materials.dart
+
 # **And the one structure rule that could not fire where the scan runs.** The
 # bundle is gitignored, so a fresh checkout has none and the freshness rule
 # returned "nothing to compare" on the only machine that runs every rule — for

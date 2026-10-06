@@ -1855,29 +1855,46 @@ final class NativeWorld {
   }
 
   /// The spray in flight, [nativeSprayFloats] reals a drop — where it is, its
-  /// velocity, and the water it carries — up to [capacity] drops.
-  Float32List readSpray({int capacity = c.waterMostSpray}) {
-    final out = c.F32s.alloc(capacity * c.sprayFloats);
+  /// velocity, and the water it carries — up to [capacity] drops; of every
+  /// water in the world, or only of [of].
+  Float32List readSpray({int capacity = c.waterMostSpray, NativeWater? of}) =>
+      _readOfWater(capacity, c.sprayFloats, c.f3d_world_read_spray, of);
+
+  /// Up to [capacity] pieces of [floats] reals each read by [read], and of
+  /// them, when [of] is given, only the ones in that water.
+  Float32List _readOfWater(
+    int capacity,
+    int floats,
+    int Function(int, int, int, int) read,
+    NativeWater? of,
+  ) {
+    final out = c.F32s.alloc(capacity * floats);
+    final waters = of == null ? null : c.U32s.alloc(capacity);
     try {
-      final count = c.f3d_world_read_spray(_live, out, 0, capacity);
-      return out.copy(count * c.sprayFloats);
+      final count = read(_live, out, waters ?? 0, capacity);
+      final all = out.copy(count * floats);
+      if (waters == null) return all;
+      final kept = <int>[
+        for (var k = 0; k < count; k++)
+          if (waters[k] == of!.id) k,
+      ];
+      return Float32List(kept.length * floats)..setAll(0, <double>[
+        for (final k in kept) ...all.sublist(k * floats, (k + 1) * floats),
+      ]);
     } finally {
       out.free();
+      waters?.free();
     }
   }
 
   /// The bubbles in the water, [nativeBubbleFloats] reals a cloud, up to
   /// [capacity] clouds: what a sheet plunging into water dragged down,
-  /// rising and carried by the flow until they reach the surface.
-  Float32List readBubbles({int capacity = c.waterMostBubbles}) {
-    final out = c.F32s.alloc(capacity * c.bubbleFloats);
-    try {
-      final count = c.f3d_world_read_bubbles(_live, out, 0, capacity);
-      return out.copy(count * c.bubbleFloats);
-    } finally {
-      out.free();
-    }
-  }
+  /// rising and carried by the flow until they reach the surface; in every
+  /// water in the world, or only in [of].
+  Float32List readBubbles({
+    int capacity = c.waterMostBubbles,
+    NativeWater? of,
+  }) => _readOfWater(capacity, c.bubbleFloats, c.f3d_world_read_bubbles, of);
 
   /// A multibody rooted at [root]: a tree of bodies held by joints in
   /// reduced coordinates, each link placed by its parent and its joint's

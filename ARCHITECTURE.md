@@ -240,6 +240,7 @@ point of §3.3.
 | `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder — and two libraries under it that import on their own: `geometry.dart`, the mesh vocabulary every decoder and every editable mesh share (`MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh`), and `formats.dart`, model documents, their decoders (glTF, OBJ, STL, `.f3d`, and FBX refused with a reason) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs ([§8.1](#81-model-decoding), [§8.6](#86-writers)). Plain Dart |
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | The particle simulation and what draws it: `ParticleSystem`, emission, affectors, curves, and the billboard and mesh pass contributors. The contributors draw through `flutter3d_core`, so `flutter3d_model_core`'s `BakeParticleSystemJobRequest` depends on it directly. Plain Dart |
+| `flutter3d_effects` | The physics core's water and fire, drawn: `WaterView` (a water's surface with the `WaterLook` material, its falling sheet, drops and bubbles) and `FireView` (flames, lit smoke, embers, firelight, charring), read off `flutter3d_physics_native` and drawn through `flutter3d_core` and `flutter3d_particles`. Plain Dart |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid, an XPBD cloth solver |
 | `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
 | `flutter3d_lab` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives — `edu-04`'s pendulum is the first. Plain Dart |
@@ -2707,7 +2708,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **12006 tests** across 45 packages and 10 applications |
+| Unit tests | **12011 tests** across 46 packages and 10 applications |
 | Structure rules | 36, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -3712,7 +3713,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  forty-five packages, the unpublished ones included — `pub publish
+  forty-six packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -3737,7 +3738,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 2. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_audio`,
    `flame_multiplayer_dashwire`, `flutter3d_physics_native`
 3. `flutter3d_mesh`, `flutter3d_particles`, `flutter3d_editor_widgets`
-4. `flutter3d`, `flutter3d_model_core`
+4. `flutter3d`, `flutter3d_model_core`, `flutter3d_effects`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_sim`
 6. `flutter3d_editor_core`, `flutter3d_app`, `flutter3d_editor_play`,

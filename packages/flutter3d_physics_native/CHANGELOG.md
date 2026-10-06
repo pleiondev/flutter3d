@@ -23,6 +23,10 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **Spray and bubbles can be read for one water.** `readSpray` and
+  `readBubbles` take `of:`, so a world with a flooded hall and a fountain
+  draws each one's falling water over its own surface.
+
 - **A log catches at its surface while its middle is cold.** Heat used to
   be one temperature through a body, so a 55 kg log had to be heated
   through, 26 MJ, before it could catch: half an hour in a flame. Now heat

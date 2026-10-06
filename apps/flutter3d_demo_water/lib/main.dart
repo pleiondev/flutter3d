@@ -23,6 +23,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -58,8 +59,6 @@ class WaterScreen extends StatefulWidget {
 
 class _WaterScreenState extends State<WaterScreen>
     with SingleTickerProviderStateMixin {
-  static const String _waterBundle = 'flutter3d_generated/water.f3dshaders';
-
   /// Where the sun shines along.
   static Vector3 get _sunAlong => Vector3(0.35, -0.7, -0.6);
 
@@ -95,18 +94,12 @@ class _WaterScreenState extends State<WaterScreen>
     try {
       final device = await openDevice(width: 1280, height: 800);
       final renderer = Renderer.create(device: device);
-      // The water's own material, compiled from `assets_src/water.f3dmat`
-      // by the build hook.
-      final bundle = await rootBundle.load(_waterBundle);
-      renderer.addMaterials(await device.loadShaders(bundle));
-      final materials = BundledMaterials.read(bundle);
-      final water = Material(
-        name: 'water',
-        lighting: materials['Water'],
-        parameters: materials.parameters('Water'),
-        alphaMode: MaterialAlphaMode.blend,
-      );
-      water.parameters['toSun']!.setAll(0, (-_sunAlong).normalized().storage);
+      // The water's material, as `flutter3d_effects` ships it.
+      final water = await WaterLook.load(
+        device: device,
+        renderer: renderer,
+        bundle: await rootBundle.load(WaterLook.asset),
+      )..sun(along: _sunAlong, light: Vector3(2.0, 1.95, 1.85));
       final scene = Scene()
         ..ambientIntensity = 0.45
         ..ambientColor = Vector3(0.70, 0.80, 1.0)
@@ -147,7 +140,7 @@ class _WaterScreenState extends State<WaterScreen>
     _camera
       ..setPosition(eye.x, eye.y, eye.z)
       ..lookAt(target);
-    _playing?.run.look.parameters['eye']!.setAll(0, eye.storage);
+    _playing?.run.eye.setFrom(eye);
   }
 
   /// A stone dropped where the pointer at [at] meets the valley.
@@ -297,11 +290,11 @@ class _Panel extends StatelessWidget {
             'valley ${valleySize.round()} m',
           ),
           Text(
-            run.bonfire.burning == 0
+            run.fireView.burning == 0
                 ? 'Bonfire cold'
-                : 'Bonfire: ${run.bonfire.burning} '
-                      '${run.bonfire.burning == 1 ? 'log' : 'logs'} burning, '
-                      '${(run.bonfire.watts / 1000).round()} kW going up',
+                : 'Bonfire: ${run.fireView.burning} '
+                      '${run.fireView.burning == 1 ? 'log' : 'logs'} burning, '
+                      '${(run.fireView.watts / 1000).round()} kW going up',
           ),
           const SizedBox(height: 6),
           const Text(
