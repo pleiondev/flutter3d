@@ -66,10 +66,14 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_build`](packages/flutter3d_build) | The build hook: model and texture sources converted into what the engine loads, on every build, with a content-hash cache |
 | [`packages/flutter3d_lab`](packages/flutter3d_lab) | Virtual laboratory simulations a server can replay with no Flutter SDK. The pendulum is the first |
 | [`packages/flutter3d_voxel`](packages/flutter3d_voxel) | A world of blocks: chunks over a seeded terrain, edits saved as deltas against the seed, greedy meshes to draw, greedy boxes to collide with on either physics backend, and a navigation mesh baked again only where an edit landed. Plain Dart. [README](packages/flutter3d_voxel/README.md) |
+| [`packages/flame_flutter3d`](packages/flame_flutter3d), [`flame_flutter3d_audio`](packages/flame_flutter3d_audio) | A bridge to the Flame engine: Flame draws its layer and flutter3d its own, with transforms, lifecycle, physics contacts, input and actors kept in step between them; and the audio scene as a Flame component |
+| [`packages/flame_multiplayer`](packages/flame_multiplayer), [`flame_multiplayer_dashwire`](packages/flame_multiplayer_dashwire) | Play over a network for a game: rooms of two to eight, rollback in step, an authoritative server with predicting clients, turns, ghosts and spectators from the tape; and a dashwire connection as its wire |
+| [`packages/flutter3d_lti`](packages/flutter3d_lti) | LTI 1.3 launch and xAPI reporting for a lesson in a learning platform: OIDC login, `id_token` checked against the platform's keys, grades back, statements out. Plain Dart |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
+| [`apps/flutter3d_demo_arcade`](apps/flutter3d_demo_arcade) | Meteor Yard: a top-down ship over a 3D yard, with Flame drawing the ship and the bots and every bridge in `flame_flutter3d` doing real work at once |
 | [`apps/flutter3d_demo_sandbox`](apps/flutter3d_demo_sandbox) | A first-person sandbox on `flutter3d_voxel`: walk the hills, dig a block out, put one back from a hotbar of four, and find the world as you left it on the next launch |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
 | [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | The model editor: mesh editing, materials and a texture graph, UV, sculpting, retopology, texture painting, rigging and animation, simulation and LOD over one project document, with undo that records who made each change. On macOS and in a browser, where it is <https://models.pleion.dev> |
@@ -188,9 +192,10 @@ mesh particles. Rendering into a mip level came with them. `ColorTarget.mipLevel
 names a face and a level, and the environment map is prefiltered through it.
 Compressed pixel formats are here too: the BC, ETC2 and ASTC families are in
 `TextureFormat`, every backend answers `supportsTextureFormat` for itself, and
-a KTX2 that arrives is read. No asset in this repository ships a compressed
-texture, though, because `dart run flutter3d_build:convert` has no encoder to
-make one. That gap is upstream of the engine, not in it.
+a KTX2 that arrives is read. `dart run flutter3d_build:convert` writes them:
+`--textures bc` gives BC1, or BC3 where there is alpha, `etc2` gives ETC2,
+and `universal` and `auto` choose per device family; the ASTC encoder is in
+`flutter3d_core` beside them.
 
 One entry is left on the list: compute passes, and with them GPU particles,
 GPU skinning, GPU culling and indirect draw. It is recorded in

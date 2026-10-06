@@ -58,16 +58,18 @@ work in the sentence this replaces:
 | Web | yes, WebGL2 | yes | yes | every commit, `--wasm` |
 | Android | yes, Impeller (Vulkan) | yes | n/a | played on a handset — a Galaxy A55, touch controls and all |
 | iOS | yes, Impeller (Metal) | yes | n/a | simulator, clean; no physical device yet |
-| Windows | untried | **no** | **no** | no runner directory exists |
-| Linux | untried | **no** | **no** | no runner directory exists |
+| Windows | built, not yet played | XInput | Raw Input, `ClipCursor` | CI builds the five games and the editor |
+| Linux | built, not yet played | joystick devices | GDK grab, X11 only | CI builds the five games and the editor |
 
-**"Desktop" in this repository means macOS.** Neither `pad_input` nor
-`pointer_lock` has a Windows or Linux native side — both answer `isSupported`
-false there, honestly and by design, so nothing crashes — and no application
-has a `windows/` or `linux/` directory to build in the first place. A
-first-person game on either would be played by dragging the mouse, with no
-controller. The Dart halves that carry every trap are written and tested; what
-is missing is XInput plus `ClipCursor`, and evdev plus XI2 raw motion.
+**Windows and Linux are built, not played.** Every game and the editor has
+a `windows/` and a `linux/` runner, and the CI desktop job compiles each of
+them, which is also the only place the native sides of `pad_input` and
+`pointer_lock` are compiled: this repository is written on a Mac. Those
+sides only forward the platform's own numbers, and what the numbers mean —
+XInput's stick y pointing up, the `xpad` driver's button order, a Linux
+trigger resting at −32767 — is read in Dart and tested there. Nobody has
+yet held a controller in front of either. Under Wayland the pointer cannot
+be warped, so a captured mouse stops at the window's edge.
 
 Android has been played on a real handset — the platformer on a Galaxy A55,
 where Impeller picked Vulkan by itself, rendered clean, and the on-screen
@@ -1943,8 +1945,9 @@ That is a statement about the assets rather than about the engine.
 `TextureFormat` names the BC, ETC2 and ASTC families,
 `GraphicsDevice.supportsTextureFormat` answers for each of them per backend, and
 a KTX2 that arrives carrying blocks those answers allow goes to the device as
-blocks. The gap is upstream, where `dart run flutter3d_build:convert` has no encoder
-to produce one; [§15](#15-limits) tells that half at length.
+blocks. `dart run flutter3d_build:convert --textures` produces them, with
+the BC1, BC3, ETC2 and ASTC encoders under `formats/ktx2/encode/`;
+[§15](#15-limits) has what is still refused.
 
 Mip chains are built on the CPU by `MipChain.build` and every backend uploads
 the same bytes, because WebGL2 has `glGenerateMipmap`, Impeller has nothing of the
@@ -3022,9 +3025,10 @@ the level's issues, never a guess. A conformance check draws one hand-built
 BC1 and one ETC2 block on every backend that claims the family and reads
 the colour back, which is the first time an Impeller compressed upload was
 drawn rather than only allocated. Still refused by name: UASTC, Zstandard
-and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
-is upstream: `dart run flutter3d_build:convert` has no encoder, so nothing produces a
-compressed KTX2 for this engine's own pipeline to read.
+and ZLIB supercompression, arrays, cube maps, 3D textures. The engine's own
+pipeline makes what it reads: `dart run flutter3d_build:convert --textures`
+writes BC1, BC3 and ETC2 into KTX2, and an ETC2 image with alpha is left as
+it arrived, because the EAC alpha block is not encoded.
 
 **A material hint describes a control and refuses nothing.** `MaterialHintKind`
 — a range, a colour of three or four channels, a texture path with the suffixes
