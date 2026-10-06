@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **Sweeps can be cast elsewhere.** `WorldSweeps`, set as
+  `CollisionWorld.sweeps`, handles every `sweep` that has no
+  `ContactFilter`. A filter is a Dart function that has to be asked about
+  each contact, which the core cannot do, so filtered sweeps stay on the
+  world's own walk.
+
 - **`PhysicsBackend`, one for the whole run.** It produces a world's
   dynamics and can attach its character moves and rays to a world.
   `PhysicsBackend.current` is set once by the game and read by everything

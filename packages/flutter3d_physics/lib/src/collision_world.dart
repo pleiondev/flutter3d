@@ -50,6 +50,10 @@ final class CollisionWorld {
   /// [WorldRays]. Not asked for a ray that wants triggers.
   WorldRays? rays;
 
+  /// What sweeps shapes through this world, or null for its own walk — see
+  /// [WorldSweeps]. Not asked for a sweep with a [ContactFilter].
+  WorldSweeps? sweeps;
+
   /// What keeps a copy of this world, brought up to date at the end of every
   /// [update] — see [WorldMirror].
   final List<WorldMirror> mirrors = <WorldMirror>[];
@@ -409,6 +413,18 @@ final class CollisionWorld {
   }) {
     out.reset();
     if (delta.x == 0.0 && delta.y == 0.0 && delta.z == 0.0) return false;
+    if (allow == null) {
+      if (sweeps case final WorldSweeps elsewhere) {
+        return elsewhere.sweep(
+          shape,
+          origin,
+          delta,
+          out,
+          mask: mask,
+          ignore: ignore,
+        );
+      }
+    }
 
     final half = shape.boundsHalfExtents;
     _queryMin.setValues(

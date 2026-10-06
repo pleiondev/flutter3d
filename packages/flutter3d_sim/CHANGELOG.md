@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **`resimulate` refuses a run recorded on other physics.** It returns
+  `ResimulationOnOtherPhysics` instead of reporting a divergence nobody
+  could explain. It also attaches the run's backend to the world it
+  replays in.
+
 - **A recording says which physics it ran on.** `Demo.physics` is
   `'native'` or `'dart'`, and a replay runs on that backend; the two
   backends are not promised to agree with each other.

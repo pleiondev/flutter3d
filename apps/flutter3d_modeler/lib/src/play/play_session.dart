@@ -42,11 +42,14 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:vector_math/vector_math.dart' show Vector2, Vector3, Vector4;
 
 import '../staging.dart';
@@ -106,6 +109,8 @@ final class PlaySession {
           position: Vector3(0.0, -0.5, 0.0),
         ),
       );
+    // The character walks on the run's physics, as a game's does.
+    usePhysics().attach(world);
     return PlaySession._(
       stage,
       template,
@@ -121,6 +126,11 @@ final class PlaySession {
   final PlayTemplate template;
 
   final CollisionWorld _world;
+
+  /// What the body walks in, for a test that asks which physics it is on.
+  @visibleForTesting
+  CollisionWorld get world => _world;
+
   final CharacterController _body;
 
   /// Which way the body faces, in radians about world up.

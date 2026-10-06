@@ -1,7 +1,9 @@
 import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
+import 'collision_shape.dart';
 import 'ray_hit.dart';
+import 'sweep_hit.dart';
 
 /// A world's rays, cast elsewhere — P9: the physics core answers them
 /// through what it mirrors of the world.
@@ -32,6 +34,30 @@ abstract interface class WorldRays {
     Vector3 direction,
     double maxDistance,
     RayHit out, {
+    required int mask,
+    Collider? ignore,
+  });
+}
+
+/// A world's sweeps, cast elsewhere: the physics core moving a shape
+/// through what it mirrors of the world.
+///
+/// Set as `CollisionWorld.sweeps`, it answers every `CollisionWorld.sweep`
+/// that brings no `ContactFilter` — a filter is a Dart function asked about
+/// each contact as the sweep finds it, which the core cannot call — and the
+/// world's own walk answers those.
+///
+/// As the reference sweeps it: the shape's bounding box, and a shape that
+/// starts inside something meets nothing — getting out is
+/// `CollisionWorld.depenetrate`'s job.
+abstract interface class WorldSweeps {
+  /// The first solid thing [shape] meets moved from [origin] by [delta], on
+  /// a layer in [mask], not [ignore], into [out]; whether it met one.
+  bool sweep(
+    CollisionShape shape,
+    Vector3 origin,
+    Vector3 delta,
+    SweepHit out, {
     required int mask,
     Collider? ignore,
   });

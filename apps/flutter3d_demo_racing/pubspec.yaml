@@ -52,6 +52,10 @@ dependencies:
   # this game assembles a race.
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
+  # The physics core the cars drive on, the Dart reference where it will
+  # not start — see `preparePhysics` in `main`.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
 
   vector_math: ^2.2.0
 

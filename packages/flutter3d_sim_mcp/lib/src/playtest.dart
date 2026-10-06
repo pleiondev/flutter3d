@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show choosePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 const double _dt = 1.0 / 60.0;
@@ -29,6 +31,7 @@ enum PlaytestOutcome {
 /// the whole reason it can cross an isolate boundary at all.
 typedef _PlaytestArgs = ({
   HeadlessGame game,
+  String physics,
   String levelPath,
   int seed,
   int maxSteps,
@@ -109,6 +112,9 @@ final class Playtest {
           Isolate.run(
             () => _playOneForIsolate((
               game: game,
+              // An isolate starts on the reference; this one plays on the
+              // session's physics.
+              physics: usePhysics().name,
               levelPath: levelPath,
               seed: seed,
               maxSteps: maxSteps,
@@ -196,11 +202,13 @@ final class _RandomDriver {
 /// sends its argument to a fresh isolate with no access to anything a
 /// [Playtest] instance closed over.
 PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
+  choosePhysics(args.physics);
   final level = Level.fromJson(
     jsonDecode(File(args.levelPath).readAsStringSync()) as Map<String, Object?>,
   );
   final world = CollisionWorld();
   level.addTo(world);
+  usePhysics().attach(world);
   final input = InputState();
   final run = args.game.start(level, world, input);
   world.update();

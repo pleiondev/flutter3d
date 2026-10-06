@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -41,7 +42,7 @@ final class LevelMechanismsDemo extends ShowcaseDemo {
     // #region live
     // The same door and button, running: the door's collider is what the
     // mechanism moves, and the picture follows it.
-    final CollisionWorld world = CollisionWorld();
+    final CollisionWorld world = onRunPhysics(CollisionWorld());
     _mechanisms = MechanismWorld(world);
     _doorCollider = world.addBox(Vector3(5, 1, 0), Vector3(1, 2, 0.2));
     _door = _mechanisms.add(
@@ -148,7 +149,7 @@ final class LevelMechanismsDemo extends ShowcaseDemo {
 
   static String _run() {
     // #region world
-    final world = CollisionWorld();
+    final world = onRunPhysics(CollisionWorld());
     final mechanisms = MechanismWorld(world);
     // #endregion world
 

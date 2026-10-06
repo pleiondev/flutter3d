@@ -26,14 +26,19 @@ final class NativePhysics implements PhysicsBackend {
     'the core attached to a world',
   );
 
+  /// Takes over from what [attach] gave [world], if anything did: one
+  /// core world per collision world.
   @override
-  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
-      NativeDynamics(
-        world: world,
-        gravity: gravity,
-        movesCharacters: true,
-        castsRays: true,
-      );
+  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) {
+    _attached[world]?.dispose();
+    _attached[world] = null;
+    return NativeDynamics(
+      world: world,
+      gravity: gravity,
+      movesCharacters: true,
+      castsRays: true,
+    );
+  }
 
   /// A [NativeDynamics] with no bodies, for its mover and rays: mirrored at
   /// the end of every `CollisionWorld.update`, never stepped.
@@ -99,6 +104,20 @@ PhysicsStart _choose(String asked, void Function() probe) {
   }
   PhysicsBackend.current = chosen.backend;
   return _chosen = chosen;
+}
+
+/// Chooses the run's backend again, now: [asked] — `'native'` or `'dart'`
+/// — where it can be had, the reference where not. For code that plays a
+/// recording back on what it was recorded on (`Demo.physics`) and cannot
+/// wait: a replay in an isolate of its own, whose backend starts as the
+/// reference. Natively the core needs nothing loaded; in the browser it has
+/// to be, by [startPhysics], or this falls back.
+PhysicsBackend choosePhysics(String asked) {
+  if (asked != 'dart' && !physicsCoreLoaded) {
+    return _choose(asked, () => throw StateError('the core is not loaded'))
+        .backend;
+  }
+  return _choose(asked, () => NativeWorld().dispose()).backend;
 }
 
 /// [startPhysics] unless the run's backend is chosen already: what code

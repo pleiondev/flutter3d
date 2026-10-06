@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **Every loaded level runs on the run's physics.** `LevelLoader` attaches
+  the run's `PhysicsBackend` to the level's world, and `LoadedLevel.dispose`
+  releases it.
+
 - **The rest of the scene as widgets** — `P10`. `Material3D` is a material
   as a widget: the `Mesh3D`s below it without a material of their own are
   drawn with the one engine material it makes, changed in place on a

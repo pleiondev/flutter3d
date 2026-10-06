@@ -50,7 +50,11 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
     bool castsRays = false,
   }) : gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {
     if (movesCharacters) world.characterMover = NativeCharacterMover(this);
-    if (castsRays) world.rays = NativeWorldRays(this);
+    if (castsRays) {
+      world
+        ..rays = NativeWorldRays(this)
+        ..sweeps = NativeWorldSweeps(this);
+    }
     // Queried between steps, the copy is brought up to date inside each step
     // — see [WorldMirror] — so what is asked between steps changes nothing.
     if (movesCharacters || castsRays) world.mirrors.add(this);
@@ -438,6 +442,10 @@ final class NativeDynamics implements RigidDynamics, WorldMirror {
     if (world.rays case final NativeWorldRays rays
         when identical(rays.dynamics, this)) {
       world.rays = null;
+    }
+    if (world.sweeps case final NativeWorldSweeps sweeps
+        when identical(sweeps.dynamics, this)) {
+      world.sweeps = null;
     }
     world.mirrors.remove(this);
     native.dispose();
@@ -828,3 +836,41 @@ final class NativeWorldRays implements WorldRays {
     return true;
   }
 }
+
+/// The core sweeping a world's shapes — `CollisionWorld.sweep` through the
+/// world [dynamics] mirrors, as [NativeWorldRays] casts its rays: the
+/// shape's bounding box moved without turning, the body met named back as
+/// its collider, and a shape that starts inside something meeting nothing,
+/// as the reference's does.
+final class NativeWorldSweeps implements WorldSweeps {
+  NativeWorldSweeps(this.dynamics);
+
+  final NativeDynamics dynamics;
+
+  @override
+  bool sweep(
+    CollisionShape shape,
+    Vector3 origin,
+    Vector3 delta,
+    SweepHit out, {
+    required int mask,
+    Collider? ignore,
+  }) {
+    out.reset();
+    dynamics.placeMovers();
+    final hit = dynamics.native.castShape(
+      NativeShape.box(shape.boundsHalfExtents),
+      origin,
+      delta,
+      mask: mask & Layers.all,
+      ignore: ignore == null ? null : dynamics.handleOfCollider(ignore),
+    );
+    if (hit == null || hit.at <= 0.0) return false;
+    out
+      ..fraction = hit.at
+      ..collider = dynamics.colliderOf(hit.body);
+    out.normal.setFrom(hit.normal);
+    return true;
+  }
+}
+

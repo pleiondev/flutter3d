@@ -58,6 +58,12 @@ dependencies:
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
 
+  # The physics core a run is played again on when it was recorded on it —
+  # every game's default — with the Dart reference where the core will not
+  # start. Its build hook compiles the core with the host's C compiler.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
+
   # Argon2id for passwords, in Dart. The FFI binding to libargon2 stopped at
   # Dart 2, and a password hash is the one place where a dependency that has
   # stopped is not a trade worth making.
@@ -123,6 +129,8 @@ dependency_overrides:
     path: ../../packages/flutter3d_shaders
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
 
 jaspr:
   mode: server

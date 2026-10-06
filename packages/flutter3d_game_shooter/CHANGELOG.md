@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **The shooter stages onto the run's physics.** `stage` defaults to
+  `shooterDynamics`: the backend's dynamics on the core, none on the
+  reference. The game, a headless tool and a server replaying a run now
+  all build the same world.
+
 - **Monsters rest by behaviour trees.** A `monster` entity naming a
   `behaviour` the level has gets a `TreeBrain`: the tree walks it while it
   rests, with the entity's `board` on its blackboard, and the chase takes

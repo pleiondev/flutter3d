@@ -4,7 +4,8 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
+import 'package:flutter3d_physics/flutter3d_physics.dart'
+    show CollisionWorld, PhysicsBackend;
 
 import '../input/input_state.dart';
 import '../input/input_tape.dart';
@@ -26,6 +27,23 @@ final class ResimulationLevelChanged extends Resimulation {
 
   final String found;
   final String recorded;
+}
+
+/// The run was recorded on other physics than this process runs: the two
+/// backends are not promised to agree, so playing it here proves nothing.
+/// The host chooses the recorded one first — `choosePhysics` in the native
+/// package — and is told this only where that one cannot be had.
+final class ResimulationOnOtherPhysics extends Resimulation {
+  const ResimulationOnOtherPhysics({
+    required this.recorded,
+    required this.running,
+  });
+
+  /// `Demo.physics`.
+  final String recorded;
+
+  /// `PhysicsBackend.current.name`.
+  final String running;
 }
 
 /// A fresh run of the level does not start where the recording started: the
@@ -98,9 +116,16 @@ Resimulation resimulate({
   if (found != demo.levelHash) {
     return ResimulationLevelChanged(found: found, recorded: demo.levelHash);
   }
+  final running = PhysicsBackend.current.name;
+  if (demo.physics case final String recorded when recorded != running) {
+    return ResimulationOnOtherPhysics(recorded: recorded, running: running);
+  }
 
   final world = CollisionWorld();
   level.addTo(world);
+  // On the physics it was recorded on, which is the run's now; a game that
+  // stages dynamics of its own takes the world over.
+  PhysicsBackend.current.attach(world);
   final input = InputState();
   final run = game.start(level, world, input);
   world.update();

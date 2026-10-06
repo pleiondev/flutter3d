@@ -26,6 +26,8 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart' as stereo;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -68,7 +70,12 @@ const String _buildStamp = String.fromEnvironment(
   defaultValue: 'dev',
 );
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The run's physics, chosen once: the core, which the browser fetches as
+  // WebAssembly, or the reference where it will not start. Every track's
+  // world is put on it as it loads.
+  await preparePhysics();
   // **This game had none of it.** The other two locked to landscape and hid
   // the system bars on a handset; this one, which has touch controls and is
   // meant to be played on a phone, did neither — so a tilt reframed the chase
@@ -550,6 +557,7 @@ class _RaceScreenState extends State<RaceScreen>
         buildStamp: _buildStamp,
         checkpoints: checkpoints,
         platform: defaultTargetPlatform.name,
+        physics: usePhysics().name,
       ),
     );
   }

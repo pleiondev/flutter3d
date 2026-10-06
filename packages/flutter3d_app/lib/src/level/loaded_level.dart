@@ -138,7 +138,12 @@ final class LoadedLevel {
   /// share these texture objects rather than copies. The same contract as
   /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
   /// `gl.delete*` per resource on WebGL2.
+  /// The backend [collision] was attached to when the level was loaded,
+  /// let go of in [dispose].
+  final PhysicsBackend physics = PhysicsBackend.current;
+
   void dispose(GraphicsDevice device) {
+    physics.release(collision);
     watchedTextures.forEach(HotSwap.instance.forgetTexture);
     for (final mesh in brushMeshes) {
       device.releaseGeometry(mesh.vertices);

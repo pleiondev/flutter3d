@@ -77,6 +77,10 @@ dependencies:
   # overlay. One package now: cloth moved into `flutter3d_physics` itself.
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
+  # Play mode walks on the physics core, the Dart reference where it will
+  # not start — `preparePhysics` in `runModeler`.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
 
 
   # The Khronos models, so `--dart-define=model=` names a file that is in the

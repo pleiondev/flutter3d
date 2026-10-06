@@ -42,6 +42,8 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vector_math/vector_math.dart' as vm;
@@ -208,7 +210,13 @@ void runModeler() {
     );
   };
   runZonedGuarded(
-    () => runApp(const ModelerApp()),
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      // The physics Play walks on, chosen once: the core, which the browser
+      // fetches as WebAssembly, or the reference where it will not start.
+      await preparePhysics();
+      runApp(const ModelerApp());
+    },
     (Object error, StackTrace stack) =>
         unawaited(_onUncaughtError(error, stack)),
   );

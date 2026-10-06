@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class CollisionQueriesDemo extends ShowcaseDemo {
@@ -30,7 +31,7 @@ final class CollisionQueriesDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region world
-    _world = CollisionWorld();
+    _world = onRunPhysics(CollisionWorld());
     final Collider wall = _world.add(
       Collider(
         shape: CollisionBox(Vector3(2.0, 1.0, 0.2)),

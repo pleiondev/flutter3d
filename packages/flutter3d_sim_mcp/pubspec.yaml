@@ -23,6 +23,11 @@ dependencies:
   # — what this server asks of a game. No genre: a host hands one in.
   flutter3d_sim: ^0.8.0
 
+  # The physics a session's worlds run on: the core where it starts, the Dart
+  # reference where it does not — and a recorded run replayed on whichever
+  # it was recorded on.
+  flutter3d_physics_native: ^0.1.0
+
   # A level's own scene, a device with no GPU behind it, and the debug views
   # `RenderSettings` already carries — `showSurfaceBuffer`, `showShadowMap` —
   # for `DiagnosticRenderer`, which draws both `frame`'s picture and the

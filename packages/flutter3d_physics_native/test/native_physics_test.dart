@@ -73,4 +73,21 @@ void main() {
     expect(usePhysics(asked: 'dart'), isA<NativePhysics>());
     expect(physicsFallbackReason, isNull);
   });
+
+  test(
+    'dynamics made for an attached world take it over: one core world',
+    () async {
+      await startPhysics();
+      final world = CollisionWorld();
+      PhysicsBackend.current.attach(world);
+      final dynamics = PhysicsBackend.current.dynamics(world) as NativeDynamics;
+      // Mutation: leaving the attached one in place, whose mirror would be
+      // brought up to date every step for nobody.
+      expect(world.mirrors, <Object>[dynamics]);
+      expect(
+        (world.characterMover! as NativeCharacterMover).dynamics,
+        dynamics,
+      );
+    },
+  );
 }

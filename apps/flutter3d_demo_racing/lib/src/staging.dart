@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -68,6 +70,10 @@ Staged stage(
   int laps = kLapsInARace,
   List<int>? gridOrder,
 }) {
+  // The cars sweep through the world on the run's physics — the core, unless
+  // the run is on the reference — however the world was made; a world a
+  // track loader made is on it already, and asking again changes nothing.
+  usePhysics().attach(world);
   final track = document.track;
   final field = TrackField(track: track, world: world);
   final race = RaceState(mode: mode, track: track, racers: cars, laps: laps);

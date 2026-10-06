@@ -90,6 +90,17 @@ final class Staged {
   final List<LevelIssue> navIssues;
 }
 
+/// The dynamics a shooter's world has on the run's [PhysicsBackend]: on a
+/// backend with characters of its own — the core — its dynamics, which walk
+/// the player and the monsters and cast the shots; on the Dart reference
+/// none, the crypt as it always was, its characters on their own sweeps.
+/// The crypt has no loose bodies, so that is all it is for.
+RigidDynamics? shooterDynamics(CollisionWorld world) =>
+    switch (PhysicsBackend.current) {
+      DartPhysics() => null,
+      final PhysicsBackend core => core.dynamics(world),
+    };
+
 /// Turns a level document into a run, given a world it has already been added
 /// to.
 ///
@@ -136,9 +147,10 @@ Staged stage(
 }) {
   final entities = EcsWorld();
   // What steps the bodies and, for the physics core, moves the characters:
-  // made before anybody is spawned, so the first step already has it. None
-  // by default, which is the crypt as it always was.
-  final dynamics = dynamicsFor?.call(world);
+  // made before anybody is spawned, so the first step already has it. By
+  // default the run's backend's — see [shooterDynamics] — so the game, a
+  // headless tool and a server replaying a run all stage one world.
+  final dynamics = (dynamicsFor ?? shooterDynamics)(world);
 
   // **One generator, shared by everything in this world that rolls.** It was
   // three: `ActorSystem` and `Hitscan` each defaulted to an unseeded

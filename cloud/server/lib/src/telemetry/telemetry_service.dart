@@ -8,6 +8,8 @@ import 'dart:isolate';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show askedPhysics, choosePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'telemetry_store.dart';
@@ -234,6 +236,15 @@ String _sha256(String key) => sha256.convert(utf8.encode(key)).toString();
 
 _Replayed _replay(
   ({HeadlessGame game, Level level, Demo demo, int every}) args,
+) {
+  // On the physics the run was recorded on — an isolate starts on the
+  // reference — or, where that cannot be had, refused for it below.
+  choosePhysics(args.demo.physics ?? askedPhysics);
+  return _replayed(args);
+}
+
+_Replayed _replayed(
+  ({HeadlessGame game, Level level, Demo demo, int every}) args,
 ) => switch (resimulate(
   game: args.game,
   level: args.level,
@@ -242,6 +253,10 @@ _Replayed _replay(
 )) {
   ResimulationLevelChanged(:final found, :final recorded) => _refused(
     'the level is $found here and the run says $recorded',
+  ),
+  ResimulationOnOtherPhysics(:final recorded, :final running) => _refused(
+    'the run was played on the $recorded physics and this server has only '
+    '$running',
   ),
   ResimulationStartDiffers() => _refused(
     'a fresh run of the level does not start where this one started',

@@ -14,6 +14,8 @@ import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart' show WidgetSurfaceKind;
 import 'package:flutter3d_game_shooter/staging.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -202,6 +204,31 @@ void main() {
       expect(replayed.says, contains('ends at step 40'));
       expect(_digestIn(replayed.says), _digestIn(claimed.says));
       expect(replayed.says, contains('holds there'));
+    });
+
+    test('a run is verified on the physics it was recorded on', () {
+      final session = _session()..open(_crypt);
+      final path = '${workspace.path}/walked.f3drun';
+      session.expect(
+        predicate: <String, Object?>{'kind': 'health', 'below': 0},
+        limit: 120,
+        path: path,
+        moveY: 1.0,
+      );
+      final json =
+          jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>;
+      expect(json['physics'], usePhysics().name);
+      expect(session.verify(path).did, isTrue);
+      // Said to be from the other backend, the same steps are played on that
+      // one, which walks the crypt by other numbers — and the session is on
+      // its own again after. Mutation: verifying on the session's physics
+      // whatever the file says, which retraces it.
+      final other = usePhysics().name == 'native' ? 'dart' : 'native';
+      File(path).writeAsStringSync(jsonEncode(json..['physics'] = other));
+      final replayed = session.verify(path);
+      expect(replayed.did, isFalse, reason: replayed.says);
+      expect(replayed.says, contains('diverges'));
+      expect(usePhysics().name, isNot(other));
     });
 
     test('a claim that never holds stops at the limit and still writes the '

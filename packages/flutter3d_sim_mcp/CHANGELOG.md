@@ -1,5 +1,9 @@
 ## Unreleased
 
+- **The session runs on the physics core.** A run is verified on the
+  backend it was recorded on, and the session returns to its own backend
+  afterwards. Playtests run each isolate on the session's backend.
+
 - **`verify` refuses a run with the level edited under it**, naming the
   step. The swapped level is built by the game that recorded the run, and a
   session over a bare simulation would answer with a divergence it did not

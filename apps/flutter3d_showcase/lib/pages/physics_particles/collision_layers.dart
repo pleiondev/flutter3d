@@ -6,6 +6,7 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Which bit means what is a game's own business; `Layers.all` is the only
@@ -43,7 +44,7 @@ final class CollisionLayersDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    _world = CollisionWorld();
+    _world = onRunPhysics(CollisionWorld());
 
     // #region zone
     // The zone's mask names one layer, so only a collider carrying that bit

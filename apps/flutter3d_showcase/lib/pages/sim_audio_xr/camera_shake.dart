@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -36,7 +37,7 @@ final class CameraShakeDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region rig
-    _rig = CameraRig(world: CollisionWorld());
+    _rig = CameraRig(world: onRunPhysics(CollisionWorld()));
     // #endregion rig
 
     final material = Material(

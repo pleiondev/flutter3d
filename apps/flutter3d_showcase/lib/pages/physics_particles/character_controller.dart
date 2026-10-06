@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class CharacterControllerDemo extends ShowcaseDemo {
@@ -58,7 +59,7 @@ final class CharacterControllerDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region floor
-    _world = CollisionWorld();
+    _world = onRunPhysics(CollisionWorld());
     _world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
     // #endregion floor
 

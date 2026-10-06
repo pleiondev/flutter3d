@@ -182,6 +182,7 @@ final class NetRaceSession {
     buildStamp: buildStamp,
     checkpoints: _checkpoints,
     recordedBy: recordedBy,
+    physics: PhysicsBackend.current.name,
   );
 
   /// Writes [toDemo] to [path].

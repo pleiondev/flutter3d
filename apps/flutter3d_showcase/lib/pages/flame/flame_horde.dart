@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// How many monsters there are: one draw for all of them.
@@ -154,7 +155,7 @@ final class _Horde extends FlameGame with HasFlutter3d {
 
   @override
   void onOpen3d() {
-    final CollisionWorld world = CollisionWorld()
+    final CollisionWorld world = onRunPhysics(CollisionWorld())
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(28.0, 1.0, 28.0))
       ..update();
     final ActorSystem system = ActorSystem(world: world, random: GameRandom(7));

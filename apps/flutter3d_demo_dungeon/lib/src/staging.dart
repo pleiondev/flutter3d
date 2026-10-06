@@ -6,17 +6,16 @@
 /// imports this file keeps doing so.
 library;
 
+import 'package:flutter3d_game_shooter/staging.dart' show shooterDynamics;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 export 'package:flutter3d_game_shooter/staging.dart'
-    show Staged, stage, startingInventory;
+    show Staged, shooterDynamics, stage, startingInventory;
 
-/// The dynamics the run's backend gives [world] — see `usePhysics` — or
-/// none on the Dart reference: the crypt has no loose bodies, so the core
-/// is here to walk the player and the monsters through the level it
-/// mirrors, and the reference walks them with their own sweeps.
-RigidDynamics? dungeonDynamics(CollisionWorld world) => switch (usePhysics()) {
-  final NativePhysics core => core.dynamics(world),
-  _ => null,
-};
+/// The dynamics the run's backend gives [world]: the shooter's own
+/// [shooterDynamics], once the run's backend is chosen — see `usePhysics`.
+RigidDynamics? dungeonDynamics(CollisionWorld world) {
+  usePhysics();
+  return shooterDynamics(world);
+}

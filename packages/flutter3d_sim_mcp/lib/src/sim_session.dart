@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show choosePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -61,6 +63,8 @@ final class SimSession {
     }
     final world = CollisionWorld();
     level.addTo(world);
+    // The session's physics, chosen the first time it is asked.
+    usePhysics().attach(world);
     final run = game.start(level, world, _input);
     world.update();
 
@@ -233,12 +237,20 @@ final class SimSession {
     // The same replay N7's telemetry server reads metrics off, so a run this
     // tool calls verified is a run that server would take.
     final ResimulationRetraced retraced;
-    switch (resimulate(game: game, level: level, demo: demo, dt: _dt)) {
+    switch (_onPhysicsOf(
+      demo,
+      () => resimulate(game: game, level: level, demo: demo, dt: _dt),
+    )) {
       case ResimulationLevelChanged(:final found, :final recorded):
         return _refuse(
           'the level at "${demo.level}" has changed since the run was '
           'recorded (hash $found, the run says $recorded) — a tape played '
           'into different geometry proves nothing',
+        );
+      case ResimulationOnOtherPhysics(:final recorded, :final running):
+        return _refuse(
+          '"$path" was recorded on the $recorded physics and this session '
+          'runs $running, which is not promised to agree with it',
         );
       // A run that does not start where the recording started diverges
       // before its first step, and saying so is more use than the
@@ -358,6 +370,7 @@ final class SimSession {
       tape: _recorder!.tape,
       buildStamp: 'flutter3d_sim_mcp',
       checkpoints: _digests!,
+      physics: usePhysics().name,
     );
     try {
       File(path).writeAsStringSync(jsonEncode(demo.toJson()));
@@ -394,3 +407,19 @@ final class SimSession {
     }
   }
 }
+
+/// [body] on the physics [demo] was recorded on, and the session's own
+/// again after: the two backends are not promised to agree, so a run is
+/// verified on its own. Where that one cannot be had, `resimulate` says so.
+T _onPhysicsOf<T>(Demo demo, T Function() body) {
+  final was = usePhysics().name;
+  final wanted = demo.physics ?? was;
+  if (wanted == was) return body();
+  choosePhysics(wanted);
+  try {
+    return body();
+  } finally {
+    choosePhysics(was);
+  }
+}
+

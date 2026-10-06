@@ -385,6 +385,10 @@ final class LevelLoader {
 
     final collision = CollisionWorld();
     level.addTo(collision);
+    // The run's physics walks the level's characters and casts its rays —
+    // the core, where the game chose it — whether or not anything loose
+    // ever falls in it. A game that adds dynamics takes the world over.
+    PhysicsBackend.current.attach(collision);
 
     // Every map the level names, loaded once and shared. A wall texture used
     // by four surfaces is one upload, not four — and the cache belongs to this

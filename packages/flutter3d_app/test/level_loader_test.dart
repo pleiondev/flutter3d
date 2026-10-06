@@ -58,6 +58,29 @@ void main() {
   );
   final registry = EntityRegistry(<EntityKind>[]);
 
+  test(
+    'a level\'s world is on the run\'s physics until it is let go of',
+    () async {
+      final backend = _Watching();
+      final was = PhysicsBackend.current;
+      PhysicsBackend.current = backend;
+      addTearDown(() => PhysicsBackend.current = was);
+
+      final loaded = await const LevelLoader().build(
+        _level(),
+        device: device,
+        registry: registry,
+      );
+      // Mutation: a world made without asking, which on the core is a level
+      // whose characters walk in Dart under monsters that do not.
+      expect(backend.attached, <CollisionWorld>[loaded.collision]);
+      // Changed since: the level lets go of the one it was given.
+      PhysicsBackend.current = const DartPhysics();
+      loaded.dispose(device);
+      expect(backend.released, <CollisionWorld>[loaded.collision]);
+    },
+  );
+
   test('a level with no textures builds with nothing to report', () async {
     final loaded = await const LevelLoader().build(
       _level(),
@@ -479,3 +502,18 @@ ByteData _onePixelPng() => ByteData.sublistView(
     0xAE, 0x42, 0x60, 0x82,
   ]),
 );
+
+/// A backend that only remembers which worlds it was given and let go of.
+final class _Watching implements PhysicsBackend {
+  final List<CollisionWorld> attached = <CollisionWorld>[];
+  final List<CollisionWorld> released = <CollisionWorld>[];
+  @override
+  String get name => 'watching';
+  @override
+  RigidDynamics dynamics(CollisionWorld world, {Vector3? gravity}) =>
+      const DartPhysics().dynamics(world, gravity: gravity);
+  @override
+  void attach(CollisionWorld world) => attached.add(world);
+  @override
+  void release(CollisionWorld world) => released.add(world);
+}

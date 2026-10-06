@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -216,7 +217,7 @@ final class ActorsDemo extends ShowcaseDemo {
   /// `Mind`, and a `Mind` only needs a system to ask `focus` of, which this
   /// page never calls. A throwaway system is enough to build one.
   static ActorSystem _stubSystem() =>
-      ActorSystem(world: CollisionWorld(), random: GameRandom(1));
+      ActorSystem(world: onRunPhysics(CollisionWorld()), random: GameRandom(1));
 
   @override
   void verify(Scene scene, FrameResult frame) {

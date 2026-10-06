@@ -1,5 +1,14 @@
 ## Unreleased
 
+- **Sweeps run on the core.** `NativeWorldSweeps` casts the shape's
+  bounding box through the mirrored world, the same way the reference
+  does. A shape that starts inside something hits nothing. With
+  `castsRays`, a `NativeDynamics` provides the sweeps as well as the rays.
+- **`choosePhysics(asked)`** picks the backend synchronously. A replay
+  uses it inside an isolate of its own, which starts on the reference.
+- **Dynamics made for an attached world take it over**, so each collision
+  world has exactly one core world.
+
 - **The core is the default, and the Dart reference is the fallback.**
   - `usePhysics()` picks the run's backend the first time something asks,
     and returns the same one after that.

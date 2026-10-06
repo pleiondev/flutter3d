@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -88,7 +89,7 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
     // copies its body onto its node and, through the plane, onto a Flame
     // position. One `ActorSystemComponent` steps the system, once a frame; the
     // map's dots are those Flame positions.
-    final CollisionWorld world = CollisionWorld()
+    final CollisionWorld world = onRunPhysics(CollisionWorld())
       ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
     final ActorSystem system = ActorSystem(world: world, random: GameRandom(1));
     final FlameMinimap map = FlameMinimap();
@@ -146,7 +147,7 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
 
   static (String, double, double) _run(GraphicsDevice device) {
     // #region system
-    final world = CollisionWorld();
+    final world = onRunPhysics(CollisionWorld());
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
     final system = ActorSystem(world: world, random: GameRandom(1));
     // #endregion system

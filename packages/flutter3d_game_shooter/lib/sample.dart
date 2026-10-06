@@ -348,6 +348,8 @@ final class Staged {
 /// something nothing here uses. Not a replacement for that function; a
 /// second, smaller one for a caller with smaller needs.
 Staged stage(Level level, CollisionWorld world, {required InputState input}) {
+  // On the run's physics, as the shipped game's staging is.
+  PhysicsBackend.current.attach(world);
   final entities = EcsWorld();
   final dice = GameRandom(1);
   final projectiles = ProjectileSystem(world: world, entities: entities);
