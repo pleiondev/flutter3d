@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **The flow field follows breaches.**
+  - `NavGrid.rebake` re-bakes the columns a hole changed and measures the
+    room again. It produces the same grid as a full bake, cell for cell.
+  - `Navigation.grid` can be replaced, and replacing it sweeps every field
+    over the new grid.
+
 - **`resimulate` refuses a run recorded on other physics.** It returns
   `ResimulationOnOtherPhysics` instead of reporting a divergence nobody
   could explain. It also attaches the run's backend to the world it

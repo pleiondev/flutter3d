@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A chase goes through a breach.** `followBreaches` keeps the flow
+  field's grid in step with the level, as it already did for the meshes.
+  Before, a monster that had seen the player walked into the wall that a
+  patrolling guard next to it walked through.
+
 - **The shooter stages onto the run's physics.** `stage` defaults to
   `shooterDynamics`: the backend's dynamics on the core, none on the
   reference. The game, a headless tool and a server replaying a run now

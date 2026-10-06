@@ -188,6 +188,105 @@ void main() {
     });
   });
 
+  group('a monster chasing behind a wall a rocket breaks', () {
+    /// The same wall, the player beyond it, and the flow field a chase
+    /// walks baked over the level and kept on it by [followBreaches].
+    ({ActorSystem system, Breaches breaches, Actor runner, Collider player})
+    staged() {
+      final level = Level(
+        name: 'closed',
+        brushes: <Brush>[
+          _floor(),
+          Brush(
+            centre: Vector3(0.0, 1.5, 0.0),
+            size: Vector3(1.0, 3.0, 20.0),
+            material: 'wall',
+          ),
+        ],
+      );
+      final world = CollisionWorld();
+      level.addTo(world);
+      final player = world.add(
+        Collider(
+          shape: CollisionCapsule(radius: 0.4, halfHeight: 0.5),
+          position: Vector3(6.0, 0.9, 0.0),
+          layer: CollisionLayers.player,
+        ),
+      );
+      world.update();
+      final random = GameRandom(1);
+      final system = ActorSystem(world: world, random: random)
+        ..navigation = Navigation.bake(level, cellSize: 0.25);
+      final breaches = Breaches(level, world);
+      followBreaches(system, level, breaches);
+      final bestiary = Bestiary(
+        actors: system,
+        shot: WeaponShot(
+          world: world,
+          hitscan: Hitscan(world: world, random: random),
+          projectiles: ProjectileSystem(world: world),
+        ),
+        catalog: Monsters.byName,
+      );
+      final runner = bestiary.spawn(Monsters.runner, Vector3(-6.0, 0.9, 0.0));
+      return (
+        system: system,
+        breaches: breaches,
+        runner: runner,
+        player: player,
+      );
+    }
+
+    // Off the straight line between them, so only the field can find it: a
+    // monster with nothing to follow heads straight at the player, into the
+    // wall.
+    final hole = Aabb3.minMax(Vector3(-1.0, 0.0, 5.0), Vector3(1.0, 2.2, 7.0));
+
+    void chase(
+      ({ActorSystem system, Breaches breaches, Actor runner, Collider player})
+      it,
+      int steps,
+    ) {
+      final eye = it.player.position + Vector3(0.0, 0.7, 0.0);
+      for (var i = 0; i < steps; i++) {
+        it.system.world.reindex();
+        it.system
+          ..beginStep()
+          ..step(_dt, focus: eye, focusBody: it.player);
+      }
+    }
+
+    test('heard, it stays on its side until the wall is broken, then comes '
+        'through', () {
+      final it = staged();
+      // A shot it heard: it gets up and goes towards the player.
+      it.system.hear(it.player.position, radius: 50.0);
+      expect((it.runner.brain! as ChaseBrain).state, MonsterState.chase);
+      chase(it, 300);
+      expect(it.runner.position!.x, lessThan(0.0), reason: 'through a wall');
+
+      it.breaches.hole(hole);
+      // Mutation: rebaking the meshes and not the grid — the patrol's way
+      // and not the chase's — or keeping the fields swept over the grid as
+      // it was, leaves it pressed to the wall where it was.
+      chase(it, 600);
+      expect(it.runner.position!.x, greaterThan(0.5));
+    });
+
+    test('a restored breach gives the chase the grid with the hole in it', () {
+      final broken = staged();
+      broken.breaches.hole(hole);
+      final restored = staged();
+      restored.breaches.restore(broken.breaches.save());
+      final a = broken.system.navigation!.grid;
+      final b = restored.system.navigation!.grid;
+      final doorway = a.cellAtPoint(0.0, 6.0);
+      // Mutation: a restore that leaves the grid as authored.
+      expect(b.floorAt(doorway), a.floorAt(doorway));
+      expect(b.floorAt(doorway), closeTo(0.0, 1e-6));
+    });
+  });
+
   group('two guards walking a corridor towards each other', () {
     /// How near they came, centre to centre, and the step each first
     /// reached its post at, or null.

@@ -432,16 +432,18 @@ const NavMeshConfig routeConfig = NavMeshConfig(
   maxEdgeError: 0.45,
 );
 
-/// Keeps [actors]' navigation meshes on the level as [breaches] leave it:
-/// each hole bakes again the part of every mesh it changed, and a restore
-/// bakes the meshes [actors] has now — the level as authored — again for
-/// every saved hole in turn, which is the level with all of them baked
-/// whole.
+/// Keeps [actors]' navigation meshes, and the flow field's grid a chase
+/// walks, on the level as [breaches] leave it: each hole bakes again the
+/// part of every mesh and of the grid it changed, and a restore bakes the
+/// ones [actors] had as authored again for every saved hole in turn, which
+/// is the level with all of them baked whole.
 ///
 /// In the step, where the hole is blown, so a replay meets the same mesh at
 /// the same step.
 void followBreaches(ActorSystem actors, Level level, Breaches breaches) {
   final authored = actors.navMeshes;
+  final navigation = actors.navigation;
+  final authoredGrid = navigation?.grid;
   List<Brush> standing() => expandRecipes(
     Level(
       name: level.name,
@@ -459,12 +461,25 @@ void followBreaches(ActorSystem actors, Level level, Breaches breaches) {
         maxX: hole.max.x,
         maxZ: hole.max.z,
       );
+  NavGrid gridAgain(NavGrid grid, Aabb3 hole, List<Brush> brushes) =>
+      grid.rebake(
+        brushes,
+        minX: hole.min.x,
+        minZ: hole.min.z,
+        maxX: hole.max.x,
+        maxZ: hole.max.z,
+      );
   breaches
     ..onHole = (Aabb3 hole) {
       final brushes = standing();
       actors.navMeshes = <NavMesh>[
         for (final mesh in actors.navMeshes) bakedAgain(mesh, hole, brushes),
       ];
+      // The chase's way too, or a monster that has seen the player walks
+      // into the wall the patrol next to it now walks through.
+      if (navigation != null) {
+        navigation.grid = gridAgain(navigation.grid, hole, brushes);
+      }
     }
     ..onRestore = () {
       final brushes = standing();
@@ -475,5 +490,11 @@ void followBreaches(ActorSystem actors, Level level, Breaches breaches) {
             (NavMesh baked, Aabb3 hole) => bakedAgain(baked, hole, brushes),
           ),
       ];
+      if (navigation != null && authoredGrid != null) {
+        navigation.grid = breaches.holes.fold(
+          authoredGrid,
+          (NavGrid baked, Aabb3 hole) => gridAgain(baked, hole, brushes),
+        );
+      }
     };
 }
