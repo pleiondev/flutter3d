@@ -525,12 +525,29 @@ typedef struct F3dWaterSlot {
   F3dWaterSource sources[F3D_WATER_MOST_SOURCES];
 } F3dWaterSlot;
 
-/* A drop of spray in flight. Plain data. */
+/* A piece of falling water: a stretch of sheet off a lip, or drops. Plain
+ * data. */
 typedef struct F3dSpray {
   F3dVec3 at, velocity;
   f3d_real volume;
   uint32_t water;
+  uint32_t kind;
+  /* The lip's face it left, one past its index; nought for drops. */
+  uint32_t face;
+  /* A sheet's: the flow it left with, m³/s, its width, the speed it left
+   * at and the height it left from; drops': their diameter in [width]. */
+  f3d_real flow, width, speed0, top;
+  /* e-foldings the ripples on a sheet have grown. */
+  f3d_real growth;
 } F3dSpray;
+
+/* A cloud of bubbles in water. Plain data. */
+typedef struct F3dBubbles {
+  F3dVec3 at;
+  f3d_real radius, air;
+  uint32_t water;
+  uint32_t reserved;
+} F3dBubbles;
 
 /* A multibody's slot. Plain data, zeroed when taken. */
 typedef struct F3dMultibodySlot {
@@ -660,6 +677,7 @@ typedef struct F3dWorldState {
   uint32_t water_count;
   uint32_t water_reals;
   uint32_t spray_count;
+  uint32_t bubble_count;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -749,6 +767,7 @@ struct F3dWorld {
   F3dWaterSlot *waters;
   f3d_real *water_data;
   F3dSpray *spray;
+  F3dBubbles *bubbles;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */

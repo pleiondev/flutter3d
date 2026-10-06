@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 29u
+#define F3D_ABI_VERSION 30u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -524,13 +524,30 @@ F3D_API uint32_t f3d_vehicle_read_wheels(const F3dWorld *world,
  * as a vehicle is. */
 typedef uint32_t F3dWater;
 
-/* The most springs a water has, and the most drops in flight in a world. */
+/* The most springs a water has, the most pieces of falling water in flight
+ * in a world, and the most clouds of bubbles in it. */
 #define F3D_WATER_MOST_SOURCES 16u
 #define F3D_WATER_MOST_SPRAY 16384u
+#define F3D_WATER_MOST_BUBBLES 16384u
 
-/* Reals one drop of spray takes in f3d_water_read_spray: where it is xyz,
- * its velocity xyz, and the water it carries, m³. */
-#define F3D_SPRAY_FLOATS 7u
+/* What a piece of falling water is: a stretch of the sheet that left a
+ * cliff's lip in one step, or drops — what a sheet broke into, or a
+ * splash threw up. */
+#define F3D_SPRAY_SHEET 0u
+#define F3D_SPRAY_DROPS 1u
+
+/* Reals one piece of falling water takes in f3d_world_read_spray: where it
+ * is xyz, its velocity xyz, the water it carries, m³; then for a sheet its
+ * width and its thickness, m — the thickness the flow it left with over the
+ * speed it has now, Q / (w·|v|), so it thins as it falls — and for drops
+ * their diameter, twice; its kind; and the face of the lip it left, one
+ * past its index, nought for drops, so a renderer can join a sheet's
+ * pieces into one ribbon in the order they left. */
+#define F3D_SPRAY_FLOATS 11u
+
+/* Reals one cloud of bubbles takes in f3d_world_read_bubbles: where it is
+ * xyz, the bubbles' radius, m, and the air the cloud holds, m³. */
+#define F3D_BUBBLE_FLOATS 5u
 
 /* Water over [nx] × [nz] cells [cell] metres square, the first cell's corner
  * at (ox, oy, oz) and x then z across; [ground] is the height of the ground
@@ -603,11 +620,29 @@ F3D_API int f3d_water_read_flow(const F3dWorld *world, F3dWater water,
 F3D_API int f3d_water_volume(const F3dWorld *world, F3dWater water,
                              f3d_real *held, f3d_real *lost);
 
-/* The world's spray in flight, F3D_SPRAY_FLOATS reals apiece, up to
+/* The world's falling water, F3D_SPRAY_FLOATS reals a piece, up to
  * [capacity] of them; the water each came off into [waters] when not null.
- * Returns how many. */
+ * Returns how many.
+ *
+ * Off a cliff each face of the lip throws one piece of sheet a step: the
+ * water that crossed it in the step, at the speed it crossed with, falling
+ * freely. Its thickness is not imposed but follows from continuity. The
+ * sheet breaks into drops of 1.89 times its thickness where the ripples on
+ * it, growing at Weber's rate 1 / (√(ρe³/σ) + 3μe/σ), have grown twelve
+ * e-foldings (Grant and Middleman). Where a piece lands hard enough it
+ * splashes part of itself back up (Mundo's K = Oh·Re^1.25 past 57.7), and a
+ * sheet plunging into water drags air down with it as bubbles, Bin's
+ * Q_air / Q = 0.04·Fr^0.28·(H/e)^0.4 of what it brings, Fr = v₀²/(g·e₀). */
 F3D_API uint32_t f3d_world_read_spray(const F3dWorld *world, f3d_real *spray,
                                       F3dWater *waters, uint32_t capacity);
+
+/* The world's bubbles in water, F3D_BUBBLE_FLOATS reals a cloud, up to
+ * [capacity]; the water each is in into [waters] when not null. A cloud
+ * rises at its bubbles' terminal speed, is carried by the flow, and is gone
+ * when it reaches the surface. Returns how many. */
+F3D_API uint32_t f3d_world_read_bubbles(const F3dWorld *world,
+                                        f3d_real *bubbles, F3dWater *waters,
+                                        uint32_t capacity);
 
 /* ------------------------------------------------------------- multibodies */
 

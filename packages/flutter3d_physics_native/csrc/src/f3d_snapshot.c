@@ -11,7 +11,7 @@
 #include "f3d_internal.h"
 
 #define F3D_SNAPSHOT_MAGIC 0x53443346u /* "F3DS", little-endian. */
-#define F3D_SNAPSHOT_VERSION 15u
+#define F3D_SNAPSHOT_VERSION 16u
 
 typedef struct F3dSnapshotHeader {
   uint32_t magic;
@@ -31,6 +31,7 @@ typedef struct F3dSnapshotHeader {
   uint32_t lump_bytes;
   uint32_t water_bytes;
   uint32_t spray_bytes;
+  uint32_t bubble_bytes;
 } F3dSnapshotHeader;
 
 static uint64_t grid_reals(const F3dWorldState *s) {
@@ -57,7 +58,8 @@ static uint64_t size_of(const F3dWorldState *s) {
          (uint64_t)s->lump_count * sizeof(F3dLump) +
          (uint64_t)s->water_count * sizeof(F3dWaterSlot) +
          (uint64_t)s->water_reals * sizeof(f3d_real) +
-         (uint64_t)s->spray_count * sizeof(F3dSpray);
+         (uint64_t)s->spray_count * sizeof(F3dSpray) +
+         (uint64_t)s->bubble_count * sizeof(F3dBubbles);
 }
 
 uint32_t f3d_world_snapshot_size(const F3dWorld *world) {
@@ -88,6 +90,7 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   header.lump_bytes = (uint32_t)sizeof(F3dLump);
   header.water_bytes = (uint32_t)sizeof(F3dWaterSlot);
   header.spray_bytes = (uint32_t)sizeof(F3dSpray);
+  header.bubble_bytes = (uint32_t)sizeof(F3dBubbles);
   uint8_t *at = buffer;
   f3d_copy(at, &header, sizeof header);
   at += sizeof header;
@@ -189,6 +192,10 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   }
   if (world->s.spray_count > 0) {
     f3d_copy(at, world->spray, (size_t)world->s.spray_count * sizeof(F3dSpray));
+    at += (size_t)world->s.spray_count * sizeof(F3dSpray);
+  }
+  if (world->s.bubble_count > 0) {
+    f3d_copy(at, world->bubbles, (size_t)world->s.bubble_count * sizeof(F3dBubbles));
   }
   return needed;
 }
@@ -213,7 +220,8 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       header.multibody_bytes != sizeof(F3dMultibodySlot) ||
       header.lump_bytes != sizeof(F3dLump) ||
       header.water_bytes != sizeof(F3dWaterSlot) ||
-      header.spray_bytes != sizeof(F3dSpray)) {
+      header.spray_bytes != sizeof(F3dSpray) ||
+      header.bubble_bytes != sizeof(F3dBubbles)) {
     return 0;
   }
   if (size < sizeof header + sizeof(F3dWorldState)) return 0;
@@ -369,6 +377,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   F3dWaterSlot *waters = NULL;
   f3d_real *water_data = NULL;
   F3dSpray *spray = NULL;
+  F3dBubbles *bubbles = NULL;
+  if (state.bubble_count > 0) {
+    bubbles = (F3dBubbles *)f3d_alloc(F3D_WATER_MOST_BUBBLES * sizeof(F3dBubbles));
+  }
   if (state.water_count > 0) {
     waters = (F3dWaterSlot *)f3d_alloc((size_t)state.water_count * sizeof(F3dWaterSlot));
   }
@@ -395,7 +407,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       (state.water_count > 0 && waters == NULL) ||
       (state.water_reals > 0 && water_data == NULL) ||
       (state.spray_count > 0 && spray == NULL) ||
-      state.spray_count > F3D_WATER_MOST_SPRAY) {
+      (state.bubble_count > 0 && bubbles == NULL) ||
+      state.spray_count > F3D_WATER_MOST_SPRAY ||
+      state.bubble_count > F3D_WATER_MOST_BUBBLES) {
+    f3d_free(bubbles);
     f3d_free(waters);
     f3d_free(water_data);
     f3d_free(spray);
@@ -484,6 +499,10 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   }
   if (spray != NULL) {
     f3d_copy(spray, at, (size_t)state.spray_count * sizeof(F3dSpray));
+    at += (size_t)state.spray_count * sizeof(F3dSpray);
+  }
+  if (bubbles != NULL) {
+    f3d_copy(bubbles, at, (size_t)state.bubble_count * sizeof(F3dBubbles));
   }
   f3d_free(world->vehicles);
   world->vehicles = vehicles;
@@ -497,6 +516,8 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->water_data = water_data;
   f3d_free(world->spray);
   world->spray = spray;
+  f3d_free(world->bubbles);
+  world->bubbles = bubbles;
   f3d_free(world->compounds);
   f3d_free(world->compound_parts);
   world->compounds = compounds;

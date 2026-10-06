@@ -131,11 +131,46 @@ static void test_waterfall(void) {
   CHECK_NEAR(total(w, water), before + 1.0, 1e-4 * before);
   CHECK(most > 10);
   CHECK(all_at_cliff);
+  /* The sheet keeps to continuity: every piece of it carries the flow it
+   * left with, thickness × speed × width, and the faster it has fallen the
+   * thinner it is. */
+  f3d_real all[F3D_SPRAY_FLOATS * 4096];
+  const uint32_t n = f3d_world_read_spray(w, all, NULL, 4096);
+  double top_thick = 0, low_thick = 1, top_y = -1e9, low_y = 1e9;
+  int sheets = 0;
+  for (uint32_t k = 0; k < n; k++) {
+    const f3d_real *d = &all[k * F3D_SPRAY_FLOATS];
+    if (d[9] != F3D_SPRAY_SHEET) continue;
+    sheets++;
+    if (d[1] > top_y) {
+      top_y = d[1];
+      top_thick = d[8];
+    }
+    if (d[1] < low_y) {
+      low_y = d[1];
+      low_thick = d[8];
+    }
+  }
+  CHECK(sheets > 10);
+  CHECK(low_thick < 0.8 * top_thick);
+  /* Plunging into the pond it drags air down: bubbles in the water below
+   * the falls, and none above the cliff. */
+  f3d_real bubbles[F3D_BUBBLE_FLOATS * 1024];
+  const uint32_t b = f3d_world_read_bubbles(w, bubbles, NULL, 1024);
+  CHECK(b > 0);
+  int below = 1;
+  for (uint32_t k = 0; k < b; k++) below &= bubbles[k * F3D_BUBBLE_FLOATS] > 12.0;
+  CHECK(below);
   /* The stream runs: a shallow sheet moving downhill. */
   f3d_real s[4];
   f3d_water_sample(w, water, 6, 3, s);
   CHECK(s[1] > 0.02 && s[1] < 0.3);
   CHECK(s[2] > 0.3);
+  /* The spring stopped, the falls run dry, and the bubbles rise and are
+   * gone at the surface within seconds. */
+  f3d_water_set_source(w, water, 0, 1, 3, F3D_R(0.5), 0);
+  run(w, 900);
+  CHECK(f3d_world_read_bubbles(w, NULL, NULL, 1024) == 0);
   free(ground);
   f3d_world_destroy(w);
 }
@@ -176,14 +211,34 @@ static void test_stone_makes_waves(void) {
   const F3dBody stone = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.5), 0, 5);
   f3d_body_set_shape(w, stone, F3D_SHAPE_SPHERE, F3D_R(0.1), 0, 0);
   double most = 0;
+  uint32_t splash = 0;
   for (int i = 0; i < 120; i++) {
     run(w, 1);
+    if (w->s.spray_count > splash) splash = w->s.spray_count;
     f3d_real s[4];
     f3d_water_sample(w, water, 1, 0, s);
     if (fabs((double)s[0] - 1.0) > most) most = fabs((double)s[0] - 1.0);
   }
-  CHECK(most > 0.003);
+  /* Two millimetres a metre off: most of what it pushed aside flew up
+   * as its crown and came down nearer. */
+  CHECK(most > 0.0015);
   CHECK_NEAR(total(w, water), before, 1e-5 * before);
+  /* Falling a metre and a half, it came in at five metres a second, far
+   * faster than a wave runs off a ball its size: it threw a crown. */
+  CHECK(splash > 0);
+  f3d_world_destroy(w);
+  /* Set down on the water, it pushes the water aside no faster than the
+   * waves take it, and throws nothing. */
+  w = f3d_world_create();
+  pond(w, 48, F3D_R(0.1));
+  const F3dBody gentle = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.05), 0, F3D_R(0.5));
+  f3d_body_set_shape(w, gentle, F3D_SHAPE_SPHERE, F3D_R(0.1), 0, 0);
+  splash = 0;
+  for (int i = 0; i < 60; i++) {
+    run(w, 1);
+    if (w->s.spray_count > splash) splash = w->s.spray_count;
+  }
+  CHECK(splash == 0);
   f3d_world_destroy(w);
 }
 

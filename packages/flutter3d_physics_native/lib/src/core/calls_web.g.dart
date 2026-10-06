@@ -330,6 +330,13 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber waters,
     JSNumber capacity,
   );
+  @JS('f3d_world_read_bubbles')
+  external JSNumber f3d_world_read_bubbles(
+    JSNumber world,
+    JSNumber bubbles,
+    JSNumber waters,
+    JSNumber capacity,
+  );
   @JS('f3d_multibody_create__w')
   external JSNumber f3d_multibody_create(
     JSNumber world,
@@ -1537,6 +1544,16 @@ int f3d_world_read_spray(int world, int spray, int waters, int capacity) => _x
     .f3d_world_read_spray(world.toJS, spray.toJS, waters.toJS, capacity.toJS)
     .toDartInt
     .toUnsigned(32);
+int f3d_world_read_bubbles(int world, int bubbles, int waters, int capacity) =>
+    _x
+        .f3d_world_read_bubbles(
+          world.toJS,
+          bubbles.toJS,
+          waters.toJS,
+          capacity.toJS,
+        )
+        .toDartInt
+        .toUnsigned(32);
 int f3d_multibody_create(int world, int root) => _x
     .f3d_multibody_create(world.toJS, lowHalf(root).toJS, highHalf(root).toJS)
     .toDartInt

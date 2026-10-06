@@ -110,6 +110,21 @@ final class NativeWater {
   int get cells => nx * nz;
 }
 
+/// Reals one piece of falling water takes in [NativeWorld.readSpray]: where
+/// it is xyz, its velocity xyz, the water it carries, m³; then for a sheet
+/// its width and its thickness — the flow it left with over its speed now,
+/// so it thins as it falls — and for drops their diameter, twice; its kind,
+/// [nativeSpraySheet] or [nativeSprayDrops]; and the face of the lip it
+/// left, one past its index, nought for drops, so a sheet's pieces join into
+/// one ribbon in the order they left.
+const int nativeSprayFloats = c.sprayFloats;
+const int nativeSpraySheet = c.spraySheet;
+const int nativeSprayDrops = c.sprayDrops;
+
+/// Reals one cloud of bubbles takes in [NativeWorld.readBubbles]: where it
+/// is xyz, the bubbles' radius, and the air the cloud holds, m³.
+const int nativeBubbleFloats = c.bubbleFloats;
+
 /// What water is like at a point: its surface's height above the water's
 /// origin, its depth, and the flow's velocity in x and z.
 typedef NativeWaterSample = ({
@@ -1830,13 +1845,26 @@ final class NativeWorld {
     }
   }
 
-  /// The spray in flight, [c.sprayFloats] reals a drop — where it is, its
+  /// The spray in flight, [nativeSprayFloats] reals a drop — where it is, its
   /// velocity, and the water it carries — up to [capacity] drops.
   Float32List readSpray({int capacity = c.waterMostSpray}) {
     final out = c.F32s.alloc(capacity * c.sprayFloats);
     try {
       final count = c.f3d_world_read_spray(_live, out, 0, capacity);
       return out.copy(count * c.sprayFloats);
+    } finally {
+      out.free();
+    }
+  }
+
+  /// The bubbles in the water, [nativeBubbleFloats] reals a cloud, up to
+  /// [capacity] clouds: what a sheet plunging into water dragged down,
+  /// rising and carried by the flow until they reach the surface.
+  Float32List readBubbles({int capacity = c.waterMostBubbles}) {
+    final out = c.F32s.alloc(capacity * c.bubbleFloats);
+    try {
+      final count = c.f3d_world_read_bubbles(_live, out, 0, capacity);
+      return out.copy(count * c.bubbleFloats);
     } finally {
       out.free();
     }

@@ -39,6 +39,8 @@ void main() {
     expect(at.surface, closeTo(0.5, 0.01));
     expect(world.sampleWater(pond, 9.0, 9.0), isNull);
     expect(world.readSpray(), isEmpty);
+    // No falls, so nothing drags air down.
+    expect(world.readBubbles(), isEmpty);
     expect(
       () => world.setWaterSource(pond, 16, x: 0, z: 0, rate: 1),
       throwsArgumentError,

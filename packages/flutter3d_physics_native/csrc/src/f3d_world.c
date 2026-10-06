@@ -55,6 +55,7 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->waters);
   f3d_free(world->water_data);
   f3d_free(world->spray);
+  f3d_free(world->bubbles);
   f3d_free(world->meshes);
   f3d_free(world->mesh_vertices);
   f3d_free(world->mesh_triangles);

@@ -54,6 +54,10 @@ void main() {
     expect(c.waterMostSources, define('F3D_WATER_MOST_SOURCES'));
     expect(c.waterMostSpray, define('F3D_WATER_MOST_SPRAY'));
     expect(c.sprayFloats, define('F3D_SPRAY_FLOATS'));
+    expect(c.waterMostBubbles, define('F3D_WATER_MOST_BUBBLES'));
+    expect(c.bubbleFloats, define('F3D_BUBBLE_FLOATS'));
+    expect(c.spraySheet, define('F3D_SPRAY_SHEET'));
+    expect(c.sprayDrops, define('F3D_SPRAY_DROPS'));
   });
 
   test('a multibody holds as many links and degrees as the header says', () {

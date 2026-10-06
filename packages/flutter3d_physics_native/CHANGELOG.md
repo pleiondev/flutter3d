@@ -23,6 +23,23 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A waterfall keeps to continuity, splashes, and drags air down.**
+  Each face of a cliff's lip throws what went over it in a step as one
+  piece of sheet, at the speed it went over with, falling freely; its
+  thickness is not imposed but follows from continuity, the flow it left
+  with over its speed now, so the sheet thins as it falls. Ripples on it
+  grow at Weber's rate until, twelve e-foldings on, it breaks into drops
+  of 1.89 times its thickness. Where a piece lands hard enough part of it
+  splashes back up (Mundo's criterion), and a sheet plunging into water
+  drags air down, Bin's Q_air/Q = 0.04·Fr^0.28·(H/e)^0.4 of it, as bubbles
+  that rise at their terminal speed, ride the flow and are gone at the
+  surface. A body coming into the water faster than a wave can carry it
+  off throws the water it pushes aside up as a crown. Water that finds no
+  room in the air stays on the lip instead of turning up below the cliff.
+  `readSpray` gives each piece's kind, width, thickness and lip;
+  `readBubbles` the bubbles. `F3D_ABI_VERSION` is 30, and a snapshot is
+  format 16.
+
 - **Water over ground: a stream, a pond, a waterfall into it.**
   `NativeWorld.createWater` lays shallow water on a grid over the ground.
   In each column the water moves as one, its depth carried across the

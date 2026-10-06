@@ -911,6 +911,24 @@ int f3d_world_read_spray(int world, int spray, int waters, int capacity) =>
       capacity,
     );
 
+@Native<Uint32 Function(Pointer<Void>, Pointer<Void>, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_world_read_bubbles',
+  isLeaf: true,
+)
+external int _f3d_world_read_bubbles(
+  Pointer<Void> world,
+  Pointer<Void> bubbles,
+  Pointer<Void> waters,
+  int capacity,
+);
+int f3d_world_read_bubbles(int world, int bubbles, int waters, int capacity) =>
+    _f3d_world_read_bubbles(
+      Pointer.fromAddress(world),
+      Pointer.fromAddress(bubbles),
+      Pointer.fromAddress(waters),
+      capacity,
+    );
+
 @Native<Uint32 Function(Pointer<Void>, Uint64)>(symbol: 'f3d_multibody_create')
 external int _f3d_multibody_create(Pointer<Void> world, int root);
 int f3d_multibody_create(int world, int root) =>
