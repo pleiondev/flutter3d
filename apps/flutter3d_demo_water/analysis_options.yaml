@@ -9,3 +9,6 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # As in `apps/flutter3d_demo_platformer/analysis_options.yaml`: the hook
+    # is excluded rather than given a dependency it never needs at runtime.
+    - hook/**

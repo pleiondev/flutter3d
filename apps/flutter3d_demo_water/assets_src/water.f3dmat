@@ -1,0 +1,96 @@
+// The valley's water, drawn as water: ripples the flow carries along, the
+// sky in it as strongly as Fresnel says, the sun's glint, the colour a depth
+// of water gives what is under it, and froth where the falls drove air in.
+//
+// The mesh says what the shader cannot see for itself. Each vertex's colour
+// is the flow at it, x and z, as 0.5 + velocity / 8 in red and green, and
+// the froth, the share of it that is air over three hundredths, in blue; its
+// first texture coordinate is how deep the water is there, m.
+material Water {
+  // Seconds since the valley opened; the game moves it every frame.
+  uniform float time = 0.0;
+  // How steep the ripples are: a wind roughens the water.
+  uniform float chop = 1.0;
+  // Where the eye is: a ripple too far off to span a few pixels would only
+  // alias into a chequer, so it fades out before it gets there.
+  uniform vec3 eye = vec3(0.0, 10.0, 0.0);
+  // Towards the sun, a unit vector, and the light it brings.
+  uniform vec3 toSun = vec3(-0.35, 0.7, 0.6);
+  uniform vec3 sunColor = vec3(2.0, 1.95, 1.85);
+  // The sky the water mirrors: what `SkySettings` draws behind it.
+  uniform vec3 zenith = vec3(0.22, 0.42, 0.78);
+  uniform vec3 horizon = vec3(0.68, 0.79, 0.92);
+
+  // The colour of a thin layer of water over the bed and of a deep one.
+  param vec3 shallow = vec3(0.12, 0.32, 0.30);
+  param vec3 deep = vec3(0.02, 0.10, 0.14);
+  // What share of the light a metre of water lets through.
+  param float clearness = 0.15;
+  // Water's reflectance looking straight down at it.
+  param float headOn = 0.02;
+
+  fragment {
+    // The flow carries the ripples: two copies of them, half a cycle
+    // apart, each dragged along by the flow for one cycle and then put
+    // back, and each weighed down to nothing at the moment it is put back.
+    let flow = (albedo.rg - vec2(0.5)) * 8.0;
+    let here = world.xz;
+    let cycle = 2.5;
+    let a = fract(time / cycle);
+    let b = fract(time / cycle + 0.5);
+    let onB = abs(2.0 * a - 1.0);
+    let qa = here - flow * (a * cycle);
+    let qb = here - flow * (b * cycle);
+
+    // A swell and three ripples, each a slope of amplitude times wavenumber
+    // along its own heading, running at deep water's speed: ω = √(g·k).
+    // 2.5 m: k 2.51, ω 4.96. 0.9 m: k 6.98, ω 8.27. 0.55 m: k 11.4, ω 10.6.
+    // 0.33 m: k 19.0, ω 13.7.
+    // How far off this is, and so which ripples are still worth drawing: a
+    // wave fades out between 25 and 60 of its own lengths away.
+    let far = length(world - eye);
+    let w0 = 1.0 - smoothstep(62.0, 150.0, far);
+    let w1 = 1.0 - smoothstep(22.0, 54.0, far);
+    let w2 = 1.0 - smoothstep(14.0, 33.0, far);
+    let w3 = 1.0 - smoothstep(8.0, 20.0, far);
+    let d0 = vec2(-0.6, 0.8);
+    let d1 = vec2(0.8, 0.6);
+    let d2 = vec2(-0.5, 0.866);
+    let d3 = vec2(0.196, -0.981);
+    let ga = d0 * (0.06 * w0 * cos(2.51 * dot(d0, qa) - 4.96 * time)) +
+             d1 * (0.12 * w1 * cos(6.98 * dot(d1, qa) - 8.27 * time)) +
+             d2 * (0.11 * w2 * cos(11.4 * dot(d2, qa) - 10.6 * time)) +
+             d3 * (0.10 * w3 * cos(19.0 * dot(d3, qa) - 13.7 * time));
+    let gb = d0 * (0.06 * w0 * cos(2.51 * dot(d0, qb) - 4.96 * time)) +
+             d1 * (0.12 * w1 * cos(6.98 * dot(d1, qb) - 8.27 * time)) +
+             d2 * (0.11 * w2 * cos(11.4 * dot(d2, qb) - 10.6 * time)) +
+             d3 * (0.10 * w3 * cos(19.0 * dot(d3, qb) - 13.7 * time));
+    let slope = mix(ga, gb, onB) * chop;
+    let n = normalize(normal + vec3(0.0 - slope.x, 0.0, 0.0 - slope.y));
+
+    // What the eye sees in it: the sky along the reflected ray, as much of
+    // it as Schlick's Fresnel gives, and the sun where the ray meets it.
+    let facing = clamp(dot(n, view), 0.0, 1.0);
+    let fresnel = headOn + (1.0 - headOn) * pow(1.0 - facing, 5.0);
+    let mirrored = n * (2.0 * dot(n, view)) - view;
+    let sky = mix(horizon, zenith, sqrt(clamp(mirrored.y, 0.0, 1.0)));
+    let glint = sunColor * (6.0 * pow(clamp(dot(mirrored, toSun), 0.0, 1.0), 800.0));
+
+    // The water itself: the deeper, the more of its own colour and the
+    // less of the bed through it.
+    let through = pow(clearness, uv.x);
+    let body = mix(deep, shallow, through) *
+               (ambient + sunColor * (0.3 * clamp(dot(n, toSun), 0.0, 1.0)));
+    let water = mix(body, sky, fresnel) + glint;
+    // At the very edge, a film over the bank, nothing shows: the shore is
+    // where it fades out, not where the cells it lies on stop.
+    let seen = clamp(1.0 - 0.85 * through + fresnel, 0.0, 1.0) *
+               smoothstep(0.0, 0.04, uv.x);
+
+    // Froth is white and hides what is under it; the ripples break it up.
+    let froth = clamp(albedo.b * (0.75 + 2.0 * (slope.x + slope.y)), 0.0, 1.0);
+    let white = vec3(0.92, 0.95, 0.97) *
+                (ambient + sunColor * (0.45 * clamp(dot(n, toSun), 0.0, 1.0)));
+    return vec4(mix(water, white, froth), mix(seen, 1.0, froth));
+  }
+}

@@ -31,7 +31,7 @@ final class _Thrown {
 
 /// The valley, stepped and drawn.
 final class WaterRun {
-  WaterRun(this._device, this.scene) {
+  WaterRun(this._device, this.scene, this.look) {
     _ground = valleyGround();
     // The ground as the stones meet it: one fixed mesh body.
     final floor = _world.addBody(
@@ -83,16 +83,18 @@ final class WaterRun {
 
   final GraphicsDevice _device;
   final Scene scene;
+
+  /// The water's material, `assets_src/water.f3dmat`: its clock and how
+  /// rough the wind makes it are set here every frame.
+  final Material look;
   final NativeWorld _world = NativeWorld();
   late final NativeWater water;
   late final List<double> _ground;
 
-  /// The water drawn as two meshes over the same vertices: the pond, which
-  /// a flat mirror lies under, and the stream above the cliff, which it
-  /// would not suit.
-  late final DeviceMesh _pond, _stream;
-  late final MeshNode _pondNode, _streamNode;
-  late final PlanarReflectorNode _mirror;
+  /// The water's surface, one vertex a cell.
+  late final DeviceMesh _surface;
+  late final MeshNode _surfaceNode;
+  double _clock = 0.0;
   late final DeviceMesh _sheet;
   late final MeshNode _sheetNode;
   late final InstancedMeshNode _drops, _bubbles;
@@ -132,9 +134,6 @@ final class WaterRun {
   /// Floats a vertex of [VertexLayout.standard] takes: position, normal,
   /// texture coordinate, tangent and colour.
   static const int _stride = 3 + 3 + 2 + 4 + 4;
-
-  /// Whether the cell row [j] is below the cliff, where the pond is.
-  static bool _belowCliff(int j) => (j + 0.5) * valleyCell > cliffFoot - 0.3;
 
   void _build() {
     // The ground: grass on the flat, rock where it is steep, sand by the
@@ -176,48 +175,22 @@ final class WaterRun {
         name: 'ground',
       ),
     );
-    // The water: its surface written again every frame in place, its colour
-    // and how much of the bed shows through set by its depth, white where it
-    // runs fast; the sky and the banks mirrored in the pond.
-    final vertices = _waterVertices(Float32List(0));
-    Material waterLook(String name) => Material(
-      name: name,
-      roughness: 0.05,
-      alphaMode: MaterialAlphaMode.blend,
-    );
-    _pond = DeviceMesh.upload(
+    // The water: its surface written again every frame in place, and
+    // drawn by its own material from what each vertex says of it.
+    _surface = DeviceMesh.upload(
       _device,
       MeshData(
         layout: VertexLayout.standard,
-        vertices: vertices,
-        indices: Uint32List.fromList(_triangles((_, j) => _belowCliff(j))),
+        vertices: _waterVertices(Float32List(0)),
+        indices: Uint32List.fromList(_triangles((_, _) => true)),
       ),
-    );
-    _stream = DeviceMesh.upload(
-      _device,
-      MeshData(
-        layout: VertexLayout.standard,
-        vertices: vertices,
-        indices: Uint32List.fromList(_triangles((_, j) => !_belowCliff(j))),
-      ),
-    );
-    _pondNode = MeshNode(_pond, waterLook('pond'), name: 'pond');
-    _streamNode = MeshNode(_stream, waterLook('stream'), name: 'stream');
-    _mirror = PlanarReflectorNode(
-      surfaces: <MeshNode>[_pondNode],
-      reflectance: 0.02,
-      name: 'pond mirror',
     );
     // Water lets most of the sun through, and a shadow map knows only
     // through or not: none of the water, falling or lying, casts a shadow.
     // A solid shadow of the sheet on the cliff behind it was a dark band.
-    for (final node in <MeshNode>[_pondNode, _streamNode]) {
-      node.castsShadow = false;
-    }
-    scene
-      ..add(_pondNode)
-      ..add(_streamNode)
-      ..add(_mirror);
+    _surfaceNode = MeshNode(_surface, look, name: 'water')
+      ..castsShadow = false;
+    scene.add(_surfaceNode);
     // The falls: the sheet as ribbons, one a face of the lip, through the
     // pieces it threw in the order it threw them; white where it is thick,
     // thinning to clear as continuity thins it. Each quad has its own four
@@ -315,8 +288,9 @@ final class WaterRun {
     int c,
     Vector3 p,
     Vector3 n,
-    Vector4 colour,
-  ) {
+    Vector4 colour, {
+    (double, double)? uv,
+  }) {
     final o = c * _stride;
     v[o] = p.x;
     v[o + 1] = p.y;
@@ -324,8 +298,9 @@ final class WaterRun {
     v[o + 3] = n.x;
     v[o + 4] = n.y;
     v[o + 5] = n.z;
-    v[o + 6] = p.x / valleySize;
-    v[o + 7] = p.z / valleySize;
+    final (u, w) = uv ?? (p.x / valleySize, p.z / valleySize);
+    v[o + 6] = u;
+    v[o + 7] = w;
     v[o + 8] = 1.0;
     v[o + 9] = 0.0;
     v[o + 10] = 0.0;
@@ -359,12 +334,14 @@ final class WaterRun {
     return air;
   }
 
-  /// The water's vertices as it stands now: each cell's surface, and white
-  /// where there is air in it — water is white where it is froth, a few
-  /// parts in a hundred of air, however fast it runs. Where it is dry the
-  /// vertex sinks under the ground and is not seen.
+  /// The water's vertices as it stands now, written for its material: the
+  /// flow at each in red and green as 0.5 + velocity / 8, the froth in
+  /// blue — water is white where it is a few parts in a hundred air,
+  /// however fast it runs — and the depth as the first texture coordinate.
+  /// Where it is dry the vertex sinks under the ground and is not seen.
   Float32List _waterVertices(Float32List bubbles) {
     final read = _world.readWaterSurface(water);
+    final flow = _world.readWaterFlow(water);
     final v = Float32List(valleyCells * valleyCells * _stride);
     final surface = read.surface;
     final air = _airIn(bubbles, read.depth);
@@ -372,26 +349,22 @@ final class WaterRun {
       for (var i = 0; i < valleyCells; i++) {
         final c = i + j * valleyCells;
         final wet = read.depth[c] > 0.004;
-        final y = wet ? surface[c] : _ground[c] - 0.05;
-        final foam = (air[c] / 0.03).clamp(0.0, 0.85);
-        // Clear over the shallows, green-blue and hiding the bed where it is
-        // deep: what a metre of water does to the light through it.
-        final deep = (read.depth[c] / 1.0).clamp(0.0, 1.0);
-        final r = 0.16 * (1 - deep) + 0.02 * deep;
-        final g = 0.34 * (1 - deep) + 0.14 * deep;
-        final b = 0.36 * (1 - deep) + 0.18 * deep;
-        final alpha = (0.30 + 0.62 * deep + foam).clamp(0.0, 0.96);
         _write(
           v,
           c,
-          Vector3((i + 0.5) * valleyCell, y, (j + 0.5) * valleyCell),
+          Vector3(
+            (i + 0.5) * valleyCell,
+            wet ? surface[c] : _ground[c] - 0.05,
+            (j + 0.5) * valleyCell,
+          ),
           _normal(surface, i, j),
           Vector4(
-            r + (0.95 - r) * foam,
-            g + (0.97 - g) * foam,
-            b + (1.0 - b) * foam,
-            alpha,
+            (0.5 + flow[2 * c] / 8.0).clamp(0.0, 1.0),
+            (0.5 + flow[2 * c + 1] / 8.0).clamp(0.0, 1.0),
+            (air[c] / 0.03).clamp(0.0, 1.0),
+            1.0,
           ),
+          uv: (read.depth[c], 0.0),
         );
       }
     }
@@ -471,13 +444,11 @@ final class WaterRun {
       ..step(dt);
     final bubbles = _world.readBubbles();
     final vertices = _waterVertices(bubbles).buffer.asByteData();
-    _pond.overwriteVertices(_device, 0, vertices);
-    _stream.overwriteVertices(_device, 0, vertices);
-    _pondNode.markBoundsDirty();
-    _streamNode.markBoundsDirty();
-    // The mirror lies on the pond as it stands.
-    final level = _world.sampleWater(water, pondX, pondZ)?.surface ?? 0.0;
-    _mirror.setPosition(0.0, level, 0.0);
+    _surface.overwriteVertices(_device, 0, vertices);
+    _surfaceNode.markBoundsDirty();
+    _clock += dt;
+    look.parameters['time']![0] = _clock;
+    look.parameters['chop']![0] = windy ? 2.0 : 1.0;
     _drawSpray(bubbles);
     for (final t in _thrown) {
       final p = _world.positionOf(t.body);

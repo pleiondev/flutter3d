@@ -26,3 +26,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # The build hook (`hook/build.dart`) that compiles `assets_src/water.f3dmat`
+  # into `flutter3d_generated/water.f3dshaders` on every build.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
+
+flutter:
+  assets:
+    - flutter3d_generated/

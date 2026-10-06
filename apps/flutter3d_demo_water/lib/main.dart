@@ -19,7 +19,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
@@ -56,6 +56,11 @@ class WaterScreen extends StatefulWidget {
 
 class _WaterScreenState extends State<WaterScreen>
     with SingleTickerProviderStateMixin {
+  static const String _waterBundle = 'flutter3d_generated/water.f3dshaders';
+
+  /// Where the sun shines along.
+  static Vector3 get _sunAlong => Vector3(0.35, -0.7, -0.6);
+
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
@@ -87,6 +92,19 @@ class _WaterScreenState extends State<WaterScreen>
   Future<void> _open() async {
     try {
       final device = await openDevice(width: 1280, height: 800);
+      final renderer = Renderer.create(device: device);
+      // The water's own material, compiled from `assets_src/water.f3dmat`
+      // by the build hook.
+      final bundle = await rootBundle.load(_waterBundle);
+      renderer.addMaterials(await device.loadShaders(bundle));
+      final materials = BundledMaterials.read(bundle);
+      final water = Material(
+        name: 'water',
+        lighting: materials['Water'],
+        parameters: materials.parameters('Water'),
+        alphaMode: MaterialAlphaMode.blend,
+      );
+      water.parameters['toSun']!.setAll(0, (-_sunAlong).normalized().storage);
       final scene = Scene()
         ..ambientIntensity = 0.45
         ..ambientColor = Vector3(0.70, 0.80, 1.0)
@@ -94,14 +112,12 @@ class _WaterScreenState extends State<WaterScreen>
           // From over the pond's side, so the falls and the cliff behind them
           // are in the sun.
           LightNode(name: 'sun', intensity: 2.0)
-            ..setLocalForward(Vector3(0.35, -0.7, -0.6)),
+            ..setLocalForward(_sunAlong),
         )
         ..add(_camera);
-      final run = WaterRun(device, scene);
+      final run = WaterRun(device, scene, water);
       if (!mounted) return;
-      setState(
-        () => _playing = (renderer: Renderer.create(device: device), run: run),
-      );
+      setState(() => _playing = (renderer: renderer, run: run));
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
@@ -130,6 +146,7 @@ class _WaterScreenState extends State<WaterScreen>
     _camera
       ..setPosition(eye.x, eye.y, eye.z)
       ..lookAt(target);
+    _playing?.run.look.parameters['eye']!.setAll(0, eye.storage);
   }
 
   /// A stone dropped where the pointer at [at] meets the valley.
@@ -227,7 +244,6 @@ class _WaterScreenState extends State<WaterScreen>
                     horizon: Vector3(0.68, 0.79, 0.92),
                     nadir: Vector3(0.30, 0.32, 0.30),
                   ),
-                  planarReflections: PlanarReflectionSettings(enabled: false),
                 ),
                 onBeforeFrame: _placeCamera,
                 presentFrame: presentFrame,
