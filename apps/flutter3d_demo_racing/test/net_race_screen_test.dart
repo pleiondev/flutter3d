@@ -66,6 +66,7 @@ void main() {
 
     expect(find.text('Make a party'), findsOneWidget);
     expect(find.text('Join the party'), findsOneWidget);
+    expect(find.text('Find a race'), findsOneWidget);
     SegmentedButton<int> sizes() =>
         tester.widget<SegmentedButton<int>>(find.byType(SegmentedButton<int>));
     expect(sizes().selected, <int>{4});

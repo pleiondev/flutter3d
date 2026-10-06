@@ -4,6 +4,13 @@
   and says who left, and `/watch/<code>` admits spectators. `joinParty` is
   the client.
 
+- **Strangers find each other.** `/match?size=N&game=<name>` seats a
+  machine in the party still filling for that game and size, or opens a
+  new one under a fresh code, and tells everyone `{"relay": "full"}` when
+  the last player arrives; a full party is matched no further. `findParty`
+  is the client, and a seat now carries the party's `code`, for a friend
+  to join by, and `full`.
+
 - `firstDifferingPath` lives in `flutter3d_sim` now; this package exports
   it from there, so imports of it keep working.
 

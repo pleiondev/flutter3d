@@ -140,4 +140,45 @@ void main() {
     }
     await watching.socket.close();
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('strangers asking for a race of four meet in one party, the fifth '
+      'starts the next, and two games never mix', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+
+    final seats = <PartySeat>[
+      for (var i = 0; i < 4; i++)
+        await findParty(base, game: 'racing/ring', size: 4),
+    ];
+    // Mutation: a fresh party for every ask, or the slots not handed out
+    // in turn — four parties of one, or two machines in one car.
+    expect(seats.map((seat) => seat.code).toSet(), hasLength(1));
+    expect(seats.map((seat) => seat.slot), <int>[0, 1, 2, 3]);
+    expect(seats.map((seat) => seat.size), <int>[4, 4, 4, 4]);
+    // Mutation: `full` never said — every machine waits here forever.
+    await Future.wait(
+      seats.map((seat) => seat.full),
+    ).timeout(const Duration(seconds: 5));
+
+    // Mutation: a full party still matched — the fifth lands in a race
+    // under way, past its last slot.
+    final fifth = await findParty(base, game: 'racing/ring', size: 4);
+    expect(fifth.code, isNot(seats.first.code));
+    expect(fifth.slot, 0);
+    // Mutation: the game left out of the key — the other circuit's
+    // player joins the fifth's party.
+    final other = await findParty(base, game: 'racing/figure8', size: 4);
+    expect(other.code, isNot(fifth.code));
+    expect(other.slot, 0);
+
+    // A matched party still takes a friend by its code.
+    final friend = await joinParty(base, fifth.code);
+    expect(friend.code, fifth.code);
+    expect(friend.slot, 1);
+
+    for (final seat in <PartySeat>[...seats, fifth, other, friend]) {
+      await seat.socket.close();
+    }
+  }, timeout: const Timeout(Duration(minutes: 1)));
 }

@@ -40,9 +40,18 @@ final class PartyRaceSession {
   /// How many of the other machines a frame has come from.
   int get heard => race.heard.length;
 
+  /// Whether every car has its driver: the relay says so once the last
+  /// one joins.
+  bool get full => _full;
+  bool _full = false;
+
   /// Makes a party of [size] under a new code, or with [code] joins one
   /// somebody made, and stages its race once the relay has said which car
   /// is this machine's.
+  ///
+  /// With [find], neither: the relay seats this machine among strangers
+  /// who asked for a race of [size] on the same [circuit], and the code is
+  /// whatever party that turned out to be.
   static Future<PartyRaceSession> open({
     required Uri relayBase,
     required TrackDocument document,
@@ -50,9 +59,17 @@ final class PartyRaceSession {
     required InputState input,
     String? code,
     int size = 4,
+    bool find = false,
+    String circuit = '',
   }) async {
-    final party = code ?? NetRaceSession.randomRoomCode();
-    final seat = await joinParty(relayBase, party, size: size);
+    final seat = find
+        ? await findParty(relayBase, game: 'racing/$circuit', size: size)
+        : await joinParty(
+            relayBase,
+            code ?? NetRaceSession.randomRoomCode(),
+            size: size,
+          );
+    final party = seat.code;
     if (seat.size > kFieldSize) {
       // A party another client made larger than this circuit's grid: there
       // is no car for some of the slots, so this machine does not race.
@@ -74,10 +91,12 @@ final class PartyRaceSession {
       code: party,
       size: seat.size,
       seat: seat,
-    );
+    ).._watchFull();
   }
 
   void advance() => race.advance();
+
+  void _watchFull() => _seat.full.then((_) => _full = true);
 
   Future<void> dispose() => _seat.socket.close();
 }

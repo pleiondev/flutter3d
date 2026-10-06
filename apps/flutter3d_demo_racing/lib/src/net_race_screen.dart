@@ -64,6 +64,9 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
   /// How many of the party's other drivers have been heard, polled as
   /// [_connected] is.
   int _heard = 0;
+
+  /// Whether every car of the party has its driver, polled as [_heard] is.
+  bool _full = false;
   Timer? _ticker;
   final TextEditingController _codeField = TextEditingController();
   final InputState _input = InputState();
@@ -101,8 +104,9 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
     return (document: document, world: world);
   }
 
-  /// Makes a party of [_partySize], or with [code] joins one.
-  Future<void> _openParty({String? code}) async {
+  /// Makes a party of [_partySize], or with [code] joins one, or with
+  /// [find] is seated among strangers who asked for the same race.
+  Future<void> _openParty({String? code, bool find = false}) async {
     setState(() {
       _phase = _Phase.connecting;
       _error = null;
@@ -116,6 +120,8 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
         input: _input,
         code: code,
         size: _partySize,
+        find: find,
+        circuit: widget.trackAsset,
       );
       if (!mounted) {
         await party.dispose();
@@ -128,7 +134,12 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
       _ticker = Timer.periodic(const Duration(milliseconds: 1000 ~/ 60), (_) {
         party.advance();
         _input.endStep();
-        if (party.heard != _heard) setState(() => _heard = party.heard);
+        if (party.heard != _heard || party.full != _full) {
+          setState(() {
+            _heard = party.heard;
+            _full = party.full;
+          });
+        }
       });
     } catch (error) {
       if (!mounted) return;
@@ -200,6 +211,7 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
       _party = null;
       _connected = false;
       _heard = 0;
+      _full = false;
     });
   }
 
@@ -268,6 +280,13 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8.0),
+              // No code to pass round: the relay seats this machine with
+              // whoever else asked for a race of this size on this circuit.
+              OutlinedButton(
+                onPressed: () => _openParty(find: true),
+                child: const Text('Find a race'),
+              ),
             ],
           ),
         );
@@ -286,7 +305,9 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
               ),
               const SizedBox(height: 8.0),
               Text(
-                'Heard $_heard of ${party.size - 1} drivers',
+                _full
+                    ? 'Heard $_heard of ${party.size - 1} drivers'
+                    : 'Waiting for drivers to fill the grid…',
                 key: const Key('party-heard'),
               ),
               const SizedBox(height: 24.0),

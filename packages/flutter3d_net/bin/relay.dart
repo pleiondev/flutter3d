@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 /// `net-02`'s relay: one process, rooms named by a code in the URL path,
 /// no accounts.
@@ -33,6 +34,14 @@ import 'dart:io';
 /// to watch: its slot comes after the players', it hears everything and
 /// what it says reaches the players, so a spectator can ask for the tape.
 ///
+/// `/match?size=N&game=<name>` — matchmaking for strangers: a party of N
+/// for that game that is still filling, or a new one under a fresh code.
+/// The welcome carries the `code`, so friends can still be sent after a
+/// matched party, and once a party has all its players everyone in it is
+/// told `{"relay": "full", "size": N}` — the moment a game can start. A
+/// full party is matched no further, even when somebody leaves it: a race
+/// under way is not where a stranger should land.
+///
 /// [port] defaults to `0`, which asks the system for whichever port is
 /// free — the line this prints on startup is how a caller that bound to
 /// `0` (a test, most often) reads back which one it actually got.
@@ -61,6 +70,9 @@ Future<void> main(List<String> args) async {
 
   final rooms = <String, List<WebSocket>>{};
   final parties = <String, _Party>{};
+  // The party still filling for each game and size, by its code.
+  final filling = <String, String>{};
+  final dice = math.Random.secure();
 
   await for (final request in server) {
     if (!WebSocketTransformer.isUpgradeRequest(request)) {
@@ -71,6 +83,24 @@ Future<void> main(List<String> args) async {
       continue;
     }
     final segments = request.uri.pathSegments;
+    if (segments.length == 1 && segments[0] == 'match') {
+      final query = request.uri.queryParameters;
+      final size = (int.tryParse(query['size'] ?? '') ?? 4).clamp(2, 32);
+      final key = '${query['game'] ?? ''}/$size';
+      final open = filling[key];
+      final code = open != null && parties.containsKey(open)
+          ? open
+          : filling[key] = _freshCode(dice, parties);
+      await _joinParty(
+        request,
+        parties,
+        code,
+        watching: false,
+        size: size,
+        onFull: () => filling.remove(key),
+      );
+      continue;
+    }
     if (segments.length == 2 &&
         (segments[0] == 'party' || segments[0] == 'watch') &&
         segments[1].isNotEmpty) {
@@ -120,8 +150,11 @@ Future<void> _joinParty(
   Map<String, _Party> parties,
   String code, {
   required bool watching,
+  int? size,
+  void Function()? onFull,
 }) async {
-  final asked = int.tryParse(request.uri.queryParameters['size'] ?? '') ?? 4;
+  final asked =
+      size ?? int.tryParse(request.uri.queryParameters['size'] ?? '') ?? 4;
   final party = parties[code];
   if (party == null && watching) {
     request.response.statusCode = HttpStatus.notFound;
@@ -156,8 +189,17 @@ Future<void> _joinParty(
       'slot': slot,
       'size': room.size,
       'watching': watching,
+      'code': code,
     }),
   );
+  if (!watching && room.players.nonNulls.length == room.size) {
+    onFull?.call();
+    for (final other in room.everyone) {
+      other.add(
+        jsonEncode(<String, Object?>{'relay': 'full', 'size': room.size}),
+      );
+    }
+  }
   socket.listen(
     (message) {
       for (final other in room.everyone) {
@@ -176,4 +218,17 @@ Future<void> _joinParty(
       if (room.everyone.isEmpty) parties.remove(code);
     },
   );
+}
+
+/// Five letters no one misreads, for a party nobody named: the alphabet of
+/// the racing game's room codes, without I, O, 0 and 1.
+String _freshCode(math.Random dice, Map<String, _Party> parties) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  while (true) {
+    final code = String.fromCharCodes(<int>[
+      for (var i = 0; i < 5; i++)
+        alphabet.codeUnitAt(dice.nextInt(alphabet.length)),
+    ]);
+    if (!parties.containsKey(code)) return code;
+  }
 }

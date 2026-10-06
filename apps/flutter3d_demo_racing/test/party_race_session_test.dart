@@ -63,6 +63,8 @@ Future<PartyRaceSession> _open(
   String? code,
   required int size,
   required InputState input,
+  bool find = false,
+  String circuit = 'assets/tracks/ring.json',
 }) {
   final document = _ring();
   return PartyRaceSession.open(
@@ -72,6 +74,8 @@ Future<PartyRaceSession> _open(
     input: input,
     code: code,
     size: size,
+    find: find,
+    circuit: circuit,
   );
 }
 
@@ -133,5 +137,46 @@ void main() {
       _open(base, code: 'BIGUN', size: 4, input: InputState()),
       throwsA(isA<StateError>()),
     );
+  });
+
+  test('Find a race seats strangers on one circuit together, says when the '
+      'grid is full, and keeps circuits apart', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+
+    final first = await _open(base, size: 3, find: true, input: InputState());
+    final stranger = await _open(
+      base,
+      size: 3,
+      find: true,
+      circuit: 'assets/tracks/gorge.json',
+      input: InputState(),
+    );
+    final second = await _open(base, size: 3, find: true, input: InputState());
+    expect(first.full, isFalse);
+    final third = await _open(base, size: 3, find: true, input: InputState());
+    final all = <PartyRaceSession>[first, second, third, stranger];
+    addTearDown(() async {
+      for (final it in all) {
+        await it.dispose();
+      }
+    });
+
+    // Mutation: the circuit left out of the ask — the gorge's
+    // driver takes the ring's second car.
+    expect(<String>{first.code, second.code, third.code}, hasLength(1));
+    expect(stranger.code, isNot(first.code));
+    expect(
+      <int>{first.localCarIndex, second.localCarIndex, third.localCarIndex},
+      <int>{0, 1, 2},
+    );
+    // Mutation: the relay's word that the grid is full not kept.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(
+      <bool>[first.full, second.full, third.full],
+      <bool>[true, true, true],
+    );
+    expect(stranger.full, isFalse);
   });
 }

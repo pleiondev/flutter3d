@@ -5,12 +5,15 @@ import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'net_transport_wire.dart';
 import 'websocket_transport.dart';
 
-/// A machine's place in a relay's party: its wire, and the slot the relay
-/// gave it.
+/// A machine's place in a relay's party: its wire, the slot the relay gave
+/// it, the party's [code] — the one to send a friend — and [full], which
+/// completes once every player's slot is taken.
 typedef PartySeat = ({
   PartyWire wire,
   int slot,
   int size,
+  String code,
+  Future<void> full,
   WebSocketTransport socket,
 });
 
@@ -30,21 +33,64 @@ Future<PartySeat> joinParty(
   bool watching = false,
   void Function(int slot)? left,
   Duration timeout = const Duration(seconds: 10),
+}) => _seat(
+  relay.replace(
+    pathSegments: <String>[watching ? 'watch' : 'party', code],
+    queryParameters: watching ? null : <String, String>{'size': '$size'},
+  ),
+  code: code,
+  left: left,
+  timeout: timeout,
+);
+
+/// Finds a party of [size] for [game] on the relay at [relay] — one still
+/// filling with strangers who asked for the same, or a new one — and
+/// answers with this machine's seat in it. The seat's `code` is the
+/// party's, for a friend to join by; its `full` completes when the last
+/// player arrives, which is when a game should start.
+///
+/// [game] keeps games apart: two games on one relay, or one game's
+/// circuits, never match each other's players.
+Future<PartySeat> findParty(
+  Uri relay, {
+  required String game,
+  int size = 4,
+  void Function(int slot)? left,
+  Duration timeout = const Duration(seconds: 10),
+}) => _seat(
+  relay.replace(
+    pathSegments: const <String>['match'],
+    queryParameters: <String, String>{'size': '$size', 'game': game},
+  ),
+  left: left,
+  timeout: timeout,
+);
+
+Future<PartySeat> _seat(
+  Uri at, {
+  String? code,
+  void Function(int slot)? left,
+  required Duration timeout,
 }) async {
-  final socket = await WebSocketTransport.connect(
-    relay.replace(
-      pathSegments: <String>[watching ? 'watch' : 'party', code],
-      queryParameters: watching ? null : <String, String>{'size': '$size'},
-    ),
-  );
-  final welcomed = Completer<({int slot, int size})>();
+  final socket = await WebSocketTransport.connect(at);
+  final welcomed = Completer<({int slot, int size, String code})>();
+  final full = Completer<void>();
   final peer = NetTransportWire(socket);
   void Function(Map<String, Object?>)? onward;
   socket.listen((Map<String, Object?> message) {
     switch (message) {
       case {'relay': 'welcome', 'slot': final int slot, 'size': final int of}
           when !welcomed.isCompleted:
-        welcomed.complete((slot: slot, size: of));
+        // A relay from before matchmaking names no code; the one asked
+        // for is the party's.
+        final named = message['code'];
+        welcomed.complete((
+          slot: slot,
+          size: of,
+          code: named is String ? named : code ?? '',
+        ));
+      case {'relay': 'full'}:
+        if (!full.isCompleted) full.complete();
       case {'relay': 'left', 'slot': final int slot}:
         left?.call(slot);
       default:
@@ -56,7 +102,14 @@ Future<PartySeat> joinParty(
     _Forwarding(peer, (listener) => onward = listener),
     slot: seat.slot,
   );
-  return (wire: wire, slot: seat.slot, size: seat.size, socket: socket);
+  return (
+    wire: wire,
+    slot: seat.slot,
+    size: seat.size,
+    code: seat.code,
+    full: full.future,
+    socket: socket,
+  );
 }
 
 /// [inner]'s sending, and a listener [attach] puts behind the relay's own
