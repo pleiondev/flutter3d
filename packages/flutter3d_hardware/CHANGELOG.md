@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A storage buffer a draw can bind as its indices** —
   `createStorageBuffer(bindableAsIndices: true)` and
@@ -31,6 +31,8 @@
   `RangeError` by `indexWindow`, which every backend calls, rather than left
   to four drivers that answer it four different ways. Traces record the
   window only when there is one, so older traces read as they were recorded.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0+1
 

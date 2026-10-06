@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **`Editing.replaceLevel`** puts a whole level in place as one step of
   undo.
@@ -25,6 +25,12 @@
 - **The draw order of a brush, in the scene and the inspector.**
   `LevelScene` gives each batch its brushes' `drawOrder`, a duplicate keeps
   it, and the inspector offers it on a brush that has never said.
+
+- **A scaffolded project asks for `^0.9.0`.** `pubspecFor` still wrote
+  `^0.7.1`, so a game started from the template resolved the engine of two
+  releases ago.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0+1
 

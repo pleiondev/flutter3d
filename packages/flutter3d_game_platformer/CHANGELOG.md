@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **The runner's one-way platforms are a rule, not a predicate.** Its body
   takes `fromAboveLayers`, with `dropThrough` while dropping, so the physics
@@ -11,6 +11,8 @@
   `Dynamics` that is nothing, so a reference run's saves and digests are
   unchanged. For the native core it is the core's own state, without which
   a rewind stepped on from a keyframe would not repeat the run.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0+1
 

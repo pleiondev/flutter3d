@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 **The cloth bake runs on the run's physics.** `BakeClothJobRequest` steps
 its mesh through `PhysicsBackend.current.cloth`, which is the core when the
@@ -19,6 +19,8 @@ writes them when there are some, and every history step that changed them,
 so an undo after reopening puts them back. An export writes them into the
 model's root `extras`, and an import keeps every one, as the project file
 does: one this build cannot read is refused only when somebody sets it.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0
 

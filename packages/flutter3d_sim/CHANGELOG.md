@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **Levels from a seed and some rules (N11).**
   - `collapse` is wave function collapse over tiles.
@@ -312,6 +312,8 @@
   still the simulation's, since its surface falls back to its material.
 - **`RewindBuffer.rebaseAt`** makes one keyframe the oldest thing held, for a
   change to the world the snapshots do not carry.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1+1
 

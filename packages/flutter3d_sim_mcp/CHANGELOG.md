@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **`bisect` finds where two runs part.** It reports the step, whether
   the input differed there, and the first field that differs, using the
@@ -16,6 +16,8 @@
   replays through `resimulate`, so a playtest report and a telemetry heatmap
   are one format and a run this server calls verified is one a telemetry
   server would take. Answers and JSON are unchanged.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0
 

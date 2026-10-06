@@ -1,3 +1,11 @@
+## 0.9.0
+
+**Moves with the stack to 0.9.0**, whose `flutter3d_hardware` gives
+`PassEncoder.draw` a window of the bound indices and every `PassEncoder`
+`setAlphaToCoverage`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
+
 ## 0.8.0
 
 **`clusterMesh` reorders a mesh's triangles into runs a renderer can cull.**

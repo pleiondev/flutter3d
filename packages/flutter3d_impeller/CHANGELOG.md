@@ -1,10 +1,12 @@
-## Unreleased
+## 0.9.0
 
 - `createStorageBuffer` takes `bindableAsIndices`, and refuses it as it
   refuses every storage buffer: no compute here, so splats sort on the CPU.
 
 - **`supportsAlphaToCoverage` is false**: flutter_gpu has no
   alpha-to-coverage and no sample mask. `setAlphaToCoverage` does nothing.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1+1
 

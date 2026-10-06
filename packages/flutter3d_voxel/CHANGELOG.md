@@ -1,4 +1,10 @@
-## 0.1.0
+## 0.9.0
+
+- **The first publication, and the number skips from 0.1.0.** That number
+  was carried inside the workspace and never reached pub.dev, so nobody
+  outside saw the ones passed over. The shelf goes out on one number so
+  that one number names one tree, and `^0.9.0` on any `flutter3d_*`
+  package resolves against every other.
 
 - **A world of blocks, kept as a seed and the edits since.** `VoxelWorld`
   holds a byte a voxel in chunks of sixteen cubed, drawn from a
@@ -29,3 +35,5 @@
 - **`raycast` picks a block.** Through the grid rather than the merged
   boxes, which say where a ray stopped and not which voxel it was; the face
   it entered by is where a placed block goes.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.

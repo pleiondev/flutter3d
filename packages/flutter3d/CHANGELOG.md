@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **Listed for the web.** The engine ran in the browser through
   `flutter3d_webgl`, but pub.dev listed it without the web, because pub.dev
@@ -18,6 +18,8 @@
   (left drawn as it was) and what it added (needs instantiating again).
 - `bindMaterial` takes a `name` for the bound material, the file's own by
   default; a level passes the name its surfaces use.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.3+1
 

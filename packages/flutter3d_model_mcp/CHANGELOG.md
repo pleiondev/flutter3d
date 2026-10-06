@@ -1,8 +1,10 @@
-## Unreleased
+## 0.9.0
 
 **`setAnimationGraph` and `removeAnimationGraph`.** An agent sets a
 character's graph by name over the project's clips, with the whole shape
 described in the tool, and is told where a wrong one is wrong.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1
 

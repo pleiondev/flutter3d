@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **`MaterialProgramStage` moved to `flutter3d_app`**, which a game can
   depend on; this package carries `flutter_test`.
@@ -17,6 +17,8 @@
   that checks nothing and a level changed since the recording all fail
   before the first step. `expectReplayMatches` does the same for a `Demo`
   in memory, and `readTape` reads a `.f3drun` or says why it cannot.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0
 

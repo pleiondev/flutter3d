@@ -1,6 +1,6 @@
 name: flutter3d_build
 description: "The build hook behind `dart run flutter3d_build:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run."
-version: 0.8.0
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -18,39 +18,39 @@ dependencies:
   # (`ap-03`) — and neither needs the Flutter SDK to read a source file, which
   # is the whole reason this package can be a hook in the first place: `dart
   # pub get` inside a `hook/build.dart` process has no window to ask for.
-  flutter3d_core: ^0.8.0
+  flutter3d_core: ^0.9.0
 
   # `C5`'s automatic levels of detail: `simplifyMeshWithAttributesMeasured`
   # cuts each level from the base and says how far it bent it. Plain Dart,
   # like everything else here.
-  flutter3d_mesh: ^0.8.0
+  flutter3d_mesh: ^0.9.0
 
   # `C4`'s impostor bake: the software rasteriser draws every view, so the
   # atlases a model carries are the same bytes on every machine that converts
   # it — the device is plain Dart, which is what a build hook needs.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^0.9.0
   vector_math: ^2.2.0
 
   # `N7`'s per-class texture budgets: the same `TextureBudget` presets and
   # box resize `makeGameReady` fits a project with, so a phone's file carries
   # the textures the editor would have fitted it to. Plain Dart, and already
   # under `flutter3d_cpu` above.
-  flutter3d_model_core: ^0.8.0
+  flutter3d_model_core: ^0.9.0
 
   # `bin/lights.dart`: the light optimizer (`flutter3d_editor_core`'s
   # `light_opt/`) and the level and pose documents it reads
   # (`flutter3d_sim`). Both plain Dart, and reached only from that command —
   # `lib/flutter3d_build.dart`, which the hook imports, does not export it.
-  flutter3d_editor_core: ^0.8.0
-  flutter3d_sim: ^0.8.0
+  flutter3d_editor_core: ^0.9.0
+  flutter3d_sim: ^0.9.0
 
   # P8's material step: `ShaderBundle`, the container it writes, and
   # `flutter3d_shaders`' `compile.dart` — the engine's headers a material
   # includes, the WebGL2 and WebGPU translators, and the WGSL compile. Both
   # flat; the translators moved out of the two web backends for exactly this
   # line, since a package declaring the Flutter SDK cannot be listed here.
-  flutter3d_hardware: ^0.8.0
-  flutter3d_shaders: ^0.8.2
+  flutter3d_hardware: ^0.9.0
+  flutter3d_shaders: ^0.9.0
 
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the

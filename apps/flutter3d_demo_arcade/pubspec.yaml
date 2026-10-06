@@ -11,20 +11,20 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.8.3
-  flutter3d_app: ^0.8.0
-  flame_flutter3d: ^0.8.2
-  flutter3d_sim: ^0.8.0
-  flutter3d_physics: ^0.8.0
+  flutter3d: ^0.9.0
+  flutter3d_app: ^0.9.0
+  flame_flutter3d: ^0.9.0
+  flutter3d_sim: ^0.9.0
+  flutter3d_physics: ^0.9.0
   # The physics core the ship is stepped by: C built by its hook for each
   # target, WebAssembly in the browser. `FLUTTER3D_PHYSICS=dart` at build
   # time steps it with flutter3d_physics' reference instead.
-  flutter3d_physics_native: ^0.1.0
+  flutter3d_physics_native: ^0.9.0
 
   # `Bindings`, the same table `DesktopInput`/`PadInput` write into — see
   # `FlameInputBridge`'s own doc comment for why this app reuses it rather
   # than inventing a second input model.
-  flutter3d_game: ^0.8.0
+  flutter3d_game: ^0.9.0
 
   flame: ^1.38.2
   vector_math: ^2.2.0
@@ -34,7 +34,7 @@ dev_dependencies:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^0.9.0
   flutter_lints: ^6.0.0
 
 flutter:

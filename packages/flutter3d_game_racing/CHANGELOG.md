@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A save carries what the dynamics need beyond the bodies.** The
   simulation's snapshot holds `RigidDynamics.saveState()` under
@@ -6,6 +6,8 @@
   `Dynamics` that is nothing, so a reference run's saves and digests are
   unchanged. For the native core it is the core's own state, without which
   a rewind stepped on from a keyframe would not repeat the run.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0
 

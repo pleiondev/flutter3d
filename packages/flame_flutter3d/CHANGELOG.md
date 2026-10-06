@@ -1,3 +1,13 @@
+## 0.9.0
+
+**Moves with the stack to 0.9.0, and steps whichever physics the run
+chose.** `PhysicsStepComponent.dynamics` and `RigidBodyComponent.removeFrom`
+are `flutter3d_physics`' `RigidDynamics`, the seam both its `Dynamics` and
+`flutter3d_physics_native`'s `NativeDynamics` fill. A `Dynamics` passes as
+before.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`, and it asks for `pad_input` `^0.5.0`.
+
 ## 0.8.5
 
 **One 3D model in a plain Flame game.** `Model3dComponent` is a

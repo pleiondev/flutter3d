@@ -1,4 +1,9 @@
-## Unreleased
+## 0.9.0
+
+- **The first publication.** The 0.8.0 the pubspec carried was a number
+  inside the workspace and never reached pub.dev. The package goes out on the
+  shelf's number, so `^0.9.0` on it resolves against every other
+  `flutter3d_*` package.
 
 - **The events a game posts, beside its console.** `PlayedGame.events`
   keeps what the game posted with `flutter3d_game`'s `postGameEvent` — a
@@ -57,3 +62,5 @@
   and leaving out devices it marks unsupported.
 - **`package:flutter3d_editor_play/testing.dart`**: `FakeFlutterTool` and
   `fakeFlutterRun`, a `flutter run --machine` a test controls.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.

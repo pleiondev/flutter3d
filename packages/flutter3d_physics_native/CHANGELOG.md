@@ -1,4 +1,10 @@
-## Unreleased
+## 0.9.0
+
+- **The first publication, and the number skips from 0.1.0.** That number
+  was carried inside the workspace and never reached pub.dev, so nobody
+  outside saw the ones passed over. The shelf goes out on one number so
+  that one number names one tree, and `^0.9.0` on any `flutter3d_*`
+  package resolves against every other.
 
 - **Pipes and floating bodies run on the core.** `NativeLiquid` drives a
   pipe's column with `f3d_liquid_pipes` and pushes floating bodies with
@@ -612,3 +618,5 @@
   own C compiler, and as a WebAssembly module with no imports by
   `tool/build_wasm.dart`, from the same sources and flags. The two step the
   same scenario to the same bits.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.

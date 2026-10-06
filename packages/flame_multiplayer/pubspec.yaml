@@ -1,6 +1,6 @@
 name: flame_multiplayer
 description: "Two players on two machines for a game: a room with a handshake and separate channels, rollback play in step, turns with a replay for the one watching, and a ghost's latest word in a race."
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

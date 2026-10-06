@@ -1,3 +1,8 @@
+## 0.1.1
+
+**Asks for `flame_multiplayer` `^0.2.0`**, the release with parties of more
+than two. Nothing in this package changed.
+
 ## 0.1.0
 
 **A dashwire connection carries `flame_multiplayer`.** `DashwireWire` makes a

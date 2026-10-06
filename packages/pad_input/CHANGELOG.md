@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 * **Controllers on Windows and Linux.** Windows asks XInput's four slots
   about a hundred and twenty times a second; Linux reads the kernel's

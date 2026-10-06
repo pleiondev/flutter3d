@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A material's bundle carries its source** in the material section, and
   `kAssetPipelineVersion` is 3, so bundles built before it are built again.
@@ -36,6 +36,10 @@ for a compiler or for the engine's sources at all.
 
 A manifest rule's `glob` and `exclude` apply to materials as they do to
 models.
+
+`init` writes `^0.9.0` for this package (`kFlutter3dBuildVersionConstraint`).
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0
 

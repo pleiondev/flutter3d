@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 * **Particles through an orthographic camera fog by depth.** Every particle
   stage measured its fog from the eye's position and a mesh particle lit
@@ -16,6 +16,8 @@
 * **Particles follow a shader reload.** `ParticleContributor` and
   `MeshParticleContributor` drop their pipelines when the renderer relinks,
   through `flutter3d_core`'s `PassContributor.relinkShaders`.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1+1
 

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **The relay holds parties.** `/party/<code>?size=N` hands out the slots
   and says who left, and `/watch/<code>` admits spectators. `joinParty` is
@@ -7,6 +7,7 @@
 - `firstDifferingPath` lives in `flutter3d_sim` now; this package exports
   it from there, so imports of it keep working.
 
+Its `flutter3d_*` dependencies ask for `^0.9.0`, and it asks for `flame_multiplayer` `^0.2.0`.
 
 ## 0.8.1
 

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0
 
 * **Windows and Linux capture the pointer.** On Windows the motion comes
   from Raw Input, the mouse's own counts before acceleration and the screen's

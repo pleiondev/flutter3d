@@ -1,6 +1,6 @@
 name: flutter3d_editor_play
 description: "Play from a level editor: the game a level belongs to run with `flutter run --machine`, reloaded, stopped, and handed a saved level while it runs."
-version: 0.8.0
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -16,7 +16,7 @@ environment:
 
 dependencies:
   # `Level.digestHex`, which the game checks a level it is sent against.
-  flutter3d_sim: ^0.8.0
+  flutter3d_sim: ^0.9.0
 
   # The running game's VM service, where `ext.flutter3d.level.apply` is.
   vm_service: ^15.3.0

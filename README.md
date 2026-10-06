@@ -9,13 +9,15 @@ not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: thirty-nine packages, published by
+On pub.dev: forty-five packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages). Start with
-[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. Thirty-six of
-them are the 0.8.0 set, one number for all, so any `^0.8.0` resolves against
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. Forty-one of
+them are the 0.9.0 set, one number for all, so any `^0.9.0` resolves against
 every other; [`pad_input`](https://pub.dev/packages/pad_input) and
 [`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
-at 0.4.2, since neither names a sibling. Coming from 0.6.0, several packages were
+at 0.5.0, since neither names a sibling, and so do
+[`flame_multiplayer`](https://pub.dev/packages/flame_multiplayer) at 0.2.0 and
+its dashwire adapter at 0.1.1. Coming from 0.6.0, several packages were
 folded into others, and [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) lists
 which import lines move. To work on the engine itself, see
 [Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and

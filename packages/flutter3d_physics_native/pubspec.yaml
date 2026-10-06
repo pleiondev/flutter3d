@@ -1,10 +1,14 @@
 name: flutter3d_physics_native
 description: "The physics core in C11: rigid bodies stepped natively through dart:ffi, and in the browser as WebAssembly. flutter3d_physics is its reference."
-version: 0.1.0
-publish_to: none
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - physics
+  - simulation
+  - ffi
+  - game-development
 resolution: workspace
 
 environment:
@@ -28,19 +32,15 @@ dependencies:
   # What NativeDynamics stands under: its bodies, colliders and world. Also
   # the reference the tests hold a native world to, with a tolerance, since
   # that one is in doubles.
-  flutter3d_physics: ^0.8.0
+  flutter3d_physics: ^0.9.0
   # The scene's skeletons, for the ragdoll a skinned character goes limp
   # into: its joints are scene nodes, its bind pose the skeleton's. Plain
   # Dart, so this package gains no Flutter by it.
-  flutter3d_core: ^0.8.3
+  flutter3d_core: ^0.9.0
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
-
-# **Unpublished while P9 builds it.** The native core grows phase by phase —
-# bodies first, then contacts, a solver, shapes, joints, CCD and the GPU
-# passes — and it is published once it can stand under `CollisionWorld`.
 
 # The core as a WebAssembly module, for the browser: a Flutter web app
 # serves it from assets/packages/flutter3d_physics_native/web/.

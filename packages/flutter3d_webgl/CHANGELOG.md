@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - `createStorageBuffer` takes `bindableAsIndices`, and refuses it as it
   refuses every storage buffer: no compute here, so splats sort on the CPU.
@@ -37,6 +37,8 @@ height fog in `ApplyFog`.**
 `flutter3d_shaders`**, so a build hook with no Flutter SDK can use them.
 `encodeWebGlSection`, `decodeWebGlSection` and `WebGlSectionSources` are
 still exported from this package's barrel under the same names.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.2+1
 

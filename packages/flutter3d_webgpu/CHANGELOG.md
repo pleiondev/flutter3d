@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **Splat clouds are sorted on this device's compute — `H11`.** The
   compute table carries `SplatSortCount`, `SplatSortScan` and
@@ -51,6 +51,8 @@ height fog in `ApplyFog`**, through glslang and naga like every other stage.
 tools and tests here import them from `package:flutter3d_shaders/compile.dart`,
 and `flutter3d_webgl` is no longer a dev dependency: it was here only for
 `resolveIncludes`.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.2+1
 

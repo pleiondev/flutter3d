@@ -25,7 +25,7 @@ This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all forty-two packages and twelve applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all forty-five packages and fourteen applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -98,7 +98,7 @@ There are 11984 tests across 45 packages and fourteen applications, and only abo
 A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose, because it is the one line an application changes to run on a different graphics API.
 
 <div class="note">
-<p>The 0.8.0 set is on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>, so the <code>^0.8.0</code> lines below resolve as written. Skip 0.7.0: installed from pub.dev, its Impeller build hook fails before the first test, and on macOS and iOS an unlit material crashes the first frame. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
+<p>The 0.9.0 set is on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>, so the <code>^0.9.0</code> lines below resolve as written. Skip 0.7.0: installed from pub.dev, its Impeller build hook fails before the first test, and on macOS and iOS an unlit material crashes the first frame. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
 </div>
 
 ```yaml
@@ -118,9 +118,9 @@ dependencies:
   #   flutter3d_webgl    -> WebGL2, in the browser
   #   flutter3d_webgpu   -> WebGPU, in a browser that has an adapter
   #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
-  flutter3d_impeller: ^0.8.0
+  flutter3d_impeller: ^0.9.0
 
-  flutter3d: ^0.8.0
+  flutter3d: ^0.9.0
 
   vector_math: ^2.2.0
 ```

@@ -28,7 +28,7 @@ flutter3d is a renderer, a game layer, and six games built on them: a shooter, a
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.8.0, so any `^0.8.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.2 |
+| Published | Yes: all 45 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Forty-one carry 0.9.0, so any `^0.9.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.5.0, `flame_multiplayer` at 0.2.0 and `flame_multiplayer_dashwire` at 0.1.1 |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
@@ -90,7 +90,7 @@ All six run in a browser on the WebGL2 backend and are embedded on their demo pa
 
 ## The package split
 
-Thirty-eight packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
+Forty-five packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
 
 ```mermaid
 flowchart TB

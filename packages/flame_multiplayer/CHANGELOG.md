@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.0
 
 - **Parties of more than two.**
   - `PartyWire` and `LoopbackParty`.

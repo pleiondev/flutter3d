@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A sorted splat cloud is ordered on the GPU where the device computes —
   `H11`.** `SplatGpuSort` takes the keys `SplatSorter.quantise` makes and
@@ -479,6 +479,8 @@
   `fromPanorama` as before. `EnvironmentMap.hdrToRgba8` is the clamp to
   eight bits that `flutter3d_model_core`'s `panoramaPixels` used to keep to
   itself, so both read a `.hdr` the same way.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.3+1
 

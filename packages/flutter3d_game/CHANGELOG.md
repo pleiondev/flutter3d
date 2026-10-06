@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **`postGameEvent` tells whoever watches the game what happened.** It
   posts `flutter3d.<kind>` with a JSON map on the VM service's `Extension`
@@ -186,6 +186,8 @@
   and rebases the buffer there. `TimelineLevelSwapped` records the step and
   the level's digest, so a replay that swaps at the same step arrives where
   the run did.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`, and it asks for `pad_input` and `pointer_lock` `^0.5.0`.
 
 ## 0.8.1
 

@@ -1,6 +1,6 @@
 name: flutter3d_shaders
 description: The engine's shader sources, in GLSL, for every backend to compile.
-version: 0.8.2+1
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -36,7 +36,7 @@ dependencies:
   # For `typed_blocks.dart` alone, whose generated classes extend
   # `UniformBlock` — `H1`. The contract layer, pure Dart, and nothing a
   # backend brings with it.
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^0.9.0
 
 dev_dependencies:
   test: ^1.25.0

@@ -190,7 +190,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-six packages and nine applications in one pub workspace — one
+Forty-five packages and fourteen applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -3611,19 +3611,28 @@ went to pub.dev at 0.4.0 under the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
-**0.8.0 is the shelf the tree carries now, and it fixes the hardware contract
-for the whole 0.8 line.** Every package but `pad_input` and `pointer_lock` is
-0.8.0 and asks for `^0.8.0` of its siblings, because
-`PassEncoder.bindTexture` returns `bool` and every implementation of the
-interface changed with it. `GraphicsDevice`, `PassEncoder` and
-`CommandEncoder` are interfaces the backend packages implement on a caret
-range, so a member added in 0.8.1 would break every backend published before
-it: the whole cycle's members went into 0.8.0, answered conservatively where
-the work behind them was large, and a 0.8.x patch is only allowed to turn an
-answer on. Nothing of it is published yet; the site and the scaffold templates
-keep `^0.7.1`, which is what pub.dev has.
+**0.9.0 is the shelf the tree carries now.** Forty-one of the forty-five
+packages are 0.9.0 and ask for `^0.9.0` of their siblings, for the reason 0.8.0
+gave: `flutter3d_hardware` gives `PassEncoder.draw` a window of the bound
+indices and every `PassEncoder` `setAlphaToCoverage`, so every implementation
+of the interface changes with it. Three go out for the first time:
+`flutter3d_physics_native`, which `flutter3d_sim_mcp` depends on,
+`flutter3d_voxel` and `flutter3d_editor_play`, the first two from a 0.1.0 and
+the third from a 0.8.0 that never left the workspace. `flame_flutter3d` and
+`flame_flutter3d_audio`, which ran ahead of the shelf to 0.8.5 and 0.8.4, come
+back to it.
 
-**0.7.0 was the shelf before it.** Thirty-four
+**0.8.0 was the shelf before it, and it fixed the hardware contract for the
+whole 0.8 line.** Every package but `pad_input` and `pointer_lock` was 0.8.0
+and asked for `^0.8.0` of its siblings, because `PassEncoder.bindTexture`
+returns `bool` and every implementation of the interface changed with it.
+`GraphicsDevice`, `PassEncoder` and `CommandEncoder` are interfaces the backend
+packages implement on a caret range, so a member added in a patch would break
+every backend published before it: a cycle's members go into its minor,
+answered conservatively where the work behind them is large, and a patch is
+only allowed to turn an answer on.
+
+**0.7.0 was the shelf before that.** Thirty-four
 of the thirty-seven packages of the day were 0.7.0 and every constraint one of
 them put on another was `^0.7.0`. What changed since 0.6.0 is which packages there are, more
 than what is in them: seven were folded into others, four names that pub.dev has
@@ -3677,20 +3686,20 @@ the package was held for its own acceptance, which made it the entry showing
 that being in the publishing order and being published are different things. It
 is one of the thirteen now.
 
-**Three packages keep lines of their own, and it is not an oversight.**
+**Four packages keep lines of their own, and it is not an oversight.**
 `pad_input` and `pointer_lock` are plugins this repository vendors: neither
-names a sibling in its pubspec, nothing in either was built against an engine
-release, and both sat out the whole 0.5 series. They take 0.4.1, a documentation
-patch for a README footer that pub.dev renders as a link to nothing, and every
-dependent's `^0.4.0` covers it. `flutter3d_samples` moved to 0.4.3 on its own
-line for `teapot.stl` (`qa-08`) and otherwise stays put the same way: it is
-assets, it names no sibling, and every existing file in it is byte for byte
-what went out at 0.4.2.
+names a sibling in its pubspec, and nothing in either is built against an
+engine release. They go from 0.4 to 0.5.0 for Windows and Linux, a feature on
+their own line, and their dependents ask for `^0.5.0`. `flame_multiplayer`
+names no package at all and `flame_multiplayer_dashwire` only it: the first
+takes 0.2.0 for parties of more than two, the second 0.1.1 because its
+constraint on the first moved. `flutter3d_samples` kept a line of its own until
+0.7.1 and has carried the shelf's number since.
 
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  thirty-seven packages, the fourteen unpublished ones included — `pub publish
+  forty-five packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -3714,15 +3723,15 @@ what went out at 0.4.2.
    `flutter3d_lti`, `pad_input`, `pointer_lock`, `flame_multiplayer`
 2. `flutter3d_conformance`, `flutter3d_core`, `flutter3d_audio`,
    `flame_multiplayer_dashwire`, `flutter3d_physics_native`
-3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`,
-   `flutter3d_editor_widgets`
+3. `flutter3d_mesh`, `flutter3d_particles`, `flutter3d_editor_widgets`
 4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_sim`
-6. `flutter3d_app`, `flutter3d_editor_core`, `flutter3d_editor_play`,
+6. `flutter3d_editor_core`, `flutter3d_app`, `flutter3d_editor_play`,
    `flutter3d_net`, `flutter3d_lab`, `flutter3d_voxel`
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
-   `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
+   `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`,
+   `flutter3d_build`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_strategy`, `flame_flutter3d`
 9. `flutter3d_sim_mcp`, `flame_flutter3d_audio`
@@ -3753,7 +3762,11 @@ be in this repository; and `flutter3d_editor_widgets` sits in the third tier
 — one past `flutter3d_core` — because `ui-27`'s own `RangeSliderField` and
 `EnumField` read `RangeHint`/`EnumHint` off it, a second tier's worth of
 floor `ui-27`'s first step had already promised ahead of time, precisely so
-this dependency would land without moving the package once it did.
+this dependency would land without moving the package once it did. And
+`flutter3d_build` sits in the seventh tier, behind everything but the genres,
+since it names `flutter3d_model_core`, `flutter3d_cpu`, `flutter3d_sim` and
+`flutter3d_editor_core` — the last of them in the sixth — for the command line
+that optimises a level's lights; only `flutter3d_particles`' tests ask for it.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: four
 demo games, two editors and three lesson viewers are things to clone, not things

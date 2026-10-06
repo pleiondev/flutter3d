@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A browser build opens WebGPU first.** WebGPU's golden set now holds
   every scene the others hold, so `FLUTTER3D_WEBGPU` defaults to true, and
@@ -142,6 +142,8 @@ undo. `clearMaterial` lets them go.
 
 `SceneSurface` is a `StatefulWidget` now, for `reassemble`. Its constructor
 and parameters are unchanged.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1+1
 

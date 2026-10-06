@@ -1,6 +1,6 @@
 name: flutter3d_game
 description: "What a game on flutter3d adds to an application: touch, keyboard, mouse and gamepad input, the run being played, the screens that are not the game, and the actors and fixtures a simulation moves, drawn."
-version: 0.8.1
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,35 +21,35 @@ dependencies:
   # The application layer a game stands on: the surface, storage and what a
   # document says when it cannot be read, and the level loader a fixture's
   # visual reads its materials through.
-  flutter3d_app: ^0.8.0
+  flutter3d_app: ^0.9.0
 
   # The renderer, for the actors and fixtures drawn.
-  flutter3d: ^0.8.0
+  flutter3d: ^0.9.0
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
-  pointer_lock: ^0.4.0
+  pointer_lock: ^0.5.0
 
   # Sticks, triggers and buttons. A device package, exactly as pointer_lock is:
   # it knows nothing about actions or games, and `pad_input.dart` is the
   # translator — the same shape `DesktopInput` has beside the keyboard.
-  pad_input: ^0.4.0
+  pad_input: ^0.5.0
 
   # The simulation, and `flutter3d_physics` through it. Extracted because none
   # of it imported Flutter and a verifying server cannot install a Flutter SDK
   # to advance a step — see that package's pubspec for the whole reason.
   # Not re-exported: a caller that steps a simulation names this package
   # itself.
-  flutter3d_sim: ^0.8.0
+  flutter3d_sim: ^0.9.0
 
   # Volumes are a mixer's, and the settings panel is where they are turned.
   # The core and not `flutter3d_audio`: the panel names buses and nothing
   # else, and the SoLoud backend would bring a native build that Flutter 3.44
   # cannot resolve. A game that plays sound depends on `flutter3d_audio`
   # itself, whose types are these.
-  flutter3d_audio_core: ^0.8.0
+  flutter3d_audio_core: ^0.9.0
 
   # A torch's flame, which is the particles its light is measured from.
-  flutter3d_particles: ^0.8.0
+  flutter3d_particles: ^0.9.0
 
   # State management. The screens here are state machines — a panel that is
   # open, a rebinding that is waiting for a key, a settings document that has
@@ -77,11 +77,11 @@ dev_dependencies:
 
   # A renderer with no GPU under it, so a visual can be built and a screen
   # pumped.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^0.9.0
 
   # For `FakeBackend`, which is what lets the teardown tests assert that
   # uploaded meshes are actually handed back rather than merely forgotten.
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^0.9.0
 
   # An external client for `run_timeline_extensions_test.dart` — the same
   # package DevTools and `flutter attach` use to reach a running app's VM

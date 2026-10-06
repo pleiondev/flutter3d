@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **`SplatSortCount`, `SplatSortScan` and `SplatSortScatter`**, the compute
   stages of the GPU splat sort (`H11`): a digit count per tile of 256
@@ -78,6 +78,8 @@ takes `from:`, and whose `ShaderSet` carries the `root` it read),
 `compileStage` through glslang and naga, and `bundleVaryingLocations`, which
 used to be private to `pack_wgsl_section.dart`. The barrel exports neither,
 so an application carries no compiler.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.2+1
 

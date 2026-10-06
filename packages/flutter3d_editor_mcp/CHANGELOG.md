@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **`play_events` hears what the running game says about itself.** A level
   loaded, the player died or came back, a pickup taken, the way out
@@ -37,6 +37,8 @@
   level to the game, which takes it without starting over.
 - **`EditorSession.save` returns a `Future`**, for that send.
   `EditorSession(play:)` takes a `PlaySession` of the caller's making.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.0
 

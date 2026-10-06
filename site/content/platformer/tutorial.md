@@ -23,20 +23,20 @@ dependencies:
   flutter: { sdk: flutter }
 
   # The backend; why it is the one named line is covered in the quickstart.
-  flutter3d_impeller:  ^0.8.0
-  flutter3d:           ^0.8.0
-  flutter3d_game:      ^0.8.0
-  flutter3d_game_platformer: ^0.8.0
-  flutter3d_app:       ^0.8.0
-  flutter3d_audio:     ^0.8.0
-  flutter3d_particles: ^0.8.0
+  flutter3d_impeller:  ^0.9.0
+  flutter3d:           ^0.9.0
+  flutter3d_game:      ^0.9.0
+  flutter3d_game_platformer: ^0.9.0
+  flutter3d_app:       ^0.9.0
+  flutter3d_audio:     ^0.9.0
+  flutter3d_particles: ^0.9.0
   vector_math: ^2.2.0
 ```
 
 Note what is *not* there: `flutter3d_game_shooter`. A genre is a package, and this game inherits none of the other one's vocabulary.
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.7.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.7.0 asks for <code>flutter3d</code> 0.7.0, so one package left on 0.6.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.9.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.9.0 asks for <code>flutter3d</code> 0.9.0, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Bind the two keys the genre adds {.step}

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A storage buffer bindable as indices is the same bytes as the index
   buffer** (`H11`), so a dispatch's writes are what the next draw reads.
@@ -74,6 +74,8 @@ rounded to single precision as the GPU computes it, and **height fog in
   strip and an empty final deflate block at `close`, keeping only the running
   Adler-32 between strips. It refuses rows past the bottom and a `close` with
   rows missing. `encodePng` is unchanged, byte for byte.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.2+1
 

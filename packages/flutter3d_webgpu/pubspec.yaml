@@ -1,6 +1,6 @@
 name: flutter3d_webgpu
 description: "A WebGPU backend for flutter3d: the fourth implementation of flutter3d_hardware, and the first one whose API bakes per-draw state into the pipeline object."
-version: 0.8.2+1
+version: 0.9.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -23,7 +23,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^0.9.0
 
   # Declared before it is imported, which is deliberate. `PassEncoder` takes a
   # clear colour and a scissor as `Vector4`, so the encoder cannot be written
@@ -35,7 +35,7 @@ dependencies:
   # `stageBindings`: what each of the engine's compiled stages keeps, which
   # the library hands every stage as `ShaderHandle.kept` and the encoder
   # refuses binds against — `gfx-92n`. A table of names and nothing else.
-  flutter3d_shaders: ^0.8.2
+  flutter3d_shaders: ^0.9.0
 
 dev_dependencies:
   # For `compareFrames` alone, in `cross_backend_test.dart`, which measures this
@@ -43,17 +43,17 @@ dev_dependencies:
   # reaches for it the same way and for the same one function: a dev dependency
   # and not a real one, since nothing in `lib/` touches it and two backends that
   # depended on each other at run time would not be two backends.
-  flutter3d_cpu: ^0.8.2
+  flutter3d_cpu: ^0.9.0
   # The behaviour flutter3d_hardware requires, as tests this backend runs
   # against itself — in Chrome, against a live device. See
   # flutter3d_conformance, and `test/conformance_test.dart` for what this
   # backend declines and why.
-  flutter3d_conformance: ^0.8.1
+  flutter3d_conformance: ^0.9.0
   # The material language's emitter — `gfx-84n`. For
   # `material_language_generators_test.dart` alone: a material written as
   # source has to reach both generators, and this is the one package that has
   # both. Not a real dependency — nothing in `lib/` reaches it.
-  flutter3d_core: ^0.8.2
+  flutter3d_core: ^0.9.0
   # For `reflection_probe_test.dart` alone, which drives the real Renderer
   # through this backend so that a reflection probe is checked as a picture
   # rather than as a capability. The sibling WebGL2 package reaches for the
@@ -61,7 +61,7 @@ dev_dependencies:
   # promise about what a probe does, and only the engine can be asked whether
   # the promise held. A dev dependency, so nothing a consumer builds picks up
   # the engine because the backend was installed.
-  flutter3d: ^0.8.0
+  flutter3d: ^0.9.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

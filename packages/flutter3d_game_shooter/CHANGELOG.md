@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **A chase goes through a breach.** `followBreaches` keeps the flow
   field's grid in step with the level, as it already did for the meshes.
@@ -55,6 +55,8 @@
   `Dynamics` that is nothing, so a reference run's saves and digests are
   unchanged. For the native core it is the core's own state, without which
   a rewind stepped on from a keyframe would not repeat the run.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1
 

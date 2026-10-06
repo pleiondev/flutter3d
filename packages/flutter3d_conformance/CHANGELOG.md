@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - Links `HighContrast` through the full-screen stage and `OutlineMask`
   through the three velocity vertex stages.
@@ -18,6 +18,8 @@ seven varyings are new on both sides.
 a window over the second of two triangles in one index buffer, then over the
 first, then with no count, and asks that a window past the end of the binding
 is refused with a `RangeError`. Thirty-two shader checks, forty-two in all.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.1
 

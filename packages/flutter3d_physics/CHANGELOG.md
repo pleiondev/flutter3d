@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 
 - **Pipes and floating bodies are on the run's backend too.** `FluidSolver`
   gains `flowPipes(PipeFlow)`, the column in each pipe driven by the
@@ -126,6 +126,8 @@
   from fdlibm's kernels out of IEEE arithmetic alone, for the hinge
   angles and cone limits that come next. It is not exported, because
   `flutter3d_sim` re-exports this package beside its own `Portable`.
+
+Its `flutter3d_*` dependencies ask for `^0.9.0`.
 
 ## 0.8.2+1
 
