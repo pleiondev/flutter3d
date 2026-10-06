@@ -1,5 +1,10 @@
 ## 0.9.0
 
+* **The six-way smoke baker lives beside the sheet it bakes.**
+  `bakeSixWay`, `smokePuff`, `SixWaySheet` and `SixWayField` moved here from
+  `flutter3d_build`, so a game bakes its smoke as it starts, on any
+  platform, with no build tool among its dependencies.
+
 * **Particles through an orthographic camera fog by depth.** Every particle
   stage measured its fog from the eye's position and a mesh particle lit
   its faces by how squarely they faced it; through an orthographic lens the

@@ -4,11 +4,10 @@
 ///
 /// The hash under the noise once relied on 64-bit integers: compiled for the
 /// web its products lost their low bits as doubles, a browser baked another
-/// puff, and `smoke-six-way` stood 2% apart from the native backends. The
-/// source file alone, since the package's library reaches `dart:ffi`.
+/// puff, and `smoke-six-way` stood 2% apart from the native backends.
 library;
 
-import 'package:flutter3d_build/src/six_way_bake.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 
 void main() {

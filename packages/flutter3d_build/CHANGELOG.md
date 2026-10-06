@@ -1,5 +1,9 @@
 ## 0.9.0
 
+- **The six-way smoke baker moved to `flutter3d_particles`,** beside the
+  `SixWayMaterial` it bakes for: `bakeSixWay` and `smokePuff` are no longer
+  exported here.
+
 - **A material's bundle carries its source** in the material section, and
   `kAssetPipelineVersion` is 3, so bundles built before it are built again.
 

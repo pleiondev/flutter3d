@@ -19,7 +19,7 @@
 /// "Back" is the far side of the puff from the viewer. The responses are
 /// unpremultiplied, light as it reads at full coverage. This is the layout
 /// the six-way exports of EmberGen and Houdini write, and the one
-/// `flutter3d_build`'s baker writes; [importSixWay] repacks any other.
+/// [bakeSixWay] writes; [importSixWay] repacks any other.
 ///
 /// **A cell's rows run bottom to top.** The quad's texture coordinate rises
 /// along the camera's up (`ParticleSystem.writeQuads`), and a texture's first

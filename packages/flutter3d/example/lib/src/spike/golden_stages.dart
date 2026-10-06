@@ -12,7 +12,6 @@ import 'package:flutter3d_app/flutter3d_app.dart'
 // ignore: implementation_imports
 import 'package:flutter3d_build/src/impostor_bake.dart';
 // ignore: implementation_imports
-import 'package:flutter3d_build/src/six_way_bake.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';

@@ -5,7 +5,6 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';

@@ -30,12 +30,12 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_editor_core` | 146 | | `flutter3d_editor_widgets` | 91 |
 | `apps/flutter3d_demo_dungeon` | 153 | | `flutter3d_app` | 186 |
 | `flutter3d_game` | 366 | | `flutter3d_shaders` | 5 |
-| `flutter3d_particles` | 99 | | `flutter3d_stereo` | 50 |
+| `flutter3d_particles` | 106 | | `flutter3d_stereo` | 50 |
 | `flutter3d_model_core` | 1178 | | `flutter3d_model_mcp` | 197 |
 | `flutter3d_editor_play` | 38 | | `flutter3d_net` | 19 |
 | | | | `flutter3d_net_webrtc` | 2 |
 | | | | `flutter3d_sim_mcp` | 29 |
-| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 136 |
+| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 129 |
 | | | | `apps/flutter3d_lesson_viewer` | 48 |
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 | `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 89 |

@@ -1,7 +1,7 @@
 /// The six-way baker — `N6`: six pictures of one puff, each lit from one side.
 library;
 
-import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 
 /// A ball of even density, half the cube across, still over time.

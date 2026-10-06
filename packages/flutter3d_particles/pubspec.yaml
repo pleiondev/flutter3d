@@ -29,10 +29,9 @@ dev_dependencies:
 
   test: ^1.25.0
   # For `smoke_six_way_test.dart` alone: the software backend draws the
-  # six-way stage through a real renderer, and the baker makes the sheet it
-  # draws, so the test needs no asset.
+  # six-way stage through a real renderer, and the package's own baker makes
+  # the sheet it draws, so the test needs no asset.
   flutter3d_cpu: ^0.9.0
-  flutter3d_build: ^0.9.0
   flutter_lints: ^6.0.0
 
 resolution: workspace

@@ -15,9 +15,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-// The six-way smoke baker is plain Dart: the density field and the bake.
-// ignore: implementation_imports
-import 'package:flutter3d_build/src/six_way_bake.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show NativeBody, NativeMaterial, NativeShape, NativeWorld, nativeFireFloats;

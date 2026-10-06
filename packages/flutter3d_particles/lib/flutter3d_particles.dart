@@ -45,3 +45,4 @@ export 'src/particle_random.dart';
 export 'src/particle_system.dart';
 export 'src/shown.dart';
 export 'src/six_way.dart';
+export 'src/six_way_bake.dart';
