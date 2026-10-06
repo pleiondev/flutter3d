@@ -229,6 +229,10 @@ final class NativeMaterial {
     this.fuelFraction = 0.0,
     this.flameFeedback = 0.0,
     this.conductivity = 1.0,
+    this.flameTemperature = 0.0,
+    this.flameConvection = 0.0,
+    this.flameRadiant = 0.0,
+    this.flameAbsorption = 0.0,
   });
 
   /// The core's typical values for a material: one place they live, so the
@@ -254,6 +258,10 @@ final class NativeMaterial {
         fuelFraction: at(c.F3dMaterialLayout.fuelFraction),
         flameFeedback: at(c.F3dMaterialLayout.flameFeedback),
         conductivity: at(c.F3dMaterialLayout.conductivity),
+        flameTemperature: at(c.F3dMaterialLayout.flameTemperature),
+        flameConvection: at(c.F3dMaterialLayout.flameConvection),
+        flameRadiant: at(c.F3dMaterialLayout.flameRadiant),
+        flameAbsorption: at(c.F3dMaterialLayout.flameAbsorption),
       );
     } finally {
       c.coreFree(out);
@@ -285,6 +293,21 @@ final class NativeMaterial {
 
   /// W / (m K): how readily heat crosses into what it touches.
   final double conductivity;
+
+  /// The gas of its fire's flame, K: above [ignitionTemperature] for a
+  /// material that burns, and what heats a body standing in the flame.
+  final double flameTemperature;
+
+  /// W / (m² K): what the flame's gas passes to a surface standing in it.
+  final double flameConvection;
+
+  /// The share of the heat its fire gives off that leaves as radiation
+  /// rather than in the gas, nought to one: about a third for wood, nearly
+  /// half for a sooty rubber fire.
+  final double flameRadiant;
+
+  /// Per metre of flame seen through: its emissivity is 1 − e^(−κL).
+  final double flameAbsorption;
 }
 
 /// What a step said happened to a body — `F3dEventKind`. Constants rather
@@ -2065,6 +2088,19 @@ final class NativeWorld {
       c.writeF32(m + c.F3dMaterialLayout.fuelFraction, material.fuelFraction);
       c.writeF32(m + c.F3dMaterialLayout.flameFeedback, material.flameFeedback);
       c.writeF32(m + c.F3dMaterialLayout.conductivity, material.conductivity);
+      c.writeF32(
+        m + c.F3dMaterialLayout.flameTemperature,
+        material.flameTemperature,
+      );
+      c.writeF32(
+        m + c.F3dMaterialLayout.flameConvection,
+        material.flameConvection,
+      );
+      c.writeF32(m + c.F3dMaterialLayout.flameRadiant, material.flameRadiant);
+      c.writeF32(
+        m + c.F3dMaterialLayout.flameAbsorption,
+        material.flameAbsorption,
+      );
       _check(c.f3d_body_set_material(_live, body.raw, m), body, material);
     } finally {
       c.coreFree(m);

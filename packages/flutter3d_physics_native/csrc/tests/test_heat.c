@@ -228,57 +228,66 @@ static F3dBody stone_ball(F3dWorld *w, f3d_real x) {
   return b;
 }
 
-static void test_radiation_between_bodies(void) {
-  /* A stone ball at 1000 K half a metre from one at the air's temperature,
-   * against each alone: the cold one warms by what the hot one gives up
-   * beyond its own cooling, joule for joule. */
-  f3d_real alone_hot, alone_cold, hot, cold;
+/* What a stone ball of 0.2 m at [hot] K gives, in one tenth of a second,
+ * to one at the air's temperature [d] metres off, as the cold one's rise in
+ * kelvin over what it does alone; with a wall between them when [walled]. */
+static double warmed(double hot, double d, int walled, double *source) {
+  f3d_real t[2];
   for (int pair = 0; pair < 2; pair++) {
     F3dWorld *w = f3d_world_create();
-    F3dBody a = 0, b = 0;
-    if (pair) {
-      a = stone_ball(w, 0);
-      b = stone_ball(w, F3D_R(0.5));
-    } else {
-      a = stone_ball(w, 0);
+    const F3dBody a = pair ? stone_ball(w, 0) : 0;
+    const F3dBody b = stone_ball(w, (f3d_real)d);
+    if (walled) {
+      const F3dBody wall = f3d_body_create(w, F3D_BODY_FIXED, (f3d_real)(d / 2), 0, 0, 0);
+      f3d_body_set_shape(w, wall, F3D_SHAPE_BOX, F3D_R(0.02), 1, 1);
     }
-    f3d_body_set_temperature(w, a, 1000);
+    if (pair) f3d_body_set_temperature(w, a, (f3d_real)hot);
     f3d_world_step(w, F3D_R(0.1));
-    f3d_real ta;
-    f3d_body_get_temperature(w, a, &ta);
-    if (pair) {
-      f3d_real tb;
-      f3d_body_get_temperature(w, b, &tb);
-      hot = ta;
-      cold = tb;
-    } else {
-      alone_hot = ta;
-      /* A lone body at the air's temperature stays there. */
-      F3dWorld *w2 = f3d_world_create();
-      const F3dBody c = stone_ball(w2, 0);
-      f3d_world_step(w2, F3D_R(0.1));
-      f3d_body_get_temperature(w2, c, &alone_cold);
-      f3d_world_destroy(w2);
+    f3d_body_get_temperature(w, b, &t[pair]);
+    if (pair && source != NULL) {
+      f3d_real ta;
+      f3d_body_get_temperature(w, a, &ta);
+      *source = ta;
     }
     f3d_world_destroy(w);
   }
-  CHECK(cold > alone_cold + 1e-4);
-  CHECK(hot < alone_hot);
-  /* To three per cent: near 1000 K a float steps by 6e-5, a fiftieth of
-   * the hundredth of a kelvin compared here, and a ball that has given heat
-   * away loses a little less of the rest to the air. */
-  CHECK_NEAR((alone_hot - hot), (cold - alone_cold), 0.03 * (cold - alone_cold));
-  /* Two metres apart it sees a tenth as much of the sky: much less. */
-  F3dWorld *w = f3d_world_create();
-  const F3dBody a = stone_ball(w, 0);
-  const F3dBody b = stone_ball(w, 2);
-  f3d_body_set_temperature(w, a, 1000);
-  f3d_world_step(w, F3D_R(0.1));
-  f3d_real far;
-  f3d_body_get_temperature(w, b, &far);
-  CHECK(far - alone_cold < (cold - alone_cold) / 10);
-  (void)a;
-  f3d_world_destroy(w);
+  return (double)t[1] - (double)t[0];
+}
+
+static void test_radiation_between_bodies(void) {
+  /* A ball at 1000 K catches, on one half a metre off, its solid angle's
+   * share of what it gives above the room — εσA(T⁴ − Tₐ⁴) — as much as the
+   * other's emissivity takes in. The hot one gave that up to the room
+   * already: it cools exactly as it would alone. */
+  double hot_in_pair, hot_alone;
+  const double near = warmed(1000, 0.5, 0, &hot_in_pair);
+  {
+    F3dWorld *w = f3d_world_create();
+    const F3dBody a = stone_ball(w, 0);
+    f3d_body_set_temperature(w, a, 1000);
+    f3d_world_step(w, F3D_R(0.1));
+    f3d_real t;
+    f3d_body_get_temperature(w, a, &t);
+    hot_alone = t;
+    f3d_world_destroy(w);
+  }
+  CHECK(hot_in_pair == hot_alone);
+  const double e = 0.93, sigma = 5.670374419e-8, ta = 293.15;
+  const double area = 4 * M_PI * 0.2 * 0.2;
+  const double s = 0.2 / 0.5;
+  const double share = 0.5 * (1 - sqrt(1 - s * s));
+  const double gain = e * share * e * sigma * area * (pow(1000, 4) - pow(ta, 4)) * 0.1;
+  /* Ten kilograms of stone at 840 J/(kg K); its own losses, at the room's
+   * temperature, nought. */
+  CHECK_NEAR(near, gain / (10 * 840), 0.01 * gain / (10 * 840));
+  /* Two metres off it fills a sixteenth of the sky it did. */
+  CHECK(warmed(1000, 2, 0, NULL) < near / 10);
+  /* A wall between them: nothing. */
+  CHECK(warmed(1000, 0.5, 1, NULL) == 0);
+  /* A cold ball draws heat from one at the room's temperature. */
+  CHECK(warmed(200, 0.5, 0, NULL) < 0);
+  /* And one at the room's temperature gives nothing. */
+  CHECK(warmed(ta, 0.5, 0, NULL) == 0);
 }
 
 static F3dBody crate(F3dWorld *w, f3d_real x, f3d_real y) {
@@ -291,37 +300,50 @@ static F3dBody crate(F3dWorld *w, f3d_real x, f3d_real y) {
   return b;
 }
 
-static void test_fire_spreads(void) {
-  /* One crate alight, one stacked on it, a row of two beside it, and one
-   * four metres off. The fire climbs first, into the crate standing in its
-   * flame; it reaches the crate beside it, and from that one the next; the
-   * far one only warms. */
+/* When each of a burning crate, one stacked on it, one beside it, the next
+ * in that row and one four metres off catches, s, or −1; and how warm the
+ * far one gets. A wind of [wind] m/s blows along the row. */
+static void blaze(f3d_real wind, int when[5], f3d_real *far_peak) {
   F3dWorld *w = f3d_world_create();
-  const F3dBody lit = crate(w, 0, F3D_R(0.25));
-  const F3dBody above = crate(w, 0, F3D_R(0.76));
-  const F3dBody beside = crate(w, F3D_R(0.52), F3D_R(0.25));
-  const F3dBody next = crate(w, F3D_R(1.1), F3D_R(0.25));
-  const F3dBody far = crate(w, 4, F3D_R(0.25));
-  f3d_body_set_temperature(w, lit, 700);
-  int when[5] = {-1, -1, -1, -1, -1};
-  const F3dBody all[5] = {lit, above, beside, next, far};
-  f3d_real hottest_far = 0;
+  f3d_world_set_wind(w, wind, 0, 0);
+  const F3dBody all[5] = {crate(w, 0, F3D_R(0.25)), crate(w, 0, F3D_R(0.76)),
+                          crate(w, F3D_R(0.52), F3D_R(0.25)),
+                          crate(w, F3D_R(1.1), F3D_R(0.25)),
+                          crate(w, 4, F3D_R(0.25))};
+  f3d_body_set_temperature(w, all[0], 700);
+  for (int k = 0; k < 5; k++) when[k] = -1;
+  *far_peak = 0;
   for (int i = 0; i < 1500; i++) {
     f3d_world_step(w, 1);
     for (int k = 0; k < 5; k++) {
       if (when[k] < 0 && burning(w, all[k])) when[k] = i;
     }
     f3d_real t;
-    f3d_body_get_temperature(w, far, &t);
-    if (t > hottest_far) hottest_far = t;
+    f3d_body_get_temperature(w, all[4], &t);
+    if (t > *far_peak) *far_peak = t;
   }
+  f3d_world_destroy(w);
+}
+
+static void test_fire_spreads(void) {
+  /* In still air the fire climbs first, into the crate standing in its
+   * flame, and then reaches the one beside it, which both fires shine on;
+   * the next in the row and the far one only warm. */
+  int when[5];
+  f3d_real far;
+  blaze(0, when, &far);
   CHECK(when[0] == 0);
   CHECK(when[1] > 0 && when[1] < 300);
-  CHECK(when[2] > when[1] && when[2] < 400);
-  CHECK(when[3] > when[2]);
-  CHECK(when[4] < 0);
-  CHECK(hottest_far < 330);
-  f3d_world_destroy(w);
+  CHECK(when[2] > when[1]);
+  CHECK(when[3] < 0 && when[4] < 0);
+  CHECK(far < 310);
+  /* Two metres a second along the row lays the flame over the crate beside
+   * it, away from the one above: the fire runs downwind, down the row. */
+  int windy[5];
+  blaze(2, windy, &far);
+  CHECK(windy[2] > 0 && windy[2] < windy[1]);
+  CHECK(windy[3] > windy[2]);
+  CHECK(windy[4] < 0);
 }
 
 static void test_burning_body_gets_lighter(void) {

@@ -29,6 +29,12 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
       m.burn_rate = F3D_R(0.011);
       m.fuel_fraction = F3D_R(0.8);
       m.flame_feedback = F3D_R(0.3);
+      /* A wood fire's continuous flame near 1100 K, a third of its heat
+       * radiated, and its gas absorbing 0.8 per metre (Babrauskas). */
+      m.flame_temperature = F3D_R(1100.0);
+      m.flame_convection = F3D_R(25.0);
+      m.flame_radiant = F3D_R(0.3);
+      m.flame_absorption = F3D_R(0.8);
       break;
     case F3D_MATERIAL_PAPER:
       /* It catches at 451 °F. */
@@ -39,6 +45,12 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
       m.burn_rate = F3D_R(0.02);
       m.fuel_fraction = F3D_R(0.9);
       m.flame_feedback = F3D_R(0.3);
+      /* A thin, clean flame: as hot as wood's, and seen through hardly
+       * glowing. */
+      m.flame_temperature = F3D_R(1050.0);
+      m.flame_convection = F3D_R(25.0);
+      m.flame_radiant = F3D_R(0.3);
+      m.flame_absorption = F3D_R(0.5);
       break;
     case F3D_MATERIAL_RUBBER:
       m.specific_heat = F3D_R(2010.0);
@@ -49,6 +61,12 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
       m.burn_rate = F3D_R(0.03);
       m.fuel_fraction = F3D_R(0.9);
       m.flame_feedback = F3D_R(0.3);
+      /* A sooty flame: hotter, nearly half its heat radiated, and dark
+       * with soot that absorbs a few times what wood's does. */
+      m.flame_temperature = F3D_R(1200.0);
+      m.flame_convection = F3D_R(25.0);
+      m.flame_radiant = F3D_R(0.45);
+      m.flame_absorption = F3D_R(2.5);
       break;
     case F3D_MATERIAL_STEEL:
       /* Weathered, not polished: a polished surface is a tenth of this. */
@@ -91,6 +109,15 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
   }
   if (!in_range(m.flame_feedback, F3D_R(0.0), F3D_R(1.0))) return 0;
   if (!(f3d_finite(m.conductivity) && m.conductivity > F3D_R(0.0))) return 0;
+  /* A material that burns has a flame hotter than it catches at. */
+  if (m.ignition_temperature > F3D_R(0.0) &&
+      !(f3d_finite(m.flame_temperature) &&
+        m.flame_temperature > m.ignition_temperature)) {
+    return 0;
+  }
+  if (!in_range(m.flame_convection, F3D_R(0.0), big)) return 0;
+  if (!in_range(m.flame_radiant, F3D_R(0.0), F3D_R(1.0))) return 0;
+  if (!in_range(m.flame_absorption, F3D_R(0.0), big)) return 0;
   s->material = m;
   s->fuel = s->mass * m.fuel_fraction;
   if (s->fuel <= F3D_R(0.0) || m.ignition_temperature <= F3D_R(0.0)) {
@@ -272,17 +299,18 @@ static void conduct(F3dWorld *world, f3d_real dt) {
   }
 }
 
-/* A body counts as a source of radiation to its neighbours this far above
- * the air, K, or burning: below it the exchange is lost in convection. */
-#define F3D_RADIANT_ABOVE_AIR F3D_R(30.0)
-/* The share of a fire's heat that leaves it as radiation rather than in
- * the hot gas: about a third for wood and paper. */
-#define F3D_FLAME_RADIANT F3D_R(0.3)
-/* Neighbours are looked for this many of a source's own radii away, and
- * never further than F3D_RADIANT_MOST, m. */
-#define F3D_RADIANT_RADII F3D_R(12.0)
-#define F3D_RADIANT_MOST F3D_R(6.0)
-#define F3D_RADIANT_NEIGHBOURS 64u
+/* Less than this, W, a body is not worth radiating to: a kilogram of wood
+ * it warms by a fifth of a kelvin an hour. It decides how far a source
+ * looks, from how strongly it radiates, and nothing else is cut. */
+#define F3D_RADIANT_LEAST F3D_R(0.1)
+/* How many rays decide how much of a body a source sees past what stands
+ * between them: its centre and four points around it. */
+#define F3D_RADIANT_RAYS 5u
+/* A buoyant plume spreads by this much of its height on each side
+ * (Heskestad: b = 0.12 (z − z₀)). */
+#define F3D_PLUME_SPREAD F3D_R(0.12)
+/* Air's specific heat at constant pressure, J / (kg K). */
+#define F3D_AIR_HEAT F3D_R(1005.0)
 
 /* The radius of the ball with a body's surface: what radiation sees of it. */
 static f3d_real seen_radius(const F3dSlot *s) {
@@ -290,37 +318,13 @@ static f3d_real seen_radius(const F3dSlot *s) {
 }
 
 /* The share of everything a point sends out that a ball of radius [r] at
- * [d] from it catches: its solid angle over the whole sphere's. */
+ * [d] from it catches: its solid angle over the whole sphere's. Never more
+ * than (r/d)² / 2. */
 static f3d_real caught(f3d_real r, f3d_real d) {
   if (d <= r) return F3D_R(0.5);
   const f3d_real s = r / d;
   return F3D_R(0.5) * (F3D_R(1.0) - f3d_sqrt(F3D_R(1.0) - s * s));
 }
-
-typedef struct Near {
-  const F3dWorld *world;
-  uint32_t self;
-  uint32_t count;
-  uint32_t slots[F3D_RADIANT_NEIGHBOURS];
-} Near;
-
-static int near_body(void *context, int32_t leaf) {
-  Near *n = (Near *)context;
-  const uint32_t slot = n->world->tree.nodes[leaf].slot;
-  if (slot != n->self && n->count < F3D_RADIANT_NEIGHBOURS) {
-    n->slots[n->count++] = slot;
-  }
-  return 1;
-}
-
-/* The gas of a fire's continuous flame, K, and what it passes to a surface
- * standing in it, W/(m² K). */
-#define F3D_FLAME_TEMPERATURE F3D_R(1100.0)
-#define F3D_FLAME_CONVECTION F3D_R(25.0)
-
-/* How strongly a wood fire's flame absorbs, per m of flame it is seen
- * through: its emissivity is 1 − e^(−κL). */
-#define F3D_FLAME_ABSORPTION F3D_R(0.8)
 
 /* e^(−x) for x ≥ 0, as 1 / (1 + x/256)^256: within a fraction of a per cent
  * for the few metres of flame it is asked about, and the same bits
@@ -331,8 +335,15 @@ static f3d_real decay(f3d_real x) {
   return F3D_R(1.0) / y;
 }
 
-/* x^(2/5) for x ≥ 0, by Newton's method on y⁵ = x²: the core's own, so the
+/* x^(1/3) and x^(2/5) for x ≥ 0, by Newton's method: the core's own, so the
  * same bits everywhere. */
+static f3d_real cube_root(f3d_real x) {
+  if (!(x > F3D_R(0.0))) return F3D_R(0.0);
+  f3d_real y = x > F3D_R(1.0) ? f3d_sqrt(x) : F3D_R(1.0);
+  for (int i = 0; i < 40; i++) y -= (y * y * y - x) / (F3D_R(3.0) * y * y);
+  return y;
+}
+
 static f3d_real two_fifths(f3d_real x) {
   if (!(x > F3D_R(0.0))) return F3D_R(0.0);
   const f3d_real x2 = x * x;
@@ -344,75 +355,182 @@ static f3d_real two_fifths(f3d_real x) {
   return y;
 }
 
-/* How tall a fire's flame stands above what burns, m, from the heat it
- * gives off [q], W, over a base of diameter [d], m: Heskestad's
- * L = 0.235·Q^(2/5) − 1.02·D with Q in kW, never shorter than the base. */
+/* How long a fire's flame is, m, from the heat it gives off [q], W, over a
+ * base of diameter [d], m: Heskestad's L = 0.235·Q^(2/5) − 1.02·D with Q in
+ * kW, never shorter than the base. */
 static f3d_real flame_length(f3d_real q, f3d_real d) {
   return f3d_max(F3D_R(0.235) * two_fifths(q * F3D_R(1e-3)) - F3D_R(1.02) * d,
                  d);
 }
 
-static int is_source(const F3dSlot *s, f3d_real ta) {
-  return (s->flags & F3D_FLAG_BURNING) ||
-         s->temperature > ta + F3D_RADIANT_ABOVE_AIR;
+/* What can be heated: a body with a surface and a thermal mass, not a
+ * mesh — a level's floor is the room, already the air's temperature it
+ * radiates against. */
+static int receives(const F3dSlot *s) {
+  return s->live && s->shape != F3D_SHAPE_MESH && s->surface > F3D_R(0.0) &&
+         capacity_of(s) > F3D_R(0.0);
 }
 
-/* Heat across the air between bodies apart, from every hot or burning one
- * to the bodies near it. Two parts:
+typedef struct Near {
+  const F3dWorld *world;
+  uint32_t self;
+  uint32_t count, capacity;
+  uint32_t *slots;
+  int failed;
+} Near;
+
+static int near_body(void *context, int32_t leaf) {
+  Near *n = (Near *)context;
+  const uint32_t slot = n->world->tree.nodes[leaf].slot;
+  if (slot == n->self) return 1;
+  if (n->count == n->capacity) {
+    const uint32_t grown = n->capacity == 0 ? 64u : n->capacity * 2u;
+    uint32_t *more = (uint32_t *)f3d_realloc(n->slots, (size_t)grown * sizeof(uint32_t));
+    if (more == NULL) {
+      n->failed = 1;
+      return 0;
+    }
+    n->slots = more;
+    n->capacity = grown;
+  }
+  n->slots[n->count++] = slot;
+  return 1;
+}
+
+/* How much of [b], a ball of radius [rb], is seen from [a]'s centre past
+ * every other body: the share of F3D_RADIANT_RAYS rays that reach it, to
+ * its centre and to four points around it at √½ of its radius — the circle
+ * that halves the disc it shows. */
+static f3d_real seen(F3dWorld *world, const F3dSlot *a, const F3dSlot *b,
+                     f3d_real rb) {
+  const F3dBody ha = f3d_handle_of(world, a), hb = f3d_handle_of(world, b);
+  const F3dVec3 to = f3d_sub(b->position, a->position);
+  const f3d_real d = f3d_sqrt(f3d_dot(to, to));
+  if (!(d > F3D_R(0.0))) return F3D_R(1.0);
+  const F3dVec3 n = f3d_scale(to, F3D_R(1.0) / d);
+  /* Two directions across the line, the same however it points. */
+  const F3dVec3 helper = f3d_abs(n.y) < F3D_R(0.9)
+                             ? f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0))
+                             : f3d_v3(F3D_R(1.0), F3D_R(0.0), F3D_R(0.0));
+  F3dVec3 e1 = f3d_cross(n, helper);
+  e1 = f3d_scale(e1, F3D_R(1.0) / f3d_sqrt(f3d_dot(e1, e1)));
+  const F3dVec3 e2 = f3d_cross(n, e1);
+  const f3d_real off = F3D_R(0.70710678) * rb;
+  const F3dVec3 aims[F3D_RADIANT_RAYS] = {
+      b->position, f3d_madd(b->position, e1, off), f3d_madd(b->position, e1, -off),
+      f3d_madd(b->position, e2, off), f3d_madd(b->position, e2, -off)};
+  uint32_t open = 0;
+  for (uint32_t k = 0; k < F3D_RADIANT_RAYS; k++) {
+    const F3dVec3 r = f3d_sub(aims[k], a->position);
+    const f3d_real len = f3d_sqrt(f3d_dot(r, r));
+    if (!(len > F3D_R(0.0))) {
+      open++;
+      continue;
+    }
+    const F3dVec3 dir = f3d_scale(r, F3D_R(1.0) / len);
+    F3dBody hit[4];
+    f3d_real hits[4 * F3D_HIT_FLOATS];
+    const uint32_t count = f3d_world_ray_cast_all(
+        world, a->position.x, a->position.y, a->position.z, dir.x, dir.y, dir.z,
+        len, UINT32_MAX, ha, hit, hits, 4);
+    int blocked = 0;
+    for (uint32_t h = 0; h < count; h++) {
+      if (hit[h] != hb && hit[h] != ha) blocked = 1;
+    }
+    if (!blocked) open++;
+  }
+  return (f3d_real)open / (f3d_real)F3D_RADIANT_RAYS;
+}
+
+/* Heat across the air between bodies apart, from every body hotter or
+ * colder than the air and every fire, to the bodies near it.
  *
- * - their surfaces, as grey balls of their own surface's area:
- *   εᵢεⱼσ·AᵢFᵢⱼ·(Tᵢ⁴ − Tⱼ⁴), with Fᵢⱼ the share of i's sky j fills, and
- *   AᵢFᵢⱼ taken as the smaller of the two ways round so the exchange is the
- *   same from either side. Like conduction it is a conductance times the
- *   difference, taken implicitly for the pair, so it never carries one
- *   past the other;
- * - a burning body's flame: F3D_FLAME_RADIANT of the heat its fire gave
- *   off the step before leaves as radiation from its centre, and each
- *   neighbour catches its solid angle's share of it, as much as its
- *   emissivity takes in. That is what sets a crate beside a fire alight.
+ * Every body already gives the air εσA(T⁴ − Tₐ⁴), as if all it saw were at
+ * the air's temperature. What it sees of another body is not: that body
+ * catches the share of the excess its solid angle is, as much of it as its
+ * emissivity takes in, and as much as nothing stands in the way. A burning
+ * body's flame sends its material's radiant share of the fire's heat out
+ * from its centre the same way. So a body at the air's temperature gives
+ * nothing, a cold one draws heat from what sees it, and what is caught was
+ * already given up: no heat is made.
  *
- * Nothing stands in the way: a wall between two bodies does not shade one
- * from the other. Sources in slot order and their neighbours sorted, so
- * the same world passes the same heat; a pair of two sources is taken once,
- * from the lower slot. */
+ * And a burning body's flame stands on it — a column as wide as the body,
+ * spreading as a plume does, as long as Heskestad says and leaning with the
+ * wind by the speed of its own buoyancy. A body standing in it is heated by
+ * the flame's gas, by its contact and by what the gas radiates, over the
+ * share of its ball the column covers up to the half that faces it.
+ *
+ * A source looks as far as its radiation could still give the largest body
+ * F3D_RADIANT_LEAST. Sources in slot order and what they find sorted, so the
+ * same world passes the same heat. */
 static void radiate(F3dWorld *world, f3d_real dt) {
   const f3d_real ta = world->s.air_temperature;
+  const f3d_real ta4 = ta * ta * ta * ta;
+  /* The largest body that can be heated, as radiation sees it. */
+  f3d_real largest = F3D_R(0.0);
+  for (uint32_t i = 0; i < world->s.used; i++) {
+    const F3dSlot *s = &world->slots[i];
+    if (receives(s)) largest = f3d_max(largest, seen_radius(s));
+  }
+  if (!(largest > F3D_R(0.0))) return;
+  const f3d_real g2 = f3d_dot(world->s.gravity, world->s.gravity);
+  const f3d_real g = f3d_sqrt(g2);
+  const F3dVec3 up = g2 > F3D_R(0.0)
+                         ? f3d_scale(world->s.gravity, F3D_R(-1.0) / g)
+                         : f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0));
+  Near n;
+  n.world = world;
+  n.capacity = 0;
+  n.slots = NULL;
+  n.failed = 0;
   for (uint32_t i = 0; i < world->s.used; i++) {
     F3dSlot *a = &world->slots[i];
-    if (!a->live || !(a->surface > F3D_R(0.0)) || !is_source(a, ta)) continue;
-    const f3d_real ra = seen_radius(a);
+    if (!a->live || a->shape == F3D_SHAPE_MESH || !(a->surface > F3D_R(0.0))) {
+      continue;
+    }
+    const F3dMaterial *ma = &a->material;
+    const f3d_real t = a->temperature;
+    /* What it sends out above the room, and its flame's. */
+    const f3d_real excess = ma->emissivity * F3D_STEFAN_BOLTZMANN * a->surface *
+                            (t * t * t * t - ta4);
     const int alight = (a->flags & F3D_FLAG_BURNING) != 0;
-    const f3d_real flame = alight ? F3D_FLAME_RADIANT * a->heat_release
+    const f3d_real flame = alight ? ma->flame_radiant * a->heat_release
                                   : F3D_R(0.0);
-    /* The flame: a column that wraps the source, a fifth wider than it at
-     * its centre and spreading as a plume does, a fifth of its height on
-     * each side, up against gravity for as tall as Heskestad says above
-     * the source's top. */
-    const f3d_real g2 = f3d_dot(world->s.gravity, world->s.gravity);
-    const F3dVec3 up = g2 > F3D_R(0.0)
-                           ? f3d_scale(world->s.gravity, F3D_R(-1.0) / f3d_sqrt(g2))
-                           : f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0));
-    const f3d_real tall =
-        alight ? flame_length(a->heat_release, F3D_R(2.0) * ra) : F3D_R(0.0);
-    const F3dVec3 base = a->position;
-    const f3d_real column = alight ? tall + ra : F3D_R(0.0);
-    const f3d_real wrap = F3D_R(1.2) * ra;
-    /* What the flame radiates into what stands in it: its gas seen
-     * through its own width. */
-    const f3d_real flame_e =
-        F3D_R(1.0) - decay(F3D_FLAME_ABSORPTION * F3D_R(2.0) * wrap);
-    const f3d_real reach = f3d_max(
-        f3d_min(F3D_RADIANT_RADII * f3d_max(ra, F3D_R(0.25)), F3D_RADIANT_MOST),
-        column + F3D_R(2.0) * wrap);
+    const f3d_real sent = excess + flame;
+    const f3d_real ra = seen_radius(a);
+    /* The column: Heskestad's length, leaning with the wind where it
+     * stands by the buoyant speed (g·Q / (ρ c_p Tₐ D))^(1/3). */
+    f3d_real column = F3D_R(0.0);
+    F3dVec3 axis = up;
+    if (alight && a->heat_release > F3D_R(0.0)) {
+      const f3d_real across = F3D_R(2.0) * ra;
+      column = flame_length(a->heat_release, across) + ra;
+      const f3d_real rise = cube_root(
+          g * a->heat_release /
+          (world->s.air_density * F3D_AIR_HEAT * ta * across));
+      f3d_real wind[3];
+      f3d_world_sample_wind(world, a->position.x, a->position.y,
+                            a->position.z, wind);
+      F3dVec3 blow = f3d_v3(wind[0], wind[1], wind[2]);
+      blow = f3d_sub(blow, f3d_scale(up, f3d_dot(blow, up)));
+      const F3dVec3 lean = f3d_add(f3d_scale(up, rise), blow);
+      const f3d_real len = f3d_sqrt(f3d_dot(lean, lean));
+      if (len > F3D_R(0.0)) axis = f3d_scale(lean, F3D_R(1.0) / len);
+    }
+    if (f3d_abs(sent) < F3D_RADIANT_LEAST && column == F3D_R(0.0)) continue;
+    /* caught ≤ (r/d)²/2: past this, the largest body catches less than the
+     * least worth sending. */
+    const f3d_real far =
+        largest * f3d_sqrt(f3d_abs(sent) / (F3D_R(2.0) * F3D_RADIANT_LEAST));
+    const f3d_real top = ra + F3D_PLUME_SPREAD * column;
+    const f3d_real reach = f3d_max(far, column + top + largest);
     F3dBox box;
     box.lo = f3d_sub(a->position, f3d_v3(reach, reach, reach));
     box.hi = f3d_add(a->position, f3d_v3(reach, reach, reach));
-    Near n;
-    n.world = world;
     n.self = i;
     n.count = 0;
     f3d_tree_query(&world->tree, box, near_body, &n);
-    /* Sorted, so the tree's shape does not decide the order. */
+    if (n.failed) break;
     for (uint32_t p = 1; p < n.count; p++) {
       const uint32_t v = n.slots[p];
       uint32_t q = p;
@@ -422,61 +540,45 @@ static void radiate(F3dWorld *world, f3d_real dt) {
       }
       n.slots[q] = v;
     }
+    const f3d_real flame_e =
+        F3D_R(1.0) - decay(ma->flame_absorption * F3D_R(2.0) * ra);
     for (uint32_t k = 0; k < n.count; k++) {
       F3dSlot *b = &world->slots[n.slots[k]];
-      if (!b->live || !(b->surface > F3D_R(0.0))) continue;
+      if (!receives(b)) continue;
       const F3dVec3 between = f3d_sub(b->position, a->position);
       const f3d_real d = f3d_sqrt(f3d_dot(between, between));
       if (d > reach) continue;
       const f3d_real rb = seen_radius(b);
-      /* Standing in the flame: the share of its ball the column covers,
-       * up to the half that faces it, heated by the flame's gas and by
-       * what that gas radiates. Taken so a step never carries it past the
-       * flame's temperature. */
+      /* In the flame. */
       f3d_real inside = F3D_R(0.0);
-      if (alight) {
-        const F3dVec3 rel = f3d_sub(b->position, base);
-        const f3d_real along = f3d_clamp(f3d_dot(rel, up), F3D_R(0.0), column);
-        const F3dVec3 off = f3d_sub(rel, f3d_scale(up, along));
+      if (column > F3D_R(0.0)) {
+        const f3d_real along = f3d_clamp(f3d_dot(between, axis), F3D_R(0.0), column);
+        const F3dVec3 off = f3d_sub(between, f3d_scale(axis, along));
         const f3d_real apart = f3d_sqrt(f3d_dot(off, off));
-        const f3d_real width = wrap + F3D_R(0.2) * along;
+        const f3d_real width = ra + F3D_PLUME_SPREAD * along;
         inside = f3d_clamp((width + rb - apart) / (F3D_R(2.0) * rb),
                            F3D_R(0.0), F3D_R(1.0));
       }
-      if (inside > F3D_R(0.0) && b->temperature < F3D_FLAME_TEMPERATURE) {
+      if (inside > F3D_R(0.0) && b->temperature < ma->flame_temperature) {
         const f3d_real cb = capacity_of(b);
-        const f3d_real tf = F3D_FLAME_TEMPERATURE, tb = b->temperature;
-        const f3d_real g =
-            (F3D_FLAME_CONVECTION + flame_e * b->material.emissivity *
+        const f3d_real tf = ma->flame_temperature, tb = b->temperature;
+        const f3d_real cond =
+            (ma->flame_convection + flame_e * b->material.emissivity *
                                         F3D_STEFAN_BOLTZMANN *
                                         (tf * tf + tb * tb) * (tf + tb)) *
             b->surface * F3D_R(0.5) * inside;
-        const f3d_real gdt = cb > F3D_R(0.0) ? f3d_min(g * dt, cb) : g * dt;
+        /* Never past the flame in one step. */
+        const f3d_real gdt = f3d_min(cond * dt, cb);
         b->heat += gdt * (tf - tb);
       }
-      /* The rest of it, outside the flame, sees the fire from afar. */
-      if (flame > F3D_R(0.0)) {
-        b->heat += flame * caught(rb, d) * (F3D_R(1.0) - inside) *
-                   b->material.emissivity * dt;
-      }
-      /* A pair of two sources is the lower slot's to take. */
-      if (is_source(b, ta) && n.slots[k] < i) continue;
-      const f3d_real ca = capacity_of(a), cb = capacity_of(b);
-      const f3d_real ia = ca > F3D_R(0.0) ? F3D_R(1.0) / ca : F3D_R(0.0);
-      const f3d_real ib = cb > F3D_R(0.0) ? F3D_R(1.0) / cb : F3D_R(0.0);
-      if (ia == F3D_R(0.0) && ib == F3D_R(0.0)) continue;
-      const f3d_real view = f3d_min(a->surface * caught(rb, d),
-                                    b->surface * caught(ra, d));
-      const f3d_real t1 = a->temperature, t2 = b->temperature;
-      const f3d_real g = a->material.emissivity * b->material.emissivity *
-                         F3D_STEFAN_BOLTZMANN * view *
-                         (t1 * t1 + t2 * t2) * (t1 + t2);
-      const f3d_real gdt = g * dt;
-      const f3d_real q = gdt * (t2 - t1) / (F3D_R(1.0) + gdt * (ia + ib));
-      a->temperature += q * ia;
-      b->temperature -= q * ib;
+      /* From afar, on what is outside the flame. */
+      const f3d_real share = b->material.emissivity * caught(rb, d) *
+                             (F3D_R(1.0) - inside);
+      if (f3d_abs(sent) * share < F3D_RADIANT_LEAST) continue;
+      b->heat += sent * share * seen(world, a, b, rb) * dt;
     }
   }
+  f3d_free(n.slots);
 }
 
 void f3d_step_heat(F3dWorld *world, f3d_real dt) {

@@ -47,6 +47,27 @@ void main() {
         ),
         throwsArgumentError,
       );
+      // A rubber fire is sootier than a wood fire: more of its heat leaves
+      // as radiation, through a flame that absorbs more.
+      final rubber = NativeMaterial.rubber();
+      expect(wood.flameTemperature, closeTo(1100.0, 1e-3));
+      expect(rubber.flameRadiant, greaterThan(wood.flameRadiant));
+      expect(rubber.flameAbsorption, greaterThan(wood.flameAbsorption));
+      // A flame no hotter than the material catches at is refused.
+      expect(
+        () => world.setMaterial(
+          b,
+          NativeMaterial(
+            specificHeat: wood.specificHeat,
+            ignitionTemperature: wood.ignitionTemperature,
+            heatOfCombustion: wood.heatOfCombustion,
+            burnRate: wood.burnRate,
+            fuelFraction: wood.fuelFraction,
+            flameTemperature: 500.0,
+          ),
+        ),
+        throwsArgumentError,
+      );
       world.setMaterial(b, wood);
       expect(world.fuelOf(b), closeTo(1.6, 1e-6));
       expect(world.temperatureOf(b), closeTo(293.15, 1e-4));

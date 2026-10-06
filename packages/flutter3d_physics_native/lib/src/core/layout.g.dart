@@ -14,7 +14,11 @@ abstract final class F3dMaterialLayout {
   static const int fuelFraction = 20;
   static const int flameFeedback = 24;
   static const int conductivity = 28;
-  static const int size = 32;
+  static const int flameTemperature = 32;
+  static const int flameConvection = 36;
+  static const int flameRadiant = 40;
+  static const int flameAbsorption = 44;
+  static const int size = 48;
 }
 
 /// `F3dParticleForces`.

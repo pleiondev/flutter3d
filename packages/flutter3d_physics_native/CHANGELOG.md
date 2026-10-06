@@ -6,16 +6,22 @@
   that one number names one tree, and `^0.9.0` on any `flutter3d_*`
   package resolves against every other.
 
-- **Fire spreads from one body to the next.** A body well above the air's
-  temperature radiates to the bodies near it as well as to the air, each
-  seen as a ball with its own surface. The exchange is the same from either
-  side and never carries one past the other. A burning body throws a third
-  of its fire's heat as radiation, and its flame stands over it as tall as
-  the fire is big. Anything standing in the flame is heated by its gas,
-  both by the gas's contact and by what the gas radiates. A crate stacked on
-  a burning one catches in a little over two minutes, one beside it in four,
-  and the next in the row from that one. A crate four metres off only warms.
-  Nothing shades: a wall between two bodies does not stop the radiation.
+- **Fire spreads from one body to the next.** Every body gives the room
+  εσA(T⁴ − Tₐ⁴) above what it would at the air's temperature, and each body
+  near it catches its solid angle's share of that, as much as five rays find
+  nothing in the way: a wall shades. What is caught was given up already,
+  so no heat is made, a body at the air's temperature gives nothing, and a
+  cold one draws heat from what sees it. A burning body sends its
+  material's radiant share of its fire's heat the same way, and its flame
+  stands over it as long as Heskestad says, as wide as a plume spreads, and
+  leaning with the wind by the speed of its own buoyancy. A body standing in
+  the flame is heated by its gas. A crate stacked on a burning one catches
+  in under three minutes; under a wind along a row, the fire runs down the
+  row. `NativeMaterial` carries its flame: the gas's temperature, what it
+  passes to a surface in it, the radiant share and how strongly it absorbs,
+  with presets for wood, paper and a sooty rubber. How far a source looks
+  follows from how strongly it radiates; nothing else is cut.
+  `F3D_ABI_VERSION` is 27.
 
 - **A box in a corner stands on both faces.** A mesh, or a compound,
   that meets another body with two faces at once gives each face its own

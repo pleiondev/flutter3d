@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 26u
+#define F3D_ABI_VERSION 27u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -171,6 +171,15 @@ typedef struct F3dMaterial {
   f3d_real flame_feedback;
   /* W / (m K): how readily heat crosses into what it touches. */
   f3d_real conductivity;
+  /* Its fire's flame: the gas's temperature, K; what that gas passes to a
+   * surface standing in it, W / (m² K); the share of the heat the fire
+   * gives off that leaves as radiation rather than in the gas, nought to
+   * one; and how strongly the flame absorbs, per metre seen through, so
+   * its emissivity is 1 − e^(−κL). Read only for a material that burns. */
+  f3d_real flame_temperature;
+  f3d_real flame_convection;
+  f3d_real flame_radiant;
+  f3d_real flame_absorption;
 } F3dMaterial;
 
 typedef enum F3dMaterialKind {

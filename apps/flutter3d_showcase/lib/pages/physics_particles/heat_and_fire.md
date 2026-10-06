@@ -27,11 +27,11 @@ preset for its material.
 ## Step 2: The heat the heater throws
 
 Nothing on the page passes heat from the heater to the boards: the core
-does. A body well above the air's temperature radiates to the bodies near it,
-each seen as a ball with its own surface, εσ(T_h⁴ − T⁴) times the share of
-the sky the other fills. A burning body also throws a third of its fire's heat
-as radiation, and anything standing in its flame is heated by the flame's gas.
-Both boards get the same. The steel, with fifteen times the wood's mass, warms
+does. Every body gives the room εσA(T⁴ − Tₐ⁴) above what it would at the
+air's temperature, and each body near it catches its solid angle's share of
+that, as much as nothing stands in the way. A burning body also sends its
+material's radiant share of its fire's heat, and anything standing in its
+flame is heated by the flame's gas. Both boards get the same. The steel, with fifteen times the wood's mass, warms
 slowly; it has no ignition temperature in its preset, so it never catches
 however hot it gets.
 
@@ -81,9 +81,9 @@ Then water goes on, and the next step has to put the fire out with an
 
 > **Note.** A body is one temperature throughout, which is right for a crate
 > or a board but not for a log whose outside chars while its middle is cold.
-> Radiation sees every body as a ball of its own surface and nothing stands in
-> its way: a wall between the heater and a board would not shade it. A crate
-> stacked on a burning one catches in its flame; one beside it catches when the
-> fire is big enough, and one a few metres off only warms. Heat across a contact is
+> Radiation sees every body as a ball of its own surface, and five rays
+> decide how much of it a wall hides. A crate stacked on a burning one
+> catches in its flame; one beside it catches when the fire is big enough or
+> the wind lays the flame over it, and one a few metres off only warms. Heat across a contact is
 > modest by design. Wood is an insulator, and a burning block warms the one it
 > touches without lighting it.
