@@ -9,6 +9,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'fire.dart';
 import 'valley.dart';
 
 /// A quarter of a cubic metre a second out of the spring: a stream big
@@ -31,7 +32,7 @@ final class _Thrown {
 
 /// The valley, stepped and drawn.
 final class WaterRun {
-  WaterRun(this._device, this.scene, this.look) {
+  WaterRun(this._device, this.scene, this.look, Renderer renderer) {
     _ground = valleyGround();
     // The ground as the stones meet it: one fixed mesh body.
     final floor = _world.addBody(
@@ -79,6 +80,7 @@ final class WaterRun {
         rate: springRate,
       );
     _build();
+    bonfire = Bonfire(_world, _device, scene, renderer);
   }
 
   final GraphicsDevice _device;
@@ -101,6 +103,9 @@ final class WaterRun {
   late final DeviceMesh _stoneMesh, _logMesh;
   final List<_Thrown> _thrown = <_Thrown>[];
   final math.Random _scatter = math.Random(7);
+
+  /// The fire laid on the bank.
+  late final Bonfire bonfire;
 
   /// Whether the wind blows down the valley.
   bool windy = false;
@@ -188,8 +193,7 @@ final class WaterRun {
     // Water lets most of the sun through, and a shadow map knows only
     // through or not: none of the water, falling or lying, casts a shadow.
     // A solid shadow of the sheet on the cliff behind it was a dark band.
-    _surfaceNode = MeshNode(_surface, look, name: 'water')
-      ..castsShadow = false;
+    _surfaceNode = MeshNode(_surface, look, name: 'water')..castsShadow = false;
     scene.add(_surfaceNode);
     // The falls: the sheet as ribbons, one a face of the lip, through the
     // pieces it threw in the order it threw them; white where it is thick,
@@ -439,16 +443,18 @@ final class WaterRun {
   /// One frame: the world on by [dt], and what is drawn of it brought up to
   /// date.
   void step(double dt) {
+    final wind = windy ? Vector3(0.0, 0.0, 6.0) : Vector3.zero();
     _world
-      ..wind = windy ? Vector3(0.0, 0.0, 6.0) : Vector3.zero()
+      ..wind = wind
       ..step(dt);
+    bonfire.step(dt, wind);
     final bubbles = _world.readBubbles();
     final vertices = _waterVertices(bubbles).buffer.asByteData();
     _surface.overwriteVertices(_device, 0, vertices);
     _surfaceNode.markBoundsDirty();
     _clock += dt;
     look.parameters['time']![0] = _clock;
-    look.parameters['chop']![0] = windy ? 2.0 : 1.0;
+    look.parameters['chop']![0] = windy ? 1.6 : 1.0;
     _drawSpray(bubbles);
     for (final t in _thrown) {
       final p = _world.positionOf(t.body);

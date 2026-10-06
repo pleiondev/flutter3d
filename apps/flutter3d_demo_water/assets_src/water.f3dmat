@@ -42,29 +42,45 @@ material Water {
     let qa = here - flow * (a * cycle);
     let qb = here - flow * (b * cycle);
 
-    // A swell and three ripples, each a slope of amplitude times wavenumber
-    // along its own heading, running at deep water's speed: ω = √(g·k).
-    // 2.5 m: k 2.51, ω 4.96. 0.9 m: k 6.98, ω 8.27. 0.55 m: k 11.4, ω 10.6.
-    // 0.33 m: k 19.0, ω 13.7.
+    // Six ripples, each a slope of amplitude times wavenumber along its own
+    // heading, running at deep water's speed, ω = √(g·k). Headings spread
+    // round the compass and lengths in no ratio to each other, so their sum
+    // never lines up into stripes; the plane they run over is bent a little,
+    // slowly, so no crest stays straight.
+    // 1.7 m: k 3.70, ω 6.02. 1.13 m: k 5.56, ω 7.39. 0.77 m: k 8.16, ω 8.95.
+    // 0.52 m: k 12.08, ω 10.89. 0.37 m: k 16.98, ω 12.91.
+    // 0.26 m: k 24.17, ω 15.40.
     // How far off this is, and so which ripples are still worth drawing: a
     // wave fades out between 25 and 60 of its own lengths away.
     let far = length(world - eye);
-    let w0 = 1.0 - smoothstep(62.0, 150.0, far);
-    let w1 = 1.0 - smoothstep(22.0, 54.0, far);
-    let w2 = 1.0 - smoothstep(14.0, 33.0, far);
-    let w3 = 1.0 - smoothstep(8.0, 20.0, far);
-    let d0 = vec2(-0.6, 0.8);
-    let d1 = vec2(0.8, 0.6);
-    let d2 = vec2(-0.5, 0.866);
-    let d3 = vec2(0.196, -0.981);
-    let ga = d0 * (0.06 * w0 * cos(2.51 * dot(d0, qa) - 4.96 * time)) +
-             d1 * (0.12 * w1 * cos(6.98 * dot(d1, qa) - 8.27 * time)) +
-             d2 * (0.11 * w2 * cos(11.4 * dot(d2, qa) - 10.6 * time)) +
-             d3 * (0.10 * w3 * cos(19.0 * dot(d3, qa) - 13.7 * time));
-    let gb = d0 * (0.06 * w0 * cos(2.51 * dot(d0, qb) - 4.96 * time)) +
-             d1 * (0.12 * w1 * cos(6.98 * dot(d1, qb) - 8.27 * time)) +
-             d2 * (0.11 * w2 * cos(11.4 * dot(d2, qb) - 10.6 * time)) +
-             d3 * (0.10 * w3 * cos(19.0 * dot(d3, qb) - 13.7 * time));
+    let w0 = 1.0 - smoothstep(42.5, 102.0, far);
+    let w1 = 1.0 - smoothstep(28.2, 67.8, far);
+    let w2 = 1.0 - smoothstep(19.2, 46.2, far);
+    let w3 = 1.0 - smoothstep(13.0, 31.2, far);
+    let w4 = 1.0 - smoothstep(9.2, 22.2, far);
+    let w5 = 1.0 - smoothstep(6.5, 15.6, far);
+    let d0 = vec2(0.966, 0.259);
+    let d1 = vec2(0.174, 0.985);
+    let d2 = vec2(-0.766, 0.643);
+    let d3 = vec2(-0.906, -0.423);
+    let d4 = vec2(-0.174, -0.985);
+    let d5 = vec2(0.819, -0.574);
+    let ba = qa + vec2(0.3 * sin(0.73 * qa.y + 0.4 * time),
+                       0.3 * sin(0.61 * qa.x - 0.3 * time));
+    let bb = qb + vec2(0.3 * sin(0.73 * qb.y + 0.4 * time),
+                       0.3 * sin(0.61 * qb.x - 0.3 * time));
+    let ga = d0 * (0.07 * w0 * cos(3.70 * dot(d0, ba) - 6.02 * time)) +
+             d1 * (0.07 * w1 * cos(5.56 * dot(d1, ba) - 7.39 * time)) +
+             d2 * (0.065 * w2 * cos(8.16 * dot(d2, ba) - 8.95 * time)) +
+             d3 * (0.06 * w3 * cos(12.08 * dot(d3, ba) - 10.89 * time)) +
+             d4 * (0.055 * w4 * cos(16.98 * dot(d4, ba) - 12.91 * time)) +
+             d5 * (0.05 * w5 * cos(24.17 * dot(d5, ba) - 15.40 * time));
+    let gb = d0 * (0.07 * w0 * cos(3.70 * dot(d0, bb) - 6.02 * time)) +
+             d1 * (0.07 * w1 * cos(5.56 * dot(d1, bb) - 7.39 * time)) +
+             d2 * (0.065 * w2 * cos(8.16 * dot(d2, bb) - 8.95 * time)) +
+             d3 * (0.06 * w3 * cos(12.08 * dot(d3, bb) - 10.89 * time)) +
+             d4 * (0.055 * w4 * cos(16.98 * dot(d4, bb) - 12.91 * time)) +
+             d5 * (0.05 * w5 * cos(24.17 * dot(d5, bb) - 15.40 * time));
     let slope = mix(ga, gb, onB) * chop;
     let n = normalize(normal + vec3(0.0 - slope.x, 0.0, 0.0 - slope.y));
 

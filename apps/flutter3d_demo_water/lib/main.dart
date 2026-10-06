@@ -9,7 +9,9 @@
 /// the waves on the pond are what the falls and the stones dropped in push
 /// out. Drag to look round, scroll to come closer; a click drops a stone
 /// where it points, S drops one into the pond, L puts a log in the stream, W
-/// turns a wind down the valley on and off.
+/// turns a wind down the valley on and off. On the bank a bonfire is laid:
+/// F lights it, and it burns, spreads from log to log and leans in the wind
+/// as the core's heat has it; E throws water on it.
 library;
 
 import 'dart:async';
@@ -111,11 +113,10 @@ class _WaterScreenState extends State<WaterScreen>
         ..add(
           // From over the pond's side, so the falls and the cliff behind them
           // are in the sun.
-          LightNode(name: 'sun', intensity: 2.0)
-            ..setLocalForward(_sunAlong),
+          LightNode(name: 'sun', intensity: 2.0)..setLocalForward(_sunAlong),
         )
         ..add(_camera);
-      final run = WaterRun(device, scene, water);
+      final run = WaterRun(device, scene, water, renderer);
       if (!mounted) return;
       setState(() => _playing = (renderer: renderer, run: run));
     } catch (error) {
@@ -171,6 +172,10 @@ class _WaterScreenState extends State<WaterScreen>
         run.dropStone();
       case LogicalKeyboardKey.keyL:
         run.dropLog();
+      case LogicalKeyboardKey.keyF:
+        run.bonfire.light();
+      case LogicalKeyboardKey.keyE:
+        run.bonfire.douse();
       case LogicalKeyboardKey.keyW:
         run.windy = !run.windy;
       default:
@@ -236,7 +241,7 @@ class _WaterScreenState extends State<WaterScreen>
                 scene: playing.run.scene,
                 view: _view,
                 settings: () => RenderSettings(
-                  exposure: 1.0,
+                  exposure: 0.7,
                   bloom: const BloomSettings(enabled: false),
                   sky: SkySettings(
                     enabled: true,
@@ -291,9 +296,17 @@ class _Panel extends StatelessWidget {
             'wind ${run.windy ? 'blowing' : 'still'} · '
             'valley ${valleySize.round()} m',
           ),
+          Text(
+            run.bonfire.burning == 0
+                ? 'Bonfire cold'
+                : 'Bonfire: ${run.bonfire.burning} '
+                      '${run.bonfire.burning == 1 ? 'log' : 'logs'} burning, '
+                      '${(run.bonfire.watts / 1000).round()} kW going up',
+          ),
           const SizedBox(height: 6),
           const Text(
-            'drag to look · scroll to zoom · click drops a stone · S stone · L log · W wind',
+            'drag to look · scroll to zoom · click drops a stone · S stone · L log · '
+            'W wind · F light the fire · E douse it',
             style: TextStyle(color: Color(0xFFB8C2CF), fontSize: 12),
           ),
         ],
