@@ -23,6 +23,14 @@ F3dPlaced f3d_placed_of(const F3dWorld *world, const F3dSlot *s) {
   p.mesh = NULL;
   p.mesh_tree = NULL;
   p.edge_flags = NULL;
+  p.compound = NULL;
+  p.parts = NULL;
+  p.world = world;
+  if (s->shape == F3D_SHAPE_COMPOUND && s->hull != 0 &&
+      s->hull <= world->s.compound_count) {
+    p.compound = &world->compounds[s->hull - 1u];
+    p.parts = world->compound_parts + p.compound->first_part;
+  }
   if (s->shape == F3D_SHAPE_MESH && s->hull != 0 &&
       s->hull <= world->s.mesh_count) {
     const F3dMesh *m = &world->meshes[s->hull - 1u];

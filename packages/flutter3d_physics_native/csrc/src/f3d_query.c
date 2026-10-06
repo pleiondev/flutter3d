@@ -159,9 +159,26 @@ static int ray_triangle(void *context, int32_t leaf) {
 /* Where the ray from [o] along the unit [u] first meets the body within
  * [limit]: 1, the distance and the normal there; 0 when it misses or starts
  * inside. */
-static int ray_body(const F3dWorld *world, const F3dSlot *s, F3dVec3 o,
-                    F3dVec3 u, f3d_real limit, f3d_real *dist, F3dVec3 *normal) {
-  const F3dPlaced p = f3d_placed_of(world, s);
+static int ray_placed(const F3dPlaced *placed, F3dVec3 o, F3dVec3 u,
+                      f3d_real limit, f3d_real *dist, F3dVec3 *normal) {
+  const F3dPlaced p = *placed;
+  if (p.kind == F3D_SHAPE_COMPOUND) {
+    /* The nearest of its parts the ray meets. */
+    if (p.compound == NULL) return 0;
+    int hit = 0;
+    for (uint32_t i = 0; i < p.compound->part_count; i++) {
+      const F3dPlaced part = f3d_placed_part(&p, i);
+      f3d_real d;
+      F3dVec3 n;
+      if (ray_placed(&part, o, u, limit, &d, &n)) {
+        limit = d;
+        *dist = d;
+        *normal = n;
+        hit = 1;
+      }
+    }
+    return hit;
+  }
   if (p.kind == F3D_SHAPE_SPHERE) {
     const f3d_real r = p.size.x + p.rounding;
     const F3dVec3 m = f3d_sub(o, p.at);
@@ -301,7 +318,8 @@ static int ray_leaf(void *context, int32_t leaf) {
   if (!sees(r->world, s, r->mask, r->ignore)) return 1;
   f3d_real d;
   F3dVec3 n;
-  if (!ray_body(r->world, s, r->o, r->u, *r->limit, &d, &n)) return 1;
+  const F3dPlaced p = f3d_placed_of(r->world, s);
+  if (!ray_placed(&p, r->o, r->u, *r->limit, &d, &n)) return 1;
   if (!r->all) {
     /* Equal distances go to the lower slot, so the tree's shape does not
      * choose. */

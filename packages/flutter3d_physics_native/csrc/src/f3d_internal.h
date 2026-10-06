@@ -211,6 +211,10 @@ typedef struct F3dPlaced {
   const struct F3dMesh *mesh;
   const struct F3dTree *mesh_tree;
   const uint8_t *edge_flags;
+  /* A compound, its parts, and the world whose hulls they name. */
+  const struct F3dCompound *compound;
+  const struct F3dCompoundPart *parts;
+  const struct F3dWorld *world;
 } F3dPlaced;
 
 /* Fills [out]'s normal and points for [a] against [b], within [margin],
@@ -387,6 +391,34 @@ typedef struct F3dMesh {
   f3d_real surface;
 } F3dMesh;
 
+/* One part of a compound: a shape placed and turned in the compound's
+ * frame, which has its centre of mass at the origin. Plain data. */
+typedef struct F3dCompoundPart {
+  uint32_t kind;
+  /* One past the hull's index, for a hull; nought for the rest. */
+  uint32_t hull;
+  F3dVec3 size;
+  f3d_real rounding;
+  F3dVec3 at;
+  F3dQuat turn;
+  /* How far the part reaches from [at]: what a pair of parts is skipped
+   * by when their spheres do not meet. */
+  f3d_real reach;
+} F3dCompoundPart;
+
+/* A compound: its parts in the world's array, what a kilogram of it weighs
+ * into its inertia, and how its parts were moved to put the centre of mass
+ * at the body's origin. Plain data. */
+typedef struct F3dCompound {
+  uint32_t first_part, part_count;
+  F3dVec3 offset;
+  /* Its box in its own frame. */
+  F3dVec3 lo, hi;
+  f3d_real volume;
+  f3d_real surface;
+  F3dSym3 unit_inertia;
+} F3dCompound;
+
 /* Bits of F3dJointSlot.flags. */
 enum {
   F3D_JOINT_LIMIT = 1u << 0,
@@ -484,6 +516,9 @@ typedef struct F3dWorldState {
   f3d_real last_substep;
   /* 1 in the fast mode: contacts solved a colour at a time, in parallel. */
   uint32_t fast;
+  /* The compounds, and the parts they hold. */
+  uint32_t compound_count;
+  uint32_t compound_part_count;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -560,6 +595,9 @@ struct F3dWorld {
   uint8_t *mesh_edges;
   F3dTree *mesh_trees;
   uint32_t mesh_tree_count;
+  /* The compounds and their parts. In a snapshot. */
+  F3dCompound *compounds;
+  F3dCompoundPart *compound_parts;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */
@@ -657,6 +695,28 @@ void f3d_nearest_of_segments(F3dVec3 p0, F3dVec3 p1, F3dVec3 q0, F3dVec3 q1,
 
 uint32_t f3d_collide_convex(const F3dPlaced *a, const F3dPlaced *b,
                             f3d_real margin, F3dManifold *out);
+
+/* Of many points of one face, the four that hold it best: the deepest, the
+ * furthest from it, and the widest either side of the line between. */
+void f3d_keep_four(F3dVec3 *p, f3d_real *depth, uint32_t *ids,
+                   uint32_t *count, F3dVec3 n);
+
+/* Part [i] of a placed compound, where it stands. */
+F3dPlaced f3d_placed_part(const F3dPlaced *compound, uint32_t i);
+
+/* Two shapes, one of them or both compounds: every pair of parts whose
+ * spheres meet, joined into one manifold as a mesh's triangles are. */
+uint32_t f3d_collide_compound(const F3dPlaced *a, const F3dPlaced *b,
+                              f3d_real margin, F3dManifold *out);
+
+/* A shape's volume, m³, inertia about its centre for [mass], and surface,
+ * m², as a body of it would have them. For a compound's parts. */
+f3d_real f3d_shape_volume(const F3dWorld *world, uint32_t kind, F3dVec3 size,
+                          f3d_real rounding, uint32_t hull);
+F3dSym3 f3d_shape_inertia(const F3dWorld *world, uint32_t kind, F3dVec3 size,
+                          f3d_real rounding, uint32_t hull, f3d_real mass);
+f3d_real f3d_shape_surface(const F3dWorld *world, uint32_t kind, F3dVec3 size,
+                           f3d_real rounding, uint32_t hull);
 
 /* Whether anything can turn the body: a shape with inertia, dynamic, not
  * locked. */

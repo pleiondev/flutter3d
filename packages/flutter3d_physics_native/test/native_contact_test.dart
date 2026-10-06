@@ -249,6 +249,72 @@ void main() {
     );
   });
 
+  test('a table of five boxes stands on its legs, and a ray finds a part, '
+      'through the binding', () {
+    // The C tests hold the mass, the manifolds and the snapshot; this holds
+    // what a game reads: a compound built from parts, standing where its
+    // legs put it, and seen by a ray only where it has a part.
+    final floor = world.addBody(
+      position: Vector3(0.0, -0.5, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    world
+      ..setShape(floor, NativeShape.box(Vector3(20.0, 0.5, 20.0)))
+      ..setSleep(speed: 0.05, time: 0.5)
+      ..gravity = Vector3(0.0, -9.81, 0.0);
+    final table = world.createCompound(<NativeCompoundPart>[
+      NativeCompoundPart(
+        NativeShape.box(Vector3(0.6, 0.025, 0.4)),
+        at: Vector3(0.0, 0.725, 0.0),
+      ),
+      for (final (x, z) in const <(double, double)>[
+        (-0.55, -0.35),
+        (0.55, -0.35),
+        (-0.55, 0.35),
+        (0.55, 0.35),
+      ])
+        NativeCompoundPart(
+          NativeShape.box(Vector3(0.03, 0.35, 0.03)),
+          at: Vector3(x, 0.35, z),
+        ),
+    ]);
+    expect(world.compoundPartCount(table), 5);
+    final lift = world.compoundOffset(table).y;
+    expect(lift, greaterThan(0.35));
+    expect(lift, lessThan(0.725));
+    final body = world.addBody(
+      position: Vector3(0.0, lift + 0.05, 0.0),
+      mass: 20.0,
+    );
+    world.setCompound(body, table);
+    for (var i = 0; i < 240; i++) {
+      world.step(1.0 / 60.0);
+    }
+    // Mutation: the parts not moved by the offset — the table stands a
+    // leg's length off, or sinks into the floor.
+    expect(world.positionOf(body).y, closeTo(lift, 0.01));
+    expect(world.isAsleep(body), isTrue);
+    final top = world.rayCast(
+      Vector3(0.0, 3.0, 0.0),
+      Vector3(0.0, -1.0, 0.0),
+      5.0,
+    );
+    expect(top?.body, body);
+    expect(top!.point.y, closeTo(0.75, 0.01));
+    // Under the top, between the legs: the floor, not the table.
+    final under = world.rayCast(
+      Vector3(0.0, 0.3, -2.0),
+      Vector3(0.0, 0.0, 1.0),
+      4.0,
+    );
+    expect(under, isNull);
+    expect(
+      () => world.createCompound(const <NativeCompoundPart>[]),
+      throwsArgumentError,
+    );
+  });
+
   test('a crate and a ball rest on a mesh floor, through the binding', () {
     world
       ..gravity = Vector3(0.0, -9.81, 0.0)

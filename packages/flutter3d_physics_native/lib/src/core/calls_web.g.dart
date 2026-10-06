@@ -95,6 +95,25 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber indices,
     JSNumber triangleCount,
   );
+  @JS('f3d_world_create_compound')
+  external JSNumber f3d_world_create_compound(
+    JSNumber world,
+    JSNumber kinds,
+    JSNumber hulls,
+    JSNumber parts,
+    JSNumber count,
+  );
+  @JS('f3d_world_get_compound_offset')
+  external JSNumber f3d_world_get_compound_offset(
+    JSNumber world,
+    JSNumber compound,
+    JSNumber out,
+  );
+  @JS('f3d_world_compound_part_count')
+  external JSNumber f3d_world_compound_part_count(
+    JSNumber world,
+    JSNumber compound,
+  );
   @JS('f3d_world_mesh_triangle_count')
   external JSNumber f3d_world_mesh_triangle_count(
     JSNumber world,
@@ -726,6 +745,13 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyHigh,
     JSNumber hull,
   );
+  @JS('f3d_body_set_compound__w')
+  external JSNumber f3d_body_set_compound(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber compound,
+  );
   @JS('f3d_body_set_mesh__w')
   external JSNumber f3d_body_set_mesh(
     JSNumber world,
@@ -976,6 +1002,29 @@ int f3d_world_create_mesh(
       indices.toJS,
       triangleCount.toJS,
     )
+    .toDartInt
+    .toUnsigned(32);
+int f3d_world_create_compound(
+  int world,
+  int kinds,
+  int hulls,
+  int parts,
+  int count,
+) => _x
+    .f3d_world_create_compound(
+      world.toJS,
+      kinds.toJS,
+      hulls.toJS,
+      parts.toJS,
+      count.toJS,
+    )
+    .toDartInt
+    .toUnsigned(32);
+int f3d_world_get_compound_offset(int world, int compound, int out) => _x
+    .f3d_world_get_compound_offset(world.toJS, compound.toJS, out.toJS)
+    .toDartInt;
+int f3d_world_compound_part_count(int world, int compound) => _x
+    .f3d_world_compound_part_count(world.toJS, compound.toJS)
     .toDartInt
     .toUnsigned(32);
 int f3d_world_mesh_triangle_count(int world, int mesh) => _x
@@ -1796,6 +1845,14 @@ int f3d_body_set_hull(int world, int body, int hull) => _x
       lowHalf(body).toJS,
       highHalf(body).toJS,
       hull.toJS,
+    )
+    .toDartInt;
+int f3d_body_set_compound(int world, int body, int compound) => _x
+    .f3d_body_set_compound(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      compound.toJS,
     )
     .toDartInt;
 int f3d_body_set_mesh(int world, int body, int mesh) => _x

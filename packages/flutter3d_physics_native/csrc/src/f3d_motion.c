@@ -145,9 +145,15 @@ static F3dSym3 inertia_of(const F3dWorld *world, const F3dSlot *s) {
                                    F3D_R(3.0) / F3D_R(80.0) * big);
       return f3d_sym_diag(across, F3D_R(0.3) * m * r2, across);
     }
-    case F3D_SHAPE_HULL: {
-      if (s->hull == 0 || s->hull > world->s.hull_count) break;
-      const F3dSym3 u = world->hulls[s->hull - 1u].unit_inertia;
+    case F3D_SHAPE_HULL:
+    case F3D_SHAPE_COMPOUND: {
+      const int hull = s->shape == F3D_SHAPE_HULL;
+      if (s->hull == 0 ||
+          s->hull > (hull ? world->s.hull_count : world->s.compound_count)) {
+        break;
+      }
+      const F3dSym3 u = hull ? world->hulls[s->hull - 1u].unit_inertia
+                             : world->compounds[s->hull - 1u].unit_inertia;
       F3dSym3 o;
       o.xx = u.xx * m;
       o.yy = u.yy * m;
@@ -186,9 +192,66 @@ static f3d_real surface_of(const F3dWorld *world, const F3dSlot *s) {
     case F3D_SHAPE_MESH:
       if (s->hull == 0 || s->hull > world->s.mesh_count) return F3D_R(0.0);
       return world->meshes[s->hull - 1u].surface;
+    case F3D_SHAPE_COMPOUND:
+      if (s->hull == 0 || s->hull > world->s.compound_count) return F3D_R(0.0);
+      return world->compounds[s->hull - 1u].surface;
     default:
       return F3D_R(0.0);
   }
+}
+
+/* The solid's volume, of the size its inertia is taken at. */
+static f3d_real volume_of(const F3dWorld *world, const F3dSlot *s) {
+  const F3dVec3 d = grown(s);
+  const f3d_real third = F3D_R(1.0) / F3D_R(3.0);
+  switch (s->shape) {
+    case F3D_SHAPE_SPHERE:
+      return F3D_R(4.0) * third * F3D_PI * d.x * d.x * d.x;
+    case F3D_SHAPE_BOX:
+      return F3D_R(8.0) * d.x * d.y * d.z;
+    case F3D_SHAPE_CAPSULE:
+      return F3D_PI * d.x * d.x * (F3D_R(2.0) * d.y + F3D_R(4.0) * third * d.x);
+    case F3D_SHAPE_CYLINDER:
+      return F3D_R(2.0) * F3D_PI * d.x * d.x * d.y;
+    case F3D_SHAPE_CONE:
+      return third * F3D_PI * d.x * d.x * d.y;
+    case F3D_SHAPE_HULL:
+      if (s->hull == 0 || s->hull > world->s.hull_count) return F3D_R(0.0);
+      return world->hulls[s->hull - 1u].volume;
+    default:
+      return F3D_R(0.0);
+  }
+}
+
+/* A slot of nothing but a shape, for the three below. */
+static F3dSlot shaped(uint32_t kind, F3dVec3 size, f3d_real rounding,
+                      uint32_t hull, f3d_real mass) {
+  F3dSlot s;
+  f3d_zero(&s, sizeof s);
+  s.shape = (uint8_t)kind;
+  s.size = size;
+  s.rounding = rounding;
+  s.hull = hull;
+  s.mass = mass;
+  return s;
+}
+
+f3d_real f3d_shape_volume(const F3dWorld *world, uint32_t kind, F3dVec3 size,
+                          f3d_real rounding, uint32_t hull) {
+  const F3dSlot s = shaped(kind, size, rounding, hull, F3D_R(0.0));
+  return volume_of(world, &s);
+}
+
+F3dSym3 f3d_shape_inertia(const F3dWorld *world, uint32_t kind, F3dVec3 size,
+                          f3d_real rounding, uint32_t hull, f3d_real mass) {
+  const F3dSlot s = shaped(kind, size, rounding, hull, mass);
+  return inertia_of(world, &s);
+}
+
+f3d_real f3d_shape_surface(const F3dWorld *world, uint32_t kind, F3dVec3 size,
+                           f3d_real rounding, uint32_t hull) {
+  const F3dSlot s = shaped(kind, size, rounding, hull, F3D_R(0.0));
+  return surface_of(world, &s);
 }
 
 static f3d_real shape_drag_of(const F3dSlot *s) {
@@ -204,6 +267,7 @@ static f3d_real shape_drag_of(const F3dSlot *s) {
     case F3D_SHAPE_CONE:
       return F3D_R(0.5);
     case F3D_SHAPE_HULL:
+    case F3D_SHAPE_COMPOUND:
       return F3D_R(1.0);
     default:
       return F3D_R(0.0);

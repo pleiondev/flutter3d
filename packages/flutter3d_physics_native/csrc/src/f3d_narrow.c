@@ -604,6 +604,13 @@ uint32_t f3d_collide(const F3dPlaced *pa, const F3dPlaced *pb, f3d_real margin,
   out->touching = 0;
   uint32_t count = 0;
   if (pa->kind == F3D_SHAPE_POINT || pb->kind == F3D_SHAPE_POINT) return 0;
+  if (pa->kind == F3D_SHAPE_COMPOUND || pb->kind == F3D_SHAPE_COMPOUND) {
+    count = f3d_collide_compound(pa, pb, margin, out);
+    for (uint32_t i = 0; i < count; i++) {
+      if (out->points[i].depth >= -F3D_LINEAR_SLOP) out->touching = 1;
+    }
+    return count;
+  }
   if (pa->kind == F3D_SHAPE_MESH || pb->kind == F3D_SHAPE_MESH) {
     if (pa->kind == F3D_SHAPE_MESH && pb->kind == F3D_SHAPE_MESH) return 0;
     if (pb->kind == F3D_SHAPE_MESH) {

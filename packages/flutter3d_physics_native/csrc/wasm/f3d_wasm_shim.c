@@ -159,6 +159,10 @@ F3D_API int f3d_body_set_hull__w(void * world, uint32_t body_low, uint32_t body_
   return f3d_body_set_hull((void *)world, ((uint64_t)body_high << 32) | body_low, hull);
 }
 
+F3D_API int f3d_body_set_compound__w(void * world, uint32_t body_low, uint32_t body_high, uint32_t compound) {
+  return f3d_body_set_compound((void *)world, ((uint64_t)body_high << 32) | body_low, compound);
+}
+
 F3D_API int f3d_body_set_mesh__w(void * world, uint32_t body_low, uint32_t body_high, uint32_t mesh) {
   return f3d_body_set_mesh((void *)world, ((uint64_t)body_high << 32) | body_low, mesh);
 }

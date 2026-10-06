@@ -385,7 +385,8 @@ F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *s, f3d_real margin) {
       break;
     }
     case F3D_SHAPE_HULL:
-    case F3D_SHAPE_MESH: {
+    case F3D_SHAPE_MESH:
+    case F3D_SHAPE_COMPOUND: {
       /* The hull's or mesh's own box, turned: its centre may sit off the
        * origin. */
       F3dVec3 blo, bhi;
@@ -397,6 +398,10 @@ F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *s, f3d_real margin) {
                  s->hull <= world->s.mesh_count) {
         blo = world->meshes[s->hull - 1u].lo;
         bhi = world->meshes[s->hull - 1u].hi;
+      } else if (s->shape == F3D_SHAPE_COMPOUND && s->hull != 0 &&
+                 s->hull <= world->s.compound_count) {
+        blo = world->compounds[s->hull - 1u].lo;
+        bhi = world->compounds[s->hull - 1u].hi;
       } else {
         reach = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
         break;

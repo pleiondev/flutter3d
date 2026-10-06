@@ -6,6 +6,16 @@
   that one number names one tree, and `^0.9.0` on any `flutter3d_*`
   package resolves against every other.
 
+- **Several shapes on one body.** `NativeWorld.createCompound` takes up
+  to sixty-four parts, each a sphere, box, capsule, cylinder, cone or hull
+  placed and turned in the compound's frame, and `setCompound` shapes a
+  body as it: a table's top and legs, a dumbbell, a hammer. The parts are
+  one solid of even density, moved so the centre of mass is at the body's
+  origin (`compoundOffset`), with the inertia each part adds about it. Its
+  contacts are each part's, joined into the pair's manifold along the
+  deepest part's normal; rays, overlaps, casts, bullets and snapshots see
+  the parts. `F3D_ABI_VERSION` is 22, and a snapshot is format 9.
+
 - **Pipes and floating bodies run on the core.** `NativeLiquid` drives a
   pipe's column with `f3d_liquid_pipes` and pushes floating bodies with
   `f3d_liquid_floats`, as the reference does: the column accelerated by the

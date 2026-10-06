@@ -227,6 +227,60 @@ int f3d_world_create_mesh(
   triangleCount,
 );
 
+@Native<
+  Uint32 Function(
+    Pointer<Void>,
+    Pointer<Void>,
+    Pointer<Void>,
+    Pointer<Void>,
+    Uint32,
+  )
+>(symbol: 'f3d_world_create_compound', isLeaf: true)
+external int _f3d_world_create_compound(
+  Pointer<Void> world,
+  Pointer<Void> kinds,
+  Pointer<Void> hulls,
+  Pointer<Void> parts,
+  int count,
+);
+int f3d_world_create_compound(
+  int world,
+  int kinds,
+  int hulls,
+  int parts,
+  int count,
+) => _f3d_world_create_compound(
+  Pointer.fromAddress(world),
+  Pointer.fromAddress(kinds),
+  Pointer.fromAddress(hulls),
+  Pointer.fromAddress(parts),
+  count,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_world_get_compound_offset',
+  isLeaf: true,
+)
+external int _f3d_world_get_compound_offset(
+  Pointer<Void> world,
+  int compound,
+  Pointer<Void> out,
+);
+int f3d_world_get_compound_offset(int world, int compound, int out) =>
+    _f3d_world_get_compound_offset(
+      Pointer.fromAddress(world),
+      compound,
+      Pointer.fromAddress(out),
+    );
+
+@Native<Uint32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_world_compound_part_count',
+  isLeaf: true,
+)
+external int _f3d_world_compound_part_count(Pointer<Void> world, int compound);
+int f3d_world_compound_part_count(int world, int compound) =>
+    _f3d_world_compound_part_count(Pointer.fromAddress(world), compound);
+
 @Native<Uint32 Function(Pointer<Void>, Uint32)>(
   symbol: 'f3d_world_mesh_triangle_count',
   isLeaf: true,
@@ -1997,6 +2051,18 @@ int f3d_body_set_rounding(int world, int body, double radius) =>
 external int _f3d_body_set_hull(Pointer<Void> world, int body, int hull);
 int f3d_body_set_hull(int world, int body, int hull) =>
     _f3d_body_set_hull(Pointer.fromAddress(world), body, hull);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Uint32)>(
+  symbol: 'f3d_body_set_compound',
+  isLeaf: true,
+)
+external int _f3d_body_set_compound(
+  Pointer<Void> world,
+  int body,
+  int compound,
+);
+int f3d_body_set_compound(int world, int body, int compound) =>
+    _f3d_body_set_compound(Pointer.fromAddress(world), body, compound);
 
 @Native<Int32 Function(Pointer<Void>, Uint64, Uint32)>(
   symbol: 'f3d_body_set_mesh',

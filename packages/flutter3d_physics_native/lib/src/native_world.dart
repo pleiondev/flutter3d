@@ -93,6 +93,42 @@ extension type const NativeHull(int id) {}
 /// ([NativeWorld.setMesh]). Numbered from one.
 extension type const NativeMesh(int id) {}
 
+/// Several shapes the world holds as one, for bodies to be shaped as
+/// ([NativeWorld.setCompound]). Numbered from one.
+extension type const NativeCompound(int id) {}
+
+/// One part of a compound: a shape, where it sits in the compound and how
+/// it is turned there, and how far it is rounded.
+final class NativeCompoundPart {
+  /// A sphere, box, capsule, cylinder or cone part. Its [at] is where its
+  /// centre goes: a cone's centre is its centre of mass.
+  NativeCompoundPart(
+    this.shape, {
+    Vector3? at,
+    Quaternion? turn,
+    this.rounding = 0,
+  }) : hull = null,
+       at = at ?? Vector3.zero(),
+       turn = turn ?? Quaternion.identity();
+
+  /// A hull part. Its [at] is where the hull's own origin goes, which
+  /// [NativeWorld.createHull] put at its centre of mass.
+  NativeCompoundPart.hull(
+    NativeHull this.hull, {
+    Vector3? at,
+    Quaternion? turn,
+    this.rounding = 0,
+  }) : shape = null,
+       at = at ?? Vector3.zero(),
+       turn = turn ?? Quaternion.identity();
+
+  final NativeShape? shape;
+  final NativeHull? hull;
+  final Vector3 at;
+  final Quaternion turn;
+  final double rounding;
+}
+
 /// A joint in a [NativeWorld], named as a body is.
 extension type const NativeJoint(int raw) {}
 
@@ -609,6 +645,64 @@ final class NativeWorld {
     }
     return _read3();
   }
+
+  /// A compound of [parts], built and kept by the world: one solid of even
+  /// density, moved so its centre of mass is at the origin of the bodies
+  /// shaped as it — [compoundOffset] says by how much. Its contacts are its
+  /// parts', joined into one manifold along the deepest one's normal.
+  /// Throws an [ArgumentError] for no parts, more than sixty-four, a point
+  /// or mesh part, or a size, place or turn the core refuses.
+  NativeCompound createCompound(List<NativeCompoundPart> parts) {
+    final n = parts.length;
+    final kinds = c.U32s.alloc(n == 0 ? 1 : n);
+    final hulls = c.U32s.alloc(n == 0 ? 1 : n);
+    final reals = c.F32s.alloc((n == 0 ? 1 : n) * c.compoundPartFloats);
+    try {
+      for (var i = 0; i < n; i++) {
+        final part = parts[i];
+        final shape = part.shape;
+        final r = i * c.compoundPartFloats;
+        kinds[i] = shape?.kind ?? c.ShapeKind.hull;
+        hulls[i] = part.hull?.id ?? 0;
+        reals[r] = shape?.first ?? 0;
+        reals[r + 1] = shape?.second ?? 0;
+        reals[r + 2] = shape?.third ?? 0;
+        reals[r + 3] = part.rounding;
+        reals[r + 4] = part.at.x;
+        reals[r + 5] = part.at.y;
+        reals[r + 6] = part.at.z;
+        reals[r + 7] = part.turn.x;
+        reals[r + 8] = part.turn.y;
+        reals[r + 9] = part.turn.z;
+        reals[r + 10] = part.turn.w;
+      }
+      final id = c.f3d_world_create_compound(_live, kinds, hulls, reals, n);
+      if (id == 0) {
+        throw ArgumentError.value(
+          n,
+          'parts',
+          'not one to ${c.compoundMostParts} parts the core takes',
+        );
+      }
+      return NativeCompound(id);
+    } finally {
+      kinds.free();
+      hulls.free();
+      reals.free();
+    }
+  }
+
+  /// What was subtracted from every part's place in [compound].
+  Vector3 compoundOffset(NativeCompound compound) {
+    if (c.f3d_world_get_compound_offset(_live, compound.id, _out) == 0) {
+      throw ArgumentError.value(compound.id, 'compound', 'not in this world');
+    }
+    return _read3();
+  }
+
+  /// How many parts [compound] has.
+  int compoundPartCount(NativeCompound compound) =>
+      c.f3d_world_compound_part_count(_live, compound.id);
 
   /// How many of the points [hull] was made from are its corners.
   int hullVertexCount(NativeHull hull) =>
@@ -1421,6 +1515,13 @@ final class NativeWorld {
   /// Shapes [body] as [hull].
   void setHull(NativeBody body, NativeHull hull) =>
       _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
+
+  /// Shapes [body] as [compound].
+  void setCompound(NativeBody body, NativeCompound compound) => _check(
+    c.f3d_body_set_compound(_live, body.raw, compound.id),
+    body,
+    compound.id,
+  );
 
   /// Shapes a fixed [body] as [mesh]; an [ArgumentError] for one that is
   /// not fixed.

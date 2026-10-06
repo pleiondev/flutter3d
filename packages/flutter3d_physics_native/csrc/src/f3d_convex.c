@@ -801,6 +801,11 @@ static void four(F3dVec3 *p, f3d_real *depth, uint32_t *ids, uint32_t *count,
   *count = nk;
 }
 
+void f3d_keep_four(F3dVec3 *p, f3d_real *depth, uint32_t *ids,
+                   uint32_t *count, F3dVec3 n) {
+  four(p, depth, ids, count, n);
+}
+
 static void emit(F3dManifold *out, F3dVec3 point, f3d_real depth, uint32_t id) {
   if (out->count >= F3D_MANIFOLD_POINTS) return;
   F3dContactPoint *c = &out->points[out->count++];

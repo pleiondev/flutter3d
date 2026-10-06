@@ -37,6 +37,13 @@ void main() {
     expect(header, contains('F3D_BODY_FIXED = ${c.BodyType.fixed},'));
   });
 
+  test('a compound is the header\'s shape and parts', () {
+    // Mutation: a part of ten floats here, or a compound numbered seven.
+    expect(header, contains('F3D_SHAPE_COMPOUND = ${c.ShapeKind.compound},'));
+    expect(c.compoundPartFloats, define('F3D_COMPOUND_PART_FLOATS'));
+    expect(c.compoundMostParts, define('F3D_COMPOUND_MOST_PARTS'));
+  });
+
   test('the generated calls and layouts are the header\'s', () {
     // A function or a field added to the header and not generated is caught
     // before anybody looks for it.

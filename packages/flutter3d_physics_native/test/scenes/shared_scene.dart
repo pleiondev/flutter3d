@@ -14,7 +14,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What [sharedSceneSnapshot]'s bytes hash to.
-const String sharedSceneHash = 'd09df4aa';
+const String sharedSceneHash = 'babff46f';
 
 /// A floor, a heap of boxes, balls, capsules and a hull, a hinged pair,
 /// materials and wind, stepped two seconds on [threads]; its snapshot —

@@ -11,7 +11,7 @@
 #include "f3d_internal.h"
 
 #define F3D_SNAPSHOT_MAGIC 0x53443346u /* "F3DS", little-endian. */
-#define F3D_SNAPSHOT_VERSION 8u
+#define F3D_SNAPSHOT_VERSION 9u
 
 typedef struct F3dSnapshotHeader {
   uint32_t magic;
@@ -24,6 +24,8 @@ typedef struct F3dSnapshotHeader {
   uint32_t hull_bytes;
   uint32_t mesh_bytes;
   uint32_t joint_bytes;
+  uint32_t compound_bytes;
+  uint32_t part_bytes;
 } F3dSnapshotHeader;
 
 static uint64_t grid_reals(const F3dWorldState *s) {
@@ -42,7 +44,9 @@ static uint64_t size_of(const F3dWorldState *s) {
          (uint64_t)s->mesh_count * sizeof(F3dMesh) +
          (uint64_t)s->mesh_vertex_count * 3u * sizeof(f3d_real) +
          (uint64_t)s->mesh_triangle_count * (3u * sizeof(uint32_t) + 1u) +
-         (uint64_t)s->joint_used * sizeof(F3dJointSlot);
+         (uint64_t)s->joint_used * sizeof(F3dJointSlot) +
+         (uint64_t)s->compound_count * sizeof(F3dCompound) +
+         (uint64_t)s->compound_part_count * sizeof(F3dCompoundPart);
 }
 
 uint32_t f3d_world_snapshot_size(const F3dWorld *world) {
@@ -66,6 +70,8 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   header.hull_bytes = (uint32_t)sizeof(F3dHull);
   header.mesh_bytes = (uint32_t)sizeof(F3dMesh);
   header.joint_bytes = (uint32_t)sizeof(F3dJointSlot);
+  header.compound_bytes = (uint32_t)sizeof(F3dCompound);
+  header.part_bytes = (uint32_t)sizeof(F3dCompoundPart);
   uint8_t *at = buffer;
   f3d_copy(at, &header, sizeof header);
   at += sizeof header;
@@ -128,6 +134,15 @@ uint32_t f3d_world_snapshot_write(const F3dWorld *world, uint8_t *buffer,
   if (world->s.joint_used > 0) {
     f3d_copy(at, world->joints,
              (size_t)world->s.joint_used * sizeof(F3dJointSlot));
+    at += (size_t)world->s.joint_used * sizeof(F3dJointSlot);
+  }
+  /* The compounds the bodies are shaped as. */
+  if (world->s.compound_count > 0) {
+    f3d_copy(at, world->compounds,
+             (size_t)world->s.compound_count * sizeof(F3dCompound));
+    at += (size_t)world->s.compound_count * sizeof(F3dCompound);
+    f3d_copy(at, world->compound_parts,
+             (size_t)world->s.compound_part_count * sizeof(F3dCompoundPart));
   }
   return needed;
 }
@@ -145,7 +160,9 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       header.manifold_bytes != sizeof(F3dManifold) ||
       header.hull_bytes != sizeof(F3dHull) ||
       header.mesh_bytes != sizeof(F3dMesh) ||
-      header.joint_bytes != sizeof(F3dJointSlot)) {
+      header.joint_bytes != sizeof(F3dJointSlot) ||
+      header.compound_bytes != sizeof(F3dCompound) ||
+      header.part_bytes != sizeof(F3dCompoundPart)) {
     return 0;
   }
   if (size < sizeof header + sizeof(F3dWorldState)) return 0;
@@ -270,6 +287,31 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
       return 0;
     }
   }
+  F3dCompound *compounds = NULL;
+  F3dCompoundPart *compound_parts = NULL;
+  if (state.compound_count > 0) {
+    compounds = (F3dCompound *)f3d_alloc((size_t)state.compound_count *
+                                         sizeof(F3dCompound));
+    compound_parts = (F3dCompoundPart *)f3d_alloc(
+        (size_t)state.compound_part_count * sizeof(F3dCompoundPart) + 1u);
+    if (compounds == NULL || compound_parts == NULL) {
+      f3d_free(compounds);
+      f3d_free(compound_parts);
+      f3d_free(joints);
+      f3d_free(meshes);
+      f3d_free(mesh_vertices);
+      f3d_free(mesh_triangles);
+      f3d_free(mesh_edges);
+      f3d_free(hulls);
+      f3d_free(hull_vertices);
+      f3d_free(hull_triangles);
+      f3d_free(slots);
+      f3d_free(grid);
+      f3d_free(events);
+      f3d_free(manifolds);
+      return 0;
+    }
+  }
   if (events != NULL) {
     f3d_copy(events, at, (size_t)state.events_count * sizeof(F3dEventRecord));
     at += (size_t)state.events_count * sizeof(F3dEventRecord);
@@ -303,7 +345,18 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   }
   if (joints != NULL) {
     f3d_copy(joints, at, (size_t)state.joint_used * sizeof(F3dJointSlot));
+    at += (size_t)state.joint_used * sizeof(F3dJointSlot);
   }
+  if (compounds != NULL) {
+    f3d_copy(compounds, at, (size_t)state.compound_count * sizeof(F3dCompound));
+    at += (size_t)state.compound_count * sizeof(F3dCompound);
+    f3d_copy(compound_parts, at,
+             (size_t)state.compound_part_count * sizeof(F3dCompoundPart));
+  }
+  f3d_free(world->compounds);
+  f3d_free(world->compound_parts);
+  world->compounds = compounds;
+  world->compound_parts = compound_parts;
   f3d_free(world->slots);
   f3d_free(world->manifolds);
   f3d_free(world->grid);

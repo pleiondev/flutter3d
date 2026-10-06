@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 21;
+const int abiVersion = 22;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -49,7 +49,14 @@ abstract final class ShapeKind {
   static const int cone = 5;
   static const int hull = 6;
   static const int mesh = 7;
+  static const int compound = 8;
 }
+
+/// `F3D_COMPOUND_PART_FLOATS`.
+const int compoundPartFloats = 11;
+
+/// `F3D_COMPOUND_MOST_PARTS`.
+const int compoundMostParts = 64;
 
 /// `F3dJointType`.
 abstract final class JointType {

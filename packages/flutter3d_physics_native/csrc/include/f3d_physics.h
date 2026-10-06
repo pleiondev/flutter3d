@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 21u
+#define F3D_ABI_VERSION 22u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -108,7 +108,18 @@ typedef enum F3dShapeKind {
   /* A triangle mesh the world holds, for fixed bodies: set with
    * f3d_body_set_mesh. */
   F3D_SHAPE_MESH = 7,
+  /* Several of the shapes above, each placed and turned in the body's
+   * frame, that the world holds: set with f3d_body_set_compound. */
+  F3D_SHAPE_COMPOUND = 8,
 } F3dShapeKind;
+
+/* Reals one part of a compound takes in f3d_world_create_compound: its
+ * size a, b, c as F3dShapeKind reads it, its rounding, its place xyz and
+ * its turn as a quaternion xyzw, both in the compound's frame. */
+#define F3D_COMPOUND_PART_FLOATS 11u
+
+/* The most parts one compound holds. */
+#define F3D_COMPOUND_MOST_PARTS 64u
 
 /* What a body is made of, as heat and fire see it. */
 typedef struct F3dMaterial {
@@ -266,6 +277,34 @@ F3D_API uint32_t f3d_world_create_mesh(F3dWorld *world,
                                        uint32_t vertex_count,
                                        const uint32_t *indices,
                                        uint32_t triangle_count);
+
+/* A compound of [count] parts, each a sphere, box, capsule, cylinder, cone
+ * or hull: its kind in [kinds], its hull in [hulls] (read only for a hull,
+ * and null allowed when there is none), and F3D_COMPOUND_PART_FLOATS reals
+ * in [parts]. The parts are taken as one solid of even density, overlaps
+ * counted twice, and moved together so its centre of mass is at the
+ * origin — f3d_world_get_compound_offset says by how much. Its contacts
+ * are every part's against the other shape, joined into the pair's one
+ * manifold along the deepest part's normal, as a mesh's triangles are.
+ * Returns the compound, numbered from one; nought for no parts, more than
+ * F3D_COMPOUND_MOST_PARTS, a kind not listed, a size, a place or a turn not
+ * finite, a size a shape of that kind refuses, a hull not in the world, or
+ * no memory. Kept by the world for as long as it lives, in its
+ * snapshots. */
+F3D_API uint32_t f3d_world_create_compound(F3dWorld *world,
+                                           const uint32_t *kinds,
+                                           const uint32_t *hulls,
+                                           const f3d_real *parts,
+                                           uint32_t count);
+
+/* What was subtracted from every part's place in [compound], into
+ * out[0..2]. */
+F3D_API int f3d_world_get_compound_offset(const F3dWorld *world,
+                                          uint32_t compound, f3d_real *out);
+
+/* How many parts [compound] has. */
+F3D_API uint32_t f3d_world_compound_part_count(const F3dWorld *world,
+                                               uint32_t compound);
 
 /* How many triangles [mesh] has, and how many of their edges it found
  * internal: shared with a neighbour across a flat or hollow fold. */
@@ -1131,6 +1170,13 @@ F3D_API int f3d_body_set_rounding(F3dWorld *world, F3dBody body,
 /* Shapes the body as [hull], one f3d_world_create_hull returned. 0 for a
  * hull the world does not hold. */
 F3D_API int f3d_body_set_hull(F3dWorld *world, F3dBody body, uint32_t hull);
+
+/* Shapes the body as [compound], one f3d_world_create_compound returned:
+ * its mass spread through the parts, its inertia theirs about the centre
+ * of mass. A body's rounding rounds every part further. 0 for a compound
+ * the world does not hold. */
+F3D_API int f3d_body_set_compound(F3dWorld *world, F3dBody body,
+                                  uint32_t compound);
 
 /* Shapes a fixed body as [mesh]. 0 for a mesh the world does not hold, or
  * a body that is not fixed: an open mesh has no inside to weigh. */
