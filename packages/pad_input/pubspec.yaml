@@ -48,5 +48,13 @@ flutter:
         pluginClass: GamepadPlugin
         sharedDarwinSource: true
 
+      # XInput, polled; and the kernel's joystick interface. Both forward the
+      # platform's own numbers, and `lib/src/desktop_mapping.dart` reads them.
+      windows:
+        pluginClass: PadInputPluginCApi
+
+      linux:
+        pluginClass: PadInputPlugin
+
       # The web needs no registration: the backend is pure Dart and
       # `lib/src/platform_default.dart` selects it with a conditional export.

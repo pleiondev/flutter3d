@@ -9,7 +9,8 @@ import 'pad_snapshot.dart';
 
 /// A gamepad behind a platform channel.
 ///
-/// Android, macOS and iOS. The channel carries **what the platform said**, not a
+/// Android, macOS and iOS, Windows and Linux. The channel carries **what the
+/// platform said**, not a
 /// normalised pad: the native side forwards values and this side chooses what
 /// they mean, in a [PadMirror] per platform. That is deliberate and it is the
 /// whole reason these backends could be written without a controller in hand —
@@ -41,12 +42,13 @@ final class MethodChannelGamepad extends GamepadPlatform {
   /// Platforms with a native implementation.
   ///
   /// A **whitelist**, never try-and-see: subscribing where nothing is listening
-  /// is a `MissingPluginException` for the first listener. Windows and Linux
-  /// join this set when somebody writes XInput and evdev, and not before.
+  /// is a `MissingPluginException` for the first listener.
   static const Set<TargetPlatform> _supported = <TargetPlatform>{
     TargetPlatform.android,
     TargetPlatform.macOS,
     TargetPlatform.iOS,
+    TargetPlatform.windows,
+    TargetPlatform.linux,
   };
 
   /// Where a gamepad's buttons come from as well as the channel.
@@ -66,9 +68,12 @@ final class MethodChannelGamepad extends GamepadPlatform {
   /// Every controller the platform reports, each in its player's slot;
   /// built once and only where it is used.
   @visibleForTesting
-  late final PadSlots slots = defaultTargetPlatform == TargetPlatform.android
-      ? AndroidPads()
-      : DarwinPads();
+  late final PadSlots slots = switch (defaultTargetPlatform) {
+    TargetPlatform.android => AndroidPads(),
+    TargetPlatform.windows => XInputPads(),
+    TargetPlatform.linux => JoystickPads(),
+    _ => DarwinPads(),
+  };
 
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();

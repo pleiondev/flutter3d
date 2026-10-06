@@ -49,8 +49,8 @@ which calls `release()` itself.
 | macOS | supported | `CGAssociateMouseAndMouseCursorPosition(0)`, `NSCursor.hide()`, a local `NSEvent` monitor |
 | Web, desktop browser | supported | `document.requestPointerLock` through `package:web`. Pure Dart, so nothing is registered and `flutter test --platform chrome` reaches it |
 | Web, phone or tablet | not applicable | reported by `(pointer: coarse)`; `isSupported` is false so the game shows its touch controls |
-| Windows | not yet | Raw Input plus `ClipCursor` |
-| Linux | not yet | `gdk_seat_grab`, or XI2 raw events |
+| Windows | supported | Raw Input for the motion, `ClipCursor` to the window's centre, `ShowCursor(FALSE)` |
+| Linux | supported on X11 | `gdk_seat_grab` with a blank cursor, the pointer warped back to the centre after each motion. Wayland forbids the warp, so there the deltas stop at the window's edge |
 | iOS, Android | not applicable | no pointer to capture; `isSupported` is false |
 
 The backend answers `isSupported`; the caller does not have to guess. An

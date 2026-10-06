@@ -367,6 +367,11 @@ jobs:
   # its runners are compiled here rather than first by whoever downloads one.
   # Its graph brings `file_selector`'s own GTK and Win32 plugins, which the
   # dungeon demo does not.
+  #
+  # And the other four games, whose runners are the dungeon's renamed. Every
+  # game reaches `pad_input` and `pointer_lock` through `flutter3d_game`, so
+  # this is also the only place their XInput, Raw Input, joystick and GDK
+  # sides are compiled at all.
   desktop:
     strategy:
       # Every cell, whichever fails: a matrix that stops at the first failure
@@ -374,7 +379,13 @@ jobs:
       fail-fast: false
       matrix:
         target: [linux, windows]
-        app: [flutter3d_demo_dungeon, flutter3d_editor]
+        app:
+          - flutter3d_demo_dungeon
+          - flutter3d_demo_platformer
+          - flutter3d_demo_racing
+          - flutter3d_demo_arcade
+          - flutter3d_demo_strategy
+          - flutter3d_editor
         include:
           - target: linux
             os: ubuntu-latest

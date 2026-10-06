@@ -22,6 +22,8 @@ final class MethodChannelPointerLock extends PointerLockPlatform {
   /// false rather than a `MissingPluginException` at the first call.
   static const Set<TargetPlatform> _supported = <TargetPlatform>{
     TargetPlatform.macOS,
+    TargetPlatform.windows,
+    TargetPlatform.linux,
   };
 
   @override

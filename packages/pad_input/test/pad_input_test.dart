@@ -304,12 +304,13 @@ void main() {
         debugDefaultTargetPlatformOverride = platform;
         // The native platforms written today, and this is the list that has to
         // change the day another one is — which is the point: a platform table
-        // nobody has to update is one that goes stale. Windows and Linux are
-        // what is left, and neither has an XInput or an evdev side yet.
+        // nobody has to update is one that goes stale. Fuchsia is what is left.
         const written = <TargetPlatform>{
           TargetPlatform.android,
           TargetPlatform.macOS,
           TargetPlatform.iOS,
+          TargetPlatform.windows,
+          TargetPlatform.linux,
         };
         expect(
           Gamepad().isSupported,

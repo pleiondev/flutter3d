@@ -1,3 +1,15 @@
+## Unreleased
+
+* **Controllers on Windows and Linux.** Windows asks XInput's four slots
+  about a hundred and twenty times a second; Linux reads the kernel's
+  joystick devices, `/dev/input/js0` to `js3`. Both plugins send the
+  platform's own numbers untouched, and `XInputPadState` and
+  `JoystickPadState` read them in Dart, where a test can see that XInput's
+  stick y is up-positive and Linux's is not, which number the `xpad` driver
+  gives which button, and that a trigger at rest on Linux reads −32767.
+  Neither plugin could be built where this was written; the desktop jobs
+  in CI build them.
+
 ## 0.4.3+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

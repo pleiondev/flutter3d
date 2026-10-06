@@ -38,6 +38,14 @@ flutter:
       macos:
         pluginClass: PointerLockPlugin
 
+      # Raw Input with the cursor clipped; and a GDK seat grab, the pointer
+      # warped back to the centre after each motion.
+      windows:
+        pluginClass: PointerLockPluginCApi
+
+      linux:
+        pluginClass: PointerLockPlugin
+
       # The web needs no registration: the backend is pure Dart and
       # `lib/src/platform_default.dart` selects it with a conditional export.
       # The same arrangement pad_input's web gamepad has, and for the same
