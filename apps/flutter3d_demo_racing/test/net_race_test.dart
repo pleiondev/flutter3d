@@ -21,9 +21,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_demo_racing/src/net_race.dart';
+import 'package:flutter3d_demo_racing/src/net_race_session.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -214,5 +217,39 @@ void main() {
     }
 
     expect(digestsA.divergenceFromHex(digestsB.hexDigests), isNull);
+  });
+
+  test('a room made on the other physics turns this machine away and says '
+      'why', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final room = 'apart-${DateTime.now().microsecondsSinceEpoch}';
+    final mine = usePhysics().name;
+    final other = mine == 'native' ? 'dart' : 'native';
+    final maker = await WebSocketTransport.connect(
+      base.resolve('room/$room?terms=physics=$other'),
+    );
+    addTearDown(maker.close);
+
+    final document = _shipped();
+    final world = CollisionWorld();
+    document.level?.addTo(world);
+    final session = await NetRaceSession.join(
+      relayBase: base,
+      document: document,
+      world: world,
+      input: InputState(),
+      trackAsset: 'assets/tracks/ring.json',
+      roomCode: room,
+    );
+    addTearDown(session.dispose);
+    // Mutation: no terms in the room's address — still turned away, but
+    // the reason names empty terms, not this machine's physics.
+    for (var i = 0; i < 250 && session.closedBecause == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(session.closedBecause, contains('"physics=$other"'));
+    expect(session.closedBecause, contains('"physics=$mine"'));
   });
 }

@@ -181,4 +181,48 @@ void main() {
       await seat.socket.close();
     }
   }, timeout: const Timeout(Duration(minutes: 1)));
+
+  test('a party is held to the terms its first player asked for, and '
+      'matchmaking never seats strangers on other terms together', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final code = 'terms-${DateTime.now().microsecondsSinceEpoch}';
+
+    final host = await joinParty(base, code, terms: 'physics=native');
+    // Mutation: terms not compared — the machine on the other physics
+    // takes slot one. And without the close read, this waits out the
+    // timeout instead of failing with the relay's reason.
+    await expectLater(
+      joinParty(base, code, terms: 'physics=dart'),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('"physics=native"'), contains('"physics=dart"')),
+        ),
+      ),
+    );
+    final friend = await joinParty(base, code, terms: 'physics=native');
+    expect(friend.slot, 1);
+
+    // Mutation: terms left out of the match key — the second stranger
+    // lands in the first one's party.
+    final native = await findParty(
+      base,
+      game: 'racing/ring',
+      terms: 'physics=native',
+    );
+    final dart = await findParty(
+      base,
+      game: 'racing/ring',
+      terms: 'physics=dart',
+    );
+    expect(dart.code, isNot(native.code));
+    expect(dart.slot, 0);
+
+    for (final seat in <PartySeat>[host, friend, native, dart]) {
+      await seat.socket.close();
+    }
+  }, timeout: const Timeout(Duration(minutes: 1)));
 }

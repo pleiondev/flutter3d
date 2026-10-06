@@ -63,11 +63,17 @@ final class PartyRaceSession {
     String circuit = '',
   }) async {
     final seat = find
-        ? await findParty(relayBase, game: 'racing/$circuit', size: size)
+        ? await findParty(
+            relayBase,
+            game: 'racing/$circuit',
+            size: size,
+            terms: NetRaceSession.terms,
+          )
         : await joinParty(
             relayBase,
             code ?? NetRaceSession.randomRoomCode(),
             size: size,
+            terms: NetRaceSession.terms,
           );
     final party = seat.code;
     if (seat.size > kFieldSize) {

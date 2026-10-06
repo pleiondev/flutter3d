@@ -4,6 +4,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'net_race.dart';
@@ -56,6 +58,21 @@ final class NetRaceSession {
   /// read here for a screen's own "the other car is a ghost" indicator.
   bool get connected => race.connected;
 
+  /// What every machine in a race has to share: the physics backend, since
+  /// the core and the Dart reference are not promised to agree and a race
+  /// across the two would part at the first contact. The relay holds a
+  /// room and a party to the first machine's terms.
+  ///
+  /// The run's choice, made here if nothing has asked yet: read before it
+  /// was made, the first machine of a party said `dart` and the ones after
+  /// staging said `native`.
+  static String get terms => 'physics=${usePhysics().name}';
+
+  /// Why the relay closed this race's room — another machine's terms, a
+  /// room already holding two — or null while it is open.
+  String? get closedBecause => _closedBecause;
+  String? _closedBecause;
+
   static const String _codeAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
   /// A short room code neither `0`/`O` nor `1`/`I` can be confused between
@@ -82,9 +99,7 @@ final class NetRaceSession {
     int maxRollbackFrames = 24,
   }) async {
     final code = roomCode ?? randomRoomCode();
-    final transport = await WebSocketTransport.connect(
-      relayBase.resolve('room/$code'),
-    );
+    final transport = await WebSocketTransport.connect(_room(relayBase, code));
     return _staged(
       document: document,
       world: world,
@@ -110,7 +125,7 @@ final class NetRaceSession {
     int maxRollbackFrames = 24,
   }) async {
     final transport = await WebSocketTransport.connect(
-      relayBase.resolve('room/$roomCode'),
+      _room(relayBase, roomCode),
     );
     return _staged(
       document: document,
@@ -124,6 +139,10 @@ final class NetRaceSession {
       maxRollbackFrames: maxRollbackFrames,
     );
   }
+
+  static Uri _room(Uri relayBase, String code) => relayBase
+      .resolve('room/$code')
+      .replace(queryParameters: <String, String>{'terms': terms});
 
   static NetRaceSession _staged({
     required TrackDocument document,
@@ -151,7 +170,7 @@ final class NetRaceSession {
       onSettled: (step, after) => checkpoints.observe(step + 1, after.toJson()),
     );
 
-    return NetRaceSession._(
+    final session = NetRaceSession._(
       race: race,
       roomCode: roomCode,
       localCarIndex: localCarIndex,
@@ -163,6 +182,10 @@ final class NetRaceSession {
       recorder: recorder,
       input: input,
     );
+    transport.closed.then(
+      (String? reason) => session._closedBecause = reason ?? 'the room closed',
+    );
+    return session;
   }
 
   /// Advances the race by one fixed step and records this device's own

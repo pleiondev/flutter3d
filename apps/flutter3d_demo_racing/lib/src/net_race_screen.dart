@@ -183,6 +183,18 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
         _phase = _Phase.racing;
       });
       _ticker = Timer.periodic(const Duration(milliseconds: 1000 ~/ 60), (_) {
+        // Turned away by the relay — another machine's physics, a room
+        // already holding two: say so rather than race a ghost.
+        if (session.closedBecause case final String reason) {
+          _ticker?.cancel();
+          session.dispose();
+          setState(() {
+            _session = null;
+            _phase = _Phase.failed;
+            _error = reason;
+          });
+          return;
+        }
         session.advance();
         _input.endStep();
         if (session.connected != _connected) {

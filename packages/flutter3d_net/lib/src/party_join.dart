@@ -26,17 +26,25 @@ typedef PartySeat = ({
 /// unsigned, and the [PartyWire] it hands back passes on only what machines
 /// sent, each with its sender's slot. [left] is told of a slot whose
 /// machine went away.
+///
+/// [terms] is what every machine in the party has to share, the physics
+/// backend for one: the first to ask sets them, and the relay turns away a
+/// machine asking with others — the future fails with the relay's reason.
 Future<PartySeat> joinParty(
   Uri relay,
   String code, {
   int size = 4,
   bool watching = false,
+  String terms = '',
   void Function(int slot)? left,
   Duration timeout = const Duration(seconds: 10),
 }) => _seat(
   relay.replace(
     pathSegments: <String>[watching ? 'watch' : 'party', code],
-    queryParameters: watching ? null : <String, String>{'size': '$size'},
+    queryParameters: <String, String>{
+      if (!watching) 'size': '$size',
+      if (terms.isNotEmpty) 'terms': terms,
+    },
   ),
   code: code,
   left: left,
@@ -50,17 +58,23 @@ Future<PartySeat> joinParty(
 /// player arrives, which is when a game should start.
 ///
 /// [game] keeps games apart: two games on one relay, or one game's
-/// circuits, never match each other's players.
+/// circuits, never match each other's players. So do [terms], as
+/// [joinParty] reads them.
 Future<PartySeat> findParty(
   Uri relay, {
   required String game,
   int size = 4,
+  String terms = '',
   void Function(int slot)? left,
   Duration timeout = const Duration(seconds: 10),
 }) => _seat(
   relay.replace(
     pathSegments: const <String>['match'],
-    queryParameters: <String, String>{'size': '$size', 'game': game},
+    queryParameters: <String, String>{
+      'size': '$size',
+      'game': game,
+      if (terms.isNotEmpty) 'terms': terms,
+    },
   ),
   left: left,
   timeout: timeout,
@@ -97,6 +111,16 @@ Future<PartySeat> _seat(
         onward?.call(message);
     }
   });
+  // Turned away — a full party, other terms — before a welcome: say why
+  // now rather than at the timeout.
+  unawaited(
+    socket.closed.then((String? reason) {
+      if (welcomed.isCompleted) return;
+      welcomed.completeError(
+        StateError('the relay closed $at: ${reason ?? 'no reason given'}'),
+      );
+    }),
+  );
   final seat = await welcomed.future.timeout(timeout);
   final wire = PartyWire.over(
     _Forwarding(peer, (listener) => onward = listener),

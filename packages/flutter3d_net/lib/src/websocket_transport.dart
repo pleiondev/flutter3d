@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -25,11 +26,17 @@ final class WebSocketTransport implements NetTransport {
     _channel.stream.listen((raw) {
       final decoded = jsonDecode(raw as String);
       if (decoded is Map<String, Object?>) _listener?.call(decoded);
-    });
+    }, onDone: () => _closed.complete(_channel.closeReason));
   }
 
   final WebSocketChannel _channel;
   void Function(Map<String, Object?> message)? _listener;
+  final Completer<String?> _closed = Completer<String?>();
+
+  /// Completes when the socket closes, from either end, with the reason the
+  /// other end gave — the relay's, when it turned this machine away — or
+  /// null when it gave none.
+  Future<String?> get closed => _closed.future;
 
   /// Connects to a relay room at [uri] — `ws://host:port/room/<code>`, the
   /// shape `bin/relay.dart` listens on — and waits for the socket to

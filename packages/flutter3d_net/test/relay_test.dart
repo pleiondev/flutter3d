@@ -246,4 +246,33 @@ void main() {
       );
     },
   );
+
+  test('a room is held to the terms its first socket asked for, and one '
+      'asking for others is told why', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final room = 'terms-${DateTime.now().microsecondsSinceEpoch}';
+    Uri asking(String terms) =>
+        Uri.parse('ws://127.0.0.1:${relay.port}/room/$room?terms=$terms');
+
+    final first = await WebSocketTransport.connect(asking('physics=native'));
+    addTearDown(first.close);
+    // Mutation: terms not compared — the second machine is let in, and
+    // the two step on different physics.
+    final other = await WebSocketTransport.connect(asking('physics=dart'));
+    final reason = await other.closed.timeout(const Duration(seconds: 5));
+    expect(reason, contains('"physics=native"'));
+    expect(reason, contains('"physics=dart"'));
+
+    // The same terms are let in, and the room carries what they send.
+    final second = await WebSocketTransport.connect(asking('physics=native'));
+    addTearDown(second.close);
+    final heard = Completer<Map<String, Object?>>();
+    second.listen(heard.complete);
+    first.send(<String, Object?>{'hello': 1});
+    expect(
+      await heard.future.timeout(const Duration(seconds: 5)),
+      <String, Object?>{'hello': 1},
+    );
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }

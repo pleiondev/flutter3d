@@ -42,15 +42,23 @@ import 'dart:math' as math;
 /// full party is matched no further, even when somebody leaves it: a race
 /// under way is not where a stranger should land.
 ///
+/// `terms=<text>` on any of the three — what every machine in a room or
+/// party has to share for their simulations to agree, such as the physics
+/// backend a game steps on. The first machine sets them; one asking with
+/// other terms is closed with a policy violation whose reason names both.
+/// Matchmaking keys on them, so strangers on different terms are never put
+/// together. No `terms` is the empty text, and is held to like any other.
+///
 /// [port] defaults to `0`, which asks the system for whichever port is
 /// free — the line this prints on startup is how a caller that bound to
 /// `0` (a test, most often) reads back which one it actually got.
 /// One party: its players by slot, nobody in a slot that was left, and its
 /// spectators.
 final class _Party {
-  _Party(this.size);
+  _Party(this.size, this.terms);
 
   final int size;
+  final String terms;
   final List<WebSocket?> players = <WebSocket?>[];
   final List<WebSocket> watchers = <WebSocket>[];
 
@@ -69,6 +77,8 @@ Future<void> main(List<String> args) async {
   stdout.writeln('flutter3d_net relay listening on ${server.port}');
 
   final rooms = <String, List<WebSocket>>{};
+  // What the first socket of each room asked for.
+  final roomTerms = <String, String>{};
   final parties = <String, _Party>{};
   // The party still filling for each game and size, by its code.
   final filling = <String, String>{};
@@ -86,7 +96,7 @@ Future<void> main(List<String> args) async {
     if (segments.length == 1 && segments[0] == 'match') {
       final query = request.uri.queryParameters;
       final size = (int.tryParse(query['size'] ?? '') ?? 4).clamp(2, 32);
-      final key = '${query['game'] ?? ''}/$size';
+      final key = '${query['game'] ?? ''}/$size/${_termsOf(request)}';
       final open = filling[key];
       final code = open != null && parties.containsKey(open)
           ? open
@@ -127,6 +137,15 @@ Future<void> main(List<String> args) async {
       );
       continue;
     }
+    final terms = _termsOf(request);
+    final held = roomTerms.putIfAbsent(code, () => terms);
+    if (held != terms) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        _otherTerms('room $code', held, terms),
+      );
+      continue;
+    }
     room.add(socket);
     socket.listen(
       (message) {
@@ -136,7 +155,10 @@ Future<void> main(List<String> args) async {
       },
       onDone: () {
         room.remove(socket);
-        if (room.isEmpty) rooms.remove(code);
+        if (room.isEmpty) {
+          rooms.remove(code);
+          roomTerms.remove(code);
+        }
       },
     );
   }
@@ -161,8 +183,17 @@ Future<void> _joinParty(
     await request.response.close();
     return;
   }
-  final room = parties[code] ??= _Party(asked.clamp(2, 32));
+  final terms = _termsOf(request);
+  final room = parties[code] ??= _Party(asked.clamp(2, 32), terms);
   final socket = await WebSocketTransformer.upgrade(request);
+  if (room.terms != terms) {
+    await socket.close(
+      WebSocketStatus.policyViolation,
+      _otherTerms('party $code', room.terms, terms),
+    );
+    if (room.everyone.isEmpty) parties.remove(code);
+    return;
+  }
   final int slot;
   if (watching) {
     slot = room.size + room.watchers.length;
@@ -218,6 +249,22 @@ Future<void> _joinParty(
       if (room.everyone.isEmpty) parties.remove(code);
     },
   );
+}
+
+/// The terms [request] asked for, the empty text when it named none.
+String _termsOf(HttpRequest request) =>
+    request.uri.queryParameters['terms'] ?? '';
+
+/// Why a machine asking with [asked] was turned away from [what], held to
+/// [held]. The close reason a client shows, cut to the 123 bytes a close
+/// frame carries.
+String _otherTerms(String what, String held, String asked) {
+  final reason =
+      '$what plays under "$held", and this machine asked for "$asked"';
+  final bytes = utf8.encode(reason);
+  return bytes.length <= 123
+      ? reason
+      : utf8.decode(bytes.sublist(0, 123), allowMalformed: true);
 }
 
 /// Five letters no one misreads, for a party nobody named: the alphabet of

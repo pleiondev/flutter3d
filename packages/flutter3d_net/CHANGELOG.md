@@ -11,6 +11,14 @@
   is the client, and a seat now carries the party's `code`, for a friend
   to join by, and `full`.
 
+- **Machines that cannot agree are kept apart.** `terms=<text>` on a room,
+  a party or a match is what every machine there has to share, the physics
+  backend for one. The first machine sets them, and one asking with others
+  is closed with a reason that names both. Matchmaking keys on them.
+  `joinParty` and `findParty` take `terms`, and fail with the relay's
+  reason as soon as it closes them, not at the timeout.
+  `WebSocketTransport.closed` answers that reason.
+
 - `firstDifferingPath` lives in `flutter3d_sim` now; this package exports
   it from there, so imports of it keep working.
 
