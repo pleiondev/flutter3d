@@ -9,6 +9,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'net_race_session.dart';
+import 'party_race_session.dart';
 
 /// `net-03`'s own missing screen: "создать / войти по коду".
 ///
@@ -54,6 +55,15 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
   _Phase _phase = _Phase.idle;
   String? _error;
   NetRaceSession? _session;
+
+  /// A race of three or four, when that is what was made or joined — the
+  /// other door on this screen, onto the relay's parties.
+  PartyRaceSession? _party;
+  int _partySize = PartyRaceSession.sizes.last;
+
+  /// How many of the party's other drivers have been heard, polled as
+  /// [_connected] is.
+  int _heard = 0;
   Timer? _ticker;
   final TextEditingController _codeField = TextEditingController();
   final InputState _input = InputState();
@@ -68,6 +78,7 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
   void dispose() {
     _ticker?.cancel();
     _session?.dispose();
+    _party?.dispose();
     _codeField.dispose();
     super.dispose();
   }
@@ -77,20 +88,64 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
   Future<void> _joinRoom() =>
       _connect(join: true, code: _codeField.text.trim());
 
+  /// The circuit, and a world with its walls in it on the run's physics.
+  Future<({TrackDocument document, CollisionWorld world})> _track() async {
+    final text = await rootBundle.loadString(widget.trackAsset);
+    final document = TrackDocument.fromJson(
+      jsonDecode(text) as Map<String, Object?>,
+    );
+    final world = CollisionWorld();
+    document.level?.addTo(world);
+    // On the run's physics, as a track loaded alone is.
+    usePhysics().attach(world);
+    return (document: document, world: world);
+  }
+
+  /// Makes a party of [_partySize], or with [code] joins one.
+  Future<void> _openParty({String? code}) async {
+    setState(() {
+      _phase = _Phase.connecting;
+      _error = null;
+    });
+    try {
+      final (:document, :world) = await _track();
+      final party = await PartyRaceSession.open(
+        relayBase: widget.relayBase,
+        document: document,
+        world: world,
+        input: _input,
+        code: code,
+        size: _partySize,
+      );
+      if (!mounted) {
+        await party.dispose();
+        return;
+      }
+      setState(() {
+        _party = party;
+        _phase = _Phase.racing;
+      });
+      _ticker = Timer.periodic(const Duration(milliseconds: 1000 ~/ 60), (_) {
+        party.advance();
+        _input.endStep();
+        if (party.heard != _heard) setState(() => _heard = party.heard);
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _phase = _Phase.failed;
+        _error = '$error';
+      });
+    }
+  }
+
   Future<void> _connect({required bool join, String? code}) async {
     setState(() {
       _phase = _Phase.connecting;
       _error = null;
     });
     try {
-      final text = await rootBundle.loadString(widget.trackAsset);
-      final document = TrackDocument.fromJson(
-        jsonDecode(text) as Map<String, Object?>,
-      );
-      final world = CollisionWorld();
-      document.level?.addTo(world);
-      // On the run's physics, as a track loaded alone is.
-      usePhysics().attach(world);
+      final (:document, :world) = await _track();
 
       final session = join
           ? await NetRaceSession.join(
@@ -137,11 +192,14 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
     final session = _session;
     if (session != null) widget.onEnded?.call(session);
     await session?.dispose();
+    await _party?.dispose();
     if (!mounted) return;
     setState(() {
       _phase = _Phase.idle;
       _session = null;
+      _party = null;
       _connected = false;
+      _heard = 0;
     });
   }
 
@@ -180,6 +238,36 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
               ),
               const SizedBox(height: 8.0),
               FilledButton(onPressed: _joinRoom, child: const Text('Join')),
+              const SizedBox(height: 32.0),
+              const Text('Or a party, a car each'),
+              const SizedBox(height: 8.0),
+              SegmentedButton<int>(
+                segments: <ButtonSegment<int>>[
+                  for (final size in PartyRaceSession.sizes)
+                    ButtonSegment<int>(value: size, label: Text('$size cars')),
+                ],
+                selected: <int>{_partySize},
+                onSelectionChanged: (Set<int> chosen) =>
+                    setState(() => _partySize = chosen.single),
+              ),
+              const SizedBox(height: 8.0),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  FilledButton(
+                    onPressed: _openParty,
+                    child: const Text('Make a party'),
+                  ),
+                  const SizedBox(width: 8.0),
+                  // The code field above serves both doors: a party's code
+                  // is a room's, five letters nobody misreads.
+                  FilledButton(
+                    onPressed: () =>
+                        _openParty(code: _codeField.text.trim().toUpperCase()),
+                    child: const Text('Join the party'),
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -188,6 +276,24 @@ final class _NetRaceScreenState extends State<NetRaceScreen> {
       case _Phase.failed:
         return Text('could not connect: $_error');
       case _Phase.racing:
+        if (_party case final PartyRaceSession party) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                'Party ${party.code} — car ${party.localCarIndex + 1} of '
+                '${party.size}',
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                'Heard $_heard of ${party.size - 1} drivers',
+                key: const Key('party-heard'),
+              ),
+              const SizedBox(height: 24.0),
+              FilledButton(onPressed: _end, child: const Text('End race')),
+            ],
+          );
+        }
         final session = _session!;
         return Column(
           mainAxisSize: MainAxisSize.min,

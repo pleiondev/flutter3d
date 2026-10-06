@@ -54,4 +54,28 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('Create room'), findsNothing);
   });
+
+  testWidgets('offers a party of three or four, four until another is picked', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NetRaceScreen(relayBase: Uri.parse('ws://127.0.0.1:1/')),
+      ),
+    );
+
+    expect(find.text('Make a party'), findsOneWidget);
+    expect(find.text('Join the party'), findsOneWidget);
+    SegmentedButton<int> sizes() =>
+        tester.widget<SegmentedButton<int>>(find.byType(SegmentedButton<int>));
+    expect(sizes().selected, <int>{4});
+    await tester.tap(find.text('3 cars'));
+    await tester.pump();
+    // Mutation: the choice not kept — the party asked for is still four.
+    expect(sizes().selected, <int>{3});
+
+    await tester.tap(find.text('Make a party'));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
 }
