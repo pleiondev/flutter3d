@@ -44,6 +44,12 @@ void main() {
     expect(c.compoundMostParts, define('F3D_COMPOUND_MOST_PARTS'));
   });
 
+  test('a vehicle\'s wheels are as many floats as the header says', () {
+    expect(c.vehicleMostWheels, define('F3D_VEHICLE_MOST_WHEELS'));
+    expect(c.wheelFloats, define('F3D_WHEEL_FLOATS'));
+    expect(c.wheelStateFloats, define('F3D_WHEEL_STATE_FLOATS'));
+  });
+
   test('a broken joint is the header\'s event', () {
     expect(
       header,

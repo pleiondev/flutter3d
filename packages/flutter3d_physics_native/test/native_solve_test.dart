@@ -205,10 +205,7 @@ void main() {
       anchor: Vector3(0.0, 2.7, 0.0),
     );
     world.setJointBreak(joint, force: 70.0, torque: 50.0);
-    expect(
-      () => world.setJointBreak(joint, force: -1.0),
-      throwsArgumentError,
-    );
+    expect(() => world.setJointBreak(joint, force: -1.0), throwsArgumentError);
     for (var i = 0; i < 60; i++) {
       world.step(1.0 / 60.0);
     }

@@ -6,6 +6,19 @@
   that one number names one tree, and `^0.9.0` on any `flutter3d_*`
   package resolves against every other.
 
+- **Vehicles on wheels that hang from springs.** `NativeWorld.createVehicle`
+  puts up to eight wheels under a dynamic chassis. Each wheel is a ray cast
+  down from where its suspension is fixed. Where the ray lands, its spring
+  and damper hold the chassis up, its drive and brake push it along the
+  road, and its tyre holds it from sliding sideways. The tyres are solved
+  together, eight passes through the chassis's mass and inertia, inside
+  each one's friction circle, so a car rounds a turn without its wheels
+  fighting and slides when it is asked for more than the grip. `setWheel`
+  steers, drives and brakes a wheel, and `wheelsOf` says where each wheel
+  is, how hard its spring pushes and how far past its grip it is. The
+  chassis is an ordinary body: it collides, rolls over, sleeps and goes
+  into snapshots. `F3D_ABI_VERSION` is 24, and a snapshot is format 11.
+
 - **Joints that break.** `NativeWorld.setJointBreak` gives a joint a
   force and a torque it lets go past: at the end of a step that held its
   second body harder, the joint is taken out, both bodies woken, and a

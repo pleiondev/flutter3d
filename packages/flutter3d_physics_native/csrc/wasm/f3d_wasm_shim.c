@@ -9,6 +9,10 @@ static uint32_t g_high;
 
 F3D_API uint32_t f3d_wasm_high(void) { return g_high; }
 
+F3D_API uint32_t f3d_vehicle_create__w(void * world, uint32_t chassis_low, uint32_t chassis_high, f3d_real ux, f3d_real uy, f3d_real uz, f3d_real fx, f3d_real fy, f3d_real fz) {
+  return f3d_vehicle_create((void *)world, ((uint64_t)chassis_high << 32) | chassis_low, ux, uy, uz, fx, fy, fz);
+}
+
 F3D_API uint32_t f3d_joint_create__w(void * world, int type, uint32_t a_low, uint32_t a_high, uint32_t b_low, uint32_t b_high, f3d_real ax, f3d_real ay, f3d_real az, f3d_real ux, f3d_real uy, f3d_real uz) {
   const uint64_t v = f3d_joint_create((void *)world, type, ((uint64_t)a_high << 32) | a_low, ((uint64_t)b_high << 32) | b_low, ax, ay, az, ux, uy, uz);
   g_high = (uint32_t)(v >> 32);

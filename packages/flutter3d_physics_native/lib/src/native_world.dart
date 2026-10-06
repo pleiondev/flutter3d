@@ -93,6 +93,52 @@ extension type const NativeHull(int id) {}
 /// ([NativeWorld.setMesh]). Numbered from one.
 extension type const NativeMesh(int id) {}
 
+/// A vehicle in a [NativeWorld]: a chassis on wheels that hang from it on
+/// springs. Numbered from one; a number is never given out again.
+extension type const NativeVehicle(int id) {}
+
+/// A wheel as it is made: where its suspension is fixed to the chassis, in
+/// the chassis's own frame; the suspension's length at rest and the
+/// wheel's radius, m; the spring's stiffness, N/m, and damping, N s/m; and
+/// the tyre's grip, the friction coefficient of the road under it.
+typedef NativeWheel = ({
+  Vector3 attach,
+  double rest,
+  double radius,
+  double stiffness,
+  double damping,
+  double grip,
+});
+
+/// A wheel as the last step left it.
+typedef NativeWheelState = ({
+  /// Whether it stands on something.
+  bool touching,
+
+  /// The suspension's length now, m.
+  double length,
+
+  /// The steering angle, radians.
+  double steer,
+
+  /// How far it has turned about its axle, radians, and how fast, rad/s.
+  double rotation,
+  double spin,
+
+  /// Its centre, and the normal of what it stands on.
+  Vector3 centre,
+  Vector3 normal,
+
+  /// The spring's force, N.
+  double force,
+
+  /// How fast it slides sideways, m/s.
+  double lateral,
+
+  /// How far past its grip the tyre is asked to go: nought while it grips.
+  double skid,
+});
+
 /// Several shapes the world holds as one, for bodies to be shaped as
 /// ([NativeWorld.setCompound]). Numbered from one.
 extension type const NativeCompound(int id) {}
@@ -1544,6 +1590,140 @@ final class NativeWorld {
   /// Shapes [body] as [hull].
   void setHull(NativeBody body, NativeHull hull) =>
       _check(c.f3d_body_set_hull(_live, body.raw, hull.id), body, hull.id);
+
+  /// A vehicle on [chassis], a dynamic body: [up] and [forward] are the
+  /// chassis's own, square to each other. Its wheels hang along the down,
+  /// steer about the up and roll along the forward. Each step, after the
+  /// contacts and before the solver, every wheel that touches pushes the
+  /// chassis up by its spring, along the road by its drive and brake, and
+  /// across it to hold it from sliding, together no more than its grip
+  /// times the spring allows; and pushes what it stands on back.
+  NativeVehicle createVehicle(
+    NativeBody chassis, {
+    Vector3? up,
+    Vector3? forward,
+  }) {
+    final u = up ?? Vector3(0.0, 1.0, 0.0);
+    final f = forward ?? Vector3(0.0, 0.0, 1.0);
+    final id = c.f3d_vehicle_create(
+      _live,
+      chassis.raw,
+      u.x,
+      u.y,
+      u.z,
+      f.x,
+      f.y,
+      f.z,
+    );
+    if (id == 0) {
+      throw ArgumentError(
+        'a chassis not in this world or not dynamic, or axes that are not '
+        'square to each other',
+      );
+    }
+    return NativeVehicle(id);
+  }
+
+  /// Takes [vehicle] out; its chassis stays.
+  bool removeVehicle(NativeVehicle vehicle) =>
+      c.f3d_vehicle_destroy(_live, vehicle.id) == 1;
+
+  /// Whether [vehicle] and its chassis are still in this world.
+  bool containsVehicle(NativeVehicle vehicle) =>
+      c.f3d_vehicle_is_valid(_live, vehicle.id) == 1;
+
+  /// Adds [wheel] to [vehicle] and returns its index, from nought.
+  int addWheel(NativeVehicle vehicle, NativeWheel wheel) {
+    final w = c.F32s.alloc(c.wheelFloats);
+    try {
+      w[0] = wheel.attach.x;
+      w[1] = wheel.attach.y;
+      w[2] = wheel.attach.z;
+      w[3] = wheel.rest;
+      w[4] = wheel.radius;
+      w[5] = wheel.stiffness;
+      w[6] = wheel.damping;
+      w[7] = wheel.grip;
+      final index = c.f3d_vehicle_add_wheel(_live, vehicle.id, w);
+      if (index < 0) {
+        throw ArgumentError(
+          'a vehicle not in this world, one with ${c.vehicleMostWheels} '
+          'wheels already, or a wheel the core refuses',
+        );
+      }
+      return index;
+    } finally {
+      w.free();
+    }
+  }
+
+  /// What the driver asks of [wheel]: its [steer], radians to the left; the
+  /// force its [drive] pushes along the road with, N, negative backwards;
+  /// and the force its [brake] holds with, N. Held until set again.
+  void setWheel(
+    NativeVehicle vehicle,
+    int wheel, {
+    double steer = 0.0,
+    double drive = 0.0,
+    double brake = 0.0,
+  }) {
+    if (c.f3d_vehicle_set_wheel(
+          _live,
+          vehicle.id,
+          wheel,
+          steer,
+          drive,
+          brake,
+        ) ==
+        0) {
+      throw ArgumentError(
+        'wheel $wheel of vehicle ${vehicle.id}: not there, or a brake below '
+        'nought',
+      );
+    }
+  }
+
+  /// How many wheels [vehicle] has.
+  int wheelCount(NativeVehicle vehicle) =>
+      c.f3d_vehicle_wheel_count(_live, vehicle.id);
+
+  /// Every wheel of [vehicle], as the last step left them.
+  List<NativeWheelState> wheelsOf(NativeVehicle vehicle) {
+    final out = c.F32s.alloc(c.vehicleMostWheels * c.wheelStateFloats);
+    try {
+      final n = c.f3d_vehicle_read_wheels(
+        _live,
+        vehicle.id,
+        out,
+        c.vehicleMostWheels,
+      );
+      return <NativeWheelState>[
+        for (var i = 0; i < n; i++)
+          (
+            touching: out[i * c.wheelStateFloats] != 0.0,
+            length: out[i * c.wheelStateFloats + 1],
+            steer: out[i * c.wheelStateFloats + 2],
+            rotation: out[i * c.wheelStateFloats + 3],
+            spin: out[i * c.wheelStateFloats + 4],
+            centre: Vector3(
+              out[i * c.wheelStateFloats + 5],
+              out[i * c.wheelStateFloats + 6],
+              out[i * c.wheelStateFloats + 7],
+            ),
+            normal: Vector3(
+              out[i * c.wheelStateFloats + 8],
+              out[i * c.wheelStateFloats + 9],
+              out[i * c.wheelStateFloats + 10],
+            ),
+            force: out[i * c.wheelStateFloats + 11],
+            lateral: out[i * c.wheelStateFloats + 12],
+            skid: out[i * c.wheelStateFloats + 13],
+          ),
+      ];
+    } finally {
+      out.free();
+    }
+  }
 
   /// Shapes [body] as [compound].
   void setCompound(NativeBody body, NativeCompound compound) => _check(

@@ -198,6 +198,46 @@ extension type _Exports(JSObject _) implements JSObject {
   );
   @JS('f3d_world_events_dropped')
   external JSNumber f3d_world_events_dropped(JSNumber world);
+  @JS('f3d_vehicle_create__w')
+  external JSNumber f3d_vehicle_create(
+    JSNumber world,
+    JSNumber chassisLow,
+    JSNumber chassisHigh,
+    JSNumber ux,
+    JSNumber uy,
+    JSNumber uz,
+    JSNumber fx,
+    JSNumber fy,
+    JSNumber fz,
+  );
+  @JS('f3d_vehicle_destroy')
+  external JSNumber f3d_vehicle_destroy(JSNumber world, JSNumber vehicle);
+  @JS('f3d_vehicle_is_valid')
+  external JSNumber f3d_vehicle_is_valid(JSNumber world, JSNumber vehicle);
+  @JS('f3d_vehicle_add_wheel')
+  external JSNumber f3d_vehicle_add_wheel(
+    JSNumber world,
+    JSNumber vehicle,
+    JSNumber wheel,
+  );
+  @JS('f3d_vehicle_set_wheel')
+  external JSNumber f3d_vehicle_set_wheel(
+    JSNumber world,
+    JSNumber vehicle,
+    JSNumber wheel,
+    JSNumber steer,
+    JSNumber drive,
+    JSNumber brake,
+  );
+  @JS('f3d_vehicle_wheel_count')
+  external JSNumber f3d_vehicle_wheel_count(JSNumber world, JSNumber vehicle);
+  @JS('f3d_vehicle_read_wheels')
+  external JSNumber f3d_vehicle_read_wheels(
+    JSNumber world,
+    JSNumber vehicle,
+    JSNumber out,
+    JSNumber capacity,
+  );
   @JS('f3d_joint_create__w')
   external JSNumber f3d_joint_create(
     JSNumber world,
@@ -1145,6 +1185,60 @@ int f3d_world_read_contacts(int world, int contacts, int pairs, int capacity) =>
         .toUnsigned(32);
 int f3d_world_events_dropped(int world) =>
     _x.f3d_world_events_dropped(world.toJS).toDartInt.toUnsigned(32);
+int f3d_vehicle_create(
+  int world,
+  int chassis,
+  double ux,
+  double uy,
+  double uz,
+  double fx,
+  double fy,
+  double fz,
+) => _x
+    .f3d_vehicle_create(
+      world.toJS,
+      lowHalf(chassis).toJS,
+      highHalf(chassis).toJS,
+      ux.toJS,
+      uy.toJS,
+      uz.toJS,
+      fx.toJS,
+      fy.toJS,
+      fz.toJS,
+    )
+    .toDartInt
+    .toUnsigned(32);
+int f3d_vehicle_destroy(int world, int vehicle) =>
+    _x.f3d_vehicle_destroy(world.toJS, vehicle.toJS).toDartInt;
+int f3d_vehicle_is_valid(int world, int vehicle) =>
+    _x.f3d_vehicle_is_valid(world.toJS, vehicle.toJS).toDartInt;
+int f3d_vehicle_add_wheel(int world, int vehicle, int wheel) =>
+    _x.f3d_vehicle_add_wheel(world.toJS, vehicle.toJS, wheel.toJS).toDartInt;
+int f3d_vehicle_set_wheel(
+  int world,
+  int vehicle,
+  int wheel,
+  double steer,
+  double drive,
+  double brake,
+) => _x
+    .f3d_vehicle_set_wheel(
+      world.toJS,
+      vehicle.toJS,
+      wheel.toJS,
+      steer.toJS,
+      drive.toJS,
+      brake.toJS,
+    )
+    .toDartInt;
+int f3d_vehicle_wheel_count(int world, int vehicle) => _x
+    .f3d_vehicle_wheel_count(world.toJS, vehicle.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) => _x
+    .f3d_vehicle_read_wheels(world.toJS, vehicle.toJS, out.toJS, capacity.toJS)
+    .toDartInt
+    .toUnsigned(32);
 int f3d_joint_create(
   int world,
   int type,

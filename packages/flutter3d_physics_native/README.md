@@ -12,6 +12,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - joints: fixed, spherical, hinge, slider and distance (rod, spring, rope), with limits, motors and springs, and the ball joint's cone, twist limits and friction a ragdoll is built from (give one eight substeps);
 - continuous collision: contacts that reach as far as a body moves in a step, and bullets swept to their time of impact, turn and all;
 - rays, shape overlaps and shape casts, and a kinematic character controller that slides, climbs steps and keeps to slopes;
+- vehicles: a chassis on up to eight wheels, each a ray with a spring, a damper and a tyre that grips inside its friction circle, steered, driven and braked a wheel at a time;
 - shapes (sphere, box, capsule, cylinder, cone, convex hull, and any of them rounded, and compounds of up to sixty-four of them placed and turned on one body) as inertia, surface and drag; the orientation stepped with the angular momentum kept, impulses, forces, torques, damping and sleep;
 - the air and its wind, uniform or from a grid, and the drag it puts on a body;
 - heat on every body, by convection, radiation and across its contacts, and fire: wood, paper and rubber catch, burn their fuel, lose mass and give off hot gas, and water puts them out;

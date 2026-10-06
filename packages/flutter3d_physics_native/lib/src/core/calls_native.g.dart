@@ -235,7 +235,7 @@ int f3d_world_create_mesh(
     Pointer<Void>,
     Uint32,
   )
->(symbol: 'f3d_world_create_compound', isLeaf: true)
+>(symbol: 'f3d_world_create_compound')
 external int _f3d_world_create_compound(
   Pointer<Void> world,
   Pointer<Void> kinds,
@@ -532,6 +532,134 @@ int f3d_world_read_contacts(int world, int contacts, int pairs, int capacity) =>
 external int _f3d_world_events_dropped(Pointer<Void> world);
 int f3d_world_events_dropped(int world) =>
     _f3d_world_events_dropped(Pointer.fromAddress(world));
+
+@Native<
+  Uint32 Function(
+    Pointer<Void>,
+    Uint64,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_vehicle_create')
+external int _f3d_vehicle_create(
+  Pointer<Void> world,
+  int chassis,
+  double ux,
+  double uy,
+  double uz,
+  double fx,
+  double fy,
+  double fz,
+);
+int f3d_vehicle_create(
+  int world,
+  int chassis,
+  double ux,
+  double uy,
+  double uz,
+  double fx,
+  double fy,
+  double fz,
+) => _f3d_vehicle_create(
+  Pointer.fromAddress(world),
+  chassis,
+  ux,
+  uy,
+  uz,
+  fx,
+  fy,
+  fz,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_vehicle_destroy',
+  isLeaf: true,
+)
+external int _f3d_vehicle_destroy(Pointer<Void> world, int vehicle);
+int f3d_vehicle_destroy(int world, int vehicle) =>
+    _f3d_vehicle_destroy(Pointer.fromAddress(world), vehicle);
+
+@Native<Int32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_vehicle_is_valid',
+  isLeaf: true,
+)
+external int _f3d_vehicle_is_valid(Pointer<Void> world, int vehicle);
+int f3d_vehicle_is_valid(int world, int vehicle) =>
+    _f3d_vehicle_is_valid(Pointer.fromAddress(world), vehicle);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_vehicle_add_wheel',
+  isLeaf: true,
+)
+external int _f3d_vehicle_add_wheel(
+  Pointer<Void> world,
+  int vehicle,
+  Pointer<Void> wheel,
+);
+int f3d_vehicle_add_wheel(int world, int vehicle, int wheel) =>
+    _f3d_vehicle_add_wheel(
+      Pointer.fromAddress(world),
+      vehicle,
+      Pointer.fromAddress(wheel),
+    );
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Uint32, Float, Float, Float)>(
+  symbol: 'f3d_vehicle_set_wheel',
+  isLeaf: true,
+)
+external int _f3d_vehicle_set_wheel(
+  Pointer<Void> world,
+  int vehicle,
+  int wheel,
+  double steer,
+  double drive,
+  double brake,
+);
+int f3d_vehicle_set_wheel(
+  int world,
+  int vehicle,
+  int wheel,
+  double steer,
+  double drive,
+  double brake,
+) => _f3d_vehicle_set_wheel(
+  Pointer.fromAddress(world),
+  vehicle,
+  wheel,
+  steer,
+  drive,
+  brake,
+);
+
+@Native<Uint32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_vehicle_wheel_count',
+  isLeaf: true,
+)
+external int _f3d_vehicle_wheel_count(Pointer<Void> world, int vehicle);
+int f3d_vehicle_wheel_count(int world, int vehicle) =>
+    _f3d_vehicle_wheel_count(Pointer.fromAddress(world), vehicle);
+
+@Native<Uint32 Function(Pointer<Void>, Uint32, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_vehicle_read_wheels',
+  isLeaf: true,
+)
+external int _f3d_vehicle_read_wheels(
+  Pointer<Void> world,
+  int vehicle,
+  Pointer<Void> out,
+  int capacity,
+);
+int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) =>
+    _f3d_vehicle_read_wheels(
+      Pointer.fromAddress(world),
+      vehicle,
+      Pointer.fromAddress(out),
+      capacity,
+    );
 
 @Native<
   Uint64 Function(

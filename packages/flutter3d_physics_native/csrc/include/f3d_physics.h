@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 23u
+#define F3D_ABI_VERSION 24u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -61,6 +61,28 @@ typedef uint64_t F3dBody;
 
 /* A joint, named as a body is. */
 typedef uint64_t F3dJoint;
+
+/* A vehicle, numbered from one; a number is never given out again. */
+typedef uint32_t F3dVehicle;
+
+/* The most wheels a vehicle has. */
+#define F3D_VEHICLE_MOST_WHEELS 8u
+
+/* Reals one wheel takes in f3d_vehicle_add_wheel: where its suspension is
+ * fixed to the chassis xyz, in the chassis's frame; the suspension's
+ * length at rest, m; the wheel's radius, m; the spring's stiffness, N/m,
+ * and its damping, N s/m; and the tyre's grip, the friction coefficient
+ * of the road under it. */
+#define F3D_WHEEL_FLOATS 8u
+
+/* Reals one wheel takes in f3d_vehicle_read_wheels: one while it touches,
+ * nought while it hangs; the suspension's length now; the steering angle;
+ * how far the wheel has turned about its axle, radians, and how fast,
+ * rad/s; its centre xyz relative to the origin; the normal of what it
+ * stands on xyz; the spring's force, N; the speed it slides sideways at,
+ * m/s; and how far past its grip the tyre is asked to go, nought while it
+ * grips and one where it is asked for twice what it holds. */
+#define F3D_WHEEL_STATE_FLOATS 14u
 
 typedef enum F3dJointType {
   /* Holds B where it was against A, place and turn. */
@@ -428,6 +450,55 @@ F3D_API uint32_t f3d_world_read_contacts(const F3dWorld *world,
 
 /* Events dropped because F3D_EVENT_CAPACITY were waiting unread. */
 F3D_API uint32_t f3d_world_events_dropped(const F3dWorld *world);
+
+/* --------------------------------------------------------------- vehicles */
+
+/* A vehicle on [chassis]: wheels that hang from it on springs, each a ray
+ * cast down from where its suspension is fixed, its tyre gripping the road
+ * where the ray lands. (ux, uy, uz) is the chassis's up and (fx, fy, fz) its
+ * forward, both in its own frame: a wheel's suspension runs along the
+ * down, it steers about the up and rolls along the forward. Each step,
+ * after the contacts and before the solver, every wheel that touches
+ * pushes the chassis up by its spring and damper, along the road by its
+ * drive and brake, and across it to hold it from sliding sideways, as much
+ * as the grip times the spring's force allows together; what it stands on
+ * is pushed back, when that moves. A chassis asleep stays so until it is
+ * given a wheel's input. Nought for a chassis not in the world or not
+ * dynamic, axes not finite, nought long or not square to each other, or no
+ * memory. In a snapshot. */
+F3D_API F3dVehicle f3d_vehicle_create(F3dWorld *world, F3dBody chassis,
+                                      f3d_real ux, f3d_real uy, f3d_real uz,
+                                      f3d_real fx, f3d_real fy, f3d_real fz);
+
+/* Takes the vehicle out; its chassis stays. A vehicle whose chassis is
+ * taken out goes with it. */
+F3D_API int f3d_vehicle_destroy(F3dWorld *world, F3dVehicle vehicle);
+F3D_API int f3d_vehicle_is_valid(const F3dWorld *world, F3dVehicle vehicle);
+
+/* Adds a wheel of F3D_WHEEL_FLOATS reals; returns its index from nought,
+ * or -1 for a vehicle not in the world, one with F3D_VEHICLE_MOST_WHEELS
+ * already, or a value not finite, a length negative, or a radius, a
+ * stiffness or a grip not positive, or a damping negative. */
+F3D_API int f3d_vehicle_add_wheel(F3dWorld *world, F3dVehicle vehicle,
+                                  const f3d_real *wheel);
+
+/* What the driver asks of wheel [wheel]: its steering angle, radians about
+ * the up, positive to the left of forward; the force its drive pushes
+ * along the road with, N, negative backwards; and the force its brake
+ * holds with, N, not negative. Held until set again. Wakes the chassis. */
+F3D_API int f3d_vehicle_set_wheel(F3dWorld *world, F3dVehicle vehicle,
+                                  uint32_t wheel, f3d_real steer,
+                                  f3d_real drive, f3d_real brake);
+
+/* How many wheels the vehicle has. */
+F3D_API uint32_t f3d_vehicle_wheel_count(const F3dWorld *world,
+                                         F3dVehicle vehicle);
+
+/* Writes up to [capacity] wheels, F3D_WHEEL_STATE_FLOATS reals apiece, as
+ * the last step left them, into [out]; returns how many. */
+F3D_API uint32_t f3d_vehicle_read_wheels(const F3dWorld *world,
+                                         F3dVehicle vehicle, f3d_real *out,
+                                         uint32_t capacity);
 
 /* ----------------------------------------------------------------- joints */
 

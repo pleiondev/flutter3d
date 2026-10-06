@@ -49,6 +49,7 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->hull_triangles);
   f3d_free(world->compounds);
   f3d_free(world->compound_parts);
+  f3d_free(world->vehicles);
   f3d_free(world->meshes);
   f3d_free(world->mesh_vertices);
   f3d_free(world->mesh_triangles);
@@ -746,6 +747,7 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
 void f3d_world_step(F3dWorld *world, f3d_real dt) {
   if (!(f3d_finite(dt) && dt > F3D_R(0.0))) return;
   f3d_step_collide(world, dt);
+  f3d_step_vehicles(world, dt);
   f3d_step_solve(world, dt);
   f3d_break_joints(world);
   f3d_step_heat(world, dt);

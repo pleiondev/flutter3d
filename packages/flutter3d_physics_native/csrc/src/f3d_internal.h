@@ -419,6 +419,26 @@ typedef struct F3dCompound {
   F3dSym3 unit_inertia;
 } F3dCompound;
 
+/* One wheel: what it was made as, what the driver asks of it, and what the
+ * last step left it. Plain data. */
+typedef struct F3dWheel {
+  F3dVec3 attach;
+  f3d_real rest, radius, stiffness, damping, grip;
+  f3d_real steer, drive, brake;
+  uint32_t touching;
+  f3d_real length, rotation, spin, force, lateral, skid;
+  F3dVec3 centre, normal;
+} F3dWheel;
+
+/* A vehicle's slot. Plain data, zeroed when taken. */
+typedef struct F3dVehicleSlot {
+  uint32_t live;
+  uint32_t wheel_count;
+  F3dBody chassis;
+  F3dVec3 up, forward;
+  F3dWheel wheels[F3D_VEHICLE_MOST_WHEELS];
+} F3dVehicleSlot;
+
 /* Bits of F3dJointSlot.flags. */
 enum {
   F3D_JOINT_LIMIT = 1u << 0,
@@ -524,6 +544,8 @@ typedef struct F3dWorldState {
   /* The compounds, and the parts they hold. */
   uint32_t compound_count;
   uint32_t compound_part_count;
+  /* Vehicles ever made. */
+  uint32_t vehicle_count;
 } F3dWorldState;
 
 /* ------------------------------------------------------------------- pool */
@@ -603,6 +625,8 @@ struct F3dWorld {
   /* The compounds and their parts. In a snapshot. */
   F3dCompound *compounds;
   F3dCompoundPart *compound_parts;
+  /* The vehicles, vehicle_count of them. In a snapshot. */
+  F3dVehicleSlot *vehicles;
   /* The joints, and the pairs of slots joined by a joint that keeps them
    * from colliding, sorted: built from the joints when they change, not in
    * a snapshot. */
@@ -770,6 +794,10 @@ typedef struct F3dSolverBody {
  * solved with the soft bias or without it. Their anchors and masses are
  * worked out from where the bodies are each time. */
 void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies);
+
+/* Every vehicle's wheels, after the contacts and before the solver: their
+ * rays cast, and their springs and tyres put on the bus. */
+void f3d_step_vehicles(F3dWorld *world, f3d_real dt);
 
 /* Takes out every joint that held past its break, at the end of a step. */
 void f3d_break_joints(F3dWorld *world);
