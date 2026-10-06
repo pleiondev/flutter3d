@@ -13,11 +13,20 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'chemlab.dart';
 
-void main() => runApp(const ChemLabApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The run's physics, chosen once and before the bench is made: the core,
+  // which the browser fetches as WebAssembly, or the reference where it
+  // will not start. The bench's liquids are stepped on it.
+  await preparePhysics();
+  runApp(const ChemLabApp());
+}
 
 class ChemLabApp extends StatelessWidget {
   const ChemLabApp({super.key});

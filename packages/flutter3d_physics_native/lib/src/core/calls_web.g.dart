@@ -549,6 +549,28 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber out,
     JSNumber capacity,
   );
+  @JS('f3d_liquid_particles')
+  external JSNumber f3d_liquid_particles(
+    JSNumber state,
+    JSNumber count,
+    JSNumber walls,
+    JSNumber length,
+    JSNumber settings,
+  );
+  @JS('f3d_liquid_parcels')
+  external JSNumber f3d_liquid_parcels(
+    JSNumber parcels,
+    JSNumber count,
+    JSNumber walls,
+    JSNumber length,
+    JSNumber settings,
+  );
+  @JS('f3d_liquid_modes')
+  external void f3d_liquid_modes(
+    JSNumber modes,
+    JSNumber count,
+    JSNumber settings,
+  );
   @JS('f3d_world_snapshot_size')
   external JSNumber f3d_world_snapshot_size(JSNumber world);
   @JS('f3d_world_snapshot_write')
@@ -1537,6 +1559,38 @@ int f3d_fluid_read(int fluid, int out, int capacity) => _x
     .f3d_fluid_read(fluid.toJS, out.toJS, capacity.toJS)
     .toDartInt
     .toUnsigned(32);
+int f3d_liquid_particles(
+  int state,
+  int count,
+  int walls,
+  int length,
+  int settings,
+) => _x
+    .f3d_liquid_particles(
+      state.toJS,
+      count.toJS,
+      walls.toJS,
+      length.toJS,
+      settings.toJS,
+    )
+    .toDartInt;
+int f3d_liquid_parcels(
+  int parcels,
+  int count,
+  int walls,
+  int length,
+  int settings,
+) => _x
+    .f3d_liquid_parcels(
+      parcels.toJS,
+      count.toJS,
+      walls.toJS,
+      length.toJS,
+      settings.toJS,
+    )
+    .toDartInt;
+void f3d_liquid_modes(int modes, int count, int settings) =>
+    _x.f3d_liquid_modes(modes.toJS, count.toJS, settings.toJS);
 int f3d_world_snapshot_size(int world) =>
     _x.f3d_world_snapshot_size(world.toJS).toDartInt.toUnsigned(32);
 int f3d_world_snapshot_write(int world, int buffer, int size) => _x

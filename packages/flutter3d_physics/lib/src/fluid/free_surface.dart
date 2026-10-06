@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
 import 'fluid_medium.dart';
+import 'fluid_solver.dart';
 import 'vessel_shape.dart';
 
 /// The waves on a liquid's free surface in a vessel of any shape: how far
@@ -138,8 +139,14 @@ final class FreeSurface {
 
   /// Moves the waves on by [dt] seconds under gravity [g], over a liquid
   /// [depth] deep on average: each mode exactly, as the damped oscillator it
-  /// is, so any step is stable.
-  void step(double dt, {required double g, required double depth}) {
+  /// is, so any step is stable. The ringing is [solver]'s, the reference's
+  /// unless a `LiquidBody` stepped by a `FluidWorld` passes the world's.
+  void step(
+    double dt, {
+    required double g,
+    required double depth,
+    FluidSolver solver = const DartFluid(),
+  }) {
     _depth = depth;
     if (_modes.isEmpty) return;
     _applyLandings();
@@ -149,58 +156,25 @@ final class FreeSurface {
       still = _amplitude[n] == 0.0 && _rate[n] == 0.0;
     }
     if (still) return;
-    final nu = medium.kinematicViscosity;
-    final tension = medium.surfaceTension / medium.density;
-    final h = math.max(depth, 1e-6);
-    double omega(double k) =>
-        math.sqrt(math.max((g * k + tension * k * k * k) * _tanh(k * h), 0.0));
-    final k1 = math.sqrt(_k2[0]);
-    final w1 = omega(k1);
-    final radius = math.sqrt(area / math.pi);
-    final boundary = _stephens(nu, g, radius, h) * w1;
+    _norm(0);
     _omega2 = Float64List(_modes.length);
     _decay = Float64List(_modes.length);
-    for (var n = 0; n < _modes.length; n++) {
-      final k = math.sqrt(_k2[n]);
-      final w = omega(k);
-      final decay =
-          boundary * math.sqrt(w / math.max(w1, 1e-9)) + 2.0 * nu * k * k;
-      _omega2[n] = w * w;
-      _decay[n] = decay;
-      final wd = math.sqrt(math.max(w * w - decay * decay, 1e-12));
-      final c = Portable.cos(wd * dt);
-      final s = Portable.sin(wd * dt);
-      final e = Portable.exp(-decay * dt);
-      final a = _amplitude[n];
-      final v = _rate[n];
-      final b = (v + decay * a) / wd;
-      _amplitude[n] = e * (a * c + b * s);
-      _rate[n] = e * (v * c - (decay * b + a * wd) * s);
-    }
-    _breakSteep();
+    solver.ringModes(
+      ModeRinging(
+        k2: _k2,
+        norms: _norms,
+        amplitude: _amplitude,
+        rate: _rate,
+        omega2: _omega2,
+        decay: _decay,
+        dt: dt,
+        g: g,
+        depth: depth,
+        area: area,
+        medium: medium,
+      ),
+    );
     _field = null;
-  }
-
-  /// Breaks every mode steeper than Stokes' limit: a wave whose height is
-  /// more than about a seventh of its length cannot stand, and spills its
-  /// crest. So a mode stands no higher than a fourteenth of its wavelength
-  /// anywhere, and what was more is lost to the break, its motion with it.
-  ///
-  /// **A linear model's own bound, imposed.** The modes are small waves on
-  /// a plane, and nothing in them stops one growing past what water does: a
-  /// flask turned sixty-seven degrees in one frame was laid out with the old
-  /// level as a thirty-four millimetre wave, which no liquid makes, and it
-  /// threw four fifths of what the flask held over the lip in ten frames.
-  void _breakSteep() {
-    for (var n = 0; n < _amplitude.length; n++) {
-      final k = math.sqrt(_k2[n]);
-      final peak = _amplitude[n].abs() * _norm(n);
-      final most = 2.0 * math.pi / (14.0 * math.max(k, 1e-9));
-      if (peak <= most) continue;
-      final keep = most / peak;
-      _amplitude[n] *= keep;
-      _rate[n] *= keep;
-    }
   }
 
   Float64List _omega2 = Float64List(0);
@@ -389,16 +363,16 @@ final class FreeSurface {
   double _norm(int n) {
     if (!identical(_normsOf, _modes)) {
       _normsOf = _modes;
-      _norms = [
+      _norms = Float64List.fromList([
         for (final mode in _modes)
           mode.fold(0.0, (most, x) => math.max(most, x.abs())),
-      ];
+      ]);
     }
     return _norms[n];
   }
 
   List<Float64List>? _normsOf;
-  List<double> _norms = const [];
+  Float64List _norms = Float64List(0);
 
   /// The most the waves can stand off the plane anywhere just now: no more
   /// than every mode at its peak at once.
@@ -662,6 +636,67 @@ final class FreeSurface {
   }
 
   static double _hypot(double a, double b) => math.sqrt(a * a + b * b);
+}
+
+/// [ringing] rung in Dart: what [DartFluid.ringModes] does.
+void ringModesInDart(ModeRinging ringing) {
+  final ModeRinging(
+    :k2,
+    :norms,
+    :amplitude,
+    :rate,
+    :omega2,
+    :decay,
+    :dt,
+    :g,
+    :medium,
+  ) = ringing;
+  final nu = medium.kinematicViscosity;
+  final tension = medium.surfaceTension / medium.density;
+  final h = math.max(ringing.depth, 1e-6);
+  double omega(double k) => math.sqrt(
+    math.max((g * k + tension * k * k * k) * FreeSurface._tanh(k * h), 0.0),
+  );
+  final k1 = math.sqrt(k2[0]);
+  final w1 = omega(k1);
+  final radius = math.sqrt(ringing.area / math.pi);
+  final boundary = FreeSurface._stephens(nu, g, radius, h) * w1;
+  for (var n = 0; n < ringing.count; n++) {
+    final k = math.sqrt(k2[n]);
+    final w = omega(k);
+    final damping =
+        boundary * math.sqrt(w / math.max(w1, 1e-9)) + 2.0 * nu * k * k;
+    omega2[n] = w * w;
+    decay[n] = damping;
+    final wd = math.sqrt(math.max(w * w - damping * damping, 1e-12));
+    final c = Portable.cos(wd * dt);
+    final s = Portable.sin(wd * dt);
+    final e = Portable.exp(-damping * dt);
+    final a = amplitude[n];
+    final v = rate[n];
+    final b = (v + damping * a) / wd;
+    amplitude[n] = e * (a * c + b * s);
+    rate[n] = e * (v * c - (damping * b + a * wd) * s);
+  }
+  // **Every mode steeper than Stokes' limit breaks**: a wave whose height
+  // is more than about a seventh of its length cannot stand, and spills its
+  // crest. So a mode stands no higher than a fourteenth of its wavelength
+  // anywhere, and what was more is lost to the break, its motion with it.
+  //
+  // A linear model's own bound, imposed. The modes are small waves on a
+  // plane, and nothing in them stops one growing past what water does: a
+  // flask turned sixty-seven degrees in one frame was laid out with the old
+  // level as a thirty-four millimetre wave, which no liquid makes, and it
+  // threw four fifths of what the flask held over the lip in ten frames.
+  for (var n = 0; n < ringing.count; n++) {
+    final k = math.sqrt(k2[n]);
+    final peak = amplitude[n].abs() * norms[n];
+    final most = 2.0 * math.pi / (14.0 * math.max(k, 1e-9));
+    if (peak <= most) continue;
+    final keep = most / peak;
+    amplitude[n] *= keep;
+    rate[n] *= keep;
+  }
 }
 
 /// A square grid laid over a plane's cut through a vessel: the cells whose

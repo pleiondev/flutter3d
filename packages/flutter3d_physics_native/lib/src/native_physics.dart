@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import 'core/load.dart';
 import 'native_cloth_simulation.dart';
 import 'native_dynamics.dart';
+import 'native_liquid.dart';
 import 'native_world.dart';
 
 /// The backend a build asks for: `--dart-define=FLUTTER3D_PHYSICS=dart`
@@ -15,9 +16,11 @@ const String askedPhysics = String.fromEnvironment(
 );
 
 /// The physics core as a [PhysicsBackend]: every world's bodies, character
-/// moves and rays on it, through a [NativeDynamics] per world, and every
-/// cloth through a [NativeClothSimulation].
-final class NativePhysics implements PhysicsBackend, ClothPhysics {
+/// moves and rays on it, through a [NativeDynamics] per world, every
+/// cloth through a [NativeClothSimulation], and every liquid's waves,
+/// streams and spilt particles through [NativeLiquid].
+final class NativePhysics
+    implements PhysicsBackend, ClothPhysics, FluidPhysics {
   NativePhysics();
 
   @override
@@ -25,6 +28,9 @@ final class NativePhysics implements PhysicsBackend, ClothPhysics {
 
   @override
   ClothSimulation cloth(ClothMesh mesh) => NativeClothSimulation(mesh);
+
+  @override
+  FluidSolver get fluid => const NativeLiquid();
 
   /// What [attach] made for each world, so [release] can let it go.
   final Expando<NativeDynamics> _attached = Expando<NativeDynamics>(

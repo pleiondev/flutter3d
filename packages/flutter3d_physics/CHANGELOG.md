@@ -1,5 +1,17 @@
 ## Unreleased
 
+- **Liquids come from the run's backend.** A `FluidWorld` steps its waves,
+  streams and spilt particles on a `FluidSolver`, which is
+  `PhysicsBackend.current.fluid` when the world is made unless it is given
+  one: the core's on a run that is on it, `DartFluid` otherwise. The
+  solver moves one step's state in place, as `ParticleMotion`,
+  `ParcelFlight` and `ModeRinging` records; how much liquid is where, what
+  is dissolved in it, and what a vessel catches stay in Dart on both. A
+  backend with a fluid of its own implements `FluidPhysics`, and `fluid` is
+  an extension, as `cloth` is. `Jet`, `ParticleFluid`, `LiquidBody.step`
+  and `FreeSurface.step` take a `solver` too, the reference by default, and
+  on it they step exactly as before.
+
 - **Cloth comes from the run's backend.** `PhysicsBackend.current
   .cloth(mesh)` makes a `ClothSimulation`, which steps the `ClothMesh` in
   place as `stepCloth` does, so a page that draws from `mesh.positions`

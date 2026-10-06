@@ -212,7 +212,9 @@ List<Vessel> standardVessels() {
 ///
 /// **What is in the glass is physics** (`flutter3d_physics`): each vessel's
 /// liquid is a `LiquidBody`, and the bench is one `FluidWorld` under Earth's
-/// gravity, stepped at a fixed step — so a surface keeps level and rocks
+/// gravity, stepped at a fixed step on the run's physics — the core where
+/// `main` started it, the Dart reference otherwise — so a surface keeps
+/// level and rocks
 /// when the glass is turned, a tap starts rings, liquid tipped far enough
 /// runs over the lip as a stream that falls, thins, runs down the glass it
 /// meets and lands, and what lands mixes. This class draws it

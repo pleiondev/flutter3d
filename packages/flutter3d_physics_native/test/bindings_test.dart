@@ -127,6 +127,12 @@ void main() {
       expect(c.ClothObstacleKind.ground, define('F3D_CLOTH_GROUND'));
       expect(c.fluidInputFloats, define('F3D_FLUID_INPUT_FLOATS'));
       expect(c.fluidFloats, define('F3D_FLUID_FLOATS'));
+      expect(c.liquidParticleFloats, define('F3D_LIQUID_PARTICLE_FLOATS'));
+      expect(c.liquidParcelFloats, define('F3D_LIQUID_PARCEL_FLOATS'));
+      expect(c.liquidModeFloats, define('F3D_LIQUID_MODE_FLOATS'));
+      expect(c.LiquidWallKind.plane, define('F3D_LIQUID_PLANE'));
+      expect(c.LiquidWallKind.inside, define('F3D_LIQUID_INSIDE'));
+      expect(c.LiquidWallKind.outside, define('F3D_LIQUID_OUTSIDE'));
     },
   );
 

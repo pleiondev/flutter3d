@@ -1,7 +1,9 @@
 import 'package:vector_math/vector_math.dart';
 
+import '../physics_backend.dart';
 import '../rigid_body.dart';
 import 'buoyancy.dart';
+import 'fluid_solver.dart';
 import 'jet.dart';
 import 'liquid_body.dart';
 import 'particle_fluid.dart';
@@ -18,6 +20,12 @@ import 'pipe.dart';
 /// **A fixed step**, like the rest of this package: [advance] takes however
 /// long a frame was and runs as many whole steps as fit, carrying the rest
 /// over, so a run is the same run on any frame rate.
+///
+/// **On the run's physics.** The parts of it stepped through time — the
+/// waves, the streams in the air, the spilt particles — are [solver]'s,
+/// which is the run's backend's unless the world is given another: the
+/// core where the run is on it, the Dart reference where it is not
+/// ([FluidSolver]). What is where, and how much, is kept here either way.
 
 final class FluidWorld {
   FluidWorld({
@@ -25,13 +33,19 @@ final class FluidWorld {
     this.step = 1.0 / 240.0,
     this.particleSpacing = 0.002,
     this.floor,
-  });
+    FluidSolver? solver,
+  }) : solver = solver ?? PhysicsBackend.current.fluid;
 
   /// Metres per second squared, shared with whoever else falls.
   final Vector3 gravity;
 
   /// Seconds per step.
   final double step;
+
+  /// What steps the waves, the streams and the particles:
+  /// `PhysicsBackend.current.fluid` when the world was made, unless it was
+  /// given one.
+  final FluidSolver solver;
 
   final List<LiquidBody> bodies = [];
 
@@ -98,10 +112,13 @@ final class FluidWorld {
       pipe.step(dt, gravity: gravity);
     }
     for (final body in bodies) {
-      final spill = body.step(dt, gravity: gravity);
+      final spill = body.step(dt, gravity: gravity, solver: solver);
       final jet = jets[body];
       if (spill.flow > 0.0 || jet != null) {
-        final stream = jets.putIfAbsent(body, () => Jet(medium: body.medium));
+        final stream = jets.putIfAbsent(
+          body,
+          () => Jet(medium: body.medium, solver: solver),
+        );
         final across = gravity.cross(spill.velocity);
         stream.emit(
           flow: spill.flow,
@@ -136,8 +153,11 @@ final class FluidWorld {
         particles
             .putIfAbsent(
               drop.medium.name,
-              () =>
-                  ParticleFluid(medium: drop.medium, spacing: particleSpacing),
+              () => ParticleFluid(
+                medium: drop.medium,
+                spacing: particleSpacing,
+                solver: solver,
+              ),
             )
             .inject(
               drop.volume,

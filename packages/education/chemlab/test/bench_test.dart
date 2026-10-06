@@ -7,6 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart'
+    show DartFluid, PhysicsBackend, PhysicsBackendFluid;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -36,6 +39,21 @@ Future<void> loadKatexFonts() async {
 }
 
 void main() {
+  // On the run's physics, as `main` puts the app: the core, or the Dart
+  // reference with `--dart-define=FLUTTER3D_PHYSICS=dart`.
+  setUpAll(startPhysics);
+
+  test('the bench\'s liquids are stepped on the run\'s physics', () {
+    // Mutation: a bench whose world is given the reference, and a run on
+    // the core pours on Dart anyway.
+    final bench = Bench(cpuTestDevice(width: 8, height: 8).device);
+    expect(bench.world.solver, same(PhysicsBackend.current.fluid));
+    expect(
+      bench.world.solver,
+      askedPhysics == 'dart' ? isA<DartFluid>() : isA<NativeLiquid>(),
+    );
+  });
+
   testWidgets('a label is the formula on paper, turned for the lathe', (
     tester,
   ) async {

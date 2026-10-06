@@ -20,7 +20,8 @@ import 'rigid_dynamics.dart';
 ///
 /// Cloth comes from the same answer, through `cloth` (the
 /// `PhysicsBackendCloth` extension), which a backend with a cloth of its
-/// own serves by also implementing `ClothPhysics`.
+/// own serves by also implementing `ClothPhysics`; and so do liquids,
+/// through `fluid` (`PhysicsBackendFluid`) and `FluidPhysics`.
 abstract interface class PhysicsBackend {
   /// What a recording calls it: `'native'` or `'dart'`.
   String get name;

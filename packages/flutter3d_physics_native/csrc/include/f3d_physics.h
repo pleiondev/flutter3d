@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 19u
+#define F3D_ABI_VERSION 20u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -897,6 +897,109 @@ F3D_API void f3d_fluid_step(F3dFluid *fluid, const F3dFluidSettings *settings, f
 /* Every particle added, F3D_FLUID_FLOATS reals apiece, into [out]: up to
  * [capacity]; returns how many. */
 F3D_API uint32_t f3d_fluid_read(const F3dFluid *fluid, f3d_real *out, uint32_t capacity);
+
+/* ----------------------------------------------------------------- liquid */
+
+/* The parts of flutter3d_physics's liquids that are stepped through time,
+ * for a run whose fluid is on the core: what its FluidSolver does. The
+ * Dart side keeps the books — how much liquid is where, what is dissolved
+ * in it, which vessel caught what — and hands these the state of one step,
+ * moved in place. Nothing is kept between calls.
+ *
+ *   f3d_liquid_particles  spilt liquid as position-based fluid particles:
+ *                         cohesion and curvature, the density held from
+ *                         where each step starts and where it ends, XSPH's
+ *                         viscosity, against the walls in pieces;
+ *   f3d_liquid_parcels    a stream's parcels in the air: falling, running
+ *                         along and clinging to walls, their ripples grown;
+ *   f3d_liquid_modes      a free surface's modes, each a damped oscillator
+ *                         stepped exactly, held under Stokes' limit.
+ *
+ * Close to the Dart reference, not equal to it: f32 here, and neighbours
+ * summed in another order. */
+
+/* What each wall record starts with, and what follows, in reals:
+ *   F3D_LIQUID_PLANE    nx ny nz offset: clear where n · p >= offset
+ *   F3D_LIQUID_INSIDE   the inside of a vessel turned from a profile about
+ *   F3D_LIQUID_OUTSIDE  its y axis, or its outside: x y z of the vessel, its
+ *                       turn as nine reals column by column, the glass's
+ *                       thickness, the profile's floor, top, widest radius
+ *                       and radius at the floor, count, then count points
+ *                       radius height from the middle of the floor up the
+ *                       side to the mouth */
+#define F3D_LIQUID_PLANE 0u
+#define F3D_LIQUID_INSIDE 1u
+#define F3D_LIQUID_OUTSIDE 2u
+
+/* Reals one particle takes: position xyz, velocity xyz. */
+#define F3D_LIQUID_PARTICLE_FLOATS 6u
+
+typedef struct F3dLiquidParticleSettings {
+  f3d_real gravity[3];
+  /* The spacing at rest; the kernel reaches twice that. */
+  f3d_real spacing;
+  /* kg / m³, and m² / s. */
+  f3d_real density;
+  f3d_real kinematic_viscosity;
+  /* Akinci's cohesion coefficient; the density kernel summed over the rest
+   * lattice; and Σ|∇C|² over it, for the artificial pressure. */
+  f3d_real cohesion;
+  f3d_real lattice_sum;
+  f3d_real rest_stiffness;
+  /* Seconds a substep, and how many. */
+  f3d_real dt;
+  uint32_t substeps;
+  /* Density passes a substep. */
+  uint32_t iterations;
+} F3dLiquidParticleSettings;
+
+/* Moves [count] particles, F3D_LIQUID_PARTICLE_FLOATS reals apiece, on by
+ * the settings' substeps against the walls, [length] reals of records laid
+ * out as above. 1, or 0 and nothing moved for a record of no kind or cut
+ * short, or no memory. */
+F3D_API int f3d_liquid_particles(f3d_real *state, uint32_t count, const f3d_real *walls,
+                                 uint32_t length, const F3dLiquidParticleSettings *settings);
+
+/* Reals one parcel takes: position xyz, velocity xyz, the position it
+ * started the step at xyz (written), volume, the step it left the lip in,
+ * age, growth, on a wall (1) or not (0), and its liquid's density, surface
+ * tension and viscosity. */
+#define F3D_LIQUID_PARCEL_FLOATS 17u
+
+typedef struct F3dLiquidStreamSettings {
+  f3d_real gravity[3];
+  f3d_real dt;
+  /* σ(1 + cos θ) / ρ of the stream's liquid: a parcel off a wall is held
+   * to it while slower than the root of this over its thickness. */
+  f3d_real cling;
+} F3dLiquidStreamSettings;
+
+/* Flies [count] parcels, F3D_LIQUID_PARCEL_FLOATS reals apiece, on by one
+ * step against the walls; 1, or 0 and nothing moved as for particles. */
+F3D_API int f3d_liquid_parcels(f3d_real *parcels, uint32_t count, const f3d_real *walls,
+                               uint32_t length, const F3dLiquidStreamSettings *settings);
+
+/* Reals one mode takes: k², the most it stands anywhere per unit
+ * amplitude, amplitude, rate, and (written) ω² and the decay rate it rang
+ * at. */
+#define F3D_LIQUID_MODE_FLOATS 6u
+
+typedef struct F3dLiquidWaveSettings {
+  f3d_real dt;
+  /* The gravity felt, m/s², and the liquid's mean depth. */
+  f3d_real g;
+  f3d_real depth;
+  f3d_real kinematic_viscosity;
+  /* σ / ρ. */
+  f3d_real tension;
+  /* The surface's area, for the round vessel it damps as. */
+  f3d_real area;
+} F3dLiquidWaveSettings;
+
+/* Rings [count] modes, F3D_LIQUID_MODE_FLOATS reals apiece, the lowest
+ * first, on by the settings' step. */
+F3D_API void f3d_liquid_modes(f3d_real *modes, uint32_t count,
+                              const F3dLiquidWaveSettings *settings);
 
 /* -------------------------------------------------------------- snapshots */
 

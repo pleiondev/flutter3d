@@ -42,6 +42,7 @@ const List<String> wasmSources = <String>[
   'csrc/src/f3d_debris.c',
   'csrc/src/f3d_cloth.c',
   'csrc/src/f3d_fluid.c',
+  'csrc/src/f3d_liquid.c',
   'csrc/src/f3d_pool.c',
   'csrc/src/f3d_memory_wasm.c',
   'csrc/wasm/f3d_wasm_shim.c',
@@ -105,7 +106,11 @@ const List<String> wasmThreadLinkFlags = <String>[
 /// Builds the module into [out], from the package root [root]: with
 /// [threads], the threads build. Throws a
 /// [StateError] naming what is missing or what failed.
-void buildWasm({required String root, required String out, bool threads = false}) {
+void buildWasm({
+  required String root,
+  required String out,
+  bool threads = false,
+}) {
   final linker = findWasmLinker();
   if (linker == null) {
     throw StateError(

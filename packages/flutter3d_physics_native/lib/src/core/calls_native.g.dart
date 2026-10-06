@@ -1609,6 +1609,69 @@ int f3d_fluid_read(int fluid, int out, int capacity) => _f3d_fluid_read(
   capacity,
 );
 
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Uint32, Pointer<Void>)
+>(symbol: 'f3d_liquid_particles', isLeaf: true)
+external int _f3d_liquid_particles(
+  Pointer<Void> state,
+  int count,
+  Pointer<Void> walls,
+  int length,
+  Pointer<Void> settings,
+);
+int f3d_liquid_particles(
+  int state,
+  int count,
+  int walls,
+  int length,
+  int settings,
+) => _f3d_liquid_particles(
+  Pointer.fromAddress(state),
+  count,
+  Pointer.fromAddress(walls),
+  length,
+  Pointer.fromAddress(settings),
+);
+
+@Native<
+  Int32 Function(Pointer<Void>, Uint32, Pointer<Void>, Uint32, Pointer<Void>)
+>(symbol: 'f3d_liquid_parcels', isLeaf: true)
+external int _f3d_liquid_parcels(
+  Pointer<Void> parcels,
+  int count,
+  Pointer<Void> walls,
+  int length,
+  Pointer<Void> settings,
+);
+int f3d_liquid_parcels(
+  int parcels,
+  int count,
+  int walls,
+  int length,
+  int settings,
+) => _f3d_liquid_parcels(
+  Pointer.fromAddress(parcels),
+  count,
+  Pointer.fromAddress(walls),
+  length,
+  Pointer.fromAddress(settings),
+);
+
+@Native<Void Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_liquid_modes',
+  isLeaf: true,
+)
+external void _f3d_liquid_modes(
+  Pointer<Void> modes,
+  int count,
+  Pointer<Void> settings,
+);
+void f3d_liquid_modes(int modes, int count, int settings) => _f3d_liquid_modes(
+  Pointer.fromAddress(modes),
+  count,
+  Pointer.fromAddress(settings),
+);
+
 @Native<Uint32 Function(Pointer<Void>)>(
   symbol: 'f3d_world_snapshot_size',
   isLeaf: true,

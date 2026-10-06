@@ -67,6 +67,8 @@ Three things to know when doing the same:
 edge, the half turn, that filling stops at the glass's limit, that sharing
 pours half and loses nothing, that mixed dyes take the colour light through
 both would, and a picture of the bench drawn by the software backend with no
-GPU. The liquid itself is `flutter3d_physics`'s and is tested there. The golden leaves the labels
+GPU. The liquid itself is `flutter3d_physics`'s and is tested there, and
+the bench's tests run on the run's physics: the core by default, the Dart
+reference with `--dart-define=FLUTTER3D_PHYSICS=dart`. The golden leaves the labels
 off, since text is rasterised by the platform and differs between machines;
 the label test checks the card's own pixels instead.

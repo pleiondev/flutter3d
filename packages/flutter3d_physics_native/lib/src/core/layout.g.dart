@@ -80,3 +80,37 @@ abstract final class F3dFluidSettingsLayout {
   static const int iterations = 48;
   static const int size = 52;
 }
+
+/// `F3dLiquidParticleSettings`.
+abstract final class F3dLiquidParticleSettingsLayout {
+  static const int gravity = 0;
+  static const int spacing = 12;
+  static const int density = 16;
+  static const int kinematicViscosity = 20;
+  static const int cohesion = 24;
+  static const int latticeSum = 28;
+  static const int restStiffness = 32;
+  static const int dt = 36;
+  static const int substeps = 40;
+  static const int iterations = 44;
+  static const int size = 48;
+}
+
+/// `F3dLiquidStreamSettings`.
+abstract final class F3dLiquidStreamSettingsLayout {
+  static const int gravity = 0;
+  static const int dt = 12;
+  static const int cling = 16;
+  static const int size = 20;
+}
+
+/// `F3dLiquidWaveSettings`.
+abstract final class F3dLiquidWaveSettingsLayout {
+  static const int dt = 0;
+  static const int g = 4;
+  static const int depth = 8;
+  static const int kinematicViscosity = 12;
+  static const int tension = 16;
+  static const int area = 20;
+  static const int size = 24;
+}

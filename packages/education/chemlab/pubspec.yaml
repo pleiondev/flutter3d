@@ -17,6 +17,11 @@ dependencies:
   # The liquids: what is in each glass, how it moves, pours and mixes.
   flutter3d_physics:
     path: ../../flutter3d_physics
+  # The physics core the liquids step on — their waves, streams and drops —
+  # and the Dart reference where it will not start: see `preparePhysics` in
+  # `main`.
+  flutter3d_physics_native:
+    path: ../../flutter3d_physics_native
   # TeX in pure Dart, for the formulas on the labels: K_2Cr_2O_7 set with
   # real subscripts instead of drawn by hand.
   flutter_math_fork: ^0.7.4

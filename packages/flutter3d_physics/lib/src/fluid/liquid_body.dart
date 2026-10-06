@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../portable_math.dart';
 import 'capillary.dart';
 import 'fluid_medium.dart';
+import 'fluid_solver.dart';
 import 'free_surface.dart';
 import 'jet.dart';
 import 'liquid_layer.dart';
@@ -339,8 +340,14 @@ final class LiquidBody implements JetReceiver {
   }
 
   /// Moves the liquid on by [dt] under the world's [gravity], and returns
-  /// what ran over the lip in that time, already taken out of [volume].
-  Spill step(double dt, {required Vector3 gravity}) {
+  /// what ran over the lip in that time, already taken out of [volume]. The
+  /// waves ring on [solver]: the reference unless a `FluidWorld` passes the
+  /// run's.
+  Spill step(
+    double dt, {
+    required Vector3 gravity,
+    FluidSolver solver = const DartFluid(),
+  }) {
     // **Asleep while nothing happens to it.** A glass standing on a bench,
     // its surface still, has nothing to step: the same place, the same
     // volume, the same gravity, nothing knocked or landed. Eight of a
@@ -351,7 +358,7 @@ final class LiquidBody implements JetReceiver {
       return Spill.none;
     }
     _asleep = false;
-    final spill = _stepAwake(dt, gravity: gravity);
+    final spill = _stepAwake(dt, gravity, solver);
     _maybeSleep(gravity, spill);
     return spill;
   }
@@ -390,7 +397,7 @@ final class LiquidBody implements JetReceiver {
     _sleptGravity.setFrom(gravity);
   }
 
-  Spill _stepAwake(double dt, {required Vector3 gravity}) {
+  Spill _stepAwake(double dt, Vector3 gravity, FluidSolver solver) {
     // The gravity felt: the world's, less the vessel's acceleration.
     final felt = gravity.clone();
     if (_history.length == 3) {
@@ -415,7 +422,7 @@ final class LiquidBody implements JetReceiver {
     }
     _relayIfMoved();
     final depth = surface.area > 0.0 ? volume / surface.area : 0.0;
-    surface.step(dt, g: math.max(g, 1e-6), depth: depth);
+    surface.step(dt, g: math.max(g, 1e-6), depth: depth, solver: solver);
     final spill = _spill(dt, math.max(g, 1e-6));
     _lastSpill = spill.flow > 0.0 ? spill : null;
     return spill;

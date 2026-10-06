@@ -1,9 +1,11 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
 import '../portable_math.dart';
 import 'fluid_medium.dart';
+import 'fluid_solver.dart';
 import 'jet.dart';
 
 /// A flat surface particles rest on — a bench, a floor: the points with
@@ -59,8 +61,10 @@ final class ParticleFluid {
     required this.spacing,
     this.iterations = 4,
     this.substeps = 2,
+    this.solver = const DartFluid(),
   }) : h = 2.0 * spacing {
-    _gamma = _cohesionForWorkOfCohesion();
+    final kernels = _Kernels(h);
+    _gamma = _cohesionForWorkOfCohesion(kernels);
     // The kernel summed over the lattice at rest: what a particle's density
     // estimate is divided by, so liquid at its rest spacing is at its rest
     // density exactly, whatever the kernel's own normalisation makes of a
@@ -72,10 +76,10 @@ final class ParticleFluid {
       for (var b = -reach; b <= reach; b++) {
         for (var c = -reach; c <= reach; c++) {
           final r2 = (a * a + b * b + c * c) * spacing * spacing;
-          sum += _poly6(r2);
-          gradient2 += _spikyGradient(
-            _V(a * spacing, b * spacing, c * spacing),
-          ).length2;
+          sum += kernels.poly6(r2);
+          gradient2 += kernels
+              .spikyGradient(_V(a * spacing, b * spacing, c * spacing))
+              .length2;
         }
       }
     }
@@ -97,6 +101,10 @@ final class ParticleFluid {
   /// Density passes per substep, and the fewest substeps per [step].
   final int iterations;
   final int substeps;
+
+  /// What moves the particles each step: the reference unless told
+  /// otherwise; a `FluidWorld` gives its own, the run's.
+  final FluidSolver solver;
 
   /// The time surface tension takes to move a particle its own size,
   /// √(ρs³/σ): the cohesion between neighbours is a spring this quick, and
@@ -194,6 +202,10 @@ final class ParticleFluid {
 
   /// Moves the particles on by [dt] under [gravity], against [obstacles],
   /// into [receivers].
+  ///
+  /// The solve itself is the [solver]'s; how many substeps it takes, which
+  /// walls it is given and what is caught after are worked out here, the
+  /// same on every backend.
   void step(
     double dt, {
     required Vector3 gravity,
@@ -203,14 +215,13 @@ final class ParticleFluid {
     if (_x.isEmpty) return;
     // A quarter of the capillary time a substep at most, and never fewer
     // than asked. How far a particle goes in one is not held here: it is
-    // moved in pieces against the walls instead (`_advance`), which costs a
-    // wall test, not a density solve, per piece.
+    // moved in pieces against the walls instead, which costs a wall test,
+    // not a density solve, per piece.
     final fastest = _v.fold(0.0, (m, v) => math.max(m, v.length));
     final count = math
         .max(substeps, (dt / (0.25 * capillaryTime)).ceil())
         .clamp(1, 256);
     final sub = dt / count;
-    final g = _V(gravity.x, gravity.y, gravity.z);
     // The walls anything here could reach this step, found once: every
     // particle, and as far as the fastest goes, in one ball.
     final low = _x.first.copy();
@@ -232,8 +243,43 @@ final class ParticleFluid {
           (fastest + gravity.length * dt) * dt +
           spacing,
     );
-    for (var s = 0; s < count; s++) {
-      _substep(sub, g, walls);
+    final n = _x.length;
+    final state = Float64List(n * ParticleMotion.particleFloats);
+    for (var i = 0; i < n; i++) {
+      final at = i * ParticleMotion.particleFloats;
+      state
+        ..[at] = _x[i].x
+        ..[at + 1] = _x[i].y
+        ..[at + 2] = _x[i].z
+        ..[at + 3] = _v[i].x
+        ..[at + 4] = _v[i].y
+        ..[at + 5] = _v[i].z;
+    }
+    solver.moveParticles(
+      ParticleMotion(
+        state: state,
+        medium: medium,
+        spacing: spacing,
+        iterations: iterations,
+        substeps: count,
+        dt: sub,
+        gravity: gravity,
+        cohesion: _gamma,
+        latticeSum: _latticeSum,
+        restStiffness: _restStiffness,
+        walls: walls,
+      ),
+    );
+    for (var i = 0; i < n; i++) {
+      final at = i * ParticleMotion.particleFloats;
+      _x[i]
+        ..x = state[at]
+        ..y = state[at + 1]
+        ..z = state[at + 2];
+      _v[i]
+        ..x = state[at + 3]
+        ..y = state[at + 4]
+        ..z = state[at + 5];
     }
     // Into a vessel's liquid: handed over, whole.
     final radius = 0.5 * spacing;
@@ -251,8 +297,137 @@ final class ParticleFluid {
     }
   }
 
-  void _substep(double dt, _V gravity, List<JetObstacle> obstacles) {
-    final n = _x.length;
+  /// The cohesion coefficient that makes the work of pulling the lattice
+  /// apart along a plane 2σ per square metre: the potential of the cohesion
+  /// force, summed across a plane over every pair within reach, per unit of
+  /// area, at a coefficient of one, then scaled.
+  double _cohesionForWorkOfCohesion(_Kernels kernels) {
+    final m = _mass;
+    double potential(double r) {
+      // ∫ from r to h of m²C(s) ds, by Simpson over sixteen pieces.
+      const pieces = 16;
+      final step = (h - r) / pieces;
+      var sum = 0.0;
+      for (var k = 0; k <= pieces; k++) {
+        final s = r + k * step;
+        final w = k == 0 || k == pieces ? 1.0 : (k.isOdd ? 4.0 : 2.0);
+        sum += w * m * m * kernels.cohesion(s);
+      }
+      return sum * step / 3.0;
+    }
+
+    final reach = (h / spacing).ceil() + 1;
+    var work = 0.0;
+    // One column of particles below the plane, at z = −(k + ½)s, against
+    // every particle above it.
+    for (var k = 0; k < reach; k++) {
+      final zi = -(k + 0.5) * spacing;
+      for (var a = -reach; a <= reach; a++) {
+        for (var b = -reach; b <= reach; b++) {
+          for (var c = 0; c < reach; c++) {
+            final d = Vector3(
+              a * spacing,
+              b * spacing,
+              (c + 0.5) * spacing - zi,
+            );
+            final r = d.length;
+            if (r < h) work += potential(r);
+          }
+        }
+      }
+    }
+    work /= spacing * spacing;
+    return work > 0.0 ? 2.0 * medium.surfaceTension / work : 0.0;
+  }
+}
+
+/// [motion] moved in Dart: what [DartFluid.moveParticles] does.
+void moveParticlesInDart(ParticleMotion motion) {
+  final state = motion.state;
+  final n = motion.count;
+  const stride = ParticleMotion.particleFloats;
+  final x = [
+    for (var i = 0; i < n; i++)
+      _V(state[i * stride], state[i * stride + 1], state[i * stride + 2]),
+  ];
+  final v = [
+    for (var i = 0; i < n; i++)
+      _V(state[i * stride + 3], state[i * stride + 4], state[i * stride + 5]),
+  ];
+  final solve = _Solve(motion, x, v);
+  final g = _V(motion.gravity.x, motion.gravity.y, motion.gravity.z);
+  for (var s = 0; s < motion.substeps; s++) {
+    solve.substep(motion.dt, g);
+  }
+  for (var i = 0; i < n; i++) {
+    final at = i * stride;
+    final p = solve.x[i];
+    final u = solve.v[i];
+    state
+      ..[at] = p.x
+      ..[at + 1] = p.y
+      ..[at + 2] = p.z
+      ..[at + 3] = u.x
+      ..[at + 4] = u.y
+      ..[at + 5] = u.z;
+  }
+}
+
+/// The kernels for a reach of [h]: the density's poly6, the pressure's
+/// spiky gradient, and Akinci's cohesion spline.
+final class _Kernels {
+  _Kernels(this.h);
+
+  final double h;
+
+  double poly6(double r2) {
+    final h2 = h * h;
+    if (r2 >= h2) return 0.0;
+    final d = h2 - r2;
+    return 315.0 / (64.0 * math.pi * _pow9(h)) * d * d * d;
+  }
+
+  _V spikyGradient(_V d) {
+    final r = d.length;
+    if (r <= 1e-12 || r >= h) return _V(0, 0, 0);
+    final f = -45.0 / (math.pi * _pow6(h)) * (h - r) * (h - r);
+    return d * (f / r);
+  }
+
+  /// Akinci's cohesion spline.
+  double cohesion(double r) {
+    if (r >= h || r <= 0.0) return 0.0;
+    final c = 32.0 / (math.pi * _pow9(h));
+    final a = (h - r) * (h - r) * (h - r) * r * r * r;
+    if (2.0 * r > h) return c * a;
+    return c * (2.0 * a - _pow6(h) / 64.0);
+  }
+
+  static double _pow6(double x) => x * x * x * x * x * x;
+  static double _pow9(double x) => _pow6(x) * x * x * x;
+}
+
+/// One [ParticleMotion]'s solve, on the particles [x] moving at [v].
+final class _Solve {
+  _Solve(this.motion, this.x, this.v)
+    : h = 2.0 * motion.spacing,
+      kernels = _Kernels(2.0 * motion.spacing);
+
+  final ParticleMotion motion;
+  final List<_V> x;
+  final List<_V> v;
+  final double h;
+  final _Kernels kernels;
+
+  double get spacing => motion.spacing;
+  double get _mass => motion.medium.density * spacing * spacing * spacing;
+  List<JetObstacle> get obstacles => motion.walls;
+
+  double _poly6(double r2) => kernels.poly6(r2);
+  _V _spikyGradient(_V d) => kernels.spikyGradient(d);
+
+  void substep(double dt, _V gravity) {
+    final n = x.length;
     // Where a particle starts inside a wall or under the floor, it is put
     // out first, its velocity left alone. A drop let go near the bottom of a
     // glass is laid out as a little block round where it parted, and a
@@ -261,7 +436,7 @@ final class ParticleFluid {
     // over a fifth of a millisecond, and it left at eighteen metres a
     // second.
     for (var i = 0; i < n; i++) {
-      _collide(_x[i], obstacles);
+      _collide(x[i]);
     }
     // **Pre-stabilisation** (Macklin, Müller, Chentanez and Kim, "Unified
     // Particle Physics for Real-Time Applications", 2014): the compression
@@ -273,88 +448,86 @@ final class ParticleFluid {
     // became velocity, and the chemistry bench's overflowing flask threw
     // thirty thousand particles eleven metres up. Taken out here, the crowd
     // makes room for itself and keeps the speed it had.
-    _holdDensity(_x, obstacles, artificialPressure: false, until: 1e-3);
-    final rho0 = medium.density;
+    _holdDensity(x, artificialPressure: false, until: 1e-3);
+    final rho0 = motion.medium.density;
     final m = _mass;
-    final norm = 1.0 / _latticeSum;
+    final gamma = motion.cohesion;
+    final norm = 1.0 / motion.latticeSum;
     // Forces first: gravity, cohesion and curvature, on the velocities.
-    final grid = _Grid(h, _x);
-    final neighbours = [for (var i = 0; i < n; i++) grid.near(i, _x)];
+    final grid = _Grid(h, x);
+    final neighbours = [for (var i = 0; i < n; i++) grid.near(i, x)];
     final density = List<double>.filled(n, 0.0);
     for (var i = 0; i < n; i++) {
       var w = _poly6(0.0);
       for (final j in neighbours[i]) {
-        w += _poly6(_x[i].distance2(_x[j]));
+        w += _poly6(x[i].distance2(x[j]));
       }
       density[i] = rho0 * w * norm;
     }
     final normal = List<_V>.generate(n, (_) => _V(0, 0, 0));
     for (var i = 0; i < n; i++) {
       for (final j in neighbours[i]) {
-        normal[i].addScaled(_spikyGradient(_x[i] - _x[j]), h * m / density[j]);
+        normal[i].addScaled(_spikyGradient(x[i] - x[j]), h * m / density[j]);
       }
     }
     for (var i = 0; i < n; i++) {
       final a = gravity.copy();
       for (final j in neighbours[i]) {
-        final d = _x[i] - _x[j];
+        final d = x[i] - x[j];
         final r = d.length;
         if (r < 1e-12) continue;
         final k = 2.0 * rho0 / (density[i] + density[j]);
         a
-          ..addScaled(d, -k * _gamma * m * _cohesion(r) / r)
-          ..addScaled(normal[i] - normal[j], -k * _gamma);
+          ..addScaled(d, -k * gamma * m * kernels.cohesion(r) / r)
+          ..addScaled(normal[i] - normal[j], -k * gamma);
       }
-      _v[i].addScaled(a, dt);
+      v[i].addScaled(a, dt);
     }
     // Predict, then hold the density to the rest density.
-    final p = [
-      for (var i = 0; i < n; i++) _advance(_x[i], _v[i], dt, obstacles),
-    ];
-    final near = _holdDensity(p, obstacles, artificialPressure: true);
+    final p = [for (var i = 0; i < n; i++) _advance(x[i], v[i], dt)];
+    final near = _holdDensity(p, artificialPressure: true);
     // Velocities from the move, then XSPH's viscosity.
     for (var i = 0; i < n; i++) {
-      _v[i] = (p[i] - _x[i]) * (1.0 / dt);
+      v[i] = (p[i] - x[i]) * (1.0 / dt);
     }
     final share = math.min(
       0.5,
-      medium.kinematicViscosity * dt / (spacing * spacing) * 50.0 + 0.01,
+      motion.medium.kinematicViscosity * dt / (spacing * spacing) * 50.0 + 0.01,
     );
-    final smoothed = [for (final v in _v) v.copy()];
+    final smoothed = [for (final u in v) u.copy()];
     for (var i = 0; i < n; i++) {
       for (final j in near[i]) {
         final w = _poly6(p[i].distance2(p[j])) * norm;
-        smoothed[i].addScaled(_v[j] - _v[i], share * w);
+        smoothed[i].addScaled(v[j] - v[i], share * w);
       }
     }
     for (var i = 0; i < n; i++) {
-      _v[i] = smoothed[i];
-      _x[i] = p[i];
+      v[i] = smoothed[i];
+      x[i] = p[i];
     }
   }
 
   /// Moves [p] until no particle is compressed past the rest density, for
-  /// [iterations] passes at most, or fewer once none is compressed by more
-  /// than [until] of it; returns each particle's neighbours, found where
-  /// [p] stood at the start.
+  /// the motion's iterations at most, or fewer once none is compressed by
+  /// more than [until] of it; returns each particle's neighbours, found
+  /// where [p] stood at the start.
   ///
   /// [artificialPressure] adds Macklin's term against clumping, which the
   /// solve wants and pre-stabilisation does not: there it would push still
   /// water apart every substep with nothing to answer it.
   List<List<int>> _holdDensity(
-    List<_V> p,
-    List<JetObstacle> obstacles, {
+    List<_V> p, {
     required bool artificialPressure,
     double until = 0.0,
   }) {
     final n = p.length;
-    final norm = 1.0 / _latticeSum;
+    final norm = 1.0 / motion.latticeSum;
     final lambda = List<double>.filled(n, 0.0);
     final grid = _Grid(h, p);
     final near = [for (var i = 0; i < n; i++) grid.near(i, p)];
     final dq = 0.3 * h;
     final wq = _poly6(dq * dq);
-    for (var it = 0; it < iterations; it++) {
+    for (var it = 0; it < motion.iterations; it++) {
       var worst = 0.0;
       for (var i = 0; i < n; i++) {
         // C = ρ/ρ₀ − 1 with ρ/ρ₀ the kernel sum over the lattice's: only
@@ -388,7 +561,7 @@ final class ParticleFluid {
             // Macklin's artificial pressure, which keeps neighbours from
             // clumping: a fiftieth of a constraint's worth. At his tenth it
             // held still water a sixth thinner than its rest density.
-            corr = -0.02 * ratio * ratio * ratio * ratio / _restStiffness;
+            corr = -0.02 * ratio * ratio * ratio * ratio / motion.restStiffness;
           }
           // Δpᵢ = Σⱼ (λᵢ + λⱼ + s_corr) ∇W(pᵢ − pⱼ), in the same
           // normalisation as the constraint.
@@ -400,7 +573,7 @@ final class ParticleFluid {
       }
       for (var i = 0; i < n; i++) {
         p[i].add(delta[i]);
-        _collide(p[i], obstacles);
+        _collide(p[i]);
       }
     }
     return near;
@@ -412,19 +585,19 @@ final class ParticleFluid {
   /// a piece, so nothing passes through glass thinner than a particle; a
   /// drop falling a metre a second into a test tube went five millimetres a
   /// step and through its bottom.
-  _V _advance(_V x, _V v, double dt, List<JetObstacle> obstacles) {
+  _V _advance(_V x, _V v, double dt) {
     final p = x.copy();
     final pieces = obstacles.isEmpty
         ? 1
         : (v.length * dt / (0.4 * spacing)).ceil().clamp(1, 64);
     for (var k = 0; k < pieces; k++) {
       p.addScaled(v, dt / pieces);
-      if (pieces > 1) _collide(p, obstacles);
+      if (pieces > 1) _collide(p);
     }
     return p;
   }
 
-  void _collide(_V p, List<JetObstacle> obstacles) {
+  void _collide(_V p) {
     final radius = 0.5 * spacing;
     for (final o in obstacles) {
       final hit = o.touch(p.toVector3(), radius);
@@ -432,13 +605,6 @@ final class ParticleFluid {
         p.addScaled(_V(hit.normal.x, hit.normal.y, hit.normal.z), hit.depth);
       }
     }
-  }
-
-  double _poly6(double r2) {
-    final h2 = h * h;
-    if (r2 >= h2) return 0.0;
-    final d = h2 - r2;
-    return 315.0 / (64.0 * math.pi * _pow9(h)) * d * d * d;
   }
 
   /// pᵢ − pⱼ, or, where the two stand on the same point, a hair of it in a
@@ -468,68 +634,6 @@ final class ParticleFluid {
       z * away,
     );
   }
-
-  _V _spikyGradient(_V d) {
-    final r = d.length;
-    if (r <= 1e-12 || r >= h) return _V(0, 0, 0);
-    final f = -45.0 / (math.pi * _pow6(h)) * (h - r) * (h - r);
-    return d * (f / r);
-  }
-
-  /// Akinci's cohesion spline.
-  double _cohesion(double r) {
-    if (r >= h || r <= 0.0) return 0.0;
-    final c = 32.0 / (math.pi * _pow9(h));
-    final a = (h - r) * (h - r) * (h - r) * r * r * r;
-    if (2.0 * r > h) return c * a;
-    return c * (2.0 * a - _pow6(h) / 64.0);
-  }
-
-  /// The cohesion coefficient that makes the work of pulling the lattice
-  /// apart along a plane 2σ per square metre: the potential of the cohesion
-  /// force, summed across a plane over every pair within reach, per unit of
-  /// area, at a coefficient of one, then scaled.
-  double _cohesionForWorkOfCohesion() {
-    final m = _mass;
-    double potential(double r) {
-      // ∫ from r to h of m²C(s) ds, by Simpson over sixteen pieces.
-      const pieces = 16;
-      final step = (h - r) / pieces;
-      var sum = 0.0;
-      for (var k = 0; k <= pieces; k++) {
-        final s = r + k * step;
-        final w = k == 0 || k == pieces ? 1.0 : (k.isOdd ? 4.0 : 2.0);
-        sum += w * m * m * _cohesion(s);
-      }
-      return sum * step / 3.0;
-    }
-
-    final reach = (h / spacing).ceil() + 1;
-    var work = 0.0;
-    // One column of particles below the plane, at z = −(k + ½)s, against
-    // every particle above it.
-    for (var k = 0; k < reach; k++) {
-      final zi = -(k + 0.5) * spacing;
-      for (var a = -reach; a <= reach; a++) {
-        for (var b = -reach; b <= reach; b++) {
-          for (var c = 0; c < reach; c++) {
-            final d = Vector3(
-              a * spacing,
-              b * spacing,
-              (c + 0.5) * spacing - zi,
-            );
-            final r = d.length;
-            if (r < h) work += potential(r);
-          }
-        }
-      }
-    }
-    work /= spacing * spacing;
-    return work > 0.0 ? 2.0 * medium.surfaceTension / work : 0.0;
-  }
-
-  static double _pow6(double x) => x * x * x * x * x * x;
-  static double _pow9(double x) => _pow6(x) * x * x * x;
 }
 
 /// A uniform grid of cells as wide as the kernel, for finding neighbours.

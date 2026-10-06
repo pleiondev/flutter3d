@@ -160,6 +160,41 @@ void main() {
     cloth.dispose();
   });
 
+  test('a run\'s liquid on the module pours as the reference does', () {
+    // A narrow tube tipped over a wide one: waves, a stream and what it
+    // splashes, on the module's f3d_liquid_* and on the reference.
+    double pour(FluidSolver solver) {
+      RevolvedVessel tube(double r) =>
+          RevolvedVessel([Vector2(0, 0), Vector2(r, 0), Vector2(r, 0.1)]);
+      final world = FluidWorld(gravity: Vector3(0, -9.81, 0), solver: solver);
+      final source = LiquidBody(
+        shape: tube(0.008),
+        medium: FluidMedium.water,
+        volume: 1.4e-5,
+        modes: 4,
+        wallThickness: 0.0008,
+      );
+      final target = LiquidBody(
+        shape: tube(0.012),
+        medium: FluidMedium.water,
+        volume: 0.0,
+        modes: 4,
+        wallThickness: 0.0008,
+      );
+      world.bodies.addAll([source, target]);
+      for (var i = 0; i < 240; i++) {
+        source.place(Matrix3.rotationX(1.3), Vector3(0, 0.1, -0.1045));
+        target.place(Matrix3.identity(), Vector3.zero());
+        world.advance(world.step);
+      }
+      return target.volume;
+    }
+
+    final reference = pour(const DartFluid());
+    expect(reference, greaterThan(1e-6));
+    expect(pour(const NativeLiquid()), closeTo(reference, 0.01 * reference));
+  });
+
   test('the shared scene steps to the native library\'s bytes', () {
     expect(hashOf(sharedSceneSnapshot()), sharedSceneHash);
   });

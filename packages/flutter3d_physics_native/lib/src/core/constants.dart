@@ -5,7 +5,7 @@
 library;
 
 /// `F3D_ABI_VERSION` this file was written against.
-const int abiVersion = 19;
+const int abiVersion = 20;
 
 /// `F3D_TRANSFORM_FLOATS`.
 const int transformFloats = 7;
@@ -115,3 +115,19 @@ abstract final class ClothObstacleKind {
 const int fluidInputFloats = 6;
 
 const int fluidFloats = 4;
+
+/// `F3D_LIQUID_PARTICLE_FLOATS`, `F3D_LIQUID_PARCEL_FLOATS` and
+/// `F3D_LIQUID_MODE_FLOATS`.
+const int liquidParticleFloats = 6;
+
+const int liquidParcelFloats = 17;
+
+const int liquidModeFloats = 6;
+
+/// `F3D_LIQUID_PLANE` and the rest: what each wall record of
+/// `f3d_liquid_particles` and `f3d_liquid_parcels` starts with.
+abstract final class LiquidWallKind {
+  static const int plane = 0;
+  static const int inside = 1;
+  static const int outside = 2;
+}

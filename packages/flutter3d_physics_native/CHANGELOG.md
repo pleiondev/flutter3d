@@ -1,5 +1,21 @@
 ## Unreleased
 
+- **Liquids run on the core by default.** `NativePhysics.fluid` is a
+  `NativeLiquid`, which steps `flutter3d_physics`' liquids as the reference
+  does: `f3d_liquid_particles` the spilt particles (position-based fluid
+  with Akinci's cohesion and curvature, pre-stabilised, the walls met in
+  pieces, XSPH's viscosity), `f3d_liquid_parcels` a stream's parcels in the
+  air (falling, running along a wall, clinging while slow, their ripples
+  grown), and `f3d_liquid_modes` a surface's modes (each a damped
+  oscillator stepped exactly, held under Stokes' limit). Walls are planes
+  and the inside and outside of turned glassware, in one packed record
+  format; a wall the core has no record for is stepped on the reference.
+  Particles go to the core about their own middle, where single precision
+  keeps the digits a velocity is read from. On every test scene the core
+  stays within what the reference's own rounding spreads it by, and a
+  whole pour fills the other tube to within half a per cent of the
+  reference's. `F3D_ABI_VERSION` is 20.
+
 - **Cloth runs on the core by default.** `NativePhysics.cloth` steps a
   `flutter3d_physics` `ClothMesh` with `f3d_cloth_solve`, which does what
   `stepCloth` does: XPBD with its multipliers kept across the iterations,
