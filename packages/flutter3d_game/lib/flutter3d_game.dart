@@ -36,6 +36,7 @@
 library;
 
 export 'src/cloud/cloud_save_store.dart';
+export 'src/cloud/consents.dart';
 export 'src/cloud/http_cloud_saves.dart';
 export 'src/cloud/platform_cloud_saves.dart';
 export 'src/cloud/save_sync.dart';
@@ -65,6 +66,7 @@ export 'src/screens/demo_file.dart';
 export 'src/screens/drag_look.dart';
 export 'src/screens/owned_bindings.dart';
 export 'src/screens/pad_presses.dart';
+export 'src/screens/privacy_section.dart';
 export 'src/screens/rebinding.dart';
 export 'src/screens/save_file.dart';
 export 'src/screens/settings_cubit.dart';

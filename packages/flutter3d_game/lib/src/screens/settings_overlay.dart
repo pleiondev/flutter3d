@@ -3,6 +3,7 @@ import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../cloud/consents.dart';
 import '../config/color_roles.dart';
 import '../config/game_config.dart';
 import '../input/bindings.dart';
@@ -43,6 +44,7 @@ class SettingsOverlay extends StatelessWidget {
     this.canOpen = true,
     this.buses = settableBuses,
     this.colours,
+    this.privacy,
   });
 
   final SettingsCubit settings;
@@ -79,6 +81,9 @@ class SettingsOverlay extends StatelessWidget {
 
   /// The colours the game gives meanings to. See [SettingsPanel.colours].
   final ColorRoles? colours;
+
+  /// The questions about the player's data; see [SettingsPanel.privacy].
+  final Consents? privacy;
 
   /// Whether the gear is offered at all. False on a screen that carries the
   /// same settings itself: the platformer's title card, where a stray gear has
@@ -134,6 +139,7 @@ class SettingsOverlay extends StatelessWidget {
           waitingFor: state.waitingFor,
           credits: credits,
           colours: colours,
+          privacy: privacy,
           writeFailed: state.lastWriteFailed,
           onVolume: (AudioBus bus, double volume) =>
               settings.setVolume(bus.name, volume),

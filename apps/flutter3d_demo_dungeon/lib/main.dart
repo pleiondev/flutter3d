@@ -16,7 +16,8 @@ import 'package:flutter3d_game_shooter/bridge.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_physics_native/flutter3d_physics_native.dart' show usePhysics;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
@@ -494,7 +495,15 @@ class _GameScreenState extends State<GameScreen>
     _openRun(device);
     _ticker = createTicker(_onTick)..start();
     unawaited(_openAudio());
-    unawaited(_run.begin());
+    unawaited(_begin());
+  }
+
+  /// The run this device and the save server agree on, begun — the cloud
+  /// asked first only if the player turned cloud saves on.
+  Future<void> _begin() async {
+    final synced = await syncBeforeBegin(context, _cloud.sync);
+    if (synced != null) _effects.say(synced);
+    if (mounted) await _run.begin();
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -588,7 +597,7 @@ class _GameScreenState extends State<GameScreen>
         registry: _entityKinds,
         input: _input,
         inventory: startingInventory(),
-        saves: SaveFile(appName: 'dungeon', onIssue: _sayIssue),
+        saves: _saves,
         widgetRegistry: <String, WidgetBuilder>{
           // `wg-02`'s first demo scene: a terminal on the crypt's own wall,
           // echoing what `_effects.say` already tells the HUD.
@@ -600,7 +609,24 @@ class _GameScreenState extends State<GameScreen>
       ),
     );
     _demos = DemoFile(appName: 'dungeon', onIssue: _sayIssue);
+    _autosave = Autosave(_run.run)..watchLifecycle();
   }
+
+  /// The run on this device.
+  late final SaveFile _saves = SaveFile(appName: 'dungeon', onIssue: _sayIssue);
+
+  /// What the player is asked about their data, and what a yes turns on:
+  /// the run kept on the save server, finished levels sent to see where
+  /// they are hard. Both off until answered.
+  late final GameCloud _cloud = GameCloud(
+    game: 'dungeon',
+    storage: _saves.storage,
+    saves: _saves,
+  );
+
+  /// Writes the run at a pause and when the window goes to the background,
+  /// as well as on quitting.
+  Autosave? _autosave;
 
   /// The last run, as what the player did. See [DemoFile].
   DemoFile? _demos;
@@ -780,18 +806,20 @@ class _GameScreenState extends State<GameScreen>
         checkpoints == null) {
       return;
     }
-    _demos?.write(
-      Demo(
-        level: level,
-        levelHash: levelHash,
-        start: start,
-        tape: recorder.tape,
-        buildStamp: _buildStamp,
-        checkpoints: checkpoints,
-        platform: defaultTargetPlatform.name,
-        physics: usePhysics().name,
-      ),
+    final demo = Demo(
+      level: level,
+      levelHash: levelHash,
+      start: start,
+      tape: recorder.tape,
+      buildStamp: _buildStamp,
+      checkpoints: checkpoints,
+      platform: defaultTargetPlatform.name,
+      physics: usePhysics().name,
     );
+    _demos?.write(demo);
+    // To the server too, if the player said runs may go: the uploader
+    // asks their answer at the moment of sending.
+    unawaited(_cloud.send(demo));
   }
 
   /// Everything the widget has to do when a level arrives.
@@ -855,6 +883,7 @@ class _GameScreenState extends State<GameScreen>
     // Null if the window closed before the device opened: nothing ran, so
     // there is nothing to keep.
     _runOrNull?.save();
+    _autosave?.dispose();
     // Closed like [_settings], and the cubit unhooks itself from the session
     // first — see `RunCubit.close` for why the order matters.
     unawaited(_runOrNull?.close());
@@ -988,6 +1017,7 @@ class _GameScreenState extends State<GameScreen>
             pointerHeld: _devices.isCaptured,
             padConnected: _pad.isConnected,
           );
+    _autosave?.paused(_loop.paused && _sim != null);
     // Space or use, or the button on the overlay: whichever the player has.
     // Held rather than pressed, read here between steps — the simulation
     // reads none of the player's input while a cutscene plays, so the keys
@@ -1537,6 +1567,8 @@ class _GameScreenState extends State<GameScreen>
                 credits: const CreditsSection(credits: Credits.models),
                 // What the HUD's colours mean, each one the player can move.
                 colours: dungeonColours,
+                // Cloud saves and sending runs, both off until answered.
+                privacy: _cloud.consents,
               ),
               Hud(
                 // Nothing to capture in a browser, so nothing to prompt for.

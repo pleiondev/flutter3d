@@ -45,6 +45,7 @@ _overlay({
   bool canOpen = true,
   bool padConnected = true,
   List<AudioBus> buses = settableBuses,
+  Consents? privacy,
 }) {
   final config = GameConfig();
   final opened = <String>[];
@@ -69,6 +70,7 @@ _overlay({
               opening: () => opened.add('opening'),
               canOpen: canOpen,
               buses: buses,
+              privacy: privacy,
             ),
           ],
         ),
@@ -214,5 +216,35 @@ void main() {
       const <AudioBus>[AudioBus.master, AudioBus.sfx],
     );
     expect(find.text('music'), findsNothing);
+  });
+
+  testWidgets('and the questions about the player\'s data reach the panel, '
+      'both off', (WidgetTester tester) async {
+    // Mutation: an overlay that does not hand them on, which leaves every
+    // game's settings without them while the section's own test passes.
+    final consents = Consents(storage: _Storage(), policy: '2026-10');
+    final it = _overlay(privacy: consents);
+    await tester.pumpWidget(it.widget);
+    it.settings.show();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey<String>('privacy:telemetry')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    for (final key in <String>['privacy:cloud', 'privacy:telemetry']) {
+      expect(
+        tester
+            .widget<Switch>(
+              find.descendant(
+                of: find.byKey(ValueKey<String>(key)),
+                matching: find.byType(Switch),
+              ),
+            )
+            .value,
+        isFalse,
+        reason: key,
+      );
+    }
   });
 }

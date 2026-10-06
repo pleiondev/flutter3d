@@ -76,6 +76,8 @@ final class TelemetryUpload {
           checkpoints: demo.checkpoints,
           platform: demo.platform,
           dataSources: demo.dataSources,
+          // What the server plays it again on: see `Demo.physics`.
+          physics: demo.physics,
         ),
         policy: policy,
         consentedAt: consent.at!,

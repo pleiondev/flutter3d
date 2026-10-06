@@ -416,10 +416,24 @@ class _GameScreenState extends State<GameScreen>
   void _endDemo() {
     final demo = _endRecording();
     if (demo == null) return;
-    _demos?.write(
-      demo.demo(buildStamp: _buildStamp, platform: defaultTargetPlatform.name),
+    final written = demo.demo(
+      buildStamp: _buildStamp,
+      platform: defaultTargetPlatform.name,
     );
+    _demos?.write(written);
+    // To the server too, if the player said runs may go: the uploader asks
+    // their answer at the moment of sending.
+    unawaited(_cloud.send(written));
   }
+
+  /// What the player is asked about their data, and what a yes turns on:
+  /// the run kept on the save server, finished levels sent to see where
+  /// they are hard. Both off until answered.
+  late final GameCloud _cloud = GameCloud(
+    game: 'platformer',
+    storage: _saveFile.storage,
+    saves: _saveFile,
+  );
 
   /// `HR3`: the level on screen, as the editor sees it.
   LiveLevel? _live;
@@ -644,11 +658,21 @@ class _GameScreenState extends State<GameScreen>
     // in — see `SaveFile`, which refuses to hand back a snapshot without one.
     // `begin` also falls back when the saved level is gone, which this game
     // used to handle by showing an error screen with a button on it.
-    unawaited(
-      _run.begin().then((bool resumed) {
-        if (mounted) _screen.resumedFromDisk(resumed: resumed);
-      }),
-    );
+    unawaited(_beginRun());
+  }
+
+  /// The run this device and the save server agree on, begun: the cloud is
+  /// asked first — only if the player turned cloud saves on — so a run
+  /// carried on from another device is the one that loads.
+  Future<void> _beginRun() async {
+    final synced = await syncBeforeBegin(context, _cloud.sync);
+    if (synced != null) {
+      _said = synced;
+      _sayFor = 4.0;
+    }
+    if (!mounted) return;
+    final resumed = await _run.begin();
+    if (mounted) _screen.resumedFromDisk(resumed: resumed);
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -1490,6 +1514,8 @@ class _GameScreenState extends State<GameScreen>
                 defaultBindings: _bindings,
                 opening: _openSettings,
                 credits: const CreditsSection(credits: Credits.models),
+                // Cloud saves and sending runs, both off until answered.
+                privacy: _cloud.consents,
                 // Not over the title card, which carries the same settings on
                 // it and is the one screen a stray gear has nothing to add to.
                 canOpen: _screen.state.started,

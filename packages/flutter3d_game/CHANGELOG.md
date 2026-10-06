@@ -1,5 +1,16 @@
 ## Unreleased
 
+- **The player is asked before anything of theirs leaves the device.**
+  - `Consents` holds two questions: may the run be kept in the cloud, and
+    may finished runs be sent. Both are no until answered.
+  - `PrivacySection` puts both in the settings panel, through
+    `SettingsOverlay.privacy`.
+  - `askWhichRun` and `syncBeforeBegin` settle two different runs before
+    a run begins.
+  - `GameCloud` builds the save store and the telemetry uploader from
+    `FLUTTER3D_CLOUD`.
+  - `httpJsonPost` is a `JsonPost` over `package:http`.
+
 - **`DemoRecording` stamps the run's physics** into the demo it writes.
 
 - **Gestures reach the graph.** `ActorAnimations.gesture` fires the

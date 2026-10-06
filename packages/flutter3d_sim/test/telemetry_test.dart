@@ -233,6 +233,22 @@ void main() {
       expect(read.demo.steps, 120);
     });
 
+    test('carries the physics the run was played on', () {
+      // Mutation: rebuilding the demo without it, which a server reads as
+      // "whatever I run" and replays a run from the reference on the core.
+      final demo = _record(_level(), stick: 1.0);
+      final upload = TelemetryUpload.prepare(
+        game: 'walk',
+        demo: Demo.fromJson(demo.toJson()..['physics'] = 'dart'),
+        consent: _granted(),
+        policy: _policy,
+      ).upload!;
+      final read = TelemetryUpload.fromJson(
+        jsonDecode(jsonEncode(upload.toJson())) as Map<String, Object?>,
+      );
+      expect(read.demo.physics, 'dart');
+    });
+
     test('one that arrives without consent is refused by the reader', () {
       // Mutation: a server reading uploads that never carried a grant.
       final json = TelemetryUpload.prepare(
@@ -328,6 +344,23 @@ void main() {
       final changed = found as ResimulationLevelChanged;
       expect(changed.recorded, demo.levelHash);
       expect(changed.found, _level(width: 30.0).digestHex);
+    });
+
+    test('a run recorded on other physics is refused, naming both', () {
+      // Mutation: playing it on whatever this process runs, which diverges
+      // with nothing to say why.
+      final level = _level();
+      final other = PhysicsBackend.current.name == 'dart' ? 'native' : 'dart';
+      final found = resimulate(
+        game: const _WalkGame(),
+        level: level,
+        demo: Demo.fromJson(
+          _record(level, stick: 1.0).toJson()..['physics'] = other,
+        ),
+      );
+      final refused = found as ResimulationOnOtherPhysics;
+      expect(refused.recorded, other);
+      expect(refused.running, PhysicsBackend.current.name);
     });
 
     test('a run that does not start where the recording did is refused', () {

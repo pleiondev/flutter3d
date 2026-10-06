@@ -1,5 +1,8 @@
 ## Unreleased
 
+- **A run sent as telemetry keeps its physics**, so the server replays it
+  on the backend it was played on.
+
 - **The flow field follows breaches.**
   - `NavGrid.rebake` re-bakes the columns a hole changed and measures the
     room again. It produces the same grid as a full bake, cell for cell.

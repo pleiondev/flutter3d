@@ -280,6 +280,16 @@ class _RaceScreenState extends State<RaceScreen>
   /// rather than fields beside this one, the way it used to be.
   late final RaceCubit _raceCubit = RaceCubit(RaceProgress());
 
+  /// Where this game keeps what it keeps between launches: the ghosts, and
+  /// the player's answers about their data. Not the season, which is one
+  /// sitting — see `season_test.dart`.
+  final Storage _storage = defaultStorage('racing');
+
+  /// What the player is asked about their data. No run to keep in the
+  /// cloud — a season is one sitting — so that question says so; finished
+  /// races go to the server only if the player says yes.
+  late final GameCloud _cloud = GameCloud(game: 'racing', storage: _storage);
+
   Circuit get _circuit => _raceCubit.circuit;
 
   /// What is said across the screen between circuits, and at the end.
@@ -361,7 +371,7 @@ class _RaceScreenState extends State<RaceScreen>
   GhostCar? _ghostCar;
 
   GhostKeeper _keeperFor(Circuit circuit) =>
-      GhostKeeper(storage: defaultStorage('racing'), track: circuit.track);
+      GhostKeeper(storage: _storage, track: circuit.track);
 
   /// How far above the body's own origin each car is drawn, in metres.
   ///
@@ -548,18 +558,19 @@ class _RaceScreenState extends State<RaceScreen>
         checkpoints == null) {
       return;
     }
-    _demos?.write(
-      Demo(
-        level: circuit,
-        levelHash: circuitHash,
-        start: start,
-        tape: recorder.tape,
-        buildStamp: _buildStamp,
-        checkpoints: checkpoints,
-        platform: defaultTargetPlatform.name,
-        physics: usePhysics().name,
-      ),
+    final demo = Demo(
+      level: circuit,
+      levelHash: circuitHash,
+      start: start,
+      tape: recorder.tape,
+      buildStamp: _buildStamp,
+      checkpoints: checkpoints,
+      platform: defaultTargetPlatform.name,
+      physics: usePhysics().name,
     );
+    _demos?.write(demo);
+    // To the server too, if the player said runs may go.
+    unawaited(_cloud.send(demo));
   }
 
   /// The loop, rather than a bare `FixedStep`.
@@ -1673,6 +1684,9 @@ class _RaceScreenState extends State<RaceScreen>
               // card, which is where it now primarily lives: a gear most
               // players never open was the wrong and only home for it.
               credits: const CreditsSection(credits: Credits.models),
+              // A season kept on this device, and sending races: both asked,
+              // both off until answered.
+              privacy: _cloud.consents,
               // Not over the title card, which carries the same credits and is
               // the one screen a stray gear has nothing to add to.
               canOpen: _started,

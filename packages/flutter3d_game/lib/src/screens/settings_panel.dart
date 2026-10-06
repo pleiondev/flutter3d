@@ -3,11 +3,13 @@ import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart' show Deadzone;
 
+import '../cloud/consents.dart';
 import '../config/color_roles.dart';
 import '../config/color_vision_setting.dart';
 import '../config/game_config.dart';
 import '../input/bindings.dart';
 import '../input/pad_routes.dart';
+import 'privacy_section.dart';
 import 'settings_panel_controls.dart';
 import 'volumes.dart';
 
@@ -34,6 +36,7 @@ class SettingsPanel extends StatelessWidget {
     this.writeFailed = false,
     this.buses = settableBuses,
     this.colours,
+    this.privacy,
   });
 
   /// Whether the last attempt to save these settings was refused.
@@ -80,6 +83,10 @@ class SettingsPanel extends StatelessWidget {
   /// screen's only job is to be somewhere a player reliably reaches. A game with
   /// nothing to declare passes nothing.
   final Widget? credits;
+
+  /// The questions about the player's data — cloud saves, and sending runs
+  /// — or null for a game that asks neither.
+  final Consents? privacy;
 
   /// The colours this game gives meanings to, each a row the player can
   /// change; null, or none, leaves the section out.
@@ -204,6 +211,10 @@ class SettingsPanel extends StatelessWidget {
                       onChanged: (int chosen) =>
                           onSetting(role.setting, chosen.toDouble()),
                     ),
+                ],
+                if (privacy case final Consents consents) ...<Widget>[
+                  const SizedBox(height: 12),
+                  PrivacySection(consents: consents),
                 ],
                 const SizedBox(height: 12),
                 const SettingsHeading('Mouse'),
