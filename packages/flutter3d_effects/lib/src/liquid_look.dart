@@ -44,6 +44,8 @@ final class LiquidLook {
         lighting: materials[model],
         parameters: materials.parameters(model),
         alphaMode: MaterialAlphaMode.blend,
+        // Seen from below too, where it is Snell's window.
+        doubleSided: true,
       ),
     );
   }

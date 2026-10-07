@@ -115,6 +115,29 @@ material Liquid {
     let froth = clamp(albedo.b * (0.75 + 2.0 * (slope.x + slope.y)), 0.0, 1.0);
     let white = vec3(0.92, 0.95, 0.97) *
                 (ambient + sunColor * (0.45 * clamp(dot(n, toSun), 0.0, 1.0)));
-    return vec4(mix(water, white, froth), mix(seen, 1.0, froth));
+    let above = mix(water, white, froth);
+    let aboveSeen = mix(seen, 1.0, froth);
+
+    // From below, the surface is a window: light from the whole sky is
+    // bent into a cone of 2·asin(1/1.33), 97°, over the eye (Snell's
+    // window), its rim brightest where Fresnel lets least through; outside
+    // it the surface is a mirror of the water under it, total internal
+    // reflection.
+    let under = step(eye.y, world.y);
+    let up = n * (2.0 * step(0.0, n.y) - 1.0);
+    let rayUp = vec3(0.0) - view;
+    let cosIn = clamp(dot(rayUp, up), 0.0, 1.0);
+    let sinOut2 = 1.7689 * (1.0 - cosIn * cosIn);
+    let window = 1.0 - step(1.0, sinOut2);
+    let cosOut = sqrt(max(1.0 - sinOut2, 0.0));
+    let outward = normalize(rayUp * 1.33 + up * (cosOut - 1.33 * cosIn));
+    let skyThrough = mix(horizon, zenith, sqrt(clamp(outward.y, 0.0, 1.0)));
+    let sunThrough = sunColor * (6.0 * pow(clamp(dot(outward, toSun), 0.0, 1.0), 400.0));
+    let leaving = headOn + (1.0 - headOn) * pow(1.0 - cosOut, 5.0);
+    let mirrorBelow = mix(deep, shallow, 0.4) * ambient;
+    let below = mix(mirrorBelow,
+                    (skyThrough + sunThrough) * (1.0 - leaving) + mirrorBelow * leaving,
+                    window);
+    return vec4(mix(above, below, under), mix(aboveSeen, 1.0, under));
   }
 }
