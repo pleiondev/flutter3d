@@ -47,6 +47,12 @@ dependencies:
   flutter3d_physics_native:
     path: ../../packages/flutter3d_physics_native
 
+  # The physics core's water and fire, drawn and heard: the torches' own
+  # fires, the crates they light, and the flooded vault of the first crypt.
+  # A layer over the run that reads it and never writes to it.
+  flutter3d_effects:
+    path: ../../packages/flutter3d_effects
+
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's

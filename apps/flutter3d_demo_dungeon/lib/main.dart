@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart' show LiquidLook;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/bridge.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -25,8 +26,10 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
+import 'src/crypt_elements.dart';
 import 'src/cutscene_overlay.dart';
 import 'src/depths.dart';
+import 'src/element_sounds.dart';
 import 'src/ending.dart';
 import 'src/first_shot_hint.dart';
 import 'src/frame_effects.dart';
@@ -42,6 +45,7 @@ import 'src/soundtrack.dart';
 import 'src/staging.dart';
 import 'src/touch_crypt.dart';
 import 'src/weapon_models.dart';
+import 'src/wooden_props.dart';
 
 /// Which build wrote a `.f3drun` — `Demo.buildStamp` is free text this
 /// package has no opinion on the shape of, and this application's opinion is
@@ -500,7 +504,67 @@ class _GameScreenState extends State<GameScreen>
     _openRun(device);
     _ticker = createTicker(_onTick)..start();
     unawaited(_openAudio());
+    unawaited(_openElements(device));
     unawaited(_begin());
+  }
+
+  /// The fire, the water and the loose wood over the crypt — see
+  /// [CryptElements]. Null until its pictures and the water's material have
+  /// loaded, and on a renderer that failed.
+  CryptElements? _elements;
+  ({WoodenProps props, LiquidLook water})? _elementParts;
+  final ElementSounds _elementSounds = ElementSounds();
+  final Vector3 _elementsEye = Vector3.zero();
+
+  /// Loads what the elements are drawn with, and stands them in the level
+  /// that is up, if one already is. A failure leaves the crypt as it was.
+  Future<void> _openElements(GraphicsDevice device) async {
+    final renderer = _renderer;
+    if (renderer == null) return;
+    try {
+      final props = await WoodenProps.load(device);
+      final water = await LiquidLook.load(
+        device: device,
+        renderer: renderer,
+        bundle: await rootBundle.load(LiquidLook.asset),
+      );
+      if (!mounted) return;
+      _elementParts = (props: props, water: water);
+    } catch (error) {
+      debugPrint('elements: not loaded ($error)');
+      return;
+    }
+    final level = _level;
+    if (level != null) _enterElements(level);
+  }
+
+  /// The elements stood in [level]: made the first time, with its scene,
+  /// and moved on to each level after.
+  void _enterElements(LevelReady level) {
+    final parts = _elementParts;
+    final renderer = _renderer;
+    if (parts == null || renderer == null) return;
+    final loaded = level.loaded;
+    final elements = _elements ??= CryptElements(
+      device: _run.run.device,
+      renderer: renderer,
+      scene: loaded.scene,
+      props: parts.props,
+      water: parts.water,
+      particles: _particles,
+      light: Playing.touch,
+    );
+    _elementSounds.stop();
+    elements.enter(
+      scene: loaded.scene,
+      name: loaded.level.name,
+      brushes: level.staged.sim.breaches?.brushes ?? loaded.level.brushes,
+      entities: loaded.level.entities,
+      collision: loaded.collision,
+      fixtures: level.fixtureVisuals,
+      textures: loaded.materialTextures,
+      player: level.staged.player.body.position,
+    );
   }
 
   /// The run this device and the save server agree on, begun — the cloud
@@ -537,6 +601,9 @@ class _GameScreenState extends State<GameScreen>
     _audio = speakers.scene;
     _applyConfig(_config);
     _startAmbience();
+    // The crates' fires, the culvert and the splashes: the effects
+    // package's recordings, loaded beside the game's own.
+    unawaited(_audio.preload(ElementSounds.all));
   }
 
   /// How much of a sound survives the trip from [from] to [to].
@@ -874,6 +941,9 @@ class _GameScreenState extends State<GameScreen>
     // The old level's torches out, the new level's lit.
     _stopAmbience();
     _startAmbience();
+    // And the old level's crates and water gone with it, the new level's
+    // stood in.
+    _enterElements(level);
     // **On entering a level, and on quitting, and at no other time.** This game
     // has no checkpoints — the platformer saves when its respawn point moves,
     // and there is nothing here that moves. A door is not a checkpoint: a
@@ -898,6 +968,8 @@ class _GameScreenState extends State<GameScreen>
     // Closed like [_settings], and the cubit unhooks itself from the session
     // first — see `RunCubit.close` for why the order matters.
     unawaited(_runOrNull?.close());
+    _elementSounds.stop();
+    _elements?.dispose();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     unawaited(_settings.close());
@@ -1042,6 +1114,7 @@ class _GameScreenState extends State<GameScreen>
     }
     _skipAsked = false;
     _steps = _loop.advance(dt);
+    _stepElements(dt);
     final actors = _actors;
     _renderer?.debugLines = _treesOn && actors != null
         ? BehaviourOverlay(actors).draw
@@ -1074,6 +1147,53 @@ class _GameScreenState extends State<GameScreen>
     // costs one boolean check.
     unawaited(_widgetSurfaces?.tickAll());
     setState(() {});
+  }
+
+  /// The elements one frame on, while the run is: following where the step
+  /// left the player and the monsters, and heard through the game's mixer.
+  /// Frozen with the run under a pause, as everything drawn is.
+  void _stepElements(double dt) {
+    final elements = _elements;
+    final player = _player;
+    if (elements == null || player == null || _loop.paused) return;
+    final breaches = _sim?.breaches;
+    player.eye(_elementsEye);
+    elements.update(
+      dt,
+      eye: _elementsEye,
+      player: player.body.position,
+      monsters: _actors?.actors ?? const <Actor>[],
+      brushes: breaches?.brushes,
+      breachVersion: breaches?.version ?? 0,
+    );
+    _elementSounds.play(_audio, elements.hearing, wading: elements.wading);
+  }
+
+  /// The push one round gives a crate it passes through on its way, N·s:
+  /// a pistol's nudges it, a shotgun's pellets together shove it.
+  static const double _roundPush = 9.0;
+
+  /// What the elements are told of a step: the rockets that went off and
+  /// the shots that landed. Not while a kill camera replays seconds the
+  /// crates have already lived through.
+  void _tellElements(GameSimulation sim, List<GameEvent> events) {
+    final elements = _elements;
+    if (elements == null || _killcamPresent != null) return;
+    final projectiles = sim.projectiles;
+    if (projectiles != null) {
+      for (final blast in projectiles.detonations) {
+        elements.blast(blast.position, blast.blast.radius);
+      }
+    }
+    Vector3? from;
+    for (final event in events) {
+      switch (event) {
+        case ShotFired():
+          from = event.from;
+        case ShotLanded(:final hit) when from != null:
+          elements.shot(from, hit.point, _roundPush);
+      }
+    }
   }
 
   /// One step of simulated time.
@@ -1202,6 +1322,7 @@ class _GameScreenState extends State<GameScreen>
       _particles,
       _system.screenFlash,
     );
+    _tellElements(sim, events);
 
     // The two that are not reactions to an event. A recoil is the weapon view's
     // own animation, and the crawl is what the HUD shows and what the screen at
