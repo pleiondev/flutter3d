@@ -22,6 +22,7 @@ import 'package:flutter/services.dart'
     show KeyDownEvent, LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart' show LiquidLook;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
@@ -38,6 +39,7 @@ import 'src/backend.dart';
 import 'src/circuits.dart';
 import 'src/controls.dart';
 import 'src/credits.dart';
+import 'src/elements.dart';
 import 'src/ending.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
@@ -235,9 +237,22 @@ class _RaceScreenState extends State<RaceScreen>
     // metres of world per texel, which draws a car's own shadow as a slab
     // beside it; three tiles put the near one over the part of the track
     // anybody is looking at.
+    //
+    // **The sun records the faces turned to it, not both sides.** Past the
+    // second cascade, about twenty-three metres out, every fragment falls to
+    // the last one, which covers the whole kilometre-wide level at most of a
+    // metre per texel. With both sides recorded, the road and its verges
+    // were compared there against their own depth and lost: everything past
+    // that distance came out in shadow, a dark ribbon with a hard edge where
+    // the road crests, while the near road stayed lit. With only the
+    // light-facing side recorded the same stretch is drawn lit and a car's
+    // own shadow is unchanged. What it costs: a one-sided barrier turned away
+    // from the sun casts nothing, which here is a thin strip beside a wall.
+    // A larger bias cured it too, and lifted every car's shadow off the road.
     shadows: const ShadowSettings(
       cascades: kShadowCascades,
       resolution: kShadowResolution,
+      directionalCasterFaces: ShadowCasterFaces.front,
     ),
     // The player's colour vision, from the settings panel.
     look: _vision?.of(_config) ?? const LookSettings(),
@@ -268,6 +283,21 @@ class _RaceScreenState extends State<RaceScreen>
   /// it is one draw call whatever is in it.
   final ParticleSystem _particles = ParticleSystem(capacity: 1200);
   final Reactions _reactions = Reactions();
+
+  /// The water in the circuit's low spots, the wrecks a hard crash leaves
+  /// burning and the dust and smoke the cars throw up — in a world of its
+  /// own, which reads the race and never writes to it. One a circuit; null
+  /// between circuits.
+  TrackElements? _elements;
+
+  /// What the water is drawn with, loaded once with the renderer; null where
+  /// the material would not load, which leaves the circuits dry.
+  LiquidLook? _waterLook;
+
+  /// Whether this is a phone, which draws less of the water and the fires.
+  static bool get _handheld =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Which circuit is being raced, how far into the season that is, and
   /// whether the screen is loading, racing, between one circuit and the next,
@@ -661,6 +691,7 @@ class _RaceScreenState extends State<RaceScreen>
     for (final voice in _voices) {
       voice.stop();
     }
+    _elements?.dispose();
     unawaited(_speakers?.dispose());
     _hudPanel?.dispose();
     _hudReading.dispose();
@@ -708,6 +739,16 @@ class _RaceScreenState extends State<RaceScreen>
     if (_renderer == null) return;
 
     _renderer?.addContributor(ParticleContributor(_particles));
+    try {
+      _waterLook = await LiquidLook.load(
+        device: device,
+        renderer: _renderer!,
+        bundle: await rootBundle.load(LiquidLook.asset),
+      );
+    } catch (error) {
+      debugPrint('water: no material, so no water ($error)');
+    }
+    if (!mounted) return;
 
     // The ticker before the circuit, not after. Drawing has to start at once —
     // see [_scene] — and there is nothing to step until the circuit is read, so
@@ -734,9 +775,10 @@ class _RaceScreenState extends State<RaceScreen>
     // application does not bring its native framework with it, and the only
     // symptom is one line about native assets and then silence.
     final speakers = await openSpeakers(
-      bank: Sounds.all,
+      // The game's own sounds and the water's and the fires'.
+      bank: SoundBank(<SoundDef>[...Sounds.all, ...ElementSounds.all]),
       mixer: _audio.mixer,
-      maxVoices: 24,
+      maxVoices: 32,
     );
     if (speakers == null) return;
     if (!mounted) {
@@ -918,6 +960,20 @@ class _RaceScreenState extends State<RaceScreen>
       }
 
       _ghosts = _keeperFor(_circuit)..load();
+      // The water and the fires, once the scene and the cars are there.
+      final renderer = _renderer;
+      if (renderer != null) {
+        _elements = TrackElements(
+          device: device,
+          scene: scene,
+          renderer: renderer,
+          track: track,
+          cars: staged.cars,
+          sky: document.sky,
+          water: _waterLook,
+          light: _handheld,
+        );
+      }
       _ghostCar = GhostCar.build(device, scene, model: asset);
 
       {
@@ -1060,6 +1116,8 @@ class _RaceScreenState extends State<RaceScreen>
       voice.stop();
     }
     _voices.clear();
+    _elements?.dispose();
+    _elements = null;
     _cars.clear();
     _carNodes.clear();
     _carLift.clear();
@@ -1163,6 +1221,16 @@ class _RaceScreenState extends State<RaceScreen>
     // happened yet.
     _particles.advance(_loop.lastFrame);
     _place(dt);
+    // After the camera has been placed, so the water's ripples fade with
+    // distance from where the eye is this frame.
+    final chase = _chase;
+    if (chase != null) {
+      _elements?.frame(
+        _loop.lastFrame,
+        eye: chase.eye,
+        progress: race.progress,
+      );
+    }
     _listen(race);
     setState(() {});
   }
@@ -1192,6 +1260,9 @@ class _RaceScreenState extends State<RaceScreen>
     // `step`. Draining anywhere else would give one reader half of what
     // happened and the other reader the rest.
     _lastStep = simulation.events.drain();
+    // Whether a car was struck hard enough to leave a wreck: read after the
+    // step, which is the only moment the blow is there to read.
+    _elements?.stepped(stepSeconds);
 
     // Where the step left each car, kept beside where the step before left it,
     // so the frames drawn between the two have something to blend. Here rather
@@ -1423,6 +1494,7 @@ class _RaceScreenState extends State<RaceScreen>
     if (chase != null) {
       _ears.aimAlong(chase.eye, chase.target - chase.eye);
     }
+    _elements?.hear(_audio, _loop.lastFrame);
     _audio.update(_ears);
   }
 

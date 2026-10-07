@@ -48,6 +48,13 @@ dependencies:
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
 
+  # The physics core's water and fire, drawn: the fords and puddles laid in
+  # the circuit's low spots and the wrecks a hard crash leaves burning — see
+  # `lib/src/elements.dart`, which keeps them in a world of their own so the
+  # race is stepped exactly as it was.
+  flutter3d_effects:
+    path: ../../packages/flutter3d_effects
+
   # The world a car stands in. Named by `staging.dart`, which is the one place
   # this game assembles a race.
   flutter3d_physics:
