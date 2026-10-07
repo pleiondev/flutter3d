@@ -83,6 +83,7 @@ workspace:
   - apps/flutter3d_demo_sandbox
   - apps/flutter3d_demo_water
   - apps/flutter3d_demo_hollow
+  - apps/flutter3d_demo_reef
   - apps/flutter3d_lesson_viewer
   - apps/flutter3d_stereo_lesson_viewer
   - apps/flutter3d_lab_incident

@@ -46,6 +46,19 @@ final class SeabedLook {
   /// What a sea floor is drawn with; its base colour is the floor's own.
   final Material material;
 
+  /// Anything else under the same sea — a rock, a wreck's timbers, a
+  /// diver — in its own colour, lit through the same surface and coloured
+  /// by the same water: the floor's stages and the floor's very parameters,
+  /// so one [update] moves the caustics on all of them.
+  Material under(String name, Vector4 baseColor, {double roughness = 0.9}) =>
+      Material(
+        name: name,
+        lighting: material.lighting,
+        parameters: material.parameters,
+        baseColor: baseColor,
+        roughness: roughness,
+      );
+
   void _set(String uniform, List<double> values) =>
       material.parameters[uniform]!.setAll(0, values);
 

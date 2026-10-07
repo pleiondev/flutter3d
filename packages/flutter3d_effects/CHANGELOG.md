@@ -16,7 +16,10 @@
   light, red first, on the way down and back up to the eye. Over the floor
   the light averages to what fell on the surface. `LiquidLook`'s surface,
   seen from under it, is Snell's window: the sky in a cone of 97°, a mirror
-  of the water outside it.
+  of the water outside it. `SeabedLook.under` dresses anything else under
+  the same sea — a rock, a hull, a diver — in its own colour with the
+  floor's stages and parameters, so one update moves the caustics on all
+  of it and the water reddens it away with distance as it does the floor.
 
 - **The physics core's water and fire, drawn, in a package of their own.**
   `LiquidView` draws one water of `flutter3d_physics_native`: its surface

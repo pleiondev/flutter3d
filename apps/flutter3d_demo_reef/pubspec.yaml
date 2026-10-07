@@ -1,0 +1,35 @@
+name: flutter3d_demo_reef
+description: "Wreck Reef: a diver on the physics core — a reef and a sunken ship under a sea lit through its own surface, air that runs out faster the deeper you go, a current, and finds lifted to the boat by bags of air that swell as they rise."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer, and what every application repeats over it: the device
+  # `openDevice` picks, the frame surface and clock.
+  flutter3d: ^0.9.0
+  flutter3d_app: ^0.9.0
+
+  # Everything that moves: the diver, the bags, the finds, the boat and
+  # the sea with its current.
+  flutter3d_physics_native: ^0.9.0
+
+  # The sea's surface seen from below, the floor lit through it, and what
+  # they sound like.
+  flutter3d_effects: ^0.9.0
+
+  # The voices the bubbles and the splashes are played through.
+  flutter3d_audio: ^0.9.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
