@@ -23,6 +23,19 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **Water left alone costs nothing, and water in use a ninth of what it
+  did.** A shallow water whose flow stays under a millimetre a second for a
+  second, with nothing in it, nothing feeding or draining it, no wind and
+  nothing going over a lip, rests and is not stepped; a body reaching it,
+  wind over it, a pour, a spring, a landing sheet or any change to it wakes
+  it. The cube root the bed's friction asks for on every face of every
+  substep took forty Newton steps from one; it now starts from the
+  argument brought into [1, 8) by exact eighths and stops when a step no
+  longer goes down, and a world with no wind field asks for its wind once
+  a substep instead of once a face. A 96 × 96 ford with a car through it
+  went from 7.6 ms a step to 0.8; one lying still, from 3.2 ms to a
+  microsecond. Snapshots are version 21.
+
 - **A fire grows from where it caught.** A body catches on a patch three
   centimetres across, and the flame's edge runs out over its surface at
   the opposed-flow rate, which goes as 1 / (T_ig − T_s)²: five millimetres

@@ -72,6 +72,14 @@
  * what the last allows. */
 #define F3D_SHALLOW_MOST_SUBSTEPS 32u
 
+/* Water whose fastest flow stays under this, m/s, for this long, s, with
+ * nothing in it, nothing feeding or draining it, no wind on it and nothing
+ * going over a lip, rests: a millimetre a second is far below any ripple
+ * anyone draws, and a pond left alone costs nothing until something
+ * stirs it. */
+#define F3D_SHALLOW_CALM F3D_R(1e-3)
+#define F3D_SHALLOW_SETTLES F3D_R(1.0)
+
 /* ------------------------------------------------------------- the grid */
 
 typedef struct Grid {
@@ -89,6 +97,12 @@ static F3dShallowSlot *water_of(const F3dWorld *world, F3dShallow water) {
   if (water == 0 || water > world->s.shallow_count) return NULL;
   F3dShallowSlot *w = &world->shallows[water - 1u];
   return w->live ? w : NULL;
+}
+
+/* Water changed from outside: stepped again from the next step on. */
+static void wake(F3dShallowSlot *w) {
+  w->calm = F3D_R(0.0);
+  w->resting = 0u;
 }
 
 static Grid grid_of(const F3dWorld *world, F3dShallowSlot *w) {
@@ -122,12 +136,30 @@ static int32_t cell_at(const Grid *g, f3d_real x, f3d_real z) {
   return (int32_t)(i + j * g->nx);
 }
 
-/* x^(1/3) for x ≥ 0, by Newton's method: the same bits everywhere. */
+/* x^(1/3) for x ≥ 0, by Newton's method: the same bits everywhere. x is
+ * first brought into [1, 8) by eighths, which is exact, and halves its root
+ * as often; a straight line through the ends of that range starts Newton
+ * within a fifth of the root. Past its first step Newton comes down on the
+ * root from above, so it stops when a step no longer goes down. It is
+ * asked once a face a substep, so its cost is the water's. */
 static f3d_real cube_root(f3d_real x) {
   if (!(x > F3D_R(0.0))) return F3D_R(0.0);
-  f3d_real y = x > F3D_R(1.0) ? f3d_sqrt(x) : F3D_R(1.0);
-  for (int i = 0; i < 40; i++) y -= (y * y * y - x) / (F3D_R(3.0) * y * y);
-  return y;
+  f3d_real scale = F3D_R(1.0);
+  while (x >= F3D_R(8.0)) {
+    x *= F3D_R(0.125);
+    scale *= F3D_R(2.0);
+  }
+  while (x < F3D_R(1.0)) {
+    x *= F3D_R(8.0);
+    scale *= F3D_R(0.5);
+  }
+  f3d_real y = F3D_R(1.0) + (x - F3D_R(1.0)) / F3D_R(7.0);
+  for (int i = 0; i < 40; i++) {
+    const f3d_real next = y - (y * y * y - x) / (F3D_R(3.0) * y * y);
+    if (i > 0 && !(next < y)) break;
+    y = next;
+  }
+  return y * scale;
 }
 
 /* The natural logarithm of x > 0: x brought into [1, 2) by halving or
@@ -296,6 +328,7 @@ int f3d_shallow_set_ground(F3dWorld *world, F3dShallow water,
   }
   Grid g = grid_of(world, w);
   f3d_copy(g.ground, ground, (size_t)g.n * sizeof(f3d_real));
+  wake(w);
   return 1;
 }
 
@@ -319,6 +352,7 @@ int f3d_shallow_fill(F3dWorld *world, F3dShallow water, f3d_real x0, f3d_real z0
       g.depth[c] = f3d_max(level - g.ground[c], F3D_R(0.0));
     }
   }
+  wake(w);
   return 1;
 }
 
@@ -370,6 +404,7 @@ int f3d_shallow_pour(F3dWorld *world, F3dShallow water, f3d_real x, f3d_real z,
   }
   Grid g = grid_of(world, w);
   spread(&g, x, z, radius, volume);
+  wake(w);
   return 1;
 }
 
@@ -388,6 +423,7 @@ int f3d_shallow_set_source(F3dWorld *world, F3dShallow water, uint32_t index,
   s->radius = radius;
   s->rate = rate;
   if (index >= w->source_count) w->source_count = index + 1u;
+  wake(w);
   return 1;
 }
 
@@ -397,6 +433,7 @@ int f3d_shallow_set_bed(F3dWorld *world, F3dShallow water, f3d_real roughness,
   if (w == NULL || !(f3d_finite(roughness) && roughness >= F3D_R(0.0))) return 0;
   w->roughness = roughness;
   w->open_edges = open_edges ? 1u : 0u;
+  wake(w);
   return 1;
 }
 
@@ -411,6 +448,7 @@ int f3d_shallow_set_fluid(F3dWorld *world, F3dShallow water, f3d_real density,
   w->density = density;
   w->viscosity = viscosity;
   w->tension = tension;
+  wake(w);
   return 1;
 }
 
@@ -1004,8 +1042,12 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, f3d_real h,
       }
     }
   }
-  /* 3. The slope, the bed and the wind, face by face. */
+  /* 3. The slope, the bed and the wind, face by face. With no wind field
+   * the wind is the same everywhere, and asked once. */
   const f3d_real most = F3D_R(0.5) * g->cell / h;
+  const int even_wind = world->grid == NULL || world->s.grid_n[0] == 0;
+  f3d_real everywhere[3];
+  f3d_world_sample_wind(world, ws->origin.x, ws->origin.y, ws->origin.z, everywhere);
   const f3d_real n2 = ws->roughness * ws->roughness;
   for (int axis = 0; axis < 2; axis++) {
     const uint32_t fx_count = axis == 0 ? ux : nx;
@@ -1057,10 +1099,12 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, f3d_real h,
         if (depth > F3D_SHALLOW_DRY) {
           const f3d_real x = axis == 0 ? (f3d_real)i : (f3d_real)i + F3D_R(0.5);
           const f3d_real z = axis == 0 ? (f3d_real)j + F3D_R(0.5) : (f3d_real)j;
-          f3d_real wind[3];
-          f3d_world_sample_wind(world, ws->origin.x + x * g->cell,
-                                ws->origin.y + F3D_R(0.5) * (ea + eb),
-                                ws->origin.z + z * g->cell, wind);
+          f3d_real wind[3] = {everywhere[0], everywhere[1], everywhere[2]};
+          if (!even_wind) {
+            f3d_world_sample_wind(world, ws->origin.x + x * g->cell,
+                                  ws->origin.y + F3D_R(0.5) * (ea + eb),
+                                  ws->origin.z + z * g->cell, wind);
+          }
           const f3d_real along = axis == 0 ? wind[0] : wind[2];
           const f3d_real across = axis == 0 ? wind[2] : wind[0];
           const f3d_real speed = f3d_sqrt(along * along + across * across);
@@ -1185,6 +1229,7 @@ static f3d_real splash_share(const F3dShallowSlot *ws, f3d_real diameter,
  * them); and, for a sheet plunging into water, the air it drags down. */
 static void land(F3dWorld *world, Grid *g, const F3dSpray *d, uint32_t c) {
   const F3dShallowSlot *ws = g->slot;
+  wake(g->slot);
   const f3d_real speed = f3d_sqrt(f3d_dot(d->velocity, d->velocity));
   const int sheet = d->kind == F3D_SPRAY_SHEET;
   const f3d_real section = sheet && speed > F3D_R(0.0) ? d->flow / speed : F3D_R(0.0);
@@ -1346,12 +1391,55 @@ static void rise_bubbles(F3dWorld *world, f3d_real dt) {
   world->s.bubble_count = kept;
 }
 
+/* Whether resting water [ws] is stirred this step: a body that can stand in
+ * it reaching over its grid and down to its surface by the end of the
+ * step, or wind over it. Its springs and everything poured or landed in
+ * it wake it as they happen. */
+static int stirred(const F3dWorld *world, const F3dShallowSlot *ws, f3d_real dt) {
+  const f3d_real wide = (f3d_real)ws->nx * ws->cell;
+  const f3d_real deep = (f3d_real)ws->nz * ws->cell;
+  f3d_real wind[3];
+  f3d_world_sample_wind(world, ws->origin.x + F3D_R(0.5) * wide,
+                        ws->origin.y + ws->top,
+                        ws->origin.z + F3D_R(0.5) * deep, wind);
+  if (wind[0] * wind[0] + wind[2] * wind[2] > F3D_R(0.0)) return 1;
+  for (uint32_t b = 0; b < world->s.used; b++) {
+    const F3dSlot *s = &world->slots[b];
+    if (!s->live || s->type != F3D_BODY_DYNAMIC || s->shape == F3D_SHAPE_POINT ||
+        s->shape == F3D_SHAPE_MESH) {
+      continue;
+    }
+    const f3d_real volume = s->shape == F3D_SHAPE_COMPOUND && s->hull != 0
+                                ? world->compounds[s->hull - 1u].volume
+                                : f3d_shape_volume(world, s->shape, s->size,
+                                                   s->rounding, s->hull);
+    if (!(volume > F3D_R(0.0))) continue;
+    const f3d_real r = cube_root(volume * F3D_R(3.0) / (F3D_R(4.0) * F3D_PI));
+    /* Where it is and where it will be, both: a body crossing the edge in
+     * one step is in it at one end or the other. */
+    const F3dVec3 a = f3d_sub(s->position, ws->origin);
+    const F3dVec3 e = f3d_sub(f3d_madd(s->position, s->velocity, dt), ws->origin);
+    const f3d_real reach = r + ws->cell;
+    if (f3d_max(a.x, e.x) < -reach || f3d_min(a.x, e.x) > wide + reach ||
+        f3d_max(a.z, e.z) < -reach || f3d_min(a.z, e.z) > deep + reach ||
+        f3d_min(a.y, e.y) > ws->top + reach) {
+      continue;
+    }
+    return 1;
+  }
+  return 0;
+}
+
 void f3d_step_water(F3dWorld *world, f3d_real dt) {
   if (world->s.shallow_count == 0) return;
   const f3d_real gravity = f3d_sqrt(f3d_dot(world->s.gravity, world->s.gravity));
   for (uint32_t k = 0; k < world->s.shallow_count; k++) {
     F3dShallowSlot *ws = &world->shallows[k];
     if (!ws->live) continue;
+    if (ws->resting) {
+      if (!stirred(world, ws, dt)) continue;
+      wake(ws);
+    }
     Grid g = grid_of(world, ws);
     bodies_in(world, &g, k + 1u, dt);
     /* As many substeps as keep a wave or the flow within a quarter of a
@@ -1418,6 +1506,25 @@ void f3d_step_water(F3dWorld *world, f3d_real dt) {
                                         fz * g.cell));
       d.top = d.at.y;
       if (!add_spray(world, &d)) g.depth[from] += volume / g.area;
+    }
+    /* Still, with nothing in it, feeding it or going over a lip, for long
+     * enough: it rests. */
+    int quiet = fastest < F3D_SHALLOW_CALM;
+    for (uint32_t i = 0; quiet && i < ws->source_count; i++) {
+      quiet = ws->sources[i].rate == F3D_R(0.0);
+    }
+    for (uint32_t c = 0; quiet && c < g.n; c++) quiet = g.filled[c] == F3D_R(0.0);
+    for (uint32_t fi = 0; quiet && fi < (uint32_t)faces; fi++) {
+      quiet = !(lip.volume[fi] > F3D_R(0.0));
+    }
+    ws->calm = quiet ? ws->calm + dt : F3D_R(0.0);
+    if (ws->calm >= F3D_SHALLOW_SETTLES) {
+      f3d_real top = F3D_R(-1e30);
+      for (uint32_t c = 0; c < g.n; c++) {
+        if (g.depth[c] > F3D_SHALLOW_DRY) top = f3d_max(top, surface(&g, c));
+      }
+      ws->top = top;
+      ws->resting = 1u;
     }
     f3d_free(lip.volume);
     f3d_free(lip.push);

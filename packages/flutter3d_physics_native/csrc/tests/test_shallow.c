@@ -687,8 +687,40 @@ static void test_spring_and_drain_make_a_current(void) {
   f3d_world_destroy(w);
 }
 
+static void test_a_resting_pond_wakes_for_a_stone(void) {
+  /* A pond left alone comes to rest and is not stepped; a ball dropped
+   * from well above it still lands in water, makes waves and floats as
+   * deep as it weighs, as in a pond that never rested. */
+  const double r = 0.2, mass = 600 * 4.0 / 3.0 * M_PI * r * r * r;
+  F3dWorld *w = f3d_world_create();
+  const F3dShallow water = pond(w, 64, F3D_R(0.1));
+  run(w, 180);
+  f3d_real still[64 * 64];
+  f3d_shallow_read(w, water, still, NULL);
+  const F3dBody ball = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(3.0), 0, (f3d_real)mass);
+  f3d_body_set_shape(w, ball, F3D_SHAPE_SPHERE, (f3d_real)r, 0, 0);
+  run(w, 600);
+  f3d_real moved[64 * 64];
+  f3d_shallow_read(w, water, moved, NULL);
+  double most = 0;
+  for (int c = 0; c < 64 * 64; c++) most = fmax(most, fabs((double)(moved[c] - still[c])));
+  CHECK(most > 1e-3);
+  double sum = 0;
+  for (int i = 0; i < 600; i++) {
+    run(w, 1);
+    f3d_real p[3];
+    f3d_body_get_position(w, ball, p);
+    sum += p[1];
+  }
+  f3d_real s[4];
+  f3d_shallow_sample(w, water, 2, 0, s);
+  CHECK_NEAR(sum / 600 - s[0], -0.027, 0.01);
+  f3d_world_destroy(w);
+}
+
 int main(void) {
   test_refusals();
+  test_a_resting_pond_wakes_for_a_stone();
   test_spring_and_drain_make_a_current();
   test_a_bag_of_air_lifts_what_it_is_tied_to();
   test_lake_at_rest();

@@ -542,6 +542,11 @@ typedef struct F3dShallowSlot {
   /* What it is: kg/m³, Pa·s and N/m. */
   f3d_real density, viscosity, tension;
   f3d_real lost;
+  /* How long it has lain still, s; whether it rests, not stepped until
+   * something stirs it; and its highest surface over its origin then, m. */
+  f3d_real calm;
+  uint32_t resting;
+  f3d_real top;
   uint32_t source_count;
   F3dShallowSource sources[F3D_SHALLOW_MOST_SOURCES];
 } F3dShallowSlot;
