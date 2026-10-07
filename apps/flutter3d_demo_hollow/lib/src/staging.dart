@@ -25,6 +25,7 @@ final class HollowRun {
     required Renderer renderer,
     required this.water,
     required this.lava,
+    this.light = false,
   }) : _device = device {
     _ground = groundGrid();
     _buildGround();
@@ -60,6 +61,7 @@ final class HollowRun {
       device: device,
       scene: scene,
       look: water.material,
+      detail: light ? LiquidDetail.light : LiquidDetail.full,
     );
     // The lava's own grid, over the volcano's south flank.
     final lavaGround = groundGrid(
@@ -99,6 +101,7 @@ final class HollowRun {
       scene: scene,
       renderer: renderer,
       baseWidth: 0.5,
+      detail: light ? FireDetail.light : FireDetail.full,
     );
     stones = QuarryStones(world, device, scene);
     idol = Idol(world, device, scene);
@@ -133,6 +136,9 @@ final class HollowRun {
 
   final GraphicsDevice _device;
   final Scene scene;
+
+  /// Whether to draw less of the water and the fire, for a phone.
+  final bool light;
 
   /// The looks of the river and of the lava.
   final LiquidLook water, lava;

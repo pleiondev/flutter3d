@@ -29,6 +29,7 @@ final class ReefRun {
     required this.scene,
     required this.surface,
     required this.floor,
+    this.light = false,
   }) : _device = device {
     _floor = floorGrid();
     _buildFloor();
@@ -58,6 +59,7 @@ final class ReefRun {
       device: device,
       scene: scene,
       look: surface.material,
+      detail: light ? LiquidDetail.light : LiquidDetail.full,
     );
     Material under(String name, Vector4 colour) =>
         floor.under(name, colour, roughness: 0.85);
@@ -100,6 +102,9 @@ final class ReefRun {
 
   final GraphicsDevice _device;
   final Scene scene;
+
+  /// Whether to draw less of the sea, for a phone.
+  final bool light;
 
   /// The sea's surface, and everything under it.
   final LiquidLook surface;

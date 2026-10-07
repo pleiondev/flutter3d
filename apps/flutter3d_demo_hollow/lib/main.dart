@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -124,6 +125,10 @@ class _HollowScreenState extends State<HollowScreen>
         renderer: renderer,
         water: water,
         lava: lava,
+        // A phone draws less of the water and the fire.
+        light:
+            defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS,
       );
       if (!mounted) return;
       setState(() => _playing = (renderer: renderer, run: run));
