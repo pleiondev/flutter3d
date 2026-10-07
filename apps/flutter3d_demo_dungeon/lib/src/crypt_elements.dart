@@ -149,24 +149,37 @@ final class CryptElements {
               smokeCell: 24,
             ),
     );
-    // A crypt has no sky: the water mirrors a dark vault, its one sun the
-    // torch on the vault's north wall, and is clear over the flags but
-    // black-green where it stands deeper. What it mirrors low down, at the
-    // grazing angles most of the room is seen at, is torchlit stone, warm
-    // and a few times brighter than the vault's black ceiling; mirroring
-    // the ceiling's dark there too left the water a flat grey sheet.
+    // A crypt has no sky: the water mirrors a dark vault, and its one sun
+    // is a torch, which the vault turns to whichever flame the eye sees
+    // mirrored in it. What it mirrors low down, at the grazing angles most
+    // of the room is seen at, is torchlit stone, warm and many times
+    // brighter than the vault's black ceiling, so the ripples, tipping the
+    // mirrored ray between the two, show as a moving sheen.
+    //
+    // **Murky, not clear.** Standing water in a crypt is silt and leaf
+    // mould, a fifth of the light through a hand's depth of it: the flags
+    // show dimly through it at the walker's feet and hardly at all across
+    // the room. Water bends a slantwise look down into it, so even at the
+    // grazing angles the room is seen at the light crosses a hand's depth
+    // in a third of a metre; at three hundredths a metre that let a quarter
+    // of the torchlit floor through everywhere, and the vault read as a tan
+    // floor with a film over it.
+    //
+    // The ripples are steeper than a still pool's: the culvert stirs it,
+    // and with only a dark vault to mirror they are what shows the water
+    // moving at all.
     water
-      ..sun(along: Vector3(0.0, -0.5, 0.85), light: Vector3(0.5, 0.3, 0.15))
+      ..sun(along: Vector3(0.0, -0.5, 0.85), light: FloodedVault.flameLight)
       ..sky(
-        zenith: Vector3(0.02, 0.016, 0.013),
-        horizon: Vector3(0.08, 0.056, 0.034),
+        zenith: Vector3(0.012, 0.01, 0.008),
+        horizon: Vector3(0.12, 0.08, 0.042),
       )
       ..tint(
-        shallow: Vector3(0.05, 0.06, 0.045),
-        deep: Vector3(0.01, 0.015, 0.012),
-        clearness: 0.3,
+        shallow: Vector3(0.035, 0.04, 0.03),
+        deep: Vector3(0.006, 0.009, 0.008),
+        clearness: 0.001,
       )
-      ..chop = 0.45;
+      ..chop = 0.7;
   }
 
   final GraphicsDevice _device;
@@ -935,7 +948,14 @@ final class CryptElements {
       _sync(p);
     }
     _burnOut(dt);
-    _vault?.update(dt);
+    _vault?.update(
+      dt,
+      eye: eye,
+      flames: <Vector3>[
+        for (final t in _torches)
+          if (t.fixture.enabled) t.flame.originInto(Vector3.zero()),
+      ],
+    );
     water.update(seconds: _clock, eye: eye);
     _fire.update(dt);
     _char();
@@ -1018,7 +1038,7 @@ final class CryptElements {
         // Not placed until the scene has put its fixture somewhere.
         if (head.length2 < 1e-6) continue;
         fire = torchWorld.addBody(
-          position: head + Vector3(0.0, 0.05, 0.0),
+          position: head + Vector3(0.0, -0.02, 0.0),
           type: NativeBodyType.fixed,
           mass: 0.8,
         );
@@ -1030,9 +1050,11 @@ final class CryptElements {
       }
       // Kept on the flame, which is where its fixture's node was last
       // drawn: on the frame the level arrives that is not yet out on the
-      // torch's bracket.
+      // torch's bracket. A little down into the glow the fixture draws
+      // there, so the tongues rise out of it: set over it, they stood
+      // apart above it as a row of pale stubs.
       final head = t.flame.originInto(_head);
-      torchWorld.setPosition(fire, head + Vector3(0.0, 0.05, 0.0));
+      torchWorld.setPosition(fire, head + Vector3(0.0, -0.02, 0.0));
       final burning = torchWorld.isBurning(fire);
       if (t.fixture.enabled) {
         // Pitch and rag enough for a night: topped up as it burns down.

@@ -65,7 +65,8 @@ final class FloodedVault {
     required Material stone,
     required bool light,
   }) : _device = device,
-       _scene = scene {
+       _scene = scene,
+       _look = look {
     nx = ((plan.x1 - plan.x0) / cell).round();
     nz = ((plan.z1 - plan.z0) / cell).round();
     final ground = <double>[
@@ -124,6 +125,10 @@ final class FloodedVault {
       detail: light ? _phoneDetail : _detail,
     );
     _drawn.addAll(scene.meshes.where((m) => !before.contains(m)));
+    // No mist over the culvert's foot: see [_detail].
+    for (final node in _drawn) {
+      if (node.name == 'mist') node.visible = false;
+    }
     _build(stone);
   }
 
@@ -132,6 +137,12 @@ final class FloodedVault {
   final FloodPlan plan;
   final GraphicsDevice _device;
   final Scene _scene;
+  final LiquidLook _look;
+
+  /// A torch's flame as the water's sun: its colour times its brightness,
+  /// enough for its image in the water to burn as the flame does while the
+  /// light it throws into the water's body stays a glimmer.
+  static Vector3 get flameLight => Vector3(1.3, 0.62, 0.22);
 
   /// A quarter of a metre a cell: a stride crosses three, and the room is
   /// forty by forty.
@@ -154,19 +165,31 @@ final class FloodedVault {
   /// that lands, each swelling to near two metres across, all of them
   /// see-through and drawn over one another. Under a culvert that spills a
   /// metre into a pool that was a glowing fog filling the vault, which drew
-  /// at a third of the frame rate of the rooms round it. A few hundred
-  /// drops in flight is what a spill this size throws, and a hundred puffs
-  /// a faint haze over its foot; what is past them is still simulated.
+  /// at a third of the frame rate of the rooms round it.
+  ///
+  /// **A hundred drops, not hundreds.** Where the spill lands it throws its
+  /// drops along the same few arcs step after step, and with three hundred
+  /// and sixty drawn they hung about the culvert's foot as strings of white
+  /// beads a metre long; a hundred is the splash, and what is past them is
+  /// still simulated.
+  ///
+  /// **And no mist at all.** A puff is drawn with the water's own look,
+  /// lit by the torch the look's sun is, and a few dozen of them over the
+  /// culvert's foot showed as tan, glowing clouds standing on the water.
+  /// Thirty litres a second falling a metre throws spray, not a cloud; the
+  /// drops and the froth at its foot are the falls. Not for the frame rate:
+  /// measured in a profile build, the vault draws as fast as the hall with
+  /// the mist hidden, and a few frames a second slower with it shown.
   static const LiquidDetail _detail = LiquidDetail(
     sheet: 1500,
-    drops: 360,
+    drops: 100,
     bubbles: 1200,
   );
 
   /// The same on a phone.
   static const LiquidDetail _phoneDetail = LiquidDetail(
     sheet: 800,
-    drops: 150,
+    drops: 50,
     bubbles: 400,
   );
 
@@ -267,10 +290,52 @@ final class FloodedVault {
       x > plan.x0 && x < plan.x1 && z > plan.z0 && z < plan.z1;
 
   /// The surface drawn as the world has it, [dt] seconds after the last
-  /// time: the mist off the culvert's foot thins by the frame's own time,
-  /// not by a sixtieth of a second a frame, which at thirty frames a second
-  /// left it hanging twice as long and filled the vault with a glowing fog.
-  void update(double dt) => view.update(dt);
+  /// time, as seen from [eye] with the torch [flames] about the level lit.
+  void update(
+    double dt, {
+    required Vector3 eye,
+    required Iterable<Vector3> flames,
+  }) {
+    view.update(dt);
+    _mirror(eye, flames);
+  }
+
+  /// The look's one sun shone from the flame whose image the water shows
+  /// [eye], onto the point of the surface the image is at.
+  ///
+  /// The material mirrors a sky and a sun, not the room; a sun fixed in
+  /// one direction put its glint wherever that direction happened to fall,
+  /// mostly nowhere the eye was looking. Aimed from the flame at its own
+  /// image, the glint is drawn where the flame's reflection is, and the
+  /// ripples break it into the trembling streak a torch makes on water.
+  /// Of the flames in the vault itself, the nearest whose image lies on the
+  /// water: the guard room's torch, behind the vault's west wall, is nearer
+  /// the doorway than the vault's own, and the glint it was aimed from lay
+  /// off to the side of the room where no torch could be mirrored.
+  void _mirror(Vector3 eye, Iterable<Vector3> flames) {
+    final over = eye.y - plan.level;
+    if (over <= 0.0) return;
+    final image = Vector3.zero();
+    Vector3? shone;
+    var nearest = double.infinity;
+    for (final flame in flames) {
+      final under = flame.y - plan.level;
+      if (under <= 0.0 || !covers(flame.x, flame.z)) continue;
+      // Where the line from the eye to the flame mirrored under the
+      // surface crosses it: as far along as the eye's height is of the
+      // two heights together.
+      final t = over / (over + under);
+      final x = eye.x + (flame.x - eye.x) * t;
+      final z = eye.z + (flame.z - eye.z) * t;
+      final far = flame.distanceToSquared(eye);
+      if (!covers(x, z) || far >= nearest) continue;
+      nearest = far;
+      shone = flame;
+      image.setValues(x, plan.level, z);
+    }
+    if (shone == null) return;
+    _look.sun(along: image - shone, light: flameLight);
+  }
 
   /// Out of the world and the scene, its meshes given back.
   void dispose() {
