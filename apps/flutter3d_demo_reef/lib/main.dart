@@ -154,8 +154,19 @@ class _ReefScreenState extends State<ReefScreen>
     }
   }
 
-  /// The way the fins push: the keys, turned by where the eye looks.
-  Vector3 _swim(Set<LogicalKeyboardKey> keys) {
+  /// How fast the diver turns at most, radians a second, and how quickly
+  /// the eye swings round behind them while they swim and nobody is
+  /// dragging it.
+  static const double _turnRate = 2.2, _follow = 1.2;
+
+  /// Seconds since the pointer last turned the eye.
+  double _sinceDrag = 10.0;
+
+  /// The way the fins push. The keys say where the diver means to go,
+  /// turned by where the eye looks; the diver turns towards it no faster
+  /// than a body in water turns, and the fins push the way they face, less
+  /// the further the diver still has to turn.
+  Vector3 _swim(Set<LogicalKeyboardKey> keys, double dt) {
     double axis(LogicalKeyboardKey plus, LogicalKeyboardKey minus) =>
         (keys.contains(plus) ? 1.0 : 0.0) - (keys.contains(minus) ? 1.0 : 0.0);
     final ahead = axis(LogicalKeyboardKey.keyW, LogicalKeyboardKey.keyS);
@@ -164,14 +175,34 @@ class _ReefScreenState extends State<ReefScreen>
     // Forward is away from the eye, level; the eye looks along −(yaw).
     final forward = Vector3(-math.cos(_yaw), 0.0, math.sin(_yaw));
     final right = Vector3(-forward.z, 0.0, forward.x);
-    final swim = forward * ahead + right * side + Vector3(0.0, rise, 0.0);
-    if (ahead != 0.0 || side != 0.0) {
-      _heading = math.atan2(
-        -(forward * ahead + right * side).z,
-        (forward * ahead + right * side).x,
-      );
+    final wanted = forward * ahead + right * side;
+    var push = 0.0;
+    if (wanted.length2 > 0.0) {
+      final target = math.atan2(-wanted.z, wanted.x);
+      final turn = _wrap(target - _heading);
+      // Eased in as the turn closes, so the diver settles on the new way
+      // rather than stopping on it.
+      final rate = math.min(_turnRate, 3.0 * turn.abs() + 0.4);
+      _heading = _wrap(_heading + turn.clamp(-rate * dt, rate * dt));
+      push = math.max(math.cos(_wrap(target - _heading)), 0.0);
+      // The eye drifts round behind a swimming diver.
+      if (_sinceDrag > 1.5 && ahead > 0.0) {
+        final behind = _wrap(_heading + math.pi - _yaw);
+        _yaw += behind * math.min(_follow * dt, 1.0);
+      }
     }
+    final facing = Vector3(math.cos(_heading), 0.0, -math.sin(_heading));
+    final swim =
+        facing * (push * math.min(wanted.length, 1.0)) +
+        Vector3(0.0, rise, 0.0);
     return swim.length > 1.0 ? swim.normalized() : swim;
+  }
+
+  /// [angle] brought into (−π, π].
+  static double _wrap(double angle) {
+    var a = angle % (2 * math.pi);
+    if (a > math.pi) a -= 2 * math.pi;
+    return a;
   }
 
   void _onTick(Duration _) {
@@ -180,7 +211,8 @@ class _ReefScreenState extends State<ReefScreen>
     final playing = _playing;
     if (playing == null || dt <= 0.0) return;
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    final swim = _swim(keys);
+    _sinceDrag += dt;
+    final swim = _swim(keys, dt);
     playing.run.step(
       dt,
       swim: swim,
@@ -256,6 +288,7 @@ class _ReefScreenState extends State<ReefScreen>
         onKeyEvent: _onKey,
         child: Listener(
           onPointerMove: (PointerMoveEvent event) {
+            _sinceDrag = 0.0;
             _yaw -= event.delta.dx * 0.006;
             _pitch = (_pitch + event.delta.dy * 0.004).clamp(-1.2, 1.2);
           },

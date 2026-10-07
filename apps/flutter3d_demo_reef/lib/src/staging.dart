@@ -13,6 +13,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'diver.dart';
 import 'finds.dart';
+import 'horizon.dart';
 import 'looks.dart';
 import 'reef_life.dart';
 import 'terrain.dart';
@@ -37,6 +38,19 @@ final class ReefRun {
   }) : _device = device {
     _floor = floorGrid();
     _buildFloor();
+    // The sea going on past what is simulated, so its edge is open water.
+    addHorizon(
+      device,
+      scene,
+      floor: underWith(
+        floor,
+        'far sand',
+        Vector4(1.0, 0.97, 0.90, 1.0),
+        picture: looks.sand,
+        roughness: 0.95,
+      ),
+      surface: surface.material,
+    );
     sea = world.createShallowLiquid(
       nx: seaCells,
       nz: seaCells,
@@ -335,6 +349,15 @@ final class ReefRun {
     }
     final surfaceHere = level;
     diver.step(dt, level: surfaceHere, swim: swim, fill: fill, dump: dump);
+    // Past the reef the sea goes on, but its water is not simulated there:
+    // near the edge an outflow pushes the diver back, gently at first, as
+    // a current off a reef does.
+    final p = diver.position;
+    double back(double at) => at < _margin
+        ? _margin - at
+        : (at > reefSize - _margin ? reefSize - _margin - at : 0.0);
+    final out = Vector3(back(p.x), 0.0, back(p.z));
+    if (out.length2 > 0.0) world.addForce(diver.body, out * _pushBack);
     world.step(dt);
     _clock += dt;
     for (final b in bags) {
@@ -397,6 +420,11 @@ final class ReefRun {
         );
     }
   }
+
+  /// How far in from the simulated sea's edge the outflow begins, m, and
+  /// how hard it pushes a diver for each metre past that, N/m: at three
+  /// metres past it, about what the fins push with.
+  static const double _margin = 5.0, _pushBack = 25.0;
 
   /// How long a find waits at the surface for the boat, s.
   static const double _pickUp = 4.0;
