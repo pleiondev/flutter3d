@@ -23,6 +23,14 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A chain's motors hold it together.** A multibody's motors and limits
+  are solved together, a pass over them all repeated until they agree, and
+  each motor is a servo: it holds the joint to where it means it to be as
+  well as to its speed, so the free fall of a step under the solver does
+  not sag a held arm. A neck of four links of 200 kg held out level by its
+  motors sags under two centimetres in two seconds, where it fell to its
+  limits.
+
 - **A shallow liquid keeps its momentum, and a body feels its slope.** Its
   velocities are carried as Stelling and Duinmeijer carry them, as the flux
   of hu that moves the liquid itself, so a patch of flow keeps its momentum

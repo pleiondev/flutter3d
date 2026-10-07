@@ -508,6 +508,9 @@ typedef struct F3dLink {
   F3dQuat turn;
   F3dVec3 spin;
   f3d_real lower, upper, motor_speed, motor_force;
+  /* Where its motor means the joint to be: where it was when the motor
+   * took it, carried on at the motor's speed. */
+  f3d_real motor_q;
   /* A spherical link's cone: how far its axis swings from the parent's,
    * and how far it twists about itself, radians. */
   f3d_real swing, twist;

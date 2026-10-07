@@ -240,6 +240,33 @@ static void test_motor_moves_the_tree(void) {
   f3d_world_destroy(w);
 }
 
+static void test_motors_hold_a_chain_together(void) {
+  /* A neck of four links of 200 kg, 1.3 m each, held out level by a motor
+   * of speed nought on every hinge: the motors answer each other through
+   * the chain, and solved together they hold it, the tip sagging less than
+   * two centimetres in two seconds. Solved one after the other in a single
+   * pass, each undid the last and the neck sagged to its limits; held to a
+   * speed and not to where they mean the joint to be, the step's free fall
+   * sagged it a metre and a half. */
+  F3dWorld *w = still_air();
+  const F3dBody base = post(w, 0, 3);
+  const F3dMultibody m = f3d_multibody_create(w, base);
+  F3dBody tip = 0;
+  for (uint32_t k = 0; k < 4u; k++) {
+    const f3d_real x = F3D_R(1.3) * (f3d_real)k;
+    tip = f3d_body_create(w, F3D_BODY_DYNAMIC, x + F3D_R(0.65), 3, 0, 200);
+    f3d_body_set_shape(w, tip, F3D_SHAPE_BOX, F3D_R(0.65), F3D_R(0.15), F3D_R(0.15));
+    f3d_multibody_add_link(w, m, k, tip, F3D_JOINT_REVOLUTE, x, 3, 0, 0, 0, 1);
+    f3d_multibody_set_limits(w, m, k + 1u, 1, F3D_R(-0.5), F3D_R(0.5));
+    f3d_multibody_set_motor(w, m, k + 1u, 1, 0, F3D_R(4e5));
+  }
+  run(w, 120);
+  f3d_real p[3];
+  f3d_body_get_position(w, tip, p);
+  CHECK(p[1] > F3D_R(2.98));
+  f3d_world_destroy(w);
+}
+
 static void test_cone(void) {
   /* A ball hanging a metre under a ball joint, knocked sideways at four
    * metres a second and spun about its rod. In a cone of half a radian and
@@ -364,6 +391,7 @@ int main(void) {
   test_floating_lands();
   test_limits_and_motor();
   test_motor_moves_the_tree();
+  test_motors_hold_a_chain_together();
   test_cone();
   test_snapshot();
   return finish();

@@ -216,6 +216,7 @@ int f3d_multibody_set_motor(F3dWorld *world, F3dMultibody multibody,
     }
     l->motor_speed = speed;
     l->motor_force = force;
+    if (!(l->flags & LINK_MOTOR)) l->motor_q = l->q;
     l->flags |= LINK_MOTOR;
   } else {
     l->flags &= ~(uint32_t)LINK_MOTOR;
@@ -594,38 +595,91 @@ static void step_one(F3dWorld *world, F3dMultibodySlot *m, f3d_real dt) {
   }
   if (!cholesky(a, dn)) return;
   solve(a, dn, x);
-  /* Motors, then limits, each a push on its own degree of freedom that the
-   * whole tree answers. */
-  for (uint32_t k = 1; k < n; k++) {
-    const F3dLink *l = &m->links[k];
-    if (!(l->flags & LINK_MOTOR) || l->dofs != 1) continue;
-    const uint32_t d = l->first_dof;
-    const f3d_real inv = response(a, dn, d, u);
-    if (!(inv > F3D_R(0.0))) continue;
-    const f3d_real most = l->motor_force * dt;
-    const f3d_real push =
-        f3d_clamp((l->motor_speed - x[d]) / inv, -most, most);
-    for (uint32_t i = 0; i < dn; i++) x[i] += u[i] * push;
-  }
-  for (uint32_t k = 1; k < n; k++) {
-    const F3dLink *l = &m->links[k];
-    if (!(l->flags & LINK_LIMIT) || l->dofs != 1) continue;
-    const uint32_t d = l->first_dof;
-    const f3d_real next = l->q + x[d] * dt;
-    f3d_real want;
-    if (next < l->lower) {
-      want = (l->lower - l->q) / dt;
-      if (x[d] >= want) continue;
-    } else if (next > l->upper) {
-      want = (l->upper - l->q) / dt;
-      if (x[d] <= want) continue;
-    } else {
-      continue;
+  /* Motors and limits, each a push on its own degree of freedom that the
+   * whole tree answers, and so each moving the others' speeds: solved
+   * together, a pass over them all repeated until they agree (projected
+   * Gauss–Seidel), each push accumulated over the passes and held to what
+   * its motor can give in a step, or to pushing only away from its limit.
+   * One pass alone left a chain's motors undoing each other, and a neck of
+   * four links held still by its motors sagged to its limits. */
+  {
+    enum { PASSES = 16 };
+    /* Each constraint's degree of freedom, its response column and its
+     * inverse inertia, its target and bounds, and what it has pushed. */
+    uint32_t cd[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real cinv[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real cwant[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real clo[2u * F3D_MULTIBODY_MOST_LINKS], chi[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real cdone[2u * F3D_MULTIBODY_MOST_LINKS];
+    uint32_t clink[2u * F3D_MULTIBODY_MOST_LINKS];
+    int csign[2u * F3D_MULTIBODY_MOST_LINKS];
+    f3d_real cu[2u * F3D_MULTIBODY_MOST_LINKS][MOST_DOFS];
+    uint32_t cn = 0;
+    for (uint32_t k = 1; k < n; k++) {
+      const F3dLink *l = &m->links[k];
+      if (l->dofs != 1) continue;
+      const uint32_t d = l->first_dof;
+      if (l->flags & LINK_MOTOR) {
+        const f3d_real inv = response(a, dn, d, cu[cn]);
+        if (inv > F3D_R(0.0)) {
+          cd[cn] = d;
+          cinv[cn] = inv;
+          /* A servo: the motor's speed, and what brings the joint back to
+           * where the motor means it to be — the step's free fall under
+           * the solver would otherwise sag a held arm a little each step. */
+          cwant[cn] = l->motor_speed + (l->motor_q - l->q) / dt;
+          clink[cn] = k;
+          chi[cn] = l->motor_force * dt;
+          clo[cn] = -chi[cn];
+          csign[cn] = 0;
+          cdone[cn] = F3D_R(0.0);
+          cn++;
+        }
+      }
+      if (l->flags & LINK_LIMIT) {
+        /* The speed that would carry it just to each limit this step: at
+         * least the lower's, at most the upper's. */
+        for (int side = -1; side <= 1; side += 2) {
+          const f3d_real inv = response(a, dn, d, cu[cn]);
+          if (!(inv > F3D_R(0.0))) continue;
+          cd[cn] = d;
+          cinv[cn] = inv;
+          clink[cn] = k;
+          cwant[cn] = ((side < 0 ? l->lower : l->upper) - l->q) / dt;
+          csign[cn] = side;
+          cdone[cn] = F3D_R(0.0);
+          cn++;
+        }
+      }
     }
-    const f3d_real inv = response(a, dn, d, u);
-    if (!(inv > F3D_R(0.0))) continue;
-    const f3d_real push = (want - x[d]) / inv;
-    for (uint32_t i = 0; i < dn; i++) x[i] += u[i] * push;
+    for (int pass = 0; pass < PASSES; pass++) {
+      for (uint32_t c = 0; c < cn; c++) {
+        const uint32_t d = cd[c];
+        f3d_real want = (cwant[c] - x[d]) / cinv[c];
+        f3d_real done;
+        if (csign[c] == 0) {
+          done = f3d_clamp(cdone[c] + want, clo[c], chi[c]);
+        } else if (csign[c] < 0) {
+          /* Lower: may only push up, and only while it would pass it. */
+          done = f3d_max(cdone[c] + want, F3D_R(0.0));
+        } else {
+          done = f3d_min(cdone[c] + want, F3D_R(0.0));
+        }
+        want = done - cdone[c];
+        cdone[c] = done;
+        for (uint32_t i = 0; i < dn; i++) x[i] += cu[c][i] * want;
+      }
+    }
+    /* Each motor's mark carried on at its speed — or, where it could not
+     * hold the joint, brought to where the joint goes, so a motor too weak
+     * for its load does not wind up a debt it pays back with a lurch. */
+    for (uint32_t c = 0; c < cn; c++) {
+      if (csign[c] != 0) continue;
+      F3dLink *l = &m->links[clink[c]];
+      const int held = f3d_abs(cdone[c]) < chi[c];
+      l->motor_q = held ? l->motor_q + l->motor_speed * dt : l->q + x[cd[c]] * dt;
+      if (l->flags & LINK_LIMIT) l->motor_q = f3d_clamp(l->motor_q, l->lower, l->upper);
+    }
   }
   /* Cones: a spherical link's spin relative to its parent, in the
    * parent's frame, is its three joint speeds; what of it would carry the
