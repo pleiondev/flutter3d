@@ -85,7 +85,7 @@ final class _Thins extends ParticleAffector {
     final life = particle.life;
     particle.color.w =
         (1.0 - math.exp(-depth * spread * spread)) *
-        math.min(1.0, life / 0.15) *
+        math.min(1.0, life / 0.3) *
         math.min(1.0, (1.0 - life) / 0.3);
   }
 }
@@ -589,8 +589,11 @@ final class FireView {
     emitter: ConeEmitter(speed: Range(0.6 * rise, rise), halfAngleDegrees: 10),
     lifetime: const Range(_puffLife - 1.0, _puffLife + 1.0),
     size: Range(width, 1.4 * width),
-    // Soot-laden smoke scatters little of the light it stops: a sixth.
-    color: Vector4(0.16, 0.15, 0.14, 0.0),
+    // Soot-laden smoke scatters less of the light it stops than it
+    // absorbs, but mixed with the steam and tar of burning wood it is a
+    // mid grey in daylight, not soot-black: seen from above, a black puff
+    // over every fire read as a hole in the ground.
+    color: Vector4(0.34, 0.33, 0.32, 0.0),
     affectors: <ParticleAffector>[
       _smokeAir,
       const ParticleTurbulence(strength: 0.4, scale: 1.5),
