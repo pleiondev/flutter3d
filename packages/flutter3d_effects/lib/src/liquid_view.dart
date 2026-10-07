@@ -172,7 +172,6 @@ final class LiquidView {
   late final DeviceMesh _sheet;
   late final InstancedMeshNode _drops, _mist, _bubbles;
   final List<_Puff> _puffs = <_Puff>[];
-  final Stopwatch _clock = Stopwatch()..start();
   final Matrix4 _m = Matrix4.identity();
 
   /// The surface, and the falling sheet.
@@ -190,8 +189,10 @@ final class LiquidView {
   /// `setShallowGround` was told.
   set ground(List<double> heights) => _ground.setAll(0, heights);
 
-  /// Everything brought up to date with the world as it stands.
-  void update() {
+  /// Everything brought up to date with the world as it stands, [dt]
+  /// seconds after the last time: how far the mist off a falls has drifted
+  /// and thinned, which a step at sixty a second assumes when not told.
+  void update([double dt = 1.0 / 60.0]) {
     final bubbles = _world.readBubbles(of: liquid);
     _surface.overwriteVertices(
       _device,
@@ -203,7 +204,7 @@ final class LiquidView {
       capacity: detail.sheet + detail.drops,
       of: liquid,
     );
-    _drawDrops(spray);
+    _drawDrops(spray, dt);
     _drawSheet(spray);
     _drawBubbles(bubbles);
   }
@@ -409,7 +410,7 @@ final class LiquidView {
     return _vertices;
   }
 
-  void _drawDrops(Float32List spray) {
+  void _drawDrops(Float32List spray, double dt) {
     sprayInFlight = spray.length ~/ nativeSprayFloats;
     var drops = 0;
     for (var k = 0; k < sprayInFlight && drops < detail.drops; k++) {
@@ -459,16 +460,13 @@ final class LiquidView {
       }
     }
     _drops.count = drops;
-    _drawMist();
+    _drawMist(dt);
   }
 
   /// The mist's puffs, each risen, grown, thinned and carried on by how
   /// long it has hung in the air: a churning haze that drifts off the foot
   /// of a falls and fades, rather than one cloud sitting on it.
-  void _drawMist() {
-    final seconds = _clock.elapsedMicroseconds / 1e6;
-    _clock.reset();
-    final dt = seconds.clamp(0.0, 0.1);
+  void _drawMist(double dt) {
     var mist = 0;
     _puffs.removeWhere((p) {
       p.age += dt;

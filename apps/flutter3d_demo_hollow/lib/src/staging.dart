@@ -457,8 +457,8 @@ final class HollowRun {
     rafts.update(dt);
     crane.update();
     volcano.update(dt);
-    riverView.update();
-    lavaView.update();
+    riverView.update(dt);
+    lavaView.update(dt);
     fire.update(dt);
     hearing.update(dt);
     water.update(seconds: _clock, eye: eye);

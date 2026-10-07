@@ -395,7 +395,7 @@ final class ReefRun {
     finds.update();
     boat.update();
     diver.update(heading);
-    seaView.update();
+    seaView.update(dt);
     hearing.update(dt);
     surface.update(seconds: _clock, eye: eye);
     floor.update(seconds: _clock, eye: eye, level: 0.0);

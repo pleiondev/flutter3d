@@ -276,7 +276,7 @@ final class Elements {
         setBlock(x, y, z, f.material);
       }
     }
-    _view.update();
+    _view.update(dt);
     _fire.update(dt);
     _water.update(seconds: _clock, eye: eye);
   }
