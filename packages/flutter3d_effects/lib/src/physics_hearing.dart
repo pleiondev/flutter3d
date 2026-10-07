@@ -85,10 +85,20 @@ final class PhysicsHearing {
       ? 0.0
       : (math.log(value / quiet) / math.log(loud / quiet)).clamp(0.0, 1.0);
 
-  /// Everything heard this frame.
-  void update() {
-    _hearFires();
-    _hearFalls();
+  /// How often the fires and the falls are heard again, s: a fire's roar
+  /// changes over seconds, and reading every drop in flight each frame
+  /// costs more than an ear can tell.
+  static const double every = 0.1;
+  double _since = every;
+
+  /// Everything heard this frame, [dt] seconds after the last.
+  void update(double dt) {
+    _since += dt;
+    if (_since >= every) {
+      _since = 0.0;
+      _hearFires();
+      _hearFalls();
+    }
     _hearSplashes();
   }
 

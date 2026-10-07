@@ -315,7 +315,7 @@ final class HollowRun {
     riverView.update();
     lavaView.update();
     fire.update(dt);
-    hearing.update();
+    hearing.update(dt);
     water.update(seconds: _clock, eye: eye);
     lava.update(seconds: _clock, eye: eye);
   }
