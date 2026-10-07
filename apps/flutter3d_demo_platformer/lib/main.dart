@@ -13,9 +13,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
+import 'package:flutter/services.dart'
+    show KeyDownEvent, LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart' show LiquidLook;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -30,6 +32,8 @@ import 'src/audio_cubit.dart';
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/effects.dart';
+import 'src/element_sounds.dart';
+import 'src/elements.dart';
 import 'src/ghost.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
@@ -277,6 +281,16 @@ class _GameScreenState extends State<GameScreen>
 
   /// Dust, sparks and flame. One pool for the whole game, one draw call.
   final ParticleSystem _particles = ParticleSystem(capacity: 2000);
+
+  /// The level's water, fire and floating wood, in a physics world of
+  /// their own that reads the run and never writes to it. Null until the
+  /// water's material has been read, and for good where it cannot be:
+  /// the level is then drawn as it always was.
+  LevelElements? _elements;
+
+  /// What the fires, falls and splashes of [_elements] sound like, through
+  /// whichever scene the game is heard through.
+  late final ElementSounds _elementSounds = ElementSounds(() => _audio.scene);
 
   /// How the runner is drawn, from what it is doing. See `RunnerLooks`.
   final RunnerLooks _pose = RunnerLooks();
@@ -714,6 +728,12 @@ class _GameScreenState extends State<GameScreen>
         _screen.failed(error);
       }
     });
+    // Not under a device handed in from outside: that is a test drawing the
+    // run alone, and its frames are the run's, not the effects'.
+    final renderer = _renderer;
+    if (renderer != null && widget.openGraphics == null) {
+      unawaited(_openElements(device, renderer));
+    }
 
     // A cubit and nothing more: `RunSession` decides nothing about state
     // management, and this game happens to use BLoC — matching the dungeon,
@@ -746,6 +766,40 @@ class _GameScreenState extends State<GameScreen>
     // `begin` also falls back when the saved level is gone, which this game
     // used to handle by showing an error screen with a button on it.
     unawaited(_beginRun());
+  }
+
+  /// Reads the water's material and builds [_elements], then dresses the
+  /// level already up, if one is.
+  ///
+  /// **A level that arrives without them is still a level**: the material
+  /// is read beside the first load rather than ahead of it, and a bundle
+  /// that will not read leaves every level as it was before there was any
+  /// water to draw.
+  Future<void> _openElements(GraphicsDevice device, Renderer renderer) async {
+    try {
+      final bundle = await rootBundle.load(LiquidLook.asset);
+      final water = await LiquidLook.load(
+        device: device,
+        renderer: renderer,
+        bundle: bundle,
+      );
+      if (!mounted) return;
+      final elements = LevelElements(
+        device: device,
+        renderer: renderer,
+        water: water,
+        molten: LiquidLook.of(bundle),
+        // A phone steps coarser water and draws less of it and the fire.
+        light:
+            defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS,
+      );
+      _elements = elements;
+      final level = _level;
+      if (level != null) elements.stage(level);
+    } catch (error) {
+      printIssue(Issue('effects: the water and fire are not drawn: $error'));
+    }
   }
 
   /// The run this device and the save server agree on, begun: the cloud is
@@ -900,6 +954,8 @@ class _GameScreenState extends State<GameScreen>
     _followCamera?.cut();
     _screen.forgetSave();
     _soundtrack.reset();
+    _elementSounds.silence();
+    _elements?.stage(level);
     // The other of the two racers: the device may have opened before there was
     // anything to play under.
     _audio.startMusic(levelReady: _sim != null);
@@ -1060,6 +1116,18 @@ class _GameScreenState extends State<GameScreen>
         ..applyTo(_camera);
     }
     _fixtures?.sync(_frames.elapsed);
+    final elements = _elements;
+    if (elements != null) {
+      elements
+        ..hideDressed()
+        // Held still with the photograph, and never more than a thirtieth
+        // of a second at once: a stall in the window is not a flood.
+        ..update(
+          _photo.active ? 0.0 : (dt < 1.0 / 30.0 ? dt : 1.0 / 30.0),
+          eye: _followCamera?.eye ?? Vector3.zero(),
+        );
+      _elementSounds.update(elements.hearing);
+    }
     _burnLamps();
     _keepSaved();
     // The run's own state, republished on the step it changes — see
@@ -1346,6 +1414,7 @@ class _GameScreenState extends State<GameScreen>
     _keyboard.dispose();
     _ticker?.dispose();
     unawaited(_devices.dispose());
+    _elements?.dispose();
     super.dispose();
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // applySavedVolumes
 // GameConfig
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'element_sounds.dart';
 import 'sounds.dart';
 
 /// Whether the game can be heard, and whether its music has started.
@@ -66,6 +67,13 @@ final class AudioCubit extends Cubit<AudioReady> {
 
   SoLoudBackend? _backend;
 
+  /// The game's own sounds and the level's fires, falls and splashes,
+  /// loaded together when the speakers open.
+  static final SoundBank _bank = SoundBank(<SoundDef>[
+    ...Sounds.all,
+    ...ElementSounds.bank,
+  ]);
+
   /// Finds real speakers, or stays silent.
   ///
   /// Opened by `flutter3d_audio`, which owns the trap: no device, no plugin, no
@@ -79,7 +87,7 @@ final class AudioCubit extends Cubit<AudioReady> {
     GameConfig config, {
     required bool Function() stillWanted,
   }) async {
-    final speakers = await openSpeakers(bank: Sounds.all, mixer: scene.mixer);
+    final speakers = await openSpeakers(bank: _bank, mixer: scene.mixer);
     if (speakers == null) return;
     if (!stillWanted()) {
       // Nobody wants what just opened, and [close] will never see it — the

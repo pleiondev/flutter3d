@@ -1247,6 +1247,13 @@ const Map<String, Map<String, String>> portableStepExempt =
       'flutter3d_game_platformer': <String, String>{
         'lib/src/follow_camera.dart': 'a camera',
       },
+      'flutter3d_demo_platformer': <String, String>{
+        'lib/src/elements.dart':
+            'water, fire and floating wood drawn in a physics world of their '
+            'own, which reads the run and never writes to it; the air that '
+            'drifts the wood and the lean it is held to steps nothing a '
+            'replay or a ghost depends on',
+      },
       'flutter3d_game_shooter': <String, String>{
         'lib/src/weapon_view.dart':
             'the weapon the player sees, not the one '

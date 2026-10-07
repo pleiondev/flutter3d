@@ -50,6 +50,11 @@ dependencies:
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
 
+  # The core's water, fire and floating wood drawn: the pits a level's
+  # dressing fills, the braziers, and what they sound like.
+  flutter3d_effects:
+    path: ../../packages/flutter3d_effects
+
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's
