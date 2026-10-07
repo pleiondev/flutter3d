@@ -1,6 +1,7 @@
 /// The sea floor's caustics evaluated as the software backend evaluates
-/// them, from the material's own source, against what refraction must do:
-/// light that only bends neither appears nor vanishes, so over the floor it
+/// them, from the material's own source — its light block, which the
+/// engine multiplies by the sun's radiance, n·l and shadow — against what
+/// refraction must do: light that only bends neither appears nor vanishes, so over the floor it
 /// averages to what fell on the surface, and the deeper the floor the more
 /// it gathers into lines.
 library;
@@ -19,7 +20,7 @@ void main() {
 
   /// The floor's brightness at (x, z), [depth] under the surface, under a
   /// sun overhead of light one, through water that takes nothing out.
-  double lit(double x, double z, double depth) => evaluateMaterial(
+  double lit(double x, double z, double depth) => evaluateMaterialLight(
     program,
     MaterialSurfaceValues(
       uniforms: <String, List<double>>{
@@ -44,6 +45,12 @@ void main() {
         'ambient': const <double>[0, 0, 0],
         'uv': const <double>[0, 0],
         'world': <double>[x, -depth, z],
+        // The sun straight overhead, as the light block is asked of it.
+        'lightDir': const <double>[0, 1, 0],
+        'halfDir': const <double>[0, 1, 0],
+        'nDotL': const <double>[1],
+        'nDotH': const <double>[1],
+        'vDotH': const <double>[1],
       },
       sample: (slot, u, v) => const <double>[1, 1, 1, 1],
     ),

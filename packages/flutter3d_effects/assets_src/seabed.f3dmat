@@ -28,7 +28,11 @@ material Seabed {
   uniform vec3 absorb = vec3(0.45, 0.065, 0.025);
   uniform vec3 scatter = vec3(0.05, 0.22, 0.30);
 
-  fragment {
+  // The sun, through the engine's own light loop: what is returned here
+  // the engine multiplies by the light's radiance, n·l and shadow, so a
+  // diver or a hull between the sun and the floor shades the caustics they
+  // stand over.
+  light {
     let here = world.xz;
     let depth = max(level - world.y, 0.0);
     let bend = depth * 0.248;
@@ -145,18 +149,27 @@ material Seabed {
     // width, half a degree, spreads it to a few times the mean.
     let focus = min(1.0 / max(abs(det), 0.12), 6.0);
 
-    // Down through the water to here, and from here back to the eye: the
-    // eye's path is all of it when the eye is under the surface, and only
-    // the part below the surface when it is above.
+    // Down through the water to here, reddened on the way.
     let throughDown = pow(vec3(0.3679), absorb * (depth / max(toSun.y, 0.2)));
+    return albedo * focus * throughDown;
+  }
+
+  fragment {
+    let depth = max(level - world.y, 0.0);
+    let throughDown = pow(vec3(0.3679), absorb * (depth / max(toSun.y, 0.2)));
+    // From here back to the eye: all of the way when the eye is under the
+    // surface, and only the part below the surface when it is above.
     let toEye = length(eye - world);
     let eyeDepth = max(level - eye.y, 0.0);
     let path = mix(depth * toEye / max(depth + max(eye.y - level, 0.0), 0.001),
                    toEye, step(0.0, eyeDepth - 0.001));
     let throughUp = pow(vec3(0.3679), absorb * path);
 
-    let facing = clamp(dot(normal, vec3(toSun.x * 0.75, max(toSun.y, 0.2), toSun.z * 0.75)), 0.0, 1.0);
-    let floorLit = albedo * (sunColor * (facing * focus) * throughDown + ambient * throughDown);
+    // `lit` is the sun through the light block, shadowed, with the ambient
+    // and the emissive the engine adds; the ambient comes down through the
+    // water too, so it is taken out and put back reddened away.
+    let sunLit = max(lit - emissive - albedo * ambient * occlusion, vec3(0.0));
+    let floorLit = sunLit + albedo * ambient * occlusion * throughDown;
     let back = scatter * (sunColor * throughDown + ambient);
     return vec4(floorLit * throughUp + back * (vec3(1.0) - throughUp), 1.0);
   }
