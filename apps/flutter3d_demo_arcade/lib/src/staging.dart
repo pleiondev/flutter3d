@@ -104,6 +104,15 @@ extension ArcadeGameStaging on ArcadeGame {
     spawned = true;
   }
 
+  /// Starts the meteors over the yard built by [spawnWorld]: what the
+  /// application turns on, and a test of the yard's own rules leaves off.
+  void rainMeteors() => meteors = MeteorShower(
+    device: _device,
+    scene: _scene,
+    halfWidth: arenaHalfWidth,
+    halfDepth: arenaHalfDepth,
+  );
+
   MeshNode _groundMesh(GraphicsDevice device) => MeshNode(
     DeviceMesh.upload(
       device,

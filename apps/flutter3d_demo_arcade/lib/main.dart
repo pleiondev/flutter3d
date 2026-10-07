@@ -162,13 +162,19 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
           camera: _camera,
           buildScene: (GraphicsDevice device) {
             final scene = Scene();
-            _game.spawnWorld(device, scene);
+            _game
+              ..spawnWorld(device, scene)
+              ..rainMeteors();
             // The craft models arrive a moment later and replace the
             // primitives the yard was built with; see [ArcadeGameCrafts].
             unawaited(_game.dressWithCrafts());
             return scene;
           },
           onTick: _onTick,
+          // The meteors' fires draw through the 3D layer's renderer, which
+          // there is only once the scene is built.
+          onRendererReady: (Renderer renderer) =>
+              _game.meteors?.drawFires(renderer),
         ),
         // Below the status bar and any notch: a phone draws the app edge to
         // edge, and the HUD sat under the clock.
@@ -207,10 +213,12 @@ class _Hud extends StatelessWidget {
         : game.levelCleared
         ? 'LEVEL $levelNumber CLEARED — next one coming'
         : game.level.hunters > 0
-        ? 'Ram them head on. Magenta bots hunt you'
+        ? 'Ram them head on. Magenta bots hunt you. Keep out of the '
+              'meteors\' shadows and their fires'
         : touch
         ? 'Ram the bots head on. Stick to fly'
-        : 'Ram the bots head on. WASD / arrows to fly';
+        : 'Ram the bots head on. WASD / arrows to fly. Keep out of the '
+              'meteors\' shadows and their fires';
 
     return DefaultTextStyle(
       style: style,

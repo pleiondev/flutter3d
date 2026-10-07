@@ -19,6 +19,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'bot_brain.dart';
+import 'meteors.dart';
 
 part 'crafts.dart';
 part 'levels.dart';
@@ -98,6 +99,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   @override
   void onRemove() {
     if (dynamics case final NativeDynamics native) native.dispose();
+    meteors?.dispose();
     super.onRemove();
   }
 
@@ -172,6 +174,11 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// reported, exactly as [CollisionBridge]'s own doc says a bridge with
   /// nothing to hand over should behave.
   final ColliderRegistry _colliderComponents = ColliderRegistry();
+
+  /// Meteors coming down on the yard, from when [ArcadeGameStaging.rainMeteors]
+  /// starts them: stones that burst where their shadows grow and set the
+  /// yard alight. Null before then, and in a test that never calls it.
+  MeteorShower? meteors;
 
   /// The bots still in play. Shrinks as the ship rams them.
   final List<ActorComponent> bots = <ActorComponent>[];
@@ -376,6 +383,15 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
       shipHeading.setValues(axis.x * shipSpeed, 0.0, -axis.y * shipSpeed);
       _shipBody.velocity.setFrom(shipHeading);
       elapsed += dt;
+      final shower = meteors;
+      if (shower != null) {
+        shower.step(dt);
+        // A stone landing on the ship, or a fire under it, is a hit.
+        if (shower.hurts(_shipBody.position) && !ship.isFlashing) {
+          hits++;
+          ship.flash();
+        }
+      }
     } else {
       shipHeading.setZero();
       _shipBody.velocity.setZero();
