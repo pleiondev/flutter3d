@@ -41,7 +41,7 @@ final class DinoCrane {
   }) {
     final turn = Quaternion.axisAngle(Vector3(0, 1, 0), facing);
     Vector3 local(double x, double y, double z) =>
-        at + turn.rotated(Vector3(x, y, z));
+        at + turn.asRotationMatrix().transformed(Vector3(x, y, z));
     // The legs and body: fixed, the multibody's root.
     final root = _world.addBody(
       position: local(0, 1.2, 0),
@@ -65,9 +65,11 @@ final class DinoCrane {
     );
     // The neck: links laid along the torso's forward, rising at forty
     // degrees, each bending about the torso's side at its root.
-    final side = turn.rotated(Vector3(0, 0, 1));
+    final side = turn.asRotationMatrix().transformed(Vector3(0, 0, 1));
     final rise = 40.0 * math.pi / 180.0;
-    final along = turn.rotated(Vector3(math.cos(rise), math.sin(rise), 0));
+    final along = turn.asRotationMatrix().transformed(
+      Vector3(math.cos(rise), math.sin(rise), 0),
+    );
     var root2 = local(1.2, 2.6, 0);
     var parent = _torso;
     final tilt = Quaternion.axisAngle(side, rise) * turn;

@@ -130,7 +130,9 @@ final class ReefLife {
       final along = rand(-7.0, 7.0), side = random.nextBool() ? 2.5 : -2.5;
       final at =
           Vector3(wreckX, wreckFloor, wreckZ) +
-          turn.rotated(Vector3(along, rand(1.2, 2.0), side));
+          turn.asRotationMatrix().transformed(
+            Vector3(along, rand(1.2, 2.0), side),
+          );
       if (k.isEven) {
         _fan(parts, at, rand(0.4, 0.8), pick(_fans), random);
       } else {

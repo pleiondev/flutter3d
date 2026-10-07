@@ -269,11 +269,15 @@ final class StoneCar {
   /// Where the car is and which way it faces.
   Vector3 get position => _world.positionOf(body);
   Quaternion get orientation => _world.orientationOf(body);
-  Vector3 get forward => orientation.rotated(Vector3(1.0, 0.0, 0.0));
+  Vector3 get forward =>
+      orientation.asRotationMatrix().transformed(Vector3(1.0, 0.0, 0.0));
 
   /// The middle of the deck's top, where a load stands.
   Vector3 get deck =>
-      position + orientation.rotated(_below + Vector3(0.3, _halfHeight, 0.0));
+      position +
+      orientation.asRotationMatrix().transformed(
+        _below + Vector3(0.3, _halfHeight, 0.0),
+      );
 
   /// Where the deck's middle is from the body's origin.
   late final Vector3 _below;

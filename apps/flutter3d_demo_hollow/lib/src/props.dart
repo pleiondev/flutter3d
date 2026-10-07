@@ -600,7 +600,7 @@ final class Village {
       );
       return NativeCompoundPart.hull(
         wedge,
-        at: turn.rotated(centre),
+        at: turn.asRotationMatrix().transformed(centre),
         turn: turn,
       );
     }

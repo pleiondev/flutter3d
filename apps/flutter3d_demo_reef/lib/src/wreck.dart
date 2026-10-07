@@ -64,7 +64,7 @@ final class Wreck {
     final body = world.addBody(
       position:
           Vector3(wreckX, wreckFloor, wreckZ) +
-          turn.rotated(world.compoundOffset(shape)),
+          turn.asRotationMatrix().transformed(world.compoundOffset(shape)),
       type: NativeBodyType.fixed,
       mass: 0.0,
     );
@@ -121,7 +121,9 @@ final class Wreck {
     // The mast, fallen across the sand off her broken side.
     final mastAt = Vector3(1.5, 0.25, -wreckHalfBeam - 2.0);
     final mast = world.addBody(
-      position: Vector3(wreckX, wreckFloor, wreckZ) + turn.rotated(mastAt),
+      position:
+          Vector3(wreckX, wreckFloor, wreckZ) +
+          turn.asRotationMatrix().transformed(mastAt),
       type: NativeBodyType.fixed,
       mass: 0.0,
     );
