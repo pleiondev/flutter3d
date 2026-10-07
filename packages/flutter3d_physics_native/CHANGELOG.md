@@ -23,6 +23,17 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A village on fire costs a few milliseconds a step, not a hundred.**
+  What a source sees of a body is now asked as a yes or no that the first
+  thing in the way answers, past both bodies, rather than as every hit
+  along the ray sorted; a ray that passes wide of a hull's ball misses it
+  without the sixty-four distance queries that would show it; the tree is
+  brought up to date once for all the rays of a step; a body that looks
+  small is decided by the one ray to its centre; and a source does not
+  trace to a body it would warm by less than a third of a kelvin an hour.
+  Four burning huts in sectors, five red-hot stones and fifty bodies over
+  a ground of 32 000 triangles step in 4 ms where they took 35.
+
 - **A red-hot stone lights the straw it lies in.** Where two bodies touch,
   both surfaces are at once at the temperature their effusivities √(kρc)
   weigh them to, however little the contact passes to either whole; a fuel

@@ -875,6 +875,13 @@ uint32_t f3d_collide_mesh(const F3dPlaced *mesh, const F3dPlaced *body,
 /* Builds each mesh's tree that is missing: after a restore, or for a mesh
  * just made. */
 void f3d_build_mesh_trees(F3dWorld *world);
+
+/* Whether any body but [a] and [b] lies across the segment from [from] to
+ * [to]: an answer, not a list, so the first it meets ends the search. For
+ * many at a time: the caller brings the tree up to date first, with
+ * f3d_update_proxies and f3d_build_mesh_trees, once for all of them. */
+int f3d_world_segment_blocked(F3dWorld *world, F3dVec3 from, F3dVec3 to,
+                              F3dBody a, F3dBody b);
 void f3d_clear_mesh_trees(F3dWorld *world);
 
 /* The nearest pair of points on p0→p1 and q0→q1, as fractions along each:

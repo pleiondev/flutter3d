@@ -797,6 +797,13 @@ static void conduct_within(F3dWorld *world, Heats *hs, f3d_real dt) {
  * it warms by a fifth of a kelvin an hour. It decides how far a source
  * looks, from how strongly it radiates, and nothing else is cut. */
 #define F3D_RADIANT_LEAST F3D_R(0.1)
+/* Nor is one it would warm by less than this, K/s — a third of a kelvin
+ * an hour: what a big body takes from a distant source is not worth the
+ * rays that would decide how much of it the source sees. */
+#define F3D_RADIANT_SLOWEST F3D_R(1e-4)
+/* A body that looks smaller than this, its radius over its distance, is
+ * seen whole or not at all: one ray, to its centre, decides. */
+#define F3D_RADIANT_SMALL F3D_R(0.15)
 /* How many rays decide how much of a body a source sees past what stands
  * between them: its centre and four points around it. */
 #define F3D_RADIANT_RAYS 5u
@@ -925,7 +932,8 @@ static int near_body(void *context, int32_t leaf) {
 /* How much of [b], a ball of radius [rb], is seen from [a]'s centre past
  * every other body: the share of F3D_RADIANT_RAYS rays that reach it, to
  * its centre and to four points around it at √½ of its radius — the circle
- * that halves the disc it shows. */
+ * that halves the disc it shows; or, when it looks small, whether the one
+ * to its centre does. */
 static f3d_real seen(F3dWorld *world, F3dVec3 from, F3dBody ha, F3dVec3 to,
                      F3dBody hb, f3d_real rb) {
   const F3dVec3 line = f3d_sub(to, from);
@@ -943,27 +951,12 @@ static f3d_real seen(F3dWorld *world, F3dVec3 from, F3dBody ha, F3dVec3 to,
   const F3dVec3 aims[F3D_RADIANT_RAYS] = {
       to, f3d_madd(to, e1, off), f3d_madd(to, e1, -off), f3d_madd(to, e2, off),
       f3d_madd(to, e2, -off)};
+  const uint32_t rays = rb < F3D_RADIANT_SMALL * d ? 1u : F3D_RADIANT_RAYS;
   uint32_t open = 0;
-  for (uint32_t k = 0; k < F3D_RADIANT_RAYS; k++) {
-    const F3dVec3 r = f3d_sub(aims[k], from);
-    const f3d_real len = f3d_sqrt(f3d_dot(r, r));
-    if (!(len > F3D_R(0.0))) {
-      open++;
-      continue;
-    }
-    const F3dVec3 dir = f3d_scale(r, F3D_R(1.0) / len);
-    F3dBody hit[4];
-    f3d_real hits[4 * F3D_HIT_FLOATS];
-    const uint32_t count = f3d_world_ray_cast_all(
-        world, from.x, from.y, from.z, dir.x, dir.y, dir.z, len, UINT32_MAX,
-        ha, hit, hits, 4);
-    int blocked = 0;
-    for (uint32_t h = 0; h < count; h++) {
-      if (hit[h] != hb && hit[h] != ha) blocked = 1;
-    }
-    if (!blocked) open++;
+  for (uint32_t k = 0; k < rays; k++) {
+    if (!f3d_world_segment_blocked(world, from, aims[k], ha, hb)) open++;
   }
-  return (f3d_real)open / (f3d_real)F3D_RADIANT_RAYS;
+  return (f3d_real)open / (f3d_real)rays;
 }
 
 /* Heat across the air between bodies apart, from every body hotter or
@@ -996,6 +989,9 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
     if (receives(world, &hs->h[e])) largest = f3d_max(largest, seen_radius(&hs->h[e]));
   }
   if (!(largest > F3D_R(0.0))) return;
+  /* Where every body stands now, for the rays that decide what sees what. */
+  f3d_update_proxies(world, F3D_R(0.0));
+  f3d_build_mesh_trees(world);
   Near n;
   n.world = world;
   n.capacity = 0;
@@ -1086,7 +1082,9 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
         /* From afar, on what is outside the flame. */
         const f3d_real share = sb->material.emissivity * caught(rb, d) *
                                (F3D_R(1.0) - inside);
-        if (f3d_abs(sent) * share < F3D_RADIANT_LEAST) continue;
+        const f3d_real worth =
+            f3d_max(F3D_RADIANT_LEAST, F3D_RADIANT_SLOWEST * held_by(world, b));
+        if (f3d_abs(sent) * share < worth) continue;
         b->l.heat += sent * share * seen(world, a->at, ha, b->at, hb, rb) * dt;
       }
     }

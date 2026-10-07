@@ -255,6 +255,27 @@ static int ray_placed(const F3dPlaced *placed, F3dVec3 o, F3dVec3 u,
                       f3d_scale(p.axes.c[2], r.normal.z));
     return 1;
   }
+  /* A ray that passes wide of the ball round the shape misses it: settled
+   * here before the advancement below asks the shape for its distance up
+   * to sixty-four times. */
+  {
+    F3dVec3 centre = p.at;
+    f3d_real r;
+    if (p.kind == F3D_SHAPE_HULL && p.hull != NULL) {
+      const F3dVec3 mid = f3d_scale(f3d_add(p.hull->lo, p.hull->hi), F3D_R(0.5));
+      const F3dVec3 half = f3d_scale(f3d_sub(p.hull->hi, p.hull->lo), F3D_R(0.5));
+      centre = f3d_add(p.at, f3d_add(f3d_add(f3d_scale(p.axes.c[0], mid.x),
+                                             f3d_scale(p.axes.c[1], mid.y)),
+                                     f3d_scale(p.axes.c[2], mid.z)));
+      r = f3d_sqrt(f3d_dot(half, half)) + p.rounding;
+    } else {
+      r = reach_of(&p);
+    }
+    const F3dVec3 m = f3d_sub(centre, o);
+    const f3d_real along = f3d_clamp(f3d_dot(m, u), F3D_R(0.0), limit);
+    const F3dVec3 off = f3d_madd(m, u, -along);
+    if (f3d_dot(off, off) > r * r) return 0;
+  }
   /* Conservative advancement of a point along the ray. */
   F3dPlaced probe;
   f3d_zero(&probe, sizeof probe);
@@ -411,6 +432,47 @@ uint32_t f3d_world_ray_cast_all(F3dWorld *world, f3d_real ox, f3d_real oy,
   r.capacity = capacity;
   f3d_tree_ray(&world->tree, r.o, r.u, &limit, ray_leaf, &r);
   return r.count;
+}
+
+/* Whether anything stands on the segment: the first body it meets ends
+ * the walk. */
+typedef struct Blocking {
+  const F3dWorld *world;
+  F3dVec3 o, u;
+  f3d_real length;
+  F3dBody a, b;
+  int blocked;
+} Blocking;
+
+static int blocking_leaf(void *context, int32_t leaf) {
+  Blocking *k = (Blocking *)context;
+  const F3dSlot *s = &k->world->slots[k->world->tree.nodes[leaf].slot];
+  if (!sees(k->world, s, UINT32_MAX, k->a)) return 1;
+  if (f3d_handle_of(k->world, s) == k->b) return 1;
+  f3d_real d;
+  F3dVec3 n;
+  const F3dPlaced p = f3d_placed_of(k->world, s);
+  if (!ray_placed(&p, k->o, k->u, k->length, &d, &n)) return 1;
+  k->blocked = 1;
+  return 0;
+}
+
+int f3d_world_segment_blocked(F3dWorld *world, F3dVec3 from, F3dVec3 to,
+                              F3dBody a, F3dBody b) {
+  const F3dVec3 line = f3d_sub(to, from);
+  const f3d_real length = f3d_sqrt(f3d_dot(line, line));
+  if (!(length > F3D_R(0.0))) return 0;
+  Blocking k;
+  k.world = world;
+  k.o = from;
+  k.u = f3d_scale(line, F3D_R(1.0) / length);
+  k.length = length;
+  k.a = a;
+  k.b = b;
+  k.blocked = 0;
+  f3d_real limit = length;
+  f3d_tree_ray(&world->tree, k.o, k.u, &limit, blocking_leaf, &k);
+  return k.blocked;
 }
 
 /* --------------------------------------------------------------- overlaps */
