@@ -103,6 +103,7 @@ final class HollowRun {
     stones = QuarryStones(world, device, scene);
     idol = Idol(world, device, scene);
     rafts = Rafts(world, device, scene, hearing, _river);
+    trees = Trees(world, device, scene, fire);
     hearing
       ..listen(_river)
       ..listen(_lava, density: NativeLiquidProperties.moltenBasalt.density)
@@ -145,6 +146,7 @@ final class HollowRun {
   late final QuarryStones stones;
   late final Idol idol;
   late final Rafts rafts;
+  late final Trees trees;
 
   /// What the fires, the falls and the splashes sound like this frame.
   late final PhysicsHearing hearing = PhysicsHearing(world);
@@ -216,7 +218,10 @@ final class HollowRun {
           -(at(i, j + 1) - at(i, j - 1)) / (2 * hollowCell),
         )..normalize();
         final o = (i + j * n) * _stride;
-        final colour = _colourAt(x, z, h, normal.y);
+        // Tufts and bare patches: each vertex a few per cent lighter or
+        // darker than its neighbours, the same every run.
+        final tuft = (((i * 73856093) ^ (j * 19349663)) & 0xff) / 255.0;
+        final colour = _colourAt(x, z, h, normal.y) * (0.9 + 0.2 * tuft);
         vertices
           ..[o] = x
           ..[o + 1] = h

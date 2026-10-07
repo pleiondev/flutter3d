@@ -110,8 +110,10 @@ class _HollowScreenState extends State<HollowScreen>
         look.sun(along: _sunAlong, light: Vector3(2.0, 1.9, 1.75));
       }
       final scene = Scene()
-        ..ambientIntensity = 0.45
-        ..ambientColor = Vector3(0.70, 0.80, 1.0)
+        // The sky's light in the shade, and what the warm ground throws
+        // back into it: not the blue of the sky alone.
+        ..ambientIntensity = 0.6
+        ..ambientColor = Vector3(0.86, 0.88, 0.94)
         ..add(
           LightNode(name: 'sun', intensity: 2.0)..setLocalForward(_sunAlong),
         )

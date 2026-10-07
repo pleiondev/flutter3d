@@ -177,6 +177,122 @@ final class Rafts {
   }
 }
 
+/// Pines over the grass: a trunk and a crown of resinous needles, fixed
+/// where they grow, wood that a stray bomb can light as it lights a roof.
+final class Trees {
+  Trees(this._world, GraphicsDevice device, Scene scene, FireView fire) {
+    final trunk = DeviceMesh.upload(
+      device,
+      const CylinderShape(
+        radiusTop: _trunkRadius * 0.7,
+        radiusBottom: _trunkRadius,
+        height: _trunkHeight,
+        segments: 10,
+      ).build(),
+    );
+    final crown = DeviceMesh.upload(
+      device,
+      const ConeShape(
+        radius: _crownRadius,
+        height: _crownHeight,
+        segments: 14,
+      ).build(),
+    );
+    final shape = _world.createCompound(<NativeCompoundPart>[
+      NativeCompoundPart(
+        const NativeShape.cylinder(_trunkRadius, _trunkHeight / 2),
+        at: Vector3(0, _trunkHeight / 2, 0),
+      ),
+      // A cone's place is its centre of mass, a quarter up from its base.
+      NativeCompoundPart(
+        const NativeShape.cone(_crownRadius, _crownHeight),
+        at: Vector3(0, _crownBase + _crownHeight / 4, 0),
+      ),
+    ]);
+    final lift = _world.compoundOffset(shape);
+    final random = math.Random(5);
+    var tries = 0;
+    while (trees.length < _count && tries++ < 2000) {
+      final x = 6.0 + random.nextDouble() * (hollowSize - 12.0);
+      final z = 6.0 + random.nextDouble() * (hollowSize - 12.0);
+      if (!_room(x, z)) continue;
+      final g = groundAt(x, z);
+      final body = _world.addBody(
+        position: Vector3(x, g, z) + lift,
+        type: NativeBodyType.fixed,
+        mass: 260.0,
+      );
+      _world
+        ..setCompound(body, shape)
+        ..setMaterial(body, NativeMaterial.wood());
+      final turn = Quaternion.axisAngle(
+        Vector3(0, 1, 0),
+        random.nextDouble() * 2 * math.pi,
+      );
+      final crownLook = MeshNode(
+        crown,
+        Material(
+          name: 'needles',
+          baseColor: Vector4(0.13, 0.24, 0.12, 1.0),
+          roughness: 0.9,
+        ),
+        name: 'needles',
+      )..setPosition(0, _crownBase + _crownHeight / 2, 0);
+      final node = SceneNode(name: 'pine')
+        ..setPosition(x, g, z)
+        ..setRotation(turn)
+        ..add(
+          MeshNode(
+            trunk,
+            Material(
+              name: 'bark',
+              baseColor: Vector4(0.32, 0.22, 0.14, 1.0),
+              roughness: 0.95,
+            ),
+            name: 'bark',
+          )..setPosition(0, _trunkHeight / 2, 0),
+        )
+        ..add(crownLook);
+      scene.add(node);
+      fire.watch(body, crownLook);
+      trees.add(Prop(body, node));
+    }
+  }
+
+  static const int _count = 28;
+  static const double _trunkRadius = 0.16, _trunkHeight = 2.2;
+  static const double _crownRadius = 1.2, _crownHeight = 3.4, _crownBase = 1.3;
+
+  final NativeWorld _world;
+  final List<Prop> trees = <Prop>[];
+
+  /// Whether a pine may grow at (x, z): on the valley's open grass, clear
+  /// of the river and its cliff, the lagoon and its ford, the quarry, the
+  /// village, the builder's ground and the volcano, and of the other pines.
+  bool _room(double x, double z) {
+    double far(double ax, double az) => Vector2(x - ax, z - az).length;
+    if (z < cliffTop && (x - riverX(z)).abs() < 4.0) return false;
+    if (z > cliffTop - 2.0 && z < cliffFoot + 2.0) return false;
+    if (far(lagoonX, lagoonZ) < lagoonRadius + 3.0) return false;
+    if (x > lagoonX && (z - (lagoonZ + 0.1 * (x - lagoonX))).abs() < 5.0) {
+      return false;
+    }
+    if ((x - quarryX).abs() < quarryHalfX + 3.0 &&
+        (z - quarryZ).abs() < quarryHalfZ + 4.0) {
+      return false;
+    }
+    if (far(villageX, villageZ) < 12.0 || far(siteX, siteZ) < 8.0) {
+      return false;
+    }
+    if (far(volcanoX, volcanoZ) < volcanoRadius + 1.0) return false;
+    for (final t in trees) {
+      final p = _world.positionOf(t.body);
+      if (far(p.x, p.z) < 4.0) return false;
+    }
+    return true;
+  }
+}
+
 /// The elder's idol: carved granite lying on the lagoon's floor where the
 /// bank shelves, to be lifted onto the car and brought to the village.
 final class Idol {
@@ -280,6 +396,9 @@ final class Village {
       ).build(),
     );
     final thatch = _thatch();
+    // The core puts a compound's centre of mass on its body's origin: the
+    // body stands that far above the walls' top for the cone to sit on it.
+    final lift = _world.compoundOffset(thatch);
     for (var k = 0; k < 4; k++) {
       final angle = k * math.pi / 2 + math.pi / 4;
       final x = villageX + 5.0 * math.cos(angle);
@@ -299,7 +418,7 @@ final class Village {
       // red-hot stone in one heats the straw round it, not the whole roof
       // at once, and the fire goes on from sector to sector.
       final roof = _world.addBody(
-        position: Vector3(x, g + 2 * wall, z),
+        position: Vector3(x, g + 2 * wall, z) + lift,
         type: NativeBodyType.fixed,
         mass: 80.0,
       );

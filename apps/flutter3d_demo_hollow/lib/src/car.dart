@@ -90,7 +90,13 @@ final class StoneCar {
     );
     Material wood() =>
         Material(name: 'wood', baseColor: _wood, roughness: 0.85);
-    _bed = SceneNode(name: 'car')
+    // Drawn about the deck's middle, which sits below the body's origin by
+    // as far as the rails lift the centre of mass.
+    _below = -_world.compoundOffset(shape);
+    final frame = SceneNode(name: 'frame')
+      ..setPosition(_below.x, _below.y, _below.z);
+    _bed = SceneNode(name: 'car')..add(frame);
+    frame
       ..add(MeshNode(plank, wood(), name: 'deck'))
       ..add(
         MeshNode(railX, wood(), name: 'rail')
@@ -126,7 +132,7 @@ final class StoneCar {
       ),
       name: 'barrel',
     )..setPosition(-_halfLength + 0.4, _halfHeight + 0.3, 0);
-    _bed.add(_barrel);
+    frame.add(_barrel);
     scene.add(_bed);
     // A roller stands along y; turned to lie along z, its axle.
     final roller = DeviceMesh.upload(
@@ -168,7 +174,10 @@ final class StoneCar {
 
   /// The middle of the deck's top, where a load stands.
   Vector3 get deck =>
-      position + orientation.rotated(Vector3(0.3, _halfHeight, 0.0));
+      position + orientation.rotated(_below + Vector3(0.3, _halfHeight, 0.0));
+
+  /// Where the deck's middle is from the body's origin.
+  late final Vector3 _below;
 
   /// What the driver asks: [throttle] and [turn] from −1 to 1, and whether
   /// they [hold] the brake.
