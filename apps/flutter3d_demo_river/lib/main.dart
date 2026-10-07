@@ -26,10 +26,18 @@ import 'dart:async';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 
 import 'src/river_game.dart';
 
-void main() => runApp(const RiverApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The core the hits' fires burn in: its library on a desktop or a phone,
+  // its module in a browser.
+  await preparePhysics();
+  runApp(const RiverApp());
+}
 
 /// Whether [platform] gets Flame's stick and fire button: a phone or a tablet,
 /// which has no keys to fly with. A desktop and a browser keep the keys.

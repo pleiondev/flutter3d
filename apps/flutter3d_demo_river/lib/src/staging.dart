@@ -71,6 +71,7 @@ extension RiverGameStaging on RiverGame {
   /// around it built fresh: what was shot there is back, as it was.
   void _restart() {
     _stretches.clear();
+    wrecks?.clear();
     blasts.system.clear();
     soot.system.clear();
     for (final leftover in children.where(

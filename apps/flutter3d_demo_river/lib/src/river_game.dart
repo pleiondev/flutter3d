@@ -57,6 +57,7 @@ import 'levels.dart';
 import 'models.dart';
 import 'rules.dart';
 import 'sprites.dart';
+import 'wrecks.dart';
 
 part 'craft.dart';
 part 'hud.dart';
@@ -287,8 +288,19 @@ final class RiverGame extends FlameGame
   /// do, and what the blasts are drawn with.
   @override
   void onRenderer3d(Renderer drawing) {
+    wrecks = BurningWrecks(device: _device, scene: _scene, renderer: drawing);
     blasts.drawWith(drawing, _kit.shard);
     soot.drawWith(drawing, _kit.puff, blend: MeshParticleContributor.darkening);
+  }
+
+  /// What the run's hits leave burning on the river, from when there is a
+  /// renderer to draw the flames with.
+  BurningWrecks? wrecks;
+
+  @override
+  void onRemove() {
+    wrecks?.dispose();
+    super.onRemove();
   }
 
   /// Fire, sparks and spray: everything on screen that glows or shines,
@@ -395,11 +407,14 @@ final class RiverGame extends FlameGame
       case TargetKind.tanker:
         fireball(at..y = 0.9, size: 0.7);
         splash(at..y = 0.1);
+        // Its cargo spills and burns on the water.
+        wrecks?.oil(at);
       case TargetKind.helicopter:
         fireball(at, size: 0.6);
       case TargetKind.jet:
         fireball(at, size: 1.1);
       case TargetKind.depot:
+        wrecks?.timbers(at.clone()..y = 0.5);
         fireball(at..y = 1.2, size: 1.6);
         chase.rig.shake(0.25);
         _detonate(target);
@@ -765,6 +780,7 @@ final class RiverGame extends FlameGame
   }
 
   void _step(double dt) {
+    wrecks?.step(dt, distance);
     switch (phase) {
       case Phase.ready:
         if (input.pressed(fire) || input.moveAxis.length2 > 0.04) {
