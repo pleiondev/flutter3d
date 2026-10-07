@@ -326,11 +326,22 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
   t->ground_velocity = t->ground != NULL ? velocity_at(t->ground, point)
                                          : f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
   const F3dVec3 rel = f3d_sub(velocity_at(s, point), t->ground_velocity);
-  /* The spring and the damper, along the suspension: never pulling. */
+  /* The spring and the damper, along the suspension: never pulling. The
+   * damper is pushed in one go at the step's end, so it may take out of
+   * the closing no more than all of it: m / dt, of the mass the wheel
+   * carries — the chassis's as seen at its point, and no more than its
+   * share when every wheel pushes at once. A damper set for
+   * a loaded car would otherwise throw a light one — or one that has burnt
+   * down to a fifth of itself — further each step. */
   const f3d_real squeeze = w->rest - w->length;
   const f3d_real closing = -f3d_dot(rel, up);
-  t->spring =
-      f3d_max(w->stiffness * squeeze + w->damping * closing, F3D_R(0.0));
+  const f3d_real carried =
+      f3d_min(mass_along(s, f3d_sym_turned(s->orientation, s->inverse_inertia),
+                         t->lever, up),
+              F3D_R(1.0) / (s->inverse_mass * (f3d_real)v->wheel_count));
+  const f3d_real held = carried / dt;
+  t->spring = f3d_max(w->stiffness * squeeze + f3d_min(w->damping, held) * closing,
+                      F3D_R(0.0));
   w->force = t->spring;
   push_at(s, f3d_scale(up, t->spring), point);
   if (t->ground != NULL && t->ground->type == F3D_BODY_DYNAMIC) {
@@ -352,11 +363,17 @@ static int touch(F3dWorld *world, const F3dVehicleSlot *v, F3dSlot *s,
  * the chassis's mass and inertia at its point, and the two together are
  * kept inside its friction circle. The drive is pushed whole, in the
  * circle with the rest. The chassis's velocity is a copy here: what the
- * tyres settle on is put on the bus as forces, for the solver. */
-static void solve_tyres(F3dSlot *s, Tread *treads, uint32_t n) {
+ * tyres settle on is put on the bus as forces, for the solver. The copy
+ * is the velocity the step will end on without the tyres — gravity and
+ * the springs already on the bus taken in — so a braked car on a slope
+ * holds there, rather than creeping down it by a step's pull each step. */
+static void solve_tyres(const F3dWorld *world, F3dSlot *s, Tread *treads,
+                        uint32_t n, f3d_real dt) {
   if (s->inverse_mass == F3D_R(0.0)) return;
   const F3dSym3 inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
-  F3dVec3 v = s->velocity, w = s->spin;
+  F3dVec3 v = f3d_madd(s->velocity,
+                       f3d_madd(world->s.gravity, s->force, s->inverse_mass), dt);
+  F3dVec3 w = f3d_madd(s->spin, f3d_sym_times(inverse_inertia, s->torque), dt);
   for (int pass = 0; pass < F3D_TYRE_ITERATIONS; pass++) {
     for (uint32_t i = 0; i < n; i++) {
       Tread *t = &treads[i];
@@ -407,7 +424,7 @@ void f3d_step_vehicles(F3dWorld *world, f3d_real dt) {
         wheel_of[n++] = k;
       }
     }
-    solve_tyres(s, treads, n);
+    solve_tyres(world, s, treads, n, dt);
     for (uint32_t k = 0; k < n; k++) {
       const Tread *t = &treads[k];
       F3dWheel *w = &v->wheels[wheel_of[k]];

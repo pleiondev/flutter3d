@@ -23,6 +23,17 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A light car sits on its springs.** A wheel's damper is pushed whole at
+  the step's end, so it now takes out of the closing at most what there
+  is: the mass the wheel carries over the step, the chassis's as seen at
+  the wheel's point and no more than its share of the whole. A damper set
+  for a loaded car used to throw an empty one, or one burnt down to a fifth
+  of its wood, higher every bounce; a chassis of forty kilograms on the
+  dampers of a 1200 kg car now comes to rest at the height its springs give.
+  The tyres settle the velocity the step will end on, gravity and the
+  springs taken in, so a braked car on a slope stays where it stopped
+  instead of creeping down by a step's pull every step.
+
 - **A chain's motors hold it together.** A multibody's motors and limits
   are solved together, a pass over them all repeated until they agree, and
   each motor is a servo: it holds the joint to where it means it to be as

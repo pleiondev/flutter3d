@@ -278,6 +278,54 @@ static void test_upside_down(void) {
   f3d_world_destroy(w);
 }
 
+/* The same springs and dampers under a chassis of forty kilograms: a damper
+ * set for 1200 kg takes, pushed whole at the step's end, more out of the
+ * closing than there is, and would throw the chassis off its wheels. */
+static void test_light_chassis_settles(void) {
+  F3dWorld *w = road();
+  const F3dBody chassis = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 1, 0, F3D_R(40.0));
+  f3d_body_set_shape(w, chassis, F3D_SHAPE_BOX, F3D_R(0.9), F3D_R(0.3), F3D_R(2.0));
+  const F3dVehicle v = f3d_vehicle_create(w, chassis, 0, 1, 0, 0, 0, 1);
+  for (int i = 0; i < 4; i++) {
+    const f3d_real wheel[F3D_WHEEL_FLOATS] = {
+        i % 2 ? F3D_R(0.8) : F3D_R(-0.8), F3D_R(-0.2), i < 2 ? F3D_R(1.3) : F3D_R(-1.3),
+        F3D_R(0.4), F3D_R(0.35), F3D_R(STIFFNESS), F3D_R(3000.0), 1};
+    f3d_vehicle_add_wheel(w, v, wheel);
+  }
+  run(w, 240);
+  const double squeeze = 40.0 * 9.81 / 4 / STIFFNESS;
+  f3d_real at[3], velocity[3];
+  f3d_body_get_position(w, chassis, at);
+  f3d_body_get_velocity(w, chassis, velocity);
+  CHECK_NEAR(at[1], 0.2 + 0.35 + (0.4 - squeeze), 5e-3);
+  CHECK(fabs((double)velocity[1]) < 0.01);
+  f3d_world_destroy(w);
+}
+
+/* Braked on a road tilted five degrees along its length: the brakes hold
+ * four times what the slope pulls with, so it stays put, and does not
+ * creep down by the step's pull each step. */
+static void test_holds_on_a_slope(void) {
+  F3dWorld *w = f3d_world_create();
+  f3d_world_set_air(w, F3D_R(293.15), F3D_R(1e-30));
+  /* Awake throughout: asleep, it would hold whether the tyres did or not. */
+  f3d_world_set_sleep(w, F3D_R(0.05), 0);
+  const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 0);
+  f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 500, F3D_R(0.5), 500);
+  const double half = 0.5 * 5.0 * 3.14159265358979 / 180.0;
+  f3d_body_set_orientation(w, floor, F3D_R(sin(half)), 0, 0, F3D_R(cos(half)));
+  F3dBody chassis;
+  const F3dVehicle v = car(w, 1, 1, &chassis);
+  for (int i = 0; i < 4; i++) f3d_vehicle_set_wheel(w, v, i, 0, 0, 3000);
+  run(w, 120);
+  f3d_real from[3], to[3];
+  f3d_body_get_position(w, chassis, from);
+  run(w, 180);
+  f3d_body_get_position(w, chassis, to);
+  CHECK(fabs((double)(to[2] - from[2])) < 1e-3);
+  f3d_world_destroy(w);
+}
+
 static void test_snapshot(void) {
   F3dWorld *w = road();
   F3dBody chassis;
@@ -318,6 +366,8 @@ int main(void) {
   test_pushes_back();
   test_ice();
   test_upside_down();
+  test_light_chassis_settles();
+  test_holds_on_a_slope();
   test_snapshot();
   return finish();
 }
