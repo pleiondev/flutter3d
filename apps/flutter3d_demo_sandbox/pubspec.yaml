@@ -30,6 +30,9 @@ dependencies:
   # reference instead.
   flutter3d_physics_native: ^0.9.0
 
+  # Water over the blocks, and fire through the planks, drawn.
+  flutter3d_effects: ^0.9.0
+
   vector_math: ^2.2.0
 
 dev_dependencies:
@@ -42,3 +45,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # A picture a block face: Kenney's CC0 voxel tiles, and a gold one made
+  # from them. Where each came from is in assets/blocks/CREDITS.md.
+  assets:
+    - assets/blocks/

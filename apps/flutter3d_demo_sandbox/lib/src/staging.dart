@@ -9,6 +9,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'elements.dart';
 import 'palette.dart';
 
 /// The two things this game does that no other does.
@@ -144,6 +145,11 @@ final class SandboxRun {
   /// Which of [hotbar] is in hand.
   int slot;
 
+  /// Water, fire and falling blocks over the world, when the application
+  /// has a renderer to draw them with and asks for them; null in a run that
+  /// is only blocks.
+  Elements? elements;
+
   /// How far a block can be reached, in metres from the eye.
   static const double reach = 6.0;
 
@@ -189,6 +195,7 @@ final class SandboxRun {
     if (input.pressed(SandboxActions.place)) place();
     walk.step(dt, input);
     physics.update();
+    elements?.step(dt, eye);
     if (walk.body.position.y < floorOfTheVoid) walk.body.teleport(spawn);
   }
 
@@ -258,8 +265,28 @@ final class SandboxRun {
 
   /// Takes the blocks' boxes out of the physics, for a run being left.
   void dispose() {
+    elements?.dispose();
     collision.dispose();
     walk.body.world.remove(walk.body.collider);
+  }
+
+  /// Puts [material] at a block as an edit, as digging or placing does:
+  /// what [elements] burns away or drops goes through this.
+  bool setBlock(int x, int y, int z, int material) => _edit(x, y, z, material);
+
+  /// Strikes flint at the block looked at: planks catch.
+  bool strike() {
+    final hit = target;
+    return hit != null && (elements?.ignite(hit.x, hit.y, hit.z) ?? false);
+  }
+
+  /// Tips a bucket of water onto the column looked at.
+  bool pour() {
+    final hit = target;
+    final water = elements;
+    if (hit == null || water == null) return false;
+    water.pour(hit.x, hit.z);
+    return true;
   }
 
   bool _edit(int x, int y, int z, int material) {
@@ -270,6 +297,7 @@ final class SandboxRun {
     _stale.addAll(changes.surfaces);
     _unsaved = true;
     _homeReachable = null;
+    elements?.changed(x, y, z);
     return true;
   }
 

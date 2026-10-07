@@ -31,15 +31,19 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_game/flutter3d_game.dart' show DesktopInput;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show physicsFallbackReason, preparePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show InputState;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/block_surfaces.dart';
 import 'src/chunk_meshes.dart';
+import 'src/elements.dart';
 import 'src/palette.dart';
 import 'src/staging.dart';
 
@@ -72,6 +76,17 @@ class SandboxScreen extends StatefulWidget {
   @override
   State<SandboxScreen> createState() => _SandboxScreenState();
 }
+
+/// The frame's exposure, below the renderer's default: with the block
+/// pictures on, a sunlit top at the default rolled off to nearly white, its
+/// picture and the shade in its corners gone with it.
+const double _exposure = 1.1;
+
+/// The sun's shadows at twice the renderer's default tile. Every edge in a
+/// world of blocks is a long straight one, and the sun crosses them at a
+/// slant, so at the default a step's shadow came out as a saw of texels
+/// along the sand.
+const ShadowSettings _shadows = ShadowSettings(resolution: 2048);
 
 /// What the screen holds once the device is open.
 typedef _Playing = ({Renderer renderer, Scene scene, ChunkMeshes meshes});
@@ -135,14 +150,39 @@ class _SandboxScreenState extends State<SandboxScreen>
             ..setLocalForward(Vector3(-0.45, -1.0, -0.3)),
         )
         ..add(_camera);
-      final meshes = ChunkMeshes(device, scene, _run.blocks);
+      // A picture a block face, from `assets/blocks/`.
+      final surfaces = await BlockSurfaces.load(device, rootBundle);
+      final meshes = ChunkMeshes(
+        device,
+        scene,
+        _run.blocks,
+        surfaces: surfaces,
+      );
+      final renderer = Renderer.create(device: device);
+      // Water over the blocks and fire through the planks: the physics
+      // core's, drawn with the effects package's water.
+      final water =
+          await LiquidLook.load(
+              device: device,
+              renderer: renderer,
+              bundle: await rootBundle.load(LiquidLook.asset),
+            )
+            ..sun(
+              along: Vector3(-0.45, -1.0, -0.3),
+              light: Vector3(2.4, 2.3, 2.2),
+            );
       if (!mounted) return;
+      _run.elements = Elements(
+        blocks: _run.blocks,
+        device: device,
+        scene: scene,
+        renderer: renderer,
+        water: water,
+        setBlock: _run.setBlock,
+        surfaces: surfaces,
+      );
       setState(
-        () => _playing = (
-          renderer: Renderer.create(device: device),
-          scene: scene,
-          meshes: meshes,
-        ),
+        () => _playing = (renderer: renderer, scene: scene, meshes: meshes),
       );
     } catch (error) {
       if (mounted) setState(() => _error = error);
@@ -212,8 +252,20 @@ class _SandboxScreenState extends State<SandboxScreen>
     body: Focus(
       focusNode: _keyboard,
       autofocus: true,
-      onKeyEvent: (FocusNode node, KeyEvent event) =>
-          _keys.handleKeyEvent(event),
+      onKeyEvent: (FocusNode node, KeyEvent event) {
+        // Flint and a bucket: the elements' own keys, past the walk's.
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.keyF) {
+            _run.strike();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyR) {
+            _run.pour();
+            return KeyEventResult.handled;
+          }
+        }
+        return _keys.handleKeyEvent(event);
+      },
       child: Listener(
         onPointerDown: (PointerDownEvent event) {
           _keyboard.requestFocus();
@@ -238,7 +290,8 @@ class _SandboxScreenState extends State<SandboxScreen>
               renderer: playing.renderer,
               scene: playing.scene,
               view: _view,
-              settings: () => const RenderSettings(),
+              settings: () =>
+                  const RenderSettings(exposure: _exposure, shadows: _shadows),
               onBeforeFrame: () => _run.walk.placeCamera(_camera),
               presentFrame: presentFrame,
             ),
@@ -314,7 +367,8 @@ class _Status extends StatelessWidget {
           const SizedBox(height: 6),
           const Text(
             'WASD walk · space jumps · drag to look · click digs · '
-            'right click places · 1–5 picks',
+            'right click places · 1–5 picks · F strikes flint at planks · '
+            'R tips a bucket of water',
             style: TextStyle(color: Color(0xFFB8C2CF), fontSize: 12),
           ),
         ],
@@ -351,12 +405,18 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 44,
     height: 44,
+    // The block's side, the picture it is drawn with, over its colour for
+    // the moment before the picture is read.
     decoration: BoxDecoration(
       color: Color.from(
         alpha: 1,
         red: kind.colour.x,
         green: kind.colour.y,
         blue: kind.colour.z,
+      ),
+      image: DecorationImage(
+        image: AssetImage('assets/blocks/${kind.side}.jpg'),
+        fit: BoxFit.cover,
       ),
       border: Border.all(
         color: chosen ? Colors.white : const Color(0x66000000),
