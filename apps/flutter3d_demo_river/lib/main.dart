@@ -30,6 +30,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
 
 import 'src/river_game.dart';
+import 'src/river_water.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,11 +71,19 @@ class _RiverScreenState extends State<RiverScreen> {
       const int.fromEnvironment('RIVER_LEVEL', defaultValue: 1) - 1,
     );
 
+  /// The river's own water, drawn over the game's plane once there is a
+  /// renderer: running down the valley, parting round the hulls, and
+  /// spilling over a weir under every bridge. Less of it on a phone.
+  final RiverWaterLayer _water = RiverWaterLayer(
+    light: hasTouchControls(defaultTargetPlatform),
+  );
+
   /// A phone or a tablet has no keys, so it gets Flame's stick and trigger.
   @override
   void initState() {
     super.initState();
     if (hasTouchControls(defaultTargetPlatform)) _game.addTouchControls();
+    _game.add(_water);
     // Taking off is the player's first key, touch or button, and a browser
     // lets a page make a sound only after one.
     _game.onFirstFlight = () => unawaited(_game.sound.open());
@@ -86,6 +95,8 @@ class _RiverScreenState extends State<RiverScreen> {
   @override
   void dispose() {
     unawaited(_game.sound.close());
+    // Its worlds and meshes go before the device they are drawn on.
+    _water.close();
     // The world lives with the game, not the widget: it goes here.
     _game.close3d();
     super.dispose();
