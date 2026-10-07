@@ -681,6 +681,27 @@ static void bodies_in(F3dWorld *world, Grid *g, F3dShallow water, f3d_real dt) {
     }
     if (wet == 0) continue;
     level /= (f3d_real)wet;
+    /* And how the surface round it slopes, by least squares over the same
+     * ring: a body on a slope of the surface is pushed down it, as the
+     * pressure under a wave's flank pushes. Its own bow wave is in that
+     * slope, so a body driven through the liquid also feels the waves it
+     * makes. */
+    f3d_real sxx = F3D_R(0.0), szz = F3D_R(0.0), sxz = F3D_R(0.0);
+    f3d_real sxe = F3D_R(0.0), sze = F3D_R(0.0);
+    for (uint32_t k = 0; k < wet; k++) {
+      const uint32_t c = ring_cells[k];
+      const f3d_real cx = ((f3d_real)(c % g->nx) + F3D_R(0.5)) * g->cell - p.x;
+      const f3d_real cz = ((f3d_real)(c / g->nx) + F3D_R(0.5)) * g->cell - p.z;
+      const f3d_real e = before[c] - level;
+      sxx += cx * cx;
+      szz += cz * cz;
+      sxz += cx * cz;
+      sxe += cx * e;
+      sze += cz * e;
+    }
+    const f3d_real det = sxx * szz - sxz * sxz;
+    const f3d_real slope_x = det > F3D_R(0.0) ? (sxe * szz - sze * sxz) / det : F3D_R(0.0);
+    const f3d_real slope_z = det > F3D_R(0.0) ? (sze * sxx - sxe * sxz) / det : F3D_R(0.0);
     f3d_real pushed = F3D_R(0.0);
     F3dVec3 carried = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
     /* What is under water: the ball's cap below the level round it,
@@ -761,6 +782,11 @@ static void bodies_in(F3dWorld *world, Grid *g, F3dShallow water, f3d_real dt) {
     }
     /* Held up: the weight of the water it displaces, against gravity. */
     F3dVec3 force = f3d_scale(world->s.gravity, -w->density * displaced);
+    /* Froude and Krylov's: the surface's slope pushes what it holds up
+     * along it, ρgV down the slope. */
+    const f3d_real g_mag = f3d_sqrt(f3d_dot(world->s.gravity, world->s.gravity));
+    force.x -= w->density * g_mag * displaced * slope_x;
+    force.z -= w->density * g_mag * displaced * slope_z;
     /* The water round it moves with it as it speeds up: half the water it
      * displaces, a ball's added mass, on its inertia — in the integrator,
      * where it holds for a body as light as a bubble. */
@@ -842,26 +868,73 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, f3d_real h,
     const F3dShallowSource *s = &ws->sources[k];
     if (s->rate > F3D_R(0.0)) spread(g, s->x, s->z, s->radius, s->rate * h);
   }
-  /* 2. The velocities carried along themselves. */
+  /* 2. The velocities carried along themselves, conserving momentum
+   * (Stelling and Duinmeijer, 2003): what crosses a face is what the depth
+   * flux carries, hu with h the upwind column's — the same flux that moves
+   * the water in step 4 — taken to each column's middle as the mean of its
+   * two faces' and carrying the upwind face's velocity, and a face's
+   * velocity changes by the momentum that flows into the two half columns
+   * round it less what that inflow's own mass would have carried at its
+   * velocity. So no momentum is made or lost in carrying it, and a hydraulic
+   * jump stands where it should; the substeps keep each within a quarter of
+   * a cell, inside the scheme's reach. */
   f3d_copy(u_old, g->u, (size_t)ux * nz * sizeof(f3d_real));
   f3d_copy(w_old, g->w, (size_t)nx * (nz + 1u) * sizeof(f3d_real));
-  Grid old = *g;
-  old.u = u_old;
-  old.w = w_old;
-  const f3d_real step_cells = h / g->cell;
-  for (uint32_t j = 0; j < nz; j++) {
-    for (uint32_t i = 1; i < nx; i++) {
-      const f3d_real x = (f3d_real)i, z = (f3d_real)j + F3D_R(0.5);
-      const f3d_real vx = u_old[i + j * ux], vz = flow_z(&old, x, z);
-      g->u[i + j * ux] = flow_x(&old, x - vx * step_cells, z - vz * step_cells);
+  {
+    const f3d_real *d = g->depth;
+    /* The depth flux across x face (i, j) and z face (i, j), m²/s. */
+#define QX(i, j) (u_old[(i) + (j) * ux] *                                      \
+                  (u_old[(i) + (j) * ux] > F3D_R(0.0)                          \
+                       ? ((i) > 0u ? d[(i) - 1u + (j) * nx] : F3D_R(0.0))     \
+                       : ((i) < nx ? d[(i) + (j) * nx] : F3D_R(0.0))))
+#define QZ(i, j) (w_old[(i) + (j) * nx] *                                      \
+                  (w_old[(i) + (j) * nx] > F3D_R(0.0)                          \
+                       ? ((j) > 0u ? d[(i) + ((j) - 1u) * nx] : F3D_R(0.0))   \
+                       : ((j) < nz ? d[(i) + (j) * nx] : F3D_R(0.0))))
+    const f3d_real k = h / g->cell;
+    for (uint32_t j = 0; j < nz; j++) {
+      for (uint32_t i = 1; i < nx; i++) {
+        const uint32_t f = i + j * ux;
+        const f3d_real depth = F3D_R(0.5) * (d[i - 1u + j * nx] + d[i + j * nx]);
+        if (!(depth > F3D_SHALLOW_DRY)) continue;
+        const f3d_real uf = u_old[f];
+        /* Along x: the columns either side, their mean flux and the face
+         * upwind of their middle. */
+        const f3d_real ql = F3D_R(0.5) * (QX(i - 1u, j) + QX(i, j));
+        const f3d_real qr = F3D_R(0.5) * (QX(i, j) + QX(i + 1u, j));
+        const f3d_real ul = ql > F3D_R(0.0) ? u_old[f - 1u] : uf;
+        const f3d_real ur = qr > F3D_R(0.0) ? uf : u_old[f + 1u];
+        f3d_real a = qr * ur - ql * ul - uf * (qr - ql);
+        /* Across z: the fluxes over the half columns' tops and bottoms. */
+        const f3d_real qt = F3D_R(0.5) * (QZ(i - 1u, j + 1u) + QZ(i, j + 1u));
+        const f3d_real qb = F3D_R(0.5) * (QZ(i - 1u, j) + QZ(i, j));
+        const f3d_real ut = qt > F3D_R(0.0) ? uf : (j + 1u < nz ? u_old[f + ux] : uf);
+        const f3d_real ub = qb > F3D_R(0.0) ? (j > 0u ? u_old[f - ux] : uf) : uf;
+        a += qt * ut - qb * ub - uf * (qt - qb);
+        g->u[f] = uf - k * a / depth;
+      }
     }
-  }
-  for (uint32_t j = 1; j < nz; j++) {
-    for (uint32_t i = 0; i < nx; i++) {
-      const f3d_real x = (f3d_real)i + F3D_R(0.5), z = (f3d_real)j;
-      const f3d_real vx = flow_x(&old, x, z), vz = w_old[i + j * nx];
-      g->w[i + j * nx] = flow_z(&old, x - vx * step_cells, z - vz * step_cells);
+    for (uint32_t j = 1; j < nz; j++) {
+      for (uint32_t i = 0; i < nx; i++) {
+        const uint32_t f = i + j * nx;
+        const f3d_real depth = F3D_R(0.5) * (d[i + (j - 1u) * nx] + d[i + j * nx]);
+        if (!(depth > F3D_SHALLOW_DRY)) continue;
+        const f3d_real wf = w_old[f];
+        const f3d_real qb = F3D_R(0.5) * (QZ(i, j - 1u) + QZ(i, j));
+        const f3d_real qt = F3D_R(0.5) * (QZ(i, j) + QZ(i, j + 1u));
+        const f3d_real wb = qb > F3D_R(0.0) ? w_old[f - nx] : wf;
+        const f3d_real wt = qt > F3D_R(0.0) ? wf : w_old[f + nx];
+        f3d_real a = qt * wt - qb * wb - wf * (qt - qb);
+        const f3d_real qr = F3D_R(0.5) * (QX(i + 1u, j - 1u) + QX(i + 1u, j));
+        const f3d_real ql = F3D_R(0.5) * (QX(i, j - 1u) + QX(i, j));
+        const f3d_real wr = qr > F3D_R(0.0) ? wf : (i + 1u < nx ? w_old[f + 1u] : wf);
+        const f3d_real wl = ql > F3D_R(0.0) ? (i > 0u ? w_old[f - 1u] : wf) : wf;
+        a += qr * wr - ql * wl - wf * (qr - ql);
+        g->w[f] = wf - k * a / depth;
+      }
     }
+#undef QX
+#undef QZ
   }
   /* 2½. Turbulence: the flow's own eddies mix its momentum sideways, so a
    * jet driven into a pool by a waterfall widens and slows instead of

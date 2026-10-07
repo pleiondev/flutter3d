@@ -469,6 +469,55 @@ static void test_a_body_driven_through_water_sets_it_moving(void) {
   f3d_world_destroy(w);
 }
 
+static void test_flow_keeps_its_momentum(void) {
+  /* A patch of water moving at a metre a second in a still pool spreads,
+   * mixes and makes waves, and in half a second the pool's momentum is
+   * what it was: carried as a flux of hu, not by tracing velocities back,
+   * which wore eight per cent of it away. */
+  F3dWorld *w = f3d_world_create();
+  f3d_real *ground = (f3d_real *)calloc(64 * 64, sizeof(f3d_real));
+  const F3dShallow water = f3d_shallow_create(w, 64, 64, F3D_R(0.1), 0, 0, 0, ground);
+  free(ground);
+  f3d_shallow_fill(w, water, -9, -9, 99, 99, 1);
+  f3d_shallow_set_bed(w, water, 0, 0);
+  const F3dShallowSlot *slot = &w->shallows[water - 1u];
+  f3d_real *u = w->shallow_data + slot->first + 2u * 64u * 64u;
+  for (int j = 28; j <= 35; j++)
+    for (int i = 28; i <= 36; i++) u[i + j * 65] = 1;
+  const double before = water_momentum_x(w, water, 64u * 64u, F3D_R(0.1));
+  run(w, 30);
+  CHECK_NEAR(water_momentum_x(w, water, 64u * 64u, F3D_R(0.1)), before, 0.005);
+  f3d_world_destroy(w);
+}
+
+static void test_a_float_slides_down_the_surface(void) {
+  /* A ball half as dense as water floating where the surface slopes one in
+   * fifty is pushed down the slope by the pressure under it, ρgV·s, and
+   * starts down at two thirds of g·s: the water it carries is half what it
+   * displaces, which is its own mass. */
+  F3dWorld *w = f3d_world_create();
+  enum { N = 32 };
+  f3d_real ground[N * N];
+  memset(ground, 0, sizeof ground);
+  const F3dShallow water = f3d_shallow_create(w, N, N, F3D_R(0.1), 0, 0, 0, ground);
+  const F3dShallowSlot *slot = &w->shallows[water - 1u];
+  f3d_real *depth = w->shallow_data + slot->first + N * N;
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++) depth[i + j * N] = F3D_R(1.0) - F3D_R(0.02) * F3D_R(0.1) * ((f3d_real)i - F3D_R(15.5));
+  const f3d_real r = F3D_R(0.1);
+  const f3d_real mass = F3D_R(500.0) * F3D_R(4.0) / F3D_R(3.0) * F3D_PI * r * r * r;
+  const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, F3D_R(1.6), 1, F3D_R(1.6), mass);
+  f3d_body_set_shape(w, b, F3D_SHAPE_SPHERE, r, 0, 0);
+  const f3d_real dt = F3D_R(1.0) / 60;
+  f3d_world_step(w, dt);
+  f3d_real v[3];
+  f3d_body_get_velocity(w, b, v);
+  const double expected = 2.0 / 3.0 * 9.81 * 0.02 * (double)dt;
+  CHECK_NEAR(v[0], expected, 0.1 * expected);
+  CHECK_NEAR(v[2], 0.0, 0.05 * expected);
+  f3d_world_destroy(w);
+}
+
 static void test_a_thick_film_runs_as_nusselt_says(void) {
   /* Oil a thousand times thicker than water, two centimetres deep, down a
    * slope of one in a hundred: a laminar film, whose mean speed is
@@ -592,6 +641,8 @@ int main(void) {
   test_ball_falls_through_water_at_newtons_speed();
   test_a_light_ball_carries_water_with_it();
   test_a_body_driven_through_water_sets_it_moving();
+  test_flow_keeps_its_momentum();
+  test_a_float_slides_down_the_surface();
   test_a_thick_film_runs_as_nusselt_says();
   test_no_climbing_a_dry_bank();
   test_open_edge();

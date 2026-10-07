@@ -23,6 +23,15 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A shallow liquid keeps its momentum, and a body feels its slope.** Its
+  velocities are carried as Stelling and Duinmeijer carry them, as the flux
+  of hu that moves the liquid itself, so a patch of flow keeps its momentum
+  to a twentieth of a per cent where tracing velocities back lost eight
+  per cent in half a second, and a hydraulic jump stands where it should.
+  A body is pushed down the surface's slope round it, ρgV·s (Froude and
+  Krylov): a float slides off a wave's flank, and a body driven through
+  the liquid feels the bow wave it raises.
+
 - **A shallow liquid is any liquid, and a body moves through it as through
   one.** What used to be water over ground is `NativeShallowLiquid`
   (`f3d_shallow_*`), and `setShallowProperties` gives it a density,
