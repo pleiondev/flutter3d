@@ -75,6 +75,24 @@ const String _buildStamp = String.fromEnvironment(
   defaultValue: 'dev',
 );
 
+/// How the map is drawn.
+///
+/// **The shadows reach as far as the camera does.** The engine's default fits
+/// its cascades to the first sixty metres from the eye, which is the right
+/// answer for a chase camera and the wrong one for a map camera hanging fifty
+/// metres up: everything on screen lies past that, falls through to the last
+/// cascade fitted round the whole map, and a castle's shadow comes out as a
+/// staircase of half-metre blocks. Fitted to the furthest the view pulls back
+/// and split closer to evenly, every cascade lands on ground somebody can see.
+const RenderSettings _settings = RenderSettings(
+  shadows: ShadowSettings(
+    cascades: kShadowCascades,
+    resolution: kShadowResolution,
+    viewDistance: 130.0,
+    cascadeSplit: 0.45,
+  ),
+);
+
 void main() => runApp(const StrategyDemo());
 
 /// The application.
@@ -296,7 +314,15 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
 
     // The scene, and the one thing in it that belongs to the view rather than
     // to any particular match: a sun does not come out of the document.
-    _scene = Scene(name: 'map');
+    //
+    // And a sky to fill the side the sun is not on. The engine's own ambient
+    // is a token six per cent, which leaves every face turned from the sun
+    // and every shadow on the grass pitch black: a castle's north wall reads
+    // as a hole, a rock as half a rock. A cool fill at about a sixth of the
+    // sun is what an open hillside under a blue sky actually gets.
+    _scene = Scene(name: 'map')
+      ..ambientIntensity = 0.55
+      ..ambientColor = vm.Vector3(0.78, 0.86, 1.0);
     _scene.add(
       LightNode(
         type: LightType.directional,
@@ -696,7 +722,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
               height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
               scene: _scene,
               views: <RenderView>[_view],
-              settings: const RenderSettings(),
+              settings: _settings,
             );
             return Stack(
               children: <Widget>[

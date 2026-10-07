@@ -2,7 +2,7 @@
 ///
 ///     flutter test test/credits_test.dart
 ///
-/// **Both models here are CC0**, so this game is not in breach the way the
+/// **Every model here is CC0**, so this game is not in breach the way the
 /// platformer and the racing game once were — but the file exists anyway,
 /// for the reason the dungeon's own copy gives: the next model dropped into
 /// `assets/models` is one somebody found somewhere, and the check that
@@ -71,11 +71,11 @@ void main() {
     }
   });
 
-  test('and both models say they were changed, because they were', () {
+  test('and every model says it was changed, because it was', () {
     // CC0 asks for nothing, so this is not a duty — it is the record.
-    // `tool/prepare_models.py` joins and rescales the worker and embeds the
-    // hall's texture; a credit that said otherwise would describe a file
-    // this game does not ship.
+    // `tool/prepare_models.py` takes the texture reference out of every one
+    // and the clips out of the characters; a credit that said otherwise would
+    // describe a file this game does not ship.
     for (final credit in Credits.models) {
       expect(credit.modified, isTrue, reason: '${credit.file} was modified');
     }

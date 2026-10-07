@@ -15,8 +15,17 @@
 /// first. So the batch is written every frame, in full, because that is the
 /// case a game actually has: units that stand still would let the engine skip
 /// an upload a moving crowd cannot skip.
+///
+/// **One batch per look, not one batch.** A game that dresses its workers,
+/// soldiers and tanks as three different models, in each side's colours, has
+/// six meshes to draw, and an instanced batch is one mesh and one material.
+/// So the crowd is split by [UnitLook] into a handful of batches — still a
+/// handful of draws for a thousand units, which is the property the paragraph
+/// above is about — and a kind nobody dressed falls back to the plain batch
+/// [StrategyVisuals.crowd] has always been.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
@@ -25,9 +34,74 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'src/building.dart';
+import 'src/economy.dart';
 import 'src/fog.dart';
 import 'src/simulation.dart';
 import 'src/unit.dart';
+
+/// A mesh and the material it is drawn in: one way a unit, a deposit or a
+/// prop looks.
+///
+/// The mesh is expected grounded — its local origin where it touches the
+/// ground, not its middle — and facing +Z, the direction a unit turns towards
+/// when it walks.
+final class MeshLook {
+  /// Pairs [mesh] with [material].
+  const MeshLook(this.mesh, this.material);
+
+  /// What is drawn.
+  final DeviceMesh mesh;
+
+  /// What it is drawn in.
+  final Material material;
+}
+
+/// How one kind of unit looks, side by side.
+///
+/// **Matched by [UnitType.name], and that is a reading, not a rule.** The
+/// simulation carries a kind as its own row of numbers precisely so that no
+/// pass has to interpret a name; drawing is the one place that wants to,
+/// because a worker and a tank are told apart on screen by shape. A kind with
+/// no look is still drawn — in [StrategyVisuals.crowd], as a box — so a game
+/// that adds a fourth kind sees it on the map before it has a model.
+final class UnitLook {
+  /// Dresses units of [kind]; [sides] is indexed by `Unit.side`, wrapping
+  /// round when there are more sides than looks.
+  const UnitLook({required this.kind, required this.sides})
+    : assert(sides.length > 0, 'a kind dressed in nothing');
+
+  /// The [UnitType.name] this dresses.
+  final String kind;
+
+  /// One look per side: the team colour is the difference between them.
+  final List<MeshLook> sides;
+}
+
+/// Copies of one look the map wears where the simulation has nothing: trees,
+/// say, or boulders.
+///
+/// **Under the fog like everything else.** A tree is not a secret, but one
+/// standing out of a black square tells a side the shape of ground it has not
+/// been to; so a copy appears the first time its spot is explored and stays,
+/// the same rule a building follows.
+final class PropBatch {
+  /// [placements] are full transforms, uniform scale only — a batch scales its
+  /// copies uniformly.
+  const PropBatch({
+    required this.look,
+    required this.placements,
+    this.name = 'props',
+  });
+
+  /// What every copy looks like.
+  final MeshLook look;
+
+  /// Where each copy stands, turned and scaled.
+  final List<Matrix4> placements;
+
+  /// The batch's node name.
+  final String name;
+}
 
 /// Draws a [StrategySimulation].
 final class StrategyVisuals {
@@ -47,6 +121,18 @@ final class StrategyVisuals {
   /// upload stretched per instance with [SceneNode.setScale] costs nothing
   /// extra past the second building, where a fresh [CuboidShape] would cost
   /// one upload apiece.
+  ///
+  /// [looks] dress units by kind, one batch per kind and side; see [UnitLook].
+  /// [buildingSides] gives each side's buildings their own material — a
+  /// castle in its owner's colours — in place of [buildings]; and
+  /// [buildingStandsTall] lets a shared building mesh keep its proportions,
+  /// rising by as much as its footprint stretches rather than being pressed
+  /// to the fixed height a box is given.
+  ///
+  /// [resource] is drawn at every deposit, [props] are the map's furniture,
+  /// and [waterLevel] floods everything below it with a sheet of [water].
+  /// [groundMetresPerTexture] is how far the ground goes before its texture
+  /// repeats — the width of the map, for a texture painted to fit it.
   StrategyVisuals({
     required this.simulation,
     required GraphicsDevice device,
@@ -61,16 +147,30 @@ final class StrategyVisuals {
     DeviceMesh? unitMesh,
     DeviceMesh? buildingMesh,
     Vector3? buildingMeshSize,
+    List<UnitLook> looks = const <UnitLook>[],
+    List<Material>? buildingSides,
+    this._buildingStandsTall = false,
+    this._resource,
+    List<PropBatch> props = const <PropBatch>[],
+    double? waterLevel,
+    Material? water,
+    double groundMetresPerTexture = 8.0,
   }) : assert(
          (buildingMesh == null) == (buildingMeshSize == null),
          'a shared building mesh needs its own natural size to scale from, '
          'and a size with nothing to scale is dead weight',
        ),
+       assert(
+         buildingSides == null || buildingSides.isNotEmpty,
+         'a building in nobody\'s colours',
+       ),
        _buildingMaterial = buildings ?? _stone(),
+       _buildingSides = buildingSides,
        _buildingMesh = buildingMesh,
        _buildingMeshSize = buildingMeshSize,
+       waterLevel = waterLevel,
        // A real model stands on its own feet at its local origin, once
-       // prepared the way `tool/prepare_models.py` prepares `worker.glb`; the
+       // grounded the way the strategy demo grounds its workers; the
        // default `CuboidShape` is centred instead, so only it needs lifting
        // by half its height to stand on the ground `at.y` names.
        _unitGroundLift = unitMesh == null ? unitSize.height / 2.0 : 0.0,
@@ -82,6 +182,7 @@ final class StrategyVisuals {
           const HeightfieldGeometry().build(
             simulation.ground,
             material: 'ground',
+            metresPerTexture: groundMetresPerTexture,
           ),
         ),
       ),
@@ -101,16 +202,66 @@ final class StrategyVisuals {
       capacity: capacity,
       name: 'crowd',
     );
-    for (var i = 0; i < capacity; i++) {
-      _crowd.addInstance(Matrix4.identity());
+    _adopt(_crowd);
+    for (final UnitLook look in looks) {
+      _byKind[look.kind] = <int>[
+        for (final MeshLook side in look.sides)
+          _adopt(
+            InstancedMeshNode(
+              side.mesh,
+              side.material,
+              capacity: capacity,
+              name: look.kind,
+            ),
+          ),
+      ];
     }
-    _crowd.count = 0;
+    _filled = Int32List(_batches.length);
+
+    for (final PropBatch batch in props) {
+      _props.add(
+        _reserve(
+          InstancedMeshNode(
+            batch.look.mesh,
+            batch.look.material,
+            capacity: math.max(1, batch.placements.length),
+            name: batch.name,
+          ),
+        ),
+      );
+      _placements.add(batch.placements);
+      _placed.add(List<bool>.filled(batch.placements.length, false));
+    }
+
+    final Heightfield field = simulation.ground;
+    if (waterLevel != null) {
+      if (_wetBounds(field, waterLevel) case (
+        final double x0,
+        final double z0,
+        final double x1,
+        final double z1,
+      )) {
+        _water = MeshNode(
+          DeviceMesh.upload(
+            device,
+            PlaneShape(width: x1 - x0, depth: z1 - z0).build(),
+          ),
+          water ?? _pond(),
+          name: 'water',
+        )..setPosition((x0 + x1) / 2.0, waterLevel, (z0 + z1) / 2.0);
+      }
+    }
 
     if (viewer == null) return;
     final FogOfWar fog = simulation.fog;
     _tileTop = Float32List(fog.cellCount);
     for (var cell = 0; cell < fog.cellCount; cell++) {
-      _tileTop[cell] = _topOf(fog, cell);
+      // Over a pond the fog has to cover the water rather than the bed under
+      // it, or the sheet shows through a square of dark as a square of blue.
+      final double top = _topOf(fog, cell);
+      _tileTop[cell] = waterLevel != null && waterLevel > top
+          ? waterLevel
+          : top;
     }
     final DeviceMesh tile = DeviceMesh.upload(
       device,
@@ -142,7 +293,17 @@ final class StrategyVisuals {
 
   /// The batch the crowd is drawn in, for a game that wants to tint or hide
   /// it and for a test that wants to read a transform back.
+  ///
+  /// Every unit, unless [UnitLook]s were given; then only the kinds none of
+  /// them dresses.
   InstancedMeshNode get crowd => _crowd;
+
+  /// The sheet of water, or null for a map with no [waterLevel] or with no
+  /// ground below it.
+  MeshNode? get water => _water;
+
+  /// How high the water stands, or null for a dry map.
+  final double? waterLevel;
 
   /// The tiles over ground [viewer] has never seen, or null for a spectator.
   InstancedMeshNode? get unseen => _unseen;
@@ -172,6 +333,49 @@ final class StrategyVisuals {
   final GraphicsDevice _device;
   final Material _buildingMaterial;
 
+  /// One material per side for its buildings, or null to give every building
+  /// [_buildingMaterial].
+  final List<Material>? _buildingSides;
+
+  /// Whether a shared building mesh rises with its footprint; see the
+  /// constructor.
+  final bool _buildingStandsTall;
+
+  /// What a deposit looks like, or null to leave deposits undrawn.
+  final MeshLook? _resource;
+
+  /// The node drawn at each deposit, by its index in `simulation.resources`;
+  /// null until the viewer has found it.
+  final List<MeshNode?> _deposits = <MeshNode?>[];
+
+  /// [crowd] and every dressed batch after it.
+  final List<InstancedMeshNode> _batches = <InstancedMeshNode>[];
+
+  /// Which entries of [_batches] dress a kind, by side.
+  final Map<String, List<int>> _byKind = <String, List<int>>{};
+
+  /// How many instances each batch has been written this sync.
+  late final Int32List _filled;
+
+  final List<InstancedMeshNode> _props = <InstancedMeshNode>[];
+  final List<List<Matrix4>> _placements = <List<Matrix4>>[];
+
+  /// Which placements of each prop batch have been written already. Only
+  /// ever turns true, because exploring only ever grows.
+  final List<List<bool>> _placed = <List<bool>>[];
+
+  MeshNode? _water;
+
+  /// Which way each unit faces and where it stood at the last sync.
+  ///
+  /// **Kept here, because the simulation has no idea.** A unit is a point
+  /// with a velocity it does not store, and a facing would be a field the
+  /// step had to carry, save and replay for the sake of a picture. So the
+  /// drawing half reads it off the walk instead: where a unit is now against
+  /// where it was a frame ago. An [Expando] rather than a map, so a unit that
+  /// dies takes its entry with it.
+  final Expando<Float64List> _facing = Expando<Float64List>('facing');
+
   /// A shared upload every building instance scales to its own footprint,
   /// or null to build a fresh [CuboidShape] per building instead.
   final DeviceMesh? _buildingMesh;
@@ -195,6 +399,22 @@ final class StrategyVisuals {
   final Vector4 _tint = Vector4(1.0, 1.0, 1.0, 1.0);
 
   Scene? _scene;
+
+  /// Fills [batch] to its capacity with placeholders and draws none of them,
+  /// so every later write is to an index that already exists.
+  static InstancedMeshNode _reserve(InstancedMeshNode batch) {
+    for (var i = 0; i < batch.capacity; i++) {
+      batch.addInstance(Matrix4.identity());
+    }
+    batch.count = 0;
+    return batch;
+  }
+
+  /// Takes [batch] on as a unit batch and answers its index in [_batches].
+  int _adopt(InstancedMeshNode batch) {
+    _batches.add(_reserve(batch));
+    return _batches.length - 1;
+  }
 
   InstancedMeshNode _tileBatch(
     DeviceMesh mesh,
@@ -240,9 +460,15 @@ final class StrategyVisuals {
   /// buildings that arrive later.
   void addTo(Scene scene) {
     _scene = scene;
-    scene
-      ..add(_ground)
-      ..add(_crowd);
+    scene.add(_ground);
+    for (final InstancedMeshNode batch in _batches) {
+      scene.add(batch);
+    }
+    for (final InstancedMeshNode batch in _props) {
+      scene.add(batch);
+    }
+    final MeshNode? water = _water;
+    if (water != null) scene.add(water);
     final InstancedMeshNode? unseen = _unseen;
     final InstancedMeshNode? remembered = _remembered;
     if (unseen != null) scene.add(unseen);
@@ -263,18 +489,32 @@ final class StrategyVisuals {
     // about 0.07 microseconds each, every frame — so the crowd a side cannot
     // see is exactly the part of that bill it should not be paying.
     final int? side = viewer;
-    var drawn = 0;
+    _filled.fillRange(0, _filled.length, 0);
     for (final Unit unit in simulation.units) {
-      if (drawn >= _crowd.capacity) break;
       if (side != null && !_showsUnit(side, unit)) continue;
+      final List<int>? dressed = _byKind[unit.type.name];
+      final int which = dressed == null
+          ? 0
+          : dressed[unit.side % dressed.length];
+      final InstancedMeshNode batch = _batches[which];
+      final int drawn = _filled[which];
+      if (drawn >= batch.capacity) continue;
       final Vector3 at = unit.position;
-      _transform.setIdentity();
-      _transform.setTranslationRaw(at.x, at.y + _unitGroundLift, at.z);
-      _crowd.setTransform(drawn, _transform);
-      _crowd.setColor(drawn, _woundOf(unit));
-      drawn++;
+      final double lift = which == 0 ? _unitGroundLift : 0.0;
+      _transform
+        ..setRotationY(_headingOf(unit))
+        ..setTranslationRaw(at.x, at.y + lift, at.z);
+      batch
+        ..setTransform(drawn, _transform)
+        ..setColor(drawn, _woundOf(unit));
+      _filled[which] = drawn + 1;
     }
-    _crowd.count = drawn;
+    for (var i = 0; i < _batches.length; i++) {
+      _batches[i].count = _filled[i];
+    }
+
+    _syncProps(side);
+    _syncDeposits(side);
 
     // Buildings are nodes of their own rather than instances: a batch scales
     // its copies uniformly by the engine's own account, and buildings are the
@@ -298,20 +538,29 @@ final class StrategyVisuals {
       // objects and it buys the only thing a picking pass is good for here:
       // a hall the cursor is over can be lit on its own. Shared, the
       // highlight would light every hall on the map at once.
-      final Material material = _buildingMaterial.copy();
+      final List<Material>? sides = _buildingSides;
+      final Material material =
+          (sides == null
+                  ? _buildingMaterial
+                  : sides[building.side % sides.length])
+              .copy();
       final double height = unitSize.height * 2.5;
       final MeshNode node;
       final DeviceMesh? sharedMesh = _buildingMesh;
       if (sharedMesh != null) {
         final Vector3 natural = _buildingMeshSize!;
-        // A real model already stands on its own feet at Y = 0, the same
-        // convention `tool/prepare_models.py` leaves `hall.glb` in — no lift
-        // to add, only the stretch from its authored size to this building's.
+        final double across = building.width / natural.x;
+        final double along = building.depth / natural.z;
+        // A real model already stands on its own feet at Y = 0 — no lift to
+        // add, only the stretch from its authored size to this building's.
+        // Upright, it rises by the mean of the two ground stretches, so a
+        // castle laid out a little narrower than its footprint is not also
+        // squashed to the height of a shed.
         node = MeshNode(sharedMesh, material, name: building.name)
           ..setScale(
-            building.width / natural.x,
-            height / natural.y,
-            building.depth / natural.z,
+            across,
+            _buildingStandsTall ? (across + along) / 2.0 : height / natural.y,
+            along,
           )
           ..setPosition(
             building.centre.x,
@@ -340,6 +589,90 @@ final class StrategyVisuals {
     }
 
     if (side != null) _syncFog(side);
+  }
+
+  /// Which way [unit] faces, in radians about +Y, from +Z.
+  ///
+  /// Turned towards the way it moved since the last call, part of the way
+  /// each time, so a unit shoved sideways by a neighbour for a frame does not
+  /// spin round to face the shove. A unit that has not moved keeps the
+  /// heading it had — a worker at a seam faces the seam it walked to.
+  double _headingOf(Unit unit) {
+    final Vector3 at = unit.position;
+    final Float64List? known = _facing[unit];
+    if (known == null) {
+      _facing[unit] = Float64List.fromList(<double>[at.x, at.z, 0.0]);
+      return 0.0;
+    }
+    final double dx = at.x - known[0];
+    final double dz = at.z - known[1];
+    known[0] = at.x;
+    known[1] = at.z;
+    // A few centimetres a frame is a walk; less is a shove settling.
+    if (dx * dx + dz * dz > 0.0004) {
+      final double wanted = Portable.atan2(dx, dz);
+      var turn = wanted - known[2];
+      if (turn > math.pi) turn -= 2.0 * math.pi;
+      if (turn < -math.pi) turn += 2.0 * math.pi;
+      known[2] += turn * 0.3;
+    }
+    return known[2];
+  }
+
+  /// Writes the props [side] has found since the last call.
+  ///
+  /// Only ever appends, because a placement once explored stays explored;
+  /// so a frame in which nobody walked anywhere new writes nothing.
+  void _syncProps(int? side) {
+    for (var b = 0; b < _props.length; b++) {
+      final InstancedMeshNode batch = _props[b];
+      final List<Matrix4> placements = _placements[b];
+      final List<bool> placed = _placed[b];
+      var count = batch.count;
+      for (var i = 0; i < placements.length; i++) {
+        if (placed[i]) continue;
+        final Float32List at = placements[i].storage;
+        if (side != null && !simulation.fog.knows(side, at[12], at[14])) {
+          continue;
+        }
+        placed[i] = true;
+        batch.setTransform(count++, placements[i]);
+      }
+      batch.count = count;
+    }
+  }
+
+  /// Puts a [_resource] at every deposit [side] knows of, and takes away
+  /// the ones dug out.
+  void _syncDeposits(int? side) {
+    final MeshLook? look = _resource;
+    if (look == null) return;
+    final List<ResourceNode> resources = simulation.resources;
+    for (var i = _deposits.length; i < resources.length; i++) {
+      _deposits.add(null);
+    }
+    for (var i = 0; i < resources.length; i++) {
+      final ResourceNode deposit = resources[i];
+      final MeshNode? drawn = _deposits[i];
+      if (drawn != null) {
+        // Hidden rather than removed, and only once the viewer is looking:
+        // a seam dug out behind the fog is remembered as it was last seen.
+        if (deposit.isEmpty &&
+            (side == null ||
+                simulation.fog.sees(side, deposit.at.x, deposit.at.z))) {
+          drawn.visible = false;
+        }
+        continue;
+      }
+      if (side != null &&
+          !simulation.fog.knows(side, deposit.at.x, deposit.at.z)) {
+        continue;
+      }
+      final node = MeshNode(look.mesh, look.material, name: 'seam')
+        ..setPosition(deposit.at.x, deposit.at.y, deposit.at.z);
+      _deposits[i] = node;
+      _scene?.add(node);
+    }
   }
 
   /// How hurt [unit] looks: white at full health, darkening towards red as it
@@ -449,6 +782,45 @@ Material _stone() => Material(
   lighting: LightingModel.pbr,
   baseColor: Vector4(0.55, 0.53, 0.5, 1.0),
   roughness: 0.85,
+);
+
+/// The box round every sample of [field] lower than [level], one cell wider
+/// on each side and kept inside the map, as `(x0, z0, x1, z1)` in world
+/// metres; null if nothing is that low.
+///
+/// **The sheet covers the ponds, not the map.** Laid over the whole map it
+/// is hidden under every hill, but not past the map's rim: the ground is a
+/// surface with no sides, and from the map camera a strip of water showed
+/// beneath the near edge wherever it stands above the water line.
+(double, double, double, double)? _wetBounds(Heightfield field, double level) {
+  var c0 = field.columns;
+  var r0 = field.rows;
+  var c1 = -1;
+  var r1 = -1;
+  for (var row = 0; row < field.rows; row++) {
+    for (var column = 0; column < field.columns; column++) {
+      if (field.sample(column, row) >= level) continue;
+      c0 = math.min(c0, column);
+      c1 = math.max(c1, column);
+      r0 = math.min(r0, row);
+      r1 = math.max(r1, row);
+    }
+  }
+  if (c1 < 0) return null;
+  double x(int column) =>
+      field.origin.x + column.clamp(0, field.columns - 1) * field.cellSize;
+  double z(int row) =>
+      field.origin.z + row.clamp(0, field.rows - 1) * field.cellSize;
+  return (x(c0 - 1), z(r0 - 1), x(c1 + 1), z(r1 + 1));
+}
+
+/// Still water: blended so the bed shows through near the shore, and smooth
+/// so the sun catches it.
+Material _pond() => Material(
+  lighting: LightingModel.pbr,
+  baseColor: Vector4(0.16, 0.34, 0.42, 0.72),
+  roughness: 0.08,
+  alphaMode: MaterialAlphaMode.blend,
 );
 
 /// Ground nobody has been to. Unlit, because fog is not a surface the sun
