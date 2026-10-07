@@ -379,7 +379,7 @@ int f3d_shallow_set_source(F3dWorld *world, F3dShallow water, uint32_t index,
   F3dShallowSlot *w = water_of(world, water);
   if (w == NULL || index >= F3D_SHALLOW_MOST_SOURCES) return 0;
   if (!(f3d_finite(x) && f3d_finite(z) && f3d_finite(radius) &&
-        radius >= F3D_R(0.0) && f3d_finite(rate) && rate >= F3D_R(0.0))) {
+        radius >= F3D_R(0.0) && f3d_finite(rate))) {
     return 0;
   }
   F3dShallowSource *s = &w->sources[index];
@@ -866,7 +866,7 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, f3d_real h,
   /* 1. The springs. */
   for (uint32_t k = 0; k < ws->source_count; k++) {
     const F3dShallowSource *s = &ws->sources[k];
-    if (s->rate > F3D_R(0.0)) spread(g, s->x, s->z, s->radius, s->rate * h);
+    if (s->rate != F3D_R(0.0)) spread(g, s->x, s->z, s->radius, s->rate * h);
   }
   /* 2. The velocities carried along themselves, conserving momentum
    * (Stelling and Duinmeijer, 2003): what crosses a face is what the depth

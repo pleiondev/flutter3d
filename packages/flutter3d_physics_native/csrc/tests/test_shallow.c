@@ -34,7 +34,8 @@ static void test_refusals(void) {
   const F3dShallow water = f3d_shallow_create(w, 2, 2, 1, 0, 0, 0, ground);
   CHECK(water == 1);
   CHECK(f3d_shallow_set_source(w, water, F3D_SHALLOW_MOST_SOURCES, 0, 0, 1, 1) == 0);
-  CHECK(f3d_shallow_set_source(w, water, 0, 0, 0, 1, -1) == 0);
+  CHECK(f3d_shallow_set_source(w, water, 0, 0, 0, 1, nan_value()) == 0);
+  CHECK(f3d_shallow_set_source(w, water, 0, 0, 0, -1, 1) == 0);
   CHECK(f3d_shallow_set_bed(w, water, -1, 0) == 0);
   f3d_real out[4];
   CHECK(f3d_shallow_sample(w, water, 5, 5, out) == 0);
@@ -625,8 +626,42 @@ static void test_snapshot(void) {
   f3d_world_destroy(w);
 }
 
+/* A spring at one end of a closed channel and a drain of the same rate at
+ * the other: the water keeps its volume and its level, and flows from the
+ * one to the other at the rate over the channel's section, Q / (w·d). */
+static void test_spring_and_drain_make_a_current(void) {
+  F3dWorld *w = f3d_world_create();
+  enum { NX = 40, NZ = 8 };
+  f3d_real ground[NX * NZ];
+  for (int i = 0; i < NX * NZ; i++) ground[i] = -2;
+  const F3dShallow water = f3d_shallow_create(w, NX, NZ, 1, 0, 0, 0, ground);
+  f3d_shallow_set_bed(w, water, F3D_R(0.02), 0);
+  f3d_shallow_fill(w, water, 0, 0, NX, NZ, 0);
+  const double before = total(w, water);
+  /* Half a cubic metre a second through a section of eight metres by two:
+   * three centimetres a second. */
+  CHECK(f3d_shallow_set_source(w, water, 0, 2, 4, 2, F3D_R(0.5)) == 1);
+  CHECK(f3d_shallow_set_source(w, water, 1, 38, 4, 2, F3D_R(-0.5)) == 1);
+  /* The basin sloshes as it starts, a seiche of some eighteen seconds:
+   * the current is its mean over a minute. */
+  run(w, 60 * 60);
+  f3d_real out[8];
+  double level = 0, flow = 0;
+  for (int i = 0; i < 60 * 60; i++) {
+    run(w, 1);
+    CHECK(f3d_shallow_sample(w, water, 20, 4, out) == 1);
+    level += out[0] / (60 * 60);
+    flow += out[2] / (60 * 60);
+  }
+  CHECK_NEAR(level, 0.0, 0.01);
+  CHECK_NEAR(flow, 0.5 / (8 * 2), 0.2 * 0.5 / (8 * 2));
+  CHECK_NEAR(total(w, water), before, 0.01 * before);
+  f3d_world_destroy(w);
+}
+
 int main(void) {
   test_refusals();
+  test_spring_and_drain_make_a_current();
   test_lake_at_rest();
   test_dam_break();
   test_waterfall();

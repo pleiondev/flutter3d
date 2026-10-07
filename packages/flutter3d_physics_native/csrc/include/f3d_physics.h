@@ -593,8 +593,11 @@ F3D_API int f3d_shallow_pour(F3dWorld *world, F3dShallow water, f3d_real x,
                            f3d_real z, f3d_real radius, f3d_real volume);
 
 /* Spring [index]: [rate] m³/s welling up at (x, z) over a disc of
- * [radius], every step; a rate of nought stops it. 0 for an index past
- * F3D_SHALLOW_MOST_SOURCES or a value out of range. */
+ * [radius], every step, or drawn off where the rate is negative, as far as
+ * there is water to draw; a rate of nought stops it. A spring and a drain
+ * of one rate make a current between them through water that keeps its
+ * level. 0 for an index past F3D_SHALLOW_MOST_SOURCES or a value not
+ * finite. */
 F3D_API int f3d_shallow_set_source(F3dWorld *world, F3dShallow water,
                                  uint32_t index, f3d_real x, f3d_real z,
                                  f3d_real radius, f3d_real rate);

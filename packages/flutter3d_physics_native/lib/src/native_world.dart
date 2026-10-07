@@ -1838,7 +1838,10 @@ final class NativeWorld {
   }
 
   /// Spring [index]: [rate] m³/s welling up at ([x], [z]) over a disc of
-  /// [radius]; a rate of nought stops it. At most [c.shallowMostSources].
+  /// [radius], or drawn off where [rate] is negative, as far as there is
+  /// water; a rate of nought stops it. A spring and a drain of one rate
+  /// make a current between them through water that keeps its level. At
+  /// most [c.shallowMostSources].
   void setShallowSource(
     NativeShallowLiquid water,
     int index, {
@@ -1850,8 +1853,8 @@ final class NativeWorld {
     if (c.f3d_shallow_set_source(_live, water.id, index, x, z, radius, rate) ==
         0) {
       throw ArgumentError(
-        'spring $index: past ${c.shallowMostSources}, or a '
-        'radius or rate below nought',
+        'spring $index: past ${c.shallowMostSources}, a radius below '
+        'nought, or a value not finite',
       );
     }
   }

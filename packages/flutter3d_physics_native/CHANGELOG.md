@@ -23,6 +23,13 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A spring and a drain make a current.** A shallow liquid's spring now
+  takes a negative rate and draws water off, as far as there is water to
+  draw. One at each end of a closed sea at one rate moves water from the
+  one to the other at Q over the section between them while the level
+  stays where it was: a current a diver swims against, with no edge left
+  open for the sea to run out of.
+
 - **A village on fire costs a few milliseconds a step, not a hundred.**
   What a source sees of a body is now asked as a yes or no that the first
   thing in the way answers, past both bodies, rather than as every hit
