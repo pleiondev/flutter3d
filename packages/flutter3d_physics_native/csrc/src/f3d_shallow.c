@@ -144,6 +144,7 @@ static int32_t cell_at(const Grid *g, f3d_real x, f3d_real z) {
  * asked once a face a substep, so its cost is the water's. */
 static f3d_real cube_root(f3d_real x) {
   if (!(x > F3D_R(0.0))) return F3D_R(0.0);
+  if (!f3d_finite(x)) return x;
   f3d_real scale = F3D_R(1.0);
   while (x >= F3D_R(8.0)) {
     x *= F3D_R(0.125);
@@ -167,6 +168,7 @@ static f3d_real cube_root(f3d_real x) {
  * series. The same bits everywhere, as the core's other functions are. */
 static f3d_real natural_log(f3d_real x) {
   if (!(x > F3D_R(0.0))) return F3D_R(0.0);
+  if (!f3d_finite(x)) return x;
   int k = 0;
   while (x >= F3D_R(2.0)) {
     x *= F3D_R(0.5);
@@ -190,6 +192,10 @@ static f3d_real natural_log(f3d_real x) {
  * or halved back, exactly. */
 static f3d_real natural_exp(f3d_real y) {
   const f3d_real ln2 = F3D_R(0.69314718055994531);
+  /* Past these e^y is outside every float this core computes in: nought,
+   * or as large as can be, without walking there a ln 2 at a time. */
+  if (!(y > F3D_R(-700.0))) return F3D_R(0.0);
+  if (y > F3D_R(700.0)) return y;
   int k = 0;
   while (y >= ln2) {
     y -= ln2;
@@ -1211,7 +1217,7 @@ static void substep(F3dWorld *world, Grid *g, Lip *lip, f3d_real h,
 /* The share of a piece that splashes back up where it lands (Mundo and
  * colleagues): a jet or drop of diameter D striking at v splashes when
  * K = Oh·Re^1.25 passes 57.7, Oh = μ/√(ρσD), Re = ρvD/μ; past it, a tenth of
- * the excess, at most half — as the reference's Jet takes it. */
+ * the excess, at most half — a share with no measurement behind it yet. */
 static f3d_real splash_share(const F3dShallowSlot *ws, f3d_real diameter,
                              f3d_real speed) {
   if (!(diameter > F3D_R(0.0) && speed > F3D_R(0.0))) return F3D_R(0.0);
@@ -1225,8 +1231,9 @@ static f3d_real splash_share(const F3dShallowSlot *ws, f3d_real diameter,
 
 /* A piece of falling water [d] coming down in column [c] of [g]: its water
  * and its push into the column; what splashes back up thrown as a crown of
- * eight drops at three tenths of its speed (as the reference's Jet throws
- * them); and, for a sheet plunging into water, the air it drags down. */
+ * eight drops at three tenths of its speed, numbers not yet taken from a
+ * measured crown; and, for a sheet plunging into water, the air it drags
+ * down. */
 static void land(F3dWorld *world, Grid *g, const F3dSpray *d, uint32_t c) {
   const F3dShallowSlot *ws = g->slot;
   wake(g->slot);
