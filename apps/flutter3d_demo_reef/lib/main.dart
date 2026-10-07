@@ -306,6 +306,17 @@ class _ReefScreenState extends State<ReefScreen>
                 view: _view,
                 settings: () => RenderSettings(
                   exposure: 0.8,
+                  // Fitted to the few tens of metres a diver sees, and soft:
+                  // under water the sun comes through a rippling surface
+                  // and the water scatters it, so a shadow has a wide edge
+                  // and is never black.
+                  shadows: const ShadowSettings(
+                    resolution: 2048,
+                    viewDistance: 30.0,
+                    cascadeSplit: 0.6,
+                    directionalLightRadius: 0.6,
+                    strength: 0.8,
+                  ),
                   bloom: const BloomSettings(enabled: false),
                   // Under the surface, past the reef's edges is open water:
                   // its own blue-green, lighter towards the light.

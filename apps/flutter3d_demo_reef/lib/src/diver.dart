@@ -177,15 +177,24 @@ final class Diver {
     // length (its y), as wide as its x and thin through its sole (its z).
     final blade = _fin();
     for (final foot in <String>['Foot.L', 'Foot.R']) {
+      final anchor = figure.anchors[foot]!;
+      // The figure's feet point down and back as a stander's do; a finning
+      // diver's fins trail nearly in line with the body. The blade is
+      // turned up about the ankle until most of that droop is gone, or its
+      // tip would reach below the body and into the sand under a diver
+      // swimming low.
+      final along = anchor.getRotation().getColumn(1);
+      final level = Vector3(along.x, along.y * 0.3, along.z)..normalize();
+      final inFoot = anchor.getRotation().transposed().transformed(level);
       look.add(
         SceneNode(name: 'fin')
-          ..setLocalMatrix(figure.anchors[foot]!)
+          ..setLocalMatrix(anchor)
           ..add(
             MeshNode(
               DeviceMesh.upload(device, blade),
               under('fin', Vector4(1.0, 1.0, 1.0, 1.0)),
               name: 'blade',
-            ),
+            )..setRotation(Quaternion.fromTwoVectors(Vector3(0, 1, 0), inFoot)),
           ),
       );
     }
@@ -422,7 +431,7 @@ final class Diver {
     // Tipped up or down by how the body is going, but only so far as the
     // fins drive it: a diver settling slowly with the jacket empty sinks
     // flat, as a trimmed diver does, rather than standing on their head.
-    final pitch = math.atan2(v.y, math.max(level, 1.2)).clamp(-0.6, 0.6);
+    final pitch = math.atan2(v.y, math.max(level, 1.2)).clamp(-0.4, 0.4);
     look
       ..setPosition(p.x, p.y, p.z)
       ..setRotation(
