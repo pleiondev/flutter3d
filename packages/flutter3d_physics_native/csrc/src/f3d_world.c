@@ -737,9 +737,10 @@ uint32_t f3d_world_read_transforms(const F3dWorld *world, f3d_real *transforms,
 
 /* One fire's reals: where, the watts, and its flame. */
 static void write_fire(const F3dWorld *world, f3d_real *f, F3dVec3 at,
-                       f3d_real surface, f3d_real release) {
+                       f3d_real surface, f3d_real involved, f3d_real release) {
   F3dVec3 axis;
-  const f3d_real reach = f3d_flame_of(world, at, surface, release, &axis);
+  const f3d_real reach =
+      f3d_flame_of(world, at, surface, involved, release, &axis);
   f[0] = at.x;
   f[1] = at.y;
   f[2] = at.z;
@@ -767,14 +768,14 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
             &world->compound_parts[world->compounds[s->hull - 1u].first_part + k];
         write_fire(world, fires + (size_t)written * F3D_FIRE_FLOATS, at,
                    f3d_shape_surface(world, p->kind, p->size, p->rounding, p->hull),
-                   l->heat_release);
+                   l->involved, l->heat_release);
         if (handles != NULL) handles[written] = handle_of(i, s->generation);
         written++;
       }
       continue;
     }
     write_fire(world, fires + (size_t)written * F3D_FIRE_FLOATS, s->position,
-               s->surface, s->heat_release);
+               s->surface, s->involved, s->heat_release);
     if (handles != NULL) handles[written] = handle_of(i, s->generation);
     written++;
   }

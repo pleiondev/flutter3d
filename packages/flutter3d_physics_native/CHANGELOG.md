@@ -23,6 +23,17 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A fire grows from where it caught.** A body catches on a patch three
+  centimetres across, and the flame's edge runs out over its surface at
+  the opposed-flow rate, which goes as 1 / (T_ig − T_s)²: five millimetres
+  a second over a cool surface, up to five centimetres over one already
+  near catching. The burning share of the surface sets how fast mass
+  burns, how much heat leaves and how wide the flame stands, so a fire
+  from a spark grows as the square of the time, as measured fires do, and
+  one on a body heated all round takes seconds to cover it. A flame still
+  spreading over a dry body keeps its patch alight; water still puts it
+  out. Snapshots are version 20.
+
 - **The laws a body keeps, each held to its closed form.** A fall at g·t,
   a sum of forces accelerating at their sum over the mass, a torque about
   no principal axis changing the angular momentum by itself times the

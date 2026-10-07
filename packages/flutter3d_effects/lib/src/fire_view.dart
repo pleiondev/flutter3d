@@ -289,33 +289,53 @@ final class FireView {
       material.baseColor.setFrom(
         w.fresh + (w.charred - w.fresh) * math.min(1.0, burnt * 4.0),
       );
+      // Glowing as much of it as the flame has spread over.
+      final share = math.min(
+        1.0,
+        _across(_world.heatReleaseOf(w.body) / 1000.0) / baseWidth,
+      );
       final glow = _world.isBurning(w.body)
-          ? 0.5 + 0.3 * _flicker.nextDouble()
+          ? (0.5 + 0.3 * _flicker.nextDouble()) * share * share
           : 0.0;
       material.emissive.setValues(glow, 0.3 * glow, 0.06 * glow);
     }
   }
 
+  /// A fire's own width, m, from its heat [kw]: Heskestad's characteristic
+  /// diameter D* = (Q / (ρ c_p Tₐ √g))^(2/5), about the width of the base
+  /// a fire of that size burns on — a few centimetres for a flame just
+  /// caught, half a metre for a crate alight all over.
+  static double _across(double kw) =>
+      kw <= 0 ? 0.0 : math.pow(kw / 1100.0, 0.4).toDouble();
+
   void _burn(int key, Vector3 at, double q, double reach, Vector3 axis) {
     final kw = q / 1000.0;
-    final length = math.max(reach, 0.5 * baseWidth);
+    // The flame as wide as the fire is, never wider than what burns, and as
+    // long as Heskestad's 2.9 D* over it: a fire just caught is a small
+    // flame and grows with the patch it burns on.
+    final width = math.max(math.min(_across(kw), baseWidth), 0.02);
+    final scale = width / baseWidth;
+    final length = math.max(
+      math.min(reach, 2.9 * width + 0.5 * baseWidth),
+      1.5 * width,
+    );
     final rise = 4.56 * math.sqrt(length);
     _flameRise = rise;
     final puff =
-        1.0 + 0.6 * math.sin(2 * math.pi * 1.5 / math.sqrt(baseWidth) * _clock);
+        1.0 + 0.6 * math.sin(2 * math.pi * 1.5 / math.sqrt(width) * _clock);
     _flames.emit(
       key,
-      _flameEffect(length / rise),
+      _flameEffect(length / rise, width),
       at,
-      perSecond: (90.0 + 0.6 * kw) * puff,
+      perSecond: (20.0 + 70.0 * scale + 0.6 * kw) * puff,
       direction: axis,
     );
-    final tip = at + axis * (1.2 * reach);
+    final tip = at + axis * math.min(1.2 * reach, length + 0.5 * baseWidth);
     _smoke.emit(
       key,
-      _smokeEffect(_plume(tip.y)),
+      _smokeEffect(_plume(tip.y), width),
       tip,
-      perSecond: 10.0 + kw / 10.0,
+      perSecond: 10.0 * scale + kw / 10.0,
       direction: Vector3(0.0, 1.0, 0.0),
     );
     _embers.emit(
@@ -327,15 +347,15 @@ final class FireView {
     );
   }
 
-  ParticleEffect _flameEffect(double life) => ParticleEffect(
+  ParticleEffect _flameEffect(double life, double width) => ParticleEffect(
     count: 1,
     emitter: ConeEmitter(
       speed: Range(0.5 * _flameRise, _flameRise),
       halfAngleDegrees: 12.0,
     ),
     lifetime: Range(0.7 * life, 1.2 * life),
-    // As wide as what burns, and a little more.
-    size: Range(2.0 * baseWidth, 3.3 * baseWidth),
+    // As wide as the fire, and a little more.
+    size: Range(2.0 * width, 3.3 * width),
     color: Vector4(1.0, 1.0, 1.0, 1.0),
     affectors: <ParticleAffector>[
       _flameAir,
@@ -353,11 +373,11 @@ final class FireView {
     ],
   );
 
-  ParticleEffect _smokeEffect(double rise) => ParticleEffect(
+  ParticleEffect _smokeEffect(double rise, double width) => ParticleEffect(
     count: 1,
     emitter: ConeEmitter(speed: Range(0.8 * rise, rise), halfAngleDegrees: 10),
     lifetime: const Range(5.0, 7.0),
-    size: Range(3.0 * baseWidth, 4.0 * baseWidth),
+    size: Range(3.0 * width, 4.0 * width),
     color: Vector4(0.5, 0.49, 0.48, 0.35),
     affectors: <ParticleAffector>[
       _smokeAir,

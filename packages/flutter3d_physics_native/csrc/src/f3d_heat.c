@@ -138,6 +138,7 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
     if (l[i].fuel <= F3D_R(0.0) || !burns) {
       l[i].burning = 0;
       l[i].heat_release = F3D_R(0.0);
+      l[i].involved = F3D_R(0.0);
     }
   }
   if (l != NULL) {
@@ -148,6 +149,7 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
   if (s->fuel <= F3D_R(0.0) || !burns) {
     s->flags &= (uint8_t)~F3D_FLAG_BURNING;
     s->heat_release = F3D_R(0.0);
+    s->involved = F3D_R(0.0);
   }
   return 1;
 }
@@ -480,6 +482,7 @@ static void lumps_from_body(const F3dWorld *world, const F3dSlot *s,
     l->mass = s->mass * by_volume;
     l->fuel = s->fuel * by_volume;
     l->water = s->water * by_surface;
+    l->involved = s->involved * by_surface;
     l->burning = (s->flags & F3D_FLAG_BURNING) != 0;
   }
 }
@@ -544,6 +547,7 @@ static void body_from_lumps(F3dWorld *world, F3dSlot *s) {
   const F3dLump *l = &world->lumps[s->lumps - 1u];
   f3d_real held = F3D_R(0.0), warm = F3D_R(0.0), water = F3D_R(0.0);
   f3d_real fuel = F3D_R(0.0), release = F3D_R(0.0), mass = F3D_R(0.0);
+  f3d_real involved = F3D_R(0.0);
   f3d_real inside = F3D_R(0.0), reached = F3D_R(0.0), skin = F3D_R(0.0);
   int burning = 0;
   for (uint32_t i = 0; i < s->lump_count; i++) {
@@ -557,6 +561,7 @@ static void body_from_lumps(F3dWorld *world, F3dSlot *s) {
     water += l[i].water;
     fuel += l[i].fuel;
     release += l[i].heat_release;
+    involved += l[i].involved;
     mass += l[i].mass;
     burning |= l[i].burning != 0;
   }
@@ -569,6 +574,7 @@ static void body_from_lumps(F3dWorld *world, F3dSlot *s) {
   s->water = water;
   s->fuel = fuel;
   s->heat_release = release;
+  s->involved = involved;
   if (burning) {
     s->flags |= F3D_FLAG_BURNING;
   } else {
@@ -807,6 +813,15 @@ static void conduct_within(F3dWorld *world, Heats *hs, f3d_real dt) {
 /* How many rays decide how much of a body a source sees past what stands
  * between them: its centre and four points around it. */
 #define F3D_RADIANT_RAYS 5u
+/* A flame catches on a patch this wide in radius, m, and its edge creeps
+ * over a surface still at the air's temperature this fast, m/s: about the
+ * millimetres a second flame spreads sideways over wood and the
+ * centimetres it climbs, taken together over a body that has both. */
+#define F3D_FLAME_SEED F3D_R(0.03)
+#define F3D_FLAME_CREEP F3D_R(0.005)
+/* The fastest its edge runs, m/s, over a surface already near the
+ * temperature it catches at. */
+#define F3D_FLAME_RUN F3D_R(0.05)
 /* A buoyant plume spreads by this much of its height on each side
  * (Heskestad: b = 0.12 (z − z₀)). */
 #define F3D_PLUME_SPREAD F3D_R(0.12)
@@ -866,19 +881,23 @@ static f3d_real flame_length(f3d_real q, f3d_real d) {
 }
 
 f3d_real f3d_flame_of(const F3dWorld *world, F3dVec3 at, f3d_real surface,
-                      f3d_real release, F3dVec3 *axis) {
+                      f3d_real involved, f3d_real release, F3dVec3 *axis) {
   const f3d_real g2 = f3d_dot(world->s.gravity, world->s.gravity);
   const f3d_real g = f3d_sqrt(g2);
   const F3dVec3 up = g2 > F3D_R(0.0)
                          ? f3d_scale(world->s.gravity, F3D_R(-1.0) / g)
                          : f3d_v3(F3D_R(0.0), F3D_R(1.0), F3D_R(0.0));
   *axis = up;
-  if (!(release > F3D_R(0.0) && surface > F3D_R(0.0))) return F3D_R(0.0);
-  /* Heskestad's length over a base as wide as the body, from its middle;
-   * leaning with the wind where it stands by the buoyant speed
-   * (g·Q / (ρ c_p Tₐ D))^(1/3). */
+  if (!(release > F3D_R(0.0) && surface > F3D_R(0.0) && involved > F3D_R(0.0))) {
+    return F3D_R(0.0);
+  }
+  /* Heskestad's length over a base as wide as the part of the body that
+   * is alight — the whole body's width once the flame has spread over it —
+   * from its middle; leaning with the wind where it stands by the buoyant
+   * speed (g·Q / (ρ c_p Tₐ D))^(1/3). */
   const f3d_real r = f3d_sqrt(surface / (F3D_R(4.0) * F3D_PI));
-  const f3d_real across = F3D_R(2.0) * r;
+  const f3d_real across =
+      F3D_R(2.0) * f3d_sqrt(f3d_min(involved, surface) / (F3D_R(4.0) * F3D_PI));
   const f3d_real rise = cube_root(
       g * release / (world->s.air_density * F3D_AIR_HEAT *
                      world->s.air_temperature * across));
@@ -1014,7 +1033,8 @@ static void radiate(F3dWorld *world, Heats *hs, f3d_real dt) {
     /* The column the flame stands in. */
     F3dVec3 axis;
     const f3d_real column = f3d_flame_of(
-        world, a->at, a->surface, alight ? a->l.heat_release : F3D_R(0.0), &axis);
+        world, a->at, a->surface, a->l.involved,
+        alight ? a->l.heat_release : F3D_R(0.0), &axis);
     if (f3d_abs(sent) < F3D_RADIANT_LEAST && column == F3D_R(0.0)) continue;
     /* caught ≤ (r/d)²/2: past this, the largest thing catches less than
      * the least worth sending. */
@@ -1106,12 +1126,29 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
   f3d_real power = l->heat / dt;
   l->heat = F3D_R(0.0);
   l->heat_release = F3D_R(0.0);
-  /* The fire: a burning surface loses mass at the burn rate, the mass
-   * releases its heat of combustion, and the flame's share of that goes
-   * back into it; the rest leaves as hot gas. The mass leaves at the body's
-   * velocity, so the velocity does not change. */
+  /* The flame's spread: from the patch it caught on its edge runs outwards
+   * over the surface, faster the nearer the surface ahead of it already is
+   * to catching — the opposed-flow spread rate goes as 1 / (T_ig − T_s)²
+   * (Quintiere) — so a fire grows as the square of the time from a spark,
+   * as real ones are measured to, and races over a body heated all round. */
+  if (l->burning && l->involved < h->surface) {
+    const f3d_real ignition = m->ignition_temperature;
+    const f3d_real ahead = ignition - l->skin;
+    const f3d_real cold = f3d_max(ignition - ta, F3D_R(1.0));
+    const f3d_real run =
+        ahead > F3D_R(0.0)
+            ? f3d_min(F3D_FLAME_RUN,
+                      F3D_FLAME_CREEP * (cold / ahead) * (cold / ahead))
+            : F3D_FLAME_RUN;
+    const f3d_real r = f3d_sqrt(l->involved / F3D_PI) + run * dt;
+    l->involved = f3d_min(F3D_PI * r * r, h->surface);
+  }
+  /* The fire: the burning part of a surface loses mass at the burn rate,
+   * the mass releases its heat of combustion, and the flame's share of that
+   * goes back into it; the rest leaves as hot gas. The mass leaves at the
+   * body's velocity, so the velocity does not change. */
   if (l->burning) {
-    const f3d_real burnt = f3d_min(m->burn_rate * h->surface * dt, l->fuel);
+    const f3d_real burnt = f3d_min(m->burn_rate * l->involved * dt, l->fuel);
     const f3d_real released = burnt * m->heat_of_combustion / dt;
     power += m->flame_feedback * released;
     l->heat_release = (F3D_R(1.0) - m->flame_feedback) * released;
@@ -1120,6 +1157,7 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
     if (l->fuel <= F3D_R(0.0)) {
       l->fuel = F3D_R(0.0);
       l->burning = 0;
+      l->involved = F3D_R(0.0);
       said |= BURNT_OUT;
     }
   }
@@ -1178,18 +1216,25 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
    * of the step or its end, or where something hot enough touches it; and
    * out when it ends below it with nothing hot enough touching. A wet one
    * is held at boiling, below any ignition temperature here, so water puts
-   * a fire out and keeps a wet body from catching. */
+   * a fire out and keeps a wet body from catching. A flame still spreading
+   * over a dry body holds its own patch alight however cool the surface is
+   * on the whole: the surface's one temperature is the whole's, and the
+   * flame's edge is not where that is measured. */
   const f3d_real ignition = m->ignition_temperature;
   if (ignition <= F3D_R(0.0)) return said;
   const f3d_real spot = l->water > F3D_R(0.0) ? F3D_R(0.0) : h->spot;
   if (l->burning) {
-    if (l->skin < ignition && spot < ignition) {
+    const int spreading =
+        l->water <= F3D_R(0.0) && l->involved < h->surface;
+    if (!spreading && l->skin < ignition && spot < ignition) {
       l->burning = 0;
+      l->involved = F3D_R(0.0);
       said |= WENT_OUT;
     }
   } else if (l->fuel > F3D_R(0.0) && l->water <= F3D_R(0.0) &&
              f3d_max(f3d_max(was, l->skin), spot) >= ignition) {
     l->burning = 1;
+    l->involved = f3d_min(F3D_PI * F3D_FLAME_SEED * F3D_FLAME_SEED, h->surface);
     said |= CAUGHT;
   }
   return said;
@@ -1229,6 +1274,7 @@ static int gather(F3dWorld *world, Heats *hs, f3d_real dt) {
       h->l.fuel = s->fuel;
       h->l.mass = s->mass;
       h->l.heat_release = s->heat_release;
+      h->l.involved = s->involved;
       h->l.burning = (s->flags & F3D_FLAG_BURNING) != 0;
       h->slot = i;
       h->at = s->position;
@@ -1302,6 +1348,7 @@ void f3d_step_heat(F3dWorld *world, f3d_real dt) {
       s->water = l->water;
       s->fuel = l->fuel;
       s->heat_release = l->heat_release;
+      s->involved = l->involved;
       if (l->mass != s->mass) {
         s->mass = l->mass;
         f3d_refresh_mass(world, s);

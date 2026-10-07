@@ -193,17 +193,30 @@ static void test_fire(void) {
   CHECK(burning(w, block));
   CHECK(f3d_world_read_events(w, bodies, NULL, kinds, 8) == 1);
   CHECK(bodies[0] == block && kinds[0] == F3D_EVENT_IGNITED);
-  /* Alight, it loses 11 g/s per m² of its 0.06 m², gives 15 MJ/kg, and
-   * keeps three tenths of it: it heats itself, and the rest leaves. */
-  for (int i = 0; i < 100; i++) f3d_world_step(w, F3D_R(0.1));
+  /* It catches on a small patch, and the flame spreads from there: a
+   * tenth of a second in, a few hundredths of its surface burn. */
+  const double rate = 0.011 * 0.06;
   f3d_real t, mass, fuel, release;
+  f3d_world_step(w, F3D_R(0.1));
+  f3d_body_get_heat_release(w, block, &release);
+  CHECK(release > 0);
+  CHECK(release < 0.1 * 0.7 * rate * 1.5e7);
+  /* Heated all round past catching, the flame's edge runs at its fastest,
+   * five centimetres a second, and covers the block in under three. */
+  for (int i = 0; i < 30; i++) f3d_world_step(w, F3D_R(0.1));
+  f3d_real early_mass, early_fuel;
+  f3d_body_get_mass(w, block, &early_mass);
+  f3d_body_get_fuel(w, block, &early_fuel);
+  /* Alight all over, it loses 11 g/s per m² of its 0.06 m², gives
+   * 15 MJ/kg, and keeps three tenths of it: it heats itself, and the rest
+   * leaves. */
+  for (int i = 0; i < 100; i++) f3d_world_step(w, F3D_R(0.1));
   f3d_body_get_temperature(w, block, &t);
   CHECK(t > 600);
-  const double rate = 0.011 * 0.06;
   f3d_body_get_mass(w, block, &mass);
-  CHECK_NEAR(mass, 0.6 - rate * 10.0, 1e-4);
+  CHECK_NEAR(mass, early_mass - rate * 10.0, 1e-4);
   f3d_body_get_fuel(w, block, &fuel);
-  CHECK_NEAR(fuel, 0.48 - rate * 10.0, 1e-4);
+  CHECK_NEAR(fuel, early_fuel - rate * 10.0, 1e-4);
   f3d_body_get_heat_release(w, block, &release);
   CHECK_NEAR(release, 0.7 * rate * 1.5e7, 1e-4);
   F3dBody handle = 0;
@@ -677,6 +690,34 @@ static void test_water(void) {
   f3d_world_destroy(w);
 }
 
+/* A fire on a cool body grows from the patch it caught on, as the square
+ * of the time: it is still small seconds after it caught, and gives off
+ * more each second than the one before. */
+static void test_a_fire_grows(void) {
+  F3dWorld *w = f3d_world_create();
+  const F3dBody block = wood_block(w);
+  f3d_body_set_temperature(w, block, 600);
+  f3d_world_step(w, F3D_R(0.1));
+  CHECK(burning(w, block));
+  /* The spark gone, the block as cool as the room but for its flame. */
+  f3d_body_set_temperature(w, block, 293.15);
+  const double full = 0.7 * 0.011 * 0.06 * 1.5e7;
+  f3d_real before = 0, at;
+  for (int s = 1; s <= 5; s++) {
+    for (int i = 0; i < 10; i++) f3d_world_step(w, F3D_R(0.1));
+    CHECK(burning(w, block));
+    f3d_body_get_heat_release(w, block, &at);
+    CHECK(at > before);
+    before = at;
+  }
+  CHECK(before < 0.6 * full);
+  /* Left alone, the flame covers it and burns at the full rate. */
+  for (int i = 0; i < 600; i++) f3d_world_step(w, F3D_R(0.1));
+  f3d_body_get_heat_release(w, block, &at);
+  CHECK_NEAR(at, full, 1e-3 * full);
+  f3d_world_destroy(w);
+}
+
 int main(void) {
   test_materials();
   test_heat_bus();
@@ -684,6 +725,7 @@ int main(void) {
   test_radiation_cannot_overshoot();
   test_wind_cools();
   test_fire();
+  test_a_fire_grows();
   test_radiation_between_bodies();
   test_fire_spreads();
   test_a_beam_burns_from_one_end();
