@@ -597,6 +597,9 @@ typedef struct Heat {
    * surface is than its mean, this step. */
   f3d_real volume;
   f3d_real gain;
+  /* The hottest its surface is where something touches it this step, K;
+   * nought where nothing does. */
+  f3d_real spot;
 } Heat;
 
 /* Every live body's entries, and where each body's start. */
@@ -685,6 +688,15 @@ static Heat *nearest(Heats *hs, uint32_t slot, F3dVec3 p) {
   return best;
 }
 
+/* How readily [h]'s surface takes heat from a sudden touch, √(kρc), with
+ * its density its mass over its volume; −1 for one with no thermal mass or
+ * no volume to hold it — a reservoir, whose surface a touch does not move. */
+static f3d_real effusivity(const F3dWorld *world, const Heat *h) {
+  const F3dMaterial *m = &world->slots[h->slot].material;
+  if (!(h->l.mass > F3D_R(0.0) && h->volume > F3D_R(0.0))) return F3D_R(-1.0);
+  return f3d_sqrt(m->conductivity * (h->l.mass / h->volume) * m->specific_heat);
+}
+
 /* Heat across every contact that touches, each side's part nearest the
  * contact. The conductance is Holm's constriction of two bodies meeting
  * over a spot of radius a, G = 4a / (1/k₁ + 1/k₂), with a the radius of a
@@ -709,6 +721,19 @@ static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
     centre = f3d_scale(centre, F3D_R(1.0) / (f3d_real)m->count);
     Heat *a = nearest(hs, ia_slot, centre);
     Heat *b = nearest(hs, ib_slot, centre);
+    /* Where they meet, the two surfaces are at once at the temperature
+     * their effusivities e = √(kρc) weigh them to — straw on a red-hot
+     * stone is at nearly the stone's — however little the contact passes to
+     * either whole, and however lightly they touch. That spot is what
+     * lights a fuel. A side with no thermal mass, or none it fills, holds
+     * the spot at its own. */
+    const f3d_real ta = skin_of(a), tb = skin_of(b);
+    const f3d_real ea = effusivity(world, a), eb = effusivity(world, b);
+    const f3d_real meet = ea < F3D_R(0.0)   ? ta
+                          : eb < F3D_R(0.0) ? tb
+                                            : (ea * ta + eb * tb) / (ea + eb);
+    a->spot = f3d_max(a->spot, meet);
+    b->spot = f3d_max(b->spot, meet);
     const f3d_real ca = held_by(world, a), cb = held_by(world, b);
     /* No thermal mass: a fixed one is a reservoir, and nothing else can
      * have none. */
@@ -728,7 +753,7 @@ static void conduct(F3dWorld *world, Heats *hs, f3d_real dt) {
                        (F3D_R(1.0) / sa->material.conductivity +
                         F3D_R(1.0) / sb->material.conductivity);
     const f3d_real gdt = g * dt;
-    const f3d_real q = gdt * (skin_of(b) - skin_of(a)) /
+    const f3d_real q = gdt * (tb - ta) /
                        (F3D_R(1.0) + gdt * (sa_k + sb_k));
     a->l.temperature += q * ia;
     b->l.temperature -= q * ib;
@@ -1152,18 +1177,20 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
   settle_heat(world, h, dt);
   l->skin = boiling ? F3D_WATER_BOILS : f3d_max(skin_of(h), F3D_R(1e-3));
   /* Alight when its surface reaches the ignition temperature, at the start
-   * of the step or its end, and out when it ends below it. A wet one is held
-   * at boiling, below any ignition temperature here, so water puts a fire
-   * out and keeps a wet body from catching. */
+   * of the step or its end, or where something hot enough touches it; and
+   * out when it ends below it with nothing hot enough touching. A wet one
+   * is held at boiling, below any ignition temperature here, so water puts
+   * a fire out and keeps a wet body from catching. */
   const f3d_real ignition = m->ignition_temperature;
   if (ignition <= F3D_R(0.0)) return said;
+  const f3d_real spot = l->water > F3D_R(0.0) ? F3D_R(0.0) : h->spot;
   if (l->burning) {
-    if (l->skin < ignition) {
+    if (l->skin < ignition && spot < ignition) {
       l->burning = 0;
       said |= WENT_OUT;
     }
   } else if (l->fuel > F3D_R(0.0) && l->water <= F3D_R(0.0) &&
-             f3d_max(was, l->skin) >= ignition) {
+             f3d_max(f3d_max(was, l->skin), spot) >= ignition) {
     l->burning = 1;
     said |= CAUGHT;
   }

@@ -550,6 +550,37 @@ static void test_a_log_catches_at_its_surface(void) {
   f3d_world_destroy(w);
 }
 
+/* A granite ball laid on a beam of pine two metres a side. */
+static int beam_under_a_stone(f3d_real stone_at, f3d_real seconds) {
+  F3dWorld *w = f3d_world_create();
+  const F3dBody beam = f3d_body_create(w, F3D_BODY_FIXED, 0, 0, 0, F3D_R(4000.0));
+  f3d_body_set_shape(w, beam, F3D_SHAPE_BOX, 1, 1, 1);
+  F3dMaterial m;
+  f3d_material_preset(F3D_MATERIAL_WOOD, &m);
+  f3d_body_set_material(w, beam, &m);
+  const F3dBody stone =
+      f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(1.3), 0, F3D_R(305.0));
+  f3d_body_set_shape(w, stone, F3D_SHAPE_SPHERE, F3D_R(0.3), 0, 0);
+  f3d_material_preset(F3D_MATERIAL_STONE, &m);
+  f3d_body_set_material(w, stone, &m);
+  f3d_body_set_temperature(w, stone, stone_at);
+  const int steps = (int)(seconds * 60);
+  for (int i = 0; i < steps; i++) f3d_world_step(w, F3D_R(1.0) / 60);
+  const int on = burning(w, beam);
+  f3d_world_destroy(w);
+  return on;
+}
+
+static void test_a_red_hot_stone_lights_wood_it_touches(void) {
+  /* Where a stone at 1100 K touches pine, both surfaces are at once at
+   * what their effusivities √(kρc) weigh them to: granite's is seven times
+   * pine's, so the wood there is near 1000 K and alight within a second —
+   * though the beam's four tonnes as a whole have barely warmed. A stone
+   * at 450 K holds the spot below pine's 573 K and lights nothing. */
+  CHECK(beam_under_a_stone(1100, 1));
+  CHECK(!beam_under_a_stone(450, 20));
+}
+
 static void test_burning_body_gets_lighter(void) {
   /* A dynamic log that burns loses mass and, with it, inertia; its
    * velocity stays, since what burns leaves at the body's speed. */
@@ -657,6 +688,7 @@ int main(void) {
   test_fire_spreads();
   test_a_beam_burns_from_one_end();
   test_a_log_catches_at_its_surface();
+  test_a_red_hot_stone_lights_wood_it_touches();
   test_burning_body_gets_lighter();
   test_water();
   return finish();

@@ -23,6 +23,16 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A red-hot stone lights the straw it lies in.** Where two bodies touch,
+  both surfaces are at once at the temperature their effusivities √(kρc)
+  weigh them to, however little the contact passes to either whole; a fuel
+  catches when that spot reaches its ignition temperature, and burns on
+  while it stays there. Granite at 1100 K on pine holds the pine at near
+  1000 K where they meet, and a four-tonne beam is alight within a second
+  under a stone it has barely warmed; a stone at 450 K lights nothing. A
+  block pressed against a burning one now catches from the burning face
+  in seconds rather than from its radiation in minutes.
+
 - **A light car sits on its springs.** A wheel's damper is pushed whole at
   the step's end, so it now takes out of the closing at most what there
   is: the mass the wheel carries over the step, the chassis's as seen at
