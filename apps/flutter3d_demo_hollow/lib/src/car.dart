@@ -166,6 +166,10 @@ final class StoneCar {
   Quaternion get orientation => _world.orientationOf(body);
   Vector3 get forward => orientation.rotated(Vector3(1.0, 0.0, 0.0));
 
+  /// The middle of the deck's top, where a load stands.
+  Vector3 get deck =>
+      position + orientation.rotated(Vector3(0.3, _halfHeight, 0.0));
+
   /// What the driver asks: [throttle] and [turn] from −1 to 1, and whether
   /// they [hold] the brake.
   void drive({

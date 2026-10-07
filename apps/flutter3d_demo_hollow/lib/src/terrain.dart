@@ -89,8 +89,9 @@ double groundAt(double x, double z) {
   final plateau = 5.5 * (1.0 - _smooth(cliffTop, cliffFoot, z));
   if (plateau > 0.0) {
     final off = (x - riverX(math.min(z, cliffTop))).abs();
-    final bed =
-        0.7 * _bump(off, 1.6) * (1.0 - _smooth(cliffTop - 0.3, cliffTop, z));
+    // Cut as deep to the lip as above it: a sill there would ground what
+    // the current brings before it could go over.
+    final bed = 0.7 * _bump(off, 1.6) * (1.0 - _smooth(cliffTop, cliffFoot, z));
     h +=
         plateau -
         bed +

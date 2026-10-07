@@ -73,6 +73,184 @@ final class QuarryStones {
   }
 }
 
+/// Rafts of three pine logs lashed side by side, put on the river at the
+/// spring now and then for the current to take over the falls, through the
+/// lagoon and out by the ford. A handful at a time: the oldest is taken
+/// away when another comes.
+final class Rafts {
+  Rafts(
+    this._world,
+    GraphicsDevice device,
+    this._scene,
+    this._hearing,
+    this._river,
+  ) : _logMesh = DeviceMesh.upload(
+        device,
+        const CylinderShape(
+          radiusTop: _logRadius,
+          radiusBottom: _logRadius,
+          height: 2 * _logHalf,
+          segments: 12,
+        ).build(),
+      );
+
+  /// A log's radius and half its length, m, and how many rafts ride at once.
+  static const double _logRadius = 0.15, _logHalf = 0.8;
+  static const int _most = 5;
+
+  /// Seconds between rafts.
+  static const double _every = 25.0;
+
+  final NativeWorld _world;
+  final Scene _scene;
+  final PhysicsHearing _hearing;
+  final NativeShallowLiquid _river;
+  final DeviceMesh _logMesh;
+  final List<Prop> rafts = <Prop>[];
+  double _since = _every - 3.0;
+
+  late final NativeCompound _shape = _world.createCompound(<NativeCompoundPart>[
+    // Logs as rounded bars along z, the current's way: a cylinder on its
+    // side would roll on the bed, a raft does not.
+    for (final x in <double>[-0.31, 0.0, 0.31])
+      NativeCompoundPart(
+        NativeShape.box(
+          Vector3(_logRadius * 0.6, _logRadius * 0.6, _logHalf - 0.06),
+        ),
+        at: Vector3(x, 0, 0),
+        rounding: _logRadius * 0.4,
+      ),
+  ]);
+
+  void update(double dt) {
+    _since += dt;
+    if (_since >= _every) {
+      _since = 0.0;
+      _launch();
+    }
+    for (final r in rafts) {
+      final p = _world.positionOf(r.body);
+      r.node
+        ..setPosition(p.x, p.y, p.z)
+        ..setRotation(_world.orientationOf(r.body));
+    }
+  }
+
+  void _launch() {
+    if (rafts.length >= _most) {
+      final oldest = rafts.removeAt(0);
+      _hearing.forget(oldest.body);
+      _world.removeBody(oldest.body);
+      _scene.remove(oldest.node);
+    }
+    const z = springZ + 3.0;
+    final x = riverX(z);
+    final body = _world.addBody(
+      position: Vector3(x, groundAt(x, z) + 0.8, z),
+      // Pine at 450 kg/m³.
+      mass: 3 * 450.0 * math.pi * _logRadius * _logRadius * 2 * _logHalf,
+    );
+    _world
+      ..setCompound(body, _shape)
+      ..setMaterial(body, NativeMaterial.wood());
+    final node = SceneNode(name: 'raft');
+    for (final x in <double>[-0.31, 0.0, 0.31]) {
+      node.add(
+        MeshNode(
+            _logMesh,
+            Material(
+              name: 'log',
+              baseColor: Vector4(0.42, 0.29, 0.17, 1.0),
+              roughness: 0.85,
+            ),
+            name: 'log',
+          )
+          ..setPosition(x, 0, 0)
+          ..setRotation(
+            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+          ),
+      );
+    }
+    _scene.add(node);
+    rafts.add(Prop(body, node));
+    _hearing.watch(body, _river);
+  }
+}
+
+/// The elder's idol: carved granite lying on the lagoon's floor where the
+/// bank shelves, to be lifted onto the car and brought to the village.
+final class Idol {
+  Idol(this._world, GraphicsDevice device, Scene scene) {
+    final at = Vector3(lagoonX - 2.0, 0.0, lagoonZ + 5.1);
+    at.y = groundAt(at.x, at.z) + _half.y;
+    body = _world.addBody(
+      position: at,
+      mass: 2700.0 * 8 * _half.x * _half.y * _half.z,
+    );
+    _world
+      ..setShape(body, NativeShape.box(_half))
+      ..setRounding(body, 0.03)
+      ..setMaterial(body, NativeMaterial.stone());
+    _look = MeshNode(
+      DeviceMesh.upload(device, CuboidShape(size: _half * 2.0).build()),
+      Material(
+        name: 'idol',
+        baseColor: Vector4(0.42, 0.40, 0.36, 1.0),
+        roughness: 0.8,
+      ),
+      name: 'idol',
+    );
+    scene.add(_look);
+  }
+
+  /// Half its width, height and depth, m.
+  static Vector3 get _half => Vector3(0.15, 0.25, 0.15);
+
+  final NativeWorld _world;
+  late final NativeBody body;
+  late final MeshNode _look;
+  NativeJoint? _lashed;
+
+  Vector3 get position => _world.positionOf(body);
+
+  /// Whether it rides on the car, and whether it stands in the village.
+  bool get carried => _lashed != null;
+  bool get home =>
+      !carried &&
+      Vector2(position.x - villageX, position.z - villageZ).length < 4.0;
+
+  /// Lashed upright to the car's deck at [deck], when the car is near.
+  bool lift(NativeBody car, Vector3 deck, Vector3 from) {
+    if (carried ||
+        Vector2(position.x - from.x, position.z - from.z).length > 3.0) {
+      return false;
+    }
+    _world
+      ..setPosition(body, deck + Vector3(0.0, _half.y, 0.0))
+      ..setOrientation(body, _world.orientationOf(car))
+      ..setVelocity(body, _world.velocityOf(car));
+    _lashed = _world.createJoint(
+      NativeJointType.fixed,
+      car,
+      body,
+      anchor: deck,
+    );
+    return true;
+  }
+
+  /// Untied, to stand where the car stopped.
+  void setDown() {
+    final lashed = _lashed;
+    if (lashed == null) return;
+    _world.removeJoint(lashed);
+    _lashed = null;
+  }
+
+  void update() => _look
+    ..setPosition(position.x, position.y, position.z)
+    ..setRotation(_world.orientationOf(body));
+}
+
 /// One hut: wooden walls and a thatched roof, each a body of its own, so
 /// the roof catches first.
 final class Hut {

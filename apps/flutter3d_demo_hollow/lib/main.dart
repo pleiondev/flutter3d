@@ -18,11 +18,13 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/sound.dart';
 import 'src/staging.dart';
 
 Future<void> main() async {
@@ -67,6 +69,12 @@ class _HollowScreenState extends State<HollowScreen>
 
   ({Renderer renderer, HollowRun run})? _playing;
   Object? _error;
+
+  /// The speakers, once open — or never, on a machine with no sound — and
+  /// what the valley plays through them.
+  Speakers? _speakers;
+  HollowSound? _sound;
+  final AudioListener _listener = AudioListener();
 
   /// Where the eye looks from: round behind the car by [_yaw], up by
   /// [_pitch], [_distance] off.
@@ -117,6 +125,13 @@ class _HollowScreenState extends State<HollowScreen>
       );
       if (!mounted) return;
       setState(() => _playing = (renderer: renderer, run: run));
+      final speakers = await openSpeakers(bank: HollowSound.bank);
+      if (!mounted) {
+        await speakers?.backend.dispose();
+        return;
+      }
+      _speakers = speakers;
+      if (speakers != null) _sound = HollowSound(speakers.scene, run.hearing);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
@@ -168,6 +183,8 @@ class _HollowScreenState extends State<HollowScreen>
       ..setPosition(eye.x, eye.y, eye.z)
       ..lookAt(target);
     _playing?.run.eye.setFrom(eye);
+    _listener.aimAlong(eye, target - eye);
+    _sound?.update(_listener);
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -197,6 +214,8 @@ class _HollowScreenState extends State<HollowScreen>
   void dispose() {
     _ticker?.dispose();
     _keyboard.dispose();
+    _sound?.stop();
+    unawaited(_speakers?.backend.dispose());
     _playing?.run.dispose();
     super.dispose();
   }
@@ -300,6 +319,15 @@ class _Panel extends StatelessWidget {
                           '${volcano.untilNext.round()} s')
               : '$burning ${burning == 1 ? 'hut burns' : 'huts burn'}: '
                     'fill the barrel at the water, E to throw it',
+        ),
+        Text(
+          run.idol.home
+              ? "The elder's idol is home."
+              : run.idol.carried
+              ? "The elder's idol rides on the car: bring it to the village, "
+                    'E to set it down'
+              : "The elder's idol lies on the lagoon's floor: drive in by "
+                    'the south bank, E to lift it',
         ),
         Text('Barrel ${run.car.water.round()} kg'),
         if (run.said.isNotEmpty)

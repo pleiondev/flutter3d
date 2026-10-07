@@ -51,7 +51,7 @@ final class HollowRun {
         x: springX,
         z: springZ,
         radius: 0.8,
-        rate: 0.3,
+        rate: 0.6,
       );
     riverView = LiquidView(
       world: world,
@@ -101,6 +101,12 @@ final class HollowRun {
       baseWidth: 0.5,
     );
     stones = QuarryStones(world, device, scene);
+    idol = Idol(world, device, scene);
+    rafts = Rafts(world, device, scene, hearing, _river);
+    hearing
+      ..listen(_river)
+      ..listen(_lava, density: NativeLiquidProperties.moltenBasalt.density)
+      ..watch(idol.body, _river);
     village = Village(world, device, scene, fire);
     volcano = Volcano(world, device, scene, _lava, village.huts);
     // On the quarry's north rim, facing into it.
@@ -137,6 +143,11 @@ final class HollowRun {
   late final FireView fire;
   late final StoneCar car;
   late final QuarryStones stones;
+  late final Idol idol;
+  late final Rafts rafts;
+
+  /// What the fires, the falls and the splashes sound like this frame.
+  late final PhysicsHearing hearing = PhysicsHearing(world);
   late final Village village;
   late final Volcano volcano;
   late final DinoCrane crane;
@@ -157,6 +168,16 @@ final class HollowRun {
   /// empty it over it.
   void act() {
     final p = car.position;
+    if (idol.carried) {
+      if (Vector2(p.x - villageX, p.z - villageZ).length < 6.0) {
+        idol.setDown();
+        said = 'The idol is home.';
+        return;
+      }
+    } else if (!idol.home && idol.lift(car.body, car.deck, p)) {
+      said = 'The idol is on the car: bring it to the village.';
+      return;
+    }
     final here = world.sampleShallow(_river, p.x, p.z);
     if (here != null && here.depth > 0.3) {
       car.water = StoneCar.barrelHolds;
@@ -287,11 +308,14 @@ final class HollowRun {
     _clock += dt;
     car.update();
     stones.update();
+    idol.update();
+    rafts.update(dt);
     crane.update();
     volcano.update(dt);
     riverView.update();
     lavaView.update();
     fire.update(dt);
+    hearing.update();
     water.update(seconds: _clock, eye: eye);
     lava.update(seconds: _clock, eye: eye);
   }
