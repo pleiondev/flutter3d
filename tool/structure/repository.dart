@@ -1219,6 +1219,10 @@ const Map<String, Map<String, String>> portableStepExempt =
             'tongues of flame, smoke and embers drawn for a person to look '
             'at, from fires the core has already stepped; nothing steps on '
             'a particle of them',
+        'lib/src/physics_hearing.dart':
+            'how loud the fires and the falls are to a listener, read off '
+            'a world the core has already stepped; it steps nothing and '
+            'nothing steps on what it says',
       },
       'flutter3d_editor_core': <String, String>{
         'lib/src/picking.dart':

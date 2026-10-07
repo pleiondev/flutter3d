@@ -15,4 +15,5 @@ library;
 export 'src/fire_view.dart';
 export 'src/liquid_look.dart';
 export 'src/liquid_view.dart';
+export 'src/physics_hearing.dart';
 export 'src/seabed_look.dart';

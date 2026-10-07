@@ -1,5 +1,14 @@
 ## 0.9.0
 
+- **The physics heard.** `PhysicsHearing` reads off a world what a
+  listener would hear: a source for each fire as loud as its watts, for
+  falling water as loud as the power it gives up falling, and a splash
+  where a watched body enters a liquid as loud as the energy it enters
+  with, each on a logarithmic scale, as hearing is, and a little lower in
+  pitch the bigger it is. No audio here: a game plays them. A fire, falling
+  water and a splash, synthesised by `tool/make_sounds.py`, ship in
+  `assets/`.
+
 - **A sea floor lit through its surface, and a surface seen from below.**
   `SeabedLook` draws a floor with the caustics the surface's own ripples
   focus on it — geometric optics, 1/|det(I + a·H)| with a = d·(1 − 1/n),
