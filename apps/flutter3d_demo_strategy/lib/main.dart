@@ -51,6 +51,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart'
+    show AudioListener, Speakers, openSpeakers;
 import 'package:flutter3d_game/flutter3d_game.dart' show SaveFile;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
@@ -59,12 +61,14 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'src/backend.dart';
 import 'src/command.dart';
+import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/hud_readout.dart';
 import 'src/level_document.dart';
 import 'src/match_demo_file.dart';
 import 'src/pointing.dart';
 import 'src/run.dart';
+import 'src/sound.dart';
 import 'src/staging.dart';
 
 /// Which build wrote a `.f3drun` — see the other three demos' own identical
@@ -145,6 +149,20 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
 
   Renderer? _renderer;
   Staged? _staged;
+
+  /// The water, the fires and the thrown stones over the map.
+  ///
+  /// **Made here and nowhere else**, once there is a renderer to draw them
+  /// through: `stage` — which the tests call — never sees them, and they
+  /// only ever read the match, so a run with them and a run without are the
+  /// same run.
+  MapEffects? _effects;
+
+  /// What the effects sound like, and the speakers they play through; null
+  /// while they open, or on a machine with none.
+  Speakers? _speakers;
+  StrategySound? _sound;
+  final AudioListener _listener = AudioListener();
 
   /// Whom the player has picked out, and the one door their orders go through.
   ///
@@ -349,8 +367,46 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     await run.begin();
     if (!mounted) return;
 
+    final renderer = Renderer.create(device: device);
+    final Staged? staged = _staged;
+    if (staged != null) {
+      final effects = await MapEffects.open(
+        device: device,
+        scene: _scene,
+        renderer: renderer,
+        ground: staged.simulation.ground,
+        sunAlong: _sunAlong,
+        sunLight: vm.Vector3(1.0, 0.96, 0.88)..scale(3.2),
+      );
+      if (!mounted) {
+        effects.dispose();
+        renderer.dispose();
+        return device.dispose();
+      }
+      _effects = effects..follow(_staged ?? staged);
+      unawaited(_listen(effects));
+    }
+
     _ticker = createTicker(_frame)..start();
-    setState(() => _renderer = Renderer.create(device: device));
+    setState(() => _renderer = renderer);
+  }
+
+  /// Which way the sunlight falls: where the sun above is pointed, fresh
+  /// each time so that nobody normalising or scaling it moves the sun.
+  static vm.Vector3 get _sunAlong => vm.Vector3(0.35, -1.0, 0.5)..normalize();
+
+  /// Opens the speakers the effects are heard through, after the first frame
+  /// rather than before it: a machine with no sound plays the same map.
+  Future<void> _listen(MapEffects effects) async {
+    final speakers = await openSpeakers(bank: StrategySound.bank);
+    if (!mounted) {
+      await speakers?.backend.dispose();
+      return;
+    }
+    _speakers = speakers;
+    if (speakers != null) {
+      _sound = StrategySound(speakers.scene, effects.hearing);
+    }
   }
 
   /// Takes a staged match and gives the screen its half of it.
@@ -361,6 +417,9 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   void _place(Staged staged) {
     staged.visuals.addTo(_scene);
     _staged = staged;
+    // A match opened after the first — the next one, once this is won —
+    // gets the effects too; the first is given them once they are open.
+    _effects?.follow(staged);
     _command = CommandPost(simulation: staged.simulation, side: viewerSide);
   }
 
@@ -415,6 +474,14 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     _camera
       ..setPositionFrom(staged.camera.eye)
       ..lookAt(staged.camera.target);
+    // After the steps and the sync: what the effects read of the match is
+    // what this frame shows of it.
+    _effects?.update(dt, eye: staged.camera.eye);
+    _listener.aimAlong(
+      staged.camera.eye,
+      staged.camera.target - staged.camera.eye,
+    );
+    _sound?.update(_listener);
     setState(() {});
   }
 
@@ -631,6 +698,9 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _ticker?.dispose();
+    _sound?.stop();
+    unawaited(_speakers?.backend.dispose());
+    _effects?.dispose();
     final renderer = _renderer;
     if (renderer != null) {
       renderer.dispose();

@@ -231,6 +231,10 @@ final class StrategyVisuals {
       );
       _placements.add(batch.placements);
       _placed.add(List<bool>.filled(batch.placements.length, false));
+      _slots.add(
+        Int32List(batch.placements.length)
+          ..fillRange(0, batch.placements.length, -1),
+      );
     }
 
     final Heightfield field = simulation.ground;
@@ -318,6 +322,46 @@ final class StrategyVisuals {
   /// viewer has not found them all.
   Iterable<MeshNode> get buildings => _buildings.whereType<MeshNode>();
 
+  /// The node drawn for `simulation.buildings[index]`, or null while the
+  /// viewer has not found it.
+  ///
+  /// [buildings] answers in the order the halls were found, which is not
+  /// the simulation's; a game that dresses one particular hall — the strategy
+  /// demo chars the one that burns — asks by the simulation's index here.
+  MeshNode? buildingAt(int index) =>
+      index < _buildings.length ? _buildings[index] : null;
+
+  /// How many batches of props there are: one per [PropBatch] given.
+  int get propBatchCount => _props.length;
+
+  /// Where each prop of batch [batch] was planted, in the order given.
+  ///
+  /// For a game that puts something of its own where the props stand — the
+  /// strategy demo's fires give each tree a body that can burn.
+  List<Matrix4> propPlacementsOf(int batch) =>
+      List<Matrix4>.unmodifiable(_placements[batch]);
+
+  /// Draws prop [placement] of batch [batch] tinted [colour] and, when
+  /// [transform] is given, placed by it rather than where it was planted;
+  /// false, and nothing done, while the viewer has not found it yet.
+  ///
+  /// **A tint on the copy the batch already holds**, as a hurt unit's is: a
+  /// tree charred by the strategy demo's fires stays one instance of its
+  /// batch, so a burnt wood costs no draw more than a green one.
+  bool dressProp(
+    int batch,
+    int placement, {
+    required Vector4 colour,
+    Matrix4? transform,
+  }) {
+    final int slot = _slots[batch][placement];
+    if (slot < 0) return false;
+    final InstancedMeshNode node = _props[batch];
+    node.setColor(slot, colour);
+    if (transform != null) node.setTransform(slot, transform);
+    return true;
+  }
+
   /// How big a unit is drawn.
   final UnitSize unitSize;
 
@@ -363,6 +407,10 @@ final class StrategyVisuals {
   /// Which placements of each prop batch have been written already. Only
   /// ever turns true, because exploring only ever grows.
   final List<List<bool>> _placed = <List<bool>>[];
+
+  /// Which instance of its batch each placement was written to, or -1 while
+  /// it has not been: what [dressProp] finds a prop by.
+  final List<Int32List> _slots = <Int32List>[];
 
   MeshNode? _water;
 
@@ -636,6 +684,7 @@ final class StrategyVisuals {
           continue;
         }
         placed[i] = true;
+        _slots[b][i] = count;
         batch.setTransform(count++, placements[i]);
       }
       batch.count = count;

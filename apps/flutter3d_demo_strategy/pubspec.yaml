@@ -17,6 +17,17 @@ dependencies:
   flutter3d_sim: ^0.9.0
   flutter3d_game_strategy: ^0.9.0
 
+  # The water, the fires and the thrown stones over the map: a world of
+  # their own, fed from what the match does and never feeding back.
+  flutter3d_physics_native: ^0.9.0
+
+  # That world drawn — the pond and the stream, the flames and the smoke —
+  # and what it sounds like.
+  flutter3d_effects: ^0.9.0
+
+  # The voices the fires, the stream and the splashes are played through.
+  flutter3d_audio: ^0.9.0
+
   # Where `RunSession` lives. Named here rather than reached through the
   # `flutter3d_app` barrel above, because `src/run.dart` imports it by name and
   # a file's imports and its package's dependencies should say the same thing.
