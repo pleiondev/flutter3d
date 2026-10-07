@@ -23,6 +23,16 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **The laws a body keeps, each held to its closed form.** A fall at g·t,
+  a sum of forces accelerating at their sum over the mass, a torque about
+  no principal axis changing the angular momentum by itself times the
+  time, a glancing elastic collision keeping momentum, angular momentum
+  and energy, a stone under water starting down at its weight less
+  Archimedes' push over its mass and the water it carries, a ball of half
+  water's density floating half under, a box on a slope staying below
+  Coulomb's angle and sliding at g (sin θ − μ cos θ) above it, and a
+  pendulum swinging at 2π √(L/g): `csrc/tests/test_laws.c`.
+
 - **A bag of air lifts what it is tied to.** The water a body carries with
   it was taken into its own motion and nowhere else, so a rope or a
   contact pushing on a light body in water saw only its own mass: a bag of
