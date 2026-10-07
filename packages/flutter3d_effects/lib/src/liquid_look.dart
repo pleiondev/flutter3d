@@ -71,6 +71,23 @@ final class LiquidLook {
     _set('sunColor', light.storage);
   }
 
+  /// The liquid's own colour: of a thin layer over the bed and of a deep
+  /// one, and the share of light a metre of it lets through — 0.15 for
+  /// water, nearly none for oil or molten rock.
+  void tint({
+    required Vector3 shallow,
+    required Vector3 deep,
+    required double clearness,
+  }) {
+    _set('shallow', shallow.storage);
+    _set('deep', deep.storage);
+    _set('clearness', <double>[clearness]);
+  }
+
+  /// Light the liquid gives off itself, as molten rock does: brightest
+  /// where its flow breaks the crust. Nought for anything cold.
+  set glow(Vector3 value) => _set('glow', value.storage);
+
   /// The sky the water mirrors: what the scene's sky draws overhead and at
   /// the horizon.
   void sky({required Vector3 zenith, required Vector3 horizon}) {

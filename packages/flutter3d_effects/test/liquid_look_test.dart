@@ -25,6 +25,10 @@ void main() {
           'sunColor',
           'zenith',
           'horizon',
+          'shallow',
+          'deep',
+          'clearness',
+          'glow',
         ]),
       );
       look

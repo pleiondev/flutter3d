@@ -23,11 +23,16 @@ material Liquid {
   uniform vec3 zenith = vec3(0.22, 0.42, 0.78);
   uniform vec3 horizon = vec3(0.68, 0.79, 0.92);
 
-  // The colour of a thin layer of water over the bed and of a deep one.
-  param vec3 shallow = vec3(0.12, 0.32, 0.30);
-  param vec3 deep = vec3(0.02, 0.10, 0.14);
-  // What share of the light a metre of water lets through.
-  param float clearness = 0.15;
+  // The colour of a thin layer of the liquid over the bed and of a deep
+  // one, and what share of the light a metre of it lets through: water's,
+  // until the game says otherwise.
+  uniform vec3 shallow = vec3(0.12, 0.32, 0.30);
+  uniform vec3 deep = vec3(0.02, 0.10, 0.14);
+  uniform float clearness = 0.15;
+  // Light the liquid gives off itself, W-ish: nought for water, a molten
+  // rock's glow for lava — brightest where the flow is fast enough to break
+  // its crust, dull where it creeps and skins over.
+  uniform vec3 glow = vec3(0.0, 0.0, 0.0);
   // Water's reflectance looking straight down at it.
   param float headOn = 0.02;
 
@@ -99,7 +104,8 @@ material Liquid {
     let through = pow(clearness, uv.x);
     let body = mix(deep, shallow, through) *
                (ambient + sunColor * (0.3 * clamp(dot(n, toSun), 0.0, 1.0)));
-    let water = mix(body, sky, fresnel) + glint;
+    let crust = 0.25 + 0.75 * clamp(3.0 * length(flow), 0.0, 1.0);
+    let water = mix(body, sky, fresnel) + glint + glow * crust;
     // At the very edge, a film over the bank, nothing shows: the shore is
     // where it fades out, not where the cells it lies on stop.
     let seen = clamp(1.0 - 0.85 * through + fresnel, 0.0, 1.0) *
