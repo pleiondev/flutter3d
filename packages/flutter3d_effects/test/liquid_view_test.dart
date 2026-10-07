@@ -49,6 +49,13 @@ void main() {
     expect(at(pond, 12), closeTo(0.5, 1e-3));
     expect(at(pond, 13), closeTo(0.5, 1e-3));
     expect(at(pond, 14), 0.0);
+    // Cell (3, 3): the bank's edge beside the pond, drawn level with the
+    // pond, half a metre under its own ground, so that the water ends where
+    // it meets the bank. Mutation: draw it at its ground — a wedge of
+    // surface slanting up the bank.
+    const shore = 3 + 3 * 8;
+    expect(at(shore, 1), closeTo(1.0 + 0.5, 1e-4));
+    expect(at(shore, 6), closeTo(0.5 - 1.0, 1e-4));
     // Cell (1, 3): on the bank, dry: under the ground, not seen.
     const bank = 1 + 3 * 8;
     expect(at(bank, 1), lessThan(1.0 + 1.0));

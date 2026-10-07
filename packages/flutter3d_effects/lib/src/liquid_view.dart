@@ -48,18 +48,23 @@ final class LiquidDetail {
 /// was made with.
 ///
 /// **Its surface is one vertex a cell,** rewritten every frame from what
-/// the core says: where it is dry the vertex sinks under the ground and is
-/// not seen. Each vertex tells the material what the material cannot see:
-/// the flow, x and z, as 0.5 + velocity / 8 in its colour's red and green;
-/// the froth in its blue — the share of the column that is air over three
-/// hundredths, water being white where it is a few parts in a hundred air,
-/// however fast it runs; and the depth as its first texture coordinate.
+/// the core says. A dry cell at the shore is drawn level with the water
+/// beside it, so the water runs flat into the bank and ends where it meets
+/// the ground, not in a wedge slanting down to the cell's ground; a dry
+/// cell away from water sinks under the ground and is not seen. Each vertex
+/// tells the material what the material cannot see: the flow, x and z, as
+/// 0.5 + velocity / 8 in its colour's red and green; the froth in its blue
+/// — the share of the column that is air over three hundredths, water being
+/// white where it is a few parts in a hundred air, however fast it runs;
+/// and in its texture coordinates the depth, and where the water ends.
 ///
 /// **A sheet off a lip is one sheet.** What the lip's faces threw in one
 /// step is a row across it, and each row is sewn to the one thrown before
 /// it, face to face, and to its neighbours along the lip; the sheet's edges
-/// stand half a face out. It is white where it is thick and thins to clear
-/// as continuity thins it.
+/// stand half a face out. It is drawn with the surface's look, which its vertices
+/// tell what it is: clear at the lip, streaked and whitening as it falls,
+/// fraying apart at its foot. Where the drops come down on the water they
+/// raise a mist, drawn with that look as well.
 ///
 /// **None of it casts a shadow:** water lets most of the sun through, and a
 /// shadow map knows only through or not — a solid shadow of a waterfall on
@@ -101,17 +106,18 @@ final class LiquidView {
         indices: quadTriangles(detail.sheet),
       ),
     );
-    sheetNode = MeshNode(
-      _sheet,
-      Material(
-        name: 'falling water',
-        baseColor: Vector4(0.88, 0.93, 1.0, 1.0),
-        emissive: Vector3(0.55, 0.60, 0.65),
-        roughness: 0.3,
-        alphaMode: MaterialAlphaMode.blend,
-        doubleSided: true,
+    // The sheet and the mist are drawn with the surface's own look, which
+    // tells them apart by what their vertices and instances carry.
+    sheetNode = MeshNode(_sheet, look, name: 'falling water')
+      ..castsShadow = false;
+    _mist = InstancedMeshNode(
+      DeviceMesh.upload(
+        device,
+        const SphereShape(radius: 1.0, segments: 10, rings: 6).build(),
       ),
-      name: 'falling water',
+      look,
+      capacity: math.max(detail.drops ~/ 3, 1),
+      name: 'mist',
     )..castsShadow = false;
     _drops = InstancedMeshNode(
       DeviceMesh.upload(
@@ -146,6 +152,7 @@ final class LiquidView {
       ..add(surfaceNode)
       ..add(sheetNode)
       ..add(_drops)
+      ..add(_mist)
       ..add(_bubbles);
   }
 
@@ -163,7 +170,7 @@ final class LiquidView {
   late final DeviceMesh _surface;
   late final Float32List _sheetVertices;
   late final DeviceMesh _sheet;
-  late final InstancedMeshNode _drops, _bubbles;
+  late final InstancedMeshNode _drops, _mist, _bubbles;
   final Matrix4 _m = Matrix4.identity();
 
   /// The surface, and the falling sheet.
@@ -200,23 +207,31 @@ final class LiquidView {
   }
 
   /// How much of each column is air, of the bubbles in it, spread over the
-  /// column's neighbours as a cloud spreads.
+  /// column's neighbours as a cloud spreads: two cells out, thinning with
+  /// distance by the binomial 1 4 6 4 1, so a falls' froth is a round
+  /// plume that fades into the pool, not a square of cells.
   Float64List _airIn(Float32List bubbles, Float32List depth) {
     final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
     final air = Float64List(liquid.cells);
+    const spread = <double>[1.0, 4.0, 6.0, 4.0, 1.0];
     for (var o = 0; o < bubbles.length; o += nativeBubbleFloats) {
       final i = ((bubbles[o] - liquid.origin.x) / cell).floor();
       final j = ((bubbles[o + 2] - liquid.origin.z) / cell).floor();
-      for (var dj = -1; dj <= 1; dj++) {
-        for (var di = -1; di <= 1; di++) {
+      for (var dj = -2; dj <= 2; dj++) {
+        for (var di = -2; di <= 2; di++) {
           final (x, z) = (i + di, j + dj);
           if (x < 0 || z < 0 || x >= nx || z >= nz) continue;
-          air[x + z * nx] += bubbles[o + 4] / 9.0;
+          air[x + z * nx] +=
+              bubbles[o + 4] * spread[di + 2] * spread[dj + 2] / 256.0;
         }
       }
     }
+    // A cloud spread onto a film at the shore is not a white column: the
+    // share is of a column at least five centimetres deep.
     for (var c = 0; c < air.length; c++) {
-      air[c] = depth[c] > _wet ? air[c] / (depth[c] * cell * cell) : 0.0;
+      air[c] = depth[c] > _wet
+          ? air[c] / (math.max(depth[c], 0.05) * cell * cell)
+          : 0.0;
     }
     return air;
   }
@@ -224,30 +239,158 @@ final class LiquidView {
   /// Shallower than this, m, a cell is drawn dry.
   static const double _wet = 0.004;
 
+  /// Two neighbouring surfaces further apart than this, in cells, are not
+  /// one surface but water falling from one to the other, which the
+  /// falling sheet draws.
+  static const double _fall = 0.4;
+
+  /// A wet cell whose ground stands over the surface of water beside it by
+  /// more than this, in cells, is perched on a step over that water.
+  static const double _perch = 0.15;
+
+  /// The height each vertex is drawn at over the origin, NaN where it is
+  /// sunk under its ground: rewritten with the surface.
+  late final Float64List _drawn = Float64List(liquid.cells);
+
+  /// Whether each vertex is drawn as the water of its own cell, not as the
+  /// edge of its neighbours': rewritten with the surface.
+  late final Uint8List _standing = Uint8List(liquid.cells);
+
+  /// How far under nought the material is told the depth is at a bank
+  /// vertex the water stands over: as deep as the water it is drawn level
+  /// with stands in the wet cells round it, at least two centimetres, and
+  /// less the more of the cells round it are wet, so the water reaches
+  /// further into a bay of wet cells than past a lone corner of one and
+  /// its edge is rounded, not stepped cell by cell. Rewritten with the
+  /// surface.
+  late final Float64List _beside = Float64List(liquid.cells);
+
+  /// Where each vertex is drawn: a wet cell at its own surface; a dry one
+  /// beside water at the mean surface of the wet cells round it, so the
+  /// triangles between them lie level, as the water does, and run into the
+  /// bank or out over the drop instead of slanting down to the ground in a
+  /// wedge; a dry one with no water near sunk under its ground.
+  ///
+  /// A wet cell beside water lower than itself by more than [_fall] of a
+  /// cell — a film on a step over a pond, the lip of a falls — is drawn as
+  /// the lower water's bank, as a dry cell would be: a triangle from it down
+  /// to the water below would be a wall of water standing across the step.
+  /// The water above then ends where its surface meets its ground, short of
+  /// the lip, and the lower water runs into the step. Of the wet cells round
+  /// a vertex, only those level with the lowest of them are averaged, for
+  /// the same reason.
+  ///
+  /// So is a wet cell whose ground stands over the surface of water beside
+  /// it by [_perch] of a cell: on ground in steps — voxels a cell high — a
+  /// film on a step over a pond three quarters of a cell deep is only a
+  /// quarter of a cell above the pond, but it stands on ground over the
+  /// pond's surface, and a triangle between them is a slanting sheet across
+  /// the step's face. Down a slope, or across a river from its shallow side
+  /// to its deep middle, the ground runs under the water beside it, and
+  /// nothing is cut.
+  void _drawHeights(Float32List surface, Float32List depth) {
+    final nx = liquid.nx, nz = liquid.nz;
+    final fall = _fall * liquid.cell, perch = _perch * liquid.cell;
+    for (var j = 0; j < nz; j++) {
+      for (var i = 0; i < nx; i++) {
+        final c = i + j * nx;
+        final (z0, z1) = (math.max(j - 1, 0), math.min(j + 1, nz - 1));
+        final (x0, x1) = (math.max(i - 1, 0), math.min(i + 1, nx - 1));
+        final wetHere = depth[c] > _wet;
+        var lowest = double.infinity;
+        var perched = false;
+        for (var z = z0; z <= z1; z++) {
+          for (var x = x0; x <= x1; x++) {
+            final n = x + z * nx;
+            if (depth[n] <= _wet) continue;
+            lowest = math.min(lowest, surface[n]);
+            perched = perched || (wetHere && _ground[c] - surface[n] > perch);
+          }
+        }
+        final standing = wetHere && !perched && surface[c] <= lowest + fall;
+        _standing[c] = standing ? 1 : 0;
+        if (standing) {
+          _drawn[c] = surface[c];
+          continue;
+        }
+        // The water this vertex is the bank of: below the cell's own when
+        // it is perched over it, else level with the lowest round it.
+        final top = perched ? _ground[c] - perch : lowest + fall;
+        var sum = 0.0, deep = 0.0, wet = 0;
+        for (var z = z0; z <= z1; z++) {
+          for (var x = x0; x <= x1; x++) {
+            final n = x + z * nx;
+            if (depth[n] <= _wet || surface[n] > top) continue;
+            sum += surface[n];
+            deep += depth[n];
+            wet++;
+          }
+        }
+        _drawn[c] = wet == 0 ? double.nan : sum / wet;
+        // Three wet cells along one side of it — a straight shore — end the
+        // water about halfway; five, a bay, a little past; one, a corner,
+        // a little short.
+        _beside[c] = wet == 0
+            ? 0.0
+            : math.max(deep / wet, 0.02) * (1.5 - wet / 8.0);
+      }
+    }
+  }
+
+  /// What the material is told of where the water ends, at cell [c] of
+  /// [depth], as a depth the material fades the water out by. A wet cell is
+  /// told how deep it is. A cell drawn as a bank above the water is told how
+  /// far over its ground the water is drawn there, under nought, so across
+  /// the triangle from the last wet cell the depth passes nought where the
+  /// water meets the ground, and the water ends at that line, not where its
+  /// cells stop. A dry cell the water stands over — a drop, or a flat shore
+  /// the flow has not wetted — is told [_beside]: deep water then ends
+  /// about halfway there, at the edge of the cell it stands in, and a film
+  /// short of it, as the thin edge of a puddle does. A sunk cell is told
+  /// nought: nothing of it is drawn.
+  double _edge(int c, double depth) {
+    if (_standing[c] == 1) return depth;
+    final drawn = _drawn[c];
+    if (drawn.isNaN) return 0.0;
+    final over = drawn - _ground[c];
+    return over > 0.0 ? -_beside[c] : over;
+  }
+
   Float32List _writeSurface(Float32List bubbles) {
     final read = _world.readShallowSurface(liquid);
     final flow = _world.readShallowFlow(liquid);
     final nx = liquid.nx, nz = liquid.nz, cell = liquid.cell;
     final o = liquid.origin;
-    final surface = read.surface;
-    final air = _airIn(bubbles, read.depth);
-    double height(int i, int j) =>
-        surface[i.clamp(0, nx - 1) + j.clamp(0, nz - 1) * nx];
+    final depth = read.depth;
+    final air = _airIn(bubbles, depth);
+    _drawHeights(read.surface, depth);
+    // The slope is the drawn surface's: a neighbour sunk under its ground,
+    // off the grid or across a fall counts as level with the cell, so the
+    // water's edge is not tipped towards the bank it meets.
+    final fall = _fall * cell;
+    double height(int c, int i, int j) {
+      if (i < 0 || j < 0 || i >= nx || j >= nz) return _drawn[c];
+      final h = _drawn[i + j * nx];
+      return h.isNaN || (h - _drawn[c]).abs() > fall ? _drawn[c] : h;
+    }
+
     for (var j = 0; j < nz; j++) {
       for (var i = 0; i < nx; i++) {
         final c = i + j * nx;
-        final wet = read.depth[c] > _wet;
-        final normal = Vector3(
-          -(height(i + 1, j) - height(i - 1, j)) / (2 * cell),
-          1.0,
-          -(height(i, j + 1) - height(i, j - 1)) / (2 * cell),
-        )..normalize();
+        final sunk = _drawn[c].isNaN;
+        final normal = sunk
+            ? Vector3(0.0, 1.0, 0.0)
+            : (Vector3(
+                -(height(c, i + 1, j) - height(c, i - 1, j)) / (2 * cell),
+                1.0,
+                -(height(c, i, j + 1) - height(c, i, j - 1)) / (2 * cell),
+              )..normalize());
         writeVertex(
           _vertices,
           c,
           Vector3(
             o.x + (i + 0.5) * cell,
-            o.y + (wet ? surface[c] : _ground[c] - 0.2 * cell),
+            o.y + (sunk ? _ground[c] - 0.2 * cell : _drawn[c]),
             o.z + (j + 0.5) * cell,
           ),
           normal,
@@ -257,7 +400,7 @@ final class LiquidView {
             (air[c] / 0.03).clamp(0.0, 1.0),
             1.0,
           ),
-          uv: (read.depth[c], 0.0),
+          uv: (_edge(c, depth[c]), 0.0),
         );
       }
     }
@@ -266,7 +409,7 @@ final class LiquidView {
 
   void _drawDrops(Float32List spray) {
     sprayInFlight = spray.length ~/ nativeSprayFloats;
-    var drops = 0;
+    var drops = 0, mist = 0;
     for (var k = 0; k < sprayInFlight && drops < detail.drops; k++) {
       final o = k * nativeSprayFloats;
       if (spray[o + 9] == nativeSpraySheet) continue;
@@ -277,8 +420,35 @@ final class LiquidView {
         ..setTranslationRaw(spray[o], spray[o + 1], spray[o + 2])
         ..scaleByDouble(d, d, d, 1.0);
       _drops.setTransform(drops++, _m);
+      // Where it comes down on the water fast, every third drop is a puff
+      // of the mist the landing throws up as well: a plume over the foot of
+      // a falls, thick where most comes down, faint over a lone splash.
+      if (k % 3 == 0 && mist < _mist.capacity) {
+        final i = ((spray[o] - liquid.origin.x) / liquid.cell).floor();
+        final j = ((spray[o + 2] - liquid.origin.z) / liquid.cell).floor();
+        if (i < 0 || j < 0 || i >= liquid.nx || j >= liquid.nz) continue;
+        final water = _drawn[i + j * liquid.nx];
+        final over = spray[o + 1] - liquid.origin.y - water;
+        // Slower than a fall of a few tens of centimetres, it is a trickle
+        // just leaving a lip over other water, not a landing.
+        final speed2 =
+            spray[o + 3] * spray[o + 3] +
+            spray[o + 4] * spray[o + 4] +
+            spray[o + 5] * spray[o + 5];
+        if (water.isNaN || over > 1.5 * liquid.cell || speed2 < 6.0) continue;
+        final r = 0.35 + 0.5 * _hash(k);
+        _m
+          ..setIdentity()
+          ..setTranslationRaw(spray[o], spray[o + 1] + 0.3 * r, spray[o + 2])
+          ..scaleByDouble(r, r, r, 1.0);
+        _mist
+          ..setTransform(mist, _m)
+          ..setInstanceData(mist, Vector4(0.06, 0.0, 0.0, 1.0));
+        mist++;
+      }
     }
     _drops.count = drops;
+    _mist.count = mist;
   }
 
   void _drawSheet(Float32List spray) {
@@ -303,17 +473,20 @@ final class LiquidView {
     final v = _sheetVertices..fillRange(0, _sheetVertices.length, 0.0);
     var quads = 0;
     final up = Vector3(0.0, 1.0, 0.0);
-    Vector3 point(int o, double side) {
+    // Across the fall, level: the way along the lip a piece's faces lie.
+    Vector3 acrossOf(int o) {
       final across = Vector3(
         spray[o + 3],
         spray[o + 4],
         spray[o + 5],
       ).cross(up);
       if (across.length2 < 1e-9) across.setValues(1.0, 0.0, 0.0);
-      across.normalize();
-      return Vector3(spray[o], spray[o + 1], spray[o + 2]) +
-          across * (side * spray[o + 7]);
+      return across..normalize();
     }
+
+    Vector3 point(int o, double side) =>
+        Vector3(spray[o], spray[o + 1], spray[o + 2]) +
+        acrossOf(o) * (side * spray[o + 7]);
 
     double apart(int a, int b) {
       final dx = spray[b] - spray[a], dy = spray[b + 1] - spray[a + 1];
@@ -321,27 +494,72 @@ final class LiquidView {
       return dx * dx + dy * dy + dz * dz;
     }
 
+    // How high each face's lip is, the height of the newest piece it
+    // threw, and how far down its sheet is drawn, to the last piece still
+    // sewn to the one above it: each face's own, so a strand of the sheet
+    // that tears off short fades out at its own foot and does not end in a
+    // cut edge. Two rows a step apart are a step's fall apart: a metre
+    // between them is a tear, not a sheet.
+    const torn = 1.0;
+    final lip = <int, double>{}, foot = <int, double>{};
+    for (var r = 0; r < rows.length; r++) {
+      for (final MapEntry(key: face, value: o) in rows[r].entries) {
+        lip.putIfAbsent(face, () => spray[o + 1]);
+        final above = r == 0 ? null : rows[r - 1][face];
+        if (above != null && apart(above, o) <= torn) {
+          foot[face] = math.min(foot[face] ?? spray[o + 1], spray[o + 1]);
+        }
+      }
+    }
+
     // Faces side by side on a lip: faces across x are numbered one apart,
     // faces across z a row of nx + 1 apart.
     bool beside(int a, int b) => b - a == 1 || b - a == liquid.nx + 1;
-    void quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, double alpha) {
+    void quad(_SheetCorner a, _SheetCorner b, _SheetCorner c, _SheetCorner d) {
       if (quads >= detail.sheet) return;
-      final normal = (b - a).cross(c - a);
+      final normal = (b.at - a.at).cross(c.at - a.at);
       if (normal.length2 < 1e-12) return;
       normal.normalize();
-      final colour = Vector4(1.0, 1.0, 1.0, alpha);
-      writeVertex(v, quads * 4, a, normal, colour);
-      writeVertex(v, quads * 4 + 1, b, normal, colour);
-      writeVertex(v, quads * 4 + 2, c, normal, colour);
-      writeVertex(v, quads * 4 + 3, d, normal, colour);
+      for (final (k, corner) in <_SheetCorner>[a, b, c, d].indexed) {
+        writeVertex(
+          v,
+          quads * 4 + k,
+          corner.at,
+          normal,
+          corner.colour,
+          uv: corner.uv,
+        );
+      }
       quads++;
     }
 
-    // Thick water is white; a few millimetres shows through.
-    double alphaOf(int o) => (spray[o + 8] / 0.01).clamp(0.25, 0.9);
-    // Two rows a step apart are a step's fall apart, and two faces of a row
-    // a face apart: a metre between them is a tear, not a sheet.
-    const torn = 1.0;
+    // What the look is told of a corner of the sheet, which it draws as
+    // falling water by its second texture coordinate being one or more:
+    // that coordinate is one plus how far under its lip the corner is, m,
+    // and the first how far along the lip, m, so the look's streaks run
+    // down the fall and stay with the water; the colour's red is how far
+    // down its face's strand of the sheet it is, nought at the lip and one
+    // at the strand's foot, and its green how thick the water is, three
+    // centimetres and more counting as one. Its alpha is what the sheet's
+    // outline leaves:
+    // its edges thin to nothing over half a face, not a cut ribbon, and
+    // its last stretch, where the core breaks it into drops, thins out.
+    _SheetCorner piece(int o, int face, double side) {
+      final at = point(o, side);
+      final top = lip[face] ?? at.y;
+      final fallen = ((top - at.y) / math.max(top - (foot[face] ?? at.y), 1e-3))
+          .clamp(0.0, 1.0);
+      final thick = (spray[o + 8] / 0.03).clamp(0.0, 1.0);
+      final last = 1.0 - _smooth(0.5, 1.0, fallen);
+      final edge = 1.0 - _smooth(0.2, 0.5, side.abs());
+      return (
+        at: at,
+        colour: Vector4(fallen, thick, 0.0, last * edge),
+        uv: (at.dot(acrossOf(o)), 1.0 + math.max(top - at.y, 0.0)),
+      );
+    }
+
+    // Two faces of a row a metre apart are torn apart too.
     for (var r = 0; r + 1 < rows.length; r++) {
       final now = rows[r], next = rows[r + 1];
       final faces = now.keys.where(next.containsKey).toList()..sort();
@@ -349,35 +567,31 @@ final class LiquidView {
         final f = faces[i];
         final a = now[f]!, b = next[f]!;
         if (apart(a, b) > torn) continue;
-        final alpha = alphaOf(a);
         final left = i == 0 || !beside(faces[i - 1], f);
         final right = i == faces.length - 1 || !beside(f, faces[i + 1]);
         if (left) {
           quad(
-            point(a, -0.5),
-            point(a, 0.0),
-            point(b, -0.5),
-            point(b, 0.0),
-            alpha,
+            piece(a, f, -0.5),
+            piece(a, f, 0.0),
+            piece(b, f, -0.5),
+            piece(b, f, 0.0),
           );
         }
         if (right) {
           quad(
-            point(a, 0.0),
-            point(a, 0.5),
-            point(b, 0.0),
-            point(b, 0.5),
-            alpha,
+            piece(a, f, 0.0),
+            piece(a, f, 0.5),
+            piece(b, f, 0.0),
+            piece(b, f, 0.5),
           );
         } else {
           final g = faces[i + 1];
           if (apart(a, now[g]!) > torn) continue;
           quad(
-            point(a, 0.0),
-            point(now[g]!, 0.0),
-            point(b, 0.0),
-            point(next[g]!, 0.0),
-            alpha,
+            piece(a, f, 0.0),
+            piece(now[g]!, g, 0.0),
+            piece(b, f, 0.0),
+            piece(next[g]!, g, 0.0),
           );
         }
       }
@@ -385,6 +599,21 @@ final class LiquidView {
     sheetQuads = quads;
     _sheet.overwriteVertices(_device, 0, v.buffer.asByteData());
     sheetNode.markBoundsDirty();
+  }
+
+  /// A number in [0, 1) that says nothing about its neighbours': the
+  /// same for the same [n] every frame.
+  static double _hash(int n) {
+    // Integer mixing, so no platform's libm has a say in it.
+    final a = (n * 0x9E3779B1) & 0xFFFFFFFF;
+    final b = ((a ^ (a >> 15)) * 0x85EBCA77) & 0xFFFFFFFF;
+    return (b ^ (b >> 13)) / 4294967296.0;
+  }
+
+  /// Nought below [a], one above [b], and smoothly between.
+  static double _smooth(double a, double b, double x) {
+    final t = ((x - a) / (b - a)).clamp(0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
   }
 
   void _drawBubbles(Float32List bubbles) {
@@ -400,3 +629,7 @@ final class LiquidView {
     _bubbles.count = drawn;
   }
 }
+
+/// A corner of the falling sheet: where it is, and what the look is told
+/// of it.
+typedef _SheetCorner = ({Vector3 at, Vector4 colour, (double, double) uv});

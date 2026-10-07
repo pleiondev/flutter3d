@@ -2,8 +2,9 @@
 // surface's ripples focus on it, and the colour the water takes out of the
 // light on its way down and on its way back up to the eye.
 //
-// The ripples are the liquid material's own six, as `liquid.f3dmat` writes
-// them at full strength, so what the floor shows is the surface above it. Caustics by
+// The ripples are the liquid material's own nine, bent as it bends them and
+// swelled by the same gusts, as `liquid.f3dmat` writes them at full
+// strength, so what the floor shows is the surface above it. Caustics by
 // geometric optics: light reaching the floor at depth d came through the
 // surface at x, bent by the surface's slope, and lands at
 // y = x + a·∇η(x), a = d·(1 − 1/n), n = 1.33; a patch of surface dA lands on
@@ -32,83 +33,113 @@ material Seabed {
     let depth = max(level - world.y, 0.0);
     let bend = depth * 0.248;
 
-    // Where the light reaching here crossed the surface: back along the
-    // sun's refracted ray, then back by the slope's turn of it, once.
+    // Where the light reaching here would have crossed a flat surface:
+    // back along the sun's refracted ray.
     let sunDown = vec2(toSun.x, toSun.z) * (0.75 / max(toSun.y, 0.2));
     let start = here + sunDown * depth;
     // The sun is half a degree wide, 0.007 radians in the water: each point
     // of floor sees it blurred over 0.007·d, and a ripple of wavenumber k
     // focuses its light that much less, by exp(−(k·w)²/2).
     let blurWidth = 0.007 * depth;
-    let d1 = vec2(0.966, 0.259);
-    let s1 = 0.07 * chop * pow(0.60653, (3.7 * blurWidth) * (3.7 * blurWidth));
-    let d2 = vec2(0.174, 0.985);
-    let s2 = 0.07 * chop * pow(0.60653, (5.56 * blurWidth) * (5.56 * blurWidth));
-    let d3 = vec2(-0.766, 0.643);
-    let s3 = 0.065 * chop * pow(0.60653, (8.16 * blurWidth) * (8.16 * blurWidth));
-    let d4 = vec2(-0.906, -0.423);
-    let s4 = 0.06 * chop * pow(0.60653, (12.08 * blurWidth) * (12.08 * blurWidth));
-    let d5 = vec2(-0.174, -0.985);
-    let s5 = 0.055 * chop * pow(0.60653, (16.98 * blurWidth) * (16.98 * blurWidth));
-    let d6 = vec2(0.819, -0.574);
-    let s6 = 0.05 * chop * pow(0.60653, (24.17 * blurWidth) * (24.17 * blurWidth));
+    // Gusts roughen the short ripples in patches that drift with the wind.
+    let gust = 0.7 + 0.3 * sin(0.31 * start.x + 0.17 * start.y + 0.23 * time) *
+                     sin(0.19 * start.y - 0.27 * start.x - 0.11 * time);
+    let d1 = vec2(0.94, 0.342);
+    let s1 = 0.032 * chop * pow(0.60653, (2.03 * blurWidth) * (2.03 * blurWidth));
+    let d2 = vec2(0.857, -0.515);
+    let s2 = 0.032 * chop * pow(0.60653, (2.9 * blurWidth) * (2.9 * blurWidth));
+    let d3 = vec2(0.438, 0.899);
+    let s3 = 0.03 * chop * pow(0.60653, (4.11 * blurWidth) * (4.11 * blurWidth));
+    let d4 = vec2(0.999, 0.035);
+    let s4 = 0.029 * chop * pow(0.60653, (5.56 * blurWidth) * (5.56 * blurWidth));
+    let d5 = vec2(-0.358, 0.934);
+    let s5 = 0.028 * chop * gust * pow(0.60653, (7.57 * blurWidth) * (7.57 * blurWidth));
+    let d6 = vec2(0.53, -0.848);
+    let s6 = 0.027 * chop * gust * pow(0.60653, (10.52 * blurWidth) * (10.52 * blurWidth));
+    let d7 = vec2(-0.883, 0.469);
+    let s7 = 0.026 * chop * gust * pow(0.60653, (14.38 * blurWidth) * (14.38 * blurWidth));
+    let d8 = vec2(0.799, 0.602);
+    let s8 = 0.026 * chop * gust * pow(0.60653, (19.76 * blurWidth) * (19.76 * blurWidth));
+    let d9 = vec2(-0.515, -0.857);
+    let s9 = 0.024 * chop * gust * pow(0.60653, (27.2 * blurWidth) * (27.2 * blurWidth));
     // Where the light reaching here crossed the surface: back along the
     // sun's refracted ray, then back by the slope's turn of it, three times
     // over to settle; the surface bent slowly as `liquid.f3dmat` bends it.
-    let b0 = start + vec2(0.3 * sin(0.73 * start.y + 0.4 * time),
-                           0.3 * sin(0.61 * start.x - 0.3 * time));
-    let g0 = d1 * (s1 * cos(3.7 * dot(d1, b0) - 6.02 * time)) +
-               d2 * (s2 * cos(5.56 * dot(d2, b0) - 7.39 * time)) +
-               d3 * (s3 * cos(8.16 * dot(d3, b0) - 8.95 * time)) +
-               d4 * (s4 * cos(12.08 * dot(d4, b0) - 10.89 * time)) +
-               d5 * (s5 * cos(16.98 * dot(d5, b0) - 12.91 * time)) +
-               d6 * (s6 * cos(24.17 * dot(d6, b0) - 15.4 * time));
+    let b0 = start + vec2(0.25 * sin(0.73 * start.y + 0.4 * time) + 0.08 * sin(2.11 * start.y - 0.9 * start.x + 0.7 * time),
+                       0.25 * sin(0.61 * start.x - 0.3 * time) + 0.08 * sin(1.87 * start.x + 0.8 * start.y - 0.6 * time));
+    let g0 = d1 * (s1 * cos(2.03 * dot(d1, b0) - 4.46 * time)) +
+             d2 * (s2 * cos(2.9 * dot(d2, b0) - 5.33 * time)) +
+             d3 * (s3 * cos(4.11 * dot(d3, b0) - 6.35 * time)) +
+             d4 * (s4 * cos(5.56 * dot(d4, b0) - 7.39 * time)) +
+             d5 * (s5 * cos(7.57 * dot(d5, b0) - 8.62 * time)) +
+             d6 * (s6 * cos(10.52 * dot(d6, b0) - 10.16 * time)) +
+             d7 * (s7 * cos(14.38 * dot(d7, b0) - 11.88 * time)) +
+             d8 * (s8 * cos(19.76 * dot(d8, b0) - 13.92 * time)) +
+             d9 * (s9 * cos(27.2 * dot(d9, b0) - 16.33 * time));
     let x1 = start - g0 * bend;
-    let b1 = x1 + vec2(0.3 * sin(0.73 * x1.y + 0.4 * time),
-                           0.3 * sin(0.61 * x1.x - 0.3 * time));
-    let g1 = d1 * (s1 * cos(3.7 * dot(d1, b1) - 6.02 * time)) +
-               d2 * (s2 * cos(5.56 * dot(d2, b1) - 7.39 * time)) +
-               d3 * (s3 * cos(8.16 * dot(d3, b1) - 8.95 * time)) +
-               d4 * (s4 * cos(12.08 * dot(d4, b1) - 10.89 * time)) +
-               d5 * (s5 * cos(16.98 * dot(d5, b1) - 12.91 * time)) +
-               d6 * (s6 * cos(24.17 * dot(d6, b1) - 15.4 * time));
+    let b1 = x1 + vec2(0.25 * sin(0.73 * x1.y + 0.4 * time) + 0.08 * sin(2.11 * x1.y - 0.9 * x1.x + 0.7 * time),
+                    0.25 * sin(0.61 * x1.x - 0.3 * time) + 0.08 * sin(1.87 * x1.x + 0.8 * x1.y - 0.6 * time));
+    let g1 = d1 * (s1 * cos(2.03 * dot(d1, b1) - 4.46 * time)) +
+             d2 * (s2 * cos(2.9 * dot(d2, b1) - 5.33 * time)) +
+             d3 * (s3 * cos(4.11 * dot(d3, b1) - 6.35 * time)) +
+             d4 * (s4 * cos(5.56 * dot(d4, b1) - 7.39 * time)) +
+             d5 * (s5 * cos(7.57 * dot(d5, b1) - 8.62 * time)) +
+             d6 * (s6 * cos(10.52 * dot(d6, b1) - 10.16 * time)) +
+             d7 * (s7 * cos(14.38 * dot(d7, b1) - 11.88 * time)) +
+             d8 * (s8 * cos(19.76 * dot(d8, b1) - 13.92 * time)) +
+             d9 * (s9 * cos(27.2 * dot(d9, b1) - 16.33 * time));
     let x2 = start - g1 * bend;
-    let b2 = x2 + vec2(0.3 * sin(0.73 * x2.y + 0.4 * time),
-                           0.3 * sin(0.61 * x2.x - 0.3 * time));
-    let g2 = d1 * (s1 * cos(3.7 * dot(d1, b2) - 6.02 * time)) +
-               d2 * (s2 * cos(5.56 * dot(d2, b2) - 7.39 * time)) +
-               d3 * (s3 * cos(8.16 * dot(d3, b2) - 8.95 * time)) +
-               d4 * (s4 * cos(12.08 * dot(d4, b2) - 10.89 * time)) +
-               d5 * (s5 * cos(16.98 * dot(d5, b2) - 12.91 * time)) +
-               d6 * (s6 * cos(24.17 * dot(d6, b2) - 15.4 * time));
+    let b2 = x2 + vec2(0.25 * sin(0.73 * x2.y + 0.4 * time) + 0.08 * sin(2.11 * x2.y - 0.9 * x2.x + 0.7 * time),
+                    0.25 * sin(0.61 * x2.x - 0.3 * time) + 0.08 * sin(1.87 * x2.x + 0.8 * x2.y - 0.6 * time));
+    let g2 = d1 * (s1 * cos(2.03 * dot(d1, b2) - 4.46 * time)) +
+             d2 * (s2 * cos(2.9 * dot(d2, b2) - 5.33 * time)) +
+             d3 * (s3 * cos(4.11 * dot(d3, b2) - 6.35 * time)) +
+             d4 * (s4 * cos(5.56 * dot(d4, b2) - 7.39 * time)) +
+             d5 * (s5 * cos(7.57 * dot(d5, b2) - 8.62 * time)) +
+             d6 * (s6 * cos(10.52 * dot(d6, b2) - 10.16 * time)) +
+             d7 * (s7 * cos(14.38 * dot(d7, b2) - 11.88 * time)) +
+             d8 * (s8 * cos(19.76 * dot(d8, b2) - 13.92 * time)) +
+             d9 * (s9 * cos(27.2 * dot(d9, b2) - 16.33 * time));
     let at = start - g2 * bend;
-    let bat = at + vec2(0.3 * sin(0.73 * at.y + 0.4 * time),
-                        0.3 * sin(0.61 * at.x - 0.3 * time));
+    let bat = at + vec2(0.25 * sin(0.73 * at.y + 0.4 * time) + 0.08 * sin(2.11 * at.y - 0.9 * at.x + 0.7 * time),
+                         0.25 * sin(0.61 * at.x - 0.3 * time) + 0.08 * sin(1.87 * at.x + 0.8 * at.y - 0.6 * time));
     // The Hessian there: each wave −A·k²·sin(phase)·d dᵀ, A·k its slope.
-    let c1 = 0.0 - s1 * 3.7 * sin(3.7 * dot(d1, bat) - 6.02 * time);
-    let c2 = 0.0 - s2 * 5.56 * sin(5.56 * dot(d2, bat) - 7.39 * time);
-    let c3 = 0.0 - s3 * 8.16 * sin(8.16 * dot(d3, bat) - 8.95 * time);
-    let c4 = 0.0 - s4 * 12.08 * sin(12.08 * dot(d4, bat) - 10.89 * time);
-    let c5 = 0.0 - s5 * 16.98 * sin(16.98 * dot(d5, bat) - 12.91 * time);
-    let c6 = 0.0 - s6 * 24.17 * sin(24.17 * dot(d6, bat) - 15.4 * time);
+    let c1 = 0.0 - s1 * 2.03 * sin(2.03 * dot(d1, bat) - 4.46 * time);
+    let c2 = 0.0 - s2 * 2.9 * sin(2.9 * dot(d2, bat) - 5.33 * time);
+    let c3 = 0.0 - s3 * 4.11 * sin(4.11 * dot(d3, bat) - 6.35 * time);
+    let c4 = 0.0 - s4 * 5.56 * sin(5.56 * dot(d4, bat) - 7.39 * time);
+    let c5 = 0.0 - s5 * 7.57 * sin(7.57 * dot(d5, bat) - 8.62 * time);
+    let c6 = 0.0 - s6 * 10.52 * sin(10.52 * dot(d6, bat) - 10.16 * time);
+    let c7 = 0.0 - s7 * 14.38 * sin(14.38 * dot(d7, bat) - 11.88 * time);
+    let c8 = 0.0 - s8 * 19.76 * sin(19.76 * dot(d8, bat) - 13.92 * time);
+    let c9 = 0.0 - s9 * 27.2 * sin(27.2 * dot(d9, bat) - 16.33 * time);
     let hxx = c1 * d1.x * d1.x +
               c2 * d2.x * d2.x +
               c3 * d3.x * d3.x +
               c4 * d4.x * d4.x +
               c5 * d5.x * d5.x +
-              c6 * d6.x * d6.x;
+              c6 * d6.x * d6.x +
+              c7 * d7.x * d7.x +
+              c8 * d8.x * d8.x +
+              c9 * d9.x * d9.x;
     let hzz = c1 * d1.y * d1.y +
               c2 * d2.y * d2.y +
               c3 * d3.y * d3.y +
               c4 * d4.y * d4.y +
               c5 * d5.y * d5.y +
-              c6 * d6.y * d6.y;
+              c6 * d6.y * d6.y +
+              c7 * d7.y * d7.y +
+              c8 * d8.y * d8.y +
+              c9 * d9.y * d9.y;
     let hxz = c1 * d1.x * d1.y +
               c2 * d2.x * d2.y +
               c3 * d3.x * d3.y +
               c4 * d4.x * d4.y +
               c5 * d5.x * d5.y +
-              c6 * d6.x * d6.y;
+              c6 * d6.x * d6.y +
+              c7 * d7.x * d7.y +
+              c8 * d8.x * d8.y +
+              c9 * d9.x * d9.y;
     let det = (1.0 + bend * hxx) * (1.0 + bend * hzz) - bend * bend * hxz * hxz;
     // Folded patches meet at a line of infinite brightness; the sun's own
     // width, half a degree, spreads it to a few times the mean.

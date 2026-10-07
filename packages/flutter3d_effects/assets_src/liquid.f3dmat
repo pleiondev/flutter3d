@@ -1,13 +1,20 @@
 // The physics core's water, drawn as water: ripples the flow carries
-// along, the sky in it as strongly as Fresnel says, the sun's glint, the
-// colour a depth of water gives what is under it, and froth where falling
-// water drove air in. `tool/build_materials.dart` compiles it into
+// along, the sky in it as strongly as Fresnel says, a glint of the sun, the
+// colour a depth of water gives what is under it, and froth where the
+// water churns. `tool/build_materials.dart` compiles it into
 // `assets/liquid.f3dshaders`; `LiquidLook` binds it.
 //
 // The mesh says what the shader cannot see for itself. Each vertex's colour
 // is the flow at it, x and z, as 0.5 + velocity / 8 in red and green, and
-// the froth, the share of it that is air over three hundredths, in blue; its
-// first texture coordinate is how deep the water is there, m.
+// the froth, the share of it that is air over three hundredths, in blue. Its
+// first texture coordinate is how deep the water is there, m; on a dry cell
+// at the shore it is under nought — how far the bank stands above the
+// water, or, where the water stands over a drop or a flat shore it has not
+// wetted, as deep as the water beside it — so across the triangles from the
+// last wet cell it passes nought where the water ends, and the water fades
+// out as it thins to there. The falling sheet and the mist where it lands
+// are drawn with it too, and tell it so: the sheet by a second texture
+// coordinate of one and more, the mist by its instance's fourth number.
 material Liquid {
   // Seconds since the water was first drawn; moved every frame.
   uniform float time = 0.0;
@@ -37,6 +44,8 @@ material Liquid {
   param float headOn = 0.02;
 
   fragment {
+    let depth = max(uv.x, 0.0);
+
     // The flow carries the ripples: two copies of them, half a cycle
     // apart, each dragged along by the flow for one cycle and then put
     // back, and each weighed down to nothing at the moment it is put back.
@@ -49,74 +58,140 @@ material Liquid {
     let qa = here - flow * (a * cycle);
     let qb = here - flow * (b * cycle);
 
-    // Six ripples, each a slope of amplitude times wavenumber along its own
-    // heading, running at deep water's speed, ω = √(g·k). Headings spread
-    // round the compass and lengths in no ratio to each other, so their sum
-    // never lines up into stripes; the plane they run over is bent a little,
-    // slowly, so no crest stays straight.
-    // 1.7 m: k 3.70, ω 6.02. 1.13 m: k 5.56, ω 7.39. 0.77 m: k 8.16, ω 8.95.
-    // 0.52 m: k 12.08, ω 10.89. 0.37 m: k 16.98, ω 12.91.
-    // 0.26 m: k 24.17, ω 15.40.
-    // How far off this is, and so which ripples are still worth drawing: a
-    // wave fades out between 25 and 60 of its own lengths away.
+    // Nine ripples, each a slope of amplitude times wavenumber along its
+    // own heading, running at deep water's speed, ω = √(g·k): from 3.1 m
+    // down to 23 cm, each about 1.4 times the next and no two in a ratio of
+    // small whole numbers, most of them running with the wind and the rest
+    // across it, so their sum never repeats and never lines up into a
+    // lattice. The plane they run over is bent at two scales, slowly, so no
+    // crest stays straight, and the short ones swell and calm in patches
+    // the size of a gust that drift across the water. They die down where
+    // the water thins at the shore, and each fades out between 25 and 60 of
+    // its own lengths from the eye, before it is too fine to draw.
     let far = length(world - eye);
-    let w0 = 1.0 - smoothstep(42.5, 102.0, far);
-    let w1 = 1.0 - smoothstep(28.2, 67.8, far);
-    let w2 = 1.0 - smoothstep(19.2, 46.2, far);
-    let w3 = 1.0 - smoothstep(13.0, 31.2, far);
-    let w4 = 1.0 - smoothstep(9.2, 22.2, far);
-    let w5 = 1.0 - smoothstep(6.5, 15.6, far);
-    let d0 = vec2(0.966, 0.259);
-    let d1 = vec2(0.174, 0.985);
-    let d2 = vec2(-0.766, 0.643);
-    let d3 = vec2(-0.906, -0.423);
-    let d4 = vec2(-0.174, -0.985);
-    let d5 = vec2(0.819, -0.574);
-    let ba = qa + vec2(0.3 * sin(0.73 * qa.y + 0.4 * time),
-                       0.3 * sin(0.61 * qa.x - 0.3 * time));
-    let bb = qb + vec2(0.3 * sin(0.73 * qb.y + 0.4 * time),
-                       0.3 * sin(0.61 * qb.x - 0.3 * time));
-    let ga = d0 * (0.07 * w0 * cos(3.70 * dot(d0, ba) - 6.02 * time)) +
-             d1 * (0.07 * w1 * cos(5.56 * dot(d1, ba) - 7.39 * time)) +
-             d2 * (0.065 * w2 * cos(8.16 * dot(d2, ba) - 8.95 * time)) +
-             d3 * (0.06 * w3 * cos(12.08 * dot(d3, ba) - 10.89 * time)) +
-             d4 * (0.055 * w4 * cos(16.98 * dot(d4, ba) - 12.91 * time)) +
-             d5 * (0.05 * w5 * cos(24.17 * dot(d5, ba) - 15.40 * time));
-    let gb = d0 * (0.07 * w0 * cos(3.70 * dot(d0, bb) - 6.02 * time)) +
-             d1 * (0.07 * w1 * cos(5.56 * dot(d1, bb) - 7.39 * time)) +
-             d2 * (0.065 * w2 * cos(8.16 * dot(d2, bb) - 8.95 * time)) +
-             d3 * (0.06 * w3 * cos(12.08 * dot(d3, bb) - 10.89 * time)) +
-             d4 * (0.055 * w4 * cos(16.98 * dot(d4, bb) - 12.91 * time)) +
-             d5 * (0.05 * w5 * cos(24.17 * dot(d5, bb) - 15.40 * time));
-    let slope = mix(ga, gb, onB) * chop;
+    let reach = chop * (0.3 + 0.7 * smoothstep(0.0, 0.2, depth));
+    let gust = 0.7 + 0.3 * sin(0.31 * here.x + 0.17 * here.y + 0.23 * time) *
+                     sin(0.19 * here.y - 0.27 * here.x - 0.11 * time);
+    let d1 = vec2(0.94, 0.342);
+    let d2 = vec2(0.857, -0.515);
+    let d3 = vec2(0.438, 0.899);
+    let d4 = vec2(0.999, 0.035);
+    let d5 = vec2(-0.358, 0.934);
+    let d6 = vec2(0.53, -0.848);
+    let d7 = vec2(-0.883, 0.469);
+    let d8 = vec2(0.799, 0.602);
+    let d9 = vec2(-0.515, -0.857);
+    let s1 = 0.032 * reach * (1.0 - smoothstep(77.5, 186.0, far));
+    let s2 = 0.032 * reach * (1.0 - smoothstep(54.25, 130.2, far));
+    let s3 = 0.03 * reach * (1.0 - smoothstep(38.25, 91.8, far));
+    let s4 = 0.029 * reach * (1.0 - smoothstep(28.25, 67.8, far));
+    let s5 = 0.028 * reach * (1.0 - smoothstep(20.75, 49.8, far)) * gust;
+    let s6 = 0.027 * reach * (1.0 - smoothstep(14.925, 35.82, far)) * gust;
+    let s7 = 0.026 * reach * (1.0 - smoothstep(10.925, 26.22, far)) * gust;
+    let s8 = 0.026 * reach * (1.0 - smoothstep(7.95, 19.08, far)) * gust;
+    let s9 = 0.024 * reach * (1.0 - smoothstep(5.775, 13.86, far)) * gust;
+    let ba = qa + vec2(0.25 * sin(0.73 * qa.y + 0.4 * time) + 0.08 * sin(2.11 * qa.y - 0.9 * qa.x + 0.7 * time),
+                       0.25 * sin(0.61 * qa.x - 0.3 * time) + 0.08 * sin(1.87 * qa.x + 0.8 * qa.y - 0.6 * time));
+    let bb = qb + vec2(0.25 * sin(0.73 * qb.y + 0.4 * time) + 0.08 * sin(2.11 * qb.y - 0.9 * qb.x + 0.7 * time),
+                       0.25 * sin(0.61 * qb.x - 0.3 * time) + 0.08 * sin(1.87 * qb.x + 0.8 * qb.y - 0.6 * time));
+    let ga = d1 * (s1 * cos(2.03 * dot(d1, ba) - 4.46 * time)) +
+             d2 * (s2 * cos(2.9 * dot(d2, ba) - 5.33 * time)) +
+             d3 * (s3 * cos(4.11 * dot(d3, ba) - 6.35 * time)) +
+             d4 * (s4 * cos(5.56 * dot(d4, ba) - 7.39 * time)) +
+             d5 * (s5 * cos(7.57 * dot(d5, ba) - 8.62 * time)) +
+             d6 * (s6 * cos(10.52 * dot(d6, ba) - 10.16 * time)) +
+             d7 * (s7 * cos(14.38 * dot(d7, ba) - 11.88 * time)) +
+             d8 * (s8 * cos(19.76 * dot(d8, ba) - 13.92 * time)) +
+             d9 * (s9 * cos(27.2 * dot(d9, ba) - 16.33 * time));
+    let gb = d1 * (s1 * cos(2.03 * dot(d1, bb) - 4.46 * time)) +
+             d2 * (s2 * cos(2.9 * dot(d2, bb) - 5.33 * time)) +
+             d3 * (s3 * cos(4.11 * dot(d3, bb) - 6.35 * time)) +
+             d4 * (s4 * cos(5.56 * dot(d4, bb) - 7.39 * time)) +
+             d5 * (s5 * cos(7.57 * dot(d5, bb) - 8.62 * time)) +
+             d6 * (s6 * cos(10.52 * dot(d6, bb) - 10.16 * time)) +
+             d7 * (s7 * cos(14.38 * dot(d7, bb) - 11.88 * time)) +
+             d8 * (s8 * cos(19.76 * dot(d8, bb) - 13.92 * time)) +
+             d9 * (s9 * cos(27.2 * dot(d9, bb) - 16.33 * time));
+    let slope = mix(ga, gb, onB);
     let n = normalize(normal + vec3(0.0 - slope.x, 0.0, 0.0 - slope.y));
 
     // What the eye sees in it: the sky along the reflected ray, as much of
-    // it as Schlick's Fresnel gives, and the sun where the ray meets it.
+    // it as Schlick's Fresnel gives, and the sun where the ray meets it — a
+    // sharp glint, as bright as Fresnel lets it be, over a faint sheen.
     let facing = clamp(dot(n, view), 0.0, 1.0);
     let fresnel = headOn + (1.0 - headOn) * pow(1.0 - facing, 5.0);
     let mirrored = n * (2.0 * dot(n, view)) - view;
-    let sky = mix(horizon, zenith, sqrt(clamp(mirrored.y, 0.0, 1.0)));
-    let glint = sunColor * (6.0 * pow(clamp(dot(mirrored, toSun), 0.0, 1.0), 800.0));
+    // The sky turns from the horizon's colour to the zenith's gently: a
+    // ripple tipping the reflected ray a degree or two at the horizon does
+    // not throw it from one colour to the other.
+    let rise = clamp(mirrored.y, 0.0, 1.0);
+    let sky = mix(horizon, zenith, rise * (2.0 - rise));
+    let toward = clamp(dot(mirrored, toSun), 0.0, 1.0);
+    let glint = sunColor * (fresnel * 30.0 * pow(toward, 1200.0) +
+                            0.03 * pow(toward, 60.0));
 
-    // The water itself: the deeper, the more of its own colour and the
-    // less of the bed through it.
-    let through = pow(clearness, uv.x);
-    let body = mix(deep, shallow, through) *
-               (ambient + sunColor * (0.3 * clamp(dot(n, toSun), 0.0, 1.0)));
+    // What is under it shows through as much as the water lets through
+    // along the refracted ray, which runs longer the more slantwise it is
+    // looked at; what is taken out is the water's own colour, of a thin
+    // layer where it is shallow and a deep one where it is deep, lit by the
+    // sky and the sun that come in through the top — more of the sun's
+    // through a ripple's face turned to it, which is what shows the ripples
+    // looking straight down, where the mirror shows only the zenith.
+    let cosDown = sqrt(max(1.0 - (1.0 - facing * facing) * 0.5652, 0.0));
+    let through = pow(clearness, depth / max(cosDown, 0.3));
+    let inscatter = mix(deep, shallow, through) *
+                    (ambient + sunColor * (0.35 * clamp(dot(n, toSun), 0.0, 1.0)));
     let crust = 0.25 + 0.75 * clamp(3.0 * length(flow), 0.0, 1.0);
-    let water = mix(body, sky, fresnel) + glint + glow * crust;
-    // At the very edge, a film over the bank, nothing shows: the shore is
-    // where it fades out, not where the cells it lies on stop.
-    let seen = clamp(1.0 - 0.85 * through + fresnel, 0.0, 1.0) *
-               smoothstep(0.0, 0.04, uv.x);
+    // Mirror, body and bed laid one over the other: the bed keeps what
+    // neither the mirror nor the body took, which is how much of the water
+    // is drawn over it.
+    let veil = max(1.0 - (1.0 - fresnel) * through, 0.001);
+    let water = (sky * fresnel +
+                 inscatter * ((1.0 - fresnel) * (1.0 - through)) +
+                 glint + glow * crust) * (1.0 / veil);
 
-    // Froth is white and hides what is under it; the ripples break it up.
-    let froth = clamp(albedo.b * (0.75 + 2.0 * (slope.x + slope.y)), 0.0, 1.0);
+    // Froth where falling water drove air in, and where the flow runs fast
+    // enough to break — over water deep enough to break, not a film
+    // sliding over the ground: soft drifts of it the flow carries, as it
+    // carries the ripples, warped at two scales so no two are alike, thick
+    // where there is much air and torn into patches where there is little.
+    // The lace is a hand's breadth across, the size foam breaks into, so a
+    // little of it is flecks and not broad milky swirls.
+    // Dragged along no faster than a metre a second: where a falls lands
+    // the flow is fast and a pattern carried at its speed for a cycle is
+    // drawn out into scratches.
+    let foamFlow = flow * (1.0 / max(length(flow), 1.0));
+    let fa = here - foamFlow * (a * cycle);
+    let fb = here - foamFlow * (b * cycle);
+    let laceA = 0.55 * sin(9.7 * fa.x + 1.9 * sin(6.1 * fa.y + 1.3 * fa.x)) *
+                       sin(8.3 * fa.y + 1.6 * sin(5.9 * fa.x - 1.1 * fa.y)) +
+                0.45 * sin(3.1 * fa.x - 2.6 * fa.y + 1.4 * sin(2.3 * fa.y));
+    let laceB = 0.55 * sin(9.7 * fb.x + 1.9 * sin(6.1 * fb.y + 1.3 * fb.x)) *
+                       sin(8.3 * fb.y + 1.6 * sin(5.9 * fb.x - 1.1 * fb.y)) +
+                0.45 * sin(3.1 * fb.x - 2.6 * fb.y + 1.4 * sin(2.3 * fb.y));
+    let lace = 0.5 + 0.5 * mix(laceA, laceB, onB);
+    let speed = length(flow);
+    let breaking = 0.5 * smoothstep(2.2, 3.9, speed) * smoothstep(0.03, 0.1, depth);
+    let churn = clamp(albedo.b + breaking, 0.0, 1.0);
+    let froth = smoothstep(0.4, 1.0, churn * (0.3 + 0.9 * lace));
     let white = vec3(0.92, 0.95, 0.97) *
                 (ambient + sunColor * (0.45 * clamp(dot(n, toSun), 0.0, 1.0)));
+
+    // The front of water arriving over dry ground is drawn as what it is,
+    // a few millimetres the bed shows through: the veil above is then
+    // mostly the sky's sheen, so the front reads as wet ground and not as
+    // a pale slab laid over it.
     let above = mix(water, white, froth);
-    let aboveSeen = mix(seen, 1.0, froth);
+    let aboveSeen = mix(veil, 1.0, froth);
+
+    // Where the water ends: it thins out over its last six centimetres, so
+    // a film of a few millimetres over the bank is all but unseen rather
+    // than a pale sheet, and it is gone where the first texture coordinate
+    // passes nought; that line wavers by a centimetre of depth, so where
+    // the film is thin and the line runs along the cells they do not show.
+    let waver = sin(3.1 * here.x + 1.7 * sin(2.3 * here.y)) *
+                sin(2.7 * here.y + 1.9 * sin(1.3 * here.x));
+    let edge = smoothstep(0.0, 0.06, uv.x + 0.01 * waver);
 
     // From below, the surface is a window: light from the whole sky is
     // bent into a cone of 2·asin(1/1.33), 97°, over the eye (Snell's
@@ -138,6 +213,68 @@ material Liquid {
     let below = mix(mirrorBelow,
                     (skyThrough + sunThrough) * (1.0 - leaving) + mirrorBelow * leaving,
                     window);
-    return vec4(mix(above, below, under), mix(aboveSeen, 1.0, under));
+    let surfaceColour = mix(above, below, under);
+    let surfaceSeen = mix(aboveSeen, 1.0, under) * edge;
+
+    // The sheet falling off a lip is drawn with the same look, its second
+    // texture coordinate one and more: one plus how far below its lip it
+    // is, m, with the first how far along the lip, m; its colour's red how
+    // far down the whole fall it is, nought to one, its green how thick,
+    // and its alpha how much of it the edges and the foot leave. Water
+    // leaves the lip clear, a glassy tongue that mirrors the sky; it tears
+    // into streaks down the fall, each its own thickness, and lumps run
+    // down them as the flow pulses; air is torn in as it falls and it
+    // whitens, streak by streak, from the lip down; and in the last of the
+    // fall the streaks fray apart into the drops the core breaks it into.
+    // The pattern is pinned to the water, not the cliff: what is `down`
+    // below the lip left it √(2·down / g) ago.
+    let down = max(uv.y - 1.0, 0.0);
+    let fallen = albedo.r;
+    let thick = albedo.g;
+    let along = uv.x;
+    let left = time - sqrt(0.204 * down);
+    let lanes = 0.5 + 0.5 * sin(13.3 * along + 1.7 * sin(4.9 * along + 0.8 * left) +
+                                0.9 * sin(1.1 * left));
+    let strands = 0.5 + 0.5 * sin(37.1 * along + 2.3 * sin(9.7 * along - 1.4 * left));
+    let pulse = 0.5 + 0.5 * sin(13.0 * left + 2.1 * sin(3.7 * along));
+    let fibre = 0.5 * lanes + 0.3 * strands + 0.2 * pulse;
+    let aerated = clamp(smoothstep(0.1, 1.8, down + 0.6 * thick * down) *
+                        smoothstep(0.2, 0.7, fibre + 0.25 * smoothstep(1.0, 3.0, down)),
+                        0.0, 1.0);
+    let facesEye = 2.0 * step(0.0, dot(normal, view)) - 1.0;
+    let sn = normal * facesEye;
+    let sheetFacing = clamp(dot(sn, view), 0.0, 1.0);
+    let sheetFresnel = headOn + (1.0 - headOn) * pow(1.0 - sheetFacing, 5.0);
+    let sheetMirrored = sn * (2.0 * dot(sn, view)) - view;
+    let sheetRise = clamp(sheetMirrored.y, 0.0, 1.0);
+    let sheetSky = mix(horizon, zenith, sheetRise * (2.0 - sheetRise));
+    let sheetLit = ambient + sunColor * (0.3 + 0.3 * abs(dot(sn, toSun)));
+    let glassy = sheetSky * sheetFresnel + mix(deep, shallow, 0.7) * sheetLit * (1.0 - sheetFresnel);
+    // A liquid that lets no light through, molten rock, does not whiten:
+    // it falls in its own colour, glowing where it streams.
+    let clear = smoothstep(0.02, 0.1, clearness);
+    // Foam scatters the light it takes in every way, so it is bright on
+    // the side away from the sun as well.
+    let spume = mix(mix(deep, shallow, 0.6) * sheetLit,
+                    vec3(0.93, 0.96, 0.98) * (sheetLit + sunColor * 0.2), clear);
+    let sheetColour = mix(glassy, spume, aerated) + glow * (0.5 + 0.5 * fibre);
+    let shreds = 0.5 + 0.5 * sin(31.0 * along + 3.0 * sin(7.1 * along + 2.0 * left) +
+                                 9.0 * left);
+    let fray = smoothstep(0.45, 1.0, fallen);
+    let torn = mix(1.0, smoothstep(1.1 * fray - 0.15, 1.1 * fray + 0.1,
+                                   0.6 * fibre + 0.4 * shreds), fray);
+    let sheetBody = mix(mix(0.12 + 0.45 * sheetFresnel, 0.9, aerated), 0.97, 1.0 - clear);
+    let sheetSeen = alpha * sheetBody * torn;
+
+    // Mist where falling water lands, a cloud of spray an instance of a
+    // sphere: soft at its rim, so it is a haze and not a ball. Its
+    // instance numbers say how thick it is, and that it is mist.
+    let mistSeen = instance.x * pow(clamp(abs(dot(normal, view)), 0.0, 1.0), 2.5);
+    let mistColour = vec3(0.92, 0.95, 0.98) * (ambient + sunColor * 0.45);
+
+    let isSheet = step(0.5, uv.y);
+    let isMist = step(0.5, instance.w);
+    return vec4(mix(mix(surfaceColour, sheetColour, isSheet), mistColour, isMist),
+                mix(mix(surfaceSeen, sheetSeen, isSheet), mistSeen, isMist));
   }
 }

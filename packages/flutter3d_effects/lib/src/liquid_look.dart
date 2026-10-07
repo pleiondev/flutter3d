@@ -9,7 +9,8 @@ import 'package:vector_math/vector_math.dart';
 
 /// How a [LiquidView]'s surface is lit: ripples the flow carries, the sky
 /// mirrored as strongly as Fresnel says, the sun's glint, the colour a
-/// depth of water gives the bed under it, and froth where there is air.
+/// depth of water gives the bed under it, and froth where there is air or
+/// the flow runs fast enough to break.
 ///
 /// One look serves every water in a scene; [update] it once a frame.
 final class LiquidLook {

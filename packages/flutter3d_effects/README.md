@@ -28,9 +28,14 @@ adds nothing to it: every number on screen is read off the core.
 A **`LiquidView`** is one water: its surface, one vertex a cell, lit by the
 `LiquidLook` material with ripples the flow carries, the sky mirrored as
 strongly as Fresnel says, the colour a depth of water gives the bed and
-froth where falling water drove air in; the sheet off a lip drawn as one
-sheet, sewn row to row; the drops it breaks into; the bubbles it drags
-down.
+froth where falling water drove air in or the flow runs fast enough to
+break; the sheet off a lip drawn as one sheet, sewn row to row, clear
+where it is thin and milky where it is thick and has fallen far, thinning
+at its edges and into the drops it breaks into at its foot; the bubbles it
+drags down. The surface runs level into its
+banks and ends where it meets the ground, even over ground in steps a cell
+high, and where it falls from one level to another the sheet draws the
+fall, not a slanting wall of surface.
 
 A **`FireView`** is every fire of a world: tongues rising through each
 flame as fast as the gas in a real flame rises, along the axis the core
