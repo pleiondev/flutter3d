@@ -11,11 +11,24 @@ import 'package:vector_math/vector_math.dart';
 
 import 'car.dart';
 import 'crane.dart';
+import 'looks.dart';
 import 'props.dart';
 import 'terrain.dart';
 
 /// Floats a vertex of [VertexLayout.standard] takes.
 const int _stride = 16;
+
+/// How far up a face of the ground may look, its normal's rise, and still
+/// be drawn as a wall: steeper than about forty-five degrees.
+const double _steep = 0.7;
+
+/// The same on the volcano, where only the crater's lip, steeper than
+/// about sixty-five degrees, is a wall.
+const double _lip = 0.42;
+
+/// A little over the plateau's top, m: what lies higher by the volcano is
+/// the volcano.
+const double _plateau = 8.3;
 
 /// The valley, stepped and drawn.
 final class HollowRun {
@@ -25,10 +38,11 @@ final class HollowRun {
     required Renderer renderer,
     required this.water,
     required this.lava,
+    required HollowLooks looks,
     this.light = false,
   }) : _device = device {
     _ground = groundGrid();
-    _buildGround();
+    _buildGround(looks);
     _river = world.createShallowLiquid(
       nx: hollowCells,
       nz: hollowCells,
@@ -94,6 +108,7 @@ final class HollowRun {
       device,
       scene,
       Vector3(siteX, groundAt(siteX, siteZ - 6) + 1.2, siteZ - 6),
+      looks,
     );
     fire = FireView(
       world: world,
@@ -103,16 +118,16 @@ final class HollowRun {
       baseWidth: 0.5,
       detail: light ? FireDetail.light : FireDetail.full,
     );
-    stones = QuarryStones(world, device, scene);
-    idol = Idol(world, device, scene);
-    rafts = Rafts(world, device, scene, hearing, _river);
-    trees = Trees(world, device, scene, fire);
+    stones = QuarryStones(world, scene, looks);
+    idol = Idol(world, device, scene, looks);
+    rafts = Rafts(world, device, scene, hearing, _river, looks);
+    trees = Trees(world, scene, fire, looks);
     hearing
       ..listen(_river)
       ..listen(_lava, density: NativeLiquidProperties.moltenBasalt.density)
       ..watch(idol.body, _river);
-    village = Village(world, device, scene, fire);
-    volcano = Volcano(world, device, scene, _lava, village.huts);
+    village = Village(world, device, scene, fire, looks);
+    volcano = Volcano(world, device, scene, _lava, village.huts, looks);
     // On the quarry's north rim, facing into it.
     final craneAt = Vector3(
       quarryX,
@@ -125,6 +140,7 @@ final class HollowRun {
       scene,
       at: craneAt,
       facing: -1.5707963267948966,
+      beast: looks.beast,
     );
     _craneAt = craneAt;
   }
@@ -209,7 +225,7 @@ final class HollowRun {
   double get lagoonLevel =>
       world.sampleShallow(_river, lagoonX, lagoonZ)?.surface ?? 0.0;
 
-  void _buildGround() {
+  void _buildGround(HollowLooks looks) {
     final n = hollowCells;
     final vertices = Float32List(n * n * _stride);
     double at(int i, int j) =>
@@ -223,11 +239,17 @@ final class HollowRun {
           1.0,
           -(at(i, j + 1) - at(i, j - 1)) / (2 * hollowCell),
         )..normalize();
+        // Along u, which runs with x: east, bent to lie in the slope. Its
+        // fourth number turns the bitangent from −z to +z, the way v runs.
+        final tangent = (Vector3(1.0, 0.0, 0.0) - normal * normal.x)
+          ..normalize();
         final o = (i + j * n) * _stride;
-        // Tufts and bare patches: each vertex a few per cent lighter or
-        // darker than its neighbours, the same every run.
+        // What covers the ground is in the baked picture, which spans the
+        // whole valley; the colour of the vertices only shades it, a few
+        // per cent lighter or darker from one to the next, the same every
+        // run.
         final tuft = (((i * 73856093) ^ (j * 19349663)) & 0xff) / 255.0;
-        final colour = _colourAt(x, z, h, normal.y) * (0.9 + 0.2 * tuft);
+        final shade = 0.95 + 0.1 * tuft;
         vertices
           ..[o] = x
           ..[o + 1] = h
@@ -235,13 +257,15 @@ final class HollowRun {
           ..[o + 3] = normal.x
           ..[o + 4] = normal.y
           ..[o + 5] = normal.z
-          ..[o + 6] = x / 4
-          ..[o + 7] = z / 4
-          ..[o + 8] = 1
-          ..[o + 11] = 1
-          ..[o + 12] = colour.x
-          ..[o + 13] = colour.y
-          ..[o + 14] = colour.z
+          ..[o + 6] = x / hollowSize
+          ..[o + 7] = z / hollowSize
+          ..[o + 8] = tangent.x
+          ..[o + 9] = tangent.y
+          ..[o + 10] = tangent.z
+          ..[o + 11] = -1
+          ..[o + 12] = shade
+          ..[o + 13] = shade
+          ..[o + 14] = shade
           ..[o + 15] = 1;
       }
     }
@@ -256,6 +280,73 @@ final class HollowRun {
           i + 1 + (j + 1) * n,
         ],
     ];
+    // A picture seen from above has next to nothing to give a wall: the
+    // cliff, the quarry's sides and the crater's lip would wear a few pixels
+    // drawn out into streaks. Those faces are drawn apart, their rock laid
+    // on from the side.
+    Vector3 corner(int k) => Vector3(
+      vertices[k * _stride],
+      vertices[k * _stride + 1],
+      vertices[k * _stride + 2],
+    );
+    // The volcano's own slopes, above the plateau it stands on: the cliff
+    // under it is the plateau's rock, as the rest of the cliff is.
+    bool volcanic(int t) {
+      final a = corner(indices[t]);
+      return a.y > _plateau &&
+          Vector2(a.x - volcanoX, a.z - volcanoZ).length < volcanoRadius + 1.0;
+    }
+
+    // The cone's flanks keep the picture from above, which suits them; only
+    // the crater's lip is steep enough to need the side.
+    bool steep(int t) {
+      final a = corner(indices[t]);
+      final face = (corner(indices[t + 1]) - a).cross(
+        corner(indices[t + 2]) - a,
+      )..normalize();
+      return face.y.abs() < (volcanic(t) ? _lip : _steep);
+    }
+
+    final walls = <int>[
+      for (var t = 0; t < indices.length; t += 3)
+        if (steep(t)) t,
+    ];
+    final level = <int>[
+      for (var t = 0; t < indices.length; t += 3)
+        if (!steep(t)) ...indices.sublist(t, t + 3),
+    ];
+
+    _addWalls(
+      vertices,
+      indices,
+      <int>[
+        for (final t in walls)
+          if (!volcanic(t)) t,
+      ],
+      covered(
+        'cliff',
+        looks.granite,
+        // As the bare rock is in the baked picture where the walls meet it.
+        tint: Vector4(0.74, 0.72, 0.68, 1.0),
+        repeat: Vector2.all(1.0 / 5.0),
+        roughness: 0.95,
+      ),
+    );
+    _addWalls(
+      vertices,
+      indices,
+      <int>[
+        for (final t in walls)
+          if (volcanic(t)) t,
+      ],
+      covered(
+        'crater',
+        looks.basalt,
+        tint: Vector4(0.85, 0.8, 0.75, 1.0),
+        repeat: Vector2.all(1.0 / 6.0),
+        roughness: 0.95,
+      ),
+    );
     scene.add(
       MeshNode(
         DeviceMesh.upload(
@@ -263,10 +354,25 @@ final class HollowRun {
           MeshData(
             layout: VertexLayout.standard,
             vertices: vertices,
-            indices: Uint32List.fromList(indices),
+            indices: Uint32List.fromList(level),
           ),
         ),
-        Material(name: 'ground', roughness: 0.95),
+        Material(
+          name: 'ground',
+          lighting: repeating,
+          albedo: looks.ground,
+          // The baked picture is three centimetres a pixel; the relief of
+          // dry earth, repeating every two metres, is what the eye finds in
+          // the ground under the car.
+          normal: looks.groundRelief,
+          normalScale: 0.8,
+          roughness: 0.95,
+          textureTransforms: <MaterialMap, TextureTransform>{
+            MaterialMap.normal: TextureTransform(
+              scale: Vector2.all(hollowSize / 2.0),
+            ),
+          },
+        ),
         name: 'ground',
       ),
     );
@@ -285,32 +391,60 @@ final class HollowRun {
     );
   }
 
-  /// What the ground is at (x, z): grass on the level, bare rock where it
-  /// is steep or quarried, dark basalt on the volcano, sand by the water,
-  /// trodden earth where the village and the builder stand.
-  static Vector3 _colourAt(double x, double z, double h, double up) {
-    final steep = ((1.0 - up) * 4.0).clamp(0.0, 1.0);
-    final grass = Vector3(0.20, 0.32, 0.11);
-    final rock = Vector3(0.40, 0.38, 0.35);
-    final basalt = Vector3(0.12, 0.11, 0.11);
-    final sand = Vector3(0.62, 0.55, 0.40);
-    final earth = Vector3(0.36, 0.28, 0.19);
-    final dv = Vector3(x - volcanoX, 0, z - volcanoZ).length / volcanoRadius;
-    final dl = Vector3(x - lagoonX, 0, z - lagoonZ).length / lagoonRadius;
-    final dq = Vector3(
-      (x - quarryX) / quarryHalfX,
-      0,
-      (z - quarryZ) / quarryHalfZ,
-    ).length;
-    final dvill = Vector3(x - villageX, 0, z - villageZ).length / 8;
-    final dsite = Vector3(x - siteX, 0, z - siteZ).length / 4;
-    var c = grass + (rock - grass) * steep;
-    if (dl < 1.25) c = c + (sand - c) * ((1.25 - dl) * 2).clamp(0.0, 1.0);
-    if (dq < 1.1) c = c + (rock - c) * ((1.1 - dq) * 4).clamp(0.0, 1.0);
-    if (dv < 1.0) c = c + (basalt - c) * ((1.0 - dv) * 3).clamp(0.0, 1.0);
-    final trodden = 1.0 - (dvill < dsite ? dvill : dsite);
-    if (trodden > 0) c = c + (earth - c) * (trodden * 1.5).clamp(0.0, 0.8);
-    return c;
+  /// The triangles of the ground that start at each of [triangles] in
+  /// [indices], drawn in [material] as a mesh of their own: each corner
+  /// keeps its place and its normal, so the light runs on across the seam,
+  /// but takes its picture from the side the face looks to, along x or
+  /// along z, in metres, and upright.
+  void _addWalls(
+    Float32List ground,
+    List<int> indices,
+    List<int> triangles,
+    Material material,
+  ) {
+    if (triangles.isEmpty) return;
+    final vertices = Float32List(triangles.length * 3 * _stride);
+    var o = 0;
+    for (final t in triangles) {
+      final k = <int>[for (var c = 0; c < 3; c++) indices[t + c] * _stride];
+      final a = Vector3(ground[k[0]], ground[k[0] + 1], ground[k[0] + 2]);
+      final face =
+          (Vector3(ground[k[1]], ground[k[1] + 1], ground[k[1] + 2]) - a).cross(
+            Vector3(ground[k[2]], ground[k[2] + 1], ground[k[2] + 2]) - a,
+          );
+      // Looking east or west, the picture runs along z; else along x.
+      final alongZ = face.x.abs() > face.z.abs();
+      for (final s in k) {
+        for (var f = 0; f < _stride; f++) {
+          vertices[o + f] = ground[s + f];
+        }
+        final x = ground[s], y = ground[s + 1], z = ground[s + 2];
+        vertices
+          ..[o + 6] = alongZ ? z : x
+          ..[o + 7] = -y
+          ..[o + 8] = alongZ ? 0.0 : 1.0
+          ..[o + 9] = 0.0
+          ..[o + 10] = alongZ ? 1.0 : 0.0
+          ..[o + 11] = 1.0;
+        o += _stride;
+      }
+    }
+    scene.add(
+      MeshNode(
+        DeviceMesh.upload(
+          _device,
+          MeshData(
+            layout: VertexLayout.standard,
+            vertices: vertices,
+            indices: Uint32List.fromList(
+              List<int>.generate(triangles.length * 3, (k) => k),
+            ),
+          ),
+        ),
+        material,
+        name: material.name,
+      ),
+    );
   }
 
   /// One frame: the world on by [dt], and what is drawn of it.

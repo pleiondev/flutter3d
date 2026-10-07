@@ -33,3 +33,16 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+
+  # Read and written by `tool/bake_ground.dart`, which lays the ground's
+  # covers out into one picture; the application itself never decodes with it.
+  image: ^4.10.1
+
+flutter:
+  # The ground baked by `tool/bake_ground.dart`, the photographs the huts,
+  # the car and the stones are covered in, and the models of the pines, the
+  # rocks and the crane's beast. Where each came from is in
+  # `assets/CREDITS.md`.
+  assets:
+    - assets/textures/
+    - assets/models/

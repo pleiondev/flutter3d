@@ -5,6 +5,13 @@
 /// neck of four links each bending at its root and a head, every joint in
 /// reduced coordinates so the neck cannot come apart however heavy the
 /// stone; and the rope a distance joint from the jaw to the stone.
+///
+/// What is drawn is a sauropod, a skinned model, turning with the torso.
+/// Its neck has two bones and the core's has four links, so the bones are
+/// laid along the links every frame: the first from the neck's root to as
+/// far along the links as the model's first bone reaches along its own
+/// neck, the second from there to the head, each stretched or shortened to
+/// the span it is given, and the head held level at the neck's tip.
 library;
 
 import 'dart:math' as math;
@@ -21,11 +28,8 @@ const int _neckLinks = 4;
 /// what force their muscles drive them.
 const double _lift = 0.35, _swing = 0.5, _muscle = 4.0e5;
 
-Vector4 get _hide => Vector4(0.33, 0.40, 0.24, 1.0);
-Vector4 get _belly => Vector4(0.62, 0.58, 0.42, 1.0);
-
 /// The crane on the quarry's rim at [at], facing [facing] (radians about
-/// up, nought along +x).
+/// up, nought along +x), drawn as [beast].
 final class DinoCrane {
   DinoCrane(
     this._world,
@@ -33,6 +37,7 @@ final class DinoCrane {
     Scene scene, {
     required Vector3 at,
     required double facing,
+    required ModelAsset beast,
   }) {
     final turn = Quaternion.axisAngle(Vector3(0, 1, 0), facing);
     Vector3 local(double x, double y, double z) =>
@@ -47,13 +52,13 @@ final class DinoCrane {
     _world.setOrientation(root, turn);
     _crane = _world.createMultibody(root);
     // The torso, turning about up on the body's back.
-    final torso = _world.addBody(position: local(0.6, 2.4, 0), mass: 1800.0);
+    _torsoBody = _world.addBody(position: local(0.6, 2.4, 0), mass: 1800.0);
     _world
-      ..setShape(torso, NativeShape.box(Vector3(0.7, 0.4, 0.5)))
-      ..setOrientation(torso, turn);
+      ..setShape(_torsoBody, NativeShape.box(Vector3(0.7, 0.4, 0.5)))
+      ..setOrientation(_torsoBody, turn);
     _torso = _world.addLink(
       _crane,
-      torso,
+      _torsoBody,
       type: NativeJointType.revolute,
       anchor: local(0.6, 2.1, 0),
       axis: Vector3(0, 1, 0),
@@ -107,57 +112,49 @@ final class DinoCrane {
       type: NativeJointType.fixed,
       anchor: root2,
     );
-    _bodies.addAll(<NativeBody>[root, torso, ..._neckBodies, head]);
-    _looks.addAll(<MeshNode>[
-      _look(device, CuboidShape(size: Vector3(2.8, 1.8, 1.4)).build(), _hide),
-      _look(device, CuboidShape(size: Vector3(1.4, 0.8, 1.0)).build(), _belly),
-      for (var k = 0; k < _neckLinks; k++)
-        _look(
-          device,
-          CapsuleShape(
-            radius: _neckRadius * (1.0 - 0.12 * k),
-            height: _neckLength,
-          ).build(),
-          _hide,
-        ),
-      _look(device, CuboidShape(size: Vector3(0.7, 0.4, 0.4)).build(), _hide),
-    ]);
-    _looks.forEach(scene.add);
-    _rope = _look(
-      device,
-      const CylinderShape(
-        radiusTop: 0.025,
-        radiusBottom: 0.025,
-        height: 1.0,
-      ).build(),
-      Vector4(0.55, 0.45, 0.30, 1.0),
+    _beast = SceneNode(name: 'beast');
+    scene.add(_beast);
+    _pose = _NeckPose.dress(
+      beast,
+      scene,
+      _beast,
+      // Where the neck's root is from the torso's middle, in its own frame.
+      neckRoot: Vector3(0.6, 0.2, 0.0),
+      neckLength: _neckLinks * _neckLength,
+    );
+    _rope = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const CylinderShape(
+          radiusTop: 0.025,
+          radiusBottom: 0.025,
+          height: 1.0,
+        ).build(),
+      ),
+      Material(
+        name: 'rope',
+        baseColor: Vector4(0.55, 0.45, 0.30, 1.0),
+        roughness: 0.8,
+      ),
+      name: 'rope',
     )..visible = false;
     scene.add(_rope);
   }
 
   final NativeWorld _world;
   late final NativeMultibody _crane;
+  late final NativeBody _torsoBody;
   late final int _torso;
   final List<int> _neck = <int>[];
   final List<NativeBody> _neckBodies = <NativeBody>[];
-  final List<NativeBody> _bodies = <NativeBody>[];
-  final List<MeshNode> _looks = <MeshNode>[];
+  late final SceneNode _beast;
+  late final _NeckPose? _pose;
   late final MeshNode _rope;
   late final NativeBody head;
 
   /// The rope, and what hangs on it.
   NativeJoint? _hold;
   NativeBody? carried;
-
-  static MeshNode _look(
-    GraphicsDevice device,
-    MeshData shape,
-    Vector4 colour,
-  ) => MeshNode(
-    DeviceMesh.upload(device, shape),
-    Material(name: 'crane', baseColor: colour, roughness: 0.8),
-    name: 'crane',
-  );
 
   /// Where the jaw is.
   Vector3 get jaw => _world.positionOf(head);
@@ -208,12 +205,34 @@ final class DinoCrane {
 
   /// The crane drawn where the world has it.
   void update() {
-    for (var k = 0; k < _bodies.length; k++) {
-      final p = _world.positionOf(_bodies[k]);
-      _looks[k]
-        ..setPosition(p.x, p.y, p.z)
-        ..setRotation(_world.orientationOf(_bodies[k]));
-    }
+    // The neck's joints, root to tip, off the links' middles and the axes
+    // their orientations turn a capsule's y to, as a scene node turns it.
+    Vector3 axisOf(NativeBody link) => _world
+        .orientationOf(link)
+        .asRotationMatrix()
+        .transformed(Vector3(0, 1, 0));
+    final points = <Vector3>[
+      for (final link in _neckBodies)
+        _world.positionOf(link) - axisOf(link) * (0.5 * _neckLength),
+      _world.positionOf(_neckBodies.last) +
+          axisOf(_neckBodies.last) * (0.5 * _neckLength),
+    ];
+    // The beast faces the way the neck leaves the torso, whichever way the
+    // torso has turned.
+    final p = _world.positionOf(_torsoBody);
+    final ahead = (points.first - p)
+      ..y = 0
+      ..normalize();
+    final side = ahead.cross(Vector3(0, 1, 0));
+    _beast.setLocalMatrix(
+      Matrix4.columns(
+        Vector4(ahead.x, ahead.y, ahead.z, 0),
+        Vector4(0, 1, 0, 0),
+        Vector4(side.x, side.y, side.z, 0),
+        Vector4(p.x, p.y, p.z, 1),
+      ),
+    );
+    _pose?.follow(points);
     final stone = carried;
     if (stone != null) {
       final a = jaw, b = _world.positionOf(stone) + Vector3(0, 0.3, 0);
@@ -226,5 +245,185 @@ final class DinoCrane {
         )
         ..setScale(1.0, length, 1.0);
     }
+  }
+}
+
+/// The beast's model on the torso's node, and how its neck is laid along
+/// the core's.
+final class _NeckPose {
+  _NeckPose._(
+    this._skin,
+    this._mesh,
+    this._shoulders,
+    this._neck,
+    this._head,
+    this._reach,
+  );
+
+  /// Puts [beast] under [torso], sized so its neck from shoulders to head
+  /// is [neckLength] and placed so its shoulders stand at [neckRoot] in the
+  /// torso's frame; its +z, the way it faces, along the torso's +x. Every
+  /// bone is set to the pose it was skinned in. Null, and the beast stands
+  /// as it was modelled, if its skeleton has no shoulders, neck and head.
+  static _NeckPose? dress(
+    ModelAsset beast,
+    Scene scene,
+    SceneNode torso, {
+    required Vector3 neckRoot,
+    required double neckLength,
+  }) {
+    final placed = SceneNode(name: 'beast placed');
+    torso.add(placed);
+    final drawn = beast.instantiate(scene, parent: placed, name: 'beast');
+    // The file's hide is near black under this sun: a grey-green back and
+    // a paler belly, dull as skin is.
+    for (final look in drawn.meshes) {
+      final material = look.material
+        ..metallic = 0.0
+        ..roughness = 0.85;
+      material.baseColor.setFrom(
+        material.name == 'Brown'
+            ? Vector4(0.5, 0.52, 0.4, 1.0)
+            : Vector4(0.66, 0.6, 0.47, 1.0),
+      );
+    }
+    if (drawn.skeletons.isEmpty || drawn.meshes.isEmpty) return null;
+    final skin = drawn.skeletons.first;
+    final mesh = drawn.meshes.first;
+    int bone(String name) => skin.joints.indexWhere((j) => j.name == name);
+    final shoulders = bone('Shoulders'), neck = bone('Neck');
+    final head = bone('Head');
+    if (shoulders < 0 || neck < 0 || head < 0) return null;
+    // Every bone to its skinned pose, parents first. The file's own node
+    // pose is a frame of one of its clips, which bends the neck its own
+    // way.
+    int depth(SceneNode node) {
+      var n = 0;
+      for (var p = node.parent; p != null; p = p.parent) {
+        n++;
+      }
+      return n;
+    }
+
+    final order = List<int>.generate(skin.joints.length, (k) => k)
+      ..sort((a, b) => depth(skin.joints[a]).compareTo(depth(skin.joints[b])));
+    for (final k in order) {
+      _setWorld(
+        skin.joints[k],
+        mesh.worldMatrix.multiplied(skin.bindPoseOf(k)),
+      );
+    }
+    // Sized and placed off the bones, in the model's own frame (the
+    // instance stands at the world's origin until the first update).
+    Vector3 at(int k) =>
+        mesh.worldMatrix.multiplied(skin.bindPoseOf(k)).getTranslation();
+    final first = (at(neck) - at(shoulders)).length;
+    final second = (at(head) - at(neck)).length;
+    final scale = neckLength / (first + second);
+    // The model's (x, y, z) to the torso's (z, y, −x): its +z to +x.
+    final s = at(shoulders);
+    final offset = neckRoot - Vector3(s.z, s.y, -s.x) * scale;
+    placed.setLocalMatrix(
+      Matrix4.columns(
+        Vector4(0, 0, -scale, 0),
+        Vector4(0, scale, 0, 0),
+        Vector4(scale, 0, 0, 0),
+        Vector4(offset.x, offset.y, offset.z, 1),
+      ),
+    );
+    return _NeckPose._(
+      skin,
+      mesh,
+      shoulders,
+      neck,
+      head,
+      neckLength * first / (first + second),
+    );
+  }
+
+  final Skeleton _skin;
+  final MeshNode _mesh;
+  final int _shoulders, _neck, _head;
+
+  /// How far along the core's neck the model's first bone reaches, m.
+  final double _reach;
+
+  /// Lays the neck along [points], the core's neck joints root to tip.
+  void follow(List<Vector3> points) {
+    // The point [_reach] along the links.
+    var left = _reach;
+    var middle = points.last;
+    for (var k = 0; k + 1 < points.length; k++) {
+      final span = points[k + 1] - points[k];
+      final length = span.length;
+      if (left <= length) {
+        middle = points[k] + span * (left / length);
+        break;
+      }
+      left -= length;
+    }
+    final tip = points.last;
+    final world = _mesh.worldMatrix;
+    Matrix4 bind(int k) => world.multiplied(_skin.bindPoseOf(k));
+    final shoulders = bind(_shoulders), neck = bind(_neck);
+    final head = bind(_head);
+    _lay(_shoulders, shoulders, neck.getTranslation(), points.first, middle);
+    _lay(_neck, neck, head.getTranslation(), middle, tip);
+    // The head level, or nearly, whichever way the last link points: a
+    // beast keeps its eyes on the horizon however it holds its neck.
+    final last = tip - points[points.length - 2];
+    final ahead = Vector3(last.x, 0.25 * last.y, last.z)..normalize();
+    final headAlong = head.getColumn(1).xyz..normalize();
+    final turn = Quaternion.fromTwoVectors(headAlong, ahead);
+    _setWorld(
+      _skin.joints[_head],
+      _chain(<Matrix4>[
+        Matrix4.translation(tip),
+        Matrix4.compose(Vector3.zero(), turn, Vector3.all(1.0)),
+        Matrix4.translation(-head.getTranslation()),
+        head,
+      ]),
+    );
+  }
+
+  /// Bone [k], skinned at [bind] from its own origin to [end], laid from
+  /// [from] to [to]: turned the shortest way and stretched along itself.
+  void _lay(int k, Matrix4 bind, Vector3 end, Vector3 from, Vector3 to) {
+    final start = bind.getTranslation();
+    final was = end - start, wanted = to - from;
+    final along = was.normalized();
+    final stretch = wanted.length / was.length - 1.0;
+    final pull = Matrix4.identity();
+    for (var r = 0; r < 3; r++) {
+      for (var c = 0; c < 3; c++) {
+        pull.setEntry(r, c, pull.entry(r, c) + stretch * along[r] * along[c]);
+      }
+    }
+    final turn = Quaternion.fromTwoVectors(along, wanted.normalized());
+    _setWorld(
+      _skin.joints[k],
+      _chain(<Matrix4>[
+        Matrix4.translation(from),
+        Matrix4.compose(Vector3.zero(), turn, Vector3.all(1.0)),
+        pull,
+        Matrix4.translation(-start),
+        bind,
+      ]),
+    );
+  }
+
+  /// The product of [matrices], the first outermost.
+  static Matrix4 _chain(List<Matrix4> matrices) => matrices
+      .skip(1)
+      .fold(matrices.first.clone(), (sum, next) => sum..multiply(next));
+
+  /// Sets [node]'s own matrix so that its world matrix is [world].
+  static void _setWorld(SceneNode node, Matrix4 world) {
+    final parent = node.parent;
+    node.setLocalMatrix(
+      parent == null
+          ? world
+          : Matrix4.inverted(parent.worldMatrix).multiplied(world),
+    );
   }
 }

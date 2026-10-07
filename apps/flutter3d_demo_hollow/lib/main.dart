@@ -25,6 +25,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show preparePhysics;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/looks.dart';
 import 'src/sound.dart';
 import 'src/staging.dart';
 
@@ -119,12 +120,14 @@ class _HollowScreenState extends State<HollowScreen>
           LightNode(name: 'sun', intensity: 2.0)..setLocalForward(_sunAlong),
         )
         ..add(_camera);
+      final looks = await HollowLooks.load(device);
       final run = HollowRun(
         device: device,
         scene: scene,
         renderer: renderer,
         water: water,
         lava: lava,
+        looks: looks,
         // A phone draws less of the water and the fire.
         light:
             defaultTargetPlatform == TargetPlatform.android ||

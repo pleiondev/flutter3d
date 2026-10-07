@@ -9,6 +9,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'looks.dart';
 import 'terrain.dart';
 
 /// A body and what draws it.
@@ -21,11 +22,23 @@ final class Prop {
 
 /// Granite blocks lying in the quarry, eight hundred kilograms each: one
 /// the crane lifts and the car carries.
+///
+/// Each is drawn as a boulder squeezed to the block the core has, turned a
+/// different way so no two lie alike, in granite.
 final class QuarryStones {
-  QuarryStones(NativeWorld world, GraphicsDevice device, Scene scene)
+  QuarryStones(NativeWorld world, Scene scene, HollowLooks looks)
     : _world = world {
     final size = Vector3(0.9, 0.55, 0.6);
-    final mesh = DeviceMesh.upload(device, CuboidShape(size: size).build());
+    final boulder = looks.boulder;
+    final bounds = boulder.localBounds;
+    final extent = bounds.max - bounds.min;
+    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final granite = covered(
+      'granite',
+      looks.granite,
+      tint: Vector4(0.9, 0.88, 0.85, 1.0),
+      repeat: Vector2(2.0, 2.0),
+    );
     final random = math.Random(41);
     for (var k = 0; k < 6; k++) {
       final x = quarryX - 2.5 + (k % 3) * 2.2 + random.nextDouble() * 0.4;
@@ -38,16 +51,26 @@ final class QuarryStones {
         ..setShape(body, NativeShape.box(size * 0.5))
         ..setRounding(body, 0.04)
         ..setMaterial(body, NativeMaterial.stone());
-      final node = MeshNode(
-        mesh,
-        Material(
-          name: 'granite',
-          baseColor: Vector4(0.56, 0.54, 0.52, 1.0),
-          roughness: 0.85,
-        ),
-        name: 'granite',
+      // Half turns only, about each axis, so the boulder still fills the
+      // block's three sides; which half turn differs from block to block.
+      final flip = Quaternion.axisAngle(
+        <Vector3>[Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)][k % 3],
+        k < 3 ? math.pi : 0.0,
       );
+      final fit = SceneNode(name: 'granite fit')
+        ..setRotation(flip)
+        ..setScale(
+          size.x / extent.x * 1.06,
+          size.y / extent.y * 1.06,
+          size.z / extent.z * 1.06,
+        );
+      final node = SceneNode(name: 'granite')..add(fit);
       scene.add(node);
+      final drawn = boulder.instantiate(scene, parent: fit, name: 'granite');
+      drawn.root.setPosition(-centre.x, -centre.y, -centre.z);
+      for (final mesh in drawn.meshes) {
+        mesh.material = granite;
+      }
       stones.add(Prop(body, node));
     }
   }
@@ -84,15 +107,17 @@ final class Rafts {
     this._scene,
     this._hearing,
     this._river,
+    HollowLooks looks,
   ) : _logMesh = DeviceMesh.upload(
         device,
         const CylinderShape(
-          radiusTop: _logRadius,
+          radiusTop: _logRadius * 0.92,
           radiusBottom: _logRadius,
           height: 2 * _logHalf,
           segments: 12,
         ).build(),
-      );
+      ),
+      _bark = covered('log', looks.bark, repeat: Vector2(2.0, 1.5));
 
   /// A log's radius and half its length, m, and how many rafts ride at once.
   static const double _logRadius = 0.15, _logHalf = 0.8;
@@ -106,6 +131,7 @@ final class Rafts {
   final PhysicsHearing _hearing;
   final NativeShallowLiquid _river;
   final DeviceMesh _logMesh;
+  final Material _bark;
   final List<Prop> rafts = <Prop>[];
   double _since = _every - 3.0;
 
@@ -156,15 +182,7 @@ final class Rafts {
     final node = SceneNode(name: 'raft');
     for (final x in <double>[-0.31, 0.0, 0.31]) {
       node.add(
-        MeshNode(
-            _logMesh,
-            Material(
-              name: 'log',
-              baseColor: Vector4(0.42, 0.29, 0.17, 1.0),
-              roughness: 0.85,
-            ),
-            name: 'log',
-          )
+        MeshNode(_logMesh, _bark, name: 'log')
           ..setPosition(x, 0, 0)
           ..setRotation(
             Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
@@ -179,25 +197,12 @@ final class Rafts {
 
 /// Pines over the grass: a trunk and a crown of resinous needles, fixed
 /// where they grow, wood that a stray bomb can light as it lights a roof.
+///
+/// The core holds each as a trunk and a cone; what is drawn is one of two
+/// pine models, a little taller than the cone, at heights that differ from
+/// tree to tree.
 final class Trees {
-  Trees(this._world, GraphicsDevice device, Scene scene, FireView fire) {
-    final trunk = DeviceMesh.upload(
-      device,
-      const CylinderShape(
-        radiusTop: _trunkRadius * 0.7,
-        radiusBottom: _trunkRadius,
-        height: _trunkHeight,
-        segments: 10,
-      ).build(),
-    );
-    final crown = DeviceMesh.upload(
-      device,
-      const ConeShape(
-        radius: _crownRadius,
-        height: _crownHeight,
-        segments: 14,
-      ).build(),
-    );
+  Trees(this._world, Scene scene, FireView fire, HollowLooks looks) {
     final shape = _world.createCompound(<NativeCompoundPart>[
       NativeCompoundPart(
         const NativeShape.cylinder(_trunkRadius, _trunkHeight / 2),
@@ -211,6 +216,8 @@ final class Trees {
     ]);
     final lift = _world.compoundOffset(shape);
     final random = math.Random(5);
+    // Apart from [random], so the pines stand where they always stood.
+    final heights = math.Random(6);
     var tries = 0;
     while (trees.length < _count && tries++ < 2000) {
       final x = 6.0 + random.nextDouble() * (hollowSize - 12.0);
@@ -229,32 +236,26 @@ final class Trees {
         Vector3(0, 1, 0),
         random.nextDouble() * 2 * math.pi,
       );
-      final crownLook = MeshNode(
-        crown,
-        Material(
-          name: 'needles',
-          baseColor: Vector4(0.13, 0.24, 0.12, 1.0),
-          roughness: 0.9,
-        ),
-        name: 'needles',
-      )..setPosition(0, _crownBase + _crownHeight / 2, 0);
       final node = SceneNode(name: 'pine')
         ..setPosition(x, g, z)
-        ..setRotation(turn)
-        ..add(
-          MeshNode(
-            trunk,
-            Material(
-              name: 'bark',
-              baseColor: Vector4(0.32, 0.22, 0.14, 1.0),
-              roughness: 0.95,
-            ),
-            name: 'bark',
-          )..setPosition(0, _trunkHeight / 2, 0),
-        )
-        ..add(crownLook);
+        ..setRotation(turn);
       scene.add(node);
-      fire.watch(body, crownLook);
+      // Materials of its own, so a pine that burns chars alone.
+      final drawn = looks.pines[trees.length % looks.pines.length]
+          .instantiateFitted(
+            scene,
+            length: 5.0 + 1.4 * heights.nextDouble(),
+            axis: 1,
+            onGround: true,
+            parent: node,
+            name: 'pine',
+            shareMaterials: false,
+          );
+      // Sunk a hand's breadth, so no root shows on a slope.
+      drawn.root.translate(0, -0.1, 0);
+      for (final look in drawn.meshes) {
+        fire.watch(body, look);
+      }
       trees.add(Prop(body, node));
     }
   }
@@ -296,7 +297,7 @@ final class Trees {
 /// The elder's idol: carved granite lying on the lagoon's floor where the
 /// bank shelves, to be lifted onto the car and brought to the village.
 final class Idol {
-  Idol(this._world, GraphicsDevice device, Scene scene) {
+  Idol(this._world, GraphicsDevice device, Scene scene, HollowLooks looks) {
     final at = Vector3(lagoonX - 2.0, 0.0, lagoonZ + 5.1);
     at.y = groundAt(at.x, at.z) + _half.y;
     body = _world.addBody(
@@ -307,12 +308,36 @@ final class Idol {
       ..setShape(body, NativeShape.box(_half))
       ..setRounding(body, 0.03)
       ..setMaterial(body, NativeMaterial.stone());
+    // A squat figure turned from the stone: a broad base, the hips, a
+    // narrow waist, the shoulders and a round head, as tall as the block
+    // the core holds.
     _look = MeshNode(
-      DeviceMesh.upload(device, CuboidShape(size: _half * 2.0).build()),
-      Material(
-        name: 'idol',
-        baseColor: Vector4(0.42, 0.40, 0.36, 1.0),
-        roughness: 0.8,
+      DeviceMesh.upload(
+        device,
+        LatheShape(
+          profile: <Vector2>[
+            Vector2(0.0, -0.25),
+            Vector2(0.13, -0.25),
+            Vector2(0.13, -0.25),
+            Vector2(0.15, -0.17),
+            Vector2(0.14, -0.06),
+            Vector2(0.09, 0.02),
+            Vector2(0.13, 0.08),
+            Vector2(0.11, 0.12),
+            Vector2(0.06, 0.14),
+            Vector2(0.08, 0.17),
+            Vector2(0.075, 0.22),
+            Vector2(0.04, 0.245),
+            Vector2(0.0, 0.25),
+          ],
+          segments: 16,
+        ).build(),
+      ),
+      covered(
+        'idol',
+        looks.granite,
+        tint: Vector4(0.62, 0.58, 0.52, 1.0),
+        repeat: Vector2(1.0, 0.5),
       ),
       name: 'idol',
     );
@@ -379,22 +404,73 @@ final class Hut {
 }
 
 /// The village: four huts round a yard, fixed to the ground.
+///
+/// The core holds a hut's walls as a box; what is drawn is round, wattle
+/// daubed with clay, a doorway facing the yard, under a cone of thatch
+/// that hangs over the walls as the core's cone does.
 final class Village {
-  Village(this._world, GraphicsDevice device, Scene scene, FireView fire) {
+  Village(
+    this._world,
+    GraphicsDevice device,
+    Scene scene,
+    FireView fire,
+    HollowLooks looks,
+  ) {
     const half = 1.4, wall = 1.1;
+    // The wall, a little narrower at the top, open at both ends: the roof
+    // covers the one and the ground the other.
     final wallMesh = DeviceMesh.upload(
       device,
-      CuboidShape(size: Vector3(2 * half, 2 * wall, 2 * half)).build(),
+      LatheShape(
+        profile: <Vector2>[
+          Vector2(_round + 0.05, -wall),
+          Vector2(_round, wall),
+        ],
+        segments: 28,
+      ).build(),
     );
+    // The thatch: from under the eaves, where it rests on the wall, out
+    // over the drip edge and up to a knot of straw at the peak.
     final roofMesh = DeviceMesh.upload(
+      device,
+      LatheShape(
+        profile: <Vector2>[
+          Vector2(_round - 0.1, 0.05),
+          Vector2(_eaves + 0.1, -0.28),
+          Vector2(_eaves + 0.14, -0.16),
+          Vector2(_eaves + 0.06, -0.04),
+          Vector2(0.22, _peak - 0.05),
+          Vector2(0.12, _peak + 0.12),
+          Vector2(0.0, _peak + 0.18),
+        ],
+        segments: 32,
+      ).build().withGeneratedTangents(),
+    );
+    final doorway = DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(0.8, 1.4, 0.14)).build(),
+    );
+    // The doorway's frame: a post either side and a lintel over them, the
+    // bark left on.
+    final post = DeviceMesh.upload(
       device,
       const CylinderShape(
         radiusTop: 0.05,
-        radiusBottom: 2.3,
-        height: 1.8,
-        segments: 20,
+        radiusBottom: 0.055,
+        height: 1.5,
+        segments: 8,
       ).build(),
     );
+    final lintel = DeviceMesh.upload(
+      device,
+      const CylinderShape(
+        radiusTop: 0.055,
+        radiusBottom: 0.055,
+        height: 1.1,
+        segments: 8,
+      ).build(),
+    );
+    final frame = covered('door frame', looks.bark, repeat: Vector2(1.0, 2.0));
     final thatch = _thatch();
     // The core puts a compound's centre of mass on its body's origin: the
     // body stands that far above the walls' top for the cone to sit on it.
@@ -428,25 +504,59 @@ final class Village {
         ..setMaterial(roof, NativeMaterial.paper());
       final wallLook = MeshNode(
         wallMesh,
-        Material(
-          name: 'hut',
-          baseColor: Vector4(0.48, 0.36, 0.22, 1.0),
-          roughness: 0.9,
+        covered(
+          'hut',
+          looks.daub,
+          tint: Vector4(1.0, 0.9, 0.78, 1.0),
+          repeat: Vector2(5.0, 1.0),
         ),
         name: 'hut',
       )..setPosition(x, g + wall, z);
       final roofLook = MeshNode(
         roofMesh,
-        Material(
-          name: 'thatch',
-          baseColor: Vector4(0.72, 0.60, 0.33, 1.0),
-          roughness: 0.95,
+        covered(
+          'thatch',
+          looks.thatch,
+          // The photograph's straw is old and grey; this is a summer's.
+          tint: Vector4(1.25, 1.02, 0.66, 1.0),
+          repeat: Vector2(9.0, 1.6),
+          relief: looks.thatchRelief,
+          roughness: 1.0,
         ),
         name: 'thatch',
-      )..setPosition(x, g + 2 * wall + 0.9, z);
+      )..setPosition(x, g + 2 * wall, z);
+      // The doorway on the side that faces the yard: the dark inside, flush
+      // with the wall, in a frame of barked poles.
+      final toYard = math.atan2(villageX - x, villageZ - z);
+      final door = SceneNode(name: 'doorway')
+        ..setPosition(
+          x + (_round + 0.02) * math.sin(toYard),
+          g,
+          z + (_round + 0.02) * math.cos(toYard),
+        )
+        ..setRotation(Quaternion.axisAngle(Vector3(0, 1, 0), toYard))
+        ..add(
+          MeshNode(
+            doorway,
+            Material(
+              name: 'doorway',
+              baseColor: Vector4(0.05, 0.04, 0.03, 1.0),
+              roughness: 1.0,
+            ),
+            name: 'doorway',
+          )..setPosition(0, 0.7, -0.02),
+        )
+        ..add(MeshNode(post, frame, name: 'post')..setPosition(-0.45, 0.75, 0))
+        ..add(MeshNode(post, frame, name: 'post')..setPosition(0.45, 0.75, 0))
+        ..add(
+          MeshNode(lintel, frame, name: 'lintel')
+            ..setPosition(0, 1.46, 0)
+            ..setRotation(Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2)),
+        );
       scene
         ..add(wallLook)
-        ..add(roofLook);
+        ..add(roofLook)
+        ..add(door);
       fire
         ..watch(walls, wallLook)
         ..watch(roof, roofLook);
@@ -462,6 +572,10 @@ final class Village {
   /// The roof's cone: its radius at the eaves and its height, m, and how
   /// many sectors its thatch is in.
   static const double _eaves = 2.3, _peak = 1.8;
+
+  /// The drawn wall's radius at its top, m: as far out as the core's box
+  /// reaches at the middle of a side, and a little more.
+  static const double _round = 1.6;
   static const int _sectors = 6;
 
   /// One roof's thatch: [_sectors] wedges of the cone from its peak to its
@@ -530,16 +644,21 @@ final class Volcano {
     Scene scene,
     this._lava,
     this._huts,
+    HollowLooks looks,
   ) : _bombMesh = DeviceMesh.upload(
         device,
         const SphereShape(radius: 0.35, segments: 12, rings: 8).build(),
       ),
+      _basalt = looks.basalt,
       _scene = scene;
 
   final NativeWorld _world;
   final Scene _scene;
   final NativeShallowLiquid _lava;
   final DeviceMesh _bombMesh;
+
+  /// What a bomb is: the volcano's own black rock.
+  final TextureHandle? _basalt;
 
   /// What it throws at: the huts' roofs.
   final List<Hut> _huts;
@@ -662,11 +781,7 @@ final class Volcano {
       ..setVelocity(body, v);
     final node = MeshNode(
       _bombMesh,
-      Material(
-        name: 'bomb',
-        baseColor: Vector4(0.15, 0.12, 0.11, 1.0),
-        roughness: 0.9,
-      ),
+      covered('bomb', _basalt, repeat: Vector2(2.0, 1.0)),
       name: 'bomb',
     );
     _scene.add(node);
