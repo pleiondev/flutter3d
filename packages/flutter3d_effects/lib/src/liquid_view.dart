@@ -171,6 +171,8 @@ final class LiquidView {
   late final Float32List _sheetVertices;
   late final DeviceMesh _sheet;
   late final InstancedMeshNode _drops, _mist, _bubbles;
+  final List<_Puff> _puffs = <_Puff>[];
+  final Stopwatch _clock = Stopwatch()..start();
   final Matrix4 _m = Matrix4.identity();
 
   /// The surface, and the falling sheet.
@@ -409,7 +411,7 @@ final class LiquidView {
 
   void _drawDrops(Float32List spray) {
     sprayInFlight = spray.length ~/ nativeSprayFloats;
-    var drops = 0, mist = 0;
+    var drops = 0;
     for (var k = 0; k < sprayInFlight && drops < detail.drops; k++) {
       final o = k * nativeSprayFloats;
       if (spray[o + 9] == nativeSpraySheet) continue;
@@ -420,10 +422,10 @@ final class LiquidView {
         ..setTranslationRaw(spray[o], spray[o + 1], spray[o + 2])
         ..scaleByDouble(d, d, d, 1.0);
       _drops.setTransform(drops++, _m);
-      // Where it comes down on the water fast, every third drop is a puff
-      // of the mist the landing throws up as well: a plume over the foot of
-      // a falls, thick where most comes down, faint over a lone splash.
-      if (k % 3 == 0 && mist < _mist.capacity) {
+      // Where it comes down on the water fast, every third drop throws up
+      // a puff of mist as well: a plume over the foot of a falls, thick
+      // where most comes down, faint over a lone splash.
+      if (k % 3 == 0 && _puffs.length < _mist.capacity) {
         final i = ((spray[o] - liquid.origin.x) / liquid.cell).floor();
         final j = ((spray[o + 2] - liquid.origin.z) / liquid.cell).floor();
         if (i < 0 || j < 0 || i >= liquid.nx || j >= liquid.nz) continue;
@@ -435,19 +437,60 @@ final class LiquidView {
             spray[o + 3] * spray[o + 3] +
             spray[o + 4] * spray[o + 4] +
             spray[o + 5] * spray[o + 5];
-        if (water.isNaN || over > 1.5 * liquid.cell || speed2 < 6.0) continue;
-        final r = 0.35 + 0.5 * _hash(k);
-        _m
-          ..setIdentity()
-          ..setTranslationRaw(spray[o], spray[o + 1] + 0.3 * r, spray[o + 2])
-          ..scaleByDouble(r, r, r, 1.0);
-        _mist
-          ..setTransform(mist, _m)
-          ..setInstanceData(mist, Vector4(0.06, 0.0, 0.0, 1.0));
-        mist++;
+        // And it must be coming down: a drop thrown off a lip flies fast
+        // over the water it left, but it has not landed on it.
+        if (water.isNaN ||
+            over > 0.6 * liquid.cell ||
+            // Below the surface of the cell it is over, it is falling past
+            // a cliff whose top is wet, not landing on water.
+            over < -0.3 * liquid.cell ||
+            speed2 < 6.0 ||
+            spray[o + 4] > -2.0) {
+          continue;
+        }
+        _puffs.add(
+          _Puff(
+            Vector3(spray[o], spray[o + 1], spray[o + 2]),
+            // Thrown out the way the drop was going, slowed by the air.
+            Vector3(spray[o + 3] * 0.15, 0.0, spray[o + 5] * 0.15),
+            0.25 + 0.35 * _hash(k),
+          ),
+        );
       }
     }
     _drops.count = drops;
+    _drawMist();
+  }
+
+  /// The mist's puffs, each risen, grown, thinned and carried on by how
+  /// long it has hung in the air: a churning haze that drifts off the foot
+  /// of a falls and fades, rather than one cloud sitting on it.
+  void _drawMist() {
+    final seconds = _clock.elapsedMicroseconds / 1e6;
+    _clock.reset();
+    final dt = seconds.clamp(0.0, 0.1);
+    var mist = 0;
+    _puffs.removeWhere((p) {
+      p.age += dt;
+      if (p.age >= _Puff.life) return true;
+      p.at
+        ..add(p.drift * dt)
+        ..y += 0.45 * dt;
+      p.drift.scale(1.0 - 0.8 * dt);
+      final t = p.age / _Puff.life;
+      final r = p.size * (1.0 + 2.2 * t);
+      _m
+        ..setIdentity()
+        ..setTranslationRaw(p.at.x, p.at.y, p.at.z)
+        ..scaleByDouble(r, r * 0.8, r, 1.0);
+      // Thickest just after the landing, thinning as it spreads.
+      final thick = 0.07 * (1.0 - t) * (1.0 - t) * _smooth(0.0, 0.15, t);
+      _mist
+        ..setTransform(mist, _m)
+        ..setInstanceData(mist, Vector4(thick, 0.0, 0.0, 1.0));
+      mist++;
+      return false;
+    });
     _mist.count = mist;
   }
 
@@ -501,13 +544,21 @@ final class LiquidView {
     // cut edge. Two rows a step apart are a step's fall apart: a metre
     // between them is a tear, not a sheet.
     const torn = 1.0;
+    // The foot is the lowest piece of the run sewn unbroken to the lip:
+    // past the first tear the rest of the strand is drops, and a stretch
+    // sewn together again lower down is not where this one ends.
     final lip = <int, double>{}, foot = <int, double>{};
+    final broken = <int>{};
     for (var r = 0; r < rows.length; r++) {
       for (final MapEntry(key: face, value: o) in rows[r].entries) {
         lip.putIfAbsent(face, () => spray[o + 1]);
+        if (broken.contains(face)) continue;
         final above = r == 0 ? null : rows[r - 1][face];
-        if (above != null && apart(above, o) <= torn) {
+        if (above == null) continue;
+        if (apart(above, o) <= torn) {
           foot[face] = math.min(foot[face] ?? spray[o + 1], spray[o + 1]);
+        } else {
+          broken.add(face);
         }
       }
     }
@@ -633,3 +684,16 @@ final class LiquidView {
 /// A corner of the falling sheet: where it is, and what the look is told
 /// of it.
 typedef _SheetCorner = ({Vector3 at, Vector4 colour, (double, double) uv});
+
+/// A puff of mist off falling water landing: where it is, how it drifts,
+/// how big it began and how long it has hung in the air.
+final class _Puff {
+  _Puff(this.at, this.drift, this.size);
+
+  /// Seconds a puff hangs before it has thinned away.
+  static const double life = 1.6;
+
+  final Vector3 at, drift;
+  final double size;
+  double age = 0.0;
+}
