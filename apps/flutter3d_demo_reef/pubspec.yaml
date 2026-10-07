@@ -33,3 +33,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  # The ship, the diver, the finds, the rocks and the floor's pictures:
+  # whose they are is `assets/CREDITS.md`, and how they were made from what
+  # was published is `tool/prepare_models.py`.
+  assets:
+    - assets/models/
+    - assets/textures/

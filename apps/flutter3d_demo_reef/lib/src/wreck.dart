@@ -6,9 +6,12 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'launch.dart';
+import 'looks.dart';
 import 'terrain.dart';
 
 /// Where the ship's timbers rest: the floor under its middle.
@@ -16,13 +19,15 @@ double get wreckFloor => floorAt(wreckX, wreckZ);
 
 /// The ship: a keel and bottom, one side whole and the other broken off,
 /// her stem and stern posts, three deck beams across the open hold, and the
-/// mast fallen beside her.
+/// mast fallen beside her — solid as boxes, drawn as [look], a ship's hull
+/// the sea has had for a long time.
 final class Wreck {
   Wreck(
     NativeWorld world,
     GraphicsDevice device,
     Scene scene,
-    Material timber,
+    SeabedLook floor,
+    ReefModel look,
   ) {
     // Each piece: its half size, where it is in the ship's frame (x along
     // her length, bow forward), and a lean about her length.
@@ -69,16 +74,49 @@ final class Wreck {
     final ship = SceneNode(name: 'wreck')
       ..setPosition(wreckX, wreckFloor, wreckZ)
       ..setRotation(turn);
-    for (final (half, at, lean) in pieces) {
-      ship.add(
-        MeshNode(
-            DeviceMesh.upload(device, CuboidShape(size: half * 2.0).build()),
+    // What is drawn is a ship's hull, cut down to what the sand kept, sunk
+    // to her turn of bilge in the scour; the boxes above are what the diver
+    // meets of her. The deck beams are the one piece of them drawn as they
+    // are: the hull lost its decks, and three beams still span the hold.
+    // Her planking was painted dark and tarred; a century under water has
+    // bleached the wood grey and grown it over green, so the picture's
+    // grain is kept and its colour lifted towards that.
+    final weathered = Vector4(1.7, 1.85, 1.6, 1.0);
+    ship.add(
+      look.dress(floor, name: 'hull', recolour: (_) => weathered, lined: device)
+        ..setPosition(0.0, -_sunk, 0.0),
+    );
+    final timber = underWith(
+      floor,
+      'timber',
+      weathered,
+      picture: look.pieces.first.picture,
+    );
+    // Where her port side has fallen away, each beam's end still stands on
+    // the hold's stanchion under it: a post from her floor up, drawn
+    // only, too slight for a diver to be stopped by.
+    for (final (half, at, lean) in pieces.skip(5)) {
+      final stanchion = at.z - half.z + 0.3;
+      ship
+        ..add(
+          MeshNode(
+              DeviceMesh.upload(device, CuboidShape(size: half * 2.0).build()),
+              timber,
+              name: 'beam',
+            )
+            ..setPosition(at.x, at.y, at.z)
+            ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), lean)),
+        )
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3(0.16, at.y - half.y, 0.16)).build(),
+            ),
             timber,
-            name: 'timber',
-          )
-          ..setPosition(at.x, at.y, at.z)
-          ..setRotation(Quaternion.axisAngle(Vector3(1, 0, 0), lean)),
-      );
+            name: 'stanchion',
+          )..setPosition(at.x, (at.y - half.y) / 2, stanchion),
+        );
     }
     // The mast, fallen across the sand off her broken side.
     final mastAt = Vector3(1.5, 0.25, -wreckHalfBeam - 2.0);
@@ -91,24 +129,48 @@ final class Wreck {
     world
       ..setShape(mast, const NativeShape.cylinder(0.2, 6.0))
       ..setOrientation(mast, lying);
+    // Snapped a third of the way up: the stump end ragged, the top with its
+    // cap still on, half in the sand.
     ship.add(
       MeshNode(
           DeviceMesh.upload(
             device,
-            const CylinderShape(
-              radiusTop: 0.16,
-              radiusBottom: 0.2,
-              height: 12.0,
-            ).build(),
+            MeshData.merge(<MeshData>[
+              const CylinderShape(
+                radiusTop: 0.15,
+                radiusBottom: 0.21,
+                height: 11.0,
+                segments: 12,
+              ).build().transformed(Matrix4.translationValues(0, -0.5, 0)),
+              const ConeShape(
+                radius: 0.21,
+                height: 0.5,
+                segments: 12,
+              ).build().transformed(
+                Matrix4.compose(
+                  Vector3(0.05, -6.1, 0),
+                  Quaternion.axisAngle(Vector3(1, 0, 0), math.pi),
+                  Vector3(1.0, 1.0, 1.0),
+                ),
+              ),
+              CuboidShape(
+                size: Vector3(0.7, 0.25, 0.5),
+              ).build().transformed(Matrix4.translationValues(0, 5.1, 0)),
+            ]),
           ),
           timber,
           name: 'mast',
         )
-        ..setPosition(mastAt.x, mastAt.y, mastAt.z)
+        ..setPosition(mastAt.x, mastAt.y - 0.08, mastAt.z)
         ..setRotation(Quaternion.axisAngle(Vector3(0, 0, 1), math.pi / 2)),
     );
     scene.add(ship);
   }
+
+  /// How deep her hull is sunk in the sand, m: down to where her sides
+  /// begin to turn under, so what stands of her stands as high as her
+  /// timbers do.
+  static const double _sunk = 0.6;
 }
 
 /// The dive boat: afloat, anchored over the reef flat.
@@ -145,29 +207,10 @@ final class Boat {
         most:
             (_world.positionOf(anchor) - _world.positionOf(body)).length + 1.0,
       );
-    Material paint(Vector4 colour) =>
-        Material(name: 'boat', baseColor: colour, roughness: 0.6);
-    look = SceneNode(name: 'boat')
-      ..add(
-        MeshNode(
-          DeviceMesh.upload(
-            device,
-            CuboidShape(size: Vector3(4.8, 0.8, 2.0)).build(),
-          ),
-          paint(Vector4(0.85, 0.82, 0.76, 1.0)),
-          name: 'hull',
-        ),
-      )
-      ..add(
-        MeshNode(
-          DeviceMesh.upload(
-            device,
-            CuboidShape(size: Vector3(1.4, 0.9, 1.4)).build(),
-          ),
-          paint(Vector4(0.16, 0.30, 0.48, 1.0)),
-          name: 'cabin',
-        )..setPosition(0.6, 0.85, 0),
-      );
+    // Bow to the west, into the current, with the anchor's rope off her
+    // stem: the way a boat lies at anchor in a stream.
+    look = launchLook(device)
+      ..setRotation(Quaternion.axisAngle(Vector3(0, 1, 0), math.pi));
     scene.add(look);
   }
 

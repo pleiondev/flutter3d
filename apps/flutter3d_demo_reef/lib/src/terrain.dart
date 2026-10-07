@@ -8,6 +8,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:vector_math/vector_math.dart';
+
 /// The sea's side, m, and how many cells of its grid a side.
 const double reefSize = 64.0;
 const int seaCells = 64;
@@ -94,6 +96,58 @@ double floorAt(double x, double z) {
   if (scour < 1.0) h -= 0.6 * (1.0 - scour * scour);
   return h;
 }
+
+/// How much of rock the floor is at (x, z), nought sand to one reef: where
+/// the floor is steep, where a coral head rises off it, and in patches over
+/// the flat, whose top is old reef with sand lying in its hollows.
+double rockinessAt(double x, double z) {
+  const d = floorCell;
+  final normal = Vector3(
+    -(floorAt(x + d, z) - floorAt(x - d, z)) / (2 * d),
+    1.0,
+    -(floorAt(x, z + d) - floorAt(x, z - d)) / (2 * d),
+  )..normalize();
+  final steep = ((1.0 - normal.y) * 6.0).clamp(0.0, 1.0);
+  var head = 0.0;
+  for (final (cx, cz, r, _) in coralHeads) {
+    final d = math.sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz)) / r;
+    head = math.max(head, (1.4 - d * 1.2).clamp(0.0, 1.0));
+  }
+  final edge = wallTop + 2.0 * math.sin(z * 0.21);
+  final flat =
+      x < edge + 1.0 &&
+      math.sin(x * 0.9 + 2.0 * math.sin(z * 0.43)) +
+              math.sin(z * 0.7 + 1.3 * math.sin(x * 0.37)) >
+          0.6;
+  return math.max(math.max(steep, head), flat ? 1.0 : 0.0);
+}
+
+/// How far the floor that is drawn stands above the one the diver touches,
+/// m: where it is rock, lumps up to half a metre high and ledges down the
+/// wall, so the reef is a rough crust rather than a picture of one on a
+/// smooth slope; it gives out to nothing on the sand, as the reef does.
+/// The diver's solid floor stays the smooth one: a quarter of a metre
+/// under the lumps on most of the rock is too little to be seen to sink
+/// into it.
+double reliefAt(double x, double z) {
+  final t = ((rockinessAt(x, z) - 0.2) / 0.6).clamp(0.0, 1.0);
+  final lumps =
+      _noise(x * 1.1 + 31.0, z * 1.1 + 7.0) +
+      0.6 * _noise(x * 2.2 + 5.0, z * 2.2 + 13.0);
+  // Down the wall, ledges near three metres apart in depth and wandering,
+  // as a reef grows outwards in its own terraces: under each lip the wall
+  // is cut back into the solid floor rather than built out from it, so the
+  // diver swimming along it may hang off it but never stands inside it.
+  final h = floorAt(x, z);
+  final wall = _smooth(-5.0, -7.0, h) * _smooth(-15.5, -13.0, h);
+  final phase = h / 2.8 + 1.5 * _noise(x * 0.4 + 3.0, z * 0.4 + 11.0);
+  final under = 1.0 - (phase - phase.floorToDouble());
+  return t * t * (3.0 - 2.0 * t) * (0.4 * lumps - 1.3 * wall * under * under);
+}
+
+/// The floor that is drawn: [floorAt] with the reef's [reliefAt] on it,
+/// for whatever grows on the reef to stand on.
+double drawnFloorAt(double x, double z) => floorAt(x, z) + reliefAt(x, z);
 
 /// The sea's floor, a height a cell of a grid [cells] a side of [cell]
 /// metres, x fastest: the lowest of the floor over the cell, so whatever

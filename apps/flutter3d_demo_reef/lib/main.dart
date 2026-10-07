@@ -27,6 +27,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/diver.dart';
+import 'src/looks.dart';
 import 'src/sound.dart';
 import 'src/staging.dart';
 
@@ -133,6 +134,7 @@ class _ReefScreenState extends State<ReefScreen>
         scene: scene,
         surface: surface,
         floor: floor,
+        looks: await ReefLooks.load(device),
         // A phone draws less of the water and the fire.
         light:
             defaultTargetPlatform == TargetPlatform.android ||
@@ -272,12 +274,21 @@ class _ReefScreenState extends State<ReefScreen>
                 settings: () => RenderSettings(
                   exposure: 0.8,
                   bloom: const BloomSettings(enabled: false),
-                  sky: SkySettings(
-                    enabled: true,
-                    zenith: Vector3(0.20, 0.45, 0.85),
-                    horizon: Vector3(0.70, 0.82, 0.92),
-                    nadir: Vector3(0.05, 0.25, 0.32),
-                  ),
+                  // Under the surface, past the reef's edges is open water:
+                  // its own blue-green, lighter towards the light.
+                  sky: _under
+                      ? SkySettings(
+                          enabled: true,
+                          zenith: Vector3(0.10, 0.42, 0.52),
+                          horizon: Vector3(0.04, 0.24, 0.34),
+                          nadir: Vector3(0.01, 0.08, 0.14),
+                        )
+                      : SkySettings(
+                          enabled: true,
+                          zenith: Vector3(0.20, 0.45, 0.85),
+                          horizon: Vector3(0.70, 0.82, 0.92),
+                          nadir: Vector3(0.05, 0.25, 0.32),
+                        ),
                   // Under the surface the sun comes down in shafts through
                   // the water, scattered blue-green.
                   lightShafts: LightShaftSettings(
