@@ -1,0 +1,233 @@
+/// The car: a wooden bed on four stone rollers, pushed along by whoever
+/// sits in it — the physics core's vehicle, its wheels on springs.
+library;
+
+import 'dart:math' as math;
+
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
+import 'package:vector_math/vector_math.dart';
+
+/// The car's bed, m: half its length (along x, forward), height and width.
+const double _halfLength = 1.2, _halfHeight = 0.12, _halfWidth = 0.75;
+
+/// A roller's radius and half its width, m.
+const double _rollerRadius = 0.42, _rollerHalfWidth = 0.18;
+
+/// How hard the feet push at most, N, and with what power at most, W —
+/// two people running hard; how far the front rollers turn, radians; and
+/// how hard the brake holds, N.
+const double _push = 900.0, _power = 600.0, _steer = 0.45, _brake = 3000.0;
+
+/// A stone roller's rolling resistance on earth: a twentieth of the weight
+/// on it, as a cart's wooden wheel on a dirt road.
+const double _rolling = 0.05;
+
+/// What the car is made of: wood for the bed, granite for the rollers.
+Vector4 get _wood => Vector4(0.45, 0.31, 0.18, 1.0);
+Vector4 get _stone => Vector4(0.52, 0.50, 0.47, 1.0);
+
+/// The car on stone rollers.
+final class StoneCar {
+  StoneCar(this._world, GraphicsDevice device, Scene scene, Vector3 at) {
+    // The bed and its rails as one body: a deck with a low rail all round,
+    // so what is put on it stays on it.
+    const rail = 0.06;
+    final shape = _world.createCompound(<NativeCompoundPart>[
+      NativeCompoundPart(
+        NativeShape.box(Vector3(_halfLength, _halfHeight, _halfWidth)),
+      ),
+      for (final side in <double>[-1, 1])
+        NativeCompoundPart(
+          NativeShape.box(Vector3(_halfLength, 0.15, rail)),
+          at: Vector3(0, _halfHeight + 0.15, side * (_halfWidth - rail)),
+        ),
+      for (final end in <double>[-1, 1])
+        NativeCompoundPart(
+          NativeShape.box(Vector3(rail, 0.15, _halfWidth)),
+          at: Vector3(end * (_halfLength - rail), _halfHeight + 0.15, 0),
+        ),
+    ]);
+    body = _world.addBody(position: at, mass: 320.0);
+    _world
+      ..setCompound(body, shape)
+      ..setMaterial(body, NativeMaterial.wood());
+    vehicle = _world.createVehicle(
+      body,
+      up: Vector3(0.0, 1.0, 0.0),
+      forward: Vector3(1.0, 0.0, 0.0),
+    );
+    for (final (x, z) in <(double, double)>[
+      (0.8, -0.85),
+      (0.8, 0.85),
+      (-0.8, -0.85),
+      (-0.8, 0.85),
+    ]) {
+      _world.addWheel(vehicle, (
+        attach: Vector3(x, -0.05, z),
+        rest: 0.35,
+        radius: _rollerRadius,
+        // Stiff enough that a loaded bed sags a hand's breadth, damped near
+        // critically.
+        stiffness: 26000.0,
+        damping: 2600.0,
+        grip: 0.9,
+      ));
+    }
+    final plank = DeviceMesh.upload(
+      device,
+      CuboidShape(
+        size: Vector3(2 * _halfLength, 2 * _halfHeight, 2 * _halfWidth),
+      ).build(),
+    );
+    final railX = DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(2 * _halfLength, 0.3, 2 * rail)).build(),
+    );
+    final railZ = DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(2 * rail, 0.3, 2 * _halfWidth)).build(),
+    );
+    Material wood() =>
+        Material(name: 'wood', baseColor: _wood, roughness: 0.85);
+    _bed = SceneNode(name: 'car')
+      ..add(MeshNode(plank, wood(), name: 'deck'))
+      ..add(
+        MeshNode(railX, wood(), name: 'rail')
+          ..setPosition(0, _halfHeight + 0.15, _halfWidth - rail),
+      )
+      ..add(
+        MeshNode(railX, wood(), name: 'rail')
+          ..setPosition(0, _halfHeight + 0.15, -(_halfWidth - rail)),
+      )
+      ..add(
+        MeshNode(railZ, wood(), name: 'rail')
+          ..setPosition(_halfLength - rail, _halfHeight + 0.15, 0),
+      )
+      ..add(
+        MeshNode(railZ, wood(), name: 'rail')
+          ..setPosition(-(_halfLength - rail), _halfHeight + 0.15, 0),
+      );
+    // A barrel for water lashed at the back.
+    _barrel = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const CylinderShape(
+          radiusTop: 0.28,
+          radiusBottom: 0.28,
+          height: 0.6,
+          segments: 16,
+        ).build(),
+      ),
+      Material(
+        name: 'barrel',
+        baseColor: Vector4(0.30, 0.20, 0.11, 1.0),
+        roughness: 0.8,
+      ),
+      name: 'barrel',
+    )..setPosition(-_halfLength + 0.4, _halfHeight + 0.3, 0);
+    _bed.add(_barrel);
+    scene.add(_bed);
+    // A roller stands along y; turned to lie along z, its axle.
+    final roller = DeviceMesh.upload(
+      device,
+      const CylinderShape(
+        radiusTop: _rollerRadius,
+        radiusBottom: _rollerRadius,
+        height: 2 * _rollerHalfWidth,
+        segments: 18,
+      ).build(),
+    );
+    for (var k = 0; k < 4; k++) {
+      final look = MeshNode(
+        roller,
+        Material(name: 'roller', baseColor: _stone, roughness: 0.9),
+        name: 'roller',
+      )..setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2));
+      final node = SceneNode(name: 'wheel')..add(look);
+      scene.add(node);
+      _rollers.add(node);
+    }
+  }
+
+  final NativeWorld _world;
+  late final NativeBody body;
+  late final NativeVehicle vehicle;
+  late final SceneNode _bed;
+  late final MeshNode _barrel;
+  final List<SceneNode> _rollers = <SceneNode>[];
+
+  /// Kilograms of water in the barrel; a hundred is full.
+  double water = 0.0;
+  static const double barrelHolds = 100.0;
+
+  /// Where the car is and which way it faces.
+  Vector3 get position => _world.positionOf(body);
+  Quaternion get orientation => _world.orientationOf(body);
+  Vector3 get forward => orientation.rotated(Vector3(1.0, 0.0, 0.0));
+
+  /// What the driver asks: [throttle] and [turn] from −1 to 1, and whether
+  /// they [hold] the brake.
+  void drive({
+    required double throttle,
+    required double turn,
+    required bool hold,
+  }) {
+    // The feet push as hard as they can until their power runs out:
+    // F = min(F_max, P / v).
+    final speed = _world.velocityOf(body).length;
+    final force = speed > 0.1 ? (_power / speed).clamp(0.0, _push) : _push;
+    final weight = (_world.massOf(body)) * 9.81 / 4;
+    // Nobody pushing and nearly still: the driver's feet are down, or a
+    // stone is under a roller, and the car stays where it was left.
+    final parked = hold || (throttle == 0 && speed < 0.5);
+    for (var k = 0; k < 4; k++) {
+      final front = k < 2;
+      _world.setWheel(
+        vehicle,
+        k,
+        steer: front ? _steer * turn : 0.0,
+        drive: front ? 0.0 : 0.5 * force * throttle,
+        brake: parked ? _brake : _rolling * weight,
+      );
+    }
+  }
+
+  /// Back on its rollers where it lies, facing the way it faced.
+  void rightUp() {
+    final p = position;
+    final f = forward..y = 0;
+    final heading = f.length2 > 0 ? math.atan2(-f.z, f.x) : 0.0;
+    _world
+      ..setPosition(body, Vector3(p.x, p.y + 1.5, p.z))
+      ..setOrientation(body, Quaternion.axisAngle(Vector3(0, 1, 0), heading))
+      ..setVelocity(body, Vector3.zero())
+      ..setAngularVelocity(body, Vector3.zero());
+  }
+
+  /// The car drawn where the world has it.
+  void update() {
+    final p = position;
+    final q = orientation;
+    _bed
+      ..setPosition(p.x, p.y, p.z)
+      ..setRotation(q);
+    _barrel.material.baseColor.setValues(
+      0.30 - 0.12 * water / barrelHolds,
+      0.20 - 0.06 * water / barrelHolds,
+      0.11 + 0.10 * water / barrelHolds,
+      1.0,
+    );
+    final wheels = _world.wheelsOf(vehicle);
+    for (var k = 0; k < wheels.length; k++) {
+      final w = wheels[k];
+      final turn =
+          q *
+          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), w.steer) *
+          Quaternion.axisAngle(Vector3(0.0, 0.0, -1.0), w.rotation);
+      _rollers[k]
+        ..setPosition(w.centre.x, w.centre.y, w.centre.z)
+        ..setRotation(turn);
+    }
+  }
+}

@@ -1,0 +1,32 @@
+name: flutter3d_demo_hollow
+description: "Cobble Hollow: a stone-age valley on the physics core — a car on stone wheels, a long-necked crane, a river over a waterfall into a lagoon, and a volcano that sets the village alight."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer, and what every application repeats over it: the device
+  # `openDevice` picks, the frame surface and clock.
+  flutter3d: ^0.9.0
+  flutter3d_app: ^0.9.0
+
+  # Everything that moves: the car, the crane, the stones, the river, the
+  # lava and the fires.
+  flutter3d_physics_native: ^0.9.0
+
+  # The river, the lava and the fires, drawn.
+  flutter3d_effects: ^0.9.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
