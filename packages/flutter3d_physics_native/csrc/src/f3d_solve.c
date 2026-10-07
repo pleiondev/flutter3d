@@ -949,7 +949,15 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     sb->turn = s->orientation;
     sb->bullet = -1;
     if (moves(s)) {
-      sb->inverse_mass = s->inverse_mass;
+      /* The water a body must move with it is mass the contacts and
+       * joints push too: a bag of air on a rope, its own two kilograms and
+       * fifty of water round it, passes its lift to what it holds rather
+       * than spending it on the water. Its weight stays its own; the
+       * integrator already gives it (m g + F) / (m + mₐ). */
+      sb->inverse_mass =
+          s->added_mass > F3D_R(0.0)
+              ? F3D_R(1.0) / (F3D_R(1.0) / s->inverse_mass + s->added_mass)
+              : s->inverse_mass;
       sb->inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
     }
   }

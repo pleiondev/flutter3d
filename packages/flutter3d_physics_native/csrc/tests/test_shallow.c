@@ -424,6 +424,34 @@ static void test_a_light_ball_carries_water_with_it(void) {
   f3d_world_destroy(w);
 }
 
+static void test_a_bag_of_air_lifts_what_it_is_tied_to(void) {
+  /* A stone of thirty kilograms on the bottom of a pool eight metres deep,
+   * a rope of a metre to a bag of 113 litres of air: the bag's lift less
+   * the stone's weight in water is some 88 kilograms up, and the stone
+   * goes with the bag. The bag's own two kilograms carry fifty of water
+   * with them; were the rope to see only those two, it would pass the
+   * stone a twenty-sixth of the lift and leave it where it lay. */
+  F3dWorld *w = f3d_world_create();
+  f3d_real *ground = (f3d_real *)calloc(16 * 16, sizeof(f3d_real));
+  const F3dShallow water = f3d_shallow_create(w, 16, 16, F3D_R(0.5), 0, 0, 0, ground);
+  free(ground);
+  f3d_shallow_fill(w, water, -9, -9, 99, 99, 8);
+  const F3dBody stone = f3d_body_create(w, F3D_BODY_DYNAMIC, 4, F3D_R(0.1), 4, 30);
+  f3d_body_set_shape(w, stone, F3D_SHAPE_SPHERE, F3D_R(0.1), 0, 0);
+  const F3dBody bag = f3d_body_create(w, F3D_BODY_DYNAMIC, 4, F3D_R(1.1), 4, 2);
+  f3d_body_set_shape(w, bag, F3D_SHAPE_SPHERE, F3D_R(0.3), 0, 0);
+  const F3dJoint rope = f3d_joint_create_distance(w, stone, bag, 4, F3D_R(0.1), 4, 4,
+                                                  F3D_R(1.1), 4);
+  CHECK(rope != 0);
+  run(w, 60);
+  f3d_real at[3], v[3];
+  f3d_body_get_position(w, stone, at);
+  f3d_body_get_velocity(w, stone, v);
+  CHECK(at[1] > F3D_R(0.5));
+  CHECK(v[1] > F3D_R(0.5));
+  f3d_world_destroy(w);
+}
+
 /* Every cell's x momentum, kg·m/s. */
 static double water_momentum_x(F3dWorld *w, F3dShallow water, uint32_t n, f3d_real cell) {
   f3d_real *depth = (f3d_real *)malloc(n * sizeof(f3d_real));
@@ -662,6 +690,7 @@ static void test_spring_and_drain_make_a_current(void) {
 int main(void) {
   test_refusals();
   test_spring_and_drain_make_a_current();
+  test_a_bag_of_air_lifts_what_it_is_tied_to();
   test_lake_at_rest();
   test_dam_break();
   test_waterfall();

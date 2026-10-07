@@ -23,6 +23,14 @@
   follows from how strongly it radiates; nothing else is cut.
   `F3D_ABI_VERSION` is 27.
 
+- **A bag of air lifts what it is tied to.** The water a body carries with
+  it was taken into its own motion and nowhere else, so a rope or a
+  contact pushing on a light body in water saw only its own mass: a bag of
+  two kilograms and fifty of water round it passed what it held a
+  twenty-sixth of its lift. Contacts and joints now push the water's mass
+  too, and a stone of thirty kilograms on the bottom rises on a rope under
+  113 litres of air.
+
 - **A spring and a drain make a current.** A shallow liquid's spring now
   takes a negative rate and draws water off, as far as there is water to
   draw. One at each end of a closed sea at one rate moves water from the
